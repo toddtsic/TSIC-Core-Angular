@@ -786,7 +786,7 @@ public sealed class LadtService : ILadtService
         return MapTeam(team, 0);
     }
 
-    public async Task<TeamDetailDto> UpdateTeamAsync(Guid teamId, UpdateTeamRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default)
+    public async Task<TeamDetailDto> UpdateTeamAsync(Guid teamId, UpdateTeamRequest request, Guid jobId, string userId, bool isSuperUser, CancellationToken cancellationToken = default)
     {
         await ValidateTeamOwnershipAsync(teamId, jobId, cancellationToken);
         var team = await _teamRepo.GetTeamFromTeamId(teamId, cancellationToken)
@@ -799,6 +799,13 @@ public sealed class LadtService : ILadtService
         var teamNameChanged = request.TeamName != null && oldTeamName != null
             && !string.Equals(oldTeamName, request.TeamName, StringComparison.Ordinal)
             && !oldTeamName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase);
+
+        // Ownership gate (mirrors TeamSearchService.EditTeamAsync): a club-linked team's name is the
+        // club's library identity — renaming fans out to other customers' schedules, so SuperUser only.
+        if (teamNameChanged && team.ClubTeamId != null && !isSuperUser)
+            throw new InvalidOperationException(
+                "This team's name comes from its club's team library and appears in other events' schedules. "
+                + "Only TSIC support can rename it — ask the club rep to rename it in their team library, or contact support.");
 
         if (request.Active.HasValue) team.Active = request.Active;
         if (request.DivisionRequested != null) team.DivisionRequested = request.DivisionRequested;

@@ -145,6 +145,12 @@ public record DivisionTeamDto
     public required int DivRank { get; init; }
     public string? ClubName { get; init; }
     public string? TeamName { get; init; }
+
+    /// <summary>
+    /// Club-team library row this event copy descends from. Null for an orphan team. When set, a
+    /// rename fans out to every job holding a copy — the UI locks the name for non-SuperUser admins.
+    /// </summary>
+    public int? ClubTeamId { get; init; }
 }
 
 /// <summary>

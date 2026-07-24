@@ -13,6 +13,8 @@ import { CloneTeamDialogComponent } from './clone-team-dialog.component';
 import { JobService } from '../../../../infrastructure/services/job.service';
 import type { TeamDetailDto, UpdateTeamRequest, ClubRegistrationDto, MoveTeamToClubRequest, JobFeeDto } from '../../../../core/api';
 import { RoleIds } from '@infrastructure/constants/roles.constants';
+import { AuthService } from '@infrastructure/services/auth.service';
+import { buildRenameImpactMessage } from '@shared/teams/rename-impact';
 
 const PLAYER_ROLE = RoleIds.Player;
 const CLUBREP_ROLE = RoleIds.ClubRep;
@@ -122,7 +124,14 @@ const JOB_TYPE_TOURNAMENT = 2;
           <div class="d-flex align-items-end gap-2 mb-2">
             <div class="flex-grow-1">
               <label class="fee-label">Team Name</label>
-              <input class="form-control form-control-sm" [(ngModel)]="form.teamName" name="teamName" (ngModelChange)="onSettingsChange()">
+              <input class="form-control form-control-sm" [(ngModel)]="form.teamName" name="teamName"
+                     (ngModelChange)="onSettingsChange()" [disabled]="!canEditTeamName()">
+              @if (!canEditTeamName()) {
+                <div class="small text-body-secondary mt-1">
+                  <i class="bi bi-lock me-1" aria-hidden="true"></i>Name comes from the club's team library
+                  (used across events) — ask the club rep to rename it, or contact TSIC support.
+                </div>
+              }
             </div>
             <div class="form-check form-switch" style="padding-bottom: 4px;">
               <input class="form-check-input" type="checkbox" [(ngModel)]="form.active" name="active" (ngModelChange)="onSettingsChange()">
@@ -296,6 +305,18 @@ const JOB_TYPE_TOURNAMENT = 2;
       />
     }
 
+    <!-- Club-linked rename: affected-jobs warning (SuperUser; mirrors the admin club-rename modal) -->
+    @if (showRenameConfirm()) {
+      <confirm-dialog
+        title="Rename Team Everywhere?"
+        [message]="renameConfirmMessage()"
+        confirmLabel="Rename Team"
+        confirmVariant="warning"
+        (confirmed)="confirmRename()"
+        (cancelled)="cancelRename()"
+      />
+    }
+
   `,
   styles: [`
     :host { display: block; }
@@ -326,6 +347,7 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
   readonly dropped = output<void>();
 
   private readonly ladtService = inject(LadtService);
+  private readonly auth = inject(AuthService);
   private readonly jobService = inject(JobService);
   private readonly feeReprice = inject(FeeRepriceService);
   private readonly editGuard = inject(LadtEditGuardService);
@@ -369,6 +391,16 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
   moreOpen = signal(false);
   showChangeClubWarning = signal(false);
   showCloneDialog = signal(false);
+
+  /** Orphan teams: any admin (rename stays in this job). Club-linked: SuperUser only — the name is
+   *  the club's library identity and renaming fans out to other customers' schedules (server enforces). */
+  readonly canEditTeamName = computed(() => this.team()?.clubTeamId == null || this.auth.isSuperuser());
+
+  // Club-linked rename confirm (SuperUser): affected-jobs warning before the save pipeline runs.
+  showRenameConfirm = signal(false);
+  renameConfirmMessage = signal('');
+  /** One acknowledgment per save attempt; reset when the team (re)loads. */
+  private renameAcknowledged = false;
 
   editMode = signal<'fee-amount' | 'fee-phase' | 'settings' | null>(null);
   readonly feesAmountLocked = computed(() => this.editMode() === 'fee-phase' || this.editMode() === 'settings');
@@ -483,6 +515,8 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
     this.saveMessage.set(null);
     this.showDropConfirm.set(false);
     this.showChangeClub.set(false);
+    this.renameAcknowledged = false;
+    this.showRenameConfirm.set(false);
     this.editMode.set(null);
 
     this.ladtService.getTeam(this.teamId()).subscribe({
@@ -541,6 +575,29 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
     if (depErr) {
       this.isError.set(true);
       this.saveMessage.set(depErr);
+      return;
+    }
+
+    // Club-linked rename → affected-jobs confirm before the save/reprice pipeline (SuperUser; the
+    // field is locked for other admins so it can't be dirty). One acknowledgment per save attempt.
+    const renameNeedsConfirm = !this.renameAcknowledged
+      && this.team()?.clubTeamId != null
+      && (this.form.teamName ?? '') !== (this.team()?.teamName ?? '');
+    if (renameNeedsConfirm) {
+      const oldName = this.team()?.teamName ?? '';
+      const newName = (this.form.teamName ?? '').trim();
+      this.ladtService.getRenameImpact(this.teamId()).subscribe({
+        next: (jobs) => {
+          this.renameConfirmMessage.set(buildRenameImpactMessage(oldName, newName, jobs));
+          this.showRenameConfirm.set(true);
+        },
+        error: () => {
+          // Impact is advisory — never block the rename on the preview failing.
+          this.renameConfirmMessage.set(buildRenameImpactMessage(oldName, newName, []));
+          this.showRenameConfirm.set(true);
+          this.toast.show('Could not load affected schedules — the rename still applies everywhere.', 'warning', 4000);
+        }
+      });
       return;
     }
 
@@ -683,6 +740,7 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
         }
         this.isSaving.set(false);
         this.isError.set(false);
+        this.renameAcknowledged = false;
         this.saveMessage.set(this.savedMessage(results, 'Team saved successfully.'));
         this.captureOriginals();
         this.editMode.set(null);
@@ -725,6 +783,17 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
   onRepriceCancel(): void {
     this.repriceDialog.set(null);
     this.isSaving.set(false);
+  }
+
+  /** Club-linked rename acknowledged — re-enter save(), which now falls through to the pipeline. */
+  confirmRename(): void {
+    this.renameAcknowledged = true;
+    this.showRenameConfirm.set(false);
+    this.save();
+  }
+
+  cancelRename(): void {
+    this.showRenameConfirm.set(false);
   }
 
   private savedMessage(results: any[], plain: string): string {

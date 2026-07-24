@@ -25,6 +25,7 @@ import { AutoBuildService } from '../auto-build/services/auto-build.service';
 import { ScheduleQaService } from '../qa-results/services/schedule-qa.service';
 import { TimeslotService } from '../timeslots/services/timeslot.service';
 import { formatTime, teamDes, contrastText, agTeamCount } from '../shared/utils/scheduling-helpers';
+import { buildRenameImpactMessage } from '@shared/teams/rename-impact';
 import { findTimeClashInRow } from '../shared/utils/conflict-detection';
 import type { ScheduleScope } from '../shared/utils/scheduling-helpers';
 import { DivisionNavigatorComponent } from '../shared/components/division-navigator/division-navigator.component';
@@ -334,8 +335,19 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
 
     // ── Teams state ──
     readonly divisionTeams = signal<DivisionTeamDto[]>([]);
-    readonly editingTeam = signal<{ teamId: string; divRank: number; teamName: string; clubName: string } | null>(null);
+    readonly editingTeam = signal<{ teamId: string; divRank: number; teamName: string; originalTeamName: string; clubName: string; clubTeamId: number | null } | null>(null);
     readonly isSavingTeam = signal(false);
+
+    /** Orphan teams: any admin (rename stays in this job). Club-linked: SuperUser only — the name is
+     *  the club's library identity and renaming fans out to other customers' schedules (server enforces). */
+    readonly canEditTeamName = computed(() => {
+        const t = this.editingTeam();
+        return t == null || t.clubTeamId == null || this.auth.isSuperuser();
+    });
+
+    // Club-linked rename confirm (SuperUser): affected-jobs warning before the save fires.
+    readonly showRenameConfirm = signal(false);
+    readonly renameConfirmMessage = signal('');
 
     // ── Who Plays Who ──
     readonly whoPlaysWhoMatrix = signal<number[][] | null>(null);
@@ -923,16 +935,20 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
     // ── Team Editing (modal) ──
 
     openTeamEditModal(team: DivisionTeamDto): void {
+        this.showRenameConfirm.set(false);
         this.editingTeam.set({
             teamId: team.teamId,
             divRank: team.divRank,
             teamName: team.teamName ?? '',
-            clubName: team.clubName ?? ''
+            originalTeamName: team.teamName ?? '',
+            clubName: team.clubName ?? '',
+            clubTeamId: team.clubTeamId ?? null
         });
     }
 
     closeTeamEditModal(): void {
         this.editingTeam.set(null);
+        this.showRenameConfirm.set(false);
     }
 
     updateEditingRank(rank: number): void {
@@ -946,6 +962,40 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
     }
 
     saveTeamEdit(): void {
+        const team = this.editingTeam();
+        if (!team) return;
+
+        // Club-linked rename → affected-jobs confirm first (SuperUser; the field is locked for
+        // other admins so it can't be dirty here).
+        if (team.clubTeamId != null && team.teamName !== team.originalTeamName) {
+            this.svc.getRenameImpact(team.teamId).subscribe({
+                next: (jobs) => {
+                    this.renameConfirmMessage.set(buildRenameImpactMessage(team.originalTeamName, team.teamName.trim(), jobs));
+                    this.showRenameConfirm.set(true);
+                },
+                error: () => {
+                    // Impact is advisory — never block the rename on the preview failing.
+                    this.renameConfirmMessage.set(buildRenameImpactMessage(team.originalTeamName, team.teamName.trim(), []));
+                    this.showRenameConfirm.set(true);
+                    this.toast.show('Could not load affected schedules — the rename still applies everywhere.', 'warning', 4000);
+                }
+            });
+            return;
+        }
+
+        this.doSaveTeamEdit();
+    }
+
+    confirmRename(): void {
+        this.showRenameConfirm.set(false);
+        this.doSaveTeamEdit();
+    }
+
+    cancelRename(): void {
+        this.showRenameConfirm.set(false);
+    }
+
+    private doSaveTeamEdit(): void {
         const team = this.editingTeam();
         if (!team) return;
         this.isSavingTeam.set(true);
@@ -962,7 +1012,10 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
                 const agId = this.selectedAgegroupId();
                 if (div && agId) this.loadScheduleGrid(div.divId, agId);
             },
-            error: () => this.isSavingTeam.set(false)
+            error: (err) => {
+                this.isSavingTeam.set(false);
+                this.toast.show(err?.error?.message || 'Failed to save team.', 'danger', 5000);
+            }
         });
     }
 

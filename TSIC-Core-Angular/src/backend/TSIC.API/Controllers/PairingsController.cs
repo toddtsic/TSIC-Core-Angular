@@ -5,6 +5,7 @@ using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 
 namespace TSIC.API.Controllers;
 
@@ -197,12 +198,16 @@ public class PairingsController : ControllerBase
         try
         {
             var result = await _pairingsService.EditDivisionTeamAsync(
-                jobId!.Value, userId!, request, ct);
+                jobId!.Value, userId!, User.IsInRole(RoleConstants.Names.SuperuserName), request, ct);
             return Ok(result);
         }
         catch (KeyNotFoundException)
         {
             return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
         }
     }
 }

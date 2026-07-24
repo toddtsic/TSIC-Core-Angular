@@ -14,6 +14,10 @@ import { DivisionNavigatorComponent } from '../shared/components/division-naviga
 import { WpwMatrixComponent } from '../shared/components/wpw-matrix/wpw-matrix.component';
 import { DivisionTeamsTableComponent } from '../shared/components/division-teams-table/division-teams-table.component';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
+import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
+import { AuthService } from '@infrastructure/services/auth.service';
+import { ToastService } from '@shared-ui/toast.service';
+import { buildRenameImpactMessage } from '@shared/teams/rename-impact';
 import type { ScheduleScope } from '../shared/utils/scheduling-helpers';
 
 /** Team-type code legend for tooltips. */
@@ -37,13 +41,15 @@ const BRACKET_OPTIONS = [
 @Component({
     selector: 'app-manage-pairings',
     standalone: true,
-    imports: [CommonModule, FormsModule, DivisionNavigatorComponent, WpwMatrixComponent, DivisionTeamsTableComponent, TsicDialogComponent],
+    imports: [CommonModule, FormsModule, DivisionNavigatorComponent, WpwMatrixComponent, DivisionTeamsTableComponent, TsicDialogComponent, ConfirmDialogComponent],
     templateUrl: './manage-pairings.component.html',
     styleUrl: './manage-pairings.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ManagePairingsComponent implements OnInit {
     private readonly svc = inject(PairingsService);
+    private readonly auth = inject(AuthService);
+    private readonly toast = inject(ToastService);
     private readonly navigator = viewChild(DivisionNavigatorComponent);
 
     // ── Navigator state ──
@@ -106,7 +112,18 @@ export class ManagePairingsComponent implements OnInit {
     // ── Division Teams ──
     readonly divisionTeams = signal<DivisionTeamDto[]>([]);
     readonly isSavingTeam = signal(false);
-    readonly editingTeam = signal<{ teamId: string; divRank: number; teamName: string; clubName: string } | null>(null);
+    readonly editingTeam = signal<{ teamId: string; divRank: number; teamName: string; originalTeamName: string; clubName: string; clubTeamId: number | null } | null>(null);
+
+    /** Orphan teams: any admin (rename stays in this job). Club-linked: SuperUser only — the name is
+     *  the club's library identity and renaming fans out to other customers' schedules (server enforces). */
+    readonly canEditTeamName = computed(() => {
+        const t = this.editingTeam();
+        return t == null || t.clubTeamId == null || this.auth.isSuperuser();
+    });
+
+    // Club-linked rename confirm (SuperUser): affected-jobs warning before the save fires.
+    readonly showRenameConfirm = signal(false);
+    readonly renameConfirmMessage = signal('');
     readonly rankOptions = computed(() =>
         Array.from({ length: this.divisionTeams().length }, (_, i) => i + 1)
     );
@@ -378,16 +395,20 @@ export class ManagePairingsComponent implements OnInit {
     // ── Division Teams modal ──
 
     openTeamEdit(team: DivisionTeamDto): void {
+        this.showRenameConfirm.set(false);
         this.editingTeam.set({
             teamId: team.teamId,
             divRank: team.divRank,
             teamName: team.teamName ?? '',
-            clubName: team.clubName ?? ''
+            originalTeamName: team.teamName ?? '',
+            clubName: team.clubName ?? '',
+            clubTeamId: team.clubTeamId ?? null
         });
     }
 
     cancelTeamEdit(): void {
         this.editingTeam.set(null);
+        this.showRenameConfirm.set(false);
     }
 
     updateTeamField(field: 'teamName' | 'divRank', value: string | number): void {
@@ -397,6 +418,40 @@ export class ManagePairingsComponent implements OnInit {
     }
 
     saveTeamEdit(): void {
+        const t = this.editingTeam();
+        if (!t) return;
+
+        // Club-linked rename → affected-jobs confirm first (SuperUser; the field is locked for
+        // other admins so it can't be dirty here).
+        if (t.clubTeamId != null && t.teamName !== t.originalTeamName) {
+            this.svc.getRenameImpact(t.teamId).subscribe({
+                next: (jobs) => {
+                    this.renameConfirmMessage.set(buildRenameImpactMessage(t.originalTeamName, t.teamName.trim(), jobs));
+                    this.showRenameConfirm.set(true);
+                },
+                error: () => {
+                    // Impact is advisory — never block the rename on the preview failing.
+                    this.renameConfirmMessage.set(buildRenameImpactMessage(t.originalTeamName, t.teamName.trim(), []));
+                    this.showRenameConfirm.set(true);
+                    this.toast.show('Could not load affected schedules — the rename still applies everywhere.', 'warning', 4000);
+                }
+            });
+            return;
+        }
+
+        this.doSaveTeamEdit();
+    }
+
+    confirmRename(): void {
+        this.showRenameConfirm.set(false);
+        this.doSaveTeamEdit();
+    }
+
+    cancelRename(): void {
+        this.showRenameConfirm.set(false);
+    }
+
+    private doSaveTeamEdit(): void {
         const t = this.editingTeam();
         if (!t) return;
 
@@ -411,7 +466,10 @@ export class ManagePairingsComponent implements OnInit {
                 this.editingTeam.set(null);
                 this.isSavingTeam.set(false);
             },
-            error: () => this.isSavingTeam.set(false)
+            error: (err) => {
+                this.isSavingTeam.set(false);
+                this.toast.show(err?.error?.message || 'Failed to save team.', 'danger', 5000);
+            }
         });
     }
 

@@ -31,7 +31,8 @@ import type {
   SaveJobFeeResponse,
   AffectedRegistrationCountDto,
   ApplyLeaguePhaseRequest,
-  ApplyLeaguePhaseResponse
+  ApplyLeaguePhaseResponse,
+  ClubAffectedJob
 } from '../../../../core/api';
 
 @Injectable({
@@ -123,6 +124,11 @@ export class LadtService {
 
   updateTeam(teamId: string, request: UpdateTeamRequest): Observable<TeamDetailDto> {
     return this.http.put<TeamDetailDto>(`${this.apiUrl}/teams/${teamId}`, request);
+  }
+
+  /** SuperUser: jobs whose schedules a rename of this club-linked team would rewrite (team-search endpoint). */
+  getRenameImpact(teamId: string): Observable<ClubAffectedJob[]> {
+    return this.http.get<ClubAffectedJob[]>(`${environment.apiUrl}/team-search/${teamId}/rename-impact`);
   }
 
   dropTeam(teamId: string): Observable<DropTeamResultDto> {

@@ -7,5 +7,6 @@ export type DivisionTeamDto = {
     divRank: number;
     clubName?: string | null;
     teamName?: string | null;
+    clubTeamId?: number | null;
 };
 

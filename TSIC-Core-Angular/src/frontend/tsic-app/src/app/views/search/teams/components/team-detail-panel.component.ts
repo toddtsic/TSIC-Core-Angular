@@ -9,6 +9,7 @@ import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/con
 import { ClubRepPaymentComponent } from '@shared-ui/components/club-rep-payment/club-rep-payment.component';
 import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
 import { LOP_CHOICES, normalizeLop } from '@shared/teams/lop-choices';
+import { buildRenameImpactMessage } from '@shared/teams/rename-impact';
 import { environment } from '@environments/environment';
 
 type TabType = 'info' | 'accounting';
@@ -219,23 +220,8 @@ export class TeamDetailPanelComponent {
 	isLoadingRenameImpact = signal(false);
 
 	/** Confirm-dialog body for a club-linked rename — old → new plus the affected-jobs list. */
-	readonly renameConfirmMessage = computed(() => {
-		const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-		const oldName = esc(this.detail()?.teamName ?? '');
-		const newName = esc(this.editTeamName().trim());
-		const jobs = this.renameAffectedJobs();
-		let msg = `<p>Rename <strong>${oldName}</strong> to <strong>${newName}</strong>?</p>`;
-		if (jobs.length > 0) {
-			msg += `<p class='mb-1'>This team plays in <strong>${jobs.length} scheduled job${jobs.length !== 1 ? 's' : ''}</strong>. `
-				+ `Every game name in these schedules will be rewritten — including bracket and consolation games with admin-typed names.</p>`
-				+ `<ul class='mb-0'>`
-				+ jobs.map(j => `<li>${esc(j.jobName)} <span class='text-muted'>(${j.teamCount} team${j.teamCount !== 1 ? 's' : ''})</span></li>`).join('')
-				+ `</ul>`;
-		} else {
-			msg += `<p class='text-muted small mb-0'>No other scheduled jobs — this updates the club's team library and this event.</p>`;
-		}
-		return msg;
-	});
+	readonly renameConfirmMessage = computed(() =>
+		buildRenameImpactMessage(this.detail()?.teamName ?? '', this.editTeamName().trim(), this.renameAffectedJobs()));
 
 	saveTeamInfo(): void {
 		const d = this.detail();

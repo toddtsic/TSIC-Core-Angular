@@ -801,7 +801,14 @@
                     <input type="text" class="form-control form-control-sm"
                            [ngModel]="team.teamName"
                            (ngModelChange)="updateEditingName($event)"
-                           (keydown.enter)="saveTeamEdit()">
+                           (keydown.enter)="saveTeamEdit()"
+                           [disabled]="!canEditTeamName()">
+                    @if (!canEditTeamName()) {
+                        <div class="small text-body-secondary mt-1">
+                            <i class="bi bi-lock me-1" aria-hidden="true"></i>Name comes from the club's team library
+                            (used across events) — ask the club rep to rename it, or contact TSIC support.
+                        </div>
+                    }
                 </div>
             </div>
             <div class="modal-footer">
@@ -890,4 +897,16 @@
 <!-- Real DOM element with inline cursor:wait — guaranteed cursor change, also blocks misclicks. -->
 @if (isMoving()) {
     <div class="busy-overlay" style="cursor: wait;"></div>
+}
+
+<!-- Club-linked rename: affected-jobs warning (SuperUser; mirrors the admin club-rename modal) -->
+@if (showRenameConfirm()) {
+    <confirm-dialog
+        title="Rename Team Everywhere?"
+        [message]="renameConfirmMessage()"
+        confirmLabel="Rename Team"
+        confirmVariant="warning"
+        (confirmed)="confirmRename()"
+        (cancelled)="cancelRename()">
+    </confirm-dialog>
 }

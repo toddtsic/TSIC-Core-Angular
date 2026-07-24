@@ -5,6 +5,7 @@ using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Dtos.Ladt;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 
 namespace TSIC.API.Controllers;
 
@@ -322,7 +323,8 @@ public class LadtController : ControllerBase
 
         try
         {
-            var detail = await _ladtService.UpdateTeamAsync(teamId, request, jobId!.Value, userId!, cancellationToken);
+            var detail = await _ladtService.UpdateTeamAsync(
+                teamId, request, jobId!.Value, userId!, User.IsInRole(RoleConstants.Names.SuperuserName), cancellationToken);
             return Ok(detail);
         }
         catch (KeyNotFoundException) { return NotFound(); }

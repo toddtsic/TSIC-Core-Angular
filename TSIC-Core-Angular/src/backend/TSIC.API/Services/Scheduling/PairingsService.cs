@@ -370,13 +370,14 @@ public sealed class PairingsService : IPairingsService
                 TeamId = t.TeamId,
                 DivRank = t.DivRank,
                 ClubName = clubNames.TryGetValue(t.TeamId, out var cn) ? cn : null,
-                TeamName = t.TeamName
+                TeamName = t.TeamName,
+                ClubTeamId = t.ClubTeamId
             })
             .ToList();
     }
 
     public async Task<List<DivisionTeamDto>> EditDivisionTeamAsync(
-        Guid jobId, string userId, EditDivisionTeamRequest request, CancellationToken ct = default)
+        Guid jobId, string userId, bool isSuperUser, EditDivisionTeamRequest request, CancellationToken ct = default)
     {
         var team = await _teamRepo.GetTeamFromTeamId(request.TeamId, ct)
             ?? throw new KeyNotFoundException($"Team {request.TeamId} not found.");
@@ -389,6 +390,13 @@ public sealed class PairingsService : IPairingsService
         var divId = team.DivId.Value;
         var rankChanged = team.DivRank != request.DivRank;
         var nameChanged = request.TeamName != null && team.TeamName != request.TeamName;
+
+        // Ownership gate (mirrors TeamSearchService.EditTeamAsync): a club-linked team's name is the
+        // club's library identity — renaming fans out to other customers' schedules, so SuperUser only.
+        if (nameChanged && team.ClubTeamId != null && !isSuperUser)
+            throw new InvalidOperationException(
+                "This team's name comes from its club's team library and appears in other events' schedules. "
+                + "Only TSIC support can rename it — ask the club rep to rename it in their team library, or contact support.");
 
         // Rank swap: give the team at the target rank the editing team's old rank
         if (rankChanged)
