@@ -548,90 +548,13 @@
     }
 
     &-body {
-        padding: var(--space-2) var(--space-4) var(--space-6);
+        padding: var(--space-2) var(--space-3) var(--space-6);
+        overflow-y: auto;
 
-        .nav.flex-column {
-            gap: var(--space-1);
-
-            .nav-item {
-                margin-bottom: 0;
-
-                .nav-link {
-                    color: var(--brand-text);
-                    font-weight: var(--font-weight-medium);
-                    font-size: var(--font-size-base);
-                    padding: var(--space-3) var(--space-4);
-                    border-radius: var(--radius-md);
-                    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-                    margin-bottom: var(--space-1);
-                    display: flex;
-                    align-items: center;
-
-                    &:hover {
-                        color: var(--bs-primary);
-                        background: rgba(var(--bs-primary-rgb), 0.08);
-                        transform: translateX(var(--space-1));
-                    }
-
-                    &.active {
-                        color: var(--bs-primary);
-                        background: rgba(var(--bs-primary-rgb), 0.12);
-                        font-weight: var(--font-weight-semibold);
-                        border-left: 3px solid var(--bs-primary);
-                        padding-left: calc(var(--space-4) - 3px);
-                    }
-
-                    i {
-                        margin-right: var(--space-3);
-                        font-size: var(--font-size-lg);
-                        opacity: 0.8;
-                        width: var(--space-5);
-                        text-align: center;
-                    }
-
-                    // Chevron icons for expandable items
-                    .bi-chevron-down,
-                    .bi-chevron-up {
-                        margin-left: auto;
-                        margin-right: 0;
-                        transition: transform 0.2s ease;
-                    }
-                }
-
-                // Collapsed children styling
-                .collapse {
-                    .nav.flex-column {
-                        margin-top: var(--space-1);
-                        padding-left: var(--space-2);
-                        border-left: 2px solid rgba(var(--bs-primary-rgb), 0.1);
-                        margin-left: var(--space-5);
-
-                        .nav-item .nav-link {
-                            padding: var(--space-2) var(--space-4);
-                            font-size: var(--font-size-sm);
-                            color: var(--brand-text-muted);
-
-                            &:hover {
-                                color: var(--bs-primary);
-                                background: rgba(var(--bs-primary-rgb), 0.06);
-                                transform: translateX(var(--space-1));
-                            }
-
-                            &.active {
-                                color: var(--bs-primary);
-                                background: rgba(var(--bs-primary-rgb), 0.1);
-                                border-left: 2px solid var(--bs-primary);
-                                padding-left: calc(var(--space-4) - 2px);
-                            }
-
-                            i {
-                                font-size: var(--font-size-base);
-                                margin-right: var(--space-2);
-                            }
-                        }
-                    }
-                }
-            }
+        // Rail-language rows (admin-rail__item / dropdown-panel__item) do their
+        // own spacing; the list just resets its docked-rail padding.
+        .offcanvas-nav {
+            padding: 0;
         }
     }
 }
