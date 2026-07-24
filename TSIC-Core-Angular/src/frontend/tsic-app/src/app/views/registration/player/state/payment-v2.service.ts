@@ -97,13 +97,16 @@ export interface LineItem {
     tenderPaid: number;
     amount: number;
     /** This line's charge if paid by eCheck (CC charge minus the eCheck proc-rate credit).
-     *  Equals `amount` when there's no credit (proc off, deposit phase, or a client PIF upgrade
-     *  the server's per-reg figure doesn't model). Display only — the backend recomputes. */
+     *  Existing regs carry the server's per-reg figure (EcheckOwedTotal); a client PIF upgrade
+     *  carries its own method-correct quote (computePifUpgrade mirrors the server's at-charge
+     *  realize). Equals `amount` when there's no credit (proc off, new line). Display + the
+     *  eCheck expectedTotal — the backend recomputes and refuses on drift. */
     echeckAmount: number;
     /** This line's charge if paid by mailed check (CC charge minus the FULL CC proc). Equals
      *  `amount` when there's no proc (proc off, or a new line that carries no proc yet). The
      *  server-computed per-reg CheckOwedTotal — NOT a client baseTotal − Σ(stamped proc), which
-     *  wrongly subtracts a paid sibling's stamped proc from a new player's amount. Display only. */
+     *  wrongly subtracts a paid sibling's stamped proc from a new player's amount; a client PIF
+     *  upgrade carries its own method-correct quote. Display only. */
     checkAmount: number;
     /** False when this line's team has no fee configured at any cascade level — the wizard
      *  blocks completion instead of charging/fabricating. Always true for existing
@@ -226,9 +229,9 @@ export class PaymentV2Service {
     });
 
     /** This line's charge under the currently-selected method. echeckAmount / checkAmount equal
-     *  `amount` when no proc credit applies (proc off, deposit phase, new line), so this collapses
-     *  to the CC amount in those cases — the same picker the accounting table uses (owesFor). Keeps
-     *  the Deposit/PIF radio labels method-reactive so they track the table and the Pay button. */
+     *  `amount` when no proc credit applies (proc off, new line), so this collapses to the CC
+     *  amount in those cases — the same picker the accounting table uses (owesFor). Keeps the
+     *  Deposit/PIF radio labels method-reactive so they track the table and the Pay button. */
     private methodAmount(li: LineItem): number {
         return this.isEcheckPayment() ? li.echeckAmount
              : this.isCheckPayment()  ? li.checkAmount
@@ -256,7 +259,8 @@ export class PaymentV2Service {
     /**
      * What the parent would be charged if they picked Pay In Full — independent of the currently
      * selected option, but reactive to the selected METHOD. Every line at its full charge, at the
-     * method's rate (eCheck/check drop the CC proc credit; deposit lines carry none).
+     * method's rate (eCheck/check drop the CC proc spread — including on a PIF upgrade of a
+     * deposit-phase line, whose quote computePifUpgrade derives method-correct).
      */
     pifOptionTotal = computed(() =>
         this.billablePairs().reduce((sum, p) => sum + this.methodAmount(p.pif), 0),
@@ -605,14 +609,12 @@ export class PaymentV2Service {
         // Real money received (excludes corrections) — the "Paid" column. New regs have paid nothing.
         const tenderPaid = financials ? toNumber(financials.tenderPaid) : 0;
         const amount = upgrade ? upgrade.amount : (financials ? this.getAmountFromFinancials(financials) : phasedTeamFee);
-        // eCheck charge: the server's per-reg eCheck owed for an existing registration. A
-        // client-side PIF upgrade re-derives fees the server figure predates, so fall back to
-        // `amount` (no extra savings shown); new regs have no financials → also `amount`.
-        const echeckAmount = upgrade || !financials ? amount : toNumber(financials.echeckOwedTotal);
-        // Check charge: the server's per-reg check owed for an existing registration. A new line
-        // (no financials) and a client PIF upgrade fall back to `amount` — a new line carries no
-        // proc to drop, and an upgrade re-derives fees the server figure predates.
-        const checkAmount = upgrade || !financials ? amount : toNumber(financials.checkOwedTotal);
+        // eCheck / check charges: the server's per-reg method owed for an existing registration.
+        // A client-side PIF upgrade re-derives fees the server figures predate, so it carries its
+        // own method-correct quotes (computePifUpgrade mirrors the server's at-charge realize +
+        // ResolveOwed). New regs have no financials → `amount` (no proc stamped yet to drop).
+        const echeckAmount = upgrade ? upgrade.echeckAmount : (financials ? toNumber(financials.echeckOwedTotal) : amount);
+        const checkAmount = upgrade ? upgrade.checkAmount : (financials ? toNumber(financials.checkOwedTotal) : amount);
         return {
             playerId,
             playerName,
@@ -693,7 +695,7 @@ export class PaymentV2Service {
         team: { fee?: number | string | null; deposit?: number | string | null } | null | undefined,
         financials: RegistrationFinancialsDto | null | undefined,
         phaseExpectsFull: boolean,
-    ): { feeBase: number; feeProcessing: number; feeTotal: number; amount: number } | null {
+    ): { feeBase: number; feeProcessing: number; feeTotal: number; amount: number; echeckAmount: number; checkAmount: number } | null {
         if (!financials || !phaseExpectsFull) return null;
         const deposit = Number(team?.deposit ?? 0) || 0;
         const fee = Number(team?.fee ?? 0) || 0;
@@ -712,11 +714,35 @@ export class PaymentV2Service {
         const newProc = origProc * procRatio;
         const paid = toNumber(financials.paidTotal);
         const total = newBase + newProc + lateFee - discount;
+        const amount = Math.max(0, total - paid);
+        // Method-correct upgrade quotes. The server realizes a PIF upgrade at the CC rate and
+        // then backs the method's proc credit out of the debit (ResolveOwed / AppliedProcCredit
+        // — eCheck drops the CC−eCheck rate spread, check the full CC proc). Mirror: the
+        // upgrade's method saving = the saving the server already computed for the CURRENT
+        // stamp (owed − echeck/checkOwedTotal) + the fresh principal this upgrade adds
+        // (newBase − origBase, all unpaid, its proc levied at the CC rate) credited at the
+        // method's rate. Without this the PIF radio, the deposit radio's "due later", the
+        // accounting table under PIF, and the eCheck expectedTotal all quote the CC figure
+        // under eCheck/check — and the server's shown↔charged guard refuses the debit.
+        const curOwed = this.getAmountFromFinancials(financials);
+        const addedBase = newBase - origBase;
+        let echeckAmount = amount;
+        let checkAmount = amount;
+        if (this.jobCtx.bAddProcessingFees() && addedBase > 0) {
+            const ccRate = this.jobCtx.effectiveProcessingRate();
+            const echeckRate = this.jobCtx.effectiveEcheckProcessingRate();
+            const curEcheckSaving = Math.max(0, curOwed - toNumber(financials.echeckOwedTotal));
+            const curCheckSaving = Math.max(0, curOwed - toNumber(financials.checkOwedTotal));
+            echeckAmount = Math.max(0, amount - roundCents(curEcheckSaving + addedBase * Math.max(0, ccRate - echeckRate)));
+            checkAmount = Math.max(0, amount - roundCents(curCheckSaving + addedBase * ccRate));
+        }
         return {
             feeBase: newBase,
             feeProcessing: newProc,
             feeTotal: total,
-            amount: Math.max(0, total - paid),
+            amount,
+            echeckAmount,
+            checkAmount,
         };
     }
 
