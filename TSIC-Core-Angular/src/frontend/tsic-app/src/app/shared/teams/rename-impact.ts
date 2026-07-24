@@ -11,7 +11,7 @@ export function buildRenameImpactMessage(oldName: string, newName: string, jobs:
 	let msg = `<p>Rename <strong>${esc(oldName)}</strong> to <strong>${esc(newName)}</strong>?</p>`;
 	if (jobs.length > 0) {
 		msg += `<p class='mb-1'>This team plays in <strong>${jobs.length} scheduled job${jobs.length !== 1 ? 's' : ''}</strong>. `
-			+ `Every game name in these schedules will be rewritten — including bracket and consolation games with admin-typed names.</p>`
+			+ `Every game name in these schedules will be rewritten — including hand-typed bracket and consolation game names.</p>`
 			+ `<ul class='mb-0'>`
 			+ jobs.map(j => `<li>${esc(j.jobName)} <span class='text-muted'>(${j.teamCount} team${j.teamCount !== 1 ? 's' : ''})</span></li>`).join('')
 			+ `</ul>`;

@@ -663,7 +663,7 @@
               <div class="fw-semibold mb-1">
                 <i class="bi bi-exclamation-triangle me-1"></i>This club has teams in {{ renameClubAffectedJobs().length }} scheduled job{{ renameClubAffectedJobs().length !== 1 ? 's' : '' }}.
               </div>
-              <div class="small mb-2">Every game name in these schedules will be rewritten — including bracket and consolation games with admin-typed names.</div>
+              <div class="small mb-2">Every game name in these schedules will be rewritten — including hand-typed bracket and consolation game names.</div>
               <ul class="rename-impact-list small mb-0">
                 @for (job of renameClubAffectedJobs(); track job.jobId) {
                   <li>{{ job.jobName }} <span class="text-muted">({{ job.teamCount }} team{{ job.teamCount !== 1 ? 's' : '' }})</span></li>
