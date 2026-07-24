@@ -171,6 +171,9 @@ public record TeamCcChargeRequest
     public Guid? TeamId { get; init; }
     public required Guid ClubRepRegistrationId { get; init; }
     public required CreditCardInfo CreditCard { get; init; }
+    /// <summary>Optional admin note; persisted on each charged team's ledger row (falls back to the
+    /// auto-generated charge description when blank). Club-level charge applies it to every team billed.</summary>
+    public string? Comment { get; init; }
 }
 
 /// <summary>

@@ -56,7 +56,8 @@ public interface IPaymentService
         IReadOnlyCollection<Guid> teamIds,
         decimal totalAmount,
         CreditCardInfo creditCard,
-        decimal donation = 0m);
+        decimal donation = 0m,
+        string? comment = null);
 
     /// <summary>
     /// eCheck (ACH) counterpart to <see cref="ProcessTeamPaymentAsync"/>. Charges each

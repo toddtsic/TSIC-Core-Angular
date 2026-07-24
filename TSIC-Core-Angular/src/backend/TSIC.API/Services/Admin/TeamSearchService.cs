@@ -559,7 +559,7 @@ public sealed class TeamSearchService : ITeamSearchService
 
         return await ChargeCcViaEngineAsync(
             request.ClubRepRegistrationId, userId, request.CreditCard,
-            new List<Guid> { request.TeamId.Value }, owed);
+            new List<Guid> { request.TeamId.Value }, owed, request.Comment);
     }
 
     // ── CC Charge (club-level) ──
@@ -577,7 +577,7 @@ public sealed class TeamSearchService : ITeamSearchService
         var total = owedTeams.Sum(t => Math.Max(0m, t.OwedTotal ?? 0m));
         return await ChargeCcViaEngineAsync(
             request.ClubRepRegistrationId, userId, request.CreditCard,
-            owedTeams.Select(t => t.TeamId).ToList(), total);
+            owedTeams.Select(t => t.TeamId).ToList(), total, request.Comment);
     }
 
     // ── CC Charge (shared) ──
@@ -587,10 +587,11 @@ public sealed class TeamSearchService : ITeamSearchService
     // server-computed total we pass equals the engine's own total — the AMOUNT_MISMATCH
     // tripwire passes. Replaces the former bespoke ADN_Charge loop.
     private async Task<TeamCcChargeResponse> ChargeCcViaEngineAsync(
-        Guid clubRepRegistrationId, string userId, CreditCardInfo creditCard, List<Guid> teamIds, decimal total)
+        Guid clubRepRegistrationId, string userId, CreditCardInfo creditCard, List<Guid> teamIds, decimal total,
+        string? comment = null)
     {
         var result = await _paymentService.ProcessTeamPaymentAsync(
-            clubRepRegistrationId, userId, teamIds, total, creditCard);
+            clubRepRegistrationId, userId, teamIds, total, creditCard, comment: comment);
 
         return new TeamCcChargeResponse
         {

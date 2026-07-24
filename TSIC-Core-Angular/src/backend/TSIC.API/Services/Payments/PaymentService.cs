@@ -72,7 +72,8 @@ public class PaymentService : IPaymentService
         IReadOnlyCollection<Guid> teamIds,
         decimal totalAmount,
         CreditCardInfo creditCard,
-        decimal donation = 0m)
+        decimal donation = 0m,
+        string? comment = null)
     {
         var jobId = await _registrations.GetRegistrationJobIdAsync(regId);
         if (jobId == null)
@@ -86,7 +87,7 @@ public class PaymentService : IPaymentService
 
         return await ChargeTeamsAsync(
             regId, userId, jobIdValue, teamIds, totalAmount,
-            TeamChargeKind.Cc, credentials, env, creditCard, bankAccount: null, donation);
+            TeamChargeKind.Cc, credentials, env, creditCard, bankAccount: null, donation, comment);
     }
 
     public async Task<TeamPaymentResponseDto> ProcessTeamEcheckPaymentAsync(
@@ -143,7 +144,8 @@ public class PaymentService : IPaymentService
         Guid regId, string userId, Guid jobIdValue,
         IReadOnlyCollection<Guid> teamIds, decimal totalAmount,
         TeamChargeKind kind, AdnCredentialsViewModel credentials, AuthorizeNet.Environment env,
-        CreditCardInfo? creditCard, BankAccountInfo? bankAccount, decimal donation = 0m)
+        CreditCardInfo? creditCard, BankAccountInfo? bankAccount, decimal donation = 0m,
+        string? comment = null)
     {
         var teams = await _teams.GetTeamsWithJobAndCustomerAsync(jobIdValue, teamIds);
         if (teams.Count != teamIds.Count)
@@ -307,7 +309,8 @@ public class PaymentService : IPaymentService
                     AdnInvoiceNo = invoiceNumber,
                     AdnCc4 = kind == TeamChargeKind.Cc ? creditCard!.Number![^4..] : null,
                     AdnCcexpDate = kind == TeamChargeKind.Cc ? ccExpiryDate : null,
-                    Comment = description
+                    // Admin note when supplied (mirrors the player engine); else the auto description.
+                    Comment = !string.IsNullOrWhiteSpace(comment) ? comment : description
                 };
                 _acct.Add(ra);
                 if (kind == TeamChargeKind.Echeck) pendingSettlements.Add((ra, transId));

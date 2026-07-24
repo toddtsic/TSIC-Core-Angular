@@ -7,5 +7,6 @@ export type TeamCcChargeRequest = {
     teamId?: string | null;
     clubRepRegistrationId: string;
     creditCard: CreditCardInfo;
+    comment?: string | null;
 };
 

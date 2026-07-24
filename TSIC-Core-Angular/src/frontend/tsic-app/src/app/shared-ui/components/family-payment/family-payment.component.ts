@@ -413,7 +413,8 @@ export class FamilyPaymentComponent {
     this.searchService.chargeCc(id, {
       registrationId: id,
       creditCard: event.creditCard,
-      amount: event.amount
+      amount: event.amount,
+      comment: event.comment
     }).subscribe({
       next: (response) => {
         if (response.success) {

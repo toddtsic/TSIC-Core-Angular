@@ -149,7 +149,7 @@ export class ClubRepPaymentComponent {
   onCcCharge(event: CcChargeEvent): void {
     const regId = this.clubRepRegistrationId();
     const tid = this.teamId();
-    const request = { clubRepRegistrationId: regId, creditCard: event.creditCard };
+    const request = { clubRepRegistrationId: regId, creditCard: event.creditCard, comment: event.comment ?? undefined };
     this.chargeResult.set(null);
 
     const call = (this.scope() === 'team' && tid)
