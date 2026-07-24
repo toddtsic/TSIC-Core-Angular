@@ -48,13 +48,19 @@
   }
 
   @media (max-width: 767.98px) {
-    width: 100vw;
     // Start below the app header so "where am I?" survives the takeover — the
     // job identity stays visible through the dimmed backdrop (which still covers
     // the header, keeping it non-interactive while the panel is open).
-    top: var(--app-header-height-mobile, 48px);
-    height: calc(100vh - var(--app-header-height-mobile, 48px));
-    height: calc(100dvh - var(--app-header-height-mobile, 48px));
+    //
+    // !important throughout: panels that predate this contract carry their own
+    // component-scoped `.detail-panel { top: 0; height: 100vh; }` copies, which
+    // outrank a plain global rule and silently re-created the full-takeover bug
+    // per panel (reg-detail, team-detail, club-rosters). On mobile the contract
+    // is law, not a default — shadowing copies must not win.
+    width: 100vw !important;
+    top: var(--app-header-height-mobile, 48px) !important;
+    height: calc(100vh - var(--app-header-height-mobile, 48px)) !important;
+    height: calc(100dvh - var(--app-header-height-mobile, 48px)) !important;
   }
 
   @media (prefers-reduced-motion: reduce) {
