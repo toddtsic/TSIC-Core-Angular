@@ -129,7 +129,8 @@ public class ExpiredJobWriteGateTests
             clubTeams.Object, placement.Object, paymentState.Object,
             new Mock<IRegisteredTeamShaper>().Object,
             capabilities,
-            new Mock<IJobPaymentFeaturesService>().Object);
+            new Mock<IJobPaymentFeaturesService>().Object,
+            new Mock<TSIC.API.Services.Teams.ITeamRenameService>().Object);
 
         return new Mocks { Svc = svc, Jobs = jobs, Teams = teamRepo, Regs = regRepo };
     }

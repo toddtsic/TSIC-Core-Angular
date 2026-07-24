@@ -91,7 +91,8 @@ public class TeamCheckTests
             teamRepo, accountingRepo, registrationRepo, jobRepo.Object,
             feeService.Object, paymentState, adnApi.Object, ladtService.Object,
             new Mock<IEmailService>().Object, new Mock<IPaymentService>().Object,
-            new Mock<TSIC.API.Services.Teams.IRegisteredTeamShaper>().Object, logger.Object);
+            new Mock<TSIC.API.Services.Teams.IRegisteredTeamShaper>().Object,
+            new Mock<TSIC.API.Services.Teams.ITeamRenameService>().Object, logger.Object);
 
         return (svc, builder, ctx, job.JobId, ag.AgegroupId, clubRep.RegistrationId);
     }

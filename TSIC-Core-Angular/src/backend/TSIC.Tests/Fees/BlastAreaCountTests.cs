@@ -137,7 +137,8 @@ public class BlastAreaCountTests
             new Mock<IPaymentStateService>().Object,
             new Mock<IRegisteredTeamShaper>().Object,
             TSIC.Tests.Helpers.CapabilityMocks.Open(),
-            new Mock<IJobPaymentFeaturesService>().Object);
+            new Mock<IJobPaymentFeaturesService>().Object,
+            new Mock<TSIC.API.Services.Teams.ITeamRenameService>().Object);
     }
 
     private static Microsoft.AspNetCore.Identity.UserManager<TSIC.Infrastructure.Data.Identity.ApplicationUser> MockUserManager()

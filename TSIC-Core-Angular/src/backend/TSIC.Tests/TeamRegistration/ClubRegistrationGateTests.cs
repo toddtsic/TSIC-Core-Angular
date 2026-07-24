@@ -117,7 +117,9 @@ public class ClubRegistrationGateTests
         var userProfileService = new Mock<IUserProfileService>();
 
         var svc = new ClubService(userManager, clubRepo.Object, clubRepRepo.Object,
-            userRepo.Object, privilegeService.Object, userProfileService.Object, cache);
+            userRepo.Object, new Mock<IRegistrationRepository>().Object,
+            new Mock<IScheduleRepository>().Object,
+            privilegeService.Object, userProfileService.Object, cache);
 
         return (svc, clubRepo);
     }

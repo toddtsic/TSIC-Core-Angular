@@ -180,7 +180,8 @@ public class MaxTeamsPerClubTests
             clubTeams.Object, placement.Object, paymentState.Object,
             new Mock<IRegisteredTeamShaper>().Object,
             TSIC.Tests.Helpers.CapabilityMocks.Open(),
-            new Mock<IJobPaymentFeaturesService>().Object);
+            new Mock<IJobPaymentFeaturesService>().Object,
+            new Mock<TSIC.API.Services.Teams.ITeamRenameService>().Object);
 
         return (svc, teamRepo, placement, agRepo);
     }
