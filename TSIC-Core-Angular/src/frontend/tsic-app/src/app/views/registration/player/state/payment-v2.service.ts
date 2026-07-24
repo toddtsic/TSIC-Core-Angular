@@ -225,13 +225,23 @@ export class PaymentV2Service {
         return sum;
     });
 
+    /** This line's charge under the currently-selected method. echeckAmount / checkAmount equal
+     *  `amount` when no proc credit applies (proc off, deposit phase, new line), so this collapses
+     *  to the CC amount in those cases — the same picker the accounting table uses (owesFor). Keeps
+     *  the Deposit/PIF radio labels method-reactive so they track the table and the Pay button. */
+    private methodAmount(li: LineItem): number {
+        return this.isEcheckPayment() ? li.echeckAmount
+             : this.isCheckPayment()  ? li.checkAmount
+             : li.amount;
+    }
+
     /**
      * What the parent would be charged if they picked Deposit — independent of the currently
-     * selected option. Per-row: full-payment lines contribute their full charge, deposit-eligible
-     * lines their deposit. (Display only — drives the radio label.)
+     * selected option, but reactive to the selected METHOD. Per-row: full-payment lines contribute
+     * their full charge, deposit-eligible lines their deposit. (Display only — drives the radio label.)
      */
     depositOptionTotal = computed(() =>
-        this.billablePairs().reduce((sum, p) => sum + (p.isFullPhase ? p.pif.amount : p.deposit.amount), 0),
+        this.billablePairs().reduce((sum, p) => sum + this.methodAmount(p.isFullPhase ? p.pif : p.deposit), 0),
     );
 
     /**
@@ -244,11 +254,12 @@ export class PaymentV2Service {
     depositOptionRemainder = computed(() => Math.max(0, this.pifOptionTotal() - this.depositOptionTotal()));
 
     /**
-     * What the parent would be charged if they picked Pay In Full — independent
-     * of the currently selected option. Every line at its full charge.
+     * What the parent would be charged if they picked Pay In Full — independent of the currently
+     * selected option, but reactive to the selected METHOD. Every line at its full charge, at the
+     * method's rate (eCheck/check drop the CC proc credit; deposit lines carry none).
      */
     pifOptionTotal = computed(() =>
-        this.billablePairs().reduce((sum, p) => sum + p.pif.amount, 0),
+        this.billablePairs().reduce((sum, p) => sum + this.methodAmount(p.pif), 0),
     );
 
     isArbScenario = computed(() => !!this.jobCtx.adnArb());
