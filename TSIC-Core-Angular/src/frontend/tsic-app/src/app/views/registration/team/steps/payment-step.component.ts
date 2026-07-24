@@ -110,16 +110,43 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
             <p class="text-muted mt-2 small mb-0">Loading your teams...</p>
           </div>
         } @else if (!hasBalance()) {
-          <div class="alert alert-success border-0 mb-3" role="status">
-            <div class="d-flex align-items-center gap-2">
-              <span class="badge bg-success">No Balance</span>
-              @if (showViStandaloneSection()) {
-                <div>All team registration fees have been paid. Optional team registration insurance is available below.</div>
-              } @else {
-                <div>No payment is required at this time. You may proceed to the review step.</div>
-              }
+          <!-- Waitlist-aware empty state: a waitlisted team owes $0 by design (fees
+               apply at promotion), so "No Balance" alone reads as "registered for
+               free" — say waitlisted explicitly instead. -->
+          @if (allWaitlisted()) {
+            <div class="alert alert-warning border-0 mb-3" role="status">
+              <div class="d-flex align-items-start gap-2">
+                <span class="badge bg-warning text-dark">Waitlisted</span>
+                <div>
+                  {{ waitlistedTeams().length === 1 ? 'Your team is' : 'Your teams are' }} on the
+                  <strong>waitlist</strong> — the age group is full. No payment is due now;
+                  registration fees apply only if the event director places a team into an open spot.
+                </div>
+              </div>
             </div>
-          </div>
+          } @else {
+            <div class="alert alert-success border-0 mb-3" role="status">
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-success">No Balance</span>
+                @if (showViStandaloneSection()) {
+                  <div>All team registration fees have been paid. Optional team registration insurance is available below.</div>
+                } @else {
+                  <div>No payment is required at this time. You may proceed to the review step.</div>
+                }
+              </div>
+            </div>
+            @if (waitlistedTeams().length) {
+              <div class="alert alert-warning border-0 mb-3" role="status">
+                <div class="d-flex align-items-start gap-2">
+                  <span class="badge bg-warning text-dark">Waitlisted</span>
+                  <div>
+                    {{ waitlistedTeams().length === 1 ? 'One of your teams is' : waitlistedTeams().length + ' of your teams are' }}
+                    waitlisted — no payment is due for {{ waitlistedTeams().length === 1 ? 'it' : 'them' }} unless a roster spot opens.
+                  </div>
+                </div>
+              </div>
+            }
+          }
 
           <!-- ═══ STANDALONE VI PURCHASE (returning rep, PIF) ═══
                Surfaces when TSIC is paid but uncovered teams remain and the offer
@@ -202,6 +229,13 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
               [frozenTeamCol]="true"
               [teamColWidth]="70"
               [gridHeight]="'auto'" />
+            @if (waitlistedTeams().length) {
+              <div class="small text-muted mt-2" role="note">
+                <i class="bi bi-info-circle me-1" aria-hidden="true"></i>Teams marked
+                <span class="badge bg-warning text-dark">WL</span> are waitlisted — they owe
+                nothing unless a roster spot opens, and are not part of the amount due below.
+              </div>
+            }
           </section>
 
           <!-- Discount code -->
@@ -894,6 +928,13 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
     readonly teamsLoaded = computed(() => this.state.teamPayment.teamsLoaded());
     readonly balanceDue = computed(() => this.state.teamPayment.balanceDue());
     readonly registeredTeams = computed(() => this.state.teamPayment.teams());
+    /** Waitlisted teams owe $0 by design (fees stamp at promotion) — surfaced
+     *  explicitly so a zero balance never reads as "registered for free". */
+    readonly waitlistedTeams = computed(() => this.registeredTeams().filter(t => t.isWaitlisted));
+    readonly allWaitlisted = computed(() => {
+        const teams = this.registeredTeams();
+        return teams.length > 0 && teams.every(t => t.isWaitlisted);
+    });
     /**
      * Cart phase derived PER-ROW from the teams' server-resolved fullPaymentRequired, NOT the
      * single job-level flag — a club-rep cart can span scopes that differ in phase. 'mixed' when

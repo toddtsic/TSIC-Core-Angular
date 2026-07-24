@@ -30,6 +30,22 @@ import { ToastService } from '@shared-ui/toast.service';
             <p class="text-muted mt-2">Loading confirmation...</p>
           </div>
         } @else {
+          <!-- Waitlist banner — mirrors the payment step's messaging so the final
+               "you're done" screen never lets a waitlisted team pass as registered. -->
+          @if (waitlistedTeams().length) {
+            <div class="alert alert-warning border-0 mb-3" role="status">
+              <div class="d-flex align-items-start gap-2">
+                <span class="badge bg-warning text-dark">Waitlisted</span>
+                <div>
+                  {{ waitlistedTeams().length === 1 ? 'This team is' : 'These teams are' }} on the
+                  waitlist: <strong>{{ waitlistedNames() }}</strong>. No payment is due unless the
+                  event director places {{ waitlistedTeams().length === 1 ? 'it' : 'them' }} into an
+                  open roster spot.
+                </div>
+              </div>
+            </div>
+          }
+
           <div class="d-flex gap-2 mb-3">
             <button type="button" class="btn btn-outline-primary btn-sm"
                     [disabled]="resending()"
@@ -57,6 +73,10 @@ export class TeamReviewStepComponent implements OnInit {
 
     readonly confirmationHtml = signal<string | null>(null);
     readonly confirmationLoaded = computed(() => !!this.confirmationHtml());
+    /** Waitlisted teams from the payment ledger (owes $0 until promoted) — the
+     *  banner above the confirmation keeps that status explicit at the finish line. */
+    readonly waitlistedTeams = computed(() => this.state.teamPayment.teams().filter(t => t.isWaitlisted));
+    readonly waitlistedNames = computed(() => this.waitlistedTeams().map(t => t.teamName).join(', '));
     readonly resending = signal(false);
     readonly resendMessage = signal('');
 
