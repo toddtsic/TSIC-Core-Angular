@@ -528,13 +528,17 @@ mark {
 }
 
 .desc-dot {
-    display: inline-block;
-    width: 4px;
-    height: 4px;
-    border-radius: var(--radius-full);
-    background: var(--neutral-300);
-    vertical-align: middle;
+    // A real "·" glyph (CSS-generated), not an empty styled span — screen
+    // readers announce the separator, and hiding it can never fuse the
+    // surrounding fragments into run-on text.
+    display: inline;
     margin: 0 var(--space-2);
+    color: var(--neutral-400);
+    font-weight: var(--font-weight-bold);
+
+    &::before {
+        content: '·';
+    }
 }
 
 /* Auth Hero — centered icon + title + subtitle used across auth pages */
@@ -649,10 +653,9 @@ mark {
         font-size: var(--font-size-xs);
     }
 
-    .desc-dot {
-        display: none;
-    }
-
+    // Icons hidden on mobile to save width — but NOT .desc-dot: the dot is the
+    // punctuation between subtitle fragments; hiding it fused them into run-on
+    // text ("Secure checkout Review fees below Almost done!").
     .welcome-desc i {
         display: none;
     }
