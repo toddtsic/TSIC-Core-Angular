@@ -181,6 +181,17 @@
   flex: 1;
   padding: var(--space-5);
   overflow-y: auto;
+
+  // The body must never pan sideways. overflow-y:auto silently computes
+  // overflow-x to auto as well, so ONE child a few px too wide turns the whole
+  // body into a horizontal scroller — on touch, swiping anywhere drags every
+  // card sideways. Wide content (SF grids with frozen columns) scrolls inside
+  // its OWN container; anything else over-wide is a layout bug to fix, not to
+  // pan to. Mobile-only: on desktop a latent overflow shows as a scrollbar,
+  // and clipping there could orphan content with no touch gesture to reach it.
+  @media (max-width: 767.98px) {
+    overflow-x: hidden;
+  }
 }
 
 .detail-panel .panel-footer {
