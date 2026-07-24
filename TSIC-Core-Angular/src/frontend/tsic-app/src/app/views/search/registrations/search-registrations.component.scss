@@ -774,9 +774,53 @@
   }
 }
 
-// ── Desktop Only (Hide on Mobile) ──
-@media (max-width: 767px) {
+// ── Mobile — same view, tightened ─────────────────────────────────────────
+// Full search parity on phones: the grid swipes horizontally under the frozen
+// Name column; the drawer, chips, and detail panel are the same surfaces.
+@media (max-width: 767.98px) {
   .registration-search-container {
-    display: none;
+    padding: var(--space-2) var(--space-2) var(--space-4);
+    gap: var(--space-2);
+  }
+
+  // Title left, Set Filters launcher right — space-between beats the desktop
+  // "tucked after the title" layout when there's no width to spare.
+  .search-page-header {
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  // Filters drawer goes full-bleed below the app header, per the shared flyin
+  // contract (_flyin.scss). Width itself comes from the global [appResizablePanel]
+  // mobile rule (100vw !important — beats the resize handle's stored inline width).
+  .filters-panel {
+    top: var(--app-header-height-mobile, 48px);
+    height: calc(100vh - var(--app-header-height-mobile, 48px));
+    height: calc(100dvh - var(--app-header-height-mobile, 48px));
+  }
+
+  // Summary hero: count + financials share row 1; the action buttons drop to
+  // their own full-width row so nothing crushes to an ellipsis.
+  .results-summary {
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-2) var(--space-3);
+
+    // Redundant chrome on a phone — the count says it all.
+    .results-summary-label,
+    .results-icon {
+      display: none;
+    }
+
+    .result-financials {
+      gap: var(--space-3);
+    }
+
+    .results-actions {
+      flex-basis: 100%;
+      margin-left: 0;
+      flex-wrap: wrap;
+      gap: var(--space-1);
+    }
   }
 }

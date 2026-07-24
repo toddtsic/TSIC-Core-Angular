@@ -13,7 +13,6 @@ import { ROLE_ID_PLAYER, ROLE_ID_CLUBREP, isPlayerRoleFilter, isClubRepRoleFilte
 import { RegistrationDetailPanelComponent } from './components/registration-detail-panel.component';
 import { RefundModalComponent } from './components/refund-modal.component';
 import { BatchEmailModalComponent, type InviteMode } from './components/batch-email-modal.component';
-import { MobileQuickLookupComponent } from './components/mobile-quick-lookup.component';
 import { LadtTreeFilterComponent } from './components/ladt-tree-filter.component';
 import { CadtTreeFilterComponent } from '@shared/components/cadt-tree-filter/cadt-tree-filter.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
@@ -54,7 +53,6 @@ interface FilterChip {
     RegistrationDetailPanelComponent,
     RefundModalComponent,
     BatchEmailModalComponent,
-    MobileQuickLookupComponent,
     LadtTreeFilterComponent,
     CadtTreeFilterComponent,
     ConfirmDialogComponent,
@@ -225,7 +223,8 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   showRefundModal = signal(false);
   refundTarget = signal<AccountingRecordDto | null>(null);
 
-  // Mobile detection
+  // Mobile detection — grid ergonomics only (frozen-column count, column widths, row-number
+  // stamping). The view itself is unified: one template serves desktop and mobile.
   isMobile = signal(false);
   private resizeHandler = () => this.checkMobileView();
 
@@ -777,6 +776,9 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   }
 
   refreshRowNumbers(): void {
+    // Mobile has no "#" column (dropped for swipe room) — stamping the first cell
+    // there would overwrite the Name cell.
+    if (this.isMobile()) return;
     // Row numbers are 1-based across the full set — offset by the current server page, not the
     // grid's internal pager state (which we drive via dataStateChange).
     const pageSize = this.gridPageSize();

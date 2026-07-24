@@ -6,9 +6,10 @@
   </span>
 </ng-template>
 
-<!-- Desktop View -->
-@if (!isMobile()) {
-  <div class="registration-search-container">
+<!-- Unified view — one codepath for desktop and mobile. The grid swipes horizontally
+     on phones (Name column stays frozen); mobile ergonomics are CSS + the few
+     isMobile() grid bindings below, never a forked template. -->
+<div class="registration-search-container">
     <!-- Page Title + filter launcher (hint + Set Filters moved here to spare the
          variable-height chip strip below) -->
     <div class="page-header search-page-header">
@@ -738,7 +739,7 @@
             [allowPaging]="true"
             [allowSorting]="true"
             [allowExcelExport]="true"
-            [frozenColumns]="2"
+            [frozenColumns]="isMobile() ? 1 : 2"
             [pageSettings]="pageSettings"
             [sortSettings]="sortSettings"
             [selectionSettings]="selectionSettings"
@@ -749,10 +750,15 @@
             (actionComplete)="onActionComplete($event)"
           >
           <e-columns>
-            <!-- Row number (unbound — stamped via queryCellInfo/actionComplete) -->
-            <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"></e-column>
-            <!-- Frozen: Name with inline detail icon -->
-            <e-column field="lastName" headerText="Name" width="200">
+            <!-- Row number (unbound — stamped via queryCellInfo/actionComplete).
+                 Desktop only: on mobile every frozen px is swipe room, and dropping the
+                 column (not just hiding it) keeps refreshRowNumbers' first-cell stamping
+                 from ever landing on the Name cell. -->
+            @if (!isMobile()) {
+              <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"></e-column>
+            }
+            <!-- Frozen: Name with inline detail icon (narrower freeze on mobile — leave swipe room) -->
+            <e-column field="lastName" headerText="Name" [width]="isMobile() ? 150 : 200">
               <ng-template #template let-data>
                 <a href="javascript:void(0)" (click)="openDetail(data.registrationId)"
                    class="detail-link" [class.inactive-name]="!data.active"
@@ -851,13 +857,7 @@
       }
     </div>
 
-  </div>
-}
-
-<!-- Mobile View -->
-@if (isMobile()) {
-  <app-mobile-quick-lookup></app-mobile-quick-lookup>
-}
+</div>
 
 <!-- "Forgot to click Search" guard — fires when closing the drawer with un-applied filters -->
 @if (pendingFilterClose()) {
