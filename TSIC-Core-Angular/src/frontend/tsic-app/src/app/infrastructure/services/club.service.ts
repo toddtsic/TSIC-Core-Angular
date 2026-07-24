@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
-import type { ClubRepRegistrationRequest, ClubRepRegistrationResponse, ClubSearchResult, AddClubRequest, AddClubResponse, ClubRepProfileDto, ClubRepProfileUpdateRequest, ClubRenameRequest, ClubRenameResponse } from '@core/api';
+import type { ClubRepRegistrationRequest, ClubRepRegistrationResponse, ClubSearchResult, AddClubRequest, AddClubResponse, ClubRepProfileDto, ClubRepProfileUpdateRequest, ClubRenameRequest, ClubRenameResponse, ClubAffectedJob, AdminClubRenameRequest, AdminClubRenameResponse } from '@core/api';
 
 @Injectable({
     providedIn: 'root'
@@ -60,5 +60,21 @@ export class ClubService {
      */
     renameClub(request: ClubRenameRequest): Observable<ClubRenameResponse> {
         return this.http.put<ClubRenameResponse>(`${this.clubRepsApiUrl}/rename-club`, request);
+    }
+
+    /**
+     * SuperUser: jobs holding teams for this club — the affected-jobs impact list for the
+     * admin rename confirm modal.
+     */
+    getRenameImpact(clubId: number): Observable<ClubAffectedJob[]> {
+        return this.http.get<ClubAffectedJob[]>(`${this.clubRepsApiUrl}/admin/rename-impact/${clubId}`);
+    }
+
+    /**
+     * SuperUser: rename a club even once it has registered teams. Recomposes every affected
+     * job's schedule. Backend responds success=false + a message on a guard failure (collision, etc.).
+     */
+    adminRenameClub(request: AdminClubRenameRequest): Observable<AdminClubRenameResponse> {
+        return this.http.put<AdminClubRenameResponse>(`${this.clubRepsApiUrl}/admin/rename`, request);
     }
 }

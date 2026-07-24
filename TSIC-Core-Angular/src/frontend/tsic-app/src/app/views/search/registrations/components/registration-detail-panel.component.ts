@@ -2,8 +2,9 @@ import { Component, ChangeDetectionStrategy, input, output, signal, linkedSignal
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
-import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto } from '@core/api';
+import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto, ClubAffectedJob } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
+import { ClubService } from '@infrastructure/services/club.service';
 import { RoleIds } from '@infrastructure/constants/roles.constants';
 import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
@@ -36,9 +37,10 @@ const PROFILE_GUARANTEED_FIELDS: FieldMetadata[] = [
 /** Fields excluded from the editable Player Profile card (handled elsewhere) */
 const PROFILE_EXCLUDED_KEYS = new Set(['teamid']);
 
-/** Non-player profile field display labels */
+/** Non-player profile field display labels. ClubName is deliberately absent — a Club Rep's club
+ *  renders in its own dedicated card (with the SuperUser rename control), sourced from the canonical
+ *  Clubs row rather than the denormalized profile copy. */
 const NON_PLAYER_FIELD_LABELS: Record<string, string> = {
-  'ClubName': 'Club Name',
   'SpecialRequests': 'Special Requests',
   'SportYearsExp': 'Years of Experience',
   'SportAssnId': 'Sport Association #',
@@ -132,6 +134,7 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   // refundRequested removed — refunds now handled inside accounting-ledger modal
 
   private searchService = inject(RegistrationSearchService);
+  private clubService = inject(ClubService);
   private toast = inject(ToastService);
   private auth = inject(AuthService);
 
@@ -303,6 +306,73 @@ export class RegistrationDetailPanelComponent implements OnChanges {
     }
     return noAccounting;
   });
+
+  // ── Club-rep card + admin rename ──
+  /** The club this rep registration was made under, from the canonical Clubs row (null when the
+   *  stored copy has drifted from every club the user reps). */
+  readonly clubName = computed(() => this.detail()?.clubName ?? null);
+  readonly clubId = computed(() => this.detail()?.clubId ?? null);
+  /** Rename is a SuperUser-only, shared-data operation and needs a resolved clubId to target. */
+  readonly canRenameClub = computed(() => this.auth.isSuperuser() && this.clubId() != null);
+
+  showRenameClubModal = signal<boolean>(false);
+  renameClubNewName = signal<string>('');
+  renameClubAffectedJobs = signal<ClubAffectedJob[]>([]);
+  isLoadingRenameImpact = signal<boolean>(false);
+  isRenamingClub = signal<boolean>(false);
+
+  openRenameClubModal(): void {
+    const id = this.clubId();
+    if (id == null) return;
+    this.renameClubNewName.set(this.clubName() ?? '');
+    this.renameClubAffectedJobs.set([]);
+    this.isLoadingRenameImpact.set(true);
+    this.showRenameClubModal.set(true);
+    this.clubService.getRenameImpact(id).subscribe({
+      next: (jobs) => {
+        this.renameClubAffectedJobs.set(jobs);
+        this.isLoadingRenameImpact.set(false);
+      },
+      error: () => {
+        this.isLoadingRenameImpact.set(false);
+        this.toast.show('Could not load affected jobs — you can still rename.', 'warning', 4000);
+      }
+    });
+  }
+
+  cancelRenameClub(): void {
+    this.showRenameClubModal.set(false);
+  }
+
+  submitRenameClub(): void {
+    const id = this.clubId();
+    const next = this.renameClubNewName().trim();
+    if (id == null || !next || this.isRenamingClub()) return;
+
+    this.isRenamingClub.set(true);
+    this.clubService.adminRenameClub({ clubId: id, newClubName: next }).subscribe({
+      next: (res) => {
+        this.isRenamingClub.set(false);
+        if (res.success) {
+          const jobs = res.perJob?.length ?? 0;
+          const changed = (res.perJob ?? []).reduce((sum, j) => sum + (j.rowsChanged ?? 0), 0);
+          this.showRenameClubModal.set(false);
+          this.toast.show(
+            jobs > 0
+              ? `Club renamed to "${res.newClubName}" — ${changed} schedule row${changed !== 1 ? 's' : ''} across ${jobs} job${jobs !== 1 ? 's' : ''} updated.`
+              : `Club renamed to "${res.newClubName}".`,
+            'success', 5000, 'Club Renamed');
+          this.saved.emit();
+        } else {
+          this.toast.show(res.message || 'Rename failed.', 'danger', 0, 'Rename Failed');
+        }
+      },
+      error: (err) => {
+        this.isRenamingClub.set(false);
+        this.toast.show(err?.error?.message || err?.error?.Message || 'Unknown error', 'danger', 0, 'Rename Failed');
+      }
+    });
+  }
 
   /**
    * The ONE genuine side effect tied to a new registrant loading: a Production-only live Authorize.Net

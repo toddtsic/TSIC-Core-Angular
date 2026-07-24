@@ -17,6 +17,7 @@ public sealed class PairingsService : IPairingsService
     private readonly ITeamRepository _teamRepo;
     private readonly IScheduleRepository _scheduleRepo;
     private readonly ISchedulingContextResolver _contextResolver;
+    private readonly TSIC.API.Services.Teams.ITeamRenameService _teamRename;
     private readonly ILogger<PairingsService> _logger;
 
     /// <summary>Ladder round type → number of teams entering that round.</summary>
@@ -32,6 +33,7 @@ public sealed class PairingsService : IPairingsService
         ITeamRepository teamRepo,
         IScheduleRepository scheduleRepo,
         ISchedulingContextResolver contextResolver,
+        TSIC.API.Services.Teams.ITeamRenameService teamRename,
         ILogger<PairingsService> logger)
     {
         _pairingsRepo = pairingsRepo;
@@ -40,6 +42,7 @@ public sealed class PairingsService : IPairingsService
         _teamRepo = teamRepo;
         _scheduleRepo = scheduleRepo;
         _contextResolver = contextResolver;
+        _teamRename = teamRename;
         _logger = logger;
     }
 
@@ -385,7 +388,7 @@ public sealed class PairingsService : IPairingsService
 
         var divId = team.DivId.Value;
         var rankChanged = team.DivRank != request.DivRank;
-        var nameChanged = team.TeamName != request.TeamName;
+        var nameChanged = request.TeamName != null && team.TeamName != request.TeamName;
 
         // Rank swap: give the team at the target rank the editing team's old rank
         if (rankChanged)
@@ -401,15 +404,18 @@ public sealed class PairingsService : IPairingsService
             team.DivRank = request.DivRank;
         }
 
-        if (nameChanged)
-            team.TeamName = request.TeamName;
-
         team.LebUserId = userId;
         team.Modified = DateTime.Now;
         await _teamRepo.SaveChangesAsync(ct);
 
         // Renumber to ensure contiguous 1..N
         await _teamRepo.RenumberDivRanksAsync(divId, ct);
+
+        // Rename (name owned by TeamRenameService): library + cross-job Teams copies +
+        // WAITLIST twin + schedule. Runs before the division re-resolve below so the seat
+        // recompute reads the updated team name.
+        if (nameChanged)
+            await _teamRename.RenameTeamAsync(request.TeamId, jobId, request.TeamName!, userId, ct);
 
         // Re-resolve T1Id/T2Id/T1Name/T2Name in all schedule records for this division
         await _scheduleRepo.SynchronizeScheduleTeamAssignmentsForDivisionAsync(divId, jobId, ct);

@@ -43,5 +43,7 @@ export type RegistrationDetailDto = {
     accountingRecords: Array<AccountingRecordDto>;
     isClubRep?: boolean;
     clubRepTeamCount?: number;
+    clubId?: number | null;
+    clubName?: string | null;
 };
 

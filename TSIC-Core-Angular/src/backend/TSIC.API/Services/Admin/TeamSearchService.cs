@@ -38,6 +38,7 @@ public sealed class TeamSearchService : ITeamSearchService
     private readonly IEmailService _emailService;
     private readonly IPaymentService _paymentService;
     private readonly IRegisteredTeamShaper _shaper;
+    private readonly ITeamRenameService _teamRename;
     private readonly ILogger<TeamSearchService> _logger;
 
     // Known payment method GUIDs (from AccountingPaymentMethods table)
@@ -57,6 +58,7 @@ public sealed class TeamSearchService : ITeamSearchService
         IEmailService emailService,
         IPaymentService paymentService,
         IRegisteredTeamShaper shaper,
+        ITeamRenameService teamRename,
         ILogger<TeamSearchService> logger)
     {
         _teamRepo = teamRepo;
@@ -70,6 +72,7 @@ public sealed class TeamSearchService : ITeamSearchService
         _emailService = emailService;
         _paymentService = paymentService;
         _shaper = shaper;
+        _teamRename = teamRename;
         _logger = logger;
     }
 
@@ -346,7 +349,13 @@ public sealed class TeamSearchService : ITeamSearchService
         if (team.JobId != jobId)
             throw new InvalidOperationException("Team does not belong to this job.");
 
-        if (request.TeamName != null) team.TeamName = request.TeamName;
+        // Team rename is routed through TeamRenameService (the single name writer) — this method never
+        // writes TeamName itself. Detect the change against committed state before the other edits save.
+        var oldTeamName = team.TeamName;
+        var teamNameChanged = request.TeamName != null && oldTeamName != null
+            && !string.Equals(oldTeamName, request.TeamName, StringComparison.Ordinal)
+            && !oldTeamName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase);
+
         if (request.Active.HasValue) team.Active = request.Active.Value;
         if (request.LevelOfPlay != null) team.LevelOfPlay = request.LevelOfPlay;
         if (request.TeamComments != null) team.TeamComments = request.TeamComments;
@@ -355,6 +364,11 @@ public sealed class TeamSearchService : ITeamSearchService
         team.LebUserId = userId;
 
         await _teamRepo.SaveChangesAsync(ct);
+
+        // Name change → library + cross-job copies + WAITLIST twin + schedule recompose, all owned by
+        // the service. Previously this path relied entirely on the implicit SaveChanges trigger.
+        if (teamNameChanged)
+            await _teamRename.RenameTeamAsync(teamId, jobId, request.TeamName!, userId, ct);
 
         // Active is one of the filters on the rep-aggregate sync query — flipping it
         // here without re-aggregating leaves clubRep.OwedTotal counting (or omitting)

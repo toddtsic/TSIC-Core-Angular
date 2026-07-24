@@ -266,6 +266,7 @@ builder.Services.AddScoped<ITeamPlacementService, TeamPlacementService>();
 builder.Services.AddScoped<TSIC.API.Services.Teams.IRegisteredTeamShaper, TSIC.API.Services.Teams.RegisteredTeamShaper>();
 builder.Services.AddScoped<TSIC.API.Services.Players.IRegisteredPlayerShaper, TSIC.API.Services.Players.RegisteredPlayerShaper>();
 builder.Services.AddScoped<ITeamRegistrationService, TeamRegistrationService>();
+builder.Services.AddScoped<TSIC.API.Services.Teams.ITeamRenameService, TSIC.API.Services.Teams.TeamRenameService>();
 builder.Services.AddScoped<IProfileMetadataService, ProfileMetadataService>();
 builder.Services.AddScoped<IRegistrationQueryService, RegistrationQueryService>();
 builder.Services.AddScoped<IUsLaxService, UsLaxService>();

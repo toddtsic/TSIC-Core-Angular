@@ -120,6 +120,8 @@ public sealed class FieldManagementService : IFieldManagementService
         var field = await _fieldRepo.GetFieldTrackedAsync(request.FieldId, ct)
             ?? throw new KeyNotFoundException($"Field {request.FieldId} not found.");
 
+        var nameChanged = field.FName != request.FName;
+
         field.FName = request.FName;
         field.Address = request.Address;
         field.City = request.City;
@@ -133,8 +135,14 @@ public sealed class FieldManagementService : IFieldManagementService
 
         await _fieldRepo.SaveChangesAsync(ct);
 
-        // Replaces legacy reference.Field_AfterEdit_UpdateScheduleFieldName trigger.
-        await _scheduleRepo.SynchronizeScheduleFieldNameAsync(field.FieldId, field.FName ?? string.Empty, ct);
+        // Fields are cross-job — one Fields row backs many jobs' schedules. On a rename, fan the
+        // canonical writer across every job that has scheduled this field.
+        if (nameChanged)
+        {
+            var fieldJobs = await _scheduleRepo.GetJobIdsForFieldAsync(field.FieldId, ct);
+            await _scheduleRepo.RecomposeAcrossJobsAsync(
+                fieldJobs, field: (field.FieldId, field.FName ?? string.Empty), ct: ct);
+        }
 
         _logger.LogInformation("Field {FieldId} '{FName}' updated by {UserId}", field.FieldId, field.FName, userId);
     }

@@ -159,4 +159,46 @@ public class ClubRepsController : ControllerBase
 
         return Ok(result);
     }
+
+    /// <summary>
+    /// SuperUser: jobs holding teams for a club — the affected-jobs impact list shown in the
+    /// admin rename confirm modal (also the scope the rename operation itself recomposes).
+    /// </summary>
+    [Authorize(Policy = "SuperUserOnly")]
+    [HttpGet("admin/rename-impact/{clubId:int}")]
+    [ProducesResponseType(typeof(IReadOnlyList<ClubAffectedJob>), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    public async Task<IActionResult> GetRenameImpact(int clubId)
+    {
+        var affected = await _clubService.GetClubAffectedJobsAsync(clubId);
+        return Ok(affected);
+    }
+
+    /// <summary>
+    /// SuperUser: rename a club even once it has registered teams — recomposes every affected
+    /// job's schedule. See <see cref="IClubService.AdminRenameClubAsync"/>.
+    /// </summary>
+    [Authorize(Policy = "SuperUserOnly")]
+    [HttpPut("admin/rename")]
+    [ProducesResponseType(typeof(AdminClubRenameResponse), 200)]
+    [ProducesResponseType(typeof(AdminClubRenameResponse), 400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    public async Task<IActionResult> AdminRenameClub([FromBody] AdminClubRenameRequest request)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = "User not authenticated" });
+        }
+
+        var result = await _clubService.AdminRenameClubAsync(userId, request);
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
+    }
 }

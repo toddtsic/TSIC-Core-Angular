@@ -389,6 +389,26 @@
             </div>
           }
 
+          <!-- ── Club Rep: the club, from the canonical Clubs row (with SuperUser rename) ── -->
+          @if (isClubRepRole() && clubName()) {
+            <div class="info-section">
+              <h5 class="info-section-title">Club</h5>
+              <div class="club-rep-card">
+                <div class="info-item">
+                  <span class="info-label">Club Name</span>
+                  <span class="info-value">{{ clubName() }}</span>
+                </div>
+                @if (canRenameClub()) {
+                  <button type="button" class="btn btn-outline-primary btn-sm club-rename-btn"
+                          (click)="openRenameClubModal()"
+                          title="Rename this club everywhere it appears — schedules included">
+                    <i class="bi bi-pencil"></i> Rename Club
+                  </button>
+                }
+              </div>
+            </div>
+          }
+
           <!-- ── Read-Only: Non-templated roles (Club Rep) — only populated fields ── -->
           @if (!showProfileCard()) {
             @let npFields = nonPlayerFields();
@@ -615,6 +635,51 @@
             [disabled]="!selectedNewJobId() || isChangingJob()">
             @if (isChangingJob()) { <span class="spinner-border spinner-border-sm me-1"></span> }
             Submit
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- ═══════════════════════ RENAME CLUB MODAL (SuperUser) ═══════════════════════ -->
+    @if (showRenameClubModal()) {
+      <div class="modal-backdrop" (click)="cancelRenameClub()" (keydown.escape)="cancelRenameClub()"></div>
+      <div class="change-job-modal">
+        <div class="modal-header">
+          <h4 class="modal-title">Rename Club</h4>
+          <button type="button" class="btn-close" (click)="cancelRenameClub()" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="rename-club-input" class="form-label">New club name</label>
+            <input id="rename-club-input" type="text" class="form-control"
+                   [ngModel]="renameClubNewName()" (ngModelChange)="renameClubNewName.set($event)"
+                   name="renameClubNewName" maxlength="255" autocomplete="off">
+          </div>
+
+          @if (isLoadingRenameImpact()) {
+            <div class="text-muted small mt-2"><span class="spinner-border spinner-border-sm me-1"></span> Checking affected schedules…</div>
+          } @else if (renameClubAffectedJobs().length > 0) {
+            <div class="alert alert-warning mt-3 mb-0">
+              <div class="fw-semibold mb-1">
+                <i class="bi bi-exclamation-triangle me-1"></i>This club has teams in {{ renameClubAffectedJobs().length }} scheduled job{{ renameClubAffectedJobs().length !== 1 ? 's' : '' }}.
+              </div>
+              <div class="small mb-2">Every game name in these schedules will be rewritten — including bracket and consolation games with admin-typed names.</div>
+              <ul class="rename-impact-list small mb-0">
+                @for (job of renameClubAffectedJobs(); track job.jobId) {
+                  <li>{{ job.jobName }} <span class="text-muted">({{ job.teamCount }} team{{ job.teamCount !== 1 ? 's' : '' }})</span></li>
+                }
+              </ul>
+            </div>
+          } @else {
+            <div class="alert alert-info mt-3 mb-0 small">No scheduled teams — this rename touches the club record only.</div>
+          }
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="cancelRenameClub()">Cancel</button>
+          <button type="button" class="btn btn-primary" (click)="submitRenameClub()"
+            [disabled]="!renameClubNewName().trim() || isRenamingClub() || isLoadingRenameImpact()">
+            @if (isRenamingClub()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+            Rename Club
           </button>
         </div>
       </div>

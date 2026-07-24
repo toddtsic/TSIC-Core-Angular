@@ -441,9 +441,9 @@ public class JobConfigService : IJobConfigService
         if (prevShowTeamNameOnly != req.BShowTeamNameOnlyInSchedules)
         {
             _logger.LogInformation(
-                "BShowTeamNameOnlyInSchedules flipped on Job {JobId} ({Prev}→{New}) — recomposing schedule team names.",
+                "BShowTeamNameOnlyInSchedules flipped on Job {JobId} ({Prev}→{New}) — recomposing schedule names.",
                 jobId, prevShowTeamNameOnly, req.BShowTeamNameOnlyInSchedules);
-            await _scheduleRepo.SynchronizeAllScheduleNamesForJobAsync(jobId, ct);
+            await _scheduleRepo.RecomposeScheduleNamesForJobAsync(jobId, ct: ct);
         }
     }
 

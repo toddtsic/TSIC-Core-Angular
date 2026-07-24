@@ -5,7 +5,6 @@ using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Helpers;
 using TSIC.Infrastructure.Data.SqlDbContext;
-using TSIC.Infrastructure.Data.SqlDbContext.Helpers;
 using TSIC.Infrastructure.Utilities;
 
 namespace TSIC.Infrastructure.Repositories;
@@ -20,21 +19,6 @@ public sealed class ScheduleRepository : IScheduleRepository
     public ScheduleRepository(SqlDbContext context)
     {
         _context = context;
-    }
-
-    public async Task SynchronizeScheduleNamesForTeamAsync(Guid teamId, Guid jobId, CancellationToken ct = default)
-    {
-        var team = await _context.Teams
-            .AsNoTracking()
-            .Where(t => t.TeamId == teamId)
-            .Select(t => new { t.TeamName })
-            .FirstOrDefaultAsync(ct);
-        if (team == null) return;
-
-        await ScheduleNameSyncHelper.ApplyTeamRenameToChangeTrackerAsync(
-            _context, teamId, jobId, team.TeamName ?? string.Empty, ct);
-
-        await _context.SaveChangesAsync(ct);
     }
 
     public async Task<int> SynchronizeScheduleDivisionForTeamAsync(
@@ -65,50 +49,15 @@ public sealed class ScheduleRepository : IScheduleRepository
         return schedules.Count;
     }
 
-    public async Task SynchronizeScheduleAgegroupNameAsync(Guid agegroupId, Guid jobId, string newName, CancellationToken ct = default)
-    {
-        var schedules = await _context.Schedule
-            .Where(s => s.JobId == jobId && s.AgegroupId == agegroupId)
-            .ToListAsync(ct);
-
-        foreach (var s in schedules)
-            s.AgegroupName = newName;
-
-        if (schedules.Count > 0)
-            await _context.SaveChangesAsync(ct);
-    }
-
-    public async Task SynchronizeScheduleDivisionNameAsync(Guid divId, Guid jobId, string newName, CancellationToken ct = default)
-    {
-        var schedules = await _context.Schedule
-            .Where(s => s.JobId == jobId && (s.DivId == divId || s.Div2Id == divId))
-            .ToListAsync(ct);
-
-        foreach (var s in schedules)
-        {
-            if (s.DivId == divId) s.DivName = newName;
-            if (s.Div2Id == divId) s.Div2Name = newName;
-        }
-
-        if (schedules.Count > 0)
-            await _context.SaveChangesAsync(ct);
-    }
-
-    public async Task SynchronizeScheduleFieldNameAsync(Guid fieldId, string newName, CancellationToken ct = default)
-    {
-        await _context.Schedule
-            .Where(s => s.FieldId == fieldId)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(s => s.FName, newName), ct);
-    }
-
-    public async Task SynchronizeScheduleLeagueNameAsync(Guid leagueId, string newName, CancellationToken ct = default)
-    {
-        await _context.Schedule
-            .Where(s => s.LeagueId == leagueId)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(s => s.LeagueName, newName), ct);
-    }
-
-    public async Task SynchronizeAllScheduleNamesForJobAsync(Guid jobId, CancellationToken ct = default)
+    public async Task<(int Examined, int Changed)> RecomposeScheduleNamesForJobAsync(
+        Guid jobId,
+        (Guid Id, string Text)? league = null,
+        (Guid Id, string Text)? agegroup = null,
+        (Guid Id, string Text)? div = null,
+        (Guid Id, string Text)? field = null,
+        (Guid Id, string Text)? team = null,
+        (int Id, string Old, string New)? club = null,
+        CancellationToken ct = default)
     {
         var showTeamNameOnly = await _context.Jobs
             .AsNoTracking()
@@ -116,43 +65,251 @@ public sealed class ScheduleRepository : IScheduleRepository
             .Select(j => j.BShowTeamNameOnlyInSchedules)
             .FirstOrDefaultAsync(ct);
 
-        var teamRows = await (
+        var schedules = await _context.Schedule
+            .Where(s => s.JobId == jobId)
+            .ToListAsync(ct);
+
+        if (schedules.Count == 0) return (0, 0);
+
+        var changedGids = new HashSet<int>();
+        var anyScoped = league.HasValue || agegroup.HasValue || div.HasValue
+            || field.HasValue || team.HasValue || club.HasValue;
+
+        if (!anyScoped)
+        {
+            // No entity named → full recompose from source (flag flip, or a drift repair).
+            await FullRecomposeFromSourceAsync(jobId, schedules, showTeamNameOnly, changedGids, ct);
+            if (changedGids.Count > 0) await _context.SaveChangesAsync(ct);
+            return (schedules.Count, changedGids.Count);
+        }
+
+        // Scoped: each supplied {id, text} pair carries the NEW value and drives only the rows it
+        // owns. A team appears as T1 OR T2 (or both), so each slot is checked separately.
+
+        // ── Four flat columns: a straight copy, no composition. ──
+        if (league is { } lg)
+            foreach (var s in schedules)
+                if (s.LeagueId == lg.Id && s.LeagueName != lg.Text)
+                { s.LeagueName = lg.Text; changedGids.Add(s.Gid); }
+
+        if (agegroup is { } ag)
+            foreach (var s in schedules)
+                if (s.AgegroupId == ag.Id && s.AgegroupName != ag.Text)
+                { s.AgegroupName = ag.Text; changedGids.Add(s.Gid); }
+
+        if (div is { } dv)
+            foreach (var s in schedules)
+            {
+                if (s.DivId == dv.Id && s.DivName != dv.Text) { s.DivName = dv.Text; changedGids.Add(s.Gid); }
+                if (s.Div2Id == dv.Id && s.Div2Name != dv.Text) { s.Div2Name = dv.Text; changedGids.Add(s.Gid); }
+            }
+
+        if (field is { } fl)
+            foreach (var s in schedules)
+                if (s.FieldId == fl.Id && s.FName != fl.Text)
+                { s.FName = fl.Text; changedGids.Add(s.Gid); }
+
+        // ── Team rename: the new name is supplied; the club half is sourced from Clubs (a team
+        //    rename doesn't touch the club). Round-robin rows only — a bracket/consolation row
+        //    carries the team name mid-annotation and can't be safely rebuilt, matching the
+        //    pre-existing per-team behavior. ──
+        if (team is { } tm)
+        {
+            var teamClub = await (
+                from t in _context.Teams
+                join cte in _context.ClubTeams on t.ClubTeamId equals cte.ClubTeamId
+                join c in _context.Clubs on cte.ClubId equals c.ClubId
+                where t.TeamId == tm.Id
+                select c.ClubName).FirstOrDefaultAsync(ct);
+
+            var display = (!string.IsNullOrEmpty(teamClub) && !showTeamNameOnly)
+                ? $"{teamClub}:{tm.Text}"
+                : tm.Text;
+
+            foreach (var s in schedules)
+            {
+                if (s.T1Id == tm.Id && s.T1Type == "T" && s.T1Name != display)
+                { s.T1Name = display; changedGids.Add(s.Gid); }
+                if (s.T2Id == tm.Id && s.T2Type == "T" && s.T2Name != display)
+                { s.T2Name = display; changedGids.Add(s.Gid); }
+            }
+        }
+
+        // ── Club rename: only rows whose seated team belongs to this club are touched. "T" rows are
+        //    rebuilt {new}:{sourceTeam}; resolved bracket/consolation rows keep their annotation and
+        //    get only the "{old}:" prefix swapped for "{new}:". ──
+        if (club is { } cl)
+        {
+            var clubTeamNames = await (
+                from t in _context.Teams
+                join cte in _context.ClubTeams on t.ClubTeamId equals cte.ClubTeamId
+                where t.JobId == jobId && cte.ClubId == cl.Id
+                select new { t.TeamId, t.TeamName })
+                .ToDictionaryAsync(x => x.TeamId, x => x.TeamName, ct);
+
+            var oldPrefix = cl.Old + ":";
+
+            string? ClubSlot(Guid? id, string? type, string? current)
+            {
+                if (!id.HasValue || !clubTeamNames.TryGetValue(id.Value, out var teamName)) return null;
+                if (type == "T")
+                    return (!showTeamNameOnly) ? $"{cl.New}:{teamName}" : teamName ?? string.Empty;
+                return !string.IsNullOrEmpty(current) && current.StartsWith(oldPrefix, StringComparison.Ordinal)
+                    ? cl.New + ":" + current[oldPrefix.Length..]
+                    : null;
+            }
+
+            foreach (var s in schedules)
+            {
+                var n1 = ClubSlot(s.T1Id, s.T1Type, s.T1Name);
+                if (n1 is not null && s.T1Name != n1) { s.T1Name = n1; changedGids.Add(s.Gid); }
+
+                var n2 = ClubSlot(s.T2Id, s.T2Type, s.T2Name);
+                if (n2 is not null && s.T2Name != n2) { s.T2Name = n2; changedGids.Add(s.Gid); }
+            }
+        }
+
+        if (changedGids.Count > 0) await _context.SaveChangesAsync(ct);
+        return (schedules.Count, changedGids.Count);
+    }
+
+    public async Task<IReadOnlyList<(Guid JobId, int Examined, int Changed)>> RecomposeAcrossJobsAsync(
+        IReadOnlyCollection<Guid> jobIds,
+        (Guid Id, string Text)? league = null,
+        (Guid Id, string Text)? agegroup = null,
+        (Guid Id, string Text)? div = null,
+        (Guid Id, string Text)? field = null,
+        (Guid Id, string Text)? team = null,
+        (int Id, string Old, string New)? club = null,
+        CancellationToken ct = default)
+    {
+        var results = new List<(Guid JobId, int Examined, int Changed)>();
+        foreach (var jobId in jobIds.Distinct())
+        {
+            var (e, c) = await RecomposeScheduleNamesForJobAsync(
+                jobId, league, agegroup, div, field, team, club, ct);
+            results.Add((jobId, e, c));
+        }
+        return results;
+    }
+
+    public async Task<List<Guid>> GetJobIdsForFieldAsync(Guid fieldId, CancellationToken ct = default)
+    {
+        return await _context.Schedule.AsNoTracking()
+            .Where(s => s.FieldId == fieldId)
+            .Select(s => s.JobId)
+            .Distinct()
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<Guid>> GetJobIdsForLeagueAsync(Guid leagueId, CancellationToken ct = default)
+    {
+        return await _context.Schedule.AsNoTracking()
+            .Where(s => s.LeagueId == leagueId)
+            .Select(s => s.JobId)
+            .Distinct()
+            .ToListAsync(ct);
+    }
+
+    /// <summary>
+    /// Recompose all seven denormalized name columns on the given rows from their current sources.
+    /// Used by the no-entity (all-null) call — a flag flip or a drift repair. Marks the Gid of every
+    /// row it modifies. Does not save.
+    /// </summary>
+    private async Task FullRecomposeFromSourceAsync(
+        Guid jobId, List<Domain.Entities.Schedule> schedules, bool showTeamNameOnly,
+        HashSet<int> changedGids, CancellationToken ct)
+    {
+        // Club sourced canonically: Teams.ClubTeamId → ClubTeams.ClubId → Clubs.ClubName. A team with
+        // no ClubTeamId (or an orphaned link) resolves no club and renders bare.
+        var teamInfo = await (
             from t in _context.Teams.AsNoTracking()
             where t.JobId == jobId
-            join r in _context.Registrations on t.ClubrepRegistrationid equals r.RegistrationId into rg
-            from r in rg.DefaultIfEmpty()
-            select new
-            {
-                t.TeamId,
-                t.TeamName,
-                ClubName = r != null ? r.ClubName : null
-            }
-        ).ToListAsync(ct);
+            join ctc in (
+                from ct2 in _context.ClubTeams
+                join c in _context.Clubs on ct2.ClubId equals c.ClubId
+                select new { ct2.ClubTeamId, c.ClubName }
+            ) on t.ClubTeamId equals ctc.ClubTeamId into g
+            from ctc in g.DefaultIfEmpty()
+            select new { t.TeamId, t.TeamName, ClubName = ctc != null ? ctc.ClubName : null }
+        ).ToDictionaryAsync(x => x.TeamId, x => (Club: x.ClubName, Team: x.TeamName), ct);
 
-        if (teamRows.Count == 0) return;
+        var leagueIds = schedules.Select(s => s.LeagueId).Distinct().ToList();
+        var leagueNameById = await _context.Leagues.AsNoTracking()
+            .Where(l => leagueIds.Contains(l.LeagueId))
+            .ToDictionaryAsync(l => l.LeagueId, l => l.LeagueName, ct);
 
-        var nameByTeamId = teamRows.ToDictionary(
-            t => t.TeamId,
-            t => (!string.IsNullOrEmpty(t.ClubName) && !showTeamNameOnly)
-                ? $"{t.ClubName}:{t.TeamName}"
-                : t.TeamName ?? string.Empty);
+        var agegroupIds = schedules.Select(s => s.AgegroupId).Distinct().ToList();
+        var agegroupNameById = await _context.Agegroups.AsNoTracking()
+            .Where(a => agegroupIds.Contains(a.AgegroupId))
+            .ToDictionaryAsync(a => a.AgegroupId, a => a.AgegroupName, ct);
 
-        var schedules = await _context.Schedule
-            .Where(s => s.JobId == jobId
-                && ((s.T1Id != null && s.T1Type == "T")
-                 || (s.T2Id != null && s.T2Type == "T")))
-            .ToListAsync(ct);
+        var divIds = schedules.Select(s => s.DivId)
+            .Concat(schedules.Select(s => s.Div2Id))
+            .Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
+        var divNameById = await _context.Divisions.AsNoTracking()
+            .Where(d => divIds.Contains(d.DivId))
+            .ToDictionaryAsync(d => d.DivId, d => d.DivName, ct);
+
+        var fieldIds = schedules.Select(s => s.FieldId)
+            .Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
+        var fieldNameById = await _context.Fields.AsNoTracking()
+            .Where(f => fieldIds.Contains(f.FieldId))
+            .ToDictionaryAsync(f => f.FieldId, f => f.FName, ct);
 
         foreach (var s in schedules)
         {
-            if (s.T1Id.HasValue && s.T1Type == "T" && nameByTeamId.TryGetValue(s.T1Id.Value, out var t1Name))
-                s.T1Name = t1Name;
-            if (s.T2Id.HasValue && s.T2Type == "T" && nameByTeamId.TryGetValue(s.T2Id.Value, out var t2Name))
-                s.T2Name = t2Name;
-        }
+            // Five non-team columns: overwrite only on a source hit, never null an orphaned reference.
+            if (leagueNameById.TryGetValue(s.LeagueId, out var lName) && s.LeagueName != lName)
+            { s.LeagueName = lName; changedGids.Add(s.Gid); }
 
-        if (schedules.Count > 0)
-            await _context.SaveChangesAsync(ct);
+            if (s.AgegroupId.HasValue && agegroupNameById.TryGetValue(s.AgegroupId.Value, out var agName) && s.AgegroupName != agName)
+            { s.AgegroupName = agName; changedGids.Add(s.Gid); }
+
+            if (s.DivId.HasValue && divNameById.TryGetValue(s.DivId.Value, out var dName) && s.DivName != dName)
+            { s.DivName = dName; changedGids.Add(s.Gid); }
+
+            if (s.Div2Id.HasValue && divNameById.TryGetValue(s.Div2Id.Value, out var d2Name) && s.Div2Name != d2Name)
+            { s.Div2Name = d2Name; changedGids.Add(s.Gid); }
+
+            if (s.FieldId.HasValue && fieldNameById.TryGetValue(s.FieldId.Value, out var fName) && s.FName != fName)
+            { s.FName = fName; changedGids.Add(s.Gid); }
+
+            // Two team-name columns, per slot.
+            var newT1 = RecomposeSlotFromSource(s.T1Id, s.T1Type, s.T1Name, teamInfo, showTeamNameOnly);
+            if (newT1 is not null && s.T1Name != newT1) { s.T1Name = newT1; changedGids.Add(s.Gid); }
+
+            var newT2 = RecomposeSlotFromSource(s.T2Id, s.T2Type, s.T2Name, teamInfo, showTeamNameOnly);
+            if (newT2 is not null && s.T2Name != newT2) { s.T2Name = newT2; changedGids.Add(s.Gid); }
+        }
+    }
+
+    /// <summary>
+    /// Full-recompose helper for one team slot. "T" slots rebuild {club}:{team} from source; resolved
+    /// bracket/consolation slots keep their annotation and only have the "{club}:" prefix added/removed
+    /// to match the flag. Returns null when the slot is unresolved (no team) or should be left as-is.
+    /// </summary>
+    private static string? RecomposeSlotFromSource(
+        Guid? teamId, string? slotType, string? currentName,
+        IReadOnlyDictionary<Guid, (string? Club, string? Team)> teamInfo,
+        bool showTeamNameOnly)
+    {
+        if (!teamId.HasValue) return null;
+
+        teamInfo.TryGetValue(teamId.Value, out var info);
+        var club = info.Club;
+
+        if (slotType == "T")
+            return (!string.IsNullOrEmpty(club) && !showTeamNameOnly)
+                ? $"{club}:{info.Team}"
+                : info.Team ?? string.Empty;
+
+        // Resolved bracket/consolation slot — add or remove the "{club}:" prefix, keep the annotation.
+        if (string.IsNullOrEmpty(currentName)) return null;
+        var core = (!string.IsNullOrEmpty(club) && currentName.StartsWith(club + ":", StringComparison.Ordinal))
+            ? currentName[(club!.Length + 1)..]
+            : currentName;
+        return (!string.IsNullOrEmpty(club) && !showTeamNameOnly) ? $"{club}:{core}" : core;
     }
 
     public async Task SynchronizeScheduleTeamAssignmentsForDivisionAsync(Guid divId, Guid jobId, CancellationToken ct = default)

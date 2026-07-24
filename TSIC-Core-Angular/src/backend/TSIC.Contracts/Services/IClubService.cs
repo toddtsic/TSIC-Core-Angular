@@ -29,6 +29,20 @@ public interface IClubService
     Task<ClubRenameResponse> RenameClubAsync(string userId, ClubRenameRequest request);
 
     /// <summary>
+    /// Jobs holding teams that belong to this club, with team counts — the impact scope of an
+    /// admin rename. Drives the confirm modal's affected-jobs list. Empty when no scheduled teams.
+    /// </summary>
+    Task<IReadOnlyList<ClubAffectedJob>> GetClubAffectedJobsAsync(int clubId);
+
+    /// <summary>
+    /// SuperUser admin rename of a club, allowed even once the club has registered teams. Updates the
+    /// single Clubs row, best-effort rewrites the denormalized registration display copies, and
+    /// recomposes every affected job's schedule (the canonical name writer). Idempotent: resubmitting
+    /// the current name skips the Clubs write and re-runs the recompose as a repair.
+    /// </summary>
+    Task<AdminClubRenameResponse> AdminRenameClubAsync(string userId, AdminClubRenameRequest request);
+
+    /// <summary>
     /// Invalidate cached club search candidates (call after creating a club).
     /// </summary>
     void InvalidateSearchCache();

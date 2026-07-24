@@ -463,6 +463,15 @@ public interface IRegistrationRepository
     Task UpdateRegistrationProfileAsync(Guid jobId, string userId, UpdateRegistrationProfileRequest request, CancellationToken ct = default);
 
     /// <summary>
+    /// Best-effort display sync for an admin club rename: rewrite the denormalized club_name / Assignment /
+    /// RegistrationCategory copies on club-rep registrations belonging to reps of <paramref name="clubId"/>
+    /// whose copy still holds <paramref name="oldName"/>. Rows naming a different club (drift/conflict) are
+    /// left untouched — those copies are the only record of the club a registration was made under.
+    /// Not a correctness dependency: the schedule sources the club from Clubs, not this copy. Returns rows updated.
+    /// </summary>
+    Task<int> UpdateClubRepNameCopiesAsync(int clubId, string oldName, string newName, CancellationToken ct = default);
+
+    /// <summary>
     /// Update family contact info for a registration's linked Families entity.
     /// </summary>
     Task UpdateFamilyContactAsync(Guid jobId, string userId, UpdateFamilyContactRequest request, CancellationToken ct = default);

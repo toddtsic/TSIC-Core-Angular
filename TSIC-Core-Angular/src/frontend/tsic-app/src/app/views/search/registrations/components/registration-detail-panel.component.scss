@@ -354,6 +354,33 @@
   }
 }
 
+// ── Club-rep card (Club Name + SuperUser rename) ──
+.club-rep-card {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+
+  .info-item {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .club-rename-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
+
+.rename-impact-list {
+  margin-top: var(--space-1);
+  padding-left: var(--space-4);
+
+  li + li {
+    margin-top: var(--space-1);
+  }
+}
+
 // ═══════════════════════════════════════════
 // SHARED FORM ELEMENTS (contact zone + email + modals)
 // ═══════════════════════════════════════════

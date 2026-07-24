@@ -31,6 +31,7 @@ public sealed class LadtService : ILadtService
     private readonly IScheduleRepository _scheduleRepo;
     private readonly ITeamPlacementService _placement;
     private readonly IFeeRepository _feeRepo;
+    private readonly TSIC.API.Services.Teams.ITeamRenameService _teamRename;
 
     public LadtService(
         ILeagueRepository leagueRepo,
@@ -45,7 +46,8 @@ public sealed class LadtService : ILadtService
         IClubRepository clubRepo,
         IScheduleRepository scheduleRepo,
         ITeamPlacementService placement,
-        IFeeRepository feeRepo)
+        IFeeRepository feeRepo,
+        TSIC.API.Services.Teams.ITeamRenameService teamRename)
     {
         _leagueRepo = leagueRepo;
         _agegroupRepo = agegroupRepo;
@@ -60,6 +62,7 @@ public sealed class LadtService : ILadtService
         _scheduleRepo = scheduleRepo;
         _placement = placement;
         _feeRepo = feeRepo;
+        _teamRename = teamRename;
     }
 
     // ═══════════════════════════════════════════
@@ -258,7 +261,11 @@ public sealed class LadtService : ILadtService
         await _leagueRepo.SaveChangesAsync(cancellationToken);
 
         if (nameChanged)
-            await _scheduleRepo.SynchronizeScheduleLeagueNameAsync(leagueId, request.LeagueName, cancellationToken);
+        {
+            var leagueJobs = await _scheduleRepo.GetJobIdsForLeagueAsync(leagueId, cancellationToken);
+            await _scheduleRepo.RecomposeAcrossJobsAsync(
+                leagueJobs, league: (leagueId, request.LeagueName), ct: cancellationToken);
+        }
 
         return await _leagueRepo.GetByIdWithSportAsync(leagueId, cancellationToken)
             ?? throw new InvalidOperationException("Failed to retrieve updated league.");
@@ -378,7 +385,8 @@ public sealed class LadtService : ILadtService
         await _agegroupRepo.SaveChangesAsync(cancellationToken);
 
         // Sync denormalized agegroup name in Schedule records
-        await _scheduleRepo.SynchronizeScheduleAgegroupNameAsync(agegroupId, jobId, request.AgegroupName ?? string.Empty, cancellationToken);
+        await _scheduleRepo.RecomposeAcrossJobsAsync(
+            new[] { jobId }, agegroup: (agegroupId, request.AgegroupName ?? string.Empty), ct: cancellationToken);
 
         return MapAgegroup(ag);
     }
@@ -649,7 +657,8 @@ public sealed class LadtService : ILadtService
         await _divisionRepo.SaveChangesAsync(cancellationToken);
 
         // Sync denormalized division name in Schedule records (DivName + Div2Name)
-        await _scheduleRepo.SynchronizeScheduleDivisionNameAsync(divId, jobId, request.DivName ?? string.Empty, cancellationToken);
+        await _scheduleRepo.RecomposeAcrossJobsAsync(
+            new[] { jobId }, div: (divId, request.DivName ?? string.Empty), ct: cancellationToken);
 
         return MapDivision(div);
     }
@@ -783,13 +792,14 @@ public sealed class LadtService : ILadtService
         var team = await _teamRepo.GetTeamFromTeamId(teamId, cancellationToken)
             ?? throw new KeyNotFoundException($"Team {teamId} not found.");
 
-        // Detect team name change for waitlist cascade
+        // Detect team name change → routed through TeamRenameService (it owns the TeamName write,
+        // the library + cross-job fan-out, the WAITLIST twin, and the schedule recompose). This method
+        // never writes TeamName itself — one writer for the name.
         var oldTeamName = team.TeamName;
         var teamNameChanged = request.TeamName != null && oldTeamName != null
             && !string.Equals(oldTeamName, request.TeamName, StringComparison.Ordinal)
             && !oldTeamName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase);
 
-        if (request.TeamName != null) team.TeamName = request.TeamName;
         if (request.Active.HasValue) team.Active = request.Active;
         if (request.DivisionRequested != null) team.DivisionRequested = request.DivisionRequested;
         if (request.LastLeagueRecord != null) team.LastLeagueRecord = request.LastLeagueRecord;
@@ -821,39 +831,12 @@ public sealed class LadtService : ILadtService
         team.LebUserId = userId;
         team.Modified = DateTime.Now;
 
-        // Cascade rename to WAITLIST team mirror if it exists
-        if (teamNameChanged)
-        {
-            var ag = await _agegroupRepo.GetByIdAsync(team.AgegroupId, cancellationToken);
-            if (ag != null)
-            {
-                var agSiblings = await _agegroupRepo.GetByLeagueIdAsync(ag.LeagueId, cancellationToken);
-                var waitlistAg = agSiblings.Find(s =>
-                    string.Equals(s.AgegroupName, $"WAITLIST - {ag.AgegroupName}", StringComparison.OrdinalIgnoreCase));
-                if (waitlistAg != null)
-                {
-                    var waitlistTeams = await _teamRepo.GetByAgegroupIdAsync(waitlistAg.AgegroupId, cancellationToken);
-                    var waitlistTeam = waitlistTeams.Find(t =>
-                        string.Equals(t.TeamName, $"WAITLIST - {oldTeamName}", StringComparison.OrdinalIgnoreCase));
-                    if (waitlistTeam != null)
-                    {
-                        var trackedTeam = await _teamRepo.GetTeamFromTeamId(waitlistTeam.TeamId, cancellationToken);
-                        if (trackedTeam != null)
-                        {
-                            trackedTeam.TeamName = $"WAITLIST - {request.TeamName}";
-                            trackedTeam.LebUserId = userId;
-                            trackedTeam.Modified = DateTime.Now;
-                        }
-                    }
-                }
-            }
-        }
-
         await _teamRepo.SaveChangesAsync(cancellationToken);
 
-        // Sync denormalized team names in Schedule if team name changed
-        if (request.TeamName != null)
-            await _scheduleRepo.SynchronizeScheduleNamesForTeamAsync(teamId, jobId, cancellationToken);
+        // Team rename → the single chokepoint: writes TeamName across every job's copy + the library
+        // row, carries the WAITLIST twin, and recomposes each affected schedule.
+        if (teamNameChanged)
+            await _teamRename.RenameTeamAsync(teamId, jobId, request.TeamName!, userId, cancellationToken);
 
         // Active is one of the filters on the rep-aggregate sync query — flipping it
         // here without re-aggregating leaves clubRep.OwedTotal counting (or omitting)
@@ -1371,10 +1354,13 @@ public sealed class LadtService : ILadtService
         await _registrationRepo.SynchronizeClubRepFinancialsAsync(sourceRegistrationId, userId, ct);
         await _registrationRepo.SynchronizeClubRepFinancialsAsync(request.TargetRegistrationId, userId, ct);
 
-        // 11. Sync denormalized schedule team names
+        // 11. Re-source the schedule's club half — these teams now belong to the target club
+        //     (ClubTeamId was reassigned above; canonical sources the club from Clubs via ClubTeamId).
+        //     Name unchanged, so this is a re-sync, not a rename — no library write, no twin.
         foreach (var t in teamsToMove)
         {
-            await _scheduleRepo.SynchronizeScheduleNamesForTeamAsync(t.TeamId, jobId, ct);
+            await _scheduleRepo.RecomposeScheduleNamesForJobAsync(
+                jobId, team: (t.TeamId, t.TeamName ?? string.Empty), ct: ct);
         }
 
         return new MoveTeamToClubResultDto
@@ -1548,8 +1534,8 @@ public sealed class LadtService : ILadtService
                 tracked.Modified = DateTime.Now;
                 renamed++;
 
-                await _scheduleRepo.SynchronizeScheduleDivisionNameAsync(
-                    div.DivId, jobId, newName, cancellationToken);
+                await _scheduleRepo.RecomposeAcrossJobsAsync(
+                    new[] { jobId }, div: (div.DivId, newName), ct: cancellationToken);
             }
 
             // Create new divisions for theme names beyond existing count

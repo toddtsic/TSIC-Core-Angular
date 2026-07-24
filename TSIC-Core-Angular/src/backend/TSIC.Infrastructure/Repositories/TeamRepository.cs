@@ -114,6 +114,23 @@ public class TeamRepository : ITeamRepository
         return await _context.Teams.FindAsync(new object[] { teamId }, cancellationToken);
     }
 
+    public async Task<List<Teams>> GetTrackedTeamsByClubTeamIdAsync(
+        int clubTeamId, CancellationToken cancellationToken = default)
+    {
+        // Tracked (no AsNoTracking) — the caller mutates TeamName on each.
+        return await _context.Teams
+            .Where(t => t.ClubTeamId == clubTeamId)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<Teams?> GetTrackedTeamByNameInJobAsync(
+        Guid jobId, string teamName, CancellationToken cancellationToken = default)
+    {
+        // Tracked — the caller renames the twin in place.
+        return await _context.Teams
+            .FirstOrDefaultAsync(t => t.JobId == jobId && t.TeamName == teamName, cancellationToken);
+    }
+
     public async Task<Teams?> GetByAdnSubscriptionIdAsync(
         string adnSubscriptionId,
         CancellationToken cancellationToken = default)

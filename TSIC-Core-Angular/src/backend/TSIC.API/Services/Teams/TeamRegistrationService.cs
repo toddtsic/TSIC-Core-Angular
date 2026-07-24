@@ -38,6 +38,7 @@ public class TeamRegistrationService : ITeamRegistrationService
     private readonly IRegisteredTeamShaper _shaper;
     private readonly IJobRegistrationCapabilities _capabilities;
     private readonly IJobPaymentFeaturesService _paymentFeatures;
+    private readonly ITeamRenameService _teamRename;
 
     public TeamRegistrationService(
         ILogger<TeamRegistrationService> logger,
@@ -61,7 +62,8 @@ public class TeamRegistrationService : ITeamRegistrationService
         IPaymentStateService paymentState,
         IRegisteredTeamShaper shaper,
         IJobRegistrationCapabilities capabilities,
-        IJobPaymentFeaturesService paymentFeatures)
+        IJobPaymentFeaturesService paymentFeatures,
+        ITeamRenameService teamRename)
     {
         _logger = logger;
         _clubReps = clubReps;
@@ -85,6 +87,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         _shaper = shaper;
         _capabilities = capabilities;
         _paymentFeatures = paymentFeatures;
+        _teamRename = teamRename;
     }
 
     /// <summary>
@@ -1040,12 +1043,21 @@ public class TeamRegistrationService : ITeamRegistrationService
             }
         }
 
-        entity.ClubTeamName = name;
+        var nameChanged = !string.Equals(entity.ClubTeamName, name, StringComparison.Ordinal);
+
+        // GradYear/LOP are library-only — no denormalized copies to refresh.
         entity.ClubTeamGradYear = gradYear;
         entity.ClubTeamLevelOfPlay = lop;
         entity.Modified = DateTime.Now;
         entity.LebUserId = userId;
-        await _clubTeams.SaveChangesAsync();
+
+        if (nameChanged)
+            // Library is the identity of record: the rename must follow every Teams copy,
+            // WAITLIST twin, and schedule row across all jobs. Owns the ClubTeamName write +
+            // the save (same DbContext scope, so the gradYear/LOP edits above persist with it).
+            await _teamRename.RenameClubTeamAsync(clubTeamId, name, userId);
+        else
+            await _clubTeams.SaveChangesAsync();
 
         _logger.LogInformation("Updated ClubTeam {ClubTeamId} for user {UserId}", clubTeamId, userId);
 

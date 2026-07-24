@@ -98,6 +98,12 @@ public record RegistrationDetailDto
     // This is the foreign-key scope: a Club Rep registration can only be deleted when this is zero.
     // Distinct from IsClubRep, which is active-only and used for display.
     public int ClubRepTeamCount { get; init; }
+
+    // The Club this rep registration was made under, resolved from the rep link + the stored ClubName
+    // copy (Clubs is the canonical name). Populated only for a Club Rep role registration whose copy
+    // still resolves to a live club; null otherwise (drift). Drives the club-rep card + admin rename.
+    public int? ClubId { get; init; }
+    public string? ClubName { get; init; }
 }
 
 /// <summary>

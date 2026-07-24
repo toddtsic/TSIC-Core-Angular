@@ -395,7 +395,10 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         {
             if (!scheduledTeamIds.Contains(team.TeamId)) continue;
 
-            await _scheduleRepo.SynchronizeScheduleNamesForTeamAsync(team.TeamId, jobId, ct);
+            // Name unchanged — the team moved divisions. Re-source its schedule name rows
+            // (club:team) via the canonical writer; the division half is handled just below.
+            await _scheduleRepo.RecomposeScheduleNamesForJobAsync(
+                jobId, team: (team.TeamId, team.TeamName ?? ""), ct: ct);
 
             var agName = team.AgegroupId == targetDivision.AgegroupId
                 ? targetAgegroup?.AgegroupName ?? ""

@@ -22,6 +22,8 @@ public sealed class ClubService : IClubService
     private readonly IClubRepository _clubRepo;
     private readonly IClubRepRepository _clubRepRepo;
     private readonly IUserRepository _userRepo;
+    private readonly IRegistrationRepository _registrationRepo;
+    private readonly IScheduleRepository _scheduleRepo;
     private readonly IUserPrivilegeLevelService _privilegeService;
     private readonly IUserProfileService _userProfileService;
     private readonly IMemoryCache _cache;
@@ -31,6 +33,8 @@ public sealed class ClubService : IClubService
         IClubRepository clubRepo,
         IClubRepRepository clubRepRepo,
         IUserRepository userRepo,
+        IRegistrationRepository registrationRepo,
+        IScheduleRepository scheduleRepo,
         IUserPrivilegeLevelService privilegeService,
         IUserProfileService userProfileService,
         IMemoryCache cache)
@@ -39,6 +43,8 @@ public sealed class ClubService : IClubService
         _clubRepo = clubRepo;
         _clubRepRepo = clubRepRepo;
         _userRepo = userRepo;
+        _registrationRepo = registrationRepo;
+        _scheduleRepo = scheduleRepo;
         _privilegeService = privilegeService;
         _userProfileService = userProfileService;
         _cache = cache;
@@ -461,6 +467,90 @@ public sealed class ClubService : IClubService
         InvalidateSearchCache();
 
         return new ClubRenameResponse { Success = true, NewClubName = next };
+    }
+
+    public async Task<IReadOnlyList<ClubAffectedJob>> GetClubAffectedJobsAsync(int clubId)
+    {
+        return await _clubRepo.GetJobsWithTeamsForClubAsync(clubId);
+    }
+
+    /// <summary>
+    /// Admin (SuperUser) club rename. See <see cref="IClubService.AdminRenameClubAsync"/>.
+    /// Two writes, no spanning transaction: the Clubs row is the single source of truth the schedule
+    /// recompose reads from, so a mid-run failure leaves only a stale display name, repaired by re-running.
+    /// </summary>
+    public async Task<AdminClubRenameResponse> AdminRenameClubAsync(string userId, AdminClubRenameRequest request)
+    {
+        var next = (request.NewClubName ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(next))
+        {
+            return new AdminClubRenameResponse { Success = false, Message = "Club name is required." };
+        }
+
+        var club = await _clubRepo.GetByIdAsync(request.ClubId);
+        if (club == null)
+        {
+            return new AdminClubRenameResponse { Success = false, Message = "Club not found." };
+        }
+
+        var oldName = club.ClubName ?? string.Empty;
+        var isNoOp = string.Equals(oldName, next, StringComparison.Ordinal);
+
+        // Collision: don't rename onto a different existing club (exact-normalized match). Skip on a
+        // no-op — the club's own row is the only exact match and that isn't a collision.
+        if (!isNoOp)
+        {
+            var matches = await SearchClubsAsync(next, null);
+            var collision = matches.FirstOrDefault(m => m.IsExactMatch && m.ClubId != club.ClubId);
+            if (collision != null)
+            {
+                return new AdminClubRenameResponse
+                {
+                    Success = false,
+                    Message = $"A club named \"{collision.ClubName}\" already exists. Merge is a separate operation."
+                };
+            }
+        }
+
+        // Step 1 — the single canonical write. Skipped when the name is already current (repair path).
+        if (!isNoOp)
+        {
+            club.ClubName = next;
+            club.LebUserId = userId;
+            club.Modified = DateTime.Now;
+            await _clubRepo.SaveChangesAsync();
+            InvalidateSearchCache();
+
+            // Best-effort: rewrite the denormalized display copies on club-rep registrations. Never a
+            // correctness dependency — the schedule sources the club from Clubs, not from this copy.
+            await _registrationRepo.UpdateClubRepNameCopiesAsync(club.ClubId, oldName, next);
+        }
+
+        // Step 2 — recompose each affected job's schedule (bracket rows prefix-substitute to keep their
+        // unreproducible annotation; pool rows fully rebuild). Runs on a no-op too, as the repair path.
+        // The per-job fan-out is the shared helper — the same loop every rename ends with.
+        var affected = await _clubRepo.GetJobsWithTeamsForClubAsync(club.ClubId);
+        var jobNames = affected.ToDictionary(j => j.JobId, j => j.JobName);
+        var results = await _scheduleRepo.RecomposeAcrossJobsAsync(
+            affected.Select(j => j.JobId).ToList(),
+            club: (club.ClubId, oldName, next));
+
+        var perJob = results
+            .Select(r => new ClubRenameJobResult
+            {
+                JobId = r.JobId,
+                JobName = jobNames.TryGetValue(r.JobId, out var n) ? n : string.Empty,
+                RowsExamined = r.Examined,
+                RowsChanged = r.Changed
+            })
+            .ToList();
+
+        return new AdminClubRenameResponse
+        {
+            Success = true,
+            NewClubName = next,
+            PerJob = perJob
+        };
     }
 
     public void InvalidateSearchCache()

@@ -9,16 +9,6 @@ namespace TSIC.Contracts.Repositories;
 public interface IScheduleRepository
 {
     /// <summary>
-    /// Single point of truth for schedule team-name sync.
-    /// Re-composes T1Name/T2Name from source entities (Teams.TeamName, Registrations.ClubName,
-    /// Jobs.BShowTeamNameOnlyInSchedules) for every round-robin game where this team appears.
-    /// Idempotent — safe to call from any admin operation that changes team name, club, or the flag.
-    /// Only touches games where T1Type/T2Type == "T" (round-robin); championship/bracket games
-    /// are updated by score-entry logic, not here.
-    /// </summary>
-    Task SynchronizeScheduleNamesForTeamAsync(Guid teamId, Guid jobId, CancellationToken ct = default);
-
-    /// <summary>
     /// Update denormalized AgegroupId/AgegroupName/DivId/DivName on Schedule records
     /// for a team that has been moved to a different division/agegroup.
     /// Only touches round-robin games (T1Type/T2Type == "T").
@@ -28,40 +18,57 @@ public interface IScheduleRepository
         Guid newDivId, string newDivName, CancellationToken ct = default);
 
     /// <summary>
-    /// Update denormalized AgegroupName on all Schedule records where AgegroupId matches.
-    /// Called when an agegroup is renamed in the LADT editor.
+    /// THE canonical writer for a job's denormalized schedule names. Each supplied {id, text} pair
+    /// names an entity that was renamed and its new value; the method rewrites only that entity's
+    /// rows/columns in this job, checking T1 and T2 slots separately.
+    ///
+    ///  • <paramref name="league"/>/<paramref name="agegroup"/>/<paramref name="div"/>/<paramref name="field"/>
+    ///    — flat copies (div hits both DivName and Div2Name).
+    ///  • <paramref name="team"/> — the new team name; the club half is sourced from Clubs. "T" rows only.
+    ///  • <paramref name="club"/> — carries old + new: "T" rows rebuild {new}:{sourceTeam}; resolved
+    ///    bracket/consolation rows keep their annotation and only swap the "{old}:" prefix. Old is
+    ///    required because a bracket row's annotation can't be rebuilt from parts.
+    ///  • All pairs null → full recompose of all seven columns from source (a flag flip / drift repair).
+    ///
+    /// Club is sourced from Clubs (via Teams.ClubTeamId → ClubTeams), never the registration copy.
+    /// Cross-job entities (a Fields/Leagues row backing many jobs) are the caller's loop — one call
+    /// per job. Returns (rows examined, rows changed). Idempotent.
     /// </summary>
-    Task SynchronizeScheduleAgegroupNameAsync(Guid agegroupId, Guid jobId, string newName, CancellationToken ct = default);
+    Task<(int Examined, int Changed)> RecomposeScheduleNamesForJobAsync(
+        Guid jobId,
+        (Guid Id, string Text)? league = null,
+        (Guid Id, string Text)? agegroup = null,
+        (Guid Id, string Text)? div = null,
+        (Guid Id, string Text)? field = null,
+        (Guid Id, string Text)? team = null,
+        (int Id, string Old, string New)? club = null,
+        CancellationToken ct = default);
 
     /// <summary>
-    /// Update denormalized DivName (and Div2Name) on all Schedule records where
-    /// DivId (or Div2Id) matches. Called when a division is renamed in the LADT editor.
+    /// THE single home for the cross-job fan-out. Loops <see cref="RecomposeScheduleNamesForJobAsync"/>
+    /// over <paramref name="jobIds"/> with the same pair, returning per-job (examined, changed). Every
+    /// rename ends here: an entity whose id is shared across jobs (club, field, league) passes all its
+    /// jobs; a single-job entity (agegroup, div) passes a one-element list — the call is identical either
+    /// way. Callers that only need a total sum the results; callers that report per job (club) map them.
+    /// (Team is the one exception: its schedule id is the per-job Teams.TeamId, not the library
+    /// ClubTeamId, so its fan-out loops the per-job writer with a different teamId per job — see
+    /// TeamRenameService.)
     /// </summary>
-    Task SynchronizeScheduleDivisionNameAsync(Guid divId, Guid jobId, string newName, CancellationToken ct = default);
+    Task<IReadOnlyList<(Guid JobId, int Examined, int Changed)>> RecomposeAcrossJobsAsync(
+        IReadOnlyCollection<Guid> jobIds,
+        (Guid Id, string Text)? league = null,
+        (Guid Id, string Text)? agegroup = null,
+        (Guid Id, string Text)? div = null,
+        (Guid Id, string Text)? field = null,
+        (Guid Id, string Text)? team = null,
+        (int Id, string Old, string New)? club = null,
+        CancellationToken ct = default);
 
-    /// <summary>
-    /// Update denormalized FName on all Schedule records where FieldId matches.
-    /// Called when a field is renamed in Field Management. Cross-job: a single
-    /// reference.Fields row is shared across jobs, so no jobId scope.
-    /// Replaces legacy trigger reference.Field_AfterEdit_UpdateScheduleFieldName.
-    /// </summary>
-    Task SynchronizeScheduleFieldNameAsync(Guid fieldId, string newName, CancellationToken ct = default);
+    /// <summary>Distinct JobIds whose schedule references this field — the fan-out scope for a field rename.</summary>
+    Task<List<Guid>> GetJobIdsForFieldAsync(Guid fieldId, CancellationToken ct = default);
 
-    /// <summary>
-    /// Update denormalized LeagueName on all Schedule records where LeagueId matches.
-    /// Called when a league is renamed in LADT. Cross-job: a single Leagues row
-    /// can back schedules across multiple jobs.
-    /// </summary>
-    Task SynchronizeScheduleLeagueNameAsync(Guid leagueId, string newName, CancellationToken ct = default);
-
-    /// <summary>
-    /// Recompose T1Name/T2Name on every round-robin schedule row in a job using
-    /// the job's current BShowTeamNameOnlyInSchedules flag. Called when the flag
-    /// flips, since SynchronizeScheduleNamesForTeamAsync only handles per-team
-    /// rename events. Single bulk pass: builds teamId→displayName map for all
-    /// teams in the job, then updates every game in one SaveChanges.
-    /// </summary>
-    Task SynchronizeAllScheduleNamesForJobAsync(Guid jobId, CancellationToken ct = default);
+    /// <summary>Distinct JobIds whose schedule references this league — the fan-out scope for a league rename.</summary>
+    Task<List<Guid>> GetJobIdsForLeagueAsync(Guid leagueId, CancellationToken ct = default);
 
     /// <summary>
     /// Re-resolve T1Id/T1Name and T2Id/T2Name for every round-robin schedule record

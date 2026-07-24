@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
@@ -15,6 +16,26 @@ public class ClubRepository : IClubRepository
     public ClubRepository(SqlDbContext context)
     {
         _context = context;
+    }
+
+    public async Task<List<ClubAffectedJob>> GetJobsWithTeamsForClubAsync(
+        int clubId, CancellationToken cancellationToken = default)
+    {
+        return await (
+            from t in _context.Teams
+            join cte in _context.ClubTeams on t.ClubTeamId equals cte.ClubTeamId
+            where cte.ClubId == clubId
+            join j in _context.Jobs on t.JobId equals j.JobId
+            group j by new { t.JobId, j.JobName } into g
+            orderby g.Key.JobName
+            select new ClubAffectedJob
+            {
+                JobId = g.Key.JobId,
+                JobName = g.Key.JobName ?? string.Empty,
+                TeamCount = g.Count()
+            })
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<Clubs?> GetByIdAsync(

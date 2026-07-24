@@ -171,6 +171,20 @@ public interface ITeamRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Tracked — every <see cref="Teams"/> row (across all jobs) that shares a club-team library row.
+    /// The event copies a team rename must fan out to (each carries its own per-job TeamId). Drives
+    /// TeamRenameService's library→copies propagation. Empty for an orphan (ClubTeamId null) team.
+    /// </summary>
+    Task<List<Teams>> GetTrackedTeamsByClubTeamIdAsync(int clubTeamId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Tracked — a single team in a job matched by exact name. Used by TeamRenameService to find the
+    /// "WAITLIST - {oldName}" player-overflow twin (which carries no ClubTeamId) so its prefix can be
+    /// carried onto the new name. Null when no twin exists.
+    /// </summary>
+    Task<Teams?> GetTrackedTeamByNameInJobAsync(Guid jobId, string teamName, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get tracked team by ADN ARB subscription ID. Used by the daily sweep to resolve
     /// team-side subscription transactions (ARB-Trial deposits/balances) back to the
     /// team that owns them. Returns null when the subscription belongs to a player
