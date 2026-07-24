@@ -103,3 +103,21 @@
     }
   }
 }
+
+/* Mobile: let dropdown items wrap instead of ellipsizing — a truncated option
+   hides exactly what the user is choosing between (e.g. team fees on the
+   registration wizard's team picker). Desktop keeps single-line + ellipsis. */
+@media (max-width: 767.98px) {
+  .e-popup .e-list-item,
+  .e-dropdownbase .e-list-item {
+    white-space: normal !important;
+    text-overflow: clip !important;
+    overflow: visible !important;
+    line-height: 1.35;
+    // Left spine + hanging indent: continuation lines tuck under the text so
+    // each option reads as one block and the list scans cleanly top-to-bottom.
+    text-align: left !important;
+    padding-left: calc(8px + 1.1em) !important;
+    text-indent: -1.1em;
+  }
+}
