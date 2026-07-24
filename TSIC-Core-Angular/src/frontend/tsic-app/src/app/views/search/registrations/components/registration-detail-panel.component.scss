@@ -1,35 +1,10 @@
 // Registration Detail Panel Styles
 // Uses CSS variables only (NO hardcoded colors/spacing)
 
-.detail-panel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  width: 560px;
-  height: 100vh;
-  background: var(--bs-body-bg);
-  border-left: 1px solid var(--bs-border-color);
-  box-shadow: var(--shadow-xl);
-  z-index: 1050;
-  transform: translateX(100%);
-  transition: transform 0.3s ease;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-
-  &.open {
-    transform: translateX(0);
-  }
-}
-// Resize handle + `.resizing` styling are global — see styles/_flyin.scss
-// (the appResizablePanel directive injects an unencapsulated handle element).
-
-.detail-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.3);
-  z-index: 1049;
-}
+// Panel shell (.detail-panel/.detail-backdrop positioning, mobile below-header
+// placement, resize handle) is global — styles/_flyin.scss. This file styles
+// the interior only; do NOT re-declare shell positioning here, a component-scoped
+// copy outranks the contract and breaks the mobile placement.
 
 // Header
 .panel-header {
@@ -1074,12 +1049,8 @@
   }
 }
 
-// Responsive — full-width on mobile
+// Responsive — shell full-bleed handled globally (_flyin.scss)
 @media (max-width: 767.98px) {
-  .detail-panel {
-    width: 100vw;
-  }
-
   .contact-row,
   .family-contact-row,
   .info-grid {

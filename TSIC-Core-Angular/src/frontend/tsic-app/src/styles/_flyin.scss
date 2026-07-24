@@ -52,11 +52,11 @@
     // job identity stays visible through the dimmed backdrop (which still covers
     // the header, keeping it non-interactive while the panel is open).
     //
-    // !important throughout: panels that predate this contract carry their own
-    // component-scoped `.detail-panel { top: 0; height: 100vh; }` copies, which
-    // outrank a plain global rule and silently re-created the full-takeover bug
-    // per panel (reg-detail, team-detail, club-rosters). On mobile the contract
-    // is law, not a default — shadowing copies must not win.
+    // !important throughout: component-scoped rules outrank this plain global,
+    // so any panel that declares its own width (club-rosters' 400px) or —
+    // like three legacy panels once did — copies the whole positional block
+    // would silently win and retake the full screen. On mobile the contract
+    // is law, not a default.
     width: 100vw !important;
     top: var(--app-header-height-mobile, 48px) !important;
     height: calc(100vh - var(--app-header-height-mobile, 48px)) !important;
