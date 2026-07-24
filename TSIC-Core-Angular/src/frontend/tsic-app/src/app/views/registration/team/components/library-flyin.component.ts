@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, HostListener, OnDestroy, computed, input, output, signal, viewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, HostListener, OnChanges, OnDestroy, SimpleChanges, computed, input, output, signal, viewChild } from '@angular/core';
 import type { AgeGroupDto, ClubTeamDto, RegisteredTeamDto } from '@core/api';
 import { environment } from '@environments/environment';
 import { normalizeLop } from '@shared/teams/lop-choices';
@@ -112,7 +112,7 @@ interface LibraryGroup {
       </div>
 
       <!-- ── Body ───────────────────────────────────────────────────── -->
-      <div class="panel-body">
+      <div class="panel-body" #panelBody>
         @if (activeTeams().length === 0) {
           <!-- All-archived (or defensive empty) — hero treatment -->
           <div class="lib-empty-hero">
@@ -451,6 +451,33 @@ interface LibraryGroup {
         flex-direction: column;
 
         &.open { transform: translateX(0); }
+      }
+
+      /* Mobile flyin contract (mirrors _flyin.scss .detail-panel): start below
+         the app header so the job identity stays visible through the dimmed
+         backdrop (which still covers the header, keeping it non-interactive).
+         dvh so the panel bottom clears iOS Safari's collapsing URL bar. */
+      @media (max-width: 767.98px) {
+        .library-panel {
+          top: var(--app-header-height-mobile, 48px);
+          bottom: auto;
+          height: calc(100vh - var(--app-header-height-mobile, 48px));
+          height: calc(100dvh - var(--app-header-height-mobile, 48px));
+        }
+
+        .panel-header .header-top-row {
+          flex-wrap: wrap;
+          row-gap: var(--space-2);
+        }
+
+        /* Title keeps row 1 beside the close X (flex-basis 0 so the row never
+           overflows into a wrap); the club badge wraps inside the title instead. */
+        .panel-header .panel-title {
+          flex: 1;
+          min-width: 0;
+          white-space: normal;
+          flex-wrap: wrap;
+        }
       }
 
       /* ── Header — matches registration-detail-panel ──────────────── */
@@ -1375,8 +1402,23 @@ interface LibraryGroup {
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
+export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestroy {
     private readonly flyinRoot = viewChild.required<ElementRef<HTMLElement>>('flyinRoot');
+    // Not .required — the first ngOnChanges fires before the view exists.
+    private readonly panelBody = viewChild<ElementRef<HTMLElement>>('panelBody');
+
+    /**
+     * The panel persists in the DOM while closed (it only translates off-screen),
+     * so the body keeps its scroll position across open/close. Each open should
+     * start at the top — that's where Add Library Team and the Registered group
+     * live — not wherever the rep last scrolled to.
+     */
+    ngOnChanges(changes: SimpleChanges): void {
+        if (changes['isOpen'] && this.isOpen()) {
+            const body = this.panelBody()?.nativeElement;
+            if (body) body.scrollTop = 0;
+        }
+    }
 
     /**
      * The library-flyin lives inside <router-outlet> inside <main>, and <main>
