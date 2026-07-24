@@ -376,8 +376,9 @@ public class PlayerRegistrationPaymentController : ControllerBase
         }
         else
         {
-            var distinctReasons = results.Where(r => !r.Success).Select(r => r.Message).Distinct().ToList();
-            aggregateMessage = distinctReasons.Count == 1 ? distinctReasons[0] : "No discounts were applied";
+            var distinctReasons = results.Where(r => !r.Success).Select(r => r.Message)
+                .Where(m => !string.IsNullOrEmpty(m)).Distinct().ToList();
+            aggregateMessage = distinctReasons.Count == 1 ? distinctReasons[0]! : "No discounts were applied";
         }
 
         var response = new ApplyDiscountResponseDto

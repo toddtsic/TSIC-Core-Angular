@@ -232,7 +232,7 @@ public sealed class ScheduleRepository : IScheduleRepository
             ) on t.ClubTeamId equals ctc.ClubTeamId into g
             from ctc in g.DefaultIfEmpty()
             select new { t.TeamId, t.TeamName, ClubName = ctc != null ? ctc.ClubName : null }
-        ).ToDictionaryAsync(x => x.TeamId, x => (Club: x.ClubName, Team: x.TeamName), ct);
+        ).ToDictionaryAsync(x => x.TeamId, x => (Club: (string?)x.ClubName, Team: (string?)x.TeamName), ct);
 
         var leagueIds = schedules.Select(s => s.LeagueId).Distinct().ToList();
         var leagueNameById = await _context.Leagues.AsNoTracking()
