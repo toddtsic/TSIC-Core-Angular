@@ -24,14 +24,10 @@
                     <span class="tsic-wordmark">Team<span class="tsic-wordmark__accent">Sports</span>Info</span>
                 </div>
 
-                <!-- Mobile TSIC Logo -->
-                <button type="button" class="btn btn-sm btn-outline-secondary p-2 d-md-none"
-                    (click)="goToTsicHome()" [title]="tsicLogoTitle()">
-                    <img src="images/tsic-notext-logo.png" alt="TSIC" class="mobile-logo" />
-                </button>
-
-                <!-- Environment chip — text + colors driven by body[data-env] in global SCSS. -->
-                <span class="env-chip-inline" aria-label="Environment indicator" title="Non-production environment"></span>
+                <!-- Environment chip — text + colors driven by body[data-env] in global SCSS.
+                     Mobile: hidden — the hazard-stripe header tape (same data-env signal) carries
+                     the non-prod warning; the chip's 55px goes to the job name instead. -->
+                <span class="env-chip-inline d-none d-md-inline-flex" aria-label="Environment indicator" title="Non-production environment"></span>
 
                 <!-- Job Logo — click navigates to role landing page -->
                 @if (jobLogoPath()) {
@@ -207,6 +203,13 @@
                         </button>
 
                         <div class="user-menu-divider"></div>
+
+                        <!-- Replaces the removed mobile TSIC-logo button; confirm dialog guards the logout -->
+                        <button type="button" class="user-menu-item" role="menuitem"
+                            (click)="goToTsicHome(); closeMobileMenu()">
+                            <i class="bi bi-box-arrow-up-right"></i>
+                            <span>TeamSportsInfo Home</span>
+                        </button>
 
                         @if (user()) {
                         <button type="button" class="user-menu-item user-menu-item--danger" role="menuitem"
