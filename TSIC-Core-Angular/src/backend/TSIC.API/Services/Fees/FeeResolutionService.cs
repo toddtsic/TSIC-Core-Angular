@@ -277,9 +277,16 @@ public sealed class FeeResolutionService : IFeeResolutionService
         var effectiveDeposit = Math.Max(0m, deposit - reg.TotalDiscount() + reg.FeeLatefee + reg.FeeDonation);
         var paidPastDeposit = state.PrincipalPaid > effectiveDeposit + depositPaidTolerance;
 
-        var fullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved, ctx.IsFullPaymentRequired) || paidPastDeposit;
+        // A reg already stamped at the full price is in full-payment phase and must NOT be re-derived
+        // down to the deposit — the same "stamped FeeBase is authoritative" signal PaymentService
+        // .IsRegFullPaymentPhase uses. Gated behind PreserveFullPaymentStamp so only the at-charge
+        // realize opts in (a fresh Pay-in-Full upgrade has FeeBase = FullPrice but nothing paid, so
+        // the paidPastDeposit promotion can't rescue it); genuine swaps/recalcs keep re-phasing.
+        var fullPrice = resolved?.FullPrice ?? 0m;
+        var alreadyFullStamped = ctx.PreserveFullPaymentStamp && fullPrice > 0m && reg.FeeBase >= fullPrice - 0.005m;
+        var fullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved, ctx.IsFullPaymentRequired) || paidPastDeposit || alreadyFullStamped;
         reg.FeeBase = fullPayment
-            ? (resolved?.FullPrice ?? 0m)
+            ? fullPrice
             : (deposit > 0m ? deposit : balanceDue);
         // FeeDiscount / FeeLatefee / FeeDonation preserved
 
@@ -400,7 +407,11 @@ public sealed class FeeResolutionService : IFeeResolutionService
             new FeeApplicationContext
             {
                 IsFullPaymentRequired = baseline?.BPlayersFullPaymentRequired ?? false,
-                AssessActiveLateFee = true
+                AssessActiveLateFee = true,
+                // A parent who chose Pay-in-Full on a deposit-phase job has already had this reg
+                // upgraded to FeeBase = FullPrice (nothing paid yet). Preserve that stamp — do not
+                // let the phase re-derivation demote it back to the deposit and trip AMOUNT_MISMATCH.
+                PreserveFullPaymentStamp = true
             },
             ct);
     }

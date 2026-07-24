@@ -236,6 +236,19 @@ public record FeeApplicationContext
     /// /waitlist callers keep all modifiers frozen.
     /// </summary>
     public bool AssessActiveLateFee { get; init; }
+
+    /// <summary>
+    /// When true, a registration ALREADY stamped at the full price is treated as full-payment
+    /// phase and is NOT re-derived down to the deposit — even when config + payment history would
+    /// say "deposit". Set ONLY by the at-charge late-fee realize (RealizeLateFeeAtChargeAsync): a
+    /// parent who chose Pay-in-Full on a deposit-phase job has just had the reg upgraded to full
+    /// (FeeBase = FullPrice) with nothing paid yet, so the payment-history promotion cannot fire;
+    /// without this the realize would revert the upgrade to the deposit and the AMOUNT_MISMATCH
+    /// tripwire would refuse the charge. Default false: roster-swap/club-roster/seat/waitlist/
+    /// director-recalc callers keep the config-driven phase so a genuine move can still re-phase a
+    /// reg. Narrow by design — it only ever PRESERVES an existing full stamp, never forces full.
+    /// </summary>
+    public bool PreserveFullPaymentStamp { get; init; }
 }
 
 /// <summary>

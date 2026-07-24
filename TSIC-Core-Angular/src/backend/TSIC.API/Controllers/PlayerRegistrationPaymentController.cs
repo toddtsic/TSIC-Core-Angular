@@ -32,7 +32,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
     private readonly IJobDiscountCodeRepository _discountCodeRepo;
     private readonly ILogger<PlayerRegistrationPaymentController> _logger;
     private readonly IRegistrationRepository _registrations;
-    private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
+    private readonly IFeeResolutionService _feeService;
     private readonly IPaymentStateService _paymentState;
     private readonly IVerticalInsureService _verticalInsure;
 
@@ -41,7 +41,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
         IPaymentService paymentService,
         IJobDiscountCodeRepository discountCodeRepo,
         IRegistrationRepository registrations,
-        IRegistrationFeeAdjustmentService feeAdjustment,
+        IFeeResolutionService feeService,
         IPaymentStateService paymentState,
         IVerticalInsureService verticalInsure,
         ILogger<PlayerRegistrationPaymentController> logger)
@@ -50,7 +50,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
         _paymentService = paymentService;
         _discountCodeRepo = discountCodeRepo;
         _registrations = registrations;
-        _feeAdjustment = feeAdjustment;
+        _feeService = feeService;
         _paymentState = paymentState;
         _verticalInsure = verticalInsure;
         _logger = logger;
@@ -285,22 +285,23 @@ public class PlayerRegistrationPaymentController : ControllerBase
                 continue;
             }
 
-            // Apply discount
-            var newDiscount = reg.FeeDiscount + d;
-
-            // Proportionally reduce processing fee by discount amount (discount reduces CC transaction)
-            await _feeAdjustment.ReduceProcessingFeeProportionalAsync(reg, d, jobId.Value, familyUserId);
-
-            // Set the new discount, record which code on the reg, then recompute totals through the
-            // single canonical helper (RecalcTotals → FeeMath). FeeProcessing was already adjusted in
-            // place by ReduceProcessingFeeProportionalAsync above (and stays ≥0), so it flows straight
-            // through (0 included) — a full discount that legitimately zeroed the proc is not re-inflated.
-            // OwedTotal is now signed (RecalcTotals drops the old Math.Max clamp) per the signed-owed policy.
-            reg.FeeDiscount = newDiscount;
+            // Apply the discount, then re-derive processing + totals through the SINGLE canonical
+            // helper (FeeResolutionService.RecomputeRegistrationFinancialsAsync →
+            // ApplyRegistrationProcessingAndTotalsAsync — the same path the display shaper and the
+            // at-charge realize use). Proc MUST be resolved the same way everywhere — Round(netBase ×
+            // ccRate) — NOT by shaving Round(discount × ccRate) off the existing proc. The old
+            // proportional shave rounded the reduction and subtracted, so a half-cent net (e.g. 175 ×
+            // 3.5% = 6.125) landed a penny below the canonical proc: the deposit charge was sized on
+            // the low value, the at-charge realize then re-stamped the canonical value, and the gap
+            // stranded $0.01 owed after a full-deposit payment. A full waiver still zeroes proc here
+            // (netBase 0 → proc 0). OwedTotal stays signed (RecalcTotals inside drops the Math.Max clamp).
+            reg.FeeDiscount += d;
             // Which code, recorded on the registration itself — the canonical redemption-count
             // source (JobDiscountCodeRepository.GetUsageCountAsync reads reg.DiscountCodeId).
             reg.DiscountCodeId = discountCodeAi;
-            reg.RecalcTotals();
+            await _feeService.RecomputeRegistrationFinancialsAsync(reg, jobId.Value);
+            reg.Modified = DateTime.Now;
+            reg.LebUserId = familyUserId;
             // A full waiver (100% code, or a fixed code that clears the balance) zeroes OwedTotal:
             // the registration owes nothing, so it must be activated here. Activation otherwise rides
             // ProcessPaymentAsync's charge path, which never runs when there is no payment. This
