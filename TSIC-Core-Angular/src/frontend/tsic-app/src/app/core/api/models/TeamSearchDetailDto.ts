@@ -13,6 +13,7 @@ export type TeamSearchDetailDto = {
     divName?: string | null;
     levelOfPlay?: string | null;
     active: boolean;
+    clubTeamId?: number | null;
     feeBase: number;
     feeProcessing: number;
     feeTotal: number;

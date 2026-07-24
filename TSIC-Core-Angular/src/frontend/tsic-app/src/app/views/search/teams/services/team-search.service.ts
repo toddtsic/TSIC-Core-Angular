@@ -26,7 +26,8 @@ import type {
 	DropTeamResultDto,
 	ResendInvoicesRequest,
 	ResendInvoicesResponse,
-	SubscriptionDetailDto
+	SubscriptionDetailDto,
+	ClubAffectedJob
 } from '@core/api';
 
 // Re-export for consumers
@@ -61,7 +62,8 @@ export type {
 	DropTeamResultDto,
 	ResendInvoicesRequest,
 	ResendInvoicesResponse,
-	SubscriptionDetailDto
+	SubscriptionDetailDto,
+	ClubAffectedJob
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -93,6 +95,11 @@ export class TeamSearchService {
 
 	editTeam(teamId: string, request: EditTeamRequest): Observable<void> {
 		return this.http.put<void>(`${this.apiUrl}/${teamId}`, request);
+	}
+
+	/** SuperUser: jobs whose schedules a rename of this club-linked team would rewrite (empty for an orphan team). */
+	getRenameImpact(teamId: string): Observable<ClubAffectedJob[]> {
+		return this.http.get<ClubAffectedJob[]>(`${this.apiUrl}/${teamId}/rename-impact`);
 	}
 
 	chargeCcForTeam(teamId: string, request: TeamCcChargeRequest): Observable<TeamCcChargeResponse> {

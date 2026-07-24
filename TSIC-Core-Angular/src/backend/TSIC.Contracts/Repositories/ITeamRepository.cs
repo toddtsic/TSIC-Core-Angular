@@ -492,6 +492,13 @@ public interface ITeamRepository
     Task<TeamDetailQueryResult?> GetTeamDetailAsync(Guid teamId, CancellationToken ct = default);
 
     /// <summary>
+    /// Jobs holding an event copy of a club-team library row — the rename impact/scope list shown
+    /// before a club-linked team rename (mirrors IClubRepository.GetJobsWithTeamsForClubAsync one
+    /// level down). AsNoTracking.
+    /// </summary>
+    Task<List<ClubAffectedJob>> GetJobsWithTeamsForClubTeamAsync(int clubTeamId, CancellationToken ct = default);
+
+    /// <summary>
     /// Get full mobile roster for a team (staff + players with parent contacts and attendance counts).
     /// </summary>
     Task<Dtos.TeamRosterDetailDto> GetTeamRosterMobileAsync(Guid teamId, CancellationToken ct = default);
@@ -629,6 +636,12 @@ public record TeamDetailQueryResult
     public string? ClubRepState { get; init; }
     public string? ClubRepPostalCode { get; init; }
     public Guid JobId { get; init; }
+
+    /// <summary>
+    /// Club-team library row this event copy descends from. Null for an orphan team — the signal
+    /// that a rename here stays within this job instead of fanning out across all jobs.
+    /// </summary>
+    public int? ClubTeamId { get; init; }
 
     /// <summary>
     /// True when the team has an active ARB subscription with a charge still scheduled

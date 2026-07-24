@@ -3,11 +3,13 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.Ladt;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Dtos.TeamSearch;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 
 namespace TSIC.API.Controllers;
 
@@ -26,6 +28,9 @@ public class TeamSearchController : ControllerBase
         _teamSearchService = teamSearchService;
         _jobLookupService = jobLookupService;
     }
+
+    private bool IsSuperUser =>
+        User.IsInRole(RoleConstants.Names.SuperuserName);
 
     private async Task<(Guid? jobId, string? userId, ActionResult? error)> ResolveContext()
     {
@@ -154,12 +159,34 @@ public class TeamSearchController : ControllerBase
 
         try
         {
-            await _teamSearchService.EditTeamAsync(teamId, jobId!.Value, userId!, request, ct);
+            await _teamSearchService.EditTeamAsync(teamId, jobId!.Value, userId!, IsSuperUser, request, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// SuperUser: jobs whose schedules a rename of this team would rewrite — the affected-jobs list
+    /// shown in the rename confirm modal. Empty for an orphan team (rename stays in this job).
+    /// </summary>
+    [Authorize(Policy = "SuperUserOnly")]
+    [HttpGet("{teamId:guid}/rename-impact")]
+    public async Task<ActionResult<List<ClubAffectedJob>>> GetRenameImpact(Guid teamId, CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Registration context required" });
+
+        try
+        {
+            return Ok(await _teamSearchService.GetTeamRenameImpactAsync(teamId, jobId.Value, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { message = ex.Message });
         }
     }
 

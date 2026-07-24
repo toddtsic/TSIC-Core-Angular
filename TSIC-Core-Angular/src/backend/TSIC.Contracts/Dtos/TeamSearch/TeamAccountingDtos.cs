@@ -17,6 +17,13 @@ public record TeamSearchDetailDto
     public string? LevelOfPlay { get; init; }
     public required bool Active { get; init; }
 
+    /// <summary>
+    /// Club-team library row this event copy descends from. Null for an orphan team. When set, a
+    /// rename fans out to every job holding a copy — so the edit panel locks the name for non-SuperUser
+    /// admins and shows the affected-jobs warning before a SuperUser rename.
+    /// </summary>
+    public int? ClubTeamId { get; init; }
+
     // Financials
     public required decimal FeeBase { get; init; }
     public required decimal FeeProcessing { get; init; }

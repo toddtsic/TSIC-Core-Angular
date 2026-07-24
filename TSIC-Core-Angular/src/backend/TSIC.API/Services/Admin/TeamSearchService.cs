@@ -173,8 +173,23 @@ public sealed class TeamSearchService : ITeamSearchService
             NextChargeDate = detail.NextChargeDate,
             PaymentFlagged = detail.PaymentFlagged,
             HasSubscription = detail.HasSubscription,
-            StoredSubscription = detail.StoredSubscription
+            StoredSubscription = detail.StoredSubscription,
+            ClubTeamId = detail.ClubTeamId
         };
+    }
+
+    public async Task<List<ClubAffectedJob>> GetTeamRenameImpactAsync(
+        Guid teamId, Guid jobId, CancellationToken ct = default)
+    {
+        var team = await _teamRepo.GetByIdReadOnlyAsync(teamId, ct);
+        if (team == null || team.JobId != jobId)
+            throw new InvalidOperationException("Team not found.");
+
+        // Orphan team → rename never leaves this job; nothing to warn about.
+        if (team.ClubTeamId is not int clubTeamId)
+            return [];
+
+        return await _teamRepo.GetJobsWithTeamsForClubTeamAsync(clubTeamId, ct);
     }
 
     // ── ARB Subscription (live Authorize.Net) ──
@@ -341,7 +356,7 @@ public sealed class TeamSearchService : ITeamSearchService
     }
 
     public async Task EditTeamAsync(
-        Guid teamId, Guid jobId, string userId, EditTeamRequest request, CancellationToken ct = default)
+        Guid teamId, Guid jobId, string userId, bool isSuperUser, EditTeamRequest request, CancellationToken ct = default)
     {
         var team = await _teamRepo.GetTeamFromTeamId(teamId, ct)
             ?? throw new InvalidOperationException("Team not found.");
@@ -355,6 +370,14 @@ public sealed class TeamSearchService : ITeamSearchService
         var teamNameChanged = request.TeamName != null && oldTeamName != null
             && !string.Equals(oldTeamName, request.TeamName, StringComparison.Ordinal)
             && !oldTeamName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase);
+
+        // Ownership gate: a club-linked team's name is the club's library identity — renaming fans out
+        // to every job holding a copy, including other customers' schedules. A job admin has no standing
+        // there, so only SuperUser may rename. Orphan teams (no ClubTeamId) stay job-local and open.
+        if (teamNameChanged && team.ClubTeamId != null && !isSuperUser)
+            throw new InvalidOperationException(
+                "This team's name comes from its club's team library and appears in other events' schedules. "
+                + "Only TSIC support can rename it — ask the club rep to rename it in their team library, or contact support.");
 
         if (request.Active.HasValue) team.Active = request.Active.Value;
         if (request.LevelOfPlay != null) team.LevelOfPlay = request.LevelOfPlay;

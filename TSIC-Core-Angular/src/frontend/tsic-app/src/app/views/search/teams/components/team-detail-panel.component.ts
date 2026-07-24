@@ -1,8 +1,9 @@
 import { Component, ChangeDetectionStrategy, input, output, signal, computed, inject, linkedSignal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import type { TeamSearchDetailDto, EditTeamRequest, ClubRegistrationDto, SubscriptionDetailDto } from '@core/api';
+import type { TeamSearchDetailDto, EditTeamRequest, ClubRegistrationDto, SubscriptionDetailDto, ClubAffectedJob } from '@core/api';
 import { TeamSearchService } from '../services/team-search.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ClubRepPaymentComponent } from '@shared-ui/components/club-rep-payment/club-rep-payment.component';
@@ -36,6 +37,7 @@ export class TeamDetailPanelComponent {
 	changed = output<void>();
 
 	private readonly searchService = inject(TeamSearchService);
+	private readonly auth = inject(AuthService);
 	private readonly toast = inject(ToastService);
 
 	// Accounting is the default/first tab; resets to it each time a new team opens.
@@ -49,6 +51,13 @@ export class TeamDetailPanelComponent {
 	editLevelOfPlay = linkedSignal(() => normalizeLop(this.detail()?.levelOfPlay));
 	editComments = linkedSignal(() => this.detail()?.teamComments ?? '');
 	isSaving = signal(false);
+
+	/** Club-linked = the name IS the club's library identity; renaming fans out to every job holding a copy. */
+	readonly isClubLinked = computed(() => this.detail()?.clubTeamId != null);
+
+	/** Orphan teams: any admin (rename stays in this job). Club-linked: SuperUser only — a job admin
+	 *  renaming from their event would silently rewrite other customers' schedules (backend enforces too). */
+	readonly canEditTeamName = computed(() => !this.isClubLinked() || this.auth.isSuperuser());
 
 	/** Fixed 1–5 Level-of-Play choices (shared). The edit form's LOP select binds to this,
 	 *  not the former per-job jsonOptions `List_Lops`. The stored value is normalized for
@@ -203,7 +212,70 @@ export class TeamDetailPanelComponent {
 
 	// ── Edit ──
 
+	// Rename-impact confirm (SuperUser, club-linked teams). Mirrors the admin club-rename modal:
+	// the rename rewrites every listed job's schedule, so the impact list is shown before the save.
+	showRenameConfirm = signal(false);
+	renameAffectedJobs = signal<ClubAffectedJob[]>([]);
+	isLoadingRenameImpact = signal(false);
+
+	/** Confirm-dialog body for a club-linked rename — old → new plus the affected-jobs list. */
+	readonly renameConfirmMessage = computed(() => {
+		const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+		const oldName = esc(this.detail()?.teamName ?? '');
+		const newName = esc(this.editTeamName().trim());
+		const jobs = this.renameAffectedJobs();
+		let msg = `<p>Rename <strong>${oldName}</strong> to <strong>${newName}</strong>?</p>`;
+		if (jobs.length > 0) {
+			msg += `<p class='mb-1'>This team plays in <strong>${jobs.length} scheduled job${jobs.length !== 1 ? 's' : ''}</strong>. `
+				+ `Every game name in these schedules will be rewritten — including bracket and consolation games with admin-typed names.</p>`
+				+ `<ul class='mb-0'>`
+				+ jobs.map(j => `<li>${esc(j.jobName)} <span class='text-muted'>(${j.teamCount} team${j.teamCount !== 1 ? 's' : ''})</span></li>`).join('')
+				+ `</ul>`;
+		} else {
+			msg += `<p class='text-muted small mb-0'>No other scheduled jobs — this updates the club's team library and this event.</p>`;
+		}
+		return msg;
+	});
+
 	saveTeamInfo(): void {
+		const d = this.detail();
+		if (!d) return;
+
+		// A club-linked rename fans out across jobs — load the impact list and confirm before saving.
+		// (Non-SuperUser admins can't reach this: the name field is locked, so it can't be dirty.)
+		const nameChanged = (this.editTeamName() ?? '') !== (d.teamName ?? '');
+		if (nameChanged && this.isClubLinked()) {
+			this.isLoadingRenameImpact.set(true);
+			this.searchService.getRenameImpact(d.teamId).subscribe({
+				next: (jobs) => {
+					this.renameAffectedJobs.set(jobs);
+					this.isLoadingRenameImpact.set(false);
+					this.showRenameConfirm.set(true);
+				},
+				error: () => {
+					// Impact is advisory — never block the rename on the preview failing.
+					this.renameAffectedJobs.set([]);
+					this.isLoadingRenameImpact.set(false);
+					this.showRenameConfirm.set(true);
+					this.toast.show('Could not load affected schedules — the rename still applies everywhere.', 'warning', 4000);
+				}
+			});
+			return;
+		}
+
+		this.doSaveTeamInfo();
+	}
+
+	confirmRename(): void {
+		this.showRenameConfirm.set(false);
+		this.doSaveTeamInfo();
+	}
+
+	cancelRename(): void {
+		this.showRenameConfirm.set(false);
+	}
+
+	private doSaveTeamInfo(): void {
 		const d = this.detail();
 		if (!d) return;
 

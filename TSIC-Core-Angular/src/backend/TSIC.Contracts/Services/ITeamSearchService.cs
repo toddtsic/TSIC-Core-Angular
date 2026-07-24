@@ -1,3 +1,4 @@
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.Ladt;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.Scheduling;
@@ -36,7 +37,20 @@ public interface ITeamSearchService
     /// Used by the shared club-rep-payment component from both search/registrations and search/teams.
     /// </summary>
     Task<ClubRepAccountingDto?> GetClubRepAccountingAsync(Guid clubRepRegistrationId, Guid jobId, CancellationToken ct = default);
-    Task EditTeamAsync(Guid teamId, Guid jobId, string userId, EditTeamRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Edit team properties. A TeamName change on a club-linked team fans out to every job holding a
+    /// copy (via ITeamRenameService), so it is SuperUser-only — a job admin renaming from their event
+    /// would silently rewrite other customers' schedules. Orphan-team renames stay job-local and any
+    /// admin may make them.
+    /// </summary>
+    Task EditTeamAsync(Guid teamId, Guid jobId, string userId, bool isSuperUser, EditTeamRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Jobs whose schedules a rename of this team would rewrite — the impact list shown in the
+    /// SuperUser rename confirm. Empty for an orphan team (rename stays in the current job).
+    /// </summary>
+    Task<List<ClubAffectedJob>> GetTeamRenameImpactAsync(Guid teamId, Guid jobId, CancellationToken ct = default);
 
     // ── Individual transaction operations ──
 
