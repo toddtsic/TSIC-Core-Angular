@@ -285,4 +285,8 @@
    --bs-heading-color: var(--brand-text);
    --bs-border-radius: var(--radius-sm);
    --bs-btn-border-radius: var(--radius-sm);
+
+   // Mobile app-header height — single source shared by the header component
+   // (:host min-height) and surfaces that anchor below it (flyin panels).
+   --app-header-height-mobile: 48px;
 }

@@ -6,7 +6,8 @@
     min-height: 60px; // Component-specific: fixed header height
 
     @media (max-width: 767.98px) {
-        min-height: 48px; // Single-row mobile header
+        // Single-row mobile header — shared token so flyin panels anchor exactly below
+        min-height: var(--app-header-height-mobile, 48px);
     }
 }
 

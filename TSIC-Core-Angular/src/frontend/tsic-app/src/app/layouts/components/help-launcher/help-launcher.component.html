@@ -34,7 +34,7 @@
 
         <!-- Tab strip: Help + FAQ, one topic each. Shown only when more than one tab is available. -->
         @if (visibleTabs().length > 1) {
-          <div class="help-tabs" role="tablist" aria-label="Help sections">
+          <div class="help-tabs header-wrap-full" role="tablist" aria-label="Help sections">
             @for (tab of visibleTabs(); track tab.topic) {
               <button
                 type="button"

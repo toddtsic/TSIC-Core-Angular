@@ -32,6 +32,7 @@
   right: 0;
   width: 560px;
   height: 100vh;
+  height: 100dvh; // iOS Safari: 100vh hides the panel bottom behind the collapsing URL bar
   background: var(--bs-body-bg);
   border-left: 1px solid var(--bs-border-color);
   box-shadow: var(--shadow-xl);
@@ -48,6 +49,12 @@
 
   @media (max-width: 767.98px) {
     width: 100vw;
+    // Start below the app header so "where am I?" survives the takeover — the
+    // job identity stays visible through the dimmed backdrop (which still covers
+    // the header, keeping it non-interactive while the panel is open).
+    top: var(--app-header-height-mobile, 48px);
+    height: calc(100vh - var(--app-header-height-mobile, 48px));
+    height: calc(100dvh - var(--app-header-height-mobile, 48px));
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -112,6 +119,23 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+}
+
+// Mobile flyin-header contract: the row may wrap. Panels tag wide extras
+// (tab strips, wide action buttons) with .header-wrap-full to drop them onto
+// their own full-width row — so the title keeps row 1 with the close button
+// instead of being crushed to an ellipsis by unshrinkable siblings.
+@media (max-width: 767.98px) {
+  .detail-panel .header-top-row {
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
+  }
+
+  .detail-panel .header-top-row .header-wrap-full {
+    order: 3;
+    flex-basis: 100%;
+    min-width: 0;
+  }
 }
 
 .detail-panel .panel-title {

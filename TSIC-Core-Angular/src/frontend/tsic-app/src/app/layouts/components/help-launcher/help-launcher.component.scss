@@ -112,7 +112,9 @@
     }
   }
 
-  /* ── Help / FAQ tabs — inline in the single-line header ── */
+  /* ── Help / FAQ tabs — inline in the single-line header ──
+     Mobile: tagged .header-wrap-full in the template, so the shared flyin
+     contract (_flyin.scss) drops the strip to its own full-width row. */
   .help-tabs {
     display: flex;
     gap: var(--space-1);
