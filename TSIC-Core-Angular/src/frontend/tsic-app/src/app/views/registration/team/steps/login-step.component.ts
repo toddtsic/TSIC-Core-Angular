@@ -97,6 +97,8 @@ type LoginView = 'sign-in' | 'create' | 'account-summary';
       }
       .create-header h5 i,
       .edit-header h5 i { color: var(--bs-primary); }
+      .create-header + .card-body,
+      .edit-header + .card-body { padding-top: var(--space-2); }
       .new-pill {
         display: inline-block;
         padding: 2px var(--space-2);
@@ -111,9 +113,10 @@ type LoginView = 'sign-in' | 'create' | 'account-summary';
       /* ── Read-first display rows ────────────────────────── */
       .readout-row {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         justify-content: space-between;
-        gap: var(--space-3);
+        gap: var(--space-2) var(--space-3);
       }
       .readout-value {
         font-size: var(--font-size-base);
@@ -198,7 +201,6 @@ type LoginView = 'sign-in' | 'create' | 'account-summary';
       .club-locked-hint {
         font-size: var(--font-size-xs);
         color: var(--brand-text-muted);
-        white-space: nowrap;
       }
       .club-locked-hint i { color: var(--brand-text-muted); }
 
@@ -290,7 +292,7 @@ type LoginView = 'sign-in' | 'create' | 'account-summary';
           <!-- ═══ CLUB INFO (read-first) ═══ -->
           @if (registeringClub(); as club) {
             <div class="card shadow border-0 card-rounded mb-3">
-              <div class="card-header card-header-subtle border-0 py-3 edit-header">
+              <div class="card-header card-header-subtle border-0 pt-3 pb-1 edit-header">
                 <h5 class="mb-0"><i class="bi bi-people-fill"></i> Club</h5>
               </div>
               <div class="card-body">
@@ -335,7 +337,7 @@ type LoginView = 'sign-in' | 'create' | 'account-summary';
 
           <!-- ═══ CLUB REP PROFILE (read-first, inline edit) ═══ -->
           <div class="card shadow border-0 card-rounded">
-            <div class="card-header card-header-subtle border-0 py-3 edit-header">
+            <div class="card-header card-header-subtle border-0 pt-3 pb-1 edit-header">
               <h5 class="mb-0"><i class="bi bi-person-vcard"></i> Club Rep</h5>
             </div>
             <div class="card-body bg-neutral-0">
