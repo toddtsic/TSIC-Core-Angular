@@ -45,10 +45,10 @@ import type { ViewGameDto } from '@core/api';
                         <span class="status-key" tabindex="0" role="button" aria-label="Show status key">
                             <i class="bi bi-info-circle" aria-hidden="true"></i>
                             <span class="status-key-popup" role="tooltip">
-                                <span class="key-row"><span class="status-chip st-final">F</span>Final</span>
-                                <span class="key-row"><span class="status-chip st-rescheduled">R</span>Rescheduled</span>
-                                <span class="key-row"><span class="status-chip st-forfeit">X</span>Forfeit</span>
-                                <span class="key-row"><span class="status-chip st-cancelled">C</span>Cancelled</span>
+                                <span class="key-row"><span class="status-chip">F</span>Final</span>
+                                <span class="key-row"><span class="status-chip">R</span>Rescheduled</span>
+                                <span class="key-row"><span class="status-chip">X</span>Forfeit</span>
+                                <span class="key-row"><span class="status-chip">C</span>Cancelled</span>
                             </span>
                         </span>
                     </span>
@@ -97,10 +97,9 @@ import type { ViewGameDto } from '@core/api';
                             <span class="ag-label">{{ game.agDiv }}</span>
                         </span>
 
-                        <!-- Home team -->
-                        <span class="cell cell-home" role="cell" aria-colindex="5"
-                              [class.is-won]="isT1Winner(game)"
-                              [class.is-lost]="isT2Winner(game)">
+                        <!-- Home team — black-tie: names never carry the result (the trophy
+                             beside the winning score does). -->
+                        <span class="cell cell-home" role="cell" aria-colindex="5">
                             @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
                             @if (game.t1Id) {
                                 <button type="button" class="team-star"
@@ -149,9 +148,19 @@ import type { ViewGameDto } from '@core/api';
                             } @else {
                                 <span class="score-line">
                                     @if (hasScore(game)) {
-                                        <span class="score-val" [class.winner]="isT1Winner(game)" [class.loser]="isT2Winner(game)">{{ game.t1Score }}</span>
+                                        <!-- Glyph slots flank the score and are ALWAYS rendered, so the
+                                             numbers stay column-aligned whether or not a trophy shows.
+                                             The trophy sits on the winner's side; a tie renders two
+                                             empty slots and reads as two equal plain-bold figures. -->
+                                        <span class="score-glyph" aria-hidden="true">
+                                            @if (isT1Winner(game)) { <i class="bi bi-trophy-fill winner-glyph"></i> }
+                                        </span>
+                                        <span class="score-val">{{ game.t1Score }}</span>
                                         <span class="score-dash">&ndash;</span>
-                                        <span class="score-val" [class.winner]="isT2Winner(game)" [class.loser]="isT1Winner(game)">{{ game.t2Score }}</span>
+                                        <span class="score-val">{{ game.t2Score }}</span>
+                                        <span class="score-glyph" aria-hidden="true">
+                                            @if (isT2Winner(game)) { <i class="bi bi-trophy-fill winner-glyph"></i> }
+                                        </span>
                                     } @else {
                                         <span class="score-val no-score">&ndash;</span>
                                     }
@@ -159,10 +168,8 @@ import type { ViewGameDto } from '@core/api';
                             }
                         </span>
 
-                        <!-- Away team -->
-                        <span class="cell cell-away" role="cell" aria-colindex="7"
-                              [class.is-won]="isT2Winner(game)"
-                              [class.is-lost]="isT1Winner(game)">
+                        <!-- Away team — black-tie: names never carry the result. -->
+                        <span class="cell cell-away" role="cell" aria-colindex="7">
                             @if (game.t2SlotLabel) { <span class="seed-tag">{{ game.t2SlotLabel }}</span> }
                             @if (game.t2Id) {
                                 <button type="button" class="team-star"
@@ -186,10 +193,6 @@ import type { ViewGameDto } from '@core/api';
                         <span class="cell cell-status" role="cell" aria-colindex="8">
                             @if (showStatusBadge(game)) {
                                 <span class="status-chip"
-                                      [class.st-rescheduled]="game.gStatusCode === 3"
-                                      [class.st-forfeit]="game.gStatusCode === 4"
-                                      [class.st-cancelled]="game.gStatusCode === 5"
-                                      [class.st-final]="game.gStatusCode === 6"
                                       [attr.title]="game.gStatusText"
                                       [attr.aria-label]="game.gStatusText">{{ statusLetter(game) }}</span>
                             }
@@ -226,19 +229,15 @@ import type { ViewGameDto } from '@core/api';
                                 <span class="ag-label">{{ game.agDiv }}</span>
                             </span>
                             @if (showStatusBadge(game)) {
-                                <span class="status-badge"
-                                      [class.status-rescheduled]="game.gStatusCode === 3"
-                                      [class.status-forfeit]="game.gStatusCode === 4"
-                                      [class.status-cancelled]="game.gStatusCode === 5"
-                                      [class.status-final]="game.gStatusCode === 6">{{ game.gStatusText }}</span>
+                                <span class="status-badge">{{ game.gStatusText }}</span>
                             }
                         </div>
 
-                        <!-- Team 1 (Home): full-width row, score right-aligned -->
+                        <!-- Team 1 (Home): full-width row, score right-aligned.
+                             Black-tie: the name never carries the result — the trophy
+                             beside the winning score is the sole win cue. -->
                         <div class="card-team-row">
-                            <span class="card-team-name"
-                                  [class.is-won]="isT1Winner(game)"
-                                  [class.is-lost]="isT2Winner(game)">
+                            <span class="card-team-name">
                                 @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
                                 @if (game.t1Id) {
                                     <button type="button" class="team-star"
@@ -257,18 +256,17 @@ import type { ViewGameDto } from '@core/api';
                                 }
                                 @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
                             </span>
-                            <span class="card-team-score"
-                                  [class.winner]="isT1Winner(game)"
-                                  [class.loser]="isT2Winner(game)">
+                            <span class="score-glyph" aria-hidden="true">
+                                @if (isT1Winner(game)) { <i class="bi bi-trophy-fill winner-glyph"></i> }
+                            </span>
+                            <span class="card-team-score">
                                 {{ hasScore(game) ? game.t1Score : '' }}
                             </span>
                         </div>
 
                         <!-- Team 2 (Away): full-width row, score right-aligned -->
                         <div class="card-team-row">
-                            <span class="card-team-name"
-                                  [class.is-won]="isT2Winner(game)"
-                                  [class.is-lost]="isT1Winner(game)">
+                            <span class="card-team-name">
                                 @if (game.t2SlotLabel) { <span class="seed-tag">{{ game.t2SlotLabel }}</span> }
                                 @if (game.t2Id) {
                                     <button type="button" class="team-star"
@@ -287,9 +285,10 @@ import type { ViewGameDto } from '@core/api';
                                 }
                                 @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
                             </span>
-                            <span class="card-team-score"
-                                  [class.winner]="isT2Winner(game)"
-                                  [class.loser]="isT1Winner(game)">
+                            <span class="score-glyph" aria-hidden="true">
+                                @if (isT2Winner(game)) { <i class="bi bi-trophy-fill winner-glyph"></i> }
+                            </span>
+                            <span class="card-team-score">
                                 {{ hasScore(game) ? game.t2Score : '' }}
                             </span>
                         </div>
@@ -652,36 +651,17 @@ import type { ViewGameDto } from '@core/api';
             white-space: nowrap;
         }
 
-        /* Winning team — bold, mirroring the bold winning score. Set on the CELL, not
-           the name, so the record (w-l-t) and annotation bold WITH the name instead of
-           the name floating bold beside a normal-weight record. Also covers the
-           no-teamId fallback, where the name is raw text with no span to hang a class on.
-           NOTE: bold used to mean "followed" here (.team-name--followed). That was
-           redundant — the filled star right next to the name already says "you follow
-           this team" — and it collided with this: a followed team that LOST would have
-           looked identical to a team that won. Bold now means WON, and only that. */
-        /* Winner reads at the SAME intensity as the winning score; loser recedes with the
-           losing score. Set on the CELL so the name, record button, and annotation all
-           inherit it. is-lost is NOT optional: with the link blue gone, an unstyled loser
-           sits at body color — which in the dark theme (#f5f5f4) is indistinguishable
-           from the near-white winner. Ties/unplayed get neither class and stay at body
-           color, which correctly reads as "neither". */
-        /* The winning TEAM is the point of the row — "did we win?" — so the name carries
-           the weight. The score is the evidence, not the headline (see .score-val). */
-        .cell-home.is-won,
-        .cell-away.is-won,
-        .card-team-name.is-won {
-            font-weight: 700;
-            color: var(--score-strong);
-        }
+        /* Result typography is RETIRED (was: bold winner name / muted loser name).
+           Black-tie doctrine (ported from TSIC-Events-2025 visual-refresh): color means
+           age-group identity, gold means WON — the trophy beside the winning score is
+           the sole result cue. Names stay at constant weight and body color so a run of
+           rows reads as an even, formal ledger; the eye finds winners by scanning for
+           gold, not by comparing font weights. Ties/unplayed: no trophy anywhere. */
 
-        .cell-home.is-lost,
-        .cell-away.is-lost,
-        .card-team-name.is-lost {
-            color: var(--score-muted);
-        }
-
-        /* Team star — follow/unfollow shortcut */
+        /* Team star — follow/unfollow shortcut. Black-tie: the filled (followed) state
+           is strong ink (black in light, white in dark — --score-strong flips with the
+           theme), NOT gold. Gold now means "won" and nothing else; the fill-vs-outline
+           shape alone carries the followed state. */
         .team-star {
             display: inline-flex;
             align-items: center;
@@ -701,11 +681,11 @@ import type { ViewGameDto } from '@core/api';
         }
         .team-star:hover {
             opacity: 1;
-            color: var(--bs-warning, #f0ad4e);
+            color: var(--score-strong);
         }
         .team-star.is-on {
             opacity: 1;
-            color: var(--bs-warning, #f0ad4e);
+            color: var(--score-strong);
         }
         .team-star:focus-visible {
             outline: none;
@@ -743,13 +723,15 @@ import type { ViewGameDto } from '@core/api';
         .cell-score.editable { cursor: pointer; }
         .cell-score.editable:hover { background: var(--bs-primary-bg-subtle); border-radius: var(--radius-sm); }
 
-        /* Base weight = the LOSING score (and both halves of a tie): light, because it is
-           evidence rather than headline. The winning score takes the weight back below
-           (.winner), so the emphasis lands only on the figure that matters. */
+        /* Both scores are plain bold strong figures — IDENTICAL for winner and loser.
+           The result lives in the trophy, not the numbers: muting the loser would be a
+           second (redundant) result channel, and the retired scheme's whole failure
+           mode. The losing score is real information and deserves full legibility. */
         .score-val {
             font-size: var(--font-size-lg);
-            font-weight: 500;
+            font-weight: 700;
             font-variant-numeric: tabular-nums;
+            color: var(--score-strong);
         }
 
         .score-dash {
@@ -757,32 +739,36 @@ import type { ViewGameDto } from '@core/api';
             font-size: var(--font-size-sm);
         }
 
-        /* Black-tie result styling: pure typographic hierarchy, no ornament. The
-           winning score is the strong figure (near-black in light, near-white in
-           dark — --score-strong inverts with the palette) against a muted loser.
-           A tie reads naturally as two equal figures. No green/red, no glyph. */
-        /* Both scores carry the same bold weight (from .score-val) — tonal VALUE marks
-           the winner: near-black figure vs muted loser (inverts to near-white in dark).
-           Value, not hue, because on a light row "prominent" means "dark" — a yellow
-           winner would have had LESS contrast than the grey loser beside it. */
-        .winner {
-            color: var(--score-strong);
-            font-weight: 700;
+        /* Winner cue — the ONE sanctioned use of gold (--winner-gold is palette-invariant;
+           gold means "won" in all 8 palettes and both themes). The slot is always
+           rendered at fixed width on BOTH sides of the score, so the numbers stay
+           column-aligned whether the trophy is present (win) or absent (tie/loser side).
+           aria-hidden: the score pair itself already tells assistive tech who won. */
+        .score-glyph {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1rem;
+            flex-shrink: 0;
+            /* The rows align text on the BASELINE; an icon-only box has no real text
+               baseline and would sit low. Center it against the text instead (same
+               opt-out the team-star uses). */
+            align-self: center;
         }
-        /* Loser recedes: normal weight + genuinely muted color. NOTE: do not use
-           --bs-secondary-color here — in this design system it is aliased to
-           --brand-text, i.e. the SAME value as --bs-body-color, so it produces
-           zero contrast against the winner. --text-muted is the real muted token
-           and is palette-aware (#78716c light / #d6d3d1 dark). */
-        .loser    { color: var(--score-muted); }
+
+        .winner-glyph {
+            font-size: var(--font-size-sm);
+            color: var(--winner-gold);
+        }
+
         .no-score { color: var(--score-muted); }
 
         /* ── Status column (desktop) ──
-           Single-letter chip. Color means "something unusual happened" — Final is on
-           nearly every played row, so a colored F would put a colored chip on every
-           row and undo the whole monochrome treatment. F is therefore neutral; only
-           the exceptions carry color. The letter (not the color) conveys the meaning,
-           so this doesn't rely on color alone (WCAG). */
+           Single-letter chip, ONE neutral treatment for every status (black-tie: color
+           is reserved for age-group identity and the winner's gold; amber/violet/red
+           status coding is retired). The LETTER carries the meaning — which also means
+           the chip never relied on color alone (WCAG) — and cancelled rows are further
+           dimmed by .row-dimmed. Full word stays in title/aria-label + the header key. */
         .status-chip {
             display: inline-flex;
             align-items: center;
@@ -796,16 +782,10 @@ import type { ViewGameDto } from '@core/api';
             font-weight: 700;
             line-height: 1;
             cursor: default;
-        }
-
-        .st-final {
             color: var(--score-strong);
             background: var(--bs-tertiary-bg);
             border: 1px solid var(--bs-border-color);
         }
-        .st-rescheduled { color: #fff; background: var(--amber-700); }
-        .st-forfeit     { color: #fff; background: var(--violet-600); }
-        .st-cancelled   { color: #fff; background: var(--bs-danger); }
 
         /* Header info icon → hover/focus reveals the key. */
         .hdr-status { position: relative; overflow: visible; }
@@ -872,13 +852,11 @@ import type { ViewGameDto } from '@core/api';
             white-space: nowrap;
         }
 
-        /* FINAL is the settled state — bold, and --score-strong so it is genuinely
-           black/white. (--bs-body-color is only #57534e, a mid grey, so bolding it
-           alone would read weak — the same trap the winning score fell into.) */
-        .status-final        { color: var(--score-strong); font-weight: 700; }
-        .status-rescheduled  { color: #b45309;  /* amber-700 */ }
-        .status-forfeit      { color: #6d28d9;  /* purple-700 */ }
-        .status-cancelled    { color: var(--bs-danger); }
+        /* Black-tie: every status word gets the same strong-ink treatment (the WORD
+           carries the meaning; amber/purple/red coding retired with the doctrine).
+           --score-strong so it is genuinely black/white — --bs-body-color is only
+           #57534e, a mid grey, and would read weak at this size. */
+        .status-badge { color: var(--score-strong); font-weight: 700; }
 
         /* Inline score editing */
         .score-edit {
@@ -1018,6 +996,8 @@ import type { ViewGameDto } from '@core/api';
             min-width: 0;
         }
 
+        /* Plain bold strong figure for BOTH teams — the trophy in the adjacent glyph
+           slot is the sole result cue (matches the desktop treatment). */
         .card-team-score {
             flex-shrink: 0;
             font-size: var(--font-size-base);
@@ -1026,13 +1006,8 @@ import type { ViewGameDto } from '@core/api';
             font-family: var(--bs-font-monospace);
             min-width: 2ch;
             text-align: center;
-        }
-
-        /* Strong winner figure / muted loser — matches the desktop treatment. */
-        .card-team-score.winner {
             color: var(--score-strong);
         }
-        .card-team-score.loser { color: var(--score-muted); }
 
         /* Card location row */
         .card-location {

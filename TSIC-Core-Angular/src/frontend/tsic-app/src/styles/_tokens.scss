@@ -208,6 +208,13 @@
       so the winner is the high-contrast figure in BOTH palettes. */
    --score-strong: var(--neutral-900);
 
+   /* Winner gold — the trophy glyph beside a winning score, and nothing else.
+      Deliberately palette-INVARIANT (raw hex, not an alias of --bs-warning): gold
+      means "won" in every one of the 8 palettes and both themes, so it must never
+      shift with the brand accent. Mirrors TSIC-Events-2025 --ion-color-warning.
+      Gold reads on light and dark surfaces alike — no dark override. */
+   --winner-gold: #e0a106;
+
    /* Losing score. The score column needs its OWN muted value, not --text-muted:
       in the dark theme --text-muted is neutral-300 (#d6d3d1), one step off body text
       and two off the near-white winner — so the loser would sit almost as bright as

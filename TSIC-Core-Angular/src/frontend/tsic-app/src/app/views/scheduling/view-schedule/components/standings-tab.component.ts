@@ -225,9 +225,12 @@ type StandingsMode = 'all' | 'rr';
             color: var(--bs-body-color);
         }
 
+        /* Brand primary, NOT gold: gold is reserved for the winner trophy
+           (black-tie doctrine) — a gold control would dilute the one meaning
+           gold is allowed to carry on this surface. */
         .toggle-option.active {
-            background: var(--bs-warning);
-            color: var(--bs-dark);
+            background: var(--bs-primary);
+            color: var(--brand-primary-contrast, #fff);
             font-weight: 600;
         }
 

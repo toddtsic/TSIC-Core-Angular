@@ -115,9 +115,10 @@ interface BracketNode {
                                                 }
                                             </div>
                                         }
-                                        <div class="ol-card__row"
-                                             [class.win]="card.t1Win"
-                                             [class.lose]="card.bothScored && !card.t1Win">
+                                        <!-- Black-tie: the gold trophy is the sole winner cue;
+                                             names and scores stay neutral for both teams. The
+                                             glyph slot is always rendered so scores align. -->
+                                        <div class="ol-card__row">
                                             @if (card.t1Id) {
                                                 <button type="button" class="ol-card__team"
                                                         [class.followed]="isFollowed(card.t1Id)"
@@ -125,12 +126,13 @@ interface BracketNode {
                                             } @else {
                                                 <span class="ol-card__team">{{ card.t1Name }}</span>
                                             }
+                                            <span class="ol-card__glyph" aria-hidden="true">
+                                                @if (card.t1Win) { <i class="bi bi-trophy-fill"></i> }
+                                            </span>
                                             <span class="ol-card__score">{{ card.t1Score }}</span>
                                         </div>
                                         <div class="ol-card__divider"></div>
-                                        <div class="ol-card__row"
-                                             [class.win]="card.t2Win"
-                                             [class.lose]="card.bothScored && !card.t2Win">
+                                        <div class="ol-card__row">
                                             @if (card.t2Id) {
                                                 <button type="button" class="ol-card__team"
                                                         [class.followed]="isFollowed(card.t2Id)"
@@ -138,6 +140,9 @@ interface BracketNode {
                                             } @else {
                                                 <span class="ol-card__team">{{ card.t2Name }}</span>
                                             }
+                                            <span class="ol-card__glyph" aria-hidden="true">
+                                                @if (card.t2Win) { <i class="bi bi-trophy-fill"></i> }
+                                            </span>
                                             <span class="ol-card__score">{{ card.t2Score }}</span>
                                         </div>
                                     </div>
@@ -290,10 +295,17 @@ interface BracketNode {
             color: var(--bs-body-color);
             font-size: 12px;
         }
-        .ol-card__row.win { font-weight: 700; }
-        .ol-card__row.lose { opacity: 0.7; }
-        .ol-card__row.win .ol-card__score { color: var(--bs-success); }
-        .ol-card__row.lose .ol-card__score { color: var(--bs-danger); }
+        /* Winner cue: gold trophy in a fixed slot (black-tie — the retired scheme
+           was green/red scores + bold-winner/dim-loser rows). */
+        .ol-card__glyph {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px;
+            flex-shrink: 0;
+            font-size: 11px;
+            color: var(--winner-gold);
+        }
 
         .ol-card__divider {
             height: 1px;
@@ -683,20 +695,17 @@ export class BracketsTabComponent implements OnChanges, AfterViewChecked, OnDest
                 const t2Score = data.t2Score != null ? data.t2Score : '';
                 const loc = data.locationTime ? this.escapeHtml(data.locationTime) : '';
 
-                // Score-based styling: green winner, red loser, default on tie/pending
+                // Black-tie winner cue: a gold trophy beside the winning score is the
+                // SOLE result signal (retired: green/red scores + bold/dim rows). The
+                // glyph slot is rendered on BOTH rows so the scores stay aligned.
                 const bothScored = data.t1Score != null && data.t2Score != null;
-                let t1RowStyle = 'color:var(--bs-body-color);';
-                let t2RowStyle = 'color:var(--bs-body-color);';
-                let t1ScoreColor = '';
-                let t2ScoreColor = '';
-
-                if (bothScored && data.t1Score !== data.t2Score) {
-                    const t1Wins = data.t1Score! > data.t2Score!;
-                    t1RowStyle = t1Wins ? 'font-weight:700;' : 'opacity:0.7;';
-                    t2RowStyle = t1Wins ? 'opacity:0.7;' : 'font-weight:700;';
-                    t1ScoreColor = t1Wins ? 'color:var(--bs-success);' : 'color:var(--bs-danger);';
-                    t2ScoreColor = t1Wins ? 'color:var(--bs-danger);' : 'color:var(--bs-success);';
-                }
+                const t1Wins = bothScored && data.t1Score! > data.t2Score!;
+                const t2Wins = bothScored && data.t2Score! > data.t1Score!;
+                // bootstrap-icons trophy-fill, inlined because this HTML lives inside a
+                // Syncfusion diagram node (no Angular template, no icon font guarantees).
+                const trophySvg = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="var(--winner-gold)" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5.5A.5.5 0 0 1 3 0h10a.5.5 0 0 1 .5.5q0 .807-.034 1.536a3 3 0 1 1-1.133 5.89c-.79 1.865-1.878 2.777-2.833 3.011v2.173l1.425.356c.194.048.377.135.537.255L13.3 15.1a.5.5 0 0 1-.3.9H3a.5.5 0 0 1-.3-.9l1.838-1.379c.16-.12.343-.207.537-.255L6.5 13.11v-2.173c-.955-.234-2.043-1.146-2.833-3.012a3 3 0 1 1-1.132-5.89A33 33 0 0 1 2.5.5m.099 2.54a2 2 0 0 0 .72 3.935c-.333-1.05-.588-2.346-.72-3.935m10.083 3.935a2 2 0 0 0 .72-3.935c-.133 1.59-.388 2.885-.72 3.935"/></svg>`;
+                const glyphSlot = (won: boolean) =>
+                    `<span style="display:inline-flex;align-items:center;justify-content:center;width:14px;flex-shrink:0;margin-left:6px;">${won ? trophySvg : ''}</span>`;
 
                 // Team name spans — clickable via DOM delegation when team ID exists.
                 // Bold weight applied when the team is in the user's followed set.
@@ -729,14 +738,16 @@ export class BracketsTabComponent implements OnChanges, AfterViewChecked, OnDest
                         <div style="position:relative;background:${cardBg};border:1px solid var(--bs-border-color);border-left:5px solid ${stripeColor};border-radius:6px;overflow:hidden;width:100%;height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;padding:6px 8px 6px 6px;">
                             ${pencilHtml}
                             <div style="text-align:center;font-size:10px;color:var(--bs-secondary-color);margin-bottom:3px;line-height:1.2;">${locHtml}</div>
-                            <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 4px;${t1RowStyle}">
+                            <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 4px;color:var(--bs-body-color);">
                                 ${t1NameHtml}
-                                <span style="font-weight:700;font-size:12px;min-width:1.2rem;text-align:right;margin-left:6px;${t1ScoreColor}">${t1Score}</span>
+                                ${glyphSlot(t1Wins)}
+                                <span style="font-weight:700;font-size:12px;min-width:1.2rem;text-align:right;">${t1Score}</span>
                             </div>
                             <div style="height:1px;background:var(--bs-border-color);margin:2px 0;"></div>
-                            <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 4px;${t2RowStyle}">
+                            <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 4px;color:var(--bs-body-color);">
                                 ${t2NameHtml}
-                                <span style="font-weight:700;font-size:12px;min-width:1.2rem;text-align:right;margin-left:6px;${t2ScoreColor}">${t2Score}</span>
+                                ${glyphSlot(t2Wins)}
+                                <span style="font-weight:700;font-size:12px;min-width:1.2rem;text-align:right;">${t2Score}</span>
                             </div>
                         </div>
                     `

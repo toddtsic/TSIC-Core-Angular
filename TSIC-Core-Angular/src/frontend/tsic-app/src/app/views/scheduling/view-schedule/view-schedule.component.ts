@@ -18,7 +18,7 @@ import type {
     StandingsByDivisionResponse,
     DivisionBracketResponse,
     ContactDto,
-    TeamResultDto,
+    TeamResultsResponse,
     FieldDisplayDto,
     EditScoreRequest,
     EditGameRequest,
@@ -493,11 +493,12 @@ interface FilterChip {
             </tsic-dialog>
         }
 
-        <!-- Team Results Modal -->
+        <!-- Team Schedule Fly-in -->
         <app-team-results-modal
-            [results]="teamResults()"
-            [teamName]="teamResultsName()"
+            [response]="teamResultsResponse()"
+            [agColor]="teamResultsAgColor()"
             [visible]="teamResultsVisible()"
+            [loading]="teamResultsLoading()"
             (close)="teamResultsVisible.set(false)"
             (viewOpponent)="onViewTeamResults($event)" />
 
@@ -902,18 +903,20 @@ interface FilterChip {
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
         }
 
-        /* Followed-team chip variant — star-tinted to read as "yours" */
+        /* Followed-team chip variant — black-tie "yours" marker: strong-ink border +
+           filled star, no gold (gold is reserved for the winner trophy; the follow
+           star went strong-ink with it). The filled star shape carries the state. */
         .team-chip--following {
-            border-color: color-mix(in srgb, var(--bs-warning) 50%, transparent);
-            background: color-mix(in srgb, var(--bs-warning) 8%, var(--bs-card-bg));
+            border-color: color-mix(in srgb, var(--score-strong) 50%, transparent);
+            background: color-mix(in srgb, var(--score-strong) 6%, var(--bs-card-bg));
         }
 
         .team-chip--following:hover {
-            border-color: var(--bs-warning);
+            border-color: var(--score-strong);
         }
 
         .team-chip-icon {
-            color: var(--bs-warning);
+            color: var(--score-strong);
             font-size: 0.85em;
             flex-shrink: 0;
         }
@@ -1280,9 +1283,15 @@ export class ViewScheduleComponent implements OnInit {
     private requestId = 0; // race-condition guard for tab loading
 
     // ── Modal state ──
-    readonly teamResults = signal<TeamResultDto[]>([]);
-    readonly teamResultsName = signal('');
+    readonly teamResultsResponse = signal<TeamResultsResponse | null>(null);
+    readonly teamResultsLoading = signal(false);
     readonly teamResultsVisible = signal(false);
+
+    /** Director's stored hex for the fly-in team's age group (drives the header ag-dot). */
+    readonly teamResultsAgColor = computed(() => {
+        const agName = this.teamResultsResponse()?.agegroupName;
+        return agName ? this.agegroupColors()[agName] ?? null : null;
+    });
 
     readonly editingGame = signal<ViewGameDto | null>(null);
     readonly editGameVisible = signal(false);
@@ -1871,11 +1880,13 @@ export class ViewScheduleComponent implements OnInit {
 
     onViewTeamResults(teamId: string): void {
         this.teamResultsVisible.set(true);
-        this.teamResultsName.set('');
+        // Clear the previous team first — on a recursive reopen (opponent tap) the
+        // header must not show the OLD team over the new team's loading spinner.
+        this.teamResultsResponse.set(null);
+        this.teamResultsLoading.set(true);
         this.svc.getTeamResults(teamId, this.jobPath).subscribe(response => {
-            this.teamResults.set(response.games);
-            const parts = [response.agegroupName, response.clubName, response.teamName].filter(Boolean);
-            this.teamResultsName.set(parts.join(' — '));
+            this.teamResultsResponse.set(response);
+            this.teamResultsLoading.set(false);
         });
     }
 

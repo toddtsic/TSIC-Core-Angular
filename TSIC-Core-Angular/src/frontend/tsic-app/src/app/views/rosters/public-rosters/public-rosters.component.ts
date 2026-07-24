@@ -3,7 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { ListBoxModule, FilteringEventArgs } from '@syncfusion/ej2-angular-dropdowns';
 import { Query } from '@syncfusion/ej2-data';
-import { CadtClubNode, CadtTeamNode, PublicRosterPlayerDto, TeamResultDto } from '@core/api';
+import { CadtClubNode, CadtTeamNode, PublicRosterPlayerDto, TeamResultsResponse } from '@core/api';
 import { PublicRosterService } from './public-roster.service';
 import { ViewScheduleService } from '../../scheduling/view-schedule/services/view-schedule.service';
 import { TeamResultsModalComponent } from '../../scheduling/view-schedule/components/team-results-modal.component';
@@ -67,10 +67,26 @@ export class PublicRostersComponent {
 	// Whether the event allows public schedule viewing
 	schedulePublic = signal(false);
 
-	// Team results modal
+	// Team schedule fly-in
 	teamResultsVisible = signal(false);
-	teamResultsName = signal('');
-	teamResults = signal<TeamResultDto[]>([]);
+	teamResultsResponse = signal<TeamResultsResponse | null>(null);
+	teamResultsLoading = signal(false);
+
+	/** agegroupName → director color, from the CADT tree (drives the fly-in header ag-dot). */
+	readonly agegroupColors = computed(() => {
+		const map: Record<string, string | null> = {};
+		for (const c of this.clubs()) {
+			for (const ag of c.agegroups) {
+				map[ag.agegroupName] = ag.color ?? null;
+			}
+		}
+		return map;
+	});
+
+	readonly teamResultsAgColor = computed(() => {
+		const agName = this.teamResultsResponse()?.agegroupName;
+		return agName ? this.agegroupColors()[agName] ?? null : null;
+	});
 
 	private jobPath = '';
 
@@ -310,11 +326,13 @@ export class PublicRostersComponent {
 
 	viewTeamSchedule(teamId: string): void {
 		this.teamResultsVisible.set(true);
-		this.teamResultsName.set('');
+		// Clear first — a recursive reopen (opponent tap) must not show the old
+		// team's header over the new team's loading spinner.
+		this.teamResultsResponse.set(null);
+		this.teamResultsLoading.set(true);
 		this.scheduleSvc.getTeamResults(teamId, this.jobPath).subscribe(response => {
-			this.teamResults.set(response.games);
-			const parts = [response.agegroupName, response.clubName, response.teamName].filter(Boolean);
-			this.teamResultsName.set(parts.join(' — '));
+			this.teamResultsResponse.set(response);
+			this.teamResultsLoading.set(false);
 		});
 	}
 
