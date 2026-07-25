@@ -301,18 +301,22 @@ interface FilterChip {
                 <div class="segment-tabs" role="tablist">
                     <button class="segment-btn"
                             [class.active]="activeTab() === 'games'"
+                            [attr.aria-selected]="activeTab() === 'games'"
                             (click)="switchTab('games')" role="tab">Games</button>
                     <button class="segment-btn"
                             [class.active]="activeTab() === 'standings'"
+                            [attr.aria-selected]="activeTab() === 'standings'"
                             (click)="switchTab('standings')" role="tab">Standings</button>
                     @if (filterOptions()?.jobHasBrackets) {
                         <button class="segment-btn"
                                 [class.active]="activeTab() === 'brackets'"
+                                [attr.aria-selected]="activeTab() === 'brackets'"
                                 (click)="switchTab('brackets')" role="tab">Brackets</button>
                     }
                     @if (!capabilities()?.hideContacts) {
                         <button class="segment-btn"
                                 [class.active]="activeTab() === 'contacts'"
+                                [attr.aria-selected]="activeTab() === 'contacts'"
                                 (click)="switchTab('contacts')" role="tab">Contacts</button>
                     }
                 </div>
@@ -1109,13 +1113,22 @@ interface FilterChip {
 
         .segment-btn:hover:not(.active) {
             color: var(--bs-body-color);
-            background: rgba(0, 0, 0, 0.04);
+            background: var(--bs-secondary-bg);
         }
 
         .segment-btn.active {
             background: var(--bs-primary);
-            color: white;
+            color: var(--brand-primary-contrast, #fff);
             box-shadow: var(--shadow-sm);
+        }
+
+        .segment-btn:focus-visible {
+            outline: none;
+            box-shadow: var(--shadow-focus);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .segment-btn { transition: none !important; }
         }
 
         /* ── Filter Modal (mobile) ── */

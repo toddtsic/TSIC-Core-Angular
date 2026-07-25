@@ -81,11 +81,9 @@ interface BracketNode {
                 @for (tab of tabItems(); track tab.index) {
                     <button class="ag-tab"
                             [class.active]="activeTabIndex() === tab.index"
-                            [class.has-color]="!!tab.color"
-                            [style.background]="tab.color ?? null"
-                            [style.color]="tab.color ? tab.contrastColor : null"
-                            [style.border-color]="tab.color ?? null"
                             (click)="selectTab(tab.index)">
+                        <span class="ag-dot" [class.ag-dot--empty]="!tab.color"
+                              [style.background]="tab.color || null"></span>
                         {{ tab.label }}
                     </button>
                 }
@@ -215,21 +213,32 @@ interface BracketNode {
             color: var(--bs-body-color);
         }
 
-        /* Colored (agegroup) tabs: full-bleed colored background, contrast text from inline style.
-           Inactive colored tabs are dimmed; active colored tab pops with a focus ring. */
-        .ag-tab.has-color { opacity: 0.55; }
-        .ag-tab.has-color:hover { opacity: 0.85; }
-        .ag-tab.has-color.active {
-            opacity: 1;
+        /* Age-group identity is carried by a quiet color DOT, not a flooded pill — one
+           affordance language shared with the mobile picker and the standings strip.
+           Every chip is neutral; the active one gets a primary border + bold. */
+        .ag-tab.active {
+            background: var(--bs-primary-bg-subtle);
+            border-color: var(--bs-primary);
+            box-shadow: inset 0 0 0 1px var(--bs-primary);
+            color: var(--bs-body-color);
             font-weight: 700;
-            box-shadow: 0 0 0 2px var(--bs-body-bg), 0 0 0 4px var(--bs-body-color);
         }
 
-        /* Fallback when no agegroup color is set */
-        .ag-tab:not(.has-color).active {
-            background: var(--bs-primary);
-            color: white;
-            border-color: var(--bs-primary);
+        /* Small filled dot of the age-group's color; inset hairline ring keeps light
+           dots visible; dashed neutral ring when the group has no color set. */
+        .ag-dot {
+            flex-shrink: 0;
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--bs-secondary-bg);
+            box-shadow: inset 0 0 0 1px var(--bs-border-color);
+        }
+        .ag-dot--empty {
+            background: transparent;
+            box-shadow: none;
+            border: 1px dashed var(--bs-border-color);
         }
 
         .ag-tab:focus-visible {
