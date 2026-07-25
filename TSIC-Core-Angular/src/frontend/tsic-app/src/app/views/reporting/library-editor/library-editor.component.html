@@ -59,7 +59,7 @@
             <span class="text-muted">Loading rows...</span>
         </div>
     } @else if (selectedRoleId() && rows().length > 0) {
-        <ejs-grid #grid
+        <ejs-grid width="100%" #grid
             [dataSource]="rows()"
             cssClass="tsic-grid-tight"
             [allowSorting]="true"

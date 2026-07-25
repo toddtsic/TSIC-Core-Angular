@@ -55,7 +55,7 @@
 
     <!-- Roster Grid -->
     @if (!isLoadingRoster() && roster().length > 0) {
-        <ejs-grid [dataSource]="roster()"
+        <ejs-grid width="100%" [dataSource]="roster()"
                   [allowSorting]="true"
                   [sortSettings]="{ columns: [{ field: 'playerName', direction: 'Ascending' }] }"
                   cssClass="tsic-grid-tight">

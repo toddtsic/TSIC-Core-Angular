@@ -197,7 +197,7 @@
         </div>
     </div>
 } @else if (rows().length > 0) {
-    <ejs-grid #grid [dataSource]="rows()" [allowSorting]="true"
+    <ejs-grid width="100%" #grid [dataSource]="rows()" [allowSorting]="true"
               [sortSettings]="{ columns: [{ field: 'lastName', direction: 'Ascending' }] }"
               [allowExcelExport]="true"
               [toolbar]="gridToolbar"

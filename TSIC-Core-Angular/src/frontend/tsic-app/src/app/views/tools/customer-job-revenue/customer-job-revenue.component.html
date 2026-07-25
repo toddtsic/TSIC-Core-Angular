@@ -118,7 +118,7 @@
 			<div class="text-center text-muted mb-2" style="font-size: var(--font-size-xs)">
 				P=Player&nbsp;&nbsp;&nbsp;&nbsp;T=Team&nbsp;&nbsp;|&nbsp;&nbsp;TD=To Date&nbsp;&nbsp;&nbsp;&nbsp;PM=Previous Month&nbsp;&nbsp;&nbsp;&nbsp;CM=Current Month
 			</div>
-			<ejs-grid #countsGrid
+			<ejs-grid width="100%" #countsGrid
 				[dataSource]="monthlyCounts()"
 				cssClass="tsic-grid"
 				[allowExcelExport]="true"
@@ -143,7 +143,7 @@
 
 		<!-- Tab 3: Admin Fees -->
 		@if (activeTab() === 'adminFees') {
-			<ejs-grid #adminFeesGrid
+			<ejs-grid width="100%" #adminFeesGrid
 				[dataSource]="adminFees()"
 				cssClass="tsic-grid"
 				[allowExcelExport]="true"
@@ -162,7 +162,7 @@
 
 		<!-- Tab 4: Credit Card Records -->
 		@if (activeTab() === 'ccRecords') {
-			<ejs-grid #ccGrid
+			<ejs-grid width="100%" #ccGrid
 				[dataSource]="creditCardRecords()"
 				cssClass="tsic-grid"
 				[allowExcelExport]="true"
@@ -182,7 +182,7 @@
 
 		<!-- Tab 5: Check Records -->
 		@if (activeTab() === 'checkRecords') {
-			<ejs-grid #checkGrid
+			<ejs-grid width="100%" #checkGrid
 				[dataSource]="checkRecords()"
 				cssClass="tsic-grid"
 				[allowExcelExport]="true"
@@ -202,7 +202,7 @@
 
 		<!-- Tab 6: E-Check Records -->
 		@if (activeTab() === 'echeckRecords') {
-			<ejs-grid #echeckGrid
+			<ejs-grid width="100%" #echeckGrid
 				[dataSource]="echeckRecords()"
 				cssClass="tsic-grid"
 				[allowExcelExport]="true"

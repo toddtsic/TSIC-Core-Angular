@@ -305,7 +305,7 @@
                         <!-- Transaction tab: flattened double-entry — Grid gives sort/search/Excel; the
                              Amount aggregate is the column total; each row's splits open as a detail row. -->
                         @if (tab.kind === 'transactions' && tab.entries.length > 0) {
-                            <ejs-grid #txGrid
+                            <ejs-grid width="100%" #txGrid
                                 [dataSource]="tab.entries"
                                 cssClass="tsic-grid"
                                 [allowPaging]="true"
@@ -367,7 +367,7 @@
 
                         <!-- QA tab: dynamic-column Grid (sort/search/Excel) -->
                         @if (tab.kind === 'table' && tab.rows.length > 0) {
-                            <ejs-grid #qaGrid
+                            <ejs-grid width="100%" #qaGrid
                                 [dataSource]="qaRows()"
                                 [columns]="qaColumns()"
                                 cssClass="tsic-grid"
