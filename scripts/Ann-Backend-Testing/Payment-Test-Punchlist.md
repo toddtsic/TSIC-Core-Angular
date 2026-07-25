@@ -52,7 +52,7 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **What I expected**: A confirmation that does **not** warn "This cannot be undone" — an admin CC charge can be voided or refunded afterward
 - **What happened**: The confirmation reads "This processes immediately via Authorize.Net and cannot be undone." That's inaccurate for a CC charge (it can be voided/refunded). Remove the "cannot be undone" wording here. **Keep** it on the Refund popup, where it's accurate.
 - **Severity**: UX
-- **Status**: Fixed
+- **Status**: Fixed — ✅ **VERIFIED PASSING (Ann, 07-24)**
 - **For Todd**: Drop the "and cannot be undone" / "Cannot be undone" phrase from the CC-charge confirmation only; leave the Refund confirmation as-is.
 - **Note (dev)**: CC-charge confirmation text appears twice — `accounting-ledger.component.html:235` ("This processes immediately via Authorize.Net and cannot be undone.") and `:473` ("Processes immediately via Authorize.Net. Cannot be undone.") — both `cc-confirm-warning`. Keep the refund copy at `refund-modal.component.html:58, 72`.
 - **Resolved**: Dropped "Cannot be undone." from the **charge** popup only (`accounting-ledger.component.html:473`). Note: `:235` is actually the **Refund** confirmation (heading "Confirm CC Refund"), not a second charge instance — its wording is correct and left unchanged, as is `refund-modal.component.html`.
@@ -66,7 +66,7 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **What I expected**: To be able to enter a negative correction — the hint says a negative amount increases the amount owed — and the confirm button to enable
 - **What happened**: The negative amount wouldn't take and the confirm button doesn't highlight. But the info hint reads "A negative (–) amount increases the amount owed." So either negatives should be enterable (fix the input/button), or — if they're intentionally restricted — that hint should be removed/clarified.
 - **Severity**: Question
-- **Status**: Fixed
+- **Status**: Fixed — ✅ **VERIFIED PASSING (Ann, 07-24)**
 - **For Todd**: Decide the intended behavior. If negatives should work → fix so a negative can be entered and the button enables. If negatives are intentionally limited → remove/clarify the "A negative amount increases the amount owed" hint so it doesn't contradict the UI.
 - **Note (dev)**: The amount input caps the negative at the amount paid: `[min]="paymentType() === 'correction' ? -modalPaid() : 0"` (`accounting-ledger.component.html:378`). With nothing paid yet (modalPaid = 0) the min is 0, so no negative is possible — the likely cause on a fresh registration. Also: a negative that "increases owed" being bounded by *amount paid* looks inconsistent with the hint at line 420 — the two may need reconciling.
 - **Decision (Todd)**: **No negative correction records.** Corrections are positive-only (they reduce the amount owed). A negative correction previously "un-paid" (reduced PaidTotal) bounded by amount paid; that path is removed everywhere.
@@ -81,7 +81,7 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **What I expected**: The comment to appear on the ledger row, the same as it does for a Check record
 - **What happened**: The comment doesn't appear in the Payment Ledger for a CC record. It works for Check.
 - **Severity**: Bug
-- **Status**: Fixed (reopened 07-24 — original fix covered only one of two player hosts; teams never worked. Both now closed.)
+- **Status**: Fixed — ✅ **VERIFIED PASSING (Ann retested 07-24)**. (Reopened 07-24 — original fix covered only one of two player hosts; teams never worked. Both now closed and confirmed.)
 - **For Todd**: Carry the comment through on a CC charge, the same as Check/Correction. It's currently dropped before it's ever sent.
 - **Decision (Todd)**: Option A — save it. Keep the Optional Comment on CC charges and persist it like Check does.
 - **Resolved (first pass)**: Threaded the comment end-to-end — `CcChargeEvent` + emit (accounting-ledger), `onCcCharge` request build (registration-detail-panel), `RegistrationCcChargeRequest` + `RegistrationChargeItem` DTOs, and `ChargeCcAsync`. The canonical engine (`PaymentService.cs:1580`) previously hard-coded `ra.Comment = "Registration Payment"` after capture, clobbering any note — now it uses the admin comment when non-blank and falls back to the default otherwise. Registrant self-pay never sets a comment, so it's unaffected. API models regenerated (`comment?` on `RegistrationCcChargeRequest`).
@@ -99,7 +99,7 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **What I expected**: The amount **and** its "inherited from" source both readable
 - **What happened**: The amount shows correctly, but the "inherited from" text isn't legible — it overwrites / overlaps other info in the cell.
 - **Severity**: UX
-- **Status**: Fixed
+- **Status**: Fixed — ✅ **VERIFIED PASSING (Ann, 07-24)**
 - **For Todd**: Lay it out so the "Inherited from …" indicator doesn't overlap adjacent info — widen the column, render it as a proper hover tooltip, or reposition it.
 - **Root cause**: Not positioning — `.fee-inherited` dimmed the pill with `opacity: 0.55`, and CSS opacity on an ancestor applies to the entire subtree including the `position: fixed` `<app-info-tooltip>` panel. So the tooltip rendered at 55% opacity and the row beneath bled through it → "both texts," illegible. (Confirmed live via DOM inspect: the panel is a descendant of `div.fee-pill.fee-inherited`.)
 - **Resolved**: Moved the dimming off the container onto its text children only — `.fee-inherited > :not(app-info-tooltip) { opacity: 0.55; font-style: italic; }` (ladt-sibling-grid.component.ts:460). Inherited fees still read dimmed + italic; the tooltip is no longer in an opacity-reduced subtree and renders fully opaque. Scoped to the LADT grid; shared `info-tooltip` component untouched.
@@ -117,7 +117,7 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **What I expected**: The player to still show **Pending** — they're inactive and haven't actually paid — same as the no-payment case.
 - **What happened**: The player shows **neither Pending nor Registered** — they drop out of the family-account view entirely.
 - **Severity**: Bug
-- **Status**: Fixed
+- **Status**: Fixed — ✅ **VERIFIED PASSING (Ann, 07-24)**
 - **For Todd**: An inactive, unpaid player who has only a Correction record should still read as Pending. Right now a Correction knocks them out of the "pending" test without making them active, so they vanish.
 - **Decision (Todd)**: Drop the `PaidTotal <= 0` clause from the pending test.
 - **Resolved**: `isPending` now = `BActive != true && AssignedTeamId.HasValue && !isParkedDivision` (FamilyService.cs:813). Rationale: real tender (CC/check/eCheck) always sets `BActive = true`, so an inactive reg with `PaidTotal > 0` can only be a non-activating Correction — which must still read as Pending. The `PaidTotal` gate was the only thing dropping correction-only regs; removing it restores them without mislabeling genuinely-paid (active) regs. Lead comment updated to match.
@@ -132,7 +132,7 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **What I expected**: Guidance that correctly tells me how to activate the **corrected** player
 - **What happened**: The note says to "toggle them Active above," but the Active control above belongs to the selected player, which can be a different player in a multi-player family. To actually activate the corrected (Inactive) player you have to go back to the Search Registrations table, select that player, and make them Active.
 - **Severity**: UX (misleading copy)
-- **Status**: Fixed
+- **Status**: Fixed — ✅ **VERIFIED PASSING (Ann, 07-24)**
 - **For Todd**: Reword so it doesn't rely on "above." **Suggested:** "A correction doesn't make the player Active. To activate them, go to the Search Registrations table, select that player, and set them Active." (Shorter alt: "Recording a correction won't activate the player. To activate them, find them in Search Registrations and toggle Active.")
 - **Resolved**: Reworded the correction activation note (accounting-ledger.component.html:417) to Ann's suggested copy, dropping the "above" reference. The separate check-payment activation note is unchanged.
 - **Note (dev)**: `accounting-ledger.component.html:423-427` — the `showActivationNotes()` correction note.
@@ -146,7 +146,7 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **What I expected**: No insurance offer for that player — there's nothing forfeitable to insure when they paid $0.
 - **What happened**: Vertical Insure showed the **full** (pre-discount) registration amount as insurable for that player. It shouldn't appear for them at all.
 - **Severity**: Bug
-- **Status**: Fixed
+- **Status**: Fixed — ✅ **VERIFIED PASSING (Ann, 07-24)**
 - **For Todd**: A fully-discounted ($0-owed) player shouldn't be offered RegSaver, and if it ever shows the amount must be net of the code. Right now the offer is frozen at the pre-code price.
 - **Decision (Todd)**: Server-side fix. The offer is built at preSubmit (full), but the apply-discount request **rebuilds** it (`BuildOfferAsync`) off the now-persisted discount and returns it; the FE swaps it in and hides VI when `offer.available` is false. The gap was only that the rebuild never went unavailable at $0 net insurable.
 - **Resolved**: Added a gate in `VerticalInsureService.cs` (after the net-insurable calc, ~line 327): `if (insurable <= 0m) continue;` — so a fully-discounted reg yields no product → rebuilt offer `Available=false` → FE (`payment-v2.service.ts:482`, `data: offer.available ? playerObject : null`) hides VI. Keys off net *insurable* (fee after discount), not owed, so a paid-in-full reg with a real fee still gets the offer.
@@ -163,7 +163,7 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
     - **Active is indefinite.** There is **no timer, no expiry, no background job** that ever flips an unpaid check-payer to Inactive. They stay Active until an admin manually records the check or voids/removes the registration. So "held pending receipt of payment" implies a hold that could lapse, but nothing lapses.
     - **No indicator** in Search Registrations that a registrant chose pay-by-check and it hasn't been received — the table shows only Active/Inactive and a discount-code badge.
 - **Severity**: Question + UX enhancement
-- **Status**: Fixed
+- **Status**: Fixed — ✅ **VERIFIED PASSING (Ann, 07-24)** (copy reword confirmed)
 - **Decision (Todd)**: A check-payer is **Active** on submit, so there is no "hold" and nothing to auto-expire — the policy is correct as-is (no timer). The honest consequence is discretionary: the director may drop the registration if the check never arrives. Fix is the copy only.
 - **Resolved**: Reworded both pay-by-check confirmations — player (payment-step.component.ts:604) and team (:552) — from "…will be held pending receipt of payment" to "Your registration is active. Please mail your check to complete payment — if it isn't received, the director may drop your registration." (team: "Your teams are registered. …"). No hold/expiry language.
 - **For Todd** — three decisions:
@@ -172,7 +172,7 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
     3. **Enhancement**: add a "check pending" marker (Ann's suggested **P** badge + hover, e.g. "Opted to pay by check — payment not yet received") on the Search Registrations row.
 - **Note (dev)**: Pay-by-check → `POST /player-registration/submit-by-check` → `PlayerRegistrationService.SubmitByCheckAsync` stamps `PaymentMethodChosen = 3 (Check)` + claims the seat and sets `BActive = true` (`:768-807`); no expiry field is written. No hosted/scheduled service inactivates check-payers — the only `BackgroundService` is `AdnSweepService` (Authorize.Net settlement reconciliation). Message source: `payment-step.component.ts:604` (player) / `payment-step.component.ts:552` (team). A pending-check badge is derivable from `PaymentMethodChosen == 3 && active && owed > 0`; Search Registrations currently renders only `active-badge` / `dc-badge` (`search-registrations.component.html:782, 765`).
 
-### PL-009: Intermittent "Player registration is not currently open" toast — despite the job being fully open
+### PL-009: 🔴 RE-OPENED — Intermittent "Player registration is not currently open" toast — despite the job being fully open
 - **Tested**: Showcase Registration
 - **Job**: `American Select Lacrosse:INDIVIDUAL Showcase 2026` — JobId `31284005-8A6D-44FE-ACAB-85675BF7F65B`
 - **Area**: Public landing → Register Player (route guard) → the job pulse
@@ -181,7 +181,8 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **What I expected**: Consistent behavior — the job is open, so it should let me in every time.
 - **What happened**: Intermittent "registration not currently open" toast even though registration is open.
 - **Severity**: Bug (intermittent / race)
-- **Status**: Fixed
+- **Status**: 🔴 **RE-OPENED (Ann, 07-24)** — the `no-cache` fix is insufficient; the guard's fresh pulse GET is still served **stale from the browser HTTP cache** after an admin config change, so the toast wrongly denies access until a **hard refresh**. (The original intermittent flap was verified gone — this is a residual browser-cache facet of the same endpoint.)
+- **Reopen detail (07-24)**: The guard already fetches a live pulse each navigation ([registration-invite.guard.ts:51-52](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/infrastructure/guards/registration-invite.guard.ts#L51)), so the staleness is at the HTTP layer. PL-009 set `Cache-Control: private, no-cache`, but `no-cache` permits *storage* (revalidate-before-use) and, absent a validator/ETag, browsers can serve the stored stale copy — a hard refresh bypasses it, exactly the observed behavior (verified live: every gate open — 8 player-fee rows, 6 available teams, EventEndDate 7/31 — yet the toast fired until reload). **Durable fix for Todd**: send `Cache-Control: no-store` on the `/pulse` endpoint ([JobsController.cs:322](../../TSIC-Core-Angular/src/backend/TSIC.API/Controllers/JobsController.cs#L322)), **or** cache-bust the guard's pulse GET (append a nonce/timestamp query param). Either guarantees a true network fetch so live config changes reflect without a manual hard refresh. **Repro**: with the registration page open, change any job/roster config in admin → re-enter registration → stale "closed" toast until Ctrl+Shift+R.
 - **Resolved**: The `/pulse` endpoint ([JobsController.cs:322](../../TSIC-Core-Angular/src/backend/TSIC.API/Controllers/JobsController.cs#L322)) now sends `Cache-Control: private, no-cache` + `Vary: Authorization` — the same headers the sibling menu endpoint already used. Its body varies by auth (the `My*` overlay) and by live config, so a "closed" pulse can no longer be cached and replayed, which was the stale-snapshot source of the intermittent toast. FE guard bypass-for-authenticated (contributing item 2) left as-is; revisit only if the flap survives the header fix.
 - **Root cause (verified against the live DB for this job)**: Every gate is **open** — nothing in the saved config should close it:
     - `BRegistrationAllowPlayer = 1` (QL toggle on)
@@ -204,7 +205,7 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **What I expected**: The Waitlist option to disappear once Max is no longer reached — only the real event (with fee) should remain.
 - **What happened**: **Both** show — the real event *with its fee* AND the WL option at $0.
 - **Severity**: Bug
-- **Status**: Fixed (with PL-011 — same root cause, same one-line fix)
+- **Status**: Fixed — ✅ **VERIFIED PASSING (Ann, 07-24)** (with PL-011 — same root cause, same one-line fix)
 - **Resolved**: `GetAvailableTeamsQueryResultsAsync` now excludes `WAITLIST` agegroups from the picker, not just `Dropped` ([TeamRepository.cs:149](../../TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/TeamRepository.cs#L149)). A waitlist twin is never a bookable option — waitlisting is expressed on the REAL team via `RosterIsFull` (UI badges it "WAITLIST"), and the twin is a payment-time-only artifact. This makes the live query match what its own test already documents ([WaitlistTwinDisplayTests.cs:53-54](../../TSIC-Core-Angular/src/backend/TSIC.Tests/TeamRegistration/WaitlistMirror/WaitlistTwinDisplayTests.cs#L53) — "the base query NEVER returns WAITLIST agegroups") and the `AgegroupConstants` system-bucket contract. No registrant-count logic and no data deletion — the leftover twin simply stops being surfaced; the real event (now open) shows alone. Resume is unaffected: a pending player sits on the real team until payment, so they still match the real entry. Stale inline comment corrected.
 - **Root cause (verified against the live DB for this job)**: `RosterIsFull = current >= MaxCount && MaxCount > 0` ([TeamLookupService.cs:67](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Teams/TeamLookupService.cs#L67)) is computed **live**, so raising Max correctly flips the *real* event's `rosterIsFull` back to false — good. But when the event was full, a **WAITLIST twin was minted as a real `Teams` row** (agegroup `WAITLIST - {name}`, MaxCount 100000). That twin **persists** — I confirmed `WAITLIST - 2028 / 2029 / 2030` rows exist for this job alongside the open real teams. `GetAvailableTeamsQueryResultsAsync` was filtering only `Dropped` (not `WAITLIST`), so it surfaced the twin as a standalone pickable row and nothing hid it once the parent regained capacity. So the leftover $0 twin showed next to the now-open real event.
 - **Design note**: The intended model (per the code's own comment) is that a waitlist is just a **badge on the full real team** ("⚠ WAITLIST · $0"), with the twin minted only at payment — NOT a standalone pickable option ([team-selection-step.component.ts:869-872](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L869)). A standalone twin appearing next to its real parent already deviates from that; showing it once the parent isn't even full is the visible bug.
@@ -219,7 +220,7 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **What I expected**: One waitlist option per full team (no icon).
 - **What happened**: **Four** options — each full team (FP and Goalie) shows up **twice**: one entry with the yellow ⚠ triangle icon and one without.
 - **Severity**: Bug
-- **Status**: Fixed (with PL-010 — same root cause, same one-line fix)
+- **Status**: Fixed — ✅ **VERIFIED PASSING (Ann, 07-24)** (with PL-010 — same root cause, same one-line fix)
 - **Resolved**: Same fix as PL-010 — `GetAvailableTeamsQueryResultsAsync` now excludes `WAITLIST` agegroups ([TeamRepository.cs:149](../../TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/TeamRepository.cs#L149)). The standalone twin (the plain, icon-less duplicate) no longer appears, so a full team shows exactly one entry: the real team badged `⚠ WAITLIST` off its live `RosterIsFull` flag. The "which representation to keep" decision resolved structurally — the badged real team is canonical (the code's intended model); the twin was never meant to be a selectable option.
 - **Root cause (same as PL-010 — the persistent minted twin surfaced by the picker)**: For each full team the list carries two rows:
     1. the **real** team, `rosterIsFull=true` → badged `⚠ WAITLIST · {name} ($0)` — the ⚠ icon ([team-selection-step.component.ts:792-794](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L792));
@@ -332,7 +333,7 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **Area**: Player Details → Accounting → Add Accounting Record → Credit Card → Optional Comment
 - **Relates to**: **PL-003** (marked Fixed). On retest the comment **still does not appear** in the Payment Ledger for an admin CC entry.
 - **Severity**: Bug (regression / not-resolved on retest)
-- **Status**: Awaiting Ann retest (source confirmed correct — likely a stale build)
+- **Status**: ✅ **RESOLVED — verified passing by Ann (07-24)**; closed together with PL-003. (Root cause was **not** a stale build — it was the **second player host** `family-payment.onCcCharge` dropping the comment, fixed in PL-003's 07-24 reopening. The CC Optional Comment now persists/displays.)
 - **Decision (Todd)**: No code defect. Re-verified [accounting-ledger.component.ts:491](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/shared-ui/components/accounting-ledger/accounting-ledger.component.ts#L491) — the CC emit carries `comment: this.comment() || null` — so the PL-003 fix is present and complete in master. Ann's retest showing the default "Registration Payment" means the comment reached the backend blank, which on correct source points to the **tested build predating the fix** (the model + emit change needs a fresh Angular bundle). **Action → Ann**: confirm the tested env is at/after the PL-003 commit (hard-refresh / rebuilt FE bundle), then retest the admin CC Optional Comment. If it still fails on a confirmed-fresh build, reopen and we'll instrument the controller boundary. Optional display cleanup (suppress the "Registration Payment"/"eCheck Registration Payment" defaults so comment-less rows render blank like Check/Correction) deferred — separate from this retest.
 - **What Claude found (full end-to-end source trace — every link is correct in current master)**:
 
