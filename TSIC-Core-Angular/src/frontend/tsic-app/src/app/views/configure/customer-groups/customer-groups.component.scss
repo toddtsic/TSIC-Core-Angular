@@ -3,18 +3,7 @@
     padding: var(--space-4);
 }
 
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: var(--space-6);
-}
-
-.page-subtitle {
-    color: var(--bs-secondary-color);
-    font-size: var(--font-size-sm);
-    margin-bottom: 0;
-}
+// Page header: .page-header, .page-title, .page-subtitle, .badge-count from global _utilities.scss
 
 // ── Master-detail layout ────────────────────────
 
@@ -195,23 +184,7 @@
 }
 
 // ── Empty states ────────────────────────────────
-
-.empty-state {
-    text-align: center;
-    padding: var(--space-12) var(--space-4);
-
-    i {
-        font-size: 3rem;
-        color: var(--bs-secondary-color);
-        margin-bottom: var(--space-4);
-        display: block;
-    }
-
-    h5 {
-        color: var(--brand-text);
-        margin-bottom: var(--space-2);
-    }
-}
+// Page-level empty/loading use global .list-empty-state / .list-empty-icon.
 
 .empty-state-inline {
     display: flex;

@@ -1,17 +1,25 @@
 <div class="page-header">
     <div>
-        <h2 class="page-title">Customer Groups</h2>
+        <h2 class="page-title">
+            <i class="bi bi-collection page-title-icon"></i>
+            Customer Groups
+            @if (!isLoading() && groups().length > 0) {
+                <span class="badge-count">{{ groups().length }}</span>
+            }
+        </h2>
         <p class="page-subtitle">Organize customers into named groups for Customer/Job Revenue reporting</p>
     </div>
-    <button class="btn btn-primary btn-sm" (click)="openCreateInput()" [disabled]="isSaving()">
-        <i class="bi bi-plus-lg me-1"></i>Add Group
-    </button>
+    <div class="page-header-actions">
+        <button class="btn btn-primary btn-sm" (click)="openCreateInput()" [disabled]="isSaving()">
+            <i class="bi bi-plus-lg me-1"></i>Add Group
+        </button>
+    </div>
 </div>
 
 <!-- Loading -->
 @if (isLoading()) {
-    <div class="text-center py-5">
-        <div class="spinner-border text-primary" role="status">
+    <div class="list-empty-state">
+        <div class="spinner-border spinner-border-sm text-secondary" role="status">
             <span class="visually-hidden">Loading...</span>
         </div>
     </div>
@@ -19,11 +27,10 @@
 
 <!-- Empty state -->
 @if (!isLoading() && groups().length === 0 && !showCreateInput()) {
-    <div class="empty-state">
-        <i class="bi bi-collection"></i>
-        <h5>No customer groups yet</h5>
-        <p class="text-muted">Create a group to start organizing customers</p>
-        <button class="btn btn-primary" (click)="openCreateInput()">
+    <div class="list-empty-state">
+        <i class="bi bi-collection list-empty-icon"></i>
+        <p>No customer groups yet. Create a group to start organizing customers.</p>
+        <button class="btn btn-primary btn-sm" (click)="openCreateInput()">
             <i class="bi bi-plus-lg me-1"></i>Create First Group
         </button>
     </div>
