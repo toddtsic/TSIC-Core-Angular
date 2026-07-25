@@ -30,8 +30,16 @@ export class CustomerConfigureComponent implements OnInit {
   readonly hasJobsCount = computed(() => this.customers().filter(c => c.jobCount > 0).length);
   readonly noJobsCount = computed(() => this.customers().filter(c => c.jobCount === 0).length);
 
+  // The segment strip only earns its place when both buckets are non-empty —
+  // otherwise "Has Jobs" and "All" are the same list and the filter is noise.
+  readonly showSegments = computed(() => this.hasJobsCount() > 0 && this.noJobsCount() > 0);
+
+  // Derived, not reset imperatively: if the strip is hidden while segment() is
+  // stranded on a now-empty bucket, filtering falls back to 'all'.
+  readonly effectiveSegment = computed<Segment>(() => this.showSegments() ? this.segment() : 'all');
+
   readonly filteredCustomers = computed(() => {
-    const seg = this.segment();
+    const seg = this.effectiveSegment();
     const all = this.customers();
     if (seg === 'has') return all.filter(c => c.jobCount > 0);
     if (seg === 'no') return all.filter(c => c.jobCount === 0);

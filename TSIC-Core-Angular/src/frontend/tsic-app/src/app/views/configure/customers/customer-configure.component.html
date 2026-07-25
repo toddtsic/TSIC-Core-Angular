@@ -18,8 +18,8 @@
     </div>
 </div>
 
-<!-- Segment Filter -->
-@if (!isLoading() && !errorMessage()) {
+<!-- Segment Filter — only when both buckets are non-empty; otherwise it filters nothing -->
+@if (!isLoading() && !errorMessage() && showSegments()) {
     <div class="segmented mb-3" role="group" aria-label="Filter customers by job activity">
         <button type="button" class="segmented__btn" [class.is-active]="segment() === 'has'"
                 [attr.aria-pressed]="segment() === 'has'" (click)="setSegment('has')"
