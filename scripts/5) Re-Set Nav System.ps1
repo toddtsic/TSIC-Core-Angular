@@ -167,7 +167,8 @@ $adminManifest = @(
     (New-AdminItem 'Configure' 'gear' 2 'Age Ranges'          'sliders'       'configure/age-ranges'              3  1 1 1 $rulesTeamEligByAge)
     (New-AdminItem 'Configure' 'gear' 2 'Quick Links'         'stars'         'configure/quick-links'             4  1 1 1)
     (New-AdminItem 'Configure' 'gear' 2 'Administrators'      'person-badge'  'configure/administrators'          5  0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Dropdown Options'    'list'          'configure/ddl-options'             6  0 0 1)
+    # 'Dropdown Options' (configure/ddl-options) intentionally NOT menued — the same
+    # component is the SU-only "Dropdowns" tab inside Job Settings; one door (2026-07-25).
     (New-AdminItem 'Configure' 'gear' 2 'Profile Editor'      'pencil-square' 'tools/profile-editor'              7  0 0 1)
     (New-AdminItem 'Configure' 'gear' 2 'Report Catalogue'    'collection'    'reporting/report-catalogue-editor' 9  0 0 1)
 

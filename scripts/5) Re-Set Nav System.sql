@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-07-24 19:18:23 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-07-25 16:23:04 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -128,7 +128,6 @@ INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Discount Codes', 
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Age Ranges', N'sliders', N'configure/age-ranges', 3, 1, 1, 1, N'{"requiresFlags":["teamEligibilityByAge"]}', NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Quick Links', N'stars', N'configure/quick-links', 4, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Administrators', N'person-badge', N'configure/administrators', 5, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Dropdown Options', N'list', N'configure/ddl-options', 6, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Profile Editor', N'pencil-square', N'tools/profile-editor', 7, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Report Catalogue', N'collection', N'reporting/report-catalogue-editor', 9, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Teams & Rosters', N'diagram-3', 3, N'L-A-D-T Editor', N'pencil-square', N'ladt/editor', 1, 1, 1, 1, NULL, NULL);
