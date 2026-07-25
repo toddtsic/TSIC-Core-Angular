@@ -44,14 +44,14 @@ type StandingsMode = 'all' | 'rr';
                     </div>
                     <div class="mode-toggle" role="group" aria-label="Standings mode">
                         <button class="toggle-option"
-                                [class.active]="standingsMode() === 'all'"
-                                (click)="standingsMode.set('all')">
-                            All Games
-                        </button>
-                        <button class="toggle-option"
                                 [class.active]="standingsMode() === 'rr'"
                                 (click)="standingsMode.set('rr')">
                             RR Only
+                        </button>
+                        <button class="toggle-option"
+                                [class.active]="standingsMode() === 'all'"
+                                (click)="standingsMode.set('all')">
+                            All Games
                         </button>
                     </div>
                 </div>
@@ -398,7 +398,7 @@ export class StandingsTabComponent {
         return !!teamId && this.followedSet().has(teamId);
     }
 
-    readonly standingsMode = signal<StandingsMode>('all');
+    readonly standingsMode = signal<StandingsMode>('rr');
 
     /** Raw selection. Read through activeAgTabIndex, which clamps it to the tabs on offer. */
     private readonly selectedAgTabIndex = signal(0);
