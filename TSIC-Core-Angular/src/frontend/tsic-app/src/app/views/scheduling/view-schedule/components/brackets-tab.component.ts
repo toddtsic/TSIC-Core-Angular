@@ -14,6 +14,7 @@ import {
 } from '@syncfusion/ej2-diagrams';
 import { DataManager } from '@syncfusion/ej2-data';
 import { contrastText, agBg, formatTime } from '../../shared/utils/scheduling-helpers';
+import { AgeGroupPickerComponent, type AgePickerItem } from '../../shared/components/age-group-picker/age-group-picker.component';
 
 // A game that is NOT part of the single-elimination ladder: the bronze (3rd-place) match, which
 // has no parent to advance into, and consolation (placement) games, which were never in the tree.
@@ -57,6 +58,7 @@ interface BracketNode {
 @Component({
     selector: 'app-brackets-tab',
     standalone: true,
+    imports: [AgeGroupPickerComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         @if (isLoading()) {
@@ -67,7 +69,14 @@ interface BracketNode {
         } @else if (brackets().length === 0) {
             <div class="empty-state">No bracket data available.</div>
         } @else {
-            <!-- Tab bar -->
+            <!-- Age-group nav: scrollable pill strip on desktop, compact dot+name
+                 dropdown on mobile. Both drive the same selectTab. -->
+            <div class="ag-picker-bar">
+                <app-age-group-picker
+                    [items]="agePickerItems()"
+                    [selectedId]="activeAgId()"
+                    (selectionChange)="onAgePicked($event)" />
+            </div>
             <div class="ag-tabs">
                 @for (tab of tabItems(); track tab.index) {
                     <button class="ag-tab"
@@ -173,6 +182,9 @@ interface BracketNode {
 
         /* ── Tab bar ── */
 
+        /* Mobile-only dropdown bar; the pill strip owns desktop (see mobile @media). */
+        .ag-picker-bar { display: none; }
+
         .ag-tabs {
             display: flex;
             gap: var(--space-1);
@@ -227,6 +239,17 @@ interface BracketNode {
 
         @media (prefers-reduced-motion: reduce) {
             .ag-tab { transition: none !important; }
+        }
+
+        /* Swap the pill strip for the dropdown at phone width. */
+        @media (max-width: 767px) {
+            .ag-tabs { display: none; }
+            .ag-picker-bar {
+                display: flex;
+                justify-content: flex-start;
+                padding: var(--space-2) var(--space-3);
+                border-bottom: 1px solid var(--bs-border-color);
+            }
         }
 
         /* ── Diagram container ── */
@@ -519,6 +542,15 @@ export class BracketsTabComponent implements OnChanges, AfterViewChecked, OnDest
         if (index === this.activeTabIndex()) return;
         this.activeTabIndex.set(index);
         this.rebuildPending = true;
+    }
+
+    /** Mobile dropdown feed — same age groups as the pill strip, id = tab index. */
+    readonly agePickerItems = computed<AgePickerItem[]>(() =>
+        this.tabItems().map(t => ({ id: String(t.index), label: t.label, color: t.color }))
+    );
+    readonly activeAgId = computed(() => String(this.activeTabIndex()));
+    onAgePicked(id: string): void {
+        this.selectTab(Number(id));
     }
 
     private destroyDiagram(): void {

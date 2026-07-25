@@ -1,3 +1,5 @@
+export { AgeGroupPickerComponent } from './age-group-picker/age-group-picker.component';
+export type { AgePickerItem } from './age-group-picker/age-group-picker.component';
 export { DivisionNavigatorComponent } from './division-navigator/division-navigator.component';
 export { GameCardComponent } from './game-card/game-card.component';
 export { ScheduleGridComponent } from './schedule-grid/schedule-grid.component';

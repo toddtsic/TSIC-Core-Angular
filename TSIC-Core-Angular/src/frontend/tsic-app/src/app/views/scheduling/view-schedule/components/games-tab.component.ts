@@ -130,7 +130,14 @@ type ScheduleRow =
                                     <i class="bi" [class.bi-star-fill]="isFollowed(game.t1Id)" [class.bi-star]="!isFollowed(game.t1Id)"></i>
                                 </button>
                             }
-                            <span class="team-name">{{ game.t1Name }}</span>
+                            @if (game.t1Id) {
+                                <button type="button" class="team-name team-link"
+                                        [attr.title]="'View ' + game.t1Name + ' results'"
+                                        [attr.aria-label]="'View ' + game.t1Name + ' results'"
+                                        (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Name }}</button>
+                            } @else {
+                                <span class="team-name">{{ game.t1Name }}</span>
+                            }
                             @if (game.t1Record && game.t1Id) {
                                 <button type="button" class="record-btn"
                                         [attr.title]="'View ' + game.t1Name + ' results'"
@@ -205,7 +212,14 @@ type ScheduleRow =
                                     <i class="bi" [class.bi-star-fill]="isFollowed(game.t2Id)" [class.bi-star]="!isFollowed(game.t2Id)"></i>
                                 </button>
                             }
-                            <span class="team-name">{{ game.t2Name }}</span>
+                            @if (game.t2Id) {
+                                <button type="button" class="team-name team-link"
+                                        [attr.title]="'View ' + game.t2Name + ' results'"
+                                        [attr.aria-label]="'View ' + game.t2Name + ' results'"
+                                        (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Name }}</button>
+                            } @else {
+                                <span class="team-name">{{ game.t2Name }}</span>
+                            }
                             @if (game.t2Record && game.t2Id) {
                                 <button type="button" class="record-btn"
                                         [attr.title]="'View ' + game.t2Name + ' results'"
@@ -283,7 +297,14 @@ type ScheduleRow =
                                         <i class="bi" [class.bi-star-fill]="isFollowed(game.t1Id)" [class.bi-star]="!isFollowed(game.t1Id)"></i>
                                     </button>
                                 }
-                                <span class="team-name">{{ game.t1Name }}</span>
+                                @if (game.t1Id) {
+                                    <button type="button" class="team-name team-link"
+                                            [attr.title]="'View ' + game.t1Name + ' results'"
+                                            [attr.aria-label]="'View ' + game.t1Name + ' results'"
+                                            (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Name }}</button>
+                                } @else {
+                                    <span class="team-name">{{ game.t1Name }}</span>
+                                }
                                 @if (game.t1Record && game.t1Id) {
                                     <button type="button" class="record-btn"
                                             [attr.title]="'View ' + game.t1Name + ' results'"
@@ -309,7 +330,14 @@ type ScheduleRow =
                                         <i class="bi" [class.bi-star-fill]="isFollowed(game.t2Id)" [class.bi-star]="!isFollowed(game.t2Id)"></i>
                                     </button>
                                 }
-                                <span class="team-name">{{ game.t2Name }}</span>
+                                @if (game.t2Id) {
+                                    <button type="button" class="team-name team-link"
+                                            [attr.title]="'View ' + game.t2Name + ' results'"
+                                            [attr.aria-label]="'View ' + game.t2Name + ' results'"
+                                            (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Name }}</button>
+                                } @else {
+                                    <span class="team-name">{{ game.t2Name }}</span>
+                                }
                                 @if (game.t2Record && game.t2Id) {
                                     <button type="button" class="record-btn"
                                             [attr.title]="'View ' + game.t2Name + ' results'"
@@ -720,6 +748,42 @@ type ScheduleRow =
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+
+        /* Team name → team-results modal, the same viewTeamResults target the record
+           badge fires. Black-tie doctrine meets touch reality: the name RESTS at body ink
+           with a SOFT DOTTED UNDERLINE — a persistent affordance (no hover dependency, so
+           touch shows it too) that stays calm (ink, not loud blue) so gold remains the
+           only resting accent and the ledger reads even. Hover/focus promotes it to solid
+           primary. This is the mobile-app treatment, and what was flagged missing at the
+           start of the refresh. A <button>, not a bare span like standings, so it's
+           keyboard-operable and gets a focus ring (design system requires focus states on
+           interactive elements). Reuses .team-name for truncation/layout; only rendered
+           when the slot has a resolved team id (unresolved bracket feeds stay plain text). */
+        .team-link {
+            appearance: none;
+            border: none;
+            padding: 0;
+            background: transparent;
+            font: inherit;
+            color: inherit;
+            text-align: inherit;
+            cursor: pointer;
+            text-decoration: underline dotted;
+            text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+            text-decoration-thickness: 1px;
+            text-underline-offset: 2px;
+        }
+        .team-link:hover {
+            color: var(--bs-primary);
+            text-decoration: underline solid;
+            text-decoration-color: currentColor;
+        }
+        .team-link:focus-visible {
+            outline: none;
+            color: var(--bs-primary);
+            box-shadow: var(--shadow-focus);
+            border-radius: var(--radius-sm);
         }
 
         /* Result typography is RETIRED (was: bold winner name / muted loser name).

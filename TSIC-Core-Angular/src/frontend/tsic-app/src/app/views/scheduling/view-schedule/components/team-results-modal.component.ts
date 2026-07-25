@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import type { TeamResultDto, TeamResultsResponse } from '@core/api';
+import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
 
 /**
  * Team schedule fly-in — opened from a team's record pill (games/brackets) or
@@ -27,13 +28,14 @@ interface ResultGroup {
 @Component({
     selector: 'app-team-results-modal',
     standalone: true,
-    imports: [DatePipe],
+    imports: [DatePipe, ResizablePanelDirective],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         @if (visible()) {
             <div class="detail-backdrop" (click)="close.emit()"></div>
         }
-        <div class="detail-panel" [class.open]="visible()" [style.--ag-tint]="agColor()">
+        <div class="detail-panel" [class.open]="visible()" [style.--ag-tint]="agColor()"
+             appResizablePanel storageKey="teamResultsPanelWidth" panelSide="right">
             <div class="panel-header">
                 <div class="header-top-row">
                     <div class="title-stack">
@@ -296,7 +298,12 @@ interface ResultGroup {
         }
 
         .glyph-slot {
-            place-self: center center;
+            /* Horizontally centered in its reserved column, but baseline-aligned like
+               score/vs/name so it stays on the name's FIRST line. place-self: center
+               would vertically centre it in the row, and a wrapped (2-line) opponent name
+               grows the row — dropping the glyph to the middle. Baseline pins it up top. */
+            justify-self: center;
+            align-self: baseline;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -341,10 +348,14 @@ interface ResultGroup {
             font-size: var(--font-size-sm);
             color: var(--bs-body-color);
             text-align: left;
+            /* Wrap within the minmax(0, 1fr) column instead of truncating — a full team
+               name ("Maryland United:2034 West") reads in full over two lines rather than
+               being cut to an ellipsis. min-width: 0 lets the grid column shrink; anywhere
+               breaks a long unspaced token so it can never spill past the column. The grid
+               baseline-aligns the glyph/score/vs to this name's FIRST line, so a wrap grows
+               the row downward without dragging them off. */
             min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            overflow-wrap: anywhere;
             cursor: pointer;
             text-decoration: underline dotted;
             text-decoration-color: var(--bs-border-color);
@@ -365,9 +376,7 @@ interface ResultGroup {
         .opp-name {
             font-size: var(--font-size-sm);
             min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            overflow-wrap: anywhere;
         }
 
         .line-primary .record-chip { place-self: center end; }

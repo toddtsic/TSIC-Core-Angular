@@ -1,12 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, input, signal, output } from '@angular/core';
 import type { StandingsByDivisionResponse } from '@core/api';
 import { contrastText } from '../../shared/utils/scheduling-helpers';
+import { AgeGroupPickerComponent, type AgePickerItem } from '../../shared/components/age-group-picker/age-group-picker.component';
 
 type StandingsMode = 'all' | 'rr';
 
 @Component({
     selector: 'app-standings-tab',
     standalone: true,
+    imports: [AgeGroupPickerComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         @if (isLoading()) {
@@ -20,6 +22,13 @@ type StandingsMode = 'all' | 'rr';
             <div class="standings-wrapper">
                 <!-- Toolbar: age group tabs (left) + mode toggle (right) -->
                 <div class="toolbar-row">
+                    <!-- Age-group nav: a scrollable pill strip on desktop, a compact
+                         dot+name dropdown on mobile (many age groups hide off-screen in
+                         a phone-width strip). Both drive the same selectAgTab. -->
+                    <app-age-group-picker class="ag-picker-mobile"
+                        [items]="agePickerItems()"
+                        [selectedId]="activeAgId()"
+                        (selectionChange)="onAgePicked($event)" />
                     <div class="ag-tabs">
                         @for (tab of ageGroupTabs(); track tab.name; let i = $index) {
                             <button class="ag-tab"
@@ -134,6 +143,9 @@ type StandingsMode = 'all' | 'rr';
         }
 
         /* ── Age Group Tabs ── */
+
+        /* Picker is mobile-only; the pill strip owns desktop (see mobile @media). */
+        .ag-picker-mobile { display: none; }
 
         .ag-tabs {
             display: flex;
@@ -294,14 +306,22 @@ type StandingsMode = 'all' | 'rr';
             width: 3.5rem;
         }
 
+        /* Team name → results modal. Shares the schedule-wide affordance language with
+           games-tab: a soft dotted underline at rest (calm, always visible so it reads
+           as tappable) that promotes to solid primary on hover. */
         .team-link {
-            color: var(--bs-primary);
+            color: inherit;
             cursor: pointer;
-            text-decoration: none;
+            text-decoration: underline dotted;
+            text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+            text-decoration-thickness: 1px;
+            text-underline-offset: 2px;
         }
 
         .team-link:hover {
-            text-decoration: underline;
+            color: var(--bs-primary);
+            text-decoration: underline solid;
+            text-decoration-color: currentColor;
         }
 
         /* Followed team — bolds the name to draw the eye when filtering by team. */
@@ -316,6 +336,12 @@ type StandingsMode = 'all' | 'rr';
             .standings-wrapper {
                 gap: var(--space-3);
             }
+
+            /* Swap the pill strip for the dropdown at phone width. align-self keeps the
+               host content-width in the stretch column, so its right-anchored popover
+               drops directly under the trigger instead of the row's far edge. */
+            .ag-tabs { display: none; }
+            .ag-picker-mobile { display: inline-flex; align-self: flex-start; }
 
             .ag-tab {
                 padding: 2px var(--space-2);
@@ -424,6 +450,15 @@ export class StandingsTabComponent {
 
     selectAgTab(index: number): void {
         this.selectedAgTabIndex.set(index);
+    }
+
+    /** Mobile dropdown feed — same age groups as the pill strip, id = tab index. */
+    readonly agePickerItems = computed<AgePickerItem[]>(() =>
+        this.ageGroupTabs().map((t, i) => ({ id: String(i), label: t.name, color: t.color }))
+    );
+    readonly activeAgId = computed(() => String(this.activeAgTabIndex()));
+    onAgePicked(id: string): void {
+        this.selectAgTab(Number(id));
     }
 
     formatGoalDiff(gd: number): string {
