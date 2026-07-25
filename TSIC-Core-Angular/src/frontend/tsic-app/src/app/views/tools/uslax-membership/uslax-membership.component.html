@@ -1,6 +1,6 @@
-<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-3 gap-2">
-    <h2 class="mb-0">USA Lacrosse Membership Reconciliation</h2>
-    <div class="d-flex gap-2 flex-wrap">
+<div class="page-header">
+    <h2 class="page-title"><i class="bi bi-award page-title-icon"></i> USA Lacrosse Membership Reconciliation</h2>
+    <div class="page-header-actions">
         <div class="btn-group role-toggle" role="group" aria-label="Membership role">
             <button type="button"
                     class="btn btn-sm"
@@ -20,8 +20,8 @@
             </button>
         </div>
         <button class="btn btn-outline-secondary btn-sm" (click)="loadCandidates()"
-                [disabled]="isLoadingCandidates() || isReconciling()">
-            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                [disabled]="isLoadingCandidates() || isReconciling()" title="Refresh">
+            <i class="bi bi-arrow-clockwise"></i>
         </button>
         <button class="btn btn-primary btn-sm" (click)="reconcileAll()" [disabled]="!canReconcile()">
             @if (isReconciling()) {

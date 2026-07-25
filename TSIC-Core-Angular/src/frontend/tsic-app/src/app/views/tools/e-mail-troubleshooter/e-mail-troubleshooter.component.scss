@@ -9,21 +9,7 @@
 
 // ── Header ──
 
-.page-head {
-	margin-bottom: var(--space-4);
-}
-
-.page-title {
-	font-size: var(--font-size-xl, 1.5rem);
-	font-weight: 700;
-	margin: 0 0 var(--space-1);
-}
-
-.page-sub {
-	color: var(--bs-secondary-color);
-	font-size: var(--font-size-sm);
-	margin: 0;
-}
+// Page header: .page-header, .page-title, .page-subtitle from global _utilities.scss
 
 // ── Tabs ──
 
