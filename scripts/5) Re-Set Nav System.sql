@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-07-21 09:08:39 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-07-24 19:18:23 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -87,7 +87,8 @@ WHERE n.JobId IS NULL
   AND ni.RouterLink IS NOT NULL
   AND ni.VisibilityRules IS NOT NULL
   AND ni.VisibilityRules <> ''
-  AND NULLIF(JSON_MODIFY(JSON_MODIFY(ni.VisibilityRules, '$.dividerBefore', NULL), '$.dividerAfter', NULL), '{}') IS NOT NULL;
+  AND NULLIF(JSON_MODIFY(JSON_MODIFY(ni.VisibilityRules, '$.dividerBefore', NULL), '$.dividerAfter', NULL), '{}') IS NOT NULL
+  AND NOT (n.RoleId = @SuperUser AND ni.RouterLink = N'communications/team-links');
 SELECT @cnt = COUNT(*) FROM #VisRules;
 PRINT CONCAT('Preserved ', @cnt, ' visibility rule(s)');
 
@@ -154,7 +155,8 @@ INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 6, N'Bulleti
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 6, N'Email Log', N'envelope-open', N'communications/email-log', 2, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 6, N'E-Mail Troubleshooter', N'envelope-exclamation', N'tools/email-troubleshooter', 3, 1, 1, 1, NULL, N'NEW');
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 6, N'Push Notification', N'bell', N'communications/push-notification', 4, 1, 1, 1, N'{"requiresFlags":["mobileEnabled"]}', NULL);
-INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 6, N'Team Links', N'link-45deg', N'communications/team-links', 5, 1, 1, 1, N'{"requiresFlags":["playerSiteOnly"]}', NULL);
+INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 6, N'Team Links', N'link-45deg', N'communications/team-links', 5, 1, 1, 0, N'{"requiresFlags":["playerSiteOnly"]}', NULL);
+INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 6, N'Team Links', N'link-45deg', N'communications/team-links', 5, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 7, N'Job Report Library', N'collection', N'reporting/reports-library', 1, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 7, N'X-Job Report Library', N'globe', N'x-job-reports-library', 2, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'US Lacrosse', N'award', 8, N'US Lax Test', N'check-circle', N'tools/uslax-test', 1, 1, 1, 1, N'{"sports":["Lacrosse"]}', NULL);

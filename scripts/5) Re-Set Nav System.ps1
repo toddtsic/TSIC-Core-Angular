@@ -203,7 +203,12 @@ $adminManifest = @(
     (New-AdminItem 'Communications' 'megaphone' 6 'Email Log'             'envelope-open'        'communications/email-log'         2 1 1 1)
     (New-AdminItem 'Communications' 'megaphone' 6 'E-Mail Troubleshooter' 'envelope-exclamation' 'tools/email-troubleshooter'       3 1 1 1 $null 'NEW')
     (New-AdminItem 'Communications' 'megaphone' 6 'Push Notification'     'bell'                 'communications/push-notification' 4 1 1 1 $rulesMobileEnabled)
-    (New-AdminItem 'Communications' 'megaphone' 6 'Team Links'            'link-45deg'           'communications/team-links'        5 1 1 1 $rulesPlayerSite)
+    # Team Links: D/SD gated to player-site jobs; the SU row is UNGATED so a
+    # SuperUser can manage links on any job type (legacy tournaments stored
+    # job-wide links with TeamId NULL). Two rows, same route — the per-role
+    # fan-out picks exactly one per role, so no duplicate ever lands.
+    (New-AdminItem 'Communications' 'megaphone' 6 'Team Links'            'link-45deg'           'communications/team-links'        5 1 1 0 $rulesPlayerSite)
+    (New-AdminItem 'Communications' 'megaphone' 6 'Team Links'            'link-45deg'           'communications/team-links'        5 0 0 1)
 
     # -- 7. Reports (TWO libraries, one browse-all surface each) ------------
     #    Job Report Library = the job-scoped catalogue (Type-1 catalog + the
@@ -406,6 +411,22 @@ $retiredReportingLinks = @(
     'reporting/export-sp?spName=adn.monthlycustomerrollups&bUseJobId=true'
 )
 
+# -- Retired seeded rules ----------------------------------------------------
+# (Role, RouterLink) pairs whose seeded VisibilityRules CHANGED in the manifest
+# this run. Step 3 cannot tell a seeded rule from a hand-authored one, so
+# without this exclusion the OLD seed would be captured as "preserved" and
+# step 14 would stamp it back over the new manifest value — silently reverting
+# the change. Add a pair whenever a seeded rule changes for some role(s).
+$retiredSeedRules = @(
+    @{ Role = 'SuperUser'; Route = 'communications/team-links' }   # SU ungated (was playerSiteOnly)
+)
+$visRetiredClause = ''
+if ($retiredSeedRules.Count -gt 0) {
+    $visRetiredClause = "`n" + (($retiredSeedRules | ForEach-Object {
+        "  AND NOT (n.RoleId = @$($_.Role) AND ni.RouterLink = N'$(Esc $_.Route)')"
+    }) -join "`n")
+}
+
 # 3. Preserve reporting items + visibility rules
 # Exclude any RouterLinks the admin manifest now owns (re-inserted in step 6) OR
 # that have been explicitly retired — preserving either causes duplicates /
@@ -453,7 +474,7 @@ WHERE n.JobId IS NULL
   AND ni.RouterLink IS NOT NULL
   AND ni.VisibilityRules IS NOT NULL
   AND ni.VisibilityRules <> ''
-  AND NULLIF(JSON_MODIFY(JSON_MODIFY(ni.VisibilityRules, '$.dividerBefore', NULL), '$.dividerAfter', NULL), '{}') IS NOT NULL;
+  AND NULLIF(JSON_MODIFY(JSON_MODIFY(ni.VisibilityRules, '$.dividerBefore', NULL), '$.dividerAfter', NULL), '{}') IS NOT NULL$visRetiredClause;
 SELECT @cnt = COUNT(*) FROM #VisRules;
 PRINT CONCAT('Preserved ', @cnt, ' visibility rule(s)');
 "@)
