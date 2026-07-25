@@ -259,11 +259,10 @@ import type { RegisteredTeamDto } from '@core/api';
          stripped ageGroupDisplayName. */
       .wl-badge {
         flex-shrink: 0;
-        font-size: var(--font-size-xs);
+        font-size: var(--font-size-2xs);
         font-weight: var(--font-weight-bold);
         line-height: 1;
-        letter-spacing: 0.02em;
-        padding: 2px var(--space-1);
+        padding: 1px var(--space-1);
         border-radius: var(--radius-sm);
         color: var(--bs-warning-text-emphasis);
         background: rgba(var(--bs-warning-rgb), 0.15);

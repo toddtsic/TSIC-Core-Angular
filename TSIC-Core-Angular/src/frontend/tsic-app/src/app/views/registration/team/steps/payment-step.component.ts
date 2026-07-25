@@ -227,7 +227,7 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
               [showBalance]="showBalanceColumn()"
               [procFeeHeader]="procFeeHeaderLabel()"
               [frozenTeamCol]="true"
-              [teamColWidth]="70"
+              [teamColWidth]="100"
               [gridHeight]="'auto'" />
             @if (waitlistedTeams().length) {
               <div class="small text-muted mt-2" role="note">
