@@ -3,21 +3,7 @@
 	padding: var(--space-4);
 }
 
-.ql-header {
-	margin-bottom: var(--space-5);
-}
-
-.ql-title {
-	margin: 0 0 var(--space-1);
-	color: var(--brand-text);
-	font-weight: 600;
-}
-
-.ql-subtitle {
-	margin: 0;
-	color: var(--brand-text-muted);
-	font-size: 0.9rem;
-}
+// Page header: .page-header, .page-title, .page-subtitle from global _utilities.scss
 
 .ql-state {
 	display: flex;
