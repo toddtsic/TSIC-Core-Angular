@@ -137,11 +137,13 @@ const JOB_TYPE_TOURNAMENT = 2;
                                 }
                                 @if (team.feeConfigured === false) {
                                   <span class="camp-fee-unset"><i class="bi bi-exclamation-triangle me-1"></i>Fee not set</span>
+                                } @else if (isCampWaitlist(team) || isWaitlistPlacementName(team.teamName)) {
+                                  <!-- fee is $0 on the waitlist; shown by the badge below -->
                                 } @else if (team.effectiveFee != null) {
                                   <span class="camp-fee">{{ team.effectiveFee | currency }}</span>
                                 }
                               </div>
-                              @if (isWaitlistPlacementName(team.teamName)) {
+                              @if (isCampWaitlist(team) || isWaitlistPlacementName(team.teamName)) {
                                 <span class="camp-waitlist-badge">
                                   <i class="bi bi-hourglass-split me-1"></i>Waitlisted &middot; $0
                                 </span>
@@ -184,12 +186,18 @@ const JOB_TYPE_TOURNAMENT = 2;
                                 }
                                 @if (team.feeConfigured === false) {
                                   <span class="camp-fee-unset"><i class="bi bi-exclamation-triangle me-1"></i>Fee not set</span>
+                                } @else if (isCampWaitlist(team)) {
+                                  <!-- fee is $0 on the waitlist; shown by the badge below -->
                                 } @else if (team.effectiveFee != null) {
                                   <span class="camp-fee">{{ team.effectiveFee | currency }}</span>
                                 }
                               </div>
                               @if (isTeamFull(team)) {
                                 <span class="camp-full-badge">Full</span>
+                              } @else if (isCampWaitlist(team)) {
+                                <span class="camp-waitlist-badge">
+                                  <i class="bi bi-hourglass-split me-1"></i>Waitlisted &middot; $0
+                                </span>
                               }
                             </div>
                           </label>
@@ -978,6 +986,17 @@ export class TeamSelectionStepComponent {
 
     isTeamFull(team: AvailableTeamDto): boolean {
         return team.rosterIsFull && !team.jobUsesWaitlists;
+    }
+
+    /**
+     * A camp that has hit its roster max on a job that uses waitlists — the CAC-card equivalent of
+     * the PP dropdown's `isWaitlistFull` (rosterIsFull && jobUsesWaitlists). It presents as a
+     * selectable "Waitlisted · $0" option (the seat-split routes it to the waitlist at reserve),
+     * NOT as a full-price open camp. Derived from fullness, not the team name — the "WAITLIST -"
+     * twin is hidden by design (PL-010/011), so name-sniffing no longer identifies a waitlist camp.
+     */
+    isCampWaitlist(team: AvailableTeamDto): boolean {
+        return !!team.rosterIsFull && !!team.jobUsesWaitlists;
     }
 
     isTeamAlreadySelected(playerId: string, teamId: string): boolean {
