@@ -1,15 +1,26 @@
 <!-- Page Header -->
-<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-3 gap-2">
-    <h2 class="mb-0">Administrators</h2>
-    <div class="d-flex gap-2 flex-wrap">
-        <button class="btn btn-outline-success btn-sm" (click)="activateAll()" [disabled]="isLoading()">
-            <i class="bi bi-check-all me-1"></i>Activate All
-        </button>
-        <button class="btn btn-outline-secondary btn-sm" (click)="deactivateAll()" [disabled]="isLoading()">
-            <i class="bi bi-x-circle me-1"></i>Deactivate All
-        </button>
-        <button class="btn btn-outline-secondary btn-sm" (click)="loadAdministrators()" [disabled]="isLoading()">
-            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-people page-title-icon"></i>
+        Administrators
+        @if (!isLoading() && administrators().length > 0) {
+            <span class="badge-count">{{ administrators().length }}</span>
+        }
+    </h2>
+    <div class="page-header-actions">
+        <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-success" (click)="activateAll()" [disabled]="isLoading()"
+                    title="Activate all administrators">
+                <i class="bi bi-check-all"></i><span class="btn-label">Activate All</span>
+            </button>
+            <button class="btn btn-outline-secondary" (click)="deactivateAll()" [disabled]="isLoading()"
+                    title="Deactivate all administrators">
+                <i class="bi bi-x-circle"></i><span class="btn-label">Deactivate All</span>
+            </button>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm" (click)="loadAdministrators()" [disabled]="isLoading()"
+                title="Refresh">
+            <i class="bi bi-arrow-clockwise"></i>
         </button>
         <button class="btn btn-primary btn-sm" (click)="openAdd()">
             <i class="bi bi-plus-lg me-1"></i>Add Administrator
@@ -27,8 +38,8 @@
 
 <!-- Loading State -->
 @if (isLoading()) {
-    <div class="text-center py-5">
-        <div class="spinner-border spinner-border-sm text-primary" role="status">
+    <div class="list-empty-state">
+        <div class="spinner-border spinner-border-sm text-secondary" role="status">
             <span class="visually-hidden">Loading...</span>
         </div>
     </div>
@@ -36,9 +47,9 @@
 
 <!-- Empty State -->
 @if (!isLoading() && !errorMessage() && administrators().length === 0) {
-    <div class="text-center py-5">
-        <i class="bi bi-people fs-1 text-body-secondary"></i>
-        <p class="mt-2 text-body-secondary">No administrators found for this job.</p>
+    <div class="list-empty-state">
+        <i class="bi bi-people list-empty-icon"></i>
+        <p>No administrators found for this job.</p>
         <button class="btn btn-primary btn-sm" (click)="openAdd()">
             <i class="bi bi-plus-lg me-1"></i>Add Administrator
         </button>

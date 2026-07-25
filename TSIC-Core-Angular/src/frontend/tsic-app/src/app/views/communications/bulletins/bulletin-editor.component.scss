@@ -3,50 +3,10 @@
     padding: var(--space-4) var(--space-6);
 }
 
-// Page header: .page-header, .page-header-actions from global _utilities.scss
-
-// Bulletins-specific: icon + title wrapper with count badge
-.page-header-title {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-
-    i {
-        font-size: var(--font-size-xl);
-        color: var(--bs-primary);
-    }
-
-    h2 {
-        margin: 0;
-        font-size: var(--font-size-2xl);
-        font-weight: var(--font-weight-semibold);
-    }
-}
-
-.badge-count {
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-semibold);
-    padding: 2px var(--space-2);
-    border-radius: var(--radius-full);
-    background: rgba(var(--bs-primary-rgb), 0.12);
-    color: var(--bs-primary);
-}
-
-// ── Empty / loading states ──
-.empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: var(--space-12) var(--space-4);
-    color: var(--text-secondary);
-}
-
-.empty-icon {
-    font-size: 2.5rem;
-    opacity: 0.3;
-    margin-bottom: var(--space-3);
-}
+// Page header (.page-header, .page-title, .page-title-icon, .badge-count),
+// empty/loading states (.list-empty-state, .list-empty-icon), responsive button
+// labels (.btn-label), and row actions (.action-buttons, .icon-btn) all come
+// from global _utilities.scss.
 
 // ── Modified-by (hide on small screens) ──
 .modified-by {
@@ -54,46 +14,5 @@
 
     @media (min-width: 992px) {
         display: inline;
-    }
-}
-
-// Row action buttons: .row-actions, .action-btn, .action-btn-danger from global _syncfusion-cell-utils.scss
-// Component override: fade actions until row hover
-.row-actions {
-    opacity: 0.4;
-    transition: opacity 0.15s ease;
-}
-
-// The active toggle doubles as a status indicator, so it stays fully legible
-// even while the rest of the row actions are faded pre-hover.
-.action-btn-toggle {
-    opacity: 1;
-    color: var(--bs-secondary);
-    transition: color 0.15s ease;
-
-    .bi {
-        font-size: 1.15rem;
-        line-height: 1;
-    }
-
-    &.is-active {
-        color: var(--bs-success);
-    }
-
-    &:disabled {
-        opacity: 0.5;
-        cursor: progress;
-    }
-
-    &:focus-visible {
-        outline: none;
-        box-shadow: var(--shadow-focus);
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .row-actions,
-    .action-btn-toggle {
-        transition: none;
     }
 }

@@ -1,9 +1,16 @@
 <!-- Page Header -->
-<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-3 gap-2">
-    <h2 class="mb-0">Customers</h2>
-    <div class="d-flex gap-2 flex-wrap">
-        <button class="btn btn-outline-secondary btn-sm" (click)="loadData()" [disabled]="isLoading()">
-            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-building page-title-icon"></i>
+        Customers
+        @if (!isLoading() && customers().length > 0) {
+            <span class="badge-count">{{ customers().length }}</span>
+        }
+    </h2>
+    <div class="page-header-actions">
+        <button class="btn btn-outline-secondary btn-sm" (click)="loadData()" [disabled]="isLoading()"
+                title="Refresh">
+            <i class="bi bi-arrow-clockwise"></i>
         </button>
         <button class="btn btn-primary btn-sm" (click)="openAdd()">
             <i class="bi bi-plus-lg me-1"></i>Add Customer
@@ -45,8 +52,8 @@
 
 <!-- Loading State -->
 @if (isLoading()) {
-    <div class="text-center py-5">
-        <div class="spinner-border spinner-border-sm text-primary" role="status">
+    <div class="list-empty-state">
+        <div class="spinner-border spinner-border-sm text-secondary" role="status">
             <span class="visually-hidden">Loading...</span>
         </div>
     </div>
@@ -54,9 +61,9 @@
 
 <!-- Empty State -->
 @if (!isLoading() && !errorMessage() && filteredCustomers().length === 0) {
-    <div class="text-center py-5">
-        <i class="bi bi-people fs-1 text-body-secondary"></i>
-        <p class="mt-2 text-body-secondary">No customers in this view.</p>
+    <div class="list-empty-state">
+        <i class="bi bi-building list-empty-icon"></i>
+        <p>No customers in this view.</p>
     </div>
 }
 

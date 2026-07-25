@@ -1,25 +1,23 @@
 <!-- ═══════ PAGE HEADER ═══════ -->
 <div class="page-header">
-    <div class="page-header-title">
-        <i class="bi bi-megaphone"></i>
-        <h2>Bulletins</h2>
+    <h2 class="page-title">
+        <i class="bi bi-megaphone page-title-icon"></i>
+        Bulletins
         @if (!isLoading() && bulletins().length > 0) {
             <span class="badge-count">{{ bulletins().length }}</span>
         }
-    </div>
+    </h2>
     <div class="page-header-actions">
         <div class="btn-group btn-group-sm">
             <button class="btn btn-outline-success" (click)="activateAll()"
                     [disabled]="isLoading() || bulletins().length === 0"
                     title="Activate all bulletins">
-                <i class="bi bi-check-circle"></i>
-                <span class="d-none d-md-inline ms-1">Activate All</span>
+                <i class="bi bi-check-circle"></i><span class="btn-label">Activate All</span>
             </button>
             <button class="btn btn-outline-secondary" (click)="deactivateAll()"
                     [disabled]="isLoading() || bulletins().length === 0"
                     title="Deactivate all bulletins">
-                <i class="bi bi-x-circle"></i>
-                <span class="d-none d-md-inline ms-1">Deactivate All</span>
+                <i class="bi bi-x-circle"></i><span class="btn-label">Deactivate All</span>
             </button>
         </div>
         <button class="btn btn-outline-secondary btn-sm" (click)="loadBulletins()" [disabled]="isLoading()"
@@ -42,7 +40,7 @@
 
 <!-- ═══════ LOADING ═══════ -->
 @if (isLoading()) {
-    <div class="empty-state">
+    <div class="list-empty-state">
         <div class="spinner-border spinner-border-sm text-secondary"></div>
         <span class="text-secondary ms-2">Loading bulletins...</span>
     </div>
@@ -50,8 +48,8 @@
 
 <!-- ═══════ EMPTY STATE ═══════ -->
 @if (!isLoading() && !errorMessage() && bulletins().length === 0) {
-    <div class="empty-state">
-        <i class="bi bi-megaphone empty-icon"></i>
+    <div class="list-empty-state">
+        <i class="bi bi-megaphone list-empty-icon"></i>
         <p>No bulletins for this job.</p>
         <button class="btn btn-primary btn-sm" (click)="openAdd()">
             <i class="bi bi-plus-lg me-1"></i>Add Bulletin
@@ -99,9 +97,9 @@
             </e-column>
             <e-column headerText="" width="120" [allowSorting]="false" textAlign="Center">
                 <ng-template #template let-data>
-                    <div class="row-actions">
-                        <button class="action-btn action-btn-toggle"
-                                [class.is-active]="data.active"
+                    <div class="action-buttons">
+                        <button class="icon-btn"
+                                [class.icon-btn-active]="data.active"
                                 [disabled]="togglingId() === data.bulletinId"
                                 (click)="toggleActive(data); $event.stopPropagation()"
                                 [title]="data.active ? 'Click to deactivate' : 'Click to activate'"
@@ -109,11 +107,11 @@
                                 [attr.aria-pressed]="data.active">
                             <i class="bi" [class.bi-toggle-on]="data.active" [class.bi-toggle-off]="!data.active"></i>
                         </button>
-                        <button class="action-btn" (click)="openEdit(data); $event.stopPropagation()"
+                        <button class="icon-btn" (click)="openEdit(data); $event.stopPropagation()"
                                 title="Edit" aria-label="Edit bulletin">
                             <i class="bi bi-pencil"></i>
                         </button>
-                        <button class="action-btn action-btn-danger" (click)="confirmDelete(data); $event.stopPropagation()"
+                        <button class="icon-btn icon-btn-danger" (click)="confirmDelete(data); $event.stopPropagation()"
                                 title="Delete" aria-label="Delete bulletin">
                             <i class="bi bi-trash"></i>
                         </button>

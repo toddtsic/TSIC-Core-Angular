@@ -994,6 +994,17 @@ mark {
     font-size: var(--font-size-xs);
 }
 
+.icon-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .icon-btn {
+        transition: none;
+    }
+}
+
 /* ============================================
    Inline Tips / Hints
    Usage: <span class="tip">Helper text here</span>
@@ -1638,6 +1649,54 @@ mark {
     font-size: var(--font-size-sm);
     color: var(--bs-secondary-color);
     margin: var(--space-1) 0 0;
+}
+
+/* Count pill beside a page title
+   Usage: <h2 class="page-title"><i class="bi bi-x page-title-icon"></i> Title <span class="badge-count">3</span></h2> */
+.badge-count {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-full);
+    background: rgba(var(--bs-primary-rgb), 0.12);
+    color: var(--bs-primary);
+}
+
+/* Responsive action-button labels.
+   Wrap a button's text in <span class="btn-label"> inside .page-header-actions
+   and it collapses to icon-only below md — the primary action keeps its label
+   at every size. Icon-only buttons rely on their title attribute for meaning. */
+.page-header-actions .btn .btn-label {
+    display: none;
+    margin-left: var(--space-1);
+}
+
+.page-header-actions .btn-primary .btn-label {
+    display: inline;
+}
+
+@media (min-width: 768px) {
+    .page-header-actions .btn .btn-label {
+        display: inline;
+    }
+}
+
+/* Centered empty / loading state for list views.
+   Deliberately namespaced — many components define a local ".empty-state".
+   Usage: <div class="list-empty-state"><i class="bi bi-x list-empty-icon"></i><p>Nothing here.</p></div> */
+.list-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-12) var(--space-4);
+    color: var(--text-secondary);
+}
+
+.list-empty-icon {
+    font-size: 2.5rem;
+    opacity: 0.3;
+    margin-bottom: var(--space-3);
 }
 
 /* ============================================

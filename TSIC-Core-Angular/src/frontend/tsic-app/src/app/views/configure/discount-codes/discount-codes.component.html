@@ -1,16 +1,26 @@
 <!-- Page Header -->
-<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-3 gap-2">
-    <h2 class="page-title">Discount Codes</h2>
-    <div class="d-flex gap-2 flex-wrap">
-        <button class="btn btn-outline-success btn-sm" (click)="activateAll()" [disabled]="isLoading() || codes().length === 0">
-            <i class="bi bi-check-circle me-1"></i>Activate All
-        </button>
-        <button class="btn btn-outline-secondary btn-sm" (click)="deactivateAll()" [disabled]="isLoading() || codes().length === 0">
-            <i class="bi bi-x-circle me-1"></i>Deactivate All
-        </button>
-        <div class="vr d-none d-md-block"></div>
-        <button class="btn btn-outline-secondary btn-sm" (click)="loadDiscountCodes()" [disabled]="isLoading()">
-            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-ticket-perforated page-title-icon"></i>
+        Discount Codes
+        @if (!isLoading() && codes().length > 0) {
+            <span class="badge-count">{{ codes().length }}</span>
+        }
+    </h2>
+    <div class="page-header-actions">
+        <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-success" (click)="activateAll()"
+                    [disabled]="isLoading() || codes().length === 0" title="Activate all codes">
+                <i class="bi bi-check-circle"></i><span class="btn-label">Activate All</span>
+            </button>
+            <button class="btn btn-outline-secondary" (click)="deactivateAll()"
+                    [disabled]="isLoading() || codes().length === 0" title="Deactivate all codes">
+                <i class="bi bi-x-circle"></i><span class="btn-label">Deactivate All</span>
+            </button>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm" (click)="loadDiscountCodes()" [disabled]="isLoading()"
+                title="Refresh">
+            <i class="bi bi-arrow-clockwise"></i>
         </button>
         <button class="btn btn-primary btn-sm" (click)="openAdd()">
             <i class="bi bi-plus-lg me-1"></i>Add Code
@@ -28,8 +38,8 @@
 
 <!-- Loading State -->
 @if (isLoading()) {
-    <div class="text-center py-5">
-        <div class="spinner-border spinner-border-sm text-primary" role="status">
+    <div class="list-empty-state">
+        <div class="spinner-border spinner-border-sm text-secondary" role="status">
             <span class="visually-hidden">Loading...</span>
         </div>
     </div>
@@ -37,9 +47,9 @@
 
 <!-- Empty State -->
 @if (!isLoading() && !errorMessage() && codes().length === 0) {
-    <div class="text-center py-5">
-        <i class="bi bi-ticket-perforated fs-1 text-body-secondary"></i>
-        <p class="mt-2 text-body-secondary">No discount codes found for this job.</p>
+    <div class="list-empty-state">
+        <i class="bi bi-ticket-perforated list-empty-icon"></i>
+        <p>No discount codes found for this job.</p>
         <button class="btn btn-primary btn-sm" (click)="openAdd()">
             <i class="bi bi-plus-lg me-1"></i>Add Code
         </button>
