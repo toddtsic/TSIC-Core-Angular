@@ -1744,9 +1744,15 @@ public class RegistrationRepository : IRegistrationRepository
             "owedtotal" => desc
                 ? projected.OrderByDescending(r => r.Dto.OwedTotal).ThenBy(r => r.Dto.RegistrationId)
                 : projected.OrderBy(r => r.Dto.OwedTotal).ThenBy(r => r.Dto.RegistrationId),
+            // Club-rep rows have no assigned team (ClubRepClubName/AgegroupName/TeamName all null)
+            // and display via the registration's own ClubName fallback, so the sort coalesces the
+            // lead key to ClubName for them — otherwise every rep ties on (null,null,null) and drops
+            // to the RegistrationId tiebreaker (the "random" order). Players keep ClubRepClubName
+            // (set), so ClubName never applies to them. Translates to ORDER BY COALESCE(...) — same
+            // query, no extra fetch.
             "assignment" => desc
-                ? projected.OrderByDescending(r => r.Dto.ClubRepClubName).ThenByDescending(r => r.Dto.AgegroupName).ThenByDescending(r => r.Dto.TeamName).ThenBy(r => r.Dto.RegistrationId)
-                : projected.OrderBy(r => r.Dto.ClubRepClubName).ThenBy(r => r.Dto.AgegroupName).ThenBy(r => r.Dto.TeamName).ThenBy(r => r.Dto.RegistrationId),
+                ? projected.OrderByDescending(r => r.Dto.ClubRepClubName ?? r.Dto.ClubName).ThenByDescending(r => r.Dto.AgegroupName).ThenByDescending(r => r.Dto.TeamName).ThenBy(r => r.Dto.RegistrationId)
+                : projected.OrderBy(r => r.Dto.ClubRepClubName ?? r.Dto.ClubName).ThenBy(r => r.Dto.AgegroupName).ThenBy(r => r.Dto.TeamName).ThenBy(r => r.Dto.RegistrationId),
             "lastname" when desc
                 => projected.OrderByDescending(r => r.Dto.LastName).ThenByDescending(r => r.Dto.FirstName).ThenBy(r => r.Dto.RegistrationId),
             _ => projected.OrderBy(r => r.Dto.LastName).ThenBy(r => r.Dto.FirstName).ThenBy(r => r.Dto.RegistrationId)
