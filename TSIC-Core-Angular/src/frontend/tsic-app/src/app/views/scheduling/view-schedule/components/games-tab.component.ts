@@ -9,6 +9,17 @@ import {
 import { FormsModule } from '@angular/forms';
 import type { ViewGameDto } from '@core/api';
 
+/**
+ * Broadsheet grouping — the flat chronological game list (server orders by
+ * GDate, then field, then gid) is broken into day "chapters". A `day` row is a
+ * full-width dateline injected before the first game of each calendar day; a
+ * `game` row carries the original list index so the row number and zebra stay
+ * keyed to the underlying game position, unaffected by the interleaved headers.
+ */
+type ScheduleRow =
+    | { readonly kind: 'day'; readonly key: string; readonly label: string; readonly count: number }
+    | { readonly kind: 'game'; readonly game: ViewGameDto; readonly index: number };
+
 @Component({
     selector: 'app-games-tab',
     standalone: true,
@@ -54,7 +65,17 @@ import type { ViewGameDto } from '@core/api';
                     </span>
                 </div>
 
-                @for (game of games(); track game.gid; let i = $index) {
+                @for (row of rows(); track row.kind === 'day' ? 'day-' + row.key : row.game.gid) {
+                    @if (row.kind === 'day') {
+                        <!-- Broadsheet dateline — a full-width day "chapter" break -->
+                        <div class="day-divider" role="row">
+                            <span class="day-dateline">{{ row.label }}</span>
+                            <span class="day-rule" aria-hidden="true"></span>
+                            <span class="day-count">{{ row.count }} {{ row.count === 1 ? 'game' : 'games' }}</span>
+                        </div>
+                    } @else {
+                        @let game = row.game;
+                        @let i = row.index;
                     <div class="game-row" role="row"
                          [class.row-even]="i % 2 === 1"
                          [class.row-tinted]="!!game.color"
@@ -97,8 +118,8 @@ import type { ViewGameDto } from '@core/api';
                             <span class="ag-label">{{ game.agDiv }}</span>
                         </span>
 
-                        <!-- Home team — black-tie: names never carry the result (the trophy
-                             beside the winning score does). -->
+                        <!-- Home team — black-tie: names never carry the result (the gold
+                             underline under the winning score does). -->
                         <span class="cell cell-home" role="cell" aria-colindex="5">
                             @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
                             @if (game.t1Id) {
@@ -119,12 +140,14 @@ import type { ViewGameDto } from '@core/api';
                             @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
                         </span>
 
-                        <!-- Score -->
-                        <span class="cell cell-score" role="cell" aria-colindex="6"
-                              [class.editable]="canScore()"
-                              (click)="onScoreCellClick(game)">
-                            @if (editingGid() === game.gid) {
-                                <span class="score-edit" (click)="$event.stopPropagation()">
+                        <!-- Score — three real columns so home/away numbers each stack on
+                             their own right edge and the dash sits isolated in the centre
+                             track, unable to nudge either number. While editing, one cell
+                             spans all three for the input pair. -->
+                        @if (editingGid() === game.gid) {
+                            <span class="cell cell-score-edit" role="cell" aria-colindex="6"
+                                  (click)="$event.stopPropagation()">
+                                <span class="score-edit">
                                     <input type="number" class="score-input" [min]="0" [max]="99"
                                            [ngModel]="editT1Score()"
                                            (ngModelChange)="editT1Score.set($event)"
@@ -145,31 +168,34 @@ import type { ViewGameDto } from '@core/api';
                                         </button>
                                     }
                                 </span>
-                            } @else {
-                                <span class="score-line">
-                                    @if (hasScore(game)) {
-                                        <!-- Glyph slots flank the score and are ALWAYS rendered, so the
-                                             numbers stay column-aligned whether or not a trophy shows.
-                                             The trophy sits on the winner's side; a tie renders two
-                                             empty slots and reads as two equal plain-bold figures. -->
-                                        <span class="score-glyph" aria-hidden="true">
-                                            @if (isT1Winner(game)) { <i class="bi bi-trophy-fill winner-glyph"></i> }
-                                        </span>
-                                        <span class="score-val">{{ game.t1Score }}</span>
-                                        <span class="score-dash">&ndash;</span>
-                                        <span class="score-val">{{ game.t2Score }}</span>
-                                        <span class="score-glyph" aria-hidden="true">
-                                            @if (isT2Winner(game)) { <i class="bi bi-trophy-fill winner-glyph"></i> }
-                                        </span>
-                                    } @else {
-                                        <span class="score-val no-score">&ndash;</span>
-                                    }
-                                </span>
-                            }
-                        </span>
+                            </span>
+                        } @else {
+                            <!-- Home score -->
+                            <span class="cell cell-t1-score" role="cell" aria-colindex="6"
+                                  [class.editable]="canScore()"
+                                  (click)="onScoreCellClick(game)">
+                                @if (hasScore(game)) {
+                                    <span class="score-val" [class.is-winner]="isT1Winner(game)">{{ game.t1Score }}</span>
+                                }
+                            </span>
+                            <!-- Dash — isolated centre track -->
+                            <span class="cell cell-dash" role="cell" aria-colindex="7"
+                                  [class.editable]="canScore()"
+                                  (click)="onScoreCellClick(game)">
+                                <span class="score-dash">&ndash;</span>
+                            </span>
+                            <!-- Away score -->
+                            <span class="cell cell-t2-score" role="cell" aria-colindex="8"
+                                  [class.editable]="canScore()"
+                                  (click)="onScoreCellClick(game)">
+                                @if (hasScore(game)) {
+                                    <span class="score-val" [class.is-winner]="isT2Winner(game)">{{ game.t2Score }}</span>
+                                }
+                            </span>
+                        }
 
                         <!-- Away team — black-tie: names never carry the result. -->
-                        <span class="cell cell-away" role="cell" aria-colindex="7">
+                        <span class="cell cell-away" role="cell" aria-colindex="9">
                             @if (game.t2SlotLabel) { <span class="seed-tag">{{ game.t2SlotLabel }}</span> }
                             @if (game.t2Id) {
                                 <button type="button" class="team-star"
@@ -190,7 +216,7 @@ import type { ViewGameDto } from '@core/api';
                         </span>
 
                         <!-- Status chip -->
-                        <span class="cell cell-status" role="cell" aria-colindex="8">
+                        <span class="cell cell-status" role="cell" aria-colindex="10">
                             @if (showStatusBadge(game)) {
                                 <span class="status-chip"
                                       [attr.title]="game.gStatusText"
@@ -199,6 +225,7 @@ import type { ViewGameDto } from '@core/api';
                         </span>
 
                     </div>
+                    }
                 }
             </div>
 
@@ -206,7 +233,16 @@ import type { ViewGameDto } from '@core/api';
                  MOBILE CARDS (<768px) — card-per-game layout for narrow screens.
                  ═══════════════════════════════════════════════════════ -->
             <div class="games-cards mobile-view">
-                @for (game of games(); track game.gid; let i = $index) {
+                @for (row of rows(); track row.kind === 'day' ? 'day-' + row.key : row.game.gid) {
+                    @if (row.kind === 'day') {
+                        <!-- Broadsheet dateline — day chapter break (mobile) -->
+                        <div class="card-day-divider">
+                            <span class="day-dateline">{{ row.label }}</span>
+                            <span class="day-count">{{ row.count }} {{ row.count === 1 ? 'game' : 'games' }}</span>
+                        </div>
+                    } @else {
+                        @let game = row.game;
+                        @let i = row.index;
                     <div class="game-card"
                          [class.card-tinted]="!!game.color"
                          [style.--ag-tint]="game.color"
@@ -234,8 +270,8 @@ import type { ViewGameDto } from '@core/api';
                         </div>
 
                         <!-- Team 1 (Home): full-width row, score right-aligned.
-                             Black-tie: the name never carries the result — the trophy
-                             beside the winning score is the sole win cue. -->
+                             Black-tie: the name never carries the result — the gold
+                             underline under the winning score is the sole win cue. -->
                         <div class="card-team-row">
                             <span class="card-team-name">
                                 @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
@@ -256,10 +292,7 @@ import type { ViewGameDto } from '@core/api';
                                 }
                                 @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
                             </span>
-                            <span class="score-glyph" aria-hidden="true">
-                                @if (isT1Winner(game)) { <i class="bi bi-trophy-fill winner-glyph"></i> }
-                            </span>
-                            <span class="card-team-score">
+                            <span class="card-team-score" [class.is-winner]="isT1Winner(game)">
                                 {{ hasScore(game) ? game.t1Score : '' }}
                             </span>
                         </div>
@@ -285,10 +318,7 @@ import type { ViewGameDto } from '@core/api';
                                 }
                                 @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
                             </span>
-                            <span class="score-glyph" aria-hidden="true">
-                                @if (isT2Winner(game)) { <i class="bi bi-trophy-fill winner-glyph"></i> }
-                            </span>
-                            <span class="card-team-score">
+                            <span class="card-team-score" [class.is-winner]="isT2Winner(game)">
                                 {{ hasScore(game) ? game.t2Score : '' }}
                             </span>
                         </div>
@@ -305,6 +335,7 @@ import type { ViewGameDto } from '@core/api';
                             }
                         </div>
                     </div>
+                    }
                 }
             </div>
         }
@@ -334,7 +365,9 @@ import type { ViewGameDto } from '@core/api';
                 auto                    /* location   */
                 auto                    /* pool       */
                 auto                    /* home →     */
-                auto                    /* score      */
+                auto                    /* home score */
+                min-content             /* dash       */
+                auto                    /* away score */
                 auto                    /* ← away     */
                 auto;                   /* status     */
             column-gap: var(--space-2);
@@ -369,9 +402,47 @@ import type { ViewGameDto } from '@core/api';
         /* Column alignment (DOM order already matches visual order). */
         .hdr-pool,  .cell-pool  { text-align: left; }
         .hdr-home,  .cell-home  { text-align: right; }
-        .hdr-score, .cell-score { text-align: center; }
+        .hdr-score { grid-column: span 3; text-align: center; }
         .hdr-away,  .cell-away  { text-align: left; }
         .hdr-status,.cell-status{ text-align: center; }
+
+        /* ── Broadsheet dateline ──
+           A full-width day "chapter" break. Spans every column (grid-column 1/-1) and
+           opts out of the row subgrid, reading as an editorial section head: an uppercase
+           dateline, a hairline rule that carries the eye across, and a quiet per-day count.
+           Not a data row — role="row" is a11y structure only; it holds no cells. */
+        .day-divider {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            padding: var(--space-5) var(--space-1) var(--space-2);
+        }
+
+        .day-dateline {
+            font-size: var(--font-size-base);
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--bs-body-color);
+            white-space: nowrap;
+        }
+
+        .day-rule {
+            flex: 1 1 auto;
+            height: 1px;
+            background: var(--bs-border-color);
+        }
+
+        .day-count {
+            font-size: var(--font-size-xs);
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--bs-secondary-color);
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
 
         /* ── Game row ── */
         /* Zebra and hover own the row's BACKGROUND. The age-group color owns a rail down the
@@ -653,10 +724,10 @@ import type { ViewGameDto } from '@core/api';
 
         /* Result typography is RETIRED (was: bold winner name / muted loser name).
            Black-tie doctrine (ported from TSIC-Events-2025 visual-refresh): color means
-           age-group identity, gold means WON — the trophy beside the winning score is
-           the sole result cue. Names stay at constant weight and body color so a run of
+           age-group identity, gold means WON — the gold underline under the winning score
+           is the sole result cue. Names stay at constant weight and body color so a run of
            rows reads as an even, formal ledger; the eye finds winners by scanning for
-           gold, not by comparing font weights. Ties/unplayed: no trophy anywhere. */
+           gold, not by comparing font weights. Ties/unplayed: no gold anywhere. */
 
         /* Team star — follow/unfollow shortcut. Black-tie: the filled (followed) state
            is strong ink (black in light, white in dark — --score-strong flips with the
@@ -703,30 +774,62 @@ import type { ViewGameDto } from '@core/api';
             font-size: var(--font-size-xs);
         }
 
-        /* ── Score column ── */
-        /* Single line now that status moved to its own column. The old flex-column
-           stack (score over FINAL) made this cell two lines tall while every other
-           cell was one, which floated the numbers above the team names. */
-        .cell-score {
+        /* ── Score columns (three real subgrid tracks) ── */
+        /* Home number · dash · away number. Each number cell right-aligns, so home and
+           away scores each stack on their own right edge down the ledger; the dash lives
+           in an isolated centre track and can never nudge a number. The "Score" header
+           spans all three (.hdr-score → grid-column: span 3). */
+        .cell-t1-score,
+        .cell-dash,
+        .cell-t2-score {
             font-variant-numeric: tabular-nums;
             font-family: var(--bs-font-monospace);
             white-space: nowrap;
             line-height: 1.1;
-        }
-
-        .score-line {
-            display: inline-flex;
+            display: flex;
             align-items: baseline;
             gap: var(--space-1);
+            /* The winner cue is an offset underline (text-underline-offset: 4px) that draws
+               ~4px BELOW the digit — past the bottom of this tight line-box. Inheriting
+               .cell's overflow: hidden clips it away entirely. Scores are short and never
+               ellipsize, so overflow: visible is safe and lets the underline paint. */
+            overflow: visible;
         }
 
-        .cell-score.editable { cursor: pointer; }
-        .cell-score.editable:hover { background: var(--bs-primary-bg-subtle); border-radius: var(--radius-sm); }
+        /* Both numbers hug the right edge of their track → perfect vertical stacking. */
+        .cell-t1-score,
+        .cell-t2-score { justify-content: flex-end; }
 
-        /* Both scores are plain bold strong figures — IDENTICAL for winner and loser.
-           The result lives in the trophy, not the numbers: muting the loser would be a
-           second (redundant) result channel, and the retired scheme's whole failure
-           mode. The losing score is real information and deserves full legibility. */
+        /* Tight scoreline — the grid's column-gap (--space-2) flanks the dash on BOTH
+           sides, which reads as "1  -  2". Cancel it with negative inline margins so the
+           dash butts against the digits, leaving only a hair of padding: "1-2". Purely a
+           visual pull; the dash's own min-content track stays put, so nothing else shifts. */
+        .cell-dash {
+            justify-content: center;
+            margin-inline: calc(-1 * var(--space-2));
+            padding-inline: var(--space-1);
+        }
+
+        /* Editing swaps all three score tracks for the input pair. */
+        .cell-score-edit {
+            grid-column: span 3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cell-t1-score.editable,
+        .cell-dash.editable,
+        .cell-t2-score.editable { cursor: pointer; }
+        .cell-t1-score.editable:hover,
+        .cell-dash.editable:hover,
+        .cell-t2-score.editable:hover { background: var(--bs-primary-bg-subtle); border-radius: var(--radius-sm); }
+
+        /* Both scores are plain bold strong figures — SAME weight and ink for winner and
+           loser. The win is carried by the gold underline under the winning number
+           (.is-winner below); muting the loser would be a second, redundant result channel —
+           the retired scheme's whole failure mode. The losing score is real information and
+           deserves full legibility. */
         .score-val {
             font-size: var(--font-size-lg);
             font-weight: 700;
@@ -734,34 +837,25 @@ import type { ViewGameDto } from '@core/api';
             color: var(--score-strong);
         }
 
+        /* Winner's gold underline — the SOLE win cue, and the one we landed on: it scans down
+           a column instantly and is the least jarring of the treatments we tried (dot, star,
+           superscript). Gold means "won" — the one sanctioned, palette-invariant use — so the
+           underline appears only on the winner's number, never on a tie. Kept soft (mixed
+           toward transparent) and offset, so a run of scored rows reads warm, not highlighted;
+           the losing number stays full-strength ink. The digits already say who won, so the
+           gold is a highlight, not a colour-only channel. */
+        .score-val.is-winner {
+            text-decoration: underline;
+            text-decoration-color: color-mix(in srgb, var(--winner-gold) 80%, transparent);
+            text-decoration-thickness: 2px;
+            text-underline-offset: 4px;
+        }
+
         .score-dash {
             color: var(--score-muted);
             font-size: var(--font-size-sm);
         }
 
-        /* Winner cue — the ONE sanctioned use of gold (--winner-gold is palette-invariant;
-           gold means "won" in all 8 palettes and both themes). The slot is always
-           rendered at fixed width on BOTH sides of the score, so the numbers stay
-           column-aligned whether the trophy is present (win) or absent (tie/loser side).
-           aria-hidden: the score pair itself already tells assistive tech who won. */
-        .score-glyph {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 1rem;
-            flex-shrink: 0;
-            /* The rows align text on the BASELINE; an icon-only box has no real text
-               baseline and would sit low. Center it against the text instead (same
-               opt-out the team-star uses). */
-            align-self: center;
-        }
-
-        .winner-glyph {
-            font-size: var(--font-size-sm);
-            color: var(--winner-gold);
-        }
-
-        .no-score { color: var(--score-muted); }
 
         /* ── Status column (desktop) ──
            Single-letter chip, ONE neutral treatment for every status (black-tie: color
@@ -923,6 +1017,17 @@ import type { ViewGameDto } from '@core/api';
             gap: var(--space-2);
         }
 
+        /* Broadsheet dateline, mobile flavour — reuses .day-dateline / .day-count.
+           No hairline rule (the card gap already separates chapters); dateline left,
+           count right, a little air above each new day. */
+        .card-day-divider {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: var(--space-2);
+            padding: var(--space-3) var(--space-1) var(--space-1);
+        }
+
         .game-card {
             --row-surface: var(--bs-card-bg);
             background: var(--row-surface);
@@ -996,8 +1101,8 @@ import type { ViewGameDto } from '@core/api';
             min-width: 0;
         }
 
-        /* Plain bold strong figure for BOTH teams — the trophy in the adjacent glyph
-           slot is the sole result cue (matches the desktop treatment). */
+        /* Plain bold strong figure for BOTH teams — the gold underline under the winning
+           number is the sole result cue (.is-winner, matches the desktop treatment). */
         .card-team-score {
             flex-shrink: 0;
             font-size: var(--font-size-base);
@@ -1007,6 +1112,13 @@ import type { ViewGameDto } from '@core/api';
             min-width: 2ch;
             text-align: center;
             color: var(--score-strong);
+        }
+
+        .card-team-score.is-winner {
+            text-decoration: underline;
+            text-decoration-color: color-mix(in srgb, var(--winner-gold) 80%, transparent);
+            text-decoration-thickness: 2px;
+            text-underline-offset: 4px;
         }
 
         /* Card location row */
@@ -1029,7 +1141,7 @@ import type { ViewGameDto } from '@core/api';
         @media (min-width: 1200px) {
             .games-grid {
                 grid-template-columns:
-                    2rem 6rem auto auto auto auto auto auto;
+                    2rem 6rem auto auto auto auto min-content auto auto auto;
             }
         }
     `]
@@ -1055,6 +1167,29 @@ export class GamesTabComponent {
 
     // ── Derived ──
     private readonly followedSet = computed(() => new Set(this.followedTeamIds()));
+
+    /** Games interleaved with day datelines — the Broadsheet grouping (see ScheduleRow).
+     *  Two passes: count games per day, then emit a `day` row at each date change. */
+    readonly rows = computed<ScheduleRow[]>(() => {
+        const gs = this.games();
+        const counts = new Map<string, number>();
+        for (const g of gs) {
+            const k = this.dateKey(g.gDate);
+            counts.set(k, (counts.get(k) ?? 0) + 1);
+        }
+        const out: ScheduleRow[] = [];
+        let prevKey: string | null = null;
+        for (let i = 0; i < gs.length; i++) {
+            const g = gs[i];
+            const k = this.dateKey(g.gDate);
+            if (k !== prevKey) {
+                out.push({ kind: 'day', key: k, label: this.formatDayline(g.gDate), count: counts.get(k) ?? 0 });
+                prevKey = k;
+            }
+            out.push({ kind: 'game', game: g, index: i });
+        }
+        return out;
+    });
 
     isFollowed(teamId: string | null | undefined): boolean {
         return !!teamId && this.followedSet().has(teamId);
@@ -1082,6 +1217,23 @@ export class GamesTabComponent {
         if (isNaN(d.getTime())) return '';
         const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         return `${days[d.getDay()]} ${d.getMonth() + 1}/${d.getDate()}`;
+    }
+
+    /** Local calendar-day key (y-m-d) for grouping — matches formatDate's local-time basis. */
+    private dateKey(isoDate: string): string {
+        const d = new Date(isoDate);
+        if (isNaN(d.getTime())) return '';
+        return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+    }
+
+    /** Full editorial dateline for a day chapter, e.g. "Saturday · June 20". */
+    formatDayline(isoDate: string): string {
+        const d = new Date(isoDate);
+        if (isNaN(d.getTime())) return '';
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const months = ['January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'];
+        return `${days[d.getDay()]} · ${months[d.getMonth()]} ${d.getDate()}`;
     }
 
     formatTime(isoDate: string): string {
