@@ -1,0 +1,84 @@
+<h3>E-Mail Troubleshooter</h3>
+
+<div class="help-callout help-callout--info">
+  <i class="bi bi-envelope-exclamation" aria-hidden="true"></i>
+  <div>
+    <strong>Two tabs, two questions.</strong>
+    <p class="help-callout__body">
+      Suppression List asks "is this address blocked?" Investigate asks "we sent a real test — did it get
+      through, and if not, whose side failed?"
+    </p>
+  </div>
+</div>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What does "Suppressed" actually mean?</span></summary>
+  <div class="faq-a">
+    <p>
+      The email provider (Amazon SES) has this address on its do-not-send list, usually because a past message
+      hard-bounced (mailbox didn't exist) or the recipient marked one as spam. While suppressed, the address
+      receives <strong>nothing</strong> — and no error is shown anywhere, which is why it looks like silence.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Is it safe to remove an address from suppression?</span></summary>
+  <div class="faq-a">
+    <p>
+      Yes, when the person is asking for their mail — that's exactly what removal is for (a fixed mailbox, a
+      mistaken spam click). If the address is genuinely dead, the next send will bounce and it will simply end
+      up suppressed again; no harm done.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>The Investigate test says "Recipient side" but they still see nothing. Now what?</span></summary>
+  <div class="faq-a">
+    <p>
+      The message left our system and their provider accepted it. Have them check <strong>spam/junk</strong> and
+      <strong>promotions</strong> folders, search for the sender address, and add it to their contacts/safe list.
+      School and workplace domains sometimes quarantine mail before the inbox — their IT can release it.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why include my own address in an Investigate run?</span></summary>
+  <div class="faq-a">
+    <p>
+      It's a control. If your copy arrives and the suspect address's doesn't, you've proven the sending side works
+      and isolated the problem to their mailbox — a much stronger answer than "we sent it, trust us."
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Does the Investigate test send a real email?</span></summary>
+  <div class="faq-a">
+    <p>
+      Yes — a short, clearly-labeled test message is actually dispatched to each address you enter. Warn the
+      person to expect it so they can confirm arrival (or check spam for it).
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>How is this different from the Email Log?</span></summary>
+  <div class="faq-a">
+    <p>
+      The <strong>Email Log</strong> is history — proof of what was sent and to whom. The Troubleshooter is
+      diagnosis — live checks against the email provider right now. Use the log to confirm a past send; use this
+      tool to find out why the next one won't arrive.
+    </p>
+  </div>
+</details>
+
+<div class="help-callout help-callout--tip">
+  <i class="bi bi-lightbulb" aria-hidden="true"></i>
+  <div>
+    <strong>Tip:</strong> players can self-serve this. The <strong>Check My Email</strong> page (avatar menu)
+    lets a family check and un-block their own addresses without contacting you.
+  </div>
+</div>

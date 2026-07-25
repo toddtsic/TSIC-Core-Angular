@@ -1,0 +1,43 @@
+<h3>E-Mail Troubleshooter</h3>
+<p>
+  Your tool for "I never got your email" reports. It answers the two questions that matter: is this address
+  <strong>blocked</strong> by the email provider, and if not, <strong>whose side</strong> is the failure on —
+  ours or the recipient's?
+</p>
+
+<h4>Suppression List tab</h4>
+<ul>
+  <li>Enter one or more addresses (separate with semicolons) and click <strong>Check Suppression</strong>.</li>
+  <li>Each address comes back <strong>Suppressed</strong> or <strong>Not suppressed</strong>. Suppressed means the
+    email provider (Amazon SES) has stopped sending to it — usually after a hard bounce or a spam complaint —
+    along with the reason and the date it happened.</li>
+  <li>Click <strong>Remove from suppression</strong> to un-stick the address. Future sends resume immediately.</li>
+</ul>
+
+<div class="help-callout help-callout--info">
+  <i class="bi bi-shield-exclamation" aria-hidden="true"></i>
+  <div>
+    <strong>Suppression is the #1 cause of "silent" non-delivery.</strong>
+    <p class="help-callout__body">
+      A suppressed address gets nothing — no bounce notice, no error — the system simply skips it. If someone
+      says they've received nothing for weeks, check here first.
+    </p>
+  </div>
+</div>
+
+<h4>Investigate E-Mail Failure tab</h4>
+<ul>
+  <li>Sends a real test message to each address you enter, then reports the outcome.</li>
+  <li>Each address gets a verdict: <strong>Recipient side</strong> (we dispatched it fine — the problem is their
+    spam folder, mailbox, or provider), <strong>Our side</strong> (our sending path rejected it), or
+    <strong>Inconclusive</strong>.</li>
+  <li>Include a known-good control address — your own inbox — alongside the suspect one. If the control arrives
+    and the suspect doesn't, that's a clean recipient-side diagnosis you can relay with confidence.</li>
+</ul>
+
+<h4>A practical workflow</h4>
+<ul>
+  <li>Parent reports missing email → check <strong>Suppression</strong> → if suppressed, remove and tell them it's fixed.</li>
+  <li>Not suppressed → run <strong>Investigate</strong> with their address + your control.</li>
+  <li>Recipient-side verdict → have them check spam/junk and safelist the sender; the system is doing its job.</li>
+</ul>

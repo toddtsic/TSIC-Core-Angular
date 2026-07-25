@@ -301,7 +301,7 @@ export const routes: Routes = [
 					{
 						path: 'email-troubleshooter',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'email-troubleshooter' },
 						loadComponent: () => import('./views/tools/e-mail-troubleshooter/e-mail-troubleshooter.component').then(m => m.EmailTroubleshooterComponent)
 					},
 					{
@@ -309,7 +309,7 @@ export const routes: Routes = [
 						// Server derives the address set from the JWT and gates every action.
 						path: 'email-deliverability',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Player] },
+						data: { roles: [Roles.Player], helpKey: 'email-deliverability' },
 						loadComponent: () => import('./views/tools/email-deliverability/email-deliverability.component').then(m => m.EmailDeliverabilityComponent)
 					},
 					{
@@ -351,7 +351,7 @@ export const routes: Routes = [
 					{
 						path: 'customer-job-revenue',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.SuperDirector], helpKey: 'customer-job-revenue' },
 						loadComponent: () => import('./views/tools/customer-job-revenue/customer-job-revenue.component').then(m => m.CustomerJobRevenueComponent)
 					},
 					{
@@ -560,7 +560,7 @@ export const routes: Routes = [
 			{
 				path: 'scheduling/referee-calendar',
 				canActivate: [authGuard],
-				data: { roles: [Roles.Superuser, Roles.Director, Roles.RefAssignor] },
+				data: { roles: [Roles.Superuser, Roles.Director, Roles.RefAssignor], helpKey: 'referee-calendar' },
 				loadComponent: () => import('./views/scheduling/referee-calendar/referee-calendar.component').then(m => m.RefereeCalendarComponent)
 			},
 			{
