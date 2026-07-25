@@ -79,6 +79,18 @@
     box-shadow: inset 0 0 0 1px currentColor;
 }
 
+/* Phones: collapse text labels — icon + count carry the meaning
+   (buttons keep title/aria-label), tighter padding so all three fit. */
+@media (max-width: 575.98px) {
+    .segmented__label {
+        display: none;
+    }
+
+    .segmented__btn {
+        padding: var(--space-2) var(--space-3);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .segmented__btn {
         transition: none;

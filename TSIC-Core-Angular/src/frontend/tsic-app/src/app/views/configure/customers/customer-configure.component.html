@@ -22,19 +22,22 @@
 @if (!isLoading() && !errorMessage()) {
     <div class="segmented mb-3" role="group" aria-label="Filter customers by job activity">
         <button type="button" class="segmented__btn" [class.is-active]="segment() === 'has'"
-                [attr.aria-pressed]="segment() === 'has'" (click)="setSegment('has')">
+                [attr.aria-pressed]="segment() === 'has'" (click)="setSegment('has')"
+                title="Has Jobs" aria-label="Has Jobs">
             <i class="bi bi-briefcase"></i>
             <span class="segmented__label">Has Jobs</span>
             <span class="segmented__count">{{ hasJobsCount() }}</span>
         </button>
         <button type="button" class="segmented__btn" [class.is-active]="segment() === 'no'"
-                [attr.aria-pressed]="segment() === 'no'" (click)="setSegment('no')">
+                [attr.aria-pressed]="segment() === 'no'" (click)="setSegment('no')"
+                title="No Jobs" aria-label="No Jobs">
             <i class="bi bi-slash-circle"></i>
             <span class="segmented__label">No Jobs</span>
             <span class="segmented__count">{{ noJobsCount() }}</span>
         </button>
         <button type="button" class="segmented__btn" [class.is-active]="segment() === 'all'"
-                [attr.aria-pressed]="segment() === 'all'" (click)="setSegment('all')">
+                [attr.aria-pressed]="segment() === 'all'" (click)="setSegment('all')"
+                title="All customers" aria-label="All customers">
             <i class="bi bi-collection"></i>
             <span class="segmented__label">All</span>
             <span class="segmented__count">{{ customers().length }}</span>
@@ -70,7 +73,7 @@
 <!-- Data Grid -->
 @if (!isLoading() && filteredCustomers().length > 0) {
     <div class="grid-wrap">
-        <ejs-grid [dataSource]="filteredCustomers()" [allowSorting]="true" width="960"
+        <ejs-grid [dataSource]="filteredCustomers()" [allowSorting]="true" width="100%"
                   [sortSettings]="{ columns: [{ field: 'customerName', direction: 'Ascending' }] }"
                   cssClass="tsic-grid-tight">
             <e-columns>

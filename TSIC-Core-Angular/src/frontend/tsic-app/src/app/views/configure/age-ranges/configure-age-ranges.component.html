@@ -48,7 +48,7 @@
 
 <!-- Data Grid -->
 @if (!isLoading() && ageRanges().length > 0) {
-    <ejs-grid [dataSource]="ageRanges()" [allowSorting]="true"
+    <ejs-grid [dataSource]="ageRanges()" [allowSorting]="true" width="100%"
               [sortSettings]="{ columns: [{ field: 'rangeLeft', direction: 'Ascending' }] }"
               (recordDoubleClick)="onRowDoubleClick($event)"
               cssClass="tsic-grid-tight">

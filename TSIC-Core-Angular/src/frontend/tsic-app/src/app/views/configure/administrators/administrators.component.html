@@ -58,7 +58,7 @@
 
 <!-- Data Grid -->
 @if (!isLoading() && administrators().length > 0) {
-    <ejs-grid [dataSource]="administrators()" [allowSorting]="true"
+    <ejs-grid [dataSource]="administrators()" [allowSorting]="true" width="100%"
               [sortSettings]="{ columns: [{ field: 'administratorName', direction: 'Ascending' }] }"
               cssClass="tsic-grid-tight">
         <e-columns>

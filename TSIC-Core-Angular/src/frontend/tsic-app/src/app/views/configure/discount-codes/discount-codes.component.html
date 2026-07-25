@@ -58,7 +58,7 @@
 
 <!-- Data Grid -->
 @if (!isLoading() && codes().length > 0) {
-    <ejs-grid [dataSource]="codes()" [allowSorting]="true"
+    <ejs-grid [dataSource]="codes()" [allowSorting]="true" width="100%"
               [sortSettings]="{ columns: [{ field: 'codeName', direction: 'Ascending' }] }"
               cssClass="tsic-grid-tight">
         <e-columns>

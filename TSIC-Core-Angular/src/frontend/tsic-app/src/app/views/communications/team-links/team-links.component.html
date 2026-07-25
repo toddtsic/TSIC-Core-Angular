@@ -43,7 +43,7 @@
 }
 
 @if (!isLoading() && links().length > 0) {
-    <ejs-grid [dataSource]="links()" [allowSorting]="true"
+    <ejs-grid [dataSource]="links()" [allowSorting]="true" width="100%"
               [sortSettings]="{ columns: [{ field: 'teamDisplay', direction: 'Ascending' }] }"
               cssClass="tsic-grid-tight">
         <e-columns>
