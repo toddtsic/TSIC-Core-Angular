@@ -285,6 +285,11 @@
             </div>
           </div>
 
+          <!-- ── Read-Only: Medical form (players only; renders only when one is on file) ── -->
+          @if (isPlayerRole()) {
+            <app-medform-view [registrationId]="reg.registrationId"></app-medform-view>
+          }
+
           <!-- ── Editable: Profile (metadata-driven — players AND adult roles) ── -->
           @if (showProfileCard()) {
             @let profileFields = editableProfileFields();
