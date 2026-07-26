@@ -79,7 +79,7 @@ IF DATABASEPROPERTYEX('TSICV5','UserAccess') <> 'MULTI_USER'
     ALTER DATABASE TSICV5 SET MULTI_USER;
 "@
 
-Write-Host "Restoring (approx 1-3 min)..." -ForegroundColor Yellow
+Write-Host "Restoring (approx 10-30 sec)..." -ForegroundColor Yellow
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 sqlcmd -S $SqlInstance -E -b -Q $restoreSql
 if ($LASTEXITCODE -ne 0) {
