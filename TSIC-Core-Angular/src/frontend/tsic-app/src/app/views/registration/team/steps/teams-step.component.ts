@@ -622,7 +622,8 @@ export class TeamTeamsStepComponent implements OnInit {
      */
     readonly phaseBadgeLabel = computed(() => {
         const jobLabel = this.state.fullPaymentRequired() ? 'Final Balance Due' : 'Deposit Only';
-        const teams = this._registeredTeams();
+        // Waitlisted rows owe $0 and must not drag a uniform cart to the fallback (PL-052).
+        const teams = this._registeredTeams().filter(t => !t.isWaitlisted);
         if (!teams.length) return jobLabel;
         const full = teams.filter(t => t.fullPaymentRequired).length;
         if (full === 0) return 'Deposit Only';
