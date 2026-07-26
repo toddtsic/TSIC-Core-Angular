@@ -200,18 +200,19 @@ public class MedFormController : ControllerBase
     private async Task<(bool Authorized, string? PlayerUserId)> ResolveRegistrationAccessAsync(
         Guid registrationId, CancellationToken ct)
     {
-        var role = User.FindFirst(ClaimTypes.Role)?.Value;
-        if (role is not (RoleConstants.Director
-                      or RoleConstants.SuperDirector
-                      or RoleConstants.Superuser))
-        {
-            return (false, null);
-        }
+        // The role claim carries the role NAME (TokenService writes ClaimTypes.Role = roleName),
+        // NOT the role GUID — so compare against RoleConstants.Names, not the GUID constants.
+        var role = User.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty;
+        var isSuperuser = string.Equals(role, RoleConstants.Names.SuperuserName, StringComparison.OrdinalIgnoreCase);
+        var isDirector = string.Equals(role, RoleConstants.Names.DirectorName, StringComparison.OrdinalIgnoreCase)
+                      || string.Equals(role, RoleConstants.Names.SuperDirectorName, StringComparison.OrdinalIgnoreCase);
+
+        if (!isSuperuser && !isDirector) return (false, null);
 
         var reg = await _registrations.GetRegistrationJobAndUserAsync(registrationId, ct);
         if (reg is null) return (false, null);
 
-        if (role == RoleConstants.Superuser)
+        if (isSuperuser)
             return (true, reg.Value.UserId);
 
         var callerJobId = await User.GetJobIdFromRegistrationAsync(_jobLookup);
