@@ -202,4 +202,41 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
             await _context.SaveChangesAsync(ct);
         }
     }
+
+    public async Task<List<ArbStatusRefreshTarget>> GetStatusRefreshTargetsForJobAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r =>
+                r.JobId == jobId
+                && !string.IsNullOrEmpty(r.AdnSubscriptionId))
+            .Select(r => new ArbStatusRefreshTarget
+            {
+                RegistrationId = r.RegistrationId,
+                SubscriptionId = r.AdnSubscriptionId!,
+                SubscriptionStatus = r.AdnSubscriptionStatus
+            })
+            .ToListAsync(ct);
+    }
+
+    public async Task UpdateSubscriptionStatusesAsync(
+        IReadOnlyDictionary<Guid, string> statusByRegistrationId, CancellationToken ct = default)
+    {
+        if (statusByRegistrationId.Count == 0) return;
+
+        var ids = statusByRegistrationId.Keys.ToList();
+        var regs = await _context.Registrations
+            .Where(r => ids.Contains(r.RegistrationId))
+            .ToListAsync(ct);
+
+        foreach (var reg in regs)
+        {
+            var newStatus = statusByRegistrationId[reg.RegistrationId];
+            if (reg.AdnSubscriptionStatus != newStatus)
+                reg.AdnSubscriptionStatus = newStatus;
+        }
+
+        await _context.SaveChangesAsync(ct);
+    }
 }

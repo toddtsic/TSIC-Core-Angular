@@ -43,6 +43,22 @@ public class ArbDefensiveController : ControllerBase
     }
 
     /// <summary>
+    /// Job-wide ARB status sync: checks every registration in the job that has a
+    /// subscription ID against Authorize.Net and writes back any drift. Synchronous —
+    /// returns the checked/updated/failed summary when the sweep completes.
+    /// </summary>
+    [HttpPost("refresh-statuses")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<ActionResult<ArbRefreshStatusesResultDto>> RefreshStatuses(CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null) return Unauthorized();
+
+        var result = await _service.RefreshSubscriptionStatusesAsync(jobId.Value, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Returns the list of available substitution variables for email templates.
     /// </summary>
     [HttpGet("substitution-variables")]

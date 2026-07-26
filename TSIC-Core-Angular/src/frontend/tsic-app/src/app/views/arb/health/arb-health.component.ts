@@ -5,6 +5,7 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
 import { ArbDefensiveService } from './services/arb-defensive.service';
 import type {
     ArbFlaggedRegistrantDto,
+    ArbRefreshStatusesResultDto,
     ArbSubstitutionVariableDto,
     ArbSendEmailsRequest
 } from '@core/api';
@@ -91,6 +92,10 @@ export class ArbHealthComponent {
     readonly isLoading = signal(false);
     readonly errorMessage = signal<string | null>(null);
 
+    // Job-wide ARB status refresh (the single status-sync chokepoint)
+    readonly isRefreshing = signal(false);
+    readonly refreshResult = signal<ArbRefreshStatusesResultDto | null>(null);
+
     // Selection
     readonly selectedIds = signal<Set<string>>(new Set());
     readonly allSelected = computed(() => {
@@ -120,6 +125,32 @@ export class ArbHealthComponent {
     constructor() {
         this.loadTab(FLAG_TYPE.ExpiringCard);
         this.loadSubstitutionVars();
+    }
+
+    /**
+     * One click, whole job: syncs stored ARB status from Authorize.Net for every
+     * registration in the job with a subscription ID, then reloads the active tab.
+     */
+    refreshStatuses(): void {
+        if (this.isRefreshing()) return;
+
+        this.isRefreshing.set(true);
+        this.refreshResult.set(null);
+        this.errorMessage.set(null);
+
+        this.arbService.refreshStatuses().subscribe({
+            next: result => {
+                this.refreshResult.set(result);
+                this.isRefreshing.set(false);
+                // Statuses may have changed which registrants are flagged — reload.
+                this.selectedIds.set(new Set());
+                this.loadTab(this.activeTab());
+            },
+            error: err => {
+                this.errorMessage.set(err?.error?.message || 'Failed to refresh ARB statuses.');
+                this.isRefreshing.set(false);
+            }
+        });
     }
 
     switchTab(type: number): void {

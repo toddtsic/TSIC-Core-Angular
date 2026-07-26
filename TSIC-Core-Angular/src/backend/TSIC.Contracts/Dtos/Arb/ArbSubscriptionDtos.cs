@@ -37,3 +37,19 @@ public record ArbUpdateCcResultDto
     public string? TransactionId { get; init; }
     public required string Message { get; init; }
 }
+
+/// <summary>
+/// Summary of a job-wide ARB status refresh: every registration in the job with a
+/// subscription ID checked live against Authorize.Net, stale statuses written back.
+/// </summary>
+public record ArbRefreshStatusesResultDto
+{
+    /// <summary>Registrations with a subscription ID that were checked against ADN.</summary>
+    public required int Checked { get; init; }
+
+    /// <summary>Registrations whose stored status differed from ADN and were updated.</summary>
+    public required int Updated { get; init; }
+
+    /// <summary>Registrations whose ADN status lookup failed (non-Ok response or error).</summary>
+    public required int Failed { get; init; }
+}

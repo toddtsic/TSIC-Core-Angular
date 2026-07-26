@@ -5,6 +5,7 @@ import { switchMap, takeWhile, last } from 'rxjs/operators';
 import { environment } from '@environments/environment';
 import type {
     ArbFlaggedRegistrantDto,
+    ArbRefreshStatusesResultDto,
     ArbSendEmailsRequest,
     ArbSubstitutionVariableDto,
     ArbSubscriptionInfoDto,
@@ -18,6 +19,15 @@ import type {
 export class ArbDefensiveService {
     private readonly http = inject(HttpClient);
     private readonly apiUrl = `${environment.apiUrl}/arb-defensive`;
+
+    /**
+     * Job-wide ARB status sync — the single chokepoint for updating stored subscription
+     * statuses from Authorize.Net. Synchronous on the server: resolves when every
+     * subscription in the job has been checked (can take a while on large jobs).
+     */
+    refreshStatuses(): Observable<ArbRefreshStatusesResultDto> {
+        return this.http.post<ArbRefreshStatusesResultDto>(`${this.apiUrl}/refresh-statuses`, {});
+    }
 
     getFlagged(type: number): Observable<ArbFlaggedRegistrantDto[]> {
         const params = new HttpParams().set('type', type.toString());

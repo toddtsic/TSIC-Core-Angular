@@ -88,6 +88,7 @@ export type { ApplyTeamDiscountResponseDto } from './models/ApplyTeamDiscountRes
 export type { ApproveTeamRequestDto } from './models/ApproveTeamRequestDto';
 export type { ArbFlaggedRegistrantDto } from './models/ArbFlaggedRegistrantDto';
 export type { ArbFlagType } from './models/ArbFlagType';
+export type { ArbRefreshStatusesResultDto } from './models/ArbRefreshStatusesResultDto';
 export type { ArbSendEmailsRequest } from './models/ArbSendEmailsRequest';
 export type { ArbSubscriptionInfoDto } from './models/ArbSubscriptionInfoDto';
 export type { ArbSubstitutionVariableDto } from './models/ArbSubstitutionVariableDto';

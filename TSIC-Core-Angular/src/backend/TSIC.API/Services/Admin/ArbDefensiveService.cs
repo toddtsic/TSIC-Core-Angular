@@ -77,16 +77,21 @@ public class ArbDefensiveService : IArbDefensiveService
     private async Task<List<ArbFlaggedRegistrantDto>> GetBehindInPaymentFlagsAsync(
         Guid jobId, CancellationToken ct)
     {
+        // Pure DB read — stored status is maintained by RefreshSubscriptionStatusesAsync
+        // (the director-clicked chokepoint) and the month-end sweep's charge-time check.
         var regs = await _arbRepo.GetActiveSubscriptionsForJobAsync(jobId, ct);
 
-        // Calculate fees owed and filter
-        var flagged = new List<(ArbRegistrationProjection Reg, decimal Owes)>();
+        var result = new List<ArbFlaggedRegistrantDto>();
         foreach (var reg in regs)
         {
             if (reg.SubscriptionStartDate == null
                 || reg.BillingOccurrences == null
                 || reg.IntervalLength == null
                 || reg.AmountPerOccurrence == null)
+                continue;
+
+            // Skip canceled subscriptions
+            if (string.Equals(reg.SubscriptionStatus, "canceled", StringComparison.OrdinalIgnoreCase))
                 continue;
 
             var occurrences = GetOccurrencesAsOfNow(
@@ -106,69 +111,84 @@ public class ArbDefensiveService : IArbDefensiveService
                     continue;
             }
 
-            flagged.Add((reg, owes));
-        }
-
-        // Refresh subscription status from Authorize.Net for flagged registrations.
-        // Env-bound: resolve against the create-time account (sandbox off-Production).
-        if (flagged.Count > 0)
-        {
-            var env = _adnApi.GetADNEnvironment();
-            var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId);
-
-            var result = new List<ArbFlaggedRegistrantDto>();
-
-            foreach (var (reg, owes) in flagged)
+            // Expired (or otherwise dead) subscription that still owes → owes everything.
+            // Unknown/blank status keeps the schedule-math figure rather than inflating it.
+            var finalOwes = owes;
+            if (!string.IsNullOrWhiteSpace(reg.SubscriptionStatus)
+                && !string.Equals(reg.SubscriptionStatus, "active", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(reg.SubscriptionStatus, "terminated", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(reg.SubscriptionStatus, "suspended", StringComparison.OrdinalIgnoreCase))
             {
-                if (string.IsNullOrEmpty(reg.SubscriptionId)) continue;
-
-                try
-                {
-                    var statusResponse = _adnApi.GetSubscriptionStatus(
-                        env, creds.AdnLoginId!, creds.AdnTransactionKey!,
-                        reg.SubscriptionId);
-
-                    var liveStatus = statusResponse.status.ToString();
-
-                    // Update stale status in DB
-                    if (reg.SubscriptionStatus != liveStatus)
-                        await _arbRepo.UpdateSubscriptionStatusAsync(reg.RegistrationId, liveStatus, ct);
-
-                    // Skip canceled subscriptions
-                    if (statusResponse.status == ARBSubscriptionStatusEnum.canceled)
-                        continue;
-
-                    // If not active/terminated/suspended, they owe everything
-                    var finalOwes = owes;
-                    if (statusResponse.status != ARBSubscriptionStatusEnum.active
-                        && statusResponse.status != ARBSubscriptionStatusEnum.terminated
-                        && statusResponse.status != ARBSubscriptionStatusEnum.suspended)
-                    {
-                        finalOwes = reg.FeeTotal - reg.PaidTotal;
-                    }
-
-                    if (finalOwes <= 0) continue;
-
-                    var dto = MapToDto(reg, ArbFlagType.BehindInPayment, finalOwes);
-                    // Override status with live value
-                    dto = dto with { SubscriptionStatus = liveStatus };
-
-                    result.Add(dto);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex,
-                        "Failed to get subscription status for {SubscriptionId}",
-                        reg.SubscriptionId);
-                    // Still include with DB status
-                    result.Add(MapToDto(reg, ArbFlagType.BehindInPayment, owes));
-                }
+                finalOwes = reg.FeeTotal - reg.PaidTotal;
             }
 
-            return result.OrderBy(r => r.NextPaymentDate).ToList();
+            if (finalOwes <= 0) continue;
+
+            result.Add(MapToDto(reg, ArbFlagType.BehindInPayment, finalOwes));
         }
 
-        return [];
+        return result.OrderBy(r => r.NextPaymentDate).ToList();
+    }
+
+    // ── RefreshSubscriptionStatusesAsync ────────────────────────────────
+
+    public async Task<ArbRefreshStatusesResultDto> RefreshSubscriptionStatusesAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        var targets = await _arbRepo.GetStatusRefreshTargetsForJobAsync(jobId, ct);
+        if (targets.Count == 0)
+            return new ArbRefreshStatusesResultDto { Checked = 0, Updated = 0, Failed = 0 };
+
+        // Env-bound: resolve subscriptions against their create-time account (sandbox off-Production).
+        var env = _adnApi.GetADNEnvironment();
+        var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId);
+
+        var updates = new Dictionary<Guid, string>();
+        var failed = 0;
+
+        foreach (var target in targets)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            try
+            {
+                var response = _adnApi.GetSubscriptionStatus(
+                    env, creds.AdnLoginId!, creds.AdnTransactionKey!,
+                    target.SubscriptionId);
+
+                if (response?.messages?.resultCode != messageTypeEnum.Ok)
+                {
+                    failed++;
+                    _logger.LogWarning(
+                        "ARB status refresh: non-Ok response for {SubscriptionId} ({Code})",
+                        target.SubscriptionId, response?.messages?.resultCode);
+                    continue;
+                }
+
+                var liveStatus = response.status.ToString();
+                if (!string.Equals(target.SubscriptionStatus, liveStatus, StringComparison.Ordinal))
+                    updates[target.RegistrationId] = liveStatus;
+            }
+            catch (Exception ex)
+            {
+                failed++;
+                _logger.LogWarning(ex,
+                    "ARB status refresh failed for {SubscriptionId}", target.SubscriptionId);
+            }
+        }
+
+        await _arbRepo.UpdateSubscriptionStatusesAsync(updates, ct);
+
+        _logger.LogInformation(
+            "ARB status refresh for job {JobId}: {Checked} checked, {Updated} updated, {Failed} failed",
+            jobId, targets.Count, updates.Count, failed);
+
+        return new ArbRefreshStatusesResultDto
+        {
+            Checked = targets.Count,
+            Updated = updates.Count,
+            Failed = failed
+        };
     }
 
     // ── SendDefensiveEmailsAsync ────────────────────────────────────────

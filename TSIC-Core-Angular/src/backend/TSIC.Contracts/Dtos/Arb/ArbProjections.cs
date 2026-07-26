@@ -55,6 +55,18 @@ public record ArbRegistrationDetail
 }
 
 /// <summary>
+/// Minimal projection for the job-wide ARB status refresh: every registration in the
+/// job with a subscription ID, regardless of bActive (an inactive registration can
+/// still carry a live, billing subscription).
+/// </summary>
+public record ArbStatusRefreshTarget
+{
+    public required Guid RegistrationId { get; init; }
+    public required string SubscriptionId { get; init; }
+    public string? SubscriptionStatus { get; init; }
+}
+
+/// <summary>
 /// Director contact info for notification emails.
 /// </summary>
 public record ArbDirectorProjection

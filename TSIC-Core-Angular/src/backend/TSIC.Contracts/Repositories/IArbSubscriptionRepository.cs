@@ -25,4 +25,15 @@ public interface IArbSubscriptionRepository
 
     Task UpdateSubscriptionStatusAsync(
         Guid registrationId, string newStatus, CancellationToken ct = default);
+
+    /// <summary>
+    /// All registrations in the job with a subscription ID — NO bActive filter; an
+    /// inactive registration can still carry a live, billing subscription.
+    /// </summary>
+    Task<List<ArbStatusRefreshTarget>> GetStatusRefreshTargetsForJobAsync(
+        Guid jobId, CancellationToken ct = default);
+
+    /// <summary>Batch write of refreshed statuses — one SaveChanges for the whole set.</summary>
+    Task UpdateSubscriptionStatusesAsync(
+        IReadOnlyDictionary<Guid, string> statusByRegistrationId, CancellationToken ct = default);
 }
