@@ -968,6 +968,18 @@ public class RegistrationRepository : IRegistrationRepository
         return await _context.Registrations.FindAsync(registrationId);
     }
 
+    public async Task<(Guid JobId, string? UserId)?> GetRegistrationJobAndUserAsync(
+        Guid registrationId, CancellationToken cancellationToken = default)
+    {
+        var row = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.RegistrationId == registrationId)
+            .Select(r => new { r.JobId, r.UserId })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return row is null ? null : (row.JobId, row.UserId);
+    }
+
     public async Task<Registrations?> GetByAdnSubscriptionIdAsync(string adnSubscriptionId, CancellationToken cancellationToken = default)
     {
         return await _context.Registrations

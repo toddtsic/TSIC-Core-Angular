@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TSIC.API.Extensions;
+using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Constants;
@@ -20,15 +22,21 @@ public class MedFormController : ControllerBase
 {
     private readonly IMedFormService _medForms;
     private readonly IFamilyRepository _families;
+    private readonly IRegistrationRepository _registrations;
+    private readonly IJobLookupService _jobLookup;
     private readonly ILogger<MedFormController> _logger;
 
     public MedFormController(
         IMedFormService medForms,
         IFamilyRepository families,
+        IRegistrationRepository registrations,
+        IJobLookupService jobLookup,
         ILogger<MedFormController> logger)
     {
         _medForms = medForms;
         _families = families;
+        _registrations = registrations;
+        _jobLookup = jobLookup;
         _logger = logger;
     }
 
@@ -124,24 +132,93 @@ public class MedFormController : ControllerBase
         return deleted ? NoContent() : NotFound();
     }
 
+    /// <summary>Stream a player's med form for an admin, keyed by a registration in the admin's job.</summary>
+    [HttpGet("by-registration/{registrationId:guid}")]
+    [ProducesResponseType(typeof(FileStreamResult), 200)]
+    [ProducesResponseType(403)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> DownloadByRegistration(Guid registrationId, CancellationToken ct)
+    {
+        var (authorized, playerUserId) = await ResolveRegistrationAccessAsync(registrationId, ct);
+        if (!authorized)
+        {
+            LogAccess("download(reg)", registrationId.ToString(), denied: true);
+            return Forbid();
+        }
+        if (string.IsNullOrWhiteSpace(playerUserId)) return NotFound();
+
+        var stream = await _medForms.ReadAsync(playerUserId, ct);
+        if (stream == null)
+        {
+            LogAccess("download(reg)", registrationId.ToString(), denied: false, error: "NotFound");
+            return NotFound();
+        }
+
+        LogAccess("download(reg)", registrationId.ToString(), denied: false);
+        return File(stream, "application/pdf", $"medform-{playerUserId}.pdf");
+    }
+
+    /// <summary>Existence probe for the admin registration-keyed path — no body, just status.</summary>
+    [HttpHead("by-registration/{registrationId:guid}")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(403)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> HeadByRegistration(Guid registrationId, CancellationToken ct)
+    {
+        var (authorized, playerUserId) = await ResolveRegistrationAccessAsync(registrationId, ct);
+        if (!authorized) return Forbid();
+        if (string.IsNullOrWhiteSpace(playerUserId)) return NotFound();
+        return _medForms.Exists(playerUserId) ? NoContent() : NotFound();
+    }
+
     /// <summary>
-    /// Authorized = admin role OR caller is the player themselves OR caller is
-    /// in the same family group as the player.
+    /// Self-service authorization for the userId-keyed endpoints: the caller is the player
+    /// themselves, or is in the same family group as the player. Admin roles do NOT flow through
+    /// here — they use the registration-keyed endpoints, which validate the record belongs to the
+    /// caller's job. Keeping admins off this (job-global) userId path is what stops it from being an
+    /// unscoped back-door to any person's file.
     /// </summary>
     private async Task<bool> IsAuthorizedAsync(string playerUserId, CancellationToken ct)
     {
-        var role = User.FindFirst(ClaimTypes.Role)?.Value;
-        if (role is RoleConstants.Director
-                 or RoleConstants.SuperDirector
-                 or RoleConstants.Superuser)
-        {
-            return true;
-        }
-
         var callerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrWhiteSpace(callerUserId)) return false;
 
+        if (string.Equals(callerUserId, playerUserId, StringComparison.OrdinalIgnoreCase))
+            return true;
+
         return await _families.IsPlayerInFamilyAsync(callerUserId, playerUserId, ct);
+    }
+
+    /// <summary>
+    /// Admin authorization for the registration-keyed endpoints, returning the resolved player
+    /// userId when allowed. Only admin roles reach here. Superuser is global; Director and
+    /// SuperDirector are scoped to their own job — the named registration MUST belong to it (the
+    /// job check IS the fix for the prior any-admin/any-file IDOR). A missing registration and a
+    /// wrong-job registration are indistinguishable (both unauthorized), so nothing leaks whether a
+    /// registration exists in another job.
+    /// </summary>
+    private async Task<(bool Authorized, string? PlayerUserId)> ResolveRegistrationAccessAsync(
+        Guid registrationId, CancellationToken ct)
+    {
+        var role = User.FindFirst(ClaimTypes.Role)?.Value;
+        if (role is not (RoleConstants.Director
+                      or RoleConstants.SuperDirector
+                      or RoleConstants.Superuser))
+        {
+            return (false, null);
+        }
+
+        var reg = await _registrations.GetRegistrationJobAndUserAsync(registrationId, ct);
+        if (reg is null) return (false, null);
+
+        if (role == RoleConstants.Superuser)
+            return (true, reg.Value.UserId);
+
+        var callerJobId = await User.GetJobIdFromRegistrationAsync(_jobLookup);
+        if (callerJobId is null || callerJobId.Value != reg.Value.JobId)
+            return (false, null);
+
+        return (true, reg.Value.UserId);
     }
 
     private void LogAccess(string action, string playerUserId, bool denied, string? error = null)

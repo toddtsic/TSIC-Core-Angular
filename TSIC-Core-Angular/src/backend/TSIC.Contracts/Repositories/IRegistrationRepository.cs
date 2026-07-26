@@ -278,6 +278,16 @@ public interface IRegistrationRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Lightweight (JobId, UserId) lookup for a single registration. Used to authorize med-form
+    /// access: the registration's JobId is checked against the caller's job before the person's
+    /// file is resolved and streamed. Returns null when the registration does not exist.
+    /// AsNoTracking.
+    /// </summary>
+    Task<(Guid JobId, string? UserId)?> GetRegistrationJobAndUserAsync(
+        Guid registrationId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get roster counts by team ID for a collection of teams.
     /// </summary>
     Task<Dictionary<Guid, int>> GetRosterCountsByTeamAsync(
