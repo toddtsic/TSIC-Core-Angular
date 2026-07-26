@@ -279,10 +279,9 @@ const JOB_TYPE_TOURNAMENT = 2;
       /* ── CAC player tabs (pill chips) ── */
       .player-tabs {
         display: flex;
+        flex-wrap: wrap;
         gap: var(--space-2);
         margin-bottom: var(--space-3);
-        overflow-x: auto;
-        padding-bottom: var(--space-1);
       }
 
       .player-tab {
