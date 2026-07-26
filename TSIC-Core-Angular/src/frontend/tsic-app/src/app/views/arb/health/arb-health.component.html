@@ -132,6 +132,7 @@
                         <th>Status</th>
                         <th class="text-end">Fee Total</th>
                         <th class="text-end">Paid</th>
+                        <th class="text-end">Owes Total</th>
                         <th class="text-end">Owes Now</th>
                         <th>Next Payment</th>
                         <th>Progress</th>
@@ -154,7 +155,12 @@
                             <td>
                                 <div class="fw-medium">{{ r.registrantName }}</div>
                                 @if (r.assignment) {
-                                    <small class="text-muted">{{ r.assignment }}</small>
+                                    <small class="text-muted d-block">{{ r.assignment }}</small>
+                                }
+                                @if (r.familyUsername) {
+                                    <small class="text-muted d-block">
+                                        <i class="bi bi-person-badge me-1"></i>{{ r.familyUsername }}
+                                    </small>
                                 }
                             </td>
                             <td>
@@ -170,6 +176,7 @@
                             </td>
                             <td class="text-end">{{ r.feeTotal | number:'1.2-2' }}</td>
                             <td class="text-end">{{ r.paidTotal | number:'1.2-2' }}</td>
+                            <td class="text-end">{{ r.owedTotal | number:'1.2-2' }}</td>
                             <td class="text-end fw-semibold"
                                 [class.text-danger]="(r.currentlyOwes ?? 0) > 0">
                                 {{ r.currentlyOwes | number:'1.2-2' }}
@@ -186,16 +193,45 @@
                                     <small>{{ r.paymentProgress }}</small>
                                 }
                             </td>
+                            <!-- Contact card — the collections workflow: reach the family from
+                                 the row. Links stopPropagation so clicking an email/phone doesn't
+                                 toggle the row's selection checkbox (PL-056). -->
                             <td>
                                 <div class="contact-info">
                                     @if (r.registrantEmail) {
-                                        <small>{{ r.registrantEmail }}</small>
+                                        <small class="d-block">
+                                            <a [href]="'mailto:' + r.registrantEmail" (click)="$event.stopPropagation()">{{ r.registrantEmail }}</a>
+                                        </small>
                                     }
                                     @if (r.momName) {
-                                        <small class="d-block text-muted">Mom: {{ r.momName }}</small>
+                                        <div class="parent-contact">
+                                            <small class="d-block text-muted">Mom: {{ r.momName }}</small>
+                                            @if (r.momEmail) {
+                                                <small class="d-block">
+                                                    <a [href]="'mailto:' + r.momEmail" (click)="$event.stopPropagation()">{{ r.momEmail }}</a>
+                                                </small>
+                                            }
+                                            @if (r.momPhone) {
+                                                <small class="d-block">
+                                                    <a [href]="'tel:' + r.momPhone" (click)="$event.stopPropagation()">{{ r.momPhone }}</a>
+                                                </small>
+                                            }
+                                        </div>
                                     }
                                     @if (r.dadName) {
-                                        <small class="d-block text-muted">Dad: {{ r.dadName }}</small>
+                                        <div class="parent-contact">
+                                            <small class="d-block text-muted">Dad: {{ r.dadName }}</small>
+                                            @if (r.dadEmail) {
+                                                <small class="d-block">
+                                                    <a [href]="'mailto:' + r.dadEmail" (click)="$event.stopPropagation()">{{ r.dadEmail }}</a>
+                                                </small>
+                                            }
+                                            @if (r.dadPhone) {
+                                                <small class="d-block">
+                                                    <a [href]="'tel:' + r.dadPhone" (click)="$event.stopPropagation()">{{ r.dadPhone }}</a>
+                                                </small>
+                                            }
+                                        </div>
                                     }
                                 </div>
                             </td>
