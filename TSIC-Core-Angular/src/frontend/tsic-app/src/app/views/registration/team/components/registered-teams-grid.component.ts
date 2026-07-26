@@ -63,7 +63,7 @@ import type { RegisteredTeamDto } from '@core/api';
               <span [attr.title]="data.levelOfPlay">{{ formatLop(data.levelOfPlay) }}</span>
             </ng-template>
           </e-column>
-          <e-column field="registrationTs" headerText="Reg Date" width="80" type="date" format="MM/dd/yyyy"
+          <e-column field="registrationTs" headerText="Reg Date" width="70" type="date" format="MM/dd/yyyy"
                     [visible]="showRegDate()"></e-column>
           <e-column field="tenderPaid" headerText="Paid" width="75" textAlign="Right" format="C2"
                     [visible]="showPaid()">
@@ -77,7 +77,7 @@ import type { RegisteredTeamDto } from '@core/api';
                     [visible]="showStructure()"></e-column>
           <e-column field="balanceDue" headerText="Balance Due" width="100" textAlign="Right" format="C2"
                     [visible]="showStructure()"></e-column>
-          <e-column field="depositDue" headerText="Deposit Due" width="75" textAlign="Right" format="C2"
+          <e-column field="depositDue" headerText="Deposit Due" width="65" textAlign="Right" format="C2"
                     [visible]="showDeposit()"></e-column>
           <e-column field="additionalDue" headerText="Balance Due" width="75" textAlign="Right" format="C2"
                     [visible]="showBalance()"></e-column>
@@ -106,7 +106,7 @@ import type { RegisteredTeamDto } from '@core/api';
               }
             </ng-template>
           </e-column>
-          <e-column [field]="procFeeField()" [headerText]="procFeeHeader()" width="75" textAlign="Right" format="C2"
+          <e-column [field]="procFeeField()" [headerText]="procFeeHeader()" width="65" textAlign="Right" format="C2"
                     [visible]="showProcessing()">
             <ng-template #template let-data>
               {{ rowProcFee(data) | currency }}

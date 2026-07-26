@@ -220,22 +220,15 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
               [paymentMethod]="gridMethod()"
               [showProcessing]="showProcessing()"
               [showCcOwed]="true"
-              [showCkOwed]="false"
+              [showCkOwed]="gridMethod() !== 'Check'"
               [showAgeGroup]="false"
               [showTotalFee]="false"
               [showDeposit]="true"
               [showBalance]="showBalanceColumn()"
               [procFeeHeader]="procFeeHeaderLabel()"
               [frozenTeamCol]="true"
-              [teamColWidth]="100"
+              [teamColWidth]="70"
               [gridHeight]="'auto'" />
-            @if (waitlistedTeams().length) {
-              <div class="small text-muted mt-2" role="note">
-                <i class="bi bi-info-circle me-1" aria-hidden="true"></i>Teams marked
-                <span class="badge bg-warning text-dark">WL</span> are waitlisted — they owe
-                nothing unless a roster spot opens, and are not part of the amount due below.
-              </div>
-            }
           </section>
 
           <!-- Discount code -->
@@ -948,11 +941,14 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
         if (full === teams.length) return 'full';
         return 'mixed';
     });
+    /** Badge never reads "Mixed" (PL-052, Ann's decision): when the cart's rows disagree,
+     *  it shows the JOB's phase instead — the site-level fact a rep recognizes. cartPhase
+     *  keeps its 'mixed' state internally to drive the Balance-Due column. */
     readonly phaseBadgeLabel = computed(() => {
         switch (this.cartPhase()) {
             case 'full': return 'Final Balance Due';
-            case 'mixed': return 'Mixed';
-            default: return 'Deposit Only';
+            case 'deposit': return 'Deposit Only';
+            default: return this.state.fullPaymentRequired() ? 'Final Balance Due' : 'Deposit Only';
         }
     });
     /** Show the Balance-Due column whenever ANY row is full-payment (its balance is active);

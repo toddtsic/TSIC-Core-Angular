@@ -617,16 +617,17 @@ export class TeamTeamsStepComponent implements OnInit {
     /**
      * Phase badge label derived PER-ROW from the entered teams' server-resolved
      * fullPaymentRequired — NOT the single job flag, since a club-rep cart can span scopes
-     * that differ in phase. 'Mixed' when the entered teams disagree. Falls back to the job
-     * baseline before any team is entered.
+     * that differ in phase. Never reads "Mixed" (PL-052, Ann's decision): when the entered
+     * teams disagree — and before any team is entered — it shows the job baseline instead.
      */
     readonly phaseBadgeLabel = computed(() => {
+        const jobLabel = this.state.fullPaymentRequired() ? 'Final Balance Due' : 'Deposit Only';
         const teams = this._registeredTeams();
-        if (!teams.length) return this.state.fullPaymentRequired() ? 'Final Balance Due' : 'Deposit Only';
+        if (!teams.length) return jobLabel;
         const full = teams.filter(t => t.fullPaymentRequired).length;
         if (full === 0) return 'Deposit Only';
         if (full === teams.length) return 'Final Balance Due';
-        return 'Mixed';
+        return jobLabel;
     });
 
     readonly loading = signal(true);
