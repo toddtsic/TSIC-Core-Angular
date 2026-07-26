@@ -12,6 +12,12 @@ public interface IAdnApiService
     Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromJobId(Guid jobId);
     Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromCustomerId(Guid customerId);
 
+    // PRODUCTION creds regardless of host environment — bypasses the sandbox gate.
+    // Sanctioned ONLY for READ-ONLY production lookups (e.g. the job-wide ARB status
+    // refresh, whose subscription IDs exist solely on the production account).
+    // NEVER pair with a charging/mutating call off-Production.
+    Task<AdnCredentialsViewModel> GetJobAdnProductionCredentials_FromJobId(Guid jobId);
+
     getTransactionDetailsResponse ADN_GetTransactionDetails(
         AuthorizeNet.Environment env,
         string adnLoginId,

@@ -139,9 +139,13 @@ public class ArbDefensiveService : IArbDefensiveService
         if (targets.Count == 0)
             return new ArbRefreshStatusesResultDto { Checked = 0, Updated = 0, Failed = 0 };
 
-        // Env-bound: resolve subscriptions against their create-time account (sandbox off-Production).
-        var env = _adnApi.GetADNEnvironment();
-        var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId);
+        // FORCED PRODUCTION — deliberate exception to the env-bound rule, for this action
+        // precisely: the stored subscription IDs exist only on the production ADN account,
+        // so a sandbox lookup always fails and the refresh would be useless off-Production.
+        // Safe because ARBGetSubscriptionStatus is READ-ONLY at ADN — it cannot charge,
+        // modify, or cancel. Do NOT copy this pattern into any charging/mutating path.
+        var env = AuthorizeNet.Environment.PRODUCTION;
+        var creds = await _adnApi.GetJobAdnProductionCredentials_FromJobId(jobId);
 
         var updates = new Dictionary<Guid, string>();
         var failed = 0;

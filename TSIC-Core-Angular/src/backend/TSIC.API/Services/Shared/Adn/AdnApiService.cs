@@ -50,7 +50,15 @@ public class AdnApiService : IAdnApiService
             return new AdnCredentialsViewModel { AdnLoginId = login, AdnTransactionKey = key };
         }
 
-        // Production: fetch from associated customer; fail fast if missing.
+        return await GetJobAdnProductionCredentials_FromJobId(jobId);
+    }
+
+    // PRODUCTION creds regardless of host environment — bypasses the sandbox gate.
+    // Sanctioned ONLY for READ-ONLY production lookups; never pair with a
+    // charging/mutating call off-Production. See IAdnApiService.
+    public async Task<AdnCredentialsViewModel> GetJobAdnProductionCredentials_FromJobId(Guid jobId)
+    {
+        // Fetch from associated customer; fail fast if missing.
         var creds = await _customerRepo.GetAdnCredentialsByJobIdAsync(jobId);
 
         if (creds == null || string.IsNullOrWhiteSpace(creds.AdnLoginId) || string.IsNullOrWhiteSpace(creds.AdnTransactionKey))
