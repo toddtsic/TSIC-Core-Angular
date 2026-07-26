@@ -188,7 +188,8 @@ export class RegistrationDetailPanelComponent implements OnChanges {
     if (!id) return null;
     return `${environment.staticsUrl}/Headshots-AllRegistrants/${encodeURIComponent(id)}.jpg`;
   });
-  /** Hides the avatar when the file 404s (most registrants have none) — reseeds false per row. */
+  /** Swaps the avatar to the anonymous placeholder when the file 404s (most registrants have
+   *  none) — reseeds false per row so switching registrants retries the image. */
   headshotFailed = linkedSignal({ source: () => this.detail()?.registrationId, computation: () => false });
   onHeadshotError(): void { this.headshotFailed.set(true); }
 

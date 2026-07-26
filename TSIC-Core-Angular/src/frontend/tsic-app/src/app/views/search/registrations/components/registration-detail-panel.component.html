@@ -68,14 +68,18 @@
       @if (activeTab() === 'details') {
         <div class="tab-content">
 
-          <!-- ── Registrant headshot (display-only; public-by-GUID on statics) ── -->
+          <!-- ── Registrant headshot (display-only; public-by-GUID on statics) ──
+               Falls back to an anonymous avatar on 404 — most registrants have no photo
+               yet, so a consistent frame reads better than an empty gap. -->
           @if (headshotUrl(); as hs) {
-            @if (!headshotFailed()) {
-              <div class="headshot-view">
+            <div class="headshot-view">
+              @if (!headshotFailed()) {
                 <img [src]="hs" alt="Registrant headshot" class="headshot-view-img"
                      (error)="onHeadshotError()">
-              </div>
-            }
+              } @else {
+                <i class="bi bi-person-circle headshot-view-placeholder" aria-label="No headshot on file"></i>
+              }
+            </div>
           }
 
           <!-- ── Contact Info (editable + read-only identity) ── -->

@@ -152,6 +152,20 @@
   box-shadow: var(--shadow-sm);
 }
 
+.headshot-view-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 2px dashed var(--border-color);
+  background: var(--neutral-0);
+  color: var(--brand-text-muted);
+  font-size: 5rem;
+  line-height: 1;
+}
+
 .contact-zone {
   padding: var(--space-4);
   border: 1px solid var(--bs-primary);
