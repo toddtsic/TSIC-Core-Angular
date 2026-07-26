@@ -50,9 +50,11 @@ public class ArbDefensiveService : IArbDefensiveService
     private async Task<List<ArbFlaggedRegistrantDto>> GetExpiringCardFlagsAsync(
         Guid jobId, CancellationToken ct)
     {
-        // Env-bound: resolve subscriptions against their create-time account (sandbox off-Production).
-        var env = _adnApi.GetADNEnvironment();
-        var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId);
+        // FORCED PRODUCTION — same read-only exception as RefreshSubscriptionStatusesAsync:
+        // real subscriptions live only on the production account, so the sandbox list is
+        // always empty off-Production. ARBGetSubscriptionList cannot charge/modify/cancel.
+        var env = AuthorizeNet.Environment.PRODUCTION;
+        var creds = await _adnApi.GetJobAdnProductionCredentials_FromJobId(jobId);
 
         var response = _adnApi.ARBGetSubscriptionListRequest(
             env, creds.AdnLoginId!, creds.AdnTransactionKey!,
