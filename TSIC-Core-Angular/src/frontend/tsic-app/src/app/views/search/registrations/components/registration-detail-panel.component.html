@@ -68,6 +68,16 @@
       @if (activeTab() === 'details') {
         <div class="tab-content">
 
+          <!-- ── Registrant headshot (display-only; public-by-GUID on statics) ── -->
+          @if (headshotUrl(); as hs) {
+            @if (!headshotFailed()) {
+              <div class="headshot-view">
+                <img [src]="hs" alt="Registrant headshot" class="headshot-view-img"
+                     (error)="onHeadshotError()">
+              </div>
+            }
+          }
+
           <!-- ── Contact Info (editable + read-only identity) ── -->
           <div class="contact-zone">
             <div class="section-title-row">

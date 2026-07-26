@@ -22,6 +22,7 @@ export type AdultRegistrationRequest = {
     acceptedTos: boolean;
     formValues?: any | null;
     waiverAcceptance?: any | null;
+    headshotBase64?: string | null;
     teamIdsCoaching?: any[] | null;
     usLaxVerificationId?: string | null;
     creditCard?: (null | CreditCardInfo);

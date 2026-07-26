@@ -13,6 +13,7 @@ export type RegistrationDetailDto = {
     lastName: string;
     email: string;
     phone?: string | null;
+    userId?: string | null;
     roleName: string;
     active: boolean;
     teamName?: string | null;

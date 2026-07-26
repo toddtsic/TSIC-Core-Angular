@@ -91,6 +91,14 @@ export class AdultWizardStateService {
     private readonly _acceptedTos = signal(false);
     readonly acceptedTos = this._acceptedTos.asReadonly();
 
+    // ── Headshot (create mode only) ───────────────────────────────
+    // New adults are anonymous at final submit (no token/userId yet), so the picked
+    // photo rides along in the register request as base64; the server writes
+    // {newUserId}.jpg after minting the account. Data-URL stored as-picked; the
+    // server strips the "data:...;base64," prefix.
+    private readonly _headshotBase64 = signal<string | null>(null);
+    readonly headshotBase64 = this._headshotBase64.asReadonly();
+
     // ── Role configuration (loaded from backend) ──────────────────
     private readonly _roleConfig = signal<AdultRoleConfigDto | null>(null);
     private readonly _roleConfigLoading = signal(false);
@@ -335,6 +343,9 @@ export class AdultWizardStateService {
     setState(v: string): void { this._state.set(v); }
     setPostalCode(v: string): void { this._postalCode.set(v); }
     setAcceptedTos(v: boolean): void { this._acceptedTos.set(v); }
+
+    /** Deferred create-mode headshot: store the picked photo as a base64 data URL (null to clear). */
+    setHeadshotBase64(v: string | null): void { this._headshotBase64.set(v); }
 
     setFieldValue(fieldName: string, value: FormFieldValue): void {
         this._formValues.set({ ...this._formValues(), [fieldName]: value });
@@ -694,6 +705,7 @@ export class AdultWizardStateService {
             waiverAcceptance: this._waiverAcceptance(),
             teamIdsCoaching: this._teamIdsCoaching(),
             usLaxVerificationId: this.confirmedUsLaxVerificationId(),
+            headshotBase64: this._headshotBase64() ?? undefined,
         } as unknown as never;
     }
 
@@ -794,6 +806,7 @@ export class AdultWizardStateService {
         this._state.set('');
         this._postalCode.set('');
         this._acceptedTos.set(false);
+        this._headshotBase64.set(null);
         this._roleConfig.set(null);
         this._roleConfigLoading.set(false);
         this._roleConfigError.set(null);

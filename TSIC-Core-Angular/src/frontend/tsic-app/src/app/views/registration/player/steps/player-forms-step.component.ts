@@ -8,6 +8,7 @@ import { TeamService } from '@views/registration/player/services/team.service';
 import { UsLaxValidationService } from '@infrastructure/services/uslax-validation.service';
 import { colorClassForIndex } from '@views/registration/shared/utils/color-class.util';
 import { MedFormUploadComponent } from '../components/medform-upload.component';
+import { HeadshotUploadComponent } from '@views/registration/shared/components/headshot-upload.component';
 import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/player-wizard.types';
 
 // PP20 canonical recruiting field order (lowercase schema name).
@@ -29,7 +30,7 @@ type FieldGroup = { kind: 'plain' | 'recruiting'; fields: PlayerProfileFieldSche
 @Component({
     selector: 'app-prw-player-forms-step',
     standalone: true,
-    imports: [FormsModule, NgTemplateOutlet, MedFormUploadComponent],
+    imports: [FormsModule, NgTemplateOutlet, MedFormUploadComponent, HeadshotUploadComponent],
     template: `
     <!-- Centered hero -->
     <div class="welcome-hero">
@@ -98,6 +99,15 @@ type FieldGroup = { kind: 'plain' | 'recruiting'; fields: PlayerProfileFieldSche
                     </div>
                   }
                 }
+              </div>
+
+              <!-- Headshot (fixed form question — offered for every player) -->
+              <div class="headshot-block">
+                <div class="headshot-block-label">
+                  <i class="bi bi-camera me-1"></i>Player Photo
+                  <span class="headshot-block-optional">(optional)</span>
+                </div>
+                <app-headshot-upload [userId]="pid"></app-headshot-upload>
               </div>
 
               <!-- Dynamic form fields -->
@@ -320,6 +330,26 @@ type FieldGroup = { kind: 'plain' | 'recruiting'; fields: PlayerProfileFieldSche
         flex-wrap: wrap;
         gap: var(--space-1);
         padding-left: calc(var(--font-size-base) + var(--space-2));
+      }
+
+      .headshot-block {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        padding: var(--space-3);
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .headshot-block-label {
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text);
+      }
+
+      .headshot-block-optional {
+        font-weight: var(--font-weight-regular);
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
       }
 
       .events-summary {

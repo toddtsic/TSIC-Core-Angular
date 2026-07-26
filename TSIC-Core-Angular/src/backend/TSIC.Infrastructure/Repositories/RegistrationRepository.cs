@@ -2367,6 +2367,7 @@ public class RegistrationRepository : IRegistrationRepository
             LastName = reg.User?.LastName ?? "",
             Email = reg.User?.Email ?? "",
             Phone = reg.User?.Cellphone.FormatPhone(),
+            UserId = reg.UserId,
             RoleName = reg.Role?.Name ?? "",
             Active = reg.BActive ?? false,
             TeamName = reg.AssignedTeam?.TeamName,

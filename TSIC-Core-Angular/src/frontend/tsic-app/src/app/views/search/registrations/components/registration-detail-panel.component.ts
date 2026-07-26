@@ -181,6 +181,17 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   /** Player registered under a family account → show the combined family-accounting view. */
   isFamilyPlayer = computed(() => this.isPlayerRole() && !!this.detail()?.familyUserId);
 
+  /** Public statics URL of the registrant's headshot (display-only; public-by-GUID). Null when the
+   *  registrant has no identity userId. Cache-bust by registrationId so switching rows re-fetches. */
+  readonly headshotUrl = computed(() => {
+    const id = this.detail()?.userId;
+    if (!id) return null;
+    return `${environment.staticsUrl}/Headshots-AllRegistrants/${encodeURIComponent(id)}.jpg`;
+  });
+  /** Hides the avatar when the file 404s (most registrants have none) — reseeds false per row. */
+  headshotFailed = linkedSignal({ source: () => this.detail()?.registrationId, computation: () => false });
+  onHeadshotError(): void { this.headshotFailed.set(true); }
+
   // Editable profile fields (excludes team selection, reorders for lacrosse)
   editableProfileFields = computed(() => {
     let fields = this.metadataFields().filter(f => !PROFILE_EXCLUDED_KEYS.has(f.key.toLowerCase()));

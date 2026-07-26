@@ -36,6 +36,7 @@ public class AdultRegistrationService : IAdultRegistrationService
     private readonly IUsLaxService _usLax;
     private readonly IUsLaxIdentityVerificationService _usLaxVerify;
     private readonly IJobPaymentFeaturesService _paymentFeatures;
+    private readonly IHeadshotService _headshots;
     private readonly ILogger<AdultRegistrationService> _logger;
 
     private static readonly Guid CreditCardPaymentMethodId =
@@ -56,6 +57,7 @@ public class AdultRegistrationService : IAdultRegistrationService
         IUsLaxService usLax,
         IUsLaxIdentityVerificationService usLaxVerify,
         IJobPaymentFeaturesService paymentFeatures,
+        IHeadshotService headshots,
         ILogger<AdultRegistrationService> logger)
     {
         _repo = repo;
@@ -72,7 +74,38 @@ public class AdultRegistrationService : IAdultRegistrationService
         _usLax = usLax;
         _usLaxVerify = usLaxVerify;
         _paymentFeatures = paymentFeatures;
+        _headshots = headshots;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Store the optional create-form headshot for a freshly created adult. Non-fatal by design:
+    /// a bad/oversized/undecodable image is logged and skipped so it can never block registration.
+    /// Tolerates a data-URL prefix (data:image/...;base64,). This runs at the ONLY point in the
+    /// anonymous create flow where the new adult's userId exists.
+    /// </summary>
+    private async Task TryStoreHeadshotAsync(string userId, string? base64, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(base64)) return;
+        try
+        {
+            var payload = base64;
+            if (payload.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+            {
+                var comma = payload.IndexOf(',');
+                if (comma >= 0) payload = payload[(comma + 1)..];
+            }
+
+            var bytes = Convert.FromBase64String(payload);
+            await using var ms = new MemoryStream(bytes);
+            var result = await _headshots.UploadAsync(userId, ms, bytes.Length, ct);
+            if (result.Status != HeadshotUploadStatus.Ok)
+                _logger.LogInformation("Headshot not stored for new adult {UserId}: {Status}.", userId, result.Status);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Failed to store headshot for new adult {UserId}.", userId);
+        }
     }
 
     /// <summary>
@@ -254,6 +287,10 @@ public class AdultRegistrationService : IAdultRegistrationService
 
         // Single SaveChanges: inserts all registrations with fees stamped.
         await _repo.SaveChangesAsync(cancellationToken);
+
+        // Store the optional headshot now that the account exists — this is the only point in the
+        // create flow where the new adult's userId is known (they remain anonymous afterward).
+        await TryStoreHeadshotAsync(user.Id, request.HeadshotBase64, cancellationToken);
 
         var primary = registrations[0];
         var owedSum = registrations.Sum(r => r.OwedTotal);

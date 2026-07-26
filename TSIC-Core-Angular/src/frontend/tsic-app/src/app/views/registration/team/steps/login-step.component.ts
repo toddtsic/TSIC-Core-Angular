@@ -9,6 +9,7 @@ import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { LoginComponent } from '@views/auth/login/login.component';
 import { ClubRepRegisterFormComponent } from './club-rep-register-form.component';
+import { HeadshotUploadComponent } from '@views/registration/shared/components/headshot-upload.component';
 import { PhonePipe } from '@infrastructure/pipes/phone.pipe';
 import type { ClubRepClubDto, ClubRepProfileDto } from '@core/api';
 
@@ -29,7 +30,7 @@ type LoginView = 'sign-in' | 'create' | 'account-summary';
 @Component({
     selector: 'app-trw-login-step',
     standalone: true,
-    imports: [FormsModule, LoginComponent, ClubRepRegisterFormComponent, PhonePipe],
+    imports: [FormsModule, LoginComponent, ClubRepRegisterFormComponent, HeadshotUploadComponent, PhonePipe],
     styles: [`
       :host { display: block; }
 
@@ -160,6 +161,22 @@ type LoginView = 'sign-in' | 'create' | 'account-summary';
         margin-top: var(--space-3);
         padding-top: var(--space-3);
         border-top: 1px solid var(--border-color);
+      }
+
+      /* Headshot form-question block on the rep review card */
+      .headshot-block {
+        margin-top: var(--space-3);
+        padding-top: var(--space-3);
+        border-top: 1px solid var(--border-color);
+      }
+      .headshot-block-label {
+        display: block;
+        margin-bottom: var(--space-2);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
       }
 
       /* "Edit" affordance — quiet, text-button style */
@@ -360,6 +377,12 @@ type LoginView = 'sign-in' | 'create' | 'account-summary';
                     <div><dt>Address</dt><dd>{{ p.streetAddress }}, {{ p.city }} {{ p.state }} {{ p.postalCode }}</dd></div>
                   </dl>
                 }
+                @if (repUserId(); as uid) {
+                  <div class="headshot-block">
+                    <span class="headshot-block-label">Your Photo <span class="text-muted">(optional)</span></span>
+                    <app-headshot-upload [userId]="uid" />
+                  </div>
+                }
                 <div class="readout-actions">
                   <button type="button" class="inline-edit-btn" (click)="startEditProfile()">
                     <i class="bi bi-pencil me-1"></i>Edit Profile
@@ -412,6 +435,9 @@ export class TeamLoginStepComponent implements OnInit {
 
     /** Club this rep is registering — shown on the review screen for confirmation. */
     readonly registeringClub = this.state.clubRep.selectedClub;
+
+    /** Authenticated rep's userId — drives the (immediate-mode) headshot control on the review card. */
+    readonly repUserId = computed(() => this.auth.currentUser()?.userId ?? null);
 
     // Review is read-first: these flip an individual card into its inline edit form,
     // in place, without ever leaving the "Club & Rep Info" screen. A returning rep

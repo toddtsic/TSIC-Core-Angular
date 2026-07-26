@@ -16,6 +16,11 @@ public record RegistrationDetailDto
     public required string Email { get; init; }
     public string? Phone { get; init; }
 
+    // Registrant identity userId (AspNetUsers Id). Keys the public headshot on statics
+    // ({userId}.jpg in Headshots-AllRegistrants) — used by the fly-in Details tab for display.
+    // Distinct from FamilyUserId, which is the login account for player registrations.
+    public string? UserId { get; init; }
+
     // Context
     public required string RoleName { get; init; }
     public required bool Active { get; init; }

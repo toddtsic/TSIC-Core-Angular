@@ -21,6 +21,15 @@ public class FileStorageOptions
     public required string MedFormsPath { get; init; }
 
     /// <summary>
+    /// Physical path to the registrant headshots directory served by
+    /// statics.teamsportsinfo.com. A fresh folder (not the legacy
+    /// Headshots-Unify) so the legacy store can be dropped at go-live.
+    /// Files are named {userId}.jpg — global to the person, keyed by
+    /// identity userId, one JPEG per registrant.
+    /// </summary>
+    public required string HeadshotsPath { get; init; }
+
+    /// <summary>
     /// Where the ADN month-end close artifacts (bundle.zip + ledger.json + meta.json) are persisted so
     /// the sprocs run once per pull, not once per wizard step. A relative value is resolved against the
     /// app's ContentRoot; unset defaults to <c>{ContentRoot}/App_Data/AdnMonthEnd</c>. This location is

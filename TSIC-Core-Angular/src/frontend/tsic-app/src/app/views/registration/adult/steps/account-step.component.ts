@@ -1,10 +1,11 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, OnInit, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { LoginComponent } from '@views/auth/login/login.component';
 import { TosAcceptanceStepComponent } from '../../shared/components/tos-acceptance-step.component';
+import { HeadshotUploadComponent } from '@views/registration/shared/components/headshot-upload.component';
 import { AdultWizardStateService } from '../state/adult-wizard-state.service';
 
 const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
@@ -48,7 +49,7 @@ const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
 @Component({
     selector: 'app-adult-account-step',
     standalone: true,
-    imports: [FormsModule, LoginComponent, TosAcceptanceStepComponent],
+    imports: [FormsModule, LoginComponent, TosAcceptanceStepComponent, HeadshotUploadComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <div class="card shadow border-0 card-rounded">
@@ -203,6 +204,13 @@ const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
                             }
                         </div>
 
+                        @if (selfUserId(); as uid) {
+                            <div class="headshot-block">
+                                <span class="headshot-block-label">Your Photo <span class="text-muted">(optional)</span></span>
+                                <app-headshot-upload [userId]="uid" />
+                            </div>
+                        }
+
                         <button type="button" class="btn btn-outline-primary w-100 fw-semibold mt-3"
                             (click)="accountView.set('edit')">
                             <i class="bi bi-pencil me-2"></i>Edit Your Info
@@ -307,6 +315,9 @@ const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
                                     }
                                 </div>
                             </div>
+
+                            <h6 class="section-header">Photo <span class="text-muted text-lowercase fw-normal">(optional)</span></h6>
+                            <app-headshot-upload (fileSelected)="onHeadshotPicked($event)" />
 
                             <h6 class="section-header">Email</h6>
                             <div class="row g-3">
@@ -532,6 +543,22 @@ const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
             padding-top: var(--space-2);
         }
 
+        /* Headshot form-question block on the authenticated account summary */
+        .headshot-block {
+            margin-top: var(--space-3);
+            padding-top: var(--space-3);
+            border-top: 1px solid var(--border-color);
+        }
+        .headshot-block-label {
+            display: block;
+            margin-bottom: var(--space-2);
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-semibold);
+            color: var(--brand-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
         .section-header {
             font-size: var(--font-size-sm);
             font-weight: var(--font-weight-semibold);
@@ -564,6 +591,9 @@ export class AccountStepComponent implements OnInit {
     readonly states = US_STATES;
     readonly showPassword = signal(false);
     readonly showConfirm = signal(false);
+
+    /** Authenticated adult's userId — drives the (immediate-mode) headshot control on the summary. */
+    readonly selfUserId = computed(() => this.auth.currentUser()?.userId ?? null);
 
     ngOnInit(): void {
         // Clear any stale create-form credentials (e.g. browser autofill, or values
@@ -645,6 +675,23 @@ export class AccountStepComponent implements OnInit {
     /** Summary "Continue" — proceed to the job-specific Profile step. */
     onContinueFromSummary(): void {
         this.autoAdvance.emit();
+    }
+
+    /**
+     * Deferred create-mode headshot: a new adult is anonymous until the account is minted at
+     * final submit, so we can't upload now. Convert the picked file to a base64 data URL and stash
+     * it on wizard state; buildCreateRequest() carries it in the register request and the server
+     * writes {newUserId}.jpg after creating the account. Null clears a prior pick.
+     */
+    onHeadshotPicked(file: File | null): void {
+        if (!file) {
+            this.state.setHeadshotBase64(null);
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => this.state.setHeadshotBase64(typeof reader.result === 'string' ? reader.result : null);
+        reader.onerror = () => this.state.setHeadshotBase64(null);
+        reader.readAsDataURL(file);
     }
 
     /** Persist edits, toast, and return to the summary. */

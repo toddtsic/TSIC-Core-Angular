@@ -97,6 +97,13 @@ public record AdultRegistrationRequest
     public Dictionary<string, JsonElement>? FormValues { get; init; }
     public Dictionary<string, bool>? WaiverAcceptance { get; init; }
 
+    // Optional self-service headshot the registrant picked on the create-account form,
+    // base64-encoded image bytes (a data: URL prefix is tolerated). Written as {newUserId}.jpg
+    // AFTER the account is created — the only point in this anonymous create flow where the new
+    // adult's userId exists. Decoded, validated, and downscaled by HeadshotService; any problem is
+    // logged and skipped so it never blocks registration.
+    public string? HeadshotBase64 { get; init; }
+
     // Coach-only: teams they want to coach (first is primary → AssignedTeamId)
     public List<Guid>? TeamIdsCoaching { get; init; }
 

@@ -65,7 +65,7 @@ if (-not (Test-Path $Config.StaticsPath)) {
     Write-Host "  Created: $($Config.StaticsPath)" -ForegroundColor Green
 }
 
-foreach ($subdir in @('BannerFiles', 'RegFileUploads')) {
+foreach ($subdir in @('BannerFiles', 'RegFileUploads', 'Headshots-AllRegistrants')) {
     $subdirPath = Join-Path $Config.StaticsPath $subdir
     if (-not (Test-Path $subdirPath)) {
         New-Item -ItemType Directory -Path $subdirPath -Force | Out-Null
