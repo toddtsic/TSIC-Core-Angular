@@ -319,11 +319,13 @@ public class JobsController : ControllerBase
             }
         }
 
-        // Vary by Authorization + no-cache: the body varies by auth (the My* fields)
-        // and by live config, so a "closed" pulse must never be cached and replayed
-        // — that stale-snapshot replay is what produced the intermittent
-        // "registration not currently open" toast on a fully-open job (PL-009).
-        Response.Headers.Append("Cache-Control", "private, no-cache");
+        // no-store: the body varies by auth (the My* fields) and by live config, so a
+        // "closed" pulse must never be stored and replayed — that stale-snapshot replay
+        // is what produced the intermittent "registration not currently open" toast on
+        // a fully-open job (PL-009/PL-053). no-cache alone proved insufficient: entries
+        // stored before it shipped were reused under heuristic freshness without ever
+        // revalidating, so the browser never saw the corrected header.
+        Response.Headers.Append("Cache-Control", "private, no-store, no-cache");
         Response.Headers.Append("Vary", "Authorization");
 
         return Ok(pulse);

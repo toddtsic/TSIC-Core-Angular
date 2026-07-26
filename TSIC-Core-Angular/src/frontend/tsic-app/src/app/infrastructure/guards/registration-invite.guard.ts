@@ -45,11 +45,16 @@ export function createRegistrationInviteGuard(config: InviteGuardConfig): CanAct
         }
         jobPath = jobPath || 'tsic';
 
-        // Fetch job pulse — anonymous, always works
+        // Fetch job pulse — anonymous, always works. The _ts param makes each URL
+        // unique so the browser can never satisfy this GET from a stored copy — a
+        // stale "closed" pulse replayed from the HTTP cache wrongly bounced real
+        // registrants off an open job (PL-053).
         let pulse: Record<string, unknown>;
         try {
             pulse = await firstValueFrom(
-                http.get<Record<string, unknown>>(`${environment.apiUrl}/jobs/${jobPath}/pulse`)
+                http.get<Record<string, unknown>>(`${environment.apiUrl}/jobs/${jobPath}/pulse`, {
+                    params: { _ts: Date.now() }
+                })
             );
         } catch {
             return true; // Pulse unavailable — wizard will show its own error
@@ -170,7 +175,10 @@ export const adultRegistrationGuard: CanActivateFn = async (route, state) => {
     let pulse: Record<string, unknown>;
     try {
         pulse = await firstValueFrom(
-            http.get<Record<string, unknown>>(`${environment.apiUrl}/jobs/${jobPath}/pulse`)
+            // _ts cache-bust — same stale-pulse protection as the player/team guard (PL-053)
+            http.get<Record<string, unknown>>(`${environment.apiUrl}/jobs/${jobPath}/pulse`, {
+                params: { _ts: Date.now() }
+            })
         );
     } catch {
         return true; // Pulse unavailable — wizard will show its own error
