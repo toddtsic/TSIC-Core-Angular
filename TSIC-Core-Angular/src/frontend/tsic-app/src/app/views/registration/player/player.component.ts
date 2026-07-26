@@ -355,10 +355,12 @@ export class PlayerWizardV2Component implements OnInit {
                         return team ? `${name} (${team})` : name;
                     });
                     const verb = resp.movedToWaitlist.length === 1 ? 'is' : 'are';
+                    // No timeout: warning default is sticky-until-closed (PL-051) — "your child
+                    // wasn't seated" must be acknowledged, not raced against a timer.
                     this.toast.show(
-                        `${parts.join(', ')} ${verb} now on the waitlist — that team just filled up. `
+                        `${parts.join(', ')} ${verb} now on the WAITLIST — that team just filled up. `
                         + `Registration is complete at no charge; we'll notify you if a spot opens.`,
-                        'warning', 10000,
+                        'warning',
                     );
                 }
             } catch (err: unknown) {
