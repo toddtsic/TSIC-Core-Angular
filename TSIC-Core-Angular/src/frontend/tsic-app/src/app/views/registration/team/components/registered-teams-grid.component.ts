@@ -26,7 +26,7 @@ import type { RegisteredTeamDto } from '@core/api';
                 cssClass="tsic-grid-compact">
         <e-columns>
           <!-- Row number (unbound — stamped via refreshRowNumbers, survives sort) -->
-          <e-column headerText="" width="40" textAlign="Center" [allowSorting]="false"
+          <e-column headerText="" width="30" textAlign="Center" [allowSorting]="false"
                     [isFrozen]="frozenTeamCol()"
                     [customAttributes]="{ class: 'row-number-cell' }"></e-column>
           <e-column field="teamName" [headerText]="teamColHeader()" [width]="teamColWidth()"
@@ -77,7 +77,7 @@ import type { RegisteredTeamDto } from '@core/api';
                     [visible]="showStructure()"></e-column>
           <e-column field="balanceDue" headerText="Balance Due" width="100" textAlign="Right" format="C2"
                     [visible]="showStructure()"></e-column>
-          <e-column field="depositDue" headerText="Deposit Due" width="70" textAlign="Right" format="C2"
+          <e-column field="depositDue" headerText="Deposit Due" width="75" textAlign="Right" format="C2"
                     [visible]="showDeposit()"></e-column>
           <e-column field="additionalDue" headerText="Balance Due" width="75" textAlign="Right" format="C2"
                     [visible]="showBalance()"></e-column>
@@ -106,7 +106,7 @@ import type { RegisteredTeamDto } from '@core/api';
               }
             </ng-template>
           </e-column>
-          <e-column [field]="procFeeField()" [headerText]="procFeeHeader()" width="70" textAlign="Right" format="C2"
+          <e-column [field]="procFeeField()" [headerText]="procFeeHeader()" width="75" textAlign="Right" format="C2"
                     [visible]="showProcessing()">
             <ng-template #template let-data>
               {{ rowProcFee(data) | currency }}
