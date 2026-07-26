@@ -1,5 +1,7 @@
 # Cross-Category Triage — Open Items (excluding Accounting & ConfigureMenus)
 
+> **<span style="color:red">🔴 CLOSED</span>** — superseded by the 2026-07-26 consolidation sweep. Every item here was a roll-up of JobClone / LADT / PlayerRegistration entries now dispositioned in their own (CLOSED) source docs, and the JobClone items were carried forward to the Admin-Menus punchlist (AM-015). No unique content remains. Superseded by the active Payment-Test and Admin-Menus punchlists.
+
 **Regenerated for Ann's review-with-Todd session, as of 2026-07-08.** 12 Open items across 3 categories.
 Accounting (16) and ConfigureMenus (36) are triaged separately in their own `triage-open-by-severity.md` files.
 **Now fully closed (0 open):** TeamRegistration, Communications, SearchTeams, SearchRegistrations.

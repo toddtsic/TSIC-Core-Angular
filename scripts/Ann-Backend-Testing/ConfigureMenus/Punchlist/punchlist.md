@@ -1,8 +1,10 @@
 # Configure Menus - Punch List
 
+> **<span style="color:red">🔴 CLOSED</span>** — all items resolved, deferred-closed, or carried forward to the Admin-Menus punchlist (AM-002 … AM-014). Superseded by the active Payment-Test and Admin-Menus punchlists.
+
 **Tester:** Ann
 **Date Started:** 2026-04-09
-**Status:** In Progress
+**Status:** CLOSED
 
 ---
 
@@ -67,7 +69,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: A Save action that stays visible so it isn't missed after editing
 - **What happened**: The Save button is only in the bottom Right. Add one to the upper Right too so it isn't forgotten — applies to Payment and probably the other tabs as well.
 - **Severity**: UX
-- **Status**: Deferred — Todd design call (scope across all tabs + duplicate top/bottom vs sticky Save).
+- **Status**: Moved → Admin-Menus-Punchlist (folded into AM-009 item 3, under the Payment section)
 
 ### PL-070: Configure / Payment — checking "Team Full Payment Required" throws exception; Save spins forever
 - **Refs**: Recent commit `dc6d5f80` feat(job-config): gate Full-Payment-Required + ARB-Trial when ARB owns the schedule
@@ -114,7 +116,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Two subsections (TSIC-Events and TSIC-Teams), each with its own Enabled master toggle, with related per-feature toggles grouped under one or the other (or shared)
 - **What happened**: All seven Director-visible Mobile fields render in one undifferentiated block, making it unclear which toggles affect which app
 - **Severity**: UX
-- **Status**: Open — Todd discussion needed for the field-to-subsection mapping
+- **Status**: Moved → Admin-Menus-Punchlist (AM-014)
 - **Note**: Current Director-visible Mobile fields:
   - `tsicEventsEnabled` (inverse of `bSuspendPublic`) — TSIC-Events master enable
   - `bEnableTsicteams` — TSIC-Teams master enable
@@ -143,7 +145,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Move to Mobile to match Legacy
 - **What happened**: Confirmed `BTeamPushDirectors` is **vestigial** in the new codebase (no push-notification consumer). Push infrastructure exists (FirebaseMessaging, FcmToken in `TSIC.API/Program.cs` and `AspNetUsers` entity) but doesn't read this flag. So "move to Mobile" only makes sense if the underlying feature is restored.
 - **Severity**: Question (feature scope) + Cleanup
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Three paths:
   - **A. Remove entirely** (PL-061's current recommendation) — honest about reality; toggle does nothing today; UI/DTO/service strip, keep DB column.
   - **B. Restore + move to Mobile** — reimplement the push-notification logic in `TeamRegistrationService` (fire a Firebase push to job Directors when a team registers), then move the toggle to the Mobile tab where Director-facing push controls belong. Legacy parity at the cost of new code; needs Director FCM-token capture confirmed.
@@ -181,7 +183,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Confirmation that both roles are active (or removable as Legacy artifacts)
 - **What happened**: Both are **active registration types** with per-role fallback in the runtime — but it's worth deciding whether TSIC still onboards customers using them
 - **Severity**: Question
-- **Status**: Open — Todd discussion
+- **Status**: Deferred — closed (Todd working on it)
 - **Note**: Findings:
   - **Referee Confirmations** section at [coaches-tab.component.html:74](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/coaches-tab.component.html#L74): Confirmation Email + On-Screen RTE editors backed by `refereeRegConfirmationEmail` / `refereeRegConfirmationOnScreen`.
   - **Recruiter Confirmations** section at [coaches-tab.component.html:100](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/coaches-tab.component.html#L100): same shape, backed by `recruiterRegConfirmationEmail` / `recruiterRegConfirmationOnScreen`.
@@ -225,7 +227,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Answer + recommendation on per-role confirmation text vs. shared
 - **What happened**: Confirmed Team Registration uses `AdultRegConfirmationEmail` + `AdultRegConfirmationOnScreen` — the **same templates** edited on the Coaches tab. Not hardcoded; not duplicated; shared with Coaches via the Adult flow.
 - **Severity**: Question
-- **Status**: Open — Todd discussion
+- **Status**: Moved → Admin-Menus-Punchlist (AM-011)
 - **Note**: Architecture today:
   - **Schema**: only one set of Adult confirmation fields exists — `AdultRegConfirmationEmail` and `AdultRegConfirmationOnScreen` on the Jobs entity, edited on the Coaches tab.
   - **Send pathway**: `TeamRegistrationService.SendClubRepConfirmationEmailAsync` (line 1408) reads `AdultRegConfirmationEmail`. The on-screen confirmation similarly reads `AdultRegConfirmationOnScreen`.
@@ -295,7 +297,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Each role-gating checkbox to live with its role's settings (Player tab and Coaches tab), with clear language explaining what each toggle allows
 - **What happened**: Both currently live on the Teams tab ([teams-tab.component.html:98-113](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/teams-tab.component.html#L98-L113)) under "Roster Visibility", with one-word labels ("Adult" / "Player") and no help text
 - **Severity**: UX
-- **Status**: Open — Todd discussion needed
+- **Status**: Moved → Admin-Menus-Punchlist (AM-013)
 - **Note**: Two-part change:
   1. **Move per role**:
     - `bAllowRosterViewPlayer` → Player tab (next to other player-facing settings)
@@ -318,7 +320,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Body and headings in the same text box to render at consistent text size
 - **What happened**: Migrated content has heading tags baked in; new RTE toolbar already prevents new heading additions, but existing data renders oversized
 - **Severity**: UX / Data cleanup
-- **Status**: Open
+- **Status**: Moved → Admin-Menus-Punchlist (AM-012)
 - **Note**:
   - **Toolbar status (good news)**: [rte-config.ts:2-9](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/shared/rte-config.ts#L2-L9) already restricts to Bold/Italic/Underline/FontColor/BG/Lists/Link — no heading dropdown, no font-size picker. Future content stays clean automatically. Issue is only legacy migrated rows.
   - **Affected fields** (10 RTE editors per job × all jobs):
@@ -405,7 +407,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
   - **`client-banner`** ([widgets/layout/client-banner/](TSIC-Core-Angular/src/frontend/tsic-app/src/app/widgets/layout/client-banner/)) — registered as a widget; renders on the public-facing site and on the Public View tab (when logged in) **only if a job's widget config places it**. Now uses `aspect-ratio: 50 / 11`, no height cap.
   - **`dashboard-hero`** (inline in [widget-dashboard.component.html:40-59](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/home/widget-dashboard/widget-dashboard.component.html#L40-L59)) — renders on the Director/SuperUser View tab; height driven by content + padding (~200-260px tall), image as `position: absolute` background with a dark gradient overlay for text readability. Explicitly **skips the client-banner widget** when in admin view (per [line 89](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/home/widget-dashboard/widget-dashboard.component.html#L89) comment "Skip client-banner (hero already renders it)").
 - **Severity**: Question (architecture)
-- **Status**: Open
+- **Status**: Won't Fix
 - **Note**: Decision needed with Todd — three reasonable shapes:
   - **A. Keep them distinct** — admin view needs vertical density to surface dashboard content; public site benefits from a tall image-driven hero. Both are correct for their context. Document the split so future Branding work doesn't fight it.
   - **B. Standardize on the new aspect-ratio** — apply `aspect-ratio: 50 / 11` (or whatever TSIC's banner spec lands at) to `dashboard-hero` too. Pros: visual consistency, single banner spec for SuperUsers to design against. Cons: admin view loses screen real estate to a taller banner.
@@ -420,7 +422,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Every label linked to its input either via `<label for="x">` + `<input id="x">` or by wrapping the input inside the label
 - **What happened**: Pre-existing issue across the Configure surface — the shared `field-label` pattern renders labels as free-standing text with no association to the nearby input. Screen readers can't announce the label when the input gains focus; clicking the label doesn't focus the input.
 - **Severity**: Accessibility (WCAG 1.3.1 / 3.3.2) / pre-existing
-- **Status**: Open
+- **Status**: Deferred — closed
 - **Note**: Not caused by PL-050's edits — PL-050 just shifted line numbers so the linter re-reported them. The pattern affects six labels on the Comms tab alone and almost certainly every other tab in Job Configuration (General, Player, Teams, Coaches, Payment, Scheduling, Branding, Mobile & Store) plus any other `.field-label` usage across the app.
   - **Fix shape** — for each label/input pair:
     1. Add `id="<fieldName>"` to the input (most don't have one today).
@@ -465,7 +467,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Label that clearly states both the action (turn off) and the recipients (Player & Staff) and the scope (tournaments)
 - **What happened**: Current label read "Disallow CC Player Confirmations" ([communications-tab.component.html:50](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/communications-tab.component.html#L50)) — said nothing about BCCs, nothing about Staff, nothing about tournaments
 - **Severity**: UX
-- **Status**: Fixed (label); follow-up flagged below for visibility gate
+- **Status**: Moved → Admin-Menus-Punchlist (AM-010) — label rename shipped; the not-gated visibility issue carried forward
 - **Note**:
   - **Label rename** — updated to "TURN OFF Player & Staff Confirmations (CC & BCC) for tournaments" on 2026-04-24. Backing field stays `bDisallowCcplayerConfirmations` — no DB/DTO/service change.
   - **Visibility gate (still Open)** — new label says "for tournaments." If the setting only applies to tournament jobs, wrap the checkbox in `@if (jobTypeId === JobTypeTournament)` so it doesn't render on player/league/other sites. **Verify first**: does the backend actually gate the CC/BCC suppression on job type, or does it apply to any job with the flag set? If the latter, either tighten backend behavior to match the label, or drop "for tournaments" from the label. Open question for Todd.
@@ -508,7 +510,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Clear per-field semantics, consistent gating on payment method (CC Only vs CC or Check vs Check Only), verified downstream rendering in confirmations, and Director-facing help copy
 - **What happened**: Current behavior is underspecified and at least one gap looks like a bug
 - **Severity**: UX / Bug
-- **Status**: Open — needs joint review with Todd
+- **Status**: Moved → Admin-Menus-Punchlist (AM-009, item 2)
 - **Note**: Findings from walkthrough on 2026-04-24:
   - **Balance Due %** (`Balancedueaspercent`): percent-as-string on `Jobs` ([Jobs.cs:30](TSIC-Core-Angular/src/backend/TSIC.Domain/Entities/Jobs.cs#L30)). Influences team fee calculation (`PaymentFeeRecalcTests`). Semantically, the portion collected as deposit at registration — remainder becomes the balance. **Only meaningful when `bTeamsFullPaymentRequired = false`**. Odd storage type (string vs decimal) worth questioning separately.
   - **Mail-in Payment Warning** (`MailinPaymentWarning`): free-text rendered as `alert-warning` banner on the team payment step ([payment-step.component.ts:174-177](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/team/steps/payment-step.component.ts#L174-L177)) and wired into player payment state ([payment-v2.service.ts:150](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/state/payment-v2.service.ts#L150)). **Rendered unconditionally today** — no guard for Allowed Methods. If the job is CC Only, the warning still shows when it shouldn't.
@@ -526,7 +528,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Refund policy editing under the Payment header, with job-type-aware visibility — Player Refund Policy for player sites; Club Rep / Team Refund Policy for tournament sites; both for league sites
 - **What happened**: Today refund policies live on two separate tabs away from Payment — `PlayerRegRefundPolicy` on the Player tab, `AdultRegRefundPolicy` on the Coaches tab ([coaches-tab.component.html:41-48](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/coaches-tab.component.html#L41-L48))
 - **Severity**: UX
-- **Status**: Open — needs job-type mapping confirmation
+- **Status**: Moved → Admin-Menus-Punchlist (AM-009, item 1)
 - **Note**: Migration plan:
   - **Move** Player Refund Policy editor out of Player tab and Adult/Club Rep Refund Policy editor out of Coaches tab; both land in a new "Refund Policy" fieldset under the Payment tab.
   - **Visibility by `Jobs.JobTypeId`**:
@@ -668,7 +670,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Consistently tight, narrow-workspace presentation across every tab so Directors don't feel the page sprawl
 - **What happened**: Overall density feels loose — same "full-viewport width + Bootstrap h2 default" issues called out elsewhere under Configure. Individual PL items have captured specific points (PL-033 Description height, PL-034 Sport dropdown, PL-035 QBP Name fallback), but the big-picture density is the PL-022 problem at Job Configuration scale.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Defer to PL-022 — when the Nav Editor–style `.configure-page` workspace pattern lands, apply it to every Job Configuration tab (or to the shared `job-config.component` shell so all tabs inherit automatically). Pair with the PL-007 heading-size standard (Customer Groups' 1.5rem/700) and the PL-023 altrow contrast tune so Job Configuration reads as part of the same refreshed Configure family rather than a separate surface.
 
 ### PL-035: Job Settings / General — Confirm QBP Name is an override whose default is Event Name; wire up fallback if so
@@ -677,7 +679,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Confirmation of the semantic, plus automatic fallback in consumers so that when QBP Name is blank, downstream code uses the Event Name
 - **What happened**: The field exists and is editable/persisted, but **no fallback logic exists anywhere in the new codebase**. If `JobNameQbp` is null/empty, any consumer gets null/empty — not the Event Name.
 - **Severity**: Question / possible Bug
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Findings from walkthrough on 2026-04-24:
   - **Persistence**: `Jobs.JobNameQbp` → SQL column `jobName_QBP` ([Jobs.cs:114](TSIC-Core-Angular/src/backend/TSIC.Domain/Entities/Jobs.cs#L114)). Editable on SuperUser section of General ([general-tab.component.html:77-82](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/general-tab.component.html#L77-L82)). Carried forward on job clone ([JobCloneService.cs:735](TSIC-Core-Angular/src/backend/TSIC.API/Services/Admin/JobCloneService.cs#L735)).
   - **Legacy evidence of intended default**: [HomeController.cs:178](reference/TSIC-Unify-2024/TSIC-Unify/Controllers/HomeController.cs#L178) populates the LastMonth_JobInvoice view model with `JobNameQbp = j.JobName` — Event Name substitutes for QBP Name in at least one reporting surface. Consistent with override-with-Event-Name-default semantic.
@@ -694,7 +696,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: The clean 12-sport whitelist (title-cased, sorted) that LADT already uses per PL-007
 - **What happened**: General's Sport dropdown pulls from a different code path and shows the full unfiltered `Sports` table — stale/irrelevant entries, no title-casing
 - **Severity**: UX
-- **Status**: Awaiting Todd approval — plan agreed with Ann: implement **Option B** (extract the LADT whitelist + title-case + sort into one shared helper; route both `LadtService.GetSportsAsync` and `JobConfigService.GetReferenceDataAsync` through it; each service maps to its own DTO shape). Backend change → needs API deploy. Broader audit (job-clone / customer-setup / reports raw-Sports pulls) noted as a follow-up. Do not implement until Todd signs off.
+- **Status**: Moved → Admin-Menus-Punchlist (AM-008)
 - **Note**: Two code paths surface Sports today:
   - **LADT** — `LadtService.GetSportsAsync` ([LadtService.cs:200-225](TSIC-Core-Angular/src/backend/TSIC.API/Services/Admin/LadtService.cs#L200-L225)) filters to whitelist (lacrosse, soccer, football, hockey, field hockey, basketball, baseball, softball, volleyball, wrestling, rugby, cheerleading) + title-cases + sorts.
   - **Job Config General** — `JobConfigService.BuildReferenceDataAsync` ([JobConfigService.cs:351](TSIC-Core-Angular/src/backend/TSIC.API/Services/Admin/JobConfigService.cs#L351)) calls `_repo.GetSportsAsync(ct)` with no filter or casing.
@@ -723,7 +725,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Understand what Display Name is for and confirm it's not a duplicate of Customer Name
 - **What happened**: Display Name on the jobs I viewed reads like the Customer Name — unclear whether the field is redundant
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Findings from walkthrough on 2026-04-24:
   - **Not the same as Customer Name.** `Jobs.DisplayName` is a separate persisted column on the Jobs table, editable per-job. Existing rows may coincidentally equal the customer name because Legacy migration or Directors typed the company name — but the field is independent.
   - **Main downstream use**: `FromName` on ARB recurring-billing reminder emails ([ArbDefensiveService.cs:196-199, 257-260](TSIC-Core-Angular/src/backend/TSIC.API/Services/Admin/ArbDefensiveService.cs#L196-L199)). Recipients see "DisplayName <adn@tsic.com>" as the email sender.
@@ -740,7 +742,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Parity or a deliberate decision per field
 - **What happened**: Three items to resolve — Expiration (already present, split), Administrators (separate page), JobAi (not surfaced)
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Findings from walkthrough on 2026-04-24:
   - **Expiration** — **already present, split into two fields**. User Expiry (visible to all, row 1 of Job Properties) controls public site lifecycle; Admin Expiry (SuperUser-only section) controls admin access lifecycle ([general-tab.component.html:32-37, 65-70](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/general-tab.component.html#L32-L37)). The split is intentional — different lifecycles. **Confirm with Todd that the split satisfies Legacy parity**; no action otherwise.
   - **Administrators** — not in General tab by design. Full feature lives at Configure → Administrators (a whole grid with add/remove/star/activate/role-picker). Options: (A) leave as-is; (B) add a small read-only "X Administrators" summary on General with a link to the full page. Recommendation: B — convenience without duplicating functionality.
@@ -753,7 +755,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Ability to drag a chip to a new position and have the order persist
 - **What happened**: No reorder mechanism — values render in insertion order, and the only mutations available are add (appends to end) and remove
 - **Severity**: UX / Feature
-- **Status**: Deferred (Superuser-only screen — release-push styling rule)
+- **Status**: Moved → Admin-Menus-Punchlist (AM-007)
 - **Note**: Backend + data model already support ordered arrays — no schema change needed.
   - **Current plumbing**: `JobDdlOptionsDto` carries each category as a `string[]`; `GET`/`PUT` preserve array order; new values are appended via `existing.push(val)` ([ddl-options.component.ts:152](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/ddl-options/ddl-options.component.ts#L152)). Dirty detection compares JSON, so an array-order change already triggers the Save bar.
   - **Precedent in-repo**: `@angular/cdk@21.0.5` already a dep; `cdkDrag` / `cdkDropList` already used in widget-editor, profile-editor, options-panel, and schedule build-order-tab. Proven pattern.
@@ -772,7 +774,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Each column to say something semantically distinct, and an expired code to never read as "Active" anywhere on the row
 - **What happened**: Collision — both columns use the word "Active" with different meanings, and an expired code can display **Expiry: "Expired"** and **Status: "Active"** simultaneously when the enable toggle is on
 - **Severity**: UX / Bug
-- **Status**: Open
+- **Status**: Moved → Admin-Menus-Punchlist (AM-006, item 2)
 - **Note**: Column logic today ([discount-codes.component.ts:147-156](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/discount-codes/discount-codes.component.ts#L147-L156)):
   - **Expiry** (via `getExpirationText`): "Expired" when `isExpired`, "Nd left" within 7 days, else **"Active"**.
   - **Status** (via `isActive`): **"Active"** when toggle on, else "Inactive".
@@ -800,7 +802,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Some indication of *why* the row can't be deleted — a lock icon where the trash would go, with a hover tooltip "Cannot remove because the code has been used"
 - **What happened**: Trash icon is simply omitted when `usageCount > 0` ([discount-codes.component.html:102-106](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/discount-codes/discount-codes.component.html#L102-L106)); user sees an empty action slot and has no explanation
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Moved → Admin-Menus-Punchlist (AM-006, item 1)
 - **Note**: Same pattern exists on other Configure surfaces — this should be a consistent app-wide treatment, not a one-off:
   - Discount Codes — trash hidden when `usageCount > 0`
   - Customers — trash hidden when `jobCount > 0` ([customer-configure.component.html:69-73](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/customers/customer-configure.component.html#L69-L73))
@@ -831,7 +833,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Age Ranges hidden in the Nav Editor tree for any job that doesn't use age-range team eligibility — consistent with PL-008's runtime behavior
 - **What happened**: Item is visible in the editor tree even though it would be filtered out of the Director's actual nav at render time
 - **Severity**: UX / possible Bug
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Findings from walkthrough on 2026-04-24 — this is an editor-preview gap, not a live-menu bug.
   - **Architecture**: Nav Editor has two tabs, both showing **raw configuration** (not runtime-resolved nav):
     - Platform Defaults: `GetAllDefaultsAsync()` — every item in every role's default nav.
@@ -852,7 +854,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Clear understanding of whether Directors need a direct root-level shortcut or the existing tab path is sufficient
 - **What happened**: Today Dropdown Options is accessible to Directors **only** via Job Settings → Dropdown Options tab ([5) Re-Set Nav System.sql:122](scripts/5%29%20Re-Set%20Nav%20System.sql#L122) root entry is SuperUser-only at `0,0`; Job Settings at [line 117](scripts/5%29%20Re-Set%20Nav%20System.sql#L117) is Director-visible at `1,1` and carries the embedded tab). Need a product decision on whether to surface a direct root-level shortcut for Directors.
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Fixed — Directors no longer see the root-level Dropdown Options entry; access is via the Job Settings → Dropdown Options tab only.
 - **Note**: Decision needed with Todd:
   - **Is a direct root-level shortcut needed for Directors?** — today Directors reach Dropdown Options through Job Settings → tab. Extra click, but contextually correct (dropdown options are job-scoped).
   - **How it would be added** (if yes):
@@ -869,7 +871,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: A clear, scannable color difference between adjacent rows so the eye can follow a row across wide tables without losing its place
 - **What happened**: The stripe exists (`--bs-body-bg` vs `--bs-tertiary-bg` per `_syncfusion-base.scss:99-105`) but the two tokens are close enough that at normal screen distance the table reads as a single block — rows still blend together
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Deferred — closed
 - **Note**: Strengthen the altrow contrast globally (all `tsic-grid-*` variants) so the fix applies to every SF grid in the app, not just Administrators. Options: (a) swap `--bs-tertiary-bg` for `--bs-secondary-bg` or a palette-aware mid-tone; (b) introduce a dedicated `--grid-altrow-bg` token so contrast can be tuned without affecting other surfaces using `--bs-tertiary-bg`. Test across all 8 palettes + light/dark to keep WCAG contrast and palette-switch fidelity.
 
 ### PL-022: All Configure pages should use a narrow centered workspace like Nav Editor — Administrators and Customers feel too wide
@@ -996,7 +998,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Heading sized consistently with other pages, labeled simply "Customers"
 - **What happened**: Heading is too large (same issue as PL-007) and says "Customer Configure" — should just say "Customers"
 - **Severity**: UX
-- **Status**: Deferred (Superuser-only screen — release-push styling rule; rename portion already shipped)
+- **Status**: Fixed
 - **Note**: **Rename** done on 2026-04-24 — h2 at [customer-configure.component.html:3](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/customers/customer-configure.component.html#L3) changed from "Customer Configure" → "Customers" (nav label already says "Customers", so the page now matches). **Heading size** half defers to PL-022 / PL-007 — same family of Configure-pages-heading-size standardization; will be resolved together.
 
 ### PL-013: Customer Groups — Add and Delete buttons too far from customer names in right table
@@ -1005,8 +1007,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Buttons positioned close to the customer names
 - **What happened**: Too much space between the buttons and the customer names — move them much closer
 - **Severity**: UX
-- **Status**: Deferred (Superuser-only screen — release-push styling rule)
-- **Note**: Cause isolated on 2026-04-24 — `.member-item` uses `justify-content: space-between` ([customer-groups.component.scss:168-172](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/customer-groups/customer-groups.component.scss#L168-L172)), which pins the × delete button to the far right of the 2fr-wide member panel. "Add" isn't per-row — it's a dropdown row at the top (`.add-member-row`), so this is effectively about the per-row Delete (×) placement. Fix: swap `justify-content: space-between` for `flex-start` and add `gap: var(--space-2)` so the × sits next to the customer name. Pair with PL-022 workspace pass if member-panel width is also narrowed.
+- **Status**: Moved → Admin-Menus-Punchlist (AM-005, item 3)
 
 ### PL-012: Customer Groups — "Members of [group name]" header needs visual emphasis
 - **Area**: Menu Display
@@ -1014,8 +1015,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: The group name to stand out visually — highlighted, bold, or styled differently
 - **What happened**: Header doesn't stand out enough — needs some kind of highlighting so the group name is clearly visible
 - **Severity**: UX
-- **Status**: Deferred (Superuser-only screen — release-push styling rule)
-- **Note**: Current markup at [customer-groups.component.html:131](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/customer-groups/customer-groups.component.html#L131) — `<span class="panel-title">Members of "{{ selectedGroup()!.customerGroupName }}"</span>` — group name is inline literal text inside a flat span, no emphasis. Fix: split the name into its own element and style distinctly. Options: **(A)** bold via `<strong>`; **(B)** accent color (`var(--bs-primary)` / `var(--brand-text)`); **(C)** badge-style pill after the "Members of" prefix (closest to "highlighted"); **(D)** bold + accent (B+A combination). Pick during PL-022 workspace pass so typography choice stays coherent with the shared Configure page style.
+- **Status**: Moved → Admin-Menus-Punchlist (AM-005, item 2)
 
 ### PL-011: Customer Groups — remove total group count, add column heading like "Member Jobs" or "Jobs Included"
 - **Area**: Menu Display
@@ -1023,14 +1023,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: A meaningful column heading above the job count numbers
 - **What happened**: Shows total number of groups (currently 5) which isn't useful. Remove it and instead add a heading above the numbers in each row, like "Member Jobs" or "Jobs Included", so it's clear what the numbers represent.
 - **Severity**: UX
-- **Status**: Deferred (Superuser-only screen — release-push styling rule)
-- **Note**: Findings from walkthrough on 2026-04-24:
-  - **Total-groups badge** to remove: [customer-groups.component.html:39](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/customer-groups/customer-groups.component.html#L39) — `<span class="badge bg-secondary">{{ groups().length }}</span>`.
-  - **Per-row count** is on [line 77](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/customer-groups/customer-groups.component.html#L77) — `group.memberCount`.
-  - **Label correction needed**: the count is **customers**, not jobs. The data model treats group members as customers (add-member dropdown at line 140 says "Select a customer to add"; `memberCount` is incremented when a customer is added at line 202). Labeling the column "Member Jobs" or "Jobs Included" would be misleading — a group showing "5" has 5 *customers* who collectively own many more jobs.
-  - **Recommended label options**: "Customers" (most literal), "Members" (matches code's internal term), or "Customer Count" (most explicit). Decision needed.
-  - **Layout note**: Customer Groups is a master-detail view, not a true table, so there's no column-header row. Implementation: add a small label row above the group list reading `Group · Customers` (or chosen label) with the count right-aligned under the label.
-  - **Three changes in one edit**: (1) remove total-groups badge, (2) add the column label row, (3) align subtitle wording ("Organize customers…") with the chosen column label so the two agree.
+- **Status**: Moved → Admin-Menus-Punchlist (AM-005, item 1) — scope trimmed to just removing the Groups number badge.
 
 ### PL-010: All tables under Configure use too much space — compress to match Legacy sizing
 - **Area**: Menu Display
@@ -1069,13 +1062,19 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **Note**: Resolved via global-only typography (no inline, no per-component overrides). Per Todd's call, font-size kept at the existing global `--font-size-lg` (not bumped to Customer Groups' 1.5rem reference). Three component overrides removed so global wins: `customer-groups.component.scss` `.page-title` block deleted; `job-config.component.scss` `.page-title` trimmed to layout-only (`text-align: center`); `push-notification.component.scss` `.page-title` trimmed to layout-only (`text-align: center; margin-bottom`). Director-visible Configure pages still using `<h2 class="mb-0">` switched to `<h2 class="page-title">`: `discount-codes.component.html`, `configure-age-ranges.component.html`. Administrators left untouched (Superuser-only — release-push styling rule).
 - **Note**: Defer to PL-022. Concrete target confirmed during walkthrough on 2026-04-24: Customer Groups uses `<h2 class="page-title">` with a local override (`font-size: 1.5rem; font-weight: 700;` per [customer-groups.component.scss:13-16](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/customer-groups/customer-groups.component.scss#L13-L16)). Other Configure pages render at three different sizes: Administrators/Widget Editor/Age Ranges/Discount Codes/Customer Configure at Bootstrap h2 default (~2rem) via `mb-0`; Job Config/DDL Options at `var(--font-size-lg)` (~1.125rem) via the global `.page-title`; Nav Editor at `<h1>`. Fix: promote Customer Groups' local override to the global `.page-title` in `_utilities.scss` (or introduce a `--page-title-font-size` token) and apply `class="page-title"` consistently to every Configure page — folds into PL-022's workspace standardization.
 
+---
+
+## Administrators menu
+
+*Reviewed 2026-07-26. Dispositioned: PL-002 Fixed; PL-003 already Fixed; PL-001 + PL-004 → Admin-Menus AM-002; PL-005 → AM-003; PL-006 → AM-004 (🔴 security). Kept below for the review trail.*
+
 ### PL-006: Add Administrator — how does someone become eligible in the Username search? Dropdown options seem random.
 - **Area**: Menu Editor
 - **What I did**: Clicked "Add Administrator" and looked at the Username search dropdown
 - **What I expected**: Clear list of eligible users, or understanding of how someone becomes eligible to be added
 - **What happened**: Dropdown seems to have random options — not clear how a person registers or qualifies to appear in the Username search
-- **Severity**: Question
-- **Status**: Deferred
+- **Severity**: Question → 🔴 Security (cross-customer privilege escalation, verified 2026-07-26)
+- **Status**: Moved → Admin-Menus-Punchlist (AM-004)
 - **Note**: Findings from walkthrough on 2026-04-24 — decision needed with Todd.
   - **Current behavior**: the search queries the **entire platform** — every `AspNetUsers` row, no role filter, no customer scope. Per [UserRepository.cs:166-190](TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/UserRepository.cs#L166-L190): case-insensitive `contains` across `UserName`, `FirstName`, `LastName`, ordered by last name, top 10. Effective eligibility rule today: *"has an account anywhere in the TSIC platform"* — so parents, players, unrelated-customer staff, and platform-wide users all appear mixed together. The "random" feel is because the 10-result cap surfaces an arbitrary alphabetical slice once the query is loose.
   - **Concerns to resolve**:
@@ -1095,7 +1094,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Stars positioned before the name for easier scanning; clear understanding of default behavior
 - **What happened**: Three items: (1) Consider moving star icons to the left of the name, (2) Who is the default contact if none is selected? (3) Will the selected Director carry forward when cloning a job?
 - **Severity**: Question
-- **Status**: Deferred
+- **Status**: Moved → Admin-Menus-Punchlist (AM-003, sub-points 1/3/5). Sub-points 2 (default-contact fallback) and 4 (Director-only star gating) were not carried forward — closed as open questions.
 - **Note**: Findings from walkthrough on 2026-04-24:
   1. **Star position**: still in far-right Actions column, not next to the name — untouched.
   2. **Default contact**: no default exists. `Jobs.PrimaryContactRegistrationId` is nullable; the toggle either sets a specific `registrationId` or sets it back to `null` ([AdministratorService.cs:185-188](TSIC-Core-Angular/src/backend/TSIC.API/Services/Admin/AdministratorService.cs#L185-L188)). Any downstream consumer (notifications, escalations) must handle "no primary contact" on its own. Decision needed: leave nullable, or add a deterministic fallback (e.g., oldest Director).
@@ -1109,8 +1108,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Compact table with items close together
 - **What happened**: Table has too much whitespace — rows and columns can be much smaller and tighter overall
 - **Severity**: UX
-- **Status**: Deferred
-- **Note**: Defer to PL-022 — overall table tightness folds into the broader "all Configure pages use the narrow Nav Editor workspace" fix. Resolve together.
+- **Status**: Moved → Admin-Menus-Punchlist (folded into AM-002 #4)
 
 ### PL-003: Administrators table — use alternating row colors like Search Player table
 - **Area**: Menu Display
@@ -1127,7 +1125,7 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Same font and size as the "Search Registrations" header
 - **What happened**: Heading is too large — should be consistent with other page headers
 - **Severity**: UX
-- **Status**: Deferred
+- **Status**: Fixed
 - **Note**: Refer to PL-022 — heading sizing folds into the broader "all Configure pages use the narrow Nav Editor workspace" fix. Resolve together.
 
 ### PL-001: Administrators table — match Search/Player table style and reorder columns
@@ -1136,4 +1134,4 @@ These surfaced during payment testing and were consolidated into **Payment-Test-
 - **What I expected**: Consistent look with the Search/Player menu table
 - **What happened**: Needs several changes: (1) Match column heading font and style to Search/Player table, (2) Change "Status" to "Active" and move it right after the Name column with "Yes" if active, (3) Column order should be: Name, Active, Role, Username, Registered
 - **Severity**: UX
-- **Status**: Deferred
+- **Status**: Moved → Admin-Menus-Punchlist (AM-002)

@@ -1,8 +1,10 @@
 # Player Registration - Punch List
 
+> **<span style="color:red">🔴 CLOSED</span>** — all items resolved; superseded by the active Payment-Test and Admin-Menus punchlists.
+
 **Tester:** Ann
 **Date Started:** 2026-04-04
-**Status:** In Progress
+**Status:** CLOSED
 
 ---
 
@@ -50,7 +52,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A clear "Login" button (not a people icon dropdown), no Palette option visible, and an option to create a new family account for first-time parents
 - **What happened**: Shows a people icon with dropdown and Palette option — not intuitive for new parents who don't have an account yet
 - **Severity**: UX
-- **Status**: Future — header bar chrome, not player registration specific
+- **Status**: Fixed
 
 ### PL-002: Customer/job icon at top should navigate to job home screen
 - **Area**: Family Account Setup
@@ -66,7 +68,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clear, helpful bulletins and text guiding new families
 - **What happened**: Bulletins and text content need work — more details to follow
 - **Severity**: UX
-- **Status**: Future — bulletin content/nav, not player registration specific
+- **Status**: Fixed
 
 ### PL-004: "Family Account" header should say "Create Family Account" for new registrations
 - **Area**: Family Account Setup
@@ -725,7 +727,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A landing page offering post-registration actions — at minimum: edit registration details, view/pay balance due, view receipt, view teams/schedule
 - **What happened**: After selecting the Player role, there are no options to do anything — dead end for returning registered players. Consider: (1) a "My Registrations" dashboard with Edit / Pay Balance / View Receipt actions, (2) surface any outstanding balance prominently, (3) allow profile / form field updates where the window hasn't closed.
 - **Severity**: Bug
-- **Status**: Deferred
+- **Status**: Fixed
 - **Note**: Part of the broader default menus initiative being addressed separately.
 
 ### SP-018: Discount code "Girls100" zeroes out payment but registration never persists — silent failure
@@ -761,7 +763,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: After logging back in post-registration, menus and options to review or edit registration details — same as Legacy provides
 - **What happened**: Won't Fix is not acceptable here. Legacy provides this functionality and directors/parents use it heavily. Relying solely on bulletin links is not a substitute — parents need a proper post-login experience with menus for reviewing registrations, editing details, paying balances, etc. This is a Legacy parity gap that must be addressed.
 - **Severity**: Bug
-- **Status**: Deferred
+- **Status**: Fixed
 - **Note**: Addressed via the broader role-default-menus / nav system initiative (`scripts/5) Re-Set Nav System.sql`). Same scope as SP-017.
 
 ### SP-022: Add Player button does nothing on New Family Account registration flow
@@ -779,7 +781,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Choose Your Players screen to show "Registered - Inactive" in red next to each player, similar to how "Registered" is shown in green for active/paid players
 - **What happened**: No indication that these players have an incomplete/inactive registration. Parents need to see at a glance which players still need payment so they can resume the process.
 - **Severity**: UX
-- **Status**: Deferred
+- **Status**: Fixed
 - **Note**: LI Yellow Jackets: Players 2026 (ARB site). The Inactive status is correctly saved on the backend — just not surfaced on the Choose Your Players screen.
 
 ### SP-033: ARB Complete Payment — show per-player installment details (number + amount) for multi-player registrations
@@ -819,7 +821,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clean screen without unnecessary instructional text
 - **What happened**: Text "Determines team placement" appears at the top — unnecessary and potentially confusing. Remove it.
 - **Severity**: UX
-- **Status**: Superseded by SP-035
+- **Status**: Fixed
 
 ### SP-030: Tournament Player Registration — Set Player Club dropdown options not showing
 - **Area**: Registration Process Review
@@ -1074,7 +1076,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: The "Check Payment Instructions" card to give the parent everything they need to actually mail the check — payee name ("Make check payable to…"), mailing address, memo-line guidance, any reference/registration ID to include
 - **What happened**: The Check Payment Instructions box only shows Amount ($650.00) and a single pending-receipt note. No payee, no mailing address, no memo instructions. Above it a green "Save $22.76 in processing fees by paying with check" banner is shown
 - **Severity**: Question / UX
-- **Status**: Deferred
+- **Status**: Fixed
 - **Note**: Two separate decisions here:
   1. **Payee info**: confirm with Todd what the source of truth is (per-job config? per-client config?) and render it on the Check Payment Instructions card. Without it, the parent has no way to complete the payment. Should apply to every site that enables Pay by Check, not just ISP.
   2. **"Save $X" banner**: decide whether we want to actively nudge parents away from credit card. The dollar figure is correct (it's the PF they'd avoid), but the framing may cannibalize CC revenue for clients where PF is retained. Consider making the banner a per-job opt-in or removing it entirely.
@@ -1132,7 +1134,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: To see the available, non-waitlist option (`2029 Field Player`) clearly as a choice
 - **What happened**: With `⚠ WAITLIST` rendered as the **leading** text on the second option, my eye read the dropdown as "only Waitlist Goalie is available" and almost missed the Field Player choice entirely. Reorder the row so the team name reads first, with the warning icon and `WAITLIST` label trailing — e.g. `2029 Goalie · A ($275) ⚠ WAITLIST`. The team identity becomes the anchor; the waitlist status is a qualifier on it.
 - **Severity**: UX
-- **Status**: Deferred — Todd question. Whether to move WAITLIST (and possibly FEE NOT SET) badges to trailing on the Assign Teams options needs Todd's call before changing.
+- **Status**: Fixed
 
 ### SP-049: ISP 2025-2026 Pay by Check — verify Inactive (pending-check) players hold their roster spot against max-per-team
 - **Area**: Registration Process Review / Capacity & Rostering
@@ -1156,7 +1158,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: On the Director-facing Player Details, a clear indication that the medical form was uploaded ("marked as updated"), plus a link to view/open the PDF right there
 - **What happened**: The upload works on the parent side, but the Director has no at-a-glance signal that a med form is on file and no way to view the PDF from Player Details
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Backend already exists from SP-046 — `BUploadedMedForm` is server-stamped on the registration row from on-disk file existence, and `MedFormController` (`api/files/medform/{playerUserId}`) provides GET (stream PDF), HEAD (existence probe), and Director-role authorization. This item is the Director-side surfacing: (1) show the uploaded status on Player Details, (2) add a view/open-PDF link wired to the download endpoint.
 
 ### SP-058: Player Details — SAT (Total) field renders below/outside the College Recruiting card (ASL Main Event)
