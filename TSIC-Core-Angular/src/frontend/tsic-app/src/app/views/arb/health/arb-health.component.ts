@@ -83,8 +83,12 @@ const TEMPLATES: Record<string, EmailTemplate[]> = {
 export class ArbHealthComponent {
     private readonly arbService = inject(ArbDefensiveService);
 
-    // Tab state
-    readonly activeTab = signal<number>(FLAG_TYPE.ExpiringCard);
+    // Lookup state. activeTab is the flag type the UI is oriented to (drives templates,
+    // action bar, table shape); loadedTab is which lookup has actually RUN — null until
+    // the director clicks one. Nothing loads on init: Expiring Cards queries live
+    // production Authorize.Net, so it must only run on a deliberate click (PL-055).
+    readonly activeTab = signal<number>(FLAG_TYPE.BehindInPayment);
+    readonly loadedTab = signal<number | null>(null);
     readonly FLAG_TYPE = FLAG_TYPE;
 
     // Data
@@ -123,7 +127,7 @@ export class ArbHealthComponent {
     });
 
     constructor() {
-        this.loadTab(FLAG_TYPE.ExpiringCard);
+        // Deliberately NO lookup here — the page opens neutral; see runLookup.
         this.loadSubstitutionVars();
     }
 
@@ -142,9 +146,13 @@ export class ArbHealthComponent {
             next: result => {
                 this.refreshResult.set(result);
                 this.isRefreshing.set(false);
-                // Statuses may have changed which registrants are flagged — reload.
-                this.selectedIds.set(new Set());
-                this.loadTab(this.activeTab());
+                // Statuses may have changed which registrants are flagged — reload,
+                // but ONLY a lookup the director already ran. Refresh alone must not
+                // trigger the first lookup.
+                if (this.loadedTab() !== null) {
+                    this.selectedIds.set(new Set());
+                    this.loadTab(this.activeTab());
+                }
             },
             error: err => {
                 this.errorMessage.set(err?.error?.message || 'Failed to refresh ARB statuses.');
@@ -153,8 +161,9 @@ export class ArbHealthComponent {
         });
     }
 
-    switchTab(type: number): void {
-        if (this.activeTab() === type) return;
+    /** Explicit lookup button. Unlike the old tab switch, re-clicking the active
+     *  lookup re-runs it (fresh query). */
+    runLookup(type: number): void {
         this.activeTab.set(type);
         this.selectedIds.set(new Set());
         this.showEmailDialog.set(false);
@@ -163,6 +172,7 @@ export class ArbHealthComponent {
     }
 
     private loadTab(type: number): void {
+        this.loadedTab.set(type);
         this.isLoading.set(true);
         this.errorMessage.set(null);
 

@@ -1,10 +1,8 @@
 <div class="arb-health-page">
-    <div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-2">
-        <div>
-            <h2 class="page-title"><i class="bi bi-heart-pulse page-title-icon"></i> ARB Subscription Health</h2>
-            <p class="page-subtitle">Identify and contact registrants with ARB payment issues.</p>
-        </div>
-        <div class="refresh-block text-end">
+    <div class="page-header">
+        <h2 class="page-title"><i class="bi bi-heart-pulse page-title-icon"></i> ARB Subscription Health</h2>
+        <p class="page-subtitle">Identify and contact registrants with ARB payment issues.</p>
+        <div class="refresh-block">
             <button class="btn btn-sm btn-outline-primary"
                     [disabled]="isRefreshing() || isLoading()"
                     (click)="refreshStatuses()">
@@ -27,25 +25,25 @@
         </div>
     </div>
 
-    <!-- Tabs -->
-    <ul class="nav nav-tabs mb-3">
-        <li class="nav-item">
-            <button class="nav-link"
-                    [class.active]="activeTab() === FLAG_TYPE.ExpiringCard"
-                    (click)="switchTab(FLAG_TYPE.ExpiringCard)">
-                <i class="bi bi-credit-card-2-front me-1"></i>
-                Expiring Cards
-            </button>
-        </li>
-        <li class="nav-item">
-            <button class="nav-link"
-                    [class.active]="activeTab() === FLAG_TYPE.BehindInPayment"
-                    (click)="switchTab(FLAG_TYPE.BehindInPayment)">
-                <i class="bi bi-exclamation-triangle me-1"></i>
-                Behind in Payment
-            </button>
-        </li>
-    </ul>
+    <!-- Explicit lookups — NOTHING loads on page open. Behind in Payment is a stored-status
+         DB read; Expiring Cards queries LIVE production Authorize.Net, so it must only ever
+         run on a deliberate click (PL-055 rework). Re-clicking the active lookup re-runs it. -->
+    <div class="lookup-actions d-flex flex-wrap gap-2 mb-3">
+        <button class="btn btn-outline-primary"
+                [class.active]="loadedTab() !== null && activeTab() === FLAG_TYPE.BehindInPayment"
+                [disabled]="isLoading() || isRefreshing()"
+                (click)="runLookup(FLAG_TYPE.BehindInPayment)">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            Lookup Behind in Payment
+        </button>
+        <button class="btn btn-outline-primary"
+                [class.active]="loadedTab() !== null && activeTab() === FLAG_TYPE.ExpiringCard"
+                [disabled]="isLoading() || isRefreshing()"
+                (click)="runLookup(FLAG_TYPE.ExpiringCard)">
+            <i class="bi bi-credit-card-2-front me-1"></i>
+            Lookup Expiring Cards
+        </button>
+    </div>
 
     <!-- Error -->
     @if (errorMessage()) {
@@ -208,8 +206,16 @@
         </div>
     }
 
-    <!-- Empty state -->
-    @if (!isLoading() && registrants().length === 0 && !errorMessage()) {
+    <!-- Initial state — no lookup run yet -->
+    @if (!isLoading() && loadedTab() === null && !errorMessage()) {
+        <div class="text-center py-5">
+            <i class="bi bi-search text-body-secondary" style="font-size: 2rem;"></i>
+            <p class="text-muted mt-2">Choose a lookup to check your ARB subscriptions.</p>
+        </div>
+    }
+
+    <!-- Empty state — lookup ran, nothing flagged -->
+    @if (!isLoading() && loadedTab() !== null && registrants().length === 0 && !errorMessage()) {
         <div class="text-center py-5">
             <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
             <p class="text-muted mt-2">No flagged registrants for {{ tabLabel(activeTab()) }}.</p>
