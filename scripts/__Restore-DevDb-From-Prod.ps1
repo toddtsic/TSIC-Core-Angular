@@ -1,12 +1,12 @@
 # =============================================================================
-# 00-Restore-DevDb-From-Prod.ps1
+# __Restore-DevDb-From-Prod.ps1
 # =============================================================================
 # Restores the local dev TSICV5 (.\SS2016) from an hourly prod backup in
 # C:\DBBackups\TSIC-Single — no manual copy, no RDBMS restart, no SSMS.
 #
-#   .\scripts\00-Restore-DevDb-From-Prod.ps1              # latest backup, asks to confirm
-#   .\scripts\00-Restore-DevDb-From-Prod.ps1 -Yes         # latest backup, no prompt
-#   .\scripts\00-Restore-DevDb-From-Prod.ps1 -BackupFile C:\DBBackups\TSIC-Single\TSICV5_backup_2026_07_25_235901_2309265.bak
+#   .\scripts\__Restore-DevDb-From-Prod.ps1              # latest backup, asks to confirm
+#   .\scripts\__Restore-DevDb-From-Prod.ps1 -Yes         # latest backup, no prompt
+#   .\scripts\__Restore-DevDb-From-Prod.ps1 -BackupFile C:\DBBackups\TSIC-Single\TSICV5_backup_2026_07_25_235901_2309265.bak
 #
 # What it does:
 #   1. Picks the newest .bak in C:\DBBackups\TSIC-Single (or the one you name)
