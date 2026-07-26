@@ -125,7 +125,12 @@ const JOB_TYPE_TOURNAMENT = 2;
                                    [disabled]="isCampAlreadyRegistered(pid, team.teamId)"
                                    (change)="toggleCampSelection(pid, team.teamId)">
                             <div class="camp-info">
-                              <span class="camp-name">{{ campDisplayName(team) }}</span>
+                              <span class="camp-name">
+                                @if (isCampWaitlist(team) || isWaitlistPlacementName(team.teamName)) {
+                                  <span class="camp-waitlist-chip">WAITLIST</span>
+                                }
+                                {{ campDisplayName(team) }}
+                              </span>
                               @if (team.divisionName) {
                                 <span class="camp-division">{{ team.divisionName }}</span>
                               }
@@ -174,7 +179,12 @@ const JOB_TYPE_TOURNAMENT = 2;
                                    (change)="toggleCampSelection(pid, team.teamId)"
                                    [disabled]="isTeamFull(team) || team.feeConfigured === false">
                             <div class="camp-info">
-                              <span class="camp-name">{{ team.teamName }}</span>
+                              <span class="camp-name">
+                                @if (!isTeamFull(team) && isCampWaitlist(team)) {
+                                  <span class="camp-waitlist-chip">WAITLIST</span>
+                                }
+                                {{ team.teamName }}
+                              </span>
                               @if (team.divisionName) {
                                 <span class="camp-division">{{ team.divisionName }}</span>
                               }
@@ -698,6 +708,24 @@ const JOB_TYPE_TOURNAMENT = 2;
         font-size: var(--font-size-xs);
         font-weight: var(--font-weight-semibold);
         color: var(--bs-warning-emphasis);
+      }
+
+      /* At-a-glance waitlist status on the card NAME row (PL-050) — the chip carries
+         the status, the bottom .camp-waitlist-badge note carries the $0 consequence.
+         Same amber family as the payment grid's .wl-badge, full-word for prominence. */
+      .camp-waitlist-chip {
+        display: inline-block;
+        margin-right: var(--space-1);
+        padding: 1px var(--space-2);
+        border-radius: var(--radius-sm);
+        font-size: var(--font-size-2xs);
+        font-weight: var(--font-weight-bold);
+        letter-spacing: 0.05em;
+        line-height: 1.4;
+        color: var(--bs-warning-text-emphasis);
+        background: rgba(var(--bs-warning-rgb), 0.15);
+        border: 1px solid rgba(var(--bs-warning-rgb), 0.4);
+        vertical-align: 1px;
       }
 
       .waitlist-alert {
