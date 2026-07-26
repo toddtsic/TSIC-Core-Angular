@@ -106,7 +106,8 @@ SET NOCOUNT ON;
 SELECT state_desc + '|' + user_access_desc FROM sys.databases WHERE name = 'TSICV5';
 SELECT 'devapi-user-ok' FROM TSICV5.sys.database_principals WHERE name = N'IIS APPPOOL\dev-api';
 "@
-if (($check -notmatch 'ONLINE\|MULTI_USER') -or ($check -notmatch 'devapi-user-ok')) {
+$checkText = $check -join ' '
+if (-not ($checkText -match 'ONLINE\|MULTI_USER') -or -not ($checkText -match 'devapi-user-ok')) {
     Write-Host "SMOKE CHECK FAILED: $check" -ForegroundColor Red
     exit 1
 }
