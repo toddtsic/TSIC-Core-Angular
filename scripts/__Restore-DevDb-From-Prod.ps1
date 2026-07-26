@@ -1,8 +1,8 @@
-# =============================================================================
+﻿# =============================================================================
 # __Restore-DevDb-From-Prod.ps1
 # =============================================================================
 # Restores the local dev TSICV5 (.\SS2016) from an hourly prod backup in
-# C:\DBBackups\TSIC-Single — no manual copy, no RDBMS restart, no SSMS.
+# C:\DBBackups\TSIC-Single -- no manual copy, no RDBMS restart, no SSMS.
 #
 #   .\scripts\__Restore-DevDb-From-Prod.ps1              # latest backup, asks to confirm
 #   .\scripts\__Restore-DevDb-From-Prod.ps1 -Yes         # latest backup, no prompt
@@ -17,7 +17,7 @@
 #      MOVE to C:\DBFiles, back to MULTI_USER. One connection = nothing can
 #      steal the single-user slot between steps.
 #   4. Runs 00-postdev-db-restore-apppooluser.sql (re-creates IIS APPPOOL\dev-api
-#      user + GRANT EXECUTE — prod backups only contain prod's pool users)
+#      user + GRANT EXECUTE -- prod backups only contain prod's pool users)
 #   5. Smoke-checks: DB online + multi_user + dev-api user present
 # =============================================================================
 
@@ -54,9 +54,9 @@ Write-Host ""
 
 # --- 2. Verify it really is a TSICV5 backup before destroying the local DB ----
 $fileList = sqlcmd -S $SqlInstance -E -b -W -h -1 -Q "SET NOCOUNT ON; RESTORE FILELISTONLY FROM DISK = N'$($bak.FullName)';"
-if ($LASTEXITCODE -ne 0) { throw "RESTORE FILELISTONLY failed — file unreadable or not a SQL backup." }
+if ($LASTEXITCODE -ne 0) { throw "RESTORE FILELISTONLY failed -- file unreadable or not a SQL backup." }
 if (-not ($fileList -match '^TSIC2015V6 ')) {
-    throw "Backup does not contain expected logical file 'TSIC2015V6' — refusing to restore. FILELISTONLY said:`n$($fileList -join "`n")"
+    throw "Backup does not contain expected logical file 'TSIC2015V6' -- refusing to restore. FILELISTONLY said:`n$($fileList -join "`n")"
 }
 
 # --- 3. Confirm ---------------------------------------------------------------
@@ -96,7 +96,7 @@ Write-Host ("Restore complete in {0:mm\:ss}." -f $sw.Elapsed) -ForegroundColor G
 Write-Host "Running 00-postdev-db-restore-apppooluser.sql..." -ForegroundColor Yellow
 sqlcmd -S $SqlInstance -E -b -i $PostSql
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Post-restore user script FAILED — dev-api will get 'Login failed' until it runs clean." -ForegroundColor Red
+    Write-Host "Post-restore user script FAILED -- dev-api will get 'Login failed' until it runs clean." -ForegroundColor Red
     exit 1
 }
 
