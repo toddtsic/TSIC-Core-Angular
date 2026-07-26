@@ -133,8 +133,8 @@
                         <th class="text-end">Fee Total</th>
                         <th class="text-end">Paid</th>
                         <th class="text-end">Owes Total</th>
-                        <th class="text-end">Owes Now</th>
-                        <th>Next Payment</th>
+                        <th class="text-end pe-4">Owes Now</th>
+                        <th class="ps-4">Next Payment</th>
                         <th>Progress</th>
                         <th>Contact</th>
                     </tr>
@@ -159,7 +159,7 @@
                                 }
                                 @if (r.familyUsername) {
                                     <small class="text-muted d-block">
-                                        <i class="bi bi-person-badge me-1"></i>{{ r.familyUsername }}
+                                        <i class="bi bi-person-badge me-1"></i>Family Username: <span class="text-primary fw-semibold">{{ r.familyUsername }}</span>
                                     </small>
                                 }
                             </td>
@@ -177,11 +177,11 @@
                             <td class="text-end">{{ r.feeTotal | number:'1.2-2' }}</td>
                             <td class="text-end">{{ r.paidTotal | number:'1.2-2' }}</td>
                             <td class="text-end">{{ r.owedTotal | number:'1.2-2' }}</td>
-                            <td class="text-end fw-semibold"
+                            <td class="text-end pe-4 fw-semibold"
                                 [class.text-danger]="(r.currentlyOwes ?? 0) > 0">
                                 {{ r.currentlyOwes | number:'1.2-2' }}
                             </td>
-                            <td>
+                            <td class="ps-4">
                                 @if (r.nextPaymentDate) {
                                     {{ r.nextPaymentDate | date:'shortDate' }}
                                 } @else {
@@ -199,13 +199,14 @@
                             <td>
                                 <div class="contact-info">
                                     @if (r.registrantEmail) {
+                                        <small class="d-block text-muted">Player:</small>
                                         <small class="d-block">
                                             <a [href]="'mailto:' + r.registrantEmail" (click)="$event.stopPropagation()">{{ r.registrantEmail }}</a>
                                         </small>
                                     }
                                     @if (r.momName) {
                                         <div class="parent-contact">
-                                            <small class="d-block text-muted">Mom: {{ r.momName }}</small>
+                                            <small class="d-block text-muted">Contact 1: {{ r.momName }}</small>
                                             @if (r.momEmail) {
                                                 <small class="d-block">
                                                     <a [href]="'mailto:' + r.momEmail" (click)="$event.stopPropagation()">{{ r.momEmail }}</a>
@@ -220,7 +221,7 @@
                                     }
                                     @if (r.dadName) {
                                         <div class="parent-contact">
-                                            <small class="d-block text-muted">Dad: {{ r.dadName }}</small>
+                                            <small class="d-block text-muted">Contact 2: {{ r.dadName }}</small>
                                             @if (r.dadEmail) {
                                                 <small class="d-block">
                                                     <a [href]="'mailto:' + r.dadEmail" (click)="$event.stopPropagation()">{{ r.dadEmail }}</a>
