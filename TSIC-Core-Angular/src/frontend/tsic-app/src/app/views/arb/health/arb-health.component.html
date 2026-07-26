@@ -301,7 +301,7 @@
                         </button>
                     }
                 </div>
-                <small class="form-text text-muted">Click a template to pre-fill subject and body.</small>
+                <small class="form-text text-muted">Click a template to pre-fill subject and body. You can edit this template before sending.</small>
             </div>
 
             <!-- Subject -->
@@ -352,7 +352,7 @@
                        [ngModel]="notifyDirectors()"
                        (ngModelChange)="onNotifyDirectorsChange($event)">
                 <label for="notifyDirectors" class="form-check-label">
-                    Notify job directors after sending
+                    Email a summary to job directors after sending (list of families contacted)
                 </label>
             </div>
         </div>
