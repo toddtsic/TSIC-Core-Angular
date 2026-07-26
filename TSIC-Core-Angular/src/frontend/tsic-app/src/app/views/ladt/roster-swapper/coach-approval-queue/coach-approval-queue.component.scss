@@ -187,14 +187,16 @@
     line-height: 1.35;
     color: var(--brand-text);
 }
+/* The coach's note is what they REQUESTED — it must read at a glance when a
+   Director approves (PL-054): full-strength bold label, danger-red value. */
 .coach-note-label {
-    color: var(--bs-secondary-color);
-    font-weight: 600;
+    color: var(--brand-text);
+    font-weight: var(--font-weight-bold);
     margin-right: var(--space-1);
     white-space: nowrap;
 }
 .coach-note-value {
-    color: var(--brand-text);
+    color: var(--bs-danger);
 }
 .coach-contact {
     font-size: 0.75rem;

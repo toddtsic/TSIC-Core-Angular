@@ -1100,7 +1100,7 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **What I want**: The coach's **Note** is what they requested — it should stand out when a Director goes in to approve. Make the **"Note:" label bold** and the **note text after it RED** so it's immediately visible.
 - **Where**: The plain-text inline note renders as `Note:` + value — [coach-approval-queue.component.html:95-96](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/ladt/roster-swapper/coach-approval-queue/coach-approval-queue.component.html#L95): `<span class="coach-note-label"><i class="bi bi-chat-left-quote"></i> Note:</span>` + `<span class="coach-note-value">{{ data.note }}</span>`.
 - **Severity**: UX (visibility — the coach's request is easy to overlook at approval time)
-- **Status**: Open (Ann, 07-26)
+- **Status**: Fixed (Claude, 07-26) — awaiting Ann verify. SCSS-only on the two existing classes: `.coach-note-label` gets full-strength text color + bold (it was already 600 but painted muted — the muting was the real problem), `.coach-note-value` → `var(--bs-danger)` red per the recommendation. Plain-text inline note only; the legacy JSON-blob tooltip note untouched.
 - **For Todd — the change** (SCSS on the two existing classes; no template/logic change):
   1. **`.coach-note-label`** ("Note:") → **bold** (`font-weight: var(--font-weight-bold)` / 600).
   2. **`.coach-note-value`** (the note text) → **RED** — use a design-system variable (`color: var(--bs-danger)`), **not** a hardcoded hex (per design-system rules), and confirm WCAG AA contrast against the row surface.
