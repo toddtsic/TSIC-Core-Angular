@@ -44,6 +44,12 @@ if ($env:COMPUTERNAME -ne $ExpectedHost) {
     exit 1
 }
 
+# Wall-clock anchors so the final banner (and the finally-block outcome stamp)
+# can tell you whether the output you're looking at is from THIS run or a stale
+# scrollback. $deployOk flips true only just before the clean exit.
+$StartedAt = Get-Date
+$deployOk  = $false
+
 # ---------------------------------------------------------------------------
 # Configuration (from shared _config.ps1)
 # ---------------------------------------------------------------------------
@@ -370,6 +376,7 @@ Write-Host "STAGED to TSIC-PHOENIX - nothing is live yet." -ForegroundColor Gree
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  Build: $BuildStamp" -ForegroundColor Green
+Write-Host "  Finished: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  (took $([int]((Get-Date) - $StartedAt).TotalSeconds)s)" -ForegroundColor Green
 Write-Host "  Staged and payload-verified:" -ForegroundColor Green
 if (!$SkipApi)     { Write-Host "    API:     $ApiStaging" -ForegroundColor Green }
 if (!$SkipAngular) { Write-Host "    Angular: $AngularStaging" -ForegroundColor Green }
@@ -404,9 +411,18 @@ Write-Host ""
 # Explicit. robocopy exits 1/2/3 on SUCCESS (copied / extras deleted / both), and
 # a script that runs off the end inherits the last native command's exit code --
 # so without this, a clean stage would report failure to anything checking it.
+$deployOk = $true
 exit 0
 
 } finally {
+    # Every inline `exit 1` above lands here too, so this is the one place that
+    # stamps EVERY outcome with a wall-clock time - the success banner already
+    # printed its own Finished line, so only the failure path needs stamping here.
+    if (-not $deployOk) {
+        Write-Host ""
+        Write-Host "  Build + stage ENDED without completing: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  (started $($StartedAt.ToString('HH:mm:ss')))" -ForegroundColor Red
+        Write-Host ""
+    }
     if ($transcriptStarted) {
         try { Stop-Transcript | Out-Null } catch {}
     }

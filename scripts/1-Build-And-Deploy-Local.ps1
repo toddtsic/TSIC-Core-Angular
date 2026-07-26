@@ -146,6 +146,7 @@ function Stop-DeployWithFailure {
     Write-Host "========================================" -ForegroundColor Red
     Write-Host "  DEPLOY FAILED - $Step" -ForegroundColor Red
     Write-Host "========================================" -ForegroundColor Red
+    Write-Host "  Failed at:  $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  (started $($StartedAt.ToString('HH:mm:ss')))" -ForegroundColor Red
     if ($Detail) { Write-Host "  $Detail" -ForegroundColor Red }
     Write-Host ""
 
@@ -427,7 +428,7 @@ if ($liveApi -and $liveAng -and $liveApi.buildStamp -ne $liveAng.buildStamp) {
 }
 
 Write-Host ""
-Write-Host "  Took:     ${elapsed}s" -ForegroundColor DarkGray
+Write-Host "  Finished: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  (took ${elapsed}s)" -ForegroundColor Green
 Write-Host "  Roll back with: .\Rollback-Local.ps1" -ForegroundColor DarkGray
 Write-Host ""
 
