@@ -1402,6 +1402,35 @@ public class TeamRegistrationService : ITeamRegistrationService
             skippedReasons.Add($"Team '{skipped.TeamName}' in age group '{skipped.Agegroup?.AgegroupName}' (WAITLIST/DROPPED)");
         }
 
+        // Batch-hydrate ONCE — this loop used to make ~6 sequential DB round-trips PER team
+        // (fee cascade + ledger + job rates), which took minutes on a several-hundred-team job.
+        // Now: the ClubRep fee cascade for every eligible team (3 queries) and every team's
+        // PaymentState (job config + ledger totals, 4 queries); the loop stamps in memory
+        // through the same canonical applier core as the async path.
+        var eligibleTeamIds = eligibleTeams.Select(t => t.TeamId).ToList();
+        var resolvedByTeam = await _feeService.ResolveFeesByTeamIdsAsync(
+            jobId, RoleConstants.ClubRep, eligibleTeamIds);
+        var states = await _paymentState.ForTeamsAsync(eligibleTeamIds, jobId);
+        // Teams with no ledger rows are absent from the batch dictionary — one shared empty
+        // state (job config only) replicates ForTeamAsync's per-entity fallback.
+        var emptyState = await _paymentState.ForJobAsync(jobId);
+
+        var repriceCtx = new TeamFeeApplicationContext
+        {
+            // Job baseline only — the applier resolves the per-scope override
+            // (team → agegroup → league) over this via the canonical
+            // ResolvedFee.ResolveFullPaymentPhase chokepoint.
+            IsFullPaymentRequired = job.BTeamsFullPaymentRequired ?? false,
+            AddProcessingFees = job.BAddProcessingFees ?? false,
+            ApplyProcessingFeesToDeposit = job.BApplyProcessingFeesToTeamDeposit ?? false,
+            ProcessingFeePercent = processingRate
+            // Late fee is NOT assessed on a reprice: it recomputes base/phase/processing only. A
+            // late fee is purely a consequence of payment — it mints once at charge entry
+            // (FeeResolutionService.RealizeLateFeeAtChargeAsync), only for a team that owes inside
+            // an open window and has paid none yet. A reprice that pushed it onto every owing team
+            // before payment is exactly the stamp-at-signup model the derived design replaced.
+        };
+
         foreach (var team in eligibleTeams)
         {
             if (team.Agegroup == null)
@@ -1411,7 +1440,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             }
 
             // No paid-in-full skip here — every eligible team is repriced. The applier
-            // (ApplyTeamSwapFeesAsync) decides phase per-team from the cascade AND the team's
+            // (ApplyTeamSwapFees) decides phase per-team from the cascade AND the team's
             // own payments: paying PAST the deposit promotes the team to full payment, so a
             // paid-ahead team is re-stamped to FullPrice (never DOWN to the deposit) and can
             // never net a bogus credit on a PIF→deposit downgrade. Removing the old
@@ -1424,23 +1453,11 @@ public class TeamRegistrationService : ITeamRegistrationService
             var oldFeeProcessing = team.FeeProcessing ?? 0;
             var oldFeeLatefee = team.FeeLatefee ?? 0m;
 
-            await _feeService.ApplyTeamSwapFeesAsync(
-                team, jobId, team.AgegroupId,
-                new TeamFeeApplicationContext
-                {
-                    // Job baseline only — ApplyTeamSwapFeesAsync resolves the per-scope
-                    // override (team → agegroup → league) over this via the canonical
-                    // ResolvedFee.ResolveFullPaymentPhase chokepoint.
-                    IsFullPaymentRequired = job.BTeamsFullPaymentRequired ?? false,
-                    AddProcessingFees = job.BAddProcessingFees ?? false,
-                    ApplyProcessingFeesToDeposit = job.BApplyProcessingFeesToTeamDeposit ?? false,
-                    ProcessingFeePercent = processingRate
-                    // Late fee is NOT assessed on a reprice: it recomputes base/phase/processing only. A
-                    // late fee is purely a consequence of payment — it mints once at charge entry
-                    // (FeeResolutionService.RealizeLateFeeAtChargeAsync), only for a team that owes inside
-                    // an open window and has paid none yet. A reprice that pushed it onto every owing team
-                    // before payment is exactly the stamp-at-signup model the derived design replaced.
-                });
+            _feeService.ApplyTeamSwapFees(
+                team,
+                resolvedByTeam.GetValueOrDefault(team.TeamId),
+                states.GetValueOrDefault(team.TeamId) ?? emptyState,
+                repriceCtx);
             var newFeeBase = team.FeeBase ?? 0m;
             var newFeeProcessing = team.FeeProcessing ?? 0m;
             var newFeeLatefee = team.FeeLatefee ?? 0m;
@@ -1470,7 +1487,7 @@ public class TeamRegistrationService : ITeamRegistrationService
                     UpdatedAt = team.Modified
                 });
 
-                _logger.LogInformation(
+                _logger.LogDebug(
                     "Team {TeamId} ({TeamName}): FeeBase {OldFeeBase} -> {NewFeeBase}, FeeProcessing {OldFeeProcessing} -> {NewFeeProcessing}",
                     team.TeamId, team.TeamName, oldFeeBase, newFeeBase, oldFeeProcessing, newFeeProcessing);
             }

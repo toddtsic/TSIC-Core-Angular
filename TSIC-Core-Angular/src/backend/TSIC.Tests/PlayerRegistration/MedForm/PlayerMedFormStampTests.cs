@@ -103,7 +103,8 @@ public class PlayerMedFormStampTests
             jobRepo.Object,
             placement.Object,
             medForms.Object,
-            new Mock<TSIC.API.Services.Shared.UsLax.IUsLaxService>().Object);
+            new Mock<TSIC.API.Services.Shared.UsLax.IUsLaxService>().Object,
+            new Mock<IPaymentStateService>().Object);
 
         return (svc, regRepo, teamRepo, medForms);
     }

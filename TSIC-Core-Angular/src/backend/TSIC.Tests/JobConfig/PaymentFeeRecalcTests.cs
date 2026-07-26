@@ -269,31 +269,35 @@ public class PaymentFeeRecalcTests
         feeService.Setup(f => f.GetEffectiveProcessingRateAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProcessingRate);
 
-        // The reprice engine prices each team through the applier (mocked below). Return the
-        // same fixed Deposit/BalanceDue the AccountingDataBuilder uses so the mocked applier
-        // prices teams exactly as production would.
-        feeService.Setup(f => f.ResolveFeeAsync(
-                It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
+        // The reprice engine batch-resolves the cascade up front and prices each team through
+        // the pre-hydrated applier (mocked below). Return the same fixed Deposit/BalanceDue the
+        // AccountingDataBuilder uses so the mocked applier prices teams exactly as production would.
+        feeService.Setup(f => f.ResolveFeesByTeamIdsAsync(
+                It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<IReadOnlyList<Guid>>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TSIC.Contracts.Repositories.ResolvedFee
-            {
-                Deposit = Deposit,
-                BalanceDue = BalanceDue,
-            });
+            .Returns((Guid _, string _, IReadOnlyList<Guid> ids, CancellationToken _) =>
+                Task.FromResult(ids.ToDictionary(
+                    id => id,
+                    _ => new TSIC.Contracts.Repositories.ResolvedFee
+                    {
+                        FeeConfigured = true,
+                        Deposit = Deposit,
+                        BalanceDue = BalanceDue,
+                    })));
 
-        feeService.Setup(f => f.ApplyTeamSwapFeesAsync(
-                It.IsAny<Teams>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
-                It.IsAny<TeamFeeApplicationContext>(), It.IsAny<CancellationToken>()))
-            .Returns((Teams t, Guid _, Guid agId, TeamFeeApplicationContext feeCtx, CancellationToken _) =>
+        feeService.Setup(f => f.ApplyTeamSwapFees(
+                It.IsAny<Teams>(), It.IsAny<TSIC.Contracts.Repositories.ResolvedFee?>(),
+                It.IsAny<TSIC.Contracts.Payments.PaymentState>(), It.IsAny<TeamFeeApplicationContext>()))
+            .Callback((Teams t, TSIC.Contracts.Repositories.ResolvedFee? resolved,
+                TSIC.Contracts.Payments.PaymentState _, TeamFeeApplicationContext feeCtx) =>
             {
-                var agegroup = ctx.Agegroups.First(a => a.AgegroupId == agId);
-                var deposit = agegroup.RosterFee ?? 0;
-                var balance = agegroup.TeamFee ?? 0;
+                var deposit = resolved?.Deposit ?? 0;
+                var balance = resolved?.BalanceDue ?? 0;
 
-                // Mirror the real ApplyTeamSwapFeesAsync promotion: a team that has paid PAST
-                // the deposit is in full-payment phase regardless of the config flag, so a
-                // downgrade never re-stamps it DOWN to the deposit (no bogus credit). Processing
-                // is OFF in the downgrade scenario, so PaidTotal stands in for PrincipalPaid.
+                // Mirror the real applier promotion: a team that has paid PAST the deposit is
+                // in full-payment phase regardless of the config flag, so a downgrade never
+                // re-stamps it DOWN to the deposit (no bogus credit). Processing is OFF in the
+                // downgrade scenario, so PaidTotal stands in for PrincipalPaid.
                 var paidPastDeposit = (t.PaidTotal ?? 0m) > deposit + 0.01m;
                 var fullPayment = feeCtx.IsFullPaymentRequired || paidPastDeposit;
 
@@ -312,9 +316,17 @@ public class PaymentFeeRecalcTests
 
                 t.FeeTotal = (t.FeeBase ?? 0) + (t.FeeProcessing ?? 0);
                 t.OwedTotal = (t.FeeTotal ?? 0) - (t.PaidTotal ?? 0);
-
-                return Task.CompletedTask;
             });
+
+        // The engine batch-hydrates PaymentStates up front; an empty batch dict + the shared
+        // empty fallback replicates "no ledger rows" for every team (the mocked applier reads
+        // PaidTotal off the entity instead).
+        var paymentStateMock = new Mock<IPaymentStateService>();
+        paymentStateMock.Setup(p => p.ForTeamsAsync(
+                It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, TSIC.Contracts.Payments.PaymentState>());
+        paymentStateMock.Setup(p => p.ForJobAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(TSIC.Contracts.Payments.PaymentState.Empty(false, ProcessingRate, 0.015m));
 
         var teamRegService = new TeamRegistrationService(
             new Mock<ILogger<TeamRegistrationService>>().Object,
@@ -335,7 +347,7 @@ public class PaymentFeeRecalcTests
             new Mock<IJobDiscountCodeRepository>().Object,
             new Mock<IClubTeamRepository>().Object,
             new Mock<ITeamPlacementService>().Object,
-            new Mock<IPaymentStateService>().Object,
+            paymentStateMock.Object,
             new Mock<IRegisteredTeamShaper>().Object,
             CapabilityMocks.Open(),
             new Mock<IJobPaymentFeaturesService>().Object,

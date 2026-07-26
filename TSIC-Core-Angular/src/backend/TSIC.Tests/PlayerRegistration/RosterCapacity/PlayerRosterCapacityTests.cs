@@ -123,7 +123,8 @@ public class PlayerRosterCapacityTests
             jobRepo.Object,
             placement.Object,
             new Mock<IMedFormService>().Object,
-            new Mock<TSIC.API.Services.Shared.UsLax.IUsLaxService>().Object);
+            new Mock<TSIC.API.Services.Shared.UsLax.IUsLaxService>().Object,
+            new Mock<IPaymentStateService>().Object);
 
         return (svc, regRepo, teamRepo, placement, feeService);
     }

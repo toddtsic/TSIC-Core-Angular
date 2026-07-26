@@ -27,6 +27,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
     private readonly ITeamPlacementService _placement;
     private readonly IMedFormService _medForms;
     private readonly IUsLaxService _usLax;
+    private readonly IPaymentStateService _paymentState;
 
     private sealed class PreSubmitContext
     {
@@ -63,7 +64,8 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         IJobRepository jobs,
         ITeamPlacementService placement,
         IMedFormService medForms,
-        IUsLaxService usLax)
+        IUsLaxService usLax,
+        IPaymentStateService paymentState)
     {
         _logger = logger;
         _feeService = feeService;
@@ -76,6 +78,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         _placement = placement;
         _medForms = medForms;
         _usLax = usLax;
+        _paymentState = paymentState;
     }
 
     public async Task<PreSubmitPlayerRegistrationResponseDto> PreSubmitAsync(Guid jobId, string familyUserId, PreSubmitPlayerRegistrationRequestDto request, string callerUserId)
@@ -655,6 +658,33 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             return 0;
         }
 
+        // Batch-hydrate ONCE for the whole scope — this loop used to make ~6 sequential DB
+        // round-trips PER registration (fee cascade + ledger + job rates), which took minutes
+        // on a large job. Now: the Player fee cascade for every assigned team (3 queries) and
+        // every registrant's PaymentState (job config + ledger totals, 4 queries); the loop
+        // stamps in memory through the same canonical applier core as the async path.
+        var teamIds = registrations
+            .Where(r => r.AssignedTeamId.HasValue)
+            .Select(r => r.AssignedTeamId!.Value)
+            .Distinct()
+            .ToList();
+        var resolvedByTeam = await _feeService.ResolveFeesByTeamIdsAsync(
+            jobId, RoleConstants.Player, teamIds, ct);
+        var states = await _paymentState.ForRegistrationsAsync(
+            registrations.Select(r => r.RegistrationId).ToList(), jobId, ct);
+        // Regs with no ledger rows are absent from the batch dictionary — one shared empty
+        // state (job config only) replicates ForRegistrationAsync's per-entity fallback.
+        var emptyState = await _paymentState.ForJobAsync(jobId, ct);
+
+        // Job baseline only — the applier resolves the per-scope override (team → agegroup →
+        // league) over this via ResolvedFee.ResolveFullPaymentPhase. Late fee is NOT assessed
+        // on a reprice: it recomputes base/phase/processing only. A late fee is purely a
+        // consequence of payment — it mints once at charge entry
+        // (FeeResolutionService.RealizeLateFeeAtChargeAsync), only for a reg that owes inside an
+        // open window and has paid none yet. A reprice that pushed it onto every owing reg before
+        // payment is exactly the stamp-at-signup model the derived design replaced.
+        var repriceCtx = new FeeApplicationContext { IsFullPaymentRequired = jobFullPaymentRequired };
+
         var updated = 0;
         foreach (var reg in registrations)
         {
@@ -663,7 +693,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             if (regAgegroupId is null) continue;
 
             // No paid-in-full skip here — every active reg is repriced. The applier
-            // (ApplySwapFeesAsync) decides phase per-reg from the cascade AND the registrant's
+            // (ApplySwapFees) decides phase per-reg from the cascade AND the registrant's
             // own payments: paying past the deposit promotes the reg to full payment, so a
             // paid-ahead reg is re-stamped to FullPrice (never DOWN to the deposit) and can
             // never net a bogus credit. Removing the old OwedTotal<=0 gate is what lets a
@@ -673,16 +703,11 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             var oldFeeProcessing = reg.FeeProcessing;
             var oldFeeLatefee = reg.FeeLatefee;
 
-            // Job baseline only — ApplySwapFeesAsync resolves the per-scope override
-            // (team → agegroup → league) over this via ResolvedFee.ResolveFullPaymentPhase.
-            // Late fee is NOT assessed on a reprice: it recomputes base/phase/processing only. A late
-            // fee is purely a consequence of payment — it mints once at charge entry
-            // (FeeResolutionService.RealizeLateFeeAtChargeAsync), only for a reg that owes inside an
-            // open window and has paid none yet. A reprice that pushed it onto every owing reg before
-            // payment is exactly the stamp-at-signup model the derived design replaced.
-            await _feeService.ApplySwapFeesAsync(
-                reg, jobId, regAgegroupId.Value, reg.AssignedTeamId.Value,
-                new FeeApplicationContext { IsFullPaymentRequired = jobFullPaymentRequired }, ct);
+            _feeService.ApplySwapFees(
+                reg,
+                resolvedByTeam.GetValueOrDefault(reg.AssignedTeamId.Value),
+                states.GetValueOrDefault(reg.RegistrationId) ?? emptyState,
+                repriceCtx);
 
             // Late fee added on a no-proc job changes neither FeeBase nor FeeProcessing — detect it
             // explicitly so the reg is saved/counted (OwedTotal already moved via RecalcTotals).
@@ -692,7 +717,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 reg.Modified = DateTime.Now;
                 updated++;
 
-                _logger.LogInformation(
+                _logger.LogDebug(
                     "Player registration {RegistrationId}: FeeBase {OldFeeBase} -> {NewFeeBase}, FeeProcessing {OldFeeProcessing} -> {NewFeeProcessing}",
                     reg.RegistrationId, oldFeeBase, reg.FeeBase, oldFeeProcessing, reg.FeeProcessing);
             }

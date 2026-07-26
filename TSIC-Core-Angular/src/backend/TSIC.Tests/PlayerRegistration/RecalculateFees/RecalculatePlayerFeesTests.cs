@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
 using TSIC.API.Services.Players;
+using TSIC.Contracts.Payments;
 using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Teams;
 using TSIC.Contracts.Repositories;
@@ -90,19 +91,23 @@ public class RecalculatePlayerFeesTests
             .ReturnsAsync(new List<Teams> { new() { TeamId = teamId, AgegroupId = agegroupId } });
 
         var feeService = new Mock<IFeeResolutionService>();
-        feeService.Setup(f => f.ResolveFeeAsync(
-                jobId, RoleConstants.Player, agegroupId, teamId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ResolvedFee { Deposit = DepositAmt, BalanceDue = BalanceDueAmt });
+        // The engine batch-resolves the cascade per team up front and hands the pre-hydrated
+        // ResolvedFee to the applier — stub the batch resolver, not per-entity ResolveFeeAsync.
+        feeService.Setup(f => f.ResolveFeesByTeamIdsAsync(
+                jobId, RoleConstants.Player, It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, ResolvedFee>
+            {
+                [teamId] = new ResolvedFee { FeeConfigured = true, Deposit = DepositAmt, BalanceDue = BalanceDueAmt }
+            });
 
         // Mutating stub so the engine counts an update and exercises SaveChanges.
-        feeService.Setup(f => f.ApplySwapFeesAsync(
-                It.IsAny<Registrations>(), jobId, agegroupId, teamId,
-                It.IsAny<FeeApplicationContext>(), It.IsAny<CancellationToken>()))
-            .Returns((Registrations reg, Guid _, Guid _, Guid _, FeeApplicationContext _, CancellationToken _) =>
+        feeService.Setup(f => f.ApplySwapFees(
+                It.IsAny<Registrations>(), It.IsAny<ResolvedFee?>(), It.IsAny<PaymentState>(),
+                It.IsAny<FeeApplicationContext>()))
+            .Callback((Registrations reg, ResolvedFee? _, PaymentState _, FeeApplicationContext _) =>
             {
                 reg.FeeBase = FullAmt;
                 reg.FeeProcessing = 17.85m;
-                return Task.CompletedTask;
             });
 
         var svc = BuildService(feeService, regRepo, teamRepo, jobRepo);
@@ -112,9 +117,9 @@ public class RecalculatePlayerFeesTests
         // Every active reg is handed to the applier — including the paid-in-full one.
         foreach (var reg in new[] { pifReg, depositReg, unpaidReg })
         {
-            feeService.Verify(f => f.ApplySwapFeesAsync(
-                    reg, jobId, agegroupId, teamId,
-                    It.IsAny<FeeApplicationContext>(), It.IsAny<CancellationToken>()),
+            feeService.Verify(f => f.ApplySwapFees(
+                    reg, It.IsAny<ResolvedFee?>(), It.IsAny<PaymentState>(),
+                    It.IsAny<FeeApplicationContext>()),
                 Times.Once, "no paid-in-full skip — every active reg is repriced");
         }
 
@@ -168,26 +173,28 @@ public class RecalculatePlayerFeesTests
             .ReturnsAsync(new List<Teams> { new() { TeamId = teamId, AgegroupId = agegroupId } });
 
         var feeService = new Mock<IFeeResolutionService>();
-        feeService.Setup(f => f.ResolveFeeAsync(
-                jobId, RoleConstants.Player, agegroupId, teamId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ResolvedFee
+        feeService.Setup(f => f.ResolveFeesByTeamIdsAsync(
+                jobId, RoleConstants.Player, It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, ResolvedFee>
             {
-                FeeConfigured = true,
-                Deposit = DepositAmt,
-                BalanceDue = BalanceDueAmt,
-                BFullPaymentRequired = scopeOverride
+                [teamId] = new ResolvedFee
+                {
+                    FeeConfigured = true,
+                    Deposit = DepositAmt,
+                    BalanceDue = BalanceDueAmt,
+                    BFullPaymentRequired = scopeOverride
+                }
             });
 
         // Capture-only stub (no mutation → no SaveChanges needed). We assert the phase the
         // engine handed the applier, not what the applier then does with it.
         FeeApplicationContext? captured = null;
-        feeService.Setup(f => f.ApplySwapFeesAsync(
-                It.IsAny<Registrations>(), jobId, agegroupId, teamId,
-                It.IsAny<FeeApplicationContext>(), It.IsAny<CancellationToken>()))
-            .Returns((Registrations _, Guid _, Guid _, Guid _, FeeApplicationContext ctx, CancellationToken _) =>
+        feeService.Setup(f => f.ApplySwapFees(
+                It.IsAny<Registrations>(), It.IsAny<ResolvedFee?>(), It.IsAny<PaymentState>(),
+                It.IsAny<FeeApplicationContext>()))
+            .Callback((Registrations _, ResolvedFee? _, PaymentState _, FeeApplicationContext ctx) =>
             {
                 captured = ctx;
-                return Task.CompletedTask;
             });
 
         var svc = BuildService(feeService, regRepo, teamRepo, jobRepo);
@@ -202,8 +209,18 @@ public class RecalculatePlayerFeesTests
         Mock<IFeeResolutionService> feeService,
         Mock<IRegistrationRepository> regRepo,
         Mock<ITeamRepository> teamRepo,
-        Mock<IJobRepository> jobRepo) =>
-        new(
+        Mock<IJobRepository> jobRepo)
+    {
+        // The engine batch-hydrates PaymentStates up front; an empty batch dict + the shared
+        // empty fallback replicates "no ledger rows" for every reg.
+        var paymentState = new Mock<IPaymentStateService>();
+        paymentState.Setup(p => p.ForRegistrationsAsync(
+                It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, PaymentState>());
+        paymentState.Setup(p => p.ForJobAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(PaymentState.Empty(false, 0.035m, 0.015m));
+
+        return new(
             new Mock<ILogger<PlayerRegistrationService>>().Object,
             feeService.Object,
             new Mock<IVerticalInsureService>().Object,
@@ -214,5 +231,7 @@ public class RecalculatePlayerFeesTests
             jobRepo.Object,
             new Mock<ITeamPlacementService>().Object,
             new Mock<IMedFormService>().Object,
-            new Mock<TSIC.API.Services.Shared.UsLax.IUsLaxService>().Object);
+            new Mock<TSIC.API.Services.Shared.UsLax.IUsLaxService>().Object,
+            paymentState.Object);
+    }
 }

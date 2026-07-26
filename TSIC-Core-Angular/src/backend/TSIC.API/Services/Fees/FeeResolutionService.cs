@@ -258,37 +258,11 @@ public sealed class FeeResolutionService : IFeeResolutionService
         CancellationToken ct = default)
     {
         var resolved = await ResolveFeeAsync(jobId, RoleConstants.Player, targetAgegroupId, targetTeamId, ct);
-        var deposit = resolved?.EffectiveDeposit ?? 0m;
-        var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
-
-        // Phase is decided from BOTH the config cascade AND the registrant's own payments:
-        //   (1) Config: per-scope override (team → ag → league) ?? job baseline.
-        //   (2) Promotion: having paid PAST the deposit tier IS entering full payment. The
-        //       registrant's payment history overrides the scope's deposit-phase default, so a
-        //       fee/phase change can never re-stamp a paid-ahead reg DOWN to the deposit (which
-        //       would net a bogus credit), AND a price increase correctly reaches already-paid
-        //       registrants — they owe the delta.
-        // The threshold is principal-based (proc backed out per method via PaymentState) compared
-        // against the discount/late/donation-adjusted deposit, with a small tolerance so a reg
-        // that paid EXACTLY its deposit is not spuriously promoted. The same PaymentState is
-        // reused for the totals recompute below (one ledger read, not two).
-        const decimal depositPaidTolerance = 0.01m;
+        // The same PaymentState drives the phase decision (paid-past-deposit promotion) and the
+        // totals recompute below — one ledger read, not two.
         var state = await _paymentState.ForRegistrationAsync(reg.RegistrationId, jobId, ct);
-        var effectiveDeposit = Math.Max(0m, deposit - reg.TotalDiscount() + reg.FeeLatefee + reg.FeeDonation);
-        var paidPastDeposit = state.PrincipalPaid > effectiveDeposit + depositPaidTolerance;
 
-        // A reg already stamped at the full price is in full-payment phase and must NOT be re-derived
-        // down to the deposit — the same "stamped FeeBase is authoritative" signal PaymentService
-        // .IsRegFullPaymentPhase uses. Gated behind PreserveFullPaymentStamp so only the at-charge
-        // realize opts in (a fresh Pay-in-Full upgrade has FeeBase = FullPrice but nothing paid, so
-        // the paidPastDeposit promotion can't rescue it); genuine swaps/recalcs keep re-phasing.
-        var fullPrice = resolved?.FullPrice ?? 0m;
-        var alreadyFullStamped = ctx.PreserveFullPaymentStamp && fullPrice > 0m && reg.FeeBase >= fullPrice - 0.005m;
-        var fullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved, ctx.IsFullPaymentRequired) || paidPastDeposit || alreadyFullStamped;
-        reg.FeeBase = fullPayment
-            ? fullPrice
-            : (deposit > 0m ? deposit : balanceDue);
-        // FeeDiscount / FeeLatefee / FeeDonation preserved
+        StampSwapFeeBase(reg, resolved, state, ctx);
 
         // Late fee: re-derive live (derived "pay late ⇒ owe more" model). A recompute that means to
         // (re)assess the late fee opts in via ctx.AssessActiveLateFee — the director's "update all
@@ -304,7 +278,58 @@ public sealed class FeeResolutionService : IFeeResolutionService
                 reg.TotalDiscount(), reg.FeeDonation, ct);
         }
 
-        await ApplyRegistrationProcessingAndTotalsAsync(reg, jobId, isNew: false, ct, state);
+        StampRegistrationProcessingAndTotals(reg, state);
+    }
+
+    public void ApplySwapFees(
+        Registrations reg, ResolvedFee? resolved, PaymentState state, FeeApplicationContext ctx)
+    {
+        // Late-fee assessment needs per-entity modifier reads — only the async path can honor it.
+        // The reprice engines (the only pre-hydrated callers) never assess it: a late fee mints
+        // at charge entry (RealizeLateFeeAtChargeAsync), not on a reprice.
+        if (ctx.AssessActiveLateFee)
+            throw new ArgumentException(
+                "AssessActiveLateFee requires ApplySwapFeesAsync (per-entity modifier reads).", nameof(ctx));
+
+        StampSwapFeeBase(reg, resolved, state, ctx);
+        StampRegistrationProcessingAndTotals(reg, state);
+    }
+
+    /// <summary>
+    /// Phase decision + FeeBase stamp for a player swap/reprice. Phase is decided from BOTH the
+    /// config cascade AND the registrant's own payments:
+    ///   (1) Config: per-scope override (team → ag → league) ?? job baseline.
+    ///   (2) Promotion: having paid PAST the deposit tier IS entering full payment. The
+    ///       registrant's payment history overrides the scope's deposit-phase default, so a
+    ///       fee/phase change can never re-stamp a paid-ahead reg DOWN to the deposit (which
+    ///       would net a bogus credit), AND a price increase correctly reaches already-paid
+    ///       registrants — they owe the delta.
+    /// The threshold is principal-based (proc backed out per method via PaymentState) compared
+    /// against the discount/late/donation-adjusted deposit, with a small tolerance so a reg
+    /// that paid EXACTLY its deposit is not spuriously promoted.
+    /// </summary>
+    private static void StampSwapFeeBase(
+        Registrations reg, ResolvedFee? resolved, PaymentState state, FeeApplicationContext ctx)
+    {
+        var deposit = resolved?.EffectiveDeposit ?? 0m;
+        var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
+
+        const decimal depositPaidTolerance = 0.01m;
+        var effectiveDeposit = Math.Max(0m, deposit - reg.TotalDiscount() + reg.FeeLatefee + reg.FeeDonation);
+        var paidPastDeposit = state.PrincipalPaid > effectiveDeposit + depositPaidTolerance;
+
+        // A reg already stamped at the full price is in full-payment phase and must NOT be re-derived
+        // down to the deposit — the same "stamped FeeBase is authoritative" signal PaymentService
+        // .IsRegFullPaymentPhase uses. Gated behind PreserveFullPaymentStamp so only the at-charge
+        // realize opts in (a fresh Pay-in-Full upgrade has FeeBase = FullPrice but nothing paid, so
+        // the paidPastDeposit promotion can't rescue it); genuine swaps/recalcs keep re-phasing.
+        var fullPrice = resolved?.FullPrice ?? 0m;
+        var alreadyFullStamped = ctx.PreserveFullPaymentStamp && fullPrice > 0m && reg.FeeBase >= fullPrice - 0.005m;
+        var fullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved, ctx.IsFullPaymentRequired) || paidPastDeposit || alreadyFullStamped;
+        reg.FeeBase = fullPayment
+            ? fullPrice
+            : (deposit > 0m ? deposit : balanceDue);
+        // FeeDiscount / FeeLatefee / FeeDonation preserved
     }
 
     // ── Team Entity: New ────────────────────────────────────────
@@ -344,34 +369,11 @@ public sealed class FeeResolutionService : IFeeResolutionService
         CancellationToken ct = default)
     {
         var resolved = await ResolveFeeAsync(jobId, RoleConstants.ClubRep, targetAgegroupId, team.TeamId, ct);
-
-        var deposit = resolved?.EffectiveDeposit ?? 0m;
-        var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
-
-        // Phase is decided from BOTH the config cascade AND the team's own payments — identical to
-        // ApplySwapFeesAsync (the player swap applier):
-        //   (1) Config: per-scope override (team → ag → league) ?? job baseline (ctx).
-        //   (2) Promotion: having paid PAST the deposit tier IS entering full payment. This makes
-        //       the reprice engine's old OwedTotal<=0 skip unnecessary — a paid-ahead (or
-        //       owed-zeroed) team is re-stamped to FullPrice, NEVER down to the deposit, so a
-        //       PIF→deposit downgrade can't net a bogus credit, AND a deposit→PIF upgrade reaches
-        //       a team whose deposit-phase owed was already zeroed (e.g. by a correction).
-        // Threshold is principal-based (proc backed out per method via PaymentState), compared
-        // against the discount/late/donation-adjusted deposit with a small tolerance so a team
-        // that paid EXACTLY its deposit is not spuriously promoted. The same PaymentState is
-        // reused for the totals recompute below (one ledger read, not two).
-        const decimal depositPaidTolerance = 0.01m;
+        // The same PaymentState drives the phase decision (paid-past-deposit promotion) and the
+        // totals recompute below — one ledger read, not two.
         var state = await _paymentState.ForTeamAsync(team.TeamId, jobId, ct);
-        var effectiveDeposit = Math.Max(
-            0m, deposit - team.TotalDiscount() + (team.FeeLatefee ?? 0m) + (team.FeeDonation ?? 0m));
-        var paidPastDeposit = state.PrincipalPaid > effectiveDeposit + depositPaidTolerance;
 
-        var fullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved, ctx.IsFullPaymentRequired) || paidPastDeposit;
-        var feeBase = fullPayment ? (resolved?.FullPrice ?? 0m) : deposit;
-
-        // FeeBase changes for the phase; the late fee re-derives below (the club-rep analog of the
-        // player swap path) — discount/donation stay frozen.
-        team.FeeBase = feeBase;
+        var (deposit, balanceDue, fullPayment) = StampTeamSwapFeeBase(team, resolved, state, ctx);
 
         // Late fee: re-derive live (derived "pay late ⇒ owe more" model) when this recompute opts in
         // via ctx.AssessActiveLateFee (the director's "update all prior" reprice, and the team
@@ -386,7 +388,52 @@ public sealed class FeeResolutionService : IFeeResolutionService
                 team.TotalDiscount(), team.FeeDonation ?? 0m, ct);
         }
 
-        await ApplyTeamProcessingAndTotalsAsync(team, jobId, deposit, balanceDue, ctx, fullPayment, isNew: false, ct, state);
+        StampTeamProcessingAndTotals(team, deposit, balanceDue, ctx, fullPayment, state);
+    }
+
+    public void ApplyTeamSwapFees(
+        TeamsEntity team, ResolvedFee? resolved, PaymentState state, TeamFeeApplicationContext ctx)
+    {
+        // Late-fee assessment needs per-entity modifier reads — only the async path can honor it.
+        // The reprice engines (the only pre-hydrated callers) never assess it: a late fee mints
+        // at charge entry (RealizeLateFeeAtChargeAsync), not on a reprice.
+        if (ctx.AssessActiveLateFee)
+            throw new ArgumentException(
+                "AssessActiveLateFee requires ApplyTeamSwapFeesAsync (per-entity modifier reads).", nameof(ctx));
+
+        var (deposit, balanceDue, fullPayment) = StampTeamSwapFeeBase(team, resolved, state, ctx);
+        StampTeamProcessingAndTotals(team, deposit, balanceDue, ctx, fullPayment, state);
+    }
+
+    /// <summary>
+    /// Phase decision + FeeBase stamp for a team swap/reprice. Phase is decided from BOTH the
+    /// config cascade AND the team's own payments — identical to the player swap applier:
+    ///   (1) Config: per-scope override (team → ag → league) ?? job baseline (ctx).
+    ///   (2) Promotion: having paid PAST the deposit tier IS entering full payment. This makes
+    ///       the reprice engine's old OwedTotal&lt;=0 skip unnecessary — a paid-ahead (or
+    ///       owed-zeroed) team is re-stamped to FullPrice, NEVER down to the deposit, so a
+    ///       PIF→deposit downgrade can't net a bogus credit, AND a deposit→PIF upgrade reaches
+    ///       a team whose deposit-phase owed was already zeroed (e.g. by a correction).
+    /// Threshold is principal-based (proc backed out per method via PaymentState), compared
+    /// against the discount/late/donation-adjusted deposit with a small tolerance so a team
+    /// that paid EXACTLY its deposit is not spuriously promoted. FeeBase changes for the phase;
+    /// discount/donation stay frozen (the late fee is the async caller's opt-in concern).
+    /// </summary>
+    private static (decimal Deposit, decimal BalanceDue, bool FullPayment) StampTeamSwapFeeBase(
+        TeamsEntity team, ResolvedFee? resolved, PaymentState state, TeamFeeApplicationContext ctx)
+    {
+        var deposit = resolved?.EffectiveDeposit ?? 0m;
+        var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
+
+        const decimal depositPaidTolerance = 0.01m;
+        var effectiveDeposit = Math.Max(
+            0m, deposit - team.TotalDiscount() + (team.FeeLatefee ?? 0m) + (team.FeeDonation ?? 0m));
+        var paidPastDeposit = state.PrincipalPaid > effectiveDeposit + depositPaidTolerance;
+
+        var fullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved, ctx.IsFullPaymentRequired) || paidPastDeposit;
+        team.FeeBase = fullPayment ? (resolved?.FullPrice ?? 0m) : deposit;
+
+        return (deposit, balanceDue, fullPayment);
     }
 
     // ── Charge-entry realize (auto-activated late fee) ──────────
@@ -460,6 +507,11 @@ public sealed class FeeResolutionService : IFeeResolutionService
                 await GetEffectiveEcheckProcessingRateAsync(jobId, ct))
             : await _paymentState.ForRegistrationAsync(reg.RegistrationId, jobId, ct);
 
+        StampRegistrationProcessingAndTotals(reg, state);
+    }
+
+    private static void StampRegistrationProcessingAndTotals(Registrations reg, PaymentState state)
+    {
         // TotalDiscount() — the proc basis must net the same discount FeeMath subtracts from FeeTotal,
         // or the proc target disagrees with the total it is a component of.
         reg.FeeProcessing = reg.FeeBase > 0m
@@ -475,48 +527,52 @@ public sealed class FeeResolutionService : IFeeResolutionService
         TeamFeeApplicationContext ctx, bool fullPayment, bool isNew, CancellationToken ct,
         PaymentState? state = null)
     {
-        var feeBase = team.FeeBase ?? 0m;
-        // TotalDiscount() — the proc basis must net the same discount FeeMath subtracts from FeeTotal,
-        // or the proc target disagrees with the total it is a component of.
-        var discount = team.TotalDiscount();
-        var lateFee = team.FeeLatefee ?? 0m;
-        var donation = team.FeeDonation ?? 0m;
-
-        decimal feeProcessing = 0m;
-        if (ctx.AddProcessingFees)
+        if (state is null)
         {
-            // Phase (resolved per-scope by the caller) + ApplyProcessingFeesToDeposit
-            // decide which slice of the principal counts as the "billable base" for proc.
-            decimal billableBase;
-            if (fullPayment)
-            {
-                billableBase = ctx.ApplyProcessingFeesToDeposit ? feeBase : balanceDue;
-            }
-            else
-            {
-                billableBase = ctx.ApplyProcessingFeesToDeposit ? deposit : 0m;
-            }
-
-            if (billableBase > 0m)
-            {
-                // Callers that already resolved the team's PaymentState (the swap/reprice path,
-                // which needs it for the paid-past-deposit promotion) pass it through to avoid a
-                // second ledger read. Otherwise resolve it here: Empty for a brand-new team, else
-                // from the ledger.
-                var procState = isNew
+            // Callers that already resolved the team's PaymentState (the swap/reprice path,
+            // which needs it for the paid-past-deposit promotion) pass it through to avoid a
+            // second ledger read. Otherwise resolve it here — but only when proc will actually
+            // be computed: Empty for a brand-new team, else from the ledger.
+            var billableBase = BillableProcBase(ctx, fullPayment, team.FeeBase ?? 0m, deposit, balanceDue);
+            state = billableBase > 0m
+                ? (isNew
                     ? PaymentState.Empty(
                         bAddProcessingFees: true,
                         ccRate: ctx.ProcessingFeePercent,
                         echeckRate: await GetEffectiveEcheckProcessingRateAsync(jobId, ct))
-                    : state ?? await _paymentState.ForTeamAsync(team.TeamId, jobId, ct);
-
-                feeProcessing = Math.Round(
-                    procState.FeeProcessingTarget(billableBase, discount, lateFee, donation),
-                    2, MidpointRounding.AwayFromZero);
-            }
+                    : await _paymentState.ForTeamAsync(team.TeamId, jobId, ct))
+                : PaymentState.Empty(false, 0m, 0m); // proc not billable — stamp writes 0 either way
         }
 
-        team.FeeProcessing = feeProcessing;
+        StampTeamProcessingAndTotals(team, deposit, balanceDue, ctx, fullPayment, state);
+    }
+
+    /// <summary>
+    /// Phase (resolved per-scope by the caller) + ApplyProcessingFeesToDeposit decide which
+    /// slice of the principal counts as the "billable base" for proc.
+    /// </summary>
+    private static decimal BillableProcBase(
+        TeamFeeApplicationContext ctx, bool fullPayment, decimal feeBase, decimal deposit, decimal balanceDue)
+    {
+        if (!ctx.AddProcessingFees) return 0m;
+        return fullPayment
+            ? (ctx.ApplyProcessingFeesToDeposit ? feeBase : balanceDue)
+            : (ctx.ApplyProcessingFeesToDeposit ? deposit : 0m);
+    }
+
+    private static void StampTeamProcessingAndTotals(
+        TeamsEntity team, decimal deposit, decimal balanceDue,
+        TeamFeeApplicationContext ctx, bool fullPayment, PaymentState state)
+    {
+        // TotalDiscount() — the proc basis must net the same discount FeeMath subtracts from FeeTotal,
+        // or the proc target disagrees with the total it is a component of.
+        var billableBase = BillableProcBase(ctx, fullPayment, team.FeeBase ?? 0m, deposit, balanceDue);
+
+        team.FeeProcessing = billableBase > 0m
+            ? Math.Round(
+                state.FeeProcessingTarget(billableBase, team.TotalDiscount(), team.FeeLatefee ?? 0m, team.FeeDonation ?? 0m),
+                2, MidpointRounding.AwayFromZero)
+            : 0m;
 
         team.RecalcTotals();
     }

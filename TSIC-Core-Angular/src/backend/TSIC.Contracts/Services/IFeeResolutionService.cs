@@ -126,6 +126,19 @@ public interface IFeeResolutionService
         CancellationToken ct = default);
 
     /// <summary>
+    /// Pre-hydrated variant of <see cref="ApplySwapFeesAsync"/> for the whole-job reprice
+    /// engines: the caller batch-resolves the fee cascade (<see cref="ResolveFeesByTeamIdsAsync"/>)
+    /// and PaymentStates (<c>IPaymentStateService.ForRegistrationsAsync</c>) up front — a handful
+    /// of queries for the whole job instead of ~6 per registration — and this stamps one
+    /// registration with ZERO DB round-trips. Identical math: both paths run the same private
+    /// core (phase decision incl. paid-past-deposit promotion, FeeBase, FeeProcessing, totals).
+    /// <c>ctx.AssessActiveLateFee</c> must be false (throws): late-fee re-derivation needs
+    /// per-entity modifier reads, and reprices never assess it — late fees mint at charge entry.
+    /// </summary>
+    void ApplySwapFees(
+        Registrations reg, ResolvedFee? resolved, Payments.PaymentState state, FeeApplicationContext ctx);
+
+    /// <summary>
     /// Charge-entry realize for a PLAYER registration: re-derive the effective late fee (and
     /// recompute processing + totals) for a single reg about to be charged, so OwedTotal reflects
     /// an auto-activated late-fee window WITHOUT a prior director reprice. DRY — delegates to
@@ -191,6 +204,17 @@ public interface IFeeResolutionService
         Domain.Entities.Teams team, Guid jobId, Guid targetAgegroupId,
         TeamFeeApplicationContext ctx,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Pre-hydrated variant of <see cref="ApplyTeamSwapFeesAsync"/> — the team twin of
+    /// <see cref="ApplySwapFees"/>. The whole-job team reprice batch-resolves the ClubRep
+    /// cascade and PaymentStates up front and stamps each team with ZERO DB round-trips,
+    /// through the same private core as the async path. <c>ctx.AssessActiveLateFee</c> must
+    /// be false (throws) — see <see cref="ApplySwapFees"/>.
+    /// </summary>
+    void ApplyTeamSwapFees(
+        Domain.Entities.Teams team, ResolvedFee? resolved, Payments.PaymentState state,
+        TeamFeeApplicationContext ctx);
 }
 
 /// <summary>
