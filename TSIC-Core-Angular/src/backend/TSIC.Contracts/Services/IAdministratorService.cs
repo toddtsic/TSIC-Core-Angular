@@ -41,10 +41,11 @@ public interface IAdministratorService
 
     /// <summary>
     /// Search admin-candidate users by username or name for typeahead.
-    /// Scoped to eligible accounts only (AM-004): admin-only accounts, or
-    /// Unassigned Adult–only accounts on the job's customer.
+    /// Lane model (AM-004): eligibility depends on the role being granted — accounts whose
+    /// entire registration history lies within that role's lane (Director+SuperDirector share
+    /// one lane), or Unassigned Adult–only accounts on the job's customer.
     /// </summary>
-    Task<List<UserSearchResultDto>> SearchUsersAsync(string query, Guid jobId, CancellationToken cancellationToken = default);
+    Task<List<UserSearchResultDto>> SearchUsersAsync(string query, Guid jobId, string roleName, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Set an administrator as the primary event contact for the job.

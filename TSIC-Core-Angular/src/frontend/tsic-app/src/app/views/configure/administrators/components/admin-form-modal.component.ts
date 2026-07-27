@@ -27,6 +27,20 @@ export interface AdminFormResult {
                 </div>
                 <div class="modal-body">
                     <div class="row g-2">
+                        <!-- Lane model (AM-004): eligibility depends on the role being granted,
+                             so the role is chosen FIRST and the search is scoped to its lane. -->
+                        <div class="col-12">
+                            <label for="roleSelect" class="field-label">Role</label>
+                            <select id="roleSelect" class="field-input field-select"
+                                [ngModel]="selectedRole()"
+                                (ngModelChange)="onRoleChange($event)">
+                                <option value="" disabled>Select a role...</option>
+                                @for (role of availableRoles; track role) {
+                                    <option [value]="role">{{ role }}</option>
+                                }
+                            </select>
+                        </div>
+
                         @if (mode() === 'add') {
                             <div class="col-12">
                                 <label for="userSearch" class="field-label">Username</label>
@@ -34,14 +48,19 @@ export interface AdminFormResult {
                                     id="userSearch"
                                     type="text"
                                     class="field-input"
-                                    placeholder="Search by name or username..."
+                                    [placeholder]="selectedRole() ? 'Search by name or username...' : 'Select a role first...'"
+                                    [disabled]="!selectedRole()"
                                     [value]="searchInput()"
                                     (input)="onSearchInput($event)"
                                     autocomplete="off" />
-                                <small class="text-body-secondary d-block mt-1">
-                                    Eligible: existing admin accounts, or pending coach/staff adults registered
-                                    with this customer. Family and player accounts cannot hold admin roles.
-                                </small>
+                                @if (selectedRole()) {
+                                    <small class="text-body-secondary d-block mt-1">
+                                        Eligible: accounts that have only ever held the
+                                        {{ selectedRole() === 'Director' || selectedRole() === 'SuperDirector' ? 'Director / SuperDirector' : selectedRole() }}
+                                        role, or pending coach/staff adults registered with this customer.
+                                        Family and player accounts cannot hold admin roles.
+                                    </small>
+                                }
                                 @if (searchResults().length > 0 && !selectedUser()) {
                                     <ul class="list-group mt-1 shadow-sm typeahead-dropdown">
                                         @for (user of searchResults(); track user.userId) {
@@ -99,18 +118,6 @@ export interface AdminFormResult {
                                 </div>
                             </div>
                         }
-
-                        <div class="col-12">
-                            <label for="roleSelect" class="field-label">Role</label>
-                            <select id="roleSelect" class="field-input field-select"
-                                [ngModel]="selectedRole()"
-                                (ngModelChange)="selectedRole.set($event)">
-                                <option value="" disabled>Select a role...</option>
-                                @for (role of availableRoles; track role) {
-                                    <option [value]="role">{{ role }}</option>
-                                }
-                            </select>
-                        </div>
                     </div>
 
                     @if (errorMessage()) {
@@ -154,7 +161,9 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
 
     private readonly adminService = inject(AdministratorService);
     private readonly destroy$ = new Subject<void>();
-    private readonly searchSubject = new Subject<string>();
+    // Lane model (AM-004): the candidate pool depends on the role being granted, so the
+    // stream carries (query, role) and re-fires when either changes.
+    private readonly searchSubject = new Subject<{ q: string; role: string }>();
 
     readonly availableRoles = ['Director', 'SuperDirector', 'ApiAuthorized', 'Ref Assignor', 'Store Admin', 'STPAdmin'];
 
@@ -182,14 +191,14 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
         // Typeahead debounce
         this.searchSubject.pipe(
             debounceTime(300),
-            distinctUntilChanged(),
-            switchMap(query => {
-                if (query.length < 2) {
+            distinctUntilChanged((a, b) => a.q === b.q && a.role === b.role),
+            switchMap(({ q, role }) => {
+                if (q.length < 2 || !role) {
                     this.searching.set(false);
                     return of([]);
                 }
                 this.searching.set(true);
-                return this.adminService.searchUsers(query);
+                return this.adminService.searchUsers(q, role);
             }),
             takeUntil(this.destroy$)
         ).subscribe({
@@ -212,7 +221,18 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
         const value = (event.target as HTMLInputElement).value;
         this.searchInput.set(value);
         this.selectedUser.set(null);
-        this.searchSubject.next(value);
+        this.searchSubject.next({ q: value, role: this.selectedRole() });
+        this.updateValidity();
+    }
+
+    /** Role changed → the eligibility lane changed: prior results/selection are invalid. */
+    onRoleChange(role: string) {
+        this.selectedRole.set(role);
+        if (this.mode() === 'add') {
+            this.selectedUser.set(null);
+            this.searchResults.set([]);
+            this.searchSubject.next({ q: this.searchInput(), role });
+        }
         this.updateValidity();
     }
 

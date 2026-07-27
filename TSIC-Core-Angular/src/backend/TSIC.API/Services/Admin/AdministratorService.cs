@@ -19,19 +19,20 @@ public sealed class AdministratorService : IAdministratorService
     private readonly UserManager<ApplicationUser> _userManager;
 
     /// <summary>
-    /// Role IDs an account may carry and still count as an "admin-only" account (AM-004).
-    /// Mirrors AdministratorRepository.AdminRoleIds.
+    /// AM-004 lane model: eligibility for granting a role is confined to that role's lane —
+    /// an account qualifies only if every registration it has ever held (any job, any customer)
+    /// lies within the lane. No cross-type grants (a Director cannot be handed Store Admin; a
+    /// referee's account cannot become Ref Assignor — fresh admins come through the Unassigned
+    /// Adult funnel instead). Director and SuperDirector share one lane: they are the same kind
+    /// of person at two trust levels, and mixed D/SD accounts exist by design (the Edit modal
+    /// flips between them). Every other admin type is strictly its own lane.
     /// </summary>
-    private static readonly string[] AdminRoleIds =
-    [
-        RoleConstants.Superuser,
-        RoleConstants.Director,
-        RoleConstants.SuperDirector,
-        RoleConstants.ApiAuthorized,
-        RoleConstants.RefAssignor,
-        RoleConstants.StoreAdmin,
-        RoleConstants.StpAdmin
-    ];
+    private static string[] GetRoleLane(string roleId)
+    {
+        return roleId == RoleConstants.Director || roleId == RoleConstants.SuperDirector
+            ? [RoleConstants.Director, RoleConstants.SuperDirector]
+            : [roleId];
+    }
 
     /// <summary>
     /// Maps display role names to role ID constants.
@@ -99,14 +100,16 @@ public sealed class AdministratorService : IAdministratorService
                 $"'{request.UserName}' has no registrations. Have the person register on this site as a " +
                 "coach/staff adult, then accept them here.");
 
-        var isAdminOnly = registrations.All(r =>
-            AdminRoleIds.Contains(r.RoleId, StringComparer.OrdinalIgnoreCase));
+        var lane = GetRoleLane(roleId);
+        var isLanePure = registrations.All(r =>
+            lane.Contains(r.RoleId, StringComparer.OrdinalIgnoreCase));
         var isPendingAdultOnly = registrations.All(r =>
             string.Equals(r.RoleId, RoleConstants.UnassignedAdult, StringComparison.OrdinalIgnoreCase));
 
-        if (!isAdminOnly && !isPendingAdultOnly)
+        if (!isLanePure && !isPendingAdultOnly)
             throw new ArgumentException(
-                $"'{request.UserName}' has family or player registrations and is not eligible for admin roles. " +
+                $"'{request.UserName}' has registrations outside the {request.RoleName} role and is not " +
+                "eligible — admin roles are granted only to accounts that have never held any other role. " +
                 "Have the person register on this site as a coach/staff adult with a separate account.");
 
         if (isPendingAdultOnly)
@@ -162,7 +165,7 @@ public sealed class AdministratorService : IAdministratorService
                 ?? throw new InvalidOperationException("Failed to retrieve converted administrator.");
         }
 
-        // Admin-only account: pin with a new registration on this job.
+        // Lane-pure account: pin with a new registration on this job.
         if (registrations.Any(r => r.JobId == jobId))
             throw new ArgumentException($"'{request.UserName}' already has a registration on this job.");
 
@@ -297,16 +300,21 @@ public sealed class AdministratorService : IAdministratorService
     public async Task<List<UserSearchResultDto>> SearchUsersAsync(
         string query,
         Guid jobId,
+        string roleName,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
             return [];
 
+        if (!RoleNameToIdMap.TryGetValue(roleName, out var roleId))
+            throw new ArgumentException($"Invalid role name: '{roleName}'.");
+
         var customerId = await _jobRepo.GetCustomerIdAsync(jobId, cancellationToken);
         if (customerId == null)
             return [];
 
-        var results = await _userRepo.SearchAdminCandidatesAsync(query, customerId.Value, 10, cancellationToken);
+        var results = await _userRepo.SearchAdminCandidatesAsync(
+            query, customerId.Value, GetRoleLane(roleId), 10, cancellationToken);
 
         return results.Select(r => new UserSearchResultDto
         {

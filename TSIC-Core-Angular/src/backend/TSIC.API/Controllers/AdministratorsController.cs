@@ -190,6 +190,7 @@ public class AdministratorsController : ControllerBase
     [HttpGet("users/search")]
     public async Task<ActionResult<List<UserSearchResultDto>>> SearchUsers(
         [FromQuery] string q,
+        [FromQuery] string role,
         CancellationToken cancellationToken)
     {
         // Extract jobId from regId claim (most secure approach)
@@ -199,7 +200,14 @@ public class AdministratorsController : ControllerBase
             return BadRequest(new { message = "Registration context required" });
         }
 
-        var results = await _adminService.SearchUsersAsync(q, jobId.Value, cancellationToken);
-        return Ok(results);
+        try
+        {
+            var results = await _adminService.SearchUsersAsync(q, jobId.Value, role, cancellationToken);
+            return Ok(results);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 }

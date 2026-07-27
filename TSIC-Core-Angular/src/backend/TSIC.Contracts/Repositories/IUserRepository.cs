@@ -58,14 +58,16 @@ public interface IUserRepository
 
     /// <summary>
     /// Search admin-candidate accounts by username, first name, or last name (case-insensitive contains).
-    /// Eligible accounts only (AM-004): never a family credential holder, and either every registration
-    /// is an admin role (existing admin account) or every registration is Unassigned Adult with at least
-    /// one on the given customer (pending adult awaiting elevation). Family/player logins are shared
-    /// within a household and are structurally excluded — they must never surface as admin candidates.
+    /// Lane model (AM-004): eligibility depends on the role being granted. An account qualifies only if
+    /// it is never a family credential holder AND either (a) lane-pure — every registration it has ever
+    /// held lies within <paramref name="laneRoleIds"/> (no cross-type grants) — or (b) every registration
+    /// is Unassigned Adult with at least one on the given customer (pending adult awaiting elevation).
+    /// Family/player logins are shared within a household and are structurally excluded.
     /// </summary>
     Task<List<UserSearchResult>> SearchAdminCandidatesAsync(
         string query,
         Guid customerId,
+        IReadOnlyCollection<string> laneRoleIds,
         int maxResults = 10,
         CancellationToken cancellationToken = default);
 
@@ -95,7 +97,7 @@ public record UserSearchResult
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
 
-    /// <summary>"Admin" (all registrations admin-role) or "PendingAdult" (all Unassigned Adult).</summary>
+    /// <summary>"Admin" (lane-pure: all registrations within the granted role's lane) or "PendingAdult" (all Unassigned Adult).</summary>
     public required string AccountType { get; init; }
 }
 

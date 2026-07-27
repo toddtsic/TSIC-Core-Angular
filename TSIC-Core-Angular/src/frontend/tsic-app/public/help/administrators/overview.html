@@ -10,22 +10,26 @@
 <div class="help-callout help-callout--warning">
   <i class="bi bi-shield-lock" aria-hidden="true"></i>
   <div>
-    <strong>Only two kinds of accounts can be added.</strong>
+    <strong>Each admin role is its own lane — no cross-type grants.</strong>
     <p class="help-callout__body">
-      <strong>Admin accounts</strong> (people who already hold admin roles and nothing else) and
-      <strong>pending coach/staff adults</strong> registered with this customer. Family and player
-      logins never appear in the search and are rejected by the server — family credentials are
-      shared within a household, and elevating one would hand Director access to everyone who
-      knows the password, including the kids.
+      An account is eligible for a role only if it has <strong>never held any other role</strong>,
+      anywhere on the platform — or is a <strong>pending coach/staff adult</strong> registered with
+      this customer. Director and SuperDirector count as one lane (two trust levels of the same
+      person); Ref Assignor, Store Admin, STPAdmin, and ApiAuthorized are each strictly their own.
+      Family and player logins never qualify for anything — family credentials are shared within a
+      household, and elevating one would hand admin access to everyone who knows the password,
+      including the kids.
     </p>
   </div>
 </div>
 
 <h4>Adding an existing admin</h4>
 <p>
-  <strong>Add Administrator</strong> → search by name or username. Accounts badged
-  <strong>Admin account</strong> already hold admin roles elsewhere; selecting one and choosing a
-  role pins them to this job with a new admin registration.
+  <strong>Add Administrator</strong> → <strong>pick the role first</strong> — the search only looks
+  inside that role's lane. Accounts badged <strong>Admin account</strong> already hold exactly this
+  role (or its Director/SuperDirector sibling) elsewhere; selecting one pins them to this job with a
+  new admin registration. A Director cannot be handed Store Admin, and a referee's account cannot
+  become Ref Assignor — people wearing a new hat come through the funnel below with a fresh account.
 </p>
 
 <h4>Adding a brand-new person</h4>

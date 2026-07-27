@@ -167,29 +167,21 @@ public class UserRepository : IUserRepository
     public async Task<List<UserSearchResult>> SearchAdminCandidatesAsync(
         string query,
         Guid customerId,
+        IReadOnlyCollection<string> laneRoleIds,
         int maxResults = 10,
         CancellationToken cancellationToken = default)
     {
         var lowerQuery = query.ToLower();
 
-        // AM-004: only two account shapes may be pinned as job administrators.
-        //  - Admin account: every registration carries an admin role (proven admin identity).
-        //  - Pending adult: every registration is Unassigned Adult (the adult wizard's
-        //    pending-coach role) with at least one on this customer — the sanctioned funnel
-        //    for brand-new admins ("register as coach on the site, then get accepted here").
+        // AM-004 lane model: eligibility depends on the role being granted. Only two shapes:
+        //  - Lane-pure: every registration the account has EVER held, on any job/customer,
+        //    lies within the lane's role set (Director+SuperDirector share one lane; every
+        //    other admin type is its own lane — no cross-type grants).
+        //  - Pending adult: every registration is Unassigned Adult with at least one on this
+        //    customer — the sanctioned funnel for brand-new admins ("register as coach on the
+        //    site, then get accepted here").
         // Anything with a family/player footprint is a shared-credential household login and
-        // must never appear — accepting one would hand Director access to the whole household.
-        string[] adminRoleIds =
-        [
-            RoleConstants.Superuser,
-            RoleConstants.Director,
-            RoleConstants.SuperDirector,
-            RoleConstants.ApiAuthorized,
-            RoleConstants.RefAssignor,
-            RoleConstants.StoreAdmin,
-            RoleConstants.StpAdmin
-        ];
-
+        // must never appear — accepting one would hand admin access to the whole household.
         return await _context.AspNetUsers
             .AsNoTracking()
             .Where(u =>
@@ -203,9 +195,9 @@ public class UserRepository : IUserRepository
             .Select(u => new
             {
                 User = u,
-                IsAdminOnly = _context.Registrations
+                IsLanePure = _context.Registrations
                     .Where(r => r.UserId == u.Id)
-                    .All(r => adminRoleIds.Contains(r.RoleId!)),
+                    .All(r => laneRoleIds.Contains(r.RoleId!)),
                 IsPendingAdultOnly =
                     _context.Registrations
                         .Where(r => r.UserId == u.Id)
@@ -214,7 +206,7 @@ public class UserRepository : IUserRepository
                         && r.RoleId == RoleConstants.UnassignedAdult
                         && r.Job.CustomerId == customerId)
             })
-            .Where(x => x.IsAdminOnly || x.IsPendingAdultOnly)
+            .Where(x => x.IsLanePure || x.IsPendingAdultOnly)
             .OrderBy(x => x.User.LastName)
             .ThenBy(x => x.User.FirstName)
             .Take(maxResults)
@@ -224,7 +216,7 @@ public class UserRepository : IUserRepository
                 UserName = x.User.UserName!,
                 FirstName = x.User.FirstName,
                 LastName = x.User.LastName,
-                AccountType = x.IsAdminOnly ? "Admin" : "PendingAdult"
+                AccountType = x.IsLanePure ? "Admin" : "PendingAdult"
             })
             .ToListAsync(cancellationToken);
     }

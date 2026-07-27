@@ -42,9 +42,10 @@ export class AdministratorService {
         return this.http.put<AdministratorDto[]>(`${this.apiUrl}/deactivate-all`, {});
     }
 
-    searchUsers(query: string): Observable<UserSearchResultDto[]> {
+    /** Lane model (AM-004): candidates depend on the role being granted — role is required. */
+    searchUsers(query: string, role: string): Observable<UserSearchResultDto[]> {
         return this.http.get<UserSearchResultDto[]>(`${this.apiUrl}/users/search`, {
-            params: { q: query }
+            params: { q: query, role }
         });
     }
 
