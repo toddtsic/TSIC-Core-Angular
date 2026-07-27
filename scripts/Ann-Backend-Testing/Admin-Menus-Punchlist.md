@@ -130,8 +130,12 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   - **Job Config General** — `JobConfigService.BuildReferenceDataAsync` ([JobConfigService.cs:351](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Admin/JobConfigService.cs#L351)) calls `_repo.GetSportsAsync(ct)` with no filter or casing.
 - **Plan (agreed with Ann) — Option B**: extract the LADT whitelist + title-case + sort into **one shared helper** (`SportListHelper` / `ISportOptionProvider`); route both `LadtService.GetSportsAsync` and `JobConfigService.GetReferenceDataAsync` through it; each service maps to its own DTO shape. Backend change → needs API deploy. **Do not implement until Todd signs off.**
 - **Scope bonus**: audit other Sport-pulling paths (job-clone wizard, customer-setup, reports) and route them through the same helper so no surface drifts back to the raw table.
+- **RESOLUTION (Todd go 2026-07-27, implemented)**:
+  - **Census first**: all 1,057 jobs carry a sport; **9 jobs sit OUTSIDE the 12-sport whitelist** — Track and Field (8) and multi-sport (1). A naive whitelist would have blanked those jobs' Sport dropdown (and a save could silently rewrite the sport). The LADT dropdown **already had this gap** for those 8 T&F customers.
+  - **Implemented**: shared static `SportWhitelist` (Services/Shared/Utilities) = the 12 LADT sports **+ track and field + multi-sport** (14), with `Contains` + `ToTitleCase`. Both `LadtService.GetSportsAsync` (private copies deleted) and `JobConfigService.GetReferenceDataAsync` route through it; each keeps its own DTO shape. Helper doc-comment warns: trim only with a census, never by taste.
+  - **Zero-risk audit**: read-path only, no DTO/DB change; Job Config dropdown binds `sportId` (name display-only); general tab is the sole consumer of `referenceData().sports`; the one FE sport-name comparison (`registration-detail-panel`, lacrosse check) lowercases and is fed by a different endpoint. Sport-pulling audit: nav-editor visibility options deliberately left raw (match-key surface, not a pick-a-sport dropdown); text-substitution joins are display of the job's own sport.
 - **Severity**: UX
-- **Status**: Open — awaiting Todd go/no-go (Ann, 2026-07-26)
+- **Status**: IN PROGRESS — coded 2026-07-27, awaiting API restart + Todd verify (General tab + LADT dropdowns show 14 clean sports)
 
 ### AM-009: [Configure / Job Settings → Payment] Payment tab — Refund Policy relocation + Balance Due % / Mail-in Warning cleanup
 - **Topic**: Configure Menus → Job Settings → Payment tab

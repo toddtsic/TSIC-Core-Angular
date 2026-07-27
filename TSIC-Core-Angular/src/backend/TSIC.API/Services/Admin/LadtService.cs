@@ -4,6 +4,7 @@ using TSIC.Contracts.Services;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.API.Services.Players;
+using TSIC.API.Services.Shared.Utilities;
 
 // Note: Use TSIC.Domain.Entities.Teams (fully-qualified) to resolve
 // collision with TSIC.API.Services.Teams namespace.
@@ -205,36 +206,18 @@ public sealed class LadtService : ILadtService
     // Lookups
     // ═══════════════════════════════════════════
 
-    // Whitelist of team sports TSIC actually supports. The Sports table includes
-    // a long legacy list (camping, caving, kayaking, etc.) that leaks into the
-    // league-edit dropdown; filter it here rather than mutate the table so any
-    // historical references remain resolvable.
-    private static readonly HashSet<string> AllowedSportNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "lacrosse", "soccer", "football", "hockey", "field hockey",
-        "basketball", "baseball", "softball", "volleyball",
-        "wrestling", "rugby", "cheerleading"
-    };
-
     public async Task<List<SportOptionDto>> GetSportsAsync(CancellationToken cancellationToken = default)
     {
         var sports = await _leagueRepo.GetAllSportsAsync(cancellationToken);
         return sports
-            .Where(s => s.SportName != null && AllowedSportNames.Contains(s.SportName))
+            .Where(s => SportWhitelist.Contains(s.SportName))
             .Select(s => new SportOptionDto
             {
                 SportId = s.SportId,
-                SportName = ToTitleCase(s.SportName!)
+                SportName = SportWhitelist.ToTitleCase(s.SportName!)
             })
             .OrderBy(s => s.SportName, StringComparer.OrdinalIgnoreCase)
             .ToList();
-    }
-
-    private static string ToTitleCase(string name)
-    {
-        // "lacrosse" → "Lacrosse", "field hockey" → "Field Hockey"
-        return string.Join(' ', name.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Select(w => char.ToUpperInvariant(w[0]) + w[1..].ToLowerInvariant()));
     }
 
     // ═══════════════════════════════════════════

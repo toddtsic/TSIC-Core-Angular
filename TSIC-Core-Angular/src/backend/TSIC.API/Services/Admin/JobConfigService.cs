@@ -9,6 +9,7 @@ using TSIC.Domain.Entities;
 using TSIC.API.Services.Teams;
 using TSIC.API.Services.Adults;
 using TSIC.API.Services.Metadata;
+using TSIC.API.Services.Shared.Utilities;
 
 namespace TSIC.API.Services.Admin;
 
@@ -486,7 +487,20 @@ public class JobConfigService : IJobConfigService
     public async Task<JobConfigReferenceDataDto> GetReferenceDataAsync(CancellationToken ct = default)
     {
         var jobTypes = await _repo.GetJobTypesAsync(ct);
-        var sports = await _repo.GetSportsAsync(ct);
+
+        // AM-008: same clean list as LADT — whitelist + title-case + sort. The dropdown
+        // binds SportId; every sport in use by an existing job is in the whitelist, so no
+        // job's current selection can go blank.
+        var sports = (await _repo.GetSportsAsync(ct))
+            .Where(s => SportWhitelist.Contains(s.Name))
+            .Select(s => new SportRefDto
+            {
+                SportId = s.SportId,
+                Name = SportWhitelist.ToTitleCase(s.Name!)
+            })
+            .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
         var customers = await _repo.GetCustomersAsync(ct);
         var billingTypes = await _repo.GetBillingTypesAsync(ct);
         var chargeTypes = await _repo.GetChargeTypesAsync(ct);
