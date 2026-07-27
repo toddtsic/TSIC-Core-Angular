@@ -97,8 +97,13 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
      - **Status** (`isActive`): **"Active"** when the enable toggle is on, else "Inactive" — it never checks expiry, so an expired code stays "Active" until someone manually flips the toggle.
      - **Fix**: (a) rename Expiry's happy-case "Active" to a date-based word ("Valid" / "In date" / show the end date), and (b) make Status a **computed** value — `isExpired ? 'Inactive' : (isActive ? 'Active' : 'Inactive')` — so an expired code can never read "Active." Expiry answers *when*; Status answers *working now*.
      - **Backend check before shipping**: confirm nothing downstream treats `isActive === true` as "usable right now" without also checking `isExpired`; if it does, tighten those call sites or expose the `!isExpired && isActive` derivation on the DTO.
-- **Severity**: UX + Bug (stale/incorrect Active status)
-- **Status**: Open (Ann, 2026-07-26)
+- **DISPOSITION (Todd, 2026-07-27): Won't Fix — the item's premise doesn't survive scrutiny.**
+  - **The two columns are independent dimensions, both truthful.** Status = the director's enable **switch** (on/off). Expiry = the **calendar window**. "Expired + Active" is not an oxymoron — it's a real state: *switch on, out of window* (extend the end date and the code resumes without touching the toggle). The proposed computed Status would have **destroyed information** by hiding the switch position exactly when a director is extending a season's code.
+  - **Backend check: verified SAFE.** The redemption path `JobDiscountCodeRepository.GetActiveCodeAsync` requires `Active && CodeStartDate <= now <= CodeEndDate` — an expired-but-toggled-on code **cannot be redeemed**. No money-path exposure; display-layer question only.
+  - **No reader is actually misled**: the Expiry chip already shows **"Expired" in red** on the same row — the salient fact is on screen, prominent and correct.
+  - **Lock icon (part 1) also declined**: the Usage count sits in the same row, used-codes-can't-be-deleted is the guessable audit-trail rule, and wanting to delete a used code is rare. Not worth churn this close to go-live.
+- **Severity**: UX + Bug (stale/incorrect Active status) — downgraded on review: no bug exists
+- **Status**: Won't Fix (Todd, 2026-07-27) — semantics correct and verified; no code change
 
 ### AM-007: [Configure / Dropdown Options] Make value chips drag-reorderable
 - **Topic**: Configure Menus → Dropdown Options (SuperUser-only)
