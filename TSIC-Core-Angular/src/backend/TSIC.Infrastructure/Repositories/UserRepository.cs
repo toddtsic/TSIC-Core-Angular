@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
@@ -163,12 +164,31 @@ public class UserRepository : IUserRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<List<UserSearchResult>> SearchAsync(
+    public async Task<List<UserSearchResult>> SearchAdminCandidatesAsync(
         string query,
+        Guid customerId,
         int maxResults = 10,
         CancellationToken cancellationToken = default)
     {
         var lowerQuery = query.ToLower();
+
+        // AM-004: only two account shapes may be pinned as job administrators.
+        //  - Admin account: every registration carries an admin role (proven admin identity).
+        //  - Pending adult: every registration is Unassigned Adult (the adult wizard's
+        //    pending-coach role) with at least one on this customer — the sanctioned funnel
+        //    for brand-new admins ("register as coach on the site, then get accepted here").
+        // Anything with a family/player footprint is a shared-credential household login and
+        // must never appear — accepting one would hand Director access to the whole household.
+        string[] adminRoleIds =
+        [
+            RoleConstants.Superuser,
+            RoleConstants.Director,
+            RoleConstants.SuperDirector,
+            RoleConstants.ApiAuthorized,
+            RoleConstants.RefAssignor,
+            RoleConstants.StoreAdmin,
+            RoleConstants.StpAdmin
+        ];
 
         return await _context.AspNetUsers
             .AsNoTracking()
@@ -176,15 +196,35 @@ public class UserRepository : IUserRepository
                 u.UserName!.ToLower().Contains(lowerQuery) ||
                 (u.FirstName != null && u.FirstName.ToLower().Contains(lowerQuery)) ||
                 (u.LastName != null && u.LastName.ToLower().Contains(lowerQuery)))
-            .OrderBy(u => u.LastName)
-            .ThenBy(u => u.FirstName)
-            .Take(maxResults)
-            .Select(u => new UserSearchResult
+            // Never a family credential holder
+            .Where(u => !_context.Registrations.Any(r => r.FamilyUserId == u.Id))
+            // Needs at least one registration to classify
+            .Where(u => _context.Registrations.Any(r => r.UserId == u.Id))
+            .Select(u => new
             {
-                UserId = u.Id,
-                UserName = u.UserName!,
-                FirstName = u.FirstName,
-                LastName = u.LastName
+                User = u,
+                IsAdminOnly = _context.Registrations
+                    .Where(r => r.UserId == u.Id)
+                    .All(r => adminRoleIds.Contains(r.RoleId!)),
+                IsPendingAdultOnly =
+                    _context.Registrations
+                        .Where(r => r.UserId == u.Id)
+                        .All(r => r.RoleId == RoleConstants.UnassignedAdult)
+                    && _context.Registrations.Any(r => r.UserId == u.Id
+                        && r.RoleId == RoleConstants.UnassignedAdult
+                        && r.Job.CustomerId == customerId)
+            })
+            .Where(x => x.IsAdminOnly || x.IsPendingAdultOnly)
+            .OrderBy(x => x.User.LastName)
+            .ThenBy(x => x.User.FirstName)
+            .Take(maxResults)
+            .Select(x => new UserSearchResult
+            {
+                UserId = x.User.Id,
+                UserName = x.User.UserName!,
+                FirstName = x.User.FirstName,
+                LastName = x.User.LastName,
+                AccountType = x.IsAdminOnly ? "Admin" : "PendingAdult"
             })
             .ToListAsync(cancellationToken);
     }

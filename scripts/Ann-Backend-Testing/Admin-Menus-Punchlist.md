@@ -55,24 +55,22 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Severity**: UX / Bug (clone + migration carry-forward)
 - **Status**: Open (Ann, 2026-07-26)
 
-### AM-004: [Configure / Administrators] 🔴 SECURITY — "Add Administrator" user search is unscoped platform-wide (cross-customer privilege escalation)
+### AM-004: [Configure / Administrators] "Add Administrator" accepts ANY account — including shared family logins — as a job admin
 - **Topic**: Configure Menus → Administrators → Add Administrator (username search)
 - **Source**: Carried forward from ConfigureMenus punchlist PL-006 (consolidation sweep, 2026-07-26)
-- **🔴 SECURITY ISSUE (verified in code, 2026-07-26)**: The Add-Administrator username search is **unscoped** — no customer filter, no role filter. A Director at **Customer A can add any user from Customer B** (or any account on the platform) as a Director of their own job. This is a **cross-customer / cross-tenant privilege-escalation and PII-exposure path**, not just a UX annoyance. Treat as the priority part of this item.
-- **Tested**: Configure → Administrators → "Add Administrator" → Username search dropdown
-- **Verified current behavior (code-traced)**:
-  - `AdministratorService.SearchUsersAsync` → `UserRepository.SearchAsync` ([UserRepository.cs:166-190](../../TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/UserRepository.cs#L166)) queries **every row in `AspNetUsers`**, case-insensitive `Contains` on UserName / FirstName / LastName, ordered by name, **top 10**. No role filter. No customer/job scope.
-  - `AddAdministratorAsync` ([AdministratorService.cs:51-90](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Admin/AdministratorService.cs#L51)) then writes a `Registrations` row for the **current job** with `RegistrationCategory="Director"` + chosen role + `BActive=true`, with **no check** that the selected user has any prior association with the current customer.
-  - Effective eligibility rule today = *"has any account anywhere on the TSIC platform."* Parents, players, and unrelated-customer staff all intermix; the "random" feel Ann reported is the arbitrary top-10 alphabetical slice of a loose match.
-- **Request (Ann)**: Make it clear who is eligible to be added, and stop surfacing random / unrelated users.
-- **For Todd — the fix (pick a scoping model)**:
-  - **A. Scope to same customer** — only users with an existing Registration under a job owned by the current customer.
-  - **B. Platform-wide but role-filtered** — require ≥1 Director/SuperDirector/Superuser role somewhere; exclude parent/player-only accounts.
-  - **C. Leave wide, add role/customer label per row** — weakest; does not close the leakage.
-  - **D. Default A + explicit "search all users" toggle** — for the rare legitimate cross-customer add.
-  - **Recommendation**: **A or D** — either eliminates the random feel *and* closes the cross-customer add. Enforce the scope **server-side** in the repository query, not just in the UI.
-- **Severity**: 🔴 Security (cross-tenant privilege escalation) + UX
-- **Status**: Open (Ann, 2026-07-26)
+- **Severity correction (Todd + Claude, 2026-07-27)**: the original 🔴 "cross-customer privilege escalation" framing was **overstated** — the entire `AdministratorsController` is `[Authorize(Policy = "SuperUserOnly")]` and the route is `roles: [Roles.Superuser]`, so **only SuperUsers can reach any of it**; a Director at Customer A cannot add anyone anywhere. SuperUser is cross-customer by design.
+- **The REAL problem (Todd, 2026-07-27)**: the search surfaced **every account on the platform** (mostly shared-credential **family logins**) indistinguishably, and `AddAdministratorAsync` accepted **any resolvable username with zero eligibility checks** — one mis-pick and a household's shared family password carries live Director access to the job's PII/medical/financial data. No warning at search, add, or review. The tool had no concept of admin-account hygiene.
+- **Agreed design (Todd, 2026-07-27) — implemented**:
+  1. **Eligibility whitelist, enforced server-side in both search and add**: only two account shapes are admin candidates —
+     - **Admin-only** accounts (every registration carries an admin role) → pinned with a new Director-category registration; duplicate-on-job rejected.
+     - **Unassigned Adult–only** accounts with ≥1 registration on this customer (the pending-coach funnel) → accepting **converts their pending registration in place** (role → chosen admin role, category → Director, retargeted to current job, fees zeroed), which also removes them from the coach-approval queue atomically. Guards: reject if `PaidTotal ≠ 0`, reject if no pending reg with this customer.
+     - Any family/player footprint (incl. being any registration's `FamilyUserId` credential holder) → **never surfaced, rejected on add** with instructive message.
+  2. **New-admin funnel**: brand-new person → registers as coach/staff adult on the job's site (personal account) → appears badged **Pending adult** → accepted here. No shared credentials by construction.
+  3. **UI**: per-row **Admin account / Pending adult** badges; eligibility hint under the search box; convert explanation when a Pending adult is selected; instructive empty-state.
+  4. **Help**: `helpKey: 'administrators'` + authored `help/administrators/overview.html` + `faq.html` documenting the funnel and the family-login refusal.
+- **Code**: `UserRepository.SearchAdminCandidatesAsync` (replaces unscoped `SearchAsync`), `AdministratorService.AddAdministratorAsync` eligibility wall + convert path, `IAdministratorRepository.GetRegistrationsByUserIdAsync`/`IsFamilyCredentialHolderAsync`, `UserSearchResultDto.AccountType`, admin-form-modal badges/hints.
+- **Severity**: Security hardening (latent cross-tenant path if screen ever opens to Directors) + UX
+- **Status**: IN PROGRESS — coded 2026-07-27, awaiting Todd E2E
 
 ### AM-005: [Configure / Customer Groups] SuperUser-only screen — overall styling can be tighter
 - **Topic**: Configure Menus → Customer Groups (SuperUser-only)

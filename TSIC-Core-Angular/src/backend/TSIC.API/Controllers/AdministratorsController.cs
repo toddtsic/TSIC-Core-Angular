@@ -199,7 +199,7 @@ public class AdministratorsController : ControllerBase
             return BadRequest(new { message = "Registration context required" });
         }
 
-        var results = await _adminService.SearchUsersAsync(q, cancellationToken);
+        var results = await _adminService.SearchUsersAsync(q, jobId.Value, cancellationToken);
         return Ok(results);
     }
 }

@@ -6,5 +6,6 @@ export type UserSearchResultDto = {
     userId: string;
     userName: string;
     displayName: string;
+    accountType: string;
 };
 

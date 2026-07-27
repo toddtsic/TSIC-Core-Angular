@@ -57,11 +57,15 @@ public interface IUserRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Search users by username, first name, or last name (case-insensitive contains).
-    /// Returns up to <paramref name="maxResults"/> matches.
+    /// Search admin-candidate accounts by username, first name, or last name (case-insensitive contains).
+    /// Eligible accounts only (AM-004): never a family credential holder, and either every registration
+    /// is an admin role (existing admin account) or every registration is Unassigned Adult with at least
+    /// one on the given customer (pending adult awaiting elevation). Family/player logins are shared
+    /// within a household and are structurally excluded — they must never surface as admin candidates.
     /// </summary>
-    Task<List<UserSearchResult>> SearchAsync(
+    Task<List<UserSearchResult>> SearchAdminCandidatesAsync(
         string query,
+        Guid customerId,
         int maxResults = 10,
         CancellationToken cancellationToken = default);
 }
@@ -72,6 +76,9 @@ public record UserSearchResult
     public required string UserName { get; init; }
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
+
+    /// <summary>"Admin" (all registrations admin-role) or "PendingAdult" (all Unassigned Adult).</summary>
+    public required string AccountType { get; init; }
 }
 
 public record UserNameInfo

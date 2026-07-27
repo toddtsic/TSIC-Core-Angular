@@ -133,7 +133,7 @@ export const routes: Routes = [
 					{
 						path: 'administrators',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser] },
+						data: { roles: [Roles.Superuser], helpKey: 'administrators' },
 						loadComponent: () => import('./views/configure/administrators/administrators.component').then(m => m.AdministratorManagementComponent)
 					},
 					{

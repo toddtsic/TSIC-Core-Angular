@@ -38,14 +38,24 @@ export interface AdminFormResult {
                                     [value]="searchInput()"
                                     (input)="onSearchInput($event)"
                                     autocomplete="off" />
+                                <small class="text-body-secondary d-block mt-1">
+                                    Eligible: existing admin accounts, or pending coach/staff adults registered
+                                    with this customer. Family and player accounts cannot hold admin roles.
+                                </small>
                                 @if (searchResults().length > 0 && !selectedUser()) {
                                     <ul class="list-group mt-1 shadow-sm typeahead-dropdown">
                                         @for (user of searchResults(); track user.userId) {
-                                            <li class="list-group-item list-group-item-action"
+                                            <li class="list-group-item list-group-item-action d-flex align-items-center"
                                                 role="button"
                                                 (click)="selectUser(user)">
                                                 <span class="fw-semibold">{{ user.displayName }}</span>
                                                 <small class="text-body-secondary ms-2">({{ user.userName }})</small>
+                                                <span
+                                                    [class]="user.accountType === 'Admin'
+                                                        ? 'badge ms-auto bg-primary-subtle text-primary-emphasis'
+                                                        : 'badge ms-auto bg-warning-subtle text-warning-emphasis'">
+                                                    {{ user.accountType === 'Admin' ? 'Admin account' : 'Pending adult' }}
+                                                </span>
                                             </li>
                                         }
                                     </ul>
@@ -57,9 +67,19 @@ export interface AdminFormResult {
                                         </span>
                                         <button type="button" class="btn-close btn-close-sm" (click)="clearUser()" aria-label="Clear"></button>
                                     </div>
+                                    @if (selectedUser()!.accountType === 'PendingAdult') {
+                                        <small class="text-warning-emphasis d-block mt-1">
+                                            <i class="bi bi-arrow-repeat me-1"></i>Accepting converts this person's pending
+                                            coach/staff registration into the selected admin role (they leave the
+                                            coach-approval queue).
+                                        </small>
+                                    }
                                 }
                                 @if (searchInput().length >= 2 && searchResults().length === 0 && !selectedUser() && !searching()) {
-                                    <small class="text-body-secondary d-block">No users found.</small>
+                                    <small class="text-body-secondary d-block">
+                                        No eligible users found. New admins should first register on this site as a
+                                        coach/staff adult, then be accepted here.
+                                    </small>
                                 }
                             </div>
                         } @else {

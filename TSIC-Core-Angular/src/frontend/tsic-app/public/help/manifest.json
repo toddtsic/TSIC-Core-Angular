@@ -1,5 +1,7 @@
 {
   "keys": [
+    "administrators/faq",
+    "administrators/overview",
     "adult-registration/faq",
     "adult-registration/overview",
     "age-ranges/faq",

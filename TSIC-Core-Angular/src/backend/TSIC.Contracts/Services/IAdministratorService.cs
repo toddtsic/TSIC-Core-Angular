@@ -40,9 +40,11 @@ public interface IAdministratorService
     Task<List<AdministratorDto>> SetAllStatusAsync(Guid jobId, bool isActive, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Search users by username or name for typeahead.
+    /// Search admin-candidate users by username or name for typeahead.
+    /// Scoped to eligible accounts only (AM-004): admin-only accounts, or
+    /// Unassigned Adult–only accounts on the job's customer.
     /// </summary>
-    Task<List<UserSearchResultDto>> SearchUsersAsync(string query, CancellationToken cancellationToken = default);
+    Task<List<UserSearchResultDto>> SearchUsersAsync(string query, Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Set an administrator as the primary event contact for the job.

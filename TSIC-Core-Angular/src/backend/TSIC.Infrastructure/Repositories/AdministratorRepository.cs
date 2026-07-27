@@ -138,4 +138,22 @@ public class AdministratorRepository : IAdministratorRepository
         job.PrimaryContactRegistrationId = registrationId;
         await _context.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<List<Registrations>> GetRegistrationsByUserIdAsync(
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .Where(r => r.UserId == userId)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<bool> IsFamilyCredentialHolderAsync(
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .AnyAsync(r => r.FamilyUserId == userId, cancellationToken);
+    }
 }

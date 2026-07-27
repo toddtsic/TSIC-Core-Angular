@@ -1,0 +1,65 @@
+<h3>Administrators</h3>
+<p>
+  This screen controls who can run this job — Directors, SuperDirectors, and the other admin roles.
+  Every row is a real person with access to the job's sensitive data: player and family contact
+  information, medical forms, payments, and accounting. Adding someone here is the single most
+  powerful grant in the system, so the screen is SuperUser-only and deliberately picky about who
+  it will accept.
+</p>
+
+<div class="help-callout help-callout--warning">
+  <i class="bi bi-shield-lock" aria-hidden="true"></i>
+  <div>
+    <strong>Only two kinds of accounts can be added.</strong>
+    <p class="help-callout__body">
+      <strong>Admin accounts</strong> (people who already hold admin roles and nothing else) and
+      <strong>pending coach/staff adults</strong> registered with this customer. Family and player
+      logins never appear in the search and are rejected by the server — family credentials are
+      shared within a household, and elevating one would hand Director access to everyone who
+      knows the password, including the kids.
+    </p>
+  </div>
+</div>
+
+<h4>Adding an existing admin</h4>
+<p>
+  <strong>Add Administrator</strong> → search by name or username. Accounts badged
+  <strong>Admin account</strong> already hold admin roles elsewhere; selecting one and choosing a
+  role pins them to this job with a new admin registration.
+</p>
+
+<h4>Adding a brand-new person</h4>
+<p>
+  Someone who has never held an admin role needs their own account first — never a shared family
+  login. The path:
+</p>
+<ul>
+  <li><strong>1. They register as a coach/staff adult</strong> on this job's site (the adult registration flow), creating a personal account.</li>
+  <li><strong>2. They appear in this screen's search</strong> badged <strong>Pending adult</strong>.</li>
+  <li><strong>3. You accept them</strong> with the admin role you want. Their pending coach/staff registration is <em>converted</em> into the admin registration — one account, one registration, and they drop out of the coach-approval queue automatically.</li>
+</ul>
+
+<h4>Roles</h4>
+<ul>
+  <li><strong>Director</strong> — full admin for this job.</li>
+  <li><strong>SuperDirector</strong> — Director plus cross-job powers within the customer.</li>
+  <li><strong>Ref Assignor / Store Admin / STPAdmin / ApiAuthorized</strong> — scoped admin roles for refereeing, the store, STP, and API access.</li>
+</ul>
+
+<h4>Primary contact</h4>
+<p>
+  The star marks the job's <strong>primary contact</strong> — the Director whose name goes out as
+  the event's public point of contact. One per job; click to set, click again to clear.
+</p>
+
+<h4>Active / Inactive</h4>
+<p>
+  The status toggle suspends an admin without deleting them — useful between seasons.
+  <strong>Activate All</strong> / <strong>Deactivate All</strong> act on every non-SuperUser row at once.
+</p>
+
+<h4>Common mistakes</h4>
+<ul>
+  <li><strong>Trying to add a parent's family login.</strong> It won't be offered, and the server will refuse it. If a parent should be a Director, have them create their own coach/staff account on the site first — the household keeps its family login for the kids, and the admin role rides on personal credentials.</li>
+  <li><strong>Expecting a just-registered coach to keep their coach spot.</strong> Accepting a Pending adult here <em>converts</em> that registration to the admin role — it's an either/or, not both.</li>
+</ul>

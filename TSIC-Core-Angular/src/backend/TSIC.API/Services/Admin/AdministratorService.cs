@@ -15,7 +15,23 @@ public sealed class AdministratorService : IAdministratorService
 {
     private readonly IAdministratorRepository _adminRepo;
     private readonly IUserRepository _userRepo;
+    private readonly IJobRepository _jobRepo;
     private readonly UserManager<ApplicationUser> _userManager;
+
+    /// <summary>
+    /// Role IDs an account may carry and still count as an "admin-only" account (AM-004).
+    /// Mirrors AdministratorRepository.AdminRoleIds.
+    /// </summary>
+    private static readonly string[] AdminRoleIds =
+    [
+        RoleConstants.Superuser,
+        RoleConstants.Director,
+        RoleConstants.SuperDirector,
+        RoleConstants.ApiAuthorized,
+        RoleConstants.RefAssignor,
+        RoleConstants.StoreAdmin,
+        RoleConstants.StpAdmin
+    ];
 
     /// <summary>
     /// Maps display role names to role ID constants.
@@ -34,10 +50,12 @@ public sealed class AdministratorService : IAdministratorService
     public AdministratorService(
         IAdministratorRepository adminRepo,
         IUserRepository userRepo,
+        IJobRepository jobRepo,
         UserManager<ApplicationUser> userManager)
     {
         _adminRepo = adminRepo;
         _userRepo = userRepo;
+        _jobRepo = jobRepo;
         _userManager = userManager;
     }
 
@@ -60,6 +78,93 @@ public sealed class AdministratorService : IAdministratorService
 
         if (!RoleNameToIdMap.TryGetValue(request.RoleName, out var roleId))
             throw new ArgumentException($"Invalid role name: '{request.RoleName}'.");
+
+        // ── AM-004 eligibility wall (server-side; the search filter is not the only gate) ──
+        // Family logins are shared within the household: elevating one hands Director access
+        // to everyone who knows the password. Only two account shapes may be pinned:
+        //  1. Admin-only accounts (every registration carries an admin role) → new registration.
+        //  2. Unassigned Adult–only accounts on this customer (the pending-coach funnel)
+        //     → their pending registration is CONVERTED in place, which also removes them
+        //       from the coach-approval queue.
+        if (await _adminRepo.IsFamilyCredentialHolderAsync(user.Id, cancellationToken))
+            throw new ArgumentException(
+                $"'{request.UserName}' is a family login — family credentials are shared within the household " +
+                "and cannot hold admin roles. Have the person register on this site as a coach/staff adult " +
+                "with their own account, then accept them here.");
+
+        var registrations = await _adminRepo.GetRegistrationsByUserIdAsync(user.Id, cancellationToken);
+
+        if (registrations.Count == 0)
+            throw new ArgumentException(
+                $"'{request.UserName}' has no registrations. Have the person register on this site as a " +
+                "coach/staff adult, then accept them here.");
+
+        var isAdminOnly = registrations.All(r =>
+            AdminRoleIds.Contains(r.RoleId, StringComparer.OrdinalIgnoreCase));
+        var isPendingAdultOnly = registrations.All(r =>
+            string.Equals(r.RoleId, RoleConstants.UnassignedAdult, StringComparison.OrdinalIgnoreCase));
+
+        if (!isAdminOnly && !isPendingAdultOnly)
+            throw new ArgumentException(
+                $"'{request.UserName}' has family or player registrations and is not eligible for admin roles. " +
+                "Have the person register on this site as a coach/staff adult with a separate account.");
+
+        if (isPendingAdultOnly)
+        {
+            var customerId = await _jobRepo.GetCustomerIdAsync(jobId, cancellationToken)
+                ?? throw new InvalidOperationException($"Job '{jobId}' not found.");
+
+            // Prefer a pending registration already on this job; otherwise the most recent
+            // one on this customer (retargeted to this job on convert).
+            var candidate = registrations.FirstOrDefault(r => r.JobId == jobId);
+            if (candidate == null)
+            {
+                foreach (var reg in registrations.OrderByDescending(r => r.RegistrationTs))
+                {
+                    var regCustomerId = await _jobRepo.GetCustomerIdAsync(reg.JobId, cancellationToken);
+                    if (regCustomerId == customerId)
+                    {
+                        candidate = reg;
+                        break;
+                    }
+                }
+            }
+
+            if (candidate == null)
+                throw new ArgumentException(
+                    $"'{request.UserName}' has no pending adult registration with this customer. " +
+                    "Have the person register on this site as a coach/staff adult, then accept them here.");
+
+            if (candidate.PaidTotal != 0)
+                throw new InvalidOperationException(
+                    $"'{request.UserName}' has payments recorded on their pending registration — " +
+                    "it cannot be converted to an admin registration automatically. Resolve the payment first.");
+
+            // Convert in place: the pending row BECOMES the admin registration (single row,
+            // continuous history) and drops out of the coach-approval queue in the same stroke.
+            candidate.JobId = jobId;
+            candidate.RoleId = roleId;
+            candidate.RegistrationCategory = "Director";
+            candidate.BActive = true;
+            candidate.Modified = DateTime.Now;
+            candidate.LebUserId = currentUserId;
+            // Admin registrations are fee-free
+            candidate.FeeBase = 0;
+            candidate.FeeDiscount = 0;
+            candidate.FeeDiscountMp = 0;
+            candidate.FeeDonation = 0;
+            candidate.FeeLatefee = 0;
+            candidate.FeeProcessing = 0;
+
+            await _adminRepo.SaveChangesAsync(cancellationToken);
+
+            return await _adminRepo.GetAdminProjectionByIdAsync(candidate.RegistrationId, cancellationToken)
+                ?? throw new InvalidOperationException("Failed to retrieve converted administrator.");
+        }
+
+        // Admin-only account: pin with a new registration on this job.
+        if (registrations.Any(r => r.JobId == jobId))
+            throw new ArgumentException($"'{request.UserName}' already has a registration on this job.");
 
         var registration = new Registrations
         {
@@ -191,18 +296,24 @@ public sealed class AdministratorService : IAdministratorService
 
     public async Task<List<UserSearchResultDto>> SearchUsersAsync(
         string query,
+        Guid jobId,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
             return [];
 
-        var results = await _userRepo.SearchAsync(query, 10, cancellationToken);
+        var customerId = await _jobRepo.GetCustomerIdAsync(jobId, cancellationToken);
+        if (customerId == null)
+            return [];
+
+        var results = await _userRepo.SearchAdminCandidatesAsync(query, customerId.Value, 10, cancellationToken);
 
         return results.Select(r => new UserSearchResultDto
         {
             UserId = r.UserId,
             UserName = r.UserName,
-            DisplayName = $"{r.LastName}, {r.FirstName}".Trim(' ', ',')
+            DisplayName = $"{r.LastName}, {r.FirstName}".Trim(' ', ','),
+            AccountType = r.AccountType
         }).ToList();
     }
 

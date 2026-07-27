@@ -41,4 +41,11 @@ public record UserSearchResultDto
     public required string UserId { get; init; }
     public required string UserName { get; init; }
     public required string DisplayName { get; init; }
+
+    /// <summary>
+    /// "Admin" — established admin account (all registrations admin-role);
+    /// "PendingAdult" — Unassigned Adult awaiting elevation (accepting converts
+    /// their pending registration to the chosen admin role). AM-004.
+    /// </summary>
+    public required string AccountType { get; init; }
 }

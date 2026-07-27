@@ -53,4 +53,17 @@ public interface IAdministratorRepository
     /// Pass null to clear.
     /// </summary>
     Task SetPrimaryContactAsync(Guid jobId, Guid? registrationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get every registration for a user (tracked — used to classify eligibility and to
+    /// convert a pending Unassigned Adult registration into an admin registration; AM-004).
+    /// </summary>
+    Task<List<Registrations>> GetRegistrationsByUserIdAsync(string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// True when the user is the credential holder of any family registration
+    /// (Registrations.FamilyUserId). Family logins are shared within a household and
+    /// must never be elevated to admin roles (AM-004).
+    /// </summary>
+    Task<bool> IsFamilyCredentialHolderAsync(string userId, CancellationToken cancellationToken = default);
 }
