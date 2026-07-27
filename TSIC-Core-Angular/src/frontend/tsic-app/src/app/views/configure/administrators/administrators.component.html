@@ -64,7 +64,18 @@
         <e-columns>
             <e-column field="administratorName" headerText="Name" minWidth="160">
                 <ng-template #template let-data>
-                    <span class="fw-semibold" [class.text-body-secondary]="data.isSuperuser">{{ data.administratorName }}</span>
+                    <span class="name-cell">
+                        <span class="star-slot">
+                            @if (data.roleName === 'Director') {
+                                <button class="icon-btn icon-btn-sm" [class.icon-btn-star]="data.isPrimaryContact"
+                                    (click)="setPrimaryContact(data)"
+                                    [title]="data.isPrimaryContact ? 'Remove as primary contact' : 'Set as primary contact'">
+                                    <i class="bi" [class.bi-star-fill]="data.isPrimaryContact" [class.bi-star]="!data.isPrimaryContact"></i>
+                                </button>
+                            }
+                        </span>
+                        <span class="fw-semibold" [class.text-body-secondary]="data.isSuperuser">{{ data.administratorName }}</span>
+                    </span>
                 </ng-template>
             </e-column>
             <e-column field="roleName" headerText="Role" width="130">
@@ -85,7 +96,7 @@
                 </ng-template>
             </e-column>
             <e-column field="registeredDate" headerText="Registered" width="120" type="date" format="yMMMd"></e-column>
-            <e-column headerText="Actions" width="150" [allowSorting]="false" textAlign="Center">
+            <e-column headerText="Actions" width="120" [allowSorting]="false" textAlign="Center">
                 <ng-template #template let-data>
                     @if (!data.isSuperuser) {
                         <div class="action-buttons">
@@ -100,13 +111,6 @@
                                 [title]="data.isActive ? 'Deactivate' : 'Activate'">
                                 <i class="bi" [class.bi-toggle-on]="data.isActive" [class.bi-toggle-off]="!data.isActive"></i>
                             </button>
-                            @if (data.roleName === 'Director') {
-                                <button class="icon-btn" [class.icon-btn-star]="data.isPrimaryContact"
-                                    (click)="setPrimaryContact(data)"
-                                    [title]="data.isPrimaryContact ? 'Remove as primary contact' : 'Set as primary contact'">
-                                    <i class="bi" [class.bi-star-fill]="data.isPrimaryContact" [class.bi-star]="!data.isPrimaryContact"></i>
-                                </button>
-                            }
                         </div>
                     }
                 </ng-template>

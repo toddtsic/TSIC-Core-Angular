@@ -2,3 +2,17 @@
     display: block;
     padding: var(--space-4);
 }
+
+// Name cell: fixed-width star slot keeps names aligned on non-Director rows
+.name-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.star-slot {
+    display: inline-flex;
+    justify-content: center;
+    width: 24px; // matches .icon-btn-sm
+    flex-shrink: 0;
+}
