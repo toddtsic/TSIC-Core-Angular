@@ -463,28 +463,55 @@ namespace TSIC.API.Controllers
         }
 
         /// <summary>
-        /// Request a password reset email. Always returns 200 regardless of whether the email exists (no account enumeration).
+        /// Request a password reset email. Accepts a username or an email address. An email can own
+        /// several accounts here (a family login plus the parent's own logins), so one reset email is
+        /// sent PER matching account, each naming its username and carrying a userId-keyed link —
+        /// legacy AccountController semantics. Never FindByEmailAsync: it runs SingleOrDefault over
+        /// NormalizedEmail and throws on the duplicates this database legitimately holds.
+        /// Always returns 200 regardless of matches (no account enumeration).
         /// </summary>
         [HttpPost("forgot-password")]
         [ProducesResponseType(200)]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken ct)
         {
-            if (string.IsNullOrWhiteSpace(request.Email))
+            const string Message = "If an account with that username or email exists, a password reset link has been sent.";
+
+            if (string.IsNullOrWhiteSpace(request.UsernameOrEmail))
             {
-                return Ok(new { Message = "If an account with that email exists, a password reset link has been sent." });
+                return Ok(new { Message });
             }
 
-            var user = await _userManager.FindByEmailAsync(request.Email.Trim());
-            if (user != null)
+            var submitted = request.UsernameOrEmail.Trim();
+            var accounts = await _userRepository.GetPasswordResetAccountsAsync(submitted, ct);
+
+            foreach (var account in accounts)
             {
+                // A submitted email is itself the proven reach — it matched the account or its
+                // household record (which may be the only address a family login has). A submitted
+                // username can only go to the address on the account.
+                var recipient = submitted.Contains('@') ? submitted : account.Email;
+                if (string.IsNullOrWhiteSpace(recipient))
+                {
+                    continue;
+                }
+
+                var user = await _userManager.FindByIdAsync(account.UserId);
+                if (user == null)
+                {
+                    continue;
+                }
+
                 var token = await _userManager.GeneratePasswordResetTokenAsync(user);
                 var resetUrl = $"{_frontendSettings.BaseUrl.TrimEnd('/')}/reset-password" +
-                    $"?token={Uri.EscapeDataString(token)}&email={Uri.EscapeDataString(user.Email!)}";
+                    $"?token={Uri.EscapeDataString(token)}&userId={Uri.EscapeDataString(account.UserId)}";
 
-                await _emailService.SendAsync(BuildPasswordResetEmail(user.Email!, resetUrl), sendInDevelopment: true, cancellationToken: ct);
+                await _emailService.SendAsync(
+                    BuildPasswordResetEmail(recipient, account.UserName, resetUrl),
+                    sendInDevelopment: true,
+                    cancellationToken: ct);
             }
 
-            return Ok(new { Message = "If an account with that email exists, a password reset link has been sent." });
+            return Ok(new { Message });
         }
 
         /// <summary>
@@ -495,12 +522,13 @@ namespace TSIC.API.Controllers
         [ProducesResponseType(400)]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
         {
-            if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.NewPassword))
+            if (string.IsNullOrWhiteSpace(request.UserId) || string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.NewPassword))
             {
-                return BadRequest(new { Error = "Email, token, and new password are required." });
+                return BadRequest(new { Error = "User, token, and new password are required." });
             }
 
-            var user = await _userManager.FindByEmailAsync(request.Email.Trim());
+            // Keyed by userId, never email — an email is one-to-many over accounts in this database.
+            var user = await _userManager.FindByIdAsync(request.UserId.Trim());
             if (user == null)
             {
                 return BadRequest(new { Error = "Invalid or expired reset link. Please request a new one." });
@@ -523,8 +551,12 @@ namespace TSIC.API.Controllers
             return Ok(new { Message = "Your password has been reset successfully." });
         }
 
-        private static EmailMessageDto BuildPasswordResetEmail(string toEmail, string resetUrl)
+        private static EmailMessageDto BuildPasswordResetEmail(string toEmail, string userName, string resetUrl)
         {
+            // One email can own several accounts, and each account gets its own message — naming the
+            // username is what tells the recipient which one this link resets.
+            var encodedUserName = System.Net.WebUtility.HtmlEncode(userName);
+
             var htmlBody = $"""
                 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
                     <div style="text-align: center; margin-bottom: 32px;">
@@ -533,7 +565,8 @@ namespace TSIC.API.Controllers
                     </div>
                     <div style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 8px; padding: 32px;">
                         <p style="color: #1c1917; font-size: 16px; line-height: 1.5; margin: 0 0 16px;">
-                            We received a request to reset your password. Click the button below to choose a new password.
+                            We received a request to reset the password for account username:
+                            <strong>{encodedUserName}</strong>. Click the button below to choose a new password.
                         </p>
                         <div style="text-align: center; margin: 24px 0;">
                             <a href="{resetUrl}" style="display: inline-block; background: #0ea5e9; color: #ffffff; text-decoration: none; padding: 12px 32px; border-radius: 6px; font-weight: 600; font-size: 16px;">
@@ -553,7 +586,8 @@ namespace TSIC.API.Controllers
             var textBody = $"""
                 Password Reset — TEAMSPORTSINFO.COM
 
-                We received a request to reset your password. Visit the link below to choose a new password:
+                We received a request to reset the password for account username: {userName}
+                Visit the link below to choose a new password:
 
                 {resetUrl}
 

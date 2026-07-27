@@ -68,6 +68,24 @@ public interface IUserRepository
         Guid customerId,
         int maxResults = 10,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Find every account a forgot-password submission reaches — legacy AccountController semantics.
+    /// A username match wins outright; otherwise the address is matched against
+    /// <c>AspNetUsers.NormalizedEmail</c> PLUS family logins whose household record
+    /// (<c>Families.MomEmail</c>/<c>DadEmail</c>) holds it. One email legitimately owns many
+    /// accounts here, so the caller sends one reset email per account, keyed by UserId.
+    /// </summary>
+    Task<List<PasswordResetAccount>> GetPasswordResetAccountsAsync(
+        string usernameOrEmail,
+        CancellationToken cancellationToken = default);
+}
+
+public record PasswordResetAccount
+{
+    public required string UserId { get; init; }
+    public required string UserName { get; init; }
+    public string? Email { get; init; }
 }
 
 public record UserSearchResult

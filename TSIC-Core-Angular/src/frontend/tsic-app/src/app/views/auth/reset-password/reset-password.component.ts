@@ -18,7 +18,7 @@ export class ResetPasswordComponent implements OnInit {
   private readonly router = inject(Router);
 
   private token = '';
-  private email = '';
+  private userId = '';
 
   form = this.fb.group({
     newPassword: ['', [Validators.required, Validators.minLength(6)]],
@@ -33,11 +33,12 @@ export class ResetPasswordComponent implements OnInit {
   missingParams = signal(false);
 
   ngOnInit() {
+    // The emailed link is keyed by userId, never email — one email can own several accounts.
     const params = this.route.snapshot.queryParamMap;
     this.token = params.get('token') ?? '';
-    this.email = params.get('email') ?? '';
+    this.userId = params.get('userId') ?? '';
 
-    if (!this.token || !this.email) {
+    if (!this.token || !this.userId) {
       this.missingParams.set(true);
     }
   }
@@ -51,7 +52,7 @@ export class ResetPasswordComponent implements OnInit {
 
     const newPassword = this.form.get('newPassword')?.value ?? '';
 
-    this.auth.resetPassword(this.email, this.token, newPassword).subscribe({
+    this.auth.resetPassword(this.userId, this.token, newPassword).subscribe({
       next: () => {
         this.isLoading.set(false);
         this.success.set(true);

@@ -519,17 +519,20 @@ export class AuthService {
   }
 
   /**
-   * Request a password reset email. Backend always returns 200 (no account enumeration).
+   * Request a password reset email. Accepts a username or an email address — one email can own
+   * several accounts (family login + the parent's own logins), so the backend sends one reset
+   * email per matching account. Always returns 200 (no account enumeration).
    */
-  forgotPassword(email: string): Observable<void> {
-    return this.http.post<void>(`${this.apiUrl}/forgot-password`, { email });
+  forgotPassword(usernameOrEmail: string): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/forgot-password`, { usernameOrEmail });
   }
 
   /**
    * Reset password using a token from the forgot-password email.
+   * Keyed by userId (from the emailed link), never email — email is ambiguous across accounts.
    */
-  resetPassword(email: string, token: string, newPassword: string): Observable<void> {
-    return this.http.post<void>(`${this.apiUrl}/reset-password`, { email, token, newPassword });
+  resetPassword(userId: string, token: string, newPassword: string): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/reset-password`, { userId, token, newPassword });
   }
 
   /**

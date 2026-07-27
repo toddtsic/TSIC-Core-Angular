@@ -15,8 +15,9 @@ export class ForgotPasswordComponent {
   private readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
 
+  // Username OR email in one field (legacy semantics) — no email validator.
   form = this.fb.group({
-    email: ['', [Validators.required, Validators.email]]
+    usernameOrEmail: ['', [Validators.required]]
   });
 
   submitted = signal(false);
@@ -31,9 +32,9 @@ export class ForgotPasswordComponent {
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
-    const email = this.form.get('email')?.value ?? '';
+    const usernameOrEmail = this.form.get('usernameOrEmail')?.value ?? '';
 
-    this.auth.forgotPassword(email).subscribe({
+    this.auth.forgotPassword(usernameOrEmail).subscribe({
       next: () => {
         this.isLoading.set(false);
         this.sent.set(true);

@@ -3,7 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export type ResetPasswordRequest = {
-    email: string;
+    userId: string;
     token: string;
     newPassword: string;
 };

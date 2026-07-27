@@ -228,4 +228,46 @@ public class UserRepository : IUserRepository
             })
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<List<PasswordResetAccount>> GetPasswordResetAccountsAsync(
+        string usernameOrEmail,
+        CancellationToken cancellationToken = default)
+    {
+        var input = usernameOrEmail.Trim();
+        // Reproduces Identity's UpperInvariantLookupNormalizer — same convention as AspNetUserEmail.Set.
+        var normalized = input.Normalize().ToUpperInvariant();
+
+        // A username identifies exactly one account — an exact hit wins outright (legacy semantics).
+        var byUsername = await _context.AspNetUsers
+            .AsNoTracking()
+            .Where(u => u.NormalizedUserName == normalized)
+            .Select(u => new PasswordResetAccount { UserId = u.Id, UserName = u.UserName!, Email = u.Email })
+            .ToListAsync(cancellationToken);
+        if (byUsername.Count > 0)
+        {
+            return byUsername;
+        }
+
+        // Email: direct account matches (NormalizedEmail is the column forgot-password searches) …
+        var byEmail = await _context.AspNetUsers
+            .AsNoTracking()
+            .Where(u => u.NormalizedEmail == normalized)
+            .Select(u => new PasswordResetAccount { UserId = u.Id, UserName = u.UserName!, Email = u.Email })
+            .ToListAsync(cancellationToken);
+
+        // … plus family logins reached through the household record. Many family logins carry no
+        // email of their own — the mom/dad address on Families is how those parents find their account.
+        var byFamily = await (
+            from f in _context.Families
+            join u in _context.AspNetUsers on f.FamilyUserId equals u.Id
+            where f.MomEmail == input || f.DadEmail == input
+            select new PasswordResetAccount { UserId = u.Id, UserName = u.UserName!, Email = u.Email })
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        return byEmail.Concat(byFamily)
+            .GroupBy(a => a.UserId)
+            .Select(g => g.First())
+            .ToList();
+    }
 }
