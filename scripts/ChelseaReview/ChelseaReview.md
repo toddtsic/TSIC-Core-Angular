@@ -110,6 +110,7 @@ _From a comparison of the old system and the new one (2026-07-12), each checked 
 - **What's new**: In the old system the player confirmation email copied the director/office through the job's CC/BCC email fields. The new system sends the confirmation only to the family and player — there's no CC or BCC.
 - **Why it matters**: Directors or offices who relied on getting a copy of every registration will quietly stop receiving them. Expect "we're not getting registration copies anymore." Worth deciding whether to bring the director copy back.
 - *Dev evidence: verified — recipients are family+player only (PaymentService.cs:2453-2468), no CC/BCC wiring. Confirm whether dropping director copies was intended.*
+- **→ Carried to Admin-Menus-Punchlist AM-018 (Ann, 2026-07-27)** — tracked there for Todd's decision.
 
 #### <span style="color:#c00000">☑ CR-013: The automatic sibling (multi-player) discount isn't being applied</span>
 - **✓ RESOLVED 2026-07-16:** Todd retired the multi-player (sibling) discount setting entirely rather than wiring it up — it's gone from config, so it can no longer promise a discount that never charged. Separately, `fee_discount_mp` is now subtracted as a real fee component wherever it applies. (203c1d2d, e94ad30d)
@@ -195,6 +196,7 @@ _From a comparison of the old system and the new one (2026-07-12), each checked 
 - **What's new**: When an admin refunds a payment directly from the accounting ledger, the reason recorded on the refund row is always "Admin refund" — the actual reason isn't captured there. (There's a separate refund dialog elsewhere on the admin registration-search screen that does capture a typed reason, so the two refund paths behave differently.)
 - **Why it matters**: A refund done the common way — from the ledger — doesn't record why. Later, anyone reviewing the family's history sees only "Admin refund" with no detail. Worth deciding whether the ledger refund should also ask for a reason so both paths match.
 - *Dev evidence: in-ledger path hardcodes reason 'Admin refund' (registration-detail-panel.component.ts:732); the standalone refund dialog captures free text (refund-modal.component.ts:64) and is wired at search-registrations.component.html:887.*
+- **→ Carried to Payment-Test-Punchlist PL-058 (Ann, 2026-07-27)** — add a Comment field (like admin Accounting Records) to the ledger refund.
 
 #### ☐ CR-026: Enter the plain discount amount — the system adds the processing fee for you
 - **Type**: Workflow-change · **Audience**: Client support
@@ -283,13 +285,15 @@ _From a comparison of the old system and the new one (2026-07-12), each checked 
 - **Why it matters**: A routine fee tweak can now change the balances of people who already registered, depending on which button the director clicks. This is a common source of "why did this parent's balance suddenly change" — support needs to understand these prompts.
 - *Dev evidence: blast-area probe + confirm (agegroup-detail.component.ts:548-568, 586-632; team-detail.component.ts:571-589).*
 
-#### <span style="color:#0033cc">☐ CR-039: "Sort Age" can no longer be set</span>
+#### <span style="color:#0033cc">☒ CR-039: "Sort Age" can no longer be set</span>
+- **✗ CLOSED — Won't Fix (Ann, 2026-07-27):** Sort Age is not used in the new system; no input is needed and there's nothing to bring back. No punchlist item.
 - **Type**: Workflow-change (needs a decision) · **Audience**: Client support
 - **What's new**: The old system let a director set a "Sort Age" number on each age group to control the order they appear in. The new system has no input for it, and new age groups all start at 0 — so ordering effectively falls back to the name.
 - **Why it matters**: A director can't manually control age-group ordering anymore. Worth confirming whether dropping this was intended.
 - *Dev evidence: sortAge passed through on save with no input (agegroup-detail.component.ts:749); new stubs default SortAge=0 (LadtService.cs:561).*
 
-#### <span style="color:#0033cc">☐ CR-040: "Max Teams per Club" can't be set in setup — even though the system enforces it when it's non-zero</span>
+#### <span style="color:#0033cc">☒ CR-040: "Max Teams per Club" can't be set in setup — even though the system enforces it when it's non-zero</span>
+- **✗ CLOSED — Won't Fix (Ann, 2026-07-27):** Not used in the new system. Enforcement was already disabled under Payment-Test PL-041 (Todd, 07-22), so the feature is fully retired (no UI, no enforcement); nothing to bring back. No punchlist item.
 - **Type**: Workflow-change (gap — needs a decision) · **Audience**: Client support + SuperUser/Admin
 - **What's new**: The old system let a director set a per-club team cap on each age group (default 100). The new system has no input for it — only overall Max Teams is editable — and new age groups default it to 0. A value of 0 means "no limit," so registration isn't blocked. But when the value is above 0, it IS enforced (see CR-004). So the cap still works if set, but there's no longer a way to set it through the UI.
 - **Why it matters**: A tournament director who wants to limit how many teams one club can enter in an age group can't do it in setup anymore. The enforcement exists (CR-004) but the control to configure it is gone. Worth deciding whether to bring the field back.
@@ -313,7 +317,8 @@ _From a comparison of the old system and the new one (2026-07-12), each checked 
 - **Why it matters**: Cloning is more capable but more decision-heavy. A clone made with "copy fees" turned off comes in with no fees — support should know the copy is selective now, not an automatic full duplicate.
 - *Dev evidence: clone-team-dialog.component.ts:33-103; clone-agegroup-dialog.component.ts:33-81. (Clone Age Group is LADT SP-021.)*
 
-#### ☐ CR-044: Some league settings from the old system aren't in the new league editor
+#### ☒ CR-044: Some league settings from the old system aren't in the new league editor
+- **✗ CLOSED — Won't Fix (Ann, 2026-07-27):** Answered by ConfigureMenus PL-010 — all four (Allow Coach Score Entry, Show Schedule to Team Members, Standings Sort Profile, per-league Player Fee Override) were **deliberately dropped** from the new system (Player Fee Override → new fee cascade). No punchlist item.
 - **Type**: Question (needs a check) · **Audience**: SuperUser/Admin + Client support
 - **What's new**: The old league editor had Allow Coach Score Entry, Show Schedule to Team Members, a Standings Sort Profile, and a per-league Player Fee Override. The new league panel has only League Name, Sport, Hide Contacts, Hide Standings, a "reschedule emails to" field, and the fee cards. The Player Fee Override is covered by the new fee cascade, but the other three aren't set here anymore.
 - **Why it matters**: If a director asks for Allow-Coach-Score-Entry, Show-Schedule-to-Team-Members, or Standings-Sort-Profile, support needs to know whether those moved to another screen or were dropped. Flagged to confirm before it becomes a talking point.
@@ -336,6 +341,7 @@ _From a comparison of the old system and the new one (2026-07-12), each checked 
 - **What's new**: In the old system, setting a team's Max Roster to 0 popped a warning: "a roster max of 0 means UNLIMITED ROSTER SIZE." The new system shows no such warning — 0 still means unlimited, but silently.
 - **Why it matters**: A director who enters 0 (or leaves it at 0) no longer gets told they've created an unlimited roster — a quiet trap. Worth restoring the warning.
 - *Dev evidence: no warning on the team-detail Max Roster input; 0 is still treated as unlimited in the read-only roster display.*
+- **→ Carried to Admin-Menus-Punchlist AM-019 (Ann, 2026-07-27)** — confirmed in code that 0 = unlimited for both Max Roster and Max Teams; add a Director warning on both.
 
 <div style="page-break-before: always;"></div>
 
@@ -487,6 +493,7 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 - **Why it matters**: A user who remembers only their username — common for adult and admin accounts — can't reset their password from the form anymore, and a parent whose login email differs from the one on file may not be found. A real "I can't reset my password" support case. Worth deciding whether to bring back the username path.
 - **Status**: Open — pending review with Chelsea.
 - *Dev evidence: verified — ForgotPassword uses FindByEmailAsync only, generic no-enumeration response (AuthController.cs:470-488); email-only form (forgot-password.component.ts:18-34).*
+- **→ Carried to Admin-Menus-Punchlist AM-020 (Ann, 2026-07-27)** — username path is very useful; bring it back.
 
 #### ☐ CR-068: Sessions refresh silently instead of logging you out
 - **Type**: Workflow-change · **Audience**: Client support + SuperUser/Admin
@@ -640,6 +647,7 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 - **What's new**: Neither approving a coach onto teams nor denying them sends the coach any notification. They find out by logging in — if they think to. (The old system didn't notify either, but it also had no approval step.)
 - **Why it matters**: Combined with the missing registration confirmation (CR-084), a coach registers, is told an email is coming, gets nothing, and is then approved or denied in silence. Worth deciding whether approval/denial should email the coach.
 - *Dev evidence: RosterSwapperService has no email service injected; neither approve nor deny sends mail (RosterSwapperService.cs:20-44, 461-483).*
+- **→ Carried to Admin-Menus-Punchlist AM-021 (Ann, 2026-07-27)** — auto-email the coach on approval (and denial) under Coach Approval.
 
 #### ☐ CR-090: Coaches rostered the old way show up in the queue automatically
 - **Type**: Training-note · **Audience**: SuperUser/Admin
@@ -670,6 +678,7 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 - **What's new**: When "Allow Roster View — Player" is on, a logged-in player/parent can see the team roster — and that roster includes each person's email, phone, **date of birth**, and **both parents' names, emails and phone numbers**. That was true in the old system too (a parent saw exactly what a coach saw). What's new is that the same parent can now **download the whole thing as a PDF**, parent-contact columns included.
 - **Why it matters**: Turning on roster view for players hands every parent on the team an offline, bulk copy of every other family's contact details and every child's birthdate. The old system showed it on screen; it didn't hand out a file. Worth a deliberate decision — e.g. redact the contact/DOB fields for the player audience, or make the PDF admin-only.
 - *Dev evidence: verified — roster data carries DOB + Mom/Dad email/phone with no role filter (MyRosterDtos.cs:34-52; RegistrationRepository.cs:2639-2699); the PDF endpoint uses the same visibility gate as the on-screen roster (MyRosterController.cs:36-52; MyRosterPdfService.cs:95-100).*
+- **→ Carried to Admin-Menus-Punchlist AM-022 (Ann, 2026-07-27)** — 🔒 privacy decision: redact contact/DOB for the player audience or make the PDF admin-only.
 
 #### <span style="color:#c00000">☑ CR-095: The per-team "Hide Roster" setting no longer does anything</span>
 - **✓ RESOLVED 2026-07-16:** The dead per-team "Hide Roster" control was retired, and waitlist rosters are now hidden by age group instead. (a9927809)
@@ -678,7 +687,8 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 - **Why it matters**: A director who ticks "Hide Roster" gets no result and isn't told. Because it's a *visibility* setting, the failure mode is over-exposure. Note too: auto-created waitlist teams are actually created with Hide Roster set to true — so a waitlisted player is offered "view roster" for a team the old system would have hidden.
 - *Dev evidence: verified — every reference to BHideRoster is create/update/clone/DTO/grid/checkbox; nothing reads it to gate a roster. It IS set true on waitlist teams (TeamPlacementService.cs:320), with no effect.*
 
-#### <span style="color:#0033cc">☐ CR-096: Public rosters now work on Club and League events too, and they're on by default</span>
+#### <span style="color:#0033cc">☒ CR-096: Public rosters now work on Club and League events too, and they're on by default</span>
+- **✗ CLOSED — Won't Fix (Ann, 2026-07-27):** Accepted as-is. Public rosters are contact-free (no emails/phones/DOB) and the "Show Public Rosters" switch is available to turn them off; default-on is fine. No punchlist item.
 - **Type**: Workflow-change (needs a decision) · **Audience**: Client support + SuperUser/Admin
 - **What's new**: In the old system the anonymous public roster lookup was a tournament-only page, always on, with no way to turn it off. In the new system the public roster works for **any** event type — including Club and League, which never had one — reachable by anyone who knows the event's link. There's a new "Show Public Rosters" switch to turn it off, but it defaults to **on**.
 - **Why it matters**: Directors of club/league events may not realize their team rosters are now publicly reachable. The contents are still contact-free (name, uniform number, position, club, team — no emails, phones or birthdates), so this is about how widely rosters are exposed, not a leak of personal details. Worth deciding whether it should default to off for non-tournament events.
@@ -786,7 +796,8 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 - **Why it matters**: Admin charges are a real billing input that feeds the revenue screen. An operator who needs to bill a one-off fee can't enter one at all, and a mis-keyed charge can only be deleted, not corrected.
 - *Dev evidence: verified — addAdminCharge is defined at job-config.service.ts:182 and called from nowhere (single grep hit, its own definition). Backend has POST/DELETE but no update (JobConfigController.cs:272, 286).*
 
-#### <span style="color:#0033cc">☐ CR-111: The old invoice-producing action still calls Crystal Reports and is wired to nothing</span>
+#### <span style="color:#0033cc">☒ CR-111: The old invoice-producing action still calls Crystal Reports and is wired to nothing</span>
+- **✗ CLOSED — Won't Fix (Ann, 2026-07-27):** Vestigial — the endpoint has no frontend caller. No punchlist item; it will fall away with the Crystal Reports retirement (nothing depends on it).
 - **Type**: Question (needs a decision) · **Audience**: SuperUser/Admin
 - **What's new**: The endpoint that used to generate the month's per-job invoices still exists and still calls the Crystal Reports service — but no screen calls it any more. When Crystal is retired, it will silently start failing.
 - **Why it matters**: This is the last thread holding the old invoice pipeline (CR-108) together. Retiring Crystal retires the client invoice with it, and nothing in the new app replaces it. Needs a decision alongside CR-108.
@@ -799,7 +810,8 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 - **Why it matters**: Cosmetic, but it's at the top of the money document a client may be shown. Trivial to fix and obvious to anyone comparing against an old invoice.
 - *Dev evidence: verified — Title = "{CustomerName}:{CustomerName}:{JobName}" (InvoiceReportPdfService.cs:188).*
 
-#### ☐ CR-113: The month-end stats grid lost the inline QuickBooks-name edit
+#### ☒ CR-113: The month-end stats grid lost the inline QuickBooks-name edit
+- **✗ CLOSED — Won't Fix (Ann, 2026-07-27):** Accepted — QBP name is editable in Configure → Job → General; no inline edit on the month-end grid needed. No punchlist item.
 - **Type**: Workflow-change · **Audience**: SuperUser/Admin
 - **What's new**: The old month-end grid let the operator fix a job's QuickBooks (QBP) name right there while reconciling. The new grid shows the customer and job as read-only — to fix a QBP name you have to leave the reconciliation screen and go into that job's General settings.
 - **Why it matters**: Not wrong money, but a real workflow regression at exactly the wrong moment — mid-close, per job.
@@ -812,7 +824,8 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 - **Why it matters**: Either the page should be SuperUser-only or the API should admit SuperDirectors — someone has to decide. Today it's a broken page instead of a clean "not allowed."
 - *Dev evidence: route admits SuperDirector (app.routes.ts:344-347); API is SuperUserOnly (CustomerJobRevenueController.cs:13).*
 
-#### ☐ CR-115: The ADN month-end close was rebuilt — and it's better
+#### ☒ CR-115: The ADN month-end close was rebuilt — and it's better
+- **✗ CLOSED — Won't Fix (Ann, 2026-07-27):** Accepted as-is — the rebuilt close is an improvement; the two caveats (month hard-pinned to last month; silent $0 for a job with no stats row) are acknowledged and not worth changing now. No punchlist item.
 - **Type**: Workflow-change · **Audience**: SuperUser/Admin
 - **What's new**: The old close pulled the month's transactions (with the gateway login hard-coded in the source) and dumped an Excel file. The new one is a guided 3-step wizard: download the transactions, see a **match verdict** (matched/unmatched counts and the latest settlement time), then download a **zip** containing the QuickBooks .iif files, their backing spreadsheets and a summary — with a parity check that warns if a transaction didn't survive consolidation. Credentials now come from the database, not source code. There's also an automated path that **withholds the .iif** if the autopay sweep wasn't trustworthy.
 - **Why it matters**: A genuinely better close, but a different one to learn. Two caveats: every accounting screen is **hard-pinned to last month** (there's no month picker, so you can't re-run a prior month in-app), and a job with no stats row silently bills $0 registrant charges with no warning — same as the old system, but with the old review grid gone (CR-108) there's one fewer place to catch it.
@@ -833,6 +846,7 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 
 #### <span style="color:#c00000">☐ CR-117: The Widget Editor's "public" settings do nothing</span>
 - **DEFERRED 2026-07-16 (per Todd):** Revisit later. Unchanged today — the landing page still hard-codes `<app-client-banner>` and `<app-bulletins>` (job-landing.component.html:42, 72) rather than reading the public widget config.
+- **→ Carried to Admin-Menus-Punchlist AM-016 (Ann, 2026-07-27)** — tracked there for action, still deferred.
 - **Type**: Bug · **Audience**: SuperUser/Admin
 - **What's new**: The Widget Editor has a **Public** panel with on/off switches for the banner, bulletins, event-contact and job-pulse widgets. **Nothing reads them.** The public landing page hard-codes the banner and bulletins, so toggling a public widget off changes nothing. Two of the widgets (Event Contact, Job Pulse) are never rendered anywhere at all.
 - **Why it matters**: A SuperUser will configure these switches and see no effect whatsoever. Event Contact in particular would be genuinely useful on a public page and simply isn't wired up.
@@ -882,6 +896,7 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 
 #### <span style="color:#c00000">☐ CR-125: The Theme editor only saves to the current browser — nobody else sees the change</span>
 - **DEFERRED 2026-07-16 (per Todd):** Revisit later. Unchanged today — the Save button still reads "Save (LocalStorage)" and persists only to the current browser (theme-editor.component.ts:78).
+- **→ Carried to Admin-Menus-Punchlist AM-017 (Ann, 2026-07-27)** — tracked there for action, still deferred.
 - **Type**: Bug · **Audience**: SuperUser/Admin
 - **What's new**: The Theme editor (Configure → Theme) looks like it sets an event's colours. Its Save button is literally labelled **"Save (LocalStorage)"** — the colours are stored **in that one browser only**. Nothing is saved to the server, so no visitor, no family, and no other admin ever sees the change. On top of that, three of its five theme targets emit styling that is never applied to anything.
 - **Why it matters**: Per-event colours look configurable but aren't. Anyone who "brands" an event this way will believe they've changed it and be the only person who can see it. (Separately: `/brand-preview` — an internal design showcase — is publicly reachable on every event's URL with no login required. Harmless content, but it shouldn't be on a client's public site.)
