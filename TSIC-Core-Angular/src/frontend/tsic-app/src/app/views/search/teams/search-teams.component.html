@@ -187,21 +187,30 @@
         <div class="section-card-header">Hierarchy</div>
         <div class="section-card-body">
           <!-- Waitlist / Scheduled scopes the hierarchy trees below (waitlisted vs placed
-               teams), so it lives here rather than in Core. -->
+               teams), so it lives here rather than in Core. Rendered as an always-visible
+               single-select list (was a dropdown) so its option counts stay on screen as a
+               live legend for the trees. Empty value ('' -> null) = "All". -->
           <div class="form-group hierarchy-scope">
-            <label>Waitlist / Scheduled</label>
-            <ejs-dropdownlist
-              [dataSource]="filterOptions()?.waitlistScheduledStatuses ?? []"
-              [fields]="msFields"
-              [value]="searchRequest().waitlistScheduledStatus"
-              (change)="updateWaitlistScheduledStatus($event.value)"
-              [allowFiltering]="false"
-              [showClearButton]="true"
-              placeholder="All"
-              [itemTemplate]="countBadgeTemplate"
-              cssClass="filter-ms"
-              [popupWidth]="'auto'">
-            </ejs-dropdownlist>
+            <label id="wsLabel">Waitlist / Scheduled</label>
+            <div class="ws-list" role="radiogroup" aria-labelledby="wsLabel">
+              <button type="button" class="ws-option" role="radio"
+                [class.is-active]="!searchRequest().waitlistScheduledStatus"
+                [attr.aria-checked]="!searchRequest().waitlistScheduledStatus"
+                (click)="updateWaitlistScheduledStatus('')">
+                <span class="ws-option-text">All</span>
+              </button>
+              @for (opt of filterOptions()?.waitlistScheduledStatuses ?? []; track opt.value) {
+                <button type="button" class="ws-option" role="radio"
+                  [class.is-active]="searchRequest().waitlistScheduledStatus === opt.value"
+                  [attr.aria-checked]="searchRequest().waitlistScheduledStatus === opt.value"
+                  (click)="updateWaitlistScheduledStatus(opt.value)">
+                  <span class="ws-option-text">{{ opt.text }}</span>
+                  @if (opt.count != null) {
+                    <span class="ws-option-count">{{ opt.count }}</span>
+                  }
+                </button>
+              }
+            </div>
           </div>
 
           <div class="filter-row-5">

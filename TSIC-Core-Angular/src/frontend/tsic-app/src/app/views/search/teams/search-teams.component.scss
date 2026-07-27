@@ -375,9 +375,11 @@
     }
 
     // Waitlist / Scheduled scope control sitting above the hierarchy trees —
-    // constrained so it reads as a scope selector, not a full-width dropdown.
+    // an always-visible single-select list (not a dropdown) so its option counts
+    // stay legible as a legend for the trees. Constrained so it still reads as a
+    // scope selector rather than a full-width control.
     .hierarchy-scope {
-      max-width: 260px;
+      max-width: 280px;
       margin-bottom: var(--space-2);
     }
 
@@ -395,6 +397,81 @@
       min-height: 0;
       height: auto;
     }
+  }
+}
+
+// ── Waitlist / Scheduled — always-visible single-select list ──
+// Replaces the old dropdown so the per-status counts stay on screen as a legend
+// for the hierarchy trees below. Single-select (radiogroup): "All" clears the filter.
+.ws-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-1);
+  background: var(--surface-elevated-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-md);
+}
+
+.ws-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 4px var(--space-2);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--bs-body-color);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+
+  &:hover:not(.is-active) {
+    background: color-mix(in srgb, var(--bs-primary) 8%, transparent);
+  }
+
+  &.is-active {
+    background: color-mix(in srgb, var(--bs-primary) 14%, transparent);
+    border-color: color-mix(in srgb, var(--bs-primary) 35%, transparent);
+    color: var(--bs-primary);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.ws-option-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-option-count {
+  flex-shrink: 0;
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--bs-primary) 12%, var(--bs-body-bg));
+  color: var(--bs-primary);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+
+  .ws-option.is-active & {
+    background: var(--bs-primary);
+    color: var(--bs-white);
   }
 }
 

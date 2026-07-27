@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, HostListener, signal, computed, inject, ChangeDetectionStrategy, CUSTOM_ELEMENTS_SCHEMA, viewChild, viewChildren } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GridAllModule, GridComponent, PageSettingsModel, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
-import { MultiSelectModule, MultiSelectComponent, CheckBoxSelectionService, DropDownListModule } from '@syncfusion/ej2-angular-dropdowns';
+import { MultiSelectModule, MultiSelectComponent, CheckBoxSelectionService } from '@syncfusion/ej2-angular-dropdowns';
 
 import { TeamSearchService } from './services/team-search.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -38,7 +38,6 @@ interface FilterChip {
 		CommonModule,
 		GridAllModule,
 		MultiSelectModule,
-		DropDownListModule,
 		TeamDetailPanelComponent,
 		LadtTreeFilterComponent,
 		CadtTreeFilterComponent,
