@@ -60,7 +60,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   - **Sub-item 1 (reposition)**: done — star sits in a fixed-width slot left of the name (`2c94ade2`); Actions tightened 150→120. Registered column reformatted MM/dd/yyyy.
   - **Sub-item 2 (clone carry-forward)**: covered by the heal — a cloned job self-seeds its star on first Administrators load once a Director is active (clone lands Directors inactive by design, so carrying the old star would have pointed at an inactive reg anyway).
   - Help (overview + FAQ) updated to the default-star semantics. Commits: `2c94ade2`, `32dcd41e`.
-- **Status**: IN PROGRESS — coded 2026-07-27, awaiting API restart + Todd E2E
+- **Status**: FIXED — Todd E2E verified 2026-07-27 (default star seeds, moves, reverts). Ann to verify on next pass.
 
 ### AM-004: [Configure / Administrators] "Add Administrator" accepts ANY account — including shared family logins — as a job admin
 - **Topic**: Configure Menus → Administrators → Add Administrator (username search)
