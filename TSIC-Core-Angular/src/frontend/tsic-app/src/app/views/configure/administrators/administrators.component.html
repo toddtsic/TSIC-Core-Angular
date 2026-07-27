@@ -69,7 +69,8 @@
                             @if (data.roleName === 'Director') {
                                 <button class="icon-btn icon-btn-sm" [class.icon-btn-star]="data.isPrimaryContact"
                                     (click)="setPrimaryContact(data)"
-                                    [title]="data.isPrimaryContact ? 'Remove as primary contact' : 'Set as primary contact'">
+                                    [disabled]="!data.isActive && !data.isPrimaryContact"
+                                    [title]="data.isPrimaryContact ? 'Primary contact — click to revert to default' : (data.isActive ? 'Set as primary contact' : 'Inactive — activate before setting as primary contact')">
                                     <i class="bi" [class.bi-star-fill]="data.isPrimaryContact" [class.bi-star]="!data.isPrimaryContact"></i>
                                 </button>
                             }
@@ -95,7 +96,7 @@
                     }
                 </ng-template>
             </e-column>
-            <e-column field="registeredDate" headerText="Registered" width="120" type="date" format="yMMMd"></e-column>
+            <e-column field="registeredDate" headerText="Registered" width="120" type="date" [format]="{ type: 'date', format: 'MM/dd/yyyy' }"></e-column>
             <e-column headerText="Actions" width="120" [allowSorting]="false" textAlign="Center">
                 <ng-template #template let-data>
                     @if (!data.isSuperuser) {

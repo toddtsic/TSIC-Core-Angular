@@ -139,6 +139,33 @@ public class AdministratorRepository : IAdministratorRepository
         await _context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<Guid?> GetEarliestActiveDirectorIdAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId
+                     && r.RoleId == RoleConstants.Director
+                     && r.BActive == true)
+            .OrderBy(r => r.RegistrationTs)
+            .Select(r => (Guid?)r.RegistrationId)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<bool> IsActiveDirectorOnJobAsync(
+        Guid jobId,
+        Guid registrationId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .AnyAsync(r => r.RegistrationId == registrationId
+                        && r.JobId == jobId
+                        && r.RoleId == RoleConstants.Director
+                        && r.BActive == true, cancellationToken);
+    }
+
     public async Task<List<Registrations>> GetRegistrationsByUserIdAsync(
         string userId,
         CancellationToken cancellationToken = default)

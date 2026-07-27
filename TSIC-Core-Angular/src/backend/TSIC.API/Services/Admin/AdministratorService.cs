@@ -64,7 +64,29 @@ public sealed class AdministratorService : IAdministratorService
         Guid jobId,
         CancellationToken cancellationToken = default)
     {
+        await EnsurePrimaryContactAsync(jobId, cancellationToken);
         return await _adminRepo.GetByJobIdAsync(jobId, cancellationToken);
+    }
+
+    /// <summary>
+    /// AM-003: a job should always carry a real primary contact, not lean on read-time
+    /// fallbacks. If the persisted star is missing or invalid (points at a registration
+    /// that is gone, inactive, or not a Director on this job), persist the default —
+    /// the earliest-registered active Director (the same rule the !DIRECTOR text
+    /// substitution used as its silent fallback). Jobs with no active Director are left
+    /// untouched: an inactive starred Director keeps the star for when they're
+    /// reactivated between seasons, and read paths already skip inactive contacts.
+    /// </summary>
+    private async Task EnsurePrimaryContactAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var currentId = await _adminRepo.GetPrimaryContactIdAsync(jobId, cancellationToken);
+        if (currentId != null
+            && await _adminRepo.IsActiveDirectorOnJobAsync(jobId, currentId.Value, cancellationToken))
+            return;
+
+        var fallbackId = await _adminRepo.GetEarliestActiveDirectorIdAsync(jobId, cancellationToken);
+        if (fallbackId != null && fallbackId != currentId)
+            await _adminRepo.SetPrimaryContactAsync(jobId, fallbackId, cancellationToken);
     }
 
     public async Task<AdministratorDto> AddAdministratorAsync(
@@ -233,6 +255,12 @@ public sealed class AdministratorService : IAdministratorService
         if (registration.RoleId == RoleConstants.Superuser)
             throw new InvalidOperationException("Cannot delete a Superuser registration.");
 
+        // Jobs.PrimaryContactRegistrationId references this row — clear the star before
+        // deleting or the FK blocks the delete. The next load re-seeds the default.
+        var primaryId = await _adminRepo.GetPrimaryContactIdAsync(registration.JobId, cancellationToken);
+        if (primaryId == registration.RegistrationId)
+            await _adminRepo.SetPrimaryContactAsync(registration.JobId, null, cancellationToken);
+
         _adminRepo.Remove(registration);
         await _adminRepo.SaveChangesAsync(cancellationToken);
     }
@@ -255,6 +283,7 @@ public sealed class AdministratorService : IAdministratorService
         registration.Modified = DateTime.Now;
 
         await _adminRepo.SaveChangesAsync(cancellationToken);
+        await EnsurePrimaryContactAsync(jobId, cancellationToken);
         return await _adminRepo.GetByJobIdAsync(jobId, cancellationToken);
     }
 
@@ -272,6 +301,7 @@ public sealed class AdministratorService : IAdministratorService
         }
 
         await _adminRepo.SaveChangesAsync(cancellationToken);
+        await EnsurePrimaryContactAsync(jobId, cancellationToken);
         return await _adminRepo.GetByJobIdAsync(jobId, cancellationToken);
     }
 
@@ -287,11 +317,23 @@ public sealed class AdministratorService : IAdministratorService
         if (registration.JobId != jobId)
             throw new InvalidOperationException("Registration does not belong to this job.");
 
-        // Toggle: if already primary contact, clear it; otherwise set it
         var currentPrimaryId = await _adminRepo.GetPrimaryContactIdAsync(jobId, cancellationToken);
+
+        // The star is a Director-only concept (matches the UI and the !DIRECTOR fallback);
+        // without this check a non-Director star would just be silently overwritten by the
+        // heal below. Clearing (re-clicking the current star) is exempt.
+        if (currentPrimaryId != registrationId
+            && !await _adminRepo.IsActiveDirectorOnJobAsync(jobId, registrationId, cancellationToken))
+            throw new InvalidOperationException("Only an active Director can be the primary contact.");
+
+        // Toggle: if already primary contact, clear it; otherwise set it. A job always
+        // carries a primary contact (AM-003), so "clear" doesn't leave a void — the heal
+        // below re-seeds the default (earliest-registered active Director). Net effect:
+        // un-starring a hand-picked Director reverts the star to the default.
         var newPrimaryId = currentPrimaryId == registrationId ? null : (Guid?)registrationId;
 
         await _adminRepo.SetPrimaryContactAsync(jobId, newPrimaryId, cancellationToken);
+        await EnsurePrimaryContactAsync(jobId, cancellationToken);
 
         // Return refreshed list so UI updates in one round-trip
         return await _adminRepo.GetByJobIdAsync(jobId, cancellationToken);

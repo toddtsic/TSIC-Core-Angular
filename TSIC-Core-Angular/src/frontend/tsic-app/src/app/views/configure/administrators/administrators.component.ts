@@ -112,7 +112,7 @@ export class AdministratorManagementComponent {
                 this.administrators.set(admins);
                 this.toast.show(
                     wasPrimary
-                        ? `${admin.administratorName} removed as primary contact.`
+                        ? 'Primary contact reverted to the default (earliest active Director).'
                         : `${admin.administratorName} set as primary contact.`,
                     'success'
                 );

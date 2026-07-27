@@ -55,6 +55,19 @@ public interface IAdministratorRepository
     Task SetPrimaryContactAsync(Guid jobId, Guid? registrationId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Earliest-registered active Director on the job — the default primary contact
+    /// (same rule as the !DIRECTOR text-substitution fallback). Null when the job
+    /// has no active Director.
+    /// </summary>
+    Task<Guid?> GetEarliestActiveDirectorIdAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// True when the registration is an active Director on the given job — the shape a
+    /// persisted primary contact must have to be considered valid.
+    /// </summary>
+    Task<bool> IsActiveDirectorOnJobAsync(Guid jobId, Guid registrationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get every registration for a user (tracked — used to classify eligibility and to
     /// convert a pending Unassigned Adult registration into an admin registration; AM-004).
     /// </summary>
