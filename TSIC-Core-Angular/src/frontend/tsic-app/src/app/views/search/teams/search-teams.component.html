@@ -100,22 +100,6 @@
         <div class="section-card-body">
           <div class="filter-row-5">
             <div class="form-group">
-              <label>Waitlist / Scheduled</label>
-              <ejs-dropdownlist
-                [dataSource]="filterOptions()?.waitlistScheduledStatuses ?? []"
-                [fields]="msFields"
-                [value]="searchRequest().waitlistScheduledStatus"
-                (change)="updateWaitlistScheduledStatus($event.value)"
-                [allowFiltering]="false"
-                [showClearButton]="true"
-                placeholder="All"
-                [itemTemplate]="countBadgeTemplate"
-                cssClass="filter-ms"
-                [popupWidth]="'auto'">
-              </ejs-dropdownlist>
-            </div>
-
-            <div class="form-group">
               <label>Active Status</label>
               <ejs-multiselect #ms2
                 [dataSource]="filterOptions()?.activeStatuses ?? []"
@@ -202,6 +186,24 @@
       <div class="section-card">
         <div class="section-card-header">Hierarchy</div>
         <div class="section-card-body">
+          <!-- Waitlist / Scheduled scopes the hierarchy trees below (waitlisted vs placed
+               teams), so it lives here rather than in Core. -->
+          <div class="form-group hierarchy-scope">
+            <label>Waitlist / Scheduled</label>
+            <ejs-dropdownlist
+              [dataSource]="filterOptions()?.waitlistScheduledStatuses ?? []"
+              [fields]="msFields"
+              [value]="searchRequest().waitlistScheduledStatus"
+              (change)="updateWaitlistScheduledStatus($event.value)"
+              [allowFiltering]="false"
+              [showClearButton]="true"
+              placeholder="All"
+              [itemTemplate]="countBadgeTemplate"
+              cssClass="filter-ms"
+              [popupWidth]="'auto'">
+            </ejs-dropdownlist>
+          </div>
+
           <div class="filter-row-5">
             @if (hasCadtData() && jobName()) {
               <div class="form-group form-group-tree">

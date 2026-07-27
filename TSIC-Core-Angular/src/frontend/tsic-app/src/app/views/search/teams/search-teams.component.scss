@@ -374,6 +374,13 @@
       }
     }
 
+    // Waitlist / Scheduled scope control sitting above the hierarchy trees —
+    // constrained so it reads as a scope selector, not a full-width dropdown.
+    .hierarchy-scope {
+      max-width: 260px;
+      margin-bottom: var(--space-2);
+    }
+
     // Compact controls inside the drawer
     label {
       font-size: 11px;

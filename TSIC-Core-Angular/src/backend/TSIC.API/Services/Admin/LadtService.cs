@@ -87,6 +87,13 @@ public sealed class LadtService : ILadtService
             var agegroups = await _agegroupRepo.GetByLeagueIdAsync(league.LeagueId, cancellationToken);
             var agegroupNodes = new List<LadtTreeNodeDto>();
 
+            // League/"All" rollup is accumulated active-only at the team level (below), NOT
+            // summed from agegroup node counts. The "Dropped Teams" bucket intentionally shows
+            // its inactive teams on its own node, but those soft-dropped teams (and the active
+            // players still parked on them) must never inflate the "All" row.
+            var leagueTeamCount = 0;
+            var leaguePlayerCount = 0;
+
             foreach (var ag in agegroups)
             {
                 // The "Dropped Teams" agegroup is the history bucket for soft-dropped
@@ -110,6 +117,8 @@ public sealed class LadtService : ILadtService
                         {
                             totalPlayers += pc;
                             totalTeams++;
+                            leaguePlayerCount += pc;
+                            leagueTeamCount++;
                         }
 
                         teamNodes.Add(new LadtTreeNodeDto
@@ -165,9 +174,6 @@ public sealed class LadtService : ILadtService
                     Children = divisionNodes
                 });
             }
-
-            var leagueTeamCount = agegroupNodes.Sum(a => a.TeamCount);
-            var leaguePlayerCount = agegroupNodes.Sum(a => a.PlayerCount);
 
             leagueNodes.Add(new LadtTreeNodeDto
             {
