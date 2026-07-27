@@ -233,7 +233,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Cross-ref**: if PL-066's "Push Directors" feature is ever restored (currently marked Fixed/vestigial), it would land on Mobile and affect subsection placement.
 - **RESOLUTION (Todd, 2026-07-27) — superseded by role gating**: instead of subsectioning for Directors, **the entire Mobile/Store tab is now SuperUser-only** (`superUserOnly: true` on the tab def — hidden for Directors like Branding/Dropdowns; Mobile Features section additionally wrapped in the `isSuperUser()` gate with `form-section--super` styling to match its siblings). Rationale: app-level switches aren't Director decisions. Verified consumption map recorded for whenever the layout is revisited: `bSuspendPublic` + `mobileScoreHoursPastGameEligible` → TSIC-Events; `bEnableTsicteams` (master) + RSVP + TeamChat → TSIC-Teams-2025; `bAllowMobileLogin` → old TSIC-Teams v1 ChatAuth only; `bAllowMobileRegn` → TSIC-REGN JobValidator (neither Events nor Teams — Ann's "cross-cutting" pair is actually two legacy-app flags). The "TSIC-Events Enabled" master toggle (inverse of `bSuspendPublic`, with on/off tip) already existed on the tab. Subsection grouping for an SU audience: not needed.
 - **Severity**: UX
-- **Status**: FIXED (tab gated SuperUser-only) — 2026-07-27, awaiting Todd verify + Ann next pass
+- **Status**: FIXED (tab gated SuperUser-only) — Todd signed off 2026-07-27. Ann to verify on next pass.
 
 ### AM-015: [Configure / Job Clone] Job Clone wizard — consolidated open items (Todd + Ann to work once all else is reviewed)
 - **Topic**: Configure Menus → Job Clone wizard (SuperUser-only)
