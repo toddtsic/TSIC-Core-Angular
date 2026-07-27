@@ -53,7 +53,14 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   2. **Carry forward on job clone** — a cloned job currently lands with **no** primary contact. `JobCloneService` copies admin registrations but never copies `Jobs.PrimaryContactRegistrationId`; it must carry the primary contact through to the clone.
   3. **Legacy migration backfill (REQUIRED)** — the migration must set `Jobs.PrimaryContactRegistrationId` from Legacy's equivalent field so the star lands on the Director who was the primary contact in Legacy, preserving customer continuity. Eyeball a handful of migrated jobs to confirm.
 - **Severity**: UX / Bug (clone + migration carry-forward)
-- **Status**: Open (Ann, 2026-07-26)
+- **RESOLUTION (Todd + Claude, 2026-07-27)** — reshaped by a DB census and a design upgrade:
+  - **Census**: `Jobs.PrimaryContactRegistrationId` was NULL on **all 1,057 jobs** — and legacy shares the *same physical column* (same DB), so the star had never been set by anyone in either system. Sub-item 3 (legacy backfill) is **moot: there is no source data to backfill**. The feature "worked" all along because both consumers (`TextSubstitutionRepository.GetDirectorContactAsync`, `WidgetRepository.GetEventContactAsync`) silently fall back to the earliest-registered active Director/admin.
+  - **Design upgrade (Todd)**: don't just display the fallback — **persist it**. `AdministratorService.EnsurePrimaryContactAsync` now seeds/repairs the star to the earliest-registered active Director whenever the persisted value is missing or invalid (runs on list load, star toggle, status toggles, bulk status). Every job now carries a real primary contact; the star is always visible in the grid. Clicking another active Director moves it; clicking the starred row reverts to the default. Server rejects starring inactive/non-Director regs; UI disables those stars.
+  - **Latent FK bug fixed en route**: deleting the starred registration would have violated the `Jobs.PrimaryContactRegistrationId` FK (unreachable while the column was NULL everywhere) — delete now clears the star first; the next load re-seeds.
+  - **Sub-item 1 (reposition)**: done — star sits in a fixed-width slot left of the name (`2c94ade2`); Actions tightened 150→120. Registered column reformatted MM/dd/yyyy.
+  - **Sub-item 2 (clone carry-forward)**: covered by the heal — a cloned job self-seeds its star on first Administrators load once a Director is active (clone lands Directors inactive by design, so carrying the old star would have pointed at an inactive reg anyway).
+  - Help (overview + FAQ) updated to the default-star semantics. Commits: `2c94ade2`, `32dcd41e`.
+- **Status**: IN PROGRESS — coded 2026-07-27, awaiting API restart + Todd E2E
 
 ### AM-004: [Configure / Administrators] "Add Administrator" accepts ANY account — including shared family logins — as a job admin
 - **Topic**: Configure Menus → Administrators → Add Administrator (username search)
