@@ -110,6 +110,7 @@ _From a comparison of the old system and the new one (2026-07-12), each checked 
 - **What's new**: In the old system the player confirmation email copied the director/office through the job's CC/BCC email fields. The new system sends the confirmation only to the family and player — there's no CC or BCC.
 - **Why it matters**: Directors or offices who relied on getting a copy of every registration will quietly stop receiving them. Expect "we're not getting registration copies anymore." Worth deciding whether to bring the director copy back.
 - *Dev evidence: verified — recipients are family+player only (PaymentService.cs:2453-2468), no CC/BCC wiring. Confirm whether dropping director copies was intended.*
+- **→ Carried to Admin-Menus-Punchlist AM-018 (Ann, 2026-07-27)** — tracked there for Todd's decision.
 
 #### <span style="color:#c00000">☑ CR-013: The automatic sibling (multi-player) discount isn't being applied</span>
 - **✓ RESOLVED 2026-07-16:** Todd retired the multi-player (sibling) discount setting entirely rather than wiring it up — it's gone from config, so it can no longer promise a discount that never charged. Separately, `fee_discount_mp` is now subtracted as a real fee component wherever it applies. (203c1d2d, e94ad30d)
@@ -195,6 +196,7 @@ _From a comparison of the old system and the new one (2026-07-12), each checked 
 - **What's new**: When an admin refunds a payment directly from the accounting ledger, the reason recorded on the refund row is always "Admin refund" — the actual reason isn't captured there. (There's a separate refund dialog elsewhere on the admin registration-search screen that does capture a typed reason, so the two refund paths behave differently.)
 - **Why it matters**: A refund done the common way — from the ledger — doesn't record why. Later, anyone reviewing the family's history sees only "Admin refund" with no detail. Worth deciding whether the ledger refund should also ask for a reason so both paths match.
 - *Dev evidence: in-ledger path hardcodes reason 'Admin refund' (registration-detail-panel.component.ts:732); the standalone refund dialog captures free text (refund-modal.component.ts:64) and is wired at search-registrations.component.html:887.*
+- **→ Carried to Payment-Test-Punchlist PL-058 (Ann, 2026-07-27)** — add a Comment field (like admin Accounting Records) to the ledger refund.
 
 #### ☐ CR-026: Enter the plain discount amount — the system adds the processing fee for you
 - **Type**: Workflow-change · **Audience**: Client support
@@ -833,6 +835,7 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 
 #### <span style="color:#c00000">☐ CR-117: The Widget Editor's "public" settings do nothing</span>
 - **DEFERRED 2026-07-16 (per Todd):** Revisit later. Unchanged today — the landing page still hard-codes `<app-client-banner>` and `<app-bulletins>` (job-landing.component.html:42, 72) rather than reading the public widget config.
+- **→ Carried to Admin-Menus-Punchlist AM-016 (Ann, 2026-07-27)** — tracked there for action, still deferred.
 - **Type**: Bug · **Audience**: SuperUser/Admin
 - **What's new**: The Widget Editor has a **Public** panel with on/off switches for the banner, bulletins, event-contact and job-pulse widgets. **Nothing reads them.** The public landing page hard-codes the banner and bulletins, so toggling a public widget off changes nothing. Two of the widgets (Event Contact, Job Pulse) are never rendered anywhere at all.
 - **Why it matters**: A SuperUser will configure these switches and see no effect whatsoever. Event Contact in particular would be genuinely useful on a public page and simply isn't wired up.
@@ -882,6 +885,7 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 
 #### <span style="color:#c00000">☐ CR-125: The Theme editor only saves to the current browser — nobody else sees the change</span>
 - **DEFERRED 2026-07-16 (per Todd):** Revisit later. Unchanged today — the Save button still reads "Save (LocalStorage)" and persists only to the current browser (theme-editor.component.ts:78).
+- **→ Carried to Admin-Menus-Punchlist AM-017 (Ann, 2026-07-27)** — tracked there for action, still deferred.
 - **Type**: Bug · **Audience**: SuperUser/Admin
 - **What's new**: The Theme editor (Configure → Theme) looks like it sets an event's colours. Its Save button is literally labelled **"Save (LocalStorage)"** — the colours are stored **in that one browser only**. Nothing is saved to the server, so no visitor, no family, and no other admin ever sees the change. On top of that, three of its five theme targets emit styling that is never applied to anything.
 - **Why it matters**: Per-event colours look configurable but aren't. Anyone who "brands" an event this way will believe they've changed it and be the only person who can see it. (Separately: `/brand-preview` — an internal design showcase — is publicly reachable on every event's URL with no login required. Harmless content, but it shouldn't be on a client's public site.)

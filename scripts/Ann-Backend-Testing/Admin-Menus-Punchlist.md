@@ -213,3 +213,35 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   4. **Step 2 Reset and Back buttons look redundant (PL-001, UX)** — on Step 2 both return to Step 1, though they differ (Reset = destructive wipe, preserves flavor; Back = non-destructive step decrement). Rec **B**: rename Reset → "Start Over" with a confirm dialog to make its destructive nature explicit (optionally also hide it on Step 2 where the destination matches Back).
 - **Severity**: Bug (PL-004, PL-002) + UX (PL-003, PL-001)
 - **Status**: Deferred — Todd + Ann to work Job Clone after the rest of the review (Ann, 2026-07-26)
+
+### AM-016: [Configure / Widget Editor] The Widget Editor's "public" settings do nothing
+- **Topic**: Configure Menus → Widget Editor (SuperUser-only)
+- **Source**: Brought forward from ChelseaReview **CR-117** (2026-07-27)
+- **⚠️ Note for Todd**: carried forward **as DEFERRED** — CR-117 was already marked "DEFERRED (per Todd, 2026-07-16) — revisit later"; Ann is bringing it into the AM queue so it's tracked for action, not lost, but it stays deferred until Todd picks it up.
+- **What's broken (Bug)**: The Widget Editor has a **Public** panel with on/off switches for the banner, bulletins, event-contact, and job-pulse widgets. **Nothing reads them.** The public landing page hard-codes `<app-client-banner>` + `<app-bulletins>` (`job-landing.component.html:42,72`), so toggling a public widget off changes nothing. Two of the widgets (**Event Contact**, **Job Pulse**) are **never rendered anywhere at all**.
+- **Why it matters**: A SuperUser configures these switches and sees no effect whatsoever. Event Contact in particular would be genuinely useful on a public page and simply isn't wired up.
+- *Dev evidence*: landing hard-codes the widgets (`job-landing.component.html:42,72`); dashboard reads only the dashboard workspace (`widget-dashboard.component.ts:77`); the two widgets are referenced only in the registry, never rendered.
+- **Severity**: Bug (config with no effect)
+- **Status**: Deferred (brought forward from ChelseaReview CR-117; per Todd 2026-07-16)
+
+### AM-017: [Configure / Theme] Theme editor only saves to the current browser — nobody else sees the change
+- **Topic**: Configure Menus → Theme editor (SuperUser-only)
+- **Source**: Brought forward from ChelseaReview **CR-125** (2026-07-27)
+- **⚠️ Note for Todd**: carried forward **as DEFERRED** — CR-125 was already marked "DEFERRED (per Todd, 2026-07-16) — revisit later"; Ann is bringing it into the AM queue so it's tracked, but it stays deferred until Todd picks it up.
+- **What's broken (Bug)**: Configure → Theme's Save button is literally labelled **"Save (LocalStorage)"** — the colours are stored **in that one browser only**. Nothing persists to the server, so no visitor, family, or other admin ever sees the change. On top of that, **3 of its 5 theme targets emit styling that is never applied** to anything.
+- **Extra (security-adjacent)**: `/brand-preview` — an internal design showcase — is **publicly reachable on every event's URL with no login required** (`app.routes.ts:118-121`, no auth guard). Harmless content, but it shouldn't be on a client's public site.
+- **Why it matters**: Per-event colours look configurable but aren't — anyone who "brands" an event this way believes they've changed it and is the only person who can see it.
+- *Dev evidence*: localStorage-only persistence (`theme-editor.component.ts:78, 274-288`; `theme-overrides.service.ts:42-68`); `/brand-preview` route has no auth guard (`app.routes.ts:118-121`).
+- **Severity**: Bug (config with no effect) + public-route exposure
+- **Status**: Deferred (brought forward from ChelseaReview CR-125; per Todd 2026-07-16)
+
+### AM-018: [Configure / Communications] Directors/office no longer get a copy of every player confirmation email
+- **Topic**: Configure Menus → Communications (player confirmation email recipients)
+- **Source**: Brought forward from ChelseaReview **CR-012** (2026-07-27)
+- **Type**: Workflow-change — **needs a decision**
+- **What's new**: In the old system the player confirmation email copied the director/office via the job's CC/BCC email fields. The new system sends the confirmation **only to the family and player** — no CC or BCC.
+- **Why it matters**: Directors/offices who relied on getting a copy of every registration will quietly stop receiving them — expect "we're not getting registration copies anymore." Decide whether to bring the director copy back (and whether it should be a per-job toggle).
+- **Interacts with**: **AM-010** (the "Turn off Player & Staff Confirmations (for tournaments)" checkbox) and the **team-vs-player asymmetry** — team/club-rep confirmations still CC/BCC the office via the Comms-tab lists; player confirmations ignore those lists. So any "bring the copy back" decision should reconcile both paths.
+- *Dev evidence*: recipients are family+player only (`PaymentService.cs:2453-2468`), no CC/BCC wiring on the player confirmation path.
+- **Severity**: Question / workflow decision (Legacy-parity gap)
+- **Status**: Open — Todd decision (Ann, 2026-07-27)
