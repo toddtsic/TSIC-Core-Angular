@@ -357,37 +357,28 @@
       </div>
     }
 
-    <!-- Check / Mail-in / Balance -->
+    <!-- Check / Mail-in -->
     <div class="form-section">
-      <h6 class="section-title"><i class="bi bi-envelope-paper me-2"></i>Check / Mail-in / Balance</h6>
+      <h6 class="section-title"><i class="bi bi-envelope-paper me-2"></i>Check / Mail-in</h6>
       <div class="row g-2">
-        <div class="col-md-4">
+        <div class="col-md-6">
           <label class="field-label">Pay To</label>
           <input type="text" class="field-input"
             [ngModel]="payTo()"
             (ngModelChange)="payTo.set($event); onFieldChange()" />
         </div>
-        <div class="col-md-4">
+        <div class="col-md-6">
           <label class="field-label">Mail To</label>
           <input type="text" class="field-input"
             [ngModel]="mailTo()"
             (ngModelChange)="mailTo.set($event); onFieldChange()" />
         </div>
-        <div class="col-md-4">
-          <label class="field-label">Balance Due %</label>
-          <input type="text" class="field-input"
-            [ngModel]="balancedueaspercent()"
-            (ngModelChange)="balancedueaspercent.set($event); onFieldChange()" />
-        </div>
       </div>
-      <div class="row g-2 mt-1">
-        <div class="col-12">
-          <label class="field-label">Mail-in Payment Warning</label>
-          <textarea class="field-input" rows="2"
-            [ngModel]="mailinPaymentWarning()"
-            (ngModelChange)="mailinPaymentWarning.set($event); onFieldChange()"></textarea>
-        </div>
-      </div>
+      <!-- AM-009: "Balance Due %" and "Mail-in Payment Warning" HIDDEN from the UI —
+           DB census 2026-07-27: 0 of 1,057 jobs ever set Balance Due % (and nothing
+           reads it — deposits are per-team Deposit/BalanceDue); Mail-in Warning was
+           set once, on the tsic home job only. Component signals and the save payload
+           still round-trip both values untouched, so config save is entirely unaffected. -->
     </div>
 
   </div>
