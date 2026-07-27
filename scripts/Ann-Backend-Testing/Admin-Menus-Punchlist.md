@@ -245,3 +245,48 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - *Dev evidence*: recipients are family+player only (`PaymentService.cs:2453-2468`), no CC/BCC wiring on the player confirmation path.
 - **Severity**: Question / workflow decision (Legacy-parity gap)
 - **Status**: Open — Todd decision (Ann, 2026-07-27)
+
+### AM-019: [Configure / LADT] Restore the "0 = unlimited" warning when a Director sets a 0 Max Roster or Max Teams
+- **Topic**: Configure Menus → LADT → Team Details (Max Roster) + Age Group (Max Teams)
+- **Source**: Brought forward from ChelseaReview **CR-047** (Ann, 2026-07-27)
+- **Request (Ann)**: **Please add a warning for the Director when he sets a 0 Max Roster or Max Teams.** In the old system, setting Max Roster to 0 popped *"a roster max of 0 means UNLIMITED ROSTER SIZE."* The new system shows no such warning — 0 is treated as unlimited **silently**, a quiet trap for a Director who enters (or leaves) 0.
+- **Confirmed in code (Ann + Claude, 2026-07-27) — 0 does mean unlimited**:
+  - **Max Roster (per team)** — a team is "full" only when `current >= MaxCount && MaxCount > 0`, so **MaxCount 0 → never full → unlimited** ([TeamLookupService.cs:67](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Teams/TeamLookupService.cs#L67)).
+  - **Max Teams (per age-group)** — fullness gated on `ageGroup.MaxTeams > 0`; code comment: *"MaxTeams<=0 means uncapped → never fills"* ([TeamRegistrationService.cs:865](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Teams/TeamRegistrationService.cs#L865)).
+  - *(Max Teams per Club is fully retired per PL-041 — always unlimited now; not in scope here.)*
+- **For Todd — the change**: add an inline warning/help note on the **Max Roster** input (Team Details) and the **Max Teams** input (Age Group) that fires when the value is 0, e.g. *"0 = unlimited — no cap will be applied."* Restores the old system's guardrail so a Director knows a 0 means uncapped, not misconfigured.
+- **Severity**: UX (silent "0 = unlimited" trap — worth restoring the warning)
+- **Status**: Open (Ann, 2026-07-27)
+
+### AM-020: [Auth / Login] Password reset works by email only now — bring back the username path
+- **Topic**: Login / Forgot Password (Client support + SuperUser/Admin)
+- **Source**: Brought forward from ChelseaReview **CR-067** (Ann, 2026-07-27)
+- **Type**: Workflow-change — needs a decision
+- **What's new**: The old "forgot password" looked you up by **username first, then email**, and also matched a parent's family-account email. The new one takes an **email address only** — no username option, and doesn't check family emails. It also always replies "if an account with that email exists, a link has been sent" (won't say whether the account was found).
+- **Why it matters**: A user who remembers only their **username** — common for adult and admin accounts — can't reset their password from the form anymore, and a parent whose login email differs from the one on file may not be found. A real "I can't reset my password" support case.
+- **Request (Ann, 2026-07-27)**: **The username option is very useful here given the rationale presented** — bring back the username path (and consider re-matching family/parent emails) so adult/admin users who only remember their username can reset their password.
+- *Dev evidence*: CR-067 — new reset takes email only, no username lookup, no family-email match.
+- **Severity**: UX / Legacy-parity (support-impacting)
+- **Status**: Open — Todd decision (Ann, 2026-07-27)
+
+### AM-021: [Coach Approval] Approving or denying a coach doesn't notify the coach
+- **Topic**: Roster Swapper → Coach Approval Queue (Client support + SuperUser/Admin)
+- **Source**: Brought forward from ChelseaReview **CR-089** (Ann, 2026-07-27)
+- **Type**: Workflow-change — needs a decision
+- **What's new**: Neither **approving** a coach onto teams nor **denying** them sends the coach any notification. They find out by logging in — if they think to. (The old system didn't notify either, but it also had no approval step.)
+- **Why it matters**: Combined with the previously-missing registration confirmation (CR-084, now resolved), a coach registers, is told an email is coming, gets nothing, then is approved/denied in silence.
+- **Request (Ann, 2026-07-27)**: **Is it possible to send an email notification automatically upon approval under Coach Approval?** (And likely on denial too.) Add an automatic email to the coach when a Director approves (and/or denies) them in the Coach Approval queue.
+- *Dev evidence*: `RosterSwapperService` has no email service injected; neither approve nor deny sends mail ([RosterSwapperService.cs:20-44, 461-483](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Teams/RosterSwapperService.cs#L461)).
+- **Severity**: UX / workflow (silent approve/deny)
+- **Status**: Open — Todd decision (Ann, 2026-07-27)
+
+### AM-022: [Roster Visibility / Privacy] 🔒 A logged-in parent can download every family's contacts + every child's DOB as a PDF
+- **Topic**: Roster view ("Allow Roster View — Player") → My Roster PDF export (privacy)
+- **Source**: Brought forward from ChelseaReview **CR-094** (Ann, 2026-07-27)
+- **Type**: Workflow-change — **privacy decision**
+- **🔒 What's new**: When "Allow Roster View — Player" is on, a logged-in player/parent sees the team roster — including each person's email, phone, **date of birth**, and **both parents' names, emails and phone numbers** (true in the old system too). **What changed**: the same parent can now **download the whole roster as a PDF**, parent-contact + DOB columns included. The old system showed it on screen only; it didn't hand out a file.
+- **Why it matters**: Enabling roster view for players hands every parent on the team an **offline, bulk copy** of every other family's contact details and every child's birthdate — a real privacy exposure.
+- **For Todd — the decision**: e.g. **redact the contact/DOB fields for the player audience**, or make the **PDF admin-only** (the on-screen roster and the PDF currently share the same visibility gate, so redaction/gating must be applied to both, or the PDF split off to an admin-only role).
+- *Dev evidence*: roster data carries DOB + Mom/Dad email/phone with **no role filter** ([MyRosterDtos.cs:34-52](../../TSIC-Core-Angular/src/backend/TSIC.Contracts/Dtos/MyRoster/MyRosterDtos.cs#L34), [RegistrationRepository.cs:2639-2699](../../TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/RegistrationRepository.cs#L2639)); PDF endpoint uses the same visibility gate as the on-screen roster ([MyRosterController.cs:36-52](../../TSIC-Core-Angular/src/backend/TSIC.API/Controllers/MyRosterController.cs#L36), [MyRosterPdfService.cs:95-100](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Reporting/MyRosterPdfService.cs#L95)).
+- **Severity**: 🔒 Privacy (bulk PII/DOB export to the player audience)
+- **Status**: Open — Todd decision (Ann, 2026-07-27)
