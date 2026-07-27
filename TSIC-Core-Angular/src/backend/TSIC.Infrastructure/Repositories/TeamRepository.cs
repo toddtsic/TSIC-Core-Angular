@@ -1208,9 +1208,11 @@ public class TeamRepository : ITeamRepository
             .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
             .ToListAsync(ct);
 
-        // Level of Play with counts
+        // Level of Play with counts — active teams only. Inactive/soft-dropped teams retain
+        // a level_of_play value; counting them would inflate every LOP bucket (matches the
+        // active-only convention used by pay-status, waitlist/scheduled, and payment-method).
         var lops = await baseQuery
-            .Where(t => t.LevelOfPlay != null && t.LevelOfPlay != "")
+            .Where(t => t.Active == true && t.LevelOfPlay != null && t.LevelOfPlay != "")
             .GroupBy(t => t.LevelOfPlay!)
             .OrderBy(g => g.Key)
             .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
