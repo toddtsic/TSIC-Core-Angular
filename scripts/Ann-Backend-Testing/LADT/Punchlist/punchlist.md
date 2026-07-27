@@ -1,8 +1,10 @@
 # LADT - Punch List
 
+> **<span style="color:red">🔴 CLOSED</span>** — all items resolved or deferred-closed; superseded by the active Payment-Test and Admin-Menus punchlists.
+
 **Tester:** Ann
 **Date Started:** 2026-04-04
-**Status:** In Progress
+**Status:** CLOSED
 
 ---
 
@@ -300,7 +302,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clear understanding of which job types these settings apply to
 - **What happened**: Need to review whether these are relevant for all job types or only specific ones
 - **Severity**: Question
-- **Status**: Open — talk to Todd. Needs a product-side decision on applicability per job type (Player / Family / CAC / Team-only tournament). No code change proposed yet.
+- **Status**: Deferred — closed. Needs a product-side decision on applicability per job type (Player / Family / CAC / Team-only tournament). No code change proposed yet.
 
 ### PL-032: Team Details — should Dates section come before Overrides since dates are always used?
 - **Area**: Team Settings
@@ -582,7 +584,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A tight table where each column is sized to its content, with clean single-line (or sensibly wrapped) headers
 - **What happened**: The table is way too wide — each column takes up more space than its content needs and should be tightened. Headers are also wrapping weirdly. SP-006 tuned default widths and was marked Complete, but this is still showing on ISP 2026-2027, so the width pass needs another look plus a fix for the awkward header wrapping.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Deferred — closed
 
 ### SP-024 & SP-025 — MOVED → Payment-Test-Punchlist (PL-031, PL-032)
 These House-Team / self-roster findings surfaced during payment testing and were consolidated into **Payment-Test-Punchlist.md** so Todd sees them in his active review. See there:

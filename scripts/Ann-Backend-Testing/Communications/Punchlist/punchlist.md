@@ -1,8 +1,10 @@
 # Communications - Punch List
 
+> **<span style="color:red">🔴 CLOSED</span>** — all items resolved; superseded by the active Payment-Test and Admin-Menus punchlists.
+
 **Tester:** Ann
 **Date Started:** 2026-05-02
-**Status:** In Progress
+**Status:** CLOSED
 
 ---
 

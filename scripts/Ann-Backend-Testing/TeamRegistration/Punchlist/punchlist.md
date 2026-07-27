@@ -1,8 +1,10 @@
 # Team Registration - Punch List
 
+> **<span style="color:red">🔴 CLOSED</span>** — all items resolved; superseded by the active Payment-Test and Admin-Menus punchlists.
+
 **Tester:** Ann
 **Date Started:** 2026-04-06
-**Status:** In Progress
+**Status:** CLOSED
 
 ---
 
@@ -433,7 +435,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
   - **Click Here for Coach Registration**
   Much cleaner and faster for users to find their path.
 - **Severity**: UX
-- **Status**: Deferred
+- **Status**: Fixed
 - **Update (2026-05-06)**: Carolina Clash bulletin already uses this format for Team Registration — extend the same format to Players and Coaches there, **and apply across ALL bulletins** (every job). Ann: "So much better!!!"
 
 ### TP-004: Teams screen layout — eliminate scrolling on Registered card; rebalance space vs Library (acceptance-critical)

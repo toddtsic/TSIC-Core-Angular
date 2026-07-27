@@ -1,8 +1,10 @@
 # Accounting - Punch List
 
+> **<span style="color:red">🔴 CLOSED</span>** — all items resolved; superseded by the active Payment-Test and Admin-Menus punchlists.
+
 **Tester:** Ann
 **Date Started:** 2026-04-06
-**Status:** In Progress
+**Status:** CLOSED
 
 ---
 
@@ -48,7 +50,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: (1) The toast to stay on screen longer so parents can actually read it. (2) On sites that allow **Pay by Check**, different wording — those players are **Active** on submit, and the toast should tell the parent to **send the check to keep their Active status**.
 - **What happened**: (1) The toast dismisses too quickly. (2) The same "Inactive until paid" wording shows even for pay-by-check sites, which is incorrect — pay-by-check players are Active on submit (per SP-049).
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Toast lives in `player.component.ts` (SP-042 set it to 10s with Legacy verbatim copy). Two changes: bump the duration, and branch the message on whether the site/flow allows Pay by Check — pay-by-check variant should reflect Active-on-submit (SP-049) and instruct the parent to mail the check to retain Active status.
 - **Note (ISP)**: For ISP, the pay-by-check "Active — mail your check to keep Active status" message should also appear as **RED text near the Pay by Check option on the payment screen** (not just in the toast), so the parent sees it at the point of choosing Pay by Check.
 
@@ -210,7 +212,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
   - (Optionally) Combined: "10 payments of $985.00 total · billing starts Jun 7, 2026"
 - **What happened**: The aggregated $985 figure hides the per-player split, so the parent has to mentally reconcile it against the Accounting table above. Split it out (the data is right there) so the radio matches what the parent expects to see on their statement each month.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 
 ### PL-018: Correction full-payment — show a red reminder for the Admin to make the Player Active
 - **Refs**: PL-014 (Payment Ledger needs to indicate target registration on Check/Correction/CC rows), PlayerRegistration SP-034 ("Registered - Inactive" in red for unpaid/incomplete), SP-049 (BActive activation rules for pay-by-check)
@@ -316,7 +318,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Columns to read left-to-right in the order a Director scans them: full fee first, then the proc surcharge, then what's been collected, then what's still due
 - **What happened**: Current column order is out of sync. Reorder to: **Total Fee → Proc Fee → Paid → Owes**.
 - **Severity**: UX
-- **Status**: Deferred.
+- **Status**: Fixed
 
 ### PL-008: Align Player Payment screen with Team Payment screen — drop the top "Complete Payment" + tips, rename first-card header from ACCOUNTING to PAYMENT, harmonize headers/column order
 - **Refs**: PL-007 (Club Teams Breakdown + Team Payment column consolidation), TeamRegistration TP-004/SP-006, PlayerRegistration SP-024 (accounting-table layout)

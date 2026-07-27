@@ -1,8 +1,10 @@
 # Job Clone - Punch List
 
+> **<span style="color:red">🔴 CLOSED</span>** — all four open items consolidated and carried forward to the Admin-Menus punchlist (**AM-015**), Deferred: Todd + Ann to work Job Clone together after the rest of the review. Superseded by the active Payment-Test and Admin-Menus punchlists.
+
 **Tester:** Ann
 **Date Started:** 2026-04-25
-**Status:** In Progress
+**Status:** CLOSED (deferred → AM-015)
 
 ---
 
@@ -50,7 +52,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Button to fire the create-job action
 - **What happened**: Button is `disabled` until the affirmation checkbox above it is ticked. Clicks on a disabled button fire no event, so the button visibly does nothing without explanation
 - **Severity**: Bug (UX) — major blocker if missed
-- **Status**: Open
+- **Status**: Deferred → carried to Admin-Menus-Punchlist (AM-015, item 1); Todd + Ann to work Job Clone after the rest of the review
 - **Note**: Cause traced:
   - **Code path**: Button `[disabled]="!canAdvance() || isSubmitting()"` ([job-clone.component.html:418](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job-clone/job-clone.component.html#L418)). For step 7, `canAdvance()` returns `this.affirmationChecked` ([job-clone.component.ts:353](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job-clone/job-clone.component.ts#L353)).
   - **The mandatory checkbox**: lives at [job-clone.component.html:384-387](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job-clone/job-clone.component.html#L384-L387) labeled *"I've reviewed the above and want to create the job."*
@@ -70,7 +72,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A wizard with the minimum number of steps that still surfaces the decisions SuperUsers need to make
 - **What happened**: Currently 7 steps (Source / Identity / Dates & shifts / LADT scope / Fee defaults / People & options / Review & submit) — more screen-by-screen navigation than the decisions warrant
 - **Severity**: UX / Feature
-- **Status**: Open — Todd discussion
+- **Status**: Deferred → carried to Admin-Menus-Punchlist (AM-015, item 3); Todd + Ann to work Job Clone after the rest of the review
 - **Note**: Concrete proposed shape — **2-step wizard with 4 cards in Step 1**:
 
   | Step | Contents |
@@ -104,7 +106,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Each expiry to default to the source job's existing expiry **shifted forward by one year** — preserves the seasonal cadence (e.g., if Director always closes registration April 1, the clone's expiry pre-fills as April 1 of the next year)
 - **What happened**: Both fields default to `new Date()` + 1 year, regardless of the source job's existing expiry dates ([job-clone.component.ts:149-152, 252-255](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job-clone/job-clone.component.ts#L149-L152)). If the SuperUser clones a 2025 season job in April 2026, the prefill is April 2027 — which is six months off the actual seasonal cadence (likely should be August 2027 or whatever was set for the 2025 season + 1).
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Deferred → carried to Admin-Menus-Punchlist (AM-015, item 2); Todd + Ann to work Job Clone after the rest of the review
 - **Note**: Fix requires a backend change too — `JobCloneSourceDto` does not currently carry `expiryAdmin` / `expiryUsers` (grep returns no match in the model file). Two-part fix:
   1. **Backend**: extend `JobCloneSourceDto` and the source-projection in `JobCloneRepository` (or wherever sources are loaded) to include `ExpiryAdmin` and `ExpiryUsers` from the source job.
   2. **Frontend**: replace the `new Date() + 1 year` defaults with `(source.expiryAdmin ?? today) + 1 year` and `(source.expiryUsers ?? today) + 1 year`. Fall back to today+1 only when source expiry is null (true for very old jobs migrated without expiry dates).
@@ -116,7 +118,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: One way to go back to step 1, not two visually identical paths
 - **What happened**: Both buttons exist on step 2; they actually behave differently but the difference isn't visible to the user on this step
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Deferred → carried to Admin-Menus-Punchlist (AM-015, item 4); Todd + Ann to work Job Clone after the rest of the review
 - **Note**: The two buttons are genuinely different — but indistinguishable on step 2:
   - **Reset** (`cancelWizard`, [job-clone.component.ts:156-160](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job-clone/job-clone.component.ts#L156-L160)): wipes all entered fields, returns to step 1, preserves the chosen flavor (clone vs blank). Destructive.
   - **Back** (`wizardBack`, [line 317-321](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job-clone/job-clone.component.ts#L317-L321)): decrements step by 1, preserves all fields. Non-destructive.
