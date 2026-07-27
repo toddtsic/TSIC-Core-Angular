@@ -3,20 +3,20 @@
     <!-- ══════════════════════════════════════════════════════════════ -->
     <!-- Page Header                                                    -->
     <!-- ══════════════════════════════════════════════════════════════ -->
-    <div class="ref-header">
-        <h5 class="mb-0">Referee Assignment</h5>
-        <div class="d-flex gap-1 flex-wrap">
+    <div class="page-header">
+        <h2 class="page-title"><i class="bi bi-person-badge page-title-icon"></i> Referee Assignment</h2>
+        <div class="page-header-actions">
             <button class="btn btn-sm btn-outline-primary" (click)="openImportModal()"
-                    aria-label="Import referees from CSV file">
-                <i class="bi bi-upload me-1"></i>Import CSV
+                    aria-label="Import referees from Excel file" title="Import referees from Excel file">
+                <i class="bi bi-upload"></i><span class="btn-label">Import Excel</span>
             </button>
             <button class="btn btn-sm btn-outline-secondary" (click)="openSeedModal()"
-                    aria-label="Generate test referees">
-                <i class="bi bi-people me-1"></i>Seed Test Refs
+                    aria-label="Generate test referees" title="Generate test referees">
+                <i class="bi bi-people"></i><span class="btn-label">Seed Test Refs</span>
             </button>
             <button class="btn btn-sm btn-outline-danger" (click)="openDeleteModal()"
-                    aria-label="Delete all referees and assignments">
-                <i class="bi bi-trash me-1"></i>Delete All
+                    aria-label="Delete all referees and assignments" title="Delete all referees and assignments">
+                <i class="bi bi-trash"></i><span class="btn-label">Delete All</span>
             </button>
         </div>
     </div>
@@ -464,17 +464,25 @@
                     </div>
                 } @else {
                     <p class="text-secondary mb-2">
-                        Download the blank template, fill in referee data in Excel or any spreadsheet, then upload the CSV to import.
+                        Download the blank Excel template, fill in one referee per row (see the
+                        <strong>Instructions</strong> tab for each column), then upload the completed
+                        <code>.xlsx</code> file to import.
                     </p>
                     <div class="mb-3">
-                        <button class="btn btn-sm btn-outline-secondary" (click)="downloadImportTemplate()">
-                            <i class="bi bi-download me-1"></i>Download Blank Template
+                        <button class="btn btn-sm btn-outline-secondary" (click)="downloadImportTemplate()"
+                                [disabled]="isTemplateLoading()">
+                            @if (isTemplateLoading()) {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            } @else {
+                                <i class="bi bi-file-earmark-excel me-1"></i>
+                            }
+                            Download Blank Template
                         </button>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold" for="importFileInput">CSV File</label>
+                        <label class="form-label fw-semibold" for="importFileInput">Excel File (.xlsx)</label>
                         <input id="importFileInput" type="file" class="form-control form-control-sm"
-                               accept=".csv"
+                               accept=".xlsx"
                                (change)="onFileSelected($event)">
                     </div>
                 }

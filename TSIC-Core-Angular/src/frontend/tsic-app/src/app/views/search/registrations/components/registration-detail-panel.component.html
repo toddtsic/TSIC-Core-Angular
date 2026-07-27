@@ -304,6 +304,53 @@
             <app-medform-view [registrationId]="reg.registrationId"></app-medform-view>
           }
 
+          <!-- ── Editable: Referee credentials. Bound to the STATIC profileValues columns (independent of
+                 the job's referee template) so a referee shows & saves the same credential set whether
+                 self-registered or imported. Cert expiry is a plain admin-entered date here — referees
+                 have no USA-Lacrosse revalidate path, so the backend's generic-editor expiry lock is
+                 relaxed for this role. Saves via the shared profile-save path. ── -->
+          @if (isRefereeRole()) {
+            <div class="contact-zone">
+              <div class="section-title-row">
+                <h4 class="section-title">Referee Details</h4>
+              </div>
+              <form class="contact-form">
+                <div class="contact-row">
+                  <div class="form-group">
+                    <label for="ref-cert-no" class="form-label">Certification Number</label>
+                    <input id="ref-cert-no" type="text" class="form-control form-control-sm"
+                      [ngModel]="profileValues()['SportAssnId']" (ngModelChange)="updateProfileValue('SportAssnId', $event)"
+                      name="SportAssnId" placeholder="Not provided">
+                  </div>
+                  <div class="form-group">
+                    <label for="ref-cert-exp" class="form-label">Certification Expiry</label>
+                    <input id="ref-cert-exp" type="date" class="form-control form-control-sm"
+                      [ngModel]="profileValues()['SportAssnIdexpDate']" (ngModelChange)="updateProfileValue('SportAssnIdexpDate', $event)"
+                      name="SportAssnIdexpDate">
+                  </div>
+                  <div class="form-group form-group-full">
+                    <label for="ref-special" class="form-label">Special Requests</label>
+                    <textarea id="ref-special" class="form-control form-control-sm" rows="2"
+                      [ngModel]="profileValues()['SpecialRequests']" (ngModelChange)="updateProfileValue('SpecialRequests', $event)"
+                      name="SpecialRequests"></textarea>
+                  </div>
+                </div>
+                <div class="contact-actions" [class.is-dirty]="isProfileDirty()">
+                  @if (isProfileDirty()) {
+                    <span class="unsaved-hint small text-warning-emphasis">
+                      <i class="bi bi-exclamation-circle me-1"></i>Unsaved changes
+                    </span>
+                  }
+                  <button type="button" class="btn btn-primary btn-sm detail-save-btn"
+                          [class.pulse]="isProfileDirty()" (click)="saveProfileInfo()" [disabled]="isSavingProfile()">
+                    @if (isSavingProfile()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                    Save
+                  </button>
+                </div>
+              </form>
+            </div>
+          }
+
           <!-- ── Editable: Profile (metadata-driven — players AND adult roles) ── -->
           @if (showProfileCard()) {
             @let profileFields = editableProfileFields();
@@ -428,8 +475,9 @@
             </div>
           }
 
-          <!-- ── Read-Only: Non-templated roles (Club Rep) — only populated fields ── -->
-          @if (!showProfileCard()) {
+          <!-- ── Read-Only: Non-templated roles (Club Rep) — only populated fields.
+                 Referees are excluded: they render the dedicated Referee Details section above. ── -->
+          @if (!showProfileCard() && !isRefereeRole()) {
             @let npFields = nonPlayerFields();
             @if (npFields.length > 0) {
               <div class="info-section">

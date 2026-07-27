@@ -57,6 +57,10 @@ export class RefereeAssignmentService {
 		return this.http.post<number[]>(`${this.base}/copy`, request);
 	}
 
+	getImportTemplate(): Observable<Blob> {
+		return this.http.get(`${this.base}/import-template`, { responseType: 'blob' });
+	}
+
 	importReferees(file: File): Observable<ImportRefereesResult> {
 		const formData = new FormData();
 		formData.append('file', file);

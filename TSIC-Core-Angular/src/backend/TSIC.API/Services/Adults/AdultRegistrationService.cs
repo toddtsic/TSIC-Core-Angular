@@ -1641,19 +1641,49 @@ public class AdultRegistrationService : IAdultRegistrationService
             _ => ("Special Requests", "")
         };
 
-        return
-        [
-            new JobRegFieldDto
+        var fields = new List<JobRegFieldDto>();
+
+        // Referee also collects optional certification credentials — the SAME SportAssnId /
+        // SportAssnIdexpDate columns the referee import writes — so self-registration and import
+        // capture identical referee data. NAME != "sportAssnId" so the wizard doesn't render the coach
+        // USA-Lacrosse verification widget (field→column mapping is by DbColumn). Kept in sync with
+        // AdultFormCatalog.BuildReferee().
+        if (roleType == AdultRoleType.Referee)
+        {
+            fields.Add(new JobRegFieldDto
             {
-                Name = "SpecialRequests",
-                DbColumn = "SpecialRequests",
-                DisplayName = label,
-                InputType = roleType == AdultRoleType.Recruiter ? "TEXT" : "TEXTAREA",
+                Name = "certificationNumber",
+                DbColumn = "SportAssnId",
+                DisplayName = "Certification Number",
+                InputType = "TEXT",
                 Order = 1,
                 Visibility = "public",
-                Validation = new FieldValidation { Required = required, Message = placeholder }
-            }
-        ];
+                Validation = new FieldValidation { Required = false }
+            });
+            fields.Add(new JobRegFieldDto
+            {
+                Name = "certificationExpiry",
+                DbColumn = "SportAssnIdexpDate",
+                DisplayName = "Certification Expiry",
+                InputType = "DATE",
+                Order = 2,
+                Visibility = "public",
+                Validation = new FieldValidation { Required = false }
+            });
+        }
+
+        fields.Add(new JobRegFieldDto
+        {
+            Name = "SpecialRequests",
+            DbColumn = "SpecialRequests",
+            DisplayName = label,
+            InputType = roleType == AdultRoleType.Recruiter ? "TEXT" : "TEXTAREA",
+            Order = fields.Count + 1,
+            Visibility = "public",
+            Validation = new FieldValidation { Required = required, Message = placeholder }
+        });
+
+        return fields;
     }
 
     private static List<AdultWaiverDto> BuildWaivers(AdultRegJobData jobData)

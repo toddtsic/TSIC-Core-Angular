@@ -122,7 +122,17 @@ public class RefereeAssignmentController : ControllerBase
         return Ok(affectedGids);
     }
 
-    /// <summary>Import referees from a CSV file.</summary>
+    /// <summary>Download a blank Excel (.xlsx) template for importing referees.</summary>
+    [HttpGet("import-template")]
+    public ActionResult DownloadImportTemplate()
+    {
+        var bytes = _service.GenerateImportTemplate();
+        return File(bytes,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "referee-import-template.xlsx");
+    }
+
+    /// <summary>Import referees from an Excel (.xlsx) file.</summary>
     [HttpPost("import")]
     public async Task<ActionResult<ImportRefereesResult>> ImportReferees(IFormFile file, CancellationToken ct)
     {
@@ -131,6 +141,10 @@ public class RefereeAssignmentController : ControllerBase
 
         if (file == null || file.Length == 0)
             return BadRequest(new { message = "No file uploaded." });
+
+        var ext = Path.GetExtension(file.FileName)?.ToLowerInvariant();
+        if (ext != ".xlsx")
+            return BadRequest(new { message = "Only .xlsx files are accepted." });
 
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
         await using var stream = file.OpenReadStream();

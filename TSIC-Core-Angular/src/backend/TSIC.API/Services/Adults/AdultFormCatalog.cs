@@ -172,18 +172,47 @@ public static class AdultFormCatalog
         return new ProfileMetadata { Fields = fields };
     }
 
-    // Referee: single uniform Special Requests (required), matching BuildFallbackFields(Referee).
+    // Referee: optional certification credentials + Special Requests (required). Kept in sync with
+    // BuildFallbackFields(Referee).
+    //
+    // certificationNumber / certificationExpiry map to the SAME Registrations columns the referee
+    // CSV/xlsx import writes (SportAssnId / SportAssnIdexpDate), so a self-registered referee and an
+    // imported one carry identical credential data and the assignment dropdown shows a cert for either.
+    // The field NAME is deliberately NOT "sportAssnId": the wizard treats that name as the coach
+    // USA-Lacrosse field and renders a membership-verification widget. Field→column mapping is by
+    // DbColumn, so a distinct Name keeps the column target while rendering a plain input. For a referee
+    // the USLax stamp path no-ops, so the value is stored raw (a generic certification number, unverified).
     private static ProfileMetadata BuildReferee() => new()
     {
         Fields = new List<ProfileMetadataField>
         {
             new()
             {
+                Name = "certificationNumber",
+                DbColumn = "SportAssnId",
+                DisplayName = "Certification Number",
+                InputType = "TEXT",
+                Order = 1,
+                Visibility = "public",
+                Validation = new FieldValidation { Required = false }
+            },
+            new()
+            {
+                Name = "certificationExpiry",
+                DbColumn = "SportAssnIdexpDate",
+                DisplayName = "Certification Expiry",
+                InputType = "DATE",
+                Order = 2,
+                Visibility = "public",
+                Validation = new FieldValidation { Required = false }
+            },
+            new()
+            {
                 Name = "specialRequests",
                 DbColumn = "SpecialRequests",
                 DisplayName = "Special Requests",
                 InputType = "TEXTAREA",
-                Order = 1,
+                Order = 3,
                 Visibility = "public",
                 Validation = new FieldValidation { Required = true }
             }

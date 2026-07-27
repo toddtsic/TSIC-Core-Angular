@@ -16,6 +16,12 @@ public interface IRefAssignmentRepository
     /// </summary>
     Task<List<RefereeSummaryDto>> GetRefereesForJobAsync(Guid jobId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Get the set of AspNetUsers Ids already registered as referees in a job.
+    /// Used by import to reuse a referee login across events while staying idempotent per job.
+    /// </summary>
+    Task<HashSet<string>> GetRefereeUserIdsForJobAsync(Guid jobId, CancellationToken ct = default);
+
     // ── Assignments ──
 
     /// <summary>

@@ -35,8 +35,11 @@ public interface IRefAssignmentService
     /// <summary>Copy ref assignments from one game to adjacent timeslots on the same field.</summary>
     Task<List<int>> CopyGameRefsAsync(Guid jobId, CopyGameRefsRequest request, string auditUserId, CancellationToken ct = default);
 
-    /// <summary>Import referees from a CSV file.</summary>
-    Task<ImportRefereesResult> ImportRefereesAsync(Guid jobId, Stream csvStream, string auditUserId, CancellationToken ct = default);
+    /// <summary>Import referees from an Excel (.xlsx) workbook. Columns are resolved by header name.</summary>
+    Task<ImportRefereesResult> ImportRefereesAsync(Guid jobId, Stream fileStream, string auditUserId, CancellationToken ct = default);
+
+    /// <summary>Generate a blank Excel (.xlsx) template for importing referees.</summary>
+    byte[] GenerateImportTemplate();
 
     /// <summary>Create N test referee registrations for development.</summary>
     Task<List<RefereeSummaryDto>> SeedTestRefereesAsync(Guid jobId, int count, string auditUserId, CancellationToken ct = default);

@@ -43,6 +43,16 @@ public sealed class RefAssignmentRepository : IRefAssignmentRepository
             .ToListAsync(ct);
     }
 
+    public async Task<HashSet<string>> GetRefereeUserIdsForJobAsync(Guid jobId, CancellationToken ct = default)
+    {
+        var ids = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && r.RoleId == RoleConstants.Referee && r.UserId != null)
+            .Select(r => r.UserId!)
+            .ToListAsync(ct);
+        return ids.ToHashSet();
+    }
+
     // ── Assignments ──
 
     public async Task<List<GameRefAssignmentDto>> GetAllAssignmentsForJobAsync(Guid jobId, CancellationToken ct = default)

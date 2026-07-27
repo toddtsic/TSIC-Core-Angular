@@ -178,6 +178,14 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   isPlayerRole = computed(() => PLAYER_ROLES.has(this.detail()?.roleName?.toLowerCase().trim() ?? ''));
   isClubRep = computed(() => this.detail()?.isClubRep === true);
 
+  /** Referee role — gets a dedicated EDITABLE credential section (below) instead of the metadata card,
+   *  so its cert fields (Cert #, Expiry, Special Requests) display AND save consistently whether the
+   *  referee self-registered or was imported (import writes SportAssnId / SportAssnIdexpDate directly),
+   *  and without the coach USA-Lacrosse field helpers mislabelling them. It binds the STATIC
+   *  profileValues columns and saves through the shared profile-save path (saveProfileInfo). Matched on
+   *  role NAME (the DTO carries no roleId). */
+  isRefereeRole = computed(() => this.detail()?.roleName?.toLowerCase().trim() === 'referee');
+
   /** Player registered under a family account → show the combined family-accounting view. */
   isFamilyPlayer = computed(() => this.isPlayerRole() && !!this.detail()?.familyUserId);
 
@@ -207,10 +215,12 @@ export class RegistrationDetailPanelComponent implements OnChanges {
     return this.reorderForSport(fields);
   });
 
-  /** Show the metadata-driven profile card for ANY role whose template has fields — players and
-   *  adults (coach/Staff/Referee/Recruiter) alike. Template-less roles (Club Rep) fall back to the
-   *  legacy read-only list. The backend ships the role-appropriate metadata, so this stays role-agnostic. */
-  readonly showProfileCard = computed(() => this.editableProfileFields().length > 0);
+  /** Show the metadata-driven editable profile card for a role whose template has fields — players and
+   *  adults (coach/Staff/Recruiter). Referees are EXCLUDED: they render a dedicated EDITABLE Referee
+   *  Details section instead, so their cert fields show & save consistently (and free of the coach
+   *  USA-Lacrosse field helpers) whether or not the job's template declares them. Template-less roles
+   *  (Club Rep) fall back to the legacy read-only list. */
+  readonly showProfileCard = computed(() => this.editableProfileFields().length > 0 && !this.isRefereeRole());
 
   /** Card heading — player vs generic adult/registration profile. */
   readonly profileCardTitle = computed(() => this.isPlayerRole() ? 'Player Profile' : 'Registration Profile');
@@ -574,7 +584,7 @@ export class RegistrationDetailPanelComponent implements OnChanges {
       next: () => {
         this.isSavingProfile.set(false);
         this.snapshotProfile.set(this.serializeProfile());   // saved → zone is clean again
-        this.toast.show('Player profile saved', 'success', 3000, 'Profile Updated');
+        this.toast.show('Profile saved', 'success', 3000, 'Profile Updated');
         this.saved.emit();
       },
       error: (err) => {

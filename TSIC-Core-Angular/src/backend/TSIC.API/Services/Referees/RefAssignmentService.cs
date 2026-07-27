@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Identity;
+using Syncfusion.XlsIO;
+using TSIC.API.Utilities;
 using TSIC.Contracts.Dtos.Referees;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -113,87 +115,110 @@ public sealed class RefAssignmentService : IRefAssignmentService
         return affectedGids;
     }
 
-    // ── Import Refs from CSV ──
+    // ── Import Refs from an Excel (.xlsx) workbook ──
+    // Columns are resolved by HEADER NAME (row 1), so column order/extra columns
+    // don't matter — reordering can no longer silently misfile data as it could
+    // with the old positional CSV parser.
 
-    public async Task<ImportRefereesResult> ImportRefereesAsync(Guid jobId, Stream csvStream, string auditUserId, CancellationToken ct = default)
+    public async Task<ImportRefereesResult> ImportRefereesAsync(Guid jobId, Stream fileStream, string auditUserId, CancellationToken ct = default)
     {
         var imported = 0;
         var skipped = 0;
         var errors = new List<string>();
 
-        using var reader = new StreamReader(csvStream);
-        var lineNumber = 0;
+        using var excelEngine = new ExcelEngine();
+        IApplication application = excelEngine.Excel;
+        IWorkbook workbook = application.Workbooks.Open(fileStream);
 
-        string? line;
-        while ((line = await reader.ReadLineAsync(ct)) != null)
+        var ws = workbook.Worksheets.Count > 0 ? workbook.Worksheets[0] : null;
+        if (ws == null)
         {
-            lineNumber++;
+            errors.Add("No worksheet found in the uploaded file.");
+            return new ImportRefereesResult { Imported = 0, Skipped = 0, Errors = errors };
+        }
 
-            if (string.IsNullOrWhiteSpace(line))
+        var col = ResolveImportColumns(ws);
+        if (col.FirstName == 0 || col.LastName == 0)
+        {
+            errors.Add("Missing required column header 'FirstName' and/or 'LastName' in row 1. Use the downloaded template.");
+            return new ImportRefereesResult { Imported = 0, Skipped = 0, Errors = errors };
+        }
+
+        // Users already registered as referees in THIS job — keeps re-imports idempotent.
+        // A referee login is REUSED across events, so de-dup is keyed on the user (not the
+        // username) and a row is only skipped when that user already holds a ref reg here.
+        var existingRefUserIds = await _refRepo.GetRefereeUserIdsForJobAsync(jobId, ct);
+
+        var lastRow = ws.UsedRange.LastRow;
+        for (var row = 2; row <= lastRow; row++)
+        {
+            string Cell(int c) => c > 0 ? (ws.Range[row, c].DisplayText?.Trim() ?? "") : "";
+
+            var firstName = Cell(col.FirstName);
+            var lastName = Cell(col.LastName);
+
+            // Skip fully blank rows (Excel often reports trailing empties in UsedRange)
+            if (string.IsNullOrWhiteSpace(firstName) && string.IsNullOrWhiteSpace(lastName))
                 continue;
-
-            // Skip header row
-            if (lineNumber == 1 && line.Contains("FirstName", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            var parts = line.Split(',');
-            if (parts.Length < 2)
-            {
-                errors.Add($"Line {lineNumber}: insufficient columns (need at least FirstName, LastName)");
-                continue;
-            }
-
-            var firstName = parts[0].Trim().Trim('"');
-            var lastName = parts[1].Trim().Trim('"');
-            var email = parts.Length > 2 ? parts[2].Trim().Trim('"') : "";
-            var cellPhone = parts.Length > 3 ? parts[3].Trim().Trim('"') : null;
-            var street = parts.Length > 4 ? parts[4].Trim().Trim('"') : null;
-            var city = parts.Length > 5 ? parts[5].Trim().Trim('"') : null;
-            var state = parts.Length > 6 ? parts[6].Trim().Trim('"') : null;
-            var zip = parts.Length > 7 ? parts[7].Trim().Trim('"') : null;
-            var dobStr = parts.Length > 8 ? parts[8].Trim().Trim('"') : null;
-            var gender = parts.Length > 9 ? parts[9].Trim().Trim('"') : null;
-            var certNumber = parts.Length > 10 ? parts[10].Trim().Trim('"') : null;
-            var certExpiryStr = parts.Length > 11 ? parts[11].Trim().Trim('"') : null;
 
             if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
             {
-                errors.Add($"Line {lineNumber}: FirstName and LastName are required");
+                errors.Add($"Row {row}: FirstName and LastName are required.");
                 continue;
             }
 
-            // Generate username
+            var email = Cell(col.Email);
+            var cellPhone = NullIfEmpty(Cell(col.Cellphone));
+            var street = NullIfEmpty(Cell(col.Street));
+            var city = NullIfEmpty(Cell(col.City));
+            var state = NullIfEmpty(Cell(col.State));
+            var zip = NullIfEmpty(Cell(col.Zip));
+            var dobStr = Cell(col.Dob);
+            var gender = NullIfEmpty(Cell(col.Gender));
+            var certNumber = NullIfEmpty(Cell(col.CertNumber));
+            var certExpiryStr = Cell(col.CertExpiry);
+
+            // Deterministic referee username (initial + last name).
             var username = $"Ref-{firstName[0]}{lastName}".Replace(" ", "");
 
-            // Skip duplicate usernames
-            var existingUser = await _userManager.FindByNameAsync(username);
-            if (existingUser != null)
+            // Reuse an existing referee login across events; only create the user the first
+            // time we ever see them. NOTE: identity is keyed on this username, so two
+            // DIFFERENT people who reduce to the same initial+lastname share one login — a
+            // pre-existing limitation of the username scheme, not introduced by reuse.
+            var user = await _userManager.FindByNameAsync(username);
+            if (user == null)
             {
-                skipped++;
-                continue;
+                user = new ApplicationUser
+                {
+                    UserName = username,
+                    Email = !string.IsNullOrWhiteSpace(email) ? email : $"{username}@ref.local",
+                    FirstName = firstName,
+                    LastName = lastName,
+                    Gender = !string.IsNullOrWhiteSpace(gender) ? gender : "U",
+                    Cellphone = cellPhone,
+                    StreetAddress = street,
+                    City = city,
+                    State = state,
+                    PostalCode = zip,
+                    Dob = DateTime.TryParse(dobStr, out var dob) ? dob : new DateTime(1980, 1, 1),
+                    LebUserId = auditUserId,
+                    Modified = DateTime.Now
+                };
+
+                var createResult = await _userManager.CreateAsync(user, username);
+                if (!createResult.Succeeded)
+                {
+                    errors.Add($"Row {row}: {string.Join("; ", createResult.Errors.Select(e => e.Description))}");
+                    continue;
+                }
             }
 
-            var user = new ApplicationUser
+            // Already a referee in THIS job? Then this row (or a duplicate of it) is already
+            // imported — skip. HashSet.Add returns false when the id is already present, which
+            // also collapses duplicate rows within the same file.
+            if (!existingRefUserIds.Add(user.Id))
             {
-                UserName = username,
-                Email = !string.IsNullOrWhiteSpace(email) ? email : $"{username}@ref.local",
-                FirstName = firstName,
-                LastName = lastName,
-                Gender = !string.IsNullOrWhiteSpace(gender) ? gender : "U",
-                Cellphone = cellPhone,
-                StreetAddress = street,
-                City = city,
-                State = state,
-                PostalCode = zip,
-                Dob = DateTime.TryParse(dobStr, out var dob) ? dob : new DateTime(1980, 1, 1),
-                LebUserId = auditUserId,
-                Modified = DateTime.Now
-            };
-
-            var createResult = await _userManager.CreateAsync(user, username);
-            if (!createResult.Succeeded)
-            {
-                errors.Add($"Line {lineNumber}: {string.Join("; ", createResult.Errors.Select(e => e.Description))}");
+                skipped++;
                 continue;
             }
 
@@ -222,14 +247,119 @@ public sealed class RefAssignmentService : IRefAssignmentService
         };
     }
 
+    private static string? NullIfEmpty(string s) => string.IsNullOrWhiteSpace(s) ? null : s;
+
+    /// <summary>Resolve referee-import column indices from the header row (row 1) by name.</summary>
+    private static ImportColumns ResolveImportColumns(IWorksheet ws)
+    {
+        var map = new ImportColumns();
+        var lastCol = ws.UsedRange.LastColumn;
+        for (var c = 1; c <= lastCol; c++)
+        {
+            var h = (ws.Range[1, c].DisplayText ?? "")
+                .Trim().Replace(" ", "").Replace("_", "").ToLowerInvariant();
+            switch (h)
+            {
+                case "firstname": map.FirstName = c; break;
+                case "lastname": map.LastName = c; break;
+                case "email": case "emailaddress": map.Email = c; break;
+                case "cellphone": case "cell": case "phone": case "mobile": map.Cellphone = c; break;
+                case "street": case "streetaddress": case "address": map.Street = c; break;
+                case "city": map.City = c; break;
+                case "state": map.State = c; break;
+                case "zip": case "zipcode": case "postalcode": map.Zip = c; break;
+                case "dob": case "dateofbirth": case "birthdate": map.Dob = c; break;
+                case "gender": case "sex": map.Gender = c; break;
+                case "certificationnumber": case "certnumber": case "certno": case "sportassnid": map.CertNumber = c; break;
+                case "certificationexpiry": case "certexpiry": case "certificationexpiration": case "certexpiration": map.CertExpiry = c; break;
+            }
+        }
+        return map;
+    }
+
+    private struct ImportColumns
+    {
+        public int FirstName, LastName, Email, Cellphone, Street, City, State, Zip, Dob, Gender, CertNumber, CertExpiry;
+    }
+
+    // ── Blank Excel (.xlsx) import template ──
+
+    public byte[] GenerateImportTemplate()
+    {
+        using var excelEngine = new ExcelEngine();
+        IApplication application = excelEngine.Excel;
+        application.DefaultVersion = ExcelVersion.Xlsx;
+        IWorkbook workbook = application.Workbooks.Create(1);
+
+        // ── Sheet 1: the fill-in sheet the importer reads (headers only) ──
+        var ws = workbook.Worksheets[0];
+        ws.Name = "Referees";
+
+        var headers = new[]
+        {
+            "FirstName", "LastName", "Email", "Cellphone", "Street", "City",
+            "State", "Zip", "DOB", "Gender", "CertificationNumber", "CertificationExpiry"
+        };
+        for (var c = 1; c <= headers.Length; c++)
+            ws.Range[1, c].Text = headers[c - 1];
+
+        var headerRange = ws.Range[1, 1, 1, headers.Length];
+        headerRange.CellStyle.Font.Bold = true;
+        headerRange.CellStyle.Color = Syncfusion.Drawing.Color.FromArgb(68, 114, 196);
+        headerRange.CellStyle.Font.RGBColor = Syncfusion.Drawing.Color.White;
+
+        // Highlight the two required columns (orange) so they read as mandatory.
+        var requiredRange = ws.Range[1, 1, 1, 2];
+        requiredRange.CellStyle.Color = Syncfusion.Drawing.Color.FromArgb(198, 89, 17);
+
+        ws.UsedRange.AutofitColumns();
+
+        // ── Sheet 2: human-readable instructions ──
+        var info = workbook.Worksheets.Create("Instructions");
+        var lines = new (string Col, string Required, string Notes)[]
+        {
+            ("Column", "Required?", "Notes / Format"),
+            ("FirstName", "Yes", "Referee first name."),
+            ("LastName", "Yes", "Referee last name."),
+            ("Email", "No", "Used for login/notices; a placeholder is generated if left blank."),
+            ("Cellphone", "No", "Digits only, e.g. 5551234567."),
+            ("Street", "No", "Street address."),
+            ("City", "No", ""),
+            ("State", "No", "Two-letter state, e.g. NY."),
+            ("Zip", "No", "Postal code."),
+            ("DOB", "No", "Date of birth, MM/DD/YYYY."),
+            ("Gender", "No", "M, F, or U (unspecified)."),
+            ("CertificationNumber", "No", "Referee certification / association ID."),
+            ("CertificationExpiry", "No", "Certification expiry date, MM/DD/YYYY."),
+        };
+        for (var r = 0; r < lines.Length; r++)
+        {
+            info.Range[r + 1, 1].Text = lines[r].Col;
+            info.Range[r + 1, 2].Text = lines[r].Required;
+            info.Range[r + 1, 3].Text = lines[r].Notes;
+        }
+        var infoHeader = info.Range[1, 1, 1, 3];
+        infoHeader.CellStyle.Font.Bold = true;
+        infoHeader.CellStyle.Color = Syncfusion.Drawing.Color.FromArgb(68, 114, 196);
+        infoHeader.CellStyle.Font.RGBColor = Syncfusion.Drawing.Color.White;
+        info.UsedRange.AutofitColumns();
+
+        return workbook.ToByteArray();
+    }
+
     // ── Seed Test Refs ──
 
     public async Task<List<RefereeSummaryDto>> SeedTestRefereesAsync(Guid jobId, int count, string auditUserId, CancellationToken ct = default)
     {
+        // Usernames are GLOBAL in AspNetUsers, but a "test referee" belongs to ONE job.
+        // Scope the generated username to the job — otherwise seeding a second job collides
+        // with the first job's TestRef-NNN users and skips every row, creating nobody.
+        var jobTag = jobId.ToString("N")[..8];
+
         for (var i = 1; i <= count; i++)
         {
             var paddedNum = i.ToString("D3");
-            var username = $"TestRef-{paddedNum}";
+            var username = $"TestRef-{jobTag}-{paddedNum}";
 
             if (await _userManager.FindByNameAsync(username) != null)
                 continue;

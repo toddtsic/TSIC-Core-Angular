@@ -2516,10 +2516,14 @@ public class RegistrationRepository : IRegistrationRepository
         var regType = typeof(Registrations);
         foreach (var (key, value) in request.ProfileValues)
         {
-            // USA Lacrosse expiry is USLax-authoritative for EVERY role: the generic profile editor
-            // never writes it. Its sole writer is the revalidate path (UpdateSportAssnIdExpDateAsync),
-            // which records only a definitive USLax hit — so an admin can never assert an unverified date.
-            if (string.Equals(key, nameof(Registrations.SportAssnIdexpDate), StringComparison.OrdinalIgnoreCase))
+            // USA Lacrosse expiry is USLax-authoritative for USLax roles (player/coach): the generic
+            // profile editor never writes it there. Its sole writer is the revalidate path
+            // (UpdateSportAssnIdExpDateAsync), which records only a definitive USLax hit — so an admin
+            // can never assert an unverified date. A REFEREE has no USLax revalidate path; their
+            // certification expiry is a plain admin/self-entered date, so the generic editor IS its
+            // writer for that role (and only that role).
+            if (reg.RoleId != RoleConstants.Referee
+                && string.Equals(key, nameof(Registrations.SportAssnIdexpDate), StringComparison.OrdinalIgnoreCase))
                 continue;
 
             // ClubName is a denormalized display copy sourced from Clubs at registration time. Its sole
