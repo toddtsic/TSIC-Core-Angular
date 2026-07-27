@@ -1883,7 +1883,7 @@ public class RegistrationRepository : IRegistrationRepository
         // ── Dynamic GroupBy categories (sequential — DbContext is not thread-safe) ──
 
         var roles = await baseQuery
-            .Where(r => r.RoleId != null && r.Role != null)
+            .Where(r => r.BActive == true && r.RoleId != null && r.Role != null)
             .GroupBy(r => new { r.RoleId, r.Role!.Name })
             .OrderBy(g => g.Key.Name)
             .Select(g => new FilterOption { Value = g.Key.RoleId!, Text = g.Key.Name ?? "", Count = g.Count() })
