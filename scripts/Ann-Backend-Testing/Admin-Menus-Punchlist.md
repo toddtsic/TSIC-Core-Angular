@@ -214,8 +214,9 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
      - Player tab: **"Allow players to view their team roster"** — *"When enabled, registered players can see their teammates' names on their team page."*
      - Coaches tab: **"Allow coaches & staff to view their team roster"** — *"When enabled, coaches and club reps can see all rostered players on their team page."*
 - **Decision points for Todd**: (1) confirm the per-role move vs keeping a "team visibility" cluster on Teams; (2) confirm labels match TSIC terminology; (3) audit whether other Teams-tab fields belong on a role-specific tab.
+- **RESOLUTION (Todd, 2026-07-27)**: **toggles STAY on Teams — rosters are a team property**; the relocation half is declined. The real defect (bare "Adult"/"Player" labels) fixed in place, template-only: checkboxes stacked with descriptive labels ("Allow players to view their team roster" / "Allow coaches &amp; staff to view their team roster") + one-line `.field-help` each. The adult help line surfaces the tournament minor-PII invariant (`BAllowRosterViewAdult=false` keeps self-registered tournament coaches from player details until approved — `AdultRegistrationService`) in Director language, since that's the one behavior a Director can't guess. No DTO/service/payload changes; both security consumers read the DB column and are untouched.
 - **Severity**: UX
-- **Status**: Open — Todd discussion (Ann, 2026-07-26)
+- **Status**: FIXED (labels + help in place, relocation declined) — 2026-07-27, awaiting Todd verify + Ann next pass
 
 ### AM-014: [Configure / Job Settings → Mobile & Store] Break Mobile Features into TSIC-Events and TSIC-Teams subsections
 - **Topic**: Configure Menus → Job Settings → Mobile & Store tab

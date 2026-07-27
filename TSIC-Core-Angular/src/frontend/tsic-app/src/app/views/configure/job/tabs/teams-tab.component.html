@@ -68,19 +68,31 @@
 
     <div class="form-section">
       <h6 class="section-title"><i class="bi bi-eye me-2"></i>Roster Visibility</h6>
-      <div class="field-check-row">
-        <label class="field-check">
-          <input type="checkbox"
-            [ngModel]="bAllowRosterViewAdult()"
-            (ngModelChange)="bAllowRosterViewAdult.set($event); onFieldChange()" />
-          <span class="field-label">Adult</span>
-        </label>
-        <label class="field-check">
-          <input type="checkbox"
-            [ngModel]="bAllowRosterViewPlayer()"
-            (ngModelChange)="bAllowRosterViewPlayer.set($event); onFieldChange()" />
-          <span class="field-label">Player</span>
-        </label>
+      <div class="row g-2">
+        <div class="col-12">
+          <label class="field-check">
+            <input type="checkbox"
+              [ngModel]="bAllowRosterViewPlayer()"
+              (ngModelChange)="bAllowRosterViewPlayer.set($event); onFieldChange()" />
+            <span class="field-label">Allow players to view their team roster</span>
+          </label>
+          <div class="field-help">
+            Logged-in players can see their teammates on their team page.
+          </div>
+        </div>
+        <div class="col-12">
+          <label class="field-check">
+            <input type="checkbox"
+              [ngModel]="bAllowRosterViewAdult()"
+              (ngModelChange)="bAllowRosterViewAdult.set($event); onFieldChange()" />
+            <span class="field-label">Allow coaches &amp; staff to view their team roster</span>
+          </label>
+          <div class="field-help">
+            Coaches, staff, and club reps can see rostered players on their team page. On
+            tournaments, leaving this off also keeps self-registered coaches away from player
+            details until approved.
+          </div>
+        </div>
       </div>
     </div>
 
