@@ -319,3 +319,131 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - *Dev evidence*: roster data carries DOB + Mom/Dad email/phone with **no role filter** ([MyRosterDtos.cs:34-52](../../TSIC-Core-Angular/src/backend/TSIC.Contracts/Dtos/MyRoster/MyRosterDtos.cs#L34), [RegistrationRepository.cs:2639-2699](../../TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/RegistrationRepository.cs#L2639)); PDF endpoint uses the same visibility gate as the on-screen roster ([MyRosterController.cs:36-52](../../TSIC-Core-Angular/src/backend/TSIC.API/Controllers/MyRosterController.cs#L36), [MyRosterPdfService.cs:95-100](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Reporting/MyRosterPdfService.cs#L95)).
 - **Severity**: 🔒 Privacy (bulk PII/DOB export to the player audience)
 - **Status**: Open — Todd decision (Ann, 2026-07-27)
+
+---
+
+## Landing Page
+
+*Category introduced during Ann's pre-release walkthrough (2026-07-27). Public landing page (`tsic-landing` — the live one, not v3). Existing items AM-001…022 keep their numbers; new walkthrough finds are filed under category headings from AM-023 on.*
+
+### AM-023: [Landing Page] Book-a-Demo area — remove the rarely-used phone number, and swap the Calendly calendar for an interim support-email inquiry until Chelsea is onboarded
+- **Topic**: Public landing page → hero + "Ready to See It in Action?" (Book a Demo) CTA section
+- **Source**: Ann's pre-release walkthrough (2026-07-27)
+- **Where**: `tsic-landing.component.html` — hero actions ([:60-67](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/home/tsic-landing/tsic-landing.component.html#L60)); CTA "book-demo" section ([:231-253](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/home/tsic-landing/tsic-landing.component.html#L231)); footer Contact ([:274-282](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/home/tsic-landing/tsic-landing.component.html#L274)).
+- **Two parts:**
+  1. **Remove the rarely-used phone number by Book a Demo.** The page shows the same phone (`410-280-3272`) in **three** spots: a hero ghost-button next to "Book a Demo" ([:64-67](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/home/tsic-landing/tsic-landing.component.html#L64)), the CTA "book-demo" section near the bottom ([:238-241](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/home/tsic-landing/tsic-landing.component.html#L238)), and the footer Contact column ([:276-278](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/home/tsic-landing/tsic-landing.component.html#L276)). Ann: it's "at the bottom of the screen and not used much at all." **Target: the CTA book-demo section phone ([:238-241])**; **keep the footer Contact phone.** *(Confirm with Ann whether the hero ghost-button phone [:64-67] should also go.)*
+  2. **Decide re: the calendar.** The CTA section embeds a **Calendly** widget (`calendly.com/demo-teamsportsinfo/30min`, [:248-252](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/home/tsic-landing/tsic-landing.component.html#L248)). **For now** (until **Chelsea is onboarded**): replace the live calendar with a **badge/link to the support email** — and ideally a short **inquiry form** that captures **Name, contact info, sport, organization *(optional)*, Comment** — so demo requests still come in without a live scheduling calendar. **Later**: reinstate the real calendar once Chelsea is set up to field it.
+- **Severity**: UX / pre-release content (unused phone + not-yet-ready calendar)
+- **Status**: Open (Ann, 2026-07-27)
+
+---
+
+## Communications Menus
+
+*Top-level Communications nav section (Bulletins, Email Log, E-Mail Troubleshooter, Push Notification). Ann's pre-release walkthrough (2026-07-27).*
+
+### AM-024: [Communications menu] E-Mail Troubleshooter — confirm SuperUser-only visibility (not applied yet) and remove the NEW badge
+- **Topic**: Communications nav section → **E-Mail Troubleshooter** menu item
+- **Source**: Ann's pre-release walkthrough (2026-07-27)
+- **Where**: `scripts/5) Re-Set Nav System.sql:155` — `INSERT INTO #AdminManifest VALUES (N'Communications', …, N'E-Mail Troubleshooter', N'envelope-exclamation', N'tools/email-troubleshooter', 3, 1, 1, 1, NULL, N'NEW');`
+- **Two parts:**
+  1. **Confirm SuperUser-only visibility — and apply it.** Ann is confirming that E-Mail Troubleshooter was decided (with Chelsea) to be **SuperUser-visibility only**. **Code check (2026-07-27): it is NOT SuperUser-only today** — the manifest row sets `ForDirector=1, ForSuperDir=1, ForSuperUser=1`, so it currently shows for **all three admin roles**. If SuperUser-only is the confirmed decision, change the flags to `0, 0, 1` (the pattern Administrators uses at [:130](../..)), then re-run the nav reset.
+  2. **Remove the NEW badge from the menu tree.** The row's `BadgeText` is `N'NEW'`, which renders the NEW chip in the nav. Set it to `NULL` to drop the chip.
+- **For Todd**: edit the E-Mail Troubleshooter row at `5) Re-Set Nav System.sql:155` — flags `1,1,1 → 0,0,1` (pending confirmation of the SuperUser-only decision) and `BadgeText 'NEW' → NULL` — then re-run the nav reset so it lands in the DB. Mirror in the dev-restore nav script if one reseeds this.
+- **Severity**: UX + role-visibility (menu shown to more roles than intended; stale NEW chip)
+- **Status**: Open — confirm SuperUser-only decision, then apply (Ann, 2026-07-27)
+
+---
+
+## Navigation / Menu Layout
+
+*The admin nav chrome — the top-menu vs side-menu layout toggle. Ann's pre-release walkthrough (2026-07-27).*
+
+### AM-025: [Admin nav] The "switch to side menu" toggle is barely visible in top-menu mode; make it obvious, and pluralize both toggle labels to "menus"
+- **Topic**: Admin navigation chrome → top-menu ↔ side-menu layout toggle (`client-menu.component.html`, `toggleNavLayout()`)
+- **Source**: Ann's pre-release walkthrough (2026-07-27)
+- **Where** — two toggle buttons, one per layout:
+  - **Side → Top** (shown in side-rail mode, at the top of the rail): icon `bi-menu-button-wide`, label "Switch to top menu" ([client-menu.component.html:20-23](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/layouts/components/client-menu/client-menu.component.html#L20)).
+  - **Top → Side** (shown in top-menu mode, rendered as the **last pill** after all the menu pills): icon `bi-layout-sidebar`, label "Switch to side menu" ([client-menu.component.html:186-189](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/layouts/components/client-menu/client-menu.component.html#L186)).
+- **Two parts:**
+  1. **Make the "switch to side menu" toggle apparent in top-menu mode.** When the user switches to the top menu, the control to go back to side menus is a subtle `.pill-nav__layout-toggle` pill at the far right — **barely visible.** Ann: make it more obvious — e.g. give it a distinct/accented treatment (or a labeled button) so it clearly reads as the "back to side menus" control **right after the last menu** pill, rather than blending in with the menu items.
+  2. **Pluralize both labels to "menus".** Change both the `aria-label` and `title` on each toggle: "Switch to top menu" → **"Switch to top menus"** ([:21](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/layouts/components/client-menu/client-menu.component.html#L21)) and "Switch to side menu" → **"Switch to side menus"** ([:187](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/layouts/components/client-menu/client-menu.component.html#L187)).
+- **For Todd**: (1) restyle `.pill-nav__layout-toggle` (and/or add a short label) so the side-menu switch stands out at the end of the pill nav; (2) update the four strings (aria-label + title on both buttons) to the plural "menus".
+- **Severity**: UX (discoverability of the layout toggle + label wording)
+- **Status**: Open (Ann, 2026-07-27)
+
+---
+
+## Search | Registrations
+
+*The admin Search → Registrations results grid. Ann's pre-release walkthrough (2026-07-27).*
+
+### AM-026: [Search | Registrations] Large job (10,606 players) — add an "All"/larger page option, fix 5-digit "#" clipping, and widen Assignment
+- **Topic**: Search → Registrations results grid (`search-registrations.component`)
+- **Source**: Ann's pre-release walkthrough (2026-07-27) — tested on **LFTC 2026** (10,606 players)
+- **Three parts:**
+  1. **No "All"/large page size — capped at 1000/page.** The grid is server-side paged with `pageSizes: [100, 500, 1000]` ([search-registrations.component.ts:234](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/search/registrations/search-registrations.component.ts#L234)); a code comment notes there's deliberately **no "All"** because ~10K rows would be a DOM bomb without virtualization ([:233](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/search/registrations/search-registrations.component.ts#L233)). On LFTC 2026 (10,606 players) Ann can only see 1000 at a time and finds it unclear how to get past the first ~11 pages (11×1000 does cover all 10,606, but there's no single-view option). **Ann's request: add an ALL option.** *For Todd:* to offer an "All" (or a much larger page like 2500/5000) safely, enable Syncfusion **row virtualization** (`enableVirtualization`) so big pages render without the DOM bomb; then add the larger option(s)/All to `pageSizes`. Alternatively/additionally provide an **Export-all** path for the full set, and make the pager clearer that all rows are reachable across pages.
+  2. **5-digit numbers clipped in the "#" column.** The row-number `#` column is `width="50"` ([:758](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/search/registrations/search-registrations.component.html#L758)); once the index reaches 5 digits (10,000+) the number overflows and shows e.g. "106…". *For Todd:* widen the `#` column (≈50 → 70) so 5-digit row numbers fit.
+  3. **Assignment column truncated — room to show full names.** The `assignment` column is `width="220"` ([:823](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/search/registrations/search-registrations.component.html#L823)) and cuts off longer assignment/team names, though there's horizontal room in most cases. *For Todd:* widen the Assignment column (or let it size to content) so full assignment names show.
+- **Severity**: UX (large-job usability: paging cap + two column-width clips)
+- **Status**: Open (Ann, 2026-07-27)
+
+### AM-027: [Search | Registrations] ARB Health lives here AND as its own menu item — remove it from Search to end the two-places confusion
+- **Topic**: Search → Registrations screen vs the dedicated ARB Health page
+- **Source**: Ann's pre-release walkthrough (2026-07-27)
+- **Finding (verified)**: The Search/Registrations screen carries a full **"ARB Health" section** ([search-registrations.component.html:491-530](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/search/registrations/search-registrations.component.html#L491), gated by `showArbSection()`): an **ARB Health filter** dropdown ([:498-511](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/search/registrations/search-registrations.component.html#L498)) and a **"Look up CCs expiring this month"** action ([:512-530](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/search/registrations/search-registrations.component.html#L512)). That duplicates the dedicated **ARB Health page** (separate menu item; the one reworked under PL-055/056/057). Having ARB Health in **two places** is confusing.
+- **Ann's call**: it's not needed here — the dedicated ARB Health page is the canonical home; remove the ARB Health section from Search/Registrations.
+- **⚠️ Extra reason to remove**: the "Look up CCs expiring this month" button here fires a **live Authorize.Net PRODUCTION query** — the very same expensive live lookup that PL-055 just made **click-only** on the ARB Health page to stop it auto-running. Two entry points to that prod query is both confusing and a foot-gun.
+- **For Todd**: remove the ARB Health **section** (the `showArbSection()` block: ARB Health filter dropdown + the CCs-expiring lookup action + its `arbCardExpiringMode` chip/plumbing) from Search/Registrations, leaving the ARB Health page as the single home.
+- **KEEP (Ann, 2026-07-27)**: leave the plain **"ARB Subscription" status multiselect filter** ([:424-431](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/search/registrations/search-registrations.component.html#L424)) here in Search/Registrations — that's an ordinary grid filter (filter registrants by subscription status), not the duplicated ARB Health tooling. Only the ARB **Health** section is removed.
+- **ADD a "Subscription #" search → filed as PL-059 (Ann, 2026-07-27)**: keep the existing "Invoice #" filter and add a new "Subscription #" search (invoice # = per-charge `AdnInvoiceNo`; subscription # = ARB `AdnSubscriptionId` — different identifiers). Moved to the Payment-Test punchlist as **PL-059** since it's an ARB/payment feature.
+- **DECISION — should the ARB filters show only when ARB is enabled? (Ann, 2026-07-27)**: the **"ARB Subscription"** filter lives in the **"Billing"** section ([search-registrations.component.html:419-441](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/search/registrations/search-registrations.component.html#L419)), which is a plain `section-card` with **no gate today** — so it shows on every job even though ARB only applies to some (tournament/ARB-enabled) sites. **Decide: leave it always visible, or show it only when ARB is turned on for that job.** *For Todd*: if gating, wrap the ARB-Subscription form-group (and the new **Subscription #** field from PL-059) in an "ARB enabled for this job" condition — check `jobFlags()` for an ARB-enabled signal, or mirror the gating pattern the ARB Health section uses (`showArbSection()`). **Same decision applies to the Subscription # filter (PL-059)** — whatever gating lands here should cover both.
+- **Severity**: UX (duplicated feature / confusion) + prod-query foot-gun
+- **Status**: Open (Ann, 2026-07-27)
+
+### AM-028: [Search | Registrations] "Roster Scan" is tournament-only — gate it to tournament jobs, or label it "(for tournaments ONLY)"
+- **Topic**: Search → Registrations filters → **Roster Scan** section
+- **Source**: Ann's pre-release walkthrough (2026-07-27)
+- **Finding (verified)**: The **Roster Scan** section ([search-registrations.component.html:542-544](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/search/registrations/search-registrations.component.html#L542)) — the "Rostered Players ≤ N" filter — is a plain `section-card` with **no job-type gate**, so it renders on **every** job even though it's only meaningful for **tournaments**. (Contrast the ARB section right above it, which is gated by `@if (showArbSection())`.)
+- **Ann's two acceptable fixes (either is fine):**
+  1. **Gate it to tournament jobs** — wrap the section in a tournament job-type condition, mirroring the `showArbSection()` gating pattern used for the ARB section, so it only appears on tournaments.
+  2. **Or simplest — label it.** Change the section header ([:544](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/search/registrations/search-registrations.component.html#L544)) from "Roster Scan" to **"ROSTER SCAN (for tournaments ONLY)"** so its scope is obvious even if it stays visible everywhere.
+- **For Todd**: option 1 (gate) is the cleaner outcome; option 2 (label) is the quick win if a clean tournament-only signal isn't readily at hand on this component.
+- **Also — add Roster Scan to Search/Teams too (Ann, 2026-07-27, legacy parity)**: In **Legacy**, Roster Scan appeared in **both** Search/Registrations **and** Search/Teams. In the new version it's only in Search/Registrations. **Consider adding it under Search/Teams as well** — that's a natural home, right next to the **LADT search** already there (the "Hierarchy" section with `<app-ladt-tree-filter>`, [search-teams.component.html:203-247](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/search/teams/search-teams.component.html#L203)) — since a director scanning rosters would reach for it alongside the LADT tree filter. (Verified: Search/Teams has the LADT tree filter but no Roster Scan section today.) If added there and it's tournament-only, apply the same gate/label decision from this item.
+- **Severity**: UX (feature shown on jobs where it doesn't apply) + Legacy-parity (missing from Search/Teams)
+- **Status**: Open (Ann, 2026-07-27)
+
+---
+
+## Search | Teams
+
+*The admin Search → Teams screen, incl. its Hierarchy / LADT tree filter. Ann's pre-release walkthrough (2026-07-27).*
+
+### AM-029: [Search | Teams + Search | Registrations] LADT tree filter — tint the TEAMS count light blue so it stands out from Players
+- **Topic**: The LADT tree filter (Hierarchy section) — the Club/AgeGroup/Division/Team (and League/A/D/T) tree with per-node Teams + Players counts
+- **Source**: Ann's pre-release walkthrough (2026-07-27)
+- **Request (Ann)**:
+  1. Under **Search/Teams → Hierarchy → Club/A/D/T**, add **light blue** color to the **TEAMS** count/column so it's easy to differentiate from Players and the team numbers stand out.
+  2. Same under **League/A/D/T**, and for **both** search types (Search/Teams **and** Search/Registrations): the color goes on the **team numbers, not the players**.
+- **Finding (verified)**: the tree renders per-node badges as `<span class="tree-badge" title="Teams">{{ node.teamCount }}</span>` and `title="Players"` for playerCount, plus "Teams"/"Players" column headers — **both badges currently share the same `.tree-badge` style, no color distinction** ([ladt-tree-filter.component.ts:59-61, 82-124](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/shared/components/ladt-tree-filter/ladt-tree-filter.component.ts#L59)). This shared component backs the Search/Teams Hierarchy filter; Search/Registrations has its own copy at [views/search/registrations/components/ladt-tree-filter.component.ts](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/search/registrations/components/ladt-tree-filter.component.ts).
+- **For Todd**: give the **Teams** badge (and its column header) a distinct **light-blue** treatment (e.g. a `.tree-badge--teams` modifier with a light-blue background/text via a design-system token — no hardcoded hex) so team numbers pop and read as different from Players; leave the Players badge as-is. Apply consistently in **both** LADT tree filter components (shared → Search/Teams, and the Search/Registrations copy) so both search screens match, for both Club-rooted and League-rooted trees.
+- **Severity**: UX (scannability — team vs player counts not visually distinct)
+- **Status**: Open (Ann, 2026-07-27)
+
+---
+
+## Job Settings
+
+*Configure → Job Settings tabs (General, Player, Teams, Coaches, Payment, Scheduling, Branding, Communications, Mobile & Store). Ann's pre-release walkthrough (2026-07-27), reviewed for both SuperUser and Director.*
+
+### AM-030: [Job Settings → General] Reorder fields — Customer after ADN Invoice Prefix (first row); Billing Type up next to Job Type (second row)
+- **Topic**: Configure → Job Settings → **General** tab (SuperUser section field layout)
+- **Source**: Ann's pre-release walkthrough (2026-07-27)
+- **Where**: `general-tab.component.html` — first SU row: Job ID / **ADN Invoice Prefix** ([:54-55](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/general-tab.component.html#L54)) / Job Path / Description; second SU row: Admin Expiry / Job Code / QBP Name / Sport / **Job Type** ([:108-109](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/general-tab.component.html#L108)) / **Customer** ([:119-120](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/general-tab.component.html#L119)) / **Billing Type** ([:130-131](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/general-tab.component.html#L130)).
+- **Request (Ann)**:
+  1. **Move the Customer field into the first row, right after ADN Invoice Prefix.**
+  2. **Move Billing Type up into the second row, right after Job Type** (today it trails Customer and wraps awkwardly).
+- **Net second-row order after the move**: Admin Expiry / Job Code / QBP Name / Sport / Job Type / **Billing Type** (Customer having moved to row 1).
+- **For Todd**: relocate the Customer `col` to immediately after ADN Invoice Prefix in the first SU row, and the Billing Type `col` to immediately after Job Type in the second SU row; adjust the `col-md-*` widths so each row fits 12 units cleanly (first row gains a field, second row loses one). **Preserve the existing SuperUser/Director role-visibility** on each field while reordering.
+- **Severity**: UX (field ordering / layout tidiness on the General tab)
+- **Status**: Open (Ann, 2026-07-27)
