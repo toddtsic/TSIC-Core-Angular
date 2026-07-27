@@ -155,8 +155,12 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **🔴 NOT-GATED ISSUE (the open part)**: the label now claims **"for tournaments,"** but nothing actually restricts the setting to tournament jobs — the checkbox renders on **every** job type and the backend CC/BCC suppression is **not** verified to be job-type-scoped. So the label currently over-promises: a Director on a player/league site sees "for tournaments" on a control that (a) still shows and (b) may still act. **Two things to resolve:**
   1. **Verify backend behavior** — does the CC/BCC suppression actually gate on job type, or does it apply to any job with the flag set? Confirm before changing UI.
   2. **Make label and behavior agree** — if it's tournament-only, wrap the checkbox in `@if (jobTypeId === JobTypeTournament)` so it doesn't render on non-tournament sites; if it applies to any job, **drop "for tournaments"** from the label (or tighten the backend to match).
-- **Severity**: UX + Bug (label/behavior mismatch)
-- **Status**: Open (Ann, 2026-07-26)
+- **RESOLUTION (Todd + Claude, 2026-07-27):**
+  1. **Backend verified — the switch is deliberately global.** Suppression lives at the single chokepoint `JobConfirmationCopies.Apply` (called by every confirmation path: player, team/club-rep, adult/staff, family resend, payment). `if (disallowCopies) return;` — no job-type check, and the doc comment states it kills CC/BCC "on every confirmation regardless of role — matching legacy." Gating to tournaments would change legacy-matched behavior; rejected.
+  2. **Label already fixed on master** — currently reads "TURN OFF CC & BCC copies on all registration confirmations" (no "for tournaments"); this item's "renamed to …for tournaments" note was stale. Verified no "for tournaments" remains anywhere in the app.
+  3. **Added** (per Todd's label-only decision): one `.field-help` line under the checkbox — copies stop, registrants always still get their confirmation, typical use = high-volume events.
+- **Severity**: UX + Bug (label/behavior mismatch) — resolved: label was already truthful; help text added
+- **Status**: IN PROGRESS — help text added 2026-07-27, awaiting Todd verify
 
 ### AM-011: [Configure / Job Settings → Coaches + Club Reps/Teams] Club Rep confirmation text shares the Coaches (Adult-flow) template
 - **Topic**: Configure Menus → Job Settings → Coaches tab + Club Reps/Teams tab; downstream team-registration confirmation
