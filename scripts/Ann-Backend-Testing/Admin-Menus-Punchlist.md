@@ -202,8 +202,8 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   - **C. Both** — A for clean editor source, B as a render safety net.
   - **Recommendation**: **A** — the toolbar already prevents new bad content, so a one-time data fix is sufficient.
 - **Decision points for Todd**: (1) replacement strategy `<strong>` vs `<p>`; (2) scope = just these 10 fields, or also bulletins / banners / other RTE content; (3) OK to rewrite all jobs in one pass.
-- **Severity**: UX / Data cleanup
-- **Status**: Open (Ann, 2026-07-26)
+- **Census (2026-07-27, TSICV5)**: oversized markup (`<h1>`/`<h2>`/`font-size`) present in 324/1,057 jobs' player Release of Liability, 188 confirmation emails, 79 adult liability, 36 codes of conduct — real and widespread, all legacy-migrated content.
+- **Status**: WON'T DO (Todd, 2026-07-27) — **no mass rewrite; respond to individual jobs as needed.** There is no reasonable blanket treatment; the toolbar already prevents new offenders, and a Director can re-edit any specific job's text on request. (A display-side CSS heading clamp was offered and declined along with the data rewrite.)
 
 ### AM-013: [Configure / Job Settings → Teams → Player + Coaches] Relocate Roster Visibility checkboxes per role + add explanatory copy
 - **Topic**: Configure Menus → Job Settings → Teams tab (current) → Player + Coaches tabs (proposed)
