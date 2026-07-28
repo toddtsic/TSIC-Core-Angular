@@ -23,7 +23,7 @@
 						cdkDropList
 						cdkDropListOrientation="mixed"
 						(cdkDropListDropped)="onChipDrop(cat.key, $event)">
-						@for (val of getValues(cat.key); track $index) {
+						@for (val of getValues(cat.key); track val) {
 							<span class="chip" cdkDrag title="Drag to reorder">
 								{{ val }}
 								<button class="chip-remove"
