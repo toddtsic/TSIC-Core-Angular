@@ -41,7 +41,10 @@
 
             .tagline {
                 font-style: italic;
-                opacity: 0.8;
+                // Dim via color, never opacity — opacity<1 creates a stacking context,
+                // and the footer follows <main> (z-index:0) in the DOM, so an opacity
+                // span here paints OVER the fly-in panels trapped inside main.
+                color: color-mix(in srgb, var(--brand-text-muted) 80%, transparent);
 
                 @media (max-width: 767px) {
                     display: none;
@@ -50,7 +53,8 @@
 
             .build-version {
                 font-size: var(--font-size-xs);
-                opacity: 0.5;
+                // Same rule as .tagline: color-dim, not opacity (stacking context).
+                color: color-mix(in srgb, var(--brand-text-muted) 50%, transparent);
                 font-variant-numeric: tabular-nums;
 
                 @media (max-width: 767px) {
