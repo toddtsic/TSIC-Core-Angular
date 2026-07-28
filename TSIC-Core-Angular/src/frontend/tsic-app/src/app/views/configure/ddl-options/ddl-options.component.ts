@@ -1,7 +1,6 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, output } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { environment } from '@environments/environment';
 import { ToastService } from '@shared-ui/toast.service';
 import type { JobDdlOptionsDto } from '@core/api';
@@ -69,7 +68,7 @@ const GROUP_LABELS: Record<string, string> = {
 @Component({
 	selector: 'app-ddl-options',
 	standalone: true,
-	imports: [FormsModule, DragDropModule],
+	imports: [FormsModule],
 	templateUrl: './ddl-options.component.html',
 	styleUrl: './ddl-options.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -178,17 +177,6 @@ export class DdlOptionsComponent {
 
 		const values = [...current[key]];
 		values.splice(index, 1);
-		this.options.set({ ...current, [key]: values });
-		this.emitDirty();
-	}
-
-	onChipDrop(key: keyof JobDdlOptionsDto, event: CdkDragDrop<string[]>): void {
-		if (event.previousIndex === event.currentIndex) return;
-		const current = this.options();
-		if (!current) return;
-
-		const values = [...current[key]];
-		moveItemInArray(values, event.previousIndex, event.currentIndex);
 		this.options.set({ ...current, [key]: values });
 		this.emitDirty();
 	}

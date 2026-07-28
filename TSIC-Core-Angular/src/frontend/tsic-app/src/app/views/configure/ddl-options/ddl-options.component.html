@@ -19,12 +19,9 @@
 				<div class="category-row">
 					<label class="category-label">{{ cat.label }}</label>
 
-					<div class="chip-list"
-						cdkDropList
-						cdkDropListOrientation="mixed"
-						(cdkDropListDropped)="onChipDrop(cat.key, $event)">
-						@for (val of getValues(cat.key); track val) {
-							<span class="chip" cdkDrag title="Drag to reorder">
+					<div class="chip-list">
+						@for (val of getValues(cat.key); track $index) {
+							<span class="chip">
 								{{ val }}
 								<button class="chip-remove"
 									(click)="removeValue(cat.key, $index)"

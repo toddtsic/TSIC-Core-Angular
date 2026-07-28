@@ -77,29 +77,6 @@
 	font-size: 0.78rem;
 	line-height: 1.4;
 	white-space: nowrap;
-	cursor: grab;
-
-	&:active {
-		cursor: grabbing;
-	}
-}
-
-// ── Drag-reorder (cdk) ──
-// Preview clone styles live in styles/_component-overrides.scss (.chip.cdk-drag-preview)
-// because CDK appends the preview to <body>, outside this component's encapsulation.
-
-.chip.cdk-drag-placeholder {
-	opacity: 0.3;
-}
-
-.cdk-drop-list-dragging .chip:not(.cdk-drag-placeholder) {
-	transition: transform 0.15s ease;
-}
-
-@media (prefers-reduced-motion: reduce) {
-	.cdk-drop-list-dragging .chip:not(.cdk-drag-placeholder) {
-		transition: none;
-	}
 }
 
 .chip-remove {
