@@ -79,6 +79,45 @@
 	white-space: nowrap;
 }
 
+.chip-nudge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 14px;
+	height: 16px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	color: var(--bs-primary-text-emphasis);
+	font-size: 0.9rem;
+	line-height: 1;
+	cursor: pointer;
+	border-radius: var(--radius-sm);
+	opacity: 0.55;
+	transition: opacity 0.1s;
+
+	&:hover:not(:disabled) {
+		opacity: 1;
+		background: rgba(var(--bs-primary-rgb), 0.15);
+	}
+
+	&:disabled {
+		opacity: 0.15;
+		cursor: default;
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.chip-nudge {
+		transition: none;
+	}
+}
+
 .chip-remove {
 	display: inline-flex;
 	align-items: center;

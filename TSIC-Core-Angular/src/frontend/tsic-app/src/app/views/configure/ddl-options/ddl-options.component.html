@@ -22,7 +22,19 @@
 					<div class="chip-list">
 						@for (val of getValues(cat.key); track $index) {
 							<span class="chip">
+								<button class="chip-nudge"
+									(click)="moveValue(cat.key, $index, -1)"
+									[disabled]="$first"
+									[attr.aria-label]="'Move ' + val + ' left'"
+									title="Move left"
+									type="button">&lsaquo;</button>
 								{{ val }}
+								<button class="chip-nudge"
+									(click)="moveValue(cat.key, $index, 1)"
+									[disabled]="$last"
+									[attr.aria-label]="'Move ' + val + ' right'"
+									title="Move right"
+									type="button">&rsaquo;</button>
 								<button class="chip-remove"
 									(click)="removeValue(cat.key, $index)"
 									[attr.aria-label]="'Remove ' + val"

@@ -181,6 +181,20 @@ export class DdlOptionsComponent {
 		this.emitDirty();
 	}
 
+	/** Move a value one position left (-1) or right (+1). Registrants see this order. */
+	moveValue(key: keyof JobDdlOptionsDto, index: number, delta: -1 | 1): void {
+		const current = this.options();
+		if (!current) return;
+
+		const values = [...current[key]];
+		const target = index + delta;
+		if (target < 0 || target >= values.length) return;
+
+		[values[index], values[target]] = [values[target], values[index]];
+		this.options.set({ ...current, [key]: values });
+		this.emitDirty();
+	}
+
 	// ── Load / Save / Reset ──
 
 	private loadOptions(): void {
