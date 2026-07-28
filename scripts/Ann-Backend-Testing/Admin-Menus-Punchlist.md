@@ -301,8 +301,9 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   - **Max Teams (per age-group)** — fullness gated on `ageGroup.MaxTeams > 0`; code comment: *"MaxTeams<=0 means uncapped → never fills"* ([TeamRegistrationService.cs:865](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Teams/TeamRegistrationService.cs#L865)).
   - *(Max Teams per Club is fully retired per PL-041 — always unlimited now; not in scope here.)*
 - **For Todd — the change**: add an inline warning/help note on the **Max Roster** input (Team Details) and the **Max Teams** input (Age Group) that fires when the value is 0, e.g. *"0 = unlimited — no cap will be applied."* Restores the old system's guardrail so a Director knows a 0 means uncapped, not misconfigured.
+- **RESOLUTION (Todd go, 2026-07-28)**: inline amber note (`bi-info-circle` + *"Max Roster 0 = unlimited — no cap will be applied."* / *"Max Teams 0 = …"*) added under both inputs — `team-detail.component.ts` (Max Roster) and `agegroup-detail.component.ts` (Max Teams). Shows when the value is 0 **or blank** (server coalesces both to uncapped). Scope note: the LADT grid's inline `maxCount`/`maxTeams` columns remain a second entry point for typing 0 — deliberately left alone (a grid cell can't host inline help; a popup on grid edit would be intrusive); the detail-panel note carries the education.
 - **Severity**: UX (silent "0 = unlimited" trap — worth restoring the warning)
-- **Status**: Open (Ann, 2026-07-27)
+- **Status**: FIXED — coded 2026-07-28, awaiting Todd verify (Team Details → Max Roster 0/blank shows note; Age Group → Max Teams 0/blank shows note) + Ann next pass
 
 ### AM-020: [Auth / Login] Password reset works by email only now — bring back the username path
 - **Topic**: Login / Forgot Password (Client support + SuperUser/Admin)

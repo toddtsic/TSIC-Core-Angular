@@ -142,6 +142,11 @@ const JOB_TYPE_TOURNAMENT = 2;
             <label class="fee-label">Max Roster</label>
             <input class="form-control form-control-sm" type="number" [(ngModel)]="form.maxCount" name="maxCount" style="width: 80px;" (ngModelChange)="onSettingsChange()">
           </div>
+          @if (!form.maxCount) {
+            <div class="small text-warning-emphasis mb-2">
+              <i class="bi bi-info-circle me-1" aria-hidden="true"></i>Max Roster 0 = unlimited — no cap will be applied.
+            </div>
+          }
           <!-- No "Hide Roster" switch here by design. Roster visibility is an EVENT-level policy
                (Configure | Job → "Allow RosterView: PLAYERS / STAFF"). A team's roster is additionally
                hidden when the team sits in a WAITLIST/Dropped/Registration holding agegroup, which the

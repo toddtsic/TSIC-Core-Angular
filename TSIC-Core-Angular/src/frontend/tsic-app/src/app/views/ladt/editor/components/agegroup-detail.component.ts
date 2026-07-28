@@ -112,6 +112,11 @@ const JOB_TYPE_TOURNAMENT = 2;
                      [(ngModel)]="form.maxTeams" name="maxTeams" style="width: 60px;" (ngModelChange)="onSettingsChange()">
             </div>
           </div>
+          @if (!form.maxTeams) {
+            <div class="small text-warning-emphasis mb-2">
+              <i class="bi bi-info-circle me-1" aria-hidden="true"></i>Max Teams 0 = unlimited — no cap will be applied.
+            </div>
+          }
           <div class="settings-grid">
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" [(ngModel)]="form.bAllowSelfRostering" name="bAllowSelfRostering" (ngModelChange)="onSettingsChange()">
