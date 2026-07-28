@@ -356,8 +356,32 @@
 }
 
 // Layout-switch sits at the far right of the pill bar.
+// The "back to side menus" control (AM-025). Accented so it reads as a layout
+// control rather than blending in with the menu pills it sits after: pushed
+// right, tinted, bordered, always-visible label.
 .pill-nav__layout-toggle {
     margin-left: auto;
+    background: rgba(var(--bs-primary-rgb), 0.07);
+    border-color: rgba(var(--bs-primary-rgb), 0.25);
+    color: var(--bs-primary);
+
+    i:first-child {
+        opacity: 1;
+    }
+
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.14);
+        border-color: rgba(var(--bs-primary-rgb), 0.4);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+}
+
+.pill-nav__layout-toggle-label {
+    font-size: var(--font-size-sm);
 }
 
 

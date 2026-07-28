@@ -18,7 +18,7 @@
             @if (!collapsed()) { <span class="admin-rail__toggle-label">Collapse</span> }
         </button>
         <button type="button" class="admin-rail__toggle admin-rail__layout-toggle"
-            (click)="toggleNavLayout()" aria-label="Switch to top menu" title="Switch to top menu">
+            (click)="toggleNavLayout()" aria-label="Switch to top menus" title="Switch to top menus">
             <i class="bi bi-menu-button-wide" aria-hidden="true"></i>
         </button>
     </div>
@@ -182,10 +182,12 @@
 
         }
 
-        <!-- Layout switch — back to the vertical sidebar -->
+        <!-- Layout switch — back to the vertical sidebar. Deliberately NOT a plain
+             pill: label + tinted border so it reads as a control, not a menu item. -->
         <button type="button" class="pill-nav__item pill-nav__layout-toggle"
-            (click)="toggleNavLayout()" aria-label="Switch to side menu" title="Switch to side menu">
+            (click)="toggleNavLayout()" aria-label="Switch to side menus" title="Switch to side menus">
             <i class="bi bi-layout-sidebar" aria-hidden="true"></i>
+            <span class="pill-nav__layout-toggle-label">Side menus</span>
         </button>
     }
 </nav>
