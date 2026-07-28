@@ -1,0 +1,41 @@
+<section class="reports-library">
+    <header class="reports-library__header">
+        <h1>X-Job Report Library</h1>
+    </header>
+
+    @if (runError(); as msg) {
+        <div class="reports-library__banner reports-library__banner--error">
+            {{ msg }}
+        </div>
+    }
+
+    @for (section of sections; track section.title) {
+        <section class="reports-library__group">
+            <h2 class="reports-library__section-title">
+                <i class="bi bi-{{ section.iconName }}" aria-hidden="true"></i>
+                {{ section.title }}
+                <span class="reports-library__count">{{ section.entries.length }}</span>
+            </h2>
+            <ul class="report-list">
+                @for (entry of section.entries; track entry.id) {
+                    <li class="report-row" [class.report-row--running]="runningId() === entry.id">
+                        <i class="bi bi-{{ entry.iconName }} report-row__icon" aria-hidden="true"></i>
+                        <div class="report-row__body">
+                            <div class="report-row__heading">
+                                <h3 class="report-row__title">{{ entry.title }}</h3>
+                            </div>
+                            <p class="report-row__desc">{{ entry.description }}</p>
+                        </div>
+                        <button
+                            type="button"
+                            class="btn btn-primary btn-sm report-row__run"
+                            [disabled]="runningId() !== null"
+                            (click)="runEntry(entry)">
+                            @if (runningId() === entry.id) { Running… } @else if (entry.kind === 'route') { Open } @else { Run }
+                        </button>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+</section>

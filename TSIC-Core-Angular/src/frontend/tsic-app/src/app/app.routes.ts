@@ -483,6 +483,14 @@ export const routes: Routes = [
 				loadComponent: () => import('./views/reporting/library-editor/library-editor.component').then(m => m.LibraryEditorComponent)
 			},
 			{
+				// SU-only cross-job reports + accounting mirror. Route name matches the
+				// nav manifest's "X-Job Report Library" RouterLink (scripts/5).
+				path: 'x-job-reports-library',
+				canActivate: [authGuard],
+				data: { roles: [Roles.Superuser] },
+				loadComponent: () => import('./views/reporting/x-job-reports-library/x-job-reports-library.component').then(m => m.XJobReportsLibraryComponent)
+			},
+			{
 				path: 'reporting/packed-roster-designer',
 				canActivate: [authGuard],
 				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },

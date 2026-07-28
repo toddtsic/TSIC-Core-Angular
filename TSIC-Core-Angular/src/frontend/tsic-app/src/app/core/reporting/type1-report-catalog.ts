@@ -63,14 +63,7 @@ export const TYPE1_REPORT_CATALOG: readonly Type1ReportEntry[] = [
     { id: 't1-club-rosters',                    title: 'Club Rosters — Coaches, w/ Medical (pdf)',   description: 'Coaches-eyes-only team roster pack, with the medical note',  iconName: 'clipboard-heart',           endpointPath: 'Job_Club_Rosters',                                 visibilityRules: { jobTypes: [JT.Camp, JT.ClubSport, JT.Tournament] }, category: 'Rosters',    sortOrder: 270 },
     { id: 't1-club-rosters-nomedical',          title: 'Club Rosters — Coaches, No Medical (pdf)',   description: 'Coaches-eyes-only team roster pack, without the medical note', iconName: 'shield',                  endpointPath: 'Job_Rosters_NoMedical',                            visibilityRules: { jobTypes: [JT.Camp, JT.ClubSport, JT.Tournament] }, category: 'Rosters',    sortOrder: 280 },
 
-    // ── SuperUser cross-customer reports (TSIC home / monthly close) ──────
-    // Run from TSIC home job; intentionally not job-type-gated since they cover ALL jobs.
-    // Daily Reg Counts is BE-anonymous but legacy menu placed it under SuperUser — gate
-    // here to match. The Crystal accounting items are AdminOnly server-side, but legacy
-    // showed them only to SuperUser.
-    { id: 't1-su-daily-reg-counts',             title: 'Daily Registration Counts (PDF)',            description: 'TSIC daily registration count report',                      iconName: 'calendar-check',            endpointPath: 'Get_JobPlayers_TSICDAILY',                         visibilityRules: { requiresRoles: ['Superuser'] }, category: 'Administration', sortOrder: 1010 },
-    { id: 't1-su-tsic-fees-ytd-customer',       title: 'TSIC Fees YTD by Customer',                  description: 'Year-to-date TSIC fees rolled up per customer',             iconName: 'graph-up',                  endpointPath: 'TSICFeesYTDByCustomer',                            visibilityRules: { requiresRoles: ['Superuser'] }, category: 'Financials',     sortOrder: 1020 },
-    { id: 't1-su-tsic-fees-ytd-customer-job',   title: 'TSIC Fees YTD by Customer + Job',            description: 'Year-to-date TSIC fees broken out by customer and job',     iconName: 'graph-up-arrow',            endpointPath: 'TSICFeesYTDByCustomerAndJob',                      visibilityRules: { requiresRoles: ['Superuser'] }, category: 'Financials',     sortOrder: 1030 },
-    { id: 't1-su-last-month-invoices',          title: 'Last Month Invoices (PDF)',                  description: 'Prior month customer invoices',                             iconName: 'file-earmark-pdf',          endpointPath: 'Get_Invoices_LastMonth',                           visibilityRules: { requiresRoles: ['Superuser'] }, category: 'Financials',     sortOrder: 1040 },
-    { id: 't1-su-last-month-invoice-summaries', title: 'Last Month Invoice Summaries (PDF)',         description: 'Summaries-only view of prior month customer invoices',      iconName: 'file-earmark-text',         endpointPath: 'Get_Invoices_LastMonthSummariesOnly',              visibilityRules: { requiresRoles: ['Superuser'] }, category: 'Financials',     sortOrder: 1050 },
+    // (SuperUser cross-customer reports moved to the X-Job Report Library —
+    // x-job-report-catalog.ts. They were unreachable here: the SU library path
+    // sources from the DB catalogue and never reads this file.)
 ];
