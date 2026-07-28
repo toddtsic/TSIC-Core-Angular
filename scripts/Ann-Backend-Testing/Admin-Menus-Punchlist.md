@@ -283,8 +283,14 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Why it matters**: Directors/offices who relied on getting a copy of every registration will quietly stop receiving them — expect "we're not getting registration copies anymore." Decide whether to bring the director copy back (and whether it should be a per-job toggle).
 - **Interacts with**: **AM-010** (the "Turn off Player & Staff Confirmations (for tournaments)" checkbox) and the **team-vs-player asymmetry** — team/club-rep confirmations still CC/BCC the office via the Comms-tab lists; player confirmations ignore those lists. So any "bring the copy back" decision should reconcile both paths.
 - *Dev evidence*: recipients are family+player only (`PaymentService.cs:2453-2468`), no CC/BCC wiring on the player confirmation path.
+- **RESOLUTION (2026-07-28) — ALREADY FIXED before this review; the dev-evidence cite was against an older file revision.** This gap was closed by **CR-061 ("CC/BCC split", shipped 2026-07-14/15)**, which created a single chokepoint — `Services/Shared/Email/JobConfirmationCopies.cs` — whose doc-comment describes exactly this drift ("only the team path applied copies at all… player confirmations copied nobody"). All four confirmation paths now apply the job's Comms-tab `RegFormCcs`/`RegFormBccs` + Reply-To:
+  - Player (submit, ARB, eCheck-pending) — `PaymentService.cs:2356`
+  - Family resend — `PlayerRegistrationConfirmationController.cs:155`
+  - Team/club-rep — `TeamRegistrationService.cs:1694`
+  - Adult/staff — `AdultRegistrationService.cs:659`
+  The team-vs-player asymmetry is gone, and the "turn off CC & BCC" switch (`bDisallowCCPlayerConfirmations`) is honored uniformly — it suppresses the copies only, never the registrant's own confirmation.
 - **Severity**: Question / workflow decision (Legacy-parity gap)
-- **Status**: Open — Todd decision (Ann, 2026-07-27)
+- **Status**: RESOLVED before review (by CR-061) — recorded 2026-07-28. Ann verify: register a player on a job with CC/BCC configured → office receives the copy (unless the job ticks "turn off CC & BCC", which disables copies everywhere by design).
 
 ### AM-019: [Configure / LADT] Restore the "0 = unlimited" warning when a Director sets a 0 Max Roster or Max Teams
 - **Topic**: Configure Menus → LADT → Team Details (Max Roster) + Age Group (Max Teams)
