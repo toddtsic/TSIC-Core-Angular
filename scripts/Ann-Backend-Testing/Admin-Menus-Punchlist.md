@@ -340,8 +340,9 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Why it matters**: Enabling roster view for players hands every parent on the team an **offline, bulk copy** of every other family's contact details and every child's birthdate — a real privacy exposure.
 - **For Todd — the decision**: e.g. **redact the contact/DOB fields for the player audience**, or make the **PDF admin-only** (the on-screen roster and the PDF currently share the same visibility gate, so redaction/gating must be applied to both, or the PDF split off to an admin-only role).
 - *Dev evidence*: roster data carries DOB + Mom/Dad email/phone with **no role filter** ([MyRosterDtos.cs:34-52](../../TSIC-Core-Angular/src/backend/TSIC.Contracts/Dtos/MyRoster/MyRosterDtos.cs#L34), [RegistrationRepository.cs:2639-2699](../../TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/RegistrationRepository.cs#L2639)); PDF endpoint uses the same visibility gate as the on-screen roster ([MyRosterController.cs:36-52](../../TSIC-Core-Angular/src/backend/TSIC.API/Controllers/MyRosterController.cs#L36), [MyRosterPdfService.cs:95-100](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Reporting/MyRosterPdfService.cs#L95)).
-- **Severity**: 🔒 Privacy (bulk PII/DOB export to the player audience)
-- **Status**: Open — Todd decision (Ann, 2026-07-27)
+- **RESOLUTION (2026-07-28) — verified, and the claim narrows: the PDF does NOT contain DOB.** PDF columns are uniform #, player, pos, grad, player email/phone, Contact 1 (Mom), Contact 2 (Dad) (`MyRosterPdfService.BuildColumns`). DOB appears **on-screen only** — where legacy showed it too (legacy parity). The actual delta vs legacy is a convenience file of parent contacts the caller's own team can already see on screen, behind a **director opt-in** (`BAllowRosterViewPlayer`), own-team scope only, system-bucket teams always denied. Todd repro'd the PDF (2032 Blue Team) and reviewed.
+- **Severity**: 🔒 Privacy (bulk parent-contact export to the player audience — DOB claim corrected)
+- **Status**: WON'T DO — **as-is** (Todd, 2026-07-28). Working as designed: director opt-in, own-team-only, PDF is a subset of the on-screen card. (Staff-only-PDF option was offered and declined.)
 
 ---
 
