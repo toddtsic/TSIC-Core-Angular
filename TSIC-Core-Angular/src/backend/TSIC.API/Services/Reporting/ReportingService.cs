@@ -936,7 +936,9 @@ public sealed class ReportingService : IReportingService
 
                     if (value.StartsWith("QA Test:"))
                     {
-                        var sheetName = value.Split(':')[1].Trim();
+                        // Everything after the marker prefix — Split(':')[1] would silently
+                        // truncate a name that itself contains a colon.
+                        var sheetName = value["QA Test:".Length..].Trim();
                         current = AddSheet(sheetName);
                         await reader.NextResultAsync();
                     }
@@ -986,14 +988,20 @@ public sealed class ReportingService : IReportingService
         application.DefaultVersion = Syncfusion.XlsIO.ExcelVersion.Xlsx;
         IWorkbook workbook = application.Workbooks.Create(1);
         var sheetsCreated = 0;
+        var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         // Reuse the default sheet XlsIO creates for the first sheet, then create new
         // ones — preserves EPPlus's "start empty, add named sheets" behavior without
-        // leaving a stray "Sheet1" in the output.
+        // leaving a stray "Sheet1" in the output. Names are sanitized here — the one
+        // place they enter the workbook — because they come from legacy SPs' "QA Test:"
+        // markers, which can violate Excel's sheet-name rules (e.g. RegsaverRegistrants_ALL
+        // emits "STEPS X-Check By Year/Month"; the '/' made XlsIO throw "Sheet Name is
+        // InValid". EPPlus, which the legacy app used, never validated).
         IWorksheet AddWorksheet(string name)
         {
-            var sheet = sheetsCreated == 0 ? workbook.Worksheets[0] : workbook.Worksheets.Create(name);
-            sheet.Name = name;
+            var safeName = SanitizeSheetName(name, usedNames);
+            var sheet = sheetsCreated == 0 ? workbook.Worksheets[0] : workbook.Worksheets.Create(safeName);
+            sheet.Name = safeName;
             sheetsCreated++;
             return sheet;
         }
@@ -1029,6 +1037,38 @@ public sealed class ReportingService : IReportingService
         }
 
         return workbook.ToByteArray();
+    }
+
+    /// <summary>
+    /// Makes a sheet name legal for Excel: replaces <c>: \ / ? * [ ]</c> with <c>-</c>,
+    /// strips wrapping apostrophes, caps at 31 chars, falls back to "Sheet" when empty,
+    /// and uniquifies with an " (n)" suffix (duplicate names also throw in XlsIO).
+    /// Applies only to the Excel render — the IIF renderer keys on raw sheet content.
+    /// </summary>
+    private static string SanitizeSheetName(string name, HashSet<string> usedNames)
+    {
+        var cleaned = new string(name
+            .Select(c => c is ':' or '\\' or '/' or '?' or '*' or '[' or ']' ? '-' : c)
+            .ToArray()).Trim().Trim('\'');
+        if (cleaned.Length == 0)
+        {
+            cleaned = "Sheet";
+        }
+        if (cleaned.Length > 31)
+        {
+            cleaned = cleaned[..31].TrimEnd();
+        }
+
+        var candidate = cleaned;
+        var n = 2;
+        while (!usedNames.Add(candidate))
+        {
+            var suffix = $" ({n++})";
+            candidate = cleaned.Length + suffix.Length <= 31
+                ? cleaned + suffix
+                : cleaned[..(31 - suffix.Length)].TrimEnd() + suffix;
+        }
+        return candidate;
     }
 
     // Consolidation order for QuickBooks IIF sheets — ported verbatim from scripts/adn/IIFExtract.ps1.
