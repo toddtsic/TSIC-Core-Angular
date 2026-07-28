@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { environment } from '@environments/environment';
 import { ToastService } from '@shared-ui/toast.service';
+import { JobConfigService } from '../job/job-config.service';
 import type { JobDdlOptionsDto } from '@core/api';
 
 // ── Category metadata (data-driven rendering) ──
@@ -78,6 +79,12 @@ export class DdlOptionsComponent {
 	private readonly toast = inject(ToastService);
 	private readonly apiUrl = `${environment.apiUrl}/job-ddl-options`;
 
+	// Provided by the Job Settings shell. Every tab must register its save with the
+	// shell's FAB — otherwise the FAB runs the PREVIOUS tab's save (and its
+	// loadConfig() teardown wipes this component's unsaved edits). Optional so the
+	// component can still mount outside the shell.
+	private readonly jobConfigSvc = inject(JobConfigService, { optional: true });
+
 	// ── Grouped categories for template ──
 	readonly groups: DdlGroup[] = this.buildGroups();
 
@@ -122,6 +129,7 @@ export class DdlOptionsComponent {
 
 	constructor() {
 		this.loadOptions();
+		this.jobConfigSvc?.saveHandler.set(() => this.save());
 	}
 
 	/** Notify the parent of our dirty state. Called from every site that can change it. */
