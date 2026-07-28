@@ -93,8 +93,9 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   1. **Remove the Groups number badge** — drop the total-groups count shown at the top.
   2. **"Members of '[group name]'" header needs visual emphasis** — the group name is flat inline text; split it out and style it distinctly (bold / accent / pill).
   3. **Add and Delete buttons too far from customer names** — the per-row Delete (×) is pinned to the far right; move it next to the customer name so the controls sit close to what they act on.
+- **RESOLUTION (Todd, 2026-07-27) — all three declined**: (1) the count badge is the standard page-header template used across all components — stays for consistency; (2) header emphasis unnecessary on a SuperUser-only screen; (3) right-pinned row actions are the deliberate responsive-design convention app-wide (matches every other row-action placement).
 - **Severity**: UX
-- **Status**: Open (Ann, 2026-07-26)
+- **Status**: WON'T DO (Todd, 2026-07-27) — screen stays as-is
 
 ### AM-006: [Configure / Discount Codes + all Configure tables] Blocked-delete needs a lock icon, and an Expired code must not read "Active"
 - **Topic**: Configure Menus → Discount Codes (and any Configure table with conditional delete)
