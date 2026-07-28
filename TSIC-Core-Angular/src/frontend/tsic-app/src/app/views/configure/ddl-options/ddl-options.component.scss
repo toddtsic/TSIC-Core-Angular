@@ -77,6 +77,15 @@
 	font-size: 0.78rem;
 	line-height: 1.4;
 	white-space: nowrap;
+	cursor: grab;
+
+	&:active {
+		cursor: grabbing;
+	}
+
+	&.cdk-drag-placeholder {
+		opacity: 0.35;
+	}
 }
 
 .chip-nudge {
