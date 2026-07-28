@@ -42,8 +42,9 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   2. Rename the "Status" column to "Active" and move it immediately after Name, showing "Yes" when active.
   3. Column order should be: **Name, Active, Role, Username, Registered**.
   4. Compress the table — rows and columns are too widely spaced; tighten overall (folded in from ConfigureMenus PL-004).
+- **Review (Claude, 2026-07-27)**: items 1 + 4 already satisfied on current master — the grid carries the same `tsic-grid-tight` density class as the Search grids (simple-view sweep), and AM-003 added the star-in-Name treatment + MM/dd/yyyy Registered. Remaining delta was only the column reorder + Status→"Active/Yes" rename.
 - **Severity**: UX
-- **Status**: Open (Ann, 2026-07-26)
+- **Status**: WON'T DO (Todd, 2026-07-27) — current table is fine; column reorder/rename declined.
 
 ### AM-003: [Configure / Administrators] Primary-contact star — reposition, and carry it forward on clone + legacy migration
 - **Topic**: Configure Menus → Administrators table (primary-contact star)
