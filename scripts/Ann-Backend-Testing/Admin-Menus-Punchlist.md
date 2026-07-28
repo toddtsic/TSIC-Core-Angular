@@ -374,8 +374,11 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   1. **Confirm SuperUser-only visibility — and apply it.** Ann is confirming that E-Mail Troubleshooter was decided (with Chelsea) to be **SuperUser-visibility only**. **Code check (2026-07-27): it is NOT SuperUser-only today** — the manifest row sets `ForDirector=1, ForSuperDir=1, ForSuperUser=1`, so it currently shows for **all three admin roles**. If SuperUser-only is the confirmed decision, change the flags to `0, 0, 1` (the pattern Administrators uses at [:130](../..)), then re-run the nav reset.
   2. **Remove the NEW badge from the menu tree.** The row's `BadgeText` is `N'NEW'`, which renders the NEW chip in the nav. Set it to `NULL` to drop the chip.
 - **For Todd**: edit the E-Mail Troubleshooter row at `5) Re-Set Nav System.sql:155` — flags `1,1,1 → 0,0,1` (pending confirmation of the SuperUser-only decision) and `BadgeText 'NEW' → NULL` — then re-run the nav reset so it lands in the DB. Mirror in the dev-restore nav script if one reseeds this.
+- **RESOLUTION (Todd, 2026-07-28) — WON'T DO, both parts:**
+  1. **Visibility**: Todd **purposefully exposed the tool to Directors/admins** — the "SuperUser-only" recollection does not stand. All three layers (nav flags `1,1,1`, route guard, API `AdminOnly` policy) already agree on admin access, consistent with deliberate design. No change.
+  2. **NEW badge**: stays — a one-word cosmetic edit is **not enough reason to re-run the nav seeding script in prod**. (Note: the `.ps1` generates the `.sql`; any future change edits `5) Re-Set Nav System.ps1:205`, regenerates, then applies.)
 - **Severity**: UX + role-visibility (menu shown to more roles than intended; stale NEW chip)
-- **Status**: Open — confirm SuperUser-only decision, then apply (Ann, 2026-07-27)
+- **Status**: WON'T DO (Todd, 2026-07-28) — admin visibility is intentional; badge not worth a prod nav re-seed
 
 ---
 
