@@ -328,9 +328,9 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **What's new**: Neither **approving** a coach onto teams nor **denying** them sends the coach any notification. They find out by logging in — if they think to. (The old system didn't notify either, but it also had no approval step.)
 - **Why it matters**: Combined with the previously-missing registration confirmation (CR-084, now resolved), a coach registers, is told an email is coming, gets nothing, then is approved/denied in silence.
 - **Request (Ann, 2026-07-27)**: **Is it possible to send an email notification automatically upon approval under Coach Approval?** (And likely on denial too.) Add an automatic email to the coach when a Director approves (and/or denies) them in the Coach Approval queue.
-- *Dev evidence*: `RosterSwapperService` has no email service injected; neither approve nor deny sends mail ([RosterSwapperService.cs:20-44, 461-483](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Teams/RosterSwapperService.cs#L461)).
+- *Dev evidence*: `RosterSwapperService` has no email service injected; neither approve nor deny sends mail ([RosterSwapperService.cs:20-44, 461-483](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Teams/RosterSwapperService.cs#L461)). *(2026-07-28 re-verify: file now lives at `Services/Admin/RosterSwapperService.cs` — `ApproveTeamRequestAsync` :471, `DenyCoachAsync` :486; gap confirmed still present, no email service injected.)*
 - **Severity**: UX / workflow (silent approve/deny)
-- **Status**: Open — Todd decision (Ann, 2026-07-27)
+- **Status**: WON'T DO (Todd, 2026-07-28) — **by design; will not address.** No automatic email on approve or deny. (Proposed approve-only notification through the EmailService chokepoint was offered and declined.)
 
 ### AM-022: [Roster Visibility / Privacy] 🔒 A logged-in parent can download every family's contacts + every child's DOB as a PDF
 - **Topic**: Roster view ("Allow Roster View — Player") → My Roster PDF export (privacy)
