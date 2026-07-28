@@ -313,8 +313,13 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Why it matters**: A user who remembers only their **username** — common for adult and admin accounts — can't reset their password from the form anymore, and a parent whose login email differs from the one on file may not be found. A real "I can't reset my password" support case.
 - **Request (Ann, 2026-07-27)**: **The username option is very useful here given the rationale presented** — bring back the username path (and consider re-matching family/parent emails) so adult/admin users who only remember their username can reset their password.
 - *Dev evidence*: CR-067 — new reset takes email only, no username lookup, no family-email match.
+- **RESOLUTION (2026-07-28) — ALREADY FIXED by the forgot-password rework `a297911a` (2026-07-27), which restored legacy semantics and went further:**
+  1. **Username path back** — single "Username or Email" field, no email validator (`forgot-password.component`); backend matches username first (exact hit wins), then email.
+  2. **Family/parent emails matched** — lookup also matches `Families.MomEmail`/`DadEmail` (many family logins carry no email of their own) — the "parent whose login email differs" case.
+  3. **Beyond legacy** — one email owning multiple accounts (family login + parent's own logins) gets **one reset email per account**, each naming its username, reset link keyed by `userId`. The pre-fix code *crashed* on duplicate emails ("Sequence contains more than one element").
+  - **Deliberate non-restoration**: the neutral "if an account exists, a link has been sent" reply stays — standard anti-enumeration on an anonymous endpoint (legacy revealed account existence; we won't).
 - **Severity**: UX / Legacy-parity (support-impacting)
-- **Status**: Open — Todd decision (Ann, 2026-07-27)
+- **Status**: RESOLVED before review (by `a297911a`) — recorded 2026-07-28; pending the API restart already queued for that fix. Ann verify: reset by username; reset by parent email on a family account; duplicate-email case → one email per account, each naming its username.
 
 ### AM-021: [Coach Approval] Approving or denying a coach doesn't notify the coach
 - **Topic**: Roster Swapper → Coach Approval Queue (Client support + SuperUser/Admin)
