@@ -396,8 +396,9 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   1. **Make the "switch to side menu" toggle apparent in top-menu mode.** When the user switches to the top menu, the control to go back to side menus is a subtle `.pill-nav__layout-toggle` pill at the far right — **barely visible.** Ann: make it more obvious — e.g. give it a distinct/accented treatment (or a labeled button) so it clearly reads as the "back to side menus" control **right after the last menu** pill, rather than blending in with the menu items.
   2. **Pluralize both labels to "menus".** Change both the `aria-label` and `title` on each toggle: "Switch to top menu" → **"Switch to top menus"** ([:21](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/layouts/components/client-menu/client-menu.component.html#L21)) and "Switch to side menu" → **"Switch to side menus"** ([:187](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/layouts/components/client-menu/client-menu.component.html#L187)).
 - **For Todd**: (1) restyle `.pill-nav__layout-toggle` (and/or add a short label) so the side-menu switch stands out at the end of the pill nav; (2) update the four strings (aria-label + title on both buttons) to the plural "menus".
+- **RESOLUTION (Todd go, 2026-07-28)**: top-mode toggle now carries an always-visible **"Side menus"** label beside the `bi-layout-sidebar` icon plus an accented treatment (primary-tinted background + border, full-opacity icon, hover deepen, focus-visible shadow — all palette vars) so it reads as a layout control, not another menu pill. All four strings pluralized: "Switch to top menus" / "Switch to side menus" (aria-label + title on both toggles). `client-menu.component.html/.scss`.
 - **Severity**: UX (discoverability of the layout toggle + label wording)
-- **Status**: Open (Ann, 2026-07-27)
+- **Status**: FIXED — coded 2026-07-28, awaiting Todd verify (top-menu mode → accented labeled control at strip end; tooltips read "menus") + Ann next pass
 
 ---
 
