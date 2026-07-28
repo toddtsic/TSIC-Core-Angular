@@ -755,7 +755,7 @@
                  column (not just hiding it) keeps refreshRowNumbers' first-cell stamping
                  from ever landing on the Name cell. -->
             @if (!isMobile()) {
-              <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"></e-column>
+              <e-column headerText="#" width="70" textAlign="Center" [allowSorting]="false"></e-column>
             }
             <!-- Frozen: Name with inline detail icon (narrower freeze on mobile — leave swipe room) -->
             <e-column field="lastName" headerText="Name" [width]="isMobile() ? 150 : 200">
@@ -820,7 +820,7 @@
                 }
               </ng-template>
             </e-column>
-            <e-column field="assignment" headerText="Assignment" width="220">
+            <e-column field="assignment" headerText="Assignment" width="280">
               <ng-template #template let-data>
                 @if (data.assignment) {
                   <span class="assignment-tag">{{ data.assignment }}</span>
