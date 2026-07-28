@@ -76,6 +76,19 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 	hasCadtData = computed(() => this.cadtTree().length > 0);
 	jobName = computed(() => this.ladtTree()[0]?.name ?? '');
 
+	// Count for the "All" (no waitlist/scheduled filter) row = the active team total.
+	// The four status options are TWO independent binary axes — waitlist
+	// (WAITLISTED | NOT_WAITLISTED) and scheduled (SCHEDULED | NOT_SCHEDULED) — and each
+	// pair sums to the active total. Summing ALL four would double-count, so take one
+	// complementary pair. Null when options aren't loaded (badge hidden, like the others).
+	allTeamsCount = computed<number | null>(() => {
+		const opts = this.filterOptions()?.waitlistScheduledStatuses;
+		if (!opts?.length) return null;
+		const w = opts.find(o => o.value === 'WAITLISTED')?.count;
+		const nw = opts.find(o => o.value === 'NOT_WAITLISTED')?.count;
+		return w != null && nw != null ? w + nw : null;
+	});
+
 	// True until the view has settled — filter options AND both hierarchy trees loaded.
 	// Gates the "Set Filters" launcher so it can't be opened mid-load (the init auto-search
 	// would otherwise force-close a drawer opened during the load window).

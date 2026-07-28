@@ -198,6 +198,9 @@
                 [attr.aria-checked]="!searchRequest().waitlistScheduledStatus"
                 (click)="updateWaitlistScheduledStatus('')">
                 <span class="ws-option-text">All</span>
+                @if (allTeamsCount() != null) {
+                  <span class="ws-option-count">{{ allTeamsCount() }}</span>
+                }
               </button>
               @for (opt of filterOptions()?.waitlistScheduledStatuses ?? []; track opt.value) {
                 <button type="button" class="ws-option" role="radio"
