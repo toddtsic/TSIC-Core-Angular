@@ -42,7 +42,7 @@
           SuperUser Only
         </h6>
         <div class="row g-2">
-          <div class="col-md-3">
+          <div class="col-md-2">
             <label class="field-label">Job ID</label>
             <button type="button" class="id-copy" (click)="copyChip(g.jobId, 'jobId')"
               [title]="copiedChip() === 'jobId' ? 'Copied!' : 'Copy Job ID'">
@@ -51,7 +51,7 @@
             </button>
           </div>
           @if (g.adnInvoicePrefix; as adnPrefix) {
-            <div class="col-md-3">
+            <div class="col-md-2">
               <label class="field-label">ADN Invoice Prefix</label>
               <button type="button" class="id-copy" (click)="copyChip(adnPrefix, 'adnPrefix')"
                 [title]="copiedChip() === 'adnPrefix' ? 'Copied!' : 'Copy ADN invoice prefix'">
@@ -61,6 +61,17 @@
             </div>
           }
           <div class="col-md-3">
+            <label class="field-label">Customer</label>
+            <select class="field-input field-select"
+              [ngModel]="customerId()"
+              (ngModelChange)="customerId.set($event); onFieldChange()">
+              <option [ngValue]="null">— Select —</option>
+              @for (c of svc.referenceData()?.customers ?? []; track c.customerId) {
+                <option [ngValue]="c.customerId">{{ c.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-md-3">
             <label class="field-label">Job Path</label>
             <input type="text" class="field-input"
               [ngModel]="jobPath()"
@@ -68,7 +79,7 @@
               placeholder="lowercase-slug" />
             <small class="field-help">Changing this renames the job URL — log out and back in after saving.</small>
           </div>
-          <div class="col-md-3">
+          <div class="col-md-2">
             <label class="field-label">Description</label>
             <input type="text" class="field-input"
               [ngModel]="jobDescription()"
@@ -113,17 +124,6 @@
               <option [ngValue]="undefined">— Select —</option>
               @for (jt of svc.referenceData()?.jobTypes ?? []; track jt.jobTypeId) {
                 <option [ngValue]="jt.jobTypeId">{{ jt.jobTypeName }}</option>
-              }
-            </select>
-          </div>
-          <div class="col-md-2">
-            <label class="field-label">Customer</label>
-            <select class="field-input field-select"
-              [ngModel]="customerId()"
-              (ngModelChange)="customerId.set($event); onFieldChange()">
-              <option [ngValue]="null">— Select —</option>
-              @for (c of svc.referenceData()?.customers ?? []; track c.customerId) {
-                <option [ngValue]="c.customerId">{{ c.name }}</option>
               }
             </select>
           </div>

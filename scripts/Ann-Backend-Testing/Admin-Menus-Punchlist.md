@@ -483,7 +483,9 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   1. **Move the Customer field into the first row, right after ADN Invoice Prefix.**
   2. **Move Billing Type up into the second row, right after Job Type** (today it trails Customer and wraps awkwardly).
 - **Net second-row order after the move**: Admin Expiry / Job Code / QBP Name / Sport / Job Type / **Billing Type** (Customer having moved to row 1).
+- **Status**: FIXED — coded 2026-07-28, awaiting Todd verify (SU section: Customer in row 1, Billing Type beside Job Type, no wrap) + Ann next pass
 - **For Todd**: relocate the Customer `col` to immediately after ADN Invoice Prefix in the first SU row, and the Billing Type `col` to immediately after Job Type in the second SU row; adjust the `col-md-*` widths so each row fits 12 units cleanly (first row gains a field, second row loses one). **Preserve the existing SuperUser/Director role-visibility** on each field while reordering.
+- **RESOLUTION (Todd go, 2026-07-28)**: implemented exactly as requested — Row 1: Job ID (2) / ADN Invoice Prefix (2) / **Customer (3)** / Job Path (3) / Description (2) = 12 units; Row 2: Admin Expiry / Job Code / QBP Name / Sport / Job Type / **Billing Type** — six clean `col-md-2`s, the orphan-wrap line is gone. Template-only `div` reshuffle; every binding untouched; all fields remain inside the SU-only section. (`general-tab.component.html`)
 - **Severity**: UX (field ordering / layout tidiness on the General tab)
 - **Status**: Open (Ann, 2026-07-27)
 
