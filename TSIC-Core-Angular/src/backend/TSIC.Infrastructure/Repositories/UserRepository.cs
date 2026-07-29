@@ -172,37 +172,41 @@ public class UserRepository : IUserRepository
         CancellationToken cancellationToken = default)
     {
         var lowerQuery = query.ToLower();
+        var cutoff = DateTime.Now.AddYears(-RoleConstants.AdminLaneLookbackYears);
 
-        // AM-004 lane model: eligibility depends on the role being granted. Only two shapes:
-        //  - Lane-pure: every registration the account has EVER held, on any job/customer,
-        //    lies within the lane's role set (Director+SuperDirector share one lane; every
-        //    other admin type is its own lane — no cross-type grants).
-        //  - Pending adult: every registration is Unassigned Adult with at least one on this
-        //    customer — the sanctioned funnel for brand-new admins ("register as coach on the
-        //    site, then get accepted here").
-        // Anything with a family/player footprint is a shared-credential household login and
-        // must never appear — accepting one would hand admin access to the whole household.
+        // AM-004 lane model: eligibility depends on the role being granted. Only registrations
+        // from the lookback window count (a stale grant from years back must not poison an
+        // otherwise lane-pure account). Two qualifying shapes:
+        //  - Lane-pure: every windowed registration, on any job/customer, lies within the
+        //    lane's role set (Director+SuperDirector share one lane; every other admin type
+        //    is its own lane — no cross-type grants).
+        //  - Pending adult: every windowed registration is Unassigned Adult with at least one
+        //    on this customer — the sanctioned funnel for brand-new admins ("register as coach
+        //    on the site, then get accepted here").
+        // The family-credential exclusion stays GLOBAL (no window): a shared household login
+        // is structural — accepting one would hand admin access to the whole household.
         return await _context.AspNetUsers
             .AsNoTracking()
             .Where(u =>
                 u.UserName!.ToLower().Contains(lowerQuery) ||
                 (u.FirstName != null && u.FirstName.ToLower().Contains(lowerQuery)) ||
                 (u.LastName != null && u.LastName.ToLower().Contains(lowerQuery)))
-            // Never a family credential holder
+            // Never a family credential holder — global, not windowed
             .Where(u => !_context.Registrations.Any(r => r.FamilyUserId == u.Id))
-            // Needs at least one registration to classify
-            .Where(u => _context.Registrations.Any(r => r.UserId == u.Id))
+            // Needs at least one windowed registration to classify
+            .Where(u => _context.Registrations.Any(r => r.UserId == u.Id && r.RegistrationTs >= cutoff))
             .Select(u => new
             {
                 User = u,
                 IsLanePure = _context.Registrations
-                    .Where(r => r.UserId == u.Id)
+                    .Where(r => r.UserId == u.Id && r.RegistrationTs >= cutoff)
                     .All(r => laneRoleIds.Contains(r.RoleId!)),
                 IsPendingAdultOnly =
                     _context.Registrations
-                        .Where(r => r.UserId == u.Id)
+                        .Where(r => r.UserId == u.Id && r.RegistrationTs >= cutoff)
                         .All(r => r.RoleId == RoleConstants.UnassignedAdult)
                     && _context.Registrations.Any(r => r.UserId == u.Id
+                        && r.RegistrationTs >= cutoff
                         && r.RoleId == RoleConstants.UnassignedAdult
                         && r.Job.CustomerId == customerId)
             })
@@ -227,6 +231,7 @@ public class UserRepository : IUserRepository
         CancellationToken cancellationToken = default)
     {
         var lowerQuery = query.ToLower();
+        var cutoff = DateTime.Now.AddYears(-RoleConstants.AdminLaneLookbackYears);
 
         // Same name predicate as SearchAdminCandidatesAsync, but no eligibility filter — we're
         // asking WHY the eligible set is empty. Enumeration guard: a director typing names must
@@ -244,26 +249,34 @@ public class UserRepository : IUserRepository
             .Select(u => new
             {
                 IsExactUserName = u.UserName!.ToLower() == lowerQuery,
+                // Family credential = global (structural); role classification = windowed,
+                // mirroring the eligibility query.
                 IsFamilyOrPlayer =
                     _context.Registrations.Any(r => r.FamilyUserId == u.Id) ||
                     _context.Registrations.Any(r => r.UserId == u.Id
-                        && (r.RoleId == RoleConstants.Player || r.RoleId == RoleConstants.Family))
+                        && r.RegistrationTs >= cutoff
+                        && (r.RoleId == RoleConstants.Player || r.RoleId == RoleConstants.Family)),
+                HasWindowedRegs = _context.Registrations.Any(r => r.UserId == u.Id && r.RegistrationTs >= cutoff)
             })
             .Take(25)
             .ToListAsync(cancellationToken);
-
-        if (matches.Count == 0)
-            return AdminCandidateMissReason.NotFound;
 
         // An exact username hit is what the user meant — diagnose that account. Otherwise prefer
         // the family/player explanation (the common household-login case) over the generic one.
         var best = matches.FirstOrDefault(m => m.IsExactUserName)
             ?? matches.FirstOrDefault(m => m.IsFamilyOrPlayer)
-            ?? matches[0];
+            ?? matches.FirstOrDefault(m => m.HasWindowedRegs);
 
-        return best.IsFamilyOrPlayer
-            ? AdminCandidateMissReason.FamilyOrPlayer
-            : AdminCandidateMissReason.OutsideLane;
+        if (best == null)
+            return AdminCandidateMissReason.NotFound;
+
+        if (best.IsFamilyOrPlayer)
+            return AdminCandidateMissReason.FamilyOrPlayer;
+
+        // Only stale registrations (outside the window) → same funnel as "not registered here".
+        return best.HasWindowedRegs
+            ? AdminCandidateMissReason.OutsideLane
+            : AdminCandidateMissReason.NotFound;
     }
 
     public async Task<List<PasswordResetAccount>> GetPasswordResetAccountsAsync(

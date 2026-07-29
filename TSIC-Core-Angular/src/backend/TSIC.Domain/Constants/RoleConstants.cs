@@ -22,6 +22,12 @@ namespace TSIC.Domain.Constants
         public const string UnassignedAdult = "C92D71A9-464D-40C5-BA35-DFD9111CC7EA";
         public const string Superuser = "CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9";
 
+        // AM-004 lane model: only registrations from the last N years count when classifying an
+        // account's eligibility for an admin role (Todd ruling 2026-07-29 — a stale grant from
+        // years back must not poison an otherwise lane-pure account). Family-credential checks
+        // stay GLOBAL: a household login is structural, not historical.
+        public const int AdminLaneLookbackYears = 2;
+
         // Synthetic filter sentinels (not real role IDs — used by search filters)
         public const string PlayerNotWaitlisted = "PLAYER_NOT_WAITLISTED";
         public const string ClubRepActiveTeams = "CLUBREP_ACTIVE_TEAMS";
