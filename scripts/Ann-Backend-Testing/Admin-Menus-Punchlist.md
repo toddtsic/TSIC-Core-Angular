@@ -742,7 +742,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **For Todd**: add a **"← Back to Reports Library"** button/badge at the top of each report designer (all three components) that routes back to the Reports Library home. Consistent placement across the three.
 - **✅ RESOLVED (Todd, 2026-07-29)**: added a consistent `.designer-back-link` ("← Back to Reports Library") at the top-left of each designer's header — packed-roster, roster-table, schedule-list (`.ts`/`.html`/`.scss` each). Navigation mirrors how the library *launches* the designer: `router.navigate(['/', jobPath, 'reporting', 'reports-library'])` with jobPath from `AuthService.currentUser()` — **not** a fragile relative `../` routerLink, because the `/recruiter` and `/camp` sub-route variants sit at a different URL depth. Not a banned absolute link (carries the real jobPath). Breadcrumb style, WCAG focus-visible, arrow icon + text (not color-only).
 - **Severity**: UX (navigation — no in-page way back from a designer)
-- **Status**: ✅ **RESOLVED** — back link on all three designers (Todd, 2026-07-29). NOT deployed, F5 pending (build not yet run).
+- **Status**: ✅ **RESOLVED** — back link on all three designers; **confirmed rendering + navigating in-app (Todd screenshot, 2026-07-29)** → compiles/runs. NOT deployed, F5 pending.
 
 ---
 
