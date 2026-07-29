@@ -364,6 +364,10 @@ export type ModalMode = 'add' | 'edit';
             padding: var(--space-3);
             overflow-y: auto;
             font-size: var(--font-size-sm);
+            /* AM-044: wrap long unbreakable strings (e.g. concatenated !TOKENs)
+               instead of overflowing the pane horizontally. */
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .meta-row {
@@ -397,6 +401,13 @@ export type ModalMode = 'add' | 'edit';
 
         :host ::ng-deep .e-richtexteditor {
             border-radius: var(--radius-sm);
+        }
+
+        /* AM-044: same wrapping guard inside the RTE editable area so a long
+           token run wraps rather than running off the right edge while editing. */
+        :host ::ng-deep .e-richtexteditor .e-rte-content .e-content {
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -507,7 +518,9 @@ export class BulletinFormModalComponent implements OnInit {
 
     insertToken(token: string): void {
         this.rteEditor().focusIn();
-        this.rteEditor().executeCommand('insertText', token);
+        // AM-044: trailing space so consecutive chip clicks don't concatenate into
+        // one unbreakable run (!EVENT_INFO!SCHEDULE!...) that reads as broken and can't wrap.
+        this.rteEditor().executeCommand('insertText', token + ' ');
     }
 
     draftWithAi(): void {
