@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, inject, signal, OnInit, OnDestroy, 
 import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { AdministratorService } from '../services/administrator.service';
-import { Subject, catchError, debounceTime, distinctUntilChanged, switchMap, of, takeUntil } from 'rxjs';
-import type { AdministratorDto, AddAdministratorRequest, UpdateAdministratorRequest, UserSearchResponseDto, UserSearchResultDto } from '@core/api';
+import { Subject, takeUntil } from 'rxjs';
+import type { AdministratorDto, AddAdministratorRequest, UpdateAdministratorRequest, UserSearchResultDto } from '@core/api';
 
 export type ModalMode = 'add' | 'edit';
 
@@ -44,15 +44,29 @@ export interface AdminFormResult {
                         @if (mode() === 'add') {
                             <div class="col-12">
                                 <label for="userSearch" class="field-label">Username</label>
-                                <input
-                                    id="userSearch"
-                                    type="text"
-                                    class="field-input"
-                                    [placeholder]="selectedRole() ? 'Search by name or username...' : 'Select a role first...'"
-                                    [disabled]="!selectedRole()"
-                                    [value]="searchInput()"
-                                    (input)="onSearchInput($event)"
-                                    autocomplete="off" />
+                                <div class="d-flex gap-2">
+                                    <input
+                                        id="userSearch"
+                                        type="text"
+                                        class="field-input"
+                                        [placeholder]="selectedRole() ? 'Name or username...' : 'Select a role first...'"
+                                        [disabled]="!selectedRole()"
+                                        [value]="searchInput()"
+                                        (input)="onSearchInput($event)"
+                                        (keyup.enter)="onSearchSubmit()"
+                                        autocomplete="off" />
+                                    <button
+                                        type="button"
+                                        class="btn btn-primary flex-shrink-0"
+                                        [disabled]="!selectedRole() || searchInput().trim().length < 2 || searching()"
+                                        (click)="onSearchSubmit()">
+                                        @if (searching()) {
+                                            <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                                        } @else {
+                                            <i class="bi bi-search me-1"></i>
+                                        }Search
+                                    </button>
+                                </div>
                                 @if (selectedRole()) {
                                     <small class="text-body-secondary d-block mt-1">
                                         Eligible: accounts that have only ever held the
@@ -99,8 +113,9 @@ export interface AdminFormResult {
                                         <i class="bi bi-exclamation-triangle me-1"></i>Search failed — check your
                                         connection and try again.
                                     </small>
-                                } @else if (searchInput().length >= 2 && searchResults().length === 0 && !selectedUser() && !searching()) {
-                                    <!-- AM-004 funnel feedback: say WHICH dead end this is, not generic silence. -->
+                                } @else if (emptyReason() !== null) {
+                                    <!-- Search ran and found nothing eligible. AM-004 funnel feedback:
+                                         say WHICH dead end this is, not generic silence. -->
                                     @switch (emptyReason()) {
                                         @case ('familyOrPlayer') {
                                             <small class="text-warning-emphasis d-block">
@@ -185,9 +200,6 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
 
     private readonly adminService = inject(AdministratorService);
     private readonly destroy$ = new Subject<void>();
-    // Lane model (AM-004): the candidate pool depends on the role being granted, so the
-    // stream carries (query, role) and re-fires when either changes.
-    private readonly searchSubject = new Subject<{ q: string; role: string }>();
 
     readonly availableRoles = ['Director', 'SuperDirector', 'ApiAuthorized', 'Ref Assignor', 'Store Admin', 'STPAdmin'];
 
@@ -216,36 +228,6 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
             this.isActive.set(admin.isActive);
         }
 
-        // Typeahead debounce
-        this.searchSubject.pipe(
-            debounceTime(300),
-            distinctUntilChanged((a, b) => a.q === b.q && a.role === b.role),
-            switchMap(({ q, role }) => {
-                if (q.length < 2 || !role) {
-                    this.searching.set(false);
-                    return of<UserSearchResponseDto | null>({ results: [] });
-                }
-                this.searching.set(true);
-                // catchError on the INNER request: an outer error would terminate the whole
-                // pipeline and silently kill the typeahead for the life of the dialog.
-                // null = request failed (distinct from "no matches").
-                return this.adminService.searchUsers(q, role).pipe(
-                    catchError(() => of<UserSearchResponseDto | null>(null))
-                );
-            }),
-            takeUntil(this.destroy$)
-        ).subscribe(response => {
-            this.searching.set(false);
-            if (response === null) {
-                this.searchFailed.set(true);
-                this.searchResults.set([]);
-                this.emptyReason.set(null);
-                return;
-            }
-            this.searchFailed.set(false);
-            this.searchResults.set(response.results);
-            this.emptyReason.set(response.emptyReason ?? null);
-        });
     }
 
     ngOnDestroy() {
@@ -256,19 +238,49 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
     onSearchInput(event: Event) {
         const value = (event.target as HTMLInputElement).value;
         this.searchInput.set(value);
+        // Edited input invalidates whatever the last search showed.
         this.selectedUser.set(null);
-        this.searchSubject.next({ q: value, role: this.selectedRole() });
+        this.searchResults.set([]);
+        this.emptyReason.set(null);
+        this.searchFailed.set(false);
         this.updateValidity();
+    }
+
+    /** Explicit search — one request per click/Enter, no typeahead. */
+    onSearchSubmit() {
+        const q = this.searchInput().trim();
+        const role = this.selectedRole();
+        if (q.length < 2 || !role || this.searching()) {
+            return;
+        }
+        this.searching.set(true);
+        this.searchFailed.set(false);
+        this.adminService.searchUsers(q, role)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+                next: response => {
+                    this.searching.set(false);
+                    this.searchResults.set(response.results);
+                    this.emptyReason.set(response.emptyReason ?? null);
+                },
+                error: () => {
+                    this.searching.set(false);
+                    this.searchFailed.set(true);
+                    this.searchResults.set([]);
+                    this.emptyReason.set(null);
+                }
+            });
     }
 
     /** Role changed → the eligibility lane changed: prior results/selection are invalid. */
     onRoleChange(role: string) {
         this.selectedRole.set(role);
         if (this.mode() === 'add') {
+            // Lane changed → prior results/selection are invalid; user re-searches explicitly.
             this.selectedUser.set(null);
             this.searchResults.set([]);
             this.emptyReason.set(null);
-            this.searchSubject.next({ q: this.searchInput(), role });
+            this.searchFailed.set(false);
         }
         this.updateValidity();
     }
