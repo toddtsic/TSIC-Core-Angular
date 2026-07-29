@@ -110,6 +110,9 @@
     color: var(--bs-body-color);
     background-color: inherit;
     font-size: var(--font-size-sm);
+    // Cells are read-only displays — arrow cursor, not the text I-beam
+    // (which reads as "editable" and pairs badly with the focus box).
+    cursor: default;
   }
 }
 
