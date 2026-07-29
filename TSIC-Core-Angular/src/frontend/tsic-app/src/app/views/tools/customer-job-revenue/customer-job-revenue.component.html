@@ -42,6 +42,9 @@
 							[(value)]="selectedJobs"
 							placeholder="Select one or more jobs"
 							[mode]="'CheckBox'"
+							[allowFiltering]="true"
+							filterBarPlaceholder="Type to filter jobs"
+							[filterType]="'Contains'"
 							[showDropDownIcon]="true"
 							[showClearButton]="true"
 							[enableSelectionOrder]="true">
