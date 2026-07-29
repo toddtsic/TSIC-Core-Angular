@@ -447,9 +447,10 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   1. **Gate it to tournament jobs** — wrap the section in a tournament job-type condition, mirroring the `showArbSection()` gating pattern used for the ARB section, so it only appears on tournaments.
   2. **Or simplest — label it.** Change the section header ([:544](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/search/registrations/search-registrations.component.html#L544)) from "Roster Scan" to **"ROSTER SCAN (for tournaments ONLY)"** so its scope is obvious even if it stays visible everywhere.
 - **For Todd**: option 1 (gate) is the cleaner outcome; option 2 (label) is the quick win if a clean tournament-only signal isn't readily at hand on this component.
+- **RESOLUTION (Todd, 2026-07-28) — WON'T FIX: Roster Scan stays visible on ALL job types.** Todd's ruling: the premise is wrong — a thin-roster scan **can be useful outside tournaments** (leagues/clubs with team structures also chase under-filled teams), so neither the gate nor the "(for tournaments ONLY)" label is wanted. The Search/Teams legacy-parity addition is not pursued either (it would require a new team-search backend filter, not a UI copy).
 - **Also — add Roster Scan to Search/Teams too (Ann, 2026-07-27, legacy parity)**: In **Legacy**, Roster Scan appeared in **both** Search/Registrations **and** Search/Teams. In the new version it's only in Search/Registrations. **Consider adding it under Search/Teams as well** — that's a natural home, right next to the **LADT search** already there (the "Hierarchy" section with `<app-ladt-tree-filter>`, [search-teams.component.html:203-247](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/search/teams/search-teams.component.html#L203)) — since a director scanning rosters would reach for it alongside the LADT tree filter. (Verified: Search/Teams has the LADT tree filter but no Roster Scan section today.) If added there and it's tournament-only, apply the same gate/label decision from this item.
 - **Severity**: UX (feature shown on jobs where it doesn't apply) + Legacy-parity (missing from Search/Teams)
-- **Status**: Open (Ann, 2026-07-27)
+- **Status**: WON'T FIX (Todd, 2026-07-28) — useful beyond tournaments; no gate, no label, Search/Teams add not pursued
 
 ---
 
