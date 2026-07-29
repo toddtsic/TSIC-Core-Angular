@@ -109,33 +109,38 @@ export interface AdminFormResult {
                                     }
                                 }
                                 @if (searchFailed()) {
-                                    <small class="text-danger d-block">
-                                        <i class="bi bi-exclamation-triangle me-1"></i>Search failed — check your
-                                        connection and try again.
-                                    </small>
+                                    <div class="alert alert-danger d-flex align-items-start gap-2 mt-2 mb-0 py-2 px-3 small" role="alert">
+                                        <i class="bi bi-exclamation-triangle flex-shrink-0"></i>
+                                        <span>Search failed — check your connection and try again.</span>
+                                    </div>
                                 } @else if (emptyReason() !== null) {
-                                    <!-- Search ran and found nothing eligible. AM-004 funnel feedback:
-                                         say WHICH dead end this is, not generic silence. -->
+                                    <!-- Search ran and found nothing eligible. AM-004 funnel feedback: a
+                                         distinct alert (not more gray help prose) that says WHICH dead end. -->
                                     @switch (emptyReason()) {
                                         @case ('familyOrPlayer') {
-                                            <small class="text-warning-emphasis d-block">
-                                                That matches a family/player account, which can never hold admin
-                                                roles. The person needs their own coach/staff registration on this
-                                                site — then accept them here.
-                                            </small>
+                                            <div class="alert alert-warning d-flex align-items-start gap-2 mt-2 mb-0 py-2 px-3 small" role="status">
+                                                <i class="bi bi-person-x flex-shrink-0"></i>
+                                                <span>"{{ searchInput().trim() }}" matches a family/player account,
+                                                which can never hold admin roles. The person needs their own
+                                                coach/staff registration on this site — then accept them here.</span>
+                                            </div>
                                         }
                                         @case ('outsideLane') {
-                                            <small class="text-warning-emphasis d-block">
-                                                That matches an account whose existing roles aren't eligible for
-                                                {{ selectedRole() }}. New admins should first register on this site
-                                                as a coach/staff adult, then be accepted here.
-                                            </small>
+                                            <div class="alert alert-warning d-flex align-items-start gap-2 mt-2 mb-0 py-2 px-3 small" role="status">
+                                                <i class="bi bi-person-x flex-shrink-0"></i>
+                                                <span>"{{ searchInput().trim() }}" matches an account whose existing
+                                                roles aren't eligible for {{ selectedRole() }}. New admins should
+                                                first register on this site as a coach/staff adult, then be
+                                                accepted here.</span>
+                                            </div>
                                         }
                                         @default {
-                                            <small class="text-body-secondary d-block">
-                                                No account by that name is registered here. New admins should first
-                                                register on this site as a coach/staff adult, then be accepted here.
-                                            </small>
+                                            <div class="alert alert-warning d-flex align-items-start gap-2 mt-2 mb-0 py-2 px-3 small" role="status">
+                                                <i class="bi bi-info-circle flex-shrink-0"></i>
+                                                <span>No account matching "{{ searchInput().trim() }}" is registered
+                                                here. New admins should first register on this site as a coach/staff
+                                                adult, then be accepted here.</span>
+                                            </div>
                                         }
                                     }
                                 }
