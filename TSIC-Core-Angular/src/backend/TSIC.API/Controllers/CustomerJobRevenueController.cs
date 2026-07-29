@@ -48,6 +48,117 @@ public class CustomerJobRevenueController : ControllerBase
     }
 
     /// <summary>
+    /// Available job names for the caller's customer group — cheap scope-picker query.
+    /// The guided flow calls this on page load instead of running the full report.
+    /// </summary>
+    [HttpGet("jobs")]
+    public async Task<ActionResult<List<string>>> GetAvailableJobs(CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+        {
+            return BadRequest(new { message = "Registration context required" });
+        }
+
+        var jobs = await _revenueService.GetAvailableJobNamesAsync(jobId.Value, ct);
+        return Ok(jobs);
+    }
+
+    /// <summary>
+    /// Scoped revenue rollup (pivot records + monthly counts + admin fees).
+    /// Scope guardrail: either explicit jobNames (complete history of exactly those jobs,
+    /// dates ignored) or a mandatory valid date range across all jobs — never neither.
+    /// </summary>
+    [HttpGet("rollup")]
+    public async Task<ActionResult<RevenueRollupResponseDto>> GetRollup(
+        [FromQuery] DateTime? startDate,
+        [FromQuery] DateTime? endDate,
+        [FromQuery] List<string> jobNames,
+        CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+        {
+            return BadRequest(new { message = "Registration context required" });
+        }
+
+        var scopeError = ValidateScope(startDate, endDate, jobNames);
+        if (scopeError != null)
+        {
+            return BadRequest(new { message = scopeError });
+        }
+
+        var hasJobScope = jobNames is { Count: > 0 };
+        var data = await _revenueService.GetRollupAsync(
+            jobId.Value,
+            hasJobScope ? null : startDate,
+            hasJobScope ? null : endDate,
+            jobNames ?? [], ct);
+
+        return Ok(data);
+    }
+
+    /// <summary>
+    /// Lazy per-tab payment detail records. method: cc | check | echeck.
+    /// Same scope guardrail as the rollup.
+    /// </summary>
+    [HttpGet("details/{method}")]
+    public async Task<ActionResult<List<JobPaymentRecordDto>>> GetPaymentDetails(
+        string method,
+        [FromQuery] DateTime? startDate,
+        [FromQuery] DateTime? endDate,
+        [FromQuery] List<string> jobNames,
+        CancellationToken ct)
+    {
+        if (method is not ("cc" or "check" or "echeck"))
+        {
+            return BadRequest(new { message = "method must be cc, check, or echeck" });
+        }
+
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+        {
+            return BadRequest(new { message = "Registration context required" });
+        }
+
+        var scopeError = ValidateScope(startDate, endDate, jobNames);
+        if (scopeError != null)
+        {
+            return BadRequest(new { message = scopeError });
+        }
+
+        var hasJobScope = jobNames is { Count: > 0 };
+        var records = await _revenueService.GetPaymentDetailsAsync(
+            jobId.Value, method,
+            hasJobScope ? null : startDate,
+            hasJobScope ? null : endDate,
+            jobNames ?? [], ct);
+
+        return Ok(records);
+    }
+
+    /// <summary>
+    /// The scope guardrail born of two real overpayment incidents: an unscoped request
+    /// (no jobs, no dates) silently aggregated x-job revenue. Reject it server-side.
+    /// </summary>
+    private static string? ValidateScope(DateTime? startDate, DateTime? endDate, List<string>? jobNames)
+    {
+        if (jobNames is { Count: > 0 })
+        {
+            return null; // explicit job scope — complete history, dates ignored
+        }
+        if (startDate == null || endDate == null)
+        {
+            return "Scope required: select specific jobs, or provide a full date range for all jobs.";
+        }
+        if (startDate > endDate)
+        {
+            return "startDate must be on or before endDate.";
+        }
+        return null;
+    }
+
+    /// <summary>
     /// Inline-edit a single MonthlyJobStats row (Player/Team Counts grid).
     /// </summary>
     [HttpPut("monthly-counts/{aid:int}")]

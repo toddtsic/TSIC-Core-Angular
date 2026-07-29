@@ -41,6 +41,35 @@ public class CustomerJobRevenueService : ICustomerJobRevenueService
         return await _repo.GetRevenueDataAsync(jobId, startDate, endDate, listJobsString, isTsicAdn, ct);
     }
 
+    public async Task<List<string>> GetAvailableJobNamesAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await _repo.GetAvailableJobNamesAsync(jobId, ct);
+    }
+
+    public async Task<RevenueRollupResponseDto> GetRollupAsync(
+        Guid jobId, DateTime? startDate, DateTime? endDate,
+        List<string> jobNames, CancellationToken ct = default)
+    {
+        var isTsicAdn = await IsTsicAdnAsync(jobId, ct);
+        return await _repo.GetRollupAsync(jobId, isTsicAdn, startDate, endDate, jobNames, ct);
+    }
+
+    public async Task<List<JobPaymentRecordDto>> GetPaymentDetailsAsync(
+        Guid jobId, string method, DateTime? startDate, DateTime? endDate,
+        List<string> jobNames, CancellationToken ct = default)
+    {
+        var isTsicAdn = await IsTsicAdnAsync(jobId, ct);
+        return await _repo.GetPaymentDetailsAsync(jobId, isTsicAdn, method, startDate, endDate, jobNames, ct);
+    }
+
+    // Same per-customer DATA classification as GetRevenueDataAsync — never route through
+    // the env-gated ADN credential resolver (see comment there).
+    private async Task<bool> IsTsicAdnAsync(Guid jobId, CancellationToken ct)
+    {
+        var credentials = await _customerRepo.GetAdnCredentialsByJobIdAsync(jobId, ct);
+        return credentials?.AdnLoginId != null && TsicAdnLoginIds.Contains(credentials.AdnLoginId);
+    }
+
     public async Task UpdateMonthlyCountAsync(
         int aid, UpdateMonthlyCountRequest request, string userId,
         CancellationToken ct = default)

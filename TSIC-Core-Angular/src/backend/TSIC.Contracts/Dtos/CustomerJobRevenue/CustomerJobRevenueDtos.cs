@@ -55,6 +55,18 @@ public record JobPaymentRecordDto
     public required decimal PaymentAmount { get; init; }
 }
 
+/// <summary>
+/// Rollup-tab payload for the scoped endpoints: revenue pivot records plus the two
+/// small period-scoped grids (monthly counts, admin fees). Per-registrant detail
+/// records are fetched lazily per tab via the details endpoint.
+/// </summary>
+public record RevenueRollupResponseDto
+{
+    public required List<JobRevenueRecordDto> RevenueRecords { get; init; }
+    public required List<JobMonthlyCountDto> MonthlyCounts { get; init; }
+    public required List<JobAdminFeeDto> AdminFees { get; init; }
+}
+
 public record UpdateMonthlyCountRequest
 {
     public required int Aid { get; init; }
