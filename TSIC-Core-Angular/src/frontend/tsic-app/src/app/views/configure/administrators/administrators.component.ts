@@ -1,4 +1,4 @@
-import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, viewChild, ChangeDetectionStrategy } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { distinctUntilChanged, filter, map } from 'rxjs';
 import { NgClass } from '@angular/common';
@@ -31,6 +31,9 @@ export class AdministratorManagementComponent {
     // Modal state
     readonly showAddModal = signal(false);
     readonly showEditModal = signal(false);
+    // Whichever form modal is open (add or edit — only one renders at a time); used to
+    // surface save failures inline in the dialog instead of toasting over it.
+    private readonly formModal = viewChild(AdminFormModalComponent);
     readonly editTarget = signal<AdministratorDto | null>(null);
     readonly showDeleteConfirm = signal(false);
     readonly deleteTarget = signal<AdministratorDto | null>(null);
@@ -142,7 +145,7 @@ export class AdministratorManagementComponent {
                     this.loadAdministrators();
                 },
                 error: err => {
-                    this.toast.show(err?.error?.message || 'Failed to add administrator.', 'danger', 4000);
+                    this.formModal()?.saveFailed(err?.error?.message || 'Failed to add administrator.');
                 }
             });
         } else if (result.mode === 'edit' && result.updateRequest && result.registrationId) {
@@ -154,7 +157,7 @@ export class AdministratorManagementComponent {
                     this.loadAdministrators();
                 },
                 error: err => {
-                    this.toast.show(err?.error?.message || 'Failed to update administrator.', 'danger', 4000);
+                    this.formModal()?.saveFailed(err?.error?.message || 'Failed to update administrator.');
                 }
             });
         }

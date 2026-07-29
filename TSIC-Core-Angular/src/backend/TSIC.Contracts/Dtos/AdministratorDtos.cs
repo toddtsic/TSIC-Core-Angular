@@ -37,14 +37,15 @@ public record UpdateAdministratorRequest
 /// Typeahead search response. When <see cref="Results"/> is empty, <see cref="EmptyReason"/>
 /// tells the UI which funnel message to show (AM-004): "notFound" — no account with a footprint
 /// on this customer matches; "familyOrPlayer" — a match exists but is a family/player credential
-/// (structurally barred from admin roles); "outsideLane" — a match exists but its registration
-/// history lies outside the granted role's lane.
+/// (structurally barred from admin roles); "alreadyAdmin" — a match already holds a lane-role
+/// registration on this job (manage them in the grid); "outsideLane" — a match exists but its
+/// registration history lies outside the granted role's lane.
 /// </summary>
 public record UserSearchResponseDto
 {
     public required List<UserSearchResultDto> Results { get; init; }
 
-    /// <summary>"notFound" | "familyOrPlayer" | "outsideLane"; null when Results is non-empty.</summary>
+    /// <summary>"notFound" | "familyOrPlayer" | "alreadyAdmin" | "outsideLane"; null when Results is non-empty.</summary>
     public string? EmptyReason { get; init; }
 }
 

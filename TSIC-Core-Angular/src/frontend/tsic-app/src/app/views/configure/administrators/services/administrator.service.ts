@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
+import { skipErrorToast } from '@infrastructure/interceptors/http-error-context';
 import type {
     AdministratorDto,
     AddAdministratorRequest,
@@ -18,12 +19,14 @@ export class AdministratorService {
         return this.http.get<AdministratorDto[]>(this.apiUrl);
     }
 
+    // skipErrorToast: the form modal shows save failures inline (saveFailed) — without the
+    // skip, the global interceptor toasts the same error a second time over the open dialog.
     addAdministrator(request: AddAdministratorRequest): Observable<AdministratorDto> {
-        return this.http.post<AdministratorDto>(this.apiUrl, request);
+        return this.http.post<AdministratorDto>(this.apiUrl, request, { context: skipErrorToast() });
     }
 
     updateAdministrator(registrationId: string, request: UpdateAdministratorRequest): Observable<AdministratorDto> {
-        return this.http.put<AdministratorDto>(`${this.apiUrl}/${registrationId}`, request);
+        return this.http.put<AdministratorDto>(`${this.apiUrl}/${registrationId}`, request, { context: skipErrorToast() });
     }
 
     deleteAdministrator(registrationId: string): Observable<void> {

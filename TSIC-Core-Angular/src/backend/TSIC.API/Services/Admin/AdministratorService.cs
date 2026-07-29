@@ -121,7 +121,11 @@ public sealed class AdministratorService : IAdministratorService
                 "with their own account, then accept them here.");
 
         var now = DateTime.Now;
-        var registrations = (await _adminRepo.GetRegistrationsByUserIdAsync(user.Id, cancellationToken))
+        // Liveness filter applies to CLASSIFICATION only. The duplicate-on-job guard below must
+        // see ALL registrations — a deactivated admin on this job is managed via the grid's
+        // Active toggle, never by stacking a second registration.
+        var allRegistrations = await _adminRepo.GetRegistrationsByUserIdAsync(user.Id, cancellationToken);
+        var registrations = allRegistrations
             .Where(r => r.BActive == true
                 && (RoleConstants.AdminRoleIds.Contains(r.RoleId, StringComparer.OrdinalIgnoreCase)
                     ? r.Job.ExpiryAdmin > now
@@ -199,7 +203,9 @@ public sealed class AdministratorService : IAdministratorService
         }
 
         // Lane-pure account: pin with a new registration on this job.
-        if (registrations.Any(r => r.JobId == jobId))
+        // Guard on ALL registrations (not the live subset) — an inactive admin reg on this job
+        // still blocks; reactivate via the grid instead of creating a duplicate row.
+        if (allRegistrations.Any(r => r.JobId == jobId))
             throw new ArgumentException($"'{request.UserName}' already has a registration on this job.");
 
         var registration = new Registrations
@@ -366,15 +372,16 @@ public sealed class AdministratorService : IAdministratorService
         if (customerId == null)
             return new UserSearchResponseDto { Results = [] };
 
+        var lane = GetRoleLane(roleId);
         var results = await _userRepo.SearchAdminCandidatesAsync(
-            query, customerId.Value, GetRoleLane(roleId), 10, cancellationToken);
+            query, customerId.Value, jobId, lane, 10, cancellationToken);
 
         if (results.Count == 0)
         {
             // Empty is ambiguous to the user (not registered? wrong kind of account? broken?) —
             // diagnose so the modal can show the matching funnel message.
             var reason = await _userRepo.DiagnoseAdminCandidateMissAsync(
-                query, customerId.Value, cancellationToken);
+                query, customerId.Value, jobId, lane, cancellationToken);
 
             return new UserSearchResponseDto
             {
@@ -382,6 +389,7 @@ public sealed class AdministratorService : IAdministratorService
                 EmptyReason = reason switch
                 {
                     AdminCandidateMissReason.FamilyOrPlayer => "familyOrPlayer",
+                    AdminCandidateMissReason.AlreadyAdmin => "alreadyAdmin",
                     AdminCandidateMissReason.OutsideLane => "outsideLane",
                     _ => "notFound"
                 }

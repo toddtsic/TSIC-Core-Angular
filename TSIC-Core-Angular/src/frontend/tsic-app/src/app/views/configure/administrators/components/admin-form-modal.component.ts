@@ -125,6 +125,14 @@ export interface AdminFormResult {
                                                 coach/staff registration on this site — then accept them here.</span>
                                             </div>
                                         }
+                                        @case ('alreadyAdmin') {
+                                            <div class="alert alert-warning d-flex align-items-start gap-2 mt-2 mb-0 py-2 px-3 small" role="status">
+                                                <i class="bi bi-person-check flex-shrink-0"></i>
+                                                <span>"{{ searchInput().trim() }}" is already an administrator on
+                                                this job — manage them in the grid (use the Active toggle to
+                                                reactivate a deactivated admin).</span>
+                                            </div>
+                                        }
                                         @case ('outsideLane') {
                                             <div class="alert alert-warning d-flex align-items-start gap-2 mt-2 mb-0 py-2 px-3 small" role="status">
                                                 <i class="bi bi-person-x flex-shrink-0"></i>
@@ -336,5 +344,12 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
         }
 
         this.saved.emit(result);
+    }
+
+    /** Called by the host page when the save request fails: stop the spinner and show the
+     *  error inline (the dialog stays open, so the message belongs inside it, not in a toast). */
+    saveFailed(message: string) {
+        this.saving.set(false);
+        this.errorMessage.set(message);
     }
 }

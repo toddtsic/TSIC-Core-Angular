@@ -66,10 +66,15 @@ public interface IUserRepository
     /// or (b) every live registration is Unassigned Adult with at least one on the given customer
     /// (pending adult awaiting elevation).
     /// Family/player logins are shared within a household and are structurally excluded.
+    /// Lane-pure accounts already holding ANY registration on <paramref name="jobId"/> (active or
+    /// not — mirrors the add-side duplicate guard) are excluded: they're already administrators
+    /// here, managed in the grid. Pending adults keep their this-job registration offered — it is
+    /// what the convert path consumes.
     /// </summary>
     Task<List<UserSearchResult>> SearchAdminCandidatesAsync(
         string query,
         Guid customerId,
+        Guid jobId,
         IReadOnlyCollection<string> laneRoleIds,
         int maxResults = 10,
         CancellationToken cancellationToken = default);
@@ -83,6 +88,8 @@ public interface IUserRepository
     Task<AdminCandidateMissReason> DiagnoseAdminCandidateMissAsync(
         string query,
         Guid customerId,
+        Guid jobId,
+        IReadOnlyCollection<string> laneRoleIds,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -129,6 +136,9 @@ public enum AdminCandidateMissReason
 
     /// <summary>A match exists but is a family/player credential — structurally barred from admin roles.</summary>
     FamilyOrPlayer,
+
+    /// <summary>A match already holds a lane-role registration on this job — manage them in the grid.</summary>
+    AlreadyAdmin,
 
     /// <summary>A match exists but its registration history lies outside the granted role's lane.</summary>
     OutsideLane

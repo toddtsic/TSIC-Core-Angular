@@ -167,6 +167,7 @@ public class UserRepository : IUserRepository
     public async Task<List<UserSearchResult>> SearchAdminCandidatesAsync(
         string query,
         Guid customerId,
+        Guid jobId,
         IReadOnlyCollection<string> laneRoleIds,
         int maxResults = 10,
         CancellationToken cancellationToken = default)
@@ -225,9 +226,15 @@ public class UserRepository : IUserRepository
                         && r.BActive == true
                         && r.RoleId == RoleConstants.UnassignedAdult
                         && r.Job.ExpiryUsers > now
-                        && r.Job.CustomerId == customerId)
+                        && r.Job.CustomerId == customerId),
+                // ANY registration on this job, active or not — mirrors the add-side duplicate
+                // guard, so search never offers someone the add would then reject.
+                HasRegOnThisJob = _context.Registrations.Any(r => r.UserId == u.Id && r.JobId == jobId)
             })
-            .Where(x => x.IsLanePure || x.IsPendingAdultOnly)
+            // Lane-pure + already registered here = already an administrator on this job
+            // (possibly deactivated) — manage them in the grid, don't offer them. Pending
+            // adults keep their this-job registration offered: it's what convert consumes.
+            .Where(x => (x.IsLanePure && !x.HasRegOnThisJob) || x.IsPendingAdultOnly)
             .OrderBy(x => x.User.LastName)
             .ThenBy(x => x.User.FirstName)
             .Take(maxResults)
@@ -245,6 +252,8 @@ public class UserRepository : IUserRepository
     public async Task<AdminCandidateMissReason> DiagnoseAdminCandidateMissAsync(
         string query,
         Guid customerId,
+        Guid jobId,
+        IReadOnlyCollection<string> laneRoleIds,
         CancellationToken cancellationToken = default)
     {
         var now = DateTime.Now;
@@ -278,7 +287,12 @@ public class UserRepository : IUserRepository
                     && r.BActive == true
                     && (RoleConstants.AdminRoleIds.Contains(r.RoleId!)
                         ? r.Job.ExpiryAdmin > now
-                        : r.Job.ExpiryUsers > now))
+                        : r.Job.ExpiryUsers > now)),
+                // Lane-role registration on THIS job (active or not) — the search excluded them
+                // as "already an administrator here", so say that, not "outside lane".
+                IsLaneAdminOnThisJob = _context.Registrations.Any(r => r.UserId == u.Id
+                    && r.JobId == jobId
+                    && laneRoleIds.Contains(r.RoleId!))
             })
             .Take(25)
             .ToListAsync(cancellationToken);
@@ -287,6 +301,7 @@ public class UserRepository : IUserRepository
         // the family/player explanation (the common household-login case) over the generic one.
         var best = matches.FirstOrDefault(m => m.IsExactUserName)
             ?? matches.FirstOrDefault(m => m.IsFamilyOrPlayer)
+            ?? matches.FirstOrDefault(m => m.IsLaneAdminOnThisJob)
             ?? matches.FirstOrDefault(m => m.HasLiveRegs);
 
         if (best == null)
@@ -294,6 +309,9 @@ public class UserRepository : IUserRepository
 
         if (best.IsFamilyOrPlayer)
             return AdminCandidateMissReason.FamilyOrPlayer;
+
+        if (best.IsLaneAdminOnThisJob)
+            return AdminCandidateMissReason.AlreadyAdmin;
 
         // Only dead registrations (inactive / job expired) → same funnel as "not registered here".
         return best.HasLiveRegs
