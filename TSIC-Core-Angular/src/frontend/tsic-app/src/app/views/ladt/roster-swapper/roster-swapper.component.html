@@ -150,6 +150,7 @@
                 <tbody>
                   @for (player of sortedFilteredSourceRoster(); track player.registrationId; let i = $index) {
                     <tr [class.table-active]="sourceSelected().has(player.registrationId)"
+                        [class.just-moved]="justMovedIds().has(player.registrationId)"
                         [class.text-body-tertiary]="!player.bActive">
                       <td class="col-check frozen frozen-0">
                         <input type="checkbox" class="form-check-input"
@@ -345,6 +346,7 @@
                 <tbody>
                   @for (player of sortedFilteredTargetRoster(); track player.registrationId; let i = $index) {
                     <tr [class.table-active]="targetSelected().has(player.registrationId)"
+                        [class.just-moved]="justMovedIds().has(player.registrationId)"
                         [class.text-body-tertiary]="!player.bActive">
                       <td class="col-check frozen frozen-0">
                         <input type="checkbox" class="form-check-input"

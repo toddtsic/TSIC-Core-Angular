@@ -68,6 +68,10 @@ export class RosterSwapperComponent {
 
     // Transfer state
     readonly swappingId = signal<string | null>(null); // registrationId currently being swapped
+    // Players moved by the LAST swap (single or batch). The move is instant with no
+    // confirmation, so the highlight is the director's only post-move trace — it
+    // persists until the next swap or a pool change (deliberately no timed fade).
+    readonly justMovedIds = signal<ReadonlySet<string>>(new Set());
     readonly isBatchSwapping = signal(false);
 
     // General
@@ -149,6 +153,7 @@ export class RosterSwapperComponent {
 
     onSourcePoolChange(poolId: string) {
         this.sourcePoolId.set(poolId);
+        this.justMovedIds.set(new Set());
         this.sourceSelected.set(new Set());
         this.sourceFilter.set('');
         this.sourceSortCol.set(null);
@@ -162,6 +167,7 @@ export class RosterSwapperComponent {
 
     onTargetPoolChange(poolId: string) {
         this.targetPoolId.set(poolId);
+        this.justMovedIds.set(new Set());
         this.targetSelected.set(new Set());
         this.targetFilter.set('');
         this.targetSortCol.set(null);
@@ -313,6 +319,7 @@ export class RosterSwapperComponent {
         }).subscribe({
             next: result => {
                 this.toast.show(playerName ? `${playerName} swapped. ${result.message}` : result.message, 'success', 3000);
+                this.justMovedIds.set(new Set(regIds));
                 this.swappingId.set(null);
                 this.isBatchSwapping.set(false);
                 this.sourceSelected.set(new Set());
