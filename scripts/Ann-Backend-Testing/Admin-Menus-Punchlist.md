@@ -600,8 +600,14 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   - **Team level is the worst**: ~20 columns (Club 160, Team 160, Active, Players, Max Roster, Fees 220, EBD 160, Late Fee 150, Payment Phase 180, then the **Dates** group Start/End/Effective/Expires at [:70-73], then Rank, Div Requested, Last Record, LOP, Self Roster, Gender, Requests 180, Comments 180…). Because **Dates come after all the wide fee columns**, you must scroll right past them to see Start/End/Effective/Expires.
 - **Cut-off headers at Team level (Ann, 2026-07-27)**: headers like **ACTIVE, PLAYERS, MAX ROSTER** look **sloppy / cut off** — these columns are narrow (`Active` 70px [:62], `Players` 75px [:63], `Max Roster` 75px [:64]) so the header text doesn't fit cleanly. Fix so headers render tidily — give these columns enough width for their header (or wrap the header at word boundaries / shorten the labels), balanced against the overall tightening. "Max Roster" at 75px is the worst offender.
 - **For Todd**: tighten `ladt-grid-columns.ts` — (1) **narrow `_earlyBird` / `_lateFee`** across all levels; (2) **trim/consolidate the Team-level column set** (drop or hide rarely-used columns, and/or move the **Dates** group earlier) so Start/End/Effective/Expires are visible **without horizontal scroll**; (3) size each level's columns to content so most grids fit the panel with no horizontal scroll (Team may still need some, but far less); (4) ensure narrow headers (Active/Players/Max Roster) aren't clipped — width-to-header or clean wrap. Keep the frozen first column(s) so identity stays visible while scrolling any remainder.
+- **RESOLUTION (Todd go, 2026-07-29)** — all in `ladt-grid-columns.ts`, widths/order metadata only (no bindings/save paths touched):
+  1. **Fee modifiers narrowed at every level**: header "Early Bird Discount" → "Early Bird", 160 → **120px**; Late Fee 150 → **120px** (League, Age Group, Team).
+  2. **Team level: Dates group moved up** — now Club · Team (frozen) · Active · Players · Max Roster · **Start/End/Effective/Expires** · Fees · Early Bird · Late Fee · Phase · rest. Dates visible without scrolling.
+  3. **Clipped headers fixed**: Max Roster 75 → **95px**, Players 75 → **80px** (Active fits at 70).
+  4. **Team tail trimmed**: Requests/Comments 180 → **140px** each.
+  - **Column REMOVALS deliberately not done** (Rank/Div Requested/Last Record etc. stay) — reorder solves the buried-dates complaint without deleting data columns pre-go-live.
 - **Severity**: UX (grid density — horizontal scrolling / buried dates across LADT levels)
-- **Status**: Open (Ann, 2026-07-27)
+- **Status**: FIXED — coded 2026-07-29, awaiting Todd verify (Team grid: dates in first screenful; EBD/Late Fee values not clipped at 120px) + Ann next pass
 
 ---
 

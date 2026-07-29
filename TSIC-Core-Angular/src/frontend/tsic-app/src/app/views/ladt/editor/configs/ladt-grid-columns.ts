@@ -21,8 +21,8 @@ export const LEAGUE_COLUMNS: LadtColumnDef[] = [
   { field: 'leagueName', header: 'League', type: 'string', frozen: true, width: '180px' },
   { field: 'sportName', header: 'Sport', type: 'string', width: '140px' },
   { field: '_fees', header: 'Fees', type: 'fees', width: '220px' },
-  { field: '_earlyBird', header: 'Early Bird Discount', type: 'modifier', width: '160px' },
-  { field: '_lateFee', header: 'Late Fee', type: 'modifier', width: '150px' },
+  { field: '_earlyBird', header: 'Early Bird', type: 'modifier', width: '120px' },
+  { field: '_lateFee', header: 'Late Fee', type: 'modifier', width: '120px' },
   { field: '_phase', header: 'Payment Phase', type: 'phase', width: '180px' },
   { field: 'rescheduleEmailsToAddon', header: 'Reschedule Emails', type: 'string', width: '180px' },
   { field: 'bHideContacts', header: 'Hide Contacts', type: 'boolean', width: '70px' },
@@ -35,8 +35,8 @@ export const AGEGROUP_COLUMNS: LadtColumnDef[] = [
   { field: 'agegroupName', header: 'Age Group', type: 'string', frozen: true, width: '180px', colorField: 'color' },
   { field: 'gender', header: 'Gender', type: 'string', width: '60px' },
   { field: '_fees', header: 'Fees', type: 'fees', width: '220px' },
-  { field: '_earlyBird', header: 'Early Bird Discount', type: 'modifier', width: '160px' },
-  { field: '_lateFee', header: 'Late Fee', type: 'modifier', width: '150px' },
+  { field: '_earlyBird', header: 'Early Bird', type: 'modifier', width: '120px' },
+  { field: '_lateFee', header: 'Late Fee', type: 'modifier', width: '120px' },
   { field: '_phase', header: 'Payment Phase', type: 'phase', width: '180px' },
   // Limits
   { field: 'maxTeams', header: 'Max Teams', type: 'number', group: 'Limits', width: '75px' },
@@ -60,17 +60,18 @@ export const TEAM_COLUMNS: LadtColumnDef[] = [
   { field: 'clubName', header: 'Club', type: 'string', frozen: true, width: '160px' },
   { field: 'teamName', header: 'Team', type: 'string', frozen: true, width: '160px' },
   { field: 'active', header: 'Active', type: 'boolean', width: '70px' },
-  { field: 'playerCount', header: 'Players', type: 'number', width: '75px' },
-  { field: 'maxCount', header: 'Max Roster', type: 'number', width: '75px' },
-  { field: '_fees', header: 'Fees', type: 'fees', width: '220px' },
-  { field: '_earlyBird', header: 'Early Bird Discount', type: 'modifier', width: '160px' },
-  { field: '_lateFee', header: 'Late Fee', type: 'modifier', width: '150px' },
-  { field: '_phase', header: 'Payment Phase', type: 'phase', width: '180px' },
-  // Dates
+  { field: 'playerCount', header: 'Players', type: 'number', width: '80px' },
+  { field: 'maxCount', header: 'Max Roster', type: 'number', width: '95px' },
+  // Dates come BEFORE the fee columns (AM-038): with them trailing ~710px of
+  // Fees/EBD/LateFee/Phase, Start/End/Effective/Expires were always off-screen.
   { field: 'startdate', header: 'Start', type: 'date', group: 'Dates', width: '100px' },
   { field: 'enddate', header: 'End', type: 'date', group: 'Dates', width: '100px' },
   { field: 'effectiveasofdate', header: 'Effective', type: 'date', group: 'Dates', width: '100px' },
   { field: 'expireondate', header: 'Expires', type: 'date', group: 'Dates', width: '100px' },
+  { field: '_fees', header: 'Fees', type: 'fees', width: '220px' },
+  { field: '_earlyBird', header: 'Early Bird', type: 'modifier', width: '120px' },
+  { field: '_lateFee', header: 'Late Fee', type: 'modifier', width: '120px' },
+  { field: '_phase', header: 'Payment Phase', type: 'phase', width: '180px' },
   { field: 'divRank', header: 'Rank', type: 'number', width: '75px' },
   { field: 'divisionRequested', header: 'Div Requested', type: 'string', width: '140px' },
   { field: 'lastLeagueRecord', header: 'Last Record', type: 'string', width: '90px' },
@@ -82,8 +83,8 @@ export const TEAM_COLUMNS: LadtColumnDef[] = [
   // Eligibility
   { field: 'gender', header: 'Gender', type: 'string', group: 'Eligibility', width: '60px' },
   // Advanced
-  { field: 'requests', header: 'Requests', type: 'string', group: 'Advanced', width: '180px' },
-  { field: 'teamComments', header: 'Comments', type: 'string', group: 'Advanced', width: '180px' },
+  { field: 'requests', header: 'Requests', type: 'string', group: 'Advanced', width: '140px' },
+  { field: 'teamComments', header: 'Comments', type: 'string', group: 'Advanced', width: '140px' },
 ];
 
 /** Maps hierarchy level (0-3) to its column definitions */
