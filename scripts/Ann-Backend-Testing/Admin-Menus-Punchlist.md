@@ -557,7 +557,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **⚠️ Tension to reconcile — Todd implemented the opposite**: Todd's recent commits resolved AM-013 as **"roster-visibility toggles get descriptive labels + help, STAY on Teams"** (plus copy cleanups: dropped club reps from the adult roster-view description, removed a wrong tournament clause, trimmed help lines since labels suffice). So today they're **kept on the Teams tab** with clearer labels — **not** split. Ann is re-requesting the split.
 - **For Todd + Ann to decide**: keep-on-Teams-with-labels (Todd's shipped call) vs. split-to-Player/Coaches (Ann's preference). If splitting: move `bAllowRosterViewPlayer` → Player tab and `bAllowRosterViewAdult` → Coaches tab (DB columns unchanged, only DTO/service mapping shifts — see AM-013 for the exact plumbing). This is a placement disagreement, not a behavior bug — needs a joint call.
 - **Severity**: UX (field placement — Director expectation) — decision pending
-- **Status**: Open — reconcile with Todd's shipped AM-013 "stay on Teams" decision (Ann, 2026-07-27)
+- **Status**: WON'T FIX (Todd, 2026-07-29) — **AM-013 ruling reaffirmed: Roster Visibility stays on the Teams tab** (rosters are a team property; the descriptive labels shipped under AM-013 are the discoverability fix). Ann's split request declined a second time — do not re-raise.
 
 ### AM-036: [Job Settings → Teams] Club Rep Permissions — confirm they migrate from Legacy at go-live (keep Shoulberg tournaments as requested)
 - **Topic**: Configure → Job Settings → **Teams** tab → **Club Rep Permissions** (Allow Add / Edit / Delete)
