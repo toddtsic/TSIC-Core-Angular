@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, inject, signal, OnInit, OnDestroy, 
 import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { AdministratorService } from '../services/administrator.service';
-import { Subject, debounceTime, distinctUntilChanged, switchMap, of, takeUntil } from 'rxjs';
-import type { AdministratorDto, AddAdministratorRequest, UpdateAdministratorRequest, UserSearchResultDto } from '@core/api';
+import { Subject, catchError, debounceTime, distinctUntilChanged, switchMap, of, takeUntil } from 'rxjs';
+import type { AdministratorDto, AddAdministratorRequest, UpdateAdministratorRequest, UserSearchResponseDto, UserSearchResultDto } from '@core/api';
 
 export type ModalMode = 'add' | 'edit';
 
@@ -94,11 +94,35 @@ export interface AdminFormResult {
                                         </small>
                                     }
                                 }
-                                @if (searchInput().length >= 2 && searchResults().length === 0 && !selectedUser() && !searching()) {
-                                    <small class="text-body-secondary d-block">
-                                        No eligible users found. New admins should first register on this site as a
-                                        coach/staff adult, then be accepted here.
+                                @if (searchFailed()) {
+                                    <small class="text-danger d-block">
+                                        <i class="bi bi-exclamation-triangle me-1"></i>Search failed — check your
+                                        connection and try again.
                                     </small>
+                                } @else if (searchInput().length >= 2 && searchResults().length === 0 && !selectedUser() && !searching()) {
+                                    <!-- AM-004 funnel feedback: say WHICH dead end this is, not generic silence. -->
+                                    @switch (emptyReason()) {
+                                        @case ('familyOrPlayer') {
+                                            <small class="text-warning-emphasis d-block">
+                                                That matches a family/player account, which can never hold admin
+                                                roles. The person needs their own coach/staff registration on this
+                                                site — then accept them here.
+                                            </small>
+                                        }
+                                        @case ('outsideLane') {
+                                            <small class="text-warning-emphasis d-block">
+                                                That matches an account whose existing roles aren't eligible for
+                                                {{ selectedRole() }}. New admins should first register on this site
+                                                as a coach/staff adult, then be accepted here.
+                                            </small>
+                                        }
+                                        @default {
+                                            <small class="text-body-secondary d-block">
+                                                No account by that name is registered here. New admins should first
+                                                register on this site as a coach/staff adult, then be accepted here.
+                                            </small>
+                                        }
+                                    }
                                 }
                             </div>
                         } @else {
@@ -176,6 +200,10 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
     readonly errorMessage = signal<string | null>(null);
     readonly saving = signal(false);
     readonly searching = signal(false);
+    /** Why the last search came back empty: 'notFound' | 'familyOrPlayer' | 'outsideLane' | null. */
+    readonly emptyReason = signal<string | null>(null);
+    /** Last search request errored (distinct from "no matches"). */
+    readonly searchFailed = signal(false);
     readonly editAdmin = signal<AdministratorDto | null>(null);
 
     readonly isValid = signal(false);
@@ -195,20 +223,28 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
             switchMap(({ q, role }) => {
                 if (q.length < 2 || !role) {
                     this.searching.set(false);
-                    return of([]);
+                    return of<UserSearchResponseDto | null>({ results: [] });
                 }
                 this.searching.set(true);
-                return this.adminService.searchUsers(q, role);
+                // catchError on the INNER request: an outer error would terminate the whole
+                // pipeline and silently kill the typeahead for the life of the dialog.
+                // null = request failed (distinct from "no matches").
+                return this.adminService.searchUsers(q, role).pipe(
+                    catchError(() => of<UserSearchResponseDto | null>(null))
+                );
             }),
             takeUntil(this.destroy$)
-        ).subscribe({
-            next: results => {
-                this.searchResults.set(results);
-                this.searching.set(false);
-            },
-            error: () => {
-                this.searching.set(false);
+        ).subscribe(response => {
+            this.searching.set(false);
+            if (response === null) {
+                this.searchFailed.set(true);
+                this.searchResults.set([]);
+                this.emptyReason.set(null);
+                return;
             }
+            this.searchFailed.set(false);
+            this.searchResults.set(response.results);
+            this.emptyReason.set(response.emptyReason ?? null);
         });
     }
 
@@ -231,6 +267,7 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
         if (this.mode() === 'add') {
             this.selectedUser.set(null);
             this.searchResults.set([]);
+            this.emptyReason.set(null);
             this.searchSubject.next({ q: this.searchInput(), role });
         }
         this.updateValidity();
@@ -240,6 +277,7 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
         this.selectedUser.set(user);
         this.searchInput.set(user.userName);
         this.searchResults.set([]);
+        this.emptyReason.set(null);
         this.updateValidity();
     }
 
@@ -247,6 +285,7 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
         this.selectedUser.set(null);
         this.searchInput.set('');
         this.searchResults.set([]);
+        this.emptyReason.set(null);
         this.updateValidity();
     }
 

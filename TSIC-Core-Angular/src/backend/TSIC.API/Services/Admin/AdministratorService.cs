@@ -339,32 +339,54 @@ public sealed class AdministratorService : IAdministratorService
         return await _adminRepo.GetByJobIdAsync(jobId, cancellationToken);
     }
 
-    public async Task<List<UserSearchResultDto>> SearchUsersAsync(
+    public async Task<UserSearchResponseDto> SearchUsersAsync(
         string query,
         Guid jobId,
         string roleName,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
-            return [];
+            return new UserSearchResponseDto { Results = [] };
 
         if (!RoleNameToIdMap.TryGetValue(roleName, out var roleId))
             throw new ArgumentException($"Invalid role name: '{roleName}'.");
 
         var customerId = await _jobRepo.GetCustomerIdAsync(jobId, cancellationToken);
         if (customerId == null)
-            return [];
+            return new UserSearchResponseDto { Results = [] };
 
         var results = await _userRepo.SearchAdminCandidatesAsync(
             query, customerId.Value, GetRoleLane(roleId), 10, cancellationToken);
 
-        return results.Select(r => new UserSearchResultDto
+        if (results.Count == 0)
         {
-            UserId = r.UserId,
-            UserName = r.UserName,
-            DisplayName = $"{r.LastName}, {r.FirstName}".Trim(' ', ','),
-            AccountType = r.AccountType
-        }).ToList();
+            // Empty is ambiguous to the user (not registered? wrong kind of account? broken?) —
+            // diagnose so the modal can show the matching funnel message.
+            var reason = await _userRepo.DiagnoseAdminCandidateMissAsync(
+                query, customerId.Value, cancellationToken);
+
+            return new UserSearchResponseDto
+            {
+                Results = [],
+                EmptyReason = reason switch
+                {
+                    AdminCandidateMissReason.FamilyOrPlayer => "familyOrPlayer",
+                    AdminCandidateMissReason.OutsideLane => "outsideLane",
+                    _ => "notFound"
+                }
+            };
+        }
+
+        return new UserSearchResponseDto
+        {
+            Results = results.Select(r => new UserSearchResultDto
+            {
+                UserId = r.UserId,
+                UserName = r.UserName,
+                DisplayName = $"{r.LastName}, {r.FirstName}".Trim(' ', ','),
+                AccountType = r.AccountType
+            }).ToList()
+        };
     }
 
 }

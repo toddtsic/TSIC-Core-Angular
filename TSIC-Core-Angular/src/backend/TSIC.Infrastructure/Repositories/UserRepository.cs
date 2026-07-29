@@ -221,6 +221,51 @@ public class UserRepository : IUserRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<AdminCandidateMissReason> DiagnoseAdminCandidateMissAsync(
+        string query,
+        Guid customerId,
+        CancellationToken cancellationToken = default)
+    {
+        var lowerQuery = query.ToLower();
+
+        // Same name predicate as SearchAdminCandidatesAsync, but no eligibility filter — we're
+        // asking WHY the eligible set is empty. Enumeration guard: a director typing names must
+        // not learn whether an account exists platform-wide, so only accounts with a registration
+        // footprint on THIS customer (own or family-credential) are acknowledged at all.
+        var matches = await _context.AspNetUsers
+            .AsNoTracking()
+            .Where(u =>
+                u.UserName!.ToLower().Contains(lowerQuery) ||
+                (u.FirstName != null && u.FirstName.ToLower().Contains(lowerQuery)) ||
+                (u.LastName != null && u.LastName.ToLower().Contains(lowerQuery)))
+            .Where(u =>
+                _context.Registrations.Any(r => r.FamilyUserId == u.Id && r.Job.CustomerId == customerId) ||
+                _context.Registrations.Any(r => r.UserId == u.Id && r.Job.CustomerId == customerId))
+            .Select(u => new
+            {
+                IsExactUserName = u.UserName!.ToLower() == lowerQuery,
+                IsFamilyOrPlayer =
+                    _context.Registrations.Any(r => r.FamilyUserId == u.Id) ||
+                    _context.Registrations.Any(r => r.UserId == u.Id
+                        && (r.RoleId == RoleConstants.Player || r.RoleId == RoleConstants.Family))
+            })
+            .Take(25)
+            .ToListAsync(cancellationToken);
+
+        if (matches.Count == 0)
+            return AdminCandidateMissReason.NotFound;
+
+        // An exact username hit is what the user meant — diagnose that account. Otherwise prefer
+        // the family/player explanation (the common household-login case) over the generic one.
+        var best = matches.FirstOrDefault(m => m.IsExactUserName)
+            ?? matches.FirstOrDefault(m => m.IsFamilyOrPlayer)
+            ?? matches[0];
+
+        return best.IsFamilyOrPlayer
+            ? AdminCandidateMissReason.FamilyOrPlayer
+            : AdminCandidateMissReason.OutsideLane;
+    }
+
     public async Task<List<PasswordResetAccount>> GetPasswordResetAccountsAsync(
         string usernameOrEmail,
         CancellationToken cancellationToken = default)

@@ -44,8 +44,9 @@ public interface IAdministratorService
     /// Lane model (AM-004): eligibility depends on the role being granted — accounts whose
     /// entire registration history lies within that role's lane (Director+SuperDirector share
     /// one lane), or Unassigned Adult–only accounts on the job's customer.
+    /// When no candidates match, <see cref="UserSearchResponseDto.EmptyReason"/> says why.
     /// </summary>
-    Task<List<UserSearchResultDto>> SearchUsersAsync(string query, Guid jobId, string roleName, CancellationToken cancellationToken = default);
+    Task<UserSearchResponseDto> SearchUsersAsync(string query, Guid jobId, string roleName, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Set an administrator as the primary event contact for the job.

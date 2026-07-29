@@ -6,7 +6,7 @@ import type {
     AdministratorDto,
     AddAdministratorRequest,
     UpdateAdministratorRequest,
-    UserSearchResultDto
+    UserSearchResponseDto
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -42,9 +42,10 @@ export class AdministratorService {
         return this.http.put<AdministratorDto[]>(`${this.apiUrl}/deactivate-all`, {});
     }
 
-    /** Lane model (AM-004): candidates depend on the role being granted — role is required. */
-    searchUsers(query: string, role: string): Observable<UserSearchResultDto[]> {
-        return this.http.get<UserSearchResultDto[]>(`${this.apiUrl}/users/search`, {
+    /** Lane model (AM-004): candidates depend on the role being granted — role is required.
+     *  Empty results carry an emptyReason so the modal can show the right funnel message. */
+    searchUsers(query: string, role: string): Observable<UserSearchResponseDto> {
+        return this.http.get<UserSearchResponseDto>(`${this.apiUrl}/users/search`, {
             params: { q: query, role }
         });
     }

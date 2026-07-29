@@ -188,7 +188,7 @@ public class AdministratorsController : ControllerBase
     }
 
     [HttpGet("users/search")]
-    public async Task<ActionResult<List<UserSearchResultDto>>> SearchUsers(
+    public async Task<ActionResult<UserSearchResponseDto>> SearchUsers(
         [FromQuery] string q,
         [FromQuery] string role,
         CancellationToken cancellationToken)

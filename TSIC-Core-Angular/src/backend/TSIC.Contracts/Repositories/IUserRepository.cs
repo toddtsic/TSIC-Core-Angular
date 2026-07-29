@@ -72,6 +72,17 @@ public interface IUserRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Explains why <see cref="SearchAdminCandidatesAsync"/> came back empty, so the UI can show
+    /// the right funnel message instead of undifferentiated silence. Enumeration guard: only
+    /// accounts with a registration footprint on the given customer are acknowledged to exist —
+    /// a name that matches solely on other customers still reports <c>NotFound</c>.
+    /// </summary>
+    Task<AdminCandidateMissReason> DiagnoseAdminCandidateMissAsync(
+        string query,
+        Guid customerId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Find every account a forgot-password submission reaches — legacy AccountController semantics.
     /// A username match wins outright; otherwise the address is matched against
     /// <c>AspNetUsers.NormalizedEmail</c> PLUS family logins whose household record
@@ -105,6 +116,19 @@ public record UserNameInfo
 {
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
+}
+
+/// <summary>Why an admin-candidate search returned nothing (AM-004 funnel feedback).</summary>
+public enum AdminCandidateMissReason
+{
+    /// <summary>No matching account with a footprint on this customer.</summary>
+    NotFound,
+
+    /// <summary>A match exists but is a family/player credential — structurally barred from admin roles.</summary>
+    FamilyOrPlayer,
+
+    /// <summary>A match exists but its registration history lies outside the granted role's lane.</summary>
+    OutsideLane
 }
 
 public record UserBasicInfo
