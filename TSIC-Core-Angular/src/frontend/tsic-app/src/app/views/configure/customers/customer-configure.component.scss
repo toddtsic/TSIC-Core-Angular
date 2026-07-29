@@ -11,6 +11,13 @@
 /* ── Segmented control ─────────────────────────────────────
    Pill track with an elevated active segment. Palette-responsive
    via Bootstrap + design-system tokens (no hardcoded colors). */
+// AM-049: one-line definition of what the Active/Dormant segments mean.
+.segment-help {
+    margin: 0 0 var(--space-2);
+    font-size: var(--font-size-sm);
+    color: var(--bs-secondary-color);
+}
+
 .segmented {
     display: inline-flex;
     gap: var(--space-1);

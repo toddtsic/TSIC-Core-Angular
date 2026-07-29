@@ -20,20 +20,23 @@
 
 <!-- Segment Filter — only when both buckets are non-empty; otherwise it filters nothing -->
 @if (!isLoading() && !errorMessage() && showSegments()) {
-    <div class="segmented mb-3" role="group" aria-label="Filter customers by job activity">
-        <button type="button" class="segmented__btn" [class.is-active]="segment() === 'has'"
-                [attr.aria-pressed]="segment() === 'has'" (click)="setSegment('has')"
-                title="Has Jobs" aria-label="Has Jobs">
+    <p class="segment-help">
+        <i class="bi bi-info-circle me-1"></i><strong>Active</strong> = customers with a job in the last {{ dormantAfterYears }} years; <strong>Dormant</strong> = no job activity in that window (or none at all).
+    </p>
+    <div class="segmented mb-3" role="group" aria-label="Filter customers by activity in the last two years">
+        <button type="button" class="segmented__btn" [class.is-active]="segment() === 'active'"
+                [attr.aria-pressed]="segment() === 'active'" (click)="setSegment('active')"
+                title="Active — a job in the last two years" aria-label="Active customers">
             <i class="bi bi-briefcase"></i>
-            <span class="segmented__label">Has Jobs</span>
-            <span class="segmented__count">{{ hasJobsCount() }}</span>
+            <span class="segmented__label">Active</span>
+            <span class="segmented__count">{{ activeCount() }}</span>
         </button>
-        <button type="button" class="segmented__btn" [class.is-active]="segment() === 'no'"
-                [attr.aria-pressed]="segment() === 'no'" (click)="setSegment('no')"
-                title="No Jobs" aria-label="No Jobs">
+        <button type="button" class="segmented__btn" [class.is-active]="segment() === 'dormant'"
+                [attr.aria-pressed]="segment() === 'dormant'" (click)="setSegment('dormant')"
+                title="Dormant — no job in the last two years" aria-label="Dormant customers">
             <i class="bi bi-slash-circle"></i>
-            <span class="segmented__label">No Jobs</span>
-            <span class="segmented__count">{{ noJobsCount() }}</span>
+            <span class="segmented__label">Dormant</span>
+            <span class="segmented__count">{{ dormantCount() }}</span>
         </button>
         <button type="button" class="segmented__btn" [class.is-active]="segment() === 'all'"
                 [attr.aria-pressed]="segment() === 'all'" (click)="setSegment('all')"

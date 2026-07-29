@@ -785,8 +785,14 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   - **Two-table split** (Active = jobCount>0 / Inactive = jobCount=0, or last-active older than a cutoff) is **UI-only** — no schema change (PL-016 option A: two `<ejs-grid>` blocks from filtered arrays).
   - **Archive** (actually *moving* old customers out of the working set) is **more than UI** — it needs a **persisted flag** (e.g. `Customers.IsArchived`) or an archive mechanism, plus an "Archive" / "Restore" action. Cleaner long-term, but a real change.
 - **For Todd + Ann to decide**: (a) revisit PL-016's Won't-Fix given the clutter is real (Black Diamond etc.); (b) pick **two-table split (UI-only, quickest)** vs **Archive (persisted flag + actions)**; (c) settle the "inactive" definition — `jobCount = 0` vs a **last-active-date cutoff** (Ann referenced a last-active date, so confirm the Customers list surfaces one and whether that's the signal).
+- **🔎 Finding (Todd + Claude, 2026-07-29)**: the Active/Inactive split **already existed** — a "Has Jobs / No Jobs / All" segmented filter with live counts + a sortable **Last Active** date column. PL-016's intent was effectively delivered (segment toggle, cleaner than two tables). **The real gap**: the split keyed on **job COUNT**, not **recency** — so Ann's example (Black Diamond, *has* jobs but last active 2023) still sat in the default "active" view. The clutter is stale-but-nonzero customers.
+- **✅ RESOLVED — recency filter, 2-year cutoff (Todd, 2026-07-29)**: reworked the existing segment from job-count to **recency** in [customer-configure.component](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/customers/customer-configure.component.ts):
+  - Segments now **Active** (a job in the last **`DORMANT_AFTER_YEARS = 2`** years, via `lastActiveJobDate >= today−2yr`) / **Dormant** (older, or no jobs at all) / **All**, default **Active**. Reused the existing count/showSegments/effectiveSegment/filter machinery; cutoff computed once per session.
+  - **Info text up top** (Todd's ask): *"Active = customers with a job in the last 2 years; Dormant = no job activity in that window (or none at all)."*
+  - New customer (jobless) now lands in **Dormant**; `onAddSaved` jumps there so it stays visible.
+  - **UI-only** — no backend/DTO/schema (`lastActiveJobDate` already on `CustomerListDto`). **Archive (option c) not built** — recency segment solves the clutter without a persisted flag. Cutoff is one constant, trivially changed.
 - **Severity**: UX (SuperUser customer-list clutter from long-inactive customers) — re-raise
-- **Status**: Open — reconcile with PL-016 Won't-Fix; choose split vs archive (Ann, 2026-07-28)
+- **Status**: ✅ **RESOLVED** — recency (2-yr) Active/Dormant/All segment + info text (Todd, 2026-07-29). NOT deployed, F5 pending.
 
 ---
 

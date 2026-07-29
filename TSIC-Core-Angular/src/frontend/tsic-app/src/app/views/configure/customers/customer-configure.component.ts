@@ -7,7 +7,11 @@ import { CustomerDialogComponent } from './customer-dialog/customer-dialog.compo
 import { ConfirmDialogComponent } from '../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
 import type { CustomerListDto } from '../../../core/api';
 
-type Segment = 'has' | 'no' | 'all';
+// AM-049: a customer is "dormant" once their most-recent active job is older than
+// this many years (Ann: declutter long-inactive customers like Black Diamond, 2023).
+const DORMANT_AFTER_YEARS = 2;
+
+type Segment = 'active' | 'dormant' | 'all';
 
 @Component({
   selector: 'app-customer-configure',
@@ -24,15 +28,38 @@ export class CustomerConfigureComponent implements OnInit {
   // Data signals
   customers = signal<CustomerListDto[]>([]);
 
-  // Segment filter — default to active (has-jobs) customers.
-  segment = signal<Segment>('has');
+  // Segment filter — default to recently-active customers (a job within the window).
+  segment = signal<Segment>('active');
 
-  readonly hasJobsCount = computed(() => this.customers().filter(c => c.jobCount > 0).length);
-  readonly noJobsCount = computed(() => this.customers().filter(c => c.jobCount === 0).length);
+  // How many years of inactivity marks a customer dormant — surfaced in the UI copy.
+  readonly dormantAfterYears = DORMANT_AFTER_YEARS;
+
+  // Cutoff = today minus the dormancy window. Computed (no signal deps) so it is
+  // evaluated once per session and reused across the counts/filter below.
+  readonly cutoffDate = computed(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - DORMANT_AFTER_YEARS);
+    return d;
+  });
+
+  // "Active" = most-recent active job falls on/after the cutoff. Older-than-cutoff
+  // OR no jobs at all (null date) counts as "dormant".
+  private isRecentlyActive(c: CustomerListDto, cutoff: Date): boolean {
+    return !!c.lastActiveJobDate && new Date(c.lastActiveJobDate) >= cutoff;
+  }
+
+  readonly activeCount = computed(() => {
+    const cutoff = this.cutoffDate();
+    return this.customers().filter(c => this.isRecentlyActive(c, cutoff)).length;
+  });
+  readonly dormantCount = computed(() => {
+    const cutoff = this.cutoffDate();
+    return this.customers().filter(c => !this.isRecentlyActive(c, cutoff)).length;
+  });
 
   // The segment strip only earns its place when both buckets are non-empty —
-  // otherwise "Has Jobs" and "All" are the same list and the filter is noise.
-  readonly showSegments = computed(() => this.hasJobsCount() > 0 && this.noJobsCount() > 0);
+  // otherwise the filter is noise.
+  readonly showSegments = computed(() => this.activeCount() > 0 && this.dormantCount() > 0);
 
   // Derived, not reset imperatively: if the strip is hidden while segment() is
   // stranded on a now-empty bucket, filtering falls back to 'all'.
@@ -40,9 +67,10 @@ export class CustomerConfigureComponent implements OnInit {
 
   readonly filteredCustomers = computed(() => {
     const seg = this.effectiveSegment();
+    const cutoff = this.cutoffDate();
     const all = this.customers();
-    if (seg === 'has') return all.filter(c => c.jobCount > 0);
-    if (seg === 'no') return all.filter(c => c.jobCount === 0);
+    if (seg === 'active') return all.filter(c => this.isRecentlyActive(c, cutoff));
+    if (seg === 'dormant') return all.filter(c => !this.isRecentlyActive(c, cutoff));
     return all;
   });
 
@@ -125,8 +153,9 @@ export class CustomerConfigureComponent implements OnInit {
   }
 
   onAddSaved(): void {
-    // A new customer has no jobs yet — jump to the No Jobs segment so it stays visible.
-    this.segment.set('no');
+    // A new customer has no jobs yet → it lands in the Dormant bucket; jump there so
+    // it stays visible instead of vanishing from the default Active view.
+    this.segment.set('dormant');
     this.onFormSaved();
   }
 }
