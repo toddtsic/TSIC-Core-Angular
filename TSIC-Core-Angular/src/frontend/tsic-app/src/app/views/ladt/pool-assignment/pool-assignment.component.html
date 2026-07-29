@@ -467,7 +467,7 @@
                   <tr>
                     <td class="text-nowrap">{{ tp.teamName }}</td>
                     <td class="text-center">
-                      @if (tp.direction === 'source-to-target') {
+                      @if (movesRight(tp.direction)) {
                         <i class="bi bi-arrow-right text-primary"></i>
                       } @else {
                         <i class="bi bi-arrow-left text-info"></i>

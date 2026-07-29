@@ -336,6 +336,12 @@ export class PoolAssignmentComponent {
 
     // ── Batch transfer ──
 
+    // Server Direction is request-relative; the left-arrow flow swaps the request,
+    // so un-flip it back into screen orientation.
+    movesRight(tpDirection: string): boolean {
+        return (tpDirection === 'source-to-target') === (this.transferDirection() === 'source-to-target');
+    }
+
     moveSelectedToTarget() {
         if (this.sourceSelected().size === 0 || !this.sourceDivId() || !this.targetDivId()) return;
         this.requestPreview('source-to-target');
