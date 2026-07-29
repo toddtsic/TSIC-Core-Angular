@@ -86,20 +86,25 @@
 }
 
 // ── Tab content ──
+// Amber attention treatment (AM-032): directors used to flip these switches on
+// this very tab — a quiet grey info line reads as decoration and they conclude
+// the disabled switch is broken. Warning tint + bold body text earn the glance.
 .quick-links-note {
   display: flex;
   align-items: flex-start;
   gap: var(--space-1);
   padding: var(--space-2) var(--space-3);
   margin-bottom: var(--space-3);
-  border: 1px solid color-mix(in srgb, var(--bs-info) 25%, var(--bs-border-color));
+  border: 1px solid color-mix(in srgb, var(--bs-warning) 40%, var(--bs-border-color));
+  border-left: 3px solid var(--bs-warning);
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--bs-info) 6%, var(--bs-card-bg));
-  color: var(--brand-text-muted);
+  background: color-mix(in srgb, var(--bs-warning) 8%, var(--bs-card-bg));
+  color: var(--brand-text);
   font-size: 0.85rem;
+  font-weight: var(--font-weight-medium);
 
   i {
-    color: var(--bs-info);
+    color: color-mix(in srgb, var(--bs-warning) 70%, var(--bs-body-color));
     margin-top: 0.1em;
   }
 

@@ -3,6 +3,11 @@
     <div class="form-section">
       <h6 class="section-title"><i class="bi bi-person-plus me-2"></i>Player Registration Settings</h6>
 
+      <div class="quick-links-inline-note">
+        <i class="bi bi-lock" aria-hidden="true"></i>
+        Managed in <strong>Quick Links</strong> &mdash; read-only here.
+      </div>
+
       <div class="toggle-row" [class.is-on]="bRegistrationAllowPlayer()" [class.is-off]="!bRegistrationAllowPlayer()">
         <label class="toggle-control">
           <input type="checkbox"

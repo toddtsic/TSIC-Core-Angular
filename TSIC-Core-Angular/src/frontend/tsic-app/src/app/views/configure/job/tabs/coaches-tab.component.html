@@ -3,6 +3,11 @@
     <div class="form-section">
       <h6 class="section-title"><i class="bi bi-toggles me-2"></i>Registration Availability</h6>
 
+      <div class="quick-links-inline-note">
+        <i class="bi bi-lock" aria-hidden="true"></i>
+        Managed in <strong>Quick Links</strong> &mdash; read-only here.
+      </div>
+
       <div class="toggle-row" [class.is-on]="bRegistrationAllowStaff()" [class.is-off]="!bRegistrationAllowStaff()">
         <label class="toggle-control">
           <input type="checkbox"
