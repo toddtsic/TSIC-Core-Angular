@@ -171,9 +171,11 @@ public class UserRepository : IUserRepository
         int maxResults = 10,
         CancellationToken cancellationToken = default)
     {
-        var lowerQuery = query.ToLower();
         var now = DateTime.Now;
 
+        // Name match relies on the database's case-insensitive collation — no LOWER() wrappers,
+        // which force a per-row scalar computation across the whole scan (measured cost on
+        // 314k users; the collation already matches case-insensitively).
         // AM-004 lane model: eligibility depends on the role being granted. Only LIVE
         // registrations count — bActive, and the job unexpired for the role type (admin roles
         // ride Jobs.ExpiryAdmin, every other role rides Jobs.ExpiryUsers — the legacy login
@@ -190,9 +192,9 @@ public class UserRepository : IUserRepository
         return await _context.AspNetUsers
             .AsNoTracking()
             .Where(u =>
-                u.UserName!.ToLower().Contains(lowerQuery) ||
-                (u.FirstName != null && u.FirstName.ToLower().Contains(lowerQuery)) ||
-                (u.LastName != null && u.LastName.ToLower().Contains(lowerQuery)))
+                u.UserName!.Contains(query) ||
+                (u.FirstName != null && u.FirstName.Contains(query)) ||
+                (u.LastName != null && u.LastName.Contains(query)))
             // Never a family credential holder — global, not liveness-gated
             .Where(u => !_context.Registrations.Any(r => r.FamilyUserId == u.Id))
             // Needs at least one live registration to classify
@@ -245,25 +247,25 @@ public class UserRepository : IUserRepository
         Guid customerId,
         CancellationToken cancellationToken = default)
     {
-        var lowerQuery = query.ToLower();
         var now = DateTime.Now;
 
-        // Same name predicate as SearchAdminCandidatesAsync, but no eligibility filter — we're
+        // Same name predicate as SearchAdminCandidatesAsync (CI collation, no LOWER()), but no
+        // eligibility filter — we're
         // asking WHY the eligible set is empty. Enumeration guard: a director typing names must
         // not learn whether an account exists platform-wide, so only accounts with a registration
         // footprint on THIS customer (own or family-credential) are acknowledged at all.
         var matches = await _context.AspNetUsers
             .AsNoTracking()
             .Where(u =>
-                u.UserName!.ToLower().Contains(lowerQuery) ||
-                (u.FirstName != null && u.FirstName.ToLower().Contains(lowerQuery)) ||
-                (u.LastName != null && u.LastName.ToLower().Contains(lowerQuery)))
+                u.UserName!.Contains(query) ||
+                (u.FirstName != null && u.FirstName.Contains(query)) ||
+                (u.LastName != null && u.LastName.Contains(query)))
             .Where(u =>
                 _context.Registrations.Any(r => r.FamilyUserId == u.Id && r.Job.CustomerId == customerId) ||
                 _context.Registrations.Any(r => r.UserId == u.Id && r.Job.CustomerId == customerId))
             .Select(u => new
             {
-                IsExactUserName = u.UserName!.ToLower() == lowerQuery,
+                IsExactUserName = u.UserName! == query,
                 // Family credential = global (structural); role classification counts only
                 // LIVE registrations, mirroring the eligibility query.
                 IsFamilyOrPlayer =

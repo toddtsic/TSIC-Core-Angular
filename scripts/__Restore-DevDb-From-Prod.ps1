@@ -100,6 +100,23 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
+# --- 5b. Re-create dev-only performance indexes -------------------------------
+# Jobs.Registrations (664k rows) ships from prod with NO nonclustered indexes;
+# the admin-candidate search (AM-004) measured 6.3s -> 0.7s with these. Guarded
+# with IF NOT EXISTS so this is a no-op once the indexes are added to prod.
+Write-Host "Ensuring performance indexes (AM-004 admin search)..." -ForegroundColor Yellow
+$indexSql = @"
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Registrations_UserId' AND object_id = OBJECT_ID('Jobs.Registrations'))
+    CREATE NONCLUSTERED INDEX IX_Registrations_UserId ON Jobs.Registrations (UserId) INCLUDE (RoleId, jobID, bActive);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Registrations_Family_UserId' AND object_id = OBJECT_ID('Jobs.Registrations'))
+    CREATE NONCLUSTERED INDEX IX_Registrations_Family_UserId ON Jobs.Registrations (Family_UserId);
+"@
+sqlcmd -S $SqlInstance -d TSICV5 -E -b -Q $indexSql
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Index re-creation FAILED -- admin search will crawl (~6s) until these exist." -ForegroundColor Red
+    exit 1
+}
+
 # --- 6. Smoke check -----------------------------------------------------------
 $check = sqlcmd -S $SqlInstance -E -b -W -h -1 -Q @"
 SET NOCOUNT ON;
