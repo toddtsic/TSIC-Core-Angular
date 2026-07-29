@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, input, output } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
+import { GridRowNumbersDirective } from '@shared-ui/directives/grid-row-numbers.directive';
 import type { RegisteredTeamDto } from '@core/api';
 
 /**
@@ -13,19 +14,20 @@ import type { RegisteredTeamDto } from '@core/api';
 @Component({
     selector: 'app-registered-teams-grid',
     standalone: true,
-    imports: [CurrencyPipe, DatePipe, GridAllModule],
+    imports: [CurrencyPipe, DatePipe, GridAllModule, GridRowNumbersDirective],
     template: `
-      <ejs-grid #grid [dataSource]="gridRows()" [allowSorting]="true"
+      <ejs-grid #grid tsicRowNumbers [tsicRowNumbersOffset]="0"
+                [dataSource]="gridRows()" [allowSorting]="true"
                 [allowTextWrap]="true"
                 [textWrapSettings]="{ wrapMode: 'Header' }"
                 [height]="gridHeight()"
                 [allowPaging]="pageSize() > 0"
                 [pageSettings]="{ pageSize: pageSize() || 50 }"
                 (dataBound)="onDataBound(grid)"
-                (actionComplete)="onActionComplete($event, grid)"
                 cssClass="tsic-grid-compact">
         <e-columns>
-          <!-- Row number (unbound — stamped via refreshRowNumbers, survives sort) -->
+          <!-- Row number (unbound — stamped by tsicRowNumbers; offset 0 = numbering RESTARTS on
+               each page, this grid's long-standing behavior) -->
           <e-column headerText="" width="30" textAlign="Center" [allowSorting]="false"
                     [isFrozen]="frozenTeamCol()"
                     [customAttributes]="{ class: 'row-number-cell' }"></e-column>
@@ -456,8 +458,9 @@ export class RegisteredTeamsGridComponent {
 
     /**
      * Runs after every dataBound — i.e. after the grid has finished rendering the
-     * current data. Stamps row numbers, then resyncs the header if a conditional
-     * column just toggled or a header label changed.
+     * current data. Wires the Fee-Adj popover, then resyncs the header if a
+     * conditional column just toggled or a header label changed. (Row numbers are
+     * the `tsicRowNumbers` directive's job.)
      *
      * Why here and not on a reactive binding: frozen-column grids
      * (frozenTeamCol=true) split header and content into separate frozen/movable
@@ -473,7 +476,6 @@ export class RegisteredTeamsGridComponent {
      * toggle always lands here — gridRows() depends on paymentMethod).
      */
     onDataBound(grid: GridComponent): void {
-        this.refreshRowNumbers(grid);
         this.wireFeeAdjInfo(grid);
 
         const feeAdj = this.showFeeAdj();
@@ -485,20 +487,6 @@ export class RegisteredTeamsGridComponent {
         // and returns early — that's the loop guard.
         this.lastColVis = { feeAdj, ccOwedHeader };
         if (feeAdjStale || headerStale) grid.refreshColumns();
-    }
-
-    /** Stamp 1-based row numbers in the unbound `#` column. Re-runs on dataBound + sort/page actions. */
-    refreshRowNumbers(grid: GridComponent): void {
-        grid.getRows().forEach((row, i) => {
-            const cell = row.querySelector('td.row-number-cell');
-            if (cell) cell.textContent = String(i + 1);
-        });
-    }
-
-    onActionComplete(args: { requestType?: string }, grid: GridComponent): void {
-        if (args.requestType === 'sorting' || args.requestType === 'paging' || args.requestType === 'refresh') {
-            this.refreshRowNumbers(grid);
-        }
     }
 
     /**

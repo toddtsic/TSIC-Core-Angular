@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { forkJoin } from 'rxjs';
-import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
+import { GridAllModule } from '@syncfusion/ej2-angular-grids';
+import { GridRowNumbersDirective } from '@shared-ui/directives/grid-row-numbers.directive';
 import { ToastService } from '@shared-ui/toast.service';
 import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.component';
 import {
@@ -80,7 +81,7 @@ interface QueueRow {
 @Component({
     selector: 'app-coach-approval-queue',
     standalone: true,
-    imports: [CommonModule, GridAllModule, InfoTooltipComponent],
+    imports: [CommonModule, GridAllModule, GridRowNumbersDirective, InfoTooltipComponent],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './coach-approval-queue.component.html',
@@ -340,14 +341,6 @@ export class CoachApprovalQueueComponent implements OnInit {
         const row = args.data;
         if (!row || !args.row) return;
         args.row.classList.add(`status-${row.status}`);
-    }
-
-    /** Stamp 1-based row numbers in the unbound `#` column (re-runs on every rebind). */
-    refreshRowNumbers(grid: GridComponent): void {
-        grid.getRows().forEach((row, i) => {
-            const cell = row.querySelector('td.row-number-cell');
-            if (cell) cell.textContent = String(i + 1);
-        });
     }
 
     /**

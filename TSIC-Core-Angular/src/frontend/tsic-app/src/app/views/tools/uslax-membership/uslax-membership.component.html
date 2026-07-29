@@ -197,21 +197,20 @@
         </div>
     </div>
 } @else if (rows().length > 0) {
-    <ejs-grid width="100%" #grid [dataSource]="rows()" [allowSorting]="true"
+    <ejs-grid width="100%" #grid tsicRowNumbers [dataSource]="rows()" [allowSorting]="true"
               [sortSettings]="{ columns: [{ field: 'lastName', direction: 'Ascending' }] }"
               [allowExcelExport]="true"
               [toolbar]="gridToolbar"
               [selectionSettings]="selectionSettings"
               (rowSelected)="onSelectionChanged(grid)"
               (rowDeselected)="onSelectionChanged(grid)"
-              (dataBound)="refreshRowNumbers(grid)"
-              (actionComplete)="onActionComplete($event, grid)"
+              (dataBound)="onGridDataBound(grid)"
               (toolbarClick)="onGridToolbarClick($event, grid)"
               (excelQueryCellInfo)="onExcelQueryCellInfo($event)"
               cssClass="tsic-grid-tight">
         <e-columns>
             <e-column type="checkbox" width="40" [allowSorting]="false"></e-column>
-            <!-- Row number (unbound — stamped via refreshRowNumbers, survives sort) -->
+            <!-- Row number (unbound — stamped by tsicRowNumbers, survives sort) -->
             <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"
                       [customAttributes]="{ class: 'row-number-cell' }"></e-column>
             <e-column headerText="Action" width="110" textAlign="Center" [allowSorting]="false">

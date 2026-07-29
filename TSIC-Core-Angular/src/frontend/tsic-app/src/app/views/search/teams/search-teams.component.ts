@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, HostListener, signal, computed, inject, ChangeDetectionStrategy, CUSTOM_ELEMENTS_SCHEMA, viewChild, viewChildren } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GridAllModule, GridComponent, PageSettingsModel, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
+import { GridRowNumbersDirective } from '@shared-ui/directives/grid-row-numbers.directive';
 import { MultiSelectModule, MultiSelectComponent, CheckBoxSelectionService } from '@syncfusion/ej2-angular-dropdowns';
 
 import { TeamSearchService } from './services/team-search.service';
@@ -42,7 +43,8 @@ interface FilterChip {
 		LadtTreeFilterComponent,
 		CadtTreeFilterComponent,
 		ConfirmDialogComponent,
-		ResizablePanelDirective
+		ResizablePanelDirective,
+		GridRowNumbersDirective
 	],
 	schemas: [CUSTOM_ELEMENTS_SCHEMA],
 	providers: [CheckBoxSelectionService],
@@ -465,33 +467,6 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 			return r;
 		});
 		this.executeSearch();
-	}
-
-	onActionComplete(args: any): void {
-		if (args.requestType === 'sorting' || args.requestType === 'paging') {
-			this.refreshRowNumbers();
-		}
-	}
-
-	refreshRowNumbers(): void {
-		const pageSize = this.grid().pageSettings.pageSize as number ?? 20;
-		const currentPage = this.grid().pageSettings.currentPage ?? 1;
-		const start = (currentPage - 1) * pageSize;
-		const gridEl = this.grid().element;
-		if (!gridEl) return;
-		// Target frozen pane rows (row # column is frozen)
-		const rows = gridEl.querySelectorAll('.e-frozencontent tbody tr, .e-frozencontentdiv tbody tr');
-		if (rows.length) {
-			rows.forEach((row, i) => {
-				const cell = row.querySelector('td.e-rowcell');
-				if (cell) cell.textContent = String(start + i + 1);
-			});
-		} else {
-			this.grid().getRows().forEach((row, i) => {
-				const cell = row.querySelector('td.e-rowcell');
-				if (cell) cell.textContent = String(start + i + 1);
-			});
-		}
 	}
 
 	openDetail(teamId: string): void {

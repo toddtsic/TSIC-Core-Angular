@@ -3,6 +3,7 @@ import { DatePipe, NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import type { ToolbarItems } from '@syncfusion/ej2-angular-grids';
+import { GridRowNumbersDirective } from '@shared-ui/directives/grid-row-numbers.directive';
 import { UsLaxMembershipService } from '@infrastructure/services/uslax-membership.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -82,7 +83,7 @@ ${USLAX_COMMON_GUIDANCE}
 @Component({
 	selector: 'app-uslax-membership',
 	standalone: true,
-	imports: [DatePipe, NgClass, FormsModule, GridAllModule],
+	imports: [DatePipe, NgClass, FormsModule, GridAllModule, GridRowNumbersDirective],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './uslax-membership.component.html',
 	styleUrl: './uslax-membership.component.scss'
@@ -365,21 +366,10 @@ export class UsLaxMembershipComponent implements OnInit {
 
 	// Grid formatting helpers ---------------------------------------------------------
 
-	/** Stamp row numbers after data binds or after a sort/page action reshuffles the view. */
-	refreshRowNumbers(grid: GridComponent): void {
+	/** Row numbers are the `tsicRowNumbers` directive's job — this only caches the grid instance
+	 * for quick-select, compose and export, which can all run before any selection event fires. */
+	onGridDataBound(grid: GridComponent): void {
 		this.gridRef = grid;
-		const gridEl = grid.element;
-		if (!gridEl) return;
-		grid.getRows().forEach((row, i) => {
-			const cell = row.querySelector('td.row-number-cell');
-			if (cell) cell.textContent = String(i + 1);
-		});
-	}
-
-	onActionComplete(args: { requestType?: string }, grid: GridComponent): void {
-		if (args.requestType === 'sorting' || args.requestType === 'paging' || args.requestType === 'refresh') {
-			this.refreshRowNumbers(grid);
-		}
 	}
 
 	padMembershipId(id: string | number | null | undefined): string {

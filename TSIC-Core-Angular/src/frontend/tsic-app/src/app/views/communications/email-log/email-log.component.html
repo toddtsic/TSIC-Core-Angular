@@ -40,17 +40,16 @@
         <!-- Email Grid -->
         <div class="email-table-panel">
             <ejs-grid width="100%"
-                #grid
+                tsicRowNumbers
                 [dataSource]="emails()"
                 cssClass="tsic-grid-tight"
                 [allowSorting]="true"
                 [sortSettings]="sortSettings"
                 (rowSelected)="onRowSelected($event)"
-                (dataBound)="refreshRowNumbers()"
-                (actionComplete)="onActionComplete($event)"
             >
                 <e-columns>
-                    <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"></e-column>
+                    <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"
+                              [customAttributes]="{ class: 'row-number-cell' }"></e-column>
                     <e-column field="sendTs" headerText="Sent" width="145" type="date" format="M/d/yy h:mm a"></e-column>
                     <e-column field="sendFrom" headerText="Sender" width="200">
                         <ng-template #template let-data>

@@ -45,16 +45,15 @@
             <div class="empty-sub">No coach registrations are awaiting placement for this event.</div>
         </div>
     } @else {
-        <ejs-grid width="100%" #grid
+        <ejs-grid width="100%" #grid tsicRowNumbers
             [dataSource]="gridData()"
             [allowSorting]="true"
             [allowTextWrap]="true"
             [enableStickyHeader]="true"
             (rowDataBound)="onRowDataBound($event)"
-            (dataBound)="refreshRowNumbers(grid)"
             cssClass="coach-grid">
             <e-columns>
-                <!-- Row number (unbound — stamped via refreshRowNumbers, survives rebind) -->
+                <!-- Row number (unbound — stamped by tsicRowNumbers, survives rebind) -->
                 <e-column headerText="#" [width]="44" textAlign="Center" [allowSorting]="false"
                     [customAttributes]="{ class: 'row-number-cell' }"></e-column>
 

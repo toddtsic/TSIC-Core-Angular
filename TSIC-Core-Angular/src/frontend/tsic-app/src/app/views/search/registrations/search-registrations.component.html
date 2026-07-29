@@ -733,6 +733,8 @@
         <div class="results-grid-wrap">
         <ejs-grid
             #grid
+            tsicRowNumbers
+            [tsicRowNumbersOffset]="rowNumberOffset()"
             [dataSource]="searchResults()"
             cssClass="tsic-grid-tight"
             [height]="'100%'"
@@ -747,15 +749,15 @@
             (rowSelected)="onRowSelected($event)"
             (rowDeselected)="onRowDeselected($event)"
             (dataBound)="onGridDataBound()"
-            (actionComplete)="onActionComplete($event)"
           >
           <e-columns>
-            <!-- Row number (unbound — stamped via queryCellInfo/actionComplete).
-                 Desktop only: on mobile every frozen px is swipe room, and dropping the
-                 column (not just hiding it) keeps refreshRowNumbers' first-cell stamping
-                 from ever landing on the Name cell. -->
+            <!-- Row number (unbound — stamped by tsicRowNumbers; the EXPLICIT offset carries the
+                 server-side page, which the grid's internal pager knows nothing about).
+                 Desktop only: on mobile every frozen px is swipe room, so the column is dropped
+                 entirely — no cells to stamp, and the directive stamps nothing. -->
             @if (!isMobile()) {
-              <e-column headerText="#" width="70" textAlign="Center" [allowSorting]="false"></e-column>
+              <e-column headerText="#" width="70" textAlign="Center" [allowSorting]="false"
+                        [customAttributes]="{ class: 'row-number-cell' }"></e-column>
             }
             <!-- Frozen: Name with inline detail icon (narrower freeze on mobile — leave swipe room) -->
             <e-column field="lastName" headerText="Name" [width]="isMobile() ? 150 : 200">

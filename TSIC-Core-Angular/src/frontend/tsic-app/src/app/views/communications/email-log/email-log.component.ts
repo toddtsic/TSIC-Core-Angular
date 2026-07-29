@@ -1,8 +1,9 @@
-import { Component, inject, signal, computed, ChangeDetectionStrategy, viewChild } from '@angular/core';
+import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { distinctUntilChanged, filter, map } from 'rxjs';
 import { DecimalPipe } from '@angular/common';
-import { GridAllModule, GridComponent, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
+import { GridAllModule, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
+import { GridRowNumbersDirective } from '@shared-ui/directives/grid-row-numbers.directive';
 import { EmailLogService } from './services/email-log.service';
 import { JobService } from '@infrastructure/services/job.service';
 import type { EmailLogSummaryDto, EmailLogDetailDto } from '@core/api';
@@ -10,7 +11,7 @@ import type { EmailLogSummaryDto, EmailLogDetailDto } from '@core/api';
 @Component({
     selector: 'app-email-log',
     standalone: true,
-    imports: [DecimalPipe, GridAllModule],
+    imports: [DecimalPipe, GridAllModule, GridRowNumbersDirective],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './email-log.component.html',
     styleUrl: './email-log.component.scss'
@@ -18,8 +19,6 @@ import type { EmailLogSummaryDto, EmailLogDetailDto } from '@core/api';
 export class EmailLogComponent {
     private readonly emailLogService = inject(EmailLogService);
     private readonly jobService = inject(JobService);
-
-    readonly grid = viewChild.required<GridComponent>('grid');
 
     // Data
     readonly emails = signal<EmailLogSummaryDto[]>([]);
@@ -79,26 +78,6 @@ export class EmailLogComponent {
     onRowSelected(args: any): void {
         if (args.data) {
             this.selectEmail(args.data as EmailLogSummaryDto);
-        }
-    }
-
-    // Row numbers
-    refreshRowNumbers(): void {
-        const grid = this.grid();
-        if (!grid) return;
-        const rows = grid.getRows();
-        const page = grid.pageSettings?.currentPage ?? 1;
-        const size = grid.pageSettings?.pageSize ?? rows.length;
-        const offset = (page - 1) * size;
-        rows.forEach((row, i) => {
-            const cell = row.querySelector('td');
-            if (cell) cell.textContent = String(offset + i + 1);
-        });
-    }
-
-    onActionComplete(args: any): void {
-        if (args.requestType === 'sorting' || args.requestType === 'paging') {
-            this.refreshRowNumbers();
         }
     }
 

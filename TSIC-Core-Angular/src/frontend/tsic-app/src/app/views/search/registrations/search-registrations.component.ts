@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, HostListener, signal, computed, inject, C
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { GridAllModule, GridComponent, PageSettingsModel, SortSettingsModel, SelectionSettingsModel, DataStateChangeEventArgs, RowSelectEventArgs, RowDeselectEventArgs } from '@syncfusion/ej2-angular-grids';
+import { GridRowNumbersDirective } from '@shared-ui/directives/grid-row-numbers.directive';
 
 import { MultiSelectModule, MultiSelectComponent, CheckBoxSelectionService } from '@syncfusion/ej2-angular-dropdowns';
 
@@ -56,7 +57,8 @@ interface FilterChip {
     LadtTreeFilterComponent,
     CadtTreeFilterComponent,
     ConfirmDialogComponent,
-    ResizablePanelDirective
+    ResizablePanelDirective,
+    GridRowNumbersDirective
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   providers: [CheckBoxSelectionService],
@@ -745,12 +747,15 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     this.selectedRecipientSnapshots.set(new Map());
   }
 
-  // Fires after every page render (initial load + each server-side page fetch). Re-tick persisted
-  // selections first, then stamp the full-set row numbers over the (possibly re-rendered) rows.
+  // Fires after every page render (initial load + each server-side page fetch). Re-ticks persisted
+  // selections; row numbers are the `tsicRowNumbers` directive's job.
   onGridDataBound(): void {
     this.restorePageSelection();
-    this.refreshRowNumbers();
   }
+
+  // Full-set row numbers: offset by the current SERVER page, not the grid's internal pager state
+  // (which we drive via dataStateChange). Bound to `tsicRowNumbersOffset` on the grid.
+  protected readonly rowNumberOffset = computed(() => (this.gridPage() - 1) * this.gridPageSize());
 
   // Re-check the checkboxes for rows whose id is already in the selection set, so paging back to an
   // earlier page shows the picks intact. Guarded so the programmatic reselect doesn't churn the set
@@ -767,37 +772,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     this.isRestoringSelection = true;
     try { grid.selectRows(indexes); }
     finally { this.isRestoringSelection = false; }
-  }
-
-  onActionComplete(args: any): void {
-    if (args.requestType === 'sorting' || args.requestType === 'paging') {
-      this.refreshRowNumbers();
-    }
-  }
-
-  refreshRowNumbers(): void {
-    // Mobile has no "#" column (dropped for swipe room) — stamping the first cell
-    // there would overwrite the Name cell.
-    if (this.isMobile()) return;
-    // Row numbers are 1-based across the full set — offset by the current server page, not the
-    // grid's internal pager state (which we drive via dataStateChange).
-    const pageSize = this.gridPageSize();
-    const currentPage = this.gridPage();
-    const start = (currentPage - 1) * pageSize;
-    const gridEl = this.grid().element;
-    if (!gridEl) return;
-    const rows = gridEl.querySelectorAll('.e-frozencontent tbody tr, .e-frozencontentdiv tbody tr');
-    if (rows.length) {
-      rows.forEach((row, i) => {
-        const cell = row.querySelector('td.e-rowcell');
-        if (cell) cell.textContent = String(start + i + 1);
-      });
-    } else {
-      this.grid().getRows().forEach((row, i) => {
-        const cell = row.querySelector('td.e-rowcell');
-        if (cell) cell.textContent = String(start + i + 1);
-      });
-    }
   }
 
   openDetail(registrationId: string): void {

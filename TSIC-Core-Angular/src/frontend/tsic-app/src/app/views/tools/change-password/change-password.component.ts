@@ -12,6 +12,7 @@ import {
   childKey
 } from './services/change-password.service';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
+import { GridRowNumbersDirective } from '@shared-ui/directives/grid-row-numbers.directive';
 import { MergePanelComponent } from './components/merge-panel.component';
 import { ToastService } from '@shared-ui/toast.service';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
@@ -98,7 +99,7 @@ interface ContactField {
 @Component({
   selector: 'app-change-password',
   standalone: true,
-  imports: [CommonModule, FormsModule, GridAllModule, TsicDialogComponent, MergePanelComponent, PhonePipe],
+  imports: [CommonModule, FormsModule, GridAllModule, GridRowNumbersDirective, TsicDialogComponent, MergePanelComponent, PhonePipe],
   templateUrl: './change-password.component.html',
   styleUrl: './change-password.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -137,8 +138,8 @@ export class ChangePasswordComponent implements OnInit {
   // the one thing it cannot do for us: give it a row shape it can sort.
   //
   // Two fields are stamped on, and each of them exists because a grid sorts on a FIELD. The row
-  // NUMBER is not among them — it is an unbound column stamped over the rendered rows by
-  // `refreshRowNumbers` below, so it counts what is on screen and renumbers on every sort.
+  // NUMBER is not among them — it is an unbound column stamped over the rendered rows by the
+  // `tsicRowNumbers` directive, so it counts what is on screen and renumbers on every sort.
   //
   //   jobLabel    What the Job cell READS — customer then event — so the sort follows the cell.
   //
@@ -172,31 +173,11 @@ export class ChangePasswordComponent implements OnInit {
   private lastHousehold: boolean | null = null;
 
   onGridDataBound(grid: GridComponent): void {
-    this.refreshRowNumbers(grid);
-
     const household = this.showHousehold();
     if (household === this.lastHousehold) return;
 
     this.lastHousehold = household;
     grid.refreshColumns();
-  }
-
-  /**
-   * Stamp 1-based row numbers into the unbound `#` column. `dataBound` covers the render; sorting
-   * re-renders the rows WITHOUT one, so `actionComplete` covers that — miss it and the column keeps
-   * whatever numbers the previous order left in those cells.
-   */
-  private refreshRowNumbers(grid: GridComponent): void {
-    grid.getRows()?.forEach((row, i) => {
-      const cell = row.querySelector('td.row-number-cell');
-      if (cell) cell.textContent = String(i + 1);
-    });
-  }
-
-  onGridActionComplete(args: { requestType?: string }, grid: GridComponent): void {
-    if (args.requestType === 'sorting' || args.requestType === 'refresh') {
-      this.refreshRowNumbers(grid);
-    }
   }
 
   /**

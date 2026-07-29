@@ -60,18 +60,17 @@
 <!-- ═══════ GRID ═══════ -->
 @if (!isLoading() && bulletins().length > 0) {
     <ejs-grid
-        #grid
+        tsicRowNumbers
         [dataSource]="bulletins()"
         cssClass="tsic-grid-tight"
         width="100%"
         [allowSorting]="true"
         [sortSettings]="sortSettings"
         (rowSelected)="onRowSelected($event)"
-        (dataBound)="refreshRowNumbers()"
-        (actionComplete)="onActionComplete($event)"
     >
         <e-columns>
-            <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"></e-column>
+            <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"
+                      [customAttributes]="{ class: 'row-number-cell' }"></e-column>
             <e-column field="title" headerText="Title" width="400">
                 <ng-template #template let-data>
                     {{ data.title || '(untitled)' }}

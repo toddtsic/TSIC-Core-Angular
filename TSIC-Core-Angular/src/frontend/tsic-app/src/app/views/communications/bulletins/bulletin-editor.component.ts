@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { GridAllModule, GridComponent, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
+import { GridAllModule, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
+import { GridRowNumbersDirective } from '@shared-ui/directives/grid-row-numbers.directive';
 import { BulletinAdminService } from './services/bulletin-admin.service';
 import { ToastService } from '../../../shared-ui/toast.service';
 import { BulletinFormModalComponent } from './components/bulletin-form-modal.component';
@@ -10,7 +11,7 @@ import type { BulletinAdminDto } from '../../../core/api';
 @Component({
   selector: 'app-bulletin-editor',
   standalone: true,
-  imports: [GridAllModule, BulletinFormModalComponent, ConfirmDialogComponent],
+  imports: [GridAllModule, GridRowNumbersDirective, BulletinFormModalComponent, ConfirmDialogComponent],
   templateUrl: './bulletin-editor.component.html',
   styleUrl: './bulletin-editor.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -20,8 +21,6 @@ export class BulletinEditorComponent implements OnInit {
   private readonly toastService = inject(ToastService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-
-  readonly grid = viewChild.required<GridComponent>('grid');
 
   // Deep-link target: ?edit={bulletinId} (e.g. the pencil on the public job-home
   // bulletins). Consumed once after the first load, then cleared from the URL.
@@ -77,26 +76,6 @@ export class BulletinEditorComponent implements OnInit {
   onRowSelected(args: any): void {
     if (args.data) {
       this.openEdit(args.data as BulletinAdminDto);
-    }
-  }
-
-  // Row numbers
-  refreshRowNumbers(): void {
-    const grid = this.grid();
-    if (!grid) return;
-    const rows = grid.getRows();
-    const page = grid.pageSettings?.currentPage ?? 1;
-    const size = grid.pageSettings?.pageSize ?? rows.length;
-    const offset = (page - 1) * size;
-    rows.forEach((row, i) => {
-      const cell = row.querySelector('td');
-      if (cell) cell.textContent = String(offset + i + 1);
-    });
-  }
-
-  onActionComplete(args: any): void {
-    if (args.requestType === 'sorting' || args.requestType === 'paging') {
-      this.refreshRowNumbers();
     }
   }
 

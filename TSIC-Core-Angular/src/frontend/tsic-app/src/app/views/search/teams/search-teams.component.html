@@ -381,6 +381,7 @@
       <div class="results-grid-wrap">
       <ejs-grid
         #grid
+        tsicRowNumbers
         [dataSource]="searchResults()!.result"
         cssClass="tsic-grid-tight"
         [height]="'100%'"
@@ -390,12 +391,12 @@
         [frozenColumns]="3"
         [pageSettings]="pageSettings"
         [sortSettings]="sortSettings"
-        (dataBound)="refreshRowNumbers()"
-        (actionComplete)="onActionComplete($event)"
       >
         <e-columns>
-          <!-- Row number (unbound — stamped via queryCellInfo/actionComplete) -->
-          <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"></e-column>
+          <!-- Row number (unbound — stamped by tsicRowNumbers; no offset binding, so the grid's
+               own pager numbers CONTINUOUSLY across pages: page 2 of 20 starts at 21) -->
+          <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"
+                    [customAttributes]="{ class: 'row-number-cell' }"></e-column>
           <!-- Frozen columns -->
           <e-column field="teamName" headerText="Team" width="280">
             <ng-template #template let-data>
