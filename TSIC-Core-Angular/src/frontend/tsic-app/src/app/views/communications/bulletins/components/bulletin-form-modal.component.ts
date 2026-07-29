@@ -402,13 +402,6 @@ export type ModalMode = 'add' | 'edit';
         :host ::ng-deep .e-richtexteditor {
             border-radius: var(--radius-sm);
         }
-
-        /* AM-044: same wrapping guard inside the RTE editable area so a long
-           token run wraps rather than running off the right edge while editing. */
-        :host ::ng-deep .e-richtexteditor .e-rte-content .e-content {
-            overflow-wrap: anywhere;
-            word-break: break-word;
-        }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
