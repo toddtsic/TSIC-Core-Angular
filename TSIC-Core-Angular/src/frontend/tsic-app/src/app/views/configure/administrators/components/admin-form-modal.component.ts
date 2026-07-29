@@ -76,7 +76,7 @@ export interface AdminFormResult {
                                     </small>
                                 }
                                 @if (searchResults().length > 0 && !selectedUser()) {
-                                    <ul class="list-group mt-1 shadow-sm typeahead-dropdown">
+                                    <ul class="list-group mt-2 search-results">
                                         @for (user of searchResults(); track user.userId) {
                                             <li class="list-group-item list-group-item-action d-flex align-items-center"
                                                 role="button"
@@ -183,12 +183,11 @@ export interface AdminFormResult {
         </tsic-dialog>
     `,
     styles: [`
-        .typeahead-dropdown {
-            position: absolute;
-            z-index: 10;
+        /* Results flow in-document (explicit search, not a typeahead overlay) so the
+           dialog footer is pushed down, never covered. */
+        .search-results {
             max-height: 200px;
             overflow-y: auto;
-            width: calc(100% - 2rem);
         }
         .btn-close-sm {
             font-size: 0.6rem;
