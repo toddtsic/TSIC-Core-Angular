@@ -658,9 +658,9 @@ VALUES (21, 1, 17, 1, 4, N'Mobile Scorers', N'phone', N'scheduling/mobile-scorer
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (23, 1, 22, 1, 1, N'Health Check', N'heart-pulse', N'arb/health', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (25, 1, 24, 1, 1, N'US Lax Tester', N'check-circle', N'tools/uslax-test', NULL, NULL, GETDATE());
+VALUES (25, 1, 24, 1, 1, N'USA Lacrosse Tester', N'check-circle', N'tools/uslax-test', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (26, 1, 24, 1, 2, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings', NULL, NULL, GETDATE());
+VALUES (26, 1, 24, 1, 2, N'USA Lacrosse Rankings', N'trophy', N'tools/uslax-rankings', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (28, 1, 27, 1, 1, N'Store Admin', N'shop', N'store/admin', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
@@ -698,9 +698,9 @@ VALUES (49, 2, 45, 1, 4, N'Mobile Scorers', N'phone', N'scheduling/mobile-scorer
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (51, 2, 50, 1, 1, N'Health Check', N'heart-pulse', N'arb/health', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (53, 2, 52, 1, 1, N'US Lax Tester', N'check-circle', N'tools/uslax-test', NULL, NULL, GETDATE());
+VALUES (53, 2, 52, 1, 1, N'USA Lacrosse Tester', N'check-circle', N'tools/uslax-test', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (54, 2, 52, 1, 2, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings', NULL, NULL, GETDATE());
+VALUES (54, 2, 52, 1, 2, N'USA Lacrosse Rankings', N'trophy', N'tools/uslax-rankings', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (56, 2, 55, 1, 1, N'Store Admin', N'shop', N'store/admin', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
@@ -754,9 +754,9 @@ VALUES (85, 3, 81, 1, 4, N'Mobile Scorers', N'phone', N'scheduling/mobile-scorer
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (87, 3, 86, 1, 1, N'Health Check', N'heart-pulse', N'arb/health', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (89, 3, 88, 1, 1, N'US Lax Tester', N'check-circle', N'tools/uslax-test', NULL, NULL, GETDATE());
+VALUES (89, 3, 88, 1, 1, N'USA Lacrosse Tester', N'check-circle', N'tools/uslax-test', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (90, 3, 88, 1, 2, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings', NULL, NULL, GETDATE());
+VALUES (90, 3, 88, 1, 2, N'USA Lacrosse Rankings', N'trophy', N'tools/uslax-rankings', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (91, 3, 88, 1, 10, N'Profile Migration', N'arrow-right', N'tools/profile-migration', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
@@ -802,9 +802,9 @@ VALUES (117, 4, 113, 1, 4, N'Mobile Scorers', N'phone', N'scheduling/mobile-scor
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (119, 4, 118, 1, 1, N'Health Check', N'heart-pulse', N'arb/health', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (121, 4, 120, 1, 1, N'US Lax Tester', N'check-circle', N'tools/uslax-test', NULL, NULL, GETDATE());
+VALUES (121, 4, 120, 1, 1, N'USA Lacrosse Tester', N'check-circle', N'tools/uslax-test', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (122, 4, 120, 1, 2, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings', NULL, NULL, GETDATE());
+VALUES (122, 4, 120, 1, 2, N'USA Lacrosse Rankings', N'trophy', N'tools/uslax-rankings', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (124, 4, 123, 1, 1, N'Store Admin', N'shop', N'store/admin', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
@@ -842,9 +842,9 @@ VALUES (145, 5, 141, 1, 4, N'Mobile Scorers', N'phone', N'scheduling/mobile-scor
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (147, 5, 146, 1, 1, N'Health Check', N'heart-pulse', N'arb/health', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (149, 5, 148, 1, 1, N'US Lax Tester', N'check-circle', N'tools/uslax-test', NULL, NULL, GETDATE());
+VALUES (149, 5, 148, 1, 1, N'USA Lacrosse Tester', N'check-circle', N'tools/uslax-test', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (150, 5, 148, 1, 2, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings', NULL, NULL, GETDATE());
+VALUES (150, 5, 148, 1, 2, N'USA Lacrosse Rankings', N'trophy', N'tools/uslax-rankings', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (152, 5, 151, 1, 1, N'Store Admin', N'shop', N'store/admin', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
@@ -882,9 +882,9 @@ VALUES (173, 6, 169, 1, 4, N'Mobile Scorers', N'phone', N'scheduling/mobile-scor
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (175, 6, 174, 1, 1, N'Health Check', N'heart-pulse', N'arb/health', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (177, 6, 176, 1, 1, N'US Lax Tester', N'check-circle', N'tools/uslax-test', NULL, NULL, GETDATE());
+VALUES (177, 6, 176, 1, 1, N'USA Lacrosse Tester', N'check-circle', N'tools/uslax-test', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (178, 6, 176, 1, 2, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings', NULL, NULL, GETDATE());
+VALUES (178, 6, 176, 1, 2, N'USA Lacrosse Rankings', N'trophy', N'tools/uslax-rankings', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (180, 6, 179, 1, 1, N'Store Admin', N'shop', N'store/admin', NULL, NULL, GETDATE());
 

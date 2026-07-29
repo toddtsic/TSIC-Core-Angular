@@ -310,8 +310,8 @@ $menuManifest = @(
     # ARB (requireAdmin)
     @{ Controller='ARB'; Icon='credit-card'; Sort=6; Action='Health Check'; ActionIcon='heart-pulse'; Route='arb/health'; ActionSort=1; Guard='admin' }
     # Tools (mixed guards)
-    @{ Controller='Tools'; Icon='tools'; Sort=7; Action='US Lax Tester'; ActionIcon='check-circle'; Route='tools/uslax-test'; ActionSort=1; Guard='admin' }
-    @{ Controller='Tools'; Icon='tools'; Sort=7; Action='US Lax Rankings'; ActionIcon='trophy'; Route='tools/uslax-rankings'; ActionSort=2; Guard='admin' }
+    @{ Controller='Tools'; Icon='tools'; Sort=7; Action='USA Lacrosse Tester'; ActionIcon='check-circle'; Route='tools/uslax-test'; ActionSort=1; Guard='admin' }
+    @{ Controller='Tools'; Icon='tools'; Sort=7; Action='USA Lacrosse Rankings'; ActionIcon='trophy'; Route='tools/uslax-rankings'; ActionSort=2; Guard='admin' }
     @{ Controller='Tools'; Icon='tools'; Sort=7; Action='Profile Migration'; ActionIcon='arrow-right'; Route='tools/profile-migration'; ActionSort=10; Guard='superuser' }
     @{ Controller='Tools'; Icon='tools'; Sort=7; Action='Profile Editor'; ActionIcon='pencil-square'; Route='tools/profile-editor'; ActionSort=11; Guard='superuser' }
     @{ Controller='Tools'; Icon='tools'; Sort=7; Action='Change Password'; ActionIcon='key'; Route='tools/change-password'; ActionSort=12; Guard='superuser' }

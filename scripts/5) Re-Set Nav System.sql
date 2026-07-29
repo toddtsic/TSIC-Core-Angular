@@ -158,9 +158,9 @@ INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 6, N'Team Li
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 6, N'Team Links', N'link-45deg', N'communications/team-links', 5, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 7, N'Job Report Library', N'collection', N'reporting/reports-library', 1, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 7, N'X-Job Report Library', N'globe', N'x-job-reports-library', 2, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'US Lacrosse', N'award', 8, N'US Lax Test', N'check-circle', N'tools/uslax-test', 1, 1, 1, 1, N'{"sports":["Lacrosse"]}', NULL);
-INSERT INTO #AdminManifest VALUES (N'US Lacrosse', N'award', 8, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings', 2, 1, 1, 1, N'{"sports":["Lacrosse"]}', NULL);
-INSERT INTO #AdminManifest VALUES (N'US Lacrosse', N'award', 8, N'US Lax Membership', N'people', N'tools/uslax-membership', 3, 1, 1, 1, N'{"sports":["Lacrosse"]}', NULL);
+INSERT INTO #AdminManifest VALUES (N'USA Lacrosse', N'award', 8, N'USA Lacrosse Test', N'check-circle', N'tools/uslax-test', 1, 1, 1, 1, N'{"sports":["Lacrosse"]}', NULL);
+INSERT INTO #AdminManifest VALUES (N'USA Lacrosse', N'award', 8, N'USA Lacrosse Rankings', N'trophy', N'tools/uslax-rankings', 2, 1, 1, 1, N'{"sports":["Lacrosse"]}', NULL);
+INSERT INTO #AdminManifest VALUES (N'USA Lacrosse', N'award', 8, N'USA Lacrosse Membership', N'people', N'tools/uslax-membership', 3, 1, 1, 1, N'{"sports":["Lacrosse"]}', NULL);
 INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'Customer Job Revenue', N'graph-up-arrow', N'tools/customer-job-revenue', 0, 0, 1, 1, N'{"dividerAfter":true}', NULL);
 INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'1) New Jobs Last Month (with txs)', N'plus-square', N'reporting/export-sp?spName=reporting.NewTsicJobsWithTxs&bUseJobId=false', 1, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'2) Gen: ADN EndOfMonth/IIF', N'arrow-left-right', N'accounting/get-reconciliation-records', 2, 0, 0, 1, NULL, NULL);
@@ -207,7 +207,7 @@ CREATE TABLE #SectionRules (
     Controller      NVARCHAR(50)  NOT NULL PRIMARY KEY,
     VisibilityRules NVARCHAR(MAX) NOT NULL
 );
-INSERT INTO #SectionRules VALUES (N'US Lacrosse', N'{"sports":["Lacrosse"]}');
+INSERT INTO #SectionRules VALUES (N'USA Lacrosse', N'{"sports":["Lacrosse"]}');
 INSERT INTO #SectionRules VALUES (N'Officials', N'{"jobTypes":["Tournament Scheduling","League Scheduling"]}');
 INSERT INTO #SectionRules VALUES (N'Scheduling', N'{"jobTypes":["Tournament Scheduling","League Scheduling"]}');
 

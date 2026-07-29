@@ -136,7 +136,7 @@ $rulesCampSales          = '{"jobTypes":["Camp Registration","Sales Venue"]}'
 $sectionRules = @{
     'Scheduling'  = $rulesTournamentLeague
     'Officials'   = $rulesTournamentLeague
-    'US Lacrosse' = $rulesLacrosse
+    'USA Lacrosse' = $rulesLacrosse
 }
 
 # Functional admin manifest. L1 = a functional Section (grouping key in the
@@ -232,10 +232,10 @@ $adminManifest = @(
     (New-AdminItem 'Reports' 'file-earmark-bar-graph' 7 'Job Report Library'   'collection' 'reporting/reports-library'  1 1 1 1)
     (New-AdminItem 'Reports' 'file-earmark-bar-graph' 7 'X-Job Report Library' 'globe'      'x-job-reports-library'      2 0 0 1)
 
-    # -- 8. US Lacrosse (sport-gated to Lacrosse via $sectionRules) --------
-    (New-AdminItem 'US Lacrosse' 'award' 8 'US Lax Test'       'check-circle' 'tools/uslax-test'       1 1 1 1 $rulesLacrosse)
-    (New-AdminItem 'US Lacrosse' 'award' 8 'US Lax Rankings'   'trophy'       'tools/uslax-rankings'   2 1 1 1 $rulesLacrosse)
-    (New-AdminItem 'US Lacrosse' 'award' 8 'US Lax Membership' 'people'       'tools/uslax-membership' 3 1 1 1 $rulesLacrosse)
+    # -- 8. USA Lacrosse (sport-gated to Lacrosse via $sectionRules) --------
+    (New-AdminItem 'USA Lacrosse' 'award' 8 'USA Lacrosse Test'       'check-circle' 'tools/uslax-test'       1 1 1 1 $rulesLacrosse)
+    (New-AdminItem 'USA Lacrosse' 'award' 8 'USA Lacrosse Rankings'   'trophy'       'tools/uslax-rankings'   2 1 1 1 $rulesLacrosse)
+    (New-AdminItem 'USA Lacrosse' 'award' 8 'USA Lacrosse Membership' 'people'       'tools/uslax-membership' 3 1 1 1 $rulesLacrosse)
 
     # -- 9. Store — single-purpose → direct top-level link (storeEnabled) --
     (New-AdminItem 'Store' 'shop' 9 'Store' 'shop' 'store/admin' 1 1 1 1 $rulesStoreEnabled -Standalone)

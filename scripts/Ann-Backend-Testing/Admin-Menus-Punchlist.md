@@ -759,8 +759,16 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **⚠️ Technical note for Todd**: the nav **section name is a join key** — `#SectionRules` keys on it (`N'US Lacrosse'` at `5) Re-Set Nav System.sql:210`). If you rename the section to `N'USA Lacrosse'`, you **must update the SectionRules row (:210) to match**, or the section's `{"sports":["Lacrosse"]}` gating breaks. Then re-run the nav reset, and mirror in any dev-restore nav script.
 - **✅ Codebase sweep (Ann + Claude, 2026-07-28)**: these are the **only** incorrect user-facing brand strings. Everywhere else the visible text already reads **"USA Lacrosse"** (membership reconciliation page, `uslax-info` smart bulletin, profile-migration copy, aria-labels). The remaining `USLax`/`uslax` occurrences are **internal** — code identifiers, tokens (`!USLAXMEMBERID`), field names, file names, comments — not brand display text; leave those.
 - **Question (Ann, 2026-07-28) — the menu icon**: what is the significance of the USA Lacrosse **menu icon**? The section currently uses **`bi-award`** (a rosette/ribbon), and the items use `bi-check-circle` (Test), `bi-trophy` (Rankings), `bi-people` (Membership) ([5) Re-Set Nav System.sql:161-163](../..) — the Icon/ActionIcon columns). Confirm whether `award` is the intended/meaningful icon for the section (vs. something more clearly membership/lacrosse-related), and adjust if a different icon reads better. *(Don't use a USA Lacrosse logo/trademark as the icon — Bootstrap icons only, for the same branding-strictness reason.)*
-- **Severity**: Branding / Legacy-parity (USA Lacrosse trademark compliance)
-- **Status**: Open (Ann, 2026-07-28)
+- **🔎 Reframe (Todd, 2026-07-29)**: Todd is **not** worried about USA Lacrosse's trademark strictness (TSIC has no real exposure). The legitimate driver is **internal consistency** — the rest of the app already says "USA Lacrosse" (per the sweep above), so the nav was the lone holdout. Risk/difficulty assessed as **low** (routine nav re-run — the "paused redesign" `3b2b61f5` is actually in mainline with 5 nav regens shipped since; that memory was stale). Deferred the *label-clarity* rename ("US Lax Test" → what it does) and the restore-scripts' *structural* drift (Tools-section / "Tester" / missing Membership) as a **separate** item.
+- **✅ RESOLVED — minimal consistency pass (Todd, 2026-07-29)**: renamed every visible "US Lacrosse"/"US Lax" → "USA Lacrosse" across the twin nav generators and the page header, keeping the section-name↔SectionRules join key in sync:
+  - `5) Re-Set Nav System.sql` — section + 3 item labels (:161-163) **and** SectionRules key (:210), verified matched.
+  - `5) Re-Set Nav System.ps1` — rules-map key (:139), section comment (:235), section + labels (:236-238).
+  - `uslax-test.component.html` — header "US Lax Validation Test" → "USA Lacrosse Validation Test".
+  - Stale restore scripts (`0-Restore-DevConfig-DEV.ps1`, `0-Restore-DevConfig-PROD.sql`) — rebranded the **strings** ("US Lax Tester/Rankings" → "USA Lacrosse Tester/Rankings") so a dev restore won't reintroduce "US Lax". Structural drift left for the separate item.
+  - **Icon**: kept `bi-award` (no change requested).
+  - **⚠️ OPEN OPERATIONAL**: Todd to **re-run the nav reset (`-I`)** to apply — the script edits don't take effect until regen. Frontend header deploys with the FE build.
+- **Severity**: Branding / Legacy-parity → reframed to internal-consistency polish (low risk)
+- **Status**: ✅ **RESOLVED (code)** — rename done across twin generators + header + restore strings (Todd, 2026-07-29). **OPEN: re-run nav reset + F5.**
 
 ---
 
