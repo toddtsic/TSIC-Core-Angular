@@ -31,6 +31,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   3. **Shared-config caution** — `JOB_CONFIG_RTE_TOOLS` is shared across **bulletins, job-config HTML fields, and the help editor**, so widening it hits all three. Decide whether to **enrich the shared config** or give **bulletins its own richer config** (leaving job-config/help minimal).
   - **Cross-ref**: PL-057 #5 (payment punchlist) asks to add an RTE to the **ARB defensive email** (today a bare textarea); it should **reuse whatever toolbar config lands here** so the editing experience is consistent.
 - **RESOLUTION (Todd, 2026-07-27): DEFERRED — bulletin editor stays as-is; enrich in response to client needs over time.** The minimal 10-tool toolbar is the deliberate brand-safety default. When a client need surfaces, the agreed shape is on file: bulletins-only `BULLETIN_RTE_TOOLS` (Formats capped at H2/H3, Alignments, Outdent/Indent, CreateTable, HorizontalLine, StrikeThrough, ClearFormat, PasteCleanup; FontName/FontSize/Image/SourceCode stay out), job-config + help editors stay minimal (their toolbar is what keeps AM-012's "future content stays clean" guarantee).
+- **Re-raised by Ann (2026-07-28) → see AM-045** (font size/type specifically).
 - **Status**: DEFERRED (Todd, 2026-07-27) — no change now; revisit on client demand
 
 ### AM-002: [Configure / Administrators] Administrators table — match Search/Player table style and reorder columns
@@ -372,6 +373,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Where**: `scripts/5) Re-Set Nav System.sql:155` — `INSERT INTO #AdminManifest VALUES (N'Communications', …, N'E-Mail Troubleshooter', N'envelope-exclamation', N'tools/email-troubleshooter', 3, 1, 1, 1, NULL, N'NEW');`
 - **Two parts:**
   1. **Confirm SuperUser-only visibility — and apply it.** Ann is confirming that E-Mail Troubleshooter was decided (with Chelsea) to be **SuperUser-visibility only**. **Code check (2026-07-27): it is NOT SuperUser-only today** — the manifest row sets `ForDirector=1, ForSuperDir=1, ForSuperUser=1`, so it currently shows for **all three admin roles**. If SuperUser-only is the confirmed decision, change the flags to `0, 0, 1` (the pattern Administrators uses at [:130](../..)), then re-run the nav reset.
+     - **Reinforced (Ann, 2026-07-28)**: the explicit question is **"do we want Directors to have access to the E-Mail Troubleshooter at all?"** Today they **do** (`ForDirector=1`). If the answer is no (SuperUser-only), apply `0,0,1` per above. If Directors *should* keep it, leave `ForDirector=1` — but then confirm that's intended (it contradicts the SuperUser-only decision Ann recalled with Chelsea). Todd to make the final call.
   2. **Remove the NEW badge from the menu tree.** The row's `BadgeText` is `N'NEW'`, which renders the NEW chip in the nav. Set it to `NULL` to drop the chip.
 - **For Todd**: edit the E-Mail Troubleshooter row at `5) Re-Set Nav System.sql:155` — flags `1,1,1 → 0,0,1` (pending confirmation of the SuperUser-only decision) and `BadgeText 'NEW' → NULL` — then re-run the nav reset so it lands in the DB. Mirror in the dev-restore nav script if one reseeds this.
 - **RESOLUTION (Todd, 2026-07-28) — WON'T DO, both parts:**
@@ -631,6 +633,146 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Where**: `pool-assignment.component.html` — "Target Agegroup:Division" ([:231](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/ladt/pool-assignment/pool-assignment.component.html#L231)); the two move buttons (right = source→target [:222], left = target→source [:420]); Transfer Preview panel + per-row **Direction** column ([:458, 470-473](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/ladt/pool-assignment/pool-assignment.component.html#L458)); **Confirm Transfer** button ([:516-523](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/ladt/pool-assignment/pool-assignment.component.html#L516)).
 - **What Ann saw**: The confirmation text at the bottom is **great** — **but** when the **left-pointing arrow (target→source) move** is selected, the confirmation's stated **Direction is incorrect**. (Relates to **PL-042**, which fixed the per-row Direction *arrow* to point right for source→target and left for target→source — this appears to be a remaining direction gap on the **confirmation/summary text** for the left/target→source case.)
 - **For Todd**: check how the confirmation summary derives its direction for the **target→source** (left-arrow) flow — the per-row arrows were fixed under PL-042, but the confirmation Direction wording still reads wrong for a left-arrow move. Make the confirmation Direction match the actual move direction in both flows.
-- **⏳ Part 2 pending Ann's completion**: Ann's note continued *"Also, the Confirm Transfer not…"* but was cut off — **awaiting the rest** (likely something about the Confirm Transfer button state/behavior). To be filled in.
 - **Severity**: UX / possible Bug (misleading confirmation direction on target→source moves)
-- **Status**: Open — part 2 pending Ann (Ann, 2026-07-27)
+- **Status**: Open (Ann, 2026-07-27)
+
+### AM-041: [Job Settings → Payment] Hide the Payment Policy (Donations) card — donations not offered at this time
+- **Topic**: Configure → Job Settings → **Payment** tab → **Payment Policy** card
+- **Source**: Ann's pre-release walkthrough (2026-07-27) — **Todd + Ann already discussed/agreed** this
+- **Where**: `payment-tab.component.html:133-157` — the **Payment Policy** section (`<i class="bi bi-clipboard-check"></i> Payment Policy`, help text *"Offer an optional donation field on the payment page…"*) with **Enable Player Donations** (`bIncludePlayerDonation`, [:146-149](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/payment-tab.component.html#L146)) and **Enable Team Donations** (`bIncludeTeamDonation`, [:152-155](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/payment-tab.component.html#L152)).
+- **Decision (Todd + Ann)**: **Hide the Payment Policy card** so **Player Donations are not offered at this time.**
+- **For Todd**:
+  1. **Hide the Payment Policy card** (the whole `<!-- Payment Policy -->` form-section) so Directors can't enable donations. *Confirm scope*: the card holds **both** Player **and** Team donation toggles — hiding the card removes both. Confirm that's intended (donations off entirely), or if only **Player** donations should go, hide just that toggle and keep Team.
+  2. **⚠️ Hiding the config card alone doesn't suppress an already-enabled donation field.** If any job currently has `bIncludePlayerDonation` (or Team) = true, the optional donation field **still shows on the payment page** unless the value is also forced off / the payment-page field gated. So to truly "not offer" donations now: either **force the flag(s) off** (data/default) or **gate the payment-page donation field** in addition to hiding the config card.
+- **Severity**: Config / go-live (feature intentionally withheld at launch)
+- **Status**: Open — agreed with Todd; confirm Player-only vs all donations + suppress existing enabled ones (Ann, 2026-07-27)
+
+### AM-042: [Communications → Bulletins] Bulletin editor — End Date optional?, add a "why Save is disabled" hint, and confirm legacy-link bulletins auto-retiring
+- **Topic**: Communications → **Bulletins** editor (`bulletin-form-modal.component`)
+- **Source**: Ann's pre-release walkthrough (2026-07-28)
+- **Three items:**
+  1. **End Date not required — is that desired? (Question)** Ann posted a bulletin **without selecting an End Date**. Verified: `isValid()` = `hasTitle && hasText && datesValid`, and `datesValid` only checks end-after-start *if an end date is set* ([bulletin-form-modal.component.ts:573-578](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/communications/bulletins/components/bulletin-form-modal.component.ts#L573)). So **End Date is optional** — a bulletin with none runs indefinitely. Confirm that's intended (likely yes — an evergreen bulletin), or should an end date be required/encouraged.
+  2. **Add a hint for why "Save Changes" is disabled (Recommendation).** The Add/Save button is `[disabled]="!isValid()"` ([:226](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/communications/bulletins/components/bulletin-form-modal.component.ts#L226)) — it needs both a **Title** and **body Text**, but nothing tells the user *why* it's greyed out. **Ann: add a prompt when the Title (and/or Text) is empty** so the user knows what's blocking Save. *For Todd:* mark Title/Text as required and/or show a small inline message ("Enter a title to save") near the disabled button.
+  3. **Legacy "Click Here to register" bulletins auto-revert to Inactive — CONFIRMED by design.** Ann activated old registration-link bulletins and they **auto-reverted to Inactive**. **Verified intentional**: `BulletinService` uses `LegacyBulletinPatterns` to **auto-retire (Active=0)** any bulletin whose body contains a **legacy ASP.NET-MVC registration URL fragment**, in **go-live environments (`bGoLive=true`)**, because **smart bulletins / Quick Links have superseded them** ([LegacyBulletinPatterns.cs:14-15](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Shared/Bulletins/LegacyBulletinPatterns.cs#L14)). So **yes — desired behavior, exactly as Ann surmised** (redundant with Quick Links). No action needed; documented here so it's on record. *(If a director ever legitimately needs one of these active, they'd re-author it without the legacy link.)*
+- **Severity**: UX (bulletin editor clarity) + 1 confirmed-by-design behavior
+- **Status**: Open — items 1 (confirm) + 2 (add hint); item 3 answered/by-design (Ann, 2026-07-28)
+
+### AM-043: [Communications → Bulletins] "Draft with AI" — no way to keep editing *with* AI after the first draft; clarify the "AI Format" control
+- **Topic**: Communications → Bulletins editor → AI features (Draft with AI / AI Format / Preview)
+- **Source**: Ann's pre-release walkthrough (2026-07-28) — tested on **LFTC Summer 2026** (drafted a Practice Schedule with an editable table)
+- **What Ann saw / asked**:
+  1. **No iterative AI editing (feature request).** She used **Draft with AI** to generate a Practice Schedule (with a table she can then hand-edit), but asked **"how do I continue to edit *with AI*? is a dialog possible?"** Verified: today's AI is **one-shot** — **Draft with AI** ([bulletin-form-modal.component.ts:51-67](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/communications/bulletins/components/bulletin-form-modal.component.ts#L51)) generates from a prompt (replaces content), and **AI Format** restyles existing content; neither lets you *converse* to refine ("add a Tuesday row", "make it 3 columns"). After the first draft you're on manual RTE editing. **Request: an iterative/dialog AI-edit flow** so a director can keep refining the draft with AI.
+  2. **The "AI Format" control is unclear.** Ann "didn't understand the AI Format badge." It's the magic-wand **"AI Format"** button ([:100-110](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/communications/bulletins/components/bulletin-form-modal.component.ts#L100)) whose tooltip is *"Reformat with AI using design-system styling + token vocabulary"* — i.e. it **restyles the existing content** (distinct from Draft, which generates new). **Recommend clearer labeling/help** distinguishing **Draft with AI** (create new) vs **AI Format** (restyle what's there), so it's obvious what each does.
+  3. **Show Preview** (SuperUser) worked for her, but its relationship to AI Format wasn't clear — it's the "Resolved Preview" that renders `!TOKEN` markers ([:119-127](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/communications/bulletins/components/bulletin-form-modal.component.ts#L119)). A one-line label ("see how tokens resolve") would help.
+- **For Todd**: (1) consider an **iterative AI edit** affordance (a follow-up prompt / chat-style "refine this draft" that edits the current content rather than replacing it); (2) reword the **AI Format** button/help so its purpose (restyle existing content, don't generate new) is obvious; (3) small label on **Show Preview** clarifying it resolves tokens.
+- **Severity**: UX / feature (AI editing flow clarity + iterative-edit gap)
+- **Status**: Open (Ann, 2026-07-28)
+
+### AM-044: [Communications → Bulletins] Review tokens — "selected all, they didn't work" + no text wrapping (LFTC Summer 2026, Ann's local)
+- **Topic**: Communications → Bulletins → substitution **tokens** + bulletin content wrapping
+- **Source**: Ann's pre-release walkthrough (2026-07-28) — **tested on LFTC Summer 2026, Ann's local machine** (Claude can't reach her DB — needs a repro / screenshot to fully diagnose)
+- **Two items:**
+  1. **Tokens render as literal `!TOKEN` text — CONFIRMED via screenshot (2026-07-28).** On the **admin Bulletins editor card** ("test" bulletin), the inserted tokens show as raw literals run together: `…Summer 2026!EVENT_INFO!SCHEDULE!PUBLIC_ROSTERS!REGISTER_SELFROSTERPLAYERSANDCOACH!REGISTER_STAFF!REGISTER_UNASSIGNEDADULT!REGISTER_CLUBRE…`. So on this surface they are **not resolved**. This is the admin **source/preview card** in the bulletins list, which renders the stored text — token resolution happens via `_tokenRegistry.ResolveTokens` ([BulletinService.cs:103-104](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Shared/Bulletins/BulletinService.cs#L103)) on the **public render** and in **Show Preview**, not on this admin card. **Two things for Todd:**
+     - **(a) Verify the public render / Show Preview actually resolves them** — there, gated tokens ([IBulletinTokenResolver.cs:22-32](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Shared/Bulletins/TokenResolution/IBulletinTokenResolver.cs#L22): *"return empty string when gating pulse flags are false"*) will show empty for LFTC's current state, and non-gated ones should render their link/button. If they **still** show literal on the public site, that's a real resolution bug.
+     - **(b) UX**: the admin bulletins **list card should probably show a resolved (or at least friendlier) preview**, not a wall of raw `!TOKEN` literals — that's what made Ann think "they didn't work." Consider rendering the resolved preview on the card, or at minimum spacing/labeling the tokens.
+  2. **No wrapping — CONFIRMED (screenshot).** The long literal token string **overflows the card with no wrapping** (runs off the right edge). Layout/CSS bug — add `overflow-wrap`/`word-break` (and make any AI-drafted **tables** responsive) so wide bulletin content wraps within the card.
+- **For Todd**: (1) confirm tokens resolve on the **public render / Show Preview** (admin card showing literals is the source view); if the public site also shows literals, trace the unresolved path; (2) make the admin bulletins card show a resolved/friendlier preview rather than raw `!TOKEN` runs; (3) **fix wrapping** on the bulletin card so long content/token strings wrap. **Repro on Ann's local — LFTC Summer 2026 ("test" bulletin).**
+- **Severity**: UX + Bug (raw tokens + overflow on the admin bulletins card)
+- **Status**: Open — screenshot confirms literal tokens + no wrap; Todd to verify public-render resolution (Ann, 2026-07-28)
+
+### AM-045: [Communications → Bulletins] Bulletin text editor won't change font size or type — Ann re-raising (reopen AM-001)
+- **Topic**: Communications → Bulletins editor → RTE toolbar (font size / font family)
+- **Source**: Ann's pre-release walkthrough (2026-07-28) — **re-raise of AM-001**, brought forward here so it's visible rather than buried in AM-001's DEFERRED resolution
+- **Request (Ann)**: While testing bulletins Ann found **the text editor doesn't allow changing font size or font type** — she wants these back.
+- **⚠️ Tension with the shipped decision**: AM-001 was **resolved DEFERRED (Todd, 2026-07-27)** — the bulletin editor stays on the minimal `JOB_CONFIG_RTE_TOOLS` / agreed `BULLETIN_RTE_TOOLS` shape, and **`FontName`/`FontSize` are intentionally kept OUT** for **brand safety** (uncontrolled fonts/sizes = off-brand bulletins). So Ann is specifically asking for the **two tools the plan deliberately excludes**.
+- **For Todd + Ann to decide**: hold the brand-safe default (no font family/size — direct clients to the allowed formatting), or **admit FontName/FontSize for bulletins** (bulletins-only config, not job-config/help, to preserve AM-012's "clean content" guarantee). If admitting them, consider constraining to a **curated font-size list** (not free entry) to limit brand drift.
+- **Severity**: UX / feature (Legacy-parity — font size/type) — reopens a deferred decision
+- **Status**: Open — Ann re-raising AM-001's deferred FontName/FontSize exclusion (Ann, 2026-07-28)
+
+---
+
+## Reports Library
+
+*Job Reports Library. Ann's pre-release walkthrough (2026-07-28).*
+
+### AM-046: [Reports Library] Row background colors (gray/yellow/green) — confirm the Crystal-migration markers should be visible to end-users at go-live
+- **Topic**: Job **Reports Library** → report-row background colors + Crystal/SF badges
+- **Source**: Ann's pre-release walkthrough (2026-07-28)
+- **Ann's question**: SuperUser sees reports with **gray, yellow, and green** backgrounds; Director sees only **green and gray** — why the colors, and why the difference for the **same job, different role**?
+- **Answer (verified in `reports-library.component`)**: the colors are **temporary Crystal-Reports-migration status markers** (tied to the CR retirement project):
+  - **Gray / plain** (default `--bs-body-bg`) = a report that was **never Crystal** — native Type-2 (SP-Excel). No badge.
+  - **Yellow / amber** (`.report-row--cr` = `--bs-warning-bg-subtle` + amber rail, "**Crystal**" badge) = **still served by Crystal Reports, pending migration to Type-2** ([reports-library.component.scss:325-333](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/reporting/reports-library/reports-library.component.scss#L325)). SCSS comment: *"flag disappears automatically once a report becomes a StoredProcedure entry."*
+  - **Green** (`.report-row--migrated` = `--bs-success-bg-subtle` + green rail, "**SF**" badge) = **was Crystal, now rendered natively (EF + Syncfusion) — migrated/done** ([:335-343](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/reporting/reports-library/reports-library.component.scss#L335)). SCSS comment: *"TEMP: remove this + badge once all reports are off Crystal."*
+  - **Role difference = by design**: reports are **role-scoped** (`entry.roles`), so Director vs SuperUser see different report *sets* for the same job. The still-Crystal (yellow) reports are in the SuperUser set but not the Director's, so the Director sees no yellow — only green + gray.
+- **🟡 The real question for Todd**: these row colors + "Crystal"/"SF" badges are **explicitly temporary migration-tracking markers** (the SCSS says "remove once all reports are off Crystal"), yet they're **visible to real admin end-users** (Director + SuperUser) in the live app — and they confused Ann, who knows the product. **Should they be visible to end-users at go-live**, or **suppressed** (dev/internal-only, or SuperUser-only at most) until the migration is complete? An end-user Director has no context for why a report is amber vs green.
+- **For Todd**: decide whether to (a) keep the markers visible (accept the transient color coding), (b) restrict them to SuperUser only, or (c) hide them from all end-users until migration finishes and the markers are removed. The role-scoping itself needs no change.
+- **Severity**: UX (internal migration markers surfaced to end-users; confusing) — decision
+- **Status**: Open — Todd decision on go-live visibility of the CR-migration markers (Ann, 2026-07-28)
+
+### AM-047: [Reports Library → Report Designers] Add a "Back to Reports Library" control at the top of each designer
+- **Topic**: Reports Library → **Report Designers** (packed-roster / roster-table / schedule-list)
+- **Source**: Ann's pre-release walkthrough (2026-07-28)
+- **Kudos (Ann)**: "The **Report Designers are brilliant!**" 🎉
+- **Request (Ann)**: Once she goes into a report designer, she looked for a **Back badge at the top to return to the Reports Library home** — there isn't one.
+- **Finding (verified)**: none of the three designers has a back-to-library control — `packed-roster-designer`, `roster-table-designer`, `schedule-list-designer` HTML have **no** Back button / routerLink to the Reports Library. Today you'd use the browser back button or the nav.
+- **For Todd**: add a **"← Back to Reports Library"** button/badge at the top of each report designer (all three components) that routes back to the Reports Library home. Consistent placement across the three.
+- **Severity**: UX (navigation — no in-page way back from a designer)
+- **Status**: Open (Ann, 2026-07-28)
+
+---
+
+## US Lacrosse Menu
+
+*The "US Lacrosse" admin nav section + its tools. Ann's pre-release walkthrough (2026-07-28).*
+
+### AM-048: [US Lacrosse menu] Rebrand all "US Lacrosse" / "US Lax" strings to "USA Lacrosse" (they're strict about branding)
+- **Topic**: The "US Lacrosse" nav section, its 3 menu items, and the US Lax Validation Test page header
+- **Source**: Ann's pre-release walkthrough (2026-07-28) — "they are very picky about their branding"
+- **Change all to "USA Lacrosse":**
+  - **Nav section + 3 items** in `scripts/5) Re-Set Nav System.sql`: section **`N'US Lacrosse'`** → **`N'USA Lacrosse'`** (lines 161-163 Controller column), and the item labels **`N'US Lax Test'`** ([:161](../..)) / **`N'US Lax Rankings'`** ([:162](../..)) / **`N'US Lax Membership'`** ([:163](../..)) → **"USA Lacrosse Test / Rankings / Membership"** (confirm exact wording with Ann).
+  - **Page header**: **"US Lax Validation Test"** → **"USA Lacrosse Validation Test"** ([uslax-test.component.html:3](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/tools/uslax-test/uslax-test.component.html#L3)).
+- **⚠️ Technical note for Todd**: the nav **section name is a join key** — `#SectionRules` keys on it (`N'US Lacrosse'` at `5) Re-Set Nav System.sql:210`). If you rename the section to `N'USA Lacrosse'`, you **must update the SectionRules row (:210) to match**, or the section's `{"sports":["Lacrosse"]}` gating breaks. Then re-run the nav reset, and mirror in any dev-restore nav script.
+- **✅ Codebase sweep (Ann + Claude, 2026-07-28)**: these are the **only** incorrect user-facing brand strings. Everywhere else the visible text already reads **"USA Lacrosse"** (membership reconciliation page, `uslax-info` smart bulletin, profile-migration copy, aria-labels). The remaining `USLax`/`uslax` occurrences are **internal** — code identifiers, tokens (`!USLAXMEMBERID`), field names, file names, comments — not brand display text; leave those.
+- **Question (Ann, 2026-07-28) — the menu icon**: what is the significance of the USA Lacrosse **menu icon**? The section currently uses **`bi-award`** (a rosette/ribbon), and the items use `bi-check-circle` (Test), `bi-trophy` (Rankings), `bi-people` (Membership) ([5) Re-Set Nav System.sql:161-163](../..) — the Icon/ActionIcon columns). Confirm whether `award` is the intended/meaningful icon for the section (vs. something more clearly membership/lacrosse-related), and adjust if a different icon reads better. *(Don't use a USA Lacrosse logo/trademark as the icon — Bootstrap icons only, for the same branding-strictness reason.)*
+- **Severity**: Branding / Legacy-parity (USA Lacrosse trademark compliance)
+- **Status**: Open (Ann, 2026-07-28)
+
+---
+
+## Customers (TSIC Admin)
+
+*SuperUser Configure → Customers management. Ann's pre-release walkthrough (2026-07-28).*
+
+### AM-049: [TSIC Admin → Customers] Separate customers with no active jobs — Active/Inactive tables or an Archive (re-raise of PL-016)
+- **Topic**: Configure → **Customers** (SuperUser) — separating stale/inactive customers
+- **Source**: Ann's pre-release walkthrough (2026-07-28) — **re-raise of ConfigureMenus PL-016** (which was **Won't Fix**)
+- **Request (Ann)**: Customers with **no active jobs** clutter the list — e.g. **Black Diamond Lacrosse (last active Jul 24, 2023)**. Move them out of the main list: either **two tables — Active Customers and Inactive Customers**, **or** create an **Archive** where old customers can be moved.
+- **⚠️ Re-raise — previously declined**: ConfigureMenus **PL-016** filed the "split into Active/Inactive tables" idea and it was **Won't Fix**. Ann is re-requesting it (with the archive alternative), so it needs reconciling with that earlier decision.
+- **Technical reality (from PL-016's finding)**: the **Customer entity has no `BActive`/`IsActive` field** — "inactive" is **derived** (a customer with `JobCount === 0`, or by Ann's example a stale **last-active date**). So:
+  - **Two-table split** (Active = jobCount>0 / Inactive = jobCount=0, or last-active older than a cutoff) is **UI-only** — no schema change (PL-016 option A: two `<ejs-grid>` blocks from filtered arrays).
+  - **Archive** (actually *moving* old customers out of the working set) is **more than UI** — it needs a **persisted flag** (e.g. `Customers.IsArchived`) or an archive mechanism, plus an "Archive" / "Restore" action. Cleaner long-term, but a real change.
+- **For Todd + Ann to decide**: (a) revisit PL-016's Won't-Fix given the clutter is real (Black Diamond etc.); (b) pick **two-table split (UI-only, quickest)** vs **Archive (persisted flag + actions)**; (c) settle the "inactive" definition — `jobCount = 0` vs a **last-active-date cutoff** (Ann referenced a last-active date, so confirm the Customers list surfaces one and whether that's the signal).
+- **Severity**: UX (SuperUser customer-list clutter from long-inactive customers) — re-raise
+- **Status**: Open — reconcile with PL-016 Won't-Fix; choose split vs archive (Ann, 2026-07-28)
+
+---
+
+## Accounting
+
+*Accounting reports (Customer Job Revenue, etc.). Ann's pre-release walkthrough (2026-07-28).*
+
+### AM-050: [Accounting → Customer Job Revenue] Date range display, export badges, and revenue-column restructure
+- **Topic**: Accounting → **Customer Job Revenue** report (`customer-job-revenue.component` — Syncfusion PivotView + Check/E-Check tabs)
+- **Source**: Ann's pre-release walkthrough (2026-07-28)
+- **Three parts:**
+  1. **Dates should show as a range (Legacy parity).** The top has separate **Start Date / End Date dropdowns** ([customer-job-revenue.component.html:9-24](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/tools/customer-job-revenue/customer-job-revenue.component.html#L9)). Ann wants the selected period shown as a **range like Legacy** — e.g. **"6/1/26 – 6/30/26"**.
+  2. **Surface PDF / Excel / CSV export as badges, not hidden.** Export is currently tucked in the pivot/grid **toolbar dropdown** (`[toolbar]="['Export']"`, `allowExcelExport`/`allowPdfExport` [:110-113](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/tools/customer-job-revenue/customer-job-revenue.component.html#L110)). Ann: **display PDF, Excel, and CSV as visible badges/buttons** instead of hiding them in a menu. *(Note: only Excel + PDF export are enabled today — **CSV would need adding** to the grid/pivot export config.)*
+  3. **Revenue-column restructure (the pivot measures):**
+     - **CC Payments looks like it combines payments + refunds.** **Add a separate "CC Refunds" column** so payments and refunds are distinct.
+     - **Rename "Grand Total" → "CC Grand Total"** (the total is really the CC total).
+     - **Column order / cleanup**: put a **Corrections (non-revenue)** column **first**, then **Checks**, then **remove the "Check Client Rec'd"** column, and **separate the Check/Corrections group from the CC info with a bold vertical divider line**.
+     - **Only do the math (totals) for the CC columns** — Corrections is non-revenue and Checks shouldn't roll into the revenue total; the totals row/Grand Total should sum **CC only**.
+  4. **Make the table taller — less vertical scrolling (Ann).** If possible, give the revenue table/pivot more vertical height so more rows show at once and the user scrolls less. (Increase the grid/pivot height, or let it grow to the available viewport.)
+- **For Todd**: (1) render the chosen period as a "Start – End" range label; (2) expose Excel/PDF/**CSV** as visible export badges (add CSV export); (3) rework the pivot value fields — split CC Payments vs **CC Refunds**, rename Grand Total → **CC Grand Total**, reorder to Corrections → Checks → (divider) → CC columns, drop **Check Client Rec'd**, and scope totals to **CC columns only** (Corrections = non-revenue, Checks excluded from the revenue total). Confirm the exact revenue definition with Ann when wiring the totals; (4) increase the table/pivot height (or grow to viewport) to cut vertical scrolling.
+- **Severity**: UX + reporting-accuracy (revenue totals should be CC-only; clearer columns)
+- **Status**: Open (Ann, 2026-07-28)
