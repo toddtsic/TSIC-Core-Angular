@@ -697,10 +697,10 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   - **A — token separator (the "they didn't work" bug): DONE.** `insertToken` now appends a trailing space (`token + ' '`) so chips read as distinct tokens instead of `!A!B!C`.
   - **B — wrapping: DONE (clean).** Added `overflow-wrap:anywhere; word-break:break-word;` to `.preview-body` — our own element, no encapsulation-piercing needed. The RTE editing surface needs no `::ng-deep` reach: with A's separator, tokens are ordinary spaced text and Syncfusion wraps them normally. (Dropped an initial `::ng-deep .e-rte-content` addition as an unnecessary reach into third-party internals — the pre-existing `::ng-deep .e-richtexteditor` border-radius is untouched.)
   - **Item 1(b) — MOOT**: no list body card exists to "show a resolved preview" on; nothing to change there.
-  - **Item 1(a) — needs Ann's one-click confirm**: the Show Preview / public render path IS the resolver (`BulletinService.ResolveTokens`); mechanism is wired and gated tokens correctly return empty in go-live. Not reproducible from here (Ann's LFTC DB) — Ann to click **Show Preview** (or view the public site) and confirm resolution. Not claimed fixed.
+  - **Item 1(a) — CONFIRMED WORKING (Todd screenshot, 2026-07-29)**: Show Preview resolves correctly — `!REGISTER_PLAYER !REGISTER_CLUBREP` render as the real **Register as Player** / **Register Club / Team** buttons in the Resolved Preview, driven by the Simulate pulse toggles. Resolver path (`BulletinService.ResolveTokens`) verified end-to-end in the editor. No resolution bug.
   - AI-drafted **table** responsiveness (mentioned in item 2) not yet addressed — raise separately if a wide table actually overflows.
 - **Severity**: UX + Bug (token separator + overflow)
-- **Status**: ✅ **RESOLVED** — A (separator) + B (wrapping) done; 1(b) moot; 1(a) pending Ann's Show-Preview/public-render confirm (Todd, 2026-07-29). NOT deployed, F5 pending.
+- **Status**: ✅ **RESOLVED (fully)** — A (separator) + B (wrapping) done; 1(a) confirmed working via Todd screenshot; 1(b) moot (Todd, 2026-07-29). NOT deployed, F5 pending.
 
 ### AM-045: [Communications → Bulletins] Bulletin text editor won't change font size or type — Ann re-raising (reopen AM-001)
 - **Topic**: Communications → Bulletins editor → RTE toolbar (font size / font family)
