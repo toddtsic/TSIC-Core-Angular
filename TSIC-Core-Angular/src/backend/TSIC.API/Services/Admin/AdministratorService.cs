@@ -104,9 +104,11 @@ public sealed class AdministratorService : IAdministratorService
 
         // ── AM-004 eligibility wall (server-side; the search filter is not the only gate) ──
         // Family logins are shared within the household: elevating one hands Director access
-        // to everyone who knows the password (global check — no window). Role classification
-        // counts only registrations from the lookback window: a stale grant from years back
-        // must not poison an otherwise lane-pure account. Two qualifying shapes:
+        // to everyone who knows the password (global check — never liveness-gated). Role
+        // classification counts only LIVE registrations — bActive, and the job unexpired for
+        // the role type (admin roles ride Jobs.ExpiryAdmin, every other role rides
+        // Jobs.ExpiryUsers): a stale/expired grant must not poison an otherwise lane-pure
+        // account. Two qualifying shapes:
         //  1. Admin-only accounts (every windowed registration carries an admin role)
         //     → new registration.
         //  2. Unassigned Adult–only accounts on this customer (the pending-coach funnel)
@@ -118,15 +120,18 @@ public sealed class AdministratorService : IAdministratorService
                 "and cannot hold admin roles. Have the person register on this site as a coach/staff adult " +
                 "with their own account, then accept them here.");
 
-        var cutoff = DateTime.Now.AddYears(-RoleConstants.AdminLaneLookbackYears);
+        var now = DateTime.Now;
         var registrations = (await _adminRepo.GetRegistrationsByUserIdAsync(user.Id, cancellationToken))
-            .Where(r => r.RegistrationTs >= cutoff)
+            .Where(r => r.BActive == true
+                && (RoleConstants.AdminRoleIds.Contains(r.RoleId, StringComparer.OrdinalIgnoreCase)
+                    ? r.Job.ExpiryAdmin > now
+                    : r.Job.ExpiryUsers > now))
             .ToList();
 
         if (registrations.Count == 0)
             throw new ArgumentException(
-                $"'{request.UserName}' has no registrations in the last {RoleConstants.AdminLaneLookbackYears} " +
-                "years. Have the person register on this site as a coach/staff adult, then accept them here.");
+                $"'{request.UserName}' has no active registrations. Have the person register on this " +
+                "site as a coach/staff adult, then accept them here.");
 
         var lane = GetRoleLane(roleId);
         var isLanePure = registrations.All(r =>
@@ -136,9 +141,9 @@ public sealed class AdministratorService : IAdministratorService
 
         if (!isLanePure && !isPendingAdultOnly)
             throw new ArgumentException(
-                $"'{request.UserName}' has registrations outside the {request.RoleName} role within the last " +
-                $"{RoleConstants.AdminLaneLookbackYears} years and is not eligible. Have the person register " +
-                "on this site as a coach/staff adult with a separate account.");
+                $"'{request.UserName}' has active registrations outside the {request.RoleName} role and is " +
+                "not eligible. Have the person register on this site as a coach/staff adult with a " +
+                "separate account.");
 
         if (isPendingAdultOnly)
         {

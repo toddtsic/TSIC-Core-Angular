@@ -58,12 +58,13 @@ public interface IUserRepository
 
     /// <summary>
     /// Search admin-candidate accounts by username, first name, or last name (case-insensitive contains).
-    /// Lane model (AM-004): eligibility depends on the role being granted, counting only registrations
-    /// from the last <see cref="TSIC.Domain.Constants.RoleConstants.AdminLaneLookbackYears"/> years.
-    /// An account qualifies only if it is never a family credential holder (global — no window) AND
-    /// either (a) lane-pure — every windowed registration lies within <paramref name="laneRoleIds"/>
-    /// (no cross-type grants) — or (b) every windowed registration is Unassigned Adult with at least
-    /// one on the given customer (pending adult awaiting elevation).
+    /// Lane model (AM-004): eligibility depends on the role being granted, counting only LIVE
+    /// registrations — bActive, and the job unexpired for the role type (admin roles ride
+    /// Jobs.ExpiryAdmin, every other role rides Jobs.ExpiryUsers). An account qualifies only if it
+    /// is never a family credential holder (global — never liveness-gated) AND either (a) lane-pure —
+    /// every live registration lies within <paramref name="laneRoleIds"/> (no cross-type grants) —
+    /// or (b) every live registration is Unassigned Adult with at least one on the given customer
+    /// (pending adult awaiting elevation).
     /// Family/player logins are shared within a household and are structurally excluded.
     /// </summary>
     Task<List<UserSearchResult>> SearchAdminCandidatesAsync(

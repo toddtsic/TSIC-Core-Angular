@@ -69,7 +69,7 @@ export interface AdminFormResult {
                                 </div>
                                 @if (selectedRole()) {
                                     <small class="text-body-secondary d-block mt-1">
-                                        Eligible: accounts whose registrations over the last 2 years are all
+                                        Eligible: accounts whose active registrations are all
                                         {{ selectedRole() === 'Director' || selectedRole() === 'SuperDirector' ? 'Director / SuperDirector' : selectedRole() }},
                                         or pending coach/staff adults registered with this customer.
                                         Family and player accounts cannot hold admin roles.

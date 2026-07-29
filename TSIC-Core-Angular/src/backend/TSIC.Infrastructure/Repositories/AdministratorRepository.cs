@@ -170,7 +170,10 @@ public class AdministratorRepository : IAdministratorRepository
         string userId,
         CancellationToken cancellationToken = default)
     {
+        // Job included so callers can apply the AM-004 liveness rule (bActive + role-typed
+        // ExpiryAdmin/ExpiryUsers on the job).
         return await _context.Registrations
+            .Include(r => r.Job)
             .Where(r => r.UserId == userId)
             .ToListAsync(cancellationToken);
     }

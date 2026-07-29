@@ -172,42 +172,57 @@ public class UserRepository : IUserRepository
         CancellationToken cancellationToken = default)
     {
         var lowerQuery = query.ToLower();
-        var cutoff = DateTime.Now.AddYears(-RoleConstants.AdminLaneLookbackYears);
+        var now = DateTime.Now;
 
-        // AM-004 lane model: eligibility depends on the role being granted. Only registrations
-        // from the lookback window count (a stale grant from years back must not poison an
-        // otherwise lane-pure account). Two qualifying shapes:
-        //  - Lane-pure: every windowed registration, on any job/customer, lies within the
+        // AM-004 lane model: eligibility depends on the role being granted. Only LIVE
+        // registrations count — bActive, and the job unexpired for the role type (admin roles
+        // ride Jobs.ExpiryAdmin, every other role rides Jobs.ExpiryUsers — the legacy login
+        // role-picker predicate). A stale/expired grant must not poison an otherwise lane-pure
+        // account. Two qualifying shapes:
+        //  - Lane-pure: every live registration, on any job/customer, lies within the
         //    lane's role set (Director+SuperDirector share one lane; every other admin type
         //    is its own lane — no cross-type grants).
-        //  - Pending adult: every windowed registration is Unassigned Adult with at least one
+        //  - Pending adult: every live registration is Unassigned Adult with at least one
         //    on this customer — the sanctioned funnel for brand-new admins ("register as coach
         //    on the site, then get accepted here").
-        // The family-credential exclusion stays GLOBAL (no window): a shared household login
-        // is structural — accepting one would hand admin access to the whole household.
+        // The family-credential exclusion stays GLOBAL (not liveness-gated): a shared household
+        // login is structural — accepting one would hand admin access to the whole household.
         return await _context.AspNetUsers
             .AsNoTracking()
             .Where(u =>
                 u.UserName!.ToLower().Contains(lowerQuery) ||
                 (u.FirstName != null && u.FirstName.ToLower().Contains(lowerQuery)) ||
                 (u.LastName != null && u.LastName.ToLower().Contains(lowerQuery)))
-            // Never a family credential holder — global, not windowed
+            // Never a family credential holder — global, not liveness-gated
             .Where(u => !_context.Registrations.Any(r => r.FamilyUserId == u.Id))
-            // Needs at least one windowed registration to classify
-            .Where(u => _context.Registrations.Any(r => r.UserId == u.Id && r.RegistrationTs >= cutoff))
+            // Needs at least one live registration to classify
+            .Where(u => _context.Registrations.Any(r => r.UserId == u.Id
+                && r.BActive == true
+                && (RoleConstants.AdminRoleIds.Contains(r.RoleId!)
+                    ? r.Job.ExpiryAdmin > now
+                    : r.Job.ExpiryUsers > now)))
             .Select(u => new
             {
                 User = u,
                 IsLanePure = _context.Registrations
-                    .Where(r => r.UserId == u.Id && r.RegistrationTs >= cutoff)
+                    .Where(r => r.UserId == u.Id
+                        && r.BActive == true
+                        && (RoleConstants.AdminRoleIds.Contains(r.RoleId!)
+                            ? r.Job.ExpiryAdmin > now
+                            : r.Job.ExpiryUsers > now))
                     .All(r => laneRoleIds.Contains(r.RoleId!)),
                 IsPendingAdultOnly =
                     _context.Registrations
-                        .Where(r => r.UserId == u.Id && r.RegistrationTs >= cutoff)
+                        .Where(r => r.UserId == u.Id
+                            && r.BActive == true
+                            && (RoleConstants.AdminRoleIds.Contains(r.RoleId!)
+                                ? r.Job.ExpiryAdmin > now
+                                : r.Job.ExpiryUsers > now))
                         .All(r => r.RoleId == RoleConstants.UnassignedAdult)
                     && _context.Registrations.Any(r => r.UserId == u.Id
-                        && r.RegistrationTs >= cutoff
+                        && r.BActive == true
                         && r.RoleId == RoleConstants.UnassignedAdult
+                        && r.Job.ExpiryUsers > now
                         && r.Job.CustomerId == customerId)
             })
             .Where(x => x.IsLanePure || x.IsPendingAdultOnly)
@@ -231,7 +246,7 @@ public class UserRepository : IUserRepository
         CancellationToken cancellationToken = default)
     {
         var lowerQuery = query.ToLower();
-        var cutoff = DateTime.Now.AddYears(-RoleConstants.AdminLaneLookbackYears);
+        var now = DateTime.Now;
 
         // Same name predicate as SearchAdminCandidatesAsync, but no eligibility filter — we're
         // asking WHY the eligible set is empty. Enumeration guard: a director typing names must
@@ -249,14 +264,19 @@ public class UserRepository : IUserRepository
             .Select(u => new
             {
                 IsExactUserName = u.UserName!.ToLower() == lowerQuery,
-                // Family credential = global (structural); role classification = windowed,
-                // mirroring the eligibility query.
+                // Family credential = global (structural); role classification counts only
+                // LIVE registrations, mirroring the eligibility query.
                 IsFamilyOrPlayer =
                     _context.Registrations.Any(r => r.FamilyUserId == u.Id) ||
                     _context.Registrations.Any(r => r.UserId == u.Id
-                        && r.RegistrationTs >= cutoff
+                        && r.BActive == true
+                        && r.Job.ExpiryUsers > now
                         && (r.RoleId == RoleConstants.Player || r.RoleId == RoleConstants.Family)),
-                HasWindowedRegs = _context.Registrations.Any(r => r.UserId == u.Id && r.RegistrationTs >= cutoff)
+                HasLiveRegs = _context.Registrations.Any(r => r.UserId == u.Id
+                    && r.BActive == true
+                    && (RoleConstants.AdminRoleIds.Contains(r.RoleId!)
+                        ? r.Job.ExpiryAdmin > now
+                        : r.Job.ExpiryUsers > now))
             })
             .Take(25)
             .ToListAsync(cancellationToken);
@@ -265,7 +285,7 @@ public class UserRepository : IUserRepository
         // the family/player explanation (the common household-login case) over the generic one.
         var best = matches.FirstOrDefault(m => m.IsExactUserName)
             ?? matches.FirstOrDefault(m => m.IsFamilyOrPlayer)
-            ?? matches.FirstOrDefault(m => m.HasWindowedRegs);
+            ?? matches.FirstOrDefault(m => m.HasLiveRegs);
 
         if (best == null)
             return AdminCandidateMissReason.NotFound;
@@ -273,8 +293,8 @@ public class UserRepository : IUserRepository
         if (best.IsFamilyOrPlayer)
             return AdminCandidateMissReason.FamilyOrPlayer;
 
-        // Only stale registrations (outside the window) → same funnel as "not registered here".
-        return best.HasWindowedRegs
+        // Only dead registrations (inactive / job expired) → same funnel as "not registered here".
+        return best.HasLiveRegs
             ? AdminCandidateMissReason.OutsideLane
             : AdminCandidateMissReason.NotFound;
     }
