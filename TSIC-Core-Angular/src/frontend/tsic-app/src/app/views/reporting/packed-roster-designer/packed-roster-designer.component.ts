@@ -2,9 +2,10 @@ import {
     ChangeDetectionStrategy, Component, computed, inject, OnInit, signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ToastService } from '@shared-ui/toast.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 import { PackedRosterService } from '@infrastructure/services/packed-roster.service';
 import { ReportingService } from '@infrastructure/services/reporting.service';
 import type { PackedRosterFieldDto, PackedRosterRequestDto } from '@core/api';
@@ -143,6 +144,16 @@ export class PackedRosterDesignerComponent implements OnInit {
     private readonly reportingSvc = inject(ReportingService);
     private readonly toast = inject(ToastService);
     private readonly route = inject(ActivatedRoute);
+    private readonly router = inject(Router);
+    private readonly authService = inject(AuthService);
+
+    /** AM-047: return to the Reports Library, preserving the :jobPath prefix
+     *  (mirrors how the library launches this designer via router.navigate). */
+    backToLibrary(): void {
+        const jobPath = this.authService.currentUser()?.jobPath;
+        if (!jobPath) { return; }
+        this.router.navigate(['/', jobPath, 'reporting', 'reports-library']);
+    }
 
     /**
      * Which report the Designer is building. Recruiter is a fixed-layout report (no column

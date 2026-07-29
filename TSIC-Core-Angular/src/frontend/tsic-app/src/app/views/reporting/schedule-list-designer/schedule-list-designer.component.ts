@@ -2,6 +2,8 @@ import {
     ChangeDetectionStrategy, Component, computed, inject, OnInit, signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
+import { AuthService } from '@infrastructure/services/auth.service';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ToastService } from '@shared-ui/toast.service';
 import { ScheduleListService } from '@infrastructure/services/schedule-list.service';
@@ -77,6 +79,16 @@ export class ScheduleListDesignerComponent implements OnInit {
     private readonly scheduleSvc = inject(ScheduleListService);
     private readonly reportingSvc = inject(ReportingService);
     private readonly toast = inject(ToastService);
+    private readonly router = inject(Router);
+    private readonly authService = inject(AuthService);
+
+    /** AM-047: return to the Reports Library, preserving the :jobPath prefix
+     *  (mirrors how the library launches this designer via router.navigate). */
+    backToLibrary(): void {
+        const jobPath = this.authService.currentUser()?.jobPath;
+        if (!jobPath) { return; }
+        this.router.navigate(['/', jobPath, 'reporting', 'reports-library']);
+    }
 
     readonly availableFields = signal<ScheduleListFieldDto[]>([]);
     readonly selectedColumns = signal<DesignerColumn[]>([]);

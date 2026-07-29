@@ -3,6 +3,23 @@
     max-width: 1320px;
     margin: 0 auto;
 
+    // AM-047: breadcrumb-style link back to the Reports Library (top-left of the header).
+    .designer-back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        margin-bottom: var(--space-2);
+        padding: 0;
+        background: none;
+        border: none;
+        color: var(--bs-secondary-color);
+        font-size: var(--font-size-sm);
+        cursor: pointer;
+
+        &:hover { color: var(--bs-primary); text-decoration: underline; }
+        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: var(--radius-sm); }
+    }
+
     &__header {
         display: flex;
         align-items: flex-start;
