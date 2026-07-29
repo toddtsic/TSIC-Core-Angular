@@ -503,8 +503,13 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   5. **SuperUser-only visibility.** Ann wants this checkbox shown **only to SuperUser** (confirm/ensure — it currently renders in a plain `col-12` with no `isSuperUser` gate).
   6. **Add spacing above the checkbox so it's noticed (Ann).** The checkbox sits directly under the email-list fields (the `col-12` at [communications-tab.component.html:46](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/communications-tab.component.html#L46)) and blends in. Add extra top padding/margin between the field above and this checkbox so it stands out as its own control.
 - **For Todd**: (a) confirm what Legacy actually suppressed (player-only vs all roles); (b) re-scope `JobConfirmationCopies.Apply` so the switch does **not** suppress **Club Rep** confirmation copies — narrow to Player (and decide on Coach), matching the field name's "player" intent; (c) fix the label/help so they honestly describe the final scope (the current "all roles, all registration types" copy is what Ann is disputing); (d) gate the checkbox to SuperUser-only. This supersedes AM-010's "for tournaments" label concern.
+- **RESOLUTION (Todd, 2026-07-28) — legacy verified, behavior stands; spacing improved:**
+  1. **Legacy verdict (read `reference/TSIC-Unify-2024/TSIC-Unify-Services/IRegistrationService.cs`)**: the flag gated CC/BCC on **every** confirmation path that attached copies — player, adult, referee, recruiter, staff alike (`!bDisallowCcplayerConfirmations` on both the CC and BCC adds, both send sites). **No player-only scoping existed in Legacy** — the column name misleads, and Ann's recollection doesn't match the code. Legacy's club-rep/team confirmations attached **no CC/BCC at all** through this service, so "keep Club Rep copies when ticked" wasn't legacy behavior either. The new all-roles chokepoint (`JobConfirmationCopies`) is legacy-faithful.
+  2. **Behavior stays all-roles** (Todd ruling). No per-role granularity.
+  3. **SuperUser-only visibility: not applied** — checkbox remains visible to all admins (Todd did not adopt).
+  4. **Spacing: done** — checkbox block now `mt-4 pt-3 border-top`, visually separated from the email-list fields above (`communications-tab.component.html`).
 - **Severity**: 🔴 Bug/behavior (over-broad suppression kills Club Rep copies tournament directors rely on) + role-visibility
-- **Status**: Open — verify Legacy + Todd decision (Ann, 2026-07-27)
+- **Status**: RESOLVED (behavior stands per legacy verification; spacing FIXED) — 2026-07-28, awaiting Todd verify + Ann next pass
 
 ### AM-032: [Job Settings → Player/Teams/Coaches/Scheduling/Mobile] Highlight the "managed in Quick Links — read-only" info note so directors notice it
 - **Topic**: Configure → Job Settings tabs — the "Registration & public-visibility switches are managed in Quick Links. They appear here read-only." info banner
