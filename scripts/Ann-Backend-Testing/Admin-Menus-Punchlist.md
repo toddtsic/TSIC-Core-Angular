@@ -32,6 +32,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   - **Cross-ref**: PL-057 #5 (payment punchlist) asks to add an RTE to the **ARB defensive email** (today a bare textarea); it should **reuse whatever toolbar config lands here** so the editing experience is consistent.
 - **RESOLUTION (Todd, 2026-07-27): DEFERRED — bulletin editor stays as-is; enrich in response to client needs over time.** The minimal 10-tool toolbar is the deliberate brand-safety default. When a client need surfaces, the agreed shape is on file: bulletins-only `BULLETIN_RTE_TOOLS` (Formats capped at H2/H3, Alignments, Outdent/Indent, CreateTable, HorizontalLine, StrikeThrough, ClearFormat, PasteCleanup; FontName/FontSize/Image/SourceCode stay out), job-config + help editors stay minimal (their toolbar is what keeps AM-012's "future content stays clean" guarantee).
 - **Re-raised by Ann (2026-07-28) → see AM-045** (font size/type specifically).
+- ✅ **Acknowledged (Ann, 07-29)** — signs off on Todd's DEFERRED ruling (bulletin editor stays minimal; enrich per client need using the on-file `BULLETIN_RTE_TOOLS` shape). Font size/type continues separately in AM-045.
 - **Status**: DEFERRED (Todd, 2026-07-27) — no change now; revisit on client demand
 
 ### AM-002: [Configure / Administrators] Administrators table — match Search/Player table style and reorder columns
@@ -45,7 +46,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   4. Compress the table — rows and columns are too widely spaced; tighten overall (folded in from ConfigureMenus PL-004).
 - **Review (Claude, 2026-07-27)**: items 1 + 4 already satisfied on current master — the grid carries the same `tsic-grid-tight` density class as the Search grids (simple-view sweep), and AM-003 added the star-in-Name treatment + MM/dd/yyyy Registered. Remaining delta was only the column reorder + Status→"Active/Yes" rename.
 - **Severity**: UX
-- **Status**: WON'T DO (Todd, 2026-07-27) — current table is fine; column reorder/rename declined.
+- **Status**: WON'T DO (Todd, 2026-07-27) — current table is fine; column reorder/rename declined. ✅ **Acknowledged (Ann, 07-29)** — styling/compression done; accepts current table (reorder/rename not needed).
 
 ### AM-003: [Configure / Administrators] Primary-contact star — reposition, and carry it forward on clone + legacy migration
 - **Topic**: Configure Menus → Administrators table (primary-contact star)
@@ -63,7 +64,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   - **Sub-item 1 (reposition)**: done — star sits in a fixed-width slot left of the name (`2c94ade2`); Actions tightened 150→120. Registered column reformatted MM/dd/yyyy.
   - **Sub-item 2 (clone carry-forward)**: covered by the heal — a cloned job self-seeds its star on first Administrators load once a Director is active (clone lands Directors inactive by design, so carrying the old star would have pointed at an inactive reg anyway).
   - Help (overview + FAQ) updated to the default-star semantics. Commits: `2c94ade2`, `32dcd41e`.
-- **Status**: FIXED — Todd E2E verified 2026-07-27 (default star seeds, moves, reverts). Ann to verify on next pass.
+- **Status**: FIXED — ✅ **VERIFIED PASSING (Ann, 07-29)** (default star seeds left of name, moves, reverts; clone self-seeds). Todd E2E verified 2026-07-27.
 
 ### AM-004: [Configure / Administrators] "Add Administrator" accepts ANY account — including shared family logins — as a job admin
 - **Topic**: Configure Menus → Administrators → Add Administrator (username search)
@@ -85,7 +86,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Why an approved/active coach can never surface (verified 2026-07-27)**: coach approval **mints a separate `RoleId = Staff` registration per granted team** (`RosterSwapperService.ExecuteTransferAsync` FLOW 2), leaving the UA row as an anchor. Any approved coach therefore carries ≥1 Staff reg → breaks both ALLs → excluded from search and refused on add. The only UA-only accounts in existence are genuinely-pending, never-granted adults — exactly the funnel population. (A *pending* coach on another job of this customer IS offered — deliberate; accepting consumes their pending request, surfaced by the badge + convert warning at pick time.)
 - **REFINEMENT — per-role lanes (Todd, 2026-07-27, second pass)**: Todd's E2E caught that the tool grants **six different admin types** but the first-pass wall used one "any admin role" bucket — an account with Director history could be handed Store Admin, etc. **Decided: no cross-type grants ("too confusing from a security POV")**. Eligibility for granting role X = accounts whose **every registration anywhere is within X's lane** ∪ UA-only-on-this-customer. Lanes: **{Director, SuperDirector} shared** (same person at two trust levels; mixed D/SD accounts exist in real data, e.g. aim_kl, and the Edit modal already flips between them — confirmed by Todd); **Ref Assignor, Store Admin, STPAdmin, ApiAuthorized each strictly their own lane**. Explicitly decided: Ref Assignor does NOT admit referee-footprint accounts — a referee becoming an assignor gets a fresh account through the UA funnel. UI flow flipped: **Role is picked first, then search** (search request carries the role; results/hints/empty-state are role-aware). Implemented in `GetRoleLane` (AdministratorService), `SearchAdminCandidatesAsync(laneRoleIds)`, modal role-first rework; help pages updated to the lane model.
 - **Severity**: Security hardening (latent cross-tenant path if screen ever opens to Directors) + UX
-- **Status**: IN PROGRESS — lane model coded 2026-07-27, awaiting Todd E2E
+- **Status**: 🔴 IN PROGRESS — Todd fixing an error (Ann, 07-29). Code was confirmed structurally complete (Claude, 07-29: role-first `SearchAdminCandidatesAsync(laneRoleIds)`, `AddAdministratorAsync` eligibility wall, `GetRoleLane`) but Todd hit an error in testing → back in his court; Ann to verify once he re-flags it ready.
 
 ### AM-005: [Configure / Customer Groups] SuperUser-only screen — overall styling can be tighter
 - **Topic**: Configure Menus → Customer Groups (SuperUser-only)
@@ -96,7 +97,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   3. **Add and Delete buttons too far from customer names** — the per-row Delete (×) is pinned to the far right; move it next to the customer name so the controls sit close to what they act on.
 - **RESOLUTION (Todd, 2026-07-27) — all three declined**: (1) the count badge is the standard page-header template used across all components — stays for consistency; (2) header emphasis unnecessary on a SuperUser-only screen; (3) right-pinned row actions are the deliberate responsive-design convention app-wide (matches every other row-action placement).
 - **Severity**: UX
-- **Status**: WON'T DO (Todd, 2026-07-27) — screen stays as-is
+- **Status**: WON'T DO (Todd, 2026-07-27) — screen stays as-is. ✅ **Acknowledged (Ann, 07-29)** — accepts all three declines (consistency with app-wide conventions on a SuperUser-only screen).
 
 ### AM-006: [Configure / Discount Codes + all Configure tables] Blocked-delete needs a lock icon, and an Expired code must not read "Active"
 - **Topic**: Configure Menus → Discount Codes (and any Configure table with conditional delete)
@@ -114,7 +115,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   - **No reader is actually misled**: the Expiry chip already shows **"Expired" in red** on the same row — the salient fact is on screen, prominent and correct.
   - **Lock icon (part 1) also declined**: the Usage count sits in the same row, used-codes-can't-be-deleted is the guessable audit-trail rule, and wanting to delete a used code is rare. Not worth churn this close to go-live.
 - **Severity**: UX + Bug (stale/incorrect Active status) — downgraded on review: no bug exists
-- **Status**: Won't Fix (Todd, 2026-07-27) — semantics correct and verified; no code change
+- **Status**: Won't Fix (Todd, 2026-07-27) — semantics correct and verified; no code change. ✅ **Acknowledged (Ann, 07-29)** — accepts the rebuttal: Status(switch)/Expiry(window) are independent + truthful, money path verified safe, "Expired" already shown in red; lock icon not worth the churn.
 
 ### AM-007: [Configure / Dropdown Options] Make value chips drag-reorderable
 - **Topic**: Configure Menus → Dropdown Options (SuperUser-only)
@@ -127,7 +128,8 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   - **Fix**: `DdlOptionsComponent` now injects `JobConfigService` (optional — provided by the shell) and registers `saveHandler.set(() => this.save())` like every other tab. FAB on Dropdowns now performs the Dropdowns save (no `loadConfig()` teardown).
   - **Drag re-instated after the FAB fix**: with the real bug dead, CDK drag was re-applied (`cdkDropList cdkDropListOrientation="mixed"` on `.chip-list`, `cdkDrag` chips, `track val`, `moveItemInArray` on drop, body-appended `.chip.cdk-drag-preview` styled in `_component-overrides.scss`) and **persists correctly through save** — confirming drag was innocent all along. Shipped reorder UI = **drag + ‹ › nudge arrows** (arrows double as the keyboard/deterministic path). Help FAQ added ("Can I change the order of dropdown options?").
 - **Severity**: UX / Feature + latent shell bug (FAB ran wrong tab's save on Dropdowns)
-- **Status**: FIXED — Todd verified 2026-07-27 (arrows + FAB save "works"; drag re-test "works"). Ann next pass: reorder via drag or arrows → Save → reload → order holds.
+- **Status**: FIXED — ✅ **VERIFIED PASSING (Ann, 07-29)** (reorder via drag + arrows persists through Save/reload).
+- **Follow-up (Ann, 07-29) → filed as AM-051**: this AM-007 FAB fix left the tab with **two** save buttons (local "Save Changes" sticky bar + shell "Save" FAB) — only one needed. Tracked separately in **AM-051** so it isn't missed under this VERIFIED item.
 
 ### AM-008: [Configure / Job Settings → General] Sport dropdown needs the same whitelist + title-case cleanup as LADT
 - **Topic**: Configure Menus → Job Settings → General (SuperUser section) — Sport dropdown
@@ -143,7 +145,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   - **Implemented**: shared static `SportWhitelist` (Services/Shared/Utilities) = the 12 LADT sports **+ track and field + multi-sport** (14), with `Contains` + `ToTitleCase`. Both `LadtService.GetSportsAsync` (private copies deleted) and `JobConfigService.GetReferenceDataAsync` route through it; each keeps its own DTO shape. Helper doc-comment warns: trim only with a census, never by taste.
   - **Zero-risk audit**: read-path only, no DTO/DB change; Job Config dropdown binds `sportId` (name display-only); general tab is the sole consumer of `referenceData().sports`; the one FE sport-name comparison (`registration-detail-panel`, lacrosse check) lowercases and is fed by a different endpoint. Sport-pulling audit: nav-editor visibility options deliberately left raw (match-key surface, not a pick-a-sport dropdown); text-substitution joins are display of the job's own sport.
 - **Severity**: UX
-- **Status**: IN PROGRESS — coded 2026-07-27, awaiting API restart + Todd verify (General tab + LADT dropdowns show 14 clean sports)
+- **Status**: FIXED — ✅ **VERIFIED PASSING (Ann, 07-29)** (General tab + LADT Sport dropdowns show the clean 14-sport list; T&F jobs not blanked). Todd implemented 2026-07-27.
 
 ### AM-009: [Configure / Job Settings → Payment] Payment tab — Refund Policy relocation + Balance Due % / Mail-in Warning cleanup
 - **Topic**: Configure Menus → Job Settings → Payment tab
@@ -165,7 +167,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   - **Action taken (UI-only, zero model/DTO risk per Todd)**: both **Balance Due %** and **Mail-in Payment Warning** HIDDEN from the Payment tab (template edit only; section renamed "Check / Mail-in", Pay To / Mail To widened). Component signals + save payload untouched — values round-trip exactly as loaded; DTOs/services/DB unchanged. Gap #3 help-text moot (fields gone).
   - **Items 1 (Refund Policy relocation) and 3 (Save placement audit): parked as preferences, not defects** — revisit on their own merits if desired.
 - **Severity**: UX + Bug (Gap #1 mail-in warning leaks onto CC-only jobs) — downgraded: Gap #1 was already fixed; remaining fields were dead UI
-- **Status**: IN PROGRESS — dead fields hidden 2026-07-27, awaiting Todd verify (Refund-Policy + Save-placement parked)
+- **Status**: FIXED — ✅ **VERIFIED PASSING (Ann, 07-29)** for the dead-field hide (Balance Due % + Mail-in Warning gone; section reads "Check / Mail-in"; Gap #1 already fixed). **Condition (Ann): the Refund Policy relocation must be addressed as a future item → carried to AM-052** so it isn't lost parked. Save-placement audit remains parked as a preference.
 
 ### AM-010: [Configure / Job Settings → Communications] "Turn off Player & Staff Confirmations" — 🔴 label promises "for tournaments" but the setting is NOT gated
 - **Topic**: Configure Menus → Job Settings → Communications tab
@@ -179,7 +181,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   2. **Label already fixed on master** — currently reads "TURN OFF CC & BCC copies on all registration confirmations" (no "for tournaments"); this item's "renamed to …for tournaments" note was stale. Verified no "for tournaments" remains anywhere in the app.
   3. **Added** (per Todd's label-only decision): one `.field-help` line under the checkbox — copies stop, registrants always still get their confirmation, typical use = high-volume events.
 - **Severity**: UX + Bug (label/behavior mismatch) — resolved: label was already truthful; help text added
-- **Status**: IN PROGRESS — help text added 2026-07-27, awaiting Todd verify. **Deeper scope question moved to AM-031 (2026-07-27):** should this suppress **all roles** or be **player-specific and keep Club Rep copies** (tournament directors want those)? + SuperUser-only + spacing. Reconcile with AM-031.
+- **Status**: help text added 2026-07-27. ✅ **Acknowledged (Ann, 07-29)** for the label + help-text resolution ONLY — **conditioned on the deeper scope question being addressed in AM-031** (all-roles vs player-specific / keep Club Rep copies + SuperUser-only + spacing). Ann is NOT signing off on "all roles = correct"; that's live in AM-031.
 
 ### AM-011: [Configure / Job Settings → Coaches + Club Reps/Teams] Club Rep confirmation text shares the Coaches (Adult-flow) template
 - **Topic**: Configure Menus → Job Settings → Coaches tab + Club Reps/Teams tab; downstream team-registration confirmation
@@ -194,7 +196,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Review note (Claude + Todd, 2026-07-27) — precise framing**: `Jobs` already carries role-specific override pairs `RefereeReg_ConfirmationEmail/OnScreen` + `RecruiterReg_ConfirmationEmail/OnScreen` (added 2026-02-24 `991d66b2`, real columns in prod schema) with `?? AdultReg` fallback dispatch (`AdultRegistrationService.GetConfirmationEmail/OnScreen`). There is **no `CoachReg_*` pair** — `AdultReg_ConfirmationEmail/OnScreen` is the base template doing triple duty: coach/staff adult registrations, club-rep team registrations (`TeamRegistrationService`), and fallback for referee/recruiter. **Coach and Club Rep are the only adult-flow roles without their own pair.** Symmetric end-state if ever revisited: add `CoachReg_*` + `ClubRepReg_*`, demote `AdultReg_*` to pure fallback for all four roles (matches the established house pattern; beats the `!ROLE` token).
 - **Known label nit (not fixed)**: the Adult tab's section header reads "COACH Confirmation…" but its text also reaches staff and club reps; a header relabel is the only zero-risk touch available.
 - **Severity**: Question
-- **Status**: WON'T DO (Todd, 2026-07-27) — **no schema changes this close to go-live**. Shared Adult template remains the behavior; Directors should keep the wording role-neutral.
+- **Status**: WON'T DO (Todd, 2026-07-27) — **no schema changes this close to go-live**. Shared Adult template remains the behavior; Directors should keep the wording role-neutral. ✅ **Acknowledged (Ann, 07-29)** — accepts deferral (keep shared + role-neutral wording pre-go-live; symmetric CoachReg_*/ClubRepReg_* end-state on file for later).
 
 ### AM-012: [Configure / Job Settings → Player + Coaches] Normalize oversized text in migrated Legacy RTE content
 - **Topic**: Configure Menus → Job Settings → Player tab + Coaches tab; downstream registration flows
@@ -210,7 +212,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   - **Recommendation**: **A** — the toolbar already prevents new bad content, so a one-time data fix is sufficient.
 - **Decision points for Todd**: (1) replacement strategy `<strong>` vs `<p>`; (2) scope = just these 10 fields, or also bulletins / banners / other RTE content; (3) OK to rewrite all jobs in one pass.
 - **Census (2026-07-27, TSICV5)**: oversized markup (`<h1>`/`<h2>`/`font-size`) present in 324/1,057 jobs' player Release of Liability, 188 confirmation emails, 79 adult liability, 36 codes of conduct — real and widespread, all legacy-migrated content.
-- **Status**: WON'T DO (Todd, 2026-07-27) — **no mass rewrite; respond to individual jobs as needed.** There is no reasonable blanket treatment; the toolbar already prevents new offenders, and a Director can re-edit any specific job's text on request. (A display-side CSS heading clamp was offered and declined along with the data rewrite.)
+- **Status**: WON'T DO (Todd, 2026-07-27) — **no mass rewrite; respond to individual jobs as needed.** There is no reasonable blanket treatment; the toolbar already prevents new offenders, and a Director can re-edit any specific job's text on request. (A display-side CSS heading clamp was offered and declined along with the data rewrite.) ✅ **Acknowledged (Ann, 07-29)** — accepts per-job cleanup on request; toolbar prevents new offenders.
 
 ### AM-013: [Configure / Job Settings → Teams → Player + Coaches] Relocate Roster Visibility checkboxes per role + add explanatory copy
 - **Topic**: Configure Menus → Job Settings → Teams tab (current) → Player + Coaches tabs (proposed)
@@ -224,7 +226,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Decision points for Todd**: (1) confirm the per-role move vs keeping a "team visibility" cluster on Teams; (2) confirm labels match TSIC terminology; (3) audit whether other Teams-tab fields belong on a role-specific tab.
 - **RESOLUTION (Todd, 2026-07-27)**: **toggles STAY on Teams — rosters are a team property**; the relocation half is declined. The real defect (bare "Adult"/"Player" labels) fixed in place, template-only: checkboxes stacked with descriptive labels ("Allow players to view their team roster" / "Allow coaches &amp; staff to view their team roster"), **no help lines — Todd ruled the labels sufficient** (drafted help copy was removed entirely after two corrections; one clause had described staff self-rostering, which no longer exists in the product). No DTO/service/payload changes; runtime consumers read the DB column and are untouched.
 - **Severity**: UX
-- **Status**: FIXED (labels + help in place, relocation declined) — 2026-07-27, awaiting Todd verify + Ann next pass
+- **Status**: Labels FIXED (descriptive labels in place — that part's good). 🔴 **RELOCATION DISPUTED (Ann, 07-29) — Ann totally disagrees with "stays on Teams"; wants it MOVED to the Player and Adult tabs.** Rationale: the toggles govern who can *view* rosters — **players** and **adults** — so the permission belongs on those roles' tabs, where a Director would look for it. It is **not intuitive** to find this permission under Teams. **Please move** (per AM-013 item 1: `bAllowRosterViewPlayer` → Player tab, `bAllowRosterViewAdult` → Coaches/Adult tab; DTO/service mapping only, DB columns unchanged). → tracked in **AM-035**.
 
 ### AM-014: [Configure / Job Settings → Mobile & Store] Break Mobile Features into TSIC-Events and TSIC-Teams subsections
 - **Topic**: Configure Menus → Job Settings → Mobile & Store tab
@@ -241,7 +243,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Cross-ref**: if PL-066's "Push Directors" feature is ever restored (currently marked Fixed/vestigial), it would land on Mobile and affect subsection placement.
 - **RESOLUTION (Todd, 2026-07-27) — superseded by role gating**: instead of subsectioning for Directors, **the entire Mobile/Store tab is now SuperUser-only** (`superUserOnly: true` on the tab def — hidden for Directors like Branding/Dropdowns; Mobile Features section additionally wrapped in the `isSuperUser()` gate with `form-section--super` styling to match its siblings). Rationale: app-level switches aren't Director decisions. Verified consumption map recorded for whenever the layout is revisited: `bSuspendPublic` + `mobileScoreHoursPastGameEligible` → TSIC-Events; `bEnableTsicteams` (master) + RSVP + TeamChat → TSIC-Teams-2025; `bAllowMobileLogin` → old TSIC-Teams v1 ChatAuth only; `bAllowMobileRegn` → TSIC-REGN JobValidator (neither Events nor Teams — Ann's "cross-cutting" pair is actually two legacy-app flags). The "TSIC-Events Enabled" master toggle (inverse of `bSuspendPublic`, with on/off tip) already existed on the tab. Subsection grouping for an SU audience: not needed.
 - **Severity**: UX
-- **Status**: FIXED (tab gated SuperUser-only) — Todd signed off 2026-07-27. Ann to verify on next pass.
+- **Status**: FIXED (tab gated SuperUser-only) — ✅ **VERIFIED PASSING + Acknowledged (Ann, 07-29)** (Mobile & Store tab hidden for Directors, visible to SuperUser; subsection grouping accepted as moot for an SU-only audience).
 
 ### AM-015: [Configure / Job Clone] Job Clone wizard — consolidated open items (Todd + Ann to work once all else is reviewed)
 - **Topic**: Configure Menus → Job Clone wizard (SuperUser-only)
@@ -263,7 +265,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Why it matters**: A SuperUser configures these switches and sees no effect whatsoever. Event Contact in particular would be genuinely useful on a public page and simply isn't wired up.
 - *Dev evidence*: landing hard-codes the widgets (`job-landing.component.html:42,72`); dashboard reads only the dashboard workspace (`widget-dashboard.component.ts:77`); the two widgets are referenced only in the registry, never rendered.
 - **Severity**: Bug (config with no effect)
-- **Status**: Deferred (brought forward from ChelseaReview CR-117; per Todd 2026-07-16)
+- **Status**: Deferred (brought forward from ChelseaReview CR-117; per Todd 2026-07-16). ✅ **Acknowledged (Ann, 07-29)** — accepts staying deferred; revisit post-go-live (SuperUser-only screen).
 
 ### AM-017: [Configure / Theme] Theme editor only saves to the current browser — nobody else sees the change
 - **Topic**: Configure Menus → Theme editor (SuperUser-only)
@@ -274,7 +276,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Why it matters**: Per-event colours look configurable but aren't — anyone who "brands" an event this way believes they've changed it and is the only person who can see it.
 - *Dev evidence*: localStorage-only persistence (`theme-editor.component.ts:78, 274-288`; `theme-overrides.service.ts:42-68`); `/brand-preview` route has no auth guard (`app.routes.ts:118-121`).
 - **Severity**: Bug (config with no effect) + public-route exposure
-- **Status**: Deferred (brought forward from ChelseaReview CR-125; per Todd 2026-07-16)
+- **Status**: Deferred (brought forward from ChelseaReview CR-125; per Todd 2026-07-16). ✅ **Acknowledged (Ann, 07-29)** — accepts staying deferred (incl. the public `/brand-preview` route); revisit post-go-live.
 
 ### AM-018: [Configure / Communications] Directors/office no longer get a copy of every player confirmation email
 - **Topic**: Configure Menus → Communications (player confirmation email recipients)
@@ -291,9 +293,9 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   - Adult/staff — `AdultRegistrationService.cs:659`
   The team-vs-player asymmetry is gone, and the "turn off CC & BCC" switch (`bDisallowCCPlayerConfirmations`) is honored uniformly — it suppresses the copies only, never the registrant's own confirmation.
 - **Severity**: Question / workflow decision (Legacy-parity gap)
-- **Status**: RESOLVED before review (by CR-061) — recorded 2026-07-28. Ann verify: register a player on a job with CC/BCC configured → office receives the copy (unless the job ticks "turn off CC & BCC", which disables copies everywhere by design).
+- **Status**: RESOLVED in code before review (by CR-061) — recorded 2026-07-28. ⏳ **Ann verify DEFERRED to go-live (07-29)**: can't confirm actual email delivery until email is available (not sending in the test environment). Retest at go-live: register a player on a job with CC/BCC configured → office receives the copy (unless the job ticks "turn off CC & BCC").
 
-### AM-019: [Configure / LADT] Restore the "0 = unlimited" warning when a Director sets a 0 Max Roster or Max Teams
+### AM-019: 🟡 RE-OPENED (Ann, 07-29 — styling only) — [Configure / LADT] Restore the "0 = unlimited" warning when a Director sets a 0 Max Roster or Max Teams
 - **Topic**: Configure Menus → LADT → Team Details (Max Roster) + Age Group (Max Teams)
 - **Source**: Brought forward from ChelseaReview **CR-047** (Ann, 2026-07-27)
 - **Request (Ann)**: **Please add a warning for the Director when he sets a 0 Max Roster or Max Teams.** In the old system, setting Max Roster to 0 popped *"a roster max of 0 means UNLIMITED ROSTER SIZE."* The new system shows no such warning — 0 is treated as unlimited **silently**, a quiet trap for a Director who enters (or leaves) 0.
@@ -304,7 +306,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **For Todd — the change**: add an inline warning/help note on the **Max Roster** input (Team Details) and the **Max Teams** input (Age Group) that fires when the value is 0, e.g. *"0 = unlimited — no cap will be applied."* Restores the old system's guardrail so a Director knows a 0 means uncapped, not misconfigured.
 - **RESOLUTION (Todd go, 2026-07-28)**: inline amber note (`bi-info-circle` + *"Max Roster 0 = unlimited — no cap will be applied."* / *"Max Teams 0 = …"*) added under both inputs — `team-detail.component.ts` (Max Roster) and `agegroup-detail.component.ts` (Max Teams). Shows when the value is 0 **or blank** (server coalesces both to uncapped). Scope note: the LADT grid's inline `maxCount`/`maxTeams` columns remain a second entry point for typing 0 — deliberately left alone (a grid cell can't host inline help; a popup on grid edit would be intrusive); the detail-panel note carries the education.
 - **Severity**: UX (silent "0 = unlimited" trap — worth restoring the warning)
-- **Status**: FIXED — coded 2026-07-28, awaiting Todd verify (Team Details → Max Roster 0/blank shows note; Age Group → Max Teams 0/blank shows note) + Ann next pass
+- **Status**: 🟡 **RE-OPENED (Ann, 07-29) — logic works, styling too muted.** Correction: **both notes DO appear** — Age Group (Max Teams) and Teams (Max Roster) both render the note at 0/blank (Ann's first read missed the Age Group one). **The one remaining issue is visibility**: the note uses `text-warning-emphasis` (a muted dark-amber) and **Ann was actively looking for it and still didn't see it.** **For Todd — make the note text stand out in a clear color (Ann: "Red or Blue would help a lot")** on BOTH notes (`agegroup-detail.component.ts:116` + `team-detail.component.ts:146`). *(Suggest a strong, legible treatment — since "0 = unlimited" is informational not an error, an **info blue** reads more correctly than red, but Ann's call; whatever's clearly noticeable.)*
 
 ### AM-020: [Auth / Login] Password reset works by email only now — bring back the username path
 - **Topic**: Login / Forgot Password (Client support + SuperUser/Admin)
@@ -320,7 +322,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   3. **Beyond legacy** — one email owning multiple accounts (family login + parent's own logins) gets **one reset email per account**, each naming its username, reset link keyed by `userId`. The pre-fix code *crashed* on duplicate emails ("Sequence contains more than one element").
   - **Deliberate non-restoration**: the neutral "if an account exists, a link has been sent" reply stays — standard anti-enumeration on an anonymous endpoint (legacy revealed account existence; we won't).
 - **Severity**: UX / Legacy-parity (support-impacting)
-- **Status**: RESOLVED before review (by `a297911a`) — recorded 2026-07-28; pending the API restart already queued for that fix. Ann verify: reset by username; reset by parent email on a family account; duplicate-email case → one email per account, each naming its username.
+- **Status**: RESOLVED before review (by `a297911a`) — recorded 2026-07-28. ✅ **UI VERIFIED (Ann, 07-29)** — the Forgot Password form accepts a **username** (no email-only requirement). ⏳ **Email-delivery verification deferred to go-live** (reset email not sending in test env): retest username reset, parent-email-on-family-account, and duplicate-email → one email per account at go-live.
 
 ### AM-021: [Coach Approval] Approving or denying a coach doesn't notify the coach
 - **Topic**: Roster Swapper → Coach Approval Queue (Client support + SuperUser/Admin)
@@ -331,7 +333,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Request (Ann, 2026-07-27)**: **Is it possible to send an email notification automatically upon approval under Coach Approval?** (And likely on denial too.) Add an automatic email to the coach when a Director approves (and/or denies) them in the Coach Approval queue.
 - *Dev evidence*: `RosterSwapperService` has no email service injected; neither approve nor deny sends mail ([RosterSwapperService.cs:20-44, 461-483](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Teams/RosterSwapperService.cs#L461)). *(2026-07-28 re-verify: file now lives at `Services/Admin/RosterSwapperService.cs` — `ApproveTeamRequestAsync` :471, `DenyCoachAsync` :486; gap confirmed still present, no email service injected.)*
 - **Severity**: UX / workflow (silent approve/deny)
-- **Status**: WON'T DO (Todd, 2026-07-28) — **by design; will not address.** No automatic email on approve or deny. (Proposed approve-only notification through the EmailService chokepoint was offered and declined.)
+- **Status**: WON'T DO (Todd, 2026-07-28) — **by design; will not address.** No automatic email on approve or deny. (Proposed approve-only notification through the EmailService chokepoint was offered and declined.) ✅ **Acknowledged (Ann, 07-29)** — accepts no approve/deny notification.
 
 ### AM-022: [Roster Visibility / Privacy] 🔒 A logged-in parent can download every family's contacts + every child's DOB as a PDF
 - **Topic**: Roster view ("Allow Roster View — Player") → My Roster PDF export (privacy)
@@ -343,7 +345,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - *Dev evidence*: roster data carries DOB + Mom/Dad email/phone with **no role filter** ([MyRosterDtos.cs:34-52](../../TSIC-Core-Angular/src/backend/TSIC.Contracts/Dtos/MyRoster/MyRosterDtos.cs#L34), [RegistrationRepository.cs:2639-2699](../../TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/RegistrationRepository.cs#L2639)); PDF endpoint uses the same visibility gate as the on-screen roster ([MyRosterController.cs:36-52](../../TSIC-Core-Angular/src/backend/TSIC.API/Controllers/MyRosterController.cs#L36), [MyRosterPdfService.cs:95-100](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Reporting/MyRosterPdfService.cs#L95)).
 - **RESOLUTION (2026-07-28) — verified, and the claim narrows: the PDF does NOT contain DOB.** PDF columns are uniform #, player, pos, grad, player email/phone, Contact 1 (Mom), Contact 2 (Dad) (`MyRosterPdfService.BuildColumns`). DOB appears **on-screen only** — where legacy showed it too (legacy parity). The actual delta vs legacy is a convenience file of parent contacts the caller's own team can already see on screen, behind a **director opt-in** (`BAllowRosterViewPlayer`), own-team scope only, system-bucket teams always denied. Todd repro'd the PDF (2032 Blue Team) and reviewed.
 - **Severity**: 🔒 Privacy (bulk parent-contact export to the player audience — DOB claim corrected)
-- **Status**: WON'T DO — **as-is** (Todd, 2026-07-28). Working as designed: director opt-in, own-team-only, PDF is a subset of the on-screen card. (Staff-only-PDF option was offered and declined.)
+- **Status**: WON'T DO — **as-is** (Todd, 2026-07-28). Working as designed: director opt-in, own-team-only, PDF is a subset of the on-screen card. (Staff-only-PDF option was offered and declined.) ✅ **Acknowledged (Ann, 07-29)** — accepts the narrowed finding (no DOB in the PDF; director opt-in, own-team only, subset of the on-screen card).
 
 ---
 
@@ -359,7 +361,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   1. **Remove the rarely-used phone number by Book a Demo.** The page shows the same phone (`410-280-3272`) in **three** spots: a hero ghost-button next to "Book a Demo" ([:64-67](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/home/tsic-landing/tsic-landing.component.html#L64)), the CTA "book-demo" section near the bottom ([:238-241](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/home/tsic-landing/tsic-landing.component.html#L238)), and the footer Contact column ([:276-278](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/home/tsic-landing/tsic-landing.component.html#L276)). Ann: it's "at the bottom of the screen and not used much at all." **Target: the CTA book-demo section phone ([:238-241])**; **keep the footer Contact phone.** *(Confirm with Ann whether the hero ghost-button phone [:64-67] should also go.)*
   2. **Decide re: the calendar.** The CTA section embeds a **Calendly** widget (`calendly.com/demo-teamsportsinfo/30min`, [:248-252](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/home/tsic-landing/tsic-landing.component.html#L248)). **For now** (until **Chelsea is onboarded**): replace the live calendar with a **badge/link to the support email** — and ideally a short **inquiry form** that captures **Name, contact info, sport, organization *(optional)*, Comment** — so demo requests still come in without a live scheduling calendar. **Later**: reinstate the real calendar once Chelsea is set up to field it.
 - **Severity**: UX / pre-release content (unused phone + not-yet-ready calendar)
-- **Status**: WON'T DO (Todd, 2026-07-28) — landing page stays as-is: all three phone placements and the live Calendly embed remain. (Interim email-only CTA and inquiry-form options were presented and declined.)
+- **Status**: WON'T DO (Todd, 2026-07-28) — landing page stays as-is: all three phone placements and the live Calendly embed remain. (Interim email-only CTA and inquiry-form options were presented and declined.) ✅ **Acknowledged (Ann, 07-29)** — accepts landing page as-is (phone + live Calendly stay).
 
 ---
 
@@ -380,7 +382,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   1. **Visibility**: Todd **purposefully exposed the tool to Directors/admins** — the "SuperUser-only" recollection does not stand. All three layers (nav flags `1,1,1`, route guard, API `AdminOnly` policy) already agree on admin access, consistent with deliberate design. No change.
   2. **NEW badge**: stays — a one-word cosmetic edit is **not enough reason to re-run the nav seeding script in prod**. (Note: the `.ps1` generates the `.sql`; any future change edits `5) Re-Set Nav System.ps1:205`, regenerates, then applies.)
 - **Severity**: UX + role-visibility (menu shown to more roles than intended; stale NEW chip)
-- **Status**: WON'T DO (Todd, 2026-07-28) — admin visibility is intentional; badge not worth a prod nav re-seed
+- **Status**: WON'T DO (Todd, 2026-07-28) — admin visibility is intentional; badge not worth a prod nav re-seed. ✅ **Acknowledged (Ann, 07-29)** — accepts Director access is intentional (recollection of SuperUser-only did not stand) and the NEW badge stays.
 
 ---
 
@@ -400,7 +402,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **For Todd**: (1) restyle `.pill-nav__layout-toggle` (and/or add a short label) so the side-menu switch stands out at the end of the pill nav; (2) update the four strings (aria-label + title on both buttons) to the plural "menus".
 - **RESOLUTION (Todd go, 2026-07-28)**: top-mode toggle now carries an always-visible **"Side menus"** label beside the `bi-layout-sidebar` icon plus an accented treatment (primary-tinted background + border, full-opacity icon, hover deepen, focus-visible shadow — all palette vars) so it reads as a layout control, not another menu pill. All four strings pluralized: "Switch to top menus" / "Switch to side menus" (aria-label + title on both toggles). `client-menu.component.html/.scss`.
 - **Severity**: UX (discoverability of the layout toggle + label wording)
-- **Status**: FIXED — coded 2026-07-28, awaiting Todd verify (top-menu mode → accented labeled control at strip end; tooltips read "menus") + Ann next pass
+- **Status**: FIXED — ✅ **VERIFIED PASSING (Ann, 07-29)** (accented labeled "Side menus" control at strip end; toggle tooltips read plural "menus").
 
 ---
 
@@ -420,7 +422,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   2. **`#` column**: width 50 → **70** — 5-digit row numbers fit.
   3. **Assignment column**: width 220 → **280** — grid pans horizontally, so the extra width costs nothing.
 - **Severity**: UX (large-job usability: paging cap + two column-width clips)
-- **Status**: FIXED (parts 2+3; part 1 working-as-designed w/ export-all pointer) — coded 2026-07-28, awaiting Todd verify + Ann next pass (check row 10,000+ shows full number; long assignment names; Export on LFTC 2026 returns all rows)
+- **Status**: FIXED — ✅ **VERIFIED PASSING (Ann, 07-29)** (# column fits 5-digit numbers; Assignment shows full names; Export returns all rows). Part 1 "All" page option accepted as WON'T DO with the Export-all workaround.
 
 ### AM-027: [Search | Registrations] ARB Health lives here AND as its own menu item — remove it from Search to end the two-places confusion
 - **Topic**: Search → Registrations screen vs the dedicated ARB Health page
@@ -439,7 +441,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   - Post-go-live evolution, if the two-places confusion persists: add batch-email to the ARB Health page *first*, then retire the Search section — never remove the action half first.
   - **Sub-decision (gate ARB Subscription filter to ARB-enabled jobs): left as-is for now** — filter remains visible on all jobs; may revisit with PL-059 (Subscription # search) since the same gating would cover both.
 - **Severity**: UX (duplicated feature / confusion) + prod-query foot-gun
-- **Status**: WON'T DO (Todd agreed, 2026-07-28) — monitor-vs-act split recorded for Ann; both homes stay
+- **Status**: WON'T DO (Todd agreed, 2026-07-28) — monitor-vs-act split recorded for Ann; both homes stay. ✅ **Acknowledged (Ann, 07-29)** — accepts the monitor(ARB Health page)-vs-act(Search collection/email) distinction; Search section stays as the only path to contact ARB-behind families. (ARB Subscription filter kept; Subscription # search = PL-059; gating left as-is, may revisit with PL-059.)
 
 ### AM-028: [Search | Registrations] "Roster Scan" is tournament-only — gate it to tournament jobs, or label it "(for tournaments ONLY)"
 - **Topic**: Search → Registrations filters → **Roster Scan** section
@@ -452,7 +454,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **RESOLUTION (Todd, 2026-07-28) — WON'T FIX: Roster Scan stays visible on ALL job types.** Todd's ruling: the premise is wrong — a thin-roster scan **can be useful outside tournaments** (leagues/clubs with team structures also chase under-filled teams), so neither the gate nor the "(for tournaments ONLY)" label is wanted. The Search/Teams legacy-parity addition is not pursued either (it would require a new team-search backend filter, not a UI copy).
 - **Also — add Roster Scan to Search/Teams too (Ann, 2026-07-27, legacy parity)**: In **Legacy**, Roster Scan appeared in **both** Search/Registrations **and** Search/Teams. In the new version it's only in Search/Registrations. **Consider adding it under Search/Teams as well** — that's a natural home, right next to the **LADT search** already there (the "Hierarchy" section with `<app-ladt-tree-filter>`, [search-teams.component.html:203-247](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/search/teams/search-teams.component.html#L203)) — since a director scanning rosters would reach for it alongside the LADT tree filter. (Verified: Search/Teams has the LADT tree filter but no Roster Scan section today.) If added there and it's tournament-only, apply the same gate/label decision from this item.
 - **Severity**: UX (feature shown on jobs where it doesn't apply) + Legacy-parity (missing from Search/Teams)
-- **Status**: WON'T FIX (Todd, 2026-07-28) — useful beyond tournaments; no gate, no label, Search/Teams add not pursued
+- **Status**: WON'T FIX (Todd, 2026-07-28) — useful beyond tournaments; no gate, no label, Search/Teams add not pursued. ✅ **Acknowledged (Ann, 07-29)** — accepts roster scan is useful for any team-structured job (not tournament-only); stays visible everywhere, Search/Teams add dropped.
 
 ---
 
@@ -469,7 +471,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Finding (verified)**: the tree renders per-node badges as `<span class="tree-badge" title="Teams">{{ node.teamCount }}</span>` and `title="Players"` for playerCount, plus "Teams"/"Players" column headers — **both badges currently share the same `.tree-badge` style, no color distinction** ([ladt-tree-filter.component.ts:59-61, 82-124](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/shared/components/ladt-tree-filter/ladt-tree-filter.component.ts#L59)). This shared component backs the Search/Teams Hierarchy filter; Search/Registrations has its own copy at [views/search/registrations/components/ladt-tree-filter.component.ts](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/search/registrations/components/ladt-tree-filter.component.ts).
 - **For Todd**: give the **Teams** badge (and its column header) a distinct **light-blue** treatment (e.g. a `.tree-badge--teams` modifier with a light-blue background/text via a design-system token — no hardcoded hex) so team numbers pop and read as different from Players; leave the Players badge as-is. Apply consistently in **both** LADT tree filter components (shared → Search/Teams, and the Search/Registrations copy) so both search screens match, for both Club-rooted and League-rooted trees.
 - **Severity**: UX (scannability — team vs player counts not visually distinct)
-- **Status**: WON'T FIX (Todd, 2026-07-28) — not critical. Noted for the record: in the Search/Registrations copy the **Players** badge already carries the agegroup color (blue fallback), so a light-blue Teams badge would collide with blue/unset agegroups; if this is ever revisited, distinguish by FORM (outlined Teams pill vs solid Players fill), not by another hue.
+- **Status**: WON'T FIX (Todd, 2026-07-28) — not critical. Noted for the record: in the Search/Registrations copy the **Players** badge already carries the agegroup color (blue fallback), so a light-blue Teams badge would collide with blue/unset agegroups; if this is ever revisited, distinguish by FORM (outlined Teams pill vs solid Players fill), not by another hue. ✅ **Acknowledged (Ann, 07-29)** — accepts leaving as-is (color collision noted; form-based distinction on file if revisited).
 
 ---
 
@@ -485,13 +487,13 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   1. **Move the Customer field into the first row, right after ADN Invoice Prefix.**
   2. **Move Billing Type up into the second row, right after Job Type** (today it trails Customer and wraps awkwardly).
 - **Net second-row order after the move**: Admin Expiry / Job Code / QBP Name / Sport / Job Type / **Billing Type** (Customer having moved to row 1).
-- **Status**: FIXED — coded 2026-07-28, awaiting Todd verify (SU section: Customer in row 1, Billing Type beside Job Type, no wrap) + Ann next pass
+- **Status**: FIXED — ✅ **VERIFIED PASSING (Ann, 07-29)** (Customer in first SU row after ADN Invoice Prefix; Billing Type beside Job Type in second row, no wrap).
 - **For Todd**: relocate the Customer `col` to immediately after ADN Invoice Prefix in the first SU row, and the Billing Type `col` to immediately after Job Type in the second SU row; adjust the `col-md-*` widths so each row fits 12 units cleanly (first row gains a field, second row loses one). **Preserve the existing SuperUser/Director role-visibility** on each field while reordering.
 - **RESOLUTION (Todd go, 2026-07-28)**: implemented exactly as requested — Row 1: Job ID (2) / ADN Invoice Prefix (2) / **Customer (3)** / Job Path (3) / Description (2) = 12 units; Row 2: Admin Expiry / Job Code / QBP Name / Sport / Job Type / **Billing Type** — six clean `col-md-2`s, the orphan-wrap line is gone. Template-only `div` reshuffle; every binding untouched; all fields remain inside the SU-only section. (`general-tab.component.html`)
 - **Severity**: UX (field ordering / layout tidiness on the General tab)
 - **Status**: Open (Ann, 2026-07-27)
 
-### AM-031: [Job Settings → Communications] "Turn off CC & BCC copies" — should it be PLAYER-specific (keep Club Rep copies)? + SuperUser-only
+### AM-031: ✅ ACKNOWLEDGED (Ann, 07-29) — [Job Settings → Communications] "Turn off CC & BCC copies" — should it be PLAYER-specific (keep Club Rep copies)? + SuperUser-only
 - **Topic**: Configure → Job Settings → **Communications** tab → the "TURN OFF CC & BCC copies on all registration confirmations" checkbox (`bDisallowCcplayerConfirmations`)
 - **Source**: Ann's pre-release walkthrough (2026-07-27); relates to/overtakes **AM-010** (the earlier "for tournaments" label item on this same checkbox) and touches **AM-018**/CR-012 (player-confirmation director copy) and **AM-011**/CR-063 (Club Rep confirmation).
 - **Current state (verified)**:
@@ -511,7 +513,17 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   3. **SuperUser-only visibility: not applied** — checkbox remains visible to all admins (Todd did not adopt).
   4. **Spacing: done** — checkbox block now `mt-4 pt-3 border-top`, visually separated from the email-list fields above (`communications-tab.component.html`).
 - **Severity**: 🔴 Bug/behavior (over-broad suppression kills Club Rep copies tournament directors rely on) + role-visibility
-- **Status**: RESOLVED (behavior stands per legacy verification; spacing FIXED) — 2026-07-28, awaiting Todd verify + Ann next pass
+- **Status**: RESOLVED (behavior stands per legacy verification; spacing FIXED) — 2026-07-28.
+- **🔴 RE-OPENED — Ann pushes back on the behavior (07-29)**: Todd's legacy homework is accepted (it was never player-only in legacy), **but that answers the wrong question**. Ann's real need is a **forward product capability**, newly relevant because CR-061/AM-018 just added CC/BCC to *all* paths: **a high-volume tournament wants Club Rep confirmation copies but NOT Player/Coach registration copies.** The current switch is **all-or-nothing** — it can't do "Club Rep YES, Player/Coach NO":
+  - Switch OFF → office gets **all** copies (incl. the player/coach flood).
+  - Switch ON → office gets **none** (loses Club Rep too).
+  - **Confirmed in code**: Club Rep/team confirmations DO CC/BCC when the switch is off (`JobConfirmationCopies.Apply` at `TeamRegistrationService.cs:1694`); the switch suppresses all four paths uniformly.
+  - **Ann's ask**: per-role granularity — most simply, **exempt Club Rep (team-registration) copies from suppression** (never suppressed), so ticking the switch stops only Player (and optionally Coach) copies. OR separate per-role toggles.
+  - **Also still open**: SuperUser-only visibility (Todd declined; Ann wanted it SU-only).
+  - **✅ Legacy re-verified independently (Claude, 07-29) — settles the factual question:** Legacy sent **both** club-rep AND player/adult confirmations through **one shared method** `SendRegistrationEmailConfirmation` ([reference/…/IRegistrationService.cs:164-320](../../reference/TSIC-Unify-2024/TSIC-Unify-Services/IRegistrationService.cs)). The club-rep path (`TeamBaseController.SendClubRepEmailConfirmation` → same method, `:440`/`:2356`) added CC/BCC **only if `!bDisallowCcplayerConfirmations`** (`:311-317`), exactly like every other role. So **Legacy had NO per-role split — ticking the flag suppressed the office copy on club-rep too.** (Nuance: club-rep DID CC/BCC in Legacy, contra Todd's "no CC/BCC at all" note — but gated by the same one flag, so no granularity existed.) **⇒ Ann's ask is a genuinely NEW capability, not a legacy restoration.** That doesn't kill it — it's a valid product request — but it's now settled that nobody needs to re-argue "what did Legacy do."
+  - 📣 **Todd + Ann to discuss** — this is a **new product capability**, so it needs a joint decision (is per-role suppression / Club-Rep-exempt worth building pre- or post-go-live?), not another "legacy said X" round.
+- **Severity (updated)**: Forward product gap — can't keep Club Rep copies while suppressing Player/Coach copies (no longer just a legacy-parity question).
+- ✅ **RESOLVED — Acknowledged (Ann, 07-29)**: after the Legacy code was verified (no per-role split ever existed; the flag was always all-roles including club rep), **Ann accepts the all-roles behavior as-is** — the per-role/Club-Rep-exempt granularity is a *new* capability, **not pursued** now (idea on record if a real high-volume-tournament need surfaces later). Also accepts **SuperUser-only visibility declined** (checkbox stays visible to all admins) and the **spacing fix** (`mt-4 pt-3 border-top`). Closes out the AM-010 condition too.
 
 ### AM-032: [Job Settings → Player/Teams/Coaches/Scheduling/Mobile] Highlight the "managed in Quick Links — read-only" info note so directors notice it
 - **Topic**: Configure → Job Settings tabs — the "Registration & public-visibility switches are managed in Quick Links. They appear here read-only." info banner
@@ -524,7 +536,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   1. **Banner strengthened** (shared — lifts all five tabs at once): amber treatment — `--bs-warning` left border + tinted border/background, body text bumped to brand-text medium weight, "**read-only**" bolded, icon `bi-info-circle` → `bi-exclamation-circle`. (`job-config.component.html/.scss`)
   2. **In-card notes added** beside the read-only registration switches: `🔒 Managed in **Quick Links** — read-only here.` directly under the section title of the Player Registration Settings card (Player tab), Team Registration card (Teams tab), and Registration Availability card (Adult/Coaches tab). **Deliberately plain text, no router link** — the top banner carries the actual link, so the in-card note needed zero component-code changes (an initial RouterLink-import approach was withdrawn per Todd). Shared `.quick-links-inline-note` style in `_component-overrides.scss` (warning left-border tint, tokens only).
 - **Severity**: UX (discoverability — directors miss that these switches moved to Quick Links)
-- **Status**: FIXED — coded 2026-07-28, awaiting Todd verify (banner amber on 5 tabs; lock note in 3 registration cards) + Ann next pass
+- **Status**: FIXED — ✅ **VERIFIED PASSING (Ann, 07-29)** (amber banner stands out across the tabs; "🔒 Managed in Quick Links — read-only here" note shows inside the Player/Team/Adult registration cards).
 
 ### AM-033: [Job Settings → Player] Text boxes (RTE editors) are too small — enlarge for reading/editing; + Refund Policy still needs to move to Payment
 - **Topic**: Configure → Job Settings → **Player** tab — the Confirmation/Waiver/Code-of-Conduct/Refund rich-text boxes
@@ -534,10 +546,10 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   2. **Text boxes are too small (new).** The Player-tab RTE editors — Confirmation Email, Confirmation On-Screen, Refund Policy, Release of Liability, Code of Conduct, COVID Waiver ([player-tab.component.html:99-156](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/player-tab.component.html#L99)) — all share `[height]="rteHeight"` = **`JOB_CONFIG_RTE_HEIGHT = 200px`** ([rte-config.ts:11](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/shared/rte-config.ts#L11)). At 200px they're **way too small** to read/edit the multi-paragraph legal text in one glance.
 - **For Todd**: increase the RTE height so more content shows at a glance — bump `JOB_CONFIG_RTE_HEIGHT` (e.g. 200 → ~350-400px) and/or make the editors **resizable** (drag handle / auto-grow). **Note it's a shared constant** — raising it also enlarges the **Coaches** tab RTEs (same fields) and any other job-config HTML field using it, which is desirable here; if you'd rather not touch all of them, override the height just on these Player/Coaches confirmation/waiver editors.
 - **RESOLUTION (Todd, 2026-07-29) — resizable, not taller.** Todd's call: keep the 200px default and add **`[enableResize]="true"`** (Syncfusion's native corner drag-handle) to every job-config RTE — all 6 Player-tab editors and all 9 Adult/Coaches-tab editors. Directors stretch any box exactly as needed; tab stays compact. Part 1 (Refund Policy → Payment) remains PARKED with AM-009.
-- **Status**: FIXED — coded 2026-07-29, awaiting Todd verify (drag the corner handle on any Player-tab text box) + Ann next pass
-  - **Exception (Ann, 2026-07-27): keep the COVID Waiver editor small.** It's only used by **one client**, so it shouldn't get the taller treatment — give the COVID Waiver its own smaller height override while the other Player-tab editors grow ([player-tab.component.html:150-156](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/player-tab.component.html#L150)).
+- **Status**: FIXED — ✅ **VERIFIED PASSING (Ann, 07-29)** (corner drag-handle resizes any Player/Coaches RTE; default stays compact, COVID Waiver small by default).
+  - **COVID Waiver "keep small"**: satisfied — all editors keep the 200px default (COVID included) and are resizable; nothing auto-enlarged.
+  - **Discoverability (Ann, 07-29)**: Ann noted the native resize grip is subtle and users may not know it exists. ✅ **Acknowledged** — accepts the native grip as-is (no discoverability hint added).
 - **Severity**: UX (editors too small to read/edit comfortably)
-- **Status**: Open (Ann, 2026-07-27)
 
 ### AM-034: [Job Settings → Player → Player Settings (SuperUser)] Retire Mom/Dad Label if unused (moved to Contact 1/2); reposition the Offer RegSaver Insurance checkbox
 - **Topic**: Configure → Job Settings → **Player** tab → **Player Settings (SuperUser)** section
@@ -550,16 +562,17 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   1. **Mom/Dad Label stays.** DB census (TSICV5, 1,057 jobs): **848 jobs customize to "Parent 1"/"Parent 2", 8 to "Emergency Contact 1"/"Emergency Contact 2", 201 NULL (Mom/Dad default)** — the field is an actively-used platform-wide customization, not vestigial. No retirement, no relabeling.
   2. **RegSaver checkbox stays put.** It is a **Quick-Links-managed read-only indicator by design** ("Player RegSaver" toggle in Quick Links is the live control — same pattern as the registration switches); disabled state is intended. Its spacing/baseline alignment with the Mom/Dad inputs was already fixed 2026-07-28 (`88fba0b5`).
 - **Severity**: UX (vestigial-vs-live label fields + checkbox placement)
-- **Status**: WON'T FIX (Todd, 2026-07-29) — labels live (856/1,057 customized); checkbox is a by-design Quick-Links indicator, spacing already fixed
+- **Status**: WON'T FIX (Todd, 2026-07-29) — labels live (856/1,057 customized); checkbox is a by-design Quick-Links indicator, spacing already fixed. ✅ **Acknowledged (Ann, 07-29)** — census shows Mom/Dad Label is actively used (many jobs already on "Parent 1/2"), so it stays and won't be hardcoded to Contact 1/2; RegSaver accepted as a by-design Quick-Links read-only indicator.
 
-### AM-035: [Job Settings → Teams] Roster Visibility — Ann still wants it SPLIT onto the Adult and Player tabs (re-raise of AM-013)
+### AM-035: ✅ CLOSED — WON'T FIX (Ann acknowledged, 07-29) — [Job Settings → Teams] Roster Visibility — Ann wanted it SPLIT onto the Adult and Player tabs (re-raise of AM-013)
 - **Topic**: Configure → Job Settings → **Teams** tab → Roster Visibility toggles
 - **Source**: Ann's pre-release walkthrough (2026-07-27) — re-raise; see **AM-013** (from ConfigureMenus PL-058)
 - **Request (Ann)**: The **Roster Visibility** toggles should be **split and placed under the Adult (Coaches) and Player tabs** — the player roster-view toggle on the **Player** tab, the adult/coach roster-view toggle on the **Coaches** tab — rather than both living on the Teams tab. (Ann: "I think I may have mentioned this before" — yes, this is the original AM-013 ask.)
 - **⚠️ Tension to reconcile — Todd implemented the opposite**: Todd's recent commits resolved AM-013 as **"roster-visibility toggles get descriptive labels + help, STAY on Teams"** (plus copy cleanups: dropped club reps from the adult roster-view description, removed a wrong tournament clause, trimmed help lines since labels suffice). So today they're **kept on the Teams tab** with clearer labels — **not** split. Ann is re-requesting the split.
 - **For Todd + Ann to decide**: keep-on-Teams-with-labels (Todd's shipped call) vs. split-to-Player/Coaches (Ann's preference). If splitting: move `bAllowRosterViewPlayer` → Player tab and `bAllowRosterViewAdult` → Coaches tab (DB columns unchanged, only DTO/service mapping shifts — see AM-013 for the exact plumbing). This is a placement disagreement, not a behavior bug — needs a joint call.
 - **Severity**: UX (field placement — Director expectation) — decision pending
-- **Status**: WON'T FIX (Todd, 2026-07-29) — **AM-013 ruling reaffirmed: Roster Visibility stays on the Teams tab** (rosters are a team property; the descriptive labels shipped under AM-013 are the discoverability fix). Ann's split request declined a second time — do not re-raise.
+- **Status**: ✅ CLOSED — WON'T FIX, **Ann acknowledged (07-29)**: "Todd says he won't move it." Roster Visibility stays on the Teams tab (rosters are a team property; the descriptive labels shipped under AM-013 are the discoverability fix). Dispute resolved — Ann accepts Todd's ruling.
+- **Resolution (07-29)**: Ann initially disagreed and wanted the toggles moved to the Player and Adult (Coaches) tabs (rationale: the toggles govern who can *view* rosters — players and adults — so the permission felt more discoverable on those roles' tabs than under Teams). After Todd reaffirmed he won't move it, **Ann acknowledged and accepted keeping them on the Teams tab.** No further action.
 
 ### AM-036: [Job Settings → Teams] Club Rep Permissions — confirm they migrate from Legacy at go-live (keep Shoulberg tournaments as requested)
 - **Topic**: Configure → Job Settings → **Teams** tab → **Club Rep Permissions** (Allow Add / Edit / Delete)
@@ -572,7 +585,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **RESOLUTION (Todd confirmed, 2026-07-29) — nothing to migrate; settings persist by construction.** Both apps read the **same three columns on the same physical `Jobs` table** (`bClubRepAllowAdd/Edit/Delete` exist identically in the legacy entity and the new scaffold). Go-live points the new app at the production database — no data is copied, so nothing can be lost or defaulted. Shoulberg's current prod settings are what the new Teams tab will read and (per CR-006) enforce server-side. **Verifiable today**: the dev DB is a prod restore, so any Shoulberg job's Teams tab already shows the real legacy-era values. Ann spot-check: open a Shoulberg tournament → Job Settings → Teams → compare Allow Add/Edit/Delete against legacy.
 - **Tab rename ("Teams" → "Club Reps/Teams")**: stays declined per the prior ConfigureMenus "won't change" ruling.
 - **Severity**: Migration / go-live data integrity (client-specific: Shoulberg) + tab-label clarity (re-raise)
-- **Status**: RESOLVED — confirmed no-action (Todd, 2026-07-29); rename stays declined
+- **Status**: ✅ **Acknowledged (Ann, 07-29)** — migration answered (settings persist by construction; no copy, so Shoulberg's prod values carry through untouched and enforce server-side); tab rename accepted as declined.
 
 ### AM-037: [Job Settings → Coaches/Adult] Move Refund Policy to Payment; then Release of Liability moves under Confirmation On-Screen and gets more room
 - **Topic**: Configure → Job Settings → **Coaches (Adult)** tab → "COACH Confirmation, Liability Waiver & Code of Conduct Text" section
@@ -585,7 +598,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **For Todd**: sequence it with AM-009's refund-policy move — after `adultRegRefundPolicy` leaves the Coaches tab for Payment, confirm Release of Liability lands directly under Confirmation On-Screen and give it the enlarged RTE height from AM-033.
 - **RESOLUTION (Todd, 2026-07-29)**: (1) the Refund-Policy-to-Payment move **stays PARKED with AM-009** (re-raise declined for go-live week — the move carries open design decisions: job-type-aware display, "Adult" vs "Club Rep/Team" labeling, whether the Adult tab's text section reads thin after). (2) is an automatic side effect of (1), so it waits with it. (3) **already satisfied by AM-033** — Release of Liability (like all 15 job-config editors) now has a resize drag-handle.
 - **Severity**: UX (field order + editor size on the Adult tab)
-- **Status**: CLOSED — part 1 stays parked with AM-009; part 3 satisfied by AM-033 (Todd, 2026-07-29)
+- **Status**: ✅ **Acknowledged (Ann, 07-29)** — parts 1–2 parked with AM-009 for post-go-live; part 3 accepted as satisfied by AM-033 (resize drag-handle on the Release-of-Liability editor).
 
 ---
 
@@ -608,8 +621,13 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   3. **Clipped headers fixed**: Max Roster 75 → **95px**, Players 75 → **80px** (Active fits at 70).
   4. **Team tail trimmed**: Requests/Comments 180 → **140px** each.
   - **Column REMOVALS deliberately not done** (Rank/Div Requested/Last Record etc. stay) — reorder solves the buried-dates complaint without deleting data columns pre-go-live.
+- **Ann verify pass (07-29)** — 🟡 **PARTIAL: date reorder good, three width nits remain**:
+  1. ✅ **Team-level date position** — much better; Start/End/Effective/Expires now visible without hunting. Verified.
+  2. 🔴 **League level still needs horizontal scroll** — should fit with none. The frozen **League name is truncated** ("STEPS Girls Players 2026-2…") — widen so it's fully visible; and **Fees / Early Bird / Late Fee can all narrow further** (at league level the fee cells are just "—" / "See age group level", so `_fees` at 220px is wasted). Trim `_fees` 220→~140, `_earlyBird`/`_lateFee` 120→~90, widen `leagueName` frozen 180→~240 so the whole grid fits with no scrollbar. (`ladt-grid-columns.ts` LEAGUE_COLUMNS [:20-30].)
+  3. 🔴 **Team level: ACTIVE and PLAYERS headers still wrap/clip** ("ACTI VE", "PLAYE RS") — Active 70px [:62] and Players 80px [:63] aren't wide enough for the header word. Widen to fit on one line (or shorten labels) like Max Roster (now 95px) was fixed.
+  4. 🔴 **Age Group headers wrap mid-word and look unprofessional** ("GE NDER", "MAX TEAMS", "CHA MPS BY DIV", "HIDE STAN DINGS") — Ann: this is **not acceptable, not just tolerable** — mid-word header breaks look sloppy. Gender 60px [:36], Max Teams 75px [:42], Champs by Div / Hide Standings 70px [:45,47]. Fix so **no header breaks mid-word** — widen to fit, wrap only at word boundaries, or shorten the labels (e.g. "Champs/Div", "Hide Stand."). Same class of fix as nit 3. Since Age Group has no horizontal scroll today, there's room to widen without a scrollbar penalty.
 - **Severity**: UX (grid density — horizontal scrolling / buried dates across LADT levels)
-- **Status**: FIXED — coded 2026-07-29, awaiting Todd verify (Team grid: dates in first screenful; EBD/Late Fee values not clipped at 120px) + Ann next pass
+- **Status**: 🔴 RE-OPENED (Ann verify, 07-29) — date reorder VERIFIED; back to Todd: **League-level scroll (nit 2)**, **Team ACTIVE/PLAYERS clipped headers (nit 3)**, and **Age Group mid-word header wraps (nit 4 — Ann: unprofessional, must fix)**. All three are header/width polish; none should reintroduce horizontal scroll.
 
 ---
 
@@ -821,3 +839,26 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   - Cosmetic relabel (Grand Total → CC Grand Total, drop Check Client Rec'd) would silently redefine the total's meaning across BOTH new + legacy. Not worth the risk for a label. No error → no change.
 - **Scope now:** (1) range label `"6/1/26 – 6/30/26"` (frontend `computed()`, no `effect()`); (2) PDF/Excel/CSV as visible export badges — Excel+PDF already enabled, **CSV needs adding** (verify Syncfusion PivotView CSV export path); (4) taller pivot/grid (bump `[height]` or grow to viewport). Part 3 closed.
 - **Status**: Parts 1/2/4 Open (accepted, not built); Part 3 WON'T DO (Todd, 2026-07-29). Todd bringing additional insights to this component before build.
+
+### AM-051: [Configure / Job Settings → Dropdown Options] Two Save buttons on the tab — keep only one
+- **Topic**: Configure Menus → Job Settings → **Dropdown Options** tab → save controls
+- **Source**: Ann's verify pass on AM-007 (2026-07-29) — split out so it isn't missed under AM-007's VERIFIED status
+- **Finding (Ann, verified)**: the Dropdown Options tab shows **two** save controls that both work — the tab's own sticky-bar **"Save Changes"** button ([ddl-options.component.html:66-77](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/ddl-options/ddl-options.component.html#L66)) **and** the shell's floating **"Save"** FAB. **Only one is needed.**
+- **Origin**: the AM-007 fix registered this tab with the shell's Save FAB (`saveHandler`), but the tab already had its own local sticky save bar — so the two now coexist.
+- **For Todd**: drop one. Most Job Settings tabs rely on the shell FAB alone, so **removing the local `.save-bar`** here would match the rest; or keep the local bar and suppress the FAB on this tab. Either way, one save affordance.
+- **Severity**: UX (redundant/confusing duplicate Save button)
+- **Status**: Open (Ann, 2026-07-29)
+
+### AM-052: [Configure / Job Settings → Payment] Move Refund Policy onto the Payment tab, job-type-aware (kept alive from AM-009/037)
+- **Topic**: Configure Menus → Job Settings → Payment tab — Refund Policy relocation
+- **Source**: The Refund-Policy-relocation half of AM-009 (from ConfigureMenus PL-044); parked by Todd across AM-009 + AM-037. **Ann (2026-07-29) requires it be addressed as a future item, so it's tracked here on its own.**
+- **Request (Ann)**: Refund policies live on two separate tabs today (`PlayerRegRefundPolicy` on Player, `AdultRegRefundPolicy` on Coaches). **Consolidate both into a "Refund Policy" fieldset under the Payment tab**, shown by job type:
+  - Player sites → Player refund policy
+  - Tournament (JobTypeId=2) → Club Rep/Team refund policy (relabel "Adult" → "Club Rep / Team", DB column `AdultRegRefundPolicy` unchanged)
+  - League (JobTypeId=3) → both
+- **Open decisions** (from AM-009): (a) which JobTypeIds count as "player sites"; (b) confirm the "Club Rep / Team Refund Policy" label; (c) does the **Coaches tab survive** losing this field (it's a main section today) — ties to AM-037 (Release-of-Liability reorder once Refund Policy leaves).
+- **Consolidation**: most clubs use one refund policy for everything — recommend one editor. **A** first (Payment-tab editor writes **both** `playerRegRefundPolicy` + `adultRegRefundPolicy`, zero-risk UX win), then **B** cleanup (drop `adultRegRefundPolicy`, single source of truth). Store Refund Policy (Mobile & Store) out of scope.
+- **Cross-ref**: AM-009 (parent), AM-037 (Coaches-tab Release-of-Liability reorder depends on this move), AM-033 (RTE height for the liability editor).
+- **Severity**: UX (field placement / consolidation)
+- **📣 Todd — please discuss with Ann (2026-07-29)** before actioning: Ann wants to talk through the refund-policy consolidation (job-type visibility, the "Club Rep / Team" label, whether the Coaches tab survives, and the one-editor A→B path) rather than have it parked or decided unilaterally.
+- **Status**: Open — **awaiting Todd + Ann discussion** (Ann, 2026-07-29)
