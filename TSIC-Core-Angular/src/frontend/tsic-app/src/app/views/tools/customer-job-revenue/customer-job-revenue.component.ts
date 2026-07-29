@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, computed, inject, viewChild } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, computed, inject, viewChild, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpParams } from '@angular/common/http';
@@ -13,12 +13,30 @@ import {
 } from '@syncfusion/ej2-angular-pivotview';
 import { MultiSelectAllModule } from '@syncfusion/ej2-angular-dropdowns';
 import { AuthService } from '../../../infrastructure/services/auth.service';
-import type { JobRevenueDataDto } from '@core/api';
+import type { RevenueRollupResponseDto } from '@core/api';
+import type { JobPaymentRecordDto } from '@core/api';
 import type { UpdateMonthlyCountRequest } from '@core/api';
 
 interface MonthOption {
 	startDate: string;
 	endDate: string;
+	label: string;
+}
+
+type ScopeMode = 'jobs' | 'period';
+type DetailKey = 'cc' | 'check' | 'echeck';
+
+/**
+ * The scope the currently-displayed data was fetched with. Rendered as the audit-stamp
+ * banner and embedded in every export header — a revenue figure never travels without
+ * a statement of what it covers. (Born of two real overpayment incidents where silently
+ * unscoped totals were treated as single-job revenue.)
+ */
+interface SubmittedScope {
+	mode: ScopeMode;
+	jobs: string[];
+	startDate: string | null;
+	endDate: string | null;
 	label: string;
 }
 
@@ -41,25 +59,41 @@ export class CustomerJobRevenueComponent {
 	errorMessage = signal('');
 	activeTab = signal<'rollup' | 'counts' | 'adminFees' | 'ccRecords' | 'checkRecords' | 'echeckRecords'>('rollup');
 
-	// Data
-	revenueData = signal<JobRevenueDataDto | null>(null);
+	// Guided scope flow
+	scopeMode = signal<ScopeMode | null>(null);
+	availableJobs = signal<string[]>([]);
+	submittedScope = signal<SubmittedScope | null>(null);
+
+	// Data — rollup arrives on Submit; detail tabs are fetched lazily on first open
+	rollup = signal<RevenueRollupResponseDto | null>(null);
+	private readonly ccDetail = signal<JobPaymentRecordDto[] | null>(null);
+	private readonly checkDetail = signal<JobPaymentRecordDto[] | null>(null);
+	private readonly echeckDetail = signal<JobPaymentRecordDto[] | null>(null);
+	detailLoading = signal<DetailKey | null>(null);
 
 	// Derived
-	availableJobs = computed(() => this.revenueData()?.availableJobs ?? []);
-	revenueRecords = computed(() => this.revenueData()?.revenueRecords ?? []);
-	monthlyCounts = computed(() => this.revenueData()?.monthlyCounts ?? []);
-	adminFees = computed(() => this.revenueData()?.adminFees ?? []);
-	creditCardRecords = computed(() => this.revenueData()?.creditCardRecords ?? []);
-	checkRecords = computed(() => this.revenueData()?.checkRecords ?? []);
-	echeckRecords = computed(() => this.revenueData()?.echeckRecords ?? []);
+	monthlyCounts = computed(() => this.rollup()?.monthlyCounts ?? []);
+	adminFees = computed(() => this.rollup()?.adminFees ?? []);
+	creditCardRecords = computed(() => this.ccDetail() ?? []);
+	checkRecords = computed(() => this.checkDetail() ?? []);
+	echeckRecords = computed(() => this.echeckDetail() ?? []);
 
 	// Date range options (monthly buckets from last month back to Jan 2022)
 	monthOptions: MonthOption[] = [];
 
-	// Selected filters
+	// Selected filters (template ngModel fields)
 	selectedStartDate = '';
 	selectedEndDate = '';
 	selectedJobs: string[] = [];
+
+	// Taller pivot (AM-050 part 4): grow with the viewport instead of a fixed 600px
+	private readonly viewportHeight = signal(typeof window !== 'undefined' ? window.innerHeight : 900);
+	pivotHeight = computed(() => Math.max(500, this.viewportHeight() - 340));
+
+	@HostListener('window:resize')
+	onWindowResize(): void {
+		this.viewportHeight.set(window.innerHeight);
+	}
 
 	// Pivot config
 	readonly pivotDataSource = signal<IDataOptions>({
@@ -103,12 +137,12 @@ export class CustomerJobRevenueComponent {
 
 	constructor() {
 		this.buildMonthOptions();
-		// Default to first option (last month)
+		// Default the period pickers to last month; no report runs until the user scopes one.
 		if (this.monthOptions.length > 0) {
 			this.selectedStartDate = this.monthOptions[0].startDate;
 			this.selectedEndDate = this.monthOptions[0].endDate;
 		}
-		this.loadData();
+		this.loadAvailableJobs();
 	}
 
 	private buildMonthOptions(): void {
@@ -134,22 +168,78 @@ export class CustomerJobRevenueComponent {
 		return `${y}-${m}-${day}`;
 	}
 
-	loadData(): void {
+	/** '2026-06-01' → '6/1/26' (Ann's Legacy-parity range format). */
+	private formatShort(iso: string): string {
+		const [y, m, d] = iso.split('-').map(Number);
+		return `${m}/${d}/${String(y).slice(2)}`;
+	}
+
+	private loadAvailableJobs(): void {
+		this.http.get<string[]>(`${this.apiUrl}/jobs`).subscribe({
+			next: (jobs) => this.availableJobs.set(jobs),
+			error: (err) => this.errorMessage.set(err.error?.message || 'Failed to load job list')
+		});
+	}
+
+	setScopeMode(mode: ScopeMode): void {
+		this.scopeMode.set(mode);
+	}
+
+	canSubmit(): boolean {
+		if (this.isLoading()) {
+			return false;
+		}
+		const mode = this.scopeMode();
+		if (mode === 'jobs') {
+			return this.selectedJobs.length > 0;
+		}
+		if (mode === 'period') {
+			return !!this.selectedStartDate && !!this.selectedEndDate
+				&& this.selectedStartDate <= this.selectedEndDate;
+		}
+		return false;
+	}
+
+	onSubmit(): void {
+		const mode = this.scopeMode();
+		if (!mode || !this.canSubmit()) {
+			return;
+		}
+
+		const today = new Date();
+		const todayShort = `${today.getMonth() + 1}/${today.getDate()}/${String(today.getFullYear()).slice(2)}`;
+		const scope: SubmittedScope = mode === 'jobs'
+			? {
+				mode,
+				jobs: [...this.selectedJobs],
+				startDate: null,
+				endDate: null,
+				label: `${this.selectedJobs.join(' + ')} — complete history (through ${todayShort})`
+			}
+			: {
+				mode,
+				jobs: [],
+				startDate: this.selectedStartDate,
+				endDate: this.selectedEndDate,
+				label: `All jobs · ${this.formatShort(this.selectedStartDate)} – ${this.formatShort(this.selectedEndDate)}`
+			};
+
 		this.isLoading.set(true);
 		this.errorMessage.set('');
 
-		let params = new HttpParams()
-			.set('startDate', this.selectedStartDate)
-			.set('endDate', this.selectedEndDate);
-
-		for (const job of this.selectedJobs) {
-			params = params.append('jobNames', job);
-		}
-
-		this.http.get<JobRevenueDataDto>(this.apiUrl, { params }).subscribe({
+		this.http.get<RevenueRollupResponseDto>(`${this.apiUrl}/rollup`, { params: this.scopeParams(scope) }).subscribe({
 			next: (data) => {
-				this.revenueData.set(data);
-				this.updatePivotDataSource(data);
+				this.rollup.set(data);
+				this.submittedScope.set(scope);
+				// New scope invalidates every lazily-cached detail tab.
+				this.ccDetail.set(null);
+				this.checkDetail.set(null);
+				this.echeckDetail.set(null);
+				this.pivotDataSource.set({
+					...this.pivotDataSource(),
+					dataSource: data.revenueRecords as never[]
+				});
+				this.activeTab.set('rollup');
 				this.isLoading.set(false);
 			},
 			error: (err) => {
@@ -159,71 +249,145 @@ export class CustomerJobRevenueComponent {
 		});
 	}
 
-	private updatePivotDataSource(data: JobRevenueDataDto): void {
-		this.pivotDataSource.set({
-			...this.pivotDataSource(),
-			dataSource: data.revenueRecords as any
-		});
-	}
-
-	onRefresh(): void {
-		this.loadData();
+	private scopeParams(scope: SubmittedScope): HttpParams {
+		let params = new HttpParams();
+		if (scope.mode === 'jobs') {
+			for (const job of scope.jobs) {
+				params = params.append('jobNames', job);
+			}
+		} else {
+			params = params.set('startDate', scope.startDate!).set('endDate', scope.endDate!);
+		}
+		return params;
 	}
 
 	setTab(tab: typeof this.activeTab extends ReturnType<typeof signal<infer T>> ? T : never): void {
 		this.activeTab.set(tab);
+		const detailKey: DetailKey | null =
+			tab === 'ccRecords' ? 'cc'
+			: tab === 'checkRecords' ? 'check'
+			: tab === 'echeckRecords' ? 'echeck'
+			: null;
+		if (detailKey) {
+			this.fetchDetailIfNeeded(detailKey);
+		}
+	}
+
+	private detailSignal(key: DetailKey) {
+		return key === 'cc' ? this.ccDetail : key === 'check' ? this.checkDetail : this.echeckDetail;
+	}
+
+	private fetchDetailIfNeeded(key: DetailKey): void {
+		const scope = this.submittedScope();
+		if (!scope || this.detailSignal(key)() !== null || this.detailLoading() === key) {
+			return;
+		}
+		this.detailLoading.set(key);
+		this.http.get<JobPaymentRecordDto[]>(`${this.apiUrl}/details/${key}`, { params: this.scopeParams(scope) }).subscribe({
+			next: (records) => {
+				this.detailSignal(key).set(records);
+				this.detailLoading.set(null);
+			},
+			error: (err) => {
+				this.detailLoading.set(null);
+				this.errorMessage.set(err.error?.message || 'Failed to load payment details');
+			}
+		});
 	}
 
 	// Pivot toolbar actions
 	expandAll(): void {
 		const pivotView = this.pivotView();
-  if (pivotView) {
+		if (pivotView) {
 			pivotView.dataSourceSettings.expandAll = true;
 		}
 	}
 
 	collapseAll(): void {
 		const pivotView = this.pivotView();
-  if (pivotView) {
+		if (pivotView) {
 			pivotView.dataSourceSettings.expandAll = false;
 		}
 	}
 
+	// Visible export badges (AM-050 part 2) — every export carries the audit-stamp scope label.
+	exportPivot(kind: 'pdf' | 'excel' | 'csv'): void {
+		const pivot = this.pivotView();
+		if (!pivot) {
+			return;
+		}
+		const label = this.submittedScope()?.label ?? '';
+		const excelProps = {
+			fileName: kind === 'csv' ? 'CustomerJobRevenue.csv' : 'CustomerJobRevenue.xlsx',
+			header: {
+				headerRows: 1,
+				rows: [{ cells: [{ colSpan: 8, value: `Customer Job Revenue — ${label}`, style: { fontSize: 13, bold: true } }] }]
+			}
+		};
+		if (kind === 'pdf') {
+			pivot.pdfExport({
+				fileName: 'CustomerJobRevenue.pdf',
+				header: {
+					fromTop: 0,
+					height: 50,
+					contents: [{
+						type: 'Text',
+						value: `Customer Job Revenue — ${label}`,
+						position: { x: 0, y: 15 },
+						style: { textBrushColor: '#000000', fontSize: 12 }
+					}]
+				}
+			});
+		} else if (kind === 'excel') {
+			pivot.excelExport(excelProps);
+		} else {
+			pivot.csvExport(excelProps);
+		}
+	}
+
 	// Grid toolbar click handlers
-	onCountsToolbarClick(args: any): void {
+	onCountsToolbarClick(args: { item?: { id?: string } }): void {
 		if (args.item?.id?.includes('excelexport')) {
 			this.countsGrid().excelExport();
 		}
 	}
 
-	onAdminFeesToolbarClick(args: any): void {
+	onAdminFeesToolbarClick(args: { item?: { id?: string } }): void {
 		if (args.item?.id?.includes('excelexport')) {
 			this.adminFeesGrid().excelExport();
 		}
 	}
 
-	onCcToolbarClick(args: any): void {
+	onCcToolbarClick(args: { item?: { id?: string } }): void {
 		if (args.item?.id?.includes('excelexport')) {
 			this.ccGrid().excelExport();
 		}
 	}
 
-	onCheckToolbarClick(args: any): void {
+	onCheckToolbarClick(args: { item?: { id?: string } }): void {
 		if (args.item?.id?.includes('excelexport')) {
 			this.checkGrid().excelExport();
 		}
 	}
 
-	onEcheckToolbarClick(args: any): void {
+	onEcheckToolbarClick(args: { item?: { id?: string } }): void {
 		if (args.item?.id?.includes('excelexport')) {
 			this.echeckGrid().excelExport();
 		}
 	}
 
 	// Inline edit save for monthly counts
-	onCountsActionComplete(args: any): void {
+	onCountsActionComplete(args: { requestType?: string; action?: string; data?: Record<string, unknown> }): void {
 		if (args.requestType === 'save' && args.action === 'edit') {
-			const row = args.data;
+			const row = args.data as {
+				aid: number;
+				countActivePlayersToDate: number;
+				countActivePlayersToDateLastMonth: number;
+				countNewPlayersThisMonth: number;
+				countActiveTeamsToDate: number;
+				countActiveTeamsToDateLastMonth: number;
+				countNewTeamsThisMonth: number;
+			};
 			const request: UpdateMonthlyCountRequest = {
 				aid: row.aid,
 				countActivePlayersToDate: row.countActivePlayersToDate,

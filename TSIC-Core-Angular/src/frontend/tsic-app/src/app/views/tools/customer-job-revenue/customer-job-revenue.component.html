@@ -3,50 +3,84 @@
 		<h2 class="page-title"><i class="bi bi-cash-stack page-title-icon"></i> Customer Job Revenue</h2>
 	</div>
 
-	<!-- Filter bar -->
+	<!-- Guided scope panel -->
 	<div class="card shadow-sm mb-4">
-		<div class="card-body d-flex flex-wrap align-items-end gap-3">
-			<!-- Start date -->
-			<div>
-				<label class="form-label text-muted mb-1" style="font-size: var(--font-size-sm)">Start Date</label>
-				<select class="form-select form-select-sm" [(ngModel)]="selectedStartDate" style="width: auto;">
-					@for (opt of monthOptions; track opt.startDate) {
-						<option [value]="opt.startDate">{{ opt.label }}</option>
-					}
-				</select>
-			</div>
-
-			<!-- End date -->
-			<div>
-				<label class="form-label text-muted mb-1" style="font-size: var(--font-size-sm)">End Date</label>
-				<select class="form-select form-select-sm" [(ngModel)]="selectedEndDate" style="width: auto;">
-					@for (opt of monthOptions; track opt.endDate) {
-						<option [value]="opt.endDate">{{ opt.label }}</option>
-					}
-				</select>
-			</div>
-
-			<!-- Job filter (multi-select) -->
-			<div class="flex-grow-1" style="min-width: 250px; max-width: 500px;">
-				<label class="form-label text-muted mb-1" style="font-size: var(--font-size-sm)">Filter Jobs</label>
-				<ejs-multiselect
-					[dataSource]="availableJobs()"
-					[(value)]="selectedJobs"
-					placeholder="Select individual jobs"
-					[mode]="'CheckBox'"
-					[showDropDownIcon]="true"
-					[showClearButton]="true"
-					[enableSelectionOrder]="true">
-				</ejs-multiselect>
-			</div>
-
-			<!-- Submit -->
-			<button class="btn btn-sm btn-primary" (click)="onRefresh()" [disabled]="isLoading()">
-				@if (isLoading()) {
-					<span class="spinner-border spinner-border-sm me-1"></span>
+		<div class="card-body">
+			<!-- Step 1: pick the scope -->
+			<div class="d-flex align-items-center gap-3 flex-wrap">
+				<span class="scope-step-label">1&nbsp;·&nbsp;Scope</span>
+				<div class="btn-group" role="group" aria-label="Report scope">
+					<button type="button" class="btn btn-sm"
+						[class.btn-primary]="scopeMode() === 'jobs'"
+						[class.btn-outline-primary]="scopeMode() !== 'jobs'"
+						(click)="setScopeMode('jobs')">
+						<i class="bi bi-bullseye me-1"></i>Specific jobs
+					</button>
+					<button type="button" class="btn btn-sm"
+						[class.btn-primary]="scopeMode() === 'period'"
+						[class.btn-outline-primary]="scopeMode() !== 'period'"
+						(click)="setScopeMode('period')">
+						<i class="bi bi-calendar-range me-1"></i>All jobs · date range
+					</button>
+				</div>
+				@if (scopeMode() === 'jobs') {
+					<span class="text-muted scope-hint">Complete revenue history of exactly the jobs you pick — no date window.</span>
+				} @else if (scopeMode() === 'period') {
+					<span class="text-muted scope-hint">Every job in the customer group within the window — a reconciliation view, not a single job's figure.</span>
+				} @else {
+					<span class="text-muted scope-hint">Choose what this report should cover.</span>
 				}
-				Submit
-			</button>
+			</div>
+
+			<!-- Step 2: scope-specific controls -->
+			@if (scopeMode() === 'jobs') {
+				<div class="d-flex flex-wrap align-items-end gap-3 mt-3">
+					<span class="scope-step-label">2&nbsp;·&nbsp;Jobs</span>
+					<div class="flex-grow-1" style="min-width: 250px; max-width: 500px;">
+						<ejs-multiselect
+							[dataSource]="availableJobs()"
+							[(value)]="selectedJobs"
+							placeholder="Select one or more jobs"
+							[mode]="'CheckBox'"
+							[showDropDownIcon]="true"
+							[showClearButton]="true"
+							[enableSelectionOrder]="true">
+						</ejs-multiselect>
+					</div>
+					<button class="btn btn-sm btn-primary" (click)="onSubmit()" [disabled]="!canSubmit()">
+						@if (isLoading()) {
+							<span class="spinner-border spinner-border-sm me-1"></span>
+						}
+						Run Report
+					</button>
+				</div>
+			} @else if (scopeMode() === 'period') {
+				<div class="d-flex flex-wrap align-items-end gap-3 mt-3">
+					<span class="scope-step-label">2&nbsp;·&nbsp;Period</span>
+					<div>
+						<label class="form-label text-muted mb-1 scope-hint">Start Month</label>
+						<select class="form-select form-select-sm" [(ngModel)]="selectedStartDate" style="width: auto;">
+							@for (opt of monthOptions; track opt.startDate) {
+								<option [value]="opt.startDate">{{ opt.label }}</option>
+							}
+						</select>
+					</div>
+					<div>
+						<label class="form-label text-muted mb-1 scope-hint">End Month</label>
+						<select class="form-select form-select-sm" [(ngModel)]="selectedEndDate" style="width: auto;">
+							@for (opt of monthOptions; track opt.endDate) {
+								<option [value]="opt.endDate">{{ opt.label }}</option>
+							}
+						</select>
+					</div>
+					<button class="btn btn-sm btn-primary" (click)="onSubmit()" [disabled]="!canSubmit()">
+						@if (isLoading()) {
+							<span class="spinner-border spinner-border-sm me-1"></span>
+						}
+						Run Report
+					</button>
+				</div>
+			}
 		</div>
 	</div>
 
@@ -63,8 +97,24 @@
 		</div>
 	}
 
-	<!-- Tabs + content -->
-	@if (revenueData() && !isLoading()) {
+	<!-- Empty state before first run -->
+	@if (!rollup() && !isLoading()) {
+		<div class="list-empty-state">
+			<i class="bi bi-funnel"></i>
+			<div>Pick a scope above and run the report.</div>
+		</div>
+	}
+
+	<!-- Results -->
+	@if (rollup() && !isLoading()) {
+		<!-- Audit stamp: what the displayed numbers cover -->
+		@if (submittedScope(); as scope) {
+			<div class="scope-banner mb-3" role="status">
+				<i class="bi" [class.bi-bullseye]="scope.mode === 'jobs'" [class.bi-calendar-range]="scope.mode === 'period'"></i>
+				<span class="scope-banner-label">{{ scope.label }}</span>
+			</div>
+		}
+
 		<ul class="nav nav-tabs mb-3">
 			<li class="nav-item">
 				<button class="nav-link" [class.active]="activeTab() === 'rollup'" (click)="setTab('rollup')">
@@ -100,17 +150,26 @@
 
 		<!-- Tab 1: Revenue Rollup (PivotView) -->
 		@if (activeTab() === 'rollup') {
-			<div class="mb-2">
-				<button class="btn btn-sm btn-outline-secondary me-2" (click)="expandAll()">Expand All</button>
+			<div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+				<button class="btn btn-sm btn-outline-secondary" (click)="expandAll()">Expand All</button>
 				<button class="btn btn-sm btn-outline-secondary" (click)="collapseAll()">Collapse All</button>
+				<span class="ms-auto d-flex gap-2">
+					<button class="btn btn-sm btn-outline-primary" (click)="exportPivot('pdf')">
+						<i class="bi bi-file-earmark-pdf me-1"></i>PDF
+					</button>
+					<button class="btn btn-sm btn-outline-primary" (click)="exportPivot('excel')">
+						<i class="bi bi-file-earmark-excel me-1"></i>Excel
+					</button>
+					<button class="btn btn-sm btn-outline-primary" (click)="exportPivot('csv')">
+						<i class="bi bi-filetype-csv me-1"></i>CSV
+					</button>
+				</span>
 			</div>
 			<ejs-pivotview #pivotView
 				[dataSourceSettings]="pivotDataSource()"
-				[height]="'600'"
+				[height]="pivotHeight()"
 				[allowExcelExport]="true"
 				[allowPdfExport]="true"
-				[showToolbar]="true"
-				[toolbar]="['Export']"
 				[gridSettings]="{ columnWidth: 120 }">
 			</ejs-pivotview>
 		}
@@ -162,64 +221,85 @@
 			</ejs-grid>
 		}
 
-		<!-- Tab 4: Credit Card Records -->
+		<!-- Tab 4: Credit Card Records (lazy) -->
 		@if (activeTab() === 'ccRecords') {
-			<ejs-grid width="100%" #ccGrid
-				[dataSource]="creditCardRecords()"
-				cssClass="tsic-grid"
-				[allowExcelExport]="true"
-				[toolbar]="readOnlyToolbar"
-				(toolbarClick)="onCcToolbarClick($event)">
-				<e-columns>
-					<e-column field="jobName" headerText="Job" width="120"></e-column>
-					<e-column field="year" headerText="Year" width="60"></e-column>
-					<e-column field="month" headerText="Month" width="60" textAlign="Right"></e-column>
-					<e-column field="registrant" headerText="Registrant" width="150"></e-column>
-					<e-column field="paymentMethod" headerText="Type" width="100"></e-column>
-					<e-column field="paymentDate" headerText="Date" width="150" type="date" format="yMd"></e-column>
-					<e-column field="paymentAmount" headerText="Payment" width="100" format="C2" textAlign="Right"></e-column>
-				</e-columns>
-			</ejs-grid>
+			@if (detailLoading() === 'cc') {
+				<div class="text-center py-4">
+					<span class="spinner-border text-primary"></span>
+					<div class="text-muted mt-2">Loading credit card records...</div>
+				</div>
+			} @else {
+				<ejs-grid width="100%" #ccGrid
+					[dataSource]="creditCardRecords()"
+					cssClass="tsic-grid"
+					[allowExcelExport]="true"
+					[toolbar]="readOnlyToolbar"
+					(toolbarClick)="onCcToolbarClick($event)">
+					<e-columns>
+						<e-column field="jobName" headerText="Job" width="120"></e-column>
+						<e-column field="year" headerText="Year" width="60"></e-column>
+						<e-column field="month" headerText="Month" width="60" textAlign="Right"></e-column>
+						<e-column field="registrant" headerText="Registrant" width="150"></e-column>
+						<e-column field="paymentMethod" headerText="Type" width="100"></e-column>
+						<e-column field="paymentDate" headerText="Date" width="150" type="date" format="yMd"></e-column>
+						<e-column field="paymentAmount" headerText="Payment" width="100" format="C2" textAlign="Right"></e-column>
+					</e-columns>
+				</ejs-grid>
+			}
 		}
 
-		<!-- Tab 5: Check Records -->
+		<!-- Tab 5: Check Records (lazy) -->
 		@if (activeTab() === 'checkRecords') {
-			<ejs-grid width="100%" #checkGrid
-				[dataSource]="checkRecords()"
-				cssClass="tsic-grid"
-				[allowExcelExport]="true"
-				[toolbar]="readOnlyToolbar"
-				(toolbarClick)="onCheckToolbarClick($event)">
-				<e-columns>
-					<e-column field="jobName" headerText="Job" width="120"></e-column>
-					<e-column field="year" headerText="Year" width="60"></e-column>
-					<e-column field="month" headerText="Month" width="60" textAlign="Right"></e-column>
-					<e-column field="registrant" headerText="Registrant" width="150"></e-column>
-					<e-column field="paymentMethod" headerText="Type" width="100"></e-column>
-					<e-column field="paymentDate" headerText="Date" width="150" type="date" format="yMd"></e-column>
-					<e-column field="paymentAmount" headerText="Payment" width="100" format="C2" textAlign="Right"></e-column>
-				</e-columns>
-			</ejs-grid>
+			@if (detailLoading() === 'check') {
+				<div class="text-center py-4">
+					<span class="spinner-border text-primary"></span>
+					<div class="text-muted mt-2">Loading check records...</div>
+				</div>
+			} @else {
+				<ejs-grid width="100%" #checkGrid
+					[dataSource]="checkRecords()"
+					cssClass="tsic-grid"
+					[allowExcelExport]="true"
+					[toolbar]="readOnlyToolbar"
+					(toolbarClick)="onCheckToolbarClick($event)">
+					<e-columns>
+						<e-column field="jobName" headerText="Job" width="120"></e-column>
+						<e-column field="year" headerText="Year" width="60"></e-column>
+						<e-column field="month" headerText="Month" width="60" textAlign="Right"></e-column>
+						<e-column field="registrant" headerText="Registrant" width="150"></e-column>
+						<e-column field="paymentMethod" headerText="Type" width="100"></e-column>
+						<e-column field="paymentDate" headerText="Date" width="150" type="date" format="yMd"></e-column>
+						<e-column field="paymentAmount" headerText="Payment" width="100" format="C2" textAlign="Right"></e-column>
+					</e-columns>
+				</ejs-grid>
+			}
 		}
 
-		<!-- Tab 6: E-Check Records -->
+		<!-- Tab 6: E-Check Records (lazy) -->
 		@if (activeTab() === 'echeckRecords') {
-			<ejs-grid width="100%" #echeckGrid
-				[dataSource]="echeckRecords()"
-				cssClass="tsic-grid"
-				[allowExcelExport]="true"
-				[toolbar]="readOnlyToolbar"
-				(toolbarClick)="onEcheckToolbarClick($event)">
-				<e-columns>
-					<e-column field="jobName" headerText="Job" width="120"></e-column>
-					<e-column field="year" headerText="Year" width="60"></e-column>
-					<e-column field="month" headerText="Month" width="60" textAlign="Right"></e-column>
-					<e-column field="registrant" headerText="Registrant" width="150"></e-column>
-					<e-column field="paymentMethod" headerText="Type" width="100"></e-column>
-					<e-column field="paymentDate" headerText="Date" width="150" type="date" format="yMd"></e-column>
-					<e-column field="paymentAmount" headerText="Payment" width="100" format="C2" textAlign="Right"></e-column>
-				</e-columns>
-			</ejs-grid>
+			@if (detailLoading() === 'echeck') {
+				<div class="text-center py-4">
+					<span class="spinner-border text-primary"></span>
+					<div class="text-muted mt-2">Loading e-check records...</div>
+				</div>
+			} @else {
+				<ejs-grid width="100%" #echeckGrid
+					[dataSource]="echeckRecords()"
+					cssClass="tsic-grid"
+					[allowExcelExport]="true"
+					[toolbar]="readOnlyToolbar"
+					(toolbarClick)="onEcheckToolbarClick($event)">
+					<e-columns>
+						<e-column field="jobName" headerText="Job" width="120"></e-column>
+						<e-column field="year" headerText="Year" width="60"></e-column>
+						<e-column field="month" headerText="Month" width="60" textAlign="Right"></e-column>
+						<e-column field="registrant" headerText="Registrant" width="150"></e-column>
+						<e-column field="paymentMethod" headerText="Type" width="100"></e-column>
+						<e-column field="paymentDate" headerText="Date" width="150" type="date" format="yMd"></e-column>
+						<e-column field="paymentAmount" headerText="Payment" width="100" format="C2" textAlign="Right"></e-column>
+					</e-columns>
+				</ejs-grid>
+			}
 		}
 	}
 </div>
