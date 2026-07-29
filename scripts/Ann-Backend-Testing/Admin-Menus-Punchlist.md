@@ -766,9 +766,9 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   - `uslax-test.component.html` — header "US Lax Validation Test" → "USA Lacrosse Validation Test".
   - Stale restore scripts (`0-Restore-DevConfig-DEV.ps1`, `0-Restore-DevConfig-PROD.sql`) — rebranded the **strings** ("US Lax Tester/Rankings" → "USA Lacrosse Tester/Rankings") so a dev restore won't reintroduce "US Lax". Structural drift left for the separate item.
   - **Icon**: kept `bi-award` (no change requested).
-  - **⚠️ OPEN OPERATIONAL**: Todd to **re-run the nav reset (`-I`)** to apply — the script edits don't take effect until regen. Frontend header deploys with the FE build.
+  - **✅ NAV APPLIED + VERIFIED (staging, Todd screenshot 2026-07-29)**: re-ran the nav reset on TSICV5; the section now renders **"USA LACROSSE"** with **USA Lacrosse Test / Rankings / Membership** — section still appears, confirming the join-key gate survived the rename. Icon `bi-award` retained. **OPEN: run same nav reset on PROD (TSIC-PHOENIX) at cutover; FE header rides F5.**
 - **Severity**: Branding / Legacy-parity → reframed to internal-consistency polish (low risk)
-- **Status**: ✅ **RESOLVED (code)** — rename done across twin generators + header + restore strings (Todd, 2026-07-29). **OPEN: re-run nav reset + F5.**
+- **Status**: ✅ **RESOLVED + VERIFIED (staging)** — rename applied & confirmed in-app (Todd, 2026-07-29). **OPEN: prod nav re-run at cutover + F5 for header.**
 
 ---
 
