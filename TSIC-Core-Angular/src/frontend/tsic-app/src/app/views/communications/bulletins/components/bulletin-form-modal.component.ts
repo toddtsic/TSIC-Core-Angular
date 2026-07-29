@@ -101,7 +101,7 @@ export type ModalMode = 'add' | 'edit';
                                     <button type="button" class="btn-ai btn-sm"
                                             (click)="formatWithAi()"
                                             [disabled]="isFormatting() || !text().trim()"
-                                            title="Reformat with AI using design-system styling + token vocabulary">
+                                            title="Restyle your existing text with AI — colors, spacing, headings. Doesn't change your words.">
                                         @if (isFormatting()) {
                                             <span class="spinner"></span> Formatting...
                                         } @else {
@@ -121,7 +121,8 @@ export type ModalMode = 'add' | 'edit';
                                             class="btn btn-sm"
                                             [class.btn-outline-secondary]="!previewOpen()"
                                             [class.btn-secondary]="previewOpen()"
-                                            (click)="togglePreview()">
+                                            (click)="togglePreview()"
+                                            title="See how !TOKENs resolve before you post">
                                         <i class="bi bi-eye"></i> {{ previewOpen() ? 'Hide' : 'Show' }} Preview
                                     </button>
                                 }
