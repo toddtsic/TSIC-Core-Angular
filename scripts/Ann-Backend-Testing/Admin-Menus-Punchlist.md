@@ -581,8 +581,9 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   2. **Release of Liability then sits right under Confirmation On-Screen.** This happens **automatically** once Refund Policy is removed (order becomes Confirmation Email → Confirmation On-Screen → **Release of Liability** → Code of Conduct) — which is exactly the placement Ann wants.
   3. **Give Release of Liability more room.** With Refund Policy gone there's space to enlarge the Release-of-Liability editor. Ties to **AM-033** (Player/Coaches RTE editors too small; enlarge the shared `JOB_CONFIG_RTE_HEIGHT` and/or make resizable) — apply that here so Release of Liability is comfortably readable/editable.
 - **For Todd**: sequence it with AM-009's refund-policy move — after `adultRegRefundPolicy` leaves the Coaches tab for Payment, confirm Release of Liability lands directly under Confirmation On-Screen and give it the enlarged RTE height from AM-033.
+- **RESOLUTION (Todd, 2026-07-29)**: (1) the Refund-Policy-to-Payment move **stays PARKED with AM-009** (re-raise declined for go-live week — the move carries open design decisions: job-type-aware display, "Adult" vs "Club Rep/Team" labeling, whether the Adult tab's text section reads thin after). (2) is an automatic side effect of (1), so it waits with it. (3) **already satisfied by AM-033** — Release of Liability (like all 15 job-config editors) now has a resize drag-handle.
 - **Severity**: UX (field order + editor size on the Adult tab)
-- **Status**: Open (Ann, 2026-07-27)
+- **Status**: CLOSED — part 1 stays parked with AM-009; part 3 satisfied by AM-033 (Todd, 2026-07-29)
 
 ---
 
