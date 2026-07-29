@@ -595,6 +595,7 @@ export type { ResetPasswordRequest } from './models/ResetPasswordRequest';
 export type { ResetPasswordTarget } from './models/ResetPasswordTarget';
 export type { RevalidateUsLaxRequestDto } from './models/RevalidateUsLaxRequestDto';
 export type { RevalidateUsLaxResultDto } from './models/RevalidateUsLaxResultDto';
+export type { RevenueRollupResponseDto } from './models/RevenueRollupResponseDto';
 export type { RoleRefDto } from './models/RoleRefDto';
 export type { RoleSelectionRequest } from './models/RoleSelectionRequest';
 export type { RosterTableColumnDto } from './models/RosterTableColumnDto';
