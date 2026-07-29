@@ -222,6 +222,11 @@ export type ModalMode = 'add' | 'edit';
                     </div>
                 </div>
                 <div class="modal-footer">
+                    @if (saveHint(); as hint) {
+                        <span class="save-hint" role="status">
+                            <i class="bi bi-info-circle me-1"></i>{{ hint }}
+                        </span>
+                    }
                     <button type="button" class="btn btn-outline-secondary btn-sm" (click)="close.emit()">Cancel</button>
                     <button type="button" class="btn btn-primary btn-sm" (click)="onSubmit()" [disabled]="!isValid() || isSaving()">
                         @if (isSaving()) {
@@ -377,6 +382,16 @@ export type ModalMode = 'add' | 'edit';
 
         .bulletin-modal .modal-footer {
             padding: var(--space-3) var(--space-5);
+        }
+
+        /* AM-042: reason the Save button is disabled — pushed to the left of the
+           footer buttons (footer is flex/justify-end, so margin-right:auto floats it left). */
+        .bulletin-modal .save-hint {
+            margin-right: auto;
+            display: inline-flex;
+            align-items: center;
+            font-size: var(--font-size-sm);
+            color: var(--bs-secondary-color);
         }
 
         :host ::ng-deep .e-richtexteditor {
@@ -576,6 +591,17 @@ export class BulletinFormModalComponent implements OnInit {
         const datesValid = !(this.endDate().length > 0 && this.startDate().length > 0 && this.endDate() < this.startDate());
         return hasTitle && hasText && datesValid;
     }
+
+    /** AM-042: tells the user *why* the Add/Save button is disabled (missing Title/Text).
+     *  Empty when the block is a date error — that shows inline near the end-date field. */
+    readonly saveHint = computed(() => {
+        const hasTitle = this.title().trim().length > 0;
+        const hasText = this.text().trim().length > 0;
+        if (!hasTitle && !hasText) return 'Enter a title and message to save.';
+        if (!hasTitle) return 'Enter a title to save.';
+        if (!hasText) return 'Enter a message to save.';
+        return '';
+    });
 
     onSubmit(): void {
         if (!this.isValid() || this.isSaving()) return;
