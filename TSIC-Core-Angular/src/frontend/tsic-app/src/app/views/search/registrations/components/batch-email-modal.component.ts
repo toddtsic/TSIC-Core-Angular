@@ -1,6 +1,7 @@
-import { Component, ChangeDetectionStrategy, signal, computed, input, output, inject, OnInit, OnDestroy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, computed, input, output, inject, viewChild, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { EmailBodyEditorComponent } from '@shared-ui/components/email-body-editor/email-body-editor.component';
 import type { EmailBatchJobStatus, JobOptionDto, RegistrationSearchRequest } from '@core/api';
 import { environment } from '@environments/environment';
 import { RegistrationSearchService } from '../services/registration-search.service';
@@ -47,25 +48,25 @@ const INVITE_TEMPLATES: Record<InviteMode, { subject: string; body: string }> = 
   player: {
     subject: 'You\'re invited to register for !EVENT_INVITEDTO',
     body:
-      'Hi !PERSON,\n\n' +
-      'You\'ve been invited to register for !EVENT_INVITEDTO. Use your personalized link below:\n\n' +
-      '!INVITE_LINK\n\n' +
-      'This invitation is unique to you and expires on !INVITE_EXPIRES. Please complete your registration before then.',
+      '<p>Hi !PERSON,</p>' +
+      '<p>You\'ve been invited to register for !EVENT_INVITEDTO. Use your personalized link below:</p>' +
+      '<p>!INVITE_LINK</p>' +
+      '<p>This invitation is unique to you and expires on !INVITE_EXPIRES. Please complete your registration before then.</p>',
   },
   clubrep: {
     subject: 'You\'re invited to register your team for !EVENT_INVITEDTO',
     body:
-      'Hi !PERSON,\n\n' +
-      'You\'ve been invited to register your club/team for !EVENT_INVITEDTO. Use your personalized link below:\n\n' +
-      '!CLUBREP_INVITE_LINK\n\n' +
-      'This invitation is unique to you and expires on !INVITE_EXPIRES. Please complete your registration before then.',
+      '<p>Hi !PERSON,</p>' +
+      '<p>You\'ve been invited to register your club/team for !EVENT_INVITEDTO. Use your personalized link below:</p>' +
+      '<p>!CLUBREP_INVITE_LINK</p>' +
+      '<p>This invitation is unique to you and expires on !INVITE_EXPIRES. Please complete your registration before then.</p>',
   },
 };
 
 @Component({
   selector: 'app-batch-email-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule, DraggableModalDirective],
+  imports: [CommonModule, FormsModule, DraggableModalDirective, EmailBodyEditorComponent],
   templateUrl: './batch-email-modal.component.html',
   styleUrl: './batch-email-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -277,12 +278,10 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
 
   close(): void { this.closed.emit(); this.resetForm(); }
 
-  insertToken(token: string, textarea: HTMLTextAreaElement): void {
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const currentBody = this.bodyTemplate();
-    this.bodyTemplate.set(currentBody.substring(0, start) + token + currentBody.substring(end));
-    setTimeout(() => { textarea.focus(); const p = start + token.length; textarea.setSelectionRange(p, p); }, 0);
+  private readonly bodyEditor = viewChild.required(EmailBodyEditorComponent);
+
+  insertToken(token: string): void {
+    this.bodyEditor().insertToken(token);
   }
 
   sendEmail(): void {

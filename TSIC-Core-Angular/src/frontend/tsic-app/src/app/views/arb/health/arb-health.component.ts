@@ -1,7 +1,8 @@
-import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, ChangeDetectionStrategy, viewChild } from '@angular/core';
 import { DecimalPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
+import { EmailBodyEditorComponent } from '@shared-ui/components/email-body-editor/email-body-editor.component';
 import { ArbDefensiveService } from './services/arb-defensive.service';
 import type {
     ArbFlaggedRegistrantDto,
@@ -75,7 +76,7 @@ const TEMPLATES: Record<string, EmailTemplate[]> = {
 @Component({
     selector: 'app-arb-health',
     standalone: true,
-    imports: [DecimalPipe, DatePipe, FormsModule, TsicDialogComponent],
+    imports: [DecimalPipe, DatePipe, FormsModule, TsicDialogComponent, EmailBodyEditorComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './arb-health.component.html',
     styleUrl: './arb-health.component.scss'
@@ -118,6 +119,8 @@ export class ArbHealthComponent {
     readonly sendResult = signal<{ sent: number; failed: number; failedAddresses: string[] } | null>(null);
 
     readonly selectedCount = computed(() => this.selectedIds().size);
+
+    private readonly bodyEditor = viewChild.required(EmailBodyEditorComponent);
 
     /** Templates available for the active tab */
     readonly availableTemplates = computed<EmailTemplate[]>(() => {
@@ -235,15 +238,11 @@ export class ArbHealthComponent {
     }
 
     insertToken(token: string): void {
-        this.emailBody.update(body => body + token);
+        this.bodyEditor().insertToken(token);
     }
 
     onSubjectChange(value: string): void {
         this.emailSubject.set(value);
-    }
-
-    onBodyChange(value: string): void {
-        this.emailBody.set(value);
     }
 
     onNotifyDirectorsChange(value: boolean): void {

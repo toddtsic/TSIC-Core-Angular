@@ -318,13 +318,10 @@
 
             <!-- Body -->
             <div class="mb-3">
-                <label for="emailBody" class="form-label fw-medium">Body (HTML)</label>
-                <textarea id="emailBody"
-                          class="form-control font-monospace"
-                          rows="10"
-                          [ngModel]="emailBody()"
-                          (ngModelChange)="onBodyChange($event)"
-                          placeholder="Compose your email body... Use substitution tokens below."></textarea>
+                <label class="form-label fw-medium">Body</label>
+                <app-email-body-editor
+                    [(body)]="emailBody"
+                    placeholder="Compose your email body... Use substitution tokens below." />
             </div>
 
             <!-- Substitution tokens -->
@@ -341,7 +338,7 @@
                             </button>
                         }
                     </div>
-                    <small class="form-text text-muted">Click a token to append it to the body.</small>
+                    <small class="form-text text-muted">Click a token to insert it at the cursor.</small>
                 </div>
             }
 

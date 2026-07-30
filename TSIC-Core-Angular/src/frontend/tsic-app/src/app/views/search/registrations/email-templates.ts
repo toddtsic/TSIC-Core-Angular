@@ -138,15 +138,17 @@ export const EMAIL_TEMPLATE_CATEGORIES: EmailTemplateCategory[] = [
         label: 'Update CC Info (Active/Suspended)',
         subject: 'Action Required: Update Your Payment Information',
         body:
-          'One or more of your automatic payments for !JOBNAME for !PERSON was declined.\n\n' +
-          'You can contact your credit card issuer to determine the reason if you need to.\n\n' +
-          'Then you can update your credit card information and process the current balance due (!AMTOWED) all in one step.\n\n' +
-          'To fix this, visit !JOBLINK, then:\n\n' +
-          '1. Login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME\n' +
-          '2. Select your Player\'s role\n' +
-          '3. Open the avatar menu in the upper right and select \'Update CC Info\'\n' +
-          '4. Enter your credit card information and you will see the amount due at the bottom of the screen.\n' +
-          '5. Click Submit to make the payment and reactivate your future automatic payments.',
+          '<p>One or more of your automatic payments for !JOBNAME for !PERSON was declined.</p>' +
+          '<p>You can contact your credit card issuer to determine the reason if you need to.</p>' +
+          '<p>Then you can update your credit card information and process the current balance due (!AMTOWED) all in one step.</p>' +
+          '<p>To fix this, visit !JOBLINK, then:</p>' +
+          '<ol>' +
+          '<li>Login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME</li>' +
+          '<li>Select your Player\'s role</li>' +
+          '<li>Open the avatar menu in the upper right and select \'Update CC Info\'</li>' +
+          '<li>Enter your credit card information and you will see the amount due at the bottom of the screen.</li>' +
+          '<li>Click Submit to make the payment and reactivate your future automatic payments.</li>' +
+          '</ol>',
         availability: {
           requiresJobFlags: ['adnArb'],
           requiresFilters: [
@@ -159,13 +161,15 @@ export const EMAIL_TEMPLATE_CATEGORIES: EmailTemplateCategory[] = [
         label: 'Pay Balance Due (Expired/Terminated)',
         subject: 'Action Required: Pay Balance Due',
         body:
-          'One or more of your automatic payments for !JOBNAME for !PERSON was declined.\n\n' +
-          'You can contact your credit card issuer to determine the reason if you need to.\n\n' +
-          'Then you can update your credit card information and process the current balance due (!AMTOWED) all in one step.\n\n' +
-          'To fix this, visit !JOBLINK, then:\n\n' +
-          '1. Login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME\n' +
-          '2. Select your Player\'s role\n' +
-          '3. Under \'Player\' in the upper right, select \'Pay Balance Due\'',
+          '<p>One or more of your automatic payments for !JOBNAME for !PERSON was declined.</p>' +
+          '<p>You can contact your credit card issuer to determine the reason if you need to.</p>' +
+          '<p>Then you can update your credit card information and process the current balance due (!AMTOWED) all in one step.</p>' +
+          '<p>To fix this, visit !JOBLINK, then:</p>' +
+          '<ol>' +
+          '<li>Login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME</li>' +
+          '<li>Select your Player\'s role</li>' +
+          '<li>Under \'Player\' in the upper right, select \'Pay Balance Due\'</li>' +
+          '</ol>',
         availability: {
           requiresJobFlags: ['adnArb'],
           requiresFilters: [
@@ -178,13 +182,15 @@ export const EMAIL_TEMPLATE_CATEGORIES: EmailTemplateCategory[] = [
         label: 'Credit Card Expiring This Month',
         subject: 'Your Credit Card is Expiring — Action Required',
         body:
-          'The credit card on file for your automatic recurring payments for !JOBNAME for !PERSON is expiring this month.\n\n' +
-          'If we cannot bill the new card before your next scheduled payment, your auto-pay will fail.\n\n' +
-          'To update your credit card, visit !JOBLINK, then:\n\n' +
-          '1. Login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME\n' +
-          '2. Select your Player\'s role\n' +
-          '3. Open the avatar menu in the upper right and select \'Update CC Info\'\n' +
-          '4. Enter your credit card information and submit.',
+          '<p>The credit card on file for your automatic recurring payments for !JOBNAME for !PERSON is expiring this month.</p>' +
+          '<p>If we cannot bill the new card before your next scheduled payment, your auto-pay will fail.</p>' +
+          '<p>To update your credit card, visit !JOBLINK, then:</p>' +
+          '<ol>' +
+          '<li>Login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME</li>' +
+          '<li>Select your Player\'s role</li>' +
+          '<li>Open the avatar menu in the upper right and select \'Update CC Info\'</li>' +
+          '<li>Enter your credit card information and submit.</li>' +
+          '</ol>',
         availability: {
           // Gated by mode: only offered when the grid is showing lookup results from
           // the live Authorize.net card-expiring query. Dropped / inactive registrants
@@ -203,15 +209,17 @@ export const EMAIL_TEMPLATE_CATEGORIES: EmailTemplateCategory[] = [
         label: 'Player Insurance — Not Yet Accepted',
         subject: 'Player Insurance Available for !JOBNAME',
         body:
-          'This is a reminder that player insurance is available for !PERSON\'s registration in !JOBNAME, ' +
-          'and your registration is not yet covered.\n\n' +
-          'Player insurance protects your registration fees against covered cancellation events.\n\n' +
-          'To add player insurance:\n\n' +
-          '1. Visit !JOBLINK\n' +
-          '2. Login using your username: !FAMILYUSERNAME\n' +
-          '3. Select your Player\'s role\n' +
-          '4. Follow the insurance prompts to complete the optional policy\n\n' +
-          'If you have already decided to decline, no further action is needed.',
+          '<p>This is a reminder that player insurance is available for !PERSON\'s registration in !JOBNAME, ' +
+          'and your registration is not yet covered.</p>' +
+          '<p>Player insurance protects your registration fees against covered cancellation events.</p>' +
+          '<p>To add player insurance:</p>' +
+          '<ol>' +
+          '<li>Visit !JOBLINK</li>' +
+          '<li>Login using your username: !FAMILYUSERNAME</li>' +
+          '<li>Select your Player\'s role</li>' +
+          '<li>Follow the insurance prompts to complete the optional policy</li>' +
+          '</ol>' +
+          '<p>If you have already decided to decline, no further action is needed.</p>',
         availability: {
           requiresJobFlags: ['offerPlayerRegsaverInsurance'],
           requiresFilters: [
@@ -224,15 +232,17 @@ export const EMAIL_TEMPLATE_CATEGORIES: EmailTemplateCategory[] = [
         label: 'Team Insurance — Not Yet Accepted (Club Reps)',
         subject: 'Team Insurance Available for !JOBNAME',
         body:
-          'This is a reminder that team registration cancellation insurance is available for !JOBNAME, ' +
-          'and one or more of the teams you manage is not yet covered.\n\n' +
-          'Team insurance protects team registration fees against covered cancellation events, per team.\n\n' +
-          'To add team insurance:\n\n' +
-          '1. Visit !JOBLINK\n' +
-          '2. Login using your username: !FAMILYUSERNAME\n' +
-          '3. Select your Club Rep role\n' +
-          '4. Review your teams and add insurance per team as desired\n\n' +
-          'If you have already decided to decline for all teams, no further action is needed.',
+          '<p>This is a reminder that team registration cancellation insurance is available for !JOBNAME, ' +
+          'and one or more of the teams you manage is not yet covered.</p>' +
+          '<p>Team insurance protects team registration fees against covered cancellation events, per team.</p>' +
+          '<p>To add team insurance:</p>' +
+          '<ol>' +
+          '<li>Visit !JOBLINK</li>' +
+          '<li>Login using your username: !FAMILYUSERNAME</li>' +
+          '<li>Select your Club Rep role</li>' +
+          '<li>Review your teams and add insurance per team as desired</li>' +
+          '</ol>' +
+          '<p>If you have already decided to decline for all teams, no further action is needed.</p>',
         availability: {
           requiresJobFlags: ['offerTeamRegsaverInsurance'],
           requiresFilters: [
@@ -253,13 +263,15 @@ export const EMAIL_TEMPLATE_CATEGORIES: EmailTemplateCategory[] = [
         label: 'Activation (Off the Waitlist)',
         subject: 'You\'re off the waitlist for !JOBNAME',
         body:
-          'Congratulations !PERSON!\n\n' +
-          'You have been removed from the Waitlist for !TEAMNAME in !JOBNAME.\n\n' +
-          'To accept your spot, please pay your balance due (!AMTOWED) as follows:\n\n' +
-          'Visit !JOBLINK, then:\n\n' +
-          '1. You MUST login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME (do NOT re-register).\n' +
-          '2. Select your Player\'s role\n' +
-          '3. Under \'Player\' in the upper right, select \'Pay Balance Due\' and proceed to pay.',
+          '<p>Congratulations !PERSON!</p>' +
+          '<p>You have been removed from the Waitlist for !TEAMNAME in !JOBNAME.</p>' +
+          '<p>To accept your spot, please pay your balance due (!AMTOWED) as follows:</p>' +
+          '<p>Visit !JOBLINK, then:</p>' +
+          '<ol>' +
+          '<li>You MUST login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME (do NOT re-register).</li>' +
+          '<li>Select your Player\'s role</li>' +
+          '<li>Under \'Player\' in the upper right, select \'Pay Balance Due\' and proceed to pay.</li>' +
+          '</ol>',
         availability: {
           requiresJobFlags: [],
           requiresFilters: [

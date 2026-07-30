@@ -178,10 +178,11 @@
               placeholder="Enter email subject" [disabled]="isSending()" />
           </div>
           <div class="form-group">
-            <label for="email-body">Body</label>
-            <textarea #bodyTextarea id="email-body" class="form-control email-body"
-              [ngModel]="bodyTemplate()" (ngModelChange)="bodyTemplate.set($event)"
-              placeholder="Enter email body (use tokens below to personalize)" rows="8" [disabled]="isSending()"></textarea>
+            <label>Body</label>
+            <app-email-body-editor
+              [(body)]="bodyTemplate"
+              [disabled]="isSending()"
+              placeholder="Enter email body (use tokens below to personalize)" />
           </div>
         </div>
 
@@ -197,7 +198,7 @@
           </label>
           <div class="token-chips">
             @for (tokenInfo of availableTokens(); track tokenInfo.token) {
-              <button type="button" class="token-chip" (click)="insertToken(tokenInfo.token, bodyTextarea)"
+              <button type="button" class="token-chip" (click)="insertToken(tokenInfo.token)"
                 [disabled]="isSending()" [title]="tokenInfo.description">{{ tokenInfo.token }}</button>
             }
           </div>

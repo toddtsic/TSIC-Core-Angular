@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, output, si
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
+import { EmailBodyEditorComponent } from '@shared-ui/components/email-body-editor/email-body-editor.component';
 import { ToastService } from '@shared-ui/toast.service';
 import { MyRosterService } from './my-roster.service';
 import type { EmailBatchJobStatus } from '@core/api/models/EmailBatchJobStatus';
@@ -9,7 +10,7 @@ import type { EmailBatchJobStatus } from '@core/api/models/EmailBatchJobStatus';
 @Component({
     selector: 'app-my-roster-email-dialog',
     standalone: true,
-    imports: [CommonModule, FormsModule, TsicDialogComponent],
+    imports: [CommonModule, FormsModule, TsicDialogComponent, EmailBodyEditorComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <tsic-dialog [open]="true" size="md" (requestClose)="close()">
@@ -45,11 +46,11 @@ import type { EmailBatchJobStatus } from '@core/api/models/EmailBatchJobStatus';
           </div>
 
           <div class="mb-2">
-            <label for="mr-body" class="field-label">Message</label>
-            <textarea id="mr-body" rows="8" class="field-input"
-                      [ngModel]="body()" (ngModelChange)="body.set($event)"
-                      [disabled]="isSending()"
-                      placeholder="Write your message..."></textarea>
+            <label class="field-label">Message</label>
+            <app-email-body-editor
+                [(body)]="body"
+                [disabled]="isSending()"
+                placeholder="Write your message..." />
           </div>
           <p class="small text-body-secondary mb-0">
             Use <code>!PERSON</code> to address each teammate by name — it's replaced per recipient when the email is sent.

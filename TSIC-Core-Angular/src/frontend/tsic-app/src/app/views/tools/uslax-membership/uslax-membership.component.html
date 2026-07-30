@@ -154,11 +154,11 @@
             </div>
 
             <div class="compose-field">
-                <label for="uslaxBody" class="form-label">Body (HTML supported)</label>
-                <textarea id="uslaxBody" class="form-control form-control-sm compose-body"
-                          rows="14"
-                          [ngModel]="body()" (ngModelChange)="body.set($event)"
-                          [disabled]="isSending()"></textarea>
+                <label class="form-label">Body</label>
+                <app-email-body-editor
+                    [(body)]="body"
+                    [height]="380"
+                    [disabled]="isSending()" />
                 <small class="text-body-secondary">
                     All standard email tokens work here (<code>!PERSON</code>, <code>!JOBNAME</code>,
                     <code>!JOBLINK</code>, <code>!USLAXVALIDTHROUGHDATE</code>, <code>!UNSUBSCRIBE</code>, &hellip;).

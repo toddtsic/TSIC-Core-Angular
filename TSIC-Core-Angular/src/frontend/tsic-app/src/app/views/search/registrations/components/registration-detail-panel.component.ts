@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, input, output, signal, linkedSignal, computed, untracked, HostListener, inject, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal, linkedSignal, computed, untracked, viewChild, HostListener, inject, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -14,6 +14,7 @@ import { ClubRepPaymentComponent } from '@shared-ui/components/club-rep-payment/
 import { FamilyPaymentComponent } from '@shared-ui/components/family-payment/family-payment.component';
 import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
 import { MedFormViewComponent } from './medform-view.component';
+import { EmailBodyEditorComponent } from '@shared-ui/components/email-body-editor/email-body-editor.component';
 import { environment } from '@environments/environment';
 
 type TabType = 'details' | 'accounting' | 'email';
@@ -117,7 +118,7 @@ function isWaiverField(key: string, label: string, inputType: string): boolean {
 @Component({
   selector: 'app-registration-detail-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, AccountingLedgerComponent, ConfirmDialogComponent, ClubRepPaymentComponent, FamilyPaymentComponent, ResizablePanelDirective, MedFormViewComponent],
+  imports: [CommonModule, FormsModule, AccountingLedgerComponent, ConfirmDialogComponent, ClubRepPaymentComponent, FamilyPaymentComponent, ResizablePanelDirective, MedFormViewComponent, EmailBodyEditorComponent],
   templateUrl: './registration-detail-panel.component.html',
   styleUrl: './registration-detail-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -994,7 +995,9 @@ export class RegistrationDetailPanelComponent implements OnChanges {
     });
   }
 
-  insertEmailToken(token: string): void { this.emailBody.set(this.emailBody() + token); }
+  private readonly emailBodyEditor = viewChild.required(EmailBodyEditorComponent);
+
+  insertEmailToken(token: string): void { this.emailBodyEditor().insertToken(token); }
 
   sendEmail(): void {
     const d = this.detail();

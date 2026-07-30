@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import type { ToolbarItems } from '@syncfusion/ej2-angular-grids';
 import { GridRowNumbersDirective } from '@shared-ui/directives/grid-row-numbers.directive';
+import { EmailBodyEditorComponent } from '@shared-ui/components/email-body-editor/email-body-editor.component';
 import { UsLaxMembershipService } from '@infrastructure/services/uslax-membership.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -83,7 +84,7 @@ ${USLAX_COMMON_GUIDANCE}
 @Component({
 	selector: 'app-uslax-membership',
 	standalone: true,
-	imports: [DatePipe, NgClass, FormsModule, GridAllModule, GridRowNumbersDirective],
+	imports: [DatePipe, NgClass, FormsModule, GridAllModule, GridRowNumbersDirective, EmailBodyEditorComponent],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './uslax-membership.component.html',
 	styleUrl: './uslax-membership.component.scss'
