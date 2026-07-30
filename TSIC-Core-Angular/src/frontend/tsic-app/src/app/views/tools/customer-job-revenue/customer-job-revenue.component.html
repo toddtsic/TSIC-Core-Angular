@@ -208,13 +208,14 @@
 		<!-- Tab 3: Admin Fees -->
 		@if (activeTab() === 'adminFees') {
 			<ejs-grid width="100%" #adminFeesGrid
+				[allowTextWrap]="true"
 				[dataSource]="adminFees()"
 				cssClass="tsic-grid"
 				[allowExcelExport]="true"
 				[toolbar]="readOnlyToolbar"
 				(toolbarClick)="onAdminFeesToolbarClick($event)">
 				<e-columns>
-					<e-column field="jobName" headerText="Job" width="120"></e-column>
+					<e-column field="jobName" headerText="Job" width="240"></e-column>
 					<e-column field="year" headerText="Year" width="60"></e-column>
 					<e-column field="month" headerText="Month" width="60" textAlign="Right"></e-column>
 					<e-column field="chargeType" headerText="Type" width="100"></e-column>
@@ -233,15 +234,14 @@
 				</div>
 			} @else {
 				<ejs-grid width="100%" #ccGrid
+					[allowTextWrap]="true"
 					[dataSource]="creditCardRecords()"
 					cssClass="tsic-grid"
 					[allowExcelExport]="true"
 					[toolbar]="readOnlyToolbar"
 					(toolbarClick)="onCcToolbarClick($event)">
 					<e-columns>
-						<e-column field="jobName" headerText="Job" width="120"></e-column>
-						<e-column field="year" headerText="Year" width="60"></e-column>
-						<e-column field="month" headerText="Month" width="60" textAlign="Right"></e-column>
+						<e-column field="jobName" headerText="Job" width="240"></e-column>
 						<e-column field="registrant" headerText="Registrant" width="150"></e-column>
 						<e-column field="paymentMethod" headerText="Type" width="100"></e-column>
 						<e-column field="paymentDate" headerText="Date" width="150" type="date" format="yMd"></e-column>
@@ -260,15 +260,14 @@
 				</div>
 			} @else {
 				<ejs-grid width="100%" #checkGrid
+					[allowTextWrap]="true"
 					[dataSource]="checkRecords()"
 					cssClass="tsic-grid"
 					[allowExcelExport]="true"
 					[toolbar]="readOnlyToolbar"
 					(toolbarClick)="onCheckToolbarClick($event)">
 					<e-columns>
-						<e-column field="jobName" headerText="Job" width="120"></e-column>
-						<e-column field="year" headerText="Year" width="60"></e-column>
-						<e-column field="month" headerText="Month" width="60" textAlign="Right"></e-column>
+						<e-column field="jobName" headerText="Job" width="240"></e-column>
 						<e-column field="registrant" headerText="Registrant" width="150"></e-column>
 						<e-column field="paymentMethod" headerText="Type" width="100"></e-column>
 						<e-column field="paymentDate" headerText="Date" width="150" type="date" format="yMd"></e-column>
@@ -287,15 +286,14 @@
 				</div>
 			} @else {
 				<ejs-grid width="100%" #echeckGrid
+					[allowTextWrap]="true"
 					[dataSource]="echeckRecords()"
 					cssClass="tsic-grid"
 					[allowExcelExport]="true"
 					[toolbar]="readOnlyToolbar"
 					(toolbarClick)="onEcheckToolbarClick($event)">
 					<e-columns>
-						<e-column field="jobName" headerText="Job" width="120"></e-column>
-						<e-column field="year" headerText="Year" width="60"></e-column>
-						<e-column field="month" headerText="Month" width="60" textAlign="Right"></e-column>
+						<e-column field="jobName" headerText="Job" width="240"></e-column>
 						<e-column field="registrant" headerText="Registrant" width="150"></e-column>
 						<e-column field="paymentMethod" headerText="Type" width="100"></e-column>
 						<e-column field="paymentDate" headerText="Date" width="150" type="date" format="yMd"></e-column>
