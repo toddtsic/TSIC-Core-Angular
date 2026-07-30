@@ -86,6 +86,11 @@ export class DdlOptionsComponent {
 	// component can still mount outside the shell.
 	private readonly jobConfigSvc = inject(JobConfigService, { optional: true });
 
+	// AM-051: in-shell the FAB is the ONE save affordance (matches every sibling tab);
+	// the local sticky bar renders only on the standalone /configure/ddl-options mount,
+	// where there is no shell and therefore no FAB.
+	readonly inShell = !!this.jobConfigSvc;
+
 	// ── Grouped categories for template ──
 	readonly groups: DdlGroup[] = this.buildGroups();
 

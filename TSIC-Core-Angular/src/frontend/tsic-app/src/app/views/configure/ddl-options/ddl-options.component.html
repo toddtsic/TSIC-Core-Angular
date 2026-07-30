@@ -63,8 +63,9 @@
 		</section>
 	}
 
-	<!-- Sticky save bar -->
-	@if (isDirty()) {
+	<!-- Sticky save bar — standalone mount only; in the Job Settings shell the FAB
+	     is the single save affordance (AM-051) -->
+	@if (isDirty() && !inShell) {
 		<div class="save-bar">
 			<span class="unsaved-badge">
 				{{ changeCount() }} {{ changeCount() === 1 ? 'category' : 'categories' }} modified
