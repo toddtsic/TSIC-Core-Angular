@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, computed, inject, viewChild, HostListener } from '@angular/core';
+import { Component, ChangeDetectionStrategy, EventEmitter, signal, computed, inject, viewChild, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpParams } from '@angular/common/http';
@@ -15,6 +15,7 @@ import {
 	PivotViewAllModule,
 	PivotViewComponent,
 	IDataOptions,
+	ColumnRenderEventArgs,
 	FieldListService,
 	ToolbarService,
 	PDFExportService,
@@ -118,6 +119,21 @@ export class CustomerJobRevenueComponent {
 		this.viewportHeight.set(window.innerHeight);
 	}
 
+	// Ann: job names display in full without wrapping. The flat columnWidth applies to
+	// every column including the row-header one, so the header column is re-sized per
+	// run to fit the longest job name in the result set (see measureRowHeaderWidth).
+	//
+	// The handler must be an EventEmitter, not a plain callback: the ej2 Angular
+	// wrapper's trigger() invokes handler.next(args), so a bare function throws
+	// mid-layout and blanks the whole grid.
+	private rowHeaderWidth = 240;
+	private readonly onPivotColumnRender = new EventEmitter<ColumnRenderEventArgs>();
+	readonly pivotGridSettings = {
+		columnWidth: 120,
+		allowTextWrap: true,
+		columnRender: this.onPivotColumnRender as unknown as (args: ColumnRenderEventArgs) => void
+	};
+
 	// Pivot config
 	readonly pivotDataSource = signal<IDataOptions>({
 		dataSource: [],
@@ -160,6 +176,27 @@ export class CustomerJobRevenueComponent {
 	readonly echeckGrid = viewChild.required<GridComponent>('echeckGrid');
 
 	constructor() {
+		// Emitter and subscriber share this component's lifetime — no teardown needed.
+		this.onPivotColumnRender.subscribe((args: ColumnRenderEventArgs) => {
+			if (args.columns.length === 0) {
+				return;
+			}
+			args.columns[0].width = this.rowHeaderWidth;
+			// The pivot pre-stretched the value columns to fill the container using its
+			// DEFAULT first-column width; widening col 0 after that overflows the total
+			// by the difference and shows a phantom h-scrollbar. Re-stretch the value
+			// columns against the real row-header width (120px floor — below that the
+			// scrollbar is legitimate).
+			const host = document.querySelector<HTMLElement>('ejs-pivotview');
+			const valueCols = args.columns.length - 1;
+			if (host && valueCols > 0) {
+				const avail = host.clientWidth - this.rowHeaderWidth - 20; // v-scrollbar + borders
+				const width = Math.max(120, Math.floor(avail / valueCols));
+				for (let i = 1; i < args.columns.length; i++) {
+					args.columns[i].width = width;
+				}
+			}
+		});
 		this.buildMonthOptions();
 		// Default the period pickers to last month; no report runs until the user scopes one.
 		if (this.monthOptions.length > 0) {
@@ -275,6 +312,7 @@ export class CustomerJobRevenueComponent {
 				this.checkDetail.set(null);
 				this.echeckDetail.set(null);
 				this.qaResult.set(null);
+				this.rowHeaderWidth = this.measureRowHeaderWidth(data.revenueRecords);
 				this.pivotDataSource.set({
 					...this.pivotDataSource(),
 					dataSource: data.revenueRecords as never[]
@@ -359,6 +397,26 @@ export class CustomerJobRevenueComponent {
 				this.errorMessage.set(err.error?.message || 'Legacy comparison failed');
 			}
 		});
+	}
+
+	/**
+	 * Width (px) of the widest job name at the row-header font, plus expand-caret and
+	 * cell-padding chrome. Clamped so one absurd name can't take over the viewport —
+	 * past the cap, allowTextWrap takes back over as the fallback.
+	 */
+	private measureRowHeaderWidth(records: RevenueRollupResponseDto['revenueRecords']): number {
+		const ctx = document.createElement('canvas').getContext('2d');
+		if (!ctx) {
+			return 240;
+		}
+		// Bold weight (member cells render bold) + 3% slack + caret/padding chrome.
+		// Err slightly wide: spare column is invisible; a few px short wraps the name.
+		ctx.font = `700 14px ${getComputedStyle(document.body).fontFamily || 'sans-serif'}`;
+		let widest = 0;
+		for (const name of new Set(records.map((r) => r.jobName))) {
+			widest = Math.max(widest, ctx.measureText(name).width);
+		}
+		return Math.min(640, Math.max(180, Math.ceil(widest) + 48));
 	}
 
 	// Pivot toolbar actions
