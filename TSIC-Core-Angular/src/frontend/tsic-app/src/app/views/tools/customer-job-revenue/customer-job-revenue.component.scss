@@ -6,16 +6,161 @@
 	font-size: var(--font-size-sm);
 }
 
-// Guided scope panel
-.scope-step-label {
+// Guided scope panel — numbered steps, labeled fields, one visual rhythm for both modes
+.scope-panel {
+	.card-body {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+		padding: var(--space-4);
+	}
+}
+
+.scope-step {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-3);
+}
+
+.scope-step-badge {
+	flex: none;
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	display: grid;
+	place-items: center;
+	font-size: var(--font-size-sm);
+	font-weight: 700;
+	line-height: 1;
+	color: var(--bs-primary);
+	background: var(--bs-primary-bg-subtle, transparent);
+	border: 1px solid color-mix(in srgb, var(--bs-primary) 40%, transparent);
+}
+
+.scope-step-body {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	column-gap: var(--space-3);
+	row-gap: var(--space-2);
+	// Center the first row's content against the 28px badge
+	min-height: 28px;
+}
+
+.scope-step-title {
 	font-size: var(--font-size-sm);
 	font-weight: 600;
 	color: var(--brand-text);
 	white-space: nowrap;
+	min-width: 3.25rem; // "Period" is the widest — keeps step-1/step-2 controls left-aligned
+}
+
+// Step 2 rows carry labeled fields: bottom-align so selects, multiselect,
+// and the Run button share a baseline under their labels.
+.scope-step-fields {
+	align-items: flex-end;
+
+	.scope-step-title {
+		// Keep the title on the control line, not floating at label height
+		align-self: flex-end;
+		padding-bottom: calc(var(--space-1) + 2px);
+	}
+}
+
+.scope-toggle {
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+
+		&:focus-visible {
+			outline: none;
+			box-shadow: var(--shadow-focus);
+			z-index: 1; // keep the focus ring above the sibling segment
+		}
+	}
 }
 
 .scope-hint {
 	font-size: var(--font-size-sm);
+	color: var(--bs-secondary-color, var(--bs-secondary));
+	// On wide screens rides the same line; wraps whole when space runs out
+	flex: 1 1 20rem;
+	min-width: 16rem;
+}
+
+.scope-field {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+
+	.form-select {
+		width: auto;
+		min-width: 8.5rem;
+
+		&:focus-visible {
+			outline: none;
+			box-shadow: var(--shadow-focus);
+		}
+	}
+}
+
+.scope-field-label {
+	font-size: var(--font-size-xs);
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--bs-secondary-color, var(--bs-secondary));
+	margin: 0;
+	white-space: nowrap;
+}
+
+.scope-field-jobs {
+	flex: 1 1 250px;
+	max-width: 500px;
+}
+
+.scope-range-dash {
+	align-self: flex-end;
+	padding-bottom: var(--space-1);
+	color: var(--bs-secondary-color, var(--bs-secondary));
+	font-weight: 600;
+}
+
+.scope-run {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	white-space: nowrap;
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+// Step 2 slides in when a scope is chosen
+.scope-step-reveal {
+	animation: scope-step-in 0.18s ease-out;
+}
+
+@keyframes scope-step-in {
+	from {
+		opacity: 0;
+		transform: translateY(calc(-1 * var(--space-1)));
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.scope-step-reveal {
+		animation: none !important;
+	}
 }
 
 // SU live-QA verdict panel (sandbox only)
