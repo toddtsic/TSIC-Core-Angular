@@ -62,8 +62,9 @@ export class CustomerJobRevenueComponent {
 	errorMessage = signal('');
 	activeTab = signal<'rollup' | 'counts' | 'adminFees' | 'ccRecords' | 'checkRecords' | 'echeckRecords'>('rollup');
 
-	// Guided scope flow
-	scopeMode = signal<ScopeMode | null>(null);
+	// Guided scope flow — lands on All jobs · date range (pickers preset to last month);
+	// nothing runs until the user clicks Run Report.
+	scopeMode = signal<ScopeMode | null>('period');
 	availableJobs = signal<string[]>([]);
 	submittedScope = signal<SubmittedScope | null>(null);
 
