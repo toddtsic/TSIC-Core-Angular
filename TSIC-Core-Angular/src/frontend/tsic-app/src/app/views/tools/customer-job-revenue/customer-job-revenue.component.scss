@@ -237,3 +237,16 @@
 		color: var(--bs-primary);
 	}
 }
+
+// AM-054 (Ann): Grand Total column is CC-only — always-visible caption under the pivot
+.grand-total-caption {
+	display: flex;
+	align-items: center;
+	margin-top: var(--space-2);
+	font-size: var(--font-size-sm);
+	color: var(--bs-info-text-emphasis);
+
+	i {
+		color: var(--bs-info);
+	}
+}

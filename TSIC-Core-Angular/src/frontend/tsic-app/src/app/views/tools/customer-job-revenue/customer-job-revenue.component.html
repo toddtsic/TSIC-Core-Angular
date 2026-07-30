@@ -218,6 +218,13 @@
 				[allowPdfExport]="true"
 				[gridSettings]="pivotGridSettings">
 			</ejs-pivotview>
+			<!-- AM-054 (Ann): Grand Total is CC-only — always-visible caption in OUR
+			     template rather than an icon injected into the SF pivot header (SF DOM
+			     hooks are off-limits; header survives re-renders, this always does). -->
+			<div class="grand-total-caption" role="note">
+				<i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+				<strong>Grand Total</strong>&nbsp;= CC Revenue less Fees. Total does NOT include Check Revenue.
+			</div>
 		}
 
 		<!-- Tab 2: Player/Team Counts (editable grid) -->
