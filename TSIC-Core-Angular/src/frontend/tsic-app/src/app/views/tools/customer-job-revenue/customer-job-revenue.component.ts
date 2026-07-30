@@ -22,6 +22,8 @@ interface MonthOption {
 	startDate: string;
 	endDate: string;
 	label: string;
+	startLabel: string; // first of month, e.g. 6/1/2026 — shown in the Start ddl
+	endLabel: string;   // last of month, e.g. 6/30/2026 — shown in the End ddl
 }
 
 type ScopeMode = 'jobs' | 'period';
@@ -161,7 +163,9 @@ export class CustomerJobRevenueComponent {
 			this.monthOptions.push({
 				startDate: this.formatDate(cursor),
 				endDate: this.formatDate(endOfMonth),
-				label: cursor.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+				label: cursor.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+				startLabel: cursor.toLocaleDateString('en-US'),
+				endLabel: endOfMonth.toLocaleDateString('en-US')
 			});
 			cursor = new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1);
 		}

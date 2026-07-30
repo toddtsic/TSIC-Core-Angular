@@ -61,18 +61,18 @@
 				<div class="d-flex flex-wrap align-items-end gap-3 mt-3">
 					<span class="scope-step-label">2&nbsp;·&nbsp;Period</span>
 					<div>
-						<label class="form-label text-muted mb-1 scope-hint">Start Month</label>
+						<label class="form-label text-muted mb-1 scope-hint">Start Date</label>
 						<select class="form-select form-select-sm" [(ngModel)]="selectedStartDate" style="width: auto;">
 							@for (opt of monthOptions; track opt.startDate) {
-								<option [value]="opt.startDate">{{ opt.label }}</option>
+								<option [value]="opt.startDate">{{ opt.startLabel }}</option>
 							}
 						</select>
 					</div>
 					<div>
-						<label class="form-label text-muted mb-1 scope-hint">End Month</label>
+						<label class="form-label text-muted mb-1 scope-hint">End Date</label>
 						<select class="form-select form-select-sm" [(ngModel)]="selectedEndDate" style="width: auto;">
 							@for (opt of monthOptions; track opt.endDate) {
-								<option [value]="opt.endDate">{{ opt.label }}</option>
+								<option [value]="opt.endDate">{{ opt.endLabel }}</option>
 							}
 						</select>
 					</div>
