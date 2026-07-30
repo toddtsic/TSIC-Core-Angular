@@ -271,6 +271,54 @@ WHERE j.JobTypeId IN (1, 2, 3, 4, 6)
 PRINT '7N Agegroup-level $0 Player base rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
 GO
 
+-- 8P. Materialize payment phase from the legacy job-level flag.
+--     Legacy full-payment ("balance due") phase lives ONLY in Jobs.bTeamsFullPaymentRequired,
+--     which has no UI in the new system (the June per-scope conversion removed the
+--     Configure-Job toggles). Copy it into the visible per-scope layer so the LADT editor
+--     shows and controls it. READ-ONLY against Jobs.Jobs — NEVER zero the flag here: run 1
+--     would destroy the source run 2 reads (the column is abandoned, not laundered).
+--     bPlayersFullPaymentRequired is 0 on every job in every year (legacy player
+--     full-payment was always structural: deposit-less fee rows), so only ClubRep rows
+--     are stamped.
+UPDATE jf
+SET jf.bFullPaymentRequired = 1, jf.Modified = GETUTCDATE()
+FROM fees.JobFees jf
+JOIN Jobs.Jobs j ON jf.JobId = j.JobId
+WHERE j.bTeamsFullPaymentRequired = 1
+  AND jf.RoleId = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';  -- ClubRep
+PRINT '8P Phase-stamped ClubRep rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
+GO
+
+-- 8P-guard: every flagged TOURNAMENT (type 2) must now carry the stamp. A type-2 job with
+-- the flag and no stamped ClubRep row = seeding gap on a live money path (balance-due
+-- collection) -> fail the run loud (script runs under -b). Known non-type-2 exceptions
+-- (blueridgebombers camp, where the teams flag is inert, and the director-managed compass
+-- teamsignup demo) are reported as INFO, not failed.
+IF EXISTS (
+    SELECT 1 FROM Jobs.Jobs j
+    WHERE j.bTeamsFullPaymentRequired = 1 AND j.JobTypeId = 2
+      AND j.Year IN ('2025', '2026', '2027')
+      AND NOT EXISTS (SELECT 1 FROM fees.JobFees jf
+                      WHERE jf.JobId = j.JobId AND jf.bFullPaymentRequired = 1))
+BEGIN
+    SELECT j.JobPath AS [FAILED_flagged_tournament_without_stamp]
+    FROM Jobs.Jobs j
+    WHERE j.bTeamsFullPaymentRequired = 1 AND j.JobTypeId = 2
+      AND j.Year IN ('2025', '2026', '2027')
+      AND NOT EXISTS (SELECT 1 FROM fees.JobFees jf
+                      WHERE jf.JobId = j.JobId AND jf.bFullPaymentRequired = 1);
+    THROW 50001, 'Phase materialization gap: flagged type-2 job(s) have no stamped ClubRep fee row.', 1;
+END
+-- INFO: flagged non-tournament jobs with nothing to stamp (expected: blueridgebombers camp,
+-- compass teamsignup demo)
+SELECT j.JobPath AS [INFO_flagged_no_stamp], j.JobTypeId
+FROM Jobs.Jobs j
+WHERE j.bTeamsFullPaymentRequired = 1 AND j.JobTypeId != 2
+  AND j.Year IN ('2025', '2026', '2027')
+  AND NOT EXISTS (SELECT 1 FROM fees.JobFees jf
+                  WHERE jf.JobId = j.JobId AND jf.bFullPaymentRequired = 1);
+GO
+
 -- Verification
 SELECT
     CASE

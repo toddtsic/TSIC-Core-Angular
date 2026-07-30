@@ -410,6 +410,53 @@ ORDER BY
     THEN 0 ELSE 1 END,
     j.JobPath, ag.AgegroupName;
 
+PRINT '';
+PRINT '============================================================';
+PRINT 'TEST 8: Payment phase concordance (types 2, 3)';
+PRINT '  Legacy: Jobs.bTeamsFullPaymentRequired = 1 -> job in full-payment phase';
+PRINT '  New: >=1 ClubRep fees.JobFees row stamped bFullPaymentRequired = 1 (6a s.8P)';
+PRINT '  Known unstampable (INFO): blueridgebombers camp (type 1, flag inert),';
+PRINT '  compass teamsignup demo (type 3, director-managed - no ClubRep rows)';
+PRINT '============================================================';
+
+-- 8A: every flagged job must carry the stamp (type 2 = MISMATCH if missing;
+--     non-tournament = INFO, phase has no ClubRep flow to act on)
+SELECT
+    j.JobPath,
+    j.JobTypeId,
+    j.bTeamsFullPaymentRequired AS [Legacy_Flag],
+    COUNT(jf.JobFeeId)          AS [Stamped_ClubRep_Rows],
+    CASE
+        WHEN COUNT(jf.JobFeeId) > 0 THEN 'MATCH'
+        WHEN j.JobTypeId != 2 THEN 'INFO (no rows to stamp)'
+        ELSE '*** MISMATCH ***'
+    END AS [Status]
+FROM Jobs.Jobs j
+LEFT JOIN fees.JobFees jf
+    ON jf.JobId = j.JobId
+    AND jf.RoleId = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E'  -- ClubRep
+    AND jf.bFullPaymentRequired = 1
+WHERE j.bTeamsFullPaymentRequired = 1
+  AND j.Year IN ('2025', '2026', '2027')
+GROUP BY j.JobPath, j.JobTypeId, j.bTeamsFullPaymentRequired
+ORDER BY
+    CASE WHEN COUNT(jf.JobFeeId) = 0 AND j.JobTypeId = 2 THEN 0 ELSE 1 END,
+    j.JobPath;
+
+-- 8B: reverse direction — at seed time no UNflagged job may carry a stamp
+--     (a hit here = bad join in 6a s.8P; post-seed admin edits via LADT are
+--     legitimate, so this direction is only meaningful right after seeding)
+SELECT
+    j.JobPath,
+    COUNT(jf.JobFeeId) AS [Stamped_Rows_On_Unflagged_Job],
+    '*** MISMATCH ***' AS [Status]
+FROM Jobs.Jobs j
+JOIN fees.JobFees jf
+    ON jf.JobId = j.JobId
+    AND jf.bFullPaymentRequired = 1
+WHERE ISNULL(j.bTeamsFullPaymentRequired, 0) = 0
+GROUP BY j.JobPath
+ORDER BY j.JobPath;
 
 -- Final summary
 PRINT '';
@@ -471,5 +518,21 @@ LEFT JOIN fees.JobFees jf
     ON jf.JobId = j.JobId AND jf.AgegroupId = ag.AgegroupId
     AND jf.TeamId IS NULL AND jf.RoleId = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E'
 WHERE j.JobTypeId IN (2, 3) AND j.Year IN ('2025', '2026')
-  AND (ag.RosterFee > 0 OR ag.TeamFee > 0 OR jf.JobFeeId IS NOT NULL);
+  AND (ag.RosterFee > 0 OR ag.TeamFee > 0 OR jf.JobFeeId IS NOT NULL)
+
+UNION ALL
+
+SELECT 'Test 8 - Phase concordance' AS [Test],
+    SUM(CASE WHEN stamped = 0 AND JobTypeId = 2 THEN 1 ELSE 0 END) AS [Mismatches],
+    COUNT(*) AS [Total]
+FROM (
+    SELECT j.JobTypeId,
+        (SELECT COUNT(*) FROM fees.JobFees jf
+         WHERE jf.JobId = j.JobId
+           AND jf.RoleId = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E'
+           AND jf.bFullPaymentRequired = 1) AS stamped
+    FROM Jobs.Jobs j
+    WHERE j.bTeamsFullPaymentRequired = 1
+      AND j.Year IN ('2025', '2026', '2027')
+) flagged;
 GO

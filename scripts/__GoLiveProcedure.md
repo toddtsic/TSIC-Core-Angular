@@ -4,8 +4,9 @@
 - DB cutover.
 - **Seed fees from legacy** — on PHOENIX:
   `sqlcmd -S "lpc:.\SS2016" -d TSICV5 -I -b -f 65001 -i "scripts/6a) seed-fees-from-legacy.sql"`
-  Idempotent: clears `fees.JobFees` + `fees.FeeModifiers`, then repopulates from the legacy Agegroup/Team fee columns. Safe to re-run.
-- Verify the seed: `6b) verify-fees-feebase-concordance.sql`, then `6c) verify-fees-concordance.sql`.
+  Idempotent: clears `fees.JobFees` + `fees.FeeModifiers`, then repopulates from the legacy Agegroup/Team fee columns. Safe to re-run. §8P also stamps payment phase (`bFullPaymentRequired`) onto ClubRep rows from `Jobs.bTeamsFullPaymentRequired` — **the app build no longer reads that job flag, so the app must never start against a DB where 6a hasn't run** (it refuses to boot in that state — the startup check names this script). Seeds-before-app-start, which this procedure already does.
+- Verify the seed: `6b) verify-fees-feebase-concordance.sql`, then `6c) verify-fees-concordance.sql` (Test 8 = phase concordance; expect 2 known INFO rows — blueridgebombers camp, compass teamsignup demo).
+- *Post-cutover note:* compass teamsignup demo has no ClubRep fee configured (director-managed heuristic); hand-set fee + phase in LADT if it's ever used to demo team signup.
 
 **1. Stop legacy**
 - Application Pools → *legacy pool* → **Stop**

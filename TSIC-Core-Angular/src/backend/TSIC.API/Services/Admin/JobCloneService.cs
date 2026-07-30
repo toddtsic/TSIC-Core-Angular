@@ -951,8 +951,11 @@ public sealed class JobCloneService : IJobCloneService
             RegFormBccs = source.RegFormBccs,
             RegFormCcs = source.RegFormCcs,
             JobNameQbp = source.JobNameQbp,
-            BTeamsFullPaymentRequired = source.BTeamsFullPaymentRequired,
-            BPlayersFullPaymentRequired = source.BPlayersFullPaymentRequired,
+            // BTeamsFullPaymentRequired / BPlayersFullPaymentRequired deliberately NOT cloned —
+            // payment phase is per-scope now (fees.JobFees.BFullPaymentRequired); the job columns
+            // are abandoned legacy baselines. A new season must open in deposit phase regardless
+            // of where the source job ended: cloning the flag silently forced early registrants
+            // of the new season to pay in full, with no visible setting explaining why.
             BRestrictPlayerTeamsToAgerange = source.BRestrictPlayerTeamsToAgerange,
             Rescheduleemaillist = source.Rescheduleemaillist,
             Alwayscopyemaillist = source.Alwayscopyemaillist,
