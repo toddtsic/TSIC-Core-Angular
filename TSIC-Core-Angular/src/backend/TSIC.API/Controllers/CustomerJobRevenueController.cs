@@ -25,29 +25,6 @@ public class CustomerJobRevenueController : ControllerBase
     }
 
     /// <summary>
-    /// Returns all revenue data for the given date range: rollups, monthly counts, admin fees,
-    /// CC records, check records, and available job names.
-    /// </summary>
-    [HttpGet]
-    public async Task<ActionResult<JobRevenueDataDto>> GetRevenueData(
-        [FromQuery] DateTime startDate,
-        [FromQuery] DateTime endDate,
-        [FromQuery] List<string> jobNames,
-        CancellationToken ct)
-    {
-        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
-        if (jobId == null)
-        {
-            return BadRequest(new { message = "Registration context required" });
-        }
-
-        var data = await _revenueService.GetRevenueDataAsync(
-            jobId.Value, startDate, endDate, jobNames ?? [], ct);
-
-        return Ok(data);
-    }
-
-    /// <summary>
     /// Available job names for the caller's customer group — cheap scope-picker query.
     /// The guided flow calls this on page load instead of running the full report.
     /// </summary>

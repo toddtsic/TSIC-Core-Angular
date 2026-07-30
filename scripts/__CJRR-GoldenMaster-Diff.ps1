@@ -121,7 +121,10 @@ $detailPairs = @(
 )
 foreach ($p in $detailPairs) {
     $newRows = Get-Json "$BaseUrl/api/customer-job-revenue/details/$($p.Method)?$newQs"
-    MultisetDiff ("DETAIL/" + $p.Method) $p.OldRows $newRows { param($r) "{0}|{1}|{2}|{3}|{4}|{5}|{6}" -f $r.jobName, $r.year, $r.month, $r.registrant, $r.paymentMethod, ([datetime]$r.paymentDate).ToString("yyyy-MM-ddTHH:mm:ss"), ([math]::Round([decimal]$r.paymentAmount, 2)).ToString("0.00") }
+    # Date-only key: the sproc's datetime table vars round to 1/300s and can flip a value
+    # across a second boundary vs EF's native precision — any time-of-day bucketing has
+    # that knife edge. Same-day duplicates are still verified by multiset counts.
+    MultisetDiff ("DETAIL/" + $p.Method) $p.OldRows $newRows { param($r) "{0}|{1}|{2}|{3}|{4}|{5}|{6}" -f $r.jobName, $r.year, $r.month, $r.registrant, $r.paymentMethod, ([datetime]$r.paymentDate).ToString("yyyy-MM-dd"), ([math]::Round([decimal]$r.paymentAmount, 2)).ToString("0.00") }
 }
 
 # ---- Report ----

@@ -392,7 +392,6 @@ export type { JobReportEditorRoleDto } from './models/JobReportEditorRoleDto';
 export type { JobReportEditorRowDto } from './models/JobReportEditorRowDto';
 export type { JobReportEditorUpdateDto } from './models/JobReportEditorUpdateDto';
 export type { JobReportEntryDto } from './models/JobReportEntryDto';
-export type { JobRevenueDataDto } from './models/JobRevenueDataDto';
 export type { JobRevenueRecordDto } from './models/JobRevenueRecordDto';
 export type { JobTypeRefDto } from './models/JobTypeRefDto';
 export type { JobVisibilityDto } from './models/JobVisibilityDto';
