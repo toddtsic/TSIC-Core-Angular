@@ -3,21 +3,24 @@
     max-width: 1320px;
     margin: 0 auto;
 
-    // AM-047: breadcrumb-style link back to the Reports Library (top-left of the header).
+    // AM-047 (Ann re-open): colored badge back to the Reports Library — primary-tinted
+    // pill (bg-subtle/text-emphasis pair = light/dark aware), hover deepens to solid.
     .designer-back-link {
         display: inline-flex;
         align-items: center;
         gap: var(--space-1);
         margin-bottom: var(--space-2);
-        padding: 0;
-        background: none;
+        padding: var(--space-1) var(--space-3);
+        background: var(--bs-primary-bg-subtle);
         border: none;
-        color: var(--bs-secondary-color);
+        border-radius: var(--radius-pill, 50rem);
+        color: var(--bs-primary-text-emphasis);
         font-size: var(--font-size-sm);
+        font-weight: 600;
         cursor: pointer;
 
-        &:hover { color: var(--bs-primary); text-decoration: underline; }
-        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: var(--radius-sm); }
+        &:hover { background: var(--bs-primary); color: var(--bs-white); }
+        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
     }
 
     &__header {
