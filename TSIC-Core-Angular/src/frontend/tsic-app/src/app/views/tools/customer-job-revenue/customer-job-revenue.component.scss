@@ -16,79 +16,89 @@
 	}
 }
 
-.scope-step {
+// Scope selection cards — each choice is a self-documenting unit owning its own
+// controls; selected state is triple-encoded (border + tint + filled check),
+// never color alone. The unselected card's controls sit visible but disabled.
+.scope-cards {
 	display: flex;
-	align-items: flex-start;
+	flex-wrap: wrap;
+	align-items: stretch;
 	gap: var(--space-3);
 }
 
-.scope-step-badge {
-	flex: none;
-	width: 28px;
-	height: 28px;
-	border-radius: 50%;
-	display: grid;
-	place-items: center;
-	font-size: var(--font-size-sm);
-	font-weight: 700;
-	line-height: 1;
-	color: var(--bs-primary);
-	background: var(--bs-primary-bg-subtle, transparent);
-	border: 1px solid color-mix(in srgb, var(--bs-primary) 40%, transparent);
-}
-
-.scope-step-body {
-	flex: 1;
-	min-width: 0;
+.scope-card {
+	flex: 1 1 300px;
+	max-width: 480px;
 	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	column-gap: var(--space-3);
-	row-gap: var(--space-2);
-	// Center the first row's content against the 28px badge
-	min-height: 28px;
-}
-
-.scope-step-title {
-	font-size: var(--font-size-sm);
-	font-weight: 600;
+	flex-direction: column;
+	gap: var(--space-1);
+	padding: var(--space-2) var(--space-3) var(--space-3);
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--radius-md, 0.375rem);
+	background: var(--bs-body-bg);
 	color: var(--brand-text);
+	cursor: pointer;
+	transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+
+	&:hover {
+		border-color: color-mix(in srgb, var(--bs-primary) 55%, var(--bs-border-color));
+	}
+
+	&.selected {
+		border-color: var(--bs-primary);
+		background: var(--bs-primary-bg-subtle, transparent);
+		// 2px-strength border without the layout shift of a real width change
+		box-shadow: inset 0 0 0 1px var(--bs-primary);
+	}
+}
+
+.scope-card-head {
+	// Button reset — the head carries the toggle semantics (aria-pressed + keyboard)
+	border: 0;
+	padding: 0;
+	background: none;
+	font: inherit;
+	color: inherit;
+	text-align: left;
+	cursor: pointer;
+	width: 100%;
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	font-weight: 600;
+
+	> i:first-child {
+		color: var(--bs-primary);
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+		border-radius: var(--radius-sm, 0.25rem);
+	}
+}
+
+.scope-card-title {
+	flex: 1;
 	white-space: nowrap;
-	min-width: 5.5rem; // "Date Range" is the widest — keeps step-1/step-2 controls left-aligned
 }
 
-// Step 2 rows carry labeled fields: bottom-align so selects, multiselect,
-// and the Run button share a baseline under their labels.
-.scope-step-fields {
-	align-items: flex-end;
+.scope-card-check {
+	font-size: 1.05em;
+	color: var(--bs-secondary-color, var(--bs-secondary));
 
-	.scope-step-title {
-		// Keep the title on the control line, not floating at label height
-		align-self: flex-end;
-		padding-bottom: calc(var(--space-1) + 2px);
+	.scope-card.selected & {
+		color: var(--bs-primary);
 	}
 }
 
-.scope-toggle {
-	.btn {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-1);
-
-		&:focus-visible {
-			outline: none;
-			box-shadow: var(--shadow-focus);
-			z-index: 1; // keep the focus ring above the sibling segment
-		}
-	}
-}
-
-.scope-hint {
+.scope-card-text {
 	font-size: var(--font-size-sm);
 	color: var(--bs-secondary-color, var(--bs-secondary));
-	// On wide screens rides the same line; wraps whole when space runs out
-	flex: 1 1 20rem;
-	min-width: 16rem;
+
+	.scope-card.selected & {
+		color: var(--brand-text);
+	}
 }
 
 .scope-field {
@@ -118,8 +128,31 @@
 }
 
 .scope-field-jobs {
-	flex: 1 1 250px;
-	max-width: 500px;
+	flex: 1 1 220px;
+	max-width: 420px;
+}
+
+// Each card's control row: pinned to the card bottom so the pair share a baseline,
+// fields bottom-aligned under their labels.
+.scope-card-controls {
+	margin-top: auto;
+	padding-top: var(--space-2);
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	column-gap: var(--space-2);
+	row-gap: var(--space-2);
+
+	// The unselected card documents its mode but isn't editable; clicks fall
+	// through to the card and select it. Text stays at readable contrast.
+	.scope-card:not(.selected) & {
+		opacity: 0.65;
+		pointer-events: none;
+	}
+}
+
+.scope-actions {
+	display: flex;
 }
 
 .scope-range-dash {
@@ -141,25 +174,9 @@
 	}
 }
 
-// Step 2 slides in when a scope is chosen
-.scope-step-reveal {
-	animation: scope-step-in 0.18s ease-out;
-}
-
-@keyframes scope-step-in {
-	from {
-		opacity: 0;
-		transform: translateY(calc(-1 * var(--space-1)));
-	}
-	to {
-		opacity: 1;
-		transform: none;
-	}
-}
-
 @media (prefers-reduced-motion: reduce) {
-	.scope-step-reveal {
-		animation: none !important;
+	.scope-card {
+		transition: none !important;
 	}
 }
 

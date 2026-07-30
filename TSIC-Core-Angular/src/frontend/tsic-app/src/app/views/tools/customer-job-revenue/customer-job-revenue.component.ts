@@ -3,13 +3,22 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from '@environments/environment';
-import { GridAllModule, GridComponent, EditSettingsModel, ToolbarItems } from '@syncfusion/ej2-angular-grids';
+import {
+	GridAllModule,
+	GridComponent,
+	EditSettingsModel,
+	ToolbarItems,
+	PdfExportService as GridPdfExportService,
+	ExcelExportService as GridExcelExportService
+} from '@syncfusion/ej2-angular-grids';
 import {
 	PivotViewAllModule,
 	PivotViewComponent,
 	IDataOptions,
 	FieldListService,
-	ToolbarService
+	ToolbarService,
+	PDFExportService,
+	ExcelExportService
 } from '@syncfusion/ej2-angular-pivotview';
 import { MultiSelectAllModule } from '@syncfusion/ej2-angular-dropdowns';
 import { AuthService } from '../../../infrastructure/services/auth.service';
@@ -47,7 +56,12 @@ interface SubmittedScope {
 	selector: 'app-customer-job-revenue',
 	standalone: true,
 	imports: [CommonModule, FormsModule, GridAllModule, PivotViewAllModule, MultiSelectAllModule],
-	providers: [FieldListService, ToolbarService],
+	// The export services are NOT bundled by the *AllModules (pivot or grid) — without
+	// them pdfExport()/excelExport() are silent no-ops.
+	providers: [
+		FieldListService, ToolbarService, PDFExportService, ExcelExportService,
+		GridPdfExportService, GridExcelExportService
+	],
 	templateUrl: './customer-job-revenue.component.html',
 	styleUrls: ['./customer-job-revenue.component.scss'],
 	changeDetection: ChangeDetectionStrategy.OnPush
@@ -132,10 +146,11 @@ export class CustomerJobRevenueComponent {
 		return user?.role === 'Superuser';
 	});
 	countsEditSettings: EditSettingsModel = { allowEditing: true, allowAdding: false, allowDeleting: false };
-	countsToolbar = computed<ToolbarItems[]>(() =>
-		this.isSuperUser() ? ['Edit', 'Cancel', 'Update', 'ExcelExport'] : ['ExcelExport']
+	// Exports moved to the shared per-tab buttons; the counts toolbar only carries
+	// the SuperUser inline-edit commands (no toolbar at all for everyone else).
+	countsToolbar = computed<ToolbarItems[] | undefined>(() =>
+		this.isSuperUser() ? ['Edit', 'Cancel', 'Update'] : undefined
 	);
-	readOnlyToolbar: ToolbarItems[] = ['ExcelExport'];
 
 	readonly pivotView = viewChild.required<PivotViewComponent>('pivotView');
 	readonly countsGrid = viewChild.required<GridComponent>('countsGrid');
@@ -193,7 +208,20 @@ export class CustomerJobRevenueComponent {
 	}
 
 	setScopeMode(mode: ScopeMode): void {
+		if (this.scopeMode() === mode) {
+			return; // re-clicking the selected card keeps current results
+		}
 		this.scopeMode.set(mode);
+		// Changing scope invalidates everything on screen — hide results until re-run,
+		// so numbers never linger under a scope they weren't fetched with.
+		this.submittedScope.set(null);
+		this.rollup.set(null);
+		this.ccDetail.set(null);
+		this.checkDetail.set(null);
+		this.echeckDetail.set(null);
+		this.qaResult.set(null);
+		this.errorMessage.set('');
+		this.activeTab.set('rollup');
 	}
 
 	canSubmit(): boolean {
@@ -348,70 +376,95 @@ export class CustomerJobRevenueComponent {
 		}
 	}
 
-	// Visible export badges (AM-050 part 2) — every export carries the audit-stamp scope label.
-	exportPivot(kind: 'pdf' | 'excel' | 'csv'): void {
+	// Visible export buttons (AM-050 part 2) — identical on every tab, and every export
+	// carries the audit-stamp scope label in its header.
+	exportActive(kind: 'pdf' | 'excel'): void {
+		const tab = this.activeTab();
+		if (tab === 'rollup') {
+			this.exportPivot(kind);
+			return;
+		}
+		if (this.detailLoading() !== null) {
+			return; // detail grid not rendered yet — nothing to export
+		}
+		const target =
+			tab === 'counts' ? { grid: this.countsGrid(), name: 'Counts', cols: 9 }
+			: tab === 'adminFees' ? { grid: this.adminFeesGrid(), name: 'AdminFees', cols: 6 }
+			: tab === 'ccRecords' ? { grid: this.ccGrid(), name: 'CreditCardRecords', cols: 5 }
+			: tab === 'checkRecords' ? { grid: this.checkGrid(), name: 'CheckRecords', cols: 5 }
+			: { grid: this.echeckGrid(), name: 'ECheckRecords', cols: 5 };
+		if (kind === 'pdf') {
+			target.grid.pdfExport({
+				fileName: `CustomerJobRevenue-${target.name}.pdf`,
+				header: this.pdfHeader()
+			});
+		} else {
+			target.grid.excelExport({
+				fileName: `CustomerJobRevenue-${target.name}.xlsx`,
+				header: this.excelHeader(target.cols)
+			});
+		}
+	}
+
+	private exportPivot(kind: 'pdf' | 'excel'): void {
 		const pivot = this.pivotView();
 		if (!pivot) {
 			return;
 		}
-		const label = this.submittedScope()?.label ?? '';
-		const excelProps = {
-			fileName: kind === 'csv' ? 'CustomerJobRevenue.csv' : 'CustomerJobRevenue.xlsx',
-			header: {
-				headerRows: 1,
-				rows: [{ cells: [{ colSpan: 8, value: `Customer Job Revenue — ${label}`, style: { fontSize: 13, bold: true } }] }]
-			}
-		};
 		if (kind === 'pdf') {
-			pivot.pdfExport({
-				fileName: 'CustomerJobRevenue.pdf',
-				header: {
-					fromTop: 0,
-					height: 50,
-					contents: [{
-						type: 'Text',
-						value: `Customer Job Revenue — ${label}`,
-						position: { x: 0, y: 15 },
-						style: { textBrushColor: '#000000', fontSize: 12 }
-					}]
-				}
-			});
-		} else if (kind === 'excel') {
-			pivot.excelExport(excelProps);
+			pivot.pdfExport({ fileName: 'CustomerJobRevenue.pdf', header: this.pdfHeader() });
 		} else {
-			pivot.csvExport(excelProps);
+			pivot.excelExport({ fileName: 'CustomerJobRevenue.xlsx', header: this.excelHeader(8) });
 		}
 	}
 
-	// Grid toolbar click handlers
-	onCountsToolbarClick(args: { item?: { id?: string } }): void {
-		if (args.item?.id?.includes('excelexport')) {
-			this.countsGrid().excelExport();
+	private excelHeader(colSpan: number) {
+		const label = this.submittedScope()?.label ?? '';
+		return {
+			headerRows: 1,
+			rows: [{ cells: [{ colSpan, value: `Customer Job Revenue — ${label}`, style: { fontSize: 13, bold: true } }] }]
+		};
+	}
+
+	// The PDF standard fonts only cover WinAnsi — curly quotes, accents, en/em dashes
+	// throw "character is not supported by the font". Fold to ASCII for PDF rendering
+	// only; the screen and Excel keep the original text.
+	private toPdfSafe(text: string): string {
+		return text
+			.normalize('NFKD')
+			.replace(/[̀-ͯ]/g, '') // combining diacritics left over from NFKD (é -> e)
+			.replace(/[‘’‚]/g, "'")
+			.replace(/[“”„]/g, '"')
+			.replace(/[–—]/g, '-')
+			.replace(/·/g, '-')
+			.replace(/[^\x20-\x7E]/g, '');
+	}
+
+	/** PDF-only cell sanitizer — human-entered names (registrant, club) carry curly quotes/accents. */
+	onPdfQueryCellInfo(args: { value?: unknown }): void {
+		if (typeof args.value === 'string') {
+			args.value = this.toPdfSafe(args.value);
 		}
 	}
 
-	onAdminFeesToolbarClick(args: { item?: { id?: string } }): void {
-		if (args.item?.id?.includes('excelexport')) {
-			this.adminFeesGrid().excelExport();
-		}
+	/** The grid PDF module rejects with the PdfDocument object and hides the real error here. */
+	onGridActionFailure(args: unknown): void {
+		console.error('[CustomerJobRevenue] grid action failure', args);
 	}
 
-	onCcToolbarClick(args: { item?: { id?: string } }): void {
-		if (args.item?.id?.includes('excelexport')) {
-			this.ccGrid().excelExport();
-		}
-	}
-
-	onCheckToolbarClick(args: { item?: { id?: string } }): void {
-		if (args.item?.id?.includes('excelexport')) {
-			this.checkGrid().excelExport();
-		}
-	}
-
-	onEcheckToolbarClick(args: { item?: { id?: string } }): void {
-		if (args.item?.id?.includes('excelexport')) {
-			this.echeckGrid().excelExport();
-		}
+	private pdfHeader() {
+		const label = this.submittedScope()?.label ?? '';
+		const pdfLabel = this.toPdfSafe(`Customer Job Revenue - ${label}`);
+		return {
+			fromTop: 0,
+			height: 50,
+			contents: [{
+				type: 'Text' as const,
+				value: pdfLabel,
+				position: { x: 0, y: 15 },
+				style: { textBrushColor: '#000000', fontSize: 12 }
+			}]
+		};
 	}
 
 	// Inline edit save for monthly counts

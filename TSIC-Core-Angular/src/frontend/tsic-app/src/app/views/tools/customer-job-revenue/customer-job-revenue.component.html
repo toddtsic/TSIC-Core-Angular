@@ -6,46 +6,66 @@
 	<!-- Guided scope panel -->
 	<div class="card shadow-sm mb-4 scope-panel">
 		<div class="card-body">
-			<!-- Step 1: pick the scope -->
-			<div class="scope-step">
-				<span class="scope-step-badge" aria-hidden="true">1</span>
-				<div class="scope-step-body">
-					<span class="scope-step-title">Scope</span>
-					<div class="btn-group scope-toggle" role="group" aria-label="Report scope">
-						<button type="button" class="btn btn-sm"
-							[class.btn-primary]="scopeMode() === 'jobs'"
-							[class.btn-outline-primary]="scopeMode() !== 'jobs'"
-							(click)="setScopeMode('jobs')">
-							<i class="bi bi-bullseye"></i>Specific jobs
-						</button>
-						<button type="button" class="btn btn-sm"
-							[class.btn-primary]="scopeMode() === 'period'"
-							[class.btn-outline-primary]="scopeMode() !== 'period'"
-							(click)="setScopeMode('period')">
-							<i class="bi bi-calendar-range"></i>All jobs · date range
-						</button>
+			<!-- Scope fork: selection cards — each choice owns its description AND its controls.
+			     Clicking anywhere on a card selects it; the other card's controls sit disabled. -->
+			<div class="scope-cards" role="group" aria-label="Report scope">
+				<div class="scope-card"
+					[class.selected]="scopeMode() === 'period'"
+					(click)="setScopeMode('period')">
+					<button type="button" class="scope-card-head"
+						[attr.aria-pressed]="scopeMode() === 'period'"
+						(click)="setScopeMode('period')">
+						<i class="bi bi-calendar-range" aria-hidden="true"></i>
+						<span class="scope-card-title">ALL JOBS</span>
+						<i class="scope-card-check bi" aria-hidden="true"
+							[class.bi-check-circle-fill]="scopeMode() === 'period'"
+							[class.bi-circle]="scopeMode() !== 'period'"></i>
+					</button>
+					<span class="scope-card-text"><strong>ALL Jobs' Transactions within the date range specified.</strong></span>
+					<div class="scope-card-controls">
+						<div class="scope-field">
+							<label class="scope-field-label" for="cjr-start">Start Date</label>
+							<select id="cjr-start" class="form-select form-select-sm"
+								[(ngModel)]="selectedStartDate"
+								[disabled]="scopeMode() !== 'period'">
+								@for (opt of monthOptions; track opt.startDate) {
+									<option [value]="opt.startDate">{{ opt.startLabel }}</option>
+								}
+							</select>
+						</div>
+						<span class="scope-range-dash" aria-hidden="true">–</span>
+						<div class="scope-field">
+							<label class="scope-field-label" for="cjr-end">End Date</label>
+							<select id="cjr-end" class="form-select form-select-sm"
+								[(ngModel)]="selectedEndDate"
+								[disabled]="scopeMode() !== 'period'">
+								@for (opt of monthOptions; track opt.endDate) {
+									<option [value]="opt.endDate">{{ opt.endLabel }}</option>
+								}
+							</select>
+						</div>
 					</div>
-					@if (scopeMode() === 'jobs') {
-						<span class="scope-hint"><strong>All Accounting History</strong> for the selected jobs.</span>
-					} @else if (scopeMode() === 'period') {
-						<span class="scope-hint"><strong>Every job</strong> in the customer group within the window — a reconciliation view, not a single job.</span>
-					} @else {
-						<span class="scope-hint">Choose what this report should cover.</span>
-					}
 				</div>
-			</div>
-
-			<!-- Step 2: scope-specific controls -->
-			@if (scopeMode() === 'jobs') {
-				<div class="scope-step scope-step-reveal">
-					<span class="scope-step-badge" aria-hidden="true">2</span>
-					<div class="scope-step-body scope-step-fields">
-						<span class="scope-step-title">Jobs</span>
+				<div class="scope-card"
+					[class.selected]="scopeMode() === 'jobs'"
+					(click)="setScopeMode('jobs')">
+					<button type="button" class="scope-card-head"
+						[attr.aria-pressed]="scopeMode() === 'jobs'"
+						(click)="setScopeMode('jobs')">
+						<i class="bi bi-bullseye" aria-hidden="true"></i>
+						<span class="scope-card-title">SPECIFIC JOBS</span>
+						<i class="scope-card-check bi" aria-hidden="true"
+							[class.bi-check-circle-fill]="scopeMode() === 'jobs'"
+							[class.bi-circle]="scopeMode() !== 'jobs'"></i>
+					</button>
+					<span class="scope-card-text"><strong>All Accounting Transactions for the job(s) selected.</strong></span>
+					<div class="scope-card-controls">
 						<div class="scope-field scope-field-jobs">
-							<label class="scope-field-label" for="cjr-jobs">Include exactly these jobs</label>
+							<label class="scope-field-label" for="cjr-jobs">Include only these jobs:</label>
 							<ejs-multiselect id="cjr-jobs"
 								[dataSource]="availableJobs()"
 								[(value)]="selectedJobs"
+								[enabled]="scopeMode() === 'jobs'"
 								placeholder="Select one or more jobs"
 								[mode]="'CheckBox'"
 								[allowFiltering]="true"
@@ -56,49 +76,21 @@
 								[enableSelectionOrder]="true">
 							</ejs-multiselect>
 						</div>
-						<button class="btn btn-sm btn-primary scope-run" (click)="onSubmit()" [disabled]="!canSubmit()">
-							@if (isLoading()) {
-								<span class="spinner-border spinner-border-sm"></span>
-							} @else {
-								<i class="bi bi-play-fill"></i>
-							}
-							Run Report
-						</button>
 					</div>
 				</div>
-			} @else if (scopeMode() === 'period') {
-				<div class="scope-step scope-step-reveal">
-					<span class="scope-step-badge" aria-hidden="true">2</span>
-					<div class="scope-step-body scope-step-fields">
-						<span class="scope-step-title">Date Range</span>
-						<div class="scope-field">
-							<label class="scope-field-label" for="cjr-start">Start Date</label>
-							<select id="cjr-start" class="form-select form-select-sm" [(ngModel)]="selectedStartDate">
-								@for (opt of monthOptions; track opt.startDate) {
-									<option [value]="opt.startDate">{{ opt.startLabel }}</option>
-								}
-							</select>
-						</div>
-						<span class="scope-range-dash" aria-hidden="true">–</span>
-						<div class="scope-field">
-							<label class="scope-field-label" for="cjr-end">End Date</label>
-							<select id="cjr-end" class="form-select form-select-sm" [(ngModel)]="selectedEndDate">
-								@for (opt of monthOptions; track opt.endDate) {
-									<option [value]="opt.endDate">{{ opt.endLabel }}</option>
-								}
-							</select>
-						</div>
-						<button class="btn btn-sm btn-primary scope-run" (click)="onSubmit()" [disabled]="!canSubmit()">
-							@if (isLoading()) {
-								<span class="spinner-border spinner-border-sm"></span>
-							} @else {
-								<i class="bi bi-play-fill"></i>
-							}
-							Run Report
-						</button>
-					</div>
-				</div>
-			}
+			</div>
+
+			<!-- One Run button for whichever card is selected -->
+			<div class="scope-actions">
+				<button class="btn btn-sm btn-primary scope-run" (click)="onSubmit()" [disabled]="!canSubmit()">
+					@if (isLoading()) {
+						<span class="spinner-border spinner-border-sm"></span>
+					} @else {
+						<i class="bi bi-play-fill"></i>
+					}
+					Run Report
+				</button>
+			</div>
 		</div>
 	</div>
 
@@ -166,9 +158,9 @@
 			</li>
 		</ul>
 
-		<!-- Tab 1: Revenue Rollup (PivotView) -->
-		@if (activeTab() === 'rollup') {
-			<div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+		<!-- Shared tab toolbar: exports identical on every tab; rollup adds its own tools -->
+		<div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+			@if (activeTab() === 'rollup') {
 				<button class="btn btn-sm btn-outline-secondary" (click)="expandAll()">Expand All</button>
 				<button class="btn btn-sm btn-outline-secondary" (click)="collapseAll()">Collapse All</button>
 				@if (isSuperUser() && qaEnabled) {
@@ -181,18 +173,19 @@
 						QA vs Legacy
 					</button>
 				}
-				<span class="ms-auto d-flex gap-2">
-					<button class="btn btn-sm btn-outline-primary" (click)="exportPivot('pdf')">
-						<i class="bi bi-file-earmark-pdf me-1"></i>PDF
-					</button>
-					<button class="btn btn-sm btn-outline-primary" (click)="exportPivot('excel')">
-						<i class="bi bi-file-earmark-excel me-1"></i>Excel
-					</button>
-					<button class="btn btn-sm btn-outline-primary" (click)="exportPivot('csv')">
-						<i class="bi bi-filetype-csv me-1"></i>CSV
-					</button>
-				</span>
-			</div>
+			}
+			<span class="ms-auto d-flex gap-2">
+				<button class="btn btn-sm btn-outline-primary" (click)="exportActive('pdf')">
+					<i class="bi bi-file-earmark-pdf me-1"></i>PDF
+				</button>
+				<button class="btn btn-sm btn-outline-primary" (click)="exportActive('excel')">
+					<i class="bi bi-file-earmark-excel me-1"></i>Excel
+				</button>
+			</span>
+		</div>
+
+		<!-- Tab 1: Revenue Rollup (PivotView) -->
+		@if (activeTab() === 'rollup') {
 			@if (qaResult(); as qa) {
 				<div class="qa-panel mb-2" [class.qa-pass]="qa.pass" [class.qa-fail]="!qa.pass" role="status">
 					<div class="qa-headline">
@@ -233,13 +226,16 @@
 				P=Player&nbsp;&nbsp;&nbsp;&nbsp;T=Team&nbsp;&nbsp;|&nbsp;&nbsp;TD=To Date&nbsp;&nbsp;&nbsp;&nbsp;PM=Previous Month&nbsp;&nbsp;&nbsp;&nbsp;CM=Current Month
 			</div>
 			<ejs-grid width="100%" #countsGrid
+				[allowSorting]="true"
 				[dataSource]="monthlyCounts()"
 				cssClass="tsic-grid"
 				[allowExcelExport]="true"
+				[allowPdfExport]="true"
 				[toolbar]="countsToolbar()"
 				[editSettings]="countsEditSettings"
-				(toolbarClick)="onCountsToolbarClick($event)"
-				(actionComplete)="onCountsActionComplete($event)">
+				(actionComplete)="onCountsActionComplete($event)"
+				(pdfQueryCellInfo)="onPdfQueryCellInfo($event)"
+				(actionFailure)="onGridActionFailure($event)">
 				<e-columns>
 					<e-column field="aid" headerText="Id" [isPrimaryKey]="true" [visible]="false" [allowEditing]="false"></e-column>
 					<e-column field="jobName" headerText="Job" width="120" [allowEditing]="false"></e-column>
@@ -258,12 +254,14 @@
 		<!-- Tab 3: Admin Fees -->
 		@if (activeTab() === 'adminFees') {
 			<ejs-grid width="100%" #adminFeesGrid
+				[allowSorting]="true"
 				[allowTextWrap]="true"
 				[dataSource]="adminFees()"
 				cssClass="tsic-grid"
 				[allowExcelExport]="true"
-				[toolbar]="readOnlyToolbar"
-				(toolbarClick)="onAdminFeesToolbarClick($event)">
+				[allowPdfExport]="true"
+				(pdfQueryCellInfo)="onPdfQueryCellInfo($event)"
+				(actionFailure)="onGridActionFailure($event)">
 				<e-columns>
 					<e-column field="jobName" headerText="Job" width="240"></e-column>
 					<e-column field="year" headerText="Year" width="60"></e-column>
@@ -284,13 +282,15 @@
 				</div>
 			} @else {
 				<ejs-grid width="100%" #ccGrid
+					[allowSorting]="true"
 					[allowTextWrap]="true"
 					[dataSource]="creditCardRecords()"
 					cssClass="tsic-grid cjr-cc-grid"
 					[allowExcelExport]="true"
-					[toolbar]="readOnlyToolbar"
-					(toolbarClick)="onCcToolbarClick($event)"
-					(rowDataBound)="onCcRowDataBound($event)">
+					[allowPdfExport]="true"
+					(rowDataBound)="onCcRowDataBound($event)"
+					(pdfQueryCellInfo)="onPdfQueryCellInfo($event)"
+					(actionFailure)="onGridActionFailure($event)">
 					<e-columns>
 						<e-column field="jobName" headerText="Job" width="240"></e-column>
 						<e-column field="registrant" headerText="Registrant" width="150"></e-column>
@@ -311,12 +311,14 @@
 				</div>
 			} @else {
 				<ejs-grid width="100%" #checkGrid
+					[allowSorting]="true"
 					[allowTextWrap]="true"
 					[dataSource]="checkRecords()"
 					cssClass="tsic-grid"
 					[allowExcelExport]="true"
-					[toolbar]="readOnlyToolbar"
-					(toolbarClick)="onCheckToolbarClick($event)">
+					[allowPdfExport]="true"
+					(pdfQueryCellInfo)="onPdfQueryCellInfo($event)"
+					(actionFailure)="onGridActionFailure($event)">
 					<e-columns>
 						<e-column field="jobName" headerText="Job" width="240"></e-column>
 						<e-column field="registrant" headerText="Registrant" width="150"></e-column>
@@ -337,12 +339,14 @@
 				</div>
 			} @else {
 				<ejs-grid width="100%" #echeckGrid
+					[allowSorting]="true"
 					[allowTextWrap]="true"
 					[dataSource]="echeckRecords()"
 					cssClass="tsic-grid"
 					[allowExcelExport]="true"
-					[toolbar]="readOnlyToolbar"
-					(toolbarClick)="onEcheckToolbarClick($event)">
+					[allowPdfExport]="true"
+					(pdfQueryCellInfo)="onPdfQueryCellInfo($event)"
+					(actionFailure)="onGridActionFailure($event)">
 					<e-columns>
 						<e-column field="jobName" headerText="Job" width="240"></e-column>
 						<e-column field="registrant" headerText="Registrant" width="150"></e-column>
