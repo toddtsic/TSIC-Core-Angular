@@ -23,4 +23,10 @@ public interface IUsLaxMembershipService
     /// <c>!JOBLINK</c>) are substituted per-recipient from the payload snapshots. Body is sent as HTML.
     /// </summary>
     Task<UsLaxEmailStartResponse> StartEmailAsync(Guid jobId, string? senderUserId, UsLaxEmailRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Sandbox-only: renders the composed USLax email for one recipient snapshot and delivers it
+    /// for real to Superuser inboxes and/or an explicit test inbox. Never a live send path.
+    /// </summary>
+    Task<SuperuserTestSendResponse> SendTestEmailAsync(Guid jobId, UsLaxTestSendRequest request, CancellationToken ct = default);
 }

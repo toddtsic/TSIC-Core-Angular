@@ -281,12 +281,10 @@
             </button>
           }
           @if (isNonProd && !inviteMode()) {
-            <button type="button" class="btn btn-outline-info" (click)="sendTestToSuperusers()"
-              [disabled]="!canSubmit() || isSendingTest()"
-              title="Renders for the first recipient and sends the real email to SuperUser inboxes">
-              @if (isSendingTest()) { <span class="spinner"></span> Sending Test... }
-              @else { Send Test to SuperUsers }
-            </button>
+            <app-test-send-button
+              [disabled]="!canSubmit()"
+              [busy]="isSendingTest()"
+              (send)="sendTestEmail($event)" />
           }
           <button type="button" class="btn btn-primary" (click)="sendEmail()" [disabled]="!canSubmit()">
             @if (isSending()) { <span class="spinner"></span> Sending... } @else { Send to {{ recipientCount() | number }} recipient(s) }

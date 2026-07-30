@@ -662,6 +662,12 @@
               </div>
 
               <div class="form-actions">
+                @if (isNonProd) {
+                  <app-test-send-button
+                    [disabled]="!emailSubject() || !emailBody()"
+                    [busy]="isSendingTestEmail()"
+                    (send)="sendTestEmail($event)" />
+                }
                 <button type="button" class="btn btn-sm btn-primary" (click)="sendEmail()" [disabled]="!emailSubject() || !emailBody()">
                   <i class="bi bi-send me-1"></i> Send Email
                 </button>

@@ -2,6 +2,7 @@ import { Component, ChangeDetectionStrategy, signal, computed, input, output, in
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { EmailBodyEditorComponent } from '@shared-ui/components/email-body-editor/email-body-editor.component';
+import { TestSendButtonComponent, type TestSendOptions } from '@shared-ui/components/test-send-button/test-send-button.component';
 import type { EmailBatchJobStatus, JobOptionDto, RegistrationSearchRequest } from '@core/api';
 import { environment } from '@environments/environment';
 import { RegistrationSearchService } from '../services/registration-search.service';
@@ -66,7 +67,7 @@ const INVITE_TEMPLATES: Record<InviteMode, { subject: string; body: string }> = 
 @Component({
   selector: 'app-batch-email-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule, DraggableModalDirective, EmailBodyEditorComponent],
+  imports: [CommonModule, FormsModule, DraggableModalDirective, EmailBodyEditorComponent, TestSendButtonComponent],
   templateUrl: './batch-email-modal.component.html',
   styleUrl: './batch-email-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -290,18 +291,20 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
 
   isSendingTest = signal<boolean>(false);
 
-  /** Non-prod only: renders for the first recipient and delivers the real email to Superuser
-   *  inboxes, so the received formatting can be checked in an actual mail client. */
-  sendTestToSuperusers(): void {
+  /** Non-prod only: renders for the first recipient of the audience and delivers the real email
+   *  to the chosen test inbox(es), so received formatting + token values can be verified. */
+  sendTestEmail(options: TestSendOptions): void {
     if (!this.subject().trim() || !this.bodyTemplate().trim()) { this.toast.show('Subject and body are required', 'danger', 4000); return; }
     if (this.recipientCount() === 0) { this.toast.show('No recipients to render the test against', 'danger', 4000); return; }
 
     this.isSendingTest.set(true);
-    this.searchService.sendTestToSuperusers({
+    this.searchService.sendTestEmail({
       registrationIds: this.registrationIds(),
       criteria: this.searchRequest() ?? undefined,
       subject: this.subject(),
-      bodyTemplate: this.bodyTemplate()
+      bodyTemplate: this.bodyTemplate(),
+      includeSuperusers: options.includeSuperusers,
+      extraRecipient: options.extraRecipient ?? undefined
     }).subscribe({
       next: (result) => {
         this.isSendingTest.set(false);

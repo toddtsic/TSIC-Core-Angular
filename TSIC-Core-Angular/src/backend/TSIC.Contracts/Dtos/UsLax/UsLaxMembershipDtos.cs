@@ -97,6 +97,20 @@ public record UsLaxEmailRequest
 }
 
 /// <summary>
+/// Sandbox-only test send for the USLax compose: renders subject/body tokens against one
+/// recipient snapshot and delivers the result to Superusers and/or one explicit inbox.
+/// </summary>
+public record UsLaxTestSendRequest
+{
+    public required string Subject { get; init; }
+    public required string Body { get; init; }
+    /// <summary>The recipient whose row data renders the per-recipient USLax tokens.</summary>
+    public required UsLaxEmailRecipientDto Recipient { get; init; }
+    public bool IncludeSuperusers { get; init; } = true;
+    public string? ExtraRecipient { get; init; }
+}
+
+/// <summary>
 /// Inline email send START response. The send now runs as a background batch on the shared engine
 /// (opt-out suppression, footer, retry, rate-limit); the caller polls
 /// <c>uslax-membership/email/{batchJobId}/status</c> for sent/failed. The skip rollup below is all

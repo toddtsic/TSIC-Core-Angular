@@ -15,6 +15,7 @@ import { FamilyPaymentComponent } from '@shared-ui/components/family-payment/fam
 import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
 import { MedFormViewComponent } from './medform-view.component';
 import { EmailBodyEditorComponent } from '@shared-ui/components/email-body-editor/email-body-editor.component';
+import { TestSendButtonComponent, type TestSendOptions } from '@shared-ui/components/test-send-button/test-send-button.component';
 import { environment } from '@environments/environment';
 
 type TabType = 'details' | 'accounting' | 'email';
@@ -118,7 +119,7 @@ function isWaiverField(key: string, label: string, inputType: string): boolean {
 @Component({
   selector: 'app-registration-detail-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, AccountingLedgerComponent, ConfirmDialogComponent, ClubRepPaymentComponent, FamilyPaymentComponent, ResizablePanelDirective, MedFormViewComponent, EmailBodyEditorComponent],
+  imports: [CommonModule, FormsModule, AccountingLedgerComponent, ConfirmDialogComponent, ClubRepPaymentComponent, FamilyPaymentComponent, ResizablePanelDirective, MedFormViewComponent, EmailBodyEditorComponent, TestSendButtonComponent],
   templateUrl: './registration-detail-panel.component.html',
   styleUrl: './registration-detail-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -998,6 +999,39 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   private readonly emailBodyEditor = viewChild.required(EmailBodyEditorComponent);
 
   insertEmailToken(token: string): void { this.emailBodyEditor().insertToken(token); }
+
+  readonly isNonProd = environment.envName !== 'production';
+  readonly isSendingTestEmail = signal(false);
+
+  /** Non-prod: renders tokens against THIS registration and delivers to the chosen test inbox(es). */
+  sendTestEmail(options: TestSendOptions): void {
+    const d = this.detail();
+    if (!d || !this.emailSubject() || !this.emailBody()) {
+      this.toast.show('Please provide both subject and body', 'warning');
+      return;
+    }
+    this.isSendingTestEmail.set(true);
+    this.searchService.sendTestEmail({
+      registrationIds: [d.registrationId],
+      subject: this.emailSubject(),
+      bodyTemplate: this.emailBody(),
+      includeSuperusers: options.includeSuperusers,
+      extraRecipient: options.extraRecipient ?? undefined
+    }).subscribe({
+      next: (result) => {
+        this.isSendingTestEmail.set(false);
+        if (result.sent) {
+          this.toast.show(`Test email (rendered for ${result.renderedFor}) sent to: ${result.recipients.join(', ')}`, 'success', 6000);
+        } else {
+          this.toast.show(result.message || 'Test send failed', 'danger', 5000);
+        }
+      },
+      error: (err) => {
+        this.isSendingTestEmail.set(false);
+        this.toast.show(err?.error?.message || 'Test send failed', 'danger', 0, 'Test Send Failed');
+      }
+    });
+  }
 
   sendEmail(): void {
     const d = this.detail();

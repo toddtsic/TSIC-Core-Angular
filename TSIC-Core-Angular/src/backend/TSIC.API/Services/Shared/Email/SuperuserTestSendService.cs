@@ -34,6 +34,8 @@ public class SuperuserTestSendService : ISuperuserTestSendService
         string renderedSubject,
         string renderedHtmlBody,
         string renderedForName,
+        bool includeSuperusers,
+        string? extraRecipient,
         CancellationToken ct = default)
     {
         // Belt-and-suspenders: every endpoint exposing this also rejects in Production, but the
@@ -49,7 +51,17 @@ public class SuperuserTestSendService : ISuperuserTestSendService
             };
         }
 
-        var recipients = await _registrationRepo.GetSuperuserEmailsAsync(ct);
+        var recipients = includeSuperusers
+            ? await _registrationRepo.GetSuperuserEmailsAsync(ct)
+            : new List<string>();
+
+        var extra = extraRecipient?.Trim();
+        if (!string.IsNullOrWhiteSpace(extra) && extra.Contains('@')
+            && !recipients.Contains(extra, StringComparer.OrdinalIgnoreCase))
+        {
+            recipients.Add(extra);
+        }
+
         if (recipients.Count == 0)
         {
             return new SuperuserTestSendResponse
@@ -57,7 +69,9 @@ public class SuperuserTestSendService : ISuperuserTestSendService
                 Sent = false,
                 RenderedFor = renderedForName,
                 Recipients = [],
-                Message = "No active Superuser accounts with an email address were found."
+                Message = includeSuperusers
+                    ? "No active Superuser accounts with an email address were found."
+                    : "No test recipients specified — check 'Send to SuperUsers' or enter an email."
             };
         }
 

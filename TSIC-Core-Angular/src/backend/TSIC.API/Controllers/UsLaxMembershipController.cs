@@ -23,15 +23,18 @@ public class UsLaxMembershipController : ControllerBase
     private readonly IUsLaxMembershipService _service;
     private readonly IJobLookupService _jobLookupService;
     private readonly IEmailBatchJobRegistry _batchJobs;
+    private readonly IHostEnvironment _env;
 
     public UsLaxMembershipController(
         IUsLaxMembershipService service,
         IJobLookupService jobLookupService,
-        IEmailBatchJobRegistry batchJobs)
+        IEmailBatchJobRegistry batchJobs,
+        IHostEnvironment env)
     {
         _service = service;
         _jobLookupService = jobLookupService;
         _batchJobs = batchJobs;
+        _env = env;
     }
 
     [HttpGet("candidates")]
@@ -56,6 +59,28 @@ public class UsLaxMembershipController : ControllerBase
 
         var response = await _service.ReconcileAsync(jobId.Value, request ?? new UsLaxReconciliationRequest(), ct);
         return Ok(response);
+    }
+
+    /// <summary>
+    /// Sandbox-only: renders the composed USLax email for one recipient snapshot and delivers it
+    /// FOR REAL to Superuser inboxes and/or an explicit test inbox. Rejected in Production.
+    /// </summary>
+    [HttpPost("email/test-send-superusers")]
+    public async Task<ActionResult<SuperuserTestSendResponse>> SendTestEmail(
+        [FromBody] UsLaxTestSendRequest request,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Subject) || string.IsNullOrWhiteSpace(request.Body))
+            return BadRequest(new { message = "Subject and body are required" });
+
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null) return BadRequest(new { message = "Registration context required" });
+
+        if (_env.IsLiveProduction())
+            return BadRequest(new { message = "Superuser test sends are not permitted in Production." });
+
+        var result = await _service.SendTestEmailAsync(jobId.Value, request, ct);
+        return Ok(result);
     }
 
     [HttpPost("email")]

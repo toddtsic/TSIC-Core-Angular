@@ -20,6 +20,8 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
     private readonly IUsLaxService _usLax;
     private readonly IJobRepository _jobs;
     private readonly IEmailBatchService _emailBatch;
+    private readonly ITextSubstitutionService _textSubstitution;
+    private readonly ISuperuserTestSendService _testSend;
     private readonly ILogger<UsLaxMembershipService> _logger;
 
     public UsLaxMembershipService(
@@ -27,12 +29,16 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         IUsLaxService usLax,
         IJobRepository jobs,
         IEmailBatchService emailBatch,
+        ITextSubstitutionService textSubstitution,
+        ISuperuserTestSendService testSend,
         ILogger<UsLaxMembershipService> logger)
     {
         _registrations = registrations;
         _usLax = usLax;
         _jobs = jobs;
         _emailBatch = emailBatch;
+        _textSubstitution = textSubstitution;
+        _testSend = testSend;
         _logger = logger;
     }
 
@@ -247,6 +253,24 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
             SkippedHealthy = skippedNames.Count,
             SkippedNames = skippedNames
         };
+    }
+
+    public async Task<SuperuserTestSendResponse> SendTestEmailAsync(
+        Guid jobId, UsLaxTestSendRequest request, CancellationToken ct = default)
+    {
+        var jobInfo = await _jobs.GetConfirmationEmailInfoAsync(jobId, ct);
+        var jobPath = jobInfo?.JobPath ?? string.Empty;
+
+        // Same render as StartEmailAsync's per-recipient step: shared TextSubstitution engine
+        // plus the row-level USLax extras from the recipient snapshot.
+        var extras = BuildUsLaxExtras(request.Recipient);
+        var (subject, body) = await _textSubstitution.SubstituteSubjectAndBodyAsync(
+            jobPath, jobId, CcPaymentMethodId, request.Recipient.RegistrationId, string.Empty,
+            request.Subject, request.Body, inviteTargetJobPath: null, extraTokens: extras);
+
+        var renderedFor = $"{request.Recipient.FirstName} {request.Recipient.LastName}".Trim();
+        return await _testSend.SendRenderedAsync(
+            subject, body, renderedFor, request.IncludeSuperusers, request.ExtraRecipient, ct);
     }
 
     /// <summary>

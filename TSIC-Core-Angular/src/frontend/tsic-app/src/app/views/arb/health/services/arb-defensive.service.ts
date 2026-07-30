@@ -9,10 +9,12 @@ import type {
     ArbSendEmailsRequest,
     ArbSubstitutionVariableDto,
     ArbSubscriptionInfoDto,
+    ArbTestSendRequest,
     ArbUpdateCcRequest,
     ArbUpdateCcResultDto,
     EmailBatchHandle,
-    EmailBatchJobStatus
+    EmailBatchJobStatus,
+    SuperuserTestSendResponse
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -45,6 +47,11 @@ export class ArbDefensiveService {
 
     getSendStatus(batchJobId: string): Observable<EmailBatchJobStatus> {
         return this.http.get<EmailBatchJobStatus>(`${this.apiUrl}/send-emails/${batchJobId}/status`);
+    }
+
+    /** Sandbox-only: render for one flagged registrant, deliver for real to the chosen test inboxes. */
+    sendTestEmail(request: ArbTestSendRequest): Observable<SuperuserTestSendResponse> {
+        return this.http.post<SuperuserTestSendResponse>(`${this.apiUrl}/send-emails/test-send-superusers`, request);
     }
 
     /**

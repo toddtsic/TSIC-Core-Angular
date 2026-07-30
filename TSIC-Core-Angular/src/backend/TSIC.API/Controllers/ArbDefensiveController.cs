@@ -15,15 +15,18 @@ public class ArbDefensiveController : ControllerBase
     private readonly IArbDefensiveService _service;
     private readonly IJobLookupService _jobLookupService;
     private readonly IEmailBatchJobRegistry _batchJobs;
+    private readonly IHostEnvironment _env;
 
     public ArbDefensiveController(
         IArbDefensiveService service,
         IJobLookupService jobLookupService,
-        IEmailBatchJobRegistry batchJobs)
+        IEmailBatchJobRegistry batchJobs,
+        IHostEnvironment env)
     {
         _service = service;
         _jobLookupService = jobLookupService;
         _batchJobs = batchJobs;
+        _env = env;
     }
 
     /// <summary>
@@ -101,6 +104,26 @@ public class ArbDefensiveController : ControllerBase
         var enriched = request with { JobId = jobId.Value, SenderUserId = userId };
         var handle = await _service.StartDefensiveEmailsAsync(enriched, ct);
         return Ok(handle);
+    }
+
+    /// <summary>
+    /// Sandbox-only: renders the composed defensive email for one flagged registrant and delivers
+    /// it FOR REAL to Superuser inboxes and/or an explicit test inbox. Rejected in Production.
+    /// </summary>
+    [HttpPost("send-emails/test-send-superusers")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<ActionResult<SuperuserTestSendResponse>> SendTestEmail(
+        [FromBody] ArbTestSendRequest request,
+        CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null) return Unauthorized();
+
+        if (_env.IsLiveProduction())
+            return BadRequest(new { message = "Superuser test sends are not permitted in Production." });
+
+        var result = await _service.SendTestEmailAsync(request with { JobId = jobId.Value }, ct);
+        return Ok(result);
     }
 
     /// <summary>Progress / final summary for a background ARB defensive batch (404 if unknown/expired).</summary>

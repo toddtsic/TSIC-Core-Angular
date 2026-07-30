@@ -168,6 +168,12 @@
             </div>
 
             <div class="compose-actions">
+                @if (isNonProd) {
+                    <app-test-send-button
+                        [disabled]="!canSendEmail()"
+                        [busy]="isSendingTest()"
+                        (send)="sendTestEmail($event)" />
+                }
                 <button class="btn btn-primary btn-sm"
                         [disabled]="!canSendEmail()"
                         (click)="send()">

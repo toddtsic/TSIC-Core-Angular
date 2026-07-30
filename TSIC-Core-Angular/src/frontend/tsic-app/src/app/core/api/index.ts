@@ -92,6 +92,7 @@ export type { ArbRefreshStatusesResultDto } from './models/ArbRefreshStatusesRes
 export type { ArbSendEmailsRequest } from './models/ArbSendEmailsRequest';
 export type { ArbSubscriptionInfoDto } from './models/ArbSubscriptionInfoDto';
 export type { ArbSubstitutionVariableDto } from './models/ArbSubstitutionVariableDto';
+export type { ArbTestSendRequest } from './models/ArbTestSendRequest';
 export type { ArbUpdateCcRequest } from './models/ArbUpdateCcRequest';
 export type { ArbUpdateCcResultDto } from './models/ArbUpdateCcResultDto';
 export type { AssignFieldsRequest } from './models/AssignFieldsRequest';
@@ -689,6 +690,7 @@ export type { SubscriptionDetailDto } from './models/SubscriptionDetailDto';
 export type { SuggestedEventDto } from './models/SuggestedEventDto';
 export type { SuggestedTeamNameDto } from './models/SuggestedTeamNameDto';
 export type { SupersedingEventInfoDto } from './models/SupersedingEventInfoDto';
+export type { SuperuserTestSendRequest } from './models/SuperuserTestSendRequest';
 export type { SuperuserTestSendResponse } from './models/SuperuserTestSendResponse';
 export type { SuppressionEntryDto } from './models/SuppressionEntryDto';
 export type { SuppressionRemoveResultDto } from './models/SuppressionRemoveResultDto';
@@ -822,6 +824,7 @@ export type { UsLaxReconciliationCandidateDto } from './models/UsLaxReconciliati
 export type { UsLaxReconciliationRequest } from './models/UsLaxReconciliationRequest';
 export type { UsLaxReconciliationResponse } from './models/UsLaxReconciliationResponse';
 export type { UsLaxReconciliationRowDto } from './models/UsLaxReconciliationRowDto';
+export type { UsLaxTestSendRequest } from './models/UsLaxTestSendRequest';
 export type { UsLaxVerifyBeginRequestDto } from './models/UsLaxVerifyBeginRequestDto';
 export type { UsLaxVerifyBeginResponseDto } from './models/UsLaxVerifyBeginResponseDto';
 export type { UsLaxVerifyConfirmRequestDto } from './models/UsLaxVerifyConfirmRequestDto';

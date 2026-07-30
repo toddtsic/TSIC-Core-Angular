@@ -23,6 +23,13 @@ public interface IArbDefensiveService
     Task<EmailBatchHandle> StartDefensiveEmailsAsync(
         ArbSendEmailsRequest request, CancellationToken ct = default);
 
+    /// <summary>
+    /// Sandbox-only: renders the composed defensive email for one flagged registrant and delivers
+    /// it for real to Superuser inboxes and/or an explicit test inbox. Never a live send path.
+    /// </summary>
+    Task<SuperuserTestSendResponse> SendTestEmailAsync(
+        ArbTestSendRequest request, CancellationToken ct = default);
+
     Task<ArbSubscriptionInfoDto?> GetSubscriptionInfoAsync(
         Guid registrationId, CancellationToken ct = default);
 

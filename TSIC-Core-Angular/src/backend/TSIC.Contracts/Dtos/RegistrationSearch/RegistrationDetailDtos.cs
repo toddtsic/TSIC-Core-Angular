@@ -246,6 +246,21 @@ public record EmailPreviewRequest
 }
 
 /// <summary>
+/// Sandbox-only test send: the compose fields (rendered for the first recipient of the audience,
+/// exactly like the preview) plus who receives the rendered result — Superusers and/or one
+/// explicit inbox (so a testing admin can send to themselves).
+/// </summary>
+public record SuperuserTestSendRequest
+{
+    public required List<Guid> RegistrationIds { get; init; }
+    public RegistrationSearchRequest? Criteria { get; init; }
+    public required string Subject { get; init; }
+    public required string BodyTemplate { get; init; }
+    public bool IncludeSuperusers { get; init; } = true;
+    public string? ExtraRecipient { get; init; }
+}
+
+/// <summary>
 /// Email preview response with rendered previews.
 /// </summary>
 public record EmailPreviewResponse

@@ -3,6 +3,9 @@ import { DecimalPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { EmailBodyEditorComponent } from '@shared-ui/components/email-body-editor/email-body-editor.component';
+import { TestSendButtonComponent, type TestSendOptions } from '@shared-ui/components/test-send-button/test-send-button.component';
+import { ToastService } from '@shared-ui/toast.service';
+import { environment } from '@environments/environment';
 import { ArbDefensiveService } from './services/arb-defensive.service';
 import type {
     ArbFlaggedRegistrantDto,
@@ -76,13 +79,16 @@ const TEMPLATES: Record<string, EmailTemplate[]> = {
 @Component({
     selector: 'app-arb-health',
     standalone: true,
-    imports: [DecimalPipe, DatePipe, FormsModule, TsicDialogComponent, EmailBodyEditorComponent],
+    imports: [DecimalPipe, DatePipe, FormsModule, TsicDialogComponent, EmailBodyEditorComponent, TestSendButtonComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './arb-health.component.html',
     styleUrl: './arb-health.component.scss'
 })
 export class ArbHealthComponent {
     private readonly arbService = inject(ArbDefensiveService);
+    private readonly toast = inject(ToastService);
+
+    readonly isNonProd = environment.envName !== 'production';
 
     // Lookup state. activeTab is the flag type the UI is oriented to (drives templates,
     // action bar, table shape); loadedTab is which lookup has actually RUN — null until
@@ -239,6 +245,40 @@ export class ArbHealthComponent {
 
     insertToken(token: string): void {
         this.bodyEditor().insertToken(token);
+    }
+
+    readonly isSendingTest = signal(false);
+
+    /** Non-prod: renders ARB tokens against the first selected flagged registrant and delivers
+     *  the real email to the chosen test inbox(es). */
+    sendTestEmail(options: TestSendOptions): void {
+        const firstSelected = this.registrants().find(r => this.selectedIds().has(r.registrationId))
+            ?? this.registrants()[0];
+        if (!firstSelected) return;
+
+        this.isSendingTest.set(true);
+        this.arbService.sendTestEmail({
+            jobId: '00000000-0000-0000-0000-000000000000', // derived server-side from JWT
+            flagType: this.activeTab(),
+            registrationId: firstSelected.registrationId,
+            emailSubject: this.emailSubject(),
+            emailBody: this.emailBody(),
+            includeSuperusers: options.includeSuperusers,
+            extraRecipient: options.extraRecipient ?? undefined
+        }).subscribe({
+            next: result => {
+                this.isSendingTest.set(false);
+                if (result.sent) {
+                    this.toast.show(`Test email (rendered for ${result.renderedFor}) sent to: ${result.recipients.join(', ')}`, 'success', 6000);
+                } else {
+                    this.toast.show(result.message || 'Test send failed', 'danger', 5000);
+                }
+            },
+            error: err => {
+                this.isSendingTest.set(false);
+                this.toast.show(err?.error?.message || 'Test send failed', 'danger', 5000);
+            }
+        });
     }
 
     onSubjectChange(value: string): void {

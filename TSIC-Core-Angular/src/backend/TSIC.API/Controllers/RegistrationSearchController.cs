@@ -496,7 +496,7 @@ public class RegistrationSearchController : ControllerBase
     /// </summary>
     [HttpPost("batch-email/test-send-superusers")]
     public async Task<ActionResult<SuperuserTestSendResponse>> SendTestToSuperusers(
-        [FromBody] EmailPreviewRequest request, CancellationToken ct)
+        [FromBody] SuperuserTestSendRequest request, CancellationToken ct)
     {
         var (jobId, _, error) = await ResolveContext();
         if (error != null) return error;
@@ -519,7 +519,8 @@ public class RegistrationSearchController : ControllerBase
             return BadRequest(new { message = "No recipient available to render the test email." });
 
         var result = await _testSend.SendRenderedAsync(
-            sample.RenderedSubject, sample.RenderedBody, sample.RecipientName, ct);
+            sample.RenderedSubject, sample.RenderedBody, sample.RecipientName,
+            request.IncludeSuperusers, request.ExtraRecipient, ct);
         return Ok(result);
     }
 

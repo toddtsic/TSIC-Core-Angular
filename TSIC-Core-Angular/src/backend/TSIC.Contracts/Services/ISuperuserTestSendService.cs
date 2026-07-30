@@ -9,10 +9,15 @@ namespace TSIC.Contracts.Services;
 /// </summary>
 public interface ISuperuserTestSendService
 {
+    /// <param name="includeSuperusers">Deliver to every active Superuser inbox.</param>
+    /// <param name="extraRecipient">Optional additional inbox (e.g. the testing admin's own) —
+    /// lets a non-SU tester receive the rendered email directly.</param>
     Task<SuperuserTestSendResponse> SendRenderedAsync(
         string renderedSubject,
         string renderedHtmlBody,
         string renderedForName,
+        bool includeSuperusers,
+        string? extraRecipient,
         CancellationToken ct = default);
 }
 

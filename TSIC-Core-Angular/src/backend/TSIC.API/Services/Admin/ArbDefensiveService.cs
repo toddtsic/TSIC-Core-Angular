@@ -18,6 +18,7 @@ public class ArbDefensiveService : IArbDefensiveService
     private readonly IRegistrationAccountingRepository _accountingRepo;
     private readonly IAdnApiService _adnApi;
     private readonly IEmailBatchService _emailBatch;
+    private readonly ISuperuserTestSendService _testSend;
     private readonly ILogger<ArbDefensiveService> _logger;
 
     public ArbDefensiveService(
@@ -25,12 +26,14 @@ public class ArbDefensiveService : IArbDefensiveService
         IRegistrationAccountingRepository accountingRepo,
         IAdnApiService adnApi,
         IEmailBatchService emailBatch,
+        ISuperuserTestSendService testSend,
         ILogger<ArbDefensiveService> logger)
     {
         _arbRepo = arbRepo;
         _accountingRepo = accountingRepo;
         _adnApi = adnApi;
         _emailBatch = emailBatch;
+        _testSend = testSend;
         _logger = logger;
     }
 
@@ -316,6 +319,36 @@ public class ArbDefensiveService : IArbDefensiveService
         };
 
         return await _emailBatch.StartAsync(plan, new EmailBatchOptions(), ct);
+    }
+
+    // ── SendTestEmailAsync ──────────────────────────────────────────────
+
+    public async Task<SuperuserTestSendResponse> SendTestEmailAsync(
+        ArbTestSendRequest request, CancellationToken ct = default)
+    {
+        // Render against the same flagged snapshot the real send would use, so token values
+        // (owed-now, status, progress) match what the registrant would actually receive.
+        var flagged = await GetFlaggedSubscriptionsAsync(request.JobId, request.FlagType, ct);
+        var reg = flagged.FirstOrDefault(r => r.RegistrationId == request.RegistrationId)
+                  ?? flagged.FirstOrDefault();
+        if (reg == null)
+        {
+            return new SuperuserTestSendResponse
+            {
+                Sent = false,
+                RenderedFor = string.Empty,
+                Recipients = [],
+                Message = "No flagged registrant available to render the test email."
+            };
+        }
+
+        return await _testSend.SendRenderedAsync(
+            request.EmailSubject,
+            ReplaceArbTokens(request.EmailBody, reg),
+            reg.RegistrantName,
+            request.IncludeSuperusers,
+            request.ExtraRecipient,
+            ct);
     }
 
     // ── GetSubscriptionInfoAsync ────────────────────────────────────────

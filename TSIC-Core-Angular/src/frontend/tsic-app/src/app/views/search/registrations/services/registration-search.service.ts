@@ -36,6 +36,7 @@ import type {
 	SubscriptionDetailDto,
 	FamilyAccountingDto,
 	RevalidateUsLaxResultDto,
+	SuperuserTestSendRequest,
 	SuperuserTestSendResponse
 } from '@core/api';
 
@@ -152,8 +153,8 @@ export class RegistrationSearchService {
 		return this.http.post<EmailPreviewResponse>(`${this.apiUrl}/email-preview`, request);
 	}
 
-	/** Sandbox-only: render for the first recipient, deliver for real to Superuser inboxes. */
-	sendTestToSuperusers(request: EmailPreviewRequest): Observable<SuperuserTestSendResponse> {
+	/** Sandbox-only: render for the first recipient, deliver for real to the chosen test inboxes. */
+	sendTestEmail(request: SuperuserTestSendRequest): Observable<SuperuserTestSendResponse> {
 		return this.http.post<SuperuserTestSendResponse>(`${this.apiUrl}/batch-email/test-send-superusers`, request);
 	}
 

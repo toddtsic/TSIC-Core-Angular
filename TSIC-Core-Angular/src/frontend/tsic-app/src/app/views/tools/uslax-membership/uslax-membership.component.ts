@@ -5,6 +5,8 @@ import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import type { ToolbarItems } from '@syncfusion/ej2-angular-grids';
 import { GridRowNumbersDirective } from '@shared-ui/directives/grid-row-numbers.directive';
 import { EmailBodyEditorComponent } from '@shared-ui/components/email-body-editor/email-body-editor.component';
+import { TestSendButtonComponent, type TestSendOptions } from '@shared-ui/components/test-send-button/test-send-button.component';
+import { environment } from '@environments/environment';
 import { UsLaxMembershipService } from '@infrastructure/services/uslax-membership.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -84,7 +86,7 @@ ${USLAX_COMMON_GUIDANCE}
 @Component({
 	selector: 'app-uslax-membership',
 	standalone: true,
-	imports: [DatePipe, NgClass, FormsModule, GridAllModule, GridRowNumbersDirective, EmailBodyEditorComponent],
+	imports: [DatePipe, NgClass, FormsModule, GridAllModule, GridRowNumbersDirective, EmailBodyEditorComponent, TestSendButtonComponent],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './uslax-membership.component.html',
 	styleUrl: './uslax-membership.component.scss'
@@ -269,9 +271,9 @@ export class UsLaxMembershipComponent implements OnInit {
 		this.body.set('');
 	}
 
-	send(): void {
-		if (!this.canSendEmail()) return;
-		const recipients: UsLaxEmailRecipientDto[] = this.recipientsWithEmail()
+	/** Row → recipient snapshot, shared by the real send and the test send. */
+	private buildRecipients(): UsLaxEmailRecipientDto[] {
+		return this.recipientsWithEmail()
 			.filter(r => this.needsAction(r))
 			.map(r => ({
 				registrationId: r.registrationId,
@@ -284,6 +286,47 @@ export class UsLaxMembershipComponent implements OnInit {
 				ageVerified: r.ageVerified ?? null,
 				expiryDate: r.newExpiryDate ?? r.previousExpiryDate ?? null
 			}));
+	}
+
+	readonly isNonProd = environment.envName !== 'production';
+	readonly isSendingTest = signal(false);
+
+	/** Non-prod: renders tokens against the first actionable recipient and delivers the real
+	 *  email to the chosen test inbox(es). */
+	sendTestEmail(options: TestSendOptions): void {
+		if (!this.subject().trim() || !this.body().trim()) return;
+		const recipient = this.buildRecipients()[0];
+		if (!recipient) {
+			this.toast.show('No recipient needing action to render the test against.', 'warning', 4000);
+			return;
+		}
+
+		this.isSendingTest.set(true);
+		this.service.sendTestEmail({
+			subject: this.subject(),
+			body: this.body(),
+			recipient,
+			includeSuperusers: options.includeSuperusers,
+			extraRecipient: options.extraRecipient ?? undefined
+		}).subscribe({
+			next: result => {
+				this.isSendingTest.set(false);
+				if (result.sent) {
+					this.toast.show(`Test email (rendered for ${result.renderedFor}) sent to: ${result.recipients.join(', ')}`, 'success', 6000);
+				} else {
+					this.toast.show(result.message || 'Test send failed', 'danger', 5000);
+				}
+			},
+			error: err => {
+				this.isSendingTest.set(false);
+				this.toast.show(`Test send failed: ${err?.error?.message || 'Unknown error'}`, 'danger', 5000);
+			}
+		});
+	}
+
+	send(): void {
+		if (!this.canSendEmail()) return;
+		const recipients: UsLaxEmailRecipientDto[] = this.buildRecipients();
 
 		if (recipients.length === 0) {
 			this.toast.show('No recipients need action — all selected rows are in good standing.', 'warning', 4000);
