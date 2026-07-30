@@ -163,6 +163,18 @@ public class RegistrationRepository : IRegistrationRepository
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
 
+    public async Task<List<string>> GetSuperuserEmailsAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .Where(r => r.RoleId == RoleConstants.Superuser
+                        && r.BActive == true
+                        && r.User!.Email != null && r.User.Email != "")
+            .Select(r => r.User!.Email!)
+            .Distinct()
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<List<RegistrationDto>> GetSuperDirectorRegistrationsAsync(
         string userId,
         CancellationToken cancellationToken = default)

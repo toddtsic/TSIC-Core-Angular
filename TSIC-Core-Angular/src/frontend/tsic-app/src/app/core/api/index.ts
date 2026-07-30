@@ -689,6 +689,7 @@ export type { SubscriptionDetailDto } from './models/SubscriptionDetailDto';
 export type { SuggestedEventDto } from './models/SuggestedEventDto';
 export type { SuggestedTeamNameDto } from './models/SuggestedTeamNameDto';
 export type { SupersedingEventInfoDto } from './models/SupersedingEventInfoDto';
+export type { SuperuserTestSendResponse } from './models/SuperuserTestSendResponse';
 export type { SuppressionEntryDto } from './models/SuppressionEntryDto';
 export type { SuppressionRemoveResultDto } from './models/SuppressionRemoveResultDto';
 export type { SuspendedJobDto } from './models/SuspendedJobDto';

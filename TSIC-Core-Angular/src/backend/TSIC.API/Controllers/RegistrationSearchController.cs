@@ -21,6 +21,7 @@ public class RegistrationSearchController : ControllerBase
     private readonly IJobLookupService _jobLookupService;
     private readonly IEmailBatchJobRegistry _batchJobs;
     private readonly IEmailBatchService _emailBatch;
+    private readonly ISuperuserTestSendService _testSend;
     private readonly IHostEnvironment _env;
 
     public RegistrationSearchController(
@@ -28,12 +29,14 @@ public class RegistrationSearchController : ControllerBase
         IJobLookupService jobLookupService,
         IEmailBatchJobRegistry batchJobs,
         IEmailBatchService emailBatch,
+        ISuperuserTestSendService testSend,
         IHostEnvironment env)
     {
         _searchService = searchService;
         _jobLookupService = jobLookupService;
         _batchJobs = batchJobs;
         _emailBatch = emailBatch;
+        _testSend = testSend;
         _env = env;
     }
 
@@ -482,6 +485,42 @@ public class RegistrationSearchController : ControllerBase
             EmailBatchSummaryResult.NoRecipientEmail => BadRequest(new { message = "No email address on file for your account." }),
             _ => StatusCode(500)
         };
+    }
+
+    /// <summary>
+    /// Sandbox-only: renders the composed email for the FIRST recipient of the current audience
+    /// (same pipeline as email-preview) and delivers it FOR REAL to every active Superuser inbox
+    /// via the forced-transmit override, so final formatting can be verified in an actual mail
+    /// client. Rejected outright in Production — mirrors the simulate-flag stance above: a test
+    /// signal never reaches a live host's send machinery.
+    /// </summary>
+    [HttpPost("batch-email/test-send-superusers")]
+    public async Task<ActionResult<SuperuserTestSendResponse>> SendTestToSuperusers(
+        [FromBody] EmailPreviewRequest request, CancellationToken ct)
+    {
+        var (jobId, _, error) = await ResolveContext();
+        if (error != null) return error;
+
+        if (_env.IsLiveProduction())
+            return BadRequest(new { message = "Superuser test sends are not permitted in Production." });
+
+        // One rendering sample: trim explicit ids to the first — the preview renders every id given.
+        var trimmed = new EmailPreviewRequest
+        {
+            RegistrationIds = request.RegistrationIds.Take(1).ToList(),
+            Criteria = request.Criteria,
+            Subject = request.Subject,
+            BodyTemplate = request.BodyTemplate
+        };
+
+        var preview = await _searchService.PreviewEmailAsync(jobId!.Value, trimmed, ct);
+        var sample = preview.Previews.FirstOrDefault();
+        if (sample == null)
+            return BadRequest(new { message = "No recipient available to render the test email." });
+
+        var result = await _testSend.SendRenderedAsync(
+            sample.RenderedSubject, sample.RenderedBody, sample.RecipientName, ct);
+        return Ok(result);
     }
 
     [HttpPost("email-preview")]

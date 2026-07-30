@@ -83,6 +83,10 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
    *  backend re-checks IsSandbox() before honoring the test inbox — this is purely UI exposure. */
   readonly isStaging = environment.envName === 'staging';
 
+  /** Non-prod gate for "Send Test to SuperUsers" — dev + staging. Backend rejects in Production
+   *  regardless (endpoint checks IsLiveProduction), so this is purely UI exposure. */
+  readonly isNonProd = environment.envName !== 'production';
+
   registrationIds = input<string[]>([]);
   recipientCount = input<number>(0);
   recipients = input<{ name: string; email: string }[]>([]);
@@ -282,6 +286,36 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
 
   insertToken(token: string): void {
     this.bodyEditor().insertToken(token);
+  }
+
+  isSendingTest = signal<boolean>(false);
+
+  /** Non-prod only: renders for the first recipient and delivers the real email to Superuser
+   *  inboxes, so the received formatting can be checked in an actual mail client. */
+  sendTestToSuperusers(): void {
+    if (!this.subject().trim() || !this.bodyTemplate().trim()) { this.toast.show('Subject and body are required', 'danger', 4000); return; }
+    if (this.recipientCount() === 0) { this.toast.show('No recipients to render the test against', 'danger', 4000); return; }
+
+    this.isSendingTest.set(true);
+    this.searchService.sendTestToSuperusers({
+      registrationIds: this.registrationIds(),
+      criteria: this.searchRequest() ?? undefined,
+      subject: this.subject(),
+      bodyTemplate: this.bodyTemplate()
+    }).subscribe({
+      next: (result) => {
+        this.isSendingTest.set(false);
+        if (result.sent) {
+          this.toast.show(`Test email (rendered for ${result.renderedFor}) sent to: ${result.recipients.join(', ')}`, 'success', 6000);
+        } else {
+          this.toast.show(result.message || 'Test send failed', 'danger', 5000);
+        }
+      },
+      error: (err) => {
+        this.isSendingTest.set(false);
+        this.toast.show(`Test send failed: ${err.error?.message || 'Unknown error'}`, 'danger', 4000);
+      }
+    });
   }
 
   sendEmail(): void {
