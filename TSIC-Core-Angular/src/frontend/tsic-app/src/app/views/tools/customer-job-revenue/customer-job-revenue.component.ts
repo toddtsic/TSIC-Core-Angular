@@ -16,6 +16,7 @@ import { AuthService } from '../../../infrastructure/services/auth.service';
 import type { RevenueRollupResponseDto } from '@core/api';
 import type { JobPaymentRecordDto } from '@core/api';
 import type { UpdateMonthlyCountRequest } from '@core/api';
+import type { LegacyCompareResultDto } from '@core/api';
 
 interface MonthOption {
 	startDate: string;
@@ -63,6 +64,11 @@ export class CustomerJobRevenueComponent {
 	scopeMode = signal<ScopeMode | null>(null);
 	availableJobs = signal<string[]>([]);
 	submittedScope = signal<SubmittedScope | null>(null);
+
+	// SU live QA vs legacy sprocs — sandbox environments only (backend 404s in Production)
+	readonly qaEnabled = environment.envName !== 'production';
+	qaRunning = signal(false);
+	qaResult = signal<LegacyCompareResultDto | null>(null);
 
 	// Data — rollup arrives on Submit; detail tabs are fetched lazily on first open
 	rollup = signal<RevenueRollupResponseDto | null>(null);
@@ -231,10 +237,11 @@ export class CustomerJobRevenueComponent {
 			next: (data) => {
 				this.rollup.set(data);
 				this.submittedScope.set(scope);
-				// New scope invalidates every lazily-cached detail tab.
+				// New scope invalidates every lazily-cached detail tab and any QA verdict.
 				this.ccDetail.set(null);
 				this.checkDetail.set(null);
 				this.echeckDetail.set(null);
+				this.qaResult.set(null);
 				this.pivotDataSource.set({
 					...this.pivotDataSource(),
 					dataSource: data.revenueRecords as never[]
@@ -291,6 +298,25 @@ export class CustomerJobRevenueComponent {
 			error: (err) => {
 				this.detailLoading.set(null);
 				this.errorMessage.set(err.error?.message || 'Failed to load payment details');
+			}
+		});
+	}
+
+	/** SU-only, sandbox-only: server runs legacy sprocs + EF port over the current scope and diffs them. */
+	runLegacyCompare(): void {
+		const scope = this.submittedScope();
+		if (!scope || this.qaRunning()) {
+			return;
+		}
+		this.qaRunning.set(true);
+		this.http.get<LegacyCompareResultDto>(`${this.apiUrl}/legacy-compare`, { params: this.scopeParams(scope) }).subscribe({
+			next: (result) => {
+				this.qaResult.set(result);
+				this.qaRunning.set(false);
+			},
+			error: (err) => {
+				this.qaRunning.set(false);
+				this.errorMessage.set(err.error?.message || 'Legacy comparison failed');
 			}
 		});
 	}

@@ -407,6 +407,7 @@ export type { LeagueSeasonFieldDto } from './models/LeagueSeasonFieldDto';
 export type { LedgerEntry } from './models/LedgerEntry';
 export type { LedgerSplit } from './models/LedgerSplit';
 export type { LedgerTab } from './models/LedgerTab';
+export type { LegacyCompareResultDto } from './models/LegacyCompareResultDto';
 export type { LoginRequest } from './models/LoginRequest';
 export type { LoginResponseDto } from './models/LoginResponseDto';
 export type { LogRestockRequest } from './models/LogRestockRequest';

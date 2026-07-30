@@ -156,6 +156,16 @@
 			<div class="d-flex flex-wrap align-items-center gap-2 mb-2">
 				<button class="btn btn-sm btn-outline-secondary" (click)="expandAll()">Expand All</button>
 				<button class="btn btn-sm btn-outline-secondary" (click)="collapseAll()">Collapse All</button>
+				@if (isSuperUser() && qaEnabled) {
+					<button class="btn btn-sm btn-outline-warning" (click)="runLegacyCompare()" [disabled]="qaRunning()">
+						@if (qaRunning()) {
+							<span class="spinner-border spinner-border-sm me-1"></span>
+						} @else {
+							<i class="bi bi-shield-check me-1"></i>
+						}
+						QA vs Legacy
+					</button>
+				}
 				<span class="ms-auto d-flex gap-2">
 					<button class="btn btn-sm btn-outline-primary" (click)="exportPivot('pdf')">
 						<i class="bi bi-file-earmark-pdf me-1"></i>PDF
@@ -168,6 +178,31 @@
 					</button>
 				</span>
 			</div>
+			@if (qaResult(); as qa) {
+				<div class="qa-panel mb-2" [class.qa-pass]="qa.pass" [class.qa-fail]="!qa.pass" role="status">
+					<div class="qa-headline">
+						<i class="bi" [class.bi-shield-fill-check]="qa.pass" [class.bi-shield-fill-exclamation]="!qa.pass"></i>
+						@if (qa.pass) {
+							<span>Matches legacy — {{ qa.rollupCellsLegacy }} rollup cells, all detail records verified.</span>
+						} @else {
+							<span>{{ qa.materialMismatches.length }} mismatch(es) vs legacy — do not rely on these numbers until resolved.</span>
+						}
+						@if (qa.pennyDeltas.length > 0) {
+							<span class="text-muted">({{ qa.pennyDeltas.length }} penny-level rounding delta(s))</span>
+						}
+					</div>
+					@if (!qa.pass || qa.pennyDeltas.length > 0) {
+						<div class="qa-details">
+							@for (m of qa.materialMismatches; track $index) {
+								<div class="qa-line">{{ m }}</div>
+							}
+							@for (p of qa.pennyDeltas; track $index) {
+								<div class="qa-line qa-line-penny">{{ p }}</div>
+							}
+						</div>
+					}
+				</div>
+			}
 			<ejs-pivotview #pivotView
 				[dataSourceSettings]="pivotDataSource()"
 				[height]="pivotHeight()"
