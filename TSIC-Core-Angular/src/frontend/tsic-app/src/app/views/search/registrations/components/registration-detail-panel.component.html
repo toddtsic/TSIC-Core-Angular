@@ -664,6 +664,7 @@
               <div class="form-actions">
                 @if (isNonProd) {
                   <app-test-send-button
+                    align="left"
                     [disabled]="!emailSubject() || !emailBody()"
                     [busy]="isSendingTestEmail()"
                     (send)="sendTestEmail($event)" />

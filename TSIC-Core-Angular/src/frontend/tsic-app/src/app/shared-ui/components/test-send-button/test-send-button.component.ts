@@ -28,7 +28,7 @@ export interface TestSendOptions {
             </button>
 
             @if (open()) {
-                <div class="test-send-panel">
+                <div class="test-send-panel" [class.align-left]="align() === 'left'">
                     <div class="mb-2">
                         <label for="test-send-to" class="form-label mb-1">Send test to</label>
                         <input id="test-send-to" type="email" class="form-control form-control-sm"
@@ -62,6 +62,10 @@ export interface TestSendOptions {
             border-radius: var(--radius-md, 8px);
             box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.18));
         }
+        .test-send-panel.align-left {
+            right: auto;
+            left: 0;
+        }
         .test-send-panel :focus-visible {
             outline: none;
             box-shadow: var(--shadow-focus);
@@ -71,6 +75,10 @@ export interface TestSendOptions {
 export class TestSendButtonComponent {
     readonly disabled = input(false);
     readonly busy = input(false);
+    /** Which button edge the popover hugs. Default 'right' suits modal footers (button at the
+     *  right edge); use 'left' when the button sits at the left of its container so the panel
+     *  opens inward instead of overflowing (e.g. the reg-detail fly-in). */
+    readonly align = input<'left' | 'right'>('right');
     readonly send = output<TestSendOptions>();
 
     readonly open = signal(false);
