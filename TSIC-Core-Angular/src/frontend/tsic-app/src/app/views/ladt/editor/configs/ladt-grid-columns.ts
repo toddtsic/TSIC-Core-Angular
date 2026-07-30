@@ -17,34 +17,40 @@ export interface LadtColumnDef {
 
 // ── League ──
 
+// AM-038 nit 2 (Ann): league grid fits WITHOUT horizontal scroll — league fee cells
+// only say "see age group level", so Fees/EBD/Late Fee shrink and the frozen name
+// column grows to show full league names untruncated.
 export const LEAGUE_COLUMNS: LadtColumnDef[] = [
-  { field: 'leagueName', header: 'League', type: 'string', frozen: true, width: '180px' },
-  { field: 'sportName', header: 'Sport', type: 'string', width: '140px' },
-  { field: '_fees', header: 'Fees', type: 'fees', width: '220px' },
-  { field: '_earlyBird', header: 'Early Bird', type: 'modifier', width: '120px' },
-  { field: '_lateFee', header: 'Late Fee', type: 'modifier', width: '120px' },
+  { field: 'leagueName', header: 'League', type: 'string', frozen: true, width: '240px' },
+  { field: 'sportName', header: 'Sport', type: 'string', width: '110px' },
+  { field: '_fees', header: 'Fees', type: 'fees', width: '140px' },
+  { field: '_earlyBird', header: 'Early Bird', type: 'modifier', width: '90px' },
+  { field: '_lateFee', header: 'Late Fee', type: 'modifier', width: '90px' },
   { field: '_phase', header: 'Payment Phase', type: 'phase', width: '180px' },
   { field: 'rescheduleEmailsToAddon', header: 'Reschedule Emails', type: 'string', width: '180px' },
-  { field: 'bHideContacts', header: 'Hide Contacts', type: 'boolean', width: '70px' },
-  { field: 'bHideStandings', header: 'Hide Standings', type: 'boolean', width: '70px' },
+  { field: 'bHideContacts', header: 'Hide Contacts', type: 'boolean', width: '95px' },
+  { field: 'bHideStandings', header: 'Hide Standings', type: 'boolean', width: '95px' },
 ];
 
 // ── Agegroup ──
 
+// AM-038 nit 4 (Ann): every width fits its longest header WORD — paired with the
+// keep-all header CSS in ladt-sibling-grid, headers wrap only at spaces, never
+// "GE NDER" / "CHA MPS BY DIV". Age Group has no h-scroll, so there is slack to widen.
 export const AGEGROUP_COLUMNS: LadtColumnDef[] = [
   { field: 'agegroupName', header: 'Age Group', type: 'string', frozen: true, width: '180px', colorField: 'color' },
-  { field: 'gender', header: 'Gender', type: 'string', width: '60px' },
+  { field: 'gender', header: 'Gender', type: 'string', width: '80px' },
   { field: '_fees', header: 'Fees', type: 'fees', width: '220px' },
   { field: '_earlyBird', header: 'Early Bird', type: 'modifier', width: '120px' },
   { field: '_lateFee', header: 'Late Fee', type: 'modifier', width: '120px' },
   { field: '_phase', header: 'Payment Phase', type: 'phase', width: '180px' },
   // Limits
-  { field: 'maxTeams', header: 'Max Teams', type: 'number', group: 'Limits', width: '75px' },
+  { field: 'maxTeams', header: 'Max Teams', type: 'number', group: 'Limits', width: '95px' },
   // Settings
-  { field: 'bAllowSelfRostering', header: 'Self Roster', type: 'boolean', group: 'Settings', width: '70px' },
-  { field: 'bChampionsByDivision', header: 'Champs by Div', type: 'boolean', group: 'Settings', width: '70px' },
-  { field: 'bAllowApiRosterAccess', header: 'API Roster', type: 'boolean', group: 'Settings', width: '70px' },
-  { field: 'bHideStandings', header: 'Hide Standings', type: 'boolean', group: 'Settings', width: '70px' },
+  { field: 'bAllowSelfRostering', header: 'Self Roster', type: 'boolean', group: 'Settings', width: '85px' },
+  { field: 'bChampionsByDivision', header: 'Champs by Div', type: 'boolean', group: 'Settings', width: '90px' },
+  { field: 'bAllowApiRosterAccess', header: 'API Roster', type: 'boolean', group: 'Settings', width: '85px' },
+  { field: 'bHideStandings', header: 'Hide Standings', type: 'boolean', group: 'Settings', width: '95px' },
 ];
 
 // ── Division ──
@@ -59,8 +65,9 @@ export const DIVISION_COLUMNS: LadtColumnDef[] = [
 export const TEAM_COLUMNS: LadtColumnDef[] = [
   { field: 'clubName', header: 'Club', type: 'string', frozen: true, width: '160px' },
   { field: 'teamName', header: 'Team', type: 'string', frozen: true, width: '160px' },
-  { field: 'active', header: 'Active', type: 'boolean', width: '70px' },
-  { field: 'playerCount', header: 'Players', type: 'number', width: '80px' },
+  // AM-038 nit 3 (Ann): "ACTI VE" / "PLAYE RS" clipped mid-word — widths fit the header word
+  { field: 'active', header: 'Active', type: 'boolean', width: '85px' },
+  { field: 'playerCount', header: 'Players', type: 'number', width: '90px' },
   { field: 'maxCount', header: 'Max Roster', type: 'number', width: '95px' },
   // Dates come BEFORE the fee columns (AM-038): with them trailing ~710px of
   // Fees/EBD/LateFee/Phase, Start/End/Effective/Expires were always off-screen.
@@ -79,9 +86,9 @@ export const TEAM_COLUMNS: LadtColumnDef[] = [
   // Roster — no 'bHideRoster' column by design: it was never a director setting (legacy exposed no UI
   // for it and its stored values are noise). Roster visibility is the event-level "Allow RosterView"
   // toggles, plus a server-side hide for WAITLIST/Dropped/Registration holding agegroups. See CR-095.
-  { field: 'bAllowSelfRostering', header: 'Self Roster', type: 'boolean', group: 'Roster', width: '70px' },
+  { field: 'bAllowSelfRostering', header: 'Self Roster', type: 'boolean', group: 'Roster', width: '85px' },
   // Eligibility
-  { field: 'gender', header: 'Gender', type: 'string', group: 'Eligibility', width: '60px' },
+  { field: 'gender', header: 'Gender', type: 'string', group: 'Eligibility', width: '80px' },
   // Advanced
   { field: 'requests', header: 'Requests', type: 'string', group: 'Advanced', width: '140px' },
   { field: 'teamComments', header: 'Comments', type: 'string', group: 'Advanced', width: '140px' },

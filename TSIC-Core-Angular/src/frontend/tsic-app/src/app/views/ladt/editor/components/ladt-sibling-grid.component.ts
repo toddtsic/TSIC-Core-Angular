@@ -260,6 +260,11 @@ export interface ParentBreadcrumb {
       letter-spacing: 0.02em;
       white-space: normal;
       line-height: var(--line-height-tight);
+      /* AM-038 nits 3/4 (Ann): ej2 wrapMode:'Header' applies word-wrap:break-word,
+         which split header words mid-word ("GE NDER", "ACTI VE"). Wrap at spaces
+         only; column widths in ladt-grid-columns.ts fit each longest header word. */
+      word-break: keep-all;
+      overflow-wrap: normal;
     }
 
     :host ::ng-deep .e-grid .e-rowcell {
