@@ -3,8 +3,8 @@
     *** PRODUCTION SETUP — RUN ONCE PER PRODUCTION HOST ***
 
     Registers (or removes) a Windows Scheduled Task on the PRODUCTION machine that warms
-    claude-api at 04:30 daily, so the in-process AdnSweepBackgroundService timer is alive
-    when it needs to fire at 05:00.
+    claude-api at 03:55 daily, so the in-process AdnSweepBackgroundService timer is alive
+    when it needs to fire at 04:00 (AdnSweep:SweepHourLocal in appsettings.Production.json).
 
 .DESCRIPTION
     *** PRODUCTION HOST SETUP ***
@@ -14,20 +14,22 @@
     -----------------------------------------------------------------------------
     Background:
       claude-api hosts a .NET 8 BackgroundService (AdnSweepBackgroundService) that runs
-      the ADN reconciliation sweep daily at 05:00 local. The timer lives in the IIS worker
-      process — if the worker is dead at 05:00, the sweep silently misses that day.
+      the ADN reconciliation sweep daily at 04:00 local (AdnSweep:SweepHourLocal). The
+      timer lives in the IIS worker process — if the worker is dead at 04:00, the sweep
+      silently misses that day. (Pre-golive the sweep ran at 05:00 — legacy owned the
+      4 AM slot; moved at cutover. Keep -At = sweep hour minus 5 minutes, always.)
 
       claude-api currently has light-to-zero overnight traffic, so IIS's default 20-minute
-      idle timeout kills the worker overnight. This Task fires at 04:55 and hits an
+      idle timeout kills the worker overnight. This Task fires at 03:55 and hits an
       anonymous URL on claude-api. IIS spins up the worker on the request, the .NET app
-      initializes, the BackgroundService computes nextRun = today 05:00 (delay = 5 min),
-      and at 05:00 the sweep runs as designed.
+      initializes, the BackgroundService computes nextRun = today 04:00 (delay = 5 min),
+      and at 04:00 the sweep runs as designed.
 
-      Why 04:55 and not earlier: IIS's idle timeout is driven by HTTP request activity,
+      Why 03:55 and not earlier: IIS's idle timeout is driven by HTTP request activity,
       not internal work. The BackgroundService's Task.Delay between warmup and sweep does
-      NOT keep the worker "active" from IIS's perspective. A 30-minute gap (e.g. 04:30 →
-      05:00) exceeds the 20-minute idle timeout — the worker recycles around 04:50 and
-      the 05:00 sweep silently misses. Keep the warmup-to-sweep gap under 20 minutes.
+      NOT keep the worker "active" from IIS's perspective. A 30-minute gap (e.g. 03:30 →
+      04:00) exceeds the 20-minute idle timeout — the worker recycles around 03:50 and
+      the 04:00 sweep silently misses. Keep the warmup-to-sweep gap under 20 minutes.
 
       The URL pinged returns 404 in Production (Swagger is wired only in Development), but
       that's sufficient — what matters is that a request reaches the worker and forces
@@ -43,17 +45,17 @@
     -----------------------------------------------------------------------------
 
 .PARAMETER ApiHealthUrl
-    URL to GET at 04:30. Default points at claude-api in PRODUCTION. Override only when
-    setting up the warmup on a different production host (DR / replacement / second prod).
+    URL to GET at warmup time. Default points at claude-api in PRODUCTION. Override only
+    when setting up the warmup on a different production host (DR / replacement / second prod).
 
 .PARAMETER TaskName
     Scheduled Task name. Default 'TSIC-ClaudeApi-Warmup'.
 
 .PARAMETER At
-    Local time of day to fire. Default '4:55AM'. Must give the BackgroundService enough
-    runway to start AND stay within IIS's 20-minute idle timeout before the 05:00 sweep —
-    keep this between 04:50 and 04:59. Earlier values risk the worker recycling before
-    the sweep fires; see the docstring's "Why 04:55 and not earlier" note.
+    Local time of day to fire. Default '3:55AM'. Must give the BackgroundService enough
+    runway to start AND stay within IIS's 20-minute idle timeout before the 04:00 sweep —
+    keep this between 03:50 and 03:59. Earlier values risk the worker recycling before
+    the sweep fires; see the docstring's "Why 03:55 and not earlier" note.
 
 .PARAMETER Remove
     Unregister the Task and exit. Use to roll back this script's effects.
@@ -77,13 +79,13 @@
     *** PRODUCTION ***
     Run as Administrator. Task runs as NT AUTHORITY\SYSTEM (no stored credentials).
     The script ONLY registers the Task — it does NOT trigger it. Validation is the
-    arrival of the [claude-api] AdnSweep digest email after the next 05:00 sweep.
+    arrival of the [claude-api] AdnSweep digest email after the next 04:00 sweep.
 #>
 [CmdletBinding()]
 param(
     [string]$ApiHealthUrl = 'https://claude-api.teamsportsinfo.com/swagger/v1/swagger.json',
     [string]$TaskName     = 'TSIC-ClaudeApi-Warmup',
-    [string]$At           = '4:55AM',
+    [string]$At           = '3:55AM',
     [switch]$Remove,
     [switch]$DryRun
 )
@@ -136,7 +138,7 @@ Write-Info "Pings:    $ApiHealthUrl"
 # into the Task's stored argument string — the inner powershell.exe at task-run time sees
 # only a literal URL inside single quotes (no further variable interpolation needed).
 # `catch { exit 0 }` swallows any HTTP/cert/DNS failure: warmup is best-effort, and the
-# real validation is whether the 05:00 sweep email arrives, not the Task's exit code.
+# real validation is whether the 04:00 sweep email arrives, not the Task's exit code.
 $inner = "try { Invoke-WebRequest -Uri '$ApiHealthUrl' -UseBasicParsing -TimeoutSec 30 | Out-Null } catch { exit 0 }"
 
 $action  = New-ScheduledTaskAction `
@@ -156,7 +158,7 @@ $settings  = New-ScheduledTaskSettingsSet `
     -ExecutionTimeLimit (New-TimeSpan -Minutes 5)
 
 $description = "PRODUCTION: warms claude-api at $At so the in-process " +
-               "AdnSweepBackgroundService timer is armed for the 05:00 sweep. " +
+               "AdnSweepBackgroundService timer is armed for the 04:00 sweep. " +
                "Registered by scripts\00-Register-AdnSweep-Warmup-Task-PRODUCTION.ps1."
 
 if ($DryRun) {
@@ -191,10 +193,10 @@ Write-Host ("  TaskName:    {0}" -f $TaskName)
 Write-Host ("  Host:        {0}" -f $env:COMPUTERNAME)
 Write-Host ("  NextRunTime: {0}" -f $info.NextRunTime)
 Write-Host ""
-Write-Host "Validation = receipt of the '[claude-api] AdnSweep --- ...' email after the next 05:00 sweep." -ForegroundColor Cyan
+Write-Host "Validation = receipt of the '[claude-api] AdnSweep --- ...' email after the next 04:00 sweep." -ForegroundColor Cyan
 Write-Host ""
 Write-Host "If the email does not arrive, post-mortem checklist:" -ForegroundColor Cyan
-Write-Host "  1. Seq query: @MessageTemplate like '%Sweep finished%' or '%AdnSweepBackgroundService%'  (window 04:25 - 05:10)"
+Write-Host "  1. Seq query: @MessageTemplate like '%Sweep finished%' or '%AdnSweepBackgroundService%'  (window 03:25 - 04:10)"
 Write-Host "  2. DB:        SELECT TOP 5 * FROM echeck.SweepLog ORDER BY startedAt DESC"
 Write-Host "  3. Task log:  Get-ScheduledTaskInfo -TaskName '$TaskName'"
 Write-Host "  4. Rollback:  .\00-Register-AdnSweep-Warmup-Task-PRODUCTION.ps1 -Remove"
