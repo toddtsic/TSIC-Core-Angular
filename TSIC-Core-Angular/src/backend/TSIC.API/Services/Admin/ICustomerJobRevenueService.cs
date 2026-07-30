@@ -14,6 +14,10 @@ public interface ICustomerJobRevenueService
         Guid jobId, string method, DateTime? startDate, DateTime? endDate,
         List<string> jobNames, CancellationToken ct = default);
 
+    Task<LegacyCompareResultDto> CompareWithLegacyAsync(
+        Guid jobId, DateTime? startDate, DateTime? endDate,
+        List<string> jobNames, CancellationToken ct = default);
+
     Task UpdateMonthlyCountAsync(
         int aid, UpdateMonthlyCountRequest request, string userId,
         CancellationToken ct = default);

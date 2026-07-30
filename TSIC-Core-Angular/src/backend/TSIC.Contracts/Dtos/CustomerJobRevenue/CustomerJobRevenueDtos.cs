@@ -1,5 +1,34 @@
 namespace TSIC.Contracts.Dtos.CustomerJobRevenue;
 
+/// <summary>
+/// Full output of the legacy CustomerJobRevenueRollups sprocs. Retained ONLY as the
+/// baseline for the SuperUser live QA comparison (legacy-compare endpoint) — the
+/// user-facing report runs on the EF port exclusively.
+/// </summary>
+public record JobRevenueDataDto
+{
+    public required List<JobRevenueRecordDto> RevenueRecords { get; init; }
+    public required List<JobMonthlyCountDto> MonthlyCounts { get; init; }
+    public required List<JobAdminFeeDto> AdminFees { get; init; }
+    public required List<JobPaymentRecordDto> CreditCardRecords { get; init; }
+    public required List<JobPaymentRecordDto> CheckRecords { get; init; }
+    public required List<JobPaymentRecordDto> EcheckRecords { get; init; }
+    public required List<string> AvailableJobs { get; init; }
+}
+
+/// <summary>
+/// Verdict of the SuperUser live QA run: EF port vs legacy sprocs over the same scope.
+/// Mismatch entries are human-readable cell/row descriptors (shown verbatim in the UI).
+/// </summary>
+public record LegacyCompareResultDto
+{
+    public required bool Pass { get; init; }
+    public required int RollupCellsLegacy { get; init; }
+    public required int RollupCellsNew { get; init; }
+    public required List<string> MaterialMismatches { get; init; }
+    public required List<string> PennyDeltas { get; init; }
+}
+
 public record JobRevenueRecordDto
 {
     public required string JobName { get; init; }

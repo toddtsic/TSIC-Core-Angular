@@ -136,6 +136,36 @@ public class CustomerJobRevenueController : ControllerBase
     }
 
     /// <summary>
+    /// SuperUser live QA: diff the EF port against the legacy sprocs for the given scope.
+    /// Live proof the accounting numbers match legacy — usable any time until cutover.
+    /// </summary>
+    [HttpGet("legacy-compare")]
+    [Authorize(Policy = "SuperUserOnly")]
+    public async Task<ActionResult<LegacyCompareResultDto>> CompareWithLegacy(
+        [FromQuery] DateTime? startDate,
+        [FromQuery] DateTime? endDate,
+        [FromQuery] List<string> jobNames,
+        CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+        {
+            return BadRequest(new { message = "Registration context required" });
+        }
+
+        var scopeError = ValidateScope(startDate, endDate, jobNames);
+        if (scopeError != null)
+        {
+            return BadRequest(new { message = scopeError });
+        }
+
+        var result = await _revenueService.CompareWithLegacyAsync(
+            jobId.Value, startDate, endDate, jobNames ?? [], ct);
+
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Inline-edit a single MonthlyJobStats row (Player/Team Counts grid).
     /// </summary>
     [HttpPut("monthly-counts/{aid:int}")]

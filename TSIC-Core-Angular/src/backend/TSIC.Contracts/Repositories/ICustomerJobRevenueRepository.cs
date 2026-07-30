@@ -5,6 +5,15 @@ namespace TSIC.Contracts.Repositories;
 public interface ICustomerJobRevenueRepository
 {
     /// <summary>
+    /// Executes the legacy CustomerJobRevenueRollups sproc (variant per isTsicAdn) and reads
+    /// all 7 result sets. Baseline source for the SuperUser live QA comparison ONLY.
+    /// </summary>
+    Task<JobRevenueDataDto> GetLegacySprocDataAsync(
+        Guid jobId, DateTime startDate, DateTime endDate,
+        string listJobsString, bool isTsicAdn,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Available job names for the caller's customer group (numeric year ≥ 2022).
     /// Cheap scope-picker query — replaces running the full report just to fill the dropdown.
     /// </summary>
