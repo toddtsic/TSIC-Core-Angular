@@ -146,6 +146,7 @@
                 <tbody>
                   @for (team of sortedFilteredSourceTeams(); track team.teamId; let i = $index) {
                     <tr [class.table-active]="sourceSelected().has(team.teamId)"
+                        [class.just-moved]="justMovedIds().has(team.teamId)"
                         [class.text-body-tertiary]="!team.active">
                       <td class="col-check frozen frozen-0">
                         <input type="checkbox" class="form-check-input"
@@ -344,6 +345,7 @@
                 <tbody>
                   @for (team of sortedFilteredTargetTeams(); track team.teamId; let i = $index) {
                     <tr [class.table-active]="targetSelected().has(team.teamId)"
+                        [class.just-moved]="justMovedIds().has(team.teamId)"
                         [class.text-body-tertiary]="!team.active">
                       <td class="col-check frozen frozen-0">
                         <input type="checkbox" class="form-check-input"

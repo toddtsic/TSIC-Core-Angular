@@ -86,6 +86,11 @@ export class PoolAssignmentComponent {
     readonly isLoadingPreview = signal(false);
     readonly isTransferring = signal(false);
     readonly swappingId = signal<string | null>(null);
+    // AM-053: teams moved by the LAST transfer (single, batch, and both sides of a
+    // symmetrical swap). Panels silently reload after a transfer, so the highlight is
+    // the director's only post-move trace — it persists until the next transfer or a
+    // division change (deliberately no timed fade). Mirrors Roster Swapper AM-039.
+    readonly justMovedIds = signal<ReadonlySet<string>>(new Set());
 
     // Symmetrical swap readiness
     readonly canConfirmTransfer = computed(() => {
@@ -181,6 +186,7 @@ export class PoolAssignmentComponent {
 
     onSourceDivChange(divId: string) {
         this.sourceDivId.set(divId);
+        this.justMovedIds.set(new Set());
         this.sourceSelected.set(new Set());
         this.sourceFilter.set('');
         this.sourceSortCol.set(null);
@@ -195,6 +201,7 @@ export class PoolAssignmentComponent {
 
     onTargetDivChange(divId: string) {
         this.targetDivId.set(divId);
+        this.justMovedIds.set(new Set());
         this.targetSelected.set(new Set());
         this.targetFilter.set('');
         this.targetSortCol.set(null);
@@ -412,6 +419,9 @@ export class PoolAssignmentComponent {
         }).subscribe({
             next: result => {
                 this.toast.show(result.message, 'success', 4000);
+                // Both directions highlight: sourceTeamIds landed in the target div,
+                // counter-teams of a symmetrical swap landed in the source div.
+                this.justMovedIds.set(new Set([...sourceTeamIds, ...targetTeamIds]));
                 this.isTransferring.set(false);
                 this.transferPreview.set(null);
                 this.sourceSelected.set(new Set());
@@ -440,6 +450,7 @@ export class PoolAssignmentComponent {
         }).subscribe({
             next: result => {
                 this.toast.show(teamName ? `${teamName} moved. ${result.message}` : result.message, 'success', 3000);
+                this.justMovedIds.set(new Set([...sourceTeamIds, ...targetTeamIds]));
                 this.swappingId.set(null);
                 this.sourceSelected.set(new Set());
                 this.targetSelected.set(new Set());

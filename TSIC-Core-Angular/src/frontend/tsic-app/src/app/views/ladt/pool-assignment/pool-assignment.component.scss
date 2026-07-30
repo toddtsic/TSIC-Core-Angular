@@ -107,6 +107,29 @@ $name-width: 160px;
         background-color: var(--bs-body-bg);
         background-image: linear-gradient(var(--bs-table-hover-bg), var(--bs-table-hover-bg));
     }
+
+    // Last so the just-moved tint survives hover on the sticky cells too
+    tr.just-moved & {
+        background-color: var(--bs-body-bg);
+        background-image: linear-gradient(
+            color-mix(in srgb, var(--bs-warning) 18%, transparent),
+            color-mix(in srgb, var(--bs-warning) 18%, transparent));
+    }
+}
+
+// ── Just-moved highlight (AM-053, mirrors Roster Swapper AM-039) ──
+// Marks the row(s) landed by the last transfer — single, batch, and both sides of a
+// symmetrical swap, each on the division it now sits in. Panels silently reload after
+// a transfer, so this is the director's only post-move trace; it persists (no timed
+// fade, no animation) until the next transfer or a division change.
+tr.just-moved > td {
+    background-image: linear-gradient(
+        color-mix(in srgb, var(--bs-warning) 18%, transparent),
+        color-mix(in srgb, var(--bs-warning) 18%, transparent));
+}
+
+tr.just-moved > td:first-child {
+    box-shadow: inset 3px 0 0 var(--bs-warning);
 }
 
 thead .frozen {
