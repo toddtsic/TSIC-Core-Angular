@@ -224,7 +224,7 @@ export type ModalMode = 'add' | 'edit';
                 </div>
                 <div class="modal-footer">
                     @if (saveHint(); as hint) {
-                        <span class="save-hint" role="status">
+                        <span class="save-hint bg-info-subtle text-info-emphasis rounded" role="status">
                             <i class="bi bi-info-circle me-1"></i>{{ hint }}
                         </span>
                     }
@@ -387,16 +387,16 @@ export type ModalMode = 'add' | 'edit';
 
         .bulletin-modal .modal-footer {
             padding: var(--space-3) var(--space-5);
+            flex-wrap: wrap; /* AM-042: hint takes its own line on narrow screens instead of clipping */
         }
 
-        /* AM-042: reason the Save button is disabled — pushed to the left of the
-           footer buttons (footer is flex/justify-end, so margin-right:auto floats it left). */
+        /* AM-042 (Ann re-open): info-blue pill sitting immediately left of Cancel —
+           colors come from bg-info-subtle/text-info-emphasis (light/dark aware). */
         .bulletin-modal .save-hint {
-            margin-right: auto;
             display: inline-flex;
             align-items: center;
             font-size: var(--font-size-sm);
-            color: var(--bs-secondary-color);
+            padding: var(--space-1) var(--space-2);
         }
 
         :host ::ng-deep .e-richtexteditor {
