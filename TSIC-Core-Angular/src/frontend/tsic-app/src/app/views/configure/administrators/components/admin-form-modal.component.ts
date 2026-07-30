@@ -128,9 +128,9 @@ export interface AdminFormResult {
                                         @case ('alreadyAdmin') {
                                             <div class="alert alert-warning d-flex align-items-start gap-2 mt-2 mb-0 py-2 px-3 small" role="status">
                                                 <i class="bi bi-person-check flex-shrink-0"></i>
-                                                <span>"{{ searchInput().trim() }}" is already an administrator on
-                                                this job — manage them in the grid (use the Active toggle to
-                                                reactivate a deactivated admin).</span>
+                                                <span>"{{ searchInput().trim() }}" already holds
+                                                {{ selectedRole() }} on this job — manage them in the grid (use
+                                                the Active toggle to reactivate a deactivated admin).</span>
                                             </div>
                                         }
                                         @case ('outsideLane') {

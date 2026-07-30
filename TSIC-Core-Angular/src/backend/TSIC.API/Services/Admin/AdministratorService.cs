@@ -24,8 +24,10 @@ public sealed class AdministratorService : IAdministratorService
     /// lies within the lane. No cross-type grants (a Director cannot be handed Store Admin; a
     /// referee's account cannot become Ref Assignor — fresh admins come through the Unassigned
     /// Adult funnel instead). Director and SuperDirector share one lane: they are the same kind
-    /// of person at two trust levels, and mixed D/SD accounts exist by design (the Edit modal
-    /// flips between them). Every other admin type is strictly its own lane.
+    /// of person at two trust levels, and mixed D/SD accounts exist by design — a person may
+    /// hold BOTH roles on one job (two registrations, one per hat, chosen at the login role
+    /// picker), and the Edit modal flips a single registration between them. Every other admin
+    /// type is strictly its own lane.
     /// </summary>
     private static string[] GetRoleLane(string roleId)
     {
@@ -204,9 +206,17 @@ public sealed class AdministratorService : IAdministratorService
 
         // Lane-pure account: pin with a new registration on this job.
         // Guard on ALL registrations (not the live subset) — an inactive admin reg on this job
-        // still blocks; reactivate via the grid instead of creating a duplicate row.
-        if (allRegistrations.Any(r => r.JobId == jobId))
-            throw new ArgumentException($"'{request.UserName}' already has a registration on this job.");
+        // still blocks; reactivate via the grid instead of creating a duplicate row. Within the
+        // D/SD lane the OTHER role does not block: dual-hat accounts hold Director AND
+        // SuperDirector on one job as two registrations, one per hat, chosen at login. For
+        // single-role lanes (lane = [requested role]) this collapses to "any reg on this job".
+        if (allRegistrations.Any(r => r.JobId == jobId
+                && (string.Equals(r.RoleId, roleId, StringComparison.OrdinalIgnoreCase)
+                    || !lane.Contains(r.RoleId, StringComparer.OrdinalIgnoreCase))))
+            throw new ArgumentException(
+                $"'{request.UserName}' already has a registration on this job that blocks adding " +
+                $"{request.RoleName} — a deactivated admin is reactivated via the grid's Active toggle, " +
+                "never re-added.");
 
         var registration = new Registrations
         {
@@ -250,6 +260,21 @@ public sealed class AdministratorService : IAdministratorService
 
         if (!RoleNameToIdMap.TryGetValue(request.RoleName, out var roleId))
             throw new ArgumentException($"Invalid role name: '{request.RoleName}'.");
+
+        // Dual-hat accounts hold Director AND SuperDirector on one job as two rows — flipping
+        // this row's role must not mint a same-role duplicate of its sibling. Same invariant
+        // the add path enforces; both write chokepoints carry it.
+        if (!string.Equals(registration.RoleId, roleId, StringComparison.OrdinalIgnoreCase)
+            && registration.UserId != null)
+        {
+            var siblings = await _adminRepo.GetRegistrationsByUserIdAsync(registration.UserId, cancellationToken);
+            if (siblings.Any(r => r.RegistrationId != registrationId
+                    && r.JobId == registration.JobId
+                    && string.Equals(r.RoleId, roleId, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException(
+                    $"This person already holds {request.RoleName} on this job on a separate row — " +
+                    "manage that row instead of duplicating it.");
+        }
 
         registration.BActive = request.IsActive;
         registration.RoleId = roleId;
@@ -374,14 +399,14 @@ public sealed class AdministratorService : IAdministratorService
 
         var lane = GetRoleLane(roleId);
         var results = await _userRepo.SearchAdminCandidatesAsync(
-            query, customerId.Value, jobId, lane, 10, cancellationToken);
+            query, customerId.Value, jobId, roleId, lane, 10, cancellationToken);
 
         if (results.Count == 0)
         {
             // Empty is ambiguous to the user (not registered? wrong kind of account? broken?) —
             // diagnose so the modal can show the matching funnel message.
             var reason = await _userRepo.DiagnoseAdminCandidateMissAsync(
-                query, customerId.Value, jobId, lane, cancellationToken);
+                query, customerId.Value, jobId, roleId, lane, cancellationToken);
 
             return new UserSearchResponseDto
             {

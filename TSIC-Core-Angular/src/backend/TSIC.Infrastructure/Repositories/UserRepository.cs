@@ -168,6 +168,7 @@ public class UserRepository : IUserRepository
         string query,
         Guid customerId,
         Guid jobId,
+        string requestedRoleId,
         IReadOnlyCollection<string> laneRoleIds,
         int maxResults = 10,
         CancellationToken cancellationToken = default)
@@ -227,14 +228,21 @@ public class UserRepository : IUserRepository
                         && r.RoleId == RoleConstants.UnassignedAdult
                         && r.Job.ExpiryUsers > now
                         && r.Job.CustomerId == customerId),
-                // ANY registration on this job, active or not — mirrors the add-side duplicate
-                // guard, so search never offers someone the add would then reject.
-                HasRegOnThisJob = _context.Registrations.Any(r => r.UserId == u.Id && r.JobId == jobId)
+                // A registration on this job blocks only if it carries the REQUESTED role
+                // (active or not — reactivate via the grid, never stack a duplicate) or a role
+                // outside the lane. Within the D/SD lane the other role does NOT block: dual-hat
+                // accounts hold Director AND SuperDirector on one job as two registrations. For
+                // single-role lanes (lane = [requested]) this collapses to "any reg on this job".
+                // Mirrors the add-side duplicate guard, so search never offers someone the add
+                // would then reject.
+                HasBlockingRegOnThisJob = _context.Registrations.Any(r => r.UserId == u.Id
+                    && r.JobId == jobId
+                    && (r.RoleId == requestedRoleId || !laneRoleIds.Contains(r.RoleId!)))
             })
-            // Lane-pure + already registered here = already an administrator on this job
-            // (possibly deactivated) — manage them in the grid, don't offer them. Pending
+            // Lane-pure + blocking registration here = already holds the requested role on this
+            // job (possibly deactivated) — manage them in the grid, don't offer them. Pending
             // adults keep their this-job registration offered: it's what convert consumes.
-            .Where(x => (x.IsLanePure && !x.HasRegOnThisJob) || x.IsPendingAdultOnly)
+            .Where(x => (x.IsLanePure && !x.HasBlockingRegOnThisJob) || x.IsPendingAdultOnly)
             .OrderBy(x => x.User.LastName)
             .ThenBy(x => x.User.FirstName)
             .Take(maxResults)
@@ -253,6 +261,7 @@ public class UserRepository : IUserRepository
         string query,
         Guid customerId,
         Guid jobId,
+        string requestedRoleId,
         IReadOnlyCollection<string> laneRoleIds,
         CancellationToken cancellationToken = default)
     {
@@ -288,11 +297,12 @@ public class UserRepository : IUserRepository
                     && (RoleConstants.AdminRoleIds.Contains(r.RoleId!)
                         ? r.Job.ExpiryAdmin > now
                         : r.Job.ExpiryUsers > now)),
-                // Lane-role registration on THIS job (active or not) — the search excluded them
-                // as "already an administrator here", so say that, not "outside lane".
-                IsLaneAdminOnThisJob = _context.Registrations.Any(r => r.UserId == u.Id
+                // REQUESTED-role registration on THIS job (active or not) — the search excluded
+                // them as "already holds this role here", so say that, not "outside lane". The
+                // other D/SD lane role no longer blocks (dual-hat), so it must not trip this.
+                IsRequestedRoleAdminOnThisJob = _context.Registrations.Any(r => r.UserId == u.Id
                     && r.JobId == jobId
-                    && laneRoleIds.Contains(r.RoleId!))
+                    && r.RoleId == requestedRoleId)
             })
             .Take(25)
             .ToListAsync(cancellationToken);
@@ -301,7 +311,7 @@ public class UserRepository : IUserRepository
         // the family/player explanation (the common household-login case) over the generic one.
         var best = matches.FirstOrDefault(m => m.IsExactUserName)
             ?? matches.FirstOrDefault(m => m.IsFamilyOrPlayer)
-            ?? matches.FirstOrDefault(m => m.IsLaneAdminOnThisJob)
+            ?? matches.FirstOrDefault(m => m.IsRequestedRoleAdminOnThisJob)
             ?? matches.FirstOrDefault(m => m.HasLiveRegs);
 
         if (best == null)
@@ -310,7 +320,7 @@ public class UserRepository : IUserRepository
         if (best.IsFamilyOrPlayer)
             return AdminCandidateMissReason.FamilyOrPlayer;
 
-        if (best.IsLaneAdminOnThisJob)
+        if (best.IsRequestedRoleAdminOnThisJob)
             return AdminCandidateMissReason.AlreadyAdmin;
 
         // Only dead registrations (inactive / job expired) → same funnel as "not registered here".
