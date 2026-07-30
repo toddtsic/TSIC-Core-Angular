@@ -294,6 +294,8 @@ export type { EmailParticipantsRequest } from './models/EmailParticipantsRequest
 export type { EmailPreviewRequest } from './models/EmailPreviewRequest';
 export type { EmailPreviewResponse } from './models/EmailPreviewResponse';
 export type { EmailRecipientCountResponse } from './models/EmailRecipientCountResponse';
+export type { EmailTestSendRequest } from './models/EmailTestSendRequest';
+export type { EmailTestSendResponse } from './models/EmailTestSendResponse';
 export type { EnsureJobOverrideNavRequest } from './models/EnsureJobOverrideNavRequest';
 export type { EnsurePairingsRequest } from './models/EnsurePairingsRequest';
 export type { EnsurePairingsResponse } from './models/EnsurePairingsResponse';
@@ -690,8 +692,6 @@ export type { SubscriptionDetailDto } from './models/SubscriptionDetailDto';
 export type { SuggestedEventDto } from './models/SuggestedEventDto';
 export type { SuggestedTeamNameDto } from './models/SuggestedTeamNameDto';
 export type { SupersedingEventInfoDto } from './models/SupersedingEventInfoDto';
-export type { SuperuserTestSendRequest } from './models/SuperuserTestSendRequest';
-export type { SuperuserTestSendResponse } from './models/SuperuserTestSendResponse';
 export type { SuppressionEntryDto } from './models/SuppressionEntryDto';
 export type { SuppressionRemoveResultDto } from './models/SuppressionRemoveResultDto';
 export type { SuspendedJobDto } from './models/SuspendedJobDto';

@@ -250,7 +250,7 @@ export class ArbHealthComponent {
     readonly isSendingTest = signal(false);
 
     /** Non-prod: renders ARB tokens against the first selected flagged registrant and delivers
-     *  the real email to the chosen test inbox(es). */
+     *  the real email to a single test inbox. */
     sendTestEmail(options: TestSendOptions): void {
         const firstSelected = this.registrants().find(r => this.selectedIds().has(r.registrationId))
             ?? this.registrants()[0];
@@ -263,13 +263,12 @@ export class ArbHealthComponent {
             registrationId: firstSelected.registrationId,
             emailSubject: this.emailSubject(),
             emailBody: this.emailBody(),
-            includeSuperusers: options.includeSuperusers,
-            extraRecipient: options.extraRecipient ?? undefined
+            testRecipient: options.recipient
         }).subscribe({
             next: result => {
                 this.isSendingTest.set(false);
                 if (result.sent) {
-                    this.toast.show(`Test email (rendered for ${result.renderedFor}) sent to: ${result.recipients.join(', ')}`, 'success', 6000);
+                    this.toast.show(`Test email (rendered for ${result.renderedFor}) sent to ${result.recipient}`, 'success', 6000);
                 } else {
                     this.toast.show(result.message || 'Test send failed', 'danger', 5000);
                 }

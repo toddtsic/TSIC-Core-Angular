@@ -21,7 +21,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
     private readonly IJobRepository _jobs;
     private readonly IEmailBatchService _emailBatch;
     private readonly ITextSubstitutionService _textSubstitution;
-    private readonly ISuperuserTestSendService _testSend;
+    private readonly IEmailTestSendService _testSend;
     private readonly ILogger<UsLaxMembershipService> _logger;
 
     public UsLaxMembershipService(
@@ -30,7 +30,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         IJobRepository jobs,
         IEmailBatchService emailBatch,
         ITextSubstitutionService textSubstitution,
-        ISuperuserTestSendService testSend,
+        IEmailTestSendService testSend,
         ILogger<UsLaxMembershipService> logger)
     {
         _registrations = registrations;
@@ -255,7 +255,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         };
     }
 
-    public async Task<SuperuserTestSendResponse> SendTestEmailAsync(
+    public async Task<EmailTestSendResponse> SendTestEmailAsync(
         Guid jobId, UsLaxTestSendRequest request, CancellationToken ct = default)
     {
         var jobInfo = await _jobs.GetConfirmationEmailInfoAsync(jobId, ct);
@@ -269,8 +269,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
             request.Subject, request.Body, inviteTargetJobPath: null, extraTokens: extras);
 
         var renderedFor = $"{request.Recipient.FirstName} {request.Recipient.LastName}".Trim();
-        return await _testSend.SendRenderedAsync(
-            subject, body, renderedFor, request.IncludeSuperusers, request.ExtraRecipient, ct);
+        return await _testSend.SendRenderedAsync(subject, body, renderedFor, request.TestRecipient, ct);
     }
 
     /// <summary>

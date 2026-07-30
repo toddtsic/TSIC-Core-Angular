@@ -78,12 +78,6 @@ public interface IRegistrationRepository
     Task<List<RegistrationDto>> GetSuperUserRegistrationsAsync(string userId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Distinct emails of every user holding an active Superuser registration (platform-wide).
-    /// Used by the sandbox-only test-send tool to deliver rendered previews to real inboxes.
-    /// </summary>
-    Task<List<string>> GetSuperuserEmailsAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Get SuperDirector role registrations for a user
     /// </summary>
     Task<List<RegistrationDto>> GetSuperDirectorRegistrationsAsync(string userId, CancellationToken cancellationToken = default);

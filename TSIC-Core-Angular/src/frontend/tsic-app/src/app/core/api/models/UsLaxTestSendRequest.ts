@@ -7,7 +7,6 @@ export type UsLaxTestSendRequest = {
     subject: string;
     body: string;
     recipient: UsLaxEmailRecipientDto;
-    includeSuperusers?: boolean;
-    extraRecipient?: string | null;
+    testRecipient: string;
 };
 

@@ -9,7 +9,6 @@ export type ArbTestSendRequest = {
     registrationId: string;
     emailSubject: string;
     emailBody: string;
-    includeSuperusers?: boolean;
-    extraRecipient?: string | null;
+    testRecipient: string;
 };
 

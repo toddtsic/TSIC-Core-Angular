@@ -3,16 +3,15 @@ import { FormsModule } from '@angular/forms';
 
 /** What the tester chose in the popover. */
 export interface TestSendOptions {
-    includeSuperusers: boolean;
-    extraRecipient: string | null;
+    recipient: string;
 }
 
 /**
- * Non-prod "Send Test" button + options popover, shared by every email compose surface.
+ * Non-prod "Send Test" button + popover, shared by every email compose surface.
  * The surface renders tokens against the FIRST registration of its current audience and
- * delivers the result to the address entered here (default: Ann's test inbox) and/or the
- * SuperUser inboxes. Parent owns the HTTP call: listen to (send), pass [busy] while in
- * flight, and gate visibility with its own non-prod check.
+ * delivers the result to the single address entered here (default: Ann's test inbox).
+ * Parent owns the HTTP call: listen to (send), pass [busy] while in flight, and gate
+ * visibility with its own non-prod check.
  */
 @Component({
     selector: 'app-test-send-button',
@@ -39,11 +38,6 @@ export interface TestSendOptions {
                             Tokens render with the <strong>first recipient's</strong> real data;
                             only the delivery address is swapped.
                         </small>
-                    </div>
-                    <div class="form-check mb-2">
-                        <input id="test-send-su" type="checkbox" class="form-check-input"
-                            [ngModel]="includeSuperusers()" (ngModelChange)="includeSuperusers.set($event)">
-                        <label for="test-send-su" class="form-check-label">Also send to SuperUsers</label>
                     </div>
                     <div class="d-flex gap-2 justify-content-end">
                         <button type="button" class="btn btn-sm btn-outline-secondary" (click)="open.set(false)">Cancel</button>
@@ -82,18 +76,15 @@ export class TestSendButtonComponent {
     readonly open = signal(false);
     /** Default per Todd: Ann's test inbox — same precedent as the invite sandbox test recipient. */
     readonly extra = signal('anntsic@gmail.com');
-    readonly includeSuperusers = signal(false);
 
-    readonly canFire = computed(() => this.includeSuperusers() || this.extra().trim().includes('@'));
+    readonly canFire = computed(() => this.extra().trim().includes('@'));
 
     toggle(): void { this.open.update(v => !v); }
 
     fire(): void {
-        const extra = this.extra().trim();
+        const recipient = this.extra().trim();
+        if (!recipient.includes('@')) return;
         this.open.set(false);
-        this.send.emit({
-            includeSuperusers: this.includeSuperusers(),
-            extraRecipient: extra.includes('@') ? extra : null
-        });
+        this.send.emit({ recipient });
     }
 }

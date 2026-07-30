@@ -25,9 +25,9 @@ public interface IArbDefensiveService
 
     /// <summary>
     /// Sandbox-only: renders the composed defensive email for one flagged registrant and delivers
-    /// it for real to Superuser inboxes and/or an explicit test inbox. Never a live send path.
+    /// it for real to a single test inbox. Never a live send path.
     /// </summary>
-    Task<SuperuserTestSendResponse> SendTestEmailAsync(
+    Task<EmailTestSendResponse> SendTestEmailAsync(
         ArbTestSendRequest request, CancellationToken ct = default);
 
     Task<ArbSubscriptionInfoDto?> GetSubscriptionInfoAsync(

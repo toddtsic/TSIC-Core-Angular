@@ -3,12 +3,11 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { RegistrationSearchRequest } from './RegistrationSearchRequest';
-export type SuperuserTestSendRequest = {
+export type EmailTestSendRequest = {
     registrationIds: Array<string>;
     criteria?: (null | RegistrationSearchRequest);
     subject: string;
     bodyTemplate: string;
-    includeSuperusers?: boolean;
-    extraRecipient?: string | null;
+    testRecipient: string;
 };
 

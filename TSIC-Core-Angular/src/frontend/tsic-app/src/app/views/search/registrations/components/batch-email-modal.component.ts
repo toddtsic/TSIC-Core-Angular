@@ -292,7 +292,7 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
   isSendingTest = signal<boolean>(false);
 
   /** Non-prod only: renders for the first recipient of the audience and delivers the real email
-   *  to the chosen test inbox(es), so received formatting + token values can be verified. */
+   *  to a single test inbox, so received formatting + token values can be verified. */
   sendTestEmail(options: TestSendOptions): void {
     if (!this.subject().trim() || !this.bodyTemplate().trim()) { this.toast.show('Subject and body are required', 'danger', 4000); return; }
     if (this.recipientCount() === 0) { this.toast.show('No recipients to render the test against', 'danger', 4000); return; }
@@ -303,13 +303,12 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
       criteria: this.searchRequest() ?? undefined,
       subject: this.subject(),
       bodyTemplate: this.bodyTemplate(),
-      includeSuperusers: options.includeSuperusers,
-      extraRecipient: options.extraRecipient ?? undefined
+      testRecipient: options.recipient
     }).subscribe({
       next: (result) => {
         this.isSendingTest.set(false);
         if (result.sent) {
-          this.toast.show(`Test email (rendered for ${result.renderedFor}) sent to: ${result.recipients.join(', ')}`, 'success', 6000);
+          this.toast.show(`Test email (rendered for ${result.renderedFor}) sent to ${result.recipient}`, 'success', 6000);
         } else {
           this.toast.show(result.message || 'Test send failed', 'danger', 5000);
         }

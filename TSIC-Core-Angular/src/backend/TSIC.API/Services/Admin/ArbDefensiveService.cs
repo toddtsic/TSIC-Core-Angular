@@ -18,7 +18,7 @@ public class ArbDefensiveService : IArbDefensiveService
     private readonly IRegistrationAccountingRepository _accountingRepo;
     private readonly IAdnApiService _adnApi;
     private readonly IEmailBatchService _emailBatch;
-    private readonly ISuperuserTestSendService _testSend;
+    private readonly IEmailTestSendService _testSend;
     private readonly ILogger<ArbDefensiveService> _logger;
 
     public ArbDefensiveService(
@@ -26,7 +26,7 @@ public class ArbDefensiveService : IArbDefensiveService
         IRegistrationAccountingRepository accountingRepo,
         IAdnApiService adnApi,
         IEmailBatchService emailBatch,
-        ISuperuserTestSendService testSend,
+        IEmailTestSendService testSend,
         ILogger<ArbDefensiveService> logger)
     {
         _arbRepo = arbRepo;
@@ -323,7 +323,7 @@ public class ArbDefensiveService : IArbDefensiveService
 
     // ── SendTestEmailAsync ──────────────────────────────────────────────
 
-    public async Task<SuperuserTestSendResponse> SendTestEmailAsync(
+    public async Task<EmailTestSendResponse> SendTestEmailAsync(
         ArbTestSendRequest request, CancellationToken ct = default)
     {
         // Render against the same flagged snapshot the real send would use, so token values
@@ -333,11 +333,11 @@ public class ArbDefensiveService : IArbDefensiveService
                   ?? flagged.FirstOrDefault();
         if (reg == null)
         {
-            return new SuperuserTestSendResponse
+            return new EmailTestSendResponse
             {
                 Sent = false,
                 RenderedFor = string.Empty,
-                Recipients = [],
+                Recipient = string.Empty,
                 Message = "No flagged registrant available to render the test email."
             };
         }
@@ -346,8 +346,7 @@ public class ArbDefensiveService : IArbDefensiveService
             request.EmailSubject,
             ReplaceArbTokens(request.EmailBody, reg),
             reg.RegistrantName,
-            request.IncludeSuperusers,
-            request.ExtraRecipient,
+            request.TestRecipient,
             ct);
     }
 

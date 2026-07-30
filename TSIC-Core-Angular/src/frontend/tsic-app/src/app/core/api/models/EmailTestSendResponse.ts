@@ -2,10 +2,10 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type SuperuserTestSendResponse = {
+export type EmailTestSendResponse = {
     sent: boolean;
     renderedFor: string;
-    recipients: Array<string>;
+    recipient: string;
     message?: string | null;
 };
 

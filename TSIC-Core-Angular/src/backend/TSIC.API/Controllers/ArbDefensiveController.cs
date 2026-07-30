@@ -108,11 +108,11 @@ public class ArbDefensiveController : ControllerBase
 
     /// <summary>
     /// Sandbox-only: renders the composed defensive email for one flagged registrant and delivers
-    /// it FOR REAL to Superuser inboxes and/or an explicit test inbox. Rejected in Production.
+    /// it FOR REAL to a single test inbox. Rejected in Production.
     /// </summary>
-    [HttpPost("send-emails/test-send-superusers")]
+    [HttpPost("send-emails/test-send")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<ActionResult<SuperuserTestSendResponse>> SendTestEmail(
+    public async Task<ActionResult<EmailTestSendResponse>> SendTestEmail(
         [FromBody] ArbTestSendRequest request,
         CancellationToken ct)
     {
@@ -120,7 +120,7 @@ public class ArbDefensiveController : ControllerBase
         if (jobId == null) return Unauthorized();
 
         if (_env.IsLiveProduction())
-            return BadRequest(new { message = "Superuser test sends are not permitted in Production." });
+            return BadRequest(new { message = "Test sends are not permitted in Production." });
 
         var result = await _service.SendTestEmailAsync(request with { JobId = jobId.Value }, ct);
         return Ok(result);

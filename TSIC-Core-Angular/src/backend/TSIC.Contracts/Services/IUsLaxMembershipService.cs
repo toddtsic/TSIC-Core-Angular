@@ -26,7 +26,7 @@ public interface IUsLaxMembershipService
 
     /// <summary>
     /// Sandbox-only: renders the composed USLax email for one recipient snapshot and delivers it
-    /// for real to Superuser inboxes and/or an explicit test inbox. Never a live send path.
+    /// for real to a single test inbox. Never a live send path.
     /// </summary>
-    Task<SuperuserTestSendResponse> SendTestEmailAsync(Guid jobId, UsLaxTestSendRequest request, CancellationToken ct = default);
+    Task<EmailTestSendResponse> SendTestEmailAsync(Guid jobId, UsLaxTestSendRequest request, CancellationToken ct = default);
 }

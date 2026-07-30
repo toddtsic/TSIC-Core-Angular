@@ -63,10 +63,10 @@ public class UsLaxMembershipController : ControllerBase
 
     /// <summary>
     /// Sandbox-only: renders the composed USLax email for one recipient snapshot and delivers it
-    /// FOR REAL to Superuser inboxes and/or an explicit test inbox. Rejected in Production.
+    /// FOR REAL to a single test inbox. Rejected in Production.
     /// </summary>
-    [HttpPost("email/test-send-superusers")]
-    public async Task<ActionResult<SuperuserTestSendResponse>> SendTestEmail(
+    [HttpPost("email/test-send")]
+    public async Task<ActionResult<EmailTestSendResponse>> SendTestEmail(
         [FromBody] UsLaxTestSendRequest request,
         CancellationToken ct)
     {
@@ -77,7 +77,7 @@ public class UsLaxMembershipController : ControllerBase
         if (jobId == null) return BadRequest(new { message = "Registration context required" });
 
         if (_env.IsLiveProduction())
-            return BadRequest(new { message = "Superuser test sends are not permitted in Production." });
+            return BadRequest(new { message = "Test sends are not permitted in Production." });
 
         var result = await _service.SendTestEmailAsync(jobId.Value, request, ct);
         return Ok(result);

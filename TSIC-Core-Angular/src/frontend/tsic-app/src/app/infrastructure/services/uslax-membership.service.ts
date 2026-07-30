@@ -12,7 +12,7 @@ import type {
 	UsLaxReconciliationResponse,
 	UsLaxTestSendRequest,
 	EmailBatchJobStatus,
-	SuperuserTestSendResponse
+	EmailTestSendResponse
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -38,9 +38,9 @@ export class UsLaxMembershipService {
 		return this.http.get<EmailBatchJobStatus>(`${this.apiUrl}/uslax-membership/email/${batchJobId}/status`);
 	}
 
-	/** Sandbox-only: render for one recipient snapshot, deliver for real to the chosen test inboxes. */
-	sendTestEmail(request: UsLaxTestSendRequest): Observable<SuperuserTestSendResponse> {
-		return this.http.post<SuperuserTestSendResponse>(`${this.apiUrl}/uslax-membership/email/test-send-superusers`, request);
+	/** Sandbox-only: render for one recipient snapshot, deliver for real to a single test inbox. */
+	sendTestEmail(request: UsLaxTestSendRequest): Observable<EmailTestSendResponse> {
+		return this.http.post<EmailTestSendResponse>(`${this.apiUrl}/uslax-membership/email/test-send`, request);
 	}
 
 	/**

@@ -458,8 +458,8 @@ builder.Services.AddScoped<IMyEmailDeliverabilityService, MyEmailDeliverabilityS
 // (engine owns no scoped state; render workers create their own scopes per IEmailBatchService).
 builder.Services.AddSingleton<IEmailBatchJobRegistry, EmailBatchJobRegistry>();
 builder.Services.AddSingleton<IEmailBatchService, EmailBatchService>();
-// Sandbox-only "send rendered preview to Superuser inboxes" tool (scoped: reads the registration repo).
-builder.Services.AddScoped<ISuperuserTestSendService, SuperuserTestSendService>();
+// Sandbox-only "send rendered preview to a test inbox" tool.
+builder.Services.AddSingleton<IEmailTestSendService, EmailTestSendService>();
 
 // US LAX settings and HTTP client
 builder.Services.Configure<UsLaxSettings>(builder.Configuration.GetSection("UsLax"));

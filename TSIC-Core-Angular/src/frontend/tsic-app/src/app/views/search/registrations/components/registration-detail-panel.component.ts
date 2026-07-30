@@ -1003,7 +1003,7 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   readonly isNonProd = environment.envName !== 'production';
   readonly isSendingTestEmail = signal(false);
 
-  /** Non-prod: renders tokens against THIS registration and delivers to the chosen test inbox(es). */
+  /** Non-prod: renders tokens against THIS registration and delivers to a single test inbox. */
   sendTestEmail(options: TestSendOptions): void {
     const d = this.detail();
     if (!d || !this.emailSubject() || !this.emailBody()) {
@@ -1015,13 +1015,12 @@ export class RegistrationDetailPanelComponent implements OnChanges {
       registrationIds: [d.registrationId],
       subject: this.emailSubject(),
       bodyTemplate: this.emailBody(),
-      includeSuperusers: options.includeSuperusers,
-      extraRecipient: options.extraRecipient ?? undefined
+      testRecipient: options.recipient
     }).subscribe({
       next: (result) => {
         this.isSendingTestEmail.set(false);
         if (result.sent) {
-          this.toast.show(`Test email (rendered for ${result.renderedFor}) sent to: ${result.recipients.join(', ')}`, 'success', 6000);
+          this.toast.show(`Test email (rendered for ${result.renderedFor}) sent to ${result.recipient}`, 'success', 6000);
         } else {
           this.toast.show(result.message || 'Test send failed', 'danger', 5000);
         }

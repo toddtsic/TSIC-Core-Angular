@@ -21,7 +21,7 @@ public class RegistrationSearchController : ControllerBase
     private readonly IJobLookupService _jobLookupService;
     private readonly IEmailBatchJobRegistry _batchJobs;
     private readonly IEmailBatchService _emailBatch;
-    private readonly ISuperuserTestSendService _testSend;
+    private readonly IEmailTestSendService _testSend;
     private readonly IHostEnvironment _env;
 
     public RegistrationSearchController(
@@ -29,7 +29,7 @@ public class RegistrationSearchController : ControllerBase
         IJobLookupService jobLookupService,
         IEmailBatchJobRegistry batchJobs,
         IEmailBatchService emailBatch,
-        ISuperuserTestSendService testSend,
+        IEmailTestSendService testSend,
         IHostEnvironment env)
     {
         _searchService = searchService;
@@ -489,20 +489,20 @@ public class RegistrationSearchController : ControllerBase
 
     /// <summary>
     /// Sandbox-only: renders the composed email for the FIRST recipient of the current audience
-    /// (same pipeline as email-preview) and delivers it FOR REAL to every active Superuser inbox
-    /// via the forced-transmit override, so final formatting can be verified in an actual mail
-    /// client. Rejected outright in Production — mirrors the simulate-flag stance above: a test
-    /// signal never reaches a live host's send machinery.
+    /// (same pipeline as email-preview) and delivers it FOR REAL to a single test inbox via the
+    /// forced-transmit override, so final formatting can be verified in an actual mail client.
+    /// Rejected outright in Production — mirrors the simulate-flag stance above: a test signal
+    /// never reaches a live host's send machinery.
     /// </summary>
-    [HttpPost("batch-email/test-send-superusers")]
-    public async Task<ActionResult<SuperuserTestSendResponse>> SendTestToSuperusers(
-        [FromBody] SuperuserTestSendRequest request, CancellationToken ct)
+    [HttpPost("batch-email/test-send")]
+    public async Task<ActionResult<EmailTestSendResponse>> SendTestEmail(
+        [FromBody] EmailTestSendRequest request, CancellationToken ct)
     {
         var (jobId, _, error) = await ResolveContext();
         if (error != null) return error;
 
         if (_env.IsLiveProduction())
-            return BadRequest(new { message = "Superuser test sends are not permitted in Production." });
+            return BadRequest(new { message = "Test sends are not permitted in Production." });
 
         // One rendering sample: trim explicit ids to the first — the preview renders every id given.
         var trimmed = new EmailPreviewRequest
@@ -520,7 +520,7 @@ public class RegistrationSearchController : ControllerBase
 
         var result = await _testSend.SendRenderedAsync(
             sample.RenderedSubject, sample.RenderedBody, sample.RecipientName,
-            request.IncludeSuperusers, request.ExtraRecipient, ct);
+            request.TestRecipient, ct);
         return Ok(result);
     }
 
