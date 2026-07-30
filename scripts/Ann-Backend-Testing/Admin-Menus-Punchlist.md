@@ -879,3 +879,15 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Severity**: UX (field placement / consolidation)
 - **📣 Todd — please discuss with Ann (2026-07-29)** before actioning: Ann wants to talk through the refund-policy consolidation (job-type visibility, the "Club Rep / Team" label, whether the Coaches tab survives, and the one-editor A→B path) rather than have it parked or decided unilaterally.
 - **Status**: Open — **awaiting Todd + Ann discussion** (Ann, 2026-07-29)
+
+### AM-053: [Teams & Rosters → Pool Assignment] Highlight the just-moved team(s) after a transfer — analogous to the Roster Swapper fix (AM-039)
+- **Topic**: Teams & Rosters → **Pool Assignment** → after a team transfer between divisions
+- **Source**: Ann (2026-07-30) — same idea as AM-039, applied to Pool Assignment
+- **Request (Ann)**: After a team is moved in Pool Assignment, **highlight the moved team(s) on the division they landed in** so you can see what just moved (and move it back if it was a mistake) — exactly like the just-moved highlight AM-039 added to Roster Swapper. Applies to **both** move paths and to **multi-team** moves.
+- **What happens today (verified)**: a transfer clears the selection and **reloads both division pools** with no lasting trace of who moved — same gap AM-039 fixed for Roster Swapper. Two move paths, both in `pool-assignment.component.ts`:
+  - **Direct arrow move** — `executeTransferDirect` success ([pool-assignment.component.ts:441-450](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/ladt/pool-assignment/pool-assignment.component.ts#L441)): shows a 3s toast, clears `swappingId` + both selection sets, then `loadTeams('source', …)` / `loadTeams('target', …)`.
+  - **Preview → Confirm move** (incl. symmetrical swap) — `confirmTransfer` success ([:413-423](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/ladt/pool-assignment/pool-assignment.component.ts#L413)): 4s toast, clears preview + both selection sets, same `loadTeams` reload of both pools.
+  - After the reload the moved rows look identical to every other row — nothing marks them. There's already a `swappingId` signal for the single in-flight case, exactly like Roster Swapper had before AM-039.
+- **For Todd**: mirror the AM-039 approach — capture the transferred `teamId`s (single **and** batch, and the counter-teams on a symmetrical swap) into a `justMovedIds` set in **both** success handlers, apply a **highlight** (warm amber tint + accent bar, design-system `--bs-warning`, no animation → reduced-motion clean, sticky frozen-column variant) to those rows on the division they now sit in, and **persist until the next transfer or a division change** (clear on the pool-change / re-select handlers). Reuse the AM-039 `.just-moved` styling for consistency across the two tools. No confirmation dialog needed (Pool Assignment already has a Preview→Confirm step for that path).
+- **Severity**: UX (error recovery — no post-move visibility on which team moved; parity with Roster Swapper AM-039)
+- **Status**: Open (Ann, 2026-07-30)
