@@ -109,8 +109,11 @@ function MultisetDiff($label, $oldRows, $newRows, $keyScript) {
     foreach ($e in $bag.GetEnumerator()) { if ($e.Value -gt 0) { [void]$script:mismatches.Add("$label missing in NEW (x$($e.Value)): $($e.Key)") } }
 }
 
-MultisetDiff "ADMINFEES" $old.adminFees $new.adminFees { param($r) "{0}|{1}|{2}|{3}|{4}|{5}" -f $r.jobName, $r.year, $r.month, $r.chargeType, $r.chargeAmount, $r.comment }
+MultisetDiff "ADMINFEES" $old.adminFees $new.adminFees { param($r) "{0}|{1}|{2}|{3}|{4}|{5}" -f $r.jobName, $r.year, $r.month, $r.chargeType, ([decimal]$r.chargeAmount).ToString("0.00"), $r.comment }
 
+# Detail keys normalize serialization noise, not data:
+#   amount → 2dp (sproc table vars are money = 4dp; EF returns native column scale)
+#   date   → whole seconds (sproc table vars are datetime = 3.33ms truncation; EF returns full precision)
 $detailPairs = @(
     @{ Method = "cc";     OldRows = $old.creditCardRecords },
     @{ Method = "check";  OldRows = $old.checkRecords },
@@ -118,7 +121,7 @@ $detailPairs = @(
 )
 foreach ($p in $detailPairs) {
     $newRows = Get-Json "$BaseUrl/api/customer-job-revenue/details/$($p.Method)?$newQs"
-    MultisetDiff ("DETAIL/" + $p.Method) $p.OldRows $newRows { param($r) "{0}|{1}|{2}|{3}|{4}|{5}|{6}" -f $r.jobName, $r.year, $r.month, $r.registrant, $r.paymentMethod, $r.paymentDate, $r.paymentAmount }
+    MultisetDiff ("DETAIL/" + $p.Method) $p.OldRows $newRows { param($r) "{0}|{1}|{2}|{3}|{4}|{5}|{6}" -f $r.jobName, $r.year, $r.month, $r.registrant, $r.paymentMethod, ([datetime]$r.paymentDate).ToString("yyyy-MM-ddTHH:mm:ss"), ([math]::Round([decimal]$r.paymentAmount, 2)).ToString("0.00") }
 }
 
 # ---- Report ----

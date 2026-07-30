@@ -361,15 +361,18 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             {
                 if (row.Label.Contains("CC"))
                 {
-                    feeRows.Add(row with { Label = LblCcFees, Payment = -Math.Abs(row.Payment * row.FeePct) });
+                    feeRows.Add(row with { Label = LblCcFees, Payment = -Math.Abs(row.Payment * row.FeePct), FeePct = 0m });
                 }
                 // Fee only on positive e-check payments — ADN does not refund the fee on NSF returns.
                 else if (row.Label.Contains("E-Check") && row.Payment > 0)
                 {
-                    feeRows.Add(row with { Label = LblEcheckFees, Payment = -Math.Abs(row.Payment * row.FeePct) });
+                    feeRows.Add(row with { Label = LblEcheckFees, Payment = -Math.Abs(row.Payment * row.FeePct), FeePct = 0m });
                 }
             }
-            raw.AddRange(feeRows);
+            // The sprocs' fee INSERTs are SELECT DISTINCT over a tuple that excludes the pct —
+            // identical fee rows (e.g. a same-month payment + equal refund) collapse to one.
+            // FeePct is zeroed above so record equality mirrors that tuple exactly.
+            raw.AddRange(feeRows.Distinct());
         }
 
         // --- TSIC Fees (negative) from Monthly_Job_Stats × per-player/team charges ---
@@ -487,11 +490,12 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         DateTime? endEx = endDate?.Date.AddDays(1);
         DateTime? start = startDate;
 
-        // Sproc detail families. Note: the sprocs only ever INSERT 'Credit Card Payment' rows
-        // for the CC family (set #4's Credit Card Credit filter is dead) — ported faithfully.
+        // Sproc detail families. The DEPLOYED procs include 'Credit Card Credit' in the CC
+        // detail insert — repo scripts 9/10 are one line stale there (verified via
+        // OBJECT_DEFINITION diff against dev DB, 2026-07-29).
         string[] methods = method switch
         {
-            "cc" => ["Credit Card Payment"],
+            "cc" => ["Credit Card Payment", "Credit Card Credit"],
             "check" => ["Check Payment By Client", "Check Payment By TSIC"],
             "echeck" => ["E-Check Payment", "Failed E-Check Payment"],
             _ => throw new ArgumentOutOfRangeException(nameof(method), method, "Expected cc | check | echeck.")
