@@ -52,13 +52,14 @@ export class EmailBodyEditorComponent {
         this.body.set(event?.value ?? '');
     }
 
-    /** Insert a substitution token (e.g. "!PERSON") at the caret as plain text.
-     *  Trailing space matches the bulletin editor (punchlist): the substitution engine
-     *  matches tokens greedily, so "!PERSONx" typed flush against the token would break it. */
+    /** Insert a substitution token (e.g. "!PERSON") at the caret, followed by a separator
+     *  space so the next token/typed word can't glue onto it. Must be a NON-BREAKING space:
+     *  a plain " " at the end of a contenteditable line is collapsed by HTML normalization
+     *  before the next insert, so consecutive chip clicks produced "!EMAIL!JOBNAME". */
     insertToken(token: string): void {
         const editor = this.rte();
         editor.focusIn();
-        editor.executeCommand('insertText', token + ' ');
+        editor.executeCommand('insertText', token + '\u00A0');
         // executeCommand bypasses the saveInterval cycle — pull the fresh HTML into the model now
         // so send guards and previews see the token immediately.
         editor.updateValue();
