@@ -15,13 +15,16 @@ public class CustomerJobRevenueController : ControllerBase
 {
     private readonly ICustomerJobRevenueService _revenueService;
     private readonly IJobLookupService _jobLookupService;
+    private readonly IHostEnvironment _env;
 
     public CustomerJobRevenueController(
         ICustomerJobRevenueService revenueService,
-        IJobLookupService jobLookupService)
+        IJobLookupService jobLookupService,
+        IHostEnvironment env)
     {
         _revenueService = revenueService;
         _jobLookupService = jobLookupService;
+        _env = env;
     }
 
     /// <summary>
@@ -147,6 +150,13 @@ public class CustomerJobRevenueController : ControllerBase
         [FromQuery] List<string> jobNames,
         CancellationToken ct)
     {
+        // SuperUser AND sandbox (Development/Staging) only — 404s in Production like the
+        // other IsSandbox()-gated tools. QA runs both engines; prod never pays that double.
+        if (!_env.IsSandbox())
+        {
+            return NotFound();
+        }
+
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null)
         {
