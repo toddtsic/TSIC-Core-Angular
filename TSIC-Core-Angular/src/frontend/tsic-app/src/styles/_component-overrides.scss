@@ -46,6 +46,16 @@
   box-shadow: inset 3px 0 0 var(--bs-success);
 }
 
+/* ── customer-job-revenue: Credit Card Records grid ──
+   Credit Card Credit rows get a danger tint + left accent bar (rowDataBound adds
+   .row-cc-credit). The Type cell text still names the credit — color is supplementary. */
+.cjr-cc-grid .e-row.row-cc-credit .e-rowcell {
+  background: var(--bs-danger-bg-subtle);
+}
+.cjr-cc-grid .e-row.row-cc-credit .e-rowcell:first-child {
+  box-shadow: inset 3px 0 0 var(--bs-danger);
+}
+
 /* ── help-editor: Syncfusion RTE + CDK drag preview ──
    .help-rte-wrap wraps the RTE; the RTE fills its resolved height.
    The CDK drag-preview clone is appended to <body>; keyed on .faq-edit-card

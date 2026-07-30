@@ -26,7 +26,7 @@
 						</button>
 					</div>
 					@if (scopeMode() === 'jobs') {
-						<span class="scope-hint">Complete revenue history of exactly the jobs you pick — no date window.</span>
+						<span class="scope-hint"><strong>All Accounting History</strong> for the selected jobs.</span>
 					} @else if (scopeMode() === 'period') {
 						<span class="scope-hint"><strong>Every job</strong> in the customer group within the window — a reconciliation view, not a single job.</span>
 					} @else {
@@ -70,7 +70,7 @@
 				<div class="scope-step scope-step-reveal">
 					<span class="scope-step-badge" aria-hidden="true">2</span>
 					<div class="scope-step-body scope-step-fields">
-						<span class="scope-step-title">Period</span>
+						<span class="scope-step-title">Date Range</span>
 						<div class="scope-field">
 							<label class="scope-field-label" for="cjr-start">Start Date</label>
 							<select id="cjr-start" class="form-select form-select-sm" [(ngModel)]="selectedStartDate">
@@ -286,10 +286,11 @@
 				<ejs-grid width="100%" #ccGrid
 					[allowTextWrap]="true"
 					[dataSource]="creditCardRecords()"
-					cssClass="tsic-grid"
+					cssClass="tsic-grid cjr-cc-grid"
 					[allowExcelExport]="true"
 					[toolbar]="readOnlyToolbar"
-					(toolbarClick)="onCcToolbarClick($event)">
+					(toolbarClick)="onCcToolbarClick($event)"
+					(rowDataBound)="onCcRowDataBound($event)">
 					<e-columns>
 						<e-column field="jobName" headerText="Job" width="240"></e-column>
 						<e-column field="registrant" headerText="Registrant" width="150"></e-column>

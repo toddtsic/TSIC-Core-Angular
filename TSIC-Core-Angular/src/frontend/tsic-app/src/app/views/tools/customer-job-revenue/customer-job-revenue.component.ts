@@ -284,6 +284,13 @@ export class CustomerJobRevenueComponent {
 		}
 	}
 
+	/** Accent Credit Card Credit rows so they jump out when scanning the CC grid. */
+	onCcRowDataBound(args: { data?: JobPaymentRecordDto; row?: HTMLElement }): void {
+		if (args.data?.paymentMethod === 'Credit Card Credit' && args.row) {
+			args.row.classList.add('row-cc-credit');
+		}
+	}
+
 	private detailSignal(key: DetailKey) {
 		return key === 'cc' ? this.ccDetail : key === 'check' ? this.checkDetail : this.echeckDetail;
 	}

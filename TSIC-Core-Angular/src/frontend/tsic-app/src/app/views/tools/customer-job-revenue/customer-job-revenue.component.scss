@@ -54,7 +54,7 @@
 	font-weight: 600;
 	color: var(--brand-text);
 	white-space: nowrap;
-	min-width: 3.25rem; // "Period" is the widest — keeps step-1/step-2 controls left-aligned
+	min-width: 5.5rem; // "Date Range" is the widest — keeps step-1/step-2 controls left-aligned
 }
 
 // Step 2 rows carry labeled fields: bottom-align so selects, multiselect,
