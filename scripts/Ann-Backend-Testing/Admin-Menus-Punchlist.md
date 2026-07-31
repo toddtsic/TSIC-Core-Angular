@@ -1009,7 +1009,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Severity**: UX / consistency (fly-in token set still not at parity; ARB-site tokens under-exposed)
 - **Status**: 🔴 **pt1 RE-OPENED (Ann, 07-31)** — `!USLAXVALIDTHROUGHDATE` missing from fly-in; `!SUBSCRIPTIONID/STATUS` should be job-level (ARB site → all registrants) on BOTH surfaces, not per-registrant. **Still open too: pt2 (shared Draft-with-AI) + all-roles review.** Back to Todd.
 
-### AM-060: [Search/Registrations → Registrant fly-in] Add a "Re-Send Confirmation Email" badge (blue), near Change Job
+### AM-060: 🟡 FIXED (Todd, 07-31) — awaiting Ann verify post-deploy — [Search/Registrations → Registrant fly-in] "Re-Send Confirmation Email" (blue), on the Accounting tab
 - **Topic**: Registrant Details fly-in (`registration-detail-panel`) — add an admin action to **resend the registrant's confirmation email**.
 - **Source**: Ann's email review (2026-07-31)
 - **Request (Ann)**: Add a **"Re-Send Confirmation Email"** badge/button in the registrant fly-in, placed **near the "Change Job" badge**, styled in **blue**. (Exact label spelling per Ann: **"Re-Send Confirmation Email"** — hyphenated.)
@@ -1022,8 +1022,17 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   - **⚠️ Caveat for Todd**: the Player/Adult resend endpoints read as **self-service / authenticated to the caller** (the Player one logs "user identity not found" and keys off the caller). An **admin resending for an arbitrary registrant** may need those endpoints opened to an admin role (registrationId-scoped) or a small admin-scoped resend wrapper. Confirm before wiring the button.
 - **For Todd**: add a **blue** "Re-Send Confirmation Email" action beside Change Job in the fly-in; wire it to the correct **per-role** resend endpoint for the open registrant; show a success/failure toast reporting what happened (the backend already "reports what actually happened"). Use the design-system **`--bs-primary`** (blue) treatment — consistent with Ann's repeated colored-badge asks (AM-042, AM-047) and her blue preference (AM-019); WCAG-AA, focus-visible.
 - **Severity**: UX / feature (no admin resend-confirmation affordance today; useful when a registrant didn't get / lost their confirmation)
-- **Cross-ref**: AM-042 / AM-047 (colored-badge treatment), AM-019 (blue preference), AM-018 (confirmation email CC/BCC).
-- **Status**: Open — filed 2026-07-31 (backend endpoints located). Back to Todd.
+- **Cross-ref**: AM-042 / AM-047 (colored-badge treatment), AM-019 (blue preference), AM-018 (confirmation email CC/BCC), AM-062 (wizard test-send), PL-061 (payment-triggered send — NOT affected by the copies change below).
+- **✅ BUILT (Todd, 07-31, `c33622cc`)** — placement went to the **Accounting tab** (Ann's Payment-Ledger preference won over "near Change Job": the motivating case is a payment edit that notifies nobody, so the action sits where the money was just changed). Blue `btn-outline-primary`, exact hyphenated label, shows for **every role**, with the **Test Email popover** beside it in non-prod (same anntsic@gmail.com popover as AM-062).
+  - **New admin-scoped endpoints** (the ⚠️ caveat above was real — the self-service endpoints were NOT opened to admins): `POST registration-search/{id}/resend-confirmation` + `/test-send-confirmation`, AdminOnly + job-scoped like every other fly-in action. Role-routing is server-side: **Player → the FAMILY confirmation** (one email covering every sibling in the job, to mom + dad + family player emails — there is deliberately no per-player variant; the toast discloses this), **Club Rep → team pipeline mailing the registration's owner** (the self-service path mails the *caller* — it would have mailed the admin), everyone else → adult pipeline. Always forces past the `BConfirmationSent` latch.
+  - **Redelivery copy semantics (Todd decision, 07-31)**: a **resend keeps the job's Reply-To but does NOT re-send the job's CC/BCC copies** — the copies audience got the original. Applies to this admin action **and** the three wizard Re-Send buttons. New confirmation events (initial send, PL-061 payment receipts) still carry copies.
+  - **Security fix found en route**: the adult resend/test-send endpoints had **no ownership check** — any authenticated user could fire them for any registrationId (test-send = cross-job content disclosure, sandbox-only). Now owner-only, matching the team path.
+- **Ann verify (post staging deploy)**:
+  1. Fly-in → **Accounting tab** → blue **Re-Send Confirmation Email** button with the Test Email popover beside it.
+  2. **Test Email** on a **player**, an **adult (coach/staff/referee)**, and a **club rep** → your inbox gets the right per-role confirmation, subject stamped `[TEST — rendered for: …]` (player says "this family").
+  3. Real **Re-Send** on each: player toast reports "Family confirmation sent to N recipient(s)…"; adult/club-rep toast names the registrant's email. (On staging the real send renders but does not deliver — content sign-off is the popover's job; delivery is a Production check.)
+  4. An adult registration with **no email on file** → warning toast saying nothing could be sent, not a false success.
+- **Status**: 🟡 **FIXED (Todd, 07-31)** — `c33622cc`. **OPEN: staging deploy → Ann verify above; Production delivery + Reply-To spot-check at cutover.**
 
 ### AM-061: ✅ CLOSED — behavior accepted (Ann, 07-31) — [Search/Teams] No general/compose email from Search/Teams; only the ARB-autopay-failure reminder + the club rep's login "Pay Balance Due" quicklink
 - **Topic**: Search/Teams → emailing club reps of teams that owe a balance
