@@ -1028,28 +1028,31 @@ app.MapHub<TSIC.API.Hubs.ChatHub>("/hubs/chat");
 // ── Payment-phase materialization guard ─────────────────────────────
 // The code resolves payment phase ONLY from per-scope fees.JobFees.bFullPaymentRequired
 // (the legacy Jobs.bTeamsFullPaymentRequired column is abandoned — see
-// ResolvedFee.ResolveFullPaymentPhase). That is only safe against a DB where seed
-// 6a §8P has materialized the legacy flag into per-scope stamps. A flagged
-// tournament with no stamp means the seed hasn't run: every one of its club reps
-// would silently be billed a deposit instead of the full balance. Same fail-loud
-// posture as the ASPNETCORE_ENVIRONMENT check above — refuse to start and name
-// the fix, instead of undercollecting quietly.
+// ResolvedFee.ResolveFullPaymentPhase). That is only safe against a DB where seed 6a has
+// run: §8P materializes the legacy flag as a league-scope ClubRep phase stamp. But the
+// stamp itself is director-mutable — reverting a league to "Deposit first" legitimately
+// DELETES the phase-only row — so its absence cannot mean "seed never ran". The durable
+// seed signal is the job's ClubRep fee rows (§3): 6a is one fail-fast script, so ClubRep
+// amount rows present ⇒ §8P ran. A flagged tournament with NO ClubRep rows at all means
+// the seed hasn't run: every one of its club reps would silently be billed a deposit
+// instead of the full balance. Same fail-loud posture as the ASPNETCORE_ENVIRONMENT
+// check above — refuse to start and name the fix, instead of undercollecting quietly.
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<SqlDbContext>();
-    var unstamped = await db.Jobs
+    var unseeded = await db.Jobs
         .AsNoTracking()
         .Where(j => j.BTeamsFullPaymentRequired == true
                     && j.JobTypeId == 2
                     && string.Compare(j.Year, "2025") >= 0
-                    && !db.JobFees.Any(jf => jf.JobId == j.JobId && jf.BFullPaymentRequired == true))
+                    && !db.JobFees.Any(jf => jf.JobId == j.JobId && jf.RoleId == RoleConstants.ClubRep))
         .Select(j => j.JobPath)
         .ToListAsync();
-    if (unstamped.Count > 0)
+    if (unseeded.Count > 0)
     {
         throw new InvalidOperationException(
-            "Payment phase not materialized: legacy full-payment tournament(s) have no per-scope " +
-            $"fees.JobFees.bFullPaymentRequired stamp: {string.Join(", ", unstamped)}. " +
+            "Payment phase not materialized: legacy full-payment tournament(s) have no ClubRep " +
+            $"fees.JobFees rows: {string.Join(", ", unseeded)}. " +
             "Run \"scripts/6a) seed-fees-from-legacy.sql\" (§8P) before starting the app — " +
             "this build no longer reads the legacy job flag, so starting now would bill deposits " +
             "instead of full balances on those jobs.");

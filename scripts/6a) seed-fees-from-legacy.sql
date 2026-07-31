@@ -274,40 +274,66 @@ GO
 -- 8P. Materialize payment phase from the legacy job-level flag.
 --     Legacy full-payment ("balance due") phase lives ONLY in Jobs.bTeamsFullPaymentRequired,
 --     which has no UI in the new system (the June per-scope conversion removed the
---     Configure-Job toggles). Copy it into the visible per-scope layer so the LADT editor
---     shows and controls it. READ-ONLY against Jobs.Jobs — NEVER zero the flag here: run 1
---     would destroy the source run 2 reads (the column is abandoned, not laundered).
+--     Configure-Job toggles). The legacy flag is JOB-wide, so it materializes at the TOP of
+--     the Team -> Agegroup -> League cascade: ONE league-scope, phase-only ClubRep row per
+--     league (LeagueId set, Agegroup/Team/amounts NULL — the exact shape the LADT league fee
+--     card writes and deletes). Age groups keep bFullPaymentRequired NULL and INHERIT, so a
+--     director's league-level flip governs everything below it.
+--     (The original 8P instead stamped every agegroup-scope ClubRep row; under the tri-state
+--     model each of those reads as an explicit per-AG override, which vetoes the league
+--     control and makes it inert. Do not stamp AG rows here.)
+--     READ-ONLY against Jobs.Jobs — NEVER zero the flag here: run 1 would destroy the source
+--     run 2 reads (the column is abandoned, not laundered).
 --     bPlayersFullPaymentRequired is 0 on every job in every year (legacy player
---     full-payment was always structural: deposit-less fee rows), so only ClubRep rows
---     are stamped.
-UPDATE jf
-SET jf.bFullPaymentRequired = 1, jf.Modified = GETUTCDATE()
-FROM fees.JobFees jf
-JOIN Jobs.Jobs j ON jf.JobId = j.JobId
+--     full-payment was always structural: deposit-less fee rows), so only ClubRep is stamped.
+INSERT INTO fees.JobFees (JobFeeId, JobId, RoleId, AgegroupId, TeamId, LeagueId, Deposit, BalanceDue, bFullPaymentRequired, Modified)
+SELECT
+    NEWID(), j.JobId, '6A26171F-4D94-4928-94FA-2FEFD42C3C3E',
+    NULL, NULL, jl.LeagueId,
+    NULL, NULL,
+    1,
+    GETUTCDATE()
+FROM Jobs.Jobs j
+JOIN Jobs.Job_Leagues jl ON jl.JobId = j.JobId
 WHERE j.bTeamsFullPaymentRequired = 1
-  AND jf.RoleId = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';  -- ClubRep
-PRINT '8P Phase-stamped ClubRep rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
+  AND j.Year IN ('2025', '2026', '2027')
+  -- only jobs with a club-rep fee flow (§3 output); blueridgebombers camp and the
+  -- director-managed compass demo have no ClubRep rows and stay INFO in the guard below
+  AND EXISTS (SELECT 1 FROM fees.JobFees jf
+              WHERE jf.JobId = j.JobId
+                AND jf.RoleId = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E')
+  -- idempotent if run standalone: never duplicate an existing league-scope ClubRep row
+  AND NOT EXISTS (SELECT 1 FROM fees.JobFees jf
+                  WHERE jf.JobId = j.JobId
+                    AND jf.RoleId = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E'
+                    AND jf.LeagueId = jl.LeagueId
+                    AND jf.AgegroupId IS NULL AND jf.TeamId IS NULL);
+PRINT '8P Phase-stamped league-scope ClubRep rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
 GO
 
--- 8P-guard: every flagged TOURNAMENT (type 2) must now carry the stamp. A type-2 job with
--- the flag and no stamped ClubRep row = seeding gap on a live money path (balance-due
--- collection) -> fail the run loud (script runs under -b). Known non-type-2 exceptions
--- (blueridgebombers camp, where the teams flag is inert, and the director-managed compass
--- teamsignup demo) are reported as INFO, not failed.
+-- 8P-guard: every flagged TOURNAMENT (type 2) must now carry a league-scope stamp. A type-2
+-- job with the flag and no stamped league-scope ClubRep row = seeding gap on a live money
+-- path (balance-due collection) -> fail the run loud (script runs under -b). Known
+-- non-type-2 exceptions (blueridgebombers camp, where the teams flag is inert, and the
+-- director-managed compass teamsignup demo) are reported as INFO, not failed.
 IF EXISTS (
     SELECT 1 FROM Jobs.Jobs j
     WHERE j.bTeamsFullPaymentRequired = 1 AND j.JobTypeId = 2
       AND j.Year IN ('2025', '2026', '2027')
       AND NOT EXISTS (SELECT 1 FROM fees.JobFees jf
-                      WHERE jf.JobId = j.JobId AND jf.bFullPaymentRequired = 1))
+                      WHERE jf.JobId = j.JobId AND jf.bFullPaymentRequired = 1
+                        AND jf.LeagueId IS NOT NULL
+                        AND jf.AgegroupId IS NULL AND jf.TeamId IS NULL))
 BEGIN
     SELECT j.JobPath AS [FAILED_flagged_tournament_without_stamp]
     FROM Jobs.Jobs j
     WHERE j.bTeamsFullPaymentRequired = 1 AND j.JobTypeId = 2
       AND j.Year IN ('2025', '2026', '2027')
       AND NOT EXISTS (SELECT 1 FROM fees.JobFees jf
-                      WHERE jf.JobId = j.JobId AND jf.bFullPaymentRequired = 1);
-    THROW 50001, 'Phase materialization gap: flagged type-2 job(s) have no stamped ClubRep fee row.', 1;
+                      WHERE jf.JobId = j.JobId AND jf.bFullPaymentRequired = 1
+                        AND jf.LeagueId IS NOT NULL
+                        AND jf.AgegroupId IS NULL AND jf.TeamId IS NULL);
+    THROW 50001, 'Phase materialization gap: flagged type-2 job(s) have no league-scope ClubRep phase row.', 1;
 END
 -- INFO: flagged non-tournament jobs with nothing to stamp (expected: blueridgebombers camp,
 -- compass teamsignup demo)
@@ -366,7 +392,9 @@ SELECT
     CASE WHEN jf.RoleId = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A' THEN 'Player'
          WHEN jf.RoleId = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E' THEN 'ClubRep'
          ELSE jf.RoleId END AS [Role],
-    CASE WHEN jf.TeamId IS NOT NULL THEN 'Team' ELSE 'Agegroup' END AS [Scope],
+    CASE WHEN jf.TeamId IS NOT NULL THEN 'Team'
+         WHEN jf.AgegroupId IS NOT NULL THEN 'Agegroup'
+         ELSE 'League' END AS [Scope],
     ag.AgegroupName, t.TeamName, jf.Deposit, jf.BalanceDue
 FROM RecentJobs rj
 JOIN fees.JobFees jf ON jf.JobId = rj.JobId
@@ -377,7 +405,9 @@ ORDER BY rj.JobTypeId,
     CASE WHEN jf.RoleId = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A' THEN 'Player'
          WHEN jf.RoleId = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E' THEN 'ClubRep'
          ELSE jf.RoleId END,
-    CASE WHEN jf.TeamId IS NOT NULL THEN 'Team' ELSE 'Agegroup' END,
+    CASE WHEN jf.TeamId IS NOT NULL THEN 'Team'
+         WHEN jf.AgegroupId IS NOT NULL THEN 'Agegroup'
+         ELSE 'League' END,
     ag.AgegroupName, t.TeamName;
 GO
 

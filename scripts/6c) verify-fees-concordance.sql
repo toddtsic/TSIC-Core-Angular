@@ -414,7 +414,8 @@ PRINT '';
 PRINT '============================================================';
 PRINT 'TEST 8: Payment phase concordance (types 2, 3)';
 PRINT '  Legacy: Jobs.bTeamsFullPaymentRequired = 1 -> job in full-payment phase';
-PRINT '  New: >=1 ClubRep fees.JobFees row stamped bFullPaymentRequired = 1 (6a s.8P)';
+PRINT '  New: >=1 LEAGUE-scope ClubRep fees.JobFees row stamped bFullPaymentRequired = 1';
+PRINT '  (6a s.8P; agegroups inherit — AG-scope stamps here would veto the league control)';
 PRINT '  Known unstampable (INFO): blueridgebombers camp (type 1, flag inert),';
 PRINT '  compass teamsignup demo (type 3, director-managed - no ClubRep rows)';
 PRINT '============================================================';
@@ -436,6 +437,7 @@ LEFT JOIN fees.JobFees jf
     ON jf.JobId = j.JobId
     AND jf.RoleId = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E'  -- ClubRep
     AND jf.bFullPaymentRequired = 1
+    AND jf.LeagueId IS NOT NULL AND jf.AgegroupId IS NULL AND jf.TeamId IS NULL  -- league scope
 WHERE j.bTeamsFullPaymentRequired = 1
   AND j.Year IN ('2025', '2026', '2027')
 GROUP BY j.JobPath, j.JobTypeId, j.bTeamsFullPaymentRequired
@@ -530,7 +532,8 @@ FROM (
         (SELECT COUNT(*) FROM fees.JobFees jf
          WHERE jf.JobId = j.JobId
            AND jf.RoleId = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E'
-           AND jf.bFullPaymentRequired = 1) AS stamped
+           AND jf.bFullPaymentRequired = 1
+           AND jf.LeagueId IS NOT NULL AND jf.AgegroupId IS NULL AND jf.TeamId IS NULL) AS stamped
     FROM Jobs.Jobs j
     WHERE j.bTeamsFullPaymentRequired = 1
       AND j.Year IN ('2025', '2026', '2027')
