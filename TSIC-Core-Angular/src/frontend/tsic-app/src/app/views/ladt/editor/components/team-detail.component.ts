@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnChanges, OnInit, OnDestroy, computed, signal, inject, input, output, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnChanges, OnInit, OnDestroy, SimpleChanges, computed, signal, inject, input, output, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 import { forkJoin, Observable } from 'rxjs';
@@ -514,8 +514,10 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
     this.editGuard.unregister(this.dirtyProbe);
   }
 
-  ngOnChanges(): void {
-    this.loadDetail();
+  // Gated on the id — ancestorPhase (and any future input) changing must NOT re-fire the load;
+  // an ungated reload here + a per-CD parent binding = infinite reload loop (frozen spinner).
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['teamId']) this.loadDetail();
   }
 
   private loadDetail(): void {

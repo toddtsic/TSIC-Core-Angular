@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnChanges, OnInit, OnDestroy, HostListener, computed, signal, inject, input, output, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnChanges, OnInit, OnDestroy, HostListener, SimpleChanges, computed, signal, inject, input, output, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 import { forkJoin, Observable } from 'rxjs';
@@ -434,8 +434,10 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
     this.editGuard.unregister(this.dirtyProbe);
   }
 
-  ngOnChanges(): void {
-    this.loadDetail();
+  // Gated on the id — ancestorPhase (and any future input) changing must NOT re-fire the load;
+  // an ungated reload here + a per-CD parent binding = infinite reload loop (frozen spinner).
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['agegroupId']) this.loadDetail();
   }
 
   private loadDetail(): void {

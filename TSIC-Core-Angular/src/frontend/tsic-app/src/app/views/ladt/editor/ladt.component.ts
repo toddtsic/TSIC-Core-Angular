@@ -782,7 +782,16 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
    * the grid pills, and deliberately EXCLUDING the node's own stamp so the fly-in's
    * "Currently: …" line stays honest mid-edit (while an unsaved radio change is pending).
    */
-  ancestorPhaseFor(node: LadtFlatNode): { player: { full: boolean; source: string }; clubRep: { full: boolean; source: string } } | null {
+  /** Memoized for the open fly-in: a computed keeps the object identity stable across change
+   *  detection (a template method call would mint a fresh object every CD cycle, re-firing the
+   *  detail components' input change handling forever). Recomputes only when the detail node
+   *  or the cached fees actually change. */
+  readonly detailAncestorPhase = computed(() => {
+    const node = this.detailNode();
+    return node ? this.ancestorPhaseFor(node) : null;
+  });
+
+  private ancestorPhaseFor(node: LadtFlatNode): { player: { full: boolean; source: string }; clubRep: { full: boolean; source: string } } | null {
     let scopeId: string | undefined;
     let scopeType: 'league' | 'agegroup' | undefined;
     if (node.level === 3) {
