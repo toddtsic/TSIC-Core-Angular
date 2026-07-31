@@ -447,6 +447,14 @@
                 (ngModelChange)="updateInvoiceNumber($event)"
                 (keydown.enter)="executeSearch()" />
             </div>
+            <div class="form-group">
+              <label for="filterSubscription">Subscription #</label>
+              <input type="text" id="filterSubscription" class="form-control"
+                placeholder="ARB subscription number"
+                [ngModel]="searchRequest().subscriptionNumber"
+                (ngModelChange)="updateSubscriptionNumber($event)"
+                (keydown.enter)="executeSearch()" />
+            </div>
           </div>
         </div>
       </div>

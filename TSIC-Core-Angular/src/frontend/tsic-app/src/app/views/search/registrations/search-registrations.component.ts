@@ -141,6 +141,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     phone: '',
     schoolName: '',
     invoiceNumber: '',
+    subscriptionNumber: '',
     roleIds: [],
     teamIds: [],
     agegroupIds: [],
@@ -1237,6 +1238,10 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   updateInvoiceNumber(value: string): void {
     this.searchRequest.update(req => ({ ...req, invoiceNumber: value }));
+  }
+
+  updateSubscriptionNumber(value: string): void {
+    this.searchRequest.update(req => ({ ...req, subscriptionNumber: value }));
   }
 
   updateRegDateFrom(value: string): void {
