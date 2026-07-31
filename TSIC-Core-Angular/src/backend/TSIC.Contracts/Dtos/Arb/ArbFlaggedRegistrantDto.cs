@@ -8,7 +8,12 @@ public record ArbFlaggedRegistrantDto
     public required ArbFlagType FlagType { get; init; }
 
     // Registrant
+    /// <summary>Sort-order name ("Last, First") — the grid column format.</summary>
     public required string RegistrantName { get; init; }
+
+    /// <summary>First/Last carried separately so the !PLAYER token renders natural order. See ArbRegistrationProjection.</summary>
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
     public string? Assignment { get; init; }
     public string? FamilyUsername { get; init; }
     public string? Role { get; init; }

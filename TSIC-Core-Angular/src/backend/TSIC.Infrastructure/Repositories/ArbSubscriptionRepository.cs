@@ -37,6 +37,8 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
                 AmountPerOccurrence = r.AdnSubscriptionAmountPerOccurence,
                 IntervalLength = r.AdnSubscriptionIntervalLength,
                 RegistrantName = $"{r.User!.LastName}, {r.User.FirstName}",
+                FirstName = r.User.FirstName,
+                LastName = r.User.LastName,
                 Assignment = r.Assignment,
                 FamilyUsername = r.FamilyUser != null && r.FamilyUser.FamilyUser != null
                     ? r.FamilyUser.FamilyUser.UserName : null,
@@ -53,7 +55,7 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
                 FeeTotal = r.FeeTotal,
                 PaidTotal = r.PaidTotal,
                 OwedTotal = r.OwedTotal,
-                JobName = r.Job!.DisplayName ?? r.Job.JobName ?? "",
+                JobName = r.Job!.JobName ?? r.Job.DisplayName ?? "",
                 JobPath = r.Job.JobPath ?? "",
                 JobId = r.JobId,
                 BemailOptOut = r.BemailOptOut
@@ -90,6 +92,8 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
                 AmountPerOccurrence = r.AdnSubscriptionAmountPerOccurence,
                 IntervalLength = r.AdnSubscriptionIntervalLength,
                 RegistrantName = $"{r.User!.LastName}, {r.User.FirstName}",
+                FirstName = r.User.FirstName,
+                LastName = r.User.LastName,
                 Assignment = r.Assignment,
                 FamilyUsername = r.FamilyUser != null && r.FamilyUser.FamilyUser != null
                     ? r.FamilyUser.FamilyUser.UserName : null,
@@ -106,7 +110,7 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
                 FeeTotal = r.FeeTotal,
                 PaidTotal = r.PaidTotal,
                 OwedTotal = r.OwedTotal,
-                JobName = r.Job!.DisplayName ?? r.Job.JobName ?? "",
+                JobName = r.Job!.JobName ?? r.Job.DisplayName ?? "",
                 JobPath = r.Job.JobPath ?? "",
                 JobId = r.JobId,
                 BemailOptOut = r.BemailOptOut
@@ -131,7 +135,7 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
                 AmountPerOccurrence = r.AdnSubscriptionAmountPerOccurence,
                 IntervalLength = r.AdnSubscriptionIntervalLength,
                 RegistrantName = $"{r.User!.FirstName} {r.User.LastName}",
-                JobName = r.Job!.DisplayName ?? r.Job.JobName ?? "",
+                JobName = r.Job!.JobName ?? r.Job.DisplayName ?? "",
                 FeeTotal = r.FeeTotal,
                 PaidTotal = r.PaidTotal,
                 FirstInvoiceNumber = _context.RegistrationAccounting

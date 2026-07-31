@@ -607,6 +607,8 @@ public class ArbDefensiveService : IArbDefensiveService
             SubscriptionStatus = reg.SubscriptionStatus ?? "unknown",
             FlagType = flagType,
             RegistrantName = reg.RegistrantName,
+            FirstName = reg.FirstName,
+            LastName = reg.LastName,
             Assignment = reg.Assignment,
             FamilyUsername = reg.FamilyUsername,
             Role = reg.Role,
@@ -629,10 +631,26 @@ public class ArbDefensiveService : IArbDefensiveService
         };
     }
 
+    /// <summary>
+    /// Natural-order name for PROSE. <see cref="ArbFlaggedRegistrantDto.RegistrantName"/> is the grid's
+    /// sort-order format ("Regan, Peyton"), which read backwards inside an email sentence. First/Last
+    /// come off the projection so this never has to parse a comma out of a name. Falls back to the
+    /// sort-order string when either part is missing.
+    /// </summary>
+    private static string ProseName(ArbFlaggedRegistrantDto reg)
+    {
+        var natural = $"{reg.FirstName} {reg.LastName}".Trim();
+        return string.IsNullOrWhiteSpace(natural) ? reg.RegistrantName : natural;
+    }
+
     private static string ReplaceArbTokens(string template, ArbFlaggedRegistrantDto reg)
     {
+        var person = $"<strong>{ProseName(reg)}</strong>";
         return template
-            .Replace("!PLAYER", $"<strong>{reg.RegistrantName}</strong>")
+            .Replace("!PLAYER", person)
+            // !PERSON is the canonical engine's name token; ARB directors reach for it out of habit
+            // from the Search/Registrations composer. Alias it rather than let it pass through raw.
+            .Replace("!PERSON", person)
             .Replace("!SUBSCRIPTIONID", $"<strong>{reg.SubscriptionId}</strong>")
             .Replace("!SUBSCRIPTIONSTATUS", $"<strong>{reg.SubscriptionStatus}</strong>")
             .Replace("!FEETOTAL", $"<strong>{reg.FeeTotal:C}</strong>")

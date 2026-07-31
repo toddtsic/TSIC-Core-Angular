@@ -12,7 +12,16 @@ public record ArbRegistrationProjection
     public int? BillingOccurrences { get; init; }
     public decimal? AmountPerOccurrence { get; init; }
     public int? IntervalLength { get; init; }
+    /// <summary>Sort-order name ("Last, First") — this is the GRID column format.</summary>
     public required string RegistrantName { get; init; }
+
+    /// <summary>
+    /// First/Last carried separately so prose surfaces (the !PLAYER email token) can render natural
+    /// order without splitting <see cref="RegistrantName"/> on ", " — a parse that breaks on suffixes
+    /// and on any name that legitimately contains a comma.
+    /// </summary>
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
     public string? Assignment { get; init; }
     public string? FamilyUsername { get; init; }
     public string? Role { get; init; }
