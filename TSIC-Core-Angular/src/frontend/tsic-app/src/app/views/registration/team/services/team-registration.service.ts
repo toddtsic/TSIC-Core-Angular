@@ -14,6 +14,7 @@ import {
     ClubTeamDto,
     CheckExistingRegistrationsResponse,
     UpdateClubTeamRequest,
+    EmailTestSendResponse,
 } from '@core/api';
 
 /**
@@ -228,6 +229,18 @@ export class TeamRegistrationService {
             request,
             context ? { context } : undefined,
         );
+    }
+
+    /** Non-prod only: renders this club rep's confirmation and delivers it to a single test inbox
+     *  instead of the rep. Ownership-checked server-side; refused in Production. */
+    testSendConfirmationEmail(
+        registrationId: string,
+        testRecipient: string,
+        isEcheckPending: boolean = false,
+    ): Observable<EmailTestSendResponse> {
+        return this.http.post<EmailTestSendResponse>(
+            `${this.apiUrl}/test-send-confirmation-email`,
+            { registrationId, testRecipient, isEcheckPending });
     }
 
     /**

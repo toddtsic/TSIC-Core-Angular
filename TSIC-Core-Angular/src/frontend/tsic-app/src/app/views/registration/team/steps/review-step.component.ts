@@ -4,6 +4,8 @@ import { skipErrorToast } from '@app/infrastructure/interceptors/http-error-cont
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { TestSendButtonComponent, type TestSendOptions } from '@shared-ui/components/test-send-button/test-send-button.component';
+import { environment } from '@environments/environment';
 
 /**
  * Team Review step — shows confirmation HTML, resend email, finish button.
@@ -11,7 +13,7 @@ import { ToastService } from '@shared-ui/toast.service';
 @Component({
     selector: 'app-trw-review-step',
     standalone: true,
-    imports: [],
+    imports: [TestSendButtonComponent],
     styles: [`
     .confirmation-content { overflow-x: auto; }
     .confirmation-content ::ng-deep table { width: 100%; min-width: 600px; }
@@ -46,12 +48,18 @@ import { ToastService } from '@shared-ui/toast.service';
             </div>
           }
 
-          <div class="d-flex gap-2 mb-3">
+          <div class="d-flex gap-2 mb-3 align-items-center">
             <button type="button" class="btn btn-outline-primary btn-sm"
                     [disabled]="resending()"
                     (click)="onResendClick()">
               {{ resending() ? 'Sending...' : 'Re-Send Confirmation Email' }}
             </button>
+            @if (isNonProd) {
+              <app-test-send-button
+                align="left"
+                [busy]="testSending()"
+                (send)="onTestSend($event)" />
+            }
           </div>
           @if (resendMessage()) {
             <div class="small text-muted mb-2">{{ resendMessage() }}</div>
@@ -80,6 +88,10 @@ export class TeamReviewStepComponent implements OnInit {
     readonly resending = signal(false);
     readonly resendMessage = signal('');
 
+    /** Test send is a non-prod affordance; the backend refuses in Production regardless. */
+    readonly isNonProd = !environment.production;
+    readonly testSending = signal(false);
+
     ngOnInit(): void {
         this.loadConfirmation();
     }
@@ -104,6 +116,30 @@ export class TeamReviewStepComponent implements OnInit {
         this.teamReg.sendConfirmationEmail(regId, false, skipErrorToast(), isEcheckPending)
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({ error: () => { /* ignore auto-send failure */ } });
+    }
+
+    /** Renders THIS confirmation and delivers it to the tester's inbox instead of the club rep. */
+    onTestSend(options: TestSendOptions): void {
+        const regId = this.state.clubRep.registrationId();
+        if (!regId || this.testSending()) return;
+        this.testSending.set(true);
+        const isEcheckPending = this.state.teamPaymentState.lastPayment()?.paymentMethod === 'Echeck';
+        this.teamReg.testSendConfirmationEmail(regId, options.recipient, isEcheckPending)
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: (result) => {
+                    this.testSending.set(false);
+                    this.toast.show(
+                        result.sent
+                            ? `Test confirmation (rendered for ${result.renderedFor}) sent to ${result.recipient}`
+                            : result.message || 'Test send failed',
+                        result.sent ? 'success' : 'danger', 6000);
+                },
+                error: () => {
+                    this.testSending.set(false);
+                    this.toast.show('Test send failed', 'danger', 4000);
+                },
+            });
     }
 
     onResendClick(): void {

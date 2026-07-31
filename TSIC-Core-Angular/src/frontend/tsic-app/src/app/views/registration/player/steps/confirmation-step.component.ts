@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { environment } from '@environments/environment';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 import type { JobPulseDto } from '@core/api';
+import { TestSendButtonComponent, type TestSendOptions } from '@shared-ui/components/test-send-button/test-send-button.component';
 
 /**
  * Confirmation step — displays the server-rendered confirmation HTML,
@@ -12,7 +13,7 @@ import type { JobPulseDto } from '@core/api';
 @Component({
     selector: 'app-prw-confirmation-step',
     standalone: true,
-    imports: [RouterLink],
+    imports: [RouterLink, TestSendButtonComponent],
     styles: [`
     .confirmation-content { overflow-x: auto; }
     .confirmation-content ::ng-deep table { width: 100%; min-width: 600px; }
@@ -88,11 +89,19 @@ import type { JobPulseDto } from '@core/api';
             <p class="text-muted mt-2">Loading confirmation summary...</p>
           </div>
         } @else {
-          <button type="button" class="btn btn-outline-primary mb-3"
-                  [disabled]="resending()"
-                  (click)="onResendClick()">
-            {{ resending() ? 'Sending...' : 'Re-Send Confirmation Email' }}
-          </button>
+          <div class="d-flex gap-2 mb-3 align-items-center flex-wrap">
+            <button type="button" class="btn btn-outline-primary"
+                    [disabled]="resending()"
+                    (click)="onResendClick()">
+              {{ resending() ? 'Sending...' : 'Re-Send Confirmation Email' }}
+            </button>
+            @if (isNonProd) {
+              <app-test-send-button
+                align="left"
+                [busy]="testSending()"
+                (send)="onTestSend($event)" />
+            }
+          </div>
           @if (resendMessage()) {
             <div class="small text-muted mb-2">{{ resendMessage() }}</div>
           }
@@ -127,6 +136,10 @@ export class ConfirmationStepComponent implements OnInit, OnDestroy {
     readonly loadError = signal(false);
     readonly resending = signal(false);
     readonly resendMessage = signal('');
+
+    /** Test send is a non-prod affordance; the backend refuses in Production regardless. */
+    readonly isNonProd = !environment.production;
+    readonly testSending = signal(false);
 
     // Store CTA
     readonly showStoreCta = signal(false);
@@ -183,6 +196,19 @@ export class ConfirmationStepComponent implements OnInit, OnDestroy {
     retry(): void {
         this.loadError.set(false);
         this.startLoading();
+    }
+
+    /** Renders THIS family's confirmation and delivers it to the tester's inbox instead of them. */
+    async onTestSend(options: TestSendOptions): Promise<void> {
+        if (this.testSending()) return;
+        this.resendMessage.set('');
+        this.testSending.set(true);
+        const result = await this.state.testSendConfirmationEmail(options.recipient);
+        this.testSending.set(false);
+        this.resendMessage.set(
+            result?.sent
+                ? `Test confirmation (rendered for ${result.renderedFor}) sent to ${result.recipient}.`
+                : result?.message || 'Test send failed.');
     }
 
     async onResendClick(): Promise<void> {

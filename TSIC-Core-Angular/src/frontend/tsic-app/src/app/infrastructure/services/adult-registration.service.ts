@@ -17,6 +17,7 @@ import type {
     AdultPaymentResponseDto,
     UsLaxVerifyBeginResponseDto,
     UsLaxVerifyConfirmResponseDto,
+    EmailTestSendResponse,
 } from '@core/api';
 
 // ── Role keys ────────────────────────────────────────────────────
@@ -79,6 +80,13 @@ export class AdultRegistrationService {
     resendConfirmationEmail(registrationId: string) {
         return this.http.post<{ sent: boolean; message: string }>(
             `${this.apiUrl}/confirmation/${registrationId}/resend`, {});
+    }
+
+    /** Non-prod only: renders this confirmation and delivers it to a single test inbox instead of
+     *  the registrant. Backend refuses in Production. */
+    testSendConfirmationEmail(registrationId: string, testRecipient: string) {
+        return this.http.post<EmailTestSendResponse>(
+            `${this.apiUrl}/confirmation/${registrationId}/test-send`, { testRecipient });
     }
 
     preSubmit(jobPath: string, request: PreSubmitAdultRegRequestDto) {

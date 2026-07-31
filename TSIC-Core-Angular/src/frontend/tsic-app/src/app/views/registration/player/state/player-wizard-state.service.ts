@@ -11,6 +11,7 @@ import { PlayerFormsService } from './player-forms.service';
 import { InsuranceStateV2Service } from './insurance-state-v2.service';
 import { InsuranceV2Service } from './insurance-v2.service';
 import { TeamService } from '@views/registration/player/services/team.service';
+import type { EmailTestSendResponse } from '@core/api';
 import type {
     AvailableTeamDto,
     FamilyPlayersResponseDto,
@@ -348,6 +349,21 @@ export class PlayerWizardStateService {
                     this._confirmation.set(null);
                 },
             });
+    }
+
+    /** Non-prod only: renders THIS family's confirmation and delivers it to a single test inbox
+     *  instead of the family. Takes no id — the server derives everything from the caller's own
+     *  claims, exactly as the resend below does. Backend refuses in Production. */
+    async testSendConfirmationEmail(testRecipient: string): Promise<EmailTestSendResponse | null> {
+        const apiBase = this.jobCtx.resolveApiBase();
+        try {
+            return await firstValueFrom(this.http.post<EmailTestSendResponse>(
+                `${apiBase}/player-registration/confirmation/test-send`,
+                { testRecipient },
+                { context: skipErrorToast() }));
+        } catch {
+            return null;
+        }
     }
 
     async resendConfirmationEmail(): Promise<boolean> {

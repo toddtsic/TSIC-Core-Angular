@@ -1,10 +1,13 @@
 import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
 import { AdultWizardStateService } from '../state/adult-wizard-state.service';
 import { AdultRegistrationService } from '@infrastructure/services/adult-registration.service';
+import { TestSendButtonComponent, type TestSendOptions } from '@shared-ui/components/test-send-button/test-send-button.component';
+import { environment } from '@environments/environment';
 
 @Component({
     selector: 'app-adult-confirmation-step',
     standalone: true,
+    imports: [TestSendButtonComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <!-- Centered hero -->
@@ -56,6 +59,12 @@ import { AdultRegistrationService } from '@infrastructure/services/adult-registr
                         Resend Confirmation Email
                     </button>
 
+                    @if (isNonProd) {
+                        <app-test-send-button
+                            [busy]="testSending()"
+                            (send)="onTestSend($event)" />
+                    }
+
                     <button class="btn btn-primary" (click)="finished.emit()">
                         Finish <i class="bi bi-arrow-right ms-1"></i>
                     </button>
@@ -80,6 +89,34 @@ export class ConfirmationStepComponent {
     readonly emailSending = signal(false);
     readonly emailMessage = signal<string | null>(null);
     readonly emailError = signal(false);
+
+    /** Test send is a non-prod affordance; the backend refuses in Production regardless. */
+    readonly isNonProd = !environment.production;
+    readonly testSending = signal(false);
+
+    /** Renders THIS confirmation and delivers it to the tester's inbox instead of the registrant. */
+    onTestSend(options: TestSendOptions): void {
+        const regId = this.state.registrationId();
+        if (!regId || this.testSending()) return;
+
+        this.testSending.set(true);
+        this.emailMessage.set(null);
+
+        this.api.testSendConfirmationEmail(regId, options.recipient).subscribe({
+            next: (result) => {
+                this.testSending.set(false);
+                this.emailError.set(!result.sent);
+                this.emailMessage.set(result.sent
+                    ? `Test confirmation (rendered for ${result.renderedFor}) sent to ${result.recipient}.`
+                    : result.message || 'Test send failed.');
+            },
+            error: () => {
+                this.testSending.set(false);
+                this.emailError.set(true);
+                this.emailMessage.set('Test send failed. Please try again.');
+            },
+        });
+    }
 
     onResendEmail(): void {
         const regId = this.state.registrationId();
