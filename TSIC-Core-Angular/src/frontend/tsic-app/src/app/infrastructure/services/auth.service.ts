@@ -68,6 +68,14 @@ export class AuthService {
         || roles.includes(Roles.SuperDirector);
   });
 
+  // Superuser or SuperDirector — the pair legacy gated cross-job operations to
+  // (mirrors the backend CanCrossCustomerJobs policy).
+  public readonly isElevatedAdmin = computed(() => {
+    const user = this.currentUser();
+    const roles = user?.roles || (user?.role ? [user.role] : []);
+    return roles.includes(Roles.Superuser) || roles.includes(Roles.SuperDirector);
+  });
+
   constructor() {
     // Initialize current user from token on service creation
     this.initializeFromToken();

@@ -456,18 +456,25 @@ public class JobRepository : IJobRepository
     public async Task<List<Contracts.Dtos.RegistrationSearch.JobOptionDto>> GetOtherJobsForCustomerAsync(
         Guid jobId, CancellationToken cancellationToken = default)
     {
-        var customerId = await _context.Jobs
+        // Change-Job targets follow the legacy rule: same customer, same Season + Year as the
+        // registrant's current job (legacy SearchController filtered exactly this way), plus
+        // not user-expired — a registration must never be movable into a dead event.
+        var current = await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => j.CustomerId)
+            .Select(j => new { j.CustomerId, j.Season, j.Year })
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (customerId == Guid.Empty)
+        if (current == null || current.CustomerId == Guid.Empty)
             return [];
 
         return await _context.Jobs
             .AsNoTracking()
-            .Where(j => j.CustomerId == customerId && j.JobId != jobId)
+            .Where(j => j.CustomerId == current.CustomerId
+                && j.JobId != jobId
+                && j.Season == current.Season
+                && j.Year == current.Year
+                && (j.ExpiryUsers == DateTime.MinValue || j.ExpiryUsers > DateTime.Now))
             .OrderBy(j => j.JobName)
             .Select(j => new Contracts.Dtos.RegistrationSearch.JobOptionDto
             {
@@ -475,6 +482,22 @@ public class JobRepository : IJobRepository
                 JobName = j.JobName ?? "(unnamed)"
             })
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<bool> IsValidChangeJobTargetAsync(
+        Guid currentJobId, Guid targetJobId, CancellationToken cancellationToken = default)
+    {
+        return await (
+            from cur in _context.Jobs.AsNoTracking()
+            from tgt in _context.Jobs.AsNoTracking()
+            where cur.JobId == currentJobId
+                && tgt.JobId == targetJobId
+                && tgt.CustomerId == cur.CustomerId
+                && tgt.Season == cur.Season
+                && tgt.Year == cur.Year
+                && (tgt.ExpiryUsers == DateTime.MinValue || tgt.ExpiryUsers > DateTime.Now)
+            select tgt.JobId)
+            .AnyAsync(cancellationToken);
     }
 
     public async Task<List<Contracts.Dtos.RegistrationSearch.JobOptionDto>> GetInviteTargetJobsForCustomerAsync(

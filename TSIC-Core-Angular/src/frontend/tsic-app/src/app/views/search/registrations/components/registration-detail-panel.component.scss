@@ -421,6 +421,14 @@
   font-size: var(--font-size-base);
   transition: all 0.2s ease;
 
+  // Selects render a trailing chevron inside the control; the symmetric padding above left no
+  // room for it, so option text ran under the arrow and read as clipped (PL-046). Reserve the
+  // trailing space explicitly — our tokens, independent of whatever draws the chevron.
+  &:is(select) {
+    padding-right: var(--space-9);
+    text-overflow: ellipsis;
+  }
+
   &:focus {
     outline: none;
     border-color: var(--bs-primary);

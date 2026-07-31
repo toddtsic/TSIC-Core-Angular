@@ -536,7 +536,10 @@ public class RegistrationSearchController : ControllerBase
         return Ok(result);
     }
 
+    // Change Job matches legacy's gate: Superuser/SuperDirector only (legacy Search rendered the
+    // button only for those roles). CanCrossCustomerJobs is exactly that role pair.
     [HttpGet("change-job-options")]
+    [Authorize(Policy = "CanCrossCustomerJobs")]
     public async Task<ActionResult<List<JobOptionDto>>> GetChangeJobOptions(CancellationToken ct)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
@@ -548,6 +551,7 @@ public class RegistrationSearchController : ControllerBase
     }
 
     [HttpPost("{registrationId:guid}/change-job")]
+    [Authorize(Policy = "CanCrossCustomerJobs")]
     public async Task<ActionResult<ChangeJobResponse>> ChangeJob(
         Guid registrationId, [FromBody] ChangeJobRequest request, CancellationToken ct)
     {

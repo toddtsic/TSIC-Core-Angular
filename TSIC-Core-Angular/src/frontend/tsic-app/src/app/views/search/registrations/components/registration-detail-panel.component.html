@@ -275,7 +275,9 @@
           <div class="info-section">
             <div class="section-title-row">
               <h5 class="info-section-title">Registration <span class="reg-id">(Id: <span class="reg-id-guid">{{ reg.registrationId }}</span>)</span></h5>
-              @if (isPlayerRole()) {
+              <!-- Legacy parity: Change Job is a Superuser/SuperDirector action (matches the
+                   backend CanCrossCustomerJobs gate on both change-job endpoints). -->
+              @if (isPlayerRole() && canChangeJob()) {
                 <button type="button" class="btn btn-sm btn-outline-warning change-job-btn"
                   (click)="openChangeJobModal()" [disabled]="isLoadingJobOptions()">
                   @if (isLoadingJobOptions()) { <span class="spinner-border spinner-border-sm me-1"></span> }

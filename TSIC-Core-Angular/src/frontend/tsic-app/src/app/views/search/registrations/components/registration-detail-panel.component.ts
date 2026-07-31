@@ -340,6 +340,10 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   /** Rename is a SuperUser-only, shared-data operation and needs a resolved clubId to target. */
   readonly canRenameClub = computed(() => this.auth.isSuperuser() && this.clubId() != null);
 
+  /** Change Job is a cross-job operation — Superuser/SuperDirector only, per legacy and the
+   *  backend CanCrossCustomerJobs gate on both change-job endpoints. */
+  readonly canChangeJob = computed(() => this.auth.isElevatedAdmin());
+
   showRenameClubModal = signal<boolean>(false);
   renameClubNewName = signal<string>('');
   renameClubAffectedJobs = signal<ClubAffectedJob[]>([]);

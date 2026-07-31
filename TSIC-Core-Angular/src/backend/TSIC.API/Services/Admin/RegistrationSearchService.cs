@@ -996,6 +996,13 @@ public async Task<ChangeJobResponse> ChangeRegistrationJobAsync(
         if (reg.JobId == request.NewJobId)
             return new ChangeJobResponse { Success = false, Message = "Registration is already in this job." };
 
+        // Validate the target is a legal destination (same customer, same Season/Year, not
+        // expired) — the request body carries a raw job GUID, so this is the only thing standing
+        // between a stale/crafted option and a cross-customer or dead-event move.
+        var targetValid = await _jobRepo.IsValidChangeJobTargetAsync(jobId, request.NewJobId, ct);
+        if (!targetValid)
+            return new ChangeJobResponse { Success = false, Message = "Target job is not a valid destination for this registration." };
+
         // Find matching registration team in target job
         var newTeamId = await _registrationRepo.FindMatchingRegistrationTeamAsync(registrationId, request.NewJobId, ct);
 

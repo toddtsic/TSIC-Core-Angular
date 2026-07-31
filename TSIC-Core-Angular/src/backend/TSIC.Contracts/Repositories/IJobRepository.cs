@@ -295,6 +295,14 @@ public interface IJobRepository
         Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// True when targetJobId is a legal Change-Job destination for a registration currently in
+    /// currentJobId: same customer, same Season + Year, and not user-expired. Submit-side mirror
+    /// of the GetOtherJobsForCustomerAsync filter so a stale or crafted option can't slip through.
+    /// </summary>
+    Task<bool> IsValidChangeJobTargetAsync(
+        Guid currentJobId, Guid targetJobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get upcoming jobs owned by the same customer (excludes the current job and expired jobs)
     /// that currently accept the given registration type. Populates the invite-link target-event
     /// dropdown so an invite can only point at an event actually open to that role. Filters on the
