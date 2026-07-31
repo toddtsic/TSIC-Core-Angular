@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using TSIC.API.Services.Payments;
 using TSIC.API.Services.Players;
 using TSIC.API.Services.Shared.Adn;
+using TSIC.API.Services.Teams;
 using TSIC.API.Services.Shared.Email;
 using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.API.Services.Shared.UsLax;
@@ -42,6 +43,9 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     private readonly IRegisteredPlayerShaper _playerShaper;
     private readonly IUserRepository _userRepo;
     private readonly IUsLaxService _usLax;
+    private readonly IPlayerRegConfirmationService _playerConfirmation;
+    private readonly IAdultRegistrationService _adultRegistration;
+    private readonly ITeamRegistrationService _teamRegistration;
     private readonly ILogger<RegistrationSearchService> _logger;
 
     // Known payment method GUIDs. CC charging itself goes through PaymentService's
@@ -69,6 +73,9 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         IRegisteredPlayerShaper playerShaper,
         IUserRepository userRepo,
         IUsLaxService usLax,
+        IPlayerRegConfirmationService playerConfirmation,
+        IAdultRegistrationService adultRegistration,
+        ITeamRegistrationService teamRegistration,
         ILogger<RegistrationSearchService> logger)
     {
         _registrationRepo = registrationRepo;
@@ -87,6 +94,9 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         _playerShaper = playerShaper;
         _userRepo = userRepo;
         _usLax = usLax;
+        _playerConfirmation = playerConfirmation;
+        _adultRegistration = adultRegistration;
+        _teamRegistration = teamRegistration;
         _logger = logger;
     }
 
@@ -206,6 +216,126 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             MemStatus = member.Output?.MemStatus ?? (member.StatusCode == 404 ? "Not found" : null),
             ExpDate = expDate?.ToString("yyyy-MM-dd"),
             Message = member.StatusCode == 200 ? null : (member.ErrorMessage ?? "Membership not found.")
+        };
+    }
+
+    /// <summary>
+    /// Admin resend of a registrant's confirmation email, role-routed to the same render/send
+    /// pipeline the registrant's own wizard uses. Redelivery semantics throughout: forces past the
+    /// BConfirmationSent latch, keeps the job's Reply-To, drops its CC/BCC (the copies audience got
+    /// the original). A player confirmation is family-scoped by design — one email covering every
+    /// sibling in the job, to mom ∪ dad ∪ the family's player emails — and the result message says so.
+    /// </summary>
+    public async Task<AdminResendConfirmationResultDto> ResendConfirmationAsync(
+        Guid registrationId, Guid jobId, CancellationToken ct = default)
+    {
+        var reg = await _registrationRepo.GetByIdAsync(registrationId, ct);
+        if (reg is null || reg.JobId != jobId)
+            return new AdminResendConfirmationResultDto { Sent = false, Message = "Registration not found for this job." };
+
+        if (IsPlayerRole(reg.RoleId))
+        {
+            if (string.IsNullOrWhiteSpace(reg.FamilyUserId))
+                return new AdminResendConfirmationResultDto { Sent = false, Message = "This player registration has no family account, so there is no family confirmation to resend." };
+
+            var result = await _playerConfirmation.SendConfirmationAsync(jobId, reg.FamilyUserId, ct);
+            if (result.Sent)
+                return new AdminResendConfirmationResultDto
+                {
+                    Sent = true,
+                    Message = $"Family confirmation sent to {result.Recipients.Count} recipient(s) — one email covers every family registrant in this job.",
+                    Recipients = result.Recipients
+                };
+
+            return new AdminResendConfirmationResultDto
+            {
+                Sent = false,
+                Message = result.Failure switch
+                {
+                    PlayerConfirmationSendFailure.NoRecipients => "No valid recipient emails found (player/mom/dad).",
+                    PlayerConfirmationSendFailure.NoContent => "No player confirmation email template is configured for this job.",
+                    PlayerConfirmationSendFailure.SendFailed => "The email service declined the send.",
+                    _ => "Confirmation could not be sent."
+                }
+            };
+        }
+
+        if (IsClubRepRole(reg.RoleId))
+        {
+            try
+            {
+                await _teamRegistration.SendConfirmationEmailAsAdminAsync(registrationId);
+            }
+            catch (Exception ex) when (ex is KeyNotFoundException or InvalidOperationException)
+            {
+                return new AdminResendConfirmationResultDto { Sent = false, Message = ex.Message };
+            }
+            return await SentToOwnerAsync(reg.UserId, ct);
+        }
+
+        // Everyone else — coach, referee, recruiter, staff, unassigned adult — rides the adult pipeline.
+        bool sent;
+        try
+        {
+            sent = await _adultRegistration.SendConfirmationEmailAsAdminAsync(registrationId, ct);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return new AdminResendConfirmationResultDto { Sent = false, Message = ex.Message };
+        }
+        if (!sent)
+            return new AdminResendConfirmationResultDto { Sent = false, Message = "No confirmation email could be sent — no email address is on file for this account." };
+
+        return await SentToOwnerAsync(reg.UserId, ct);
+    }
+
+    /// <summary>
+    /// Render-only counterpart of <see cref="ResendConfirmationAsync"/> for the sandbox test-send:
+    /// same role routing, nothing mailed to the registrant. Null when the registration is outside
+    /// the job or no confirmation content can be rendered.
+    /// </summary>
+    public async Task<ConfirmationPreviewDto?> BuildConfirmationPreviewAsync(
+        Guid registrationId, Guid jobId, CancellationToken ct = default)
+    {
+        var reg = await _registrationRepo.GetByIdAsync(registrationId, ct);
+        if (reg is null || reg.JobId != jobId) return null;
+
+        if (IsPlayerRole(reg.RoleId))
+        {
+            if (string.IsNullOrWhiteSpace(reg.FamilyUserId)) return null;
+            var (subject, html) = await _playerConfirmation.BuildEmailAsync(jobId, reg.FamilyUserId, ct);
+            if (string.IsNullOrWhiteSpace(html)) return null;
+            return new ConfirmationPreviewDto
+            {
+                Subject = string.IsNullOrWhiteSpace(subject) ? "Registration Confirmation" : subject,
+                HtmlBody = html,
+                RenderedForName = "this family"
+            };
+        }
+
+        if (IsClubRepRole(reg.RoleId))
+            return await _teamRegistration.BuildConfirmationPreviewAsAdminAsync(registrationId);
+
+        return await _adultRegistration.BuildConfirmationPreviewAsAdminAsync(registrationId, ct);
+    }
+
+    private static bool IsPlayerRole(string? roleId)
+        => string.Equals(roleId, RoleConstants.Player, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsClubRepRole(string? roleId)
+        => string.Equals(roleId, RoleConstants.ClubRep, StringComparison.OrdinalIgnoreCase);
+
+    private async Task<AdminResendConfirmationResultDto> SentToOwnerAsync(string? ownerUserId, CancellationToken ct)
+    {
+        var email = string.IsNullOrWhiteSpace(ownerUserId)
+            ? null
+            : (await _userRepo.GetByIdAsync(ownerUserId, ct))?.Email;
+
+        return new AdminResendConfirmationResultDto
+        {
+            Sent = true,
+            Message = string.IsNullOrWhiteSpace(email) ? "Confirmation sent." : $"Confirmation sent to {email}.",
+            Recipients = string.IsNullOrWhiteSpace(email) ? [] : [email]
         };
     }
 

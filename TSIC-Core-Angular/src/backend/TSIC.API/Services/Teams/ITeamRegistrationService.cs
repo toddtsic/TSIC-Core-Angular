@@ -125,12 +125,25 @@ public interface ITeamRegistrationService
     /// When <paramref name="isEcheckPending"/> is true, prepends an inline-styled
     /// "paid by eCheck" banner (drafts finalize in 3–5 business days; a returned draft
     /// restores the balance automatically). The payment is booked at submit either way.
+    /// <paramref name="isRedelivery"/> marks a resend of an already-delivered confirmation:
+    /// Reply-To is applied but the job's CC/BCC list is not. NOT the same thing as
+    /// <paramref name="forceResend"/> — the payment chokepoint forces past the
+    /// BConfirmationSent latch for a genuinely NEW confirmation (which keeps its copies).
     /// </summary>
-    Task SendConfirmationEmailAsync(Guid registrationId, string userId, bool forceResend = false, bool isEcheckPending = false);
+    Task SendConfirmationEmailAsync(Guid registrationId, string userId, bool forceResend = false, bool isEcheckPending = false, bool isRedelivery = false);
+
+    /// <summary>
+    /// Admin resend (Search/Registrations fly-in): mails the registration's OWNER, not the caller.
+    /// No ownership check — job scope is validated by the admin caller. Redelivery semantics.
+    /// </summary>
+    Task SendConfirmationEmailAsAdminAsync(Guid registrationId);
 
     /// <summary>
     /// Non-prod: renders the club-rep confirmation without sending it, for delivery to a test inbox.
     /// Null when the caller does not own the registration, or the job has no template configured.
     /// </summary>
     Task<ConfirmationPreviewDto?> BuildConfirmationPreviewAsync(Guid registrationId, string userId, bool isEcheckPending = false);
+
+    /// <summary>Admin preview for the fly-in test-send — no ownership check.</summary>
+    Task<ConfirmationPreviewDto?> BuildConfirmationPreviewAsAdminAsync(Guid registrationId);
 }

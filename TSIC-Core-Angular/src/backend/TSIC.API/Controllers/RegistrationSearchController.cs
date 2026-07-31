@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
@@ -138,6 +139,48 @@ public class RegistrationSearchController : ControllerBase
             return BadRequest(new { message = RegistrationContextRequired });
 
         var result = await _searchService.RevalidateUsLaxAsync(jobId.Value, registrationId, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Admin resend of the registrant's confirmation email (the fly-in's "Re-Send Confirmation
+    /// Email" action). Role-routed server-side to the registrant's own pipeline; job-scoped like
+    /// every other per-registration action here. Redelivery — no job CC/BCC, Reply-To kept.
+    /// </summary>
+    [HttpPost("{registrationId:guid}/resend-confirmation")]
+    public async Task<ActionResult<AdminResendConfirmationResultDto>> ResendConfirmation(
+        Guid registrationId, CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = RegistrationContextRequired });
+
+        var result = await _searchService.ResendConfirmationAsync(registrationId, jobId.Value, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Sandbox-only: renders the registrant's confirmation (same role routing as the resend) and
+    /// delivers it to a single test inbox instead of the registrant. Refused in Production, and
+    /// again inside EmailTestSendService.
+    /// </summary>
+    [HttpPost("{registrationId:guid}/test-send-confirmation")]
+    public async Task<ActionResult<EmailTestSendResponse>> TestSendConfirmation(
+        Guid registrationId, [FromBody] ConfirmationTestSendRequest request, CancellationToken ct)
+    {
+        if (_env.IsLiveProduction())
+            return BadRequest(new { message = "Test sends are not permitted in Production." });
+
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = RegistrationContextRequired });
+
+        var preview = await _searchService.BuildConfirmationPreviewAsync(registrationId, jobId.Value, ct);
+        if (preview == null)
+            return BadRequest(new { message = "No confirmation content available to render." });
+
+        var result = await _testSend.SendRenderedAsync(
+            preview.Subject, preview.HtmlBody, preview.RenderedForName, request.TestRecipient, ct);
         return Ok(result);
     }
 

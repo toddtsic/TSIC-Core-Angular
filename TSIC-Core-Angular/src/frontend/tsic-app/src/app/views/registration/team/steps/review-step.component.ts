@@ -149,7 +149,7 @@ export class TeamReviewStepComponent implements OnInit {
         const regId = this.state.clubRep.registrationId();
         if (!regId) { this.resending.set(false); return; }
         const isEcheckPending = this.state.teamPaymentState.lastPayment()?.paymentMethod === 'Echeck';
-        this.teamReg.sendConfirmationEmail(regId, true, undefined, isEcheckPending)
+        this.teamReg.sendConfirmationEmail(regId, true, undefined, isEcheckPending, /* isRedelivery */ true)
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: () => {

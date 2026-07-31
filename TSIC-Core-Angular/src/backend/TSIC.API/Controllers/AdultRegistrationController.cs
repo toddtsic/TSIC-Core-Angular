@@ -328,7 +328,8 @@ public class AdultRegistrationController : ControllerBase
     /// <summary>
     /// Sandbox-only: renders this registrant's confirmation and delivers it to a single test inbox
     /// instead of the registrant. Same render as the resend below, so the test inbox shows what a
-    /// coach would actually receive. Refused in Production, and again inside EmailTestSendService.
+    /// coach would actually receive. Ownership-checked — a preview is still this registrant's data.
+    /// Refused in Production, and again inside EmailTestSendService.
     /// </summary>
     [Authorize]
     [HttpPost("confirmation/{registrationId:guid}/test-send")]
@@ -340,7 +341,10 @@ public class AdultRegistrationController : ControllerBase
         if (_env.IsLiveProduction())
             return BadRequest(new { message = "Test sends are not permitted in Production." });
 
-        var preview = await _service.BuildConfirmationPreviewAsync(registrationId, ct);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        var preview = await _service.BuildConfirmationPreviewAsync(registrationId, userId, ct);
         if (preview == null)
             return BadRequest(new { message = "No confirmation content available to render." });
 
@@ -350,16 +354,19 @@ public class AdultRegistrationController : ControllerBase
     }
 
     /// <summary>
-    /// Resend confirmation email (authenticated). Reports what actually happened — a send that
-    /// went nowhere used to return "sent successfully" all the same.
+    /// Resend confirmation email (authenticated, owner only). Reports what actually happened — a
+    /// send that went nowhere used to return "sent successfully" all the same.
     /// </summary>
     [Authorize]
     [HttpPost("confirmation/{registrationId:guid}/resend")]
     public async Task<IActionResult> ResendConfirmationEmail(Guid registrationId, CancellationToken ct)
     {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
         try
         {
-            var sent = await _service.SendConfirmationEmailAsync(registrationId, ct);
+            var sent = await _service.SendConfirmationEmailAsync(registrationId, userId, ct);
             return sent
                 ? Ok(new { sent = true, message = "Confirmation email sent." })
                 : Ok(new { sent = false, message = "No confirmation email could be sent — no email address is on file for this account." });
@@ -367,6 +374,10 @@ public class AdultRegistrationController : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(new { message = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
         }
     }
 }

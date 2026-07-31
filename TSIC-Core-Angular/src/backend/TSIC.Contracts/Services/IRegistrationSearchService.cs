@@ -1,3 +1,4 @@
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
@@ -28,6 +29,19 @@ public interface IRegistrationSearchService
     /// (<c>SportAssnIdexpDate</c>) onto that single row. Works for players and coaches alike.
     /// </summary>
     Task<RevalidateUsLaxResultDto> RevalidateUsLaxAsync(Guid jobId, Guid registrationId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Admin resend of the registrant's confirmation email, role-routed to the registrant's own
+    /// render/send pipeline (player = family-scoped; club rep = team; everyone else = adult).
+    /// Redelivery semantics: forces past BConfirmationSent, keeps Reply-To, drops the job CC/BCC.
+    /// </summary>
+    Task<AdminResendConfirmationResultDto> ResendConfirmationAsync(Guid registrationId, Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Render-only counterpart of <see cref="ResendConfirmationAsync"/> for the sandbox test-send.
+    /// Null when the registration is outside the job or nothing can be rendered.
+    /// </summary>
+    Task<ConfirmationPreviewDto?> BuildConfirmationPreviewAsync(Guid registrationId, Guid jobId, CancellationToken ct = default);
 
     /// <summary>
     /// Family-wide accounting for the player whose detail panel is open: a combined ledger

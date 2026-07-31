@@ -1,7 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
+using TSIC.Contracts.Services;
+using TSIC.API.Services.Shared.Email;
 using TSIC.API.Services.Shared.TextSubstitution;
+using TSIC.Domain.Constants;
 
 namespace TSIC.API.Services.Players;
 
@@ -10,20 +13,26 @@ public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
     private readonly IJobRepository _jobRepo;
     private readonly IRegistrationRepository _regRepo;
     private readonly IRegistrationAccountingRepository _accountingRepo;
+    private readonly IFamilyRepository _familyRepo;
     private readonly ITextSubstitutionService _subs;
+    private readonly IEmailService _email;
     private readonly ILogger<PlayerRegConfirmationService> _logger;
 
     public PlayerRegConfirmationService(
         IJobRepository jobRepo,
         IRegistrationRepository regRepo,
         IRegistrationAccountingRepository accountingRepo,
+        IFamilyRepository familyRepo,
         ITextSubstitutionService subs,
+        IEmailService email,
         ILogger<PlayerRegConfirmationService> logger)
     {
         _jobRepo = jobRepo;
         _regRepo = regRepo;
         _accountingRepo = accountingRepo;
+        _familyRepo = familyRepo;
         _subs = subs;
+        _email = email;
         _logger = logger;
     }
 
@@ -118,6 +127,65 @@ public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
         }
         return await BuildEmailAsync(jobId.Value, familyUserId, ct, isEcheckPending);
     }
+
+    public async Task<PlayerConfirmationSendResult> SendConfirmationAsync(Guid jobId, string familyUserId, CancellationToken ct)
+    {
+        // Distinct recipient set: mom/dad from Families ∪ every family player email in the job.
+        var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var fam = await _familyRepo.GetByFamilyUserIdAsync(familyUserId, ct);
+        if (fam != null)
+        {
+            if (!string.IsNullOrWhiteSpace(fam.MomEmail)) recipients.Add(fam.MomEmail.Trim());
+            if (!string.IsNullOrWhiteSpace(fam.DadEmail)) recipients.Add(fam.DadEmail.Trim());
+        }
+        var playerEmails = await _familyRepo.GetFamilyPlayerEmailsForJobAsync(jobId, familyUserId, ct);
+        foreach (var email in playerEmails)
+        {
+            var e = email.Trim();
+            if (!string.IsNullOrWhiteSpace(e)) recipients.Add(e);
+        }
+        // One address rule for every send path — see EmailAddressRules.
+        var toList = recipients
+            .Select(x => x.Trim())
+            .Where(EmailAddressRules.IsSendable)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (toList.Count == 0) return Failure(PlayerConfirmationSendFailure.NoRecipients);
+
+        var (subject, html) = await BuildEmailAsync(jobId, familyUserId, ct);
+        if (string.IsNullOrWhiteSpace(html)) return Failure(PlayerConfirmationSendFailure.NoContent);
+
+        var dto = new EmailMessageDto
+        {
+            Subject = string.IsNullOrWhiteSpace(subject) ? "Registration Confirmation" : subject,
+            HtmlBody = html
+        };
+        dto.ToAddresses.AddRange(toList);
+
+        // Redelivery: Reply-To still routes replies to the club, but the job's CC/BCC audience got
+        // the original — a resend is not a new confirmation event.
+        var jobInfo = await _jobRepo.GetConfirmationEmailInfoAsync(jobId, ct);
+        if (jobInfo != null) JobConfirmationCopies.Apply(dto, jobInfo, includeCopies: false);
+
+        var ok = await _email.SendAsync(dto, sendInDevelopment: false, cancellationToken: ct);
+        return ok
+            ? new PlayerConfirmationSendResult { Sent = true, Failure = PlayerConfirmationSendFailure.None, Recipients = toList }
+            : Failure(PlayerConfirmationSendFailure.SendFailed);
+    }
+
+    public async Task<PlayerConfirmationSendResult> SendConfirmationAsync(string jobPath, string familyUserId, CancellationToken ct)
+    {
+        var jobId = await _jobRepo.GetJobIdByPathAsync(jobPath, ct);
+        if (jobId == null)
+        {
+            _logger.LogWarning("Confirmation resend: job {JobPath} not found", jobPath);
+            return Failure(PlayerConfirmationSendFailure.JobNotFound);
+        }
+        return await SendConfirmationAsync(jobId.Value, familyUserId, ct);
+    }
+
+    private static PlayerConfirmationSendResult Failure(PlayerConfirmationSendFailure failure)
+        => new() { Sent = false, Failure = failure };
 
     private async Task<PlayerRegTsicFinancialDto> BuildTsicFinancialAsync(List<RegistrationConfirmationData> regs, CancellationToken ct)
     {

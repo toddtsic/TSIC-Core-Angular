@@ -32,26 +32,17 @@ public sealed class PlayerRegistrationConfirmationController : ControllerBase
 {
     private readonly IPlayerRegConfirmationService _service;
     private readonly ILogger<PlayerRegistrationConfirmationController> _logger;
-    private readonly IEmailService _email;
-    private readonly IFamilyRepository _familyRepo;
-    private readonly IJobRepository _jobRepo;
     private readonly IEmailTestSendService _testSend;
     private readonly IHostEnvironment _env;
 
     public PlayerRegistrationConfirmationController(
         IPlayerRegConfirmationService service,
         ILogger<PlayerRegistrationConfirmationController> logger,
-        IEmailService email,
-        IFamilyRepository familyRepo,
-        IJobRepository jobRepo,
         IEmailTestSendService testSend,
         IHostEnvironment env)
     {
         _service = service;
         _logger = logger;
-        _email = email;
-        _familyRepo = familyRepo;
-        _jobRepo = jobRepo;
         _testSend = testSend;
         _env = env;
     }
@@ -150,54 +141,18 @@ public sealed class PlayerRegistrationConfirmationController : ControllerBase
             return Unauthorized();
         }
 
-        // Build distinct recipient list: player emails for this job + mom/dad from Families
-        var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var fam = await _familyRepo.GetByFamilyUserIdAsync(familyUserId);
-        if (fam != null)
-        {
-            if (!string.IsNullOrWhiteSpace(fam.MomEmail)) recipients.Add(fam.MomEmail.Trim());
-            if (!string.IsNullOrWhiteSpace(fam.DadEmail)) recipients.Add(fam.DadEmail.Trim());
-        }
-        var playerEmails = await _familyRepo.GetFamilyPlayerEmailsForJobAsync(jobPath, familyUserId, ct);
-        foreach (var email in playerEmails)
-        {
-            var e = email.Trim();
-            if (!string.IsNullOrWhiteSpace(e)) recipients.Add(e);
-        }
-        // One address rule for every send path — see EmailAddressRules.
-        var toList = recipients
-            .Select(x => x.Trim())
-            .Where(EmailAddressRules.IsSendable)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        if (toList.Count == 0)
-        {
-            return BadRequest(new { message = "No valid recipient emails found (player/mom/dad)" });
-        }
+        // Send lives in the service — the same redelivery chokepoint the admin fly-in resend uses
+        // (Reply-To applied, CC/BCC deliberately not: the copies audience got the original).
+        var result = await _service.SendConfirmationAsync(jobPath, familyUserId, ct);
+        if (result.Sent) return Ok(new { sent = true });
 
-        var (subject, html) = await _service.BuildEmailAsync(jobPath, familyUserId, ct);
-        if (string.IsNullOrWhiteSpace(html))
+        return result.Failure switch
         {
-            return BadRequest(new { message = "No confirmation content available to send" });
-        }
-
-        var dto = new EmailMessageDto
-        {
-            Subject = string.IsNullOrWhiteSpace(subject) ? "Registration Confirmation" : subject,
-            HtmlBody = html
+            PlayerConfirmationSendFailure.NoRecipients =>
+                BadRequest(new { message = "No valid recipient emails found (player/mom/dad)" }),
+            PlayerConfirmationSendFailure.SendFailed =>
+                StatusCode(502, new { message = "Email send failed" }),
+            _ => BadRequest(new { message = "No confirmation content available to send" }),
         };
-        dto.ToAddresses.AddRange(toList);
-
-        // A resent confirmation is the same message as the original, so it carries the same copies.
-        var jobId = await _jobRepo.GetJobIdByPathAsync(jobPath, ct);
-        if (jobId != null)
-        {
-            var jobInfo = await _jobRepo.GetConfirmationEmailInfoAsync(jobId.Value, ct);
-            if (jobInfo != null) JobConfirmationCopies.Apply(dto, jobInfo);
-        }
-
-        var ok = await _email.SendAsync(dto, sendInDevelopment: false, cancellationToken: ct);
-        if (!ok) return StatusCode(502, new { message = "Email send failed" });
-        return Ok(new { sent = true });
     }
 }

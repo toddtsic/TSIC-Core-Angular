@@ -514,6 +514,26 @@
       <!-- ═══════════════════════ ACCOUNTING TAB ═══════════════════════ -->
       @if (activeTab() === 'accounting') {
         <div class="tab-content">
+          <!-- ── AM-060: admin resend of the registrant's confirmation email. Sits on the
+               Accounting tab because the motivating case is a payment edit that today notifies
+               nobody. Role-routed server-side; a player resend is the FAMILY confirmation
+               (one email covering every sibling in the job) — the toast discloses this. -->
+          <div class="confirmation-resend-row">
+            <button type="button" class="btn btn-sm btn-outline-primary"
+              (click)="resendConfirmation()" [disabled]="isResendingConfirmation()">
+              @if (isResendingConfirmation()) {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+              }
+              Re-Send Confirmation Email
+            </button>
+            @if (isNonProd) {
+              <app-test-send-button
+                align="left"
+                [busy]="isTestSendingConfirmation()"
+                (send)="testSendConfirmation($event)" />
+            }
+          </div>
+
           @if (isClubRep()) {
             <app-club-rep-payment
               [clubRepRegistrationId]="reg.registrationId"

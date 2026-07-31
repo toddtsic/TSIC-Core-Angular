@@ -37,7 +37,8 @@ import type {
 	FamilyAccountingDto,
 	RevalidateUsLaxResultDto,
 	EmailTestSendRequest,
-	EmailTestSendResponse
+	EmailTestSendResponse,
+	AdminResendConfirmationResultDto
 } from '@core/api';
 
 // Re-export for consumers
@@ -107,6 +108,19 @@ export class RegistrationSearchService {
 	/** Combined accounting across every player the parent registered for the job. */
 	getFamilyAccounting(registrationId: string): Observable<FamilyAccountingDto> {
 		return this.http.get<FamilyAccountingDto>(`${this.apiUrl}/${registrationId}/family-accounting`);
+	}
+
+	/** Admin resend of the registrant's confirmation email (role-routed server-side;
+	 *  a player resend is the FAMILY confirmation — the result message discloses this). */
+	resendConfirmation(registrationId: string): Observable<AdminResendConfirmationResultDto> {
+		return this.http.post<AdminResendConfirmationResultDto>(
+			`${this.apiUrl}/${registrationId}/resend-confirmation`, null);
+	}
+
+	/** Sandbox-only: renders the registrant's confirmation and delivers it to a test inbox. */
+	testSendConfirmation(registrationId: string, testRecipient: string): Observable<EmailTestSendResponse> {
+		return this.http.post<EmailTestSendResponse>(
+			`${this.apiUrl}/${registrationId}/test-send-confirmation`, { testRecipient });
 	}
 
 	updateProfile(registrationId: string, request: UpdateRegistrationProfileRequest): Observable<void> {

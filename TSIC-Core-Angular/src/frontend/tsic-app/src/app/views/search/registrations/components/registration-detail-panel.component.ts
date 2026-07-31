@@ -1045,6 +1045,50 @@ export class RegistrationDetailPanelComponent implements OnChanges {
     });
   }
 
+  // ── AM-060: Re-Send Confirmation Email (Accounting tab) ──────────────────────────
+  readonly isResendingConfirmation = signal(false);
+  readonly isTestSendingConfirmation = signal(false);
+
+  /** Resends the registrant's confirmation email. Role-routed server-side — for a player this
+   *  is the FAMILY confirmation (one email, every sibling in the job); the server's message
+   *  discloses the scope and the recipients, so it is shown verbatim. */
+  resendConfirmation(): void {
+    const d = this.detail();
+    if (!d || this.isResendingConfirmation()) return;
+    this.isResendingConfirmation.set(true);
+    this.searchService.resendConfirmation(d.registrationId).subscribe({
+      next: (result) => {
+        this.isResendingConfirmation.set(false);
+        this.toast.show(result.message, result.sent ? 'success' : 'warning', 7000);
+      },
+      error: (err) => {
+        this.isResendingConfirmation.set(false);
+        this.toast.show(err?.error?.message || 'Confirmation resend failed', 'danger', 5000);
+      }
+    });
+  }
+
+  /** Non-prod: renders the registrant's confirmation and delivers it to a test inbox instead. */
+  testSendConfirmation(options: TestSendOptions): void {
+    const d = this.detail();
+    if (!d || this.isTestSendingConfirmation()) return;
+    this.isTestSendingConfirmation.set(true);
+    this.searchService.testSendConfirmation(d.registrationId, options.recipient).subscribe({
+      next: (result) => {
+        this.isTestSendingConfirmation.set(false);
+        if (result.sent) {
+          this.toast.show(`Test confirmation (rendered for ${result.renderedFor}) sent to ${result.recipient}`, 'success', 6000);
+        } else {
+          this.toast.show(result.message || 'Test send failed', 'danger', 5000);
+        }
+      },
+      error: (err) => {
+        this.isTestSendingConfirmation.set(false);
+        this.toast.show(err?.error?.message || 'Test send failed', 'danger', 5000);
+      }
+    });
+  }
+
   sendEmail(): void {
     const d = this.detail();
     if (!d || !this.emailSubject() || !this.emailBody()) {

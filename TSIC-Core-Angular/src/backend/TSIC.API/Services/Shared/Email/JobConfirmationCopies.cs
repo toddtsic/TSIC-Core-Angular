@@ -23,9 +23,15 @@ public static class JobConfirmationCopies
     /// switch kills CC and BCC on every confirmation regardless of role — matching legacy, and matching
     /// what a director ticking a box called "turn off the copies" plainly expects. It never suppresses
     /// the confirmation itself: the registrant is always mailed.
+    ///
+    /// <paramref name="includeCopies"/> is the redelivery switch: a resend (registrant or admin asked
+    /// for the email again) passes false, because the CC/BCC audience got the original and a redelivery
+    /// is not a new confirmation event. Reply-To is applied either way — a reply to a resent
+    /// confirmation must still reach the club, not TSIC support. Payment-triggered sends are new
+    /// events (the director's record that a receipt went out) and keep the default.
     /// </summary>
-    public static void Apply(EmailMessageDto message, IJobConfirmationCopyConfig job)
-        => Apply(message, job.RegFormFrom, job.RegFormCcs, job.RegFormBccs, job.BDisallowCcplayerConfirmations);
+    public static void Apply(EmailMessageDto message, IJobConfirmationCopyConfig job, bool includeCopies = true)
+        => Apply(message, job.RegFormFrom, job.RegFormCcs, job.RegFormBccs, job.BDisallowCcplayerConfirmations, includeCopies);
 
     /// <summary>
     /// Overload for the adult path, which holds the <c>Jobs</c> entity rather than a repository DTO.
@@ -37,7 +43,8 @@ public static class JobConfirmationCopies
         string? regFormFrom,
         string? regFormCcs,
         string? regFormBccs,
-        bool? disallowCopies)
+        bool? disallowCopies,
+        bool includeCopies = true)
     {
         // Reply-To is not a copy and is not gated: a reply must reach the club whether or not the
         // director wants the office CC'd. From stays the SES-verified identity, forced at the send
@@ -47,6 +54,7 @@ public static class JobConfirmationCopies
             message.ReplyToAddress = regFormFrom;
         }
 
+        if (!includeCopies) return;
         if (disallowCopies ?? false) return;
 
         var ccs = EmailAddressRules.ParseDelimitedList(regFormCcs);

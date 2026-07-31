@@ -2,10 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type SendConfirmationEmailRequest = {
+export type TeamConfirmationTestSendRequest = {
     registrationId?: string;
-    forceResend?: boolean;
+    testRecipient?: string;
     isEcheckPending?: boolean;
-    isRedelivery?: boolean;
 };
 

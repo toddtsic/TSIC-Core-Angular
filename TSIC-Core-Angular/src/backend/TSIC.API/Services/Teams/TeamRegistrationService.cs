@@ -1680,7 +1680,29 @@ public class TeamRegistrationService : ITeamRegistrationService
         };
     }
 
-    public async Task SendConfirmationEmailAsync(Guid registrationId, string userId, bool forceResend = false, bool isEcheckPending = false)
+    /// <summary>
+    /// Admin resend for the Search/Registrations fly-in: resolves the registration's owner and
+    /// rides the normal send with the ownership check trivially satisfied. Redelivery semantics
+    /// (forceResend past the latch, Reply-To yes, CC/BCC no).
+    /// </summary>
+    public async Task SendConfirmationEmailAsAdminAsync(Guid registrationId)
+    {
+        var reg = await _registrations.GetByIdAsync(registrationId)
+            ?? throw new KeyNotFoundException($"Registration {registrationId} not found");
+
+        await SendConfirmationEmailAsync(registrationId, reg.UserId!, forceResend: true, isEcheckPending: false, isRedelivery: true);
+    }
+
+    /// <summary>Admin preview for the fly-in test-send — same trick as the admin send.</summary>
+    public async Task<ConfirmationPreviewDto?> BuildConfirmationPreviewAsAdminAsync(Guid registrationId)
+    {
+        var reg = await _registrations.GetByIdAsync(registrationId);
+        if (reg == null || string.IsNullOrEmpty(reg.UserId)) return null;
+
+        return await BuildConfirmationPreviewAsync(registrationId, reg.UserId, isEcheckPending: false);
+    }
+
+    public async Task SendConfirmationEmailAsync(Guid registrationId, string userId, bool forceResend = false, bool isEcheckPending = false, bool isRedelivery = false)
     {
         _logger.LogInformation("Sending confirmation email for registration {RegistrationId}, user {UserId}, forceResend {ForceResend}, isEcheckPending {IsEcheckPending}",
             registrationId, userId, forceResend, isEcheckPending);
@@ -1731,7 +1753,9 @@ public class TeamRegistrationService : ITeamRegistrationService
                 HtmlBody = emailHtml
             };
 
-            JobConfirmationCopies.Apply(emailMessage, jobInfo);
+            // Redelivery keeps Reply-To but not CC/BCC — the copies audience got the original;
+            // only a new confirmation event (initial send, payment receipt) carries copies.
+            JobConfirmationCopies.Apply(emailMessage, jobInfo, includeCopies: !isRedelivery);
 
             bool emailSent = await _emailService.SendAsync(emailMessage);
 

@@ -78,7 +78,11 @@ public class PlayerCheckTests
             new Mock<ITeamRepository>().Object, adnApi.Object, arbRepo.Object, textSub.Object,
             new Mock<IEmailBatchService>().Object, feeAdjustment, new Mock<IPaymentService>().Object, paymentState,
             new Mock<IRegisteredPlayerShaper>().Object, new Mock<IUserRepository>().Object,
-            new Mock<TSIC.API.Services.Shared.UsLax.IUsLaxService>().Object, logger.Object);
+            new Mock<TSIC.API.Services.Shared.UsLax.IUsLaxService>().Object,
+            new Mock<TSIC.API.Services.Players.IPlayerRegConfirmationService>().Object,
+            new Mock<IAdultRegistrationService>().Object,
+            new Mock<TSIC.API.Services.Teams.ITeamRegistrationService>().Object,
+            logger.Object);
 
         return (svc, builder, ctx, job.JobId);
     }

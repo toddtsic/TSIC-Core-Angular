@@ -586,7 +586,7 @@ public class AdultRegistrationService : IAdultRegistrationService
         // A mail failure must never cost the registrant their confirmation screen.
         try
         {
-            await SendConfirmationEmailInternalAsync(reg, roleType, forceResend: false, cancellationToken);
+            await SendConfirmationEmailInternalAsync(reg, roleType, forceResend: false, isRedelivery: false, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -604,29 +604,74 @@ public class AdultRegistrationService : IAdultRegistrationService
     }
 
     /// <summary>
-    /// Manual resend. Always sends — the registrant explicitly asked — so it bypasses the
-    /// BConfirmationSent guard. Returns false when nothing actually went out, so the endpoint can
-    /// say so rather than report a success that never happened.
+    /// Manual self-service resend. Always sends — the registrant explicitly asked — so it bypasses
+    /// the BConfirmationSent guard. Ownership-checked: the caller must own the registration (same
+    /// stance as the team path; admins have their own job-scoped endpoint). Redelivery semantics —
+    /// Reply-To applied, the job's CC/BCC list not (the copies audience got the original). Returns
+    /// false when nothing actually went out, so the endpoint can say so rather than report a success
+    /// that never happened.
     /// </summary>
-    public async Task<bool> SendConfirmationEmailAsync(Guid registrationId, CancellationToken cancellationToken = default)
+    public async Task<bool> SendConfirmationEmailAsync(Guid registrationId, string callerUserId, CancellationToken cancellationToken = default)
+    {
+        var reg = await _repo.GetRegistrationWithJobAsync(registrationId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Registration {registrationId} not found.");
+
+        if (reg.UserId != callerUserId)
+        {
+            _logger.LogWarning(
+                "[AdultConfirmation] User {UserId} attempted to resend for registration {RegistrationId} belonging to {OwnerId}",
+                callerUserId, registrationId, reg.UserId);
+            throw new UnauthorizedAccessException("You do not have permission to send this confirmation email");
+        }
+
+        return await SendConfirmationEmailInternalAsync(
+            reg, ResolveRoleTypeFromId(reg.RoleId), forceResend: true, isRedelivery: true, cancellationToken);
+    }
+
+    /// <summary>
+    /// Admin resend for the Search/Registrations fly-in. No ownership check — the caller's job scope
+    /// is validated upstream by RegistrationSearchService. Same redelivery semantics as the
+    /// self-service resend.
+    /// </summary>
+    public async Task<bool> SendConfirmationEmailAsAdminAsync(Guid registrationId, CancellationToken cancellationToken = default)
     {
         var reg = await _repo.GetRegistrationWithJobAsync(registrationId, cancellationToken)
             ?? throw new KeyNotFoundException($"Registration {registrationId} not found.");
 
         return await SendConfirmationEmailInternalAsync(
-            reg, ResolveRoleTypeFromId(reg.RoleId), forceResend: true, cancellationToken);
+            reg, ResolveRoleTypeFromId(reg.RoleId), forceResend: true, isRedelivery: true, cancellationToken);
     }
 
     /// <summary>
     /// Non-prod preview: the rendered adult/coach confirmation, without sending. Uses the same
     /// template resolution and fallback as the real send, so what lands in the test inbox is what a
     /// registrant would receive. Null when the registration or its rendered body is unavailable.
+    /// Ownership-checked like the send — a preview is still this registrant's data.
     /// </summary>
     public async Task<ConfirmationPreviewDto?> BuildConfirmationPreviewAsync(
+        Guid registrationId, string callerUserId, CancellationToken cancellationToken = default)
+    {
+        var reg = await _repo.GetRegistrationWithJobAsync(registrationId, cancellationToken);
+        if (reg == null || reg.UserId != callerUserId) return null;
+
+        return await BuildConfirmationPreviewInternalAsync(reg);
+    }
+
+    /// <summary>
+    /// Admin preview for the fly-in test-send. Job scope is validated upstream by
+    /// RegistrationSearchService.
+    /// </summary>
+    public async Task<ConfirmationPreviewDto?> BuildConfirmationPreviewAsAdminAsync(
         Guid registrationId, CancellationToken cancellationToken = default)
     {
         var reg = await _repo.GetRegistrationWithJobAsync(registrationId, cancellationToken);
         if (reg == null) return null;
+
+        return await BuildConfirmationPreviewInternalAsync(reg);
+    }
+
+    private async Task<ConfirmationPreviewDto?> BuildConfirmationPreviewInternalAsync(Registrations reg)
+    {
 
         var roleType = ResolveRoleTypeFromId(reg.RoleId);
         var template = GetConfirmationEmail(reg.Job, roleType);
@@ -649,7 +694,7 @@ public class AdultRegistrationService : IAdultRegistrationService
     /// already lists every team. Returns true iff mail actually went out.
     /// </summary>
     private async Task<bool> SendConfirmationEmailInternalAsync(
-        Registrations reg, AdultRoleType roleType, bool forceResend, CancellationToken cancellationToken)
+        Registrations reg, AdultRoleType roleType, bool forceResend, bool isRedelivery, CancellationToken cancellationToken)
     {
         if (!forceResend && reg.BConfirmationSent) return false;
 
@@ -682,12 +727,15 @@ public class AdultRegistrationService : IAdultRegistrationService
             ToAddresses = { userEmail }
         };
 
+        // Redelivery keeps Reply-To (a reply must still reach the club) but not CC/BCC — the
+        // copies audience got the original; only a new confirmation event carries copies.
         JobConfirmationCopies.Apply(
             message,
             reg.Job.RegFormFrom,
             reg.Job.RegFormCcs,
             reg.Job.RegFormBccs,
-            reg.Job.BDisallowCcplayerConfirmations);
+            reg.Job.BDisallowCcplayerConfirmations,
+            includeCopies: !isRedelivery);
 
         var sent = await _emailService.SendAsync(message, cancellationToken: cancellationToken);
         if (!sent)

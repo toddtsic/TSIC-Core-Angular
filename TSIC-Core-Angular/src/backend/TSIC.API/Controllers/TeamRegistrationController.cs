@@ -774,7 +774,7 @@ public class TeamRegistrationController : ControllerBase
         try
         {
             await _teamRegistrationService.SendConfirmationEmailAsync(
-                request.RegistrationId, userId, request.ForceResend, request.IsEcheckPending);
+                request.RegistrationId, userId, request.ForceResend, request.IsEcheckPending, request.IsRedelivery);
             return Ok(new { Message = "Confirmation email sent successfully" });
         }
         catch (KeyNotFoundException ex)
@@ -1048,4 +1048,12 @@ public class SendConfirmationEmailRequest
     /// completed payment was an eCheck (ACH) submission.
     /// </summary>
     public bool IsEcheckPending { get; set; } = false;
+
+    /// <summary>
+    /// True when the user asked for an already-delivered confirmation again (the review screen's
+    /// "Re-Send" button). A redelivery keeps the job's Reply-To but not its CC/BCC list — the
+    /// copies audience got the original. The review screen's automatic ensure-sent call leaves
+    /// this false: if that one actually sends, it IS the original.
+    /// </summary>
+    public bool IsRedelivery { get; set; } = false;
 }

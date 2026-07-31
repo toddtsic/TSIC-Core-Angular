@@ -215,6 +215,9 @@ export class TeamRegistrationService {
      *
      * @param registrationId - The registration ID (Guid string)
      * @param forceResend - If true, resends even if already sent. Default false.
+     * @param isRedelivery - True for the explicit "Re-Send" button: the server keeps the job's
+     *                       Reply-To but skips its CC/BCC list (the copies audience got the
+     *                       original). Leave false for the automatic ensure-sent call.
      * @returns Success message
      */
     sendConfirmationEmail(
@@ -222,8 +225,9 @@ export class TeamRegistrationService {
         forceResend: boolean = false,
         context?: HttpContext,
         isEcheckPending: boolean = false,
+        isRedelivery: boolean = false,
     ): Observable<{ message: string }> {
-        const request = { registrationId, forceResend, isEcheckPending };
+        const request = { registrationId, forceResend, isEcheckPending, isRedelivery };
         return this.http.post<{ message: string }>(
             `${this.apiUrl}/send-confirmation-email`,
             request,

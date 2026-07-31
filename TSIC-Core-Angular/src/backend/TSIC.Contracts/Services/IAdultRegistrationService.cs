@@ -18,15 +18,27 @@ public interface IAdultRegistrationService
     Task<AdultConfirmationResponse> GetConfirmationAsync(Guid registrationId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Manual resend. Always sends (bypasses the BConfirmationSent guard).
-    /// Returns false when nothing went out — e.g. the user has no email address on file.
+    /// Manual self-service resend. Always sends (bypasses the BConfirmationSent guard); redelivery
+    /// semantics (Reply-To yes, job CC/BCC no). Throws <see cref="UnauthorizedAccessException"/>
+    /// when the caller does not own the registration. Returns false when nothing went out — e.g.
+    /// the user has no email address on file.
     /// </summary>
-    Task<bool> SendConfirmationEmailAsync(Guid registrationId, CancellationToken cancellationToken = default);
+    Task<bool> SendConfirmationEmailAsync(Guid registrationId, string callerUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Admin resend (Search/Registrations fly-in). No ownership check — job scope is validated by
+    /// the admin caller. Same redelivery semantics as the self-service resend.
+    /// </summary>
+    Task<bool> SendConfirmationEmailAsAdminAsync(Guid registrationId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Non-prod: renders the adult/coach confirmation without sending it, for a test inbox.
+    /// Null when the caller does not own the registration.
     /// </summary>
-    Task<ConfirmationPreviewDto?> BuildConfirmationPreviewAsync(Guid registrationId, CancellationToken cancellationToken = default);
+    Task<ConfirmationPreviewDto?> BuildConfirmationPreviewAsync(Guid registrationId, string callerUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>Admin preview for the fly-in test-send — no ownership check.</summary>
+    Task<ConfirmationPreviewDto?> BuildConfirmationPreviewAsAdminAsync(Guid registrationId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get teams available for Coach role selection (excludes Waitlist/Dropped).

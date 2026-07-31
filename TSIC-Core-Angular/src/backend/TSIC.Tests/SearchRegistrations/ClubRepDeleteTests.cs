@@ -54,6 +54,9 @@ public class ClubRepDeleteTests
             new Mock<IRegisteredPlayerShaper>().Object,
             new Mock<IUserRepository>().Object,
             new Mock<TSIC.API.Services.Shared.UsLax.IUsLaxService>().Object,
+            new Mock<IPlayerRegConfirmationService>().Object,
+            new Mock<IAdultRegistrationService>().Object,
+            new Mock<TSIC.API.Services.Teams.ITeamRegistrationService>().Object,
             new Mock<ILogger<RegistrationSearchService>>().Object);
 
         return (svc, b, job.JobId);
