@@ -648,17 +648,9 @@
               <div class="token-section">
                 <span class="token-section-label">Insert Token</span>
                 <div class="token-chips">
-                  <button type="button" class="token-chip" (click)="insertEmailToken('!PERSON')">!PERSON</button>
-                  <button type="button" class="token-chip" (click)="insertEmailToken('!EMAIL')">!EMAIL</button>
-                  <button type="button" class="token-chip" (click)="insertEmailToken('!JOBNAME')">!JOBNAME</button>
-                  <button type="button" class="token-chip" (click)="insertEmailToken('!AMTFEES')">!AMTFEES</button>
-                  <button type="button" class="token-chip" (click)="insertEmailToken('!AMTPAID')">!AMTPAID</button>
-                  <button type="button" class="token-chip" (click)="insertEmailToken('!AMTOWED')">!AMTOWED</button>
-                  @if (detail()?.hasSubscription) {
-                    <button type="button" class="token-chip" (click)="insertEmailToken('!FAMILYUSERNAME')">!FAMILYUSERNAME</button>
-                    <button type="button" class="token-chip" (click)="insertEmailToken('!JOBLINK')">!JOBLINK</button>
-                    <button type="button" class="token-chip" (click)="insertEmailToken('!SUBSCRIPTIONID')">!SUBSCRIPTIONID</button>
-                    <button type="button" class="token-chip" (click)="insertEmailToken('!SUBSCRIPTIONSTATUS')">!SUBSCRIPTIONSTATUS</button>
+                  @for (tokenInfo of availableTokens(); track tokenInfo.token) {
+                    <button type="button" class="token-chip" [title]="tokenInfo.description"
+                            (click)="insertEmailToken(tokenInfo.token)">{{ tokenInfo.token }}</button>
                   }
                 </div>
               </div>

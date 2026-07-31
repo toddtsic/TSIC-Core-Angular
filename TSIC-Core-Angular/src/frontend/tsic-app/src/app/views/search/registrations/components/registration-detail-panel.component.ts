@@ -17,6 +17,7 @@ import { MedFormViewComponent } from './medform-view.component';
 import { EmailBodyEditorComponent } from '@shared-ui/components/email-body-editor/email-body-editor.component';
 import { TestSendButtonComponent, type TestSendOptions } from '@shared-ui/components/test-send-button/test-send-button.component';
 import { environment } from '@environments/environment';
+import { EMAIL_BASE_TOKENS, SUBSCRIPTION_TOKENS, type EmailTokenInfo } from '../email-templates';
 
 type TabType = 'details' | 'accounting' | 'email';
 
@@ -1001,6 +1002,14 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   }
 
   private readonly emailBodyEditor = viewChild.required(EmailBodyEditorComponent);
+
+  /** Same catalog the batch-email modal offers (AM-059) — the two lists used to be hardcoded
+   *  separately and drifted. Subscription tokens are appended only for a registrant who has one. */
+  readonly availableTokens = computed<readonly EmailTokenInfo[]>(() =>
+    this.detail()?.hasSubscription
+      ? [...EMAIL_BASE_TOKENS, ...SUBSCRIPTION_TOKENS]
+      : EMAIL_BASE_TOKENS
+  );
 
   insertEmailToken(token: string): void { this.emailBodyEditor().insertToken(token); }
 

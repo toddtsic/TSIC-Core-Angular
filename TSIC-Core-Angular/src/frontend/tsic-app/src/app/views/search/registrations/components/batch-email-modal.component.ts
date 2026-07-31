@@ -7,24 +7,11 @@ import type { EmailBatchJobStatus, JobOptionDto, RegistrationSearchRequest } fro
 import { environment } from '@environments/environment';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
-import { EMAIL_TEMPLATE_CATEGORIES, isTemplateAvailable, type EmailTemplate, type JobFlagsForTemplates } from '../email-templates';
+import {
+  EMAIL_TEMPLATE_CATEGORIES, isTemplateAvailable, EMAIL_BASE_TOKENS, USLAX_VALID_THROUGH_TOKEN,
+  type EmailTemplate, type JobFlagsForTemplates
+} from '../email-templates';
 import { DraggableModalDirective } from '@shared-ui/directives/draggable-modal.directive';
-
-const BASE_TOKENS = [
-  { token: '!PERSON', description: 'Contact person name' },
-  { token: '!EMAIL', description: 'Contact email address' },
-  { token: '!FAMILYUSERNAME', description: 'Recipient\'s login username' },
-  { token: '!JOBNAME', description: 'League/Organization name' },
-  { token: '!JOBLINK', description: 'Job name as a clickable link (e.g., "visit !JOBLINK")' },
-  { token: '!AMTFEES', description: 'Total fees amount' },
-  { token: '!AMTPAID', description: 'Amount paid' },
-  { token: '!AMTOWED', description: 'Amount owed' },
-  { token: '!SEASON', description: 'Season name' },
-  { token: '!SPORT', description: 'Sport name' },
-  { token: '!CUSTOMERNAME', description: 'Customer name' }
-];
-
-const USLAX_VALID_THROUGH_TOKEN = { token: '!USLAXVALIDTHROUGHDATE', description: 'USA Lacrosse membership must be valid through this date' };
 
 // Invite tokens are NEVER hand-picked from the palette — they are SEEDED by the "Invite" action,
 // which knows the role and pre-places the correct personalized link + expiry text. Offering them in
@@ -159,7 +146,7 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
 
   readonly availableTokens = computed(() => {
     // Invite links are intentionally NOT offered here — they are seeded by the Invite action.
-    const tokens = [...BASE_TOKENS];
+    const tokens = [...EMAIL_BASE_TOKENS];
     if (this.jobFlags()?.usLaxMembershipValidated) tokens.push(USLAX_VALID_THROUGH_TOKEN);
     return tokens;
   });

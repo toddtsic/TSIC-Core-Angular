@@ -23,6 +23,47 @@ export function isClubRepRoleFilter(roleId: string): boolean {
   return v === ROLE_ID_CLUBREP.toLowerCase() || v === ROLE_FILTER_CLUBREP_ACTIVE_TEAMS.toLowerCase();
 }
 
+export interface EmailTokenInfo {
+  token: string;
+  description: string;
+}
+
+/**
+ * The substitution tokens offered by BOTH compose surfaces — the batch-email modal and the
+ * registrant fly-in. Previously each hardcoded its own list and they drifted: the fly-in was
+ * missing !SEASON / !SPORT / !CUSTOMERNAME (Ann, AM-059). One list, both consumers.
+ *
+ * Invite tokens are deliberately absent — they are SEEDED by the Invite action, which knows the
+ * role and pre-places the right link. Offering them by hand let an admin drop the wrong
+ * invitation, or an invite into a plain email.
+ */
+export const EMAIL_BASE_TOKENS: readonly EmailTokenInfo[] = [
+  { token: '!PERSON', description: 'Contact person name' },
+  { token: '!EMAIL', description: 'Contact email address' },
+  { token: '!FAMILYUSERNAME', description: 'Recipient\'s login username' },
+  { token: '!JOBNAME', description: 'League/Organization name' },
+  { token: '!JOBLINK', description: 'Job name as a clickable link (e.g., "visit !JOBLINK")' },
+  { token: '!AMTFEES', description: 'Total fees amount' },
+  { token: '!AMTPAID', description: 'Amount paid' },
+  { token: '!AMTOWED', description: 'Amount owed' },
+  { token: '!SEASON', description: 'Season name' },
+  { token: '!SPORT', description: 'Sport name' },
+  { token: '!CUSTOMERNAME', description: 'Customer name' }
+];
+
+/** Offered only when the job validates USA Lacrosse membership. */
+export const USLAX_VALID_THROUGH_TOKEN: EmailTokenInfo = {
+  token: '!USLAXVALIDTHROUGHDATE',
+  description: 'USA Lacrosse membership must be valid through this date'
+};
+
+/** Offered only for a registrant who actually has an ARB subscription — meaningless otherwise,
+ *  which is why these stay off the base list rather than resolving to blanks for everyone else. */
+export const SUBSCRIPTION_TOKENS: readonly EmailTokenInfo[] = [
+  { token: '!SUBSCRIPTIONID', description: 'Authorize.net recurring-billing subscription ID' },
+  { token: '!SUBSCRIPTIONSTATUS', description: 'Recurring-billing subscription status' }
+];
+
 /**
  * Job-level feature flags the template availability evaluator cares about.
  * Built by the caller (usually the search component) from the pulse and/or
