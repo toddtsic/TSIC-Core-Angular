@@ -1179,7 +1179,7 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **For Todd**: add a `subscriptionNumber` field to the search request + a `Where(r => r.AdnSubscriptionId != null && r.AdnSubscriptionId.Contains(request.SubscriptionNumber))` clause (mirror the Invoice-# filter at [RegistrationRepository.cs:1383-1385](../../TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/RegistrationRepository.cs#L1383)), and a matching **"Subscription #"** text input next to the Invoice # field in the billing/ARB filter area. Confirm the exact `AdnSubscriptionId` column/nav before wiring.
 - **Visibility (ties to Admin-Menus AM-027)**: the Billing filter section (ARB Subscription + Invoice #) has no job-type/ARB gate today. Ann is deciding whether the ARB filters should appear **only when ARB is enabled for the job** — if that gating lands (see AM-027), this new Subscription # field should be inside the same condition.
 
-### PL-060: 🔴 CRITICAL — Migrated Payment Phase (Pay-in-Full) does NOT carry to the new side, and the "Require full payment now" toggle won't persist — audit ALL tournaments
+### PL-060: 🟡 RESOLVED (Todd, 07-31) — awaiting Ann verify post-deploy — Migrated Payment Phase (Pay-in-Full) did not carry to the new side; "Require full payment now" toggle wouldn't persist — all tournaments now audited structurally
 - **Tested**: `Top Threat Tournaments:Fall Draw 2026` — migrated from Legacy, where it is in a **Pay-in-Full (PIF)** phase.
 - **Source**: Ann (2026-07-30)
 - **Area**: Configure → LADT → **Age Group Details** → Fees → **Payment Phase** ("Require full payment now" toggle, per role: Player / Club Rep)
@@ -1195,5 +1195,9 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
   2. Fix the **persist bug** so flipping "Require full payment now" + Convert saves the flag **even when 0 registrations** are in scope.
   3. **Audit ALL tournaments** (JobTypeId=2) post-migration: verify each job's Payment Phase on the new side matches Legacy and the "Require full payment now" radio reads correctly and functions. Ann: *"Critical that this works and that ALL tournaments are checked."* (A SQL sweep can flag suspects fast — e.g. jobs whose Legacy phase is PIF but new-side `bFullPaymentRequired` is NULL/0 across all fee rows.)
 - **Severity**: 🔴 CRITICAL — migration data correctness (wrong payment phase = wrong amount collected at registration: a PIF job that reads as deposit-phase would let payers pay only the deposit) + a save bug on the correction path.
-- **Status**: Open — filed 2026-07-30 (data-verified). Back to Todd: migration mapping (A) + persist fix (B) + all-tournaments audit (C).
+- **Status**: ✅ **RESOLVED (Todd, 07-31)** — fixed same day it was filed, via the payment-phase materialization rework (`aa6d0133` + `a09029c0`, pushed 07-30):
+  - **(A) Migration**: 6a seed **§8P** now stamps `fees.JobFees.bFullPaymentRequired` on ClubRep fee rows from the Legacy job flag (idempotent; re-runnable forever). Verified on dev: **554 rows stamped**, twice-run identical, **Fall Draw 2026 = 8/8 age groups PIF**.
+  - **(B) Persist**: phase now resolves ONLY from the per-scope `fees.JobFees.bFullPaymentRequired` cascade — the invisible job-level baseline (`Jobs.bTeams/bPlayersFullPaymentRequired`) that masked/reverted the toggle is abandoned in code (never read, never written). LADT toggle + Convert saves the per-scope flag, including the 0-registrations case.
+  - **(C) All-tournaments audit**: 6c **Test 8** concordance sweep = **0/73 jobs mismatched** (Legacy phase vs new-side stamps, all tournaments 2025+); plus a `Program.cs` startup guard that refuses to boot against an unstamped DB — the audit is now structural, not one-time.
+  - **Ann verify (post staging deploy)**: Fall Draw 2026 → LADT grid shows PIF, Age Group Details toggle reads ON, and a club-rep payment charges the **full $2,000** (not the $500 deposit).
 
