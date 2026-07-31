@@ -1006,3 +1006,31 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Severity**: (closed — accepted as designed; documented only)
 - **Cross-ref**: AM-057 / AM-059 (Search/Reg email surfaces), PL-037/052 (Club Rep Pay Balance Due quicklink).
 - **Status**: ✅ CLOSED — behavior accepted, no change (Ann, 2026-07-31). Original code-verified finding retained for the record.
+
+### AM-062: [Email testing] Wire the "Test Email" (test-send) affordance into Invite-to-register emails and Re-Send Confirmation emails
+- **Topic**: A **"Test Email" badge** so Ann can test an email flow by sending the rendered message to a test inbox (Sandbox) instead of real recipients.
+- **Source**: Ann's email review (2026-07-31)
+- **Request (Ann)**: Todd to **link up a Test Email badge** for testing: **(1) Invite-to-register emails** and **(2) Re-Send Confirmation emails**.
+- **✅ Plumbing already exists (verified) — this is a WIRING job, not new infra:**
+  - Shared **`test-send-button`** component ([shared-ui/components/test-send-button/test-send-button.component.ts](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/shared-ui/components/test-send-button/test-send-button.component.ts)) — already used in **ARB Health**, the **Search/Registrations batch-email modal**, and the **registrant fly-in** email.
+  - Backed by **`EmailTestSendService`** ([Services/Shared/Email/EmailTestSendService.cs](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Shared/Email/EmailTestSendService.cs)) — **Sandbox-only**: sends an already-rendered subject/body to a single test inbox, subject stamped as a test; **refuses in Production** ("Test sends are not permitted in Production").
+- **What's missing / for Todd:**
+  1. **Invite-to-register emails** — the batch-email modal has the Test Email button, but the **invite** send is a distinct seeded flow (`!INVITE_LINK` / `!CLUBREP_INVITE_LINK` / `!INVITE_EXPIRES` resolved **server-side per recipient**). Wire Test Email so a test send of an invite **renders the invite content with a representative (sample or real signed) link/expiry** to the test inbox — so Ann can see exactly what an invitee receives. Confirm the invite tokens resolve in the test path (they won't if the test send bypasses the per-recipient invite resolution).
+  2. **Re-Send Confirmation emails** — this rides **AM-060** (the new Re-Send Confirmation action, not yet built). Add a Test Email path that **renders the registrant's confirmation template** (per role) and routes it to the test inbox instead of the registrant, so Ann can verify confirmation content/formatting without emailing the family. (Confirmations render server-side via `PlayerRegConfirmationService` / Adult / Team services — the test path renders + redirects the recipient.)
+- **For Todd**: reuse the existing `test-send-button` + `EmailTestSendService` (Sandbox-only) and wire both flows to it. Keep the Production guard. Note: because `EmailTestSendService` is Sandbox-only, this is for **pre-go-live dev/staging testing** — it complements, not replaces, the go-live delivery checks.
+- **Severity**: UX / testability (no way to test invite + resend-confirmation emails without hitting real recipients)
+- **Cross-ref**: AM-060 (Re-Send Confirmation — this adds its test path), AM-059 (batch-email compose), AM-058 (token/email flows), go-live email checklist.
+- **Status**: Open — filed 2026-07-31 (test-send infra located; wiring only). Back to Todd. *(Note: AM-060 must land first for the Re-Send Confirmation half.)*
+
+### AM-063: [Email → Draft with AI] ✨ ENHANCEMENT — let the AI pull forward prior email copy from the Email Log ("reuse last year's thank-you email")
+- **Topic**: Draft-with-AI in the email composer — retrieve/adapt a prior sent email from the Email Log by natural-language request.
+- **Source**: Ann (2026-07-31). Example ask: *"Can you pull up my email thanking registrants for their participation in the tournament from last year's Email Log?"* — bringing forward the text copy as a starting draft.
+- **✅ Feasible — the raw material exists (verified):**
+  - The **Email Log stores the full body**, not just metadata: `Jobs.emailLogs` = `JobID`, `subject (nvarchar max)`, **`msg (nvarchar max)` — the body**, `sendTS`, `sendTo`, `sendFrom`, `senderUserID`. So prior sent copy is retrievable by job / subject / date / content.
+  - The **Draft-with-AI engine already exists**: `AiComposeService.ComposeEmailAsync(prompt, jobName, season)` ([Services/Shared/AiCompose/AiComposeService.cs:46](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Shared/AiCompose/AiComposeService.cs#L46)) — today it composes fresh from a prompt; this extends it to **retrieve-then-adapt**.
+- **The feature**: a natural-language request → search the Email Log for the best-matching prior email (over `subject` + `msg`, filtered by date/"last year") → **load its text into the compose body** as a starting draft (optionally let the AI freshen it for the current event). Turns institutional email copy into reusable templates without hunting.
+- **⚠️ Nuance — "last year's" is cross-JOB**: the log is keyed by `JobID`, and last year's tournament is a **different job** (same customer, prior season). So retrieval must span the **customer's prior jobs** (e.g. resolve "the tournament from last year" → the prior-year job for this customer, then search its `emailLogs`). Confirm the customer→prior-jobs lookup.
+- **Suggested path for Todd**: (1) **MVP without AI first** — a **searchable Email Log** (by subject/keyword/date, across the customer's jobs) with a **"Reuse / copy into a new email"** action. That alone delivers most of the value. (2) **AI layer on top** — interpret the natural-language description ("thanking registrants for participation") and pick/rank the best-matching prior email semantically, then seed the draft. Reuses `AiComposeService`.
+- **Severity**: ✨ Enhancement / future (not go-live) — high delight, not a bug. Depends on AM-057's Email-Log work (that item already touches log storage/display).
+- **Cross-ref**: AM-057 (Email Log/Detail — recipient accuracy + log surfacing), AM-059 (AI compose), AM-043/045 (bulletin AI). 
+- **Status**: Open — filed 2026-07-31 (feasibility confirmed: log stores body in `msg`). Enhancement backlog — Todd/Ann to prioritize post-go-live.
