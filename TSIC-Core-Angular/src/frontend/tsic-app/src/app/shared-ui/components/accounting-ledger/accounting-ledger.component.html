@@ -223,6 +223,15 @@
                   @else { Cannot exceed {{ rec.paidAmount | currency }} }
                 </div>
               }
+
+              <!-- Reason recorded on the refund ledger row (PL-058) — same Comment affordance
+                   the Check/CC/Correction forms carry. Blank keeps the legacy generic note. -->
+              <div class="form-group mt-3">
+                <label for="refund-comment" class="form-label">Comment</label>
+                <input type="text" id="refund-comment" class="form-control form-control-sm"
+                  [ngModel]="comment()" (ngModelChange)="comment.set($event)"
+                  placeholder="Reason for refund (optional)" />
+              </div>
             </div>
 
             <!-- Refund Confirmation -->

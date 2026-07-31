@@ -25,6 +25,9 @@ export interface CheckOrCorrectionEvent {
 export interface RefundEvent {
 	accountingRecordId: number;
 	refundAmount: number;
+	/** Director's typed reason (PL-058). Null when left blank — hosts fall back to their
+	 *  legacy hardcoded reason so an empty field reproduces the old behavior exactly. */
+	comment: string | null;
 }
 
 /**
@@ -470,7 +473,8 @@ export class AccountingLedgerComponent {
 			if (record?.aId) {
 				this.refundSubmitted.emit({
 					accountingRecordId: record.aId,
-					refundAmount: amt
+					refundAmount: amt,
+					comment: this.comment().trim() || null
 				});
 			}
 		} else if (type === 'cc') {

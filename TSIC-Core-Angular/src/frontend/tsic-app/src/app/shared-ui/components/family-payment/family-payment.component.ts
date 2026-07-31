@@ -457,7 +457,7 @@ export class FamilyPaymentComponent {
     this.searchService.processRefund({
       accountingRecordId: event.accountingRecordId,
       refundAmount: event.refundAmount,
-      reason: 'Admin refund from family payment'
+      reason: event.comment ?? 'Admin refund from family payment'
     }).subscribe({
       next: (result: RefundResponse) => {
         if (result.success) {

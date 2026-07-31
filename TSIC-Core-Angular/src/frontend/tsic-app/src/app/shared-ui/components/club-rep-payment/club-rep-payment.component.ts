@@ -214,7 +214,7 @@ export class ClubRepPaymentComponent {
     this.searchService.processRefund({
       accountingRecordId: event.accountingRecordId,
       refundAmount: event.refundAmount,
-      reason: 'Admin refund from club rep payment'
+      reason: event.comment ?? 'Admin refund from club rep payment'
     }).subscribe({
       next: (result: RefundResponse) => {
         if (result.success) {

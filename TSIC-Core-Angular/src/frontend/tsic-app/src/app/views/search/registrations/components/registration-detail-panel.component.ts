@@ -834,7 +834,7 @@ export class RegistrationDetailPanelComponent implements OnChanges {
     this.searchService.processRefund({
       accountingRecordId: event.accountingRecordId,
       refundAmount: event.refundAmount,
-      reason: 'Admin refund'
+      reason: event.comment ?? 'Admin refund'
     }).subscribe({
       next: (result) => {
         if (result.success) {
