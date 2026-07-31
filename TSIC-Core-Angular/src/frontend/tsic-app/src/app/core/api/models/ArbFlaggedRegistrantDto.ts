@@ -9,6 +9,8 @@ export type ArbFlaggedRegistrantDto = {
     subscriptionStatus: string;
     flagType: ArbFlagType;
     registrantName: string;
+    firstName?: string | null;
+    lastName?: string | null;
     assignment?: string | null;
     familyUsername?: string | null;
     role?: string | null;
