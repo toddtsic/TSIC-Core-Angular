@@ -1384,6 +1384,11 @@ public class RegistrationRepository : IRegistrationRepository
             query = query.Where(r => r.RegistrationAccounting
                 .Any(a => a.AdnInvoiceNo != null && a.AdnInvoiceNo.Contains(request.InvoiceNumber)));
 
+        // ARB subscription number filter (PL-059) — per-registration recurring-billing id;
+        // one subscription fans out to many invoice numbers, so Invoice # can't find it
+        if (!string.IsNullOrWhiteSpace(request.SubscriptionNumber))
+            query = query.Where(r => r.AdnSubscriptionId != null && r.AdnSubscriptionId.Contains(request.SubscriptionNumber));
+
         // ── Multi-select entity filters ──
 
         // Roles (multi-select) — with synthetic sentinel handling
