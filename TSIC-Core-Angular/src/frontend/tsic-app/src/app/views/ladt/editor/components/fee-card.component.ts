@@ -34,6 +34,27 @@ export interface PhaseContext {
 }
 
 /**
+ * Reverse-cascade disclosure: one scope ONE TIER BELOW this card (an age group under the
+ * league card, a team under an age-group card) that sets its own value for something this
+ * card's scope would otherwise govern. Field-aware by design — a row's mere existence is
+ * NOT an override (player rows exist structurally at age-group scope in every job); only
+ * a locally-set phase stamp, amount, or modifier counts.
+ */
+export interface DescendantOverrideInfo {
+  name: string;
+  /** Own phase stamp: true = Full payment, false = Deposit veto. null = no stamp here. */
+  phase: boolean | null;
+  /** Own deposit amount. null = not set at this scope (inherits). */
+  deposit: number | null;
+  /** Own balance-due amount. null = not set at this scope (inherits). */
+  balanceDue: number | null;
+  /** Sets its own Early Bird Discount. */
+  earlyBird: boolean;
+  /** Sets its own Late Fee. */
+  lateFee: boolean;
+}
+
+/**
  * Every Early Bird Discount and Late Fee must carry BOTH a start AND an end date — the window
  * is what gives the modifier meaning. An open-ended late fee silently behaves as a permanent
  * surcharge "active since the dawn of time"; an open-ended early bird is a permanent discount.
@@ -102,6 +123,9 @@ export function modifierDateError(mods: ModifierForm[]): string | null {
           </div>
         </div>
 
+        @if (amountOverrideNote(); as note) {
+          <p class="cascade-below-note"><i class="bi bi-arrow-down-circle"></i><span>{{ note }}</span></p>
+        }
       }
 
       @if (showPhaseBlock()) {
@@ -139,6 +163,12 @@ export function modifierDateError(mods: ModifierForm[]): string | null {
           <p class="phase-explain" [class.on]="explainOn()">
             <i class="bi {{ phaseIcon() }}"></i><span>{{ explain }}</span>
           </p>
+        }
+        <!-- Downward mirror of the "Currently: … set at league level" line: names the
+             more-specific scopes that stamp their own phase, so this card never reads
+             as governing everything when it doesn't. -->
+        @if (phaseOverrideNote(); as note) {
+          <p class="phase-explain cascade-below-note"><i class="bi bi-arrow-down-circle"></i><span>{{ note }}</span></p>
         }
       </div>
       } @else {
@@ -208,6 +238,10 @@ export function modifierDateError(mods: ModifierForm[]): string | null {
           <i class="bi bi-plus-circle me-1"></i>Add Late Fee
         </button>
       </div>
+
+      @if (modifierOverrideNote(); as note) {
+        <p class="cascade-below-note"><i class="bi bi-arrow-down-circle"></i><span>{{ note }}</span></p>
+      }
 
       @if (hasWindowOverlap()) {
         <div class="overlap-warning">
@@ -287,6 +321,15 @@ export function modifierDateError(mods: ModifierForm[]): string | null {
     }
     .phase-explain.on { color: var(--bs-success); font-weight: 600; }
     .phase-explain i { margin-top: 1px; }
+    /* Downward mirror of the "follows the level above" line — names the more-specific
+       scopes that set their own value. Same quiet voice as .phase-explain wherever it
+       appears (under the amounts, in the phase block, after the modifier links). */
+    .cascade-below-note {
+      font-size: var(--font-size-xs); color: var(--bs-secondary-color);
+      margin: var(--space-1) 0 0 0;
+      display: flex; align-items: flex-start; gap: 4px;
+    }
+    .cascade-below-note i { margin-top: 1px; }
     /* Collapsed phase block — same quiet chrome as the radio container, one line tall. */
     .single-payment-note {
       margin: var(--space-3) 0;
@@ -388,6 +431,11 @@ export class FeeCardComponent {
   /** Cascade scope — names who this card's setting flows down to (and who can override it)
    *  in the phase explanation copy. */
   readonly scope = input<'league' | 'agegroup' | 'team' | null>(null);
+
+  /** Scopes one tier below this card with their OWN settings (league card = age groups,
+   *  age-group card = teams) — drives the downward "set their own …" disclosure lines.
+   *  null / empty = nothing overridden below (and always at team scope, the leaf). */
+  readonly descendantOverrides = input<DescendantOverrideInfo[] | null>(null);
 
   readonly depositChange = output<number | null>();
   readonly balanceDueChange = output<number | null>();
@@ -498,6 +546,62 @@ export class FeeCardComponent {
       default: return 'the default; no level sets a phase';
     }
   }
+
+  /** Cap on names enumerated in a "set their own …" line before collapsing to "and N more". */
+  private static readonly BELOW_NOTE_MAX = 5;
+
+  /** "1 age group sets its" / "3 teams set their" — the subject of every below-note. */
+  private countPhrase(n: number): string {
+    const noun = this.scope() === 'agegroup' ? 'team' : 'age group';
+    return n === 1 ? `1 ${noun} sets its` : `${n} ${noun}s set their`;
+  }
+
+  /**
+   * Downward phase disclosure: names each more-specific scope that stamps its own phase,
+   * with its value — without this, a league card reading "applies to every age group…"
+   * looks universal even when an age group has already gone its own way.
+   */
+  readonly phaseOverrideNote = computed<string | null>(() => {
+    const below = (this.descendantOverrides() ?? []).filter(d => d.phase !== null);
+    if (!below.length) return null;
+    const shown = below.slice(0, FeeCardComponent.BELOW_NOTE_MAX);
+    const names = shown.map(d => `${d.name} (${d.phase ? 'Full payment' : 'Deposit first'})`).join(', ');
+    const more = below.length > shown.length ? ` and ${below.length - shown.length} more` : '';
+    return `${this.countPhrase(below.length)} own phase: ${names}${more}.`;
+  });
+
+  /**
+   * Downward amounts disclosure. Enumerates with amounts when short; past the cap it
+   * collapses to a count — the sibling grid alongside already itemizes every row, so the
+   * card only needs to say the league/age-group inputs are not the whole story.
+   */
+  readonly amountOverrideNote = computed<string | null>(() => {
+    const below = (this.descendantOverrides() ?? []).filter(d => d.deposit != null || d.balanceDue != null);
+    if (!below.length) return null;
+    if (below.length > FeeCardComponent.BELOW_NOTE_MAX) {
+      return `${this.countPhrase(below.length)} own amounts — see each row in the grid.`;
+    }
+    const names = below.map(d => `${d.name} (${this.amountsLabel(d)})`).join(', ');
+    return `${this.countPhrase(below.length)} own amounts: ${names}.`;
+  });
+
+  private amountsLabel(d: DescendantOverrideInfo): string {
+    if (d.deposit != null && d.balanceDue != null) return `${this.money(d.deposit)} + ${this.money(d.balanceDue)}`;
+    if (d.deposit != null) return `${this.money(d.deposit)} deposit`;
+    return `${this.money(d.balanceDue!)} balance`;
+  }
+
+  /** Downward Early Bird / Late Fee disclosure — same voice as the other below-notes. */
+  readonly modifierOverrideNote = computed<string | null>(() => {
+    const below = (this.descendantOverrides() ?? []).filter(d => d.earlyBird || d.lateFee);
+    if (!below.length) return null;
+    const label = (d: DescendantOverrideInfo) =>
+      [d.earlyBird ? 'Early Bird' : null, d.lateFee ? 'Late Fee' : null].filter(Boolean).join(' + ');
+    const shown = below.slice(0, FeeCardComponent.BELOW_NOTE_MAX);
+    const names = shown.map(d => `${d.name} (${label(d)})`).join(', ');
+    const more = below.length > shown.length ? ` and ${below.length - shown.length} more` : '';
+    return `${this.countPhrase(below.length)} own Early Bird / Late Fee: ${names}${more}.`;
+  });
 
   /** Green "you're in full-payment" emphasis — own stamp OR the resolved answer when following
    *  the level above (the old own-stamp-only check left an effectively-full card looking idle). */

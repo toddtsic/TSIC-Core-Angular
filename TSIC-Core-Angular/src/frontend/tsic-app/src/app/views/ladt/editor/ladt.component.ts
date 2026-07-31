@@ -21,7 +21,7 @@ import {
 } from './configs/ladt-grid-columns';
 import type { ParentBreadcrumb } from './components/ladt-sibling-grid.component';
 import type { LadtTreeNodeDto, DivisionNameSyncPreview, JobFeeDto } from '../../../core/api';
-import type { PhaseContext } from './components/fee-card.component';
+import type { DescendantOverrideInfo, PhaseContext } from './components/fee-card.component';
 import { RoleIds } from '@infrastructure/constants/roles.constants';
 import { AGEGROUP_COLORS } from '../../scheduling/shared/utils/scheduling-helpers';
 
@@ -822,6 +822,57 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
       clubRep: this.phaseContextFor(node, LadtEditorComponent.CLUBREP_ROLE_ID)
     };
   });
+
+  /**
+   * Reverse-cascade disclosure for the open fly-in's fee cards, per role: which scopes
+   * ONE TIER BELOW set their own phase stamp, amounts, or modifiers (league card → age
+   * groups, age-group card → teams). Field-aware — a bare row is not an override (player
+   * rows exist structurally at age-group scope); only locally-set values count. Memoized
+   * for input-binding identity stability — see detailAncestorPhase.
+   */
+  readonly detailDescendantOverrides = computed(() => {
+    const node = this.detailNode();
+    if (!node || node.level > 1) return null; // divisions carry no fee cards; teams are leaves
+    return {
+      player: this.descendantOverridesFor(node, LadtEditorComponent.PLAYER_ROLE_ID),
+      clubRep: this.descendantOverridesFor(node, LadtEditorComponent.CLUBREP_ROLE_ID)
+    };
+  });
+
+  /** One tier below `node`, the scopes whose own JobFees rows set a phase stamp, an
+   *  amount, or a modifier for the role — name + what they set, in tree-name order.
+   *  Teams hang off the age group directly or via a division node (mirrors
+   *  subtreeHasDeposit's walk); division scope itself carries no fee rows. */
+  private descendantOverridesFor(node: LadtFlatNode, roleId: string): DescendantOverrideInfo[] {
+    const flat = this.flatNodes();
+    const fees = this.jobFees();
+    let children: LadtFlatNode[];
+    if (node.level === 0) {
+      children = flat.filter(n => n.level === 1 && n.parentId === node.id);
+    } else {
+      const divIds = new Set(flat.filter(n => n.level === 2 && n.parentId === node.id).map(n => n.id));
+      children = flat.filter(n => n.level === 3 && n.parentId && (n.parentId === node.id || divIds.has(n.parentId)));
+    }
+    const out: DescendantOverrideInfo[] = [];
+    for (const child of children) {
+      const rows = fees.filter(f => f.roleId === roleId && (node.level === 0
+        ? f.agegroupId === child.id && !f.teamId
+        : f.teamId === child.id));
+      if (!rows.length) continue;
+      const info: DescendantOverrideInfo = {
+        name: child.name,
+        phase: rows.find(r => r.bFullPaymentRequired != null)?.bFullPaymentRequired ?? null,
+        deposit: rows.find(r => r.deposit != null)?.deposit ?? null,
+        balanceDue: rows.find(r => r.balanceDue != null)?.balanceDue ?? null,
+        earlyBird: rows.some(r => (r.modifiers ?? []).some(m => m.modifierType === 'EarlyBird')),
+        lateFee: rows.some(r => (r.modifiers ?? []).some(m => m.modifierType === 'LateFee'))
+      };
+      if (info.phase !== null || info.deposit != null || info.balanceDue != null || info.earlyBird || info.lateFee) {
+        out.push(info);
+      }
+    }
+    return out.sort((a, b) => a.name.localeCompare(b.name));
+  }
 
   private phaseContextFor(node: LadtFlatNode, roleId: string): PhaseContext {
     const scopeType = node.level === 0 ? 'league' : node.level === 1 ? 'agegroup' : 'team';

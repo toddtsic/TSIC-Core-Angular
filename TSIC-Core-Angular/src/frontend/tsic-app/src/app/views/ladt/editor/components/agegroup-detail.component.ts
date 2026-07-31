@@ -6,7 +6,7 @@ import { LadtService } from '../services/ladt.service';
 import { LadtEditGuardService } from '../services/ladt-edit-guard.service';
 import { FeeRepriceService } from '../services/fee-reprice.service';
 import { ToastService } from '../../../../shared-ui/toast.service';
-import { FeeCardComponent, modifierDateError, type AncestorPhase, type ModifierForm, type PhaseContext } from './fee-card.component';
+import { FeeCardComponent, modifierDateError, type AncestorPhase, type DescendantOverrideInfo, type ModifierForm, type PhaseContext } from './fee-card.component';
 import { RepriceConfirmComponent, type RepriceDialog } from './reprice-confirm.component';
 import { CloneAgegroupDialogComponent } from './clone-agegroup-dialog.component';
 import type { AgegroupDetailDto, UpdateAgegroupRequest, JobFeeDto, FeeModifierDto } from '../../../../core/api';
@@ -146,6 +146,7 @@ const JOB_TYPE_TOURNAMENT = 2;
               [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
               [modifiers]="clubRepModifiers" [scope]="'agegroup'" [ancestorPhase]="ancestorPhase()?.clubRep ?? null"
               [phaseContext]="phaseContext()?.clubRep ?? null"
+              [descendantOverrides]="descendantOverrides()?.clubRep ?? null"
               [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
               hintText="Age group default for every team in it, unless a team sets its own. Overrides the league." />
           }
@@ -156,6 +157,7 @@ const JOB_TYPE_TOURNAMENT = 2;
               [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
               [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'" [ancestorPhase]="ancestorPhase()?.player ?? null"
               [phaseContext]="phaseContext()?.player ?? null"
+              [descendantOverrides]="descendantOverrides()?.player ?? null"
               [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
               hintText="Age group default for every team in it, unless a team sets its own. Overrides the league." />
           }
@@ -167,6 +169,7 @@ const JOB_TYPE_TOURNAMENT = 2;
               [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
               [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'" [ancestorPhase]="ancestorPhase()?.player ?? null"
               [phaseContext]="phaseContext()?.player ?? null"
+              [descendantOverrides]="descendantOverrides()?.player ?? null"
               [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
               hintText="Age group default for every team in it, unless a team sets its own. Overrides the league." />
           }
@@ -177,6 +180,7 @@ const JOB_TYPE_TOURNAMENT = 2;
               [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
               [modifiers]="clubRepModifiers" [scope]="'agegroup'" [ancestorPhase]="ancestorPhase()?.clubRep ?? null"
               [phaseContext]="phaseContext()?.clubRep ?? null"
+              [descendantOverrides]="descendantOverrides()?.clubRep ?? null"
               [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
               hintText="Age group default for every team in it, unless a team sets its own. Overrides the league." />
           }
@@ -319,6 +323,9 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
   readonly feeRolesPresent = input<{ player: boolean; clubRep: boolean } | null>(null);
   /** Per-role phase relevance for this age group's scope (see PhaseContext in fee-card). */
   readonly phaseContext = input<{ player: PhaseContext; clubRep: PhaseContext } | null>(null);
+  /** Per-role reverse-cascade disclosure: teams under this age group that set their own
+   *  phase/amounts/modifiers (see DescendantOverrideInfo in fee-card). */
+  readonly descendantOverrides = input<{ player: DescendantOverrideInfo[]; clubRep: DescendantOverrideInfo[] } | null>(null);
   readonly canDelete = input(true);
   readonly playerCount = input(0);
   readonly saved = output<void>();

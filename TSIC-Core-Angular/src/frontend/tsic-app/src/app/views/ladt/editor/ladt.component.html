@@ -366,6 +366,7 @@
           [leagueId]="node.id"
           [feeRolesPresent]="feeRolesPresent()"
           [phaseContext]="detailPhaseContext()"
+          [descendantOverrides]="detailDescendantOverrides()"
           (saved)="onDetailSaved()"
         />
       } @else if (node.level === 1) {
@@ -375,6 +376,7 @@
           [ancestorPhase]="detailAncestorPhase()"
           [feeRolesPresent]="feeRolesPresent()"
           [phaseContext]="detailPhaseContext()"
+          [descendantOverrides]="detailDescendantOverrides()"
           [canDelete]="canDelete(node)"
           [playerCount]="node.playerCount"
           (saved)="onDetailSaved()"

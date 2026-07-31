@@ -6,7 +6,7 @@ import { LadtService } from '../services/ladt.service';
 import { LadtEditGuardService } from '../services/ladt-edit-guard.service';
 import { FeeRepriceService } from '../services/fee-reprice.service';
 import { ToastService } from '../../../../shared-ui/toast.service';
-import { FeeCardComponent, modifierDateError, type ModifierForm, type PhaseContext } from './fee-card.component';
+import { FeeCardComponent, modifierDateError, type DescendantOverrideInfo, type ModifierForm, type PhaseContext } from './fee-card.component';
 import { RepriceConfirmComponent } from './reprice-confirm.component';
 import { JobService } from '../../../../infrastructure/services/job.service';
 import type { LeagueDetailDto, UpdateLeagueRequest, SportOptionDto, JobFeeDto, FeeModifierDto } from '../../../../core/api';
@@ -87,6 +87,7 @@ const JOB_TYPE_TOURNAMENT = 2;
               [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
               [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="feeForm.clubRepPhase = $event; markFeeDirty()"
               [modifiers]="clubRepModifiers" [scope]="'league'" [phaseContext]="phaseContext()?.clubRep ?? null"
+              [descendantOverrides]="descendantOverrides()?.clubRep ?? null"
               hintText="League default for every age group unless an age group or team sets its own." />
           }
           @if (playerCardOpen()) {
@@ -95,6 +96,7 @@ const JOB_TYPE_TOURNAMENT = 2;
               [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
               [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="feeForm.playerPhase = $event; markFeeDirty()"
               [modifiers]="playerModifiers" placeholder="Optional" [scope]="'league'" [phaseContext]="phaseContext()?.player ?? null"
+              [descendantOverrides]="descendantOverrides()?.player ?? null"
               hintText="League default for every age group unless an age group or team sets its own." />
           }
         } @else {
@@ -104,6 +106,7 @@ const JOB_TYPE_TOURNAMENT = 2;
               [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
               [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="feeForm.playerPhase = $event; markFeeDirty()"
               [modifiers]="playerModifiers" placeholder="Optional" [scope]="'league'" [phaseContext]="phaseContext()?.player ?? null"
+              [descendantOverrides]="descendantOverrides()?.player ?? null"
               hintText="League default for every age group unless an age group or team sets its own." />
           }
           @if (clubRepCardOpen()) {
@@ -112,6 +115,7 @@ const JOB_TYPE_TOURNAMENT = 2;
               [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
               [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="feeForm.clubRepPhase = $event; markFeeDirty()"
               [modifiers]="clubRepModifiers" [scope]="'league'" [phaseContext]="phaseContext()?.clubRep ?? null"
+              [descendantOverrides]="descendantOverrides()?.clubRep ?? null"
               hintText="League default for every age group unless an age group or team sets its own." />
           }
         }
@@ -188,6 +192,9 @@ export class LeagueDetailComponent implements OnChanges, OnInit, OnDestroy {
   readonly feeRolesPresent = input<{ player: boolean; clubRep: boolean } | null>(null);
   /** Per-role phase relevance for this league's scope (see PhaseContext in fee-card). */
   readonly phaseContext = input<{ player: PhaseContext; clubRep: PhaseContext } | null>(null);
+  /** Per-role reverse-cascade disclosure: age groups under this league that set their own
+   *  phase/amounts/modifiers (see DescendantOverrideInfo in fee-card). */
+  readonly descendantOverrides = input<{ player: DescendantOverrideInfo[]; clubRep: DescendantOverrideInfo[] } | null>(null);
   readonly saved = output<void>();
 
   private readonly ladtService = inject(LadtService);
