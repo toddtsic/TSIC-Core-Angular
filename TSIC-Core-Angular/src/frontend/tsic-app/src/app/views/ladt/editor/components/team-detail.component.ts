@@ -6,7 +6,7 @@ import { LadtService } from '../services/ladt.service';
 import { LadtEditGuardService } from '../services/ladt-edit-guard.service';
 import { FeeRepriceService } from '../services/fee-reprice.service';
 import { ToastService } from '../../../../shared-ui/toast.service';
-import { FeeCardComponent, modifierDateError, type AncestorPhase, type ModifierForm } from './fee-card.component';
+import { FeeCardComponent, modifierDateError, type AncestorPhase, type ModifierForm, type PhaseContext } from './fee-card.component';
 import { ConfirmDialogComponent } from '../../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { RepriceConfirmComponent } from './reprice-confirm.component';
 import { CloneTeamDialogComponent } from './clone-team-dialog.component';
@@ -185,40 +185,67 @@ const JOB_TYPE_TOURNAMENT = 2;
           </div>
         </div>
 
+        <!-- Roles with no fee rows anywhere in the job collapse to "Add … fee override" links below. -->
         @if (isTournament()) {
-          <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
-            namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; onFeeAmountStart(); clearFeeError()"
-            [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
-            [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
-            [modifiers]="clubRepModifiers" [ancestorPhase]="ancestorPhase()?.clubRep ?? null"
-            [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
-            hintText="Team override — applies only to this team. Overrides the age group and league. Leave blank to inherit."
-            placeholder="Agegroup default" [scope]="'team'" />
-          <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
-            namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; onFeeAmountStart(); clearFeeError()"
-            [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
-            [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
-            [modifiers]="playerModifiers" [ancestorPhase]="ancestorPhase()?.player ?? null"
-            [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
-            hintText="Team override — applies only to this team. Overrides the age group and league. Leave blank to inherit."
-            placeholder="Agegroup default" [scope]="'team'" />
+          @if (clubRepCardOpen()) {
+            <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
+              namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; onFeeAmountStart(); clearFeeError()"
+              [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
+              [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
+              [modifiers]="clubRepModifiers" [ancestorPhase]="ancestorPhase()?.clubRep ?? null"
+              [phaseContext]="phaseContext()?.clubRep ?? null"
+              [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
+              hintText="Team override — applies only to this team. Overrides the age group and league. Leave blank to inherit."
+              placeholder="Agegroup default" [scope]="'team'" />
+          }
+          @if (playerCardOpen()) {
+            <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
+              namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; onFeeAmountStart(); clearFeeError()"
+              [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
+              [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
+              [modifiers]="playerModifiers" [ancestorPhase]="ancestorPhase()?.player ?? null"
+              [phaseContext]="phaseContext()?.player ?? null"
+              [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
+              hintText="Team override — applies only to this team. Overrides the age group and league. Leave blank to inherit."
+              placeholder="Agegroup default" [scope]="'team'" />
+          }
         } @else {
-          <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
-            namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; onFeeAmountStart(); clearFeeError()"
-            [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
-            [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
-            [modifiers]="playerModifiers" [ancestorPhase]="ancestorPhase()?.player ?? null"
-            [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
-            hintText="Team override — applies only to this team. Overrides the age group and league. Leave blank to inherit."
-            placeholder="Agegroup default" [scope]="'team'" />
-          <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
-            namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; onFeeAmountStart(); clearFeeError()"
-            [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
-            [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
-            [modifiers]="clubRepModifiers" [ancestorPhase]="ancestorPhase()?.clubRep ?? null"
-            [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
-            hintText="Team override — applies only to this team. Overrides the age group and league. Leave blank to inherit."
-            placeholder="Agegroup default" [scope]="'team'" />
+          @if (playerCardOpen()) {
+            <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
+              namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; onFeeAmountStart(); clearFeeError()"
+              [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
+              [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
+              [modifiers]="playerModifiers" [ancestorPhase]="ancestorPhase()?.player ?? null"
+              [phaseContext]="phaseContext()?.player ?? null"
+              [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
+              hintText="Team override — applies only to this team. Overrides the age group and league. Leave blank to inherit."
+              placeholder="Agegroup default" [scope]="'team'" />
+          }
+          @if (clubRepCardOpen()) {
+            <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
+              namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; onFeeAmountStart(); clearFeeError()"
+              [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
+              [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
+              [modifiers]="clubRepModifiers" [ancestorPhase]="ancestorPhase()?.clubRep ?? null"
+              [phaseContext]="phaseContext()?.clubRep ?? null"
+              [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
+              hintText="Team override — applies only to this team. Overrides the age group and league. Leave blank to inherit."
+              placeholder="Agegroup default" [scope]="'team'" />
+          }
+        }
+        @if (!playerCardOpen() || !clubRepCardOpen()) {
+          <div class="d-flex flex-wrap gap-3 mb-3">
+            @if (!playerCardOpen()) {
+              <button type="button" class="btn btn-sm btn-link text-body-secondary p-0" (click)="playerCardOpen.set(true)">
+                <i class="bi bi-plus-circle me-1"></i>Add Player Fee Override
+              </button>
+            }
+            @if (!clubRepCardOpen()) {
+              <button type="button" class="btn btn-sm btn-link text-body-secondary p-0" (click)="clubRepCardOpen.set(true)">
+                <i class="bi bi-plus-circle me-1"></i>Add Club Rep Fee Override
+              </button>
+            }
+          </div>
         }
 
         <!-- ── Eligibility ── -->
@@ -349,6 +376,11 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
   /** Phase resolved from the tiers above this team (agegroup → league → job), per role — drives
    *  the fee cards' "Currently: … — set at X level" line under the "Use age group setting" radio. */
   readonly ancestorPhase = input<{ player: AncestorPhase; clubRep: AncestorPhase } | null>(null);
+  /** Which fee roles have any JobFees row anywhere in this job — drives the card-vs-
+   *  "Add … fee override" link disclosure. null = no data yet; show both (safe default). */
+  readonly feeRolesPresent = input<{ player: boolean; clubRep: boolean } | null>(null);
+  /** Per-role phase relevance for this team's scope (see PhaseContext in fee-card). */
+  readonly phaseContext = input<{ player: PhaseContext; clubRep: PhaseContext } | null>(null);
   readonly saved = output<void>();
   readonly cloned = output<string>();
   readonly clubChanged = output<void>();
@@ -516,8 +548,17 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
 
   // Gated on the id — ancestorPhase (and any future input) changing must NOT re-fire the load;
   // an ungated reload here + a per-CD parent binding = infinite reload loop (frozen spinner).
+  /** Fee-card disclosure latch, seeded per team open from feeRolesPresent (any JobFees row
+   *  for the role anywhere in the job). A collapsed role shows an "Add … fee override" link;
+   *  latched at open so a mid-session delete of the last row can't yank the card. */
+  readonly playerCardOpen = signal(true);
+  readonly clubRepCardOpen = signal(true);
+
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['teamId']) this.loadDetail();
+    if (!changes['teamId']) return;
+    this.playerCardOpen.set(this.feeRolesPresent()?.player ?? true);
+    this.clubRepCardOpen.set(this.feeRolesPresent()?.clubRep ?? true);
+    this.loadDetail();
   }
 
   private loadDetail(): void {

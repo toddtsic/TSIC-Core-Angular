@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnChanges, OnInit, OnDestroy, computed, signal, inject, input, output, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnChanges, OnInit, OnDestroy, SimpleChanges, computed, signal, inject, input, output, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 import { forkJoin, Observable } from 'rxjs';
@@ -6,7 +6,7 @@ import { LadtService } from '../services/ladt.service';
 import { LadtEditGuardService } from '../services/ladt-edit-guard.service';
 import { FeeRepriceService } from '../services/fee-reprice.service';
 import { ToastService } from '../../../../shared-ui/toast.service';
-import { FeeCardComponent, modifierDateError, type ModifierForm } from './fee-card.component';
+import { FeeCardComponent, modifierDateError, type ModifierForm, type PhaseContext } from './fee-card.component';
 import { RepriceConfirmComponent } from './reprice-confirm.component';
 import { JobService } from '../../../../infrastructure/services/job.service';
 import type { LeagueDetailDto, UpdateLeagueRequest, SportOptionDto, JobFeeDto, FeeModifierDto } from '../../../../core/api';
@@ -77,33 +77,57 @@ const JOB_TYPE_TOURNAMENT = 2;
           </div>
         </div>
 
-        <!-- ── League Fees (Deposit / Balance Due + Early Bird / Late Fee) ── -->
+        <!-- ── League Fees (Deposit / Balance Due + Early Bird / Late Fee) ──
+             Roles with no fee rows anywhere in the job collapse to "Add … fees" links
+             below (same disclosure idiom as the modifier add-links inside the card). -->
         @if (isTournament()) {
-          <app-fee-card header="Club Rep / Team — League Fees" headerIcon="bi-shield" variant="clubrep"
-            namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
-            [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
-            [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="feeForm.clubRepPhase = $event; markFeeDirty()"
-            [modifiers]="clubRepModifiers" [scope]="'league'"
-            hintText="League default for every age group unless an age group or team sets its own." />
-          <app-fee-card header="Player — League Fees" headerIcon="bi-person" variant="player"
-            namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
-            [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
-            [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="feeForm.playerPhase = $event; markFeeDirty()"
-            [modifiers]="playerModifiers" placeholder="Optional" [scope]="'league'"
-            hintText="League default for every age group unless an age group or team sets its own." />
+          @if (clubRepCardOpen()) {
+            <app-fee-card header="Club Rep / Team — League Fees" headerIcon="bi-shield" variant="clubrep"
+              namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
+              [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
+              [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="feeForm.clubRepPhase = $event; markFeeDirty()"
+              [modifiers]="clubRepModifiers" [scope]="'league'" [phaseContext]="phaseContext()?.clubRep ?? null"
+              hintText="League default for every age group unless an age group or team sets its own." />
+          }
+          @if (playerCardOpen()) {
+            <app-fee-card header="Player — League Fees" headerIcon="bi-person" variant="player"
+              namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
+              [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
+              [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="feeForm.playerPhase = $event; markFeeDirty()"
+              [modifiers]="playerModifiers" placeholder="Optional" [scope]="'league'" [phaseContext]="phaseContext()?.player ?? null"
+              hintText="League default for every age group unless an age group or team sets its own." />
+          }
         } @else {
-          <app-fee-card header="Player — League Fees" headerIcon="bi-person" variant="player"
-            namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
-            [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
-            [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="feeForm.playerPhase = $event; markFeeDirty()"
-            [modifiers]="playerModifiers" placeholder="Optional" [scope]="'league'"
-            hintText="League default for every age group unless an age group or team sets its own." />
-          <app-fee-card header="Club Rep / Team — League Fees" headerIcon="bi-shield" variant="clubrep"
-            namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
-            [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
-            [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="feeForm.clubRepPhase = $event; markFeeDirty()"
-            [modifiers]="clubRepModifiers" [scope]="'league'"
-            hintText="League default for every age group unless an age group or team sets its own." />
+          @if (playerCardOpen()) {
+            <app-fee-card header="Player — League Fees" headerIcon="bi-person" variant="player"
+              namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
+              [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
+              [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="feeForm.playerPhase = $event; markFeeDirty()"
+              [modifiers]="playerModifiers" placeholder="Optional" [scope]="'league'" [phaseContext]="phaseContext()?.player ?? null"
+              hintText="League default for every age group unless an age group or team sets its own." />
+          }
+          @if (clubRepCardOpen()) {
+            <app-fee-card header="Club Rep / Team — League Fees" headerIcon="bi-shield" variant="clubrep"
+              namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
+              [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
+              [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="feeForm.clubRepPhase = $event; markFeeDirty()"
+              [modifiers]="clubRepModifiers" [scope]="'league'" [phaseContext]="phaseContext()?.clubRep ?? null"
+              hintText="League default for every age group unless an age group or team sets its own." />
+          }
+        }
+        @if (!playerCardOpen() || !clubRepCardOpen()) {
+          <div class="d-flex flex-wrap gap-3 mb-3">
+            @if (!playerCardOpen()) {
+              <button type="button" class="btn btn-sm btn-link text-body-secondary p-0" (click)="playerCardOpen.set(true)">
+                <i class="bi bi-plus-circle me-1"></i>Add Player Fees
+              </button>
+            }
+            @if (!clubRepCardOpen()) {
+              <button type="button" class="btn btn-sm btn-link text-body-secondary p-0" (click)="clubRepCardOpen.set(true)">
+                <i class="bi bi-plus-circle me-1"></i>Add Club Rep / Team Fees
+              </button>
+            }
+          </div>
         }
 
         <!-- ── Save (sticky footer) ── -->
@@ -159,6 +183,11 @@ const JOB_TYPE_TOURNAMENT = 2;
 })
 export class LeagueDetailComponent implements OnChanges, OnInit, OnDestroy {
   readonly leagueId = input.required<string>();
+  /** Which fee roles have any JobFees row anywhere in this job — drives the card-vs-
+   *  "Add … fees" link disclosure. null = no data yet; show both cards (safe default). */
+  readonly feeRolesPresent = input<{ player: boolean; clubRep: boolean } | null>(null);
+  /** Per-role phase relevance for this league's scope (see PhaseContext in fee-card). */
+  readonly phaseContext = input<{ player: PhaseContext; clubRep: PhaseContext } | null>(null);
   readonly saved = output<void>();
 
   private readonly ladtService = inject(LadtService);
@@ -230,7 +259,19 @@ export class LeagueDetailComponent implements OnChanges, OnInit, OnDestroy {
     this.editGuard.unregister(this.dirtyProbe);
   }
 
-  ngOnChanges(): void {
+  /** Fee-card disclosure latch, seeded per league open from feeRolesPresent. A role with no
+   *  rows anywhere in the job collapses its card to an "Add … fees" link; clicking the link
+   *  (or a row existing) opens the card. Latched at open — a mid-session delete of the last
+   *  row must not yank the card out from under the director; it collapses on next open. */
+  readonly playerCardOpen = signal(true);
+  readonly clubRepCardOpen = signal(true);
+
+  // Gated on the id — feeRolesPresent/phaseContext (and any future input) changing must NOT
+  // re-fire the load; an ungated reload + a per-CD parent binding = infinite reload loop.
+  ngOnChanges(changes: SimpleChanges): void {
+    if (!changes['leagueId']) return;
+    this.playerCardOpen.set(this.feeRolesPresent()?.player ?? true);
+    this.clubRepCardOpen.set(this.feeRolesPresent()?.clubRep ?? true);
     this.loadDetail();
     this.loadSports();
   }

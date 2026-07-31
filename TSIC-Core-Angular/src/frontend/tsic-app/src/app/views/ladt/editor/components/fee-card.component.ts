@@ -20,6 +20,20 @@ export interface AncestorPhase {
 }
 
 /**
+ * Phase-relevance context for a card's scope, computed by the parent from the cached job
+ * fee rows. `depositInScope` = a deposit exists at this scope, at a governing tier above,
+ * or (league/agegroup) at any tier below — i.e. the payment phase can actually engage
+ * somewhere this card's setting reaches. `resolvedDeposit`/`resolvedBalance` = the
+ * cascade-resolved amounts for this scope (own row ?? governing tiers), used to quote the
+ * single-payment note when the local inputs are blank.
+ */
+export interface PhaseContext {
+  depositInScope: boolean;
+  resolvedDeposit: number | null;
+  resolvedBalance: number | null;
+}
+
+/**
  * Every Early Bird Discount and Late Fee must carry BOTH a start AND an end date — the window
  * is what gives the modifier meaning. An open-ended late fee silently behaves as a permanent
  * surcharge "active since the dawn of time"; an open-ended early bird is a permanent discount.
@@ -90,6 +104,7 @@ export function modifierDateError(mods: ModifierForm[]): string | null {
 
       }
 
+      @if (showPhaseBlock()) {
       <div class="phase-section" [class.fee-inputs-locked]="toggleDisabled()">
         <label class="fee-label phase-section-label">Payment Phase</label>
         <!-- Radio group, one choice per stored value. The "use the level above" option is the
@@ -126,6 +141,15 @@ export function modifierDateError(mods: ModifierForm[]): string | null {
           </p>
         }
       </div>
+      } @else {
+        <!-- No deposit anywhere this card's phase could reach and no stamp here: the phase
+             cannot engage, so the radio group collapses to the truth of what gets charged.
+             Typing a deposit (or a saved deposit/stamp appearing at a governing tier)
+             brings the full control back. -->
+        <p class="phase-explain single-payment-note">
+          <i class="bi bi-cash"></i><span>{{ singlePaymentNote() }}</span>
+        </p>
+      }
 
       @for (mod of modifiers(); track mod.modifierType) {
         @if ($first) {
@@ -263,6 +287,14 @@ export function modifierDateError(mods: ModifierForm[]): string | null {
     }
     .phase-explain.on { color: var(--bs-success); font-weight: 600; }
     .phase-explain i { margin-top: 1px; }
+    /* Collapsed phase block — same quiet chrome as the radio container, one line tall. */
+    .single-payment-note {
+      margin: var(--space-3) 0;
+      padding: var(--space-2) var(--space-3);
+      background: var(--bs-tertiary-bg);
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--radius-sm);
+    }
 
     .modifier-labels {
       display: grid;
@@ -349,6 +381,10 @@ export class FeeCardComponent {
    *  of describing the cascade rule. Omitted at league scope (nothing above). */
   readonly ancestorPhase = input<AncestorPhase | null>(null);
 
+  /** Phase-relevance for this card's scope (see PhaseContext). null = no context supplied —
+   *  the phase control renders unconditionally (legacy behavior). */
+  readonly phaseContext = input<PhaseContext | null>(null);
+
   /** Cascade scope — names who this card's setting flows down to (and who can override it)
    *  in the phase explanation copy. */
   readonly scope = input<'league' | 'agegroup' | 'team' | null>(null);
@@ -369,6 +405,31 @@ export class FeeCardComponent {
    * league — the top tier, with nothing above to follow — null (and a legacy false)
    * both read as Deposit.
    */
+  /**
+   * Phase control disclosure: the radio group only renders where the phase can matter.
+   * Visible when a deposit exists anywhere in this card's reach (context), when THIS scope
+   * carries a stamp (a stamp must never sit under a hidden control — it must stay visible
+   * and clearable), or when a deposit is being typed locally right now (unsaved). Without a
+   * context the card behaves as before — always show.
+   */
+  readonly showPhaseBlock = computed(() => {
+    const ctx = this.phaseContext();
+    if (!ctx) return true;
+    return ctx.depositInScope
+      || this.bFullPaymentRequired() !== null
+      || (this.deposit() ?? 0) > 0;
+  });
+
+  /** The collapsed phase block's one-line truth: with no deposit configured anywhere, the
+   *  full fee is collected at registration. Quotes the cascade-resolved amount below league
+   *  scope (league amounts live at many tiers below — no single number to quote). */
+  readonly singlePaymentNote = computed(() => {
+    const who = this.variant() === 'player' ? 'players' : 'club reps';
+    const bal = this.balanceDue() ?? this.phaseContext()?.resolvedBalance ?? 0;
+    const charge = this.scope() !== 'league' && bal > 0 ? `${this.money(bal)} in full` : 'the full fee';
+    return `Single payment: ${who} pay ${charge} at registration. Set a deposit to enable two-phase payment.`;
+  });
+
   readonly phaseChoice = computed<'inherit' | 'deposit' | 'full'>(() => {
     const v = this.bFullPaymentRequired();
     if (v === true) return 'full';

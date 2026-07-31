@@ -21,6 +21,7 @@ import {
 } from './configs/ladt-grid-columns';
 import type { ParentBreadcrumb } from './components/ladt-sibling-grid.component';
 import type { LadtTreeNodeDto, DivisionNameSyncPreview, JobFeeDto } from '../../../core/api';
+import type { PhaseContext } from './components/fee-card.component';
 import { RoleIds } from '@infrastructure/constants/roles.constants';
 import { AGEGROUP_COLORS } from '../../scheduling/shared/utils/scheduling-helpers';
 
@@ -790,6 +791,66 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     const node = this.detailNode();
     return node ? this.ancestorPhaseFor(node) : null;
   });
+
+  /**
+   * Card-level disclosure: which fee roles have ANY JobFees row in this job (amounts,
+   * modifiers, or phase stamps — a row is a row). A role with no rows collapses its fee
+   * card to an "Add … fees" link in the detail fly-ins; a role with rows always shows.
+   * Memoized for input-binding identity stability (same reason as detailAncestorPhase).
+   */
+  readonly feeRolesPresent = computed(() => {
+    const fees = this.jobFees();
+    return {
+      player: fees.some(f => f.roleId === LadtEditorComponent.PLAYER_ROLE_ID),
+      clubRep: fees.some(f => f.roleId === LadtEditorComponent.CLUBREP_ROLE_ID)
+    };
+  });
+
+  /**
+   * Phase-relevance context for the open fly-in's fee cards, per role: can the payment
+   * phase engage anywhere this card's setting reaches? Deposit search covers the resolved
+   * cascade AT the scope (own row ?? governing tiers) plus every tier BELOW it (a league/
+   * age-group phase stamp governs lower scopes whose deposits live elsewhere). Also carries
+   * the resolved amounts so the collapsed single-payment note can quote the real charge.
+   * Memoized — see detailAncestorPhase.
+   */
+  readonly detailPhaseContext = computed(() => {
+    const node = this.detailNode();
+    if (!node || node.level === 2) return null; // divisions carry no fee cards
+    return {
+      player: this.phaseContextFor(node, LadtEditorComponent.PLAYER_ROLE_ID),
+      clubRep: this.phaseContextFor(node, LadtEditorComponent.CLUBREP_ROLE_ID)
+    };
+  });
+
+  private phaseContextFor(node: LadtFlatNode, roleId: string): PhaseContext {
+    const scopeType = node.level === 0 ? 'league' : node.level === 1 ? 'agegroup' : 'team';
+    const resolved = this.buildFeeData(node.id, scopeType).fees.find(f => f.roleId === roleId);
+    const resolvedDeposit = resolved?.deposit ?? null;
+    const resolvedBalance = resolved?.balanceDue ?? null;
+    const depositInScope = (resolvedDeposit ?? 0) > 0 || this.subtreeHasDeposit(node, roleId);
+    return { depositInScope, resolvedDeposit, resolvedBalance };
+  }
+
+  /** Any deposit-carrying row for the role BELOW this node's scope — age-group/team rows
+   *  under a league, team rows under an age group. Teams hang off the age group directly
+   *  or via a division node; rows are matched through the tree (AG rows don't carry a
+   *  leagueId). Team scope is the leaf — nothing below. */
+  private subtreeHasDeposit(node: LadtFlatNode, roleId: string): boolean {
+    if (node.level === 3) return false;
+    const flat = this.flatNodes();
+    const agIds = node.level === 0
+      ? new Set(flat.filter(n => n.level === 1 && n.parentId === node.id).map(n => n.id))
+      : new Set([node.id]);
+    const divIds = new Set(flat.filter(n => n.level === 2 && n.parentId && agIds.has(n.parentId)).map(n => n.id));
+    const teamIds = new Set(flat
+      .filter(n => n.level === 3 && n.parentId && (agIds.has(n.parentId) || divIds.has(n.parentId)))
+      .map(n => n.id));
+    return this.jobFees().some(f => f.roleId === roleId && (f.deposit ?? 0) > 0 && (
+      (node.level === 0 && f.agegroupId != null && !f.teamId && agIds.has(f.agegroupId))
+      || (f.teamId != null && teamIds.has(f.teamId))
+    ));
+  }
 
   private ancestorPhaseFor(node: LadtFlatNode): { player: { full: boolean; source: string }; clubRep: { full: boolean; source: string } } | null {
     let scopeId: string | undefined;

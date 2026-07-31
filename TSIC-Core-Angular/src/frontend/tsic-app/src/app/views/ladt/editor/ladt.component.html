@@ -364,6 +364,8 @@
       @if (node.level === 0) {
         <app-league-detail
           [leagueId]="node.id"
+          [feeRolesPresent]="feeRolesPresent()"
+          [phaseContext]="detailPhaseContext()"
           (saved)="onDetailSaved()"
         />
       } @else if (node.level === 1) {
@@ -371,6 +373,8 @@
           [agegroupId]="node.id"
           [leagueId]="node.parentId"
           [ancestorPhase]="detailAncestorPhase()"
+          [feeRolesPresent]="feeRolesPresent()"
+          [phaseContext]="detailPhaseContext()"
           [canDelete]="canDelete(node)"
           [playerCount]="node.playerCount"
           (saved)="onDetailSaved()"
@@ -389,6 +393,8 @@
         <app-team-detail
           [teamId]="node.id"
           [ancestorPhase]="detailAncestorPhase()"
+          [feeRolesPresent]="feeRolesPresent()"
+          [phaseContext]="detailPhaseContext()"
           (saved)="onDetailSaved()"
           (cloned)="onDetailCloned($event)"
           (clubChanged)="onDetailSaved()"
