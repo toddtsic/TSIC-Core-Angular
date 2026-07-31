@@ -12,6 +12,7 @@ using TSIC.Application.Services.Users;
 using FluentValidation;
 using TSIC.Infrastructure.Data.Identity;
 using TSIC.API.Configuration;
+using TSIC.API.Extensions;
 using TSIC.API.Services.Auth;
 using TSIC.API.Services.SuggestedEvents;
 using TSIC.Contracts.Repositories;
@@ -34,6 +35,7 @@ namespace TSIC.API.Controllers
         private readonly IEmailService _emailService;
         private readonly FrontendSettings _frontendSettings;
         private readonly ISuggestedEventsService _suggestedEventsService;
+        private readonly ILogger<AuthController> _logger;
 
         public AuthController(
             UserManager<ApplicationUser> userManager,
@@ -46,7 +48,8 @@ namespace TSIC.API.Controllers
             IWebHostEnvironment env,
             IEmailService emailService,
             IOptions<FrontendSettings> frontendSettings,
-            ISuggestedEventsService suggestedEventsService)
+            ISuggestedEventsService suggestedEventsService,
+            ILogger<AuthController> logger)
         {
             _userManager = userManager;
             _roleLookupService = roleLookupService;
@@ -59,6 +62,7 @@ namespace TSIC.API.Controllers
             _emailService = emailService;
             _frontendSettings = frontendSettings.Value;
             _suggestedEventsService = suggestedEventsService;
+            _logger = logger;
         }
 
         /// <summary>
@@ -469,20 +473,26 @@ namespace TSIC.API.Controllers
         /// legacy AccountController semantics. Never FindByEmailAsync: it runs SingleOrDefault over
         /// NormalizedEmail and throws on the duplicates this database legitimately holds.
         /// Always returns 200 regardless of matches (no account enumeration).
+        /// The send goes through the normal sandbox gate — real email only in Production. In
+        /// Development the response carries the reset links so the flow stays testable end-to-end.
         /// </summary>
         [HttpPost("forgot-password")]
         [ProducesResponseType(200)]
-        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken ct)
+        public async Task<ActionResult<ForgotPasswordResponse>> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken ct)
         {
             const string Message = "If an account with that username or email exists, a password reset link has been sent.";
 
             if (string.IsNullOrWhiteSpace(request.UsernameOrEmail))
             {
-                return Ok(new { Message });
+                return Ok(new ForgotPasswordResponse { Message = Message });
             }
 
             var submitted = request.UsernameOrEmail.Trim();
             var accounts = await _userRepository.GetPasswordResetAccountsAsync(submitted, ct);
+
+            // Development-only (never Staging — dev.* is client-facing, and a reset link returned to
+            // an anonymous caller is an account takeover). See ForgotPasswordResponse.DevResetLinks.
+            var devLinks = _env.IsDevelopment() ? new List<DevResetLink>() : null;
 
             foreach (var account in accounts)
             {
@@ -505,13 +515,22 @@ namespace TSIC.API.Controllers
                 var resetUrl = $"{_frontendSettings.BaseUrl.TrimEnd('/')}/reset-password" +
                     $"?token={Uri.EscapeDataString(token)}&userId={Uri.EscapeDataString(account.UserId)}";
 
+                // No sendInDevelopment override: SES transmits only in Production (SANDBOX rule).
                 await _emailService.SendAsync(
                     BuildPasswordResetEmail(recipient, account.UserName, resetUrl),
-                    sendInDevelopment: true,
                     cancellationToken: ct);
+
+                devLinks?.Add(new DevResetLink { UserName = account.UserName, ResetUrl = resetUrl });
+
+                if (_env.IsSandbox())
+                {
+                    // Staging has no email and no response links; the server log is the only way to
+                    // walk the flow there.
+                    _logger.LogInformation("Sandbox forgot-password: reset link for {UserName}: {ResetUrl}", account.UserName, resetUrl);
+                }
             }
 
-            return Ok(new { Message });
+            return Ok(new ForgotPasswordResponse { Message = Message, DevResetLinks = devLinks ?? [] });
         }
 
         /// <summary>

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, signal, inject } from '@angular/cor
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
+import { DevResetLink } from '@core/api';
 
 @Component({
   selector: 'app-forgot-password',
@@ -25,6 +26,10 @@ export class ForgotPasswordComponent {
   sent = signal(false);
   errorMessage = signal<string | null>(null);
 
+  // Development only: the backend suppresses reset emails off-production and instead returns the
+  // links here (empty in Staging/Production) so the flow stays testable without an inbox.
+  devResetLinks = signal<DevResetLink[]>([]);
+
   onSubmit() {
     this.submitted.set(true);
     if (this.form.invalid) return;
@@ -35,8 +40,9 @@ export class ForgotPasswordComponent {
     const usernameOrEmail = this.form.get('usernameOrEmail')?.value ?? '';
 
     this.auth.forgotPassword(usernameOrEmail).subscribe({
-      next: () => {
+      next: (response) => {
         this.isLoading.set(false);
+        this.devResetLinks.set(response.devResetLinks ?? []);
         this.sent.set(true);
       },
       error: () => {

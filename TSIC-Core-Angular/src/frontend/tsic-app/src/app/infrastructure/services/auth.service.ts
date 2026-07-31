@@ -11,7 +11,7 @@ import {
   AuthenticatedUser,
   RegistrationRoleDto
 } from '../view-models/auth.models';
-import { SuggestedEventDto } from '@core/api';
+import { ForgotPasswordResponse, SuggestedEventDto } from '@core/api';
 import { environment } from '@environments/environment';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 
@@ -530,9 +530,11 @@ export class AuthService {
    * Request a password reset email. Accepts a username or an email address — one email can own
    * several accounts (family login + the parent's own logins), so the backend sends one reset
    * email per matching account. Always returns 200 (no account enumeration).
+   * Email transmits only in Production; in Development the response carries the reset links
+   * (devResetLinks) so the flow can be walked without an inbox. Empty everywhere else.
    */
-  forgotPassword(usernameOrEmail: string): Observable<void> {
-    return this.http.post<void>(`${this.apiUrl}/forgot-password`, { usernameOrEmail });
+  forgotPassword(usernameOrEmail: string): Observable<ForgotPasswordResponse> {
+    return this.http.post<ForgotPasswordResponse>(`${this.apiUrl}/forgot-password`, { usernameOrEmail });
   }
 
   /**
