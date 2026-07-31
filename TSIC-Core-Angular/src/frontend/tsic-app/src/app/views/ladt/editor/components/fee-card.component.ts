@@ -82,24 +82,33 @@ export function modifierDateError(mods: ModifierForm[]): string | null {
 
       <div class="phase-section" [class.fee-inputs-locked]="toggleDisabled()">
         <label class="fee-label phase-section-label">Payment Phase</label>
-        <div class="phase-seg" role="group" [attr.aria-label]="'Payment phase — ' + header()">
+        <!-- Radio group, one choice per stored value. The "use the level above" option is the
+             blank-field equivalent of the Deposit/Balance inputs and names its source plainly
+             (like the amount placeholders) — no jargon. -->
+        <div class="phase-radios" role="radiogroup" [attr.aria-label]="'Payment phase — ' + header()">
           @if (scope() !== 'league') {
-            <button type="button" class="phase-seg-btn"
-                    [class.active]="phaseChoice() === 'inherit'"
-                    [attr.aria-pressed]="phaseChoice() === 'inherit'"
-                    [attr.disabled]="toggleDisabled() ? '' : null"
-                    (click)="onPhaseSelect(null)">Inherit</button>
+            <div class="form-check">
+              <input class="form-check-input" type="radio"
+                     [name]="namePrefix() + 'PhaseRb'" [id]="namePrefix() + 'PhaseDefault'"
+                     [checked]="phaseChoice() === 'inherit'" [disabled]="toggleDisabled()"
+                     (change)="onPhaseSelect(null)">
+              <label class="form-check-label" [for]="namePrefix() + 'PhaseDefault'">{{ defaultOptionLabel() }}</label>
+            </div>
           }
-          <button type="button" class="phase-seg-btn"
-                  [class.active]="phaseChoice() === 'deposit'"
-                  [attr.aria-pressed]="phaseChoice() === 'deposit'"
-                  [attr.disabled]="toggleDisabled() ? '' : null"
-                  (click)="onPhaseSelect(scope() === 'league' ? null : false)">Deposit first</button>
-          <button type="button" class="phase-seg-btn"
-                  [class.active]="phaseChoice() === 'full'"
-                  [attr.aria-pressed]="phaseChoice() === 'full'"
-                  [attr.disabled]="toggleDisabled() ? '' : null"
-                  (click)="onPhaseSelect(true)">Full payment</button>
+          <div class="form-check">
+            <input class="form-check-input" type="radio"
+                   [name]="namePrefix() + 'PhaseRb'" [id]="namePrefix() + 'PhaseDeposit'"
+                   [checked]="phaseChoice() === 'deposit'" [disabled]="toggleDisabled()"
+                   (change)="onPhaseSelect(scope() === 'league' ? null : false)">
+            <label class="form-check-label" [for]="namePrefix() + 'PhaseDeposit'">Deposit first</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio"
+                   [name]="namePrefix() + 'PhaseRb'" [id]="namePrefix() + 'PhaseFull'"
+                   [checked]="phaseChoice() === 'full'" [disabled]="toggleDisabled()"
+                   (change)="onPhaseSelect(true)">
+            <label class="form-check-label" [for]="namePrefix() + 'PhaseFull'">Full payment now</label>
+          </div>
         </div>
         @if (phaseExplanation(); as explain) {
           <p class="phase-explain" [class.on]="bFullPaymentRequired() === true">
@@ -225,30 +234,18 @@ export function modifierDateError(mods: ModifierForm[]): string | null {
     .phase-section-label {
       font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0;
     }
-    .phase-seg {
-      display: inline-flex; align-self: flex-start;
-      border: 1px solid var(--bs-border-color); border-radius: var(--radius-sm);
-      overflow: hidden; background: var(--bs-body-bg);
+    .phase-radios {
+      display: flex; flex-wrap: wrap;
+      gap: var(--space-1) var(--space-4);
     }
-    .phase-seg-btn {
-      border: none; background: transparent; color: var(--bs-secondary-color);
-      font-size: var(--font-size-xs); font-weight: 600;
-      padding: var(--space-1) var(--space-3); cursor: pointer;
-      transition: background-color 0.12s ease, color 0.12s ease;
+    .phase-radios .form-check { margin-bottom: 0; }
+    .phase-radios .form-check-label {
+      font-size: var(--font-size-xs); font-weight: 600; cursor: pointer;
     }
-    .phase-seg-btn + .phase-seg-btn { border-left: 1px solid var(--bs-border-color); }
-    .phase-seg-btn.active {
-      background: rgba(var(--bs-primary-rgb), 0.12);
-      color: var(--bs-primary-text-emphasis);
-      font-weight: 700;
-    }
-    .phase-seg-btn:focus-visible {
+    .phase-radios .form-check-input { cursor: pointer; }
+    .phase-radios .form-check-input:focus-visible {
       outline: none;
       box-shadow: var(--shadow-focus);
-      position: relative; z-index: 1;
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .phase-seg-btn { transition: none; }
     }
     .phase-explain {
       font-size: var(--font-size-xs); color: var(--bs-secondary-color); margin: 0;
@@ -352,9 +349,10 @@ export class FeeCardComponent {
   readonly toggleDisabled = input(false);
 
   /**
-   * The stored phase value mapped to the segmented control's selection. Below league,
-   * null = Inherit and false = an explicit Deposit veto. At league — the top tier, with
-   * nothing above to inherit from — null (and a legacy false) both read as Deposit.
+   * The stored phase value mapped to the radio group's selection. Below league,
+   * null = "use the level above's setting" and false = an explicit Deposit veto. At
+   * league — the top tier, with nothing above to follow — null (and a legacy false)
+   * both read as Deposit.
    */
   readonly phaseChoice = computed<'inherit' | 'deposit' | 'full'>(() => {
     const v = this.bFullPaymentRequired();
@@ -391,7 +389,7 @@ export class FeeCardComponent {
       }
       default: {
         const from = this.scope() === 'team' ? 'the age group or league' : 'the league';
-        return `No phase set here — inherits from ${from}; deposit first when nothing is set anywhere.${this.cascadeOff()}`;
+        return `No phase set here — follows ${from}; deposit first when nothing is set anywhere.${this.cascadeOff()}`;
       }
     }
   });
@@ -404,6 +402,12 @@ export class FeeCardComponent {
       default: return 'bi-arrow-up-circle';
     }
   });
+
+  /** Plain-language label for the "no setting here" radio — names where the phase comes from,
+   *  the way the amount placeholders name their default source. */
+  defaultOptionLabel(): string {
+    return this.scope() === 'team' ? 'Use age group setting' : 'Use league setting';
+  }
 
   /** Re-selecting the current choice is a no-op (don't dirty the form or re-open prompts). */
   onPhaseSelect(value: boolean | null): void {
