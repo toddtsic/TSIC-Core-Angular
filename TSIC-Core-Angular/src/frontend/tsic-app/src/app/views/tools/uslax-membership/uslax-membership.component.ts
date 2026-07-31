@@ -9,6 +9,7 @@ import { TestSendButtonComponent, type TestSendOptions } from '@shared-ui/compon
 import { environment } from '@environments/environment';
 import { UsLaxMembershipService } from '@infrastructure/services/uslax-membership.service';
 import { JobService } from '@infrastructure/services/job.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
 import type {
 	UsLaxEmailRecipientDto,
@@ -95,6 +96,7 @@ export class UsLaxMembershipComponent implements OnInit {
 	private readonly service = inject(UsLaxMembershipService);
 	private readonly jobService = inject(JobService);
 	private readonly toast = inject(ToastService);
+	private readonly auth = inject(AuthService);
 
 	readonly MEMBERSHIP_ROLE = MEMBERSHIP_ROLE;
 
@@ -289,6 +291,8 @@ export class UsLaxMembershipComponent implements OnInit {
 	}
 
 	readonly isNonProd = environment.envName !== 'production';
+	/** Test popovers are SUPERUSER-only on shared environments (AM-060 rule). */
+	readonly isSuperuser = this.auth.isSuperuser;
 	readonly isSendingTest = signal(false);
 
 	/** Non-prod: renders tokens against the first actionable recipient and delivers the real

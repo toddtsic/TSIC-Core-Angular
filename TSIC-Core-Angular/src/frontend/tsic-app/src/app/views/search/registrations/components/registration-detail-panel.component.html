@@ -519,11 +519,11 @@
                nobody. Role-routed server-side; a player resend is the FAMILY confirmation
                (one email covering every sibling in the job) — the toast discloses this.
                ONE button, two behaviors: off-prod the real send couldn't deliver anyway
-               (sandbox email gate), so the button IS the test-send popover — it renders the
-               registrant's confirmation and swaps delivery to the test inbox. On prod it does
-               the real resend. -->
+               (sandbox email gate), so for a SUPERUSER the button IS the test-send popover —
+               it renders the registrant's confirmation and swaps delivery to the test inbox.
+               Everyone else (and prod) gets the real resend. -->
           <div class="confirmation-resend-row">
-            @if (isNonProd) {
+            @if (isNonProd && isSuperuser()) {
               <app-test-send-button
                 label="Re-Send Confirmation Email"
                 variant="primary"

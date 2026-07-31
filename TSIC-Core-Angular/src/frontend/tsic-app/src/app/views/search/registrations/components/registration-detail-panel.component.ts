@@ -1046,6 +1046,8 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   }
 
   // ── AM-060: Re-Send Confirmation Email (Accounting tab) ──────────────────────────
+  /** Test popover is SUPERUSER-only (Todd): Directors on staging get the real resend button. */
+  readonly isSuperuser = this.auth.isSuperuser;
   readonly isResendingConfirmation = signal(false);
   readonly isTestSendingConfirmation = signal(false);
 

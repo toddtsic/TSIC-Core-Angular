@@ -356,7 +356,7 @@
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" (click)="closeEmailDialog()">Cancel</button>
-            @if (isNonProd) {
+            @if (isNonProd && isSuperuser()) {
                 <app-test-send-button
                     [disabled]="isSending() || !emailSubject() || !emailBody() || registrants().length === 0"
                     [busy]="isSendingTest()"

@@ -7,6 +7,7 @@ import type { EmailBatchJobStatus, JobOptionDto, RegistrationSearchRequest } fro
 import { environment } from '@environments/environment';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 import {
   EMAIL_TEMPLATE_CATEGORIES, isTemplateAvailable, EMAIL_BASE_TOKENS, USLAX_VALID_THROUGH_TOKEN,
   type EmailTemplate, type JobFlagsForTemplates
@@ -62,6 +63,10 @@ const INVITE_TEMPLATES: Record<InviteMode, { subject: string; body: string }> = 
 export class BatchEmailModalComponent implements OnInit, OnDestroy {
   private searchService = inject(RegistrationSearchService);
   private toast = inject(ToastService);
+  private auth = inject(AuthService);
+
+  /** Test affordances are SUPERUSER-only on shared environments (AM-060 rule). */
+  readonly isSuperuser = this.auth.isSuperuser;
 
   /** Dev-only "TEST BATCH PROCESSING" button gate — never rendered in production builds. */
   readonly isDev = !environment.production;

@@ -160,7 +160,7 @@
               }
             </div>
 
-            @if (isStaging) {
+            @if (isStaging && isSuperuser()) {
               <div class="form-group invite-test-inbox-group">
                 <label for="invite-test-inbox">To (test inbox) <span class="text-muted">— Staging only</span></label>
                 <input type="email" id="invite-test-inbox" class="form-control"
@@ -287,7 +287,7 @@
               TEST BATCH PROCESSING
             </button>
           }
-          @if (isNonProd && !inviteMode()) {
+          @if (isNonProd && isSuperuser() && !inviteMode()) {
             <app-test-send-button
               [disabled]="!canSubmit()"
               [busy]="isSendingTest()"

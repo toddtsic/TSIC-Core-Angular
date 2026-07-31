@@ -5,6 +5,7 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
 import { EmailBodyEditorComponent } from '@shared-ui/components/email-body-editor/email-body-editor.component';
 import { TestSendButtonComponent, type TestSendOptions } from '@shared-ui/components/test-send-button/test-send-button.component';
 import { ToastService } from '@shared-ui/toast.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 import { environment } from '@environments/environment';
 import { ArbDefensiveService } from './services/arb-defensive.service';
 import type {
@@ -87,8 +88,11 @@ const TEMPLATES: Record<string, EmailTemplate[]> = {
 export class ArbHealthComponent {
     private readonly arbService = inject(ArbDefensiveService);
     private readonly toast = inject(ToastService);
+    private readonly auth = inject(AuthService);
 
     readonly isNonProd = environment.envName !== 'production';
+    /** Test popovers are SUPERUSER-only on shared environments (AM-060 rule). */
+    readonly isSuperuser = this.auth.isSuperuser;
 
     // Lookup state. activeTab is the flag type the UI is oriented to (drives templates,
     // action bar, table shape); loadedTab is which lookup has actually RUN — null until

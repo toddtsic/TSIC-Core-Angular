@@ -168,7 +168,7 @@
             </div>
 
             <div class="compose-actions">
-                @if (isNonProd) {
+                @if (isNonProd && isSuperuser()) {
                     <app-test-send-button
                         [disabled]="!canSendEmail()"
                         [busy]="isSendingTest()"
