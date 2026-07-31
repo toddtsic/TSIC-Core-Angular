@@ -62,6 +62,59 @@
   carries <em>both</em> a deposit and a balance.
 </p>
 
+<h4>Editing fees in the detail panel</h4>
+<p>
+  Open a league, age group, or team and you'll find a fee card per role — <strong>Player</strong> and
+  <strong>Club Rep / Team</strong>. Leaving <strong>Deposit</strong> or <strong>Balance Due</strong> blank
+  means "inherit" — the field's placeholder shows the value coming from the level above, and typing an
+  amount overrides it from this level down. A role with no fees anywhere in the event collapses to an
+  <strong>Add … Fees</strong> link so unused cards stay out of the way.
+</p>
+<p>
+  The <strong>Payment Phase</strong> choice cascades the same way. Below league level it offers three
+  options: <strong>Use league / age group setting</strong> (follow the level above),
+  <strong>Deposit first</strong> (deposit now, balance later — regardless of any higher-level setting), and
+  <strong>Full payment now</strong>. At league level — the top — there's nothing above to follow, so the
+  choice is simply Deposit first or Full payment now. When no level sets anything, registrants pay the
+  deposit first.
+</p>
+<p class="help-muted">
+  The phase radios appear only where they can matter — that is, where a deposit exists somewhere the
+  setting reaches. With no deposit configured anywhere, the card shows a one-line
+  <strong>Single payment</strong> note instead; set a deposit to enable two-phase payment.
+</p>
+
+<h4>Seeing the cascade in both directions</h4>
+<p>
+  Every fee card tells you where its values come from <em>and</em> where they've been overridden:
+</p>
+<ul>
+  <li><i class="bi bi-arrow-up-circle"></i> <strong>From above</strong> — when a card follows the level
+    above, it states the outcome plainly: <span class="help-muted">"Currently: Full payment now — set at
+    league level."</span></li>
+  <li><i class="bi bi-arrow-down-circle"></i> <strong>From below</strong> — when more specific levels go
+    their own way, the card names them: <span class="help-muted">"2 age groups set their own phase: U12
+    (Full payment), U14 (Deposit first)."</span> The same lines appear for amounts and for Early Bird /
+    Late Fee, so a league card never reads as governing everything when it doesn't.</li>
+</ul>
+
+<h4>Early Bird Discounts &amp; Late Fees</h4>
+<p>
+  Each fee card can carry one <strong>Early Bird Discount</strong> and one <strong>Late Fee</strong>, and
+  each must have <em>both</em> a start and an end date — the window is what gives it meaning. The card
+  warns you if the two windows overlap (a registrant in the overlap would receive both).
+</p>
+
+<h4>Changing fees when people have already registered</h4>
+<p>
+  Saving a change that affects existing registrations asks you what to do, right in the save bar. An
+  <strong>amount or discount change</strong> offers <strong>Update all</strong> (reprice existing unpaid
+  registrations too — the usual intent) or <strong>Future only</strong>. A <strong>phase flip</strong>
+  always converts existing registrations so everyone is on the same plan — and flipping an age group's
+  phase offers to apply it to <strong>all age groups in the league</strong> or just this one, with a count
+  of who's affected either way.
+</p>
+
 <h4>Colors &amp; division themes</h4>
 <p>
   Click the color dot beside an <strong>age group</strong> to give it a color — its divisions pick up the
