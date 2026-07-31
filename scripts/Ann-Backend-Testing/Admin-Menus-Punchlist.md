@@ -1066,6 +1066,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Severity**: (resolved — testability restored on both flows)
 - **Cross-ref**: **PL-061 (club-rep confirmation not sent — the send-side counterpart to this render-side tool)**, AM-060 (admin fly-in resend — still open, independent), AM-059 (batch-email compose), AM-058 (token/email flows), go-live email checklist.
 - **Status**: ✅ **FIXED 2026-07-31** — `80f4e7a8` + `84e0ef7a` pushed. Invite half needed no code. **OPEN: staging deploy → Ann E2E.**
+- **07-31 design correction (Todd, rode AM-060)**: the three wizard confirmation screens no longer show TWO buttons (Re-Send + Send Test Email). **One button**: in dev the Re-Send button IS the test popover (anntsic swap — the real send can't deliver off-prod anyway); on Staging/Production it's the real resend. Wizard popover gate stays `!environment.production` (dev-only) on purpose: wizard screens face **real customers on dev.\*** (SEDONA is client-facing), who must never see the test popover — unlike the admin-only fly-in, which shows it on Staging too.
 
 ### AM-063: [Email → Draft with AI] ✨ ENHANCEMENT — let the AI pull forward prior email copy from the Email Log ("reuse last year's thank-you email")
 - **Topic**: Draft-with-AI in the email composer — retrieve/adapt a prior sent email from the Email Log by natural-language request.

@@ -48,17 +48,23 @@ import { environment } from '@environments/environment';
             </div>
           }
 
+          <!-- ONE button, two behaviors: off-prod the resend couldn't deliver anyway (sandbox
+               email gate), so the button IS the test-send popover; on prod it really resends. -->
           <div class="d-flex gap-2 mb-3 align-items-center">
-            <button type="button" class="btn btn-outline-primary btn-sm"
-                    [disabled]="resending()"
-                    (click)="onResendClick()">
-              {{ resending() ? 'Sending...' : 'Re-Send Confirmation Email' }}
-            </button>
             @if (isNonProd) {
               <app-test-send-button
+                label="Re-Send Confirmation Email"
+                variant="primary"
                 align="left"
+                drop="down"
                 [busy]="testSending()"
                 (send)="onTestSend($event)" />
+            } @else {
+              <button type="button" class="btn btn-outline-primary btn-sm"
+                      [disabled]="resending()"
+                      (click)="onResendClick()">
+                {{ resending() ? 'Sending...' : 'Re-Send Confirmation Email' }}
+              </button>
             }
           </div>
           @if (resendMessage()) {
