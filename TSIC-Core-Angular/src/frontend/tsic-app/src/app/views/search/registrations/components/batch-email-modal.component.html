@@ -20,14 +20,21 @@
             </svg>
             <strong>{{ recipientCount() | number }}</strong> recipient(s)
           </summary>
+          <!-- Names only, deliberately. A registrant is not one address: a Player's message goes to
+               mom + dad + the player's own email, resolved server-side at send. Listing the
+               registrant's own address showed ONE of up to three, and showed a BLANK for child
+               accounts whose parents do receive it — the one reading a director could not verify.
+               (Ann, AM-057.) Tracked by index because that blank is not a unique key. -->
           <div class="recipients-grid">
-            @for (r of recipients(); track r.email) {
+            @for (r of recipients(); track $index) {
               <div class="recipient-row">
                 <span class="recipient-name">{{ r.name }}</span>
-                <span class="recipient-email">{{ r.email }}</span>
               </div>
             }
           </div>
+          <p class="recipients-note">
+            Player messages are also delivered to the Contact 1 and Contact 2 email addresses on file.
+          </p>
         </details>
 
         <!-- Starters: template picker + AI compose. Shown only when at least one template's availability rule passes

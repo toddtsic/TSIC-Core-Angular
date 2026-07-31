@@ -42,6 +42,15 @@ interface FilterChip {
   value: string;
 }
 
+/** "Last, First" for the batch-email recipient list. Trims each part — trailing whitespace in the
+ *  stored name rendered as "Adragna , CeCe" in the modal. Drops the separator if a part is missing
+ *  rather than emitting a dangling comma. */
+function formatRecipientName(lastName: string | null | undefined, firstName: string | null | undefined): string {
+  const last = (lastName ?? '').trim();
+  const first = (firstName ?? '').trim();
+  return last && first ? `${last}, ${first}` : last || first;
+}
+
 
 @Component({
   selector: 'app-search-registrations',
@@ -731,7 +740,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       if (!r?.registrationId) continue;
       if (add) {
         next.add(r.registrationId);
-        snaps.set(r.registrationId, { name: `${r.lastName}, ${r.firstName}`, email: r.email });
+        snaps.set(r.registrationId, { name: formatRecipientName(r.lastName, r.firstName), email: r.email });
       } else {
         next.delete(r.registrationId);
         snaps.delete(r.registrationId);
@@ -894,7 +903,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
         .filter((r): r is { name: string; email: string } => !!r);
     }
     const loaded = this.searchResults()?.result ?? [];
-    return loaded.map(r => ({ name: `${r.lastName}, ${r.firstName}`, email: r.email }));
+    return loaded.map(r => ({ name: formatRecipientName(r.lastName, r.firstName), email: r.email }));
   }
 
   onEmailSelected(): void {
