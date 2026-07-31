@@ -27,6 +27,14 @@ public class PaymentService : IPaymentService
     private readonly ILogger<PaymentService> _logger;
     private readonly IPlayerRegConfirmationService? _confirmation;
     private readonly IEmailService? _email;
+
+    /// <summary>
+    /// Club-rep confirmation sender. The family paths own their confirmation here (see
+    /// TrySendConfirmationEmailAsync); the team path used to leave it to the wizard's review screen,
+    /// which meant a rep who paid and closed the tab was never emailed at all. Nullable to match the
+    /// backward-compatible ctor pair below.
+    /// </summary>
+    private readonly ITeamRegistrationService? _teamRegistration;
     private readonly IFamiliesRepository _families;
     private readonly IRegistrationAccountingRepository _acct;
     private readonly IRegistrationFeeAdjustmentService _feeAdj;
@@ -59,11 +67,12 @@ public class PaymentService : IPaymentService
     }
 
     // Extended constructor adding confirmation + email services; preserves backward compatibility with tests using the original signature.
-    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IFeeResolutionService feeService, ITeamLookupService teamLookup, IRegistrationFeeAdjustmentService feeAdj, IEcheckSettlementRepository settleRepo, ILogger<PaymentService> logger, IPaymentStateService paymentState, ITeamPlacementService placement, IPlayerRegConfirmationService confirmation, IEmailService email)
+    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IFeeResolutionService feeService, ITeamLookupService teamLookup, IRegistrationFeeAdjustmentService feeAdj, IEcheckSettlementRepository settleRepo, ILogger<PaymentService> logger, IPaymentStateService paymentState, ITeamPlacementService placement, IPlayerRegConfirmationService confirmation, IEmailService email, ITeamRegistrationService teamRegistration)
         : this(jobs, registrations, teams, families, acct, adnApiService, feeService, teamLookup, feeAdj, settleRepo, logger, paymentState, placement)
     {
         _confirmation = confirmation;
         _email = email;
+        _teamRegistration = teamRegistration;
     }
 
     public async Task<TeamPaymentResponseDto> ProcessTeamPaymentAsync(
@@ -392,6 +401,18 @@ public class PaymentService : IPaymentService
             // covers the batch — every team belongs to the same rep (regId == ClubrepRegistrationid).
             await _registrations.SynchronizeClubRepFinancialsAsync(regId, userId);
         }
+
+        // Money moved for at least one team → the rep gets a confirmation, from HERE. This used to be
+        // the wizard review screen's job (loadConfirmation → sendConfirmationEmail), which meant the
+        // email existed only if a screen rendered: close the tab after a successful charge and no
+        // confirmation was ever sent. Worse, that call passes forceResend:false, so BConfirmationSent
+        // from the rep's ORIGINAL registration suppressed it — a club rep paying a balance due got
+        // nothing at all. Sending at the charge chokepoint makes "a payment is confirmed" true by
+        // construction, the way the family paths already are.
+        // The review screen needs no change: its forceResend:false call now hits the
+        // BConfirmationSent flag this send sets, so it no-ops instead of double-emailing.
+        if (failedCount < attempted)
+            await TrySendTeamConfirmationEmailAsync(regId, userId, isEcheckPending: kind == TeamChargeKind.Echeck);
 
         if (failedCount == 0)
             return new TeamPaymentResponseDto
@@ -2303,6 +2324,27 @@ public class PaymentService : IPaymentService
     // isEcheckPending=true makes the builder prepend an eCheck note (drafts take 3–5 business
     // days to finalize; a returned draft restores the balance) that the standard receipt
     // template doesn't carry. The payment is booked at submit either way.
+    /// <summary>
+    /// Club-rep confirmation after a successful team charge. Swallows EVERYTHING: the money has
+    /// already moved by the time this runs, and SendConfirmationEmailAsync throws on an unconfigured
+    /// template, a user with no email address, or the ownership check. None of those may surface as a
+    /// failed payment. Same contract as TrySendConfirmationEmailAsync on the family side.
+    /// forceResend is intentionally true — BConfirmationSent is set at the rep's first registration
+    /// and would otherwise suppress every later balance payment.
+    /// </summary>
+    private async Task TrySendTeamConfirmationEmailAsync(Guid regId, string userId, bool isEcheckPending)
+    {
+        if (_teamRegistration == null) return; // Backward compatibility.
+        try
+        {
+            await _teamRegistration.SendConfirmationEmailAsync(regId, userId, forceResend: true, isEcheckPending);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[ConfirmationEmail] Team confirmation send failed regId={RegId} userId={UserId}", regId, userId);
+        }
+    }
+
     private async Task TrySendConfirmationEmailAsync(Guid jobId, string familyUserId, string userId, bool isEcheckPending = false)
     {
         if (_confirmation == null || _email == null) return; // Backward compatibility.
