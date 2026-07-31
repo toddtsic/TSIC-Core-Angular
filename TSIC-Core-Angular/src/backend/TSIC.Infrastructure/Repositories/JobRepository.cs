@@ -32,8 +32,7 @@ public class JobRepository : IJobRepository
                 PlayerProfileMetadataJson = j.PlayerProfileMetadataJson,
                 JsonOptions = j.JsonOptions,
                 CoreRegformPlayer = j.CoreRegformPlayer,
-                AllowPif = j.CoreRegformPlayer != null && j.CoreRegformPlayer.Contains("ALLOWPIF"),
-                BPlayersFullPaymentRequired = j.BPlayersFullPaymentRequired
+                AllowPif = j.CoreRegformPlayer != null && j.CoreRegformPlayer.Contains("ALLOWPIF")
             })
             .SingleOrDefaultAsync(cancellationToken);
     }
@@ -52,19 +51,6 @@ public class JobRepository : IJobRepository
                 AllowPif = j.CoreRegformPlayer != null && j.CoreRegformPlayer.Contains("ALLOWPIF"),
                 BPlayersFullPaymentRequired = j.BPlayersFullPaymentRequired,
                 BEnableEcheck = j.BEnableEcheck
-            })
-            .SingleOrDefaultAsync(cancellationToken);
-    }
-
-    public async Task<JobFullPaymentBaseline?> GetFullPaymentBaselineAsync(Guid jobId, CancellationToken cancellationToken = default)
-    {
-        return await _context.Jobs
-            .AsNoTracking()
-            .Where(j => j.JobId == jobId)
-            .Select(j => new JobFullPaymentBaseline
-            {
-                BPlayersFullPaymentRequired = j.BPlayersFullPaymentRequired,
-                BTeamsFullPaymentRequired = j.BTeamsFullPaymentRequired ?? false
             })
             .SingleOrDefaultAsync(cancellationToken);
     }
@@ -199,7 +185,6 @@ public class JobRepository : IJobRepository
                 MailTo = jdo.Job.MailTo,
                 MailinPaymentWarning = jdo.Job.MailinPaymentWarning,
                 AllowPif = jdo.Job.CoreRegformPlayer != null && jdo.Job.CoreRegformPlayer.Contains("ALLOWPIF"),
-                BPlayersFullPaymentRequired = jdo.Job.BPlayersFullPaymentRequired,
                 BIncludePlayerDonation = jdo.Job.BIncludePlayerDonation,
                 BIncludeTeamDonation = jdo.Job.BIncludeTeamDonation,
                 BEnableEcheck = jdo.Job.BEnableEcheck
@@ -348,7 +333,6 @@ public class JobRepository : IJobRepository
             .Where(j => j.JobId == jobId)
             .Select(j => new JobFeeSettings
             {
-                BTeamsFullPaymentRequired = j.BTeamsFullPaymentRequired,
                 BAddProcessingFees = j.BAddProcessingFees,
                 BApplyProcessingFeesToTeamDeposit = j.BApplyProcessingFeesToTeamDeposit,
                 PaymentMethodsAllowedCode = j.PaymentMethodsAllowedCode,

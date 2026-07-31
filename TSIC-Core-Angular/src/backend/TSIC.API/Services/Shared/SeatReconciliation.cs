@@ -70,7 +70,7 @@ public static class SeatReconciliation
                 {
                     await feeService.ApplySwapFeesAsync(
                         reg, jobId, twin.AgegroupId, result.TeamId,
-                        new FeeApplicationContext { IsFullPaymentRequired = false }, ct);
+                        new FeeApplicationContext(), ct);
                 }
                 // A waitlist placement is a COMPLETED registration, not a pending-payment hold: the
                 // player is confirmed on the $0 WAITLIST twin (nothing to pay). Activate it here —

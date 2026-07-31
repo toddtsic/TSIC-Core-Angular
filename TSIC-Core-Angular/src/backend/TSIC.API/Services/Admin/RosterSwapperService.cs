@@ -367,9 +367,6 @@ public sealed class RosterSwapperService : IRosterSwapperService
             // The Roster Swapper is an admin-discretion tool (e.g. moving a waitlisted player
             // onto a full active team) and may overfill a team intentionally.
 
-            var jobPaymentInfo = await _jobRepo.GetJobPaymentInfoAsync(targetTeam.JobId, ct);
-            var isFullPaymentRequired = jobPaymentInfo?.BPlayersFullPaymentRequired ?? false;
-
             foreach (var reg in registrations)
             {
                 var roleName = reg.Role?.Name ?? "";
@@ -394,7 +391,7 @@ public sealed class RosterSwapperService : IRosterSwapperService
                     // FLOW 1: Player → Team (fee recalc via new fee resolution service)
                     await _feeService.ApplySwapFeesAsync(
                         reg, targetTeam.JobId, targetTeam.AgegroupId, targetTeam.TeamId,
-                        new FeeApplicationContext { IsFullPaymentRequired = isFullPaymentRequired }, ct);
+                        new FeeApplicationContext(), ct);
 
                     // Entity is already tracked — EF detects property changes automatically
                     playersTransferred++;

@@ -149,8 +149,6 @@ public class JobConfigService : IJobConfigService
         }
 
         // Snapshot fee-affecting flags before update
-        var prevFullPayReq = job.BTeamsFullPaymentRequired ?? false;
-        var prevPlayersFullPayReq = job.BPlayersFullPaymentRequired;
         var prevAddProcessing = job.BAddProcessingFees;
         var prevApplyProcToDeposit = job.BApplyProcessingFeesToTeamDeposit ?? false;
         var prevProcessingRate = job.ProcessingFeePercent;
@@ -166,8 +164,10 @@ public class JobConfigService : IJobConfigService
         job.MailTo = req.MailTo;
         job.MailinPaymentWarning = req.MailinPaymentWarning;
         job.Balancedueaspercent = req.Balancedueaspercent;
-        job.BTeamsFullPaymentRequired = req.BTeamsFullPaymentRequired;
-        job.BPlayersFullPaymentRequired = req.BPlayersFullPaymentRequired;
+        // BTeams/BPlayersFullPaymentRequired deliberately NOT written — the legacy job
+        // phase columns are abandoned (payment phase lives per-scope in fees.JobFees,
+        // set in the LADT editor; 6a §8P migrated legacy values). The request fields
+        // still round-trip from the payment tab but must never mutate the columns.
         job.BIncludePlayerDonation = req.BIncludePlayerDonation;
         job.BIncludeTeamDonation = req.BIncludeTeamDonation;
         job.BAllowRefundsInPriorMonths = req.BAllowRefundsInPriorMonths;
@@ -191,9 +191,10 @@ public class JobConfigService : IJobConfigService
         job.Modified = DateTime.Now;
         await _repo.SaveChangesAsync(ct);
 
-        // Auto-recalculate team fees if any team-fee-affecting flag changed
+        // Auto-recalculate team fees if any team-fee-affecting flag changed (phase is no
+        // longer a Configure-Job concern — it flips per-scope via the LADT fee save,
+        // which runs its own scoped reprice)
         var teamFeeConfigChanged =
-            prevFullPayReq != req.BTeamsFullPaymentRequired ||
             prevAddProcessing != req.BAddProcessingFees ||
             prevApplyProcToDeposit != req.BApplyProcessingFeesToTeamDeposit ||
             prevProcessingRate != req.ProcessingFeePercent;
@@ -202,9 +203,8 @@ public class JobConfigService : IJobConfigService
         {
             _logger.LogInformation(
                 "Fee-affecting config changed for Job {JobId} — auto-recalculating team fees. " +
-                "FullPayReq: {Prev}→{New}, AddProcessing: {PrevP}→{NewP}, ApplyToDeposit: {PrevD}→{NewD}",
+                "AddProcessing: {PrevP}→{NewP}, ApplyToDeposit: {PrevD}→{NewD}",
                 jobId,
-                prevFullPayReq, req.BTeamsFullPaymentRequired,
                 prevAddProcessing, req.BAddProcessingFees,
                 prevApplyProcToDeposit, req.BApplyProcessingFeesToTeamDeposit);
 
@@ -217,10 +217,9 @@ public class JobConfigService : IJobConfigService
             _logger.LogInformation("Auto-recalculated {Count} team fees for Job {JobId}", result.UpdatedCount, jobId);
         }
 
-        // Auto-recalculate player fees when the player phase flag flips. Processing-fee
-        // changes also affect player FeeProcessing — same trigger conditions apply.
+        // Auto-recalculate player fees when processing-fee config changes (these affect
+        // player FeeProcessing). Phase flips reprice via the LADT fee save, not here.
         var playerFeeConfigChanged =
-            prevPlayersFullPayReq != req.BPlayersFullPaymentRequired ||
             prevAddProcessing != req.BAddProcessingFees ||
             prevProcessingRate != req.ProcessingFeePercent;
 
@@ -228,9 +227,8 @@ public class JobConfigService : IJobConfigService
         {
             _logger.LogInformation(
                 "Player-fee-affecting config changed for Job {JobId} — auto-recalculating player fees. " +
-                "PlayersFullPayReq: {Prev}→{New}, AddProcessing: {PrevP}→{NewP}",
+                "AddProcessing: {PrevP}→{NewP}",
                 jobId,
-                prevPlayersFullPayReq, req.BPlayersFullPaymentRequired,
                 prevAddProcessing, req.BAddProcessingFees);
 
             var playerCount = await _playerRegService.RecalculatePlayerFeesAsync(

@@ -82,7 +82,6 @@ public class TeamCheckTests
             {
                 BAddProcessingFees = bAddProcessingFees,
                 BApplyProcessingFeesToTeamDeposit = false,
-                BTeamsFullPaymentRequired = bTeamsFullPaymentRequired,
                 PaymentMethodsAllowedCode = 7
             });
 

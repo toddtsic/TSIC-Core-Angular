@@ -86,7 +86,7 @@ public class PaidPastDepositPromotionTests
     }
 
     private static FeeApplicationContext DepositBaseline() =>
-        new() { IsFullPaymentRequired = false, AddProcessingFees = false };
+        new() { AddProcessingFees = false };
 
     private static async Task<(FeeResolutionService Svc, Domain.Entities.Registrations Reg,
         Guid JobId, Guid AgegroupId, Guid TeamId)> ArrangeSwapAsync(

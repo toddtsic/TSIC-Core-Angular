@@ -81,7 +81,6 @@ public class DiscountCodeTests
             {
                 BAddProcessingFees = bAddProcessingFees,
                 BApplyProcessingFeesToTeamDeposit = false,
-                BTeamsFullPaymentRequired = false,
                 PaymentMethodsAllowedCode = 7
             });
         jobRepo.Setup(j => j.GetProcessingFeePercentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))

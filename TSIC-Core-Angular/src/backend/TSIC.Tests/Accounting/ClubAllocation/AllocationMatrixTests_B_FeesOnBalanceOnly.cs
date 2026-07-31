@@ -70,7 +70,6 @@ public class AllocationMatrixTests_B_FeesOnBalanceOnly
             {
                 BAddProcessingFees = true,
                 BApplyProcessingFeesToTeamDeposit = false,
-                BTeamsFullPaymentRequired = false,
                 PaymentMethodsAllowedCode = 7
             });
 

@@ -30,10 +30,6 @@ public class TeamLookupService : ITeamLookupService
     public async Task<IReadOnlyList<AvailableTeamDto>> GetAvailableTeamsForJobAsync(Guid jobId)
     {
         var jobUsesWaitlists = await _jobRepo.GetUsesWaitlistsAsync(jobId);
-        // Job-level phase baseline — the fallback when a team/agegroup/league JobFees row carries
-        // no per-scope BFullPaymentRequired override (ResolveFullPaymentPhase precedence).
-        var jobPaymentInfo = await _jobRepo.GetJobPaymentInfoAsync(jobId);
-        var jobFullPaymentBaseline = jobPaymentInfo?.BPlayersFullPaymentRequired ?? false;
 
         var teamsRaw = await _teamRepo.GetAvailableTeamsQueryResultsAsync(jobId);
 
@@ -93,7 +89,7 @@ public class TeamLookupService : ITeamLookupService
                 Deposit = deposit,
                 EffectiveFee = effectiveFee,
                 FeeConfigured = resolved?.FeeConfigured ?? false,
-                FullPaymentRequired = ResolvedFee.ResolveFullPaymentPhase(resolved, jobFullPaymentBaseline),
+                FullPaymentRequired = ResolvedFee.ResolveFullPaymentPhase(resolved),
                 JobUsesWaitlists = jobUsesWaitlists,
                 WaitlistTeamId = null,
                 StartDate = t.StartDate,

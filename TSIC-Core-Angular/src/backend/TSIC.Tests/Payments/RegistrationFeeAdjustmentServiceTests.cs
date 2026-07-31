@@ -39,7 +39,6 @@ public class RegistrationFeeAdjustmentServiceTests
             {
                 BAddProcessingFees = true,
                 BApplyProcessingFeesToTeamDeposit = false,
-                BTeamsFullPaymentRequired = false,
                 PaymentMethodsAllowedCode = 7
             });
 

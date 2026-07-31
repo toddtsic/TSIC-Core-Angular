@@ -122,7 +122,7 @@ public class TeamPaidPastDepositPromotionTests
     }
 
     private static TeamFeeApplicationContext DepositBaseline() =>
-        new() { IsFullPaymentRequired = false, AddProcessingFees = false, ProcessingFeePercent = 0m };
+        new() { AddProcessingFees = false, ProcessingFeePercent = 0m };
 
     private static async Task<(FeeResolutionService Svc, Domain.Entities.Teams Team, Guid JobId, Guid AgegroupId)>
         ArrangeAsync(decimal paid, Guid paymentMethodId, bool? agegroupPhaseOverride = null)

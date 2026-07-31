@@ -66,11 +66,6 @@ public sealed class ClubRosterService : IClubRosterService
         var targetTeam = await _teamRepo.GetByIdReadOnlyAsync(request.TargetTeamId, ct)
             ?? throw new KeyNotFoundException("Target team not found.");
 
-        // Job baseline phase for the fee re-resolve below; per-scope overrides win inside
-        // ApplySwapFeesAsync. One read for the whole batch (sequential — same scoped DbContext).
-        var jobPaymentInfo = await _jobRepo.GetJobPaymentInfoAsync(jobId, ct);
-        var isFullPaymentRequired = jobPaymentInfo?.BPlayersFullPaymentRequired ?? false;
-
         var moved = 0;
         foreach (var regId in request.RegistrationIds)
         {
@@ -97,7 +92,7 @@ public sealed class ClubRosterService : IClubRosterService
             {
                 await _feeService.ApplySwapFeesAsync(
                     reg, jobId, targetTeam.AgegroupId, targetTeam.TeamId,
-                    new FeeApplicationContext { IsFullPaymentRequired = isFullPaymentRequired }, ct);
+                    new FeeApplicationContext(), ct);
             }
 
             moved++;

@@ -103,7 +103,9 @@ public class JobsController : ControllerBase
             OfferPlayerRegsaverInsurance = jobMetadata.OfferPlayerRegsaverInsurance,
             OfferTeamRegsaverInsurance = jobMetadata.BOfferTeamRegsaverInsurance,
             AllowPif = jobMetadata.AllowPif,
-            BPlayersFullPaymentRequired = jobMetadata.BPlayersFullPaymentRequired,
+            // Legacy job flag ABANDONED as a phase source (always-false in data; per-scope
+            // JobFees resolves phase). Field retained so the response shape is unchanged.
+            BPlayersFullPaymentRequired = false,
             AdnArb = jobMetadata.AdnArb,
             AdnArbBillingOccurences = jobMetadata.AdnArbBillingOccurences,
             AdnArbIntervalLength = jobMetadata.AdnArbIntervalLength,

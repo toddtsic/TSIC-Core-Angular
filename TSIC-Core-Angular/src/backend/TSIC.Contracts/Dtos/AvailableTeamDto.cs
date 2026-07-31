@@ -30,8 +30,8 @@ public record AvailableTeamDto
     public required bool FeeConfigured { get; init; }
     /// <summary>
     /// Per-scope payment phase (canonical <see cref="TSIC.Contracts.Repositories.ResolvedFee.ResolveFullPaymentPhase"/>):
-    /// a JobFees.BFullPaymentRequired override (team → agegroup → league) wins, else the
-    /// job-level baseline (Jobs.BPlayersFullPaymentRequired). True → this team must be paid in
+    /// a JobFees.BFullPaymentRequired override (team → agegroup → league); no override
+    /// = deposit phase. True → this team must be paid in
     /// full (no deposit slice offered); false → a deposit may be taken. Lets the payment screen
     /// pick the right phase PER NEW SELECTION (one that has no stamped registration yet) so a
     /// family cart spanning deposit and full-payment scopes bills each line by its own phase.

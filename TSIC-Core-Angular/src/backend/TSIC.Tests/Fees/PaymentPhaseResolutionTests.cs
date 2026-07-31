@@ -14,37 +14,35 @@ namespace TSIC.Tests.Fees;
 /// <summary>
 /// Payment-phase (deposit vs. full-payment) resolution.
 ///
-/// The phase precedence lives in ONE place — <see cref="ResolvedFee.ResolveFullPaymentPhase"/>:
-/// a per-scope JobFees override (team → agegroup → league, cascaded into
-/// <see cref="ResolvedFee.BFullPaymentRequired"/>) wins; otherwise the job-level baseline
-/// (Jobs.B{Players,Teams}FullPaymentRequired, passed by the caller as ctx.IsFullPaymentRequired).
+/// The phase rule lives in ONE place — <see cref="ResolvedFee.ResolveFullPaymentPhase"/>:
+/// the per-scope JobFees stamp (team → agegroup → league, cascaded into
+/// <see cref="ResolvedFee.BFullPaymentRequired"/>) decides; no stamp anywhere in the cascade
+/// means deposit phase. The legacy job-level columns (Jobs.B{Players,Teams}FullPaymentRequired)
+/// are ABANDONED — 6a §8P materialized them into per-scope stamps, and the Program.cs startup
+/// guard refuses to boot against an unstamped DB, so nothing ever falls back to them.
 ///
-/// These tests prove (a) the pure precedence rule and (b) that the FeeResolutionService
-/// stamping chokepoint actually honors a per-scope override even when the job baseline is off —
-/// i.e. a brand-new registration / team for a converted scope is stamped at full payment.
+/// These tests prove (a) the pure rule and (b) that the FeeResolutionService stamping
+/// chokepoint honors a per-scope stamp — a brand-new registration / team for a stamped scope
+/// is stamped at full payment, and an unstamped scope stays deposit.
 /// </summary>
 public class PaymentPhaseResolutionTests
 {
-    // ── Pure resolver: the single source of truth for phase precedence ──
+    // ── Pure resolver: the single source of truth for the phase rule ──
 
-    [Theory(DisplayName = "ResolveFullPaymentPhase: override wins, null falls back to baseline")]
-    [InlineData(true, false, true)]    // scope override ON beats job baseline OFF
-    [InlineData(false, true, false)]   // scope override OFF beats job baseline ON (future tri-state)
-    [InlineData(null, true, true)]     // no override → job baseline ON
-    [InlineData(null, false, false)]   // no override → job baseline OFF
-    public void ResolveFullPaymentPhase_OverrideWins_ElseBaseline(
-        bool? scopeOverride, bool jobBaseline, bool expected)
+    [Theory(DisplayName = "ResolveFullPaymentPhase: per-scope stamp decides; no stamp → deposit")]
+    [InlineData(true, true)]     // stamped ON → full payment
+    [InlineData(false, false)]   // explicit OFF → deposit
+    [InlineData(null, false)]    // no stamp anywhere in the cascade → deposit (no job fallback — columns abandoned)
+    public void ResolveFullPaymentPhase_ScopeStampDecides_ElseDeposit(bool? scopeStamp, bool expected)
     {
-        var resolved = new ResolvedFee { FeeConfigured = true, BFullPaymentRequired = scopeOverride };
-        ResolvedFee.ResolveFullPaymentPhase(resolved, jobBaseline).Should().Be(expected);
+        var resolved = new ResolvedFee { FeeConfigured = true, BFullPaymentRequired = scopeStamp };
+        ResolvedFee.ResolveFullPaymentPhase(resolved).Should().Be(expected);
     }
 
-    [Theory(DisplayName = "ResolveFullPaymentPhase: null resolved fee → job baseline")]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void ResolveFullPaymentPhase_NullResolved_UsesBaseline(bool jobBaseline)
+    [Fact(DisplayName = "ResolveFullPaymentPhase: null resolved fee → deposit")]
+    public void ResolveFullPaymentPhase_NullResolved_Deposit()
     {
-        ResolvedFee.ResolveFullPaymentPhase(null, jobBaseline).Should().Be(jobBaseline);
+        ResolvedFee.ResolveFullPaymentPhase(null).Should().BeFalse();
     }
 
     // ── Stamping chokepoint: per-scope override drives the actual FeeBase ──
@@ -82,11 +80,11 @@ public class PaymentPhaseResolutionTests
         Modified = DateTime.UtcNow
     };
 
-    [Fact(DisplayName = "Player: team-scope override ON flips a NEW reg to full payment even though job baseline is OFF")]
-    public async Task Player_NewReg_TeamOverride_OverridesJobBaselineOff()
+    [Fact(DisplayName = "Player: team-scope stamp ON flips a NEW reg to full payment")]
+    public async Task Player_NewReg_TeamStamp_FullPayment()
     {
         var a = Arrange(RoleConstants.Player);
-        // League fee carries deposit+balance; the TEAM row sets the phase override only.
+        // League fee carries deposit+balance; the TEAM row sets the phase stamp only.
         a.Builder.AddJobFee(a.JobId, RoleConstants.Player, leagueId: a.LeagueId, deposit: 100m, balanceDue: 400m);
         a.Builder.AddJobFee(a.JobId, RoleConstants.Player, agegroupId: a.AgegroupId, teamId: a.TeamId, bFullPaymentRequired: true);
         await a.Builder.SaveAsync();
@@ -94,13 +92,13 @@ public class PaymentPhaseResolutionTests
         var reg = NewReg(a.JobId);
         await a.Svc.ApplyNewRegistrationFeesAsync(
             reg, a.JobId, a.AgegroupId, a.TeamId,
-            new FeeApplicationContext { IsFullPaymentRequired = false, AddProcessingFees = false });
+            new FeeApplicationContext { AddProcessingFees = false });
 
-        reg.FeeBase.Should().Be(500m, "team-scope override forces full payment despite job baseline OFF");
+        reg.FeeBase.Should().Be(500m, "team-scope stamp forces full payment");
     }
 
-    [Fact(DisplayName = "Player: no override + job baseline OFF → deposit-phase stamp")]
-    public async Task Player_NewReg_NoOverride_BaselineOff_DepositPhase()
+    [Fact(DisplayName = "Player: no stamp → deposit phase (abandoned job columns cannot force full payment)")]
+    public async Task Player_NewReg_NoStamp_DepositPhase()
     {
         var a = Arrange(RoleConstants.Player);
         a.Builder.AddJobFee(a.JobId, RoleConstants.Player, leagueId: a.LeagueId, deposit: 100m, balanceDue: 400m);
@@ -109,28 +107,15 @@ public class PaymentPhaseResolutionTests
         var reg = NewReg(a.JobId);
         await a.Svc.ApplyNewRegistrationFeesAsync(
             reg, a.JobId, a.AgegroupId, a.TeamId,
-            new FeeApplicationContext { IsFullPaymentRequired = false, AddProcessingFees = false });
+            new FeeApplicationContext { AddProcessingFees = false });
 
-        reg.FeeBase.Should().Be(100m, "no override → job baseline OFF → deposit only");
+        // Regression guard for the baseline removal: pre-abandonment, Jobs.BFullPaymentRequired
+        // could force 500 here with no stamp. Now nothing outside the cascade can.
+        reg.FeeBase.Should().Be(100m, "no stamp anywhere in the cascade → deposit only");
     }
 
-    [Fact(DisplayName = "Player: no override + job baseline ON → legacy job-wide full payment still works")]
-    public async Task Player_NewReg_NoOverride_BaselineOn_FullPayment()
-    {
-        var a = Arrange(RoleConstants.Player);
-        a.Builder.AddJobFee(a.JobId, RoleConstants.Player, leagueId: a.LeagueId, deposit: 100m, balanceDue: 400m);
-        await a.Builder.SaveAsync();
-
-        var reg = NewReg(a.JobId);
-        await a.Svc.ApplyNewRegistrationFeesAsync(
-            reg, a.JobId, a.AgegroupId, a.TeamId,
-            new FeeApplicationContext { IsFullPaymentRequired = true, AddProcessingFees = false });
-
-        reg.FeeBase.Should().Be(500m, "no override → job baseline ON → full payment (legacy behavior preserved)");
-    }
-
-    [Fact(DisplayName = "Team: agegroup-scope override ON flips a NEW team to full payment despite job baseline OFF")]
-    public async Task Team_NewTeam_AgegroupOverride_OverridesJobBaselineOff()
+    [Fact(DisplayName = "Team: agegroup-scope stamp ON flips a NEW team to full payment")]
+    public async Task Team_NewTeam_AgegroupStamp_FullPayment()
     {
         var a = Arrange(RoleConstants.ClubRep);
         a.Builder.AddJobFee(a.JobId, RoleConstants.ClubRep, leagueId: a.LeagueId, deposit: 100m, balanceDue: 400m);
@@ -151,16 +136,15 @@ public class PaymentPhaseResolutionTests
             team, a.JobId, a.AgegroupId,
             new TeamFeeApplicationContext
             {
-                IsFullPaymentRequired = false,
                 AddProcessingFees = false,
                 ProcessingFeePercent = 0.035m
             });
 
-        team.FeeBase.Should().Be(500m, "agegroup-scope override forces full payment despite job baseline OFF");
+        team.FeeBase.Should().Be(500m, "agegroup-scope stamp forces full payment");
     }
 
-    [Fact(DisplayName = "Team: no override + job baseline OFF → deposit-phase stamp (FeeBase = deposit)")]
-    public async Task Team_NewTeam_NoOverride_BaselineOff_DepositPhase()
+    [Fact(DisplayName = "Team: no stamp → deposit phase (FeeBase = deposit)")]
+    public async Task Team_NewTeam_NoStamp_DepositPhase()
     {
         var a = Arrange(RoleConstants.ClubRep);
         a.Builder.AddJobFee(a.JobId, RoleConstants.ClubRep, leagueId: a.LeagueId, deposit: 100m, balanceDue: 400m);
@@ -180,11 +164,10 @@ public class PaymentPhaseResolutionTests
             team, a.JobId, a.AgegroupId,
             new TeamFeeApplicationContext
             {
-                IsFullPaymentRequired = false,
                 AddProcessingFees = false,
                 ProcessingFeePercent = 0.035m
             });
 
-        team.FeeBase.Should().Be(100m, "no override → job baseline OFF → deposit only");
+        team.FeeBase.Should().Be(100m, "no stamp anywhere in the cascade → deposit only");
     }
 }

@@ -41,7 +41,7 @@ public class DepositDiscountProcRoundingTests
 
         // 1. New deposit-phase stamp (canonical): FeeBase 200, proc 200 × 3.5% = 7.00, OwedTotal 207.
         await feeSvc.ApplyNewRegistrationFeesAsync(reg, jobId, agId, teamId,
-            new FeeApplicationContext { IsFullPaymentRequired = false, AddProcessingFees = true });
+            new FeeApplicationContext { AddProcessingFees = true });
         reg.FeeProcessing.Should().Be(7.00m, "precondition: canonical proc on the deposit");
         reg.OwedTotal.Should().Be(207.00m);
 
@@ -90,7 +90,6 @@ public class DepositDiscountProcRoundingTests
             {
                 BAddProcessingFees = true,
                 BApplyProcessingFeesToTeamDeposit = false,
-                BTeamsFullPaymentRequired = false,
                 PaymentMethodsAllowedCode = 7
             });
         jobRepo.Setup(j => j.GetProcessingFeePercentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))

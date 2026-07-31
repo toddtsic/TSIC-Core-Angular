@@ -115,7 +115,7 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                 var resolved = await _feeService.ResolveFeeForAgegroupAsync(
                     job.JobId, RoleConstants.ClubRep, targetAgegroup.AgegroupId, ct);
                 var deposit = resolved?.EffectiveDeposit ?? 0m;
-                newFeeBase = ResolvedFee.ResolveFullPaymentPhase(resolved, job.BTeamsFullPaymentRequired ?? false)
+                newFeeBase = ResolvedFee.ResolveFullPaymentPhase(resolved)
                     ? (resolved?.FullPrice ?? 0m) : deposit;
                 // Derived through FeeMath — the SAME formula RecalcTotals stamps on execute
                 // (ApplyTeamSwapFeesAsync) — so the director approves the number the move produces.
@@ -167,7 +167,7 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                 var resolved = await _feeService.ResolveFeeForAgegroupAsync(
                     job.JobId, RoleConstants.ClubRep, sourceAgegroup.AgegroupId, ct);
                 var deposit = resolved?.EffectiveDeposit ?? 0m;
-                newFeeBase = ResolvedFee.ResolveFullPaymentPhase(resolved, job.BTeamsFullPaymentRequired ?? false)
+                newFeeBase = ResolvedFee.ResolveFullPaymentPhase(resolved)
                     ? (resolved?.FullPrice ?? 0m) : deposit;
                 // Same FeeMath derivation as the source-to-target leg above.
                 newFeeTotal = FeeMath.ComputeFeeTotal(
@@ -331,7 +331,6 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                     team, team.JobId, targetAgegroup.AgegroupId,
                     new TeamFeeApplicationContext
                     {
-                        IsFullPaymentRequired = team.Job.BTeamsFullPaymentRequired ?? false,
                         AddProcessingFees = team.Job.BAddProcessingFees,
                         ApplyProcessingFeesToDeposit = team.Job.BApplyProcessingFeesToTeamDeposit ?? false,
                         ProcessingFeePercent = processingRate
@@ -372,7 +371,6 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                         team, team.JobId, sourceAgegroup.AgegroupId,
                         new TeamFeeApplicationContext
                         {
-                            IsFullPaymentRequired = team.Job.BTeamsFullPaymentRequired ?? false,
                             AddProcessingFees = team.Job.BAddProcessingFees,
                             ApplyProcessingFeesToDeposit = team.Job.BApplyProcessingFeesToTeamDeposit ?? false,
                             ProcessingFeePercent = processingRate

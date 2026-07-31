@@ -65,7 +65,6 @@ public class AllocationMatrixTests_A_NoFees
             {
                 BAddProcessingFees = false,
                 BApplyProcessingFeesToTeamDeposit = false,
-                BTeamsFullPaymentRequired = false,
                 PaymentMethodsAllowedCode = 7
             });
 

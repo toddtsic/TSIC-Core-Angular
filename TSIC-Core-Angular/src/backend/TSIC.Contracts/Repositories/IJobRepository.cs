@@ -13,13 +13,6 @@ public record JobPreSubmitMetadata
     /// Gates whether the player checkout exposes the Pay In Full option.
     /// </summary>
     public bool AllowPif { get; init; }
-
-    /// <summary>
-    /// Job-level phase flag. When true, every active player registration's FeeBase
-    /// is stamped at Deposit + BalanceDue (full payment phase). When false, FeeBase
-    /// is stamped at Deposit (deposit phase). Director-controlled.
-    /// </summary>
-    public bool BPlayersFullPaymentRequired { get; init; }
 }
 
 public record JobPaymentInfo
@@ -111,29 +104,11 @@ public record JobMetadataDto
     /// </summary>
     public required bool AllowPif { get; init; }
 
-    /// <summary>
-    /// Job-level phase flag. When true, every active player registration's FeeBase
-    /// is stamped at Deposit + BalanceDue (full payment phase). Drives wizard display
-    /// defaults and director-controlled balance-due workflow.
-    /// </summary>
-    public required bool BPlayersFullPaymentRequired { get; init; }
-
     /// <summary>Per-job opt-in: offer an optional donation field on the player payment page.</summary>
     public required bool BIncludePlayerDonation { get; init; }
 
     /// <summary>Per-job opt-in: offer an optional donation field on the team payment page.</summary>
     public required bool BIncludeTeamDonation { get; init; }
-}
-
-/// <summary>
-/// The two job-level full-payment phase baselines used as the fallback when no per-scope
-/// JobFees override exists (mirrors the jobBaseline arg of ResolvedFee.ResolveFullPaymentPhase).
-/// Players flag → Player role; Teams flag → ClubRep role.
-/// </summary>
-public record JobFullPaymentBaseline
-{
-    public required bool BPlayersFullPaymentRequired { get; init; }
-    public required bool BTeamsFullPaymentRequired { get; init; }
 }
 
 public record JobRegistrationStatus
@@ -166,12 +141,6 @@ public interface IJobRepository
     /// Fetch payment configuration for a job (ARB settings).
     /// </summary>
     Task<JobPaymentInfo?> GetJobPaymentInfoAsync(Guid jobId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Fetch the two job-level full-payment phase baselines (players + teams) in one query.
-    /// Used by the LADT tree so the grid's Payment Phase column can resolve like the backend.
-    /// </summary>
-    Task<JobFullPaymentBaseline?> GetFullPaymentBaselineAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Fetch job metadata fields (PlayerProfileMetadataJson, JsonOptions, CoreRegformPlayer).
@@ -245,7 +214,7 @@ public interface IJobRepository
 
     /// <summary>
     /// Get job fee settings for team registration metadata.
-    /// Returns BTeamsFullPaymentRequired, BAddProcessingFees, BApplyProcessingFeesToTeamDeposit, PaymentMethodsAllowedCode, PlayerRegRefundPolicy.
+    /// Returns BAddProcessingFees, BApplyProcessingFeesToTeamDeposit, PaymentMethodsAllowedCode, PlayerRegRefundPolicy.
     /// </summary>
     Task<JobFeeSettings?> GetJobFeeSettingsAsync(Guid jobId, CancellationToken cancellationToken = default);
 
@@ -417,7 +386,6 @@ public record JobAuthInfo
 
 public record JobFeeSettings
 {
-    public bool? BTeamsFullPaymentRequired { get; init; }
     public bool? BAddProcessingFees { get; init; }
     public bool? BApplyProcessingFeesToTeamDeposit { get; init; }
     public required int PaymentMethodsAllowedCode { get; init; }

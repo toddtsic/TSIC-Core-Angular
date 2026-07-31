@@ -83,7 +83,6 @@ public class AllocationMatrixTests_C_FeesOnBoth
             {
                 BAddProcessingFees = true,
                 BApplyProcessingFeesToTeamDeposit = true,
-                BTeamsFullPaymentRequired = false,
                 PaymentMethodsAllowedCode = 7
             });
 

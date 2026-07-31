@@ -91,7 +91,7 @@ public class LateFeeRetroAssessmentTests
         var (svc, team, jobId, agId) = await ArrangeTeamAsync(paid: Deposit, existingLateFee: 0m);
 
         await svc.ApplyTeamSwapFeesAsync(team, jobId, agId,
-            new TeamFeeApplicationContext { IsFullPaymentRequired = false, AddProcessingFees = false, ProcessingFeePercent = 0m });
+            new TeamFeeApplicationContext { AddProcessingFees = false, ProcessingFeePercent = 0m });
 
         team.FeeLatefee.Should().Be(0m, "the default path (a director reprice, or a roster/pool swap) keeps the late fee frozen");
     }
@@ -126,7 +126,7 @@ public class LateFeeRetroAssessmentTests
         var (svc, reg, jobId, agId, teamId) = await ArrangePlayerAsync(paid: Deposit, existingLateFee: 0m);
 
         await svc.ApplySwapFeesAsync(reg, jobId, agId, teamId,
-            new FeeApplicationContext { IsFullPaymentRequired = false, AddProcessingFees = false });
+            new FeeApplicationContext { AddProcessingFees = false });
 
         reg.FeeLatefee.Should().Be(0m);
     }
@@ -136,10 +136,10 @@ public class LateFeeRetroAssessmentTests
     // The charge-entry realize context: AssessActiveLateFee = true, exactly as
     // RealizeLateFeeAtChargeAsync builds it. (Named for what sets it now — payment, not a reprice.)
     private static TeamFeeApplicationContext TeamRealize() =>
-        new() { IsFullPaymentRequired = false, AddProcessingFees = false, ProcessingFeePercent = 0m, AssessActiveLateFee = true };
+        new() { AddProcessingFees = false, ProcessingFeePercent = 0m, AssessActiveLateFee = true };
 
     private static FeeApplicationContext PlayerRealize() =>
-        new() { IsFullPaymentRequired = false, AddProcessingFees = false, AssessActiveLateFee = true };
+        new() { AddProcessingFees = false, AssessActiveLateFee = true };
 
     private static async Task<(FeeResolutionService Svc, Domain.Entities.Teams Team, Guid JobId, Guid AgegroupId)>
         ArrangeTeamAsync(decimal paid, decimal existingLateFee)

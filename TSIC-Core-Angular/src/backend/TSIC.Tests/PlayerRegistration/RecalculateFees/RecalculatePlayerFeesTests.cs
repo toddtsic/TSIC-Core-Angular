@@ -16,11 +16,12 @@ namespace TSIC.Tests.PlayerRegistration.RecalculateFees;
 /// Engine contract for RecalculatePlayerFeesAsync.
 ///
 /// The engine no longer carries a paid-in-full skip. It hands EVERY active player
-/// registration to the fee applier (ApplySwapFeesAsync) and forwards the JOB-LEVEL phase
-/// baseline; the per-scope override AND the paid-past-deposit promotion are resolved
-/// DOWNSTREAM in FeeResolutionService. Removing the old OwedTotal&lt;=0 gate is what lets a
-/// fee/price increase reach already-paid registrants — credit-safety (never re-stamping a
-/// paid-ahead reg DOWN to a deposit) is the applier's job, proven in
+/// registration to the fee applier (ApplySwapFeesAsync); the per-scope phase stamp AND the
+/// paid-past-deposit promotion are resolved DOWNSTREAM in FeeResolutionService from the
+/// pre-hydrated ResolvedFee (the legacy job-level phase columns are abandoned — the engine
+/// reads no baseline). Removing the old OwedTotal&lt;=0 gate is what lets a fee/price
+/// increase reach already-paid registrants — credit-safety (never re-stamping a paid-ahead
+/// reg DOWN to a deposit) is the applier's job, proven in
 /// PaidPastDepositPromotionTests / PaymentPhaseResolutionTests.
 /// </summary>
 public class RecalculatePlayerFeesTests
@@ -128,21 +129,19 @@ public class RecalculatePlayerFeesTests
     }
 
     /// <summary>
-    /// The recalc engine forwards the JOB-LEVEL baseline to the fee applier; the per-scope
-    /// override (JobFees.BFullPaymentRequired, team → agegroup → league) is applied DOWNSTREAM
-    /// inside FeeResolutionService via the canonical ResolvedFee.ResolveFullPaymentPhase
-    /// chokepoint — not pre-resolved by the engine. This pins the engine's contract: it hands
-    /// the baseline through and does NOT short-circuit resolution itself.
+    /// The per-scope phase stamp (JobFees.BFullPaymentRequired, team → agegroup → league) is
+    /// applied DOWNSTREAM inside FeeResolutionService via the canonical
+    /// ResolvedFee.ResolveFullPaymentPhase chokepoint — not pre-resolved by the engine. This
+    /// pins the engine's contract: it hands the batch-hydrated ResolvedFee through UNTOUCHED
+    /// (stamp intact) and does NOT short-circuit phase resolution itself.
     /// </summary>
-    [Theory(DisplayName = "Recalc engine forwards the job baseline to the applier (override resolved downstream)")]
-    [InlineData(false, true)]   // override present but engine still forwards the baseline…
-    [InlineData(true, false)]   // …in both directions
-    [InlineData(false, null)]   // no override → baseline
-    [InlineData(true, null)]    // no override → baseline
-    public async Task RecalculatePlayerFees_ForwardsJobBaseline_OverrideResolvedDownstream(
-        bool jobBaseline, bool? scopeOverride)
+    [Theory(DisplayName = "Recalc engine hands the per-scope phase stamp through untouched (resolved downstream)")]
+    [InlineData(true)]    // stamped ON
+    [InlineData(false)]   // explicit OFF
+    [InlineData(null)]    // no stamp → applier resolves deposit
+    public async Task RecalculatePlayerFees_HandsScopeStampThrough_ResolvedDownstream(
+        bool? scopeStamp)
     {
-        var expectedEffective = jobBaseline;
         var jobId = Guid.NewGuid();
         var agegroupId = Guid.NewGuid();
         var teamId = Guid.NewGuid();
@@ -162,7 +161,7 @@ public class RecalculatePlayerFeesTests
 
         var jobRepo = new Mock<IJobRepository>();
         jobRepo.Setup(j => j.GetJobPaymentInfoAsync(jobId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new JobPaymentInfo { BPlayersFullPaymentRequired = jobBaseline });
+            .ReturnsAsync(new JobPaymentInfo { BPlayersFullPaymentRequired = false });
 
         var regRepo = new Mock<IRegistrationRepository>();
         regRepo.Setup(r => r.GetActivePlayerRegistrationsByJobAsync(jobId, It.IsAny<CancellationToken>()))
@@ -182,27 +181,28 @@ public class RecalculatePlayerFeesTests
                     FeeConfigured = true,
                     Deposit = DepositAmt,
                     BalanceDue = BalanceDueAmt,
-                    BFullPaymentRequired = scopeOverride
+                    BFullPaymentRequired = scopeStamp
                 }
             });
 
-        // Capture-only stub (no mutation → no SaveChanges needed). We assert the phase the
-        // engine handed the applier, not what the applier then does with it.
-        FeeApplicationContext? captured = null;
+        // Capture-only stub (no mutation → no SaveChanges needed). We assert the ResolvedFee
+        // the engine handed the applier, not what the applier then does with it.
+        ResolvedFee? capturedFee = null;
         feeService.Setup(f => f.ApplySwapFees(
                 It.IsAny<Registrations>(), It.IsAny<ResolvedFee?>(), It.IsAny<PaymentState>(),
                 It.IsAny<FeeApplicationContext>()))
-            .Callback((Registrations _, ResolvedFee? _, PaymentState _, FeeApplicationContext ctx) =>
+            .Callback((Registrations _, ResolvedFee? resolved, PaymentState _, FeeApplicationContext _) =>
             {
-                captured = ctx;
+                capturedFee = resolved;
             });
 
         var svc = BuildService(feeService, regRepo, teamRepo, jobRepo);
 
         await svc.RecalculatePlayerFeesAsync(jobId, "test-user");
 
-        captured.Should().NotBeNull("every active reg is handed to the applier");
-        captured!.IsFullPaymentRequired.Should().Be(expectedEffective);
+        capturedFee.Should().NotBeNull("every active reg is handed to the applier with its resolved fee");
+        capturedFee!.BFullPaymentRequired.Should().Be(scopeStamp,
+            "the engine must hand the per-scope stamp through untouched — resolution happens at the applier chokepoint");
     }
 
     private static PlayerRegistrationService BuildService(

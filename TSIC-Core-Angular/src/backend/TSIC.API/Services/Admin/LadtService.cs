@@ -76,7 +76,6 @@ public sealed class LadtService : ILadtService
         var playerCounts = await _teamRepo.GetPlayerCountsByTeamAsync(jobId, cancellationToken);
         var clubNames = await _teamRepo.GetClubNamesByJobAsync(jobId, cancellationToken);
         var scheduledTeamIds = await _teamRepo.GetScheduledTeamIdsAsync(jobId, cancellationToken);
-        var phaseBaseline = await _jobRepo.GetFullPaymentBaselineAsync(jobId, cancellationToken);
 
         var totalTeams = 0;
         var totalPlayers = 0;
@@ -197,8 +196,11 @@ public sealed class LadtService : ILadtService
             TotalTeams = totalTeams,
             TotalPlayers = totalPlayers,
             ScheduledTeamIds = scheduledTeamIds.ToList(),
-            BPlayersFullPaymentRequired = phaseBaseline?.BPlayersFullPaymentRequired ?? false,
-            BTeamsFullPaymentRequired = phaseBaseline?.BTeamsFullPaymentRequired ?? false
+            // Legacy job flags ABANDONED as phase sources — the grid shows phase only from
+            // explicit per-scope JobFees stamps (6a §8P materialized legacy full-payment
+            // jobs). DTO fields retained so the frontend model is unchanged.
+            BPlayersFullPaymentRequired = false,
+            BTeamsFullPaymentRequired = false
         };
     }
 

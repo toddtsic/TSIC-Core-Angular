@@ -65,7 +65,6 @@ public class PlayerCheckTests
             {
                 BAddProcessingFees = bAddProcessingFees,
                 BApplyProcessingFeesToTeamDeposit = false,
-                BTeamsFullPaymentRequired = false,
                 PaymentMethodsAllowedCode = 7
             });
 

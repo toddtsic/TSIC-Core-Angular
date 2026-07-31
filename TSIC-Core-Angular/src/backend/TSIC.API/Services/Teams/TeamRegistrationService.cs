@@ -542,7 +542,10 @@ public class TeamRegistrationService : ITeamRegistrationService
             DroppedTeams = droppedTeams,
             AgeGroups = ageGroups,
             BPayBalanceDue = bPayBalanceDue,
-            BTeamsFullPaymentRequired = job.BTeamsFullPaymentRequired ?? false,
+            // Legacy job flag ABANDONED as a phase source — per-team phase is server-resolved
+            // onto each RegisteredTeamDto/AvailableTeamDto (FullPaymentRequired). This field
+            // remains only as the wizard's mixed-cart badge fallback and now reads deposit.
+            BTeamsFullPaymentRequired = false,
             PlayerRegRefundPolicy = job.PlayerRegRefundPolicy,
             PaymentMethodsAllowedCode = job.PaymentMethodsAllowedCode,
             BAddProcessingFees = job.BAddProcessingFees ?? false,
@@ -840,7 +843,6 @@ public class TeamRegistrationService : ITeamRegistrationService
         {
             var feeCtx = new TeamFeeApplicationContext
             {
-                IsFullPaymentRequired = jobSettings.BTeamsFullPaymentRequired ?? false,
                 AddProcessingFees = jobSettings.BAddProcessingFees ?? false,
                 ApplyProcessingFeesToDeposit = jobSettings.BApplyProcessingFeesToTeamDeposit ?? false,
                 ProcessingFeePercent = processingRate
@@ -1417,10 +1419,9 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         var repriceCtx = new TeamFeeApplicationContext
         {
-            // Job baseline only — the applier resolves the per-scope override
-            // (team → agegroup → league) over this via the canonical
-            // ResolvedFee.ResolveFullPaymentPhase chokepoint.
-            IsFullPaymentRequired = job.BTeamsFullPaymentRequired ?? false,
+            // Phase is resolved per team (team → agegroup → league) inside the applier via
+            // the canonical ResolvedFee.ResolveFullPaymentPhase chokepoint; no override =
+            // deposit. The legacy job flag is abandoned.
             AddProcessingFees = job.BAddProcessingFees ?? false,
             ApplyProcessingFeesToDeposit = job.BApplyProcessingFeesToTeamDeposit ?? false,
             ProcessingFeePercent = processingRate

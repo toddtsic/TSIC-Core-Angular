@@ -181,11 +181,11 @@ public record ResolvedFee
 
     /// <summary>
     /// Per-scope full-payment phase override, cascaded team → agegroup → league
-    /// (most-specific non-null wins). NULL = no scope set it → caller falls back to the
-    /// job-level baseline (Jobs.BPlayersFullPaymentRequired / BTeamsFullPaymentRequired).
-    /// TRUE = full payment (balance due now) at this scope. FALSE is reserved for a future
-    /// explicit opt-out (tri-state); v1 only ever resolves NULL or TRUE.
-    /// Effective phase = <c>BFullPaymentRequired ?? jobBaseline</c>.
+    /// (most-specific non-null wins). NULL = no scope set it = deposit phase — the
+    /// legacy job-level columns are ABANDONED as phase sources (6a §8P materialized
+    /// legacy full-payment jobs into per-scope stamps). TRUE = full payment (balance
+    /// due now) at this scope. Effective phase = <c>BFullPaymentRequired ?? false</c>
+    /// via <see cref="ResolvedFee.ResolveFullPaymentPhase"/>.
     /// </summary>
     public bool? BFullPaymentRequired { get; init; }
 
@@ -224,16 +224,22 @@ public record ResolvedFee
     /// <summary>
     /// THE canonical full-payment phase decision. A per-scope JobFees override
     /// (<see cref="BFullPaymentRequired"/>, already cascaded team → agegroup → league)
-    /// wins; otherwise fall back to the job-level baseline bool
-    /// (Jobs.BPlayersFullPaymentRequired / BTeamsFullPaymentRequired).
+    /// wins; no override at any tier means deposit phase.
+    ///
+    /// The legacy job-level columns (Jobs.BPlayersFullPaymentRequired /
+    /// BTeamsFullPaymentRequired) are ABANDONED as phase sources — never read them.
+    /// Migration seed 6a §8P materializes legacy full-payment jobs into per-scope
+    /// stamps, and startup validation refuses to run against an unstamped DB, so the
+    /// fallback that used to live here (<c>?? jobBaseline</c>) can never be needed.
+    /// Dropping it is what makes the LADT two-state toggle honest: unchecked = null
+    /// = deposit, with no invisible baseline underneath.
     ///
     /// Every consumer that needs to know "deposit phase or balance-due phase?" —
     /// fee stamping (<c>FeeResolutionService</c> chokepoint), the registered-teams
     /// grid display (<c>RegisteredTeamShaper</c>), pool/roster re-price previews —
-    /// resolves it HERE. Do not re-implement the <c>?? jobBaseline</c> precedence inline.
-    /// Accepts a nullable resolved fee so call sites that may have no configured row
-    /// (swap/preview paths) can pass <c>resolved?</c> directly.
+    /// resolves it HERE. Accepts a nullable resolved fee so call sites that may have
+    /// no configured row (swap/preview paths) can pass <c>resolved?</c> directly.
     /// </summary>
-    public static bool ResolveFullPaymentPhase(ResolvedFee? resolved, bool jobBaseline)
-        => resolved?.BFullPaymentRequired ?? jobBaseline;
+    public static bool ResolveFullPaymentPhase(ResolvedFee? resolved)
+        => resolved?.BFullPaymentRequired ?? false;
 }

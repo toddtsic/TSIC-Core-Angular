@@ -76,7 +76,6 @@ public sealed class RegisteredTeamShaper : IRegisteredTeamShaper
             rawRegistered,
             scheduledIds,
             feesByTeamId,
-            job.BTeamsFullPaymentRequired ?? false,
             paymentStates,
             job.BAddProcessingFees ?? false,
             ccRate,
@@ -87,7 +86,6 @@ public sealed class RegisteredTeamShaper : IRegisteredTeamShaper
         IEnumerable<RegisteredTeamInfo> rawRegistered,
         HashSet<int> scheduledClubTeamIds,
         Dictionary<Guid, ResolvedFee> feesByTeamId,
-        bool jobTeamsFullPaymentBaseline,
         Dictionary<Guid, PaymentState> paymentStates,
         bool bAddProcessingFees,
         decimal ccRate,
@@ -99,10 +97,10 @@ public sealed class RegisteredTeamShaper : IRegisteredTeamShaper
             var resolved = feesByTeamId.GetValueOrDefault(t.TeamId);
             var deposit = resolved?.Deposit ?? 0m;
             var balanceDue = resolved?.BalanceDue ?? 0m;
-            // Per-team phase: this team's JobFees override (team → ag → league) wins over
-            // the job baseline — so a converted camp/agegroup shows balance-due math while
-            // its siblings still in deposit phase show the forward-looking balance.
-            var teamFullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved, jobTeamsFullPaymentBaseline);
+            // Per-team phase: this team's JobFees override (team → ag → league); no override
+            // = deposit — so a converted camp/agegroup shows balance-due math while its
+            // siblings still in deposit phase show the forward-looking balance.
+            var teamFullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved);
 
             // Per-method owed from the single canonical resolver — the SAME
             // PaymentState.ResolveOwed the charge engine (PaymentService) uses, so the

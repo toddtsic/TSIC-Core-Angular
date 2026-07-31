@@ -77,7 +77,6 @@ public class ClubCheckAllocationTests
             {
                 BAddProcessingFees = bAddProcessingFees,
                 BApplyProcessingFeesToTeamDeposit = false,
-                BTeamsFullPaymentRequired = bTeamsFullPaymentRequired,
                 PaymentMethodsAllowedCode = 7
             });
 

@@ -8,8 +8,8 @@ public interface IPlayerRegistrationService
 
     /// <summary>
     /// Re-stamps FeeBase on active player registrations per the effective full-payment
-    /// phase, resolved per-scope from JobFees (team → agegroup → league) and falling back
-    /// to Jobs.BPlayersFullPaymentRequired. The single canonical scoped player reprice:
+    /// phase, resolved per-scope from JobFees (team → agegroup → league; no override =
+    /// deposit phase). The single canonical scoped player reprice:
     /// used by JobConfigService.UpdatePaymentAsync (job-wide), the per-scope phase toggle,
     /// and the LADT "Push Fees to Players" button. Optionally narrows to one agegroup
     /// and/or team; null scope = whole job. Paid-in-full rows are skipped.

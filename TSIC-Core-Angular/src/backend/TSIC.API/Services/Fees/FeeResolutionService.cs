@@ -186,9 +186,10 @@ public sealed class FeeResolutionService : IFeeResolutionService
     /// <summary>
     /// Initial fee stamp at team-reservation time. Phase = the canonical
     /// <see cref="ResolvedFee.ResolveFullPaymentPhase"/>: a per-scope JobFees override
-    /// (team → agegroup → league) wins, else ctx.IsFullPaymentRequired (the job-level
-    /// baseline the caller passes). Deposit phase → FeeBase = Deposit (or BalanceDue
-    /// when no deposit configured); full-payment phase → FeeBase = Deposit + BalanceDue.
+    /// (team → agegroup → league) wins; no override = deposit phase (the legacy
+    /// job-level baseline is abandoned). Deposit phase → FeeBase = Deposit (or
+    /// BalanceDue when no deposit configured); full-payment phase → FeeBase =
+    /// Deposit + BalanceDue.
     /// </summary>
     public async Task ApplyNewRegistrationFeesAsync(
         Registrations reg, Guid jobId, Guid agegroupId, Guid teamId,
@@ -202,7 +203,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
         var balanceDue = resolved.EffectiveBalanceDue;
 
         decimal baseFee;
-        if (ResolvedFee.ResolveFullPaymentPhase(resolved, ctx.IsFullPaymentRequired))
+        if (ResolvedFee.ResolveFullPaymentPhase(resolved))
         {
             baseFee = resolved.FullPrice;
         }
@@ -325,7 +326,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
         // the paidPastDeposit promotion can't rescue it); genuine swaps/recalcs keep re-phasing.
         var fullPrice = resolved?.FullPrice ?? 0m;
         var alreadyFullStamped = ctx.PreserveFullPaymentStamp && fullPrice > 0m && reg.FeeBase >= fullPrice - 0.005m;
-        var fullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved, ctx.IsFullPaymentRequired) || paidPastDeposit || alreadyFullStamped;
+        var fullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved) || paidPastDeposit || alreadyFullStamped;
         reg.FeeBase = fullPayment
             ? fullPrice
             : (deposit > 0m ? deposit : balanceDue);
@@ -346,9 +347,9 @@ public sealed class FeeResolutionService : IFeeResolutionService
         var deposit = resolved.EffectiveDeposit;
         var balanceDue = resolved.EffectiveBalanceDue;
 
-        // Per-scope override (team → ag → league) ?? job baseline (ctx). Decided ONCE
+        // Per-scope override (team → ag → league); no override = deposit. Decided ONCE
         // and threaded into the proc/totals helper so phase can never disagree there.
-        var fullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved, ctx.IsFullPaymentRequired);
+        var fullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved);
         var feeBase = fullPayment ? resolved.FullPrice : deposit;
 
         var modifiers = await EvaluateModifiersAsync(
@@ -430,7 +431,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
             0m, deposit - team.TotalDiscount() + (team.FeeLatefee ?? 0m) + (team.FeeDonation ?? 0m));
         var paidPastDeposit = state.PrincipalPaid > effectiveDeposit + depositPaidTolerance;
 
-        var fullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved, ctx.IsFullPaymentRequired) || paidPastDeposit;
+        var fullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved) || paidPastDeposit;
         team.FeeBase = fullPayment ? (resolved?.FullPrice ?? 0m) : deposit;
 
         return (deposit, balanceDue, fullPayment);
@@ -448,12 +449,10 @@ public sealed class FeeResolutionService : IFeeResolutionService
         Registrations reg, Guid jobId, Guid agegroupId, Guid teamId,
         CancellationToken ct = default)
     {
-        var baseline = await _jobRepo.GetFullPaymentBaselineAsync(jobId, ct);
         await ApplySwapFeesAsync(
             reg, jobId, agegroupId, teamId,
             new FeeApplicationContext
             {
-                IsFullPaymentRequired = baseline?.BPlayersFullPaymentRequired ?? false,
                 AssessActiveLateFee = true,
                 // A parent who chose Pay-in-Full on a deposit-phase job has already had this reg
                 // upgraded to FeeBase = FullPrice (nothing paid yet). Preserve that stamp — do not
@@ -473,7 +472,6 @@ public sealed class FeeResolutionService : IFeeResolutionService
             team, jobId, team.AgegroupId,
             new TeamFeeApplicationContext
             {
-                IsFullPaymentRequired = settings?.BTeamsFullPaymentRequired ?? false,
                 AddProcessingFees = settings?.BAddProcessingFees ?? false,
                 ApplyProcessingFeesToDeposit = settings?.BApplyProcessingFeesToTeamDeposit ?? false,
                 ProcessingFeePercent = processingRate,

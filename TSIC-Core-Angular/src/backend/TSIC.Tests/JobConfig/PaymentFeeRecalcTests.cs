@@ -22,14 +22,19 @@ namespace TSIC.Tests.JobConfig;
 /// Tests that toggling fee-affecting flags in Job Config Payment tab
 /// auto-recalculates team fees correctly.
 ///
+/// Payment phase (deposit ↔ full pay) is NOT a Configure-Job concern anymore: the legacy
+/// Jobs.B{Teams,Players}FullPaymentRequired columns are abandoned. Phase lives per-scope in
+/// fees.JobFees.bFullPaymentRequired (set in the LADT editor, which runs its own scoped
+/// reprice on save). The request phase fields still round-trip but are INERT — pinned here.
+///
 /// Each test prints BEFORE/AFTER fee tables so Ann can verify the numbers.
 ///
 /// Scenarios cover:
-///   - BTeamsFullPaymentRequired ON/OFF (deposit ↔ full pay)
+///   - Phase fields in the request are inert (no entity write, no recalc)
 ///   - BAddProcessingFees ON/OFF
-///   - CC fees on balance only (tournament client) vs CC fees on deposit+balance (typical)
-///   - Waitlist teams skipped
-///   - Partially-paid teams adjust correctly
+///   - Waitlist teams skipped during recalc
+///   - Partially-paid teams adjust correctly (per-scope PIF stamp)
+///   - Paid-in-full teams preserved via promotion on a phase downgrade
 ///   - Non-fee fields don't trigger recalc
 /// </summary>
 public class PaymentFeeRecalcTests
@@ -134,7 +139,6 @@ public class PaymentFeeRecalcTests
         jobRepo.Setup(j => j.GetJobFeeSettingsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JobFeeSettings
             {
-                BTeamsFullPaymentRequired = false,
                 BAddProcessingFees = false,
                 BApplyProcessingFeesToTeamDeposit = false,
                 PaymentMethodsAllowedCode = 1,
@@ -204,7 +208,8 @@ public class PaymentFeeRecalcTests
             decimal teamFeeBase = 500m,
             decimal teamFeeProcessing = 0m,
             decimal teamPaidTotal = 0m,
-            bool addWaitlistTeam = false)
+            bool addWaitlistTeam = false,
+            bool? scopePhaseStamp = null)
     {
         var ctx = DbContextFactory.Create();
         var builder = new AccountingDataBuilder(ctx);
@@ -258,7 +263,6 @@ public class PaymentFeeRecalcTests
                 var currentJob = ctx.Jobs.First(j => j.JobId == id);
                 return Task.FromResult<JobFeeSettings?>(new JobFeeSettings
                 {
-                    BTeamsFullPaymentRequired = currentJob.BTeamsFullPaymentRequired,
                     BAddProcessingFees = currentJob.BAddProcessingFees,
                     BApplyProcessingFeesToTeamDeposit = currentJob.BApplyProcessingFeesToTeamDeposit,
                     PaymentMethodsAllowedCode = currentJob.PaymentMethodsAllowedCode,
@@ -271,7 +275,9 @@ public class PaymentFeeRecalcTests
 
         // The reprice engine batch-resolves the cascade up front and prices each team through
         // the pre-hydrated applier (mocked below). Return the same fixed Deposit/BalanceDue the
-        // AccountingDataBuilder uses so the mocked applier prices teams exactly as production would.
+        // AccountingDataBuilder uses so the mocked applier prices teams exactly as production
+        // would. scopePhaseStamp mirrors a fees.JobFees.bFullPaymentRequired stamp cascaded
+        // into the resolved fee (the LADT per-scope phase — the only phase source now).
         feeService.Setup(f => f.ResolveFeesByTeamIdsAsync(
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<IReadOnlyList<Guid>>(),
                 It.IsAny<CancellationToken>()))
@@ -283,6 +289,7 @@ public class PaymentFeeRecalcTests
                         FeeConfigured = true,
                         Deposit = Deposit,
                         BalanceDue = BalanceDue,
+                        BFullPaymentRequired = scopePhaseStamp,
                     })));
 
         feeService.Setup(f => f.ApplyTeamSwapFees(
@@ -294,12 +301,13 @@ public class PaymentFeeRecalcTests
                 var deposit = resolved?.Deposit ?? 0;
                 var balance = resolved?.BalanceDue ?? 0;
 
-                // Mirror the real applier promotion: a team that has paid PAST the deposit is
-                // in full-payment phase regardless of the config flag, so a downgrade never
-                // re-stamps it DOWN to the deposit (no bogus credit). Processing is OFF in the
-                // downgrade scenario, so PaidTotal stands in for PrincipalPaid.
+                // Mirror the real applier: phase comes from the per-scope stamp on the resolved
+                // fee (ResolveFullPaymentPhase), and a team that has paid PAST the deposit is in
+                // full-payment phase regardless, so a downgrade never re-stamps it DOWN to the
+                // deposit (no bogus credit). Processing is OFF in the downgrade scenario, so
+                // PaidTotal stands in for PrincipalPaid.
                 var paidPastDeposit = (t.PaidTotal ?? 0m) > deposit + 0.01m;
-                var fullPayment = feeCtx.IsFullPaymentRequired || paidPastDeposit;
+                var fullPayment = TSIC.Contracts.Repositories.ResolvedFee.ResolveFullPaymentPhase(resolved) || paidPastDeposit;
 
                 t.FeeBase = fullPayment ? deposit + balance : deposit;
 
@@ -409,36 +417,43 @@ public class PaymentFeeRecalcTests
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // TEST 1: Full Pay Required ON → deposit-only teams get full fee
+    // TEST 1: Teams phase field in the payment request is INERT
+    //   The legacy job column is abandoned — a payment-tab save that
+    //   flips BTeamsFullPaymentRequired must neither write the entity
+    //   nor trigger a team reprice. Phase flips live in the LADT
+    //   editor (per-scope fees.JobFees.bFullPaymentRequired).
     // ═══════════════════════════════════════════════════════════════
 
     [Fact]
-    public async Task FullPayRequired_TurnedOn_RecalculatesFeesUp()
+    public async Task TeamsPhaseField_InRequest_IsInert_NoWriteNoRecalc()
     {
-        PrintScenario("Full Pay Required: OFF → ON",
-            "Director enables balance due. Teams go from deposit-only ($500) to full fee ($2,000).");
+        PrintScenario("Teams phase field: request flips ON → inert",
+            "Payment-tab save sends BTeamsFullPaymentRequired=true. Column is abandoned: " +
+            "no entity write, no team reprice — teams keep their current fees.");
 
+        // Teams sit at FULL price with NO per-scope stamp — if any reprice ran off this save
+        // it would re-stamp them down to the $500 deposit, so unchanged fees prove no recalc.
         var (svc, ctx, jobId, _) = await CreateServiceAsync(
-            bTeamsFullPaymentRequired: false, teamFeeBase: Deposit);
+            bTeamsFullPaymentRequired: false, teamFeeBase: Deposit + BalanceDue);
 
-        PrintJobConfig("BEFORE", fullPayReq: false, addProcessing: false, procOnDeposit: false, rate: 3.5m);
         var before = await ctx.Teams.AsNoTracking().Where(t => t.JobId == jobId).ToListAsync();
         PrintTeamTable("BEFORE", before);
 
         var req = BuildRequest(ctx, jobId, bTeamsFullPaymentRequired: true);
         await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
 
-        PrintJobConfig("AFTER", fullPayReq: true, addProcessing: false, procOnDeposit: false, rate: 3.5m);
-        var after = await ctx.Teams.Where(t => t.JobId == jobId).ToListAsync();
-        PrintTeamTable("AFTER", after);
+        var after = await ctx.Teams.AsNoTracking().Where(t => t.JobId == jobId).ToListAsync();
+        PrintTeamTable("AFTER (must be identical)", after);
 
+        var job = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == jobId);
+        job.BTeamsFullPaymentRequired.Should().BeFalse("the abandoned phase column must never be written");
         foreach (var t in after)
         {
-            t.FeeBase.Should().Be(Deposit + BalanceDue);
+            t.FeeBase.Should().Be(Deposit + BalanceDue, "no reprice may run off the inert phase field");
             t.OwedTotal.Should().Be(Deposit + BalanceDue);
         }
 
-        PrintResult("FeeBase moved from $500 → $2,000. OwedTotal matches. PASS");
+        PrintResult("Entity flag untouched, no reprice triggered. PASS");
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -526,204 +541,6 @@ public class PaymentFeeRecalcTests
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // TEST 2: Full Pay Required OFF → full-fee teams revert to deposit
-    // ═══════════════════════════════════════════════════════════════
-
-    [Fact]
-    public async Task FullPayRequired_TurnedOff_RecalculatesFeesDown()
-    {
-        PrintScenario("Full Pay Required: ON → OFF",
-            "Director disables balance due. Teams revert from full fee ($2,000) to deposit-only ($500).");
-
-        var (svc, ctx, jobId, _) = await CreateServiceAsync(
-            bTeamsFullPaymentRequired: true, teamFeeBase: Deposit + BalanceDue);
-
-        PrintJobConfig("BEFORE", fullPayReq: true, addProcessing: false, procOnDeposit: false, rate: 3.5m);
-        var before = await ctx.Teams.AsNoTracking().Where(t => t.JobId == jobId).ToListAsync();
-        PrintTeamTable("BEFORE", before);
-
-        var req = BuildRequest(ctx, jobId, bTeamsFullPaymentRequired: false);
-        await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
-
-        PrintJobConfig("AFTER", fullPayReq: false, addProcessing: false, procOnDeposit: false, rate: 3.5m);
-        var after = await ctx.Teams.Where(t => t.JobId == jobId).ToListAsync();
-        PrintTeamTable("AFTER", after);
-
-        foreach (var t in after)
-        {
-            t.FeeBase.Should().Be(Deposit);
-            t.OwedTotal.Should().Be(Deposit);
-        }
-
-        PrintResult("FeeBase reverted from $2,000 → $500. OwedTotal matches. PASS");
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // TEST 3a: Typical Tournament — CC fees on everything, FullPay ON
-    //   Deposit phase → Full pay. Processing on full amount.
-    // ═══════════════════════════════════════════════════════════════
-
-    [Fact]
-    public async Task TypicalTournament_FullPayOn_CCFeesOnEverything()
-    {
-        PrintScenario("Typical Tournament: Enable Full Pay (CC fees on everything)",
-            "CC fees (3.5%) apply to ENTIRE fee (deposit + balance). " +
-            "Director turns on FullPayRequired. Teams go from deposit → full fee + CC on all.");
-
-        var (svc, ctx, jobId, _) = await CreateServiceAsync(
-            bTeamsFullPaymentRequired: false,
-            bAddProcessingFees: true,
-            bApplyProcessingFeesToTeamDeposit: true,
-            teamFeeBase: Deposit, teamFeeProcessing: Deposit * ProcessingRate);
-
-        PrintJobConfig("BEFORE", fullPayReq: false, addProcessing: true, procOnDeposit: true, rate: 3.5m);
-        var before = await ctx.Teams.AsNoTracking().Where(t => t.JobId == jobId).ToListAsync();
-        PrintTeamTable("BEFORE (deposit phase, CC on deposit)", before);
-
-        var req = BuildRequest(ctx, jobId, bTeamsFullPaymentRequired: true);
-        await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
-
-        PrintJobConfig("AFTER", fullPayReq: true, addProcessing: true, procOnDeposit: true, rate: 3.5m);
-        var after = await ctx.Teams.Where(t => t.JobId == jobId).ToListAsync();
-        PrintTeamTable("AFTER (full pay, CC on full amount)", after);
-
-        var expectedProcessing = (Deposit + BalanceDue) * ProcessingRate; // $2000 × 3.5% = $70
-        foreach (var t in after)
-        {
-            t.FeeBase.Should().Be(Deposit + BalanceDue);
-            t.FeeProcessing.Should().Be(expectedProcessing);
-            t.FeeTotal.Should().Be(Deposit + BalanceDue + expectedProcessing);
-        }
-
-        PrintResult($"FeeBase: $500 → $2,000. Processing: ${Deposit * ProcessingRate} → ${expectedProcessing}. PASS");
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // TEST 3b: Typical Tournament — CC fees on everything, FullPay OFF
-    //   Full pay → Deposit phase. Processing reverts to deposit only.
-    // ═══════════════════════════════════════════════════════════════
-
-    [Fact]
-    public async Task TypicalTournament_FullPayOff_CCFeesRevertToDeposit()
-    {
-        var fullProcessing = (Deposit + BalanceDue) * ProcessingRate;
-
-        PrintScenario("Typical Tournament: Disable Full Pay (CC fees revert to deposit)",
-            "CC fees (3.5%) apply to ENTIRE fee. Director turns OFF FullPayRequired. " +
-            "Teams revert from full fee → deposit. CC now only on deposit.");
-
-        var (svc, ctx, jobId, _) = await CreateServiceAsync(
-            bTeamsFullPaymentRequired: true,
-            bAddProcessingFees: true,
-            bApplyProcessingFeesToTeamDeposit: true,
-            teamFeeBase: Deposit + BalanceDue, teamFeeProcessing: fullProcessing);
-
-        PrintJobConfig("BEFORE", fullPayReq: true, addProcessing: true, procOnDeposit: true, rate: 3.5m);
-        var before = await ctx.Teams.AsNoTracking().Where(t => t.JobId == jobId).ToListAsync();
-        PrintTeamTable("BEFORE (full pay, CC on full amount)", before);
-
-        var req = BuildRequest(ctx, jobId, bTeamsFullPaymentRequired: false);
-        await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
-
-        PrintJobConfig("AFTER", fullPayReq: false, addProcessing: true, procOnDeposit: true, rate: 3.5m);
-        var after = await ctx.Teams.Where(t => t.JobId == jobId).ToListAsync();
-        PrintTeamTable("AFTER (deposit phase, CC on deposit only)", after);
-
-        var expectedProcessing = Deposit * ProcessingRate; // $500 × 3.5% = $17.50
-        foreach (var t in after)
-        {
-            t.FeeBase.Should().Be(Deposit);
-            t.FeeProcessing.Should().Be(expectedProcessing);
-            t.FeeTotal.Should().Be(Deposit + expectedProcessing);
-        }
-
-        PrintResult($"FeeBase: $2,000 → $500. Processing: ${fullProcessing} → ${expectedProcessing}. PASS");
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // TEST 4a: Complicated Client — CC fees on balance only, FullPay ON
-    //   Deposit phase → Full pay. Processing on balance only (not deposit).
-    // ═══════════════════════════════════════════════════════════════
-
-    [Fact]
-    public async Task ComplicatedClient_FullPayOn_CCFeesOnBalanceOnly()
-    {
-        PrintScenario("Complicated Client: Enable Full Pay (CC fees on balance ONLY)",
-            "CC fees (3.5%) apply ONLY to balance due ($1,500), NOT deposit ($500). " +
-            "Director turns on FullPayRequired. In deposit phase, processing was $0 (no balance).");
-
-        var (svc, ctx, jobId, _) = await CreateServiceAsync(
-            bTeamsFullPaymentRequired: false,
-            bAddProcessingFees: true,
-            bApplyProcessingFeesToTeamDeposit: false,
-            teamFeeBase: Deposit, teamFeeProcessing: 0); // deposit phase, no balance → no CC
-
-        PrintJobConfig("BEFORE", fullPayReq: false, addProcessing: true, procOnDeposit: false, rate: 3.5m);
-        var before = await ctx.Teams.AsNoTracking().Where(t => t.JobId == jobId).ToListAsync();
-        PrintTeamTable("BEFORE (deposit phase, CC on balance only = $0)", before);
-
-        var req = BuildRequest(ctx, jobId, bTeamsFullPaymentRequired: true);
-        await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
-
-        PrintJobConfig("AFTER", fullPayReq: true, addProcessing: true, procOnDeposit: false, rate: 3.5m);
-        var after = await ctx.Teams.Where(t => t.JobId == jobId).ToListAsync();
-        PrintTeamTable("AFTER (full pay, CC on balance only)", after);
-
-        var expectedProcessing = BalanceDue * ProcessingRate; // $1500 × 3.5% = $52.50
-        foreach (var t in after)
-        {
-            t.FeeBase.Should().Be(Deposit + BalanceDue);
-            t.FeeProcessing.Should().Be(expectedProcessing,
-                $"3.5% of balance-only ${BalanceDue} = ${expectedProcessing}");
-            t.FeeTotal.Should().Be(Deposit + BalanceDue + expectedProcessing);
-        }
-
-        PrintResult($"FeeBase: $500 → $2,000. Processing: $0 → ${expectedProcessing} (balance only). Deposit excluded. PASS");
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // TEST 4b: Complicated Client — CC fees on balance only, FullPay OFF
-    //   Full pay → Deposit phase. Processing drops to $0 (no balance in deposit phase).
-    // ═══════════════════════════════════════════════════════════════
-
-    [Fact]
-    public async Task ComplicatedClient_FullPayOff_CCFeesDropToZero()
-    {
-        var balanceProcessing = BalanceDue * ProcessingRate;
-
-        PrintScenario("Complicated Client: Disable Full Pay (CC fees drop to $0)",
-            "CC fees (3.5%) on balance only. Director turns OFF FullPayRequired. " +
-            "In deposit phase there's no balance → processing drops to $0.");
-
-        var (svc, ctx, jobId, _) = await CreateServiceAsync(
-            bTeamsFullPaymentRequired: true,
-            bAddProcessingFees: true,
-            bApplyProcessingFeesToTeamDeposit: false,
-            teamFeeBase: Deposit + BalanceDue, teamFeeProcessing: balanceProcessing);
-
-        PrintJobConfig("BEFORE", fullPayReq: true, addProcessing: true, procOnDeposit: false, rate: 3.5m);
-        var before = await ctx.Teams.AsNoTracking().Where(t => t.JobId == jobId).ToListAsync();
-        PrintTeamTable("BEFORE (full pay, CC on balance only)", before);
-
-        var req = BuildRequest(ctx, jobId, bTeamsFullPaymentRequired: false);
-        await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
-
-        PrintJobConfig("AFTER", fullPayReq: false, addProcessing: true, procOnDeposit: false, rate: 3.5m);
-        var after = await ctx.Teams.Where(t => t.JobId == jobId).ToListAsync();
-        PrintTeamTable("AFTER (deposit phase, no balance → no CC)", after);
-
-        foreach (var t in after)
-        {
-            t.FeeBase.Should().Be(Deposit);
-            t.FeeProcessing.Should().Be(0,
-                "deposit phase with CC-on-balance-only means $0 processing");
-            t.FeeTotal.Should().Be(Deposit);
-        }
-
-        PrintResult($"FeeBase: $2,000 → $500. Processing: ${balanceProcessing} → $0 (no balance in deposit phase). PASS");
-    }
-
-    // ═══════════════════════════════════════════════════════════════
     // TEST 5: Processing Fees OFF → removes processing from teams
     // ═══════════════════════════════════════════════════════════════
 
@@ -798,16 +615,19 @@ public class PaymentFeeRecalcTests
     public async Task WaitlistTeams_Skipped_DuringRecalc()
     {
         PrintScenario("Waitlist Teams Skipped",
-            "1 normal team + 1 WAITLIST team. Only normal team should be recalculated.");
+            "1 normal team + 1 WAITLIST team, per-scope PIF stamp ON. A rate change triggers " +
+            "the reprice; only the normal team should be recalculated.");
 
+        // Phase now rides on the per-scope stamp; the recalc trigger is a still-live
+        // fee-affecting field (processing rate), not the abandoned job flag.
         var (svc, ctx, jobId, _) = await CreateServiceAsync(
-            bTeamsFullPaymentRequired: false, teamFeeBase: Deposit,
-            teamCount: 1, addWaitlistTeam: true);
+            teamFeeBase: Deposit, teamCount: 1, addWaitlistTeam: true,
+            scopePhaseStamp: true);
 
         var before = await ctx.Teams.AsNoTracking().Where(t => t.JobId == jobId).ToListAsync();
         PrintTeamTable("BEFORE", before);
 
-        var req = BuildRequest(ctx, jobId, bTeamsFullPaymentRequired: true);
+        var req = BuildRequest(ctx, jobId, processingFeePercent: 3.99m);
         await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
 
         var after = await ctx.Teams.Where(t => t.JobId == jobId).ToListAsync();
@@ -830,21 +650,22 @@ public class PaymentFeeRecalcTests
     public async Task PaidTeams_OwedTotalAdjusted_Correctly()
     {
         PrintScenario("Partially Paid Team",
-            "Team has paid $300 of $500 deposit. Director enables full pay ($2,000). " +
-            "Owed should be $2,000 - $300 = $1,700. PaidTotal stays at $300.");
+            "Team has paid $300 of $500 deposit; per-scope PIF stamp ON ($2,000 full). " +
+            "A rate change triggers the reprice. Owed should be $2,000 - $300 = $1,700. " +
+            "PaidTotal stays at $300.");
 
         var (svc, ctx, jobId, _) = await CreateServiceAsync(
-            bTeamsFullPaymentRequired: false,
-            teamCount: 1, teamFeeBase: Deposit, teamPaidTotal: 300m);
+            teamCount: 1, teamFeeBase: Deposit, teamPaidTotal: 300m,
+            scopePhaseStamp: true);
 
         var before = await ctx.Teams.AsNoTracking().Where(t => t.JobId == jobId).ToListAsync();
         PrintTeamTable("BEFORE (paid $300 of $500 deposit)", before);
 
-        var req = BuildRequest(ctx, jobId, bTeamsFullPaymentRequired: true);
+        var req = BuildRequest(ctx, jobId, processingFeePercent: 3.99m);
         await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
 
         var after = await ctx.Teams.Where(t => t.JobId == jobId).ToListAsync();
-        PrintTeamTable("AFTER (full pay enabled)", after);
+        PrintTeamTable("AFTER (repriced under PIF stamp)", after);
 
         var updated = after[0];
         updated.FeeBase.Should().Be(Deposit + BalanceDue);
@@ -887,27 +708,30 @@ public class PaymentFeeRecalcTests
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // TEST 10: Paid-in-full team preserved on Full Pay ON → OFF unflip
-    //   PIF team must NOT be re-stamped to deposit-only — that would
-    //   shrink FeeTotal below PaidTotal and produce a negative OwedTotal
+    // TEST 10: Paid-in-full team preserved on a phase DOWNGRADE
+    //   The downgrade now arrives as a reprice with NO per-scope stamp
+    //   (director cleared the PIF stamp in LADT; here the reprice is
+    //   triggered by a rate change against an unstamped scope). PIF team
+    //   must NOT be re-stamped to deposit-only — that would shrink
+    //   FeeTotal below PaidTotal and produce a negative OwedTotal
     //   (bogus credit) that propagates into the rep's pulse balance.
-    //   This is now guaranteed by the applier's paid-past-deposit promotion
-    //   (ApplyTeamSwapFeesAsync), not an engine-level skip — a paid-ahead team
-    //   stays at full price on the downgrade. Mirrors the player path.
+    //   Guaranteed by the applier's paid-past-deposit promotion
+    //   (ApplyTeamSwapFeesAsync), not an engine-level skip — a paid-ahead
+    //   team stays at full price on the downgrade. Mirrors the player path.
     // ═══════════════════════════════════════════════════════════════
 
     [Fact]
-    public async Task PaidInFullTeam_PreservedViaPromotion_OnFullPayUnflip()
+    public async Task PaidInFullTeam_PreservedViaPromotion_OnPhaseDowngrade()
     {
         var fullAmount = Deposit + BalanceDue; // 2000
 
-        PrintScenario("Paid-In-Full Team Preserved: Full Pay ON → OFF",
-            "1 PIF team (paid $2,000 of $2,000) + 1 unpaid team. Director disables full pay. " +
-            "PIF team must be left untouched; unpaid team reverts to deposit-only. " +
+        PrintScenario("Paid-In-Full Team Preserved: phase downgrade (no per-scope stamp)",
+            "1 PIF team (paid $2,000 of $2,000) + 1 unpaid team, both stamped at full price. " +
+            "Reprice runs with no PIF stamp (deposit phase). PIF team must be left untouched; " +
+            "unpaid team reverts to deposit-only. " +
             "Rep registration row must re-aggregate to match the new team sums.");
 
         var (svc, ctx, jobId, teams) = await CreateServiceAsync(
-            bTeamsFullPaymentRequired: true,
             teamCount: 2,
             teamFeeBase: fullAmount,
             teamPaidTotal: 0m); // builder default; we'll patch one team to PIF below
@@ -932,7 +756,7 @@ public class PaymentFeeRecalcTests
         var before = await ctx.Teams.AsNoTracking().Where(t => t.JobId == jobId).ToListAsync();
         PrintTeamTable("BEFORE (Team 1 = PIF, Team 2 = unpaid full-pay)", before);
 
-        var req = BuildRequest(ctx, jobId, bTeamsFullPaymentRequired: false);
+        var req = BuildRequest(ctx, jobId, processingFeePercent: 3.99m);
         await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
 
         var after = await ctx.Teams.AsNoTracking().Where(t => t.JobId == jobId).ToListAsync();
@@ -984,34 +808,35 @@ public class PaymentFeeRecalcTests
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // TEST 10b: Owed-zeroed deposit team reprices on Deposit → Full Pay flip
+    // TEST 10b: Owed-zeroed deposit team reprices under a per-scope PIF stamp
     //   The production bug. A deposit-phase team whose owed was driven to $0
     //   (a recorded deposit, or a client correction) must NOT be treated as
     //   paid-in-full and skipped — the engine no longer carries an
-    //   OwedTotal<=0 gate, so the PIF flip re-stamps it to full price and it
-    //   correctly owes the balance.
+    //   OwedTotal<=0 gate, so a reprice under the PIF stamp re-stamps it to
+    //   full price and it correctly owes the balance.
     // ═══════════════════════════════════════════════════════════════
 
     [Fact]
-    public async Task OwedZeroedDepositTeam_RepricedToFullPrice_OnPifFlip()
+    public async Task OwedZeroedDepositTeam_RepricedToFullPrice_UnderPifStamp()
     {
-        PrintScenario("Owed-Zeroed Deposit Team Reprices on PIF Flip",
-            "Deposit-phase team paid its $500 deposit (owed $0). Director enables full pay. " +
+        PrintScenario("Owed-Zeroed Deposit Team Reprices Under PIF Stamp",
+            "Deposit-phase team paid its $500 deposit (owed $0). Scope carries a PIF stamp; " +
+            "a rate change triggers the reprice. " +
             "Team must re-stamp to $2,000 and owe $1,500 — NOT be skipped as paid-in-full.");
 
         var (svc, ctx, jobId, _) = await CreateServiceAsync(
-            bTeamsFullPaymentRequired: false,
-            teamCount: 1, teamFeeBase: Deposit, teamPaidTotal: Deposit); // owed = $0 in deposit phase
+            teamCount: 1, teamFeeBase: Deposit, teamPaidTotal: Deposit, // owed = $0 in deposit phase
+            scopePhaseStamp: true);
 
         var before = await ctx.Teams.AsNoTracking().Where(t => t.JobId == jobId).ToListAsync();
         before[0].OwedTotal.Should().Be(0m, "precondition: deposit fully paid → owed $0");
         PrintTeamTable("BEFORE (deposit paid, owed $0)", before);
 
-        var req = BuildRequest(ctx, jobId, bTeamsFullPaymentRequired: true);
+        var req = BuildRequest(ctx, jobId, processingFeePercent: 3.99m);
         await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
 
         var after = await ctx.Teams.Where(t => t.JobId == jobId).ToListAsync();
-        PrintTeamTable("AFTER (full pay enabled)", after);
+        PrintTeamTable("AFTER (repriced under PIF stamp)", after);
 
         var updated = after[0];
         updated.FeeBase.Should().Be(Deposit + BalanceDue, "owed-zeroed team must still re-stamp to full price");
@@ -1022,57 +847,40 @@ public class PaymentFeeRecalcTests
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // PLAYER-FLAG TESTS — verify the BPlayersFullPaymentRequired
-    // change-detection branch in JobConfigService.UpdatePaymentAsync
-    // invokes IPlayerRegistrationService.RecalculatePlayerFeesAsync.
+    // PLAYER-SIDE TESTS — verify the player-recalc trigger contract in
+    // JobConfigService.UpdatePaymentAsync: processing-fee config changes
+    // invoke IPlayerRegistrationService.RecalculatePlayerFeesAsync; the
+    // abandoned BPlayersFullPaymentRequired request field is inert.
     //
-    // Mirror of the team-flag tests above. Fee correctness for the
-    // recalc itself is owned by FeeResolutionService unit tests; these
-    // tests verify the trigger contract.
+    // Fee correctness for the recalc itself is owned by
+    // FeeResolutionService unit tests; these verify the trigger contract.
     // ═══════════════════════════════════════════════════════════════
 
     // ═══════════════════════════════════════════════════════════════
-    // PLAYER 1: BPlayersFullPaymentRequired OFF → ON triggers recalc
+    // PLAYER 1: Players phase field in the request is INERT
+    //   (no entity write, no player recalc — phase lives per-scope)
     // ═══════════════════════════════════════════════════════════════
 
     [Fact]
-    public async Task PlayersFullPayRequired_TurnedOn_TriggersPlayerRecalc()
+    public async Task PlayersPhaseField_InRequest_IsInert_NoWriteNoRecalc()
     {
-        PrintScenario("Players Full Pay Required: OFF → ON",
-            "Director enables player balance due. RecalculatePlayerFeesAsync must be called once.");
+        PrintScenario("Players phase field: request flips ON → inert",
+            "Payment-tab save sends BPlayersFullPaymentRequired=true. Column is abandoned: " +
+            "no entity write, RecalculatePlayerFeesAsync must NOT be invoked.");
 
         var (svc, ctx, jobId, playerMock) = await CreatePlayerScenarioAsync(
-            bPlayersFullPaymentRequired: false, recalcReturnCount: 3);
+            bPlayersFullPaymentRequired: false);
 
         var req = BuildRequest(ctx, jobId, bPlayersFullPaymentRequired: true);
         await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
 
         playerMock.Verify(p => p.RecalculatePlayerFeesAsync(
-            jobId, It.IsAny<string>(), It.IsAny<Guid?>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid?>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()), Times.Never);
 
-        PrintResult("Player recalc triggered by flag flip OFF→ON. PASS");
-    }
+        var job = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == jobId);
+        job.BPlayersFullPaymentRequired.Should().BeFalse("the abandoned phase column must never be written");
 
-    // ═══════════════════════════════════════════════════════════════
-    // PLAYER 2: BPlayersFullPaymentRequired ON → OFF triggers recalc
-    // ═══════════════════════════════════════════════════════════════
-
-    [Fact]
-    public async Task PlayersFullPayRequired_TurnedOff_TriggersPlayerRecalc()
-    {
-        PrintScenario("Players Full Pay Required: ON → OFF",
-            "Director reverts to deposit phase for players. Recalc must run again.");
-
-        var (svc, ctx, jobId, playerMock) = await CreatePlayerScenarioAsync(
-            bPlayersFullPaymentRequired: true, recalcReturnCount: 3);
-
-        var req = BuildRequest(ctx, jobId, bPlayersFullPaymentRequired: false);
-        await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
-
-        playerMock.Verify(p => p.RecalculatePlayerFeesAsync(
-            jobId, It.IsAny<string>(), It.IsAny<Guid?>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()), Times.Once);
-
-        PrintResult("Player recalc triggered by flag flip ON→OFF. PASS");
+        PrintResult("Entity flag untouched, no player recalc triggered. PASS");
     }
 
     // ═══════════════════════════════════════════════════════════════
