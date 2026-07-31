@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, signal, inject } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { DevResetLink } from '@core/api';
 
@@ -15,6 +15,15 @@ import { DevResetLink } from '@core/api';
 export class ForgotPasswordComponent {
   private readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
+
+  /**
+   * "Back to Sign In" must return to the login the user CAME FROM. This page is a top-level route
+   * (it has no :jobPath segment — one account can span jobs), so the originating job rides in on a
+   * ?jobPath= query param placed by the login page's "Forgot your password?" link. Without it we
+   * fall back to the generic /tsic/login, which is the pre-existing behaviour.
+   * Read once — a query param cannot change while this component is mounted.
+   */
+  readonly loginLink = `/${inject(ActivatedRoute).snapshot.queryParamMap.get('jobPath') || 'tsic'}/login`;
 
   // Username OR email in one field (legacy semantics) — no email validator.
   form = this.fb.group({

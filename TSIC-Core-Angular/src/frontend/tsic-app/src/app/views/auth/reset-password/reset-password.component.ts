@@ -20,6 +20,14 @@ export class ResetPasswordComponent implements OnInit {
   private token = '';
   private userId = '';
 
+  /**
+   * Where "Back to Sign In" / "Sign In Now" / the post-reset redirect send the user. Same rule as
+   * forgot-password: this is a top-level route, so the job rides in on ?jobPath=. The emailed reset
+   * link does not carry one today, so this falls back to /tsic/login exactly as before — wiring it
+   * here means the link starts working the moment the reset URL carries the job.
+   */
+  loginLink = '/tsic/login';
+
   form = this.fb.group({
     newPassword: ['', [Validators.required, Validators.minLength(6)]],
     confirmPassword: ['', [Validators.required]]
@@ -37,6 +45,7 @@ export class ResetPasswordComponent implements OnInit {
     const params = this.route.snapshot.queryParamMap;
     this.token = params.get('token') ?? '';
     this.userId = params.get('userId') ?? '';
+    this.loginLink = `/${params.get('jobPath') || 'tsic'}/login`;
 
     if (!this.token || !this.userId) {
       this.missingParams.set(true);
@@ -57,7 +66,7 @@ export class ResetPasswordComponent implements OnInit {
         this.isLoading.set(false);
         this.success.set(true);
         // Auto-redirect to login after 3 seconds
-        setTimeout(() => this.router.navigateByUrl('/tsic/login'), 3000);
+        setTimeout(() => this.router.navigateByUrl(this.loginLink), 3000);
       },
       error: (err) => {
         this.isLoading.set(false);

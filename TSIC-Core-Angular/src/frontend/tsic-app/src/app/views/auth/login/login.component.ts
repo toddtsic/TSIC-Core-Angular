@@ -3,6 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
+import { parseRouteSegments } from '@infrastructure/utils/route-segment.utils';
 import { LoginRequest } from '@infrastructure/view-models/auth.models';
 import { AutofillMonitor } from '@angular/cdk/text-field';
 
@@ -44,6 +45,11 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Escape route query params (switching themes while preserving context)
   public escapeQueryParams: Record<string, any> = {};
+
+  // Forgot-password is a TOP-LEVEL route (no :jobPath), so it can't infer which club's login the
+  // user started from — it was sending everyone back to the generic /tsic/login (Ann, AM-056).
+  // Hand it the originating job so "Back to Sign In" returns here.
+  public forgotPasswordQueryParams: Record<string, any> = {};
   public jobPathQuery: string | null = null;
 
   // Apply per-wizard theme class when embedded in wizard flows (player/family)
@@ -100,6 +106,11 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Build escape route query params so user can switch to generic login retaining original intent
     const effectiveReturnUrl = this.returnUrl()?.trim() || this._returnUrlFromQuery || '';
+    // The URL segment is authoritative (this page renders at /:jobPath/login); the ?jobPath= query
+    // form is the fallback for the embedded/reusable-screen usage, which has no job segment.
+    const originatingJobPath = parseRouteSegments(this.router.url).jSeg ?? this.jobPathQuery;
+    this.forgotPasswordQueryParams = originatingJobPath ? { jobPath: originatingJobPath } : {};
+
     this.escapeQueryParams = {
       theme: 'login',
       ...(effectiveReturnUrl ? { returnUrl: effectiveReturnUrl } : {}),
