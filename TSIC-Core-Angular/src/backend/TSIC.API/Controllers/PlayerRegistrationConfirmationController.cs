@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TSIC.API.Extensions;
 using TSIC.Contracts.Services;
 using TSIC.Contracts.Repositories;
 using TSIC.API.Services.Players;
@@ -34,19 +35,59 @@ public sealed class PlayerRegistrationConfirmationController : ControllerBase
     private readonly IEmailService _email;
     private readonly IFamilyRepository _familyRepo;
     private readonly IJobRepository _jobRepo;
+    private readonly IEmailTestSendService _testSend;
+    private readonly IHostEnvironment _env;
 
     public PlayerRegistrationConfirmationController(
         IPlayerRegConfirmationService service,
         ILogger<PlayerRegistrationConfirmationController> logger,
         IEmailService email,
         IFamilyRepository familyRepo,
-        IJobRepository jobRepo)
+        IJobRepository jobRepo,
+        IEmailTestSendService testSend,
+        IHostEnvironment env)
     {
         _service = service;
         _logger = logger;
         _email = email;
         _familyRepo = familyRepo;
         _jobRepo = jobRepo;
+        _testSend = testSend;
+        _env = env;
+    }
+
+    /// <summary>
+    /// Sandbox-only: renders THIS family's confirmation and delivers it to a single test inbox
+    /// instead of the family, so the content and formatting can be checked without emailing real
+    /// people. Same render as the live resend below (BuildEmailAsync), so what arrives is what a
+    /// family would get. Refused in Production — and refused again inside EmailTestSendService.
+    /// </summary>
+    [HttpPost("confirmation/test-send")]
+    [Authorize]
+    [ProducesResponseType(typeof(EmailTestSendResponse), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<ActionResult<EmailTestSendResponse>> TestSend(
+        [FromBody] ConfirmationTestSendRequest request, CancellationToken ct)
+    {
+        if (_env.IsLiveProduction())
+            return BadRequest(new { message = "Test sends are not permitted in Production." });
+
+        var jobPath = User.FindFirstValue("jobPath");
+        if (string.IsNullOrWhiteSpace(jobPath))
+            return BadRequest(new { message = "jobPath claim is required" });
+
+        var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(familyUserId)) return Unauthorized();
+
+        var (subject, html) = await _service.BuildEmailAsync(jobPath, familyUserId, ct);
+        if (string.IsNullOrWhiteSpace(html))
+            return BadRequest(new { message = "No confirmation content available to render" });
+
+        var result = await _testSend.SendRenderedAsync(
+            string.IsNullOrWhiteSpace(subject) ? "Registration Confirmation" : subject,
+            html, "this family", request.TestRecipient, ct);
+        return Ok(result);
     }
 
     [HttpGet("confirmation")]

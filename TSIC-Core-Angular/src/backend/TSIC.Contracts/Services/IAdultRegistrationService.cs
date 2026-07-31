@@ -1,3 +1,4 @@
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.AdultRegistration;
 
 namespace TSIC.Contracts.Services;
@@ -21,6 +22,11 @@ public interface IAdultRegistrationService
     /// Returns false when nothing went out — e.g. the user has no email address on file.
     /// </summary>
     Task<bool> SendConfirmationEmailAsync(Guid registrationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Non-prod: renders the adult/coach confirmation without sending it, for a test inbox.
+    /// </summary>
+    Task<ConfirmationPreviewDto?> BuildConfirmationPreviewAsync(Guid registrationId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get teams available for Coach role selection (excludes Waitlist/Dropped).

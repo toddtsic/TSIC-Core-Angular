@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.API.Services.Shared.UsLax;
+using TSIC.API.Services.Shared.Email;
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.AdultRegistration;
 using TSIC.Contracts.Services;
 
@@ -17,14 +19,21 @@ public class AdultRegistrationController : ControllerBase
     private readonly IJobLookupService _jobLookupService;
     private readonly IUsLaxIdentityVerificationService _usLaxVerify;
 
+    private readonly IEmailTestSendService _testSend;
+    private readonly IHostEnvironment _env;
+
     public AdultRegistrationController(
         IAdultRegistrationService service,
         IJobLookupService jobLookupService,
-        IUsLaxIdentityVerificationService usLaxVerify)
+        IUsLaxIdentityVerificationService usLaxVerify,
+        IEmailTestSendService testSend,
+        IHostEnvironment env)
     {
         _service = service;
         _jobLookupService = jobLookupService;
         _usLaxVerify = usLaxVerify;
+        _testSend = testSend;
+        _env = env;
     }
 
     /// <summary>
@@ -314,6 +323,30 @@ public class AdultRegistrationController : ControllerBase
         {
             return NotFound(new { message = ex.Message });
         }
+    }
+
+    /// <summary>
+    /// Sandbox-only: renders this registrant's confirmation and delivers it to a single test inbox
+    /// instead of the registrant. Same render as the resend below, so the test inbox shows what a
+    /// coach would actually receive. Refused in Production, and again inside EmailTestSendService.
+    /// </summary>
+    [Authorize]
+    [HttpPost("confirmation/{registrationId:guid}/test-send")]
+    [ProducesResponseType(typeof(EmailTestSendResponse), 200)]
+    [ProducesResponseType(400)]
+    public async Task<ActionResult<EmailTestSendResponse>> TestSendConfirmationEmail(
+        Guid registrationId, [FromBody] ConfirmationTestSendRequest request, CancellationToken ct)
+    {
+        if (_env.IsLiveProduction())
+            return BadRequest(new { message = "Test sends are not permitted in Production." });
+
+        var preview = await _service.BuildConfirmationPreviewAsync(registrationId, ct);
+        if (preview == null)
+            return BadRequest(new { message = "No confirmation content available to render." });
+
+        var result = await _testSend.SendRenderedAsync(
+            preview.Subject, preview.HtmlBody, preview.RenderedForName, request.TestRecipient, ct);
+        return Ok(result);
     }
 
     /// <summary>

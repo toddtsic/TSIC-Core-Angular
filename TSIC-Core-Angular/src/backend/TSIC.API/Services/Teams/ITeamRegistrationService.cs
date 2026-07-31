@@ -127,4 +127,10 @@ public interface ITeamRegistrationService
     /// restores the balance automatically). The payment is booked at submit either way.
     /// </summary>
     Task SendConfirmationEmailAsync(Guid registrationId, string userId, bool forceResend = false, bool isEcheckPending = false);
+
+    /// <summary>
+    /// Non-prod: renders the club-rep confirmation without sending it, for delivery to a test inbox.
+    /// Null when the caller does not own the registration, or the job has no template configured.
+    /// </summary>
+    Task<ConfirmationPreviewDto?> BuildConfirmationPreviewAsync(Guid registrationId, string userId, bool isEcheckPending = false);
 }

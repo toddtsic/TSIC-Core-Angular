@@ -618,6 +618,32 @@ public class AdultRegistrationService : IAdultRegistrationService
     }
 
     /// <summary>
+    /// Non-prod preview: the rendered adult/coach confirmation, without sending. Uses the same
+    /// template resolution and fallback as the real send, so what lands in the test inbox is what a
+    /// registrant would receive. Null when the registration or its rendered body is unavailable.
+    /// </summary>
+    public async Task<ConfirmationPreviewDto?> BuildConfirmationPreviewAsync(
+        Guid registrationId, CancellationToken cancellationToken = default)
+    {
+        var reg = await _repo.GetRegistrationWithJobAsync(registrationId, cancellationToken);
+        if (reg == null) return null;
+
+        var roleType = ResolveRoleTypeFromId(reg.RoleId);
+        var template = GetConfirmationEmail(reg.Job, roleType);
+        if (string.IsNullOrWhiteSpace(template)) template = DefaultConfirmationEmailBody(roleType);
+
+        var emailHtml = await SubstituteConfirmationAsync(reg, template, emailMode: true);
+        if (string.IsNullOrWhiteSpace(emailHtml)) return null;
+
+        return new ConfirmationPreviewDto
+        {
+            Subject = $"{reg.Job.JobName} — {GetRoleDisplayName(roleType)} Registration Confirmation",
+            HtmlBody = emailHtml,
+            RenderedForName = $"{reg.User?.FirstName} {reg.User?.LastName}".Trim() is { Length: > 0 } n ? n : "Registrant"
+        };
+    }
+
+    /// <summary>
     /// Builds and sends the confirmation, then stamps BConfirmationSent across the registrant's whole
     /// (user, job, role) group — a multi-team coach is N rows but ONE email, whose !F-TEAMS block
     /// already lists every team. Returns true iff mail actually went out.

@@ -13,6 +13,7 @@ using TSIC.API.Services.Clubs;
 using TSIC.API.Services.Payments;
 using TSIC.API.Services.Metadata;
 using TSIC.API.Services.Shared;
+using TSIC.API.Services.Shared.Email;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Auth;
@@ -53,6 +54,8 @@ public class TeamRegistrationController : ControllerBase
     private readonly ITokenService _tokenService;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IJobRegistrationCapabilities _capabilities;
+    private readonly IEmailTestSendService _testSend;
+    private readonly IHostEnvironment _env;
 
     public TeamRegistrationController(
         ITeamRegistrationService teamRegistrationService,
@@ -65,8 +68,12 @@ public class TeamRegistrationController : ControllerBase
         IPaymentStateService paymentState,
         ITokenService tokenService,
         UserManager<ApplicationUser> userManager,
-        IJobRegistrationCapabilities capabilities)
+        IJobRegistrationCapabilities capabilities,
+        IEmailTestSendService testSend,
+        IHostEnvironment env)
     {
+        _testSend = testSend;
+        _env = env;
         _teamRegistrationService = teamRegistrationService;
         _logger = logger;
         _jobLookupService = jobLookupService;
@@ -721,6 +728,35 @@ public class TeamRegistrationController : ControllerBase
     /// Sets bClubrep_NotificationSent flag on Registration.
     /// Uses AdultRegConfirmationEmail template from the Job.
     /// </summary>
+    /// <summary>
+    /// Sandbox-only: renders this club rep's confirmation and delivers it to a single test inbox
+    /// instead of the rep. Ownership-checked in the service exactly like the real send. Refused in
+    /// Production, and again inside EmailTestSendService.
+    /// </summary>
+    [HttpPost("test-send-confirmation-email")]
+    [Authorize]
+    [ProducesResponseType(typeof(EmailTestSendResponse), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<ActionResult<EmailTestSendResponse>> TestSendConfirmationEmail(
+        [FromBody] TeamConfirmationTestSendRequest request, CancellationToken ct)
+    {
+        if (_env.IsLiveProduction())
+            return BadRequest(new { message = "Test sends are not permitted in Production." });
+
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized(new { Message = UserNotAuthenticatedMessage });
+
+        var preview = await _teamRegistrationService.BuildConfirmationPreviewAsync(
+            request.RegistrationId, userId, request.IsEcheckPending);
+        if (preview == null)
+            return BadRequest(new { message = "No confirmation content available to render." });
+
+        var result = await _testSend.SendRenderedAsync(
+            preview.Subject, preview.HtmlBody, preview.RenderedForName, request.TestRecipient, ct);
+        return Ok(result);
+    }
+
     [HttpPost("send-confirmation-email")]
     [Authorize]
     [ProducesResponseType(200)]
@@ -992,6 +1028,14 @@ public class TeamRegistrationController : ControllerBase
 public class GetConfirmationTextRequest
 {
     public Guid RegistrationId { get; set; }
+}
+
+/// <summary>Non-prod: deliver this registration's rendered confirmation to a test inbox.</summary>
+public class TeamConfirmationTestSendRequest
+{
+    public Guid RegistrationId { get; set; }
+    public string TestRecipient { get; set; } = string.Empty;
+    public bool IsEcheckPending { get; set; }
 }
 
 public class SendConfirmationEmailRequest

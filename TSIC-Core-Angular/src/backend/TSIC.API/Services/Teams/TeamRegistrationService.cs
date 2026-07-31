@@ -1627,6 +1627,59 @@ public class TeamRegistrationService : ITeamRegistrationService
         "In the rare case your bank returns the draft (insufficient funds or other), your balance is restored automatically." +
         "</div></div>";
 
+    /// <summary>
+    /// Renders the club-rep confirmation WITHOUT sending it. Split out of the send so a non-prod test
+    /// send can reuse the exact same body (see BuildConfirmationPreviewAsync) — a preview that renders
+    /// through a different path is not a preview.
+    /// </summary>
+    private async Task<(string Subject, string Html)> RenderConfirmationAsync(
+        AdultConfirmationEmailInfo jobInfo, Guid registrationId, bool isEcheckPending)
+    {
+        // Credit card payment method ID for token substitution
+        Guid ccPaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
+
+        string emailHtml = await _textSubstitution.SubstituteAsync(
+            jobSegment: jobInfo.JobPath,
+            jobId: jobInfo.JobId,
+            paymentMethodCreditCardId: ccPaymentMethodId,
+            registrationId: registrationId,
+            familyUserId: string.Empty,
+            // Both callers reject a blank template before reaching here.
+            template: jobInfo.AdultRegConfirmationEmail ?? string.Empty);
+
+        if (isEcheckPending && !string.IsNullOrEmpty(emailHtml))
+        {
+            emailHtml = EcheckPendingBanner + emailHtml;
+        }
+
+        return ($"{jobInfo.JobName ?? "Event"} Registration Confirmation", emailHtml);
+    }
+
+    /// <summary>
+    /// Non-prod preview: the rendered club-rep confirmation plus the name it rendered for, for
+    /// delivery to a test inbox. Ownership-checked exactly like the real send — a preview is still
+    /// this registrant's data. Returns null when the caller does not own the registration.
+    /// </summary>
+    public async Task<ConfirmationPreviewDto?> BuildConfirmationPreviewAsync(
+        Guid registrationId, string userId, bool isEcheckPending = false)
+    {
+        var reg = await _registrations.GetByIdAsync(registrationId);
+        if (reg == null || reg.UserId != userId) return null;
+
+        var jobInfo = await _jobs.GetAdultConfirmationEmailInfoAsync(reg.JobId);
+        if (jobInfo == null || string.IsNullOrWhiteSpace(jobInfo.AdultRegConfirmationEmail)) return null;
+
+        var user = await _users.GetByIdAsync(userId);
+        var (subject, html) = await RenderConfirmationAsync(jobInfo, registrationId, isEcheckPending);
+
+        return new ConfirmationPreviewDto
+        {
+            Subject = subject,
+            HtmlBody = html,
+            RenderedForName = $"{user?.FirstName} {user?.LastName}".Trim() is { Length: > 0 } n ? n : "Club Rep"
+        };
+    }
+
     public async Task SendConfirmationEmailAsync(Guid registrationId, string userId, bool forceResend = false, bool isEcheckPending = false)
     {
         _logger.LogInformation("Sending confirmation email for registration {RegistrationId}, user {UserId}, forceResend {ForceResend}, isEcheckPending {IsEcheckPending}",
@@ -1669,26 +1722,12 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         try
         {
-            // Credit card payment method ID for token substitution
-            Guid ccPaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
-
-            string emailHtml = await _textSubstitution.SubstituteAsync(
-                jobSegment: jobInfo.JobPath,
-                jobId: jobInfo.JobId,
-                paymentMethodCreditCardId: ccPaymentMethodId,
-                registrationId: registrationId,
-                familyUserId: string.Empty,
-                template: jobInfo.AdultRegConfirmationEmail);
-
-            if (isEcheckPending && !string.IsNullOrEmpty(emailHtml))
-            {
-                emailHtml = EcheckPendingBanner + emailHtml;
-            }
+            var (subject, emailHtml) = await RenderConfirmationAsync(jobInfo, registrationId, isEcheckPending);
 
             var emailMessage = new EmailMessageDto
             {
                 ToAddresses = new List<string> { user.Email },
-                Subject = $"{jobInfo.JobName ?? "Event"} Registration Confirmation",
+                Subject = subject,
                 HtmlBody = emailHtml
             };
 
