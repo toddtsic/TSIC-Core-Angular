@@ -1206,3 +1206,28 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
   - **(C) All-tournaments audit**: 6c **Test 8** concordance sweep = **0/73 jobs mismatched** (Legacy phase vs new-side stamps, all tournaments 2025+); plus a `Program.cs` startup guard that refuses to boot against an unstamped DB — the audit is now structural, not one-time.
   - **Ann verify (post staging deploy)**: Fall Draw 2026 → LADT grid shows PIF, Age Group Details toggle reads ON, and a club-rep payment charges the **full $2,000** (not the $500 deposit).
 
+### PL-061: 🟡 FIXED (Todd, 07-31) — awaiting Ann verify post-deploy — A club rep who paid a balance due received NO confirmation email
+- **Source**: Found by Claude while tracing AM-060 (2026-07-31). **Not filed by Ann** — this is a defect nobody had reported, which is exactly why it matters: the failure is silent to everyone except the club rep who never got mail.
+- **Area**: Team registration → Club Rep **Pay Balance Due** (and any team charge after the first).
+- **What was broken**: the club rep completed a payment and got **nothing**. The team review screen asked for the confirmation with `forceResend: false`, which hit `if (!forceResend && reg.BConfirmationSent) return;` — and `BConfirmationSent` had already been stamped **at initial registration**. So the first registration mailed a confirmation, and **every subsequent payment silently mailed nothing.** Money moved, no receipt.
+- **Fix** (`f9039add`): the send now happens **in the payment path**, not the screen. `ChargeTeamsAsync` ([PaymentService.cs](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Payments/PaymentService.cs)) calls the confirmation with `forceResend: true` once a charge succeeds (`failedCount < attempted`), passing `isEcheckPending` so an eCheck submission gets the settlement-pending banner. The send is wrapped so **any email failure is swallowed and logged** — the money already moved; a mail hiccup must never fail the payment. No double-send: the review screen's later `forceResend:false` call now no-ops against the flag this send sets.
+
+#### ⚠️ How to test this — the Test Email popover does NOT cover it
+Ann: the new **Test Email** button on the confirmation screens (AM-062) and **this fix** test two different things. Please don't treat one as covering the other.
+
+| | What it proves | What it does NOT prove |
+|---|---|---|
+| **Test Email popover** (AM-062) | The confirmation **content** is right — tokens resolve, amounts/teams are correct, the eCheck banner renders, formatting holds in a real inbox. It renders through the *same* code the live send uses, so content sign-off here is genuine. | That the email is ever **sent**. It never touches the payment code. |
+| **A real balance-due payment** (this item) | That the send actually **fires** after money moves, reaches the club rep, and isn't duplicated. | (nothing — this is the one that matters here) |
+
+**The bug was never a rendering bug — it was the send not firing.** So it can only be verified by putting a real payment through.
+
+**Ann verify (post staging deploy)** — on a team job where the club rep already registered (so `BConfirmationSent` is already set, which is the condition that caused the bug):
+1. Log in as the club rep → **Pay Balance Due** → pay by **credit card**. Confirm the club rep's inbox receives a confirmation, and that it reflects the **payment just made** (not the original registration).
+2. Repeat with an **eCheck** payment → confirmation should arrive **with the settlement-pending banner**.
+3. Confirm **exactly one** email arrives per payment, not two (the review screen also asks for one — it should no-op).
+4. **Watch for a 500 on the payment itself.** This fix injected a new dependency into `PaymentService`; if that resolution is wrong it surfaces as an error on the **first charge attempt**, not at startup. A payment that errors out immediately — before any card processing — is this, and is worth reporting straight away.
+- **Severity**: 🔴 HIGH — a paying customer receives no receipt. Silent: no error, no log, nothing for the director to notice.
+- **Cross-ref**: AM-062 (test-send — content only), AM-060 (admin resend action, still open), AM-018 (confirmation CC/BCC).
+- **Status**: 🟡 **FIXED (Todd, 07-31)** — `f9039add` pushed. **Never exercised against a real charge** — needs the E2E above.
+
