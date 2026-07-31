@@ -190,7 +190,7 @@ const JOB_TYPE_TOURNAMENT = 2;
             namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; onFeeAmountStart(); clearFeeError()"
             [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
             [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
-            [modifiers]="clubRepModifiers" [phaseNote]="phaseNote('clubRep')"
+            [modifiers]="clubRepModifiers"
             [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
             hintText="Team override — applies only to this team. Overrides the age group and league. Leave blank to inherit."
             placeholder="Agegroup default" [scope]="'team'" />
@@ -198,7 +198,7 @@ const JOB_TYPE_TOURNAMENT = 2;
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; onFeeAmountStart(); clearFeeError()"
             [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
             [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
-            [modifiers]="playerModifiers" [phaseNote]="phaseNote('player')"
+            [modifiers]="playerModifiers"
             [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
             hintText="Team override — applies only to this team. Overrides the age group and league. Leave blank to inherit."
             placeholder="Agegroup default" [scope]="'team'" />
@@ -207,7 +207,7 @@ const JOB_TYPE_TOURNAMENT = 2;
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; onFeeAmountStart(); clearFeeError()"
             [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
             [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
-            [modifiers]="playerModifiers" [phaseNote]="phaseNote('player')"
+            [modifiers]="playerModifiers"
             [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
             hintText="Team override — applies only to this team. Overrides the age group and league. Leave blank to inherit."
             placeholder="Agegroup default" [scope]="'team'" />
@@ -215,7 +215,7 @@ const JOB_TYPE_TOURNAMENT = 2;
             namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; onFeeAmountStart(); clearFeeError()"
             [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
             [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
-            [modifiers]="clubRepModifiers" [phaseNote]="phaseNote('clubRep')"
+            [modifiers]="clubRepModifiers"
             [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
             hintText="Team override — applies only to this team. Overrides the age group and league. Leave blank to inherit."
             placeholder="Agegroup default" [scope]="'team'" />
@@ -824,19 +824,6 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
       this.isError.set(false);
       this.saveMessage.set(null);
     }
-  }
-
-  /**
-   * Read-only phase pointer for the team card. When a team-level fee exists, the card's own
-   * toggle + amount-aware explanation own the phase display, so this returns null. The team is
-   * the leaf of the cascade — with no fee set here, phase is inherited from above, so point UP
-   * (the league/age-group fly-ins point down; the leaf has nothing below it).
-   */
-  phaseNote(role: 'player' | 'clubRep'): string | null {
-    const dep = role === 'player' ? this.feeForm.playerDeposit : this.feeForm.clubRepDeposit;
-    const bal = role === 'player' ? this.feeForm.playerBalanceDue : this.feeForm.clubRepBalanceDue;
-    if (dep != null || bal != null) return null;
-    return 'Inherits from the age group.';
   }
 
   private captureOriginals(): void {

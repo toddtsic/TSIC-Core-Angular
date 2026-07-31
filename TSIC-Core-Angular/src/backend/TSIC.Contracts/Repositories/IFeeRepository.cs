@@ -180,12 +180,14 @@ public record ResolvedFee
     public decimal? BalanceDue { get; init; }
 
     /// <summary>
-    /// Per-scope full-payment phase override, cascaded team → agegroup → league
-    /// (most-specific non-null wins). NULL = no scope set it = deposit phase — the
-    /// legacy job-level columns are ABANDONED as phase sources (6a §8P materialized
-    /// legacy full-payment jobs into per-scope stamps). TRUE = full payment (balance
-    /// due now) at this scope. Effective phase = <c>BFullPaymentRequired ?? false</c>
-    /// via <see cref="ResolvedFee.ResolveFullPaymentPhase"/>.
+    /// Per-scope payment phase, cascaded team → agegroup → league (most-specific
+    /// non-null wins, exactly like the amount fields). TRUE = full payment (balance
+    /// due now) at this scope. FALSE = explicit deposit phase — a veto that stops the
+    /// cascade (a team/agegroup can opt back to deposit under a full-payment parent).
+    /// NULL = no opinion at this scope; if every tier is silent the phase is deposit —
+    /// the legacy job-level columns are ABANDONED as phase sources (6a §8P materialized
+    /// legacy full-payment jobs into per-scope stamps). Effective phase =
+    /// <c>BFullPaymentRequired ?? false</c> via <see cref="ResolvedFee.ResolveFullPaymentPhase"/>.
     /// </summary>
     public bool? BFullPaymentRequired { get; init; }
 
@@ -231,8 +233,9 @@ public record ResolvedFee
     /// Migration seed 6a §8P materializes legacy full-payment jobs into per-scope
     /// stamps, and startup validation refuses to run against an unstamped DB, so the
     /// fallback that used to live here (<c>?? jobBaseline</c>) can never be needed.
-    /// Dropping it is what makes the LADT two-state toggle honest: unchecked = null
-    /// = deposit, with no invisible baseline underneath.
+    /// Dropping it is what makes the LADT phase control honest: with no invisible
+    /// baseline underneath, null = silence = deposit, and an explicit false is a real
+    /// deposit veto rather than a value the baseline could shadow.
     ///
     /// Every consumer that needs to know "deposit phase or balance-due phase?" —
     /// fee stamping (<c>FeeResolutionService</c> chokepoint), the registered-teams

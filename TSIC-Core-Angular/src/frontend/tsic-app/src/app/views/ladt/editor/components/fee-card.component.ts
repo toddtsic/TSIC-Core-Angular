@@ -80,31 +80,33 @@ export function modifierDateError(mods: ModifierForm[]): string | null {
 
       }
 
-      @if (showPhaseToggle() || phaseExplanation() || phaseNote()) {
-        <div class="phase-section" [class.fee-inputs-locked]="toggleDisabled()">
-          <label class="fee-label phase-section-label">Payment Phase</label>
-          @if (showPhaseToggle()) {
-            <div class="form-check form-switch mb-0">
-              <input class="form-check-input" type="checkbox" role="switch"
-                     [id]="namePrefix() + 'Phase'"
-                     [checked]="bFullPaymentRequired() === true"
-                     [attr.disabled]="toggleDisabled() ? '' : null"
-                     (change)="onPhaseToggle($any($event.target).checked)">
-              <label class="form-check-label phase-switch-label" [for]="namePrefix() + 'Phase'">
-                Require full payment now
-              </label>
-            </div>
+      <div class="phase-section" [class.fee-inputs-locked]="toggleDisabled()">
+        <label class="fee-label phase-section-label">Payment Phase</label>
+        <div class="phase-seg" role="group" [attr.aria-label]="'Payment phase — ' + header()">
+          @if (scope() !== 'league') {
+            <button type="button" class="phase-seg-btn"
+                    [class.active]="phaseChoice() === 'inherit'"
+                    [attr.aria-pressed]="phaseChoice() === 'inherit'"
+                    [attr.disabled]="toggleDisabled() ? '' : null"
+                    (click)="onPhaseSelect(null)">Inherit</button>
           }
-          @if (phaseExplanation(); as explain) {
-            <p class="phase-explain" [class.on]="bFullPaymentRequired() === true">
-              <i class="bi {{ phaseIcon() }}"></i><span>{{ explain }}</span>
-            </p>
-          }
-          @if (phaseNote()) {
-            <p class="phase-note">{{ phaseNote() }}</p>
-          }
+          <button type="button" class="phase-seg-btn"
+                  [class.active]="phaseChoice() === 'deposit'"
+                  [attr.aria-pressed]="phaseChoice() === 'deposit'"
+                  [attr.disabled]="toggleDisabled() ? '' : null"
+                  (click)="onPhaseSelect(scope() === 'league' ? null : false)">Deposit first</button>
+          <button type="button" class="phase-seg-btn"
+                  [class.active]="phaseChoice() === 'full'"
+                  [attr.aria-pressed]="phaseChoice() === 'full'"
+                  [attr.disabled]="toggleDisabled() ? '' : null"
+                  (click)="onPhaseSelect(true)">Full payment</button>
         </div>
-      }
+        @if (phaseExplanation(); as explain) {
+          <p class="phase-explain" [class.on]="bFullPaymentRequired() === true">
+            <i class="bi {{ phaseIcon() }}"></i><span>{{ explain }}</span>
+          </p>
+        }
+      </div>
 
       @for (mod of modifiers(); track mod.modifierType) {
         @if ($first) {
@@ -223,14 +225,37 @@ export function modifierDateError(mods: ModifierForm[]): string | null {
     .phase-section-label {
       font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0;
     }
-    .phase-switch-label { font-size: var(--font-size-xs); font-weight: 600; cursor: pointer; }
+    .phase-seg {
+      display: inline-flex; align-self: flex-start;
+      border: 1px solid var(--bs-border-color); border-radius: var(--radius-sm);
+      overflow: hidden; background: var(--bs-body-bg);
+    }
+    .phase-seg-btn {
+      border: none; background: transparent; color: var(--bs-secondary-color);
+      font-size: var(--font-size-xs); font-weight: 600;
+      padding: var(--space-1) var(--space-3); cursor: pointer;
+      transition: background-color 0.12s ease, color 0.12s ease;
+    }
+    .phase-seg-btn + .phase-seg-btn { border-left: 1px solid var(--bs-border-color); }
+    .phase-seg-btn.active {
+      background: rgba(var(--bs-primary-rgb), 0.12);
+      color: var(--bs-primary-text-emphasis);
+      font-weight: 700;
+    }
+    .phase-seg-btn:focus-visible {
+      outline: none;
+      box-shadow: var(--shadow-focus);
+      position: relative; z-index: 1;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .phase-seg-btn { transition: none; }
+    }
     .phase-explain {
       font-size: var(--font-size-xs); color: var(--bs-secondary-color); margin: 0;
       display: flex; align-items: flex-start; gap: 4px;
     }
     .phase-explain.on { color: var(--bs-success); font-weight: 600; }
     .phase-explain i { margin-top: 1px; }
-    .phase-note { font-size: var(--font-size-xs); color: var(--bs-secondary-color); margin: 0; display: flex; align-items: center; }
 
     .modifier-labels {
       display: grid;
@@ -304,14 +329,13 @@ export class FeeCardComponent {
   readonly showBaseFee = input(true);
 
   /**
-   * Per-scope full-payment phase override: true = on, null = inherit from a less-specific
-   * scope / the job baseline. v1 is two-state (the switch writes true or null).
+   * Per-scope payment phase, cascading like every other fee field (most-specific non-null
+   * wins): true = full payment, false = explicit deposit (a veto that stops the cascade),
+   * null = inherit from a less-specific scope (deposit if no scope sets it). At league
+   * scope — the top tier — false and null resolve identically, so the card exposes only
+   * Deposit/Full there and "Deposit first" writes null (no pointless row).
    */
   readonly bFullPaymentRequired = input<boolean | null>(null);
-
-  /** Optional read-only phase status line — used at league scope when no fee is set here,
-   *  to point the admin to where phase is managed (age group / team). */
-  readonly phaseNote = input<string | null>(null);
 
   /** Cascade scope — names who this card's setting flows down to (and who can override it)
    *  in the phase explanation copy. */
@@ -328,59 +352,84 @@ export class FeeCardComponent {
   readonly toggleDisabled = input(false);
 
   /**
-   * The phase toggle only does something when there's a deposit to defer. With a
-   * balance-only fee, ON and OFF collect the same amount (the balance), so the toggle is a
-   * no-op — we hide it and show a single-payment line instead.
+   * The stored phase value mapped to the segmented control's selection. Below league,
+   * null = Inherit and false = an explicit Deposit veto. At league — the top tier, with
+   * nothing above to inherit from — null (and a legacy false) both read as Deposit.
    */
-  readonly showPhaseToggle = computed(() => (this.deposit() ?? 0) > 0);
+  readonly phaseChoice = computed<'inherit' | 'deposit' | 'full'>(() => {
+    const v = this.bFullPaymentRequired();
+    if (v === true) return 'full';
+    if (v === false) return 'deposit';
+    return this.scope() === 'league' ? 'deposit' : 'inherit';
+  });
 
   /**
-   * Director-facing explanation of the effective phase — amount-aware and scope-aware.
-   * Balance-only → single payment; deposit + balance → ON = full now (+ cascade down),
-   * OFF = inherit (+ a more-specific scope can still require full payment).
+   * Director-facing explanation of the selected phase — amount-aware (quotes this card's
+   * deposit/balance when both are set; a league/age-group stamp also governs lower scopes
+   * whose amounts live elsewhere, so no local amounts ≠ no effect) and scope-aware
+   * (cascade reach + who can still override).
    */
   readonly phaseExplanation = computed<string | null>(() => {
     const d = this.deposit() ?? 0;
     const b = this.balanceDue() ?? 0;
-    if (d <= 0) {
-      return b > 0 ? `Single payment of ${this.money(b)} at registration — no deposit to defer.` : null;
+    // Leaf scope with a single local payment — the phase genuinely cannot matter here.
+    if (this.scope() === 'team' && d <= 0 && b > 0) {
+      return `Single payment of ${this.money(b)} at registration — no deposit to defer.`;
     }
-    if (this.bFullPaymentRequired() === true) {
-      return `Full payment now: collect ${this.money(d)} + ${this.money(b)} = ${this.money(d + b)} `
-           + `at registration — no Final Balance Due.${this.cascadeOn()}`;
+    switch (this.phaseChoice()) {
+      case 'full': {
+        const amounts = d > 0 && b > 0
+          ? `: collect ${this.money(d)} + ${this.money(b)} = ${this.money(d + b)} at registration — no Final Balance Due`
+          : ' — the full price is collected at registration';
+        return `Full payment${amounts}.${this.cascadeOn()}`;
+      }
+      case 'deposit': {
+        const amounts = d > 0 && b > 0 ? ` (${this.money(d)} now, ${this.money(b)} later)` : '';
+        return this.scope() === 'league'
+          ? `Deposit first${amounts}: registrants pay the deposit at registration and the Final Balance Due later.${this.cascadeOff()}`
+          : `Deposit first${amounts}, regardless of any higher-level setting.${this.cascadeOn()}`;
+      }
+      default: {
+        const from = this.scope() === 'team' ? 'the age group or league' : 'the league';
+        return `No phase set here — inherits from ${from}; deposit first when nothing is set anywhere.${this.cascadeOff()}`;
+      }
     }
-    return `Inheriting the payment phase. Unless a higher level requires full payment, registrants pay `
-         + `${this.money(d)} now and ${this.money(b)} later (Final Balance Due).${this.cascadeOff()}`;
   });
 
   readonly phaseIcon = computed(() => {
-    if ((this.deposit() ?? 0) <= 0) return 'bi-cash';
-    return this.bFullPaymentRequired() === true ? 'bi-cash-stack' : 'bi-hourglass-split';
+    if (this.scope() === 'team' && (this.deposit() ?? 0) <= 0 && (this.balanceDue() ?? 0) > 0) return 'bi-cash';
+    switch (this.phaseChoice()) {
+      case 'full': return 'bi-cash-stack';
+      case 'deposit': return 'bi-hourglass-split';
+      default: return 'bi-arrow-up-circle';
+    }
   });
 
-  onPhaseToggle(checked: boolean): void {
-    this.bFullPaymentRequiredChange.emit(checked ? true : null);
+  /** Re-selecting the current choice is a no-op (don't dirty the form or re-open prompts). */
+  onPhaseSelect(value: boolean | null): void {
+    if (value === this.bFullPaymentRequired()) return;
+    this.bFullPaymentRequiredChange.emit(value);
   }
 
   private money(n: number): string {
     return '$' + Math.round(n).toLocaleString('en-US');
   }
 
-  /** Downward reach when full payment is required at this scope. */
+  /** Downward reach of an explicit phase at this scope (a lower scope's own stamp still wins). */
   private cascadeOn(): string {
     switch (this.scope()) {
-      case 'league': return ' Applies to every age group and team in this league.';
-      case 'agegroup': return ' Applies to every team in this age group.';
-      case 'team': return ' Applies to this team.';
+      case 'league': return ' Applies to every age group and team that doesn\'t set its own phase.';
+      case 'agegroup': return ' Applies to every team in this age group that doesn\'t set its own phase.';
+      case 'team': return ' Applies to this team only.';
       default: return '';
     }
   }
 
-  /** Override note when this scope is inheriting (a more-specific scope can still escalate). */
+  /** Override note when this scope sets nothing binding downward (inherit / league default). */
   private cascadeOff(): string {
     switch (this.scope()) {
-      case 'league': return ' An age group or team can still require full payment on its own.';
-      case 'agegroup': return ' A team can still require full payment on its own.';
+      case 'league': return ' An age group or team can still set its own phase.';
+      case 'agegroup': return ' A team can still set its own phase.';
       default: return '';
     }
   }

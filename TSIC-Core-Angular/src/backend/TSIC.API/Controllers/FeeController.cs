@@ -225,7 +225,7 @@ public class FeeController : ControllerBase
         if ((request.RepriceExisting || phaseChanged)
             && (request.RoleId == RoleConstants.Player || request.RoleId == RoleConstants.ClubRep))
         {
-            repriced = await DispatchRepriceAsync(jobId, userId, request, ct);
+            repriced = await DispatchRepriceAsync(jobId, userId, request.RoleId, request.AgegroupId, request.TeamId, ct);
         }
 
         return Ok(new SaveJobFeeResponse { Fee = MapToDto(row), RegistrationsRepriced = repriced });
@@ -239,20 +239,20 @@ public class FeeController : ControllerBase
     /// whole job — only in-scope teams actually change; the rest recompute to the same value.
     /// </summary>
     private async Task<int> DispatchRepriceAsync(
-        Guid jobId, string? userId, SaveJobFeeRequest request, CancellationToken ct)
+        Guid jobId, string? userId, string roleId, Guid? agegroupId, Guid? teamId, CancellationToken ct)
     {
         // Stamp the audit user; fall back to SuperUser (a real AspNetUsers FK) if the claim
         // is somehow absent, matching JobConfigService's recalc trigger.
         var actor = userId ?? TsicConstants.SuperUserId;
 
-        if (request.RoleId == RoleConstants.Player)
+        if (roleId == RoleConstants.Player)
         {
             return await _playerRegService.RecalculatePlayerFeesAsync(
-                jobId, actor, request.AgegroupId, request.TeamId, ct);
+                jobId, actor, agegroupId, teamId, ct);
         }
 
-        var teamRequest = request.TeamId.HasValue
-            ? new RecalculateTeamFeesRequest { TeamId = request.TeamId.Value }
+        var teamRequest = teamId.HasValue
+            ? new RecalculateTeamFeesRequest { TeamId = teamId.Value }
             : new RecalculateTeamFeesRequest { JobId = jobId };
         var result = await _teamRegService.RecalculateTeamFeesAsync(teamRequest, actor);
         return result.UpdatedCount;
@@ -322,7 +322,7 @@ public class FeeController : ControllerBase
             existing.Modified = DateTime.Now;
             existing.LebUserId = userId;
         }
-        else
+        else if (phase != null)   // an all-null row stamps nothing — clear-to-inherit only touches existing rows
         {
             _feeRepo.Add(new JobFees
             {
@@ -365,7 +365,11 @@ public class FeeController : ControllerBase
             || agegroupName.Contains("DROPPED", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    /// Delete a fee row (and its modifiers via cascade).
+    /// Delete a fee row (and its modifiers via cascade). Deleting a row that carried a phase
+    /// stamp CHANGES the effective phase for its scope (the stamp no longer wins the cascade) —
+    /// and phase changes are always retroactive — so this mirrors <see cref="SaveFee"/>'s forced
+    /// reprice. Without it, clearing a phase-only override (e.g. league back to "Deposit first")
+    /// would leave existing registrations priced on the deleted stamp.
     /// </summary>
     [HttpDelete("{jobFeeId:guid}")]
     public async Task<ActionResult> DeleteFee(Guid jobFeeId, CancellationToken ct)
@@ -376,8 +380,21 @@ public class FeeController : ControllerBase
         if (row == null || row.JobId != jobId)
             return NotFound();
 
+        var hadPhaseStamp = row.BFullPaymentRequired != null
+            && (row.RoleId == RoleConstants.Player || row.RoleId == RoleConstants.ClubRep);
+        var roleId = row.RoleId;
+        var agegroupId = row.AgegroupId;
+        var teamId = row.TeamId;
+
         _feeRepo.Remove(row);
         await _feeRepo.SaveChangesAsync(ct);
+
+        if (hadPhaseStamp && roleId != null)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            await DispatchRepriceAsync(jobId, userId, roleId, agegroupId, teamId, ct);
+        }
+
         return NoContent();
     }
 

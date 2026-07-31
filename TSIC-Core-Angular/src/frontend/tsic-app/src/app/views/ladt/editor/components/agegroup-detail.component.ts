@@ -143,7 +143,7 @@ const JOB_TYPE_TOURNAMENT = 2;
               namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; onFeeAmountStart(); clearFeeError()"
               [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
               [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
-              [modifiers]="clubRepModifiers" [scope]="'agegroup'" [phaseNote]="phaseNote('clubRep')"
+              [modifiers]="clubRepModifiers" [scope]="'agegroup'"
               [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
               hintText="Age group default for every team in it, unless a team sets its own. Overrides the league." />
           }
@@ -151,7 +151,7 @@ const JOB_TYPE_TOURNAMENT = 2;
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; onFeeAmountStart(); clearFeeError()"
             [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
             [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
-            [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'" [phaseNote]="phaseNote('player')"
+            [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'"
             [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
             hintText="Age group default for every team in it, unless a team sets its own. Overrides the league." />
         } @else {
@@ -159,7 +159,7 @@ const JOB_TYPE_TOURNAMENT = 2;
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; onFeeAmountStart(); clearFeeError()"
             [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
             [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
-            [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'" [phaseNote]="phaseNote('player')"
+            [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'"
             [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
             hintText="Age group default for every team in it, unless a team sets its own. Overrides the league." />
           @if (showClubRepFees()) {
@@ -167,7 +167,7 @@ const JOB_TYPE_TOURNAMENT = 2;
               namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; onFeeAmountStart(); clearFeeError()"
               [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
               [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
-              [modifiers]="clubRepModifiers" [scope]="'agegroup'" [phaseNote]="phaseNote('clubRep')"
+              [modifiers]="clubRepModifiers" [scope]="'agegroup'"
               [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
               hintText="Age group default for every team in it, unless a team sets its own. Overrides the league." />
           }
@@ -847,19 +847,6 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
       this.isError.set(false);
       this.saveMessage.set(null);
     }
-  }
-
-  /**
-   * Read-only phase pointer for the age-group card. When an age-group fee exists, the card's
-   * own toggle + amount-aware explanation own the phase display, so this returns null. When no
-   * fee is set here, phase can still be overridden one tier down — point there (mirrors the
-   * "See team settings" fallback in the age-group grid's Payment Phase column).
-   */
-  phaseNote(role: 'player' | 'clubRep'): string | null {
-    const dep = role === 'player' ? this.feeForm.playerDeposit : this.feeForm.clubRepDeposit;
-    const bal = role === 'player' ? this.feeForm.playerBalanceDue : this.feeForm.clubRepBalanceDue;
-    if (dep != null || bal != null) return null;
-    return 'See team settings.';
   }
 
   private captureOriginals(): void {

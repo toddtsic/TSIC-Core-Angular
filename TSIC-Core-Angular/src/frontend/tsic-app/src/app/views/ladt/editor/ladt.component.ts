@@ -944,15 +944,19 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
       //     fee's location is a separate axis (the Fees column); conflating them here misreported
       //     where the phase came from.
       const phaseSource = e.phase?.source ?? 'job';
+      // The phase choice only MEANS something when the fee has BOTH a deposit and a balance to
+      // split. A balance-only (or deposit-only) fee is a single payment — the phase is inert
+      // (both settings stamp the same FeeBase) — so the pill reads "Single", no phase, no badge.
+      // When THIS tier resolves no amounts at all (e.g. a league phase-only stamp whose
+      // deposits live on the age groups), the single-payment verdict can't be made from here —
+      // show the stamp (Deposit/PIF) rather than a false "Single".
+      const hasAmounts = e.deposit != null || e.balanceDue != null;
       phase.push({
         roleId, roleLabel,
         fullPayment: e.phase?.value ?? this.jobBaselineFor(roleId),
         source: phaseSource,
         inherited: isInherited(phaseSource), // job (and any higher-than-scope tier) → "from X"
-        // The phase choice only MEANS something when the fee has BOTH a deposit and a balance to
-        // split. A balance-only (or deposit-only) fee is a single payment — the phase is inert
-        // (both settings stamp the same FeeBase) — so the pill reads "Single", no phase, no badge.
-        twoPhase: (e.deposit ?? 0) > 0 && (e.balanceDue ?? 0) > 0,
+        twoPhase: hasAmounts ? (e.deposit ?? 0) > 0 && (e.balanceDue ?? 0) > 0 : e.phase != null,
       });
     }
 
