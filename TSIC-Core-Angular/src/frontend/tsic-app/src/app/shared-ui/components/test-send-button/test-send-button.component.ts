@@ -31,7 +31,9 @@ export interface TestSendOptions {
             </button>
 
             @if (open()) {
-                <div class="test-send-panel" [class.align-left]="align() === 'left'">
+                <div class="test-send-panel"
+                    [class.align-left]="align() === 'left'"
+                    [class.drop-down]="drop() === 'down'">
                     <div class="mb-2">
                         <label for="test-send-to" class="form-label mb-1">Send test to</label>
                         <input id="test-send-to" type="email" class="form-control form-control-sm"
@@ -69,6 +71,13 @@ export interface TestSendOptions {
             right: auto;
             left: 0;
         }
+        /* Open downward when the trigger sits at the top of a scrolling container — an
+           absolutely-positioned panel cannot escape an overflow ancestor's clip, so opening
+           upward there paints under the surface's header. */
+        .test-send-panel.drop-down {
+            bottom: auto;
+            top: calc(100% + var(--space-2, 8px));
+        }
         .test-send-panel :focus-visible {
             outline: none;
             box-shadow: var(--shadow-focus);
@@ -88,6 +97,10 @@ export class TestSendButtonComponent {
      *  right edge); use 'left' when the button sits at the left of its container so the panel
      *  opens inward instead of overflowing (e.g. the reg-detail fly-in). */
     readonly align = input<'left' | 'right'>('right');
+    /** Which way the popover opens. Default 'up' suits buttons at the bottom of their surface
+     *  (modal footers, wizard action rows); use 'down' when the button sits at the TOP of a
+     *  scrolling container, where an upward panel is clipped by the scroll ancestor. */
+    readonly drop = input<'up' | 'down'>('up');
     readonly send = output<TestSendOptions>();
 
     readonly open = signal(false);
