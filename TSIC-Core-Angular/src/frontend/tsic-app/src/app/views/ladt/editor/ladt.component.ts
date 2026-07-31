@@ -775,6 +775,37 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
       : this.jobPlayersFullPayment();
   }
 
+  /**
+   * Phase resolved from the tiers ABOVE a detail node's own scope — what governs the node when
+   * its "Use league/age group setting" radio is chosen. Team → its age group's effective phase
+   * (agegroup → league → job); age group → its league's. Computed from the same cached fees as
+   * the grid pills, and deliberately EXCLUDING the node's own stamp so the fly-in's
+   * "Currently: …" line stays honest mid-edit (while an unsaved radio change is pending).
+   */
+  ancestorPhaseFor(node: LadtFlatNode): { player: { full: boolean; source: string }; clubRep: { full: boolean; source: string } } | null {
+    let scopeId: string | undefined;
+    let scopeType: 'league' | 'agegroup' | undefined;
+    if (node.level === 3) {
+      const parent = this.flatNodes().find(n => n.id === node.parentId);
+      const agId = parent?.level === 2 ? parent.parentId ?? undefined : parent?.id;
+      if (agId) { scopeId = agId; scopeType = 'agegroup'; }
+    } else if (node.level === 1 && node.parentId) {
+      scopeId = node.parentId;
+      scopeType = 'league';
+    }
+    if (!scopeId || !scopeType) return null;
+
+    const phase = this.buildFeeData(scopeId, scopeType).phase;
+    const pick = (roleId: string) => {
+      const e = phase.find(p => p.roleId === roleId);
+      return { full: e?.fullPayment ?? this.jobBaselineFor(roleId), source: e?.source ?? 'job' };
+    };
+    return {
+      player: pick(LadtEditorComponent.PLAYER_ROLE_ID),
+      clubRep: pick(LadtEditorComponent.CLUBREP_ROLE_ID)
+    };
+  }
+
   private buildFeeData(scopeId: string, scopeType: 'league' | 'agegroup' | 'team'): {
     fees: any[]; earlyBird: any[]; lateFee: any[]; phase: any[];
   } {

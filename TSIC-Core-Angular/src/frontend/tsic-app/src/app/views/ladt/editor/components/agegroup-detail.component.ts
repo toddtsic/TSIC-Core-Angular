@@ -6,7 +6,7 @@ import { LadtService } from '../services/ladt.service';
 import { LadtEditGuardService } from '../services/ladt-edit-guard.service';
 import { FeeRepriceService } from '../services/fee-reprice.service';
 import { ToastService } from '../../../../shared-ui/toast.service';
-import { FeeCardComponent, modifierDateError, type ModifierForm } from './fee-card.component';
+import { FeeCardComponent, modifierDateError, type AncestorPhase, type ModifierForm } from './fee-card.component';
 import { RepriceConfirmComponent, type RepriceDialog } from './reprice-confirm.component';
 import { CloneAgegroupDialogComponent } from './clone-agegroup-dialog.component';
 import type { AgegroupDetailDto, UpdateAgegroupRequest, JobFeeDto, FeeModifierDto } from '../../../../core/api';
@@ -143,7 +143,7 @@ const JOB_TYPE_TOURNAMENT = 2;
               namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; onFeeAmountStart(); clearFeeError()"
               [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
               [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
-              [modifiers]="clubRepModifiers" [scope]="'agegroup'"
+              [modifiers]="clubRepModifiers" [scope]="'agegroup'" [ancestorPhase]="ancestorPhase()?.clubRep ?? null"
               [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
               hintText="Age group default for every team in it, unless a team sets its own. Overrides the league." />
           }
@@ -151,7 +151,7 @@ const JOB_TYPE_TOURNAMENT = 2;
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; onFeeAmountStart(); clearFeeError()"
             [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
             [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
-            [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'"
+            [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'" [ancestorPhase]="ancestorPhase()?.player ?? null"
             [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
             hintText="Age group default for every team in it, unless a team sets its own. Overrides the league." />
         } @else {
@@ -159,7 +159,7 @@ const JOB_TYPE_TOURNAMENT = 2;
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; onFeeAmountStart(); clearFeeError()"
             [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
             [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
-            [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'"
+            [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'" [ancestorPhase]="ancestorPhase()?.player ?? null"
             [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
             hintText="Age group default for every team in it, unless a team sets its own. Overrides the league." />
           @if (showClubRepFees()) {
@@ -167,7 +167,7 @@ const JOB_TYPE_TOURNAMENT = 2;
               namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; onFeeAmountStart(); clearFeeError()"
               [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
               [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
-              [modifiers]="clubRepModifiers" [scope]="'agegroup'"
+              [modifiers]="clubRepModifiers" [scope]="'agegroup'" [ancestorPhase]="ancestorPhase()?.clubRep ?? null"
               [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
               hintText="Age group default for every team in it, unless a team sets its own. Overrides the league." />
           }
@@ -288,6 +288,9 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
   /** Parent league (the level-1 node's parentId). Enables the "apply phase to every age
    *  group in this league" scope choice on a phase flip; null = single-age-group only. */
   readonly leagueId = input<string | null>(null);
+  /** Phase resolved from the tiers above this age group (league → job), per role — drives the
+   *  fee cards' "Currently: … — set at league level" line under the "Use league setting" radio. */
+  readonly ancestorPhase = input<{ player: AncestorPhase; clubRep: AncestorPhase } | null>(null);
   readonly canDelete = input(true);
   readonly playerCount = input(0);
   readonly saved = output<void>();

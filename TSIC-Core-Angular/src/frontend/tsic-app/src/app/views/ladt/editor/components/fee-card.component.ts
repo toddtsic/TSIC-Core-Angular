@@ -10,6 +10,16 @@ export interface ModifierForm {
 }
 
 /**
+ * The phase resolved from the tiers ABOVE a card's own scope (what governs when the
+ * "Use league/age group setting" radio is chosen): the effective value plus the tier
+ * that set it ('league' / 'agegroup', or 'job' = nothing set anywhere → deposit).
+ */
+export interface AncestorPhase {
+  full: boolean;
+  source: string;
+}
+
+/**
  * Every Early Bird Discount and Late Fee must carry BOTH a start AND an end date — the window
  * is what gives the modifier meaning. An open-ended late fee silently behaves as a permanent
  * surcharge "active since the dawn of time"; an open-ended early bird is a permanent discount.
@@ -111,7 +121,7 @@ export function modifierDateError(mods: ModifierForm[]): string | null {
           </div>
         </div>
         @if (phaseExplanation(); as explain) {
-          <p class="phase-explain" [class.on]="bFullPaymentRequired() === true">
+          <p class="phase-explain" [class.on]="explainOn()">
             <i class="bi {{ phaseIcon() }}"></i><span>{{ explain }}</span>
           </p>
         }
@@ -334,6 +344,11 @@ export class FeeCardComponent {
    */
   readonly bFullPaymentRequired = input<boolean | null>(null);
 
+  /** Resolved phase from the tiers above this scope — lets the "use the level above" choice
+   *  state the actual outcome ("Currently: Full payment now — set at league level") instead
+   *  of describing the cascade rule. Omitted at league scope (nothing above). */
+  readonly ancestorPhase = input<AncestorPhase | null>(null);
+
   /** Cascade scope — names who this card's setting flows down to (and who can override it)
    *  in the phase explanation copy. */
   readonly scope = input<'league' | 'agegroup' | 'team' | null>(null);
@@ -388,6 +403,11 @@ export class FeeCardComponent {
           : `Deposit first${amounts}, regardless of any higher-level setting.${this.cascadeOn()}`;
       }
       default: {
+        // Prefer the resolved verdict: what this scope is actually in, and who decided.
+        const a = this.ancestorPhase();
+        if (a) {
+          return `Currently: ${a.full ? 'Full payment now' : 'Deposit first'} — ${this.phaseSourceLabel(a.source)}.`;
+        }
         const from = this.scope() === 'team' ? 'the age group or league' : 'the league';
         return `No phase set here — follows ${from}; deposit first when nothing is set anywhere.${this.cascadeOff()}`;
       }
@@ -408,6 +428,21 @@ export class FeeCardComponent {
   defaultOptionLabel(): string {
     return this.scope() === 'team' ? 'Use age group setting' : 'Use league setting';
   }
+
+  /** Names the tier that decided the resolved phase for the "Currently: …" line. */
+  private phaseSourceLabel(source: string): string {
+    switch (source) {
+      case 'league': return 'set at league level';
+      case 'agegroup': return 'set at age group level';
+      default: return 'the default; no level sets a phase';
+    }
+  }
+
+  /** Green "you're in full-payment" emphasis — own stamp OR the resolved answer when following
+   *  the level above (the old own-stamp-only check left an effectively-full card looking idle). */
+  readonly explainOn = computed(() =>
+    this.bFullPaymentRequired() === true
+    || (this.phaseChoice() === 'inherit' && this.ancestorPhase()?.full === true));
 
   /** Re-selecting the current choice is a no-op (don't dirty the form or re-open prompts). */
   onPhaseSelect(value: boolean | null): void {

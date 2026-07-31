@@ -370,6 +370,7 @@
         <app-agegroup-detail
           [agegroupId]="node.id"
           [leagueId]="node.parentId"
+          [ancestorPhase]="ancestorPhaseFor(node)"
           [canDelete]="canDelete(node)"
           [playerCount]="node.playerCount"
           (saved)="onDetailSaved()"
@@ -387,6 +388,7 @@
       } @else if (node.level === 3) {
         <app-team-detail
           [teamId]="node.id"
+          [ancestorPhase]="ancestorPhaseFor(node)"
           (saved)="onDetailSaved()"
           (cloned)="onDetailCloned($event)"
           (clubChanged)="onDetailSaved()"
