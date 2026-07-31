@@ -20,11 +20,14 @@ export interface TestSendOptions {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <div class="test-send-wrap">
-            <button type="button" class="btn btn-outline-info" (click)="toggle()"
+            <button type="button" class="btn"
+                [class.btn-outline-info]="variant() === 'info'"
+                [class.btn-outline-primary]="variant() === 'primary'"
+                (click)="toggle()"
                 [disabled]="disabled() || busy()"
-                title="Renders for the first recipient and sends a real test email">
+                title="Renders the real email and delivers it to a test inbox">
                 @if (busy()) { <span class="spinner-border spinner-border-sm me-1"></span> Sending Test... }
-                @else { Send Test Email }
+                @else { {{ label() }} }
             </button>
 
             @if (open()) {
@@ -75,6 +78,12 @@ export interface TestSendOptions {
 export class TestSendButtonComponent {
     readonly disabled = input(false);
     readonly busy = input(false);
+    /** Trigger text. Override when the popover IS the surface's primary action in non-prod
+     *  (e.g. the fly-in's "Re-Send Confirmation Email", which swaps to a test inbox off-prod). */
+    readonly label = input('Send Test Email');
+    /** Trigger color: 'info' (default, the test-affordance look) or 'primary' (blue — for a
+     *  primary action that becomes a test-send off-prod). */
+    readonly variant = input<'info' | 'primary'>('info');
     /** Which button edge the popover hugs. Default 'right' suits modal footers (button at the
      *  right edge); use 'left' when the button sits at the left of its container so the panel
      *  opens inward instead of overflowing (e.g. the reg-detail fly-in). */

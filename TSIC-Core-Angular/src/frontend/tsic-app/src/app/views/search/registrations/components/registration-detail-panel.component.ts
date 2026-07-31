@@ -1049,9 +1049,10 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   readonly isResendingConfirmation = signal(false);
   readonly isTestSendingConfirmation = signal(false);
 
-  /** Resends the registrant's confirmation email. Role-routed server-side — for a player this
-   *  is the FAMILY confirmation (one email, every sibling in the job); the server's message
-   *  discloses the scope and the recipients, so it is shown verbatim. */
+  /** PRODUCTION path: the real resend. Role-routed server-side — for a player this is the
+   *  FAMILY confirmation (one email, every sibling in the job); the server's message discloses
+   *  the scope and the recipients, so it is shown verbatim. Off-prod the button is the
+   *  test-send popover instead (see template) — the real send couldn't deliver there anyway. */
   resendConfirmation(): void {
     const d = this.detail();
     if (!d || this.isResendingConfirmation()) return;
