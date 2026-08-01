@@ -111,10 +111,11 @@
     </div>
 
     <div class="form-section">
-      <h6 class="section-title"><i class="bi bi-file-earmark-text me-2"></i>COACH Confirmation, Liability Waiver &amp; Code of Conduct Text</h6>
+      <h6 class="section-title"><i class="bi bi-people me-2"></i>Club Rep Confirmations</h6>
+      <div class="text-muted small mb-2">Shown/sent to the club rep after registering teams.</div>
       <div class="row g-2">
         <div class="col-12">
-          <label class="field-label">Confirmation Email</label>
+          <label class="field-label">Club Rep Confirmation Email</label>
           <ejs-richtexteditor
             [value]="adultRegConfirmationEmail()"
             [toolbarSettings]="rteTools"
@@ -125,7 +126,7 @@
           </ejs-richtexteditor>
         </div>
         <div class="col-12">
-          <label class="field-label">Confirmation On-Screen</label>
+          <label class="field-label">Club Rep Confirmation On-Screen</label>
           <ejs-richtexteditor
             [value]="adultRegConfirmationOnScreen()"
             [toolbarSettings]="rteTools"
@@ -135,6 +136,42 @@
             (change)="onRteChange('adultRegConfirmationOnScreen', $event)">
           </ejs-richtexteditor>
         </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h6 class="section-title"><i class="bi bi-file-earmark-text me-2"></i>Coach Confirmations</h6>
+      <div class="text-muted small mb-2">Shown/sent to coaches, staff, and volunteers after registering.</div>
+      <div class="row g-2">
+        <div class="col-12">
+          <label class="field-label">Coach Confirmation Email</label>
+          <ejs-richtexteditor
+            [value]="coachRegConfirmationEmail()"
+            [toolbarSettings]="rteTools"
+            [height]="rteHeight"
+            [enableResize]="true"
+            [enableHtmlSanitizer]="false"
+            (change)="onRteChange('coachRegConfirmationEmail', $event)">
+          </ejs-richtexteditor>
+        </div>
+        <div class="col-12">
+          <label class="field-label">Coach Confirmation On-Screen</label>
+          <ejs-richtexteditor
+            [value]="coachRegConfirmationOnScreen()"
+            [toolbarSettings]="rteTools"
+            [height]="rteHeight"
+            [enableResize]="true"
+            [enableHtmlSanitizer]="false"
+            (change)="onRteChange('coachRegConfirmationOnScreen', $event)">
+          </ejs-richtexteditor>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h6 class="section-title"><i class="bi bi-shield-check me-2"></i>Adult Registration Policies &amp; Waivers</h6>
+      <div class="text-muted small mb-2">Shown to coach, referee, and recruiter registrants.</div>
+      <div class="row g-2">
         <div class="col-12">
           <label class="field-label">Refund Policy</label>
           <ejs-richtexteditor

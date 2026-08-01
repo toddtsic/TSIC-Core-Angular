@@ -23,8 +23,11 @@ export class CoachesTabComponent implements OnInit {
   bRegistrationAllowStaff = linkedSignal(() => this.svc.coaches()?.bRegistrationAllowStaff ?? null);
   bRegistrationAllowReferee = linkedSignal(() => this.svc.coaches()?.bRegistrationAllowReferee ?? null);
   bRegistrationAllowRecruiter = linkedSignal(() => this.svc.coaches()?.bRegistrationAllowRecruiter ?? null);
+  // AdultReg pair = club-rep/team-registration confirmation; CoachReg pair = coach persona.
   adultRegConfirmationEmail = linkedSignal(() => this.svc.coaches()?.adultRegConfirmationEmail ?? null);
   adultRegConfirmationOnScreen = linkedSignal(() => this.svc.coaches()?.adultRegConfirmationOnScreen ?? null);
+  coachRegConfirmationEmail = linkedSignal(() => this.svc.coaches()?.coachRegConfirmationEmail ?? null);
+  coachRegConfirmationOnScreen = linkedSignal(() => this.svc.coaches()?.coachRegConfirmationOnScreen ?? null);
   adultRegRefundPolicy = linkedSignal(() => this.svc.coaches()?.adultRegRefundPolicy ?? null);
   adultRegReleaseOfLiability = linkedSignal(() => this.svc.coaches()?.adultRegReleaseOfLiability ?? null);
   adultRegCodeOfConduct = linkedSignal(() => this.svc.coaches()?.adultRegCodeOfConduct ?? null);
@@ -42,6 +45,8 @@ export class CoachesTabComponent implements OnInit {
       bRegistrationAllowRecruiter: c.bRegistrationAllowRecruiter,
       adultRegConfirmationEmail: c.adultRegConfirmationEmail,
       adultRegConfirmationOnScreen: c.adultRegConfirmationOnScreen,
+      coachRegConfirmationEmail: c.coachRegConfirmationEmail,
+      coachRegConfirmationOnScreen: c.coachRegConfirmationOnScreen,
       adultRegRefundPolicy: c.adultRegRefundPolicy,
       adultRegReleaseOfLiability: c.adultRegReleaseOfLiability,
       adultRegCodeOfConduct: c.adultRegCodeOfConduct,
@@ -138,6 +143,8 @@ export class CoachesTabComponent implements OnInit {
       bRegistrationAllowRecruiter: this.bRegistrationAllowRecruiter(),
       adultRegConfirmationEmail: this.adultRegConfirmationEmail(),
       adultRegConfirmationOnScreen: this.adultRegConfirmationOnScreen(),
+      coachRegConfirmationEmail: this.coachRegConfirmationEmail(),
+      coachRegConfirmationOnScreen: this.coachRegConfirmationOnScreen(),
       adultRegRefundPolicy: this.adultRegRefundPolicy(),
       adultRegReleaseOfLiability: this.adultRegReleaseOfLiability(),
       adultRegCodeOfConduct: this.adultRegCodeOfConduct(),

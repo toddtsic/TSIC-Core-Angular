@@ -1795,19 +1795,23 @@ public class AdultRegistrationService : IAdultRegistrationService
         return waivers;
     }
 
+    // The AdultReg pair is the club-rep/team-registration confirmation (TeamRegistrationService reads
+    // it directly); the coach persona reads its own CoachReg pair. The ?? fallback to AdultReg is
+    // PERMANENT, not transitional: only jobs with Year >= 2025 were seeded with CoachReg copies, so
+    // resends on older jobs render through the fallback forever. Do not remove it.
     private static string? GetConfirmationOnScreen(Jobs job, AdultRoleType roleType) => roleType switch
     {
-        AdultRoleType.UnassignedAdult or AdultRoleType.Staff => job.AdultRegConfirmationOnScreen,
+        AdultRoleType.UnassignedAdult or AdultRoleType.Staff => job.CoachRegConfirmationOnScreen ?? job.AdultRegConfirmationOnScreen,
         AdultRoleType.Referee => job.RefereeRegConfirmationOnScreen ?? job.AdultRegConfirmationOnScreen,
         AdultRoleType.Recruiter => job.RecruiterRegConfirmationOnScreen ?? job.AdultRegConfirmationOnScreen,
-        _ => job.AdultRegConfirmationOnScreen
+        _ => job.CoachRegConfirmationOnScreen ?? job.AdultRegConfirmationOnScreen
     };
 
     private static string? GetConfirmationEmail(Jobs job, AdultRoleType roleType) => roleType switch
     {
-        AdultRoleType.UnassignedAdult or AdultRoleType.Staff => job.AdultRegConfirmationEmail,
+        AdultRoleType.UnassignedAdult or AdultRoleType.Staff => job.CoachRegConfirmationEmail ?? job.AdultRegConfirmationEmail,
         AdultRoleType.Referee => job.RefereeRegConfirmationEmail ?? job.AdultRegConfirmationEmail,
         AdultRoleType.Recruiter => job.RecruiterRegConfirmationEmail ?? job.AdultRegConfirmationEmail,
-        _ => job.AdultRegConfirmationEmail
+        _ => job.CoachRegConfirmationEmail ?? job.AdultRegConfirmationEmail
     };
 }

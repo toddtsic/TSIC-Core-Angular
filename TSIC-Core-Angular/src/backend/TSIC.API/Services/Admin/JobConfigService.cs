@@ -339,6 +339,8 @@ public class JobConfigService : IJobConfigService
         // with the materialized AdultProfileMetadataJson. A plain coaches save must never desync them.
         job.AdultRegConfirmationEmail = req.AdultRegConfirmationEmail;
         job.AdultRegConfirmationOnScreen = req.AdultRegConfirmationOnScreen;
+        job.CoachRegConfirmationEmail = req.CoachRegConfirmationEmail;
+        job.CoachRegConfirmationOnScreen = req.CoachRegConfirmationOnScreen;
         job.AdultRegRefundPolicy = req.AdultRegRefundPolicy;
         job.AdultRegReleaseOfLiability = req.AdultRegReleaseOfLiability;
         job.AdultRegCodeOfConduct = req.AdultRegCodeOfConduct;
@@ -836,6 +838,8 @@ public class JobConfigService : IJobConfigService
             AvailableAdultCoachProfiles = s_adultCoachProfileOptions,
             AdultRegConfirmationEmail = job.AdultRegConfirmationEmail,
             AdultRegConfirmationOnScreen = job.AdultRegConfirmationOnScreen,
+            CoachRegConfirmationEmail = job.CoachRegConfirmationEmail,
+            CoachRegConfirmationOnScreen = job.CoachRegConfirmationOnScreen,
             AdultRegRefundPolicy = job.AdultRegRefundPolicy,
             AdultRegReleaseOfLiability = job.AdultRegReleaseOfLiability,
             AdultRegCodeOfConduct = job.AdultRegCodeOfConduct,

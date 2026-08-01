@@ -966,6 +966,8 @@ public sealed class JobCloneService : IJobCloneService
             RefereeRegConfirmationOnScreen = source.RefereeRegConfirmationOnScreen,
             RecruiterRegConfirmationEmail = source.RecruiterRegConfirmationEmail,
             RecruiterRegConfirmationOnScreen = source.RecruiterRegConfirmationOnScreen,
+            CoachRegConfirmationEmail = source.CoachRegConfirmationEmail,
+            CoachRegConfirmationOnScreen = source.CoachRegConfirmationOnScreen,
             BTeamPushDirectors = source.BTeamPushDirectors,
             BShowTeamNameOnlyInSchedules = source.BShowTeamNameOnlyInSchedules,
             UslaxNumberValidThroughDate = source.UslaxNumberValidThroughDate,

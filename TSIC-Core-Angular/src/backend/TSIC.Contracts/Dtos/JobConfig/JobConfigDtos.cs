@@ -325,8 +325,11 @@ public record JobConfigCoachesDto
     public required bool AdultCoachRequiresUsLax { get; init; }
     public required IReadOnlyList<AdultCoachProfileOptionDto> AvailableAdultCoachProfiles { get; init; }
 
+    // AdultReg pair = club-rep/team-registration confirmation; CoachReg pair = coach persona.
     public required string? AdultRegConfirmationEmail { get; init; }
     public required string? AdultRegConfirmationOnScreen { get; init; }
+    public required string? CoachRegConfirmationEmail { get; init; }
+    public required string? CoachRegConfirmationOnScreen { get; init; }
     public required string? AdultRegRefundPolicy { get; init; }
     public required string? AdultRegReleaseOfLiability { get; init; }
     public required string? AdultRegCodeOfConduct { get; init; }
@@ -351,6 +354,8 @@ public record UpdateJobConfigCoachesRequest
     public required bool? BRegistrationAllowRecruiter { get; init; }
     public required string? AdultRegConfirmationEmail { get; init; }
     public required string? AdultRegConfirmationOnScreen { get; init; }
+    public required string? CoachRegConfirmationEmail { get; init; }
+    public required string? CoachRegConfirmationOnScreen { get; init; }
     public required string? AdultRegRefundPolicy { get; init; }
     public required string? AdultRegReleaseOfLiability { get; init; }
     public required string? AdultRegCodeOfConduct { get; init; }
