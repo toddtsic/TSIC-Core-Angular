@@ -9,7 +9,7 @@ import { RegistrationSearchService } from '../services/registration-search.servi
 import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import {
-  EMAIL_TEMPLATE_CATEGORIES, isTemplateAvailable, EMAIL_BASE_TOKENS, USLAX_VALID_THROUGH_TOKEN,
+  EMAIL_TEMPLATE_CATEGORIES, isTemplateAvailable, EMAIL_BASE_TOKENS, USLAX_VALID_THROUGH_TOKEN, SUBSCRIPTION_TOKENS,
   type EmailTemplate, type JobFlagsForTemplates
 } from '../email-templates';
 import { DraggableModalDirective } from '@shared-ui/directives/draggable-modal.directive';
@@ -151,8 +151,11 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
 
   readonly availableTokens = computed(() => {
     // Invite links are intentionally NOT offered here — they are seeded by the Invite action.
+    // AM-059 re-open: subscription tokens are JOB-level (ARB site → offered for all
+    // registrants, both surfaces; non-subscribers render blank) — not per-registrant.
     const tokens = [...EMAIL_BASE_TOKENS];
     if (this.jobFlags()?.usLaxMembershipValidated) tokens.push(USLAX_VALID_THROUGH_TOKEN);
+    if (this.jobFlags()?.adnArb) tokens.push(...SUBSCRIPTION_TOKENS);
     return tokens;
   });
 

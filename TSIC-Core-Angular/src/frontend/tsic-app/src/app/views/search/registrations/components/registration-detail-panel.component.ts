@@ -17,7 +17,8 @@ import { MedFormViewComponent } from './medform-view.component';
 import { EmailBodyEditorComponent } from '@shared-ui/components/email-body-editor/email-body-editor.component';
 import { TestSendButtonComponent, type TestSendOptions } from '@shared-ui/components/test-send-button/test-send-button.component';
 import { environment } from '@environments/environment';
-import { EMAIL_BASE_TOKENS, SUBSCRIPTION_TOKENS, type EmailTokenInfo } from '../email-templates';
+import { EMAIL_BASE_TOKENS, SUBSCRIPTION_TOKENS, USLAX_VALID_THROUGH_TOKEN, type EmailTokenInfo } from '../email-templates';
+import { JobService } from '@infrastructure/services/job.service';
 
 type TabType = 'details' | 'accounting' | 'email';
 
@@ -141,6 +142,7 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   private clubService = inject(ClubService);
   private toast = inject(ToastService);
   private auth = inject(AuthService);
+  private jobService = inject(JobService);
 
 
   // Tab state — Accounting is the default/first tab; resets to it only when a DIFFERENT registrant
@@ -1003,13 +1005,19 @@ export class RegistrationDetailPanelComponent implements OnChanges {
 
   private readonly emailBodyEditor = viewChild.required(EmailBodyEditorComponent);
 
-  /** Same catalog the batch-email modal offers (AM-059) — the two lists used to be hardcoded
-   *  separately and drifted. Subscription tokens are appended only for a registrant who has one. */
-  readonly availableTokens = computed<readonly EmailTokenInfo[]>(() =>
-    this.detail()?.hasSubscription
-      ? [...EMAIL_BASE_TOKENS, ...SUBSCRIPTION_TOKENS]
-      : EMAIL_BASE_TOKENS
-  );
+  /** Same catalog + same gating as the batch-email modal (AM-059 re-open) — the two
+   *  lists drifted twice, first on content, then on gating. Both extra token sets are
+   *  JOB-level facts, read from the same source the parent builds its jobFlags from:
+   *  USLax token when the job has a validation window; subscription tokens when the
+   *  job is ARB (offered for ALL registrants — a non-subscriber renders blank —
+   *  NOT per-registrant hasSubscription, which hid them for PIF families). */
+  readonly availableTokens = computed<readonly EmailTokenInfo[]>(() => {
+    const job = this.jobService.currentJob();
+    const tokens = [...EMAIL_BASE_TOKENS];
+    if (job?.usLaxNumberValidThroughDate) tokens.push(USLAX_VALID_THROUGH_TOKEN);
+    if (job?.adnArb) tokens.push(...SUBSCRIPTION_TOKENS);
+    return tokens;
+  });
 
   insertEmailToken(token: string): void { this.emailBodyEditor().insertToken(token); }
 
