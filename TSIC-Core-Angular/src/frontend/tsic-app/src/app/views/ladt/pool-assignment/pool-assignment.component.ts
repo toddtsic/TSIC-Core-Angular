@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, ChangeDetectionStrategy, ElementRef, Injector, afterNextRender, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -91,6 +91,15 @@ export class PoolAssignmentComponent {
     // the director's only post-move trace — it persists until the next transfer or a
     // division change (deliberately no timed fade). Mirrors Roster Swapper AM-039.
     readonly justMovedIds = signal<ReadonlySet<string>>(new Set());
+
+    // AM-053 re-open: the moved team lands at the BOTTOM of its new list — on a long
+    // list the highlight sits off-screen and the director sees nothing move. After the
+    // landing panel's reload renders, scroll the first moved row into view. One-shot:
+    // queued by the transfer success handler, drained by that panel's loadTeams.
+    private readonly injector = inject(Injector);
+    private readonly sourceScroll = viewChild<ElementRef<HTMLElement>>('sourceScroll');
+    private readonly targetScroll = viewChild<ElementRef<HTMLElement>>('targetScroll');
+    private pendingScroll: { panel: 'source' | 'target'; teamId: string } | null = null;
 
     // Symmetrical swap readiness
     readonly canConfirmTransfer = computed(() => {
@@ -219,6 +228,14 @@ export class PoolAssignmentComponent {
             next: teams => {
                 if (panel === 'source') this.sourceTeams.set(teams);
                 else this.targetTeams.set(teams);
+                // AM-053: this reload carries the just-moved team — scroll it into
+                // view once these rows have rendered. Cleared before scheduling, so
+                // it fires exactly once; a row hidden by an active filter no-ops.
+                if (this.pendingScroll?.panel === panel) {
+                    const pending = this.pendingScroll;
+                    this.pendingScroll = null;
+                    afterNextRender(() => this.scrollToMovedRow(pending.panel, pending.teamId), { injector: this.injector });
+                }
             },
             error: err => {
                 this.toast.show(err?.error?.message || 'Failed to load teams.', 'danger', 4000);
@@ -422,6 +439,7 @@ export class PoolAssignmentComponent {
                 // Both directions highlight: sourceTeamIds landed in the target div,
                 // counter-teams of a symmetrical swap landed in the source div.
                 this.justMovedIds.set(new Set([...sourceTeamIds, ...targetTeamIds]));
+                this.queueScrollToMoved(sourceTeamIds, targetDivId);
                 this.isTransferring.set(false);
                 this.transferPreview.set(null);
                 this.sourceSelected.set(new Set());
@@ -451,6 +469,7 @@ export class PoolAssignmentComponent {
             next: result => {
                 this.toast.show(teamName ? `${teamName} moved. ${result.message}` : result.message, 'success', 3000);
                 this.justMovedIds.set(new Set([...sourceTeamIds, ...targetTeamIds]));
+                this.queueScrollToMoved(sourceTeamIds, targetDivId);
                 this.swappingId.set(null);
                 this.sourceSelected.set(new Set());
                 this.targetSelected.set(new Set());
@@ -470,6 +489,28 @@ export class PoolAssignmentComponent {
     cancelTransferPreview() {
         this.transferPreview.set(null);
         this.isLoadingPreview.set(false);
+    }
+
+    // ── AM-053: scroll the just-moved team into view ──
+
+    /** The primary moved teams (`sourceTeamIds`) land in the transfer's target div —
+     *  the TARGET panel on a rightward move, the SOURCE panel on a leftward one.
+     *  Batch scrolls to the first moved team (Ann's spec); a symmetrical swap's
+     *  counter-team is covered by its own highlight on the opposite panel. */
+    private queueScrollToMoved(sourceTeamIds: string[], landedDivId: string) {
+        const teamId = sourceTeamIds[0];
+        if (!teamId) return;
+        this.pendingScroll = { panel: landedDivId === this.targetDivId() ? 'target' : 'source', teamId };
+    }
+
+    private scrollToMovedRow(panel: 'source' | 'target', teamId: string) {
+        const wrap = (panel === 'source' ? this.sourceScroll() : this.targetScroll())?.nativeElement;
+        const row = wrap?.querySelector(`tr[data-team-id="${teamId}"]`);
+        // block:'nearest' keeps the correction minimal and confined — no page jump.
+        row?.scrollIntoView({
+            behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+            block: 'nearest'
+        });
     }
 
     // ── Active toggle ──
