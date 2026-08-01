@@ -426,6 +426,10 @@
   // trailing space explicitly — our tokens, independent of whatever draws the chevron.
   &:is(select) {
     padding-right: var(--space-9);
+    // PL-046 re-open (vertical clip): appearance:none selects have no intrinsic
+    // height, so the text line gets top-clipped without an explicit floor —
+    // same bug + same fix as the Teams panel's Level of Play select.
+    min-height: 2.5rem;
     text-overflow: ellipsis;
   }
 

@@ -1149,6 +1149,12 @@ export class RegistrationDetailPanelComponent implements OnChanges {
         this.showChangeJobModal.set(false);
         this.selectedNewJobId.set('');
         this.toast.show(result.message || 'Job changed successfully', 'success', 4000);
+        // PL-046 re-open: the registration now belongs to ANOTHER job, so this
+        // panel cannot re-display it — the job-scoped detail refetch rejects and
+        // used to flash error toasts over the success. Close first (parent clears
+        // the open-panel state), THEN refresh: the parent's saved handler only
+        // reloads the fly-in when a panel is open, so refresh = search rerun only.
+        this.closed.emit();
         this.saved.emit();
       },
       error: (err) => {
