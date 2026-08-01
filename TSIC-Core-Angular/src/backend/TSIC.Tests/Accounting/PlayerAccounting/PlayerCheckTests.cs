@@ -68,11 +68,10 @@ public class PlayerCheckTests
                 PaymentMethodsAllowedCode = 7
             });
 
-        var feeAdjustment = new RegistrationFeeAdjustmentService(jobRepo.Object, feeService.Object);
-
         var arbRepo = new Mock<IArbSubscriptionRepository>();
         var familiesRepo = new Mock<IFamiliesRepository>();
         var paymentState = new PaymentStateService(accountingRepo, jobRepo.Object);
+        var feeAdjustment = new RegistrationFeeAdjustmentService(jobRepo.Object, feeService.Object, paymentState);
         var svc = new RegistrationSearchService(
             registrationRepo, accountingRepo, jobRepo.Object, familiesRepo.Object, deviceRepo.Object,
             new Mock<ITeamRepository>().Object, adnApi.Object, arbRepo.Object, textSub.Object,

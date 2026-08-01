@@ -2,6 +2,7 @@ using FluentAssertions;
 using Moq;
 using TSIC.API.Services.Payments;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
@@ -48,7 +49,15 @@ public class RegistrationFeeAdjustmentServiceTests
         feeService.Setup(f => f.GetEffectiveEcheckProcessingRateAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(EcheckRate);
 
-        return new RegistrationFeeAdjustmentService(jobRepo.Object, feeService.Object);
+        // Slice hydration is only consulted by the team Proportional path (policy-B gate);
+        // the player + eCheck methods under test here never touch it. Default state = no
+        // payments, no proc-free slice — the gate then passes the full amount, pre-slice behavior.
+        var paymentState = new Mock<IPaymentStateService>();
+        paymentState
+            .Setup(p => p.ForTeamAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>(), It.IsAny<decimal>()))
+            .ReturnsAsync(PaymentState.Empty(true, CcRate, EcheckRate));
+
+        return new RegistrationFeeAdjustmentService(jobRepo.Object, feeService.Object, paymentState.Object);
     }
 
     private static Registrations Reg(decimal feeBase, decimal feeProcessing, decimal paidTotal)

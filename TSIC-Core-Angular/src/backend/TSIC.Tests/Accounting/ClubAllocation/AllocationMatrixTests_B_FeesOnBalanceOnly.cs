@@ -65,6 +65,17 @@ public class AllocationMatrixTests_B_FeesOnBalanceOnly
         feeService.Setup(f => f.GetEffectiveProcessingRateAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Rate);
 
+        // Slice-aware hydration (policy B) resolves each team's deposit to size the proc-free
+        // slice; unmocked this returns null and the record path fails closed. Deposit ledger
+        // rows in the tests fill the slice, so FreeSliceRemaining = 0 and every expectation
+        // below is unchanged.
+        feeService.Setup(f => f.ResolveFeesByTeamIdsAsync(
+                It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Guid _, string _, IReadOnlyList<Guid> ids, CancellationToken _) =>
+                ids.ToDictionary(
+                    id => id,
+                    _ => new ResolvedFee { FeeConfigured = true, Deposit = Deposit, BalanceDue = BalanceDue }));
+
         jobRepo.Setup(j => j.GetJobFeeSettingsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JobFeeSettings
             {

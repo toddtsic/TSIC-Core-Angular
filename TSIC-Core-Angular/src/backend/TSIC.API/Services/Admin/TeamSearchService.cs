@@ -11,6 +11,7 @@ using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 
 namespace TSIC.API.Services.Admin;
@@ -657,7 +658,25 @@ public sealed class TeamSearchService : ITeamSearchService
                 clubTeams = clubTeams.Where(t => t.TeamId == singleTeamId.Value).ToList();
 
             var clubTeamIds = clubTeams.Select(t => t.TeamId).ToList();
-            var teamPaymentStates = await _paymentState.ForTeamsAsync(clubTeamIds, jobId, ct);
+
+            // Proc-on-balance-only job: hydrate slice-aware so (a) PrincipalRemaining
+            // decomposes prior CC/eCheck gross without inventing proc on the deposit slice,
+            // and (b) FreeSliceRemaining gates the proc reduction below (policy B: a check
+            // dollar landing inside the unpaid deposit slice displaces no proc).
+            IReadOnlyDictionary<Guid, decimal>? procFreeBaseByTeam = null;
+            if (bAddProcessingFees && !(feeSettings?.BApplyProcessingFeesToTeamDeposit ?? false))
+            {
+                var resolvedFees = await _feeService.ResolveFeesByTeamIdsAsync(
+                    jobId, RoleConstants.ClubRep, clubTeamIds, ct);
+                procFreeBaseByTeam = clubTeams.ToDictionary(
+                    t => t.TeamId,
+                    t => Math.Max(0m,
+                        (resolvedFees.GetValueOrDefault(t.TeamId)?.EffectiveDeposit ?? 0m)
+                        - t.TotalDiscount() + (t.FeeLatefee ?? 0m) + (t.FeeDonation ?? 0m)));
+            }
+
+            var teamPaymentStates = await _paymentState.ForTeamsAsync(
+                clubTeamIds, jobId, ct, procFreeBaseByTeam);
             var emptyTeamState = await BuildEmptyPaymentStateAsync(jobId, ct);
 
             // Check-specific cap — sum of CkOwedTotal across teams in scope (one team
@@ -724,6 +743,10 @@ public sealed class TeamSearchService : ITeamSearchService
                 if (calculatedTeamCheckAmount <= 0) continue;
 
                 // Step 3: Fee reduction = allocation × rate (canonical full-CC-rate credit).
+                // Policy B gate: on a proc-on-balance-only job, dollars landing inside the
+                // still-unpaid deposit slice displace NO proc (that slice never carried any) —
+                // only the portion beyond FreeSliceRemaining decrements. On every other config
+                // FreeSliceRemaining is 0 and the full allocation reduces, as before.
                 // Reduce only the team's processing fee; the chokepoint below re-derives the
                 // team's FeeTotal/OwedTotal from the ledger, and SynchronizeClubRepFinancials
                 // re-aggregates the rep from its teams (the sole writer of rep totals — the old
@@ -731,11 +754,14 @@ public sealed class TeamSearchService : ITeamSearchService
                 decimal processingFeeReduction = 0;
                 if (bAddProcessingFees && (team.FeeProcessing ?? 0) > 0)
                 {
+                    var procDisplacingAmount = Math.Max(
+                        0m, calculatedTeamCheckAmount - state.FreeSliceRemaining);
                     processingFeeReduction = decimal.Round(
-                        PaymentRateMath.NonProcCheckCredit(calculatedTeamCheckAmount, processingRate),
+                        PaymentRateMath.NonProcCheckCredit(procDisplacingAmount, processingRate),
                         2, MidpointRounding.AwayFromZero);
 
-                    team.FeeProcessing = (team.FeeProcessing ?? 0) - processingFeeReduction;
+                    if (processingFeeReduction > 0)
+                        team.FeeProcessing = (team.FeeProcessing ?? 0) - processingFeeReduction;
                 }
 
                 remainingBalance -= calculatedTeamCheckAmount;

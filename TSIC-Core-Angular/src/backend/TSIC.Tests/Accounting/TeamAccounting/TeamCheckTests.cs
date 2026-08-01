@@ -81,7 +81,10 @@ public class TeamCheckTests
             .ReturnsAsync(new JobFeeSettings
             {
                 BAddProcessingFees = bAddProcessingFees,
-                BApplyProcessingFeesToTeamDeposit = false,
+                // These scenarios hand-stamp proc on deposit-shaped fees (rosterFee only) —
+                // data only consistent with proc-on-deposit. TRUE keeps the policy-B slice
+                // gate inert so the suite tests allocation mechanics, not slicing.
+                BApplyProcessingFeesToTeamDeposit = true,
                 PaymentMethodsAllowedCode = 7
             });
 

@@ -76,7 +76,11 @@ public class ClubCheckAllocationTests
             .ReturnsAsync(new JobFeeSettings
             {
                 BAddProcessingFees = bAddProcessingFees,
-                BApplyProcessingFeesToTeamDeposit = false,
+                // These scenarios stamp proc at the full rate on deposit-shaped fees
+                // (rosterFee only, full-payment job) — data only consistent with
+                // proc-on-deposit. TRUE keeps the policy-B slice gate inert so the suite
+                // tests club-allocation mechanics, not slicing.
+                BApplyProcessingFeesToTeamDeposit = true,
                 PaymentMethodsAllowedCode = 7
             });
 

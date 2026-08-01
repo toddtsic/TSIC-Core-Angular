@@ -2,6 +2,7 @@ using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TeamsEntity = TSIC.Domain.Entities.Teams;
 
@@ -118,11 +119,14 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
 {
     private readonly IJobRepository _jobRepo;
     private readonly IFeeResolutionService _feeService;
+    private readonly IPaymentStateService _paymentState;
 
-    public RegistrationFeeAdjustmentService(IJobRepository jobRepo, IFeeResolutionService feeService)
+    public RegistrationFeeAdjustmentService(
+        IJobRepository jobRepo, IFeeResolutionService feeService, IPaymentStateService paymentState)
     {
         _jobRepo = jobRepo;
         _feeService = feeService;
+        _paymentState = paymentState;
     }
 
     public async Task<decimal> ReduceProcessingFeeProportionalAsync(
@@ -281,10 +285,27 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         if ((team.FeeProcessing ?? 0m) <= 0m)
             return 0m;
 
+        // Policy B gate (proc-on-balance-only job): the caller stamps the discount BEFORE
+        // this call, so the team's effective deposit here is post-discount. A discount dollar
+        // absorbed by the still-unpaid deposit slice displaces no proc (that slice never
+        // carried any); only the spillover past FreeSliceRemaining reduces. Every other
+        // config hydrates with base 0 → FreeSliceRemaining 0 → full amount reduces, as before.
+        var procDisplacingAmount = adjustmentAmount;
+        if (!(feeSettings.BApplyProcessingFeesToTeamDeposit ?? false))
+        {
+            var resolved = await _feeService.ResolveFeeAsync(
+                jobId, RoleConstants.ClubRep, team.AgegroupId, team.TeamId);
+            var procFreeBase = Math.Max(0m,
+                (resolved?.EffectiveDeposit ?? 0m)
+                - team.TotalDiscount() + (team.FeeLatefee ?? 0m) + (team.FeeDonation ?? 0m));
+            var state = await _paymentState.ForTeamAsync(team.TeamId, jobId, procFreeBase: procFreeBase);
+            procDisplacingAmount = Math.Max(0m, adjustmentAmount - state.FreeSliceRemaining);
+        }
+
         // Canonical full-CC-rate credit (no proc collected at write time).
         var rate = await _feeService.GetEffectiveProcessingRateAsync(jobId);
         var reduction = Math.Round(
-            PaymentRateMath.NonProcCheckCredit(adjustmentAmount, rate),
+            PaymentRateMath.NonProcCheckCredit(procDisplacingAmount, rate),
             2, MidpointRounding.AwayFromZero);
 
         // Guard 3: In 2-phase (deposit) scenarios, allow negative processing fees (credit).

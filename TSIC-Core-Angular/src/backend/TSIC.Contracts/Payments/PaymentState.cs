@@ -111,6 +111,15 @@ public record PaymentState
 
     public decimal ProcCollected => CcProcCollected + EcheckProcCollected;
 
+    /// <summary>
+    /// How much of the proc-free (deposit) slice is still unpaid. Policy "B" gate for
+    /// proc-free tenders: a check/cash/correction dollar landing INSIDE this remainder
+    /// displaces no proc (that slice never carried any); only dollars beyond it decrement
+    /// FeeProcessing at the CC rate. 0 on jobs without a proc-free slice — the gate then
+    /// passes every dollar through, which is the pre-slice behavior.
+    /// </summary>
+    public decimal FreeSliceRemaining => System.Math.Max(0m, ProcFreeBase - PrincipalPaid);
+
     // GrossPaid mirrors what gets summed into entity.PaidTotal at write time:
     // gross for CC & eCheck (Payamt = gross), principal for the non-proc methods.
     public decimal GrossPaid =>
