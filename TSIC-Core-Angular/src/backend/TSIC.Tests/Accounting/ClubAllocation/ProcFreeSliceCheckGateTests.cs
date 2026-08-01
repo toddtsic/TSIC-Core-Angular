@@ -41,7 +41,8 @@ public class ProcFreeSliceCheckGateTests
     private const decimal FeeTotalPerTeam = FeeBase + FeeProcessingPerTeam; // $2,052.50
 
     private static async Task<(TeamSearchService svc,
-        TSIC.Infrastructure.Data.SqlDbContext.SqlDbContext ctx, Guid jobId, Guid teamId, Guid clubRepId)>
+        TSIC.Infrastructure.Data.SqlDbContext.SqlDbContext ctx, Guid jobId, Guid teamId, Guid clubRepId,
+        PaymentStateService paymentState)>
         CreateServiceAsync()
     {
         var ctx = DbContextFactory.Create();
@@ -96,7 +97,7 @@ public class ProcFreeSliceCheckGateTests
             new Mock<TSIC.API.Services.Teams.ITeamRenameService>().Object,
             new Mock<ILogger<TeamSearchService>>().Object);
 
-        return (svc, ctx, job.JobId, team.TeamId, clubRep.RegistrationId);
+        return (svc, ctx, job.JobId, team.TeamId, clubRep.RegistrationId, paymentState);
     }
 
     private static TeamCheckOrCorrectionRequest Check(Guid clubRepId, decimal amount, string no) =>
@@ -116,7 +117,7 @@ public class ProcFreeSliceCheckGateTests
     [Fact(DisplayName = "Slice gate: $500 check inside the deposit slice → zero proc reduction")]
     public async Task Check_InsideDepositSlice_NoProcReduction()
     {
-        var (svc, ctx, jobId, teamId, clubRepId) = await CreateServiceAsync();
+        var (svc, ctx, jobId, teamId, clubRepId, _) = await CreateServiceAsync();
 
         var result = await svc.RecordCheckForClubAsync(jobId, UserId, Check(clubRepId, Deposit, "3001"));
 
@@ -139,7 +140,7 @@ public class ProcFreeSliceCheckGateTests
     [Fact(DisplayName = "Slice gate: $2,000 check spanning slice + balance → reduction only on the spillover")]
     public async Task Check_SpansSliceAndBalance_ReducesOnlySpillover()
     {
-        var (svc, ctx, jobId, teamId, clubRepId) = await CreateServiceAsync();
+        var (svc, ctx, jobId, teamId, clubRepId, _) = await CreateServiceAsync();
 
         var result = await svc.RecordCheckForClubAsync(jobId, UserId, Check(clubRepId, FeeBase, "3002"));
 
@@ -161,7 +162,7 @@ public class ProcFreeSliceCheckGateTests
     [Fact(DisplayName = "Slice gate: $500 check then $1,500 check → 0 then 52.50, settles at owed 0")]
     public async Task Check_DepositThenBalance_GateReopensAfterSliceFills()
     {
-        var (svc, ctx, jobId, teamId, clubRepId) = await CreateServiceAsync();
+        var (svc, ctx, jobId, teamId, clubRepId, _) = await CreateServiceAsync();
 
         var first = await svc.RecordCheckForClubAsync(jobId, UserId, Check(clubRepId, Deposit, "3003"));
         first.Success.Should().BeTrue();
@@ -176,5 +177,45 @@ public class ProcFreeSliceCheckGateTests
         team.FeeProcessing.Should().Be(0m);
         team.PaidTotal.Should().Be(FeeBase);
         team.OwedTotal.Should().Be(0m);
+    }
+
+    /// <summary>
+    /// A CC deposit charge fully refunded (Credit Card Credit, negative Payamt): the walk
+    /// attributes the +500 to the free slice, but the refund nets the bucket back to 0 —
+    /// hydration must UNWIND the free attribution. Unclamped, CcProcFreeGross stayed 500
+    /// against net gross 0 → phantom principal 16.91, ProcCollected −16.91, and the next
+    /// reprice stamped proc 35.59 instead of 52.50 (silent undercharge).
+    /// </summary>
+    [Fact(DisplayName = "Slice hydration: full CC deposit refund unwinds free attribution — exact zeros, reprice holds 52.50")]
+    public async Task Hydration_DepositRefunded_UnwindsFreeAttribution()
+    {
+        var (_, ctx, jobId, teamId, _, paymentState) = await CreateServiceAsync();
+
+        // Rows added directly — a second AccountingDataBuilder would re-seed payment methods
+        // on the shared ctx. Field shape mirrors AccountingDataBuilder.AddPayment.
+        ctx.RegistrationAccounting.AddRange(
+            new Domain.Entities.RegistrationAccounting
+            {
+                TeamId = teamId, Payamt = Deposit, Dueamt = Deposit,                 // proc-free deposit charge
+                PaymentMethodId = AccountingDataBuilder.CcPaymentMethodId,
+                Active = true, Createdate = new DateTime(2026, 1, 1), Modified = DateTime.UtcNow
+            },
+            new Domain.Entities.RegistrationAccounting
+            {
+                TeamId = teamId, Payamt = -Deposit, Dueamt = -Deposit,               // full refund
+                PaymentMethodId = AccountingDataBuilder.CcCreditMethodId,
+                Active = true, Createdate = new DateTime(2026, 1, 2), Modified = DateTime.UtcNow
+            });
+        await ctx.SaveChangesAsync();
+
+        var state = await paymentState.ForTeamAsync(teamId, jobId);
+
+        state.CcGrossPaid.Should().Be(0m);
+        state.CcProcFreeGross.Should().Be(0m, "refunded dollars must not remain attributed to the free slice");
+        state.CcPrincipalPaid.Should().Be(0m);
+        state.CcProcCollected.Should().Be(0m);
+        state.FreeSliceRemaining.Should().Be(Deposit, "the refunded deposit obligation is unpaid again");
+        // Reprice on this ledger reproduces the booked proc exactly — not the 35.59 undercharge.
+        state.FeeProcessingTarget(BalanceDue, 0m, 0m, 0m).Should().Be(FeeProcessingPerTeam);
     }
 }

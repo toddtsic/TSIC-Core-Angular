@@ -166,6 +166,17 @@ public sealed class PaymentStateService : IPaymentStateService
                 remainingFree -= take;
             }
 
+            // A refund (Credit Card Credit) or eCheck NSF return nets its bucket down but
+            // the walk above never unwinds free attribution, so free gross could exceed the
+            // money actually present — decomposition would then invent phantom principal
+            // and NEGATIVE proc collected on the refunded slice. Free-slice money can't
+            // exceed net gross: clamp, which unwinds refunded dollars from the free slice
+            // under most-recent-charge-first refund attribution (exact for full refunds;
+            // partial-refund attribution is unknowable from Payamt alone — a per-row
+            // ProcFeeAmt column would make it exact).
+            ccFree = Math.Min(ccFree, Math.Max(cc, 0m));
+            echeckFree = Math.Min(echeckFree, Math.Max(echeck, 0m));
+
             sliced[entityId] = new PaymentState
             {
                 CcGrossPaid = cc,
