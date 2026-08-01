@@ -120,16 +120,15 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         string familyUserId,
         string template,
         string? inviteTargetJobPath = null,
-        IReadOnlyDictionary<string, string>? extraTokens = null)
+        IReadOnlyDictionary<string, string>? extraTokens = null,
+        bool emailMode = false)
     {
         if (string.IsNullOrWhiteSpace(template)) return template;
 
-        // Detect email mode token. If present, strip it and render inline email-safe tables.
-        var emailMode = template.Contains("!EMAILMODE", StringComparison.OrdinalIgnoreCase);
-        if (emailMode)
-        {
-            template = template.Replace("!EMAILMODE", string.Empty, StringComparison.OrdinalIgnoreCase);
-        }
+        // Email mode is decided by the SEND PATH (it knows it is composing an email) via the
+        // parameter; the legacy !EMAILMODE template token is honored as back-compat and stripped.
+        emailMode |= template.Contains("!EMAILMODE", StringComparison.OrdinalIgnoreCase);
+        template = template.Replace("!EMAILMODE", string.Empty, StringComparison.OrdinalIgnoreCase);
 
         var fixedFieldList = await LoadFixedFieldsAsync(jobId, registrationId, familyUserId);
 
@@ -191,7 +190,8 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         Guid? inviteTargetJobId = null,
         DateTime? inviteExpires = null,
         IReadOnlyDictionary<string, string>? extraTokens = null,
-        JobInvariantFieldsData? jobFields = null)
+        JobInvariantFieldsData? jobFields = null,
+        bool emailMode = false)
     {
         subjectTemplate ??= string.Empty;
         bodyTemplate ??= string.Empty;
@@ -201,14 +201,12 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         if (!HasToken(subjectTemplate) && !HasToken(bodyTemplate) && !hasExtras)
             return (subjectTemplate, bodyTemplate);
 
-        // !EMAILMODE is a rendering flag; detect across either template and strip from both.
-        var emailMode = subjectTemplate.Contains("!EMAILMODE", StringComparison.OrdinalIgnoreCase)
-                     || bodyTemplate.Contains("!EMAILMODE", StringComparison.OrdinalIgnoreCase);
-        if (emailMode)
-        {
-            subjectTemplate = subjectTemplate.Replace("!EMAILMODE", string.Empty, StringComparison.OrdinalIgnoreCase);
-            bodyTemplate = bodyTemplate.Replace("!EMAILMODE", string.Empty, StringComparison.OrdinalIgnoreCase);
-        }
+        // Email mode comes from the send path (parameter); the legacy !EMAILMODE template token
+        // is honored as back-compat — detect across either template and strip from both.
+        emailMode |= subjectTemplate.Contains("!EMAILMODE", StringComparison.OrdinalIgnoreCase)
+                  || bodyTemplate.Contains("!EMAILMODE", StringComparison.OrdinalIgnoreCase);
+        subjectTemplate = subjectTemplate.Replace("!EMAILMODE", string.Empty, StringComparison.OrdinalIgnoreCase);
+        bodyTemplate = bodyTemplate.Replace("!EMAILMODE", string.Empty, StringComparison.OrdinalIgnoreCase);
 
         // Render-win #1: ONE fixed-fields load + ONE token build, guarded against BOTH templates.
         // Render-win #2: with a pre-loaded job slice, the per-recipient query skips the job joins.
@@ -412,14 +410,16 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         };
     }
 
-    private static void AddSimpleTokens(Dictionary<string, string> tokens, FixedFields f, string jobSegment)
+    // Instance method: link tokens must point at the environment that rendered them
+    // (FrontendSettings.BaseUrl), not a hardwired www — same rule as the invite links.
+    private void AddSimpleTokens(Dictionary<string, string> tokens, FixedFields f, string jobSegment)
     {
         string Img(string? logo) => string.IsNullOrEmpty(logo) ? string.Empty : $"<img src='{TsicConstants.BaseUrlStatics}BannerFiles/{logo}' alt='Job Logo'>";
         tokens["!JSEG"] = jobSegment;
         tokens["!JOBNAME"] = f.JobName ?? string.Empty;
         tokens["!JOBCODE"] = f.JobCode ?? string.Empty;
         tokens["!JOBPATH"] = f.JobPath ?? string.Empty;
-        tokens["!JOBURL"] = $"https://www.teamsportsinfo.com/{f.JobPath}/home";
+        tokens["!JOBURL"] = $"{_frontendBaseUrl}/{f.JobPath}/home";
         tokens["!JOBDESCRIPTION"] = f.JobDescription ?? string.Empty;
         tokens["!JOBLOGO"] = Img(f.JobLogoHeader);
         tokens["!PAYTO"] = f.PayTo ?? string.Empty;
@@ -443,13 +443,13 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         tokens["!SEASON"] = f.Season ?? string.Empty;
         tokens["!SPORT"] = f.SportName ?? string.Empty;
         tokens["!APPLIEDTOCATEGORY"] = f.RegistrationCategory ?? string.Empty;
-        tokens["!YEAR"] = f.UslaxNumberValidThroughDate?.Year.ToString() ?? DateTime.UtcNow.Year.ToString();
+        tokens["!YEAR"] = f.UslaxNumberValidThroughDate?.Year.ToString() ?? DateTime.Now.Year.ToString();
         tokens["!USLAXVALIDTHROUGHDATE"] = f.UslaxNumberValidThroughDate?.ToString("d") ?? string.Empty;
-        tokens["!UNSUBSCRIBE"] = $"<a href=\"https://www.teamsportsinfo.com/api/email/unsubscribe?regId={f.RegistrationId:D}\">Unsubscribe</a>";
+        tokens["!UNSUBSCRIBE"] = $"<a href=\"{_frontendBaseUrl}/api/email/unsubscribe?regId={f.RegistrationId:D}\">Unsubscribe</a>";
         tokens["!SUBSCRIPTIONID"] = f.AdnSubscriptionId ?? string.Empty;
         tokens["!SUBSCRIPTIONSTATUS"] = f.AdnSubscriptionStatus ?? string.Empty;
         tokens["!JOBLINK"] = !string.IsNullOrEmpty(f.JobPath)
-            ? $"<a href='https://www.teamsportsinfo.com/{f.JobPath}' target='_blank'>{WebUtility.HtmlEncode(f.JobName ?? string.Empty)}</a>"
+            ? $"<a href='{_frontendBaseUrl}/{f.JobPath}' target='_blank'>{WebUtility.HtmlEncode(f.JobName ?? string.Empty)}</a>"
             : string.Empty;
     }
 
@@ -574,7 +574,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             tokens["!A-ACCOUNTING"] = await BuildAccountingAHtmlAsync(registrationId.Value, paymentMethodCreditCardId, first.JobName, emailMode);
 
         if (template.Contains("!F-ACCOUNTING-TEAMS", StringComparison.OrdinalIgnoreCase) && registrationId.HasValue)
-            tokens["!F-ACCOUNTING-TEAMS"] = await BuildAccountingTeamsHtmlAsync(registrationId.Value, paymentMethodCreditCardId, emailMode);
+            tokens["!F-ACCOUNTING-TEAMS"] = await BuildAccountingTeamsHtmlAsync(registrationId.Value, paymentMethodCreditCardId, first.JobName, emailMode);
 
         if (template.Contains("!F-TEAMS", StringComparison.OrdinalIgnoreCase) && registrationId.HasValue)
         {
@@ -614,7 +614,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
 
     /// <summary>
     /// Renders the payment method cell with the CC last-4 digits appended when the payment is a credit card
-    /// and the last-4 was captured at charge time. Example: "Credit Card Payment (1234)".
+    /// and the last-4 was captured at charge time. Example: "Credit Card Payment ending 1234".
     /// </summary>
     private static string FormatPaymentMethod(AccountingTransactionRow row, Guid paymentMethodCreditCardId)
     {
@@ -631,7 +631,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         var method = paymentMethod ?? string.Empty;
         if (paymentMethodId == paymentMethodCreditCardId && !string.IsNullOrEmpty(adnCc4))
         {
-            return $"{method} ({adnCc4})";
+            return $"{method} ending {adnCc4}";
         }
         return method;
     }
@@ -641,11 +641,8 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         var rows = await _repo.GetAccountingTransactionsAsync(registrationIds);
         if (rows.Count == 0) return string.Empty;
         var sb = new StringBuilder();
-        HtmlTableBuilder.StartTable(sb, emailMode);
-        HtmlTableBuilder.AddCaption(sb, "Most Recent Transaction(s)", emailMode);
-        HtmlTableBuilder.StartHead(sb);
-        HtmlTableBuilder.AddHeaderRow(sb, "ID", "Player", "Method", "Date", PaidColumnHeader);
-        HtmlTableBuilder.EndHeadStartBody(sb);
+        var table = new HtmlTable(sb, emailMode, "Most Recent Transaction(s)");
+        table.HeaderRow("ID", "Player", "Method", "Date", HtmlTableBuilder.Num(PaidColumnHeader));
         decimal paidSum = 0m;
         foreach (var row in rows)
         {
@@ -654,16 +651,16 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                 _ = await _discountEvaluator.EvaluateAsync(row.DiscountCodeAi.Value, row.Payamt.Value);
             }
             var paid = row.Payamt ?? 0m; paidSum += paid;
-            HtmlTableBuilder.AddRow(sb,
+            table.Row(
                 row.AId.ToString(),
                 WebUtility.HtmlEncode(row.RegistrantName ?? string.Empty),
                 WebUtility.HtmlEncode(FormatPaymentMethod(row, paymentMethodCreditCardId)),
-                row.Createdate?.ToString("g") ?? string.Empty,
+                // Date-only: the timestamp is ARB-sweep noise (4:00 AM) on a receipt.
+                row.Createdate?.ToString("M/d/yyyy") ?? string.Empty,
                 HtmlTableBuilder.FormatCurrency(paid));
         }
-        HtmlTableBuilder.EndBodyStartFoot(sb);
-        HtmlTableBuilder.AddFooterRow(sb, "Total", string.Empty, string.Empty, string.Empty, HtmlTableBuilder.FormatCurrency(paidSum));
-        HtmlTableBuilder.EndFootEndTable(sb);
+        table.FooterRow("Total", string.Empty, string.Empty, string.Empty, HtmlTableBuilder.FormatCurrency(paidSum));
+        table.End();
         return sb.ToString();
     }
 
@@ -673,11 +670,8 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         var regIds = list.Select(x => x.RegistrationId).ToList();
         var clubByReg = await _repo.GetTeamClubNamesAsync(regIds);
         var sb = new StringBuilder();
-        HtmlTableBuilder.StartTable(sb, emailMode);
-        HtmlTableBuilder.AddCaption(sb, "Registered Family Players", emailMode);
-        HtmlTableBuilder.StartHead(sb);
-        HtmlTableBuilder.AddHeaderRow(sb, "Player", "Status", "Assignment");
-        HtmlTableBuilder.EndHeadStartBody(sb);
+        var table = new HtmlTable(sb, emailMode, "Registered Family Players");
+        table.HeaderRow("Player", "Status", "Assignment");
         foreach (var q in list)
         {
             var assignment = q.Assignment ?? string.Empty;
@@ -686,13 +680,12 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                 assignment = $"{club}:{assignment}";
             }
             var status = (q.Active != true) ? "INACTIVE" : "ACTIVE";
-            HtmlTableBuilder.AddRow(sb,
+            table.Row(
                 WebUtility.HtmlEncode(q.Person ?? string.Empty),
                 status,
                 WebUtility.HtmlEncode(assignment));
         }
-        HtmlTableBuilder.EndBodyOnly(sb);
-        HtmlTableBuilder.EndTableOnly(sb);
+        table.End();
         return sb.ToString();
     }
 
@@ -701,15 +694,11 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         var director = await _repo.GetDirectorContactAsync(jobId);
         if (director == null) return string.Empty;
         var sb = new StringBuilder();
-        HtmlTableBuilder.StartTable(sb, emailMode);
-        HtmlTableBuilder.AddCaption(sb, "Contacts", emailMode);
-        HtmlTableBuilder.StartHead(sb);
-        HtmlTableBuilder.AddHeaderRow(sb, "Role", "Contact");
-        HtmlTableBuilder.EndHeadStartBody(sb);
-        HtmlTableBuilder.AddRow(sb, "Main Contact", $"<a href='mailto:{director.Email}'>{WebUtility.HtmlEncode(director.Name)}: {director.Email}</a>");
-        HtmlTableBuilder.AddRow(sb, "Technical Support (software)", "<a href='mailto:support@teamsportsinfo.com'>support@teamsportsinfo.com</a>");
-        HtmlTableBuilder.EndBodyOnly(sb);
-        HtmlTableBuilder.EndTableOnly(sb);
+        var table = new HtmlTable(sb, emailMode, "Contacts");
+        table.HeaderRow("Role", "Contact");
+        table.Row("Main Contact", $"<a href='mailto:{director.Email}'>{WebUtility.HtmlEncode(director.Name)}: {director.Email}</a>");
+        table.Row("Technical Support (software)", "<a href='mailto:support@teamsportsinfo.com'>support@teamsportsinfo.com</a>");
+        table.End();
         return sb.ToString();
     }
 
@@ -748,14 +737,13 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         var rows = await _repo.GetAccountingTransactionsAsync(registrationId);
         if (rows.Count == 0) return string.Empty;
         var sb = new StringBuilder();
-        HtmlTableBuilder.StartTable(sb, emailMode);
         var captionA = string.IsNullOrWhiteSpace(jobName)
             ? "Most Recent Transaction(s)"
-            : $"{WebUtility.HtmlEncode(jobName)}: Most Recent Transaction(s)";
-        HtmlTableBuilder.AddCaption(sb, captionA, emailMode);
-        HtmlTableBuilder.StartHead(sb);
-        HtmlTableBuilder.AddHeaderRow(sb, "ID", "Player", "Method", "Fees$", "Discount$", PaidColumnHeader, "Owes$");
-        HtmlTableBuilder.EndHeadStartBody(sb);
+            : $"{jobName}: Most Recent Transaction(s)";
+        var table = new HtmlTable(sb, emailMode, captionA);
+        table.HeaderRow("ID", "Player", "Method",
+            HtmlTableBuilder.Num("Fees$"), HtmlTableBuilder.Num("Discount$"),
+            HtmlTableBuilder.Num(PaidColumnHeader), HtmlTableBuilder.Num("Owes$"));
         decimal feesSum = 0m, discountSum = 0m, paidSum = 0m, owesSum = 0m;
         foreach (var r in rows)
         {
@@ -766,7 +754,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             }
             var owes = (r.Dueamt ?? 0m) - (r.Payamt ?? 0m);
             feesSum += (r.Dueamt ?? 0m); discountSum += discount; paidSum += (r.Payamt ?? 0m); owesSum += owes;
-            HtmlTableBuilder.AddRow(sb,
+            table.Row(
                 r.AId.ToString(),
                 WebUtility.HtmlEncode(r.RegistrantName ?? string.Empty),
                 WebUtility.HtmlEncode(FormatPaymentMethod(r, paymentMethodCreditCardId)),
@@ -775,13 +763,12 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                 HtmlTableBuilder.FormatCurrency(r.Payamt ?? 0m),
                 HtmlTableBuilder.FormatCurrency(owes));
         }
-        HtmlTableBuilder.EndBodyStartFoot(sb);
-        HtmlTableBuilder.AddFooterRow(sb, "Totals", string.Empty, string.Empty, HtmlTableBuilder.FormatCurrency(feesSum), HtmlTableBuilder.FormatCurrency(discountSum), HtmlTableBuilder.FormatCurrency(paidSum), HtmlTableBuilder.FormatCurrency(owesSum));
-        HtmlTableBuilder.EndFootEndTable(sb);
+        table.FooterRow("Totals", string.Empty, string.Empty, HtmlTableBuilder.FormatCurrency(feesSum), HtmlTableBuilder.FormatCurrency(discountSum), HtmlTableBuilder.FormatCurrency(paidSum), HtmlTableBuilder.FormatCurrency(owesSum));
+        table.End();
         return sb.ToString();
     }
 
-    private async Task<string> BuildAccountingTeamsHtmlAsync(Guid registrationId, Guid paymentMethodCreditCardId, bool emailMode)
+    private async Task<string> BuildAccountingTeamsHtmlAsync(Guid registrationId, Guid paymentMethodCreditCardId, string? jobName, bool emailMode)
     {
         var clubName = await _repo.GetClubNameAsync(registrationId) ?? string.Empty;
         var teams = await _repo.GetClubTeamsAsync(registrationId);
@@ -803,14 +790,13 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         // otherwise use the bare title (no stray leading colon).
         var caption = string.IsNullOrWhiteSpace(clubName)
             ? "Most Recent Transaction(s)"
-            : $"{WebUtility.HtmlEncode(clubName)}: Most Recent Transaction(s)";
+            : $"{clubName}: Most Recent Transaction(s)";
 
         var sb = new StringBuilder();
-        HtmlTableBuilder.StartTable(sb, emailMode);
-        HtmlTableBuilder.AddCaption(sb, caption, emailMode);
-        HtmlTableBuilder.StartHead(sb);
-        HtmlTableBuilder.AddHeaderRow(sb, "Active", "ID", "Team", "Method", "Fees$", PaidColumnHeader, "Date", "Owes$", "Comment");
-        HtmlTableBuilder.EndHeadStartBody(sb);
+        var table = new HtmlTable(sb, emailMode, caption);
+        table.HeaderRow("Active", "ID", "Team", "Method",
+            HtmlTableBuilder.Num("Fees$"), HtmlTableBuilder.Num(PaidColumnHeader),
+            "Date", HtmlTableBuilder.Num("Owes$"), "Comment");
         foreach (var (teamName, rows) in perTeamRows)
         {
             foreach (var r in rows)
@@ -821,20 +807,30 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                 }
                 var owes = (r.Dueamt ?? 0m) - (r.Payamt ?? 0m);
                 var activeLabel = (r.Active ?? false) ? "&#x2705;" : "&#x274C;";
-                HtmlTableBuilder.AddRow(sb,
+
+                // Payment rows are auto-stamped with "{JobName}:{AgeGroup}:{Team}" — pure noise
+                // next to the Team column. Suppress the auto-stamp; keep human-entered comments.
+                var comment = r.Comment ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(jobName) &&
+                    comment.StartsWith($"{jobName}:", StringComparison.OrdinalIgnoreCase))
+                {
+                    comment = string.Empty;
+                }
+
+                table.Row(
                     activeLabel,
                     r.AId.ToString(),
                     WebUtility.HtmlEncode(teamName),
                     WebUtility.HtmlEncode(FormatPaymentMethod(r, paymentMethodCreditCardId)),
                     HtmlTableBuilder.FormatCurrency(r.Dueamt ?? 0m),
                     HtmlTableBuilder.FormatCurrency(r.Payamt ?? 0m),
-                    r.Createdate?.ToString("g") ?? string.Empty,
+                    // Date-only: the timestamp is batch/sweep noise on a receipt.
+                    r.Createdate?.ToString("M/d/yyyy") ?? string.Empty,
                     HtmlTableBuilder.FormatCurrency(owes),
-                    WebUtility.HtmlEncode(r.Comment ?? string.Empty));
+                    WebUtility.HtmlEncode(comment));
             }
         }
-        HtmlTableBuilder.EndBodyOnly(sb);
-        HtmlTableBuilder.EndTableOnly(sb);
+        table.End();
         return sb.ToString();
     }
 
@@ -851,15 +847,13 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             jobId, RoleConstants.ClubRep, teamIds);
 
         var sb = new StringBuilder();
-        HtmlTableBuilder.StartTable(sb, emailMode);
-        HtmlTableBuilder.AddCaption(sb,
+        var table = new HtmlTable(sb, emailMode,
             string.IsNullOrWhiteSpace(teams[0].ClubName)
                 ? "Registered Teams SUMMARY"
-                : $"{WebUtility.HtmlEncode(teams[0].ClubName!)}: Registered Teams SUMMARY",
-            emailMode);
-        HtmlTableBuilder.StartHead(sb);
-        HtmlTableBuilder.AddHeaderRow(sb, string.Empty, "Team", "Deposit Fee", "Additional Fees", "Processing Fee", PaidColumnHeader, "Owes$");
-        HtmlTableBuilder.EndHeadStartBody(sb);
+                : $"{teams[0].ClubName!}: Registered Teams SUMMARY");
+        table.HeaderRow(string.Empty, "Team",
+            HtmlTableBuilder.Num("Deposit Fee"), HtmlTableBuilder.Num("Additional Fees"),
+            HtmlTableBuilder.Num("Processing Fee"), HtmlTableBuilder.Num(PaidColumnHeader), HtmlTableBuilder.Num("Owes$"));
         int i = 1;
         decimal sumOwed = 0m; decimal sumPaid = 0m; decimal sumDeposit = 0m; decimal sumAdditional = 0m; decimal sumProcessing = 0m;
         foreach (var t in teams)
@@ -880,7 +874,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             sumDeposit += deposit;
             sumAdditional += additional;
             sumProcessing += (t.ProcessingFees ?? 0m);
-            HtmlTableBuilder.AddRow(sb,
+            table.Row(
                 i++.ToString(),
                 WebUtility.HtmlEncode(t.TeamName),
                 HtmlTableBuilder.FormatCurrency(deposit),
@@ -889,9 +883,8 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                 HtmlTableBuilder.FormatCurrency(t.PaidTotal ?? 0m),
                 HtmlTableBuilder.FormatCurrency(owedRow));
         }
-        HtmlTableBuilder.EndBodyStartFoot(sb);
-        HtmlTableBuilder.AddFooterRow(sb, "Totals", string.Empty, HtmlTableBuilder.FormatCurrency(sumDeposit), HtmlTableBuilder.FormatCurrency(sumAdditional), HtmlTableBuilder.FormatCurrency(sumProcessing), HtmlTableBuilder.FormatCurrency(sumPaid), HtmlTableBuilder.FormatCurrency(sumOwed));
-        HtmlTableBuilder.EndFootEndTable(sb);
+        table.FooterRow("Totals", string.Empty, HtmlTableBuilder.FormatCurrency(sumDeposit), HtmlTableBuilder.FormatCurrency(sumAdditional), HtmlTableBuilder.FormatCurrency(sumProcessing), HtmlTableBuilder.FormatCurrency(sumPaid), HtmlTableBuilder.FormatCurrency(sumOwed));
+        table.End();
         return sb.ToString();
     }
 
@@ -916,20 +909,16 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         if (teams.Count == 0) return string.Empty;
 
         var sb = new StringBuilder();
-        HtmlTableBuilder.StartTable(sb, emailMode);
-        HtmlTableBuilder.AddCaption(sb, "Requested Teams (pending director approval)", emailMode);
-        HtmlTableBuilder.StartHead(sb);
-        HtmlTableBuilder.AddHeaderRow(sb, "Club", "Age Group", "Team");
-        HtmlTableBuilder.EndHeadStartBody(sb);
+        var table = new HtmlTable(sb, emailMode, "Requested Teams (pending director approval)");
+        table.HeaderRow("Club", "Age Group", "Team");
         foreach (var c in teams)
         {
-            HtmlTableBuilder.AddRow(sb,
+            table.Row(
                 WebUtility.HtmlEncode(c.Club ?? string.Empty),
                 WebUtility.HtmlEncode(c.Age ?? string.Empty),
                 WebUtility.HtmlEncode(c.Team ?? string.Empty));
         }
-        HtmlTableBuilder.EndBodyOnly(sb);
-        HtmlTableBuilder.EndTableOnly(sb);
+        table.End();
         return sb.ToString();
     }
 
@@ -938,22 +927,17 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         var teams = await _repo.GetSimpleTeamsAsync(registrationId);
         if (teams.Count == 0) return string.Empty;
         var sb = new StringBuilder();
-        HtmlTableBuilder.StartTable(sb, emailMode);
-        HtmlTableBuilder.AddCaption(sb,
+        var table = new HtmlTable(sb, emailMode,
             string.IsNullOrWhiteSpace(teams[0].ClubName)
                 ? "Registered Teams SUMMARY"
-                : $"{WebUtility.HtmlEncode(teams[0].ClubName!)}: Registered Teams SUMMARY",
-            emailMode);
-        HtmlTableBuilder.StartHead(sb);
-        HtmlTableBuilder.AddHeaderRow(sb, string.Empty, "Club Team");
-        HtmlTableBuilder.EndHeadStartBody(sb);
+                : $"{teams[0].ClubName!}: Registered Teams SUMMARY");
+        table.HeaderRow(string.Empty, "Club Team");
         int i = 1;
         foreach (var t in teams)
         {
-            HtmlTableBuilder.AddRow(sb, i++.ToString(), WebUtility.HtmlEncode(t.TeamName));
+            table.Row(i++.ToString(), WebUtility.HtmlEncode(t.TeamName));
         }
-        HtmlTableBuilder.EndBodyOnly(sb);
-        HtmlTableBuilder.EndTableOnly(sb);
+        table.End();
         return sb.ToString();
     }
 
@@ -1009,20 +993,16 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
     {
         var choices = await _repo.GetCoachTeamChoicesAsync(registrationId);
         var sb = new StringBuilder();
-        HtmlTableBuilder.StartTable(sb, emailMode);
-        HtmlTableBuilder.AddCaption(sb, "Coach Team Selections", emailMode);
-        HtmlTableBuilder.StartHead(sb);
-        HtmlTableBuilder.AddHeaderRow(sb, "Club", "Age Group", "Team");
-        HtmlTableBuilder.EndHeadStartBody(sb);
+        var table = new HtmlTable(sb, emailMode, "Coach Team Selections");
+        table.HeaderRow("Club", "Age Group", "Team");
         foreach (var c in choices)
         {
-            HtmlTableBuilder.AddRow(sb,
+            table.Row(
                 WebUtility.HtmlEncode(c.Club ?? string.Empty),
                 WebUtility.HtmlEncode(c.Age ?? string.Empty),
                 WebUtility.HtmlEncode(c.Team ?? string.Empty));
         }
-        HtmlTableBuilder.EndBodyOnly(sb);
-        HtmlTableBuilder.EndTableOnly(sb);
+        table.End();
         return sb.ToString();
     }
 

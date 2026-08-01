@@ -46,6 +46,13 @@
     text-align: left;
 }
 
+/* Numeric columns (money, counts) — right-aligned; emitted by HtmlTableBuilder.Cell */
+.tsic-cell-num {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
 /* ============================================
    SUBSTITUTION CONTENT BLOCKS
    Shared wrappers for non-table bulletin/email tokens

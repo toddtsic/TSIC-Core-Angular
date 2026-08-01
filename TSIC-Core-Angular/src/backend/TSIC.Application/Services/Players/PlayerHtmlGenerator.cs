@@ -61,11 +61,9 @@ public static class PlayerHtmlGenerator
         if (registrations.Count == 0) return string.Empty;
 
         var sb = new StringBuilder();
-        HtmlTableBuilder.StartTable(sb, emailMode);
-        HtmlTableBuilder.AddCaption(sb, "Family Players", emailMode);
-        HtmlTableBuilder.StartHead(sb);
-        HtmlTableBuilder.AddHeaderRow(sb, "Player", "Status", "Assignment", "Fees$", "Paid$", "Owes$");
-        HtmlTableBuilder.EndHeadStartBody(sb);
+        var table = new HtmlTable(sb, emailMode, "Family Players");
+        table.HeaderRow("Player", "Status", "Assignment",
+            HtmlTableBuilder.Num("Fees$"), HtmlTableBuilder.Num("Paid$"), HtmlTableBuilder.Num("Owes$"));
 
         decimal feesSum = 0m, paidSum = 0m, owesSum = 0m;
 
@@ -80,7 +78,7 @@ public static class PlayerHtmlGenerator
             paidSum += paid;
             owesSum += owes;
 
-            HtmlTableBuilder.AddRow(sb,
+            table.Row(
                 WebUtility.HtmlEncode(q.Person ?? string.Empty),
                 status,
                 WebUtility.HtmlEncode(q.Assignment ?? string.Empty),
@@ -89,15 +87,29 @@ public static class PlayerHtmlGenerator
                 HtmlTableBuilder.FormatCurrency(owes));
         }
 
-        HtmlTableBuilder.EndBodyStartFoot(sb);
-        HtmlTableBuilder.AddFooterRow(sb, "Totals", string.Empty, string.Empty,
+        table.FooterRow("Totals", string.Empty, string.Empty,
             HtmlTableBuilder.FormatCurrency(feesSum),
             HtmlTableBuilder.FormatCurrency(paidSum),
             HtmlTableBuilder.FormatCurrency(owesSum));
-        HtmlTableBuilder.EndFootEndTable(sb);
+        table.End();
 
         return sb.ToString();
     }
+
+    /// <summary>
+    /// Maps raw Authorize.Net ARB statuses to registrant-facing labels. "expired" is ADN's term
+    /// for a subscription that completed all scheduled billings — rendering it verbatim reads as
+    /// a problem when it is actually success.
+    /// </summary>
+    internal static string ArbStatusLabel(string? status) => status?.Trim().ToLowerInvariant() switch
+    {
+        "expired" => "Completed",
+        "active" => "Active",
+        "suspended" => "Suspended — payment issue",
+        "terminated" or "canceled" or "cancelled" => "Canceled",
+        null or "" => string.Empty,
+        _ => status.Trim(),
+    };
 
     /// <summary>
     /// Builds an HTML table showing automated recurring billing subscriptions.
@@ -107,45 +119,44 @@ public static class PlayerHtmlGenerator
     /// <returns>HTML table string, or empty string if no ARB subscriptions.</returns>
     public static string BuildArbTableHtml(List<PlayerRegistrationData> registrations, bool emailMode)
     {
-        if (registrations.Count == 0) return string.Empty;
-
-        var first = registrations[0];
-        if (first.AdnSubscriptionAmountPerOccurence is not > 0) return string.Empty;
+        // Only rows that actually carry a subscription — a family can mix ARB and paid-in-full
+        // siblings, and sub-less rows previously rendered as junk ("every 0 month", $0.00).
+        // Gating on ANY subscription row (not registrations[0]) also fixes the family whose
+        // first registration happens to be the non-ARB one.
+        var subs = registrations
+            .Where(q => !string.IsNullOrEmpty(q.AdnSubscriptionId) && (q.AdnSubscriptionAmountPerOccurence ?? 0m) > 0m)
+            .ToList();
+        if (subs.Count == 0) return string.Empty;
 
         var sb = new StringBuilder();
-        HtmlTableBuilder.StartTable(sb, emailMode);
-        HtmlTableBuilder.AddCaption(sb, "Automated Recurring Billing", emailMode);
-        HtmlTableBuilder.StartHead(sb);
-        HtmlTableBuilder.AddHeaderRow(sb, "Player", "Sub. Id", "Status", "Starting", "#Billings", "Frequency", "Charge/Billing", "Total Charges");
-        HtmlTableBuilder.EndHeadStartBody(sb);
+        var table = new HtmlTable(sb, emailMode, "Automated Recurring Billing");
+        table.HeaderRow("Player", "Sub. Id", "Status", "Starting",
+            HtmlTableBuilder.Num("#Billings"), "Frequency",
+            HtmlTableBuilder.Num("Charge/Billing"), HtmlTableBuilder.Num("Total Charges"));
 
         decimal totalAll = 0m;
 
-        foreach (var q in registrations)
+        foreach (var q in subs)
         {
             var intervalLabel = (q.AdnSubscriptionIntervalLength ?? 0) > 1 ? "months" : "month";
             var totalCharges = (q.AdnSubscriptionAmountPerOccurence ?? 0m) * (q.AdnSubscriptionBillingOccurences ?? 0);
             totalAll += totalCharges;
 
-            HtmlTableBuilder.AddRow(sb,
+            table.Row(
                 WebUtility.HtmlEncode(q.Person ?? string.Empty),
                 q.AdnSubscriptionId ?? string.Empty,
-                q.AdnSubscriptionStatus ?? string.Empty,
+                WebUtility.HtmlEncode(ArbStatusLabel(q.AdnSubscriptionStatus)),
                 q.AdnSubscriptionStartDate?.ToString("d") ?? string.Empty,
-                (q.AdnSubscriptionBillingOccurences ?? 0).ToString(),
+                HtmlTableBuilder.Num((q.AdnSubscriptionBillingOccurences ?? 0).ToString()),
                 $"every {q.AdnSubscriptionIntervalLength} {intervalLabel}",
                 HtmlTableBuilder.FormatCurrency(q.AdnSubscriptionAmountPerOccurence ?? 0m),
                 HtmlTableBuilder.FormatCurrency(totalCharges));
         }
 
-        HtmlTableBuilder.EndBodyStartFoot(sb);
-        HtmlTableBuilder.AddFooterRow(sb, "Total", string.Empty, string.Empty, string.Empty, string.Empty, string.Empty,
+        table.FooterRow("Total", string.Empty, string.Empty, string.Empty, string.Empty, string.Empty,
             string.Empty, HtmlTableBuilder.FormatCurrency(totalAll));
-        HtmlTableBuilder.EndFootEndTable(sb);
+        table.End();
 
         return sb.ToString();
     }
 }
-
-
-

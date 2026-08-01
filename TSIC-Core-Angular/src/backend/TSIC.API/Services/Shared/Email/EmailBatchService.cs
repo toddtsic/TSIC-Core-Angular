@@ -26,6 +26,9 @@ public sealed class EmailBatchService : IEmailBatchService
     private readonly IHostApplicationLifetime _appLifetime;
     private readonly IHostEnvironment _env;
     private readonly ILogger<EmailBatchService> _logger;
+    // Unsubscribe links must point at the environment that sent them — same rule as the
+    // invite/password-reset links in TextSubstitutionService/AuthController.
+    private readonly string _frontendBaseUrl;
 
     public EmailBatchService(
         IServiceScopeFactory scopeFactory,
@@ -34,7 +37,8 @@ public sealed class EmailBatchService : IEmailBatchService
         IAmazonSimpleEmailService ses,
         IHostApplicationLifetime appLifetime,
         IHostEnvironment env,
-        ILogger<EmailBatchService> logger)
+        ILogger<EmailBatchService> logger,
+        Microsoft.Extensions.Options.IOptions<TSIC.API.Configuration.FrontendSettings> frontendSettings)
     {
         _scopeFactory = scopeFactory;
         _email = email;
@@ -43,6 +47,7 @@ public sealed class EmailBatchService : IEmailBatchService
         _appLifetime = appLifetime;
         _env = env;
         _logger = logger;
+        _frontendBaseUrl = (frontendSettings.Value.BaseUrl ?? string.Empty).TrimEnd('/');
     }
 
     public async Task<EmailBatchHandle> StartAsync<TItem>(
@@ -254,17 +259,16 @@ public sealed class EmailBatchService : IEmailBatchService
         }
     }
 
-    private const string UnsubscribeUrlBase = "https://www.teamsportsinfo.com/api/email/unsubscribe?regId=";
-
     /// <summary>
     /// Appends the canonical unsubscribe footer to the rendered body when the plan supplied a regId.
     /// Single source of the footer markup, so EVERY batch path is suppressible identically (per the
-    /// "uniform, all suppressible" rule) — no path hand-rolls or omits it.
+    /// "uniform, all suppressible" rule) — no path hand-rolls or omits it. The link targets the
+    /// sending environment (FrontendSettings.BaseUrl), not a hardwired www.
     /// </summary>
-    private static void AppendUnsubscribeFooter(EmailBatchRendered rendered)
+    private void AppendUnsubscribeFooter(EmailBatchRendered rendered)
     {
         if (rendered.UnsubscribeRegId is not Guid regId) return;
-        var url = $"{UnsubscribeUrlBase}{regId:D}";
+        var url = $"{_frontendBaseUrl}/api/email/unsubscribe?regId={regId:D}";
         rendered.Message.HtmlBody += $"""
             <div style="margin-top:32px; padding-top:16px; border-top:1px solid #e0e0e0; text-align:center; font-size:12px; color:#999;">
                 <a href="{url}" style="color:#999; text-decoration:underline;">Unsubscribe</a>

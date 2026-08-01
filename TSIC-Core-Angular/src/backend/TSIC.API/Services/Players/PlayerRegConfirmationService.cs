@@ -95,15 +95,12 @@ public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
         string subject = string.IsNullOrWhiteSpace(job.JobName) ? "Registration Confirmation" : $"{job.JobName} Registration Confirmation";
         string? template = job.PlayerRegConfirmationEmail;
         if (string.IsNullOrWhiteSpace(template)) return (subject, string.Empty);
-        // Ensure email mode token present for inline-styled email output
-        if (!template.Contains("!EMAILMODE", StringComparison.OrdinalIgnoreCase))
-        {
-            template = "!EMAILMODE " + template;
-        }
         try
         {
             Guid ccPaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
-            var html = await _subs.SubstituteAsync(job.JobPath, jobId, ccPaymentMethodId, firstRegistrationId, familyUserId, template);
+            // emailMode: true — this is an email; inline-styled output regardless of the
+            // template's legacy !EMAILMODE token (replaces the old prepend hack).
+            var html = await _subs.SubstituteAsync(job.JobPath, jobId, ccPaymentMethodId, firstRegistrationId, familyUserId, template, emailMode: true);
             if (isEcheckPending && !string.IsNullOrEmpty(html))
             {
                 html = EcheckPendingBanner + html;

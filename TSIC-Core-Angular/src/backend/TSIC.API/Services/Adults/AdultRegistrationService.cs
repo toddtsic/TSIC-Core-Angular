@@ -810,7 +810,8 @@ public class AdultRegistrationService : IAdultRegistrationService
                 paymentMethodCreditCardId: CreditCardPaymentMethodId,
                 registrationId: reg.RegistrationId,
                 familyUserId: string.Empty,
-                template: template);
+                template: template,
+                emailMode: emailMode);
         }
         catch
         {
@@ -838,20 +839,17 @@ public class AdultRegistrationService : IAdultRegistrationService
         if (selected.Count == 0) return string.Empty;
 
         var sb = new System.Text.StringBuilder();
-        HtmlTableBuilder.StartTable(sb, emailMode);
-        HtmlTableBuilder.StartHead(sb);
-        HtmlTableBuilder.AddHeaderRow(sb, "Club", "Age Group", "Division", "Team");
-        HtmlTableBuilder.EndHeadStartBody(sb);
+        var table = new HtmlTable(sb, emailMode);
+        table.HeaderRow("Club", "Age Group", "Division", "Team");
         foreach (var t in selected)
         {
-            HtmlTableBuilder.AddRow(sb,
+            table.Row(
                 System.Net.WebUtility.HtmlEncode(t.ClubName),
                 System.Net.WebUtility.HtmlEncode(t.AgegroupName),
                 System.Net.WebUtility.HtmlEncode(t.DivName),
                 System.Net.WebUtility.HtmlEncode(t.TeamName));
         }
-        HtmlTableBuilder.EndBodyOnly(sb);
-        HtmlTableBuilder.EndTableOnly(sb);
+        table.End();
         return sb.ToString();
     }
 

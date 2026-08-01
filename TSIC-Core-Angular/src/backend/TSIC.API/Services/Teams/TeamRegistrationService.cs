@@ -1645,7 +1645,10 @@ public class TeamRegistrationService : ITeamRegistrationService
             registrationId: registrationId,
             familyUserId: string.Empty,
             // Both callers reject a blank template before reaching here.
-            template: jobInfo.AdultRegConfirmationEmail ?? string.Empty);
+            template: jobInfo.AdultRegConfirmationEmail ?? string.Empty,
+            // This IS an email — force inline-styled tables regardless of whether the job's
+            // template carries the legacy !EMAILMODE token (most don't; they arrived unstyled).
+            emailMode: true);
 
         if (isEcheckPending && !string.IsNullOrEmpty(emailHtml))
         {

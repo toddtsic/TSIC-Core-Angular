@@ -12,6 +12,10 @@ public interface ITextSubstitutionService
     /// engine already produces, <see cref="InvalidOperationException"/> is thrown — two
     /// sources of truth for the same token is always a bug. Ordering is handled centrally
     /// by TokenReplacer, which sorts by descending key length before replacing.
+    /// <paramref name="emailMode"/> renders complex tokens with inline-styled email-safe
+    /// markup — pass true from every email send path (email clients ignore stylesheets);
+    /// false renders with the tsic-* CSS classes for on-screen display. The legacy
+    /// !EMAILMODE template token is still honored (OR-ed in) and stripped.
     /// </summary>
     Task<string> SubstituteAsync(
         string jobSegment,
@@ -21,7 +25,8 @@ public interface ITextSubstitutionService
         string familyUserId,
         string template,
         string? inviteTargetJobPath = null,
-        IReadOnlyDictionary<string, string>? extraTokens = null);
+        IReadOnlyDictionary<string, string>? extraTokens = null,
+        bool emailMode = false);
 
     /// <summary>
     /// Single-pass render of BOTH subject and body for one recipient. Loads fixed fields ONCE and
@@ -47,7 +52,8 @@ public interface ITextSubstitutionService
         Guid? inviteTargetJobId = null,
         DateTime? inviteExpires = null,
         IReadOnlyDictionary<string, string>? extraTokens = null,
-        JobInvariantFieldsData? jobFields = null);
+        JobInvariantFieldsData? jobFields = null,
+        bool emailMode = false);
 
     /// <summary>
     /// Render-win #2: loads the job-invariant token fields ONCE for a batch. Pass the result to

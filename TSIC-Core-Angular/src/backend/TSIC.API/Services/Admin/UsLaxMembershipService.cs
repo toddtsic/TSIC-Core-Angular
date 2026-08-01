@@ -217,7 +217,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
                 var extras = BuildUsLaxExtras(r);
                 var (subject, body) = await textSub.SubstituteSubjectAndBodyAsync(
                     jobPath, jobId, CcPaymentMethodId, r.RegistrationId, string.Empty,
-                    subjectTemplate, bodyTemplate, inviteTargetJobPath: null, extraTokens: extras);
+                    subjectTemplate, bodyTemplate, inviteTargetJobPath: null, extraTokens: extras, emailMode: true);
 
                 return new EmailBatchRendered
                 {
@@ -266,7 +266,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         var extras = BuildUsLaxExtras(request.Recipient);
         var (subject, body) = await _textSubstitution.SubstituteSubjectAndBodyAsync(
             jobPath, jobId, CcPaymentMethodId, request.Recipient.RegistrationId, string.Empty,
-            request.Subject, request.Body, inviteTargetJobPath: null, extraTokens: extras);
+            request.Subject, request.Body, inviteTargetJobPath: null, extraTokens: extras, emailMode: true);
 
         var renderedFor = $"{request.Recipient.FirstName} {request.Recipient.LastName}".Trim();
         return await _testSend.SendRenderedAsync(subject, body, renderedFor, request.TestRecipient, ct);

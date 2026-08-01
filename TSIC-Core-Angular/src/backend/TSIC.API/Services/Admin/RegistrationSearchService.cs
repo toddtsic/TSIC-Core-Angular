@@ -1007,7 +1007,8 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
                 var renderFamilyUserId = templateNeedsFamily ? (item.FamilyUserId ?? "") : "";
                 var (renderedSubject, renderedBody) = await textSub.SubstituteSubjectAndBodyAsync(
                     jobPath, jobId, CcPaymentMethodId, item.RegistrationId, renderFamilyUserId, subject, body,
-                    inviteTargetJobPath, inviteTargetJobName, request.InviteLinkTargetJobId, inviteExpires, jobFields: jobFields);
+                    inviteTargetJobPath, inviteTargetJobName, request.InviteLinkTargetJobId, inviteExpires,
+                    jobFields: jobFields, emailMode: true);
 
                 return new EmailBatchRendered
                 {
@@ -1084,10 +1085,11 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
                 : "Unknown";
             var email = thisReg?.User?.Email ?? "(no email)";
 
+            // emailMode: true — the preview must render exactly what the send will produce.
             var renderedSubject = await _textSubstitution.SubstituteAsync(
-                jobPath, jobId, CcPaymentMethodId, reg.RegistrationId, reg.FamilyUserId ?? "", request.Subject);
+                jobPath, jobId, CcPaymentMethodId, reg.RegistrationId, reg.FamilyUserId ?? "", request.Subject, emailMode: true);
             var renderedBody = await _textSubstitution.SubstituteAsync(
-                jobPath, jobId, CcPaymentMethodId, reg.RegistrationId, reg.FamilyUserId ?? "", request.BodyTemplate);
+                jobPath, jobId, CcPaymentMethodId, reg.RegistrationId, reg.FamilyUserId ?? "", request.BodyTemplate, emailMode: true);
 
             previews.Add(new RenderedEmailPreview
             {
