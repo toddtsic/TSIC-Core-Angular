@@ -35,8 +35,14 @@ export const LEAGUE_COLUMNS: LadtColumnDef[] = [
 // ── Agegroup ──
 
 // AM-038 nit 4 (Ann): every width fits its longest header WORD — paired with the
-// keep-all header CSS in ladt-sibling-grid, headers wrap only at spaces, never
-// "GE NDER" / "CHA MPS BY DIV". Age Group has no h-scroll, so there is slack to widen.
+// header CSS in ladt-sibling-grid, headers wrap only at spaces, never
+// "GE NDER" / "CHA MPS BY DIV".
+// AM-038 re-open (Ann, 07-31 — Todd go 08-01): the four rarely-used Settings
+// columns (Self Roster / Champs by Div / API Roster / Hide Standings) are
+// DROPPED from the grid so Age Group fits with no horizontal scrollbar. The
+// grid is display-only — all four remain editable in the age-group fly-in,
+// which is the only edit surface anyway. Do not re-add without killing the
+// scrollbar some other way.
 export const AGEGROUP_COLUMNS: LadtColumnDef[] = [
   { field: 'agegroupName', header: 'Age Group', type: 'string', frozen: true, width: '180px', colorField: 'color' },
   { field: 'gender', header: 'Gender', type: 'string', width: '80px' },
@@ -46,11 +52,6 @@ export const AGEGROUP_COLUMNS: LadtColumnDef[] = [
   { field: '_phase', header: 'Payment Phase', type: 'phase', width: '180px' },
   // Limits
   { field: 'maxTeams', header: 'Max Teams', type: 'number', group: 'Limits', width: '95px' },
-  // Settings
-  { field: 'bAllowSelfRostering', header: 'Self Roster', type: 'boolean', group: 'Settings', width: '85px' },
-  { field: 'bChampionsByDivision', header: 'Champs by Div', type: 'boolean', group: 'Settings', width: '90px' },
-  { field: 'bAllowApiRosterAccess', header: 'API Roster', type: 'boolean', group: 'Settings', width: '85px' },
-  { field: 'bHideStandings', header: 'Hide Standings', type: 'boolean', group: 'Settings', width: '95px' },
 ];
 
 // ── Division ──

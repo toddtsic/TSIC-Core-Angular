@@ -262,9 +262,14 @@ export interface ParentBreadcrumb {
       line-height: var(--line-height-tight);
       /* AM-038 nits 3/4 (Ann): ej2 wrapMode:'Header' applies word-wrap:break-word,
          which split header words mid-word ("GE NDER", "ACTI VE"). Wrap at spaces
-         only; column widths in ladt-grid-columns.ts fit each longest header word. */
-      word-break: keep-all;
-      overflow-wrap: normal;
+         only; column widths in ladt-grid-columns.ts fit each longest header word.
+         !important is load-bearing (AM-038 re-open 07-31): ej2's own textwrap rule
+         (.e-grid.e-wrap … .e-headercelldiv) out-specifies :host ::ng-deep .e-grid
+         .e-headercelldiv, so without it word-wrap:break-word won the cascade and
+         headers kept splitting — keep-all alone doesn't stop English mid-word breaks. */
+      word-break: keep-all !important;
+      overflow-wrap: normal !important;
+      word-wrap: normal !important;
     }
 
     :host ::ng-deep .e-grid .e-rowcell {
