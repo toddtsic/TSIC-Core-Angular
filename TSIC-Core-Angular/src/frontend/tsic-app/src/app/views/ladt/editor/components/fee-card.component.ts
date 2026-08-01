@@ -243,6 +243,12 @@ export function modifierDateError(mods: ModifierForm[]): string | null {
         <p class="cascade-below-note"><i class="bi bi-arrow-down-circle"></i><span>{{ note }}</span></p>
       }
 
+      <!-- Verified all-clear — only when the override walk ran and found nothing below.
+           Never rendered while fees are still loading (that's null, not "no overrides"). -->
+      @if (allClearNote(); as note) {
+        <p class="cascade-below-note cascade-clear-note"><i class="bi bi-check2-circle"></i><span>{{ note }}</span></p>
+      }
+
       @if (hasWindowOverlap()) {
         <div class="overlap-warning">
           <i class="bi bi-exclamation-triangle-fill me-1"></i>
@@ -330,6 +336,8 @@ export function modifierDateError(mods: ModifierForm[]): string | null {
       display: flex; align-items: flex-start; gap: 4px;
     }
     .cascade-below-note i { margin-top: 1px; }
+    /* Verified all-clear: same quiet voice, check icon tinted (icon + text, never color alone). */
+    .cascade-clear-note i { color: var(--bs-success); }
     /* Collapsed phase block — same quiet chrome as the radio container, one line tall. */
     .single-payment-note {
       margin: var(--space-3) 0;
@@ -434,8 +442,13 @@ export class FeeCardComponent {
 
   /** Scopes one tier below this card with their OWN settings (league card = age groups,
    *  age-group card = teams) — drives the downward "set their own …" disclosure lines.
-   *  null / empty = nothing overridden below (and always at team scope, the leaf). */
+   *  null = unknown (fees not loaded / leaf scope); empty = verified nothing overrides. */
   readonly descendantOverrides = input<DescendantOverrideInfo[] | null>(null);
+
+  /** Teams TWO tiers below a league card with their own settings — count-only tails on
+   *  the notes, and the honesty gate for the all-clear line (a league card must not claim
+   *  "nothing below overrides" while a team carries its own stamp). null off league scope. */
+  readonly deeperOverrides = input<DescendantOverrideInfo[] | null>(null);
 
   readonly depositChange = output<number | null>();
   readonly balanceDueChange = output<number | null>();
@@ -550,10 +563,25 @@ export class FeeCardComponent {
   /** Cap on names enumerated in a "set their own …" line before collapsing to "and N more". */
   private static readonly BELOW_NOTE_MAX = 5;
 
+  /** The tier one below this card, as prose. */
+  private belowNoun(): string {
+    return this.scope() === 'agegroup' ? 'team' : 'age group';
+  }
+
   /** "1 age group sets its" / "3 teams set their" — the subject of every below-note. */
   private countPhrase(n: number): string {
-    const noun = this.scope() === 'agegroup' ? 'team' : 'age group';
+    const noun = this.belowNoun();
     return n === 1 ? `1 ${noun} sets its` : `${n} ${noun}s set their`;
+  }
+
+  /** Count-only sentence for teams TWO tiers below a league card — named notes cover one
+   *  tier; this keeps the deeper tier from being silently invisible. Empty when none. */
+  private deeperSentence(pick: (d: DescendantOverrideInfo) => boolean, what: string): string {
+    const n = (this.deeperOverrides() ?? []).filter(pick).length;
+    if (!n) return '';
+    return n === 1
+      ? `1 team further down sets its own ${what}.`
+      : `${n} teams further down set their own ${what}.`;
   }
 
   /**
@@ -563,26 +591,29 @@ export class FeeCardComponent {
    */
   readonly phaseOverrideNote = computed<string | null>(() => {
     const below = (this.descendantOverrides() ?? []).filter(d => d.phase !== null);
-    if (!below.length) return null;
+    const deeper = this.deeperSentence(d => d.phase !== null, 'phase');
+    if (!below.length) return deeper || null;
     const shown = below.slice(0, FeeCardComponent.BELOW_NOTE_MAX);
     const names = shown.map(d => `${d.name} (${d.phase ? 'Full payment' : 'Deposit first'})`).join(', ');
     const more = below.length > shown.length ? ` and ${below.length - shown.length} more` : '';
-    return `${this.countPhrase(below.length)} own phase: ${names}${more}.`;
+    return `${this.countPhrase(below.length)} own phase: ${names}${more}.${deeper ? ' Plus ' + deeper : ''}`;
   });
 
   /**
    * Downward amounts disclosure. Enumerates with amounts when short; past the cap it
-   * collapses to a count — the sibling grid alongside already itemizes every row, so the
-   * card only needs to say the league/age-group inputs are not the whole story.
+   * collapses to a count and points at the tier below (the grid beside an open fly-in
+   * shows SIBLINGS, not these children — the rows live one drill-down away).
    */
   readonly amountOverrideNote = computed<string | null>(() => {
     const below = (this.descendantOverrides() ?? []).filter(d => d.deposit != null || d.balanceDue != null);
-    if (!below.length) return null;
+    const deeper = this.deeperSentence(d => d.deposit != null || d.balanceDue != null, 'amounts');
+    const tail = deeper ? ` Plus ${deeper}` : '';
+    if (!below.length) return deeper || null;
     if (below.length > FeeCardComponent.BELOW_NOTE_MAX) {
-      return `${this.countPhrase(below.length)} own amounts — see each row in the grid.`;
+      return `${this.countPhrase(below.length)} own amounts — drill into each ${this.belowNoun()} for its row.${tail}`;
     }
     const names = below.map(d => `${d.name} (${this.amountsLabel(d)})`).join(', ');
-    return `${this.countPhrase(below.length)} own amounts: ${names}.`;
+    return `${this.countPhrase(below.length)} own amounts: ${names}.${tail}`;
   });
 
   private amountsLabel(d: DescendantOverrideInfo): string {
@@ -594,13 +625,34 @@ export class FeeCardComponent {
   /** Downward Early Bird / Late Fee disclosure — same voice as the other below-notes. */
   readonly modifierOverrideNote = computed<string | null>(() => {
     const below = (this.descendantOverrides() ?? []).filter(d => d.earlyBird || d.lateFee);
-    if (!below.length) return null;
+    const deeper = this.deeperSentence(d => d.earlyBird || d.lateFee, 'Early Bird / Late Fee');
+    if (!below.length) return deeper || null;
     const label = (d: DescendantOverrideInfo) =>
       [d.earlyBird ? 'Early Bird' : null, d.lateFee ? 'Late Fee' : null].filter(Boolean).join(' + ');
     const shown = below.slice(0, FeeCardComponent.BELOW_NOTE_MAX);
     const names = shown.map(d => `${d.name} (${label(d)})`).join(', ');
     const more = below.length > shown.length ? ` and ${below.length - shown.length} more` : '';
-    return `${this.countPhrase(below.length)} own Early Bird / Late Fee: ${names}${more}.`;
+    return `${this.countPhrase(below.length)} own Early Bird / Late Fee: ${names}${more}.${deeper ? ' Plus ' + deeper : ''}`;
+  });
+
+  /**
+   * The affirmative mirror of the override notes: when the walk has RUN (null = fees not
+   * loaded — absence of data must never read as absence of overrides) and found nothing at
+   * any covered tier, say so in one line. Silence stops being ambiguous: no line = data
+   * pending or overrides named above; this line = verified all-clear, the card governs
+   * everything below it. League scope requires the team tier verified too.
+   */
+  readonly allClearNote = computed<string | null>(() => {
+    const scope = this.scope();
+    if (scope !== 'league' && scope !== 'agegroup') return null;   // leaf / no cascade context
+    const below = this.descendantOverrides();
+    if (below === null || below.length > 0) return null;
+    if (scope === 'league') {
+      const deeper = this.deeperOverrides();
+      if (deeper === null || deeper.length > 0) return null;
+      return 'No age group or team in this league sets its own phase, amounts, or Early Bird / Late Fee — this card governs them all.';
+    }
+    return 'No team in this age group sets its own phase, amounts, or Early Bird / Late Fee — this card governs them all.';
   });
 
   /** Green "you're in full-payment" emphasis — own stamp OR the resolved answer when following

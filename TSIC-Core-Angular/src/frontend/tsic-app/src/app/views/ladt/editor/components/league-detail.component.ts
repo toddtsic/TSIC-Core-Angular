@@ -88,6 +88,7 @@ const JOB_TYPE_TOURNAMENT = 2;
               [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="feeForm.clubRepPhase = $event; markFeeDirty()"
               [modifiers]="clubRepModifiers" [scope]="'league'" [phaseContext]="phaseContext()?.clubRep ?? null"
               [descendantOverrides]="descendantOverrides()?.clubRep ?? null"
+              [deeperOverrides]="deeperOverrides()?.clubRep ?? null"
               hintText="League default for every age group unless an age group or team sets its own." />
           }
           @if (playerCardOpen()) {
@@ -97,6 +98,7 @@ const JOB_TYPE_TOURNAMENT = 2;
               [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="feeForm.playerPhase = $event; markFeeDirty()"
               [modifiers]="playerModifiers" placeholder="Optional" [scope]="'league'" [phaseContext]="phaseContext()?.player ?? null"
               [descendantOverrides]="descendantOverrides()?.player ?? null"
+              [deeperOverrides]="deeperOverrides()?.player ?? null"
               hintText="League default for every age group unless an age group or team sets its own." />
           }
         } @else {
@@ -107,6 +109,7 @@ const JOB_TYPE_TOURNAMENT = 2;
               [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="feeForm.playerPhase = $event; markFeeDirty()"
               [modifiers]="playerModifiers" placeholder="Optional" [scope]="'league'" [phaseContext]="phaseContext()?.player ?? null"
               [descendantOverrides]="descendantOverrides()?.player ?? null"
+              [deeperOverrides]="deeperOverrides()?.player ?? null"
               hintText="League default for every age group unless an age group or team sets its own." />
           }
           @if (clubRepCardOpen()) {
@@ -116,6 +119,7 @@ const JOB_TYPE_TOURNAMENT = 2;
               [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="feeForm.clubRepPhase = $event; markFeeDirty()"
               [modifiers]="clubRepModifiers" [scope]="'league'" [phaseContext]="phaseContext()?.clubRep ?? null"
               [descendantOverrides]="descendantOverrides()?.clubRep ?? null"
+              [deeperOverrides]="deeperOverrides()?.clubRep ?? null"
               hintText="League default for every age group unless an age group or team sets its own." />
           }
         }
@@ -195,6 +199,9 @@ export class LeagueDetailComponent implements OnChanges, OnInit, OnDestroy {
   /** Per-role reverse-cascade disclosure: age groups under this league that set their own
    *  phase/amounts/modifiers (see DescendantOverrideInfo in fee-card). */
   readonly descendantOverrides = input<{ player: DescendantOverrideInfo[]; clubRep: DescendantOverrideInfo[] } | null>(null);
+  /** Per-role TWO-tiers-down disclosure: teams under this league with their own settings —
+   *  count-only tails on the cards' notes + the honesty gate for their all-clear line. */
+  readonly deeperOverrides = input<{ player: DescendantOverrideInfo[]; clubRep: DescendantOverrideInfo[] } | null>(null);
   readonly saved = output<void>();
 
   private readonly ladtService = inject(LadtService);

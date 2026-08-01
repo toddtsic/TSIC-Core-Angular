@@ -827,15 +827,35 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
    * Reverse-cascade disclosure for the open fly-in's fee cards, per role: which scopes
    * ONE TIER BELOW set their own phase stamp, amounts, or modifiers (league card → age
    * groups, age-group card → teams). Field-aware — a bare row is not an override (player
-   * rows exist structurally at age-group scope); only locally-set values count. Memoized
-   * for input-binding identity stability — see detailAncestorPhase.
+   * rows exist structurally at age-group scope); only locally-set values count. WAITLIST/
+   * Dropped holding buckets (and their mirror teams' minted $0 rows) are not overrides a
+   * director set — excluded, like every other fee surface. null until jobFees is loaded:
+   * an empty cache must read as "unknown", never as an all-clear. Memoized for
+   * input-binding identity stability — see detailAncestorPhase.
    */
   readonly detailDescendantOverrides = computed(() => {
     const node = this.detailNode();
     if (!node || node.level > 1) return null; // divisions carry no fee cards; teams are leaves
+    if (!this.jobFees().length) return null;  // not loaded yet — no notes, no all-clear
     return {
       player: this.descendantOverridesFor(node, LadtEditorComponent.PLAYER_ROLE_ID),
       clubRep: this.descendantOverridesFor(node, LadtEditorComponent.CLUBREP_ROLE_ID)
+    };
+  });
+
+  /**
+   * TWO tiers below a league card: teams (under the league's real age groups) with their
+   * own settings. Count-only in the cards' copy, but carried as full infos so each note
+   * filters by its own field — and so the all-clear line can honestly claim the whole
+   * subtree, not just the tier the named notes cover. null off league scope / before load.
+   */
+  readonly detailDeeperOverrides = computed(() => {
+    const node = this.detailNode();
+    if (!node || node.level !== 0) return null;
+    if (!this.jobFees().length) return null;
+    return {
+      player: this.teamOverridesUnderLeague(node, LadtEditorComponent.PLAYER_ROLE_ID),
+      clubRep: this.teamOverridesUnderLeague(node, LadtEditorComponent.CLUBREP_ROLE_ID)
     };
   });
 
@@ -848,7 +868,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     const fees = this.jobFees();
     let children: LadtFlatNode[];
     if (node.level === 0) {
-      children = flat.filter(n => n.level === 1 && n.parentId === node.id);
+      children = flat.filter(n => n.level === 1 && n.parentId === node.id && !this.isSpecialAgegroup(n.name));
     } else {
       const divIds = new Set(flat.filter(n => n.level === 2 && n.parentId === node.id).map(n => n.id));
       children = flat.filter(n => n.level === 3 && n.parentId && (n.parentId === node.id || divIds.has(n.parentId)));
@@ -858,20 +878,43 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
       const rows = fees.filter(f => f.roleId === roleId && (node.level === 0
         ? f.agegroupId === child.id && !f.teamId
         : f.teamId === child.id));
-      if (!rows.length) continue;
-      const info: DescendantOverrideInfo = {
-        name: child.name,
-        phase: rows.find(r => r.bFullPaymentRequired != null)?.bFullPaymentRequired ?? null,
-        deposit: rows.find(r => r.deposit != null)?.deposit ?? null,
-        balanceDue: rows.find(r => r.balanceDue != null)?.balanceDue ?? null,
-        earlyBird: rows.some(r => (r.modifiers ?? []).some(m => m.modifierType === 'EarlyBird')),
-        lateFee: rows.some(r => (r.modifiers ?? []).some(m => m.modifierType === 'LateFee'))
-      };
-      if (info.phase !== null || info.deposit != null || info.balanceDue != null || info.earlyBird || info.lateFee) {
-        out.push(info);
-      }
+      const info = this.overrideInfoFrom(child.name, rows);
+      if (info) out.push(info);
     }
     return out.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /** Teams under a league's non-bucket age groups (direct or via a division) whose own
+   *  rows set something for the role. Same walk shape as subtreeHasDeposit. */
+  private teamOverridesUnderLeague(node: LadtFlatNode, roleId: string): DescendantOverrideInfo[] {
+    const flat = this.flatNodes();
+    const fees = this.jobFees();
+    const agIds = new Set(flat
+      .filter(n => n.level === 1 && n.parentId === node.id && !this.isSpecialAgegroup(n.name))
+      .map(n => n.id));
+    const divIds = new Set(flat.filter(n => n.level === 2 && n.parentId && agIds.has(n.parentId)).map(n => n.id));
+    const teams = flat.filter(n => n.level === 3 && n.parentId && (agIds.has(n.parentId) || divIds.has(n.parentId)));
+    const out: DescendantOverrideInfo[] = [];
+    for (const team of teams) {
+      const info = this.overrideInfoFrom(team.name, fees.filter(f => f.roleId === roleId && f.teamId === team.id));
+      if (info) out.push(info);
+    }
+    return out;
+  }
+
+  /** Field-aware row → override info; null when the rows set nothing locally. */
+  private overrideInfoFrom(name: string, rows: JobFeeDto[]): DescendantOverrideInfo | null {
+    if (!rows.length) return null;
+    const info: DescendantOverrideInfo = {
+      name,
+      phase: rows.find(r => r.bFullPaymentRequired != null)?.bFullPaymentRequired ?? null,
+      deposit: rows.find(r => r.deposit != null)?.deposit ?? null,
+      balanceDue: rows.find(r => r.balanceDue != null)?.balanceDue ?? null,
+      earlyBird: rows.some(r => (r.modifiers ?? []).some(m => m.modifierType === 'EarlyBird')),
+      lateFee: rows.some(r => (r.modifiers ?? []).some(m => m.modifierType === 'LateFee'))
+    };
+    return (info.phase !== null || info.deposit != null || info.balanceDue != null || info.earlyBird || info.lateFee)
+      ? info : null;
   }
 
   private phaseContextFor(node: LadtFlatNode, roleId: string): PhaseContext {

@@ -367,6 +367,7 @@
           [feeRolesPresent]="feeRolesPresent()"
           [phaseContext]="detailPhaseContext()"
           [descendantOverrides]="detailDescendantOverrides()"
+          [deeperOverrides]="detailDeeperOverrides()"
           (saved)="onDetailSaved()"
         />
       } @else if (node.level === 1) {
