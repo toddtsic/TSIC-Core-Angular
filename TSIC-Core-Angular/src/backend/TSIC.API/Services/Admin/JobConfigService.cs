@@ -838,15 +838,20 @@ public class JobConfigService : IJobConfigService
             AvailableAdultCoachProfiles = s_adultCoachProfileOptions,
             AdultRegConfirmationEmail = job.AdultRegConfirmationEmail,
             AdultRegConfirmationOnScreen = job.AdultRegConfirmationOnScreen,
-            CoachRegConfirmationEmail = job.CoachRegConfirmationEmail,
-            CoachRegConfirmationOnScreen = job.CoachRegConfirmationOnScreen,
+            // Role pairs surface their EFFECTIVE value — the same ?? fallback the render path
+            // applies (AdultRegistrationService) — so the editor never shows blank while the
+            // flow delivers the club-rep copy. Consequence, by design: saving this tab echoes
+            // the shown value into the role's own columns, detaching it from future Adult-pair
+            // edits. The render-side fallback still covers jobs never saved through this tab.
+            CoachRegConfirmationEmail = job.CoachRegConfirmationEmail ?? job.AdultRegConfirmationEmail,
+            CoachRegConfirmationOnScreen = job.CoachRegConfirmationOnScreen ?? job.AdultRegConfirmationOnScreen,
             AdultRegRefundPolicy = job.AdultRegRefundPolicy,
             AdultRegReleaseOfLiability = job.AdultRegReleaseOfLiability,
             AdultRegCodeOfConduct = job.AdultRegCodeOfConduct,
-            RefereeRegConfirmationEmail = job.RefereeRegConfirmationEmail,
-            RefereeRegConfirmationOnScreen = job.RefereeRegConfirmationOnScreen,
-            RecruiterRegConfirmationEmail = job.RecruiterRegConfirmationEmail,
-            RecruiterRegConfirmationOnScreen = job.RecruiterRegConfirmationOnScreen,
+            RefereeRegConfirmationEmail = job.RefereeRegConfirmationEmail ?? job.AdultRegConfirmationEmail,
+            RefereeRegConfirmationOnScreen = job.RefereeRegConfirmationOnScreen ?? job.AdultRegConfirmationOnScreen,
+            RecruiterRegConfirmationEmail = job.RecruiterRegConfirmationEmail ?? job.AdultRegConfirmationEmail,
+            RecruiterRegConfirmationOnScreen = job.RecruiterRegConfirmationOnScreen ?? job.AdultRegConfirmationOnScreen,
         };
     }
 
