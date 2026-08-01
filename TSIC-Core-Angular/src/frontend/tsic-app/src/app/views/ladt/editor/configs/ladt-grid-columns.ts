@@ -37,21 +37,24 @@ export const LEAGUE_COLUMNS: LadtColumnDef[] = [
 // AM-038 nit 4 (Ann): every width fits its longest header WORD — paired with the
 // header CSS in ladt-sibling-grid, headers wrap only at spaces, never
 // "GE NDER" / "CHA MPS BY DIV".
-// AM-038 re-open (Ann, 07-31 — Todd go 08-01): the four rarely-used Settings
-// columns (Self Roster / Champs by Div / API Roster / Hide Standings) are
-// DROPPED from the grid so Age Group fits with no horizontal scrollbar. The
-// grid is display-only — all four remain editable in the age-group fly-in,
-// which is the only edit surface anyway. Do not re-add without killing the
-// scrollbar some other way.
+// AM-038 re-open (Ann, 07-31 — Todd go 08-01): the rarely-used Settings columns
+// (Self Roster / Champs by Div / Hide Standings) are DROPPED from the grid so
+// Age Group fits with no horizontal scrollbar. The grid is display-only — all
+// remain editable in the age-group fly-in, which is the only edit surface
+// anyway. Do not re-add without killing the scrollbar some other way.
+// 08-01 (Todd): bAllowApiRosterAccess returned as the narrow "3rd Party"
+// boolean — needed at a glance; Gender header shrunk to M/F (values are
+// single letters) to pay for part of it.
 export const AGEGROUP_COLUMNS: LadtColumnDef[] = [
   { field: 'agegroupName', header: 'Age Group', type: 'string', frozen: true, width: '180px', colorField: 'color' },
-  { field: 'gender', header: 'Gender', type: 'string', width: '80px' },
+  { field: 'gender', header: 'M/F', type: 'string', width: '60px' },
   { field: '_fees', header: 'Fees', type: 'fees', width: '220px' },
   { field: '_earlyBird', header: 'Early Bird', type: 'modifier', width: '120px' },
   { field: '_lateFee', header: 'Late Fee', type: 'modifier', width: '120px' },
   { field: '_phase', header: 'Payment Phase', type: 'phase', width: '180px' },
   // Limits
   { field: 'maxTeams', header: 'Max Teams', type: 'number', group: 'Limits', width: '95px' },
+  { field: 'bAllowApiRosterAccess', header: '3rd Party', type: 'boolean', width: '70px' },
 ];
 
 // ── Division ──
