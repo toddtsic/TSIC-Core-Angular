@@ -1796,9 +1796,10 @@ public class AdultRegistrationService : IAdultRegistrationService
     }
 
     // The AdultReg pair is the club-rep/team-registration confirmation (TeamRegistrationService reads
-    // it directly); the coach persona reads its own CoachReg pair. The ?? fallback to AdultReg is
-    // PERMANENT, not transitional: only jobs with Year >= 2025 were seeded with CoachReg copies, so
-    // resends on older jobs render through the fallback forever. Do not remove it.
+    // it directly); the coach persona reads its own CoachReg pair. CoachReg was never seeded — it
+    // starts NULL everywhere and holds only copy a director deliberately writes, so the ?? fallback
+    // to AdultReg is PERMANENT: it is what renders every coach confirmation until then (and forever,
+    // on jobs that never diverge the two). Do not remove it.
     private static string? GetConfirmationOnScreen(Jobs job, AdultRoleType roleType) => roleType switch
     {
         AdultRoleType.UnassignedAdult or AdultRoleType.Staff => job.CoachRegConfirmationOnScreen ?? job.AdultRegConfirmationOnScreen,
