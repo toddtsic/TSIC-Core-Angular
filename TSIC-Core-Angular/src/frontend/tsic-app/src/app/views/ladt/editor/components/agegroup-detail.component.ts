@@ -113,8 +113,8 @@ const JOB_TYPE_TOURNAMENT = 2;
             </div>
           </div>
           @if (!form.maxTeams) {
-            <div class="small bg-info-subtle text-info-emphasis rounded px-2 py-1 mb-2 d-inline-block">
-              <i class="bi bi-info-circle me-1" aria-hidden="true"></i>Max Teams 0 = unlimited — no cap will be applied.
+            <div class="tsic-callout tsic-callout--info mb-2">
+              <i class="bi bi-info-circle" aria-hidden="true"></i>Max Teams 0 = unlimited — no cap will be applied.
             </div>
           }
           <div class="settings-grid">

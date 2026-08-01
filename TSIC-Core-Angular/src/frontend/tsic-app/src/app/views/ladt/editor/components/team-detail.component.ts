@@ -143,8 +143,8 @@ const JOB_TYPE_TOURNAMENT = 2;
             <input class="form-control form-control-sm" type="number" [(ngModel)]="form.maxCount" name="maxCount" style="width: 80px;" (ngModelChange)="onSettingsChange()">
           </div>
           @if (!form.maxCount) {
-            <div class="small bg-info-subtle text-info-emphasis rounded px-2 py-1 mb-2 d-inline-block">
-              <i class="bi bi-info-circle me-1" aria-hidden="true"></i>Max Roster 0 = unlimited — no cap will be applied.
+            <div class="tsic-callout tsic-callout--info mb-2">
+              <i class="bi bi-info-circle" aria-hidden="true"></i>Max Roster 0 = unlimited — no cap will be applied.
             </div>
           }
           <!-- No "Hide Roster" switch here by design. Roster visibility is an EVENT-level policy

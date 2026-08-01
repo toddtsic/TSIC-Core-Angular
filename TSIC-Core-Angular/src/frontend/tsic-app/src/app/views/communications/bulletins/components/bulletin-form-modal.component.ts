@@ -224,8 +224,8 @@ export type ModalMode = 'add' | 'edit';
                 </div>
                 <div class="modal-footer">
                     @if (saveHint(); as hint) {
-                        <span class="save-hint bg-info-subtle text-info-emphasis rounded" role="status">
-                            <i class="bi bi-info-circle me-1"></i>{{ hint }}
+                        <span class="tsic-callout tsic-callout--info" role="status">
+                            <i class="bi bi-info-circle" aria-hidden="true"></i>{{ hint }}
                         </span>
                     }
                     <button type="button" class="btn btn-outline-secondary btn-sm" (click)="close.emit()">Cancel</button>
@@ -390,14 +390,8 @@ export type ModalMode = 'add' | 'edit';
             flex-wrap: wrap; /* AM-042: hint takes its own line on narrow screens instead of clipping */
         }
 
-        /* AM-042 (Ann re-open): info-blue pill sitting immediately left of Cancel —
-           colors come from bg-info-subtle/text-info-emphasis (light/dark aware). */
-        .bulletin-modal .save-hint {
-            display: inline-flex;
-            align-items: center;
-            font-size: var(--font-size-sm);
-            padding: var(--space-1) var(--space-2);
-        }
+        /* AM-042/AM-064: the save-hint beside Cancel is the shared .tsic-callout
+           (global _callouts.scss) — the prominent treatment Ann asked for. */
 
         :host ::ng-deep .e-richtexteditor {
             border-radius: var(--radius-sm);

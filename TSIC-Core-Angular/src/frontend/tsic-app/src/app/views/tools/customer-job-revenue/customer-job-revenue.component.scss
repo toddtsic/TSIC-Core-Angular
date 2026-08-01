@@ -238,15 +238,8 @@
 	}
 }
 
-// AM-054 (Ann): Grand Total column is CC-only — always-visible caption under the pivot
+// AM-054/AM-064: colors/weight come from the shared .tsic-callout--warning
+// (global _callouts.scss) — Ann's amber "stand-out" container. Only spacing here.
 .grand-total-caption {
-	display: flex;
-	align-items: center;
 	margin-top: var(--space-2);
-	font-size: var(--font-size-sm);
-	color: var(--bs-info-text-emphasis);
-
-	i {
-		color: var(--bs-info);
-	}
 }

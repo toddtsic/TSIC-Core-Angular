@@ -1,0 +1,65 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// AM-064 — the ONE prominent info-callout treatment for informational notes.
+//
+// Why this exists: four separate punchlist re-opens (AM-019, AM-042, AM-054,
+// AM-057) were the same complaint — informational notes shipped as muted text
+// or a faint `bg-*-subtle` tint and testers simply did not see them. This is
+// the deliberately-visible replacement: icon + tinted surface + solid accent
+// border + emphasis text, calibrated to the weight that PASSED review
+// (AM-047's back-badge). Use it for every informational note going forward;
+// do not reintroduce bare `bg-info-subtle` chips or muted footnote text.
+//
+// Usage:
+//   <div class="tsic-callout tsic-callout--info">
+//     <i class="bi bi-info-circle" aria-hidden="true"></i>Note text…
+//   </div>
+// Variants: --info (blue, informational) · --warning (amber, caveats).
+// Add `tsic-callout--block` when the note should fill its row (caption/footer
+// notes) rather than hug its content (inline chips).
+//
+// Light/dark: background mixes the semantic color into --bs-body-bg (flips
+// with the theme); text rides the Bootstrap *-text-emphasis vars (also flip).
+// Non-interactive, no animation — nothing needed for reduced motion.
+// ─────────────────────────────────────────────────────────────────────────────
+
+.tsic-callout {
+    display: inline-flex;
+    align-items: baseline; // icon hangs with the first line when the note wraps
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    border-left-width: 4px; // the accent — reads as "note box", not decoration
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    line-height: 1.4;
+
+    > i {
+        flex-shrink: 0;
+        translate: 0 1px; // optical alignment with baseline text
+    }
+}
+
+.tsic-callout--block {
+    display: flex;
+}
+
+// 30% mix vs the ~20% of Bootstrap's *-bg-subtle — visibly stronger tint,
+// still a surface (Ann's ask is prominence, not a solid alert banner).
+.tsic-callout--info {
+    background: color-mix(in srgb, var(--bs-primary) 30%, var(--bs-body-bg));
+    border-color: color-mix(in srgb, var(--bs-primary) 45%, var(--bs-body-bg));
+    border-left-color: var(--bs-primary);
+    color: var(--bs-primary-text-emphasis);
+
+    > i { color: var(--bs-primary-text-emphasis); }
+}
+
+.tsic-callout--warning {
+    background: color-mix(in srgb, var(--bs-warning) 30%, var(--bs-body-bg));
+    border-color: color-mix(in srgb, var(--bs-warning) 50%, var(--bs-body-bg));
+    border-left-color: var(--bs-warning);
+    color: var(--bs-warning-text-emphasis);
+
+    > i { color: var(--bs-warning-text-emphasis); } // amber icon on amber tint fails contrast; use emphasis
+}
