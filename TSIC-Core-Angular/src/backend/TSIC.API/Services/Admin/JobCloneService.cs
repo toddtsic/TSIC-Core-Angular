@@ -1402,7 +1402,9 @@ public sealed class JobCloneService : IJobCloneService
                 BAllowSelfRostering = ag.BAllowSelfRostering,
                 BChampionsByDivision = ag.BChampionsByDivision,
                 BHideStandings = ag.BHideStandings,
-                BAllowApiRosterAccess = ag.BAllowApiRosterAccess,
+                // Privacy: Third-Party Roster Access feeds a minors'-PII export — never
+                // inherited on clone; each new event opts in per agegroup deliberately.
+                BAllowApiRosterAccess = false,
                 LebUserId = userId,
                 Modified = now,
             };

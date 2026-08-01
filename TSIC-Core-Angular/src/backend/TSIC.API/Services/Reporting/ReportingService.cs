@@ -85,6 +85,19 @@ public sealed class ReportingService : IReportingService
         CancellationToken cancellationToken = default)
         => _reportingRepository.HasBoldReportEntitlementAnyRoleAsync(jobId, reportName, cancellationToken);
 
+    public Task<bool> HasCrystalActionEntitlementAsync(
+        Guid jobId,
+        IReadOnlyCollection<string> roleIds,
+        string action,
+        CancellationToken cancellationToken = default)
+        => _reportingRepository.HasCrystalActionEntitlementAsync(jobId, roleIds, action, cancellationToken);
+
+    public Task<bool> HasCrystalActionEntitlementAnyRoleAsync(
+        Guid jobId,
+        string action,
+        CancellationToken cancellationToken = default)
+        => _reportingRepository.HasCrystalActionEntitlementAnyRoleAsync(jobId, action, cancellationToken);
+
     // ── SuperUser editor ──
 
     public Task<List<JobReportEditorRoleDto>> GetEditorRolesAsync(

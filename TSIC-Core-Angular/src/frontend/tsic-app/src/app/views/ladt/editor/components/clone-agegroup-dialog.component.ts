@@ -47,7 +47,7 @@ import type { CloneAgegroupRequest, AgegroupDetailDto } from '../../../../core/a
                    [ngModelOptions]="{standalone: true}">
             <label class="form-check-label" for="cag-roster">Copy roster settings</label>
           </div>
-          <div class="wizard-tip">Self-rostering, champions by division, hide standings, API roster access.</div>
+          <div class="wizard-tip">Self-rostering, champions by division, hide standings. Third-party roster access is never copied — it must be enabled by hand per age group.</div>
         </div>
 
         <div class="toggle-row">

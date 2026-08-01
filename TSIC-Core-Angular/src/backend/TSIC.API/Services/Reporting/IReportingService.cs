@@ -57,6 +57,23 @@ public interface IReportingService
         string reportName,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Per-row entitlement check for native library endpoints dispatched by Crystal-kind
+    /// rows whose Action is the bare endpoint name (e.g. ThirdPartyRosterExport) —
+    /// deny-by-default: no reporting.JobReports row ⇒ 403 even by direct URL.
+    /// </summary>
+    Task<bool> HasCrystalActionEntitlementAsync(
+        Guid jobId,
+        IReadOnlyCollection<string> roleIds,
+        string action,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>SuperUser variant — the action must be a configured row under any role.</summary>
+    Task<bool> HasCrystalActionEntitlementAnyRoleAsync(
+        Guid jobId,
+        string action,
+        CancellationToken cancellationToken = default);
+
     // ── SuperUser editor (per-Job, per-Role) ──
 
     Task<List<JobReportEditorRoleDto>> GetEditorRolesAsync(

@@ -30,6 +30,7 @@ public class ReportingController : ControllerBase
     private readonly IRosterTablePdfService _rosterTableService;
     private readonly IShowcaseScheduleReportService _showcaseScheduleService;
     private readonly IClubRosterPdfService _clubRosterService;
+    private readonly IThirdPartyRosterExportService _thirdPartyRosterExportService;
 
     // JWT carries the role NAME ("Director"); reporting.JobReports.RoleId is the role-id GUID.
     // Mirrors the local map pattern used by NavController / WidgetDashboardService /
@@ -60,7 +61,8 @@ public class ReportingController : ControllerBase
         IGameBoardsPdfService gameBoardsPdfService,
         IRosterTablePdfService rosterTableService,
         IShowcaseScheduleReportService showcaseScheduleService,
-        IClubRosterPdfService clubRosterService)
+        IClubRosterPdfService clubRosterService,
+        IThirdPartyRosterExportService thirdPartyRosterExportService)
     {
         _reportingService = reportingService;
         _jobLookupService = jobLookupService;
@@ -74,6 +76,7 @@ public class ReportingController : ControllerBase
         _rosterTableService = rosterTableService;
         _showcaseScheduleService = showcaseScheduleService;
         _clubRosterService = clubRosterService;
+        _thirdPartyRosterExportService = thirdPartyRosterExportService;
     }
 
     /// <summary>
@@ -266,6 +269,39 @@ public class ReportingController : ControllerBase
             spName, jobId, bUseJobId, bUseDateUnscheduled);
 
         await _reportingService.RecordExportHistoryAsync(regId, spName, null);
+
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Third-Party Roster Export
+    // ──────────────────────────────────────────────────────────────
+
+    // In-house replacement for the retired SportsRecruits Basic-auth API: the same
+    // per-job player dump, hard-gated to agegroups flagged BAllowApiRosterAccess
+    // ("Third-Party Roster Access" in LADT). Dispatched from reporting.JobReports rows
+    // (Kind='CrystalReport', Action='ThirdPartyRosterExport') — the row IS the per-job
+    // entitlement, checked here on top of the AdminOnly floor so a job with no row
+    // returns 403 even by direct URL. Minors' PII: keep this deny-by-default.
+    [HttpGet("ThirdPartyRosterExport")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<ActionResult> ThirdPartyRosterExport(CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null) return BadRequest("Job ID could not be determined from user token");
+
+        const string action = "ThirdPartyRosterExport";
+        var entitled = User.IsInRole("Superuser")
+            ? await _reportingService.HasCrystalActionEntitlementAnyRoleAsync(jobId.Value, action, cancellationToken)
+            : await _reportingService.HasCrystalActionEntitlementAsync(jobId.Value, GetCallerRoleIds(), action, cancellationToken);
+        if (!entitled)
+        {
+            return Forbid();
+        }
+
+        var regId = User.GetRegistrationId();
+        var result = await _thirdPartyRosterExportService.GenerateAsync(jobId.Value, cancellationToken);
+        await _reportingService.RecordExportHistoryAsync(regId, null, action);
 
         return File(result.FileBytes, result.ContentType, result.FileName);
     }

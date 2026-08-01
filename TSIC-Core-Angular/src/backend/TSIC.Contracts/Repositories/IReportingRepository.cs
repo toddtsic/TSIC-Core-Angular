@@ -88,6 +88,24 @@ public interface IReportingRepository
     /// </summary>
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Per-role entitlement check for native (non-SP, non-Bold) library endpoints —
+    /// rows whose Kind is 'CrystalReport' and whose Action is the bare endpoint name
+    /// (exact match). Used by ThirdPartyRosterExport as the deny-by-default gate:
+    /// no reporting.JobReports row for the (job, caller-role) ⇒ 403 even by direct URL.
+    /// </summary>
+    Task<bool> HasCrystalActionEntitlementAsync(
+        Guid jobId,
+        IReadOnlyCollection<string> roleIds,
+        string action,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>SuperUser variant of <see cref="HasCrystalActionEntitlementAsync"/> — any role's row qualifies.</summary>
+    Task<bool> HasCrystalActionEntitlementAnyRoleAsync(
+        Guid jobId,
+        string action,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Per-role entitlement check for the export-bold endpoint.</summary>
     Task<bool> HasBoldReportEntitlementAsync(
         Guid jobId,
@@ -263,6 +281,37 @@ public interface IReportingRepository
     /// </summary>
     Task<List<AmericanSelectEvaluationRowDto>> GetAmericanSelectEvaluationRowsAsync(
         Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    // ── Third-Party Roster Export (retired SportsRecruits API replacement) ──
+
+    /// <summary>
+    /// Banner context for the Third-Party Roster Export: job name + the agegroup names
+    /// currently flagged <c>BAllowApiRosterAccess</c> for the job's league + season
+    /// (mirrors the legacy API's eligible-agegroup resolution). Null when the job
+    /// doesn't exist.
+    /// </summary>
+    Task<ThirdPartyRosterContextDto?> GetThirdPartyRosterContextAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Fixed-column player rows for the Third-Party Roster Export. Legacy feed scope
+    /// (active Player registrations on active teams, WAITLIST/DROPPED agegroups
+    /// excluded) HARD-gated to agegroups with <c>BAllowApiRosterAccess = true</c> —
+    /// the per-agegroup opt-in the legacy live endpoint documented but never enforced.
+    /// </summary>
+    Task<List<ThirdPartyRosterPlayerDto>> GetThirdPartyRosterPlayersAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Untracked Registrations entities for the given ids — the export service reads
+    /// the job's dynamic player-form field values off the entity via FormValueMapper
+    /// (reflection), so a full entity fetch is required rather than a projection.
+    /// </summary>
+    Task<List<Registrations>> GetRegistrationsForFormFieldReadAsync(
+        List<Guid> registrationIds,
         CancellationToken cancellationToken = default);
 }
 

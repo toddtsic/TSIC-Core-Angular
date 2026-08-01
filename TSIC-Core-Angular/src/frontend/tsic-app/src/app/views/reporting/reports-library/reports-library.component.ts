@@ -55,6 +55,16 @@ const RECENTS_KEY_PREFIX = 'tsic-reports-recents';
 // Crystal engine. They intentionally keep Kind='CrystalReport' (the named-endpoint
 // routing bucket), so dispatch is unchanged; this set only drives the distinct "SF"
 // badge + tint. Remove this set + the badge markup once every report is off Crystal.
+// Native endpoints dispatched purely from reporting.JobReports rows (Kind='CrystalReport',
+// Action = bare endpoint name) with NO TYPE1 catalog entry. The non-SU branch below drops
+// Crystal-kind DB rows to avoid duplicating TYPE1 — this explicit allow-list is the
+// pass-through for DB-only native reports (deny-by-default per job via row existence).
+// Deliberately NOT a blanket "any action missing from TYPE1" rule: reporting.JobReports
+// still holds legacy Crystal rows that TYPE1 intentionally retired.
+const NATIVE_DB_ACTIONS = new Set<string>([
+    'ThirdPartyRosterExport',
+]);
+
 const MIGRATED_EF_ACTIONS = new Set<string>([
     'AmericanSelectEvaluation',
     'AmericanSelectMainEventRosters',
@@ -75,6 +85,7 @@ const MIGRATED_EF_ACTIONS = new Set<string>([
     'Job_Rosters_NoMedical',
     'clubrostersNoMedicalII',
     'Club_AllJobs_Rosters_NoMedical',
+    'ThirdPartyRosterExport',
 ]);
 
 function parseSpRunParams(parametersJson: string | null | undefined): SpRunParams {
@@ -224,6 +235,24 @@ export class ReportsLibraryComponent implements OnInit {
                 };
             });
 
+        // Native DB-row endpoints (e.g. Third-Party Roster Export) — Crystal-kind rows
+        // whose Action is a bare native endpoint with no TYPE1 entry. Without this branch
+        // the TYPE1-duplication guard above would hide them from every non-SU role.
+        const nativeDb: LibraryEntry[] = this.type2Entries()
+            .filter(e => e.kind === 'CrystalReport' && NATIVE_DB_ACTIONS.has(e.action))
+            .map(e => ({
+                isCrystal: true,
+                isMigrated: true,
+                roles: [],
+                id: `ndb-${e.jobReportId}`,
+                title: e.title,
+                description: null,
+                iconName: e.iconName,
+                category: normalizeReportCategory(e.groupLabel),
+                sortOrder: e.sortOrder,
+                endpointPath: e.action,
+            }));
+
         // SpaComponent (interactive tools) — Action is an in-app route (jobPath-relative
         // path). Dispatched via router.navigate, not a download. Lets interactive features
         // (PackedRoster Designer, check-in, …) live in the same role-gated catalogue.
@@ -241,7 +270,7 @@ export class ReportsLibraryComponent implements OnInit {
                 spaRoute: e.action ?? '',
             }));
 
-        return [...type1, ...type2, ...bold, ...spa];
+        return [...type1, ...type2, ...nativeDb, ...bold, ...spa];
     });
 
     /**

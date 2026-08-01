@@ -457,7 +457,9 @@ public sealed class LadtService : ILadtService
             clone.BAllowSelfRostering = source.BAllowSelfRostering;
             clone.BChampionsByDivision = source.BChampionsByDivision;
             clone.BHideStandings = source.BHideStandings;
-            clone.BAllowApiRosterAccess = source.BAllowApiRosterAccess;
+            // Privacy: Third-Party Roster Access feeds a minors'-PII export — never
+            // inherited on clone; each new agegroup opts in deliberately.
+            clone.BAllowApiRosterAccess = false;
         }
 
         if (request.CopyVisualIdentity)

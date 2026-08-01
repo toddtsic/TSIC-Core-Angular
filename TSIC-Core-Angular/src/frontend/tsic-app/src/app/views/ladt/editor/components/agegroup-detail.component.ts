@@ -128,7 +128,9 @@ const JOB_TYPE_TOURNAMENT = 2;
             </div>
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" [(ngModel)]="form.bAllowApiRosterAccess" name="bAllowApiRosterAccess" (ngModelChange)="onSettingsChange()">
-              <label class="form-check-label">API Roster Access</label>
+              <!-- DB column stays BAllowApiRosterAccess; "Third-Party" is the product term
+                   (feeds the Third-Party Roster Export in the report library). -->
+              <label class="form-check-label">Third-Party Roster Access</label>
             </div>
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" [(ngModel)]="form.bHideStandings" name="bHideStandings" (ngModelChange)="onSettingsChange()">

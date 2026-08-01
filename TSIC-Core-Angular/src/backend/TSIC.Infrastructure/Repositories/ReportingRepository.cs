@@ -5,6 +5,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
@@ -14,6 +15,7 @@ public class ReportingRepository : IReportingRepository
 {
     private const string KindStoredProcedure = "StoredProcedure";
     private const string KindBoldReport = "BoldReport";
+    private const string KindCrystalReport = "CrystalReport";
 
     private readonly SqlDbContext _context;
 
@@ -1019,5 +1021,145 @@ public class ReportingRepository : IReportingRepository
                 MomLastName = f.MomLastName,
                 MomCellphone = f.MomCellphone,
             }).ToListAsync(cancellationToken);
+    }
+
+    // ══════════════════════════════════════
+    // Third-Party Roster Export (retired SportsRecruits API replacement)
+    // ══════════════════════════════════════
+
+    public async Task<bool> HasCrystalActionEntitlementAsync(
+        Guid jobId,
+        IReadOnlyCollection<string> roleIds,
+        string action,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(action) || roleIds == null || roleIds.Count == 0)
+            return false;
+
+        // Crystal-kind rows store the bare endpoint name in Action — exact match,
+        // no query-string token parsing (unlike the SP/Bold variants).
+        return await _context.JobReports
+            .AsNoTracking()
+            .AnyAsync(jr => jr.JobId == jobId
+                            && jr.Active
+                            && jr.Kind == KindCrystalReport
+                            && roleIds.Contains(jr.RoleId)
+                            && jr.Action == action,
+                cancellationToken);
+    }
+
+    public async Task<bool> HasCrystalActionEntitlementAnyRoleAsync(
+        Guid jobId,
+        string action,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(action)) return false;
+
+        return await _context.JobReports
+            .AsNoTracking()
+            .AnyAsync(jr => jr.JobId == jobId
+                            && jr.Active
+                            && jr.Kind == KindCrystalReport
+                            && jr.Action == action,
+                cancellationToken);
+    }
+
+    public async Task<ThirdPartyRosterContextDto?> GetThirdPartyRosterContextAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // Banner context: job name + the agegroups currently opted in. Scope mirrors the
+        // legacy API's eligible-agegroup resolution (Job_Leagues → league, Jobs.Season →
+        // season), widened to ALL of the job's leagues rather than the legacy
+        // FirstOrDefault — multi-league jobs report every flagged agegroup.
+        var job = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new { j.JobName, j.Season })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (job == null) return null;
+
+        var leagueIds = await _context.JobLeagues
+            .AsNoTracking()
+            .Where(jl => jl.JobId == jobId)
+            .Select(jl => jl.LeagueId)
+            .ToListAsync(cancellationToken);
+
+        var allowedNames = leagueIds.Count == 0
+            ? new List<string>()
+            : await _context.Agegroups
+                .AsNoTracking()
+                .Where(ag => leagueIds.Contains(ag.LeagueId)
+                             && ag.Season == job.Season
+                             && ag.BAllowApiRosterAccess == true)
+                .OrderBy(ag => ag.AgegroupName)
+                .Select(ag => ag.AgegroupName ?? string.Empty)
+                .ToListAsync(cancellationToken);
+
+        return new ThirdPartyRosterContextDto
+        {
+            JobName = job.JobName ?? string.Empty,
+            AllowedAgegroupNames = allowedNames,
+        };
+    }
+
+    public async Task<List<ThirdPartyRosterPlayerDto>> GetThirdPartyRosterPlayersAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // Legacy feed scope (ThirdPartyApis/RostersController.GetJobRosterPlayerData):
+        // active Player registrations on active teams, WAITLIST/DROPPED agegroups
+        // excluded — PLUS the per-agegroup opt-in gate the legacy live endpoint never
+        // actually enforced. That flag is the whole point of the in-house replacement:
+        // a player row can only leave the building from an explicitly flagged agegroup.
+        // No phone numbers by design (the legacy feed shipped none).
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            from t in _context.Teams.AsNoTracking().Where(x => x.TeamId == r.AssignedTeamId)
+            from f in _context.Families.AsNoTracking().Where(x => x.FamilyUserId == r.FamilyUserId).DefaultIfEmpty()
+            where r.JobId == jobId
+                && r.BActive == true
+                && r.RoleId == RoleConstants.Player
+                && t.Active == true
+                && t.Agegroup.BAllowApiRosterAccess == true
+                && (t.Agegroup.AgegroupName == null
+                    || (!t.Agegroup.AgegroupName.Contains("WAITLIST")
+                        && !t.Agegroup.AgegroupName.Contains("DROPPED")))
+            orderby t.Agegroup.AgegroupName, t.TeamName, u.LastName, u.FirstName
+            select new ThirdPartyRosterPlayerDto
+            {
+                RegistrationId = r.RegistrationId,
+                RegistrationTimestamp = r.RegistrationTs,
+                LastModifiedTimestamp = r.Modified,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                Email = u.Email,
+                TeamClubName = t.ClubrepRegistration != null ? t.ClubrepRegistration.ClubName : null,
+                TeamName = t.TeamName,
+                AgegroupName = t.Agegroup.AgegroupName,
+                PoolName = t.Div != null ? t.Div.DivName : null,
+                MomFirstName = f != null ? f.MomFirstName : null,
+                MomLastName = f != null ? f.MomLastName : null,
+                MomEmail = f != null ? f.MomEmail : null,
+                DadFirstName = f != null ? f.DadFirstName : null,
+                DadLastName = f != null ? f.DadLastName : null,
+                DadEmail = f != null ? f.DadEmail : null,
+            }).ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<Registrations>> GetRegistrationsForFormFieldReadAsync(
+        List<Guid> registrationIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (registrationIds == null || registrationIds.Count == 0)
+            return new List<Registrations>();
+
+        // Full entities (untracked): dynamic form-field values are read off the entity
+        // by reflection (FormValueMapper), so a column projection can't serve this.
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => registrationIds.Contains(r.RegistrationId))
+            .ToListAsync(cancellationToken);
     }
 }
