@@ -11,8 +11,6 @@ export type JobConfigCoachesDto = {
     adultCoachProfileName: string;
     adultCoachRequiresUsLax: boolean;
     availableAdultCoachProfiles: Array<AdultCoachProfileOptionDto>;
-    adultRegConfirmationEmail: string | null;
-    adultRegConfirmationOnScreen: string | null;
     coachRegConfirmationEmail: string | null;
     coachRegConfirmationOnScreen: string | null;
     adultRegRefundPolicy: string | null;

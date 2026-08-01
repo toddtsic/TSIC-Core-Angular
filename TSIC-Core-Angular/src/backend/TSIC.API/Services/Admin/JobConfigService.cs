@@ -314,6 +314,8 @@ public class JobConfigService : IJobConfigService
         // BShowTeamNameOnlyInSchedules lives on the Scheduling tab (it drives schedule rendering).
         job.BAllowRosterViewAdult = req.BAllowRosterViewAdult;
         job.BAllowRosterViewPlayer = req.BAllowRosterViewPlayer;
+        job.AdultRegConfirmationEmail = req.AdultRegConfirmationEmail;
+        job.AdultRegConfirmationOnScreen = req.AdultRegConfirmationOnScreen;
 
         // SuperUser-only
         if (isSuperUser)
@@ -337,8 +339,6 @@ public class JobConfigService : IJobConfigService
         // RegformNameCoach is NOT written here. It is the derived coach-form identity, owned by the
         // SuperUser-only coach-form-template swap (UpdateCoachFormTemplateAsync), which keeps it in sync
         // with the materialized AdultProfileMetadataJson. A plain coaches save must never desync them.
-        job.AdultRegConfirmationEmail = req.AdultRegConfirmationEmail;
-        job.AdultRegConfirmationOnScreen = req.AdultRegConfirmationOnScreen;
         job.CoachRegConfirmationEmail = req.CoachRegConfirmationEmail;
         job.CoachRegConfirmationOnScreen = req.CoachRegConfirmationOnScreen;
         job.AdultRegRefundPolicy = req.AdultRegRefundPolicy;
@@ -808,6 +808,8 @@ public class JobConfigService : IJobConfigService
         BTeamPushDirectors = job.BTeamPushDirectors,
         BAllowRosterViewAdult = job.BAllowRosterViewAdult,
         BAllowRosterViewPlayer = job.BAllowRosterViewPlayer,
+        AdultRegConfirmationEmail = job.AdultRegConfirmationEmail,
+        AdultRegConfirmationOnScreen = job.AdultRegConfirmationOnScreen,
         // SuperUser-only
         BOfferTeamRegsaverInsurance = isSuperUser ? job.BOfferTeamRegsaverInsurance : null,
     };
@@ -836,8 +838,6 @@ public class JobConfigService : IJobConfigService
             AdultCoachProfileName = AdultFormCatalog.DisplayName(profile),
             AdultCoachRequiresUsLax = requiresUsLax,
             AvailableAdultCoachProfiles = s_adultCoachProfileOptions,
-            AdultRegConfirmationEmail = job.AdultRegConfirmationEmail,
-            AdultRegConfirmationOnScreen = job.AdultRegConfirmationOnScreen,
             // Role pairs surface their EFFECTIVE value — the same ?? fallback the render path
             // applies (AdultRegistrationService) — so the editor never shows blank while the
             // flow delivers the club-rep copy. Consequence, by design: saving this tab echoes

@@ -6,8 +6,6 @@ export type UpdateJobConfigCoachesRequest = {
     bRegistrationAllowStaff: boolean | null;
     bRegistrationAllowReferee: boolean | null;
     bRegistrationAllowRecruiter: boolean | null;
-    adultRegConfirmationEmail: string | null;
-    adultRegConfirmationOnScreen: string | null;
     coachRegConfirmationEmail: string | null;
     coachRegConfirmationOnScreen: string | null;
     adultRegRefundPolicy: string | null;

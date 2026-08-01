@@ -14,6 +14,8 @@ export type JobConfigTeamsDto = {
     bTeamPushDirectors: boolean | null;
     bAllowRosterViewAdult: boolean;
     bAllowRosterViewPlayer: boolean;
+    adultRegConfirmationEmail: string | null;
+    adultRegConfirmationOnScreen: string | null;
     bOfferTeamRegsaverInsurance?: boolean | null;
 };
 

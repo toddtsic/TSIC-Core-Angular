@@ -285,6 +285,11 @@ public record JobConfigTeamsDto
     public required bool BAllowRosterViewAdult { get; init; }
     public required bool BAllowRosterViewPlayer { get; init; }
 
+    // Club-rep/team-registration confirmation (TeamRegistrationService renders these).
+    // Also the ?? fallback source for the coach/referee/recruiter confirmation pairs.
+    public required string? AdultRegConfirmationEmail { get; init; }
+    public required string? AdultRegConfirmationOnScreen { get; init; }
+
     // SuperUser-only
     public bool? BOfferTeamRegsaverInsurance { get; init; }
 }
@@ -302,6 +307,9 @@ public record UpdateJobConfigTeamsRequest
     public required bool? BTeamPushDirectors { get; init; }
     public required bool BAllowRosterViewAdult { get; init; }
     public required bool BAllowRosterViewPlayer { get; init; }
+
+    public required string? AdultRegConfirmationEmail { get; init; }
+    public required string? AdultRegConfirmationOnScreen { get; init; }
 
     // SuperUser-only (ignored for non-super callers)
     public bool? BOfferTeamRegsaverInsurance { get; init; }
@@ -325,9 +333,8 @@ public record JobConfigCoachesDto
     public required bool AdultCoachRequiresUsLax { get; init; }
     public required IReadOnlyList<AdultCoachProfileOptionDto> AvailableAdultCoachProfiles { get; init; }
 
-    // AdultReg pair = club-rep/team-registration confirmation; CoachReg pair = coach persona.
-    public required string? AdultRegConfirmationEmail { get; init; }
-    public required string? AdultRegConfirmationOnScreen { get; init; }
+    // CoachReg pair = coach persona. The AdultReg confirmation pair (club-rep/team-reg copy)
+    // lives on the Teams DTO; it remains the ?? fallback SOURCE for the role pairs below.
     public required string? CoachRegConfirmationEmail { get; init; }
     public required string? CoachRegConfirmationOnScreen { get; init; }
     public required string? AdultRegRefundPolicy { get; init; }
@@ -352,8 +359,6 @@ public record UpdateJobConfigCoachesRequest
     public required bool? BRegistrationAllowStaff { get; init; }
     public required bool? BRegistrationAllowReferee { get; init; }
     public required bool? BRegistrationAllowRecruiter { get; init; }
-    public required string? AdultRegConfirmationEmail { get; init; }
-    public required string? AdultRegConfirmationOnScreen { get; init; }
     public required string? CoachRegConfirmationEmail { get; init; }
     public required string? CoachRegConfirmationOnScreen { get; init; }
     public required string? AdultRegRefundPolicy { get; init; }

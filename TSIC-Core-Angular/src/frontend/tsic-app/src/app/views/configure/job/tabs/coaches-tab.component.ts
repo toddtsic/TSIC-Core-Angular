@@ -23,9 +23,7 @@ export class CoachesTabComponent implements OnInit {
   bRegistrationAllowStaff = linkedSignal(() => this.svc.coaches()?.bRegistrationAllowStaff ?? null);
   bRegistrationAllowReferee = linkedSignal(() => this.svc.coaches()?.bRegistrationAllowReferee ?? null);
   bRegistrationAllowRecruiter = linkedSignal(() => this.svc.coaches()?.bRegistrationAllowRecruiter ?? null);
-  // AdultReg pair = club-rep/team-registration confirmation; CoachReg pair = coach persona.
-  adultRegConfirmationEmail = linkedSignal(() => this.svc.coaches()?.adultRegConfirmationEmail ?? null);
-  adultRegConfirmationOnScreen = linkedSignal(() => this.svc.coaches()?.adultRegConfirmationOnScreen ?? null);
+  // CoachReg pair = coach persona; club-rep confirmations live on the Teams tab.
   coachRegConfirmationEmail = linkedSignal(() => this.svc.coaches()?.coachRegConfirmationEmail ?? null);
   coachRegConfirmationOnScreen = linkedSignal(() => this.svc.coaches()?.coachRegConfirmationOnScreen ?? null);
   adultRegRefundPolicy = linkedSignal(() => this.svc.coaches()?.adultRegRefundPolicy ?? null);
@@ -40,7 +38,6 @@ export class CoachesTabComponent implements OnInit {
   // Each confirmation section defaults open iff its flow is enabled, reseeding when the
   // toggle changes (flip coach registration on and its section opens live, before save).
   // Collapsed is de-emphasis, not lockout — the header always expands on click.
-  clubRepOpen = linkedSignal(() => !!this.svc.teams()?.bRegistrationAllowTeam);
   coachOpen = linkedSignal(() => !!this.bRegistrationAllowStaff());
   refereeOpen = linkedSignal(() => !!this.bRegistrationAllowReferee());
   recruiterOpen = linkedSignal(() => !!this.bRegistrationAllowRecruiter());
@@ -54,8 +51,6 @@ export class CoachesTabComponent implements OnInit {
       bRegistrationAllowStaff: c.bRegistrationAllowStaff,
       bRegistrationAllowReferee: c.bRegistrationAllowReferee,
       bRegistrationAllowRecruiter: c.bRegistrationAllowRecruiter,
-      adultRegConfirmationEmail: c.adultRegConfirmationEmail,
-      adultRegConfirmationOnScreen: c.adultRegConfirmationOnScreen,
       coachRegConfirmationEmail: c.coachRegConfirmationEmail,
       coachRegConfirmationOnScreen: c.coachRegConfirmationOnScreen,
       adultRegRefundPolicy: c.adultRegRefundPolicy,
@@ -152,8 +147,6 @@ export class CoachesTabComponent implements OnInit {
       bRegistrationAllowStaff: this.bRegistrationAllowStaff(),
       bRegistrationAllowReferee: this.bRegistrationAllowReferee(),
       bRegistrationAllowRecruiter: this.bRegistrationAllowRecruiter(),
-      adultRegConfirmationEmail: this.adultRegConfirmationEmail(),
-      adultRegConfirmationOnScreen: this.adultRegConfirmationOnScreen(),
       coachRegConfirmationEmail: this.coachRegConfirmationEmail(),
       coachRegConfirmationOnScreen: this.coachRegConfirmationOnScreen(),
       adultRegRefundPolicy: this.adultRegRefundPolicy(),

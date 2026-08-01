@@ -1,18 +1,23 @@
 import { Component, inject, ChangeDetectionStrategy, computed, linkedSignal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RichTextEditorAllModule } from '@syncfusion/ej2-angular-richtexteditor';
 import { JobConfigService } from '../job-config.service';
+import { JOB_CONFIG_RTE_TOOLS, JOB_CONFIG_RTE_HEIGHT } from '../shared/rte-config';
 import type { UpdateJobConfigTeamsRequest } from '@core/api';
 
 @Component({
   selector: 'app-teams-tab',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RichTextEditorAllModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './teams-tab.component.html',
 })
 export class TeamsTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
+
+  readonly rteTools = JOB_CONFIG_RTE_TOOLS;
+  readonly rteHeight = JOB_CONFIG_RTE_HEIGHT;
 
   bRegistrationAllowTeam = linkedSignal(() => this.svc.teams()?.bRegistrationAllowTeam ?? null);
   bTeamRegRequiresToken = linkedSignal(() => this.svc.teams()?.bTeamRegRequiresToken ?? false);
@@ -23,6 +28,14 @@ export class TeamsTabComponent implements OnInit {
   bTeamPushDirectors = linkedSignal(() => this.svc.teams()?.bTeamPushDirectors ?? null);
   bAllowRosterViewAdult = linkedSignal(() => this.svc.teams()?.bAllowRosterViewAdult ?? false);
   bAllowRosterViewPlayer = linkedSignal(() => this.svc.teams()?.bAllowRosterViewPlayer ?? false);
+
+  // Club-rep/team-registration confirmation pair (rendered by TeamRegistrationService).
+  adultRegConfirmationEmail = linkedSignal(() => this.svc.teams()?.adultRegConfirmationEmail ?? null);
+  adultRegConfirmationOnScreen = linkedSignal(() => this.svc.teams()?.adultRegConfirmationOnScreen ?? null);
+
+  // Section disclosure: defaults open iff team registration is enabled, reseeding live
+  // when the toggle above flips. Collapsed is de-emphasis, not lockout.
+  clubRepOpen = linkedSignal(() => !!this.bRegistrationAllowTeam());
 
   // SuperUser-only
   bOfferTeamRegsaverInsurance = linkedSignal(() => this.svc.teams()?.bOfferTeamRegsaverInsurance ?? null);
@@ -42,6 +55,8 @@ export class TeamsTabComponent implements OnInit {
       bTeamPushDirectors: t.bTeamPushDirectors,
       bAllowRosterViewAdult: t.bAllowRosterViewAdult,
       bAllowRosterViewPlayer: t.bAllowRosterViewPlayer,
+      adultRegConfirmationEmail: t.adultRegConfirmationEmail,
+      adultRegConfirmationOnScreen: t.adultRegConfirmationOnScreen,
     };
     if (this.svc.isSuperUser()) {
       req.bOfferTeamRegsaverInsurance = t.bOfferTeamRegsaverInsurance ?? null;
@@ -59,6 +74,12 @@ export class TeamsTabComponent implements OnInit {
     } else {
       this.svc.markDirty('teams');
     }
+  }
+
+  onRteChange(field: string, event: any): void {
+    const sig = (this as any)[field];
+    if (sig?.set) sig.set(event.value ?? '');
+    this.onFieldChange();
   }
 
   save(): void {
@@ -79,6 +100,8 @@ export class TeamsTabComponent implements OnInit {
       bTeamPushDirectors: this.bTeamPushDirectors(),
       bAllowRosterViewAdult: this.bAllowRosterViewAdult(),
       bAllowRosterViewPlayer: this.bAllowRosterViewPlayer(),
+      adultRegConfirmationEmail: this.adultRegConfirmationEmail(),
+      adultRegConfirmationOnScreen: this.adultRegConfirmationOnScreen(),
     };
     if (this.svc.isSuperUser()) {
       req.bOfferTeamRegsaverInsurance = this.bOfferTeamRegsaverInsurance();

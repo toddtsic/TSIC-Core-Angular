@@ -66,6 +66,46 @@
     </div>
 
     <div class="form-section">
+      <h6 class="section-title">
+        <button type="button" class="section-toggle" (click)="clubRepOpen.set(!clubRepOpen())" [attr.aria-expanded]="clubRepOpen()">
+          <i class="bi bi-people me-2"></i>Club Rep Confirmations
+          <i class="bi ms-auto" [class.bi-chevron-down]="clubRepOpen()" [class.bi-chevron-right]="!clubRepOpen()" aria-hidden="true"></i>
+        </button>
+      </h6>
+      @if (!clubRepOpen()) {
+        @if (!bRegistrationAllowTeam()) {
+          <div class="section-closed-note">Team registration is not offered on this job &mdash; enable it above to use this copy.</div>
+        }
+      } @else {
+      <div class="text-muted small mb-2">Shown/sent to the club rep after registering teams.</div>
+      <div class="row g-2">
+        <div class="col-12">
+          <label class="field-label">Club Rep Confirmation Email</label>
+          <ejs-richtexteditor
+            [value]="adultRegConfirmationEmail()"
+            [toolbarSettings]="rteTools"
+            [height]="rteHeight"
+            [enableResize]="true"
+            [enableHtmlSanitizer]="false"
+            (change)="onRteChange('adultRegConfirmationEmail', $event)">
+          </ejs-richtexteditor>
+        </div>
+        <div class="col-12">
+          <label class="field-label">Club Rep Confirmation On-Screen</label>
+          <ejs-richtexteditor
+            [value]="adultRegConfirmationOnScreen()"
+            [toolbarSettings]="rteTools"
+            [height]="rteHeight"
+            [enableResize]="true"
+            [enableHtmlSanitizer]="false"
+            (change)="onRteChange('adultRegConfirmationOnScreen', $event)">
+          </ejs-richtexteditor>
+        </div>
+      </div>
+      }
+    </div>
+
+    <div class="form-section">
       <h6 class="section-title"><i class="bi bi-eye me-2"></i>Roster Visibility</h6>
       <div class="row g-2">
         <div class="col-12">
