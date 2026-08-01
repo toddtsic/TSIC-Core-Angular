@@ -551,4 +551,113 @@ public class PaymentStateTests
         owed.Check.Should().BeApproximately(600m, 0.005m);
         owed.Echeck.Should().BeApproximately(606m, 0.005m);
     }
+
+    // ── Proc-free slice (proc-on-balance-only jobs) ─────────────────────
+    //
+    // Job class: BAddProcessingFees=1, BApplyProcessingFeesToTeamDeposit=0 — the deposit
+    // slice of a team's bill is charged with NO proc; only balance-slice money is grossed-up.
+    //
+    // The Wildcat fixture (live repro, Fall Draw 2026): deposit 500 + balance 1500 @ 3.5%,
+    // paid in full by CC in two charges — 500 at deposit phase (no gross-up) and 1552.50 at
+    // balance phase (1500 + 52.50 proc). Booked FeeProcessing = 52.50, owed 0.
+    //
+    // The pre-slice decomposition divided the ENTIRE 2052.50 gross by 1.035:
+    //   principal = round(2052.50 / 1.035) = 1983.09  →  phantom proc 69.41
+    // and a reprice (phase flip either direction) re-stamped FeeProcessing 69.41 /
+    // FeeTotal 2069.41, drifting every settled team +16.91 owed. Hydration
+    // (PaymentStateService) supplies ProcFreeBase + the per-method proc-free gross by
+    // walking ledger rows oldest-first; the properties below decompose piecewise.
+    //
+    // Conventions (mirroring the callers): FeeProcessingTarget receives the BILLABLE base
+    // (BillableProcBase → balanceDue = 1500 for this job class); ProcFeeDue receives the
+    // full FeeBase (2000) and nets the slice internally.
+
+    private static PaymentState WildcatSettled() =>
+        State(cc: 2052.50m, ccRate: 0.035m) with { ProcFreeBase = 500m, CcProcFreeGross = 500m };
+
+    [Fact(DisplayName = "Slice: Wildcat settled team — CC gross decomposes to exact principal 2000 / proc 52.50")]
+    public void Slice_WildcatSettled_DecomposesExactly()
+    {
+        var s = WildcatSettled();
+        // 500 proc-free at face value + round(1552.50 / 1.035) = 500 + 1500.
+        s.CcPrincipalPaid.Should().Be(2000m);
+        s.CcProcCollected.Should().Be(52.50m);
+    }
+
+    [Fact(DisplayName = "Slice: Wildcat reprice reproduces booked proc 52.50 — idempotent, no phantom 69.41")]
+    public void Slice_WildcatSettled_TargetReproducesBookedProc()
+    {
+        var s = WildcatSettled();
+        // Billable base 1500 (balanceDue); paid principal 2000 fills the 500 free slice
+        // first, spillover 1500 covers the entire billable base → remaining 0.
+        // Target = ProcCollected 52.50 + 0 — recomputing on a settled ledger is a no-op.
+        s.FeeProcessingTarget(1500m, 0m, 0m, 0m).Should().Be(52.50m);
+        s.ProcFeeDue(2000m, 0m, 0m, 0m).Should().Be(0m);
+    }
+
+    [Fact(DisplayName = "Slice: unhydrated state on the same ledger shows the pre-slice defect (69.41 / +16.91)")]
+    public void Slice_Unhydrated_UniformDivisionProducesThePhantom()
+    {
+        // Defaults-0 identity: without slice hydration the uniform gross ÷ (1+rate) applies —
+        // correct for every proc-on-everything job, and exactly the live defect on this one.
+        // This pin documents WHY hydration must supply the slice for this job class.
+        var s = State(cc: 2052.50m, ccRate: 0.035m);
+        s.CcPrincipalPaid.Should().Be(1983.09m);                       // under-counted principal
+        s.FeeProcessingTarget(1500m, 0m, 0m, 0m).Should().Be(69.41m);  // phantom proc
+        // FeeTotal 2000 + 69.41 = 2069.41 vs paid 2052.50 → the observed +16.91 owed drift.
+    }
+
+    [Fact(DisplayName = "Slice: deposit-only CC paid — no proc collected yet, full balance proc still due")]
+    public void Slice_DepositOnlyPaid_FullBalanceProcStillDue()
+    {
+        // Only the proc-free 500 deposit charge on the ledger: principal 500, proc 0.
+        var s = State(cc: 500m, ccRate: 0.035m) with { ProcFreeBase = 500m, CcProcFreeGross = 500m };
+        s.CcPrincipalPaid.Should().Be(500m);
+        s.CcProcCollected.Should().Be(0m);
+        // Slice full, billable base untouched: target = 0 + 1500 × 3.5%.
+        s.FeeProcessingTarget(1500m, 0m, 0m, 0m).Should().Be(52.50m);
+        s.ProcFeeDue(2000m, 0m, 0m, 0m).Should().Be(52.50m);
+    }
+
+    [Fact(DisplayName = "Slice: a check filling the deposit slice displaces no proc from the target")]
+    public void Slice_CheckFillsSlice_TargetUnchanged()
+    {
+        // Policy B at the recalc level: 500 by check lands entirely inside the proc-free
+        // slice — it was never proc-bearing money, so the billable target stays whole.
+        var s = State(check: 500m, ccRate: 0.035m) with { ProcFreeBase = 500m };
+        s.FreeSliceRemaining.Should().Be(0m);
+        s.FeeProcessingTarget(1500m, 0m, 0m, 0m).Should().Be(52.50m);
+    }
+
+    [Fact(DisplayName = "Slice: eCheck mirrors CC — proc-free gross at face value, remainder reversed at echeckRate")]
+    public void Slice_EcheckMirror_DecomposesExactly()
+    {
+        // 500 proc-free + 1515 grossed at 1% (1500 + 15).
+        var s = State(echeck: 2015m, ccRate: 0.035m, echeckRate: 0.01m)
+            with { ProcFreeBase = 500m, EcheckProcFreeGross = 500m };
+        s.EcheckPrincipalPaid.Should().Be(2000m);
+        s.EcheckProcCollected.Should().Be(15m);
+    }
+
+    // ── FreeSliceRemaining: the policy-B write-gate expression ──
+    //
+    // Check/cash/correction handlers decrement FeeProcessing only by
+    // max(0, amount − FreeSliceRemaining) × ccRate: dollars landing inside the unpaid
+    // deposit slice displace no proc (that slice never carried any).
+
+    [Fact(DisplayName = "FreeSliceRemaining: unpaid slice → full; partial fill → gap; overfilled → 0; no slice → 0")]
+    public void FreeSliceRemaining_TracksUnpaidSlice()
+    {
+        var unpaid = State(ccRate: 0.035m) with { ProcFreeBase = 500m };
+        unpaid.FreeSliceRemaining.Should().Be(500m);
+
+        var partial = State(check: 300m, ccRate: 0.035m) with { ProcFreeBase = 500m };
+        partial.FreeSliceRemaining.Should().Be(200m);
+
+        var filled = State(check: 600m, ccRate: 0.035m) with { ProcFreeBase = 500m };
+        filled.FreeSliceRemaining.Should().Be(0m);
+
+        // Defaults-0 identity: no slice → gate passes every dollar (pre-slice behavior).
+        State(check: 300m).FreeSliceRemaining.Should().Be(0m);
+    }
 }

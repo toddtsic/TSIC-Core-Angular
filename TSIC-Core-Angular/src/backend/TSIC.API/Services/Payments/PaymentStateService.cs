@@ -122,9 +122,15 @@ public sealed class PaymentStateService : IPaymentStateService
         // charged WITHOUT proc and must not be grossed-up on decomposition.
         var rowsByEntity = await _accounting.GetPaymentRowsByEntityAsync(kind, entityIds, ct);
 
-        var sliced = new Dictionary<Guid, PaymentState>(rowsByEntity.Count);
-        foreach (var (entityId, rows) in rowsByEntity)
+        // Emit a state for EVERY requested entity, not just those with ledger rows: a team
+        // with no payments still carries its ProcFreeBase, and the policy-B check gate
+        // (FreeSliceRemaining) matters MOST on exactly that team — falling back to the
+        // slice-less empty state would let the first check displace proc the deposit
+        // slice never carried.
+        var sliced = new Dictionary<Guid, PaymentState>(entityIds.Count);
+        foreach (var entityId in entityIds)
         {
+            var rows = rowsByEntity.GetValueOrDefault(entityId) ?? [];
             var procFreeBase = procFreeBaseByEntity.GetValueOrDefault(entityId);
 
             decimal cc = 0m, echeck = 0m, check = 0m, cash = 0m, correction = 0m;
