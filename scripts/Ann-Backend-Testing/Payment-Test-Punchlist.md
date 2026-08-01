@@ -1209,7 +1209,8 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
   - **(A) Migration**: 6a seed **§8P** now stamps `fees.JobFees.bFullPaymentRequired` on ClubRep fee rows from the Legacy job flag (idempotent; re-runnable forever). Verified on dev: **554 rows stamped**, twice-run identical, **Fall Draw 2026 = 8/8 age groups PIF**.
   - **(B) Persist**: phase now resolves ONLY from the per-scope `fees.JobFees.bFullPaymentRequired` cascade — the invisible job-level baseline (`Jobs.bTeams/bPlayersFullPaymentRequired`) that masked/reverted the toggle is abandoned in code (never read, never written). LADT toggle + Convert saves the per-scope flag, including the 0-registrations case.
   - **(C) All-tournaments audit**: 6c **Test 8** concordance sweep = **0/73 jobs mismatched** (Legacy phase vs new-side stamps, all tournaments 2025+); plus a `Program.cs` startup guard that refuses to boot against an unstamped DB — the audit is now structural, not one-time.
-  - **Ann verify (post staging deploy)**: Fall Draw 2026 → LADT grid shows PIF, Age Group Details toggle reads ON, and a club-rep payment charges the **full $2,000** (not the $500 deposit).
+  - **Ann verify (post staging deploy)**: Fall Draw 2026 → LADT grid shows PIF, and a club-rep payment charges the **full $2,000** (not the $500 deposit).
+  - **⚠️ Updated expectation (07-31, supersedes "toggle reads ON")**: the PIF stamp now lives at **LEAGUE** scope, and the control is radios, not a toggle. **Age Group Details will read "Use league setting" with the green line "Currently: Full payment now — set at league level"** — that IS the correct PIF state for an age group. An age group showing its own "Full payment now" selected would actually be a per-AG override, which the migration deliberately does not create. See PL-062 for the related "deposit only" episode and the removal of the "apply to all age groups" option.
 
 ### PL-061: 🟡 FIXED (Todd, 07-31) — awaiting Ann verify post-deploy — A club rep who paid a balance due received NO confirmation email
 - **Source**: Found by Claude while tracing AM-060 (2026-07-31). **Not filed by Ann** — this is a defect nobody had reported, which is exactly why it matters: the failure is silent to everyone except the club rep who never got mail.
@@ -1236,3 +1237,26 @@ Ann: the new **Test Email** button on the confirmation screens (AM-062) and **th
 - **Cross-ref**: AM-062 (test-send — content only), AM-060 (admin resend action, still open), AM-018 (confirmation CC/BCC).
 - **Status**: 🟡 **FIXED (Todd, 07-31)** — `f9039add` pushed. **Never exercised against a real charge** — needs the E2E above.
 
+
+### PL-062: 🟡 RESOLVED (Todd, 07-31) — awaiting Ann verify post-deploy — "Apply to all age groups" phase option REMOVED; league-wide phase now lives on the League card
+- **Source**: Ann (2026-07-31, relayed by Todd) — after the payment-phase reseed, "the LADT editor correctly shows final balance due, but Age Group Details reads deposit only."
+- **Root cause — not a defect, a design trap**: in an earlier test Ann flipped an age group's phase to **Deposit first** and the convert prompt offered *"Apply to all age groups in this league"* — **pre-selected by default**. Taking it stamped an explicit Deposit-first override on **every** age group. Each AG then truthfully read "Deposit first … regardless of any higher-level setting" while the **League card still claimed "Full payment now"** — its own stamp contradicted by 8 overrides beneath it. The feature did exactly what it was coded to do; the *state it produced was illegible*, and it silently undermined the league-level control. (Todd's reseed the next morning wiped the stamps, which is why the confusing state was gone before it could be inspected live.)
+- **Decision (Todd, 07-31): the option is retired** (`f357bb1a`). Under the phase cascade, the **League card already IS "apply to all age groups"** — a league-level choice flows to every age group that doesn't set its own. Broadcasting a phase by stamping N per-AG overrides was the old pre-cascade way, and it fought the new model.
+- **What changed for Ann (behavior)**:
+  1. Flipping the phase in **Age Group Details** now converts **that age group only**. The confirm still shows who's affected (Convert / Cancel) — there is **no scope choice anymore**.
+  2. To change the phase **league-wide**: open the **League card** and set it there. Existing registrations convert, the change flows down, done.
+  3. An age group that should differ from the league sets its own phase — and the League card **names it** in a small down-arrow note, so the exception is never invisible.
+- **Also shipped (`73eecd72` + help `323020db`) — disclosure hardening on the fee cards**:
+  - Override counts now **exclude WAITLIST / Dropped Teams buckets** (they're holding areas, not choices someone made). Fall Draw's league Player card now says **8** age groups, not 14.
+  - **Verified all-clear line**: when nothing below overrides a card, it says so — *"No age group or team in this league sets its own phase, amounts, or Early Bird / Late Fee — this card governs them all."* (green check icon). No line while data is still loading.
+  - A team **two levels** below a league with its own setting surfaces as *"Plus 1 team further down sets its own …"*.
+  - The in-app Help (LADT overview + FAQ) describes all of the above.
+- **Ann verify (post staging deploy)** — on `Top Threat Tournaments:Fall Draw 2026`:
+  1. **Age Group Details → flip the Club Rep phase** → the confirm offers **Convert / Cancel only** with a count — confirm there is **no "all age groups" option**. **Cancel** → the radio reverts, nothing saved.
+  2. Flip + **Convert** on ONE age group → only that age group changes; open the **League card** and confirm its down-arrow note **names that age group**. Then set the AG back to **"Use league setting"** → the note disappears.
+  3. **League card** → Player card's note reads **"8 age groups set their own amounts…"** (WAITLIST buckets no longer counted).
+  4. Open any age group with no team-level fees → bottom of each fee card shows the **green-check all-clear** line.
+  5. Sanity: the league-wide path — change the phase **on the League card** → every non-overriding age group follows (their cards read "Currently: … — set at league level").
+- **Severity**: 🟠 UX / model integrity — the option produced states where the league control lied; removal + disclosure make the cascade legible.
+- **Cross-ref**: PL-060 (the PIF migration episode on this same job — its "toggle reads ON" expectation is superseded, see the note there).
+- **Status**: 🟡 **RESOLVED (Todd, 07-31)** — `f357bb1a` (retirement) + `73eecd72`/`323020db` (disclosure + help) pushed. Todd E2E'd the retirement in the LADT editor same day; disclosure changes await his F5 + Ann's pass post-deploy.
