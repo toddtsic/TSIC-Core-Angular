@@ -30,8 +30,6 @@ import type {
   SaveJobFeeRequest,
   SaveJobFeeResponse,
   AffectedRegistrationCountDto,
-  ApplyLeaguePhaseRequest,
-  ApplyLeaguePhaseResponse,
   ClubAffectedJob
 } from '../../../../core/api';
 
@@ -198,13 +196,6 @@ export class LadtService {
 
   saveFee(request: SaveJobFeeRequest): Observable<SaveJobFeeResponse> {
     return this.http.put<SaveJobFeeResponse>(`${environment.apiUrl}/fees`, request);
-  }
-
-  /** Stamp a payment-phase change onto every (deposit-bearing, non-bucket) age group in a
-   *  league and reprice existing registrations — the LADT "apply to all age groups" action. */
-  applyLeaguePhase(leagueId: string, request: ApplyLeaguePhaseRequest): Observable<ApplyLeaguePhaseResponse> {
-    return this.http.put<ApplyLeaguePhaseResponse>(
-      `${environment.apiUrl}/fees/league/${leagueId}/apply-phase`, request);
   }
 
   deleteFee(jobFeeId: string): Observable<void> {

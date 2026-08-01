@@ -1,14 +1,9 @@
-import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 
 /** The reprice prompt's state (mirrors each fee panel's `repriceDialog` signal). */
 export interface RepriceDialog {
   isPhase: boolean;
   message: string;
-  /**
-   * Present only for an age-group PHASE flip that can fan out across its league: offers a
-   * "this age group vs all age groups in the league" scope choice with each side's count.
-   */
-  leagueScope?: { thisCount: number; allCount: number; unit: string } | null;
 }
 
 /**
@@ -31,26 +26,9 @@ export interface RepriceDialog {
         <i class="bi bi-exclamation-triangle-fill reprice-confirm-icon"></i>
         <div class="reprice-confirm-msg" [innerHTML]="dialog().message"></div>
       </div>
-      @if (dialog().isPhase && dialog().leagueScope; as scope) {
-        <div class="reprice-scope" role="radiogroup" aria-label="Apply payment phase to">
-          <span class="reprice-scope-legend" aria-hidden="true">{{ scope.unit }}</span>
-          <label class="reprice-scope-opt" [class.selected]="selectedScope() === 'all'">
-            <input type="radio" name="repriceScope" [checked]="selectedScope() === 'all'"
-                   (change)="selectedScope.set('all')">
-            <span class="reprice-scope-text">Apply to all age groups in this league</span>
-            <span class="reprice-scope-count" [attr.aria-label]="scope.allCount + ' ' + scope.unit">{{ scope.allCount }}</span>
-          </label>
-          <label class="reprice-scope-opt" [class.selected]="selectedScope() === 'this'">
-            <input type="radio" name="repriceScope" [checked]="selectedScope() === 'this'"
-                   (change)="selectedScope.set('this')">
-            <span class="reprice-scope-text">Just this age group</span>
-            <span class="reprice-scope-count" [attr.aria-label]="scope.thisCount + ' ' + scope.unit">{{ scope.thisCount }}</span>
-          </label>
-        </div>
-      }
       <div class="reprice-confirm-actions">
         @if (dialog().isPhase) {
-          <button type="button" class="btn btn-sm btn-warning" autofocus (click)="onConvert()">Convert</button>
+          <button type="button" class="btn btn-sm btn-warning" autofocus (click)="convert.emit()">Convert</button>
           <button type="button" class="btn btn-sm btn-outline-secondary" (click)="secondary.emit()">Cancel</button>
         } @else {
           <!-- "Update all" is the default: a fee change is normally meant to reach existing
@@ -91,59 +69,6 @@ export interface RepriceDialog {
       line-height: 1.4;
     }
 
-    .reprice-scope {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-1);
-    }
-    /* Small caption clarifying that each option's right-hand number is a count of
-       existing registrations (players + teams) the conversion will touch. */
-    .reprice-scope-legend {
-      align-self: flex-end;
-      padding-right: var(--space-3);
-      font-size: var(--font-size-2xs);
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--text-muted);
-    }
-    .reprice-scope-opt {
-      display: flex;
-      align-items: center;
-      gap: var(--space-2);
-      padding: var(--space-2) var(--space-3);
-      border: 1px solid var(--bs-border-color);
-      border-radius: var(--radius-md, 0.5rem);
-      cursor: pointer;
-      font-size: var(--font-size-sm);
-      color: var(--bs-body-color);
-      transition: border-color 0.12s ease, background-color 0.12s ease;
-    }
-    .reprice-scope-opt.selected {
-      border-color: var(--bs-primary);
-      background: rgba(var(--bs-primary-rgb), 0.08);
-    }
-    .reprice-scope-opt input { accent-color: var(--bs-primary); margin: 0; }
-    .reprice-scope-text { flex: 1; }
-    .reprice-scope-count {
-      flex-shrink: 0;
-      min-width: 1.75rem;
-      padding: 0 var(--space-2);
-      text-align: center;
-      font-weight: 600;
-      font-variant-numeric: tabular-nums;
-      color: var(--bs-primary-text-emphasis);
-      background: rgba(var(--bs-primary-rgb), 0.12);
-      border-radius: 999px;
-    }
-    .reprice-scope-opt:focus-within {
-      outline: none;
-      box-shadow: var(--shadow-focus);
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .reprice-scope-opt { transition: none; }
-    }
-
     .reprice-confirm-actions {
       display: flex;
       flex-wrap: wrap;
@@ -171,24 +96,10 @@ export class RepriceConfirmComponent {
 
   /** Primary, retroactive action for an AMOUNT change — "Update all". */
   readonly updateAll = output<void>();
-  /**
-   * Primary, retroactive action for a PHASE flip — "Convert". Carries the chosen scope:
-   * 'all' fans the phase across every age group in the league; 'this' is the single age
-   * group. Always 'this' when no league-scope selector is shown (league/team panels).
-   */
-  readonly convert = output<'this' | 'all'>();
+  /** Primary, retroactive action for a PHASE flip — "Convert". Always this panel's own scope. */
+  readonly convert = output<void>();
   /** Secondary — "Future only" (amount, still saves) / "Cancel" (phase, reverts the toggle). */
   readonly secondary = output<void>();
   /** Back-out — collapse and save nothing (amount change only). */
   readonly keepEditing = output<void>();
-
-  /** Selected fan-out scope; only meaningful when `dialog().leagueScope` is present.
-   *  Defaults to 'all' (the whole league) — flipping the final-balance-due phase is almost
-   *  always meant to land on every age group at once, so that's the expected default. The
-   *  rep can still narrow to 'this' age group when they want the single-group change. */
-  readonly selectedScope = signal<'this' | 'all'>('all');
-
-  onConvert(): void {
-    this.convert.emit(this.dialog().leagueScope ? this.selectedScope() : 'this');
-  }
 }

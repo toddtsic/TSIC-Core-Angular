@@ -65,14 +65,6 @@ export class FeeRepriceService {
     return parts.length ? parts.join(' and ') : 'no existing registrations';
   }
 
-  /** Total existing registrations a save's reprice touched, summed from the save results
-   *  (each fee save returns `registrationsRepriced`). */
-  repricedCount(results: unknown[]): number {
-    return results.reduce<number>(
-      (sum, r) => sum + (r && typeof r === 'object' && 'registrationsRepriced' in r
-        ? (r as { registrationsRepriced: number }).registrationsRepriced : 0), 0);
-  }
-
   /** Repriced counts split by role from the save results — player registrations vs teams
    *  (a ClubRep fee row reprices teams). Each fee save returns `{ fee, registrationsRepriced }`;
    *  the role lives on `fee.roleId`. Non-fee saves (entity update/delete) carry neither and skip. */
@@ -119,14 +111,5 @@ export class FeeRepriceService {
     }
     if (who) return `Fees updated${at} — repriced ${who}.`;
     return feeChanged ? `Fees updated${at}.` : null;
-  }
-
-  /** Success-toast copy for a payment-phase change quantified by a pre-summed count (the league
-   *  fan-out path, whose per-age-group response carries only a total, not a role split). */
-  phaseToastMessage(repriced: number, level?: string): string {
-    const at = level ? ` at ${level} level` : '';
-    return repriced > 0
-      ? `Payment phase updated${at} — converted ${repriced} registration${repriced === 1 ? '' : 's'}.`
-      : `Payment phase updated${at}.`;
   }
 }

@@ -82,8 +82,6 @@ export type { AllowedFieldDomainItem } from './models/AllowedFieldDomainItem';
 export type { ApplyDiscountItemDto } from './models/ApplyDiscountItemDto';
 export type { ApplyDiscountRequestDto } from './models/ApplyDiscountRequestDto';
 export type { ApplyDiscountResponseDto } from './models/ApplyDiscountResponseDto';
-export type { ApplyLeaguePhaseRequest } from './models/ApplyLeaguePhaseRequest';
-export type { ApplyLeaguePhaseResponse } from './models/ApplyLeaguePhaseResponse';
 export type { ApplyTeamDiscountRequestDto } from './models/ApplyTeamDiscountRequestDto';
 export type { ApplyTeamDiscountResponseDto } from './models/ApplyTeamDiscountResponseDto';
 export type { ApproveTeamRequestDto } from './models/ApproveTeamRequestDto';
