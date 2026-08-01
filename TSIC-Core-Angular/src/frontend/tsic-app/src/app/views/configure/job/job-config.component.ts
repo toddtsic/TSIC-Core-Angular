@@ -65,8 +65,9 @@ export class JobConfigComponent implements OnInit, HasUnsavedChanges {
   readonly tabs = computed(() =>
     this.allTabs.filter(t => !t.superUserOnly || this.svc.isSuperUser()));
 
-  // Tabs that carry registration/visibility switches now owned by the Quick Links
-  // editor. On these, those switches render read-only with a pointer to Quick Links.
+  // Tabs that carry registration/visibility switches also surfaced in the Quick Links
+  // editor. Both surfaces edit the same Jobs flags (tabs via their batched save, Quick
+  // Links via per-toggle partial PUTs); the banner tells the admin the two are shared.
   private readonly quickLinksManagedTabs = new Set<TabKey>([
     'player', 'teams', 'coaches', 'scheduling', 'mobileStore',
   ]);

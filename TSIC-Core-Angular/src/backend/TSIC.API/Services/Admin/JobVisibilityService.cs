@@ -6,9 +6,10 @@ using TSIC.Domain.Constants;
 namespace TSIC.API.Services.Admin;
 
 /// <summary>
-/// SuperUser "Quick Links" editor service. Reads/writes the handful of Jobs.Jobs
-/// flags the public landing hero grounds its CTA cards on — a focused alternative
-/// to hunting the same flags across Configure Job's logical tabs. Stores no
+/// "Quick Links" editor service (AdminOnly: Director/SuperDirector/SuperUser).
+/// Reads/writes the handful of Jobs.Jobs flags the public landing hero grounds its
+/// CTA cards on — a focused alternative to hunting the same flags across Configure
+/// Job's logical tabs, which also edit them via their batched saves. Stores no
 /// separate state; the flag IS the single source of truth. Partial updates let
 /// the UI save one toggle at a time.
 /// </summary>

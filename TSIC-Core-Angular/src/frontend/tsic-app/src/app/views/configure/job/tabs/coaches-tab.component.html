@@ -3,17 +3,11 @@
     <div class="form-section">
       <h6 class="section-title"><i class="bi bi-toggles me-2"></i>Registration Availability</h6>
 
-      <div class="quick-links-inline-note">
-        <i class="bi bi-lock" aria-hidden="true"></i>
-        Managed in <strong>Quick Links</strong> &mdash; read-only here.
-      </div>
-
       <div class="toggle-row" [class.is-on]="bRegistrationAllowStaff()" [class.is-off]="!bRegistrationAllowStaff()">
         <label class="toggle-control">
           <input type="checkbox"
             [ngModel]="bRegistrationAllowStaff()"
-            (ngModelChange)="bRegistrationAllowStaff.set($event); onFieldChange()"
-            [disabled]="true" />
+            (ngModelChange)="bRegistrationAllowStaff.set($event); onFieldChange()" />
           <span class="field-label">Allow Staff/Coach Registration</span>
         </label>
         <span class="toggle-tip">
@@ -29,8 +23,7 @@
         <label class="toggle-control">
           <input type="checkbox"
             [ngModel]="bRegistrationAllowReferee()"
-            (ngModelChange)="bRegistrationAllowReferee.set($event); onFieldChange()"
-            [disabled]="true" />
+            (ngModelChange)="bRegistrationAllowReferee.set($event); onFieldChange()" />
           <span class="field-label">Allow Referee Registration</span>
         </label>
         <span class="toggle-tip">
@@ -46,8 +39,7 @@
         <label class="toggle-control">
           <input type="checkbox"
             [ngModel]="bRegistrationAllowRecruiter()"
-            (ngModelChange)="bRegistrationAllowRecruiter.set($event); onFieldChange()"
-            [disabled]="true" />
+            (ngModelChange)="bRegistrationAllowRecruiter.set($event); onFieldChange()" />
           <span class="field-label">Allow College Recruiter Registration</span>
         </label>
         <span class="toggle-tip">
@@ -111,7 +103,17 @@
     </div>
 
     <div class="form-section">
-      <h6 class="section-title"><i class="bi bi-people me-2"></i>Club Rep Confirmations</h6>
+      <h6 class="section-title">
+        <button type="button" class="section-toggle" (click)="clubRepOpen.set(!clubRepOpen())" [attr.aria-expanded]="clubRepOpen()">
+          <i class="bi bi-people me-2"></i>Club Rep Confirmations
+          <i class="bi ms-auto" [class.bi-chevron-down]="clubRepOpen()" [class.bi-chevron-right]="!clubRepOpen()" aria-hidden="true"></i>
+        </button>
+      </h6>
+      @if (!clubRepOpen()) {
+        @if (!svc.teams()?.bRegistrationAllowTeam) {
+          <div class="section-closed-note">Team registration is not offered on this job (see the Teams tab) &mdash; this copy is unused until it is.</div>
+        }
+      } @else {
       <div class="text-muted small mb-2">Shown/sent to the club rep after registering teams.</div>
       <div class="row g-2">
         <div class="col-12">
@@ -137,10 +139,21 @@
           </ejs-richtexteditor>
         </div>
       </div>
+      }
     </div>
 
     <div class="form-section">
-      <h6 class="section-title"><i class="bi bi-file-earmark-text me-2"></i>Coach Confirmations</h6>
+      <h6 class="section-title">
+        <button type="button" class="section-toggle" (click)="coachOpen.set(!coachOpen())" [attr.aria-expanded]="coachOpen()">
+          <i class="bi bi-file-earmark-text me-2"></i>Coach Confirmations
+          <i class="bi ms-auto" [class.bi-chevron-down]="coachOpen()" [class.bi-chevron-right]="!coachOpen()" aria-hidden="true"></i>
+        </button>
+      </h6>
+      @if (!coachOpen()) {
+        @if (!bRegistrationAllowStaff()) {
+          <div class="section-closed-note">Coach/staff registration is not offered on this job &mdash; enable it under Registration Availability above.</div>
+        }
+      } @else {
       <div class="text-muted small mb-2">Shown/sent to coaches, staff, and volunteers after registering.</div>
       <div class="row g-2">
         <div class="col-12">
@@ -166,10 +179,21 @@
           </ejs-richtexteditor>
         </div>
       </div>
+      }
     </div>
 
     <div class="form-section">
-      <h6 class="section-title"><i class="bi bi-shield-check me-2"></i>Adult Registration Policies &amp; Waivers</h6>
+      <h6 class="section-title">
+        <button type="button" class="section-toggle" (click)="waiversOpen.set(!waiversOpen())" [attr.aria-expanded]="waiversOpen()">
+          <i class="bi bi-shield-check me-2"></i>Adult Registration Policies &amp; Waivers
+          <i class="bi ms-auto" [class.bi-chevron-down]="waiversOpen()" [class.bi-chevron-right]="!waiversOpen()" aria-hidden="true"></i>
+        </button>
+      </h6>
+      @if (!waiversOpen()) {
+        @if (!bRegistrationAllowStaff() && !bRegistrationAllowReferee() && !bRegistrationAllowRecruiter()) {
+          <div class="section-closed-note">No adult registration flows (coach, referee, recruiter) are offered on this job.</div>
+        }
+      } @else {
       <div class="text-muted small mb-2">Shown to coach, referee, and recruiter registrants.</div>
       <div class="row g-2">
         <div class="col-12">
@@ -206,10 +230,21 @@
           </ejs-richtexteditor>
         </div>
       </div>
+      }
     </div>
 
     <div class="form-section">
-      <h6 class="section-title"><i class="bi bi-flag me-2"></i>Referee Confirmations</h6>
+      <h6 class="section-title">
+        <button type="button" class="section-toggle" (click)="refereeOpen.set(!refereeOpen())" [attr.aria-expanded]="refereeOpen()">
+          <i class="bi bi-flag me-2"></i>Referee Confirmations
+          <i class="bi ms-auto" [class.bi-chevron-down]="refereeOpen()" [class.bi-chevron-right]="!refereeOpen()" aria-hidden="true"></i>
+        </button>
+      </h6>
+      @if (!refereeOpen()) {
+        @if (!bRegistrationAllowReferee()) {
+          <div class="section-closed-note">Referee registration is not offered on this job &mdash; enable it under Registration Availability above.</div>
+        }
+      } @else {
       <div class="row g-2">
         <div class="col-12">
           <label class="field-label">Referee Confirmation Email</label>
@@ -234,10 +269,21 @@
           </ejs-richtexteditor>
         </div>
       </div>
+      }
     </div>
 
     <div class="form-section">
-      <h6 class="section-title"><i class="bi bi-mortarboard me-2"></i>Recruiter Confirmations</h6>
+      <h6 class="section-title">
+        <button type="button" class="section-toggle" (click)="recruiterOpen.set(!recruiterOpen())" [attr.aria-expanded]="recruiterOpen()">
+          <i class="bi bi-mortarboard me-2"></i>Recruiter Confirmations
+          <i class="bi ms-auto" [class.bi-chevron-down]="recruiterOpen()" [class.bi-chevron-right]="!recruiterOpen()" aria-hidden="true"></i>
+        </button>
+      </h6>
+      @if (!recruiterOpen()) {
+        @if (!bRegistrationAllowRecruiter()) {
+          <div class="section-closed-note">College recruiter registration is not offered on this job &mdash; enable it under Registration Availability above.</div>
+        }
+      } @else {
       <div class="row g-2">
         <div class="col-12">
           <label class="field-label">Recruiter Confirmation Email</label>
@@ -262,6 +308,7 @@
           </ejs-richtexteditor>
         </div>
       </div>
+      }
     </div>
 
   </div>

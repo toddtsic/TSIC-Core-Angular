@@ -36,6 +36,17 @@ export class CoachesTabComponent implements OnInit {
   recruiterRegConfirmationEmail = linkedSignal(() => this.svc.coaches()?.recruiterRegConfirmationEmail ?? null);
   recruiterRegConfirmationOnScreen = linkedSignal(() => this.svc.coaches()?.recruiterRegConfirmationOnScreen ?? null);
 
+  // ── Section disclosure ──
+  // Each confirmation section defaults open iff its flow is enabled, reseeding when the
+  // toggle changes (flip coach registration on and its section opens live, before save).
+  // Collapsed is de-emphasis, not lockout — the header always expands on click.
+  clubRepOpen = linkedSignal(() => !!this.svc.teams()?.bRegistrationAllowTeam);
+  coachOpen = linkedSignal(() => !!this.bRegistrationAllowStaff());
+  refereeOpen = linkedSignal(() => !!this.bRegistrationAllowReferee());
+  recruiterOpen = linkedSignal(() => !!this.bRegistrationAllowRecruiter());
+  waiversOpen = linkedSignal(() =>
+    !!this.bRegistrationAllowStaff() || !!this.bRegistrationAllowReferee() || !!this.bRegistrationAllowRecruiter());
+
   private readonly cleanSnapshot = computed(() => {
     const c = this.svc.coaches();
     if (!c) return '';

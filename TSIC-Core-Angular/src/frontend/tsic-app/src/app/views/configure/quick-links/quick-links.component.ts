@@ -30,10 +30,11 @@ interface ToggleDef {
 }
 
 /**
- * SuperUser "Quick Links" editor — a focused, job-scoped editor for the public
- * landing-hero CTA toggles of the CURRENT job. Each switch saves on change
- * (one partial PUT per toggle). These flags also live in their logical Configure
- * Job tabs; this is a one-stop convenience surface, not a separate source of truth.
+ * "Quick Links" editor (Director/SuperDirector/SuperUser) — a focused, job-scoped
+ * editor for the public landing-hero CTA toggles of the CURRENT job. Each switch
+ * saves on change (one partial PUT per toggle). These flags are also editable on
+ * their logical Configure Job tabs (batched save there); this is a one-stop
+ * convenience surface, not a separate source of truth — the Jobs flag is.
  */
 @Component({
 	selector: 'app-quick-links',

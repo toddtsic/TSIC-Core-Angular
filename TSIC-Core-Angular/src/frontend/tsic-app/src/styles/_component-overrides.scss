@@ -137,6 +137,36 @@
     align-items: center;
   }
 
+  // Collapsible section header — a <button> inside .section-title so the whole
+  // row is keyboard-operable while inheriting the title typography untouched.
+  .section-toggle {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+    text-transform: inherit;
+    letter-spacing: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: none;
+      box-shadow: var(--shadow-focus);
+      border-radius: var(--radius-sm);
+    }
+  }
+
+  // Why-this-section-is-collapsed explanation (flow not offered on this job).
+  .section-closed-note {
+    color: var(--bs-secondary-color);
+    font-size: var(--font-size-sm);
+  }
+
   .action-bar {
     padding-top: var(--space-2);
     border-top: 1px solid var(--bs-border-color);
