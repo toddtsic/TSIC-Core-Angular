@@ -1428,7 +1428,7 @@ public sealed class AdnSweepService : IAdnSweepService
         }
         else
         {
-            sb.Append("<p style='font-size:10px;color:#b00;font-weight:bold;'>⚠️ Money settled at Authorize.Net with no local accounting row. REPORT ONLY — nothing was booked. Review each and enter the payment by hand.</p>");
+            sb.Append("<p style='font-size:10px;color:#b00;font-weight:bold;'>&#9888; Money settled at Authorize.Net with no local accounting row. REPORT ONLY — nothing was booked. Review each and enter the payment by hand.</p>");
             sb.Append("<table style='border-style:solid;border-collapse:separate;border-spacing:10px;font-size:9px;'>");
             sb.Append("<tr><th>#</th><th>Resolved</th><th>TransId</th><th>Invoice</th><th>Settle Amount</th><th>Submitted (ADN)</th><th>Registrant</th><th>Note</th></tr>");
             for (int i = 0; i < orphanRows.Count; i++)
