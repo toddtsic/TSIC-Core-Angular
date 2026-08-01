@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, ChangeDetectionStrategy, ElementRef, Injector, afterNextRender, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -73,6 +73,16 @@ export class RosterSwapperComponent {
     // persists until the next swap or a pool change (deliberately no timed fade).
     readonly justMovedIds = signal<ReadonlySet<string>>(new Set());
     readonly isBatchSwapping = signal(false);
+
+    // AM-053/AM-039: a player moved onto a long roster can land off-screen — the
+    // highlight is useless if you can't see it. After the landing panel's reload
+    // renders, scroll the first moved row into view. One-shot: queued by the swap
+    // success handler, drained by that panel's loadRoster. (Port of Pool
+    // Assignment's AM-053 re-open fix — same structure, same hole.)
+    private readonly injector = inject(Injector);
+    private readonly sourceScroll = viewChild<ElementRef<HTMLElement>>('sourceScroll');
+    private readonly targetScroll = viewChild<ElementRef<HTMLElement>>('targetScroll');
+    private pendingScroll: { panel: 'source' | 'target'; regId: string } | null = null;
 
     // General
     readonly isLoading = signal(false);
@@ -184,6 +194,14 @@ export class RosterSwapperComponent {
             next: roster => {
                 if (panel === 'source') this.sourceRoster.set(roster);
                 else this.targetRoster.set(roster);
+                // AM-053/AM-039: this reload carries the just-moved player — scroll it
+                // into view once these rows have rendered. Cleared before scheduling,
+                // so it fires exactly once; a row hidden by an active filter no-ops.
+                if (this.pendingScroll?.panel === panel) {
+                    const pending = this.pendingScroll;
+                    this.pendingScroll = null;
+                    afterNextRender(() => this.scrollToMovedRow(pending.panel, pending.regId), { injector: this.injector });
+                }
             },
             error: err => {
                 this.toast.show(err?.error?.message || 'Failed to load roster.', 'danger', 4000);
@@ -320,6 +338,7 @@ export class RosterSwapperComponent {
             next: result => {
                 this.toast.show(playerName ? `${playerName} swapped. ${result.message}` : result.message, 'success', 3000);
                 this.justMovedIds.set(new Set(regIds));
+                this.queueScrollToMoved(regIds, targetPoolId);
                 this.swappingId.set(null);
                 this.isBatchSwapping.set(false);
                 this.sourceSelected.set(new Set());
@@ -337,6 +356,27 @@ export class RosterSwapperComponent {
                 this.swappingId.set(null);
                 this.isBatchSwapping.set(false);
             }
+        });
+    }
+
+    // ── AM-053/AM-039: scroll the just-moved player into view ──
+
+    /** Moved players land in the swap's target pool — the TARGET panel on a
+     *  rightward swap, the SOURCE panel on a leftward one. Batch scrolls to the
+     *  first moved player (same spec as Pool Assignment's AM-053). */
+    private queueScrollToMoved(regIds: string[], landedPoolId: string) {
+        const regId = regIds[0];
+        if (!regId) return;
+        this.pendingScroll = { panel: landedPoolId === this.targetPoolId() ? 'target' : 'source', regId };
+    }
+
+    private scrollToMovedRow(panel: 'source' | 'target', regId: string) {
+        const wrap = (panel === 'source' ? this.sourceScroll() : this.targetScroll())?.nativeElement;
+        const row = wrap?.querySelector(`tr[data-reg-id="${regId}"]`);
+        // block:'nearest' keeps the correction minimal and confined — no page jump.
+        row?.scrollIntoView({
+            behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+            block: 'nearest'
         });
     }
 

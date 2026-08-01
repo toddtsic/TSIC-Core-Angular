@@ -99,7 +99,7 @@
 
         <div class="panel-body">
           @if (sourcePoolId() && sortedFilteredSourceRoster().length > 0) {
-            <div class="table-scroll-wrapper">
+            <div class="table-scroll-wrapper" #sourceScroll>
               <table class="table table-sm table-hover mb-0 roster-table">
                 <thead>
                   <tr>
@@ -149,7 +149,8 @@
                 </thead>
                 <tbody>
                   @for (player of sortedFilteredSourceRoster(); track player.registrationId; let i = $index) {
-                    <tr [class.table-active]="sourceSelected().has(player.registrationId)"
+                    <tr [attr.data-reg-id]="player.registrationId"
+                        [class.table-active]="sourceSelected().has(player.registrationId)"
                         [class.just-moved]="justMovedIds().has(player.registrationId)"
                         [class.text-body-tertiary]="!player.bActive">
                       <td class="col-check frozen frozen-0">
@@ -295,7 +296,7 @@
 
         <div class="panel-body">
           @if (targetPoolId() && sortedFilteredTargetRoster().length > 0) {
-            <div class="table-scroll-wrapper">
+            <div class="table-scroll-wrapper" #targetScroll>
               <table class="table table-sm table-hover mb-0 roster-table">
                 <thead>
                   <tr>
@@ -345,7 +346,8 @@
                 </thead>
                 <tbody>
                   @for (player of sortedFilteredTargetRoster(); track player.registrationId; let i = $index) {
-                    <tr [class.table-active]="targetSelected().has(player.registrationId)"
+                    <tr [attr.data-reg-id]="player.registrationId"
+                        [class.table-active]="targetSelected().has(player.registrationId)"
                         [class.just-moved]="justMovedIds().has(player.registrationId)"
                         [class.text-body-tertiary]="!player.bActive">
                       <td class="col-check frozen frozen-0">
