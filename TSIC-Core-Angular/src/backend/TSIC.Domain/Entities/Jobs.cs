@@ -257,6 +257,10 @@ public partial class Jobs
 
     public bool BReseedTournament { get; set; }
 
+    public string? CoachRegConfirmationEmail { get; set; }
+
+    public string? CoachRegConfirmationOnScreen { get; set; }
+
     public virtual BillingTypes BillingType { get; set; } = null!;
 
     public virtual ICollection<BracketInstances> BracketInstances { get; set; } = new List<BracketInstances>();

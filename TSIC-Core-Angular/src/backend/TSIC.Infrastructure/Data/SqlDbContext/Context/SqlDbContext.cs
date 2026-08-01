@@ -4741,6 +4741,8 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.BillingTypeId).HasColumnName("BillingTypeID");
             entity.Property(e => e.BplayerRegRequiresToken).HasColumnName("BPlayerRegRequiresToken");
             entity.Property(e => e.BteamRegRequiresToken).HasColumnName("BTeamRegRequiresToken");
+            entity.Property(e => e.CoachRegConfirmationEmail).HasColumnName("CoachReg_ConfirmationEmail");
+            entity.Property(e => e.CoachRegConfirmationOnScreen).HasColumnName("CoachReg_ConfirmationOnScreen");
             entity.Property(e => e.CoreRegformPlayer).IsUnicode(false);
             entity.Property(e => e.CustomerId).HasColumnName("customerID");
             entity.Property(e => e.DadLabel).IsUnicode(false);
@@ -5739,6 +5741,10 @@ public partial class SqlDbContext : DbContext
 
             entity.ToTable("Registrations", "Jobs", tb => tb.HasTrigger("UpdateRegistrantAssignment"));
 
+            entity.HasIndex(e => e.FamilyUserId, "IX_Registrations_Family_UserId");
+
+            entity.HasIndex(e => e.UserId, "IX_Registrations_UserId");
+
             entity.HasIndex(e => e.RegistrationAi, "UI_Registrations_Ai").IsUnique();
 
             entity.Property(e => e.RegistrationId)
@@ -5822,9 +5828,7 @@ public partial class SqlDbContext : DbContext
                 .HasColumnName("Dad_Twitter");
             entity.Property(e => e.DayGroup).HasColumnName("dayGroup");
             entity.Property(e => e.DiscountCodeId).HasColumnName("DiscountCodeID");
-            entity.Property(e => e.FamilyUserId)
-                .HasMaxLength(450)
-                .HasColumnName("Family_UserId");
+            entity.Property(e => e.FamilyUserId).HasColumnName("Family_UserId");
             entity.Property(e => e.Fastestshot).HasColumnName("fastestshot");
             entity.Property(e => e.FeeBase)
                 .HasColumnType("decimal(18, 2)")
@@ -5970,7 +5974,6 @@ public partial class SqlDbContext : DbContext
                 .HasMaxLength(50)
                 .IsUnicode(false);
             entity.Property(e => e.UniformNo).HasColumnName("uniform_no");
-            entity.Property(e => e.UserId).HasMaxLength(450);
             entity.Property(e => e.VolChildreninprogram).HasColumnName("vol_childreninprogram");
             entity.Property(e => e.Volposition).HasColumnName("volposition");
             entity.Property(e => e.WeightLbs).HasColumnName("weight_lbs");
