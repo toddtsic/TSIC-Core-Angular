@@ -25,6 +25,14 @@ export class ForgotPasswordComponent {
    */
   readonly loginLink = `/${inject(ActivatedRoute).snapshot.queryParamMap.get('jobPath') || 'tsic'}/login`;
 
+  /**
+   * AM-056 re-open: without an explicit-intent param the auth guard's last-job
+   * convenience bounce (meant for bare /login hits) redirects a logged-out click
+   * to the last-visited job's HOME — "Back to Sign In" never reached a login page.
+   * `force` is on the guard's whitelist and is read by nothing else.
+   */
+  readonly loginQueryParams = { force: 1 };
+
   // Username OR email in one field (legacy semantics) — no email validator.
   form = this.fb.group({
     usernameOrEmail: ['', [Validators.required]]

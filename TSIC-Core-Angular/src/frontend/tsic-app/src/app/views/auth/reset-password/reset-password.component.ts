@@ -28,6 +28,14 @@ export class ResetPasswordComponent implements OnInit {
    */
   loginLink = '/tsic/login';
 
+  /**
+   * AM-056 re-open: without an explicit-intent param the auth guard's last-job
+   * convenience bounce (meant for bare /login hits) redirects a logged-out click
+   * to the last-visited job's HOME — these links never reached a login page.
+   * `force` is on the guard's whitelist and is read by nothing else.
+   */
+  readonly loginQueryParams = { force: 1 };
+
   form = this.fb.group({
     newPassword: ['', [Validators.required, Validators.minLength(6)]],
     confirmPassword: ['', [Validators.required]]
@@ -66,7 +74,7 @@ export class ResetPasswordComponent implements OnInit {
         this.isLoading.set(false);
         this.success.set(true);
         // Auto-redirect to login after 3 seconds
-        setTimeout(() => this.router.navigateByUrl(this.loginLink), 3000);
+        setTimeout(() => this.router.navigate([this.loginLink], { queryParams: this.loginQueryParams }), 3000);
       },
       error: (err) => {
         this.isLoading.set(false);
