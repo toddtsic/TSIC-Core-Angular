@@ -30,6 +30,26 @@ public record PaymentState
     public required decimal CcRate { get; init; }
     public required decimal EcheckRate { get; init; }
 
+    // ── Slice awareness (proc-on-balance-only jobs) ──
+    //
+    // On a job with BAddProcessingFees=true but BApplyProcessingFeesToTeamDeposit=false, the
+    // deposit slice of the bill is charged WITHOUT proc — so the uniform gross ÷ (1+rate)
+    // inversion below over-counts proc and under-counts principal for any CC/eCheck money
+    // that paid the deposit (proven: a paid-in-full 500+1552.50 CC team repriced to phantom
+    // proc 69.41 / owed +16.91 instead of 52.50 / 0). Hydration (PaymentStateService)
+    // reconstructs the split by walking ledger rows oldest-first (billing order is
+    // deposit-first) and supplies:
+    //   ProcFreeBase        — the proc-free slice of the bill (effective deposit: deposit −
+    //                         discount + lateFee + donation); 0 when proc rides everything.
+    //   CcProcFreeGross     — the portion of CcGrossPaid charged with no proc embedded.
+    //   EcheckProcFreeGross — same for eCheck.
+    // All three default 0, which reduces every formula below exactly to the uniform-proc
+    // behavior — callers that don't hydrate slices (players, proc-on-deposit jobs) are
+    // unchanged.
+    public decimal ProcFreeBase { get; init; }
+    public decimal CcProcFreeGross { get; init; }
+    public decimal EcheckProcFreeGross { get; init; }
+
     // ── Derived: principal vs proc splits per method ──
 
     // Principal recovery is rounded to cents: a booked gross is itself cent-quantized
@@ -40,9 +60,11 @@ public record PaymentState
     // misread as unpaid principal and re-billed at the CC rate, tipping the target
     // across a rounding boundary (the $75 eCheck penny: 76.12/1.015 = 74.99507 → the
     // 0.00493 "shortfall" pushed the target from 1.12 to 1.13).
+    // Proc-free gross (money that paid the proc-free deposit slice) is principal at face
+    // value; only the remainder was grossed-up at charge time and gets inverted.
     public decimal CcPrincipalPaid =>
         BAddProcessingFees && CcRate > 0m
-            ? System.Math.Round(CcGrossPaid / (1m + CcRate), 2, System.MidpointRounding.AwayFromZero)
+            ? CcProcFreeGross + System.Math.Round((CcGrossPaid - CcProcFreeGross) / (1m + CcRate), 2, System.MidpointRounding.AwayFromZero)
             : CcGrossPaid;
 
     public decimal CcProcCollected => CcGrossPaid - CcPrincipalPaid;
@@ -50,7 +72,7 @@ public record PaymentState
     // eCheck mirrors CC: gross stored in Payamt, principal reversed out at echeckRate.
     public decimal EcheckPrincipalPaid =>
         BAddProcessingFees && EcheckRate > 0m
-            ? System.Math.Round(EcheckGrossPaid / (1m + EcheckRate), 2, System.MidpointRounding.AwayFromZero)
+            ? EcheckProcFreeGross + System.Math.Round((EcheckGrossPaid - EcheckProcFreeGross) / (1m + EcheckRate), 2, System.MidpointRounding.AwayFromZero)
             : EcheckGrossPaid;
 
     public decimal EcheckProcCollected => EcheckGrossPaid - EcheckPrincipalPaid;
@@ -104,8 +126,18 @@ public record PaymentState
     public decimal FeeProcessingTarget(decimal feeBase, decimal discount, decimal lateFee, decimal donation)
     {
         if (!BAddProcessingFees) return 0m;
-        var principalBase = feeBase - discount + lateFee + donation;
-        var remainingCcBillable = System.Math.Max(0m, principalBase - PrincipalPaid);
+        // ProcFreeBase > 0 ⇒ the modifiers ride the proc-free (deposit) slice — they are
+        // already inside ProcFreeBase (same effective-deposit formula the paid-past-deposit
+        // promotion uses), so the billable base passes through raw and paid principal fills
+        // the free slice FIRST; only the spillover consumes billable base.
+        // ProcFreeBase = 0 ⇒ legacy netting, byte-identical to the pre-slice formula.
+        var principalBase = ProcFreeBase > 0m
+            ? feeBase
+            : feeBase - discount + lateFee + donation;
+        var billablePrincipalPaid = ProcFreeBase > 0m
+            ? System.Math.Max(0m, PrincipalPaid - ProcFreeBase)
+            : PrincipalPaid;
+        var remainingCcBillable = System.Math.Max(0m, principalBase - billablePrincipalPaid);
         return ProcCollected + remainingCcBillable * CcRate;
     }
 
@@ -272,8 +304,19 @@ public record PaymentState
     /// </summary>
     public decimal ProcFeeDue(decimal feeBase, decimal discount, decimal lateFee, decimal donation) =>
         BAddProcessingFees
-            ? PrincipalRemaining(feeBase, discount, lateFee, donation) * CcRate
+            ? BillablePrincipalRemaining(feeBase, discount, lateFee, donation) * CcRate
             : 0m;
+
+    /// <summary>
+    /// Principal still owed that would carry proc if CC-billed — the slice-aware core of
+    /// <see cref="ProcFeeDue"/>. With no proc-free slice this IS <see cref="PrincipalRemaining"/>;
+    /// with one, remaining principal fills the proc-free (deposit) slice first, so only the
+    /// portion beyond <see cref="ProcFreeBase"/> is proc-billable.
+    /// </summary>
+    private decimal BillablePrincipalRemaining(decimal feeBase, decimal discount, decimal lateFee, decimal donation) =>
+        ProcFreeBase > 0m
+            ? System.Math.Max(0m, (feeBase - discount + lateFee + donation) - System.Math.Max(PrincipalPaid, ProcFreeBase))
+            : PrincipalRemaining(feeBase, discount, lateFee, donation);
 
     /// <summary>
     /// Per-payment proc credit for a CC-rate <paramref name="ccCharge"/> being settled

@@ -179,6 +179,50 @@ public class RegistrationAccountingRepository : IRegistrationAccountingRepositor
                 cancellationToken);
     }
 
+    public async Task<Dictionary<Guid, List<PaymentLedgerRow>>> GetPaymentRowsByEntityAsync(
+        PaymentEntityKind kind,
+        IReadOnlyCollection<Guid> entityIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (entityIds.Count == 0) return new();
+
+        var rows = _context.RegistrationAccounting.AsNoTracking().Where(ra => ra.Active == true);
+
+        var keyed = kind switch
+        {
+            PaymentEntityKind.Registration => rows
+                .Where(ra => ra.RegistrationId.HasValue && entityIds.Contains(ra.RegistrationId!.Value))
+                .Select(ra => new { EntityId = ra.RegistrationId!.Value, ra.Payamt, ra.PaymentMethodId, ra.Createdate, ra.AId }),
+            PaymentEntityKind.Team => rows
+                .Where(ra => ra.TeamId.HasValue && entityIds.Contains(ra.TeamId!.Value))
+                .Select(ra => new { EntityId = ra.TeamId!.Value, ra.Payamt, ra.PaymentMethodId, ra.Createdate, ra.AId }),
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported PaymentEntityKind"),
+        };
+
+        var fetched = await keyed
+            .OrderBy(x => x.Createdate)
+            .ThenBy(x => x.AId)
+            .ToListAsync(cancellationToken);
+
+        // Classify in memory via the shared PaymentMethodIds sets — the SAME buckets and
+        // exclusions as the totals query, so per-bucket sums of this result reproduce
+        // GetPaymentTotalsByEntityAsync exactly. Unclassified methods (voids, failed CC,
+        // BALANCE DUE) are dropped, matching their absence from every totals bucket.
+        return fetched
+            .Select(x => new { x.EntityId, Bucket = PaymentMethodIds.Classify(x.PaymentMethodId), x.Payamt, x.Createdate, x.AId })
+            .Where(x => x.Bucket != null)
+            .GroupBy(x => x.EntityId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(x => new PaymentLedgerRow
+                {
+                    Amount = x.Payamt ?? 0m,
+                    Bucket = x.Bucket!.Value,
+                    Createdate = x.Createdate,
+                    AId = x.AId,
+                }).ToList());
+    }
+
     public async Task<bool> HasPaymentsForTeamAsync(Guid teamId, CancellationToken cancellationToken = default)
     {
         return await _context.RegistrationAccounting

@@ -76,4 +76,18 @@ public static class PaymentMethodIds
         OnlineCorrectionByTsic,                              // Online Correction By TSIC
         Guid.Parse("2CECA575-A268-E111-9D56-F04DA202060D"), // Scholarship (legacy)
     };
+
+    /// <summary>
+    /// Resolves a PaymentMethodId to its canonical bucket, or null for the by-design
+    /// excluded methods (voids, failed CC, BALANCE DUE — no money moved). Single
+    /// classifier shared by the totals query and the chronological ledger walk, so the
+    /// two reads can never disagree on what counts as a payment.
+    /// </summary>
+    public static PaymentMethodBucket? Classify(Guid paymentMethodId) =>
+        CcPaid.Contains(paymentMethodId) ? PaymentMethodBucket.CreditCard
+        : Echeck.Contains(paymentMethodId) ? PaymentMethodBucket.Echeck
+        : Check.Contains(paymentMethodId) ? PaymentMethodBucket.Check
+        : Cash.Contains(paymentMethodId) ? PaymentMethodBucket.Cash
+        : Correction.Contains(paymentMethodId) ? PaymentMethodBucket.Correction
+        : null;
 }

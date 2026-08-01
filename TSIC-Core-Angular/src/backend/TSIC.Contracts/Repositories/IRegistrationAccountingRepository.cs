@@ -60,6 +60,20 @@ public interface IRegistrationAccountingRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Per-entity payment rows in chronological order (Createdate, then AId), classified
+    /// into the same five buckets as <see cref="GetPaymentTotalsByEntityAsync"/> (same
+    /// Active filter, same excluded methods — summing a result's amounts per bucket
+    /// reproduces the totals exactly). Powers the slice-aware PaymentState hydration
+    /// walk on proc-on-balance-only jobs, which needs payment ORDER to know how much
+    /// CC/eCheck gross paid the proc-free deposit slice. Entities with zero payments
+    /// are absent from the dictionary.
+    /// </summary>
+    Task<Dictionary<Guid, List<PaymentLedgerRow>>> GetPaymentRowsByEntityAsync(
+        PaymentEntityKind kind,
+        IReadOnlyCollection<Guid> entityIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Check whether any active payment records exist for the given team.
     /// </summary>
     Task<bool> HasPaymentsForTeamAsync(Guid teamId, CancellationToken cancellationToken = default);

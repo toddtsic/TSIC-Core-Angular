@@ -27,12 +27,27 @@ public interface IPaymentStateService
     Task<PaymentState> ForRegistrationAsync(
         Guid registrationId, Guid jobId, CancellationToken ct = default);
 
+    /// <summary>
+    /// <paramref name="procFreeBase"/>: the team's proc-free bill slice (effective deposit
+    /// — deposit − discount + lateFee + donation) on a job with BAddProcessingFees=true and
+    /// BApplyProcessingFeesToTeamDeposit=false; 0 (default) everywhere else. When &gt; 0 the
+    /// hydration walks ledger rows oldest-first to split CC/eCheck gross into the proc-free
+    /// portion (principal at face value) and the grossed-up remainder — see
+    /// <see cref="PaymentState.ProcFreeBase"/>. Team-only: the flag does not exist for
+    /// player registrations.
+    /// </summary>
     Task<PaymentState> ForTeamAsync(
-        Guid teamId, Guid jobId, CancellationToken ct = default);
+        Guid teamId, Guid jobId, CancellationToken ct = default, decimal procFreeBase = 0m);
 
     Task<Dictionary<Guid, PaymentState>> ForRegistrationsAsync(
         IReadOnlyCollection<Guid> registrationIds, Guid jobId, CancellationToken ct = default);
 
+    /// <summary>
+    /// <paramref name="procFreeBaseByTeam"/>: per-team proc-free bill slice; see
+    /// <see cref="ForTeamAsync"/>. Teams absent from the map (or null map) hydrate with no
+    /// slice awareness — identical to the pre-slice behavior.
+    /// </summary>
     Task<Dictionary<Guid, PaymentState>> ForTeamsAsync(
-        IReadOnlyCollection<Guid> teamIds, Guid jobId, CancellationToken ct = default);
+        IReadOnlyCollection<Guid> teamIds, Guid jobId, CancellationToken ct = default,
+        IReadOnlyDictionary<Guid, decimal>? procFreeBaseByTeam = null);
 }

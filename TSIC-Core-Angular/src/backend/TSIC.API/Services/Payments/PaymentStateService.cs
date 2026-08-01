@@ -40,9 +40,12 @@ public sealed class PaymentStateService : IPaymentStateService
     }
 
     public async Task<PaymentState> ForTeamAsync(
-        Guid teamId, Guid jobId, CancellationToken ct = default)
+        Guid teamId, Guid jobId, CancellationToken ct = default, decimal procFreeBase = 0m)
     {
-        var dict = await ForTeamsAsync(new[] { teamId }, jobId, ct);
+        var map = procFreeBase > 0m
+            ? new Dictionary<Guid, decimal> { [teamId] = procFreeBase }
+            : null;
+        var dict = await ForTeamsAsync(new[] { teamId }, jobId, ct, map);
         return dict.TryGetValue(teamId, out var state)
             ? state
             : await BuildEmptyAsync(jobId, ct);
@@ -50,37 +53,110 @@ public sealed class PaymentStateService : IPaymentStateService
 
     public async Task<Dictionary<Guid, PaymentState>> ForRegistrationsAsync(
         IReadOnlyCollection<Guid> registrationIds, Guid jobId, CancellationToken ct = default) =>
-        await BuildBatchAsync(PaymentEntityKind.Registration, registrationIds, jobId, ct);
+        await BuildBatchAsync(PaymentEntityKind.Registration, registrationIds, jobId, ct, null);
 
     public async Task<Dictionary<Guid, PaymentState>> ForTeamsAsync(
-        IReadOnlyCollection<Guid> teamIds, Guid jobId, CancellationToken ct = default) =>
-        await BuildBatchAsync(PaymentEntityKind.Team, teamIds, jobId, ct);
+        IReadOnlyCollection<Guid> teamIds, Guid jobId, CancellationToken ct = default,
+        IReadOnlyDictionary<Guid, decimal>? procFreeBaseByTeam = null) =>
+        await BuildBatchAsync(PaymentEntityKind.Team, teamIds, jobId, ct, procFreeBaseByTeam);
 
     private async Task<Dictionary<Guid, PaymentState>> BuildBatchAsync(
-        PaymentEntityKind kind, IReadOnlyCollection<Guid> entityIds, Guid jobId, CancellationToken ct)
+        PaymentEntityKind kind, IReadOnlyCollection<Guid> entityIds, Guid jobId, CancellationToken ct,
+        IReadOnlyDictionary<Guid, decimal>? procFreeBaseByEntity)
     {
         if (entityIds.Count == 0) return new();
 
         var (bAdd, ccRate, echeckRate) = await GetJobConfigAsync(jobId, ct);
 
-        var totals = await _accounting.GetPaymentTotalsByEntityAsync(kind, entityIds, ct);
+        // Slice-aware path only when a caller supplied a nonzero proc-free base (teams on
+        // proc-on-balance-only jobs). Everything else takes the totals path — identical
+        // numbers to the pre-slice behavior.
+        var wantsSlices = bAdd && procFreeBaseByEntity is not null
+            && procFreeBaseByEntity.Values.Any(v => v > 0m);
 
-        var result = new Dictionary<Guid, PaymentState>(totals.Count);
-        foreach (var (entityId, t) in totals)
+        if (!wantsSlices)
         {
-            result[entityId] = new PaymentState
+            var totals = await _accounting.GetPaymentTotalsByEntityAsync(kind, entityIds, ct);
+
+            var result = new Dictionary<Guid, PaymentState>(totals.Count);
+            foreach (var (entityId, t) in totals)
             {
-                CcGrossPaid = t.CreditCard,
-                EcheckGrossPaid = t.Echeck,
-                CheckPaid = t.Check,
-                CashPaid = t.Cash,
-                CorrectionApplied = t.Correction,
+                result[entityId] = new PaymentState
+                {
+                    CcGrossPaid = t.CreditCard,
+                    EcheckGrossPaid = t.Echeck,
+                    CheckPaid = t.Check,
+                    CashPaid = t.Cash,
+                    CorrectionApplied = t.Correction,
+                    BAddProcessingFees = bAdd,
+                    CcRate = ccRate,
+                    EcheckRate = echeckRate,
+                };
+            }
+            return result;
+        }
+
+        // One rows query replaces the totals query (same filters/buckets, so summing the
+        // rows reproduces the totals exactly) and additionally yields payment ORDER, which
+        // the walk needs: billing is deposit-first, so the oldest dollars — whatever their
+        // tender — paid the proc-free deposit slice. CC/eCheck money inside that slice was
+        // charged WITHOUT proc and must not be grossed-up on decomposition.
+        var rowsByEntity = await _accounting.GetPaymentRowsByEntityAsync(kind, entityIds, ct);
+
+        var sliced = new Dictionary<Guid, PaymentState>(rowsByEntity.Count);
+        foreach (var (entityId, rows) in rowsByEntity)
+        {
+            var procFreeBase = procFreeBaseByEntity!.GetValueOrDefault(entityId);
+
+            decimal cc = 0m, echeck = 0m, check = 0m, cash = 0m, correction = 0m;
+            decimal ccFree = 0m, echeckFree = 0m;
+            var remainingFree = procFreeBase;
+
+            foreach (var row in rows) // already oldest-first (Createdate, AId)
+            {
+                // Negative rows (refunds, NSF returns, credit corrections) never consume
+                // the free slice — take is clamped at 0 and the netting happens via the
+                // bucket sums, same as the totals path.
+                var take = Math.Min(Math.Max(row.Amount, 0m), Math.Max(remainingFree, 0m));
+                switch (row.Bucket)
+                {
+                    case PaymentMethodBucket.CreditCard:
+                        cc += row.Amount;
+                        ccFree += take;
+                        break;
+                    case PaymentMethodBucket.Echeck:
+                        echeck += row.Amount;
+                        echeckFree += take;
+                        break;
+                    case PaymentMethodBucket.Check:
+                        check += row.Amount;
+                        break;
+                    case PaymentMethodBucket.Cash:
+                        cash += row.Amount;
+                        break;
+                    case PaymentMethodBucket.Correction:
+                        correction += row.Amount;
+                        break;
+                }
+                remainingFree -= take;
+            }
+
+            sliced[entityId] = new PaymentState
+            {
+                CcGrossPaid = cc,
+                EcheckGrossPaid = echeck,
+                CheckPaid = check,
+                CashPaid = cash,
+                CorrectionApplied = correction,
                 BAddProcessingFees = bAdd,
                 CcRate = ccRate,
                 EcheckRate = echeckRate,
+                ProcFreeBase = procFreeBase,
+                CcProcFreeGross = ccFree,
+                EcheckProcFreeGross = echeckFree,
             };
         }
-        return result;
+        return sliced;
     }
 
     private async Task<PaymentState> BuildEmptyAsync(Guid jobId, CancellationToken ct)
