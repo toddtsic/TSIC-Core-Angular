@@ -93,7 +93,7 @@ public class ClubRosterMoveFeeTests
         var jobRepo = new Mock<IJobRepository>();
         jobRepo.Setup(j => j.GetProcessingFeePercentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(3.5m);   // present but inert — processing is off
-        var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object);
+        var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object, new FeeRepository(ctx), new TeamRepository(ctx));
         var feeService = new FeeResolutionService(new FeeRepository(ctx), jobRepo.Object, paymentState);
         return new ClubRosterService(
             new TeamRepository(ctx), new RegistrationRepository(ctx), feeService, jobRepo.Object);

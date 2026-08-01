@@ -594,6 +594,27 @@ public class TeamRepository : ITeamRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<Dictionary<Guid, TeamFeeModifiers>> GetTeamFeeModifiersAsync(
+        IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default)
+    {
+        if (teamIds.Count == 0) return new();
+
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => teamIds.Contains(t.TeamId))
+            .Select(t => new
+            {
+                t.TeamId,
+                Discount = (t.FeeDiscount ?? 0m) + (t.FeeDiscountMp ?? 0m),
+                LateFee = t.FeeLatefee ?? 0m,
+                Donation = t.FeeDonation ?? 0m,
+            })
+            .ToDictionaryAsync(
+                x => x.TeamId,
+                x => new TeamFeeModifiers { Discount = x.Discount, LateFee = x.LateFee, Donation = x.Donation },
+                cancellationToken);
+    }
+
     public async Task<List<Teams>> GetTeamsWithDetailsForJobAsync(
         Guid jobId,
         CancellationToken cancellationToken = default)

@@ -88,7 +88,7 @@ public class TeamCheckTests
                 PaymentMethodsAllowedCode = 7
             });
 
-        var paymentState = new PaymentStateService(accountingRepo, jobRepo.Object);
+        var paymentState = new PaymentStateService(accountingRepo, jobRepo.Object, new FeeRepository(ctx), new TeamRepository(ctx));
         var svc = new TeamSearchService(
             teamRepo, accountingRepo, registrationRepo, jobRepo.Object,
             feeService.Object, paymentState, adnApi.Object, ladtService.Object,

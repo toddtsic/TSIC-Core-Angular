@@ -93,7 +93,7 @@ public class DiscountCodeTests
         // the SAME path the display shaper and the at-charge realize use, so a checkout code can never
         // stamp a proc that disagrees with the charge (the deposit-discount penny). A mocked fee service
         // would no-op the recompute and leave proc/totals stale.
-        var feeStatePaymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object);
+        var feeStatePaymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object, new FeeRepository(ctx), new TeamRepository(ctx));
         var feeService = new FeeResolutionService(new FeeRepository(ctx), jobRepo.Object, feeStatePaymentState);
 
         var jobLookup = new Mock<IJobLookupService>();

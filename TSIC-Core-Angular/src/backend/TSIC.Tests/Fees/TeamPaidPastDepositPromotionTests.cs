@@ -152,7 +152,7 @@ public class TeamPaidPastDepositPromotionTests
         var jobRepo = new Mock<IJobRepository>();
         jobRepo.Setup(j => j.GetProcessingFeePercentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(3.5m);   // present but inert — BAddProcessingFees is false
-        var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object);
+        var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object, new FeeRepository(ctx), new TeamRepository(ctx));
         var svc = new FeeResolutionService(new FeeRepository(ctx), jobRepo.Object, paymentState);
 
         return (svc, team, job.JobId, ag.AgegroupId);

@@ -162,24 +162,9 @@ public class PaymentService : IPaymentService
 
         // Canonical principal-remaining per team (handles prior payments + phase); used
         // only to size the eCheck proc credit. CC never credits (methodRate == ccRate).
-        // Proc-on-balance-only job: hydrate slice-aware so prior CC/eCheck deposit money
-        // decomposes as pure principal — otherwise PrincipalRemaining overstates and the
-        // eCheck credit mis-sizes.
-        IReadOnlyDictionary<Guid, decimal>? procFreeBaseByTeam = null;
-        var chargeFeeSettings = await _jobs.GetJobFeeSettingsAsync(jobIdValue);
-        if ((chargeFeeSettings?.BAddProcessingFees ?? false)
-            && !(chargeFeeSettings?.BApplyProcessingFeesToTeamDeposit ?? false))
-        {
-            var resolvedFees = await _feeService.ResolveFeesByTeamIdsAsync(
-                jobIdValue, RoleConstants.ClubRep, teamIds.ToList());
-            procFreeBaseByTeam = teams.ToDictionary(
-                t => t.TeamId,
-                t => Math.Max(0m,
-                    (resolvedFees.GetValueOrDefault(t.TeamId)?.EffectiveDeposit ?? 0m)
-                    - t.TotalDiscount() + (t.FeeLatefee ?? 0m) + (t.FeeDonation ?? 0m)));
-        }
-        var teamStates = await _paymentState.ForTeamsAsync(
-            teamIds, jobIdValue, procFreeBaseByTeam: procFreeBaseByTeam);
+        // Hydration is slice-aware internally, so prior CC/eCheck deposit money on a
+        // proc-on-balance-only job decomposes as pure principal.
+        var teamStates = await _paymentState.ForTeamsAsync(teamIds, jobIdValue);
         var rateRef = teamStates.Values.FirstOrDefault()
             ?? await _paymentState.ForTeamAsync(teams[0].TeamId, jobIdValue);
         var emptyState = PaymentState.Empty(rateRef.BAddProcessingFees, rateRef.CcRate, rateRef.EcheckRate);

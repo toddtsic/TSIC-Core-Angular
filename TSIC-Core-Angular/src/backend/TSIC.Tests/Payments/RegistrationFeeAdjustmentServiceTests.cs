@@ -54,7 +54,7 @@ public class RegistrationFeeAdjustmentServiceTests
         // payments, no proc-free slice — the gate then passes the full amount, pre-slice behavior.
         var paymentState = new Mock<IPaymentStateService>();
         paymentState
-            .Setup(p => p.ForTeamAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>(), It.IsAny<decimal>()))
+            .Setup(p => p.ForTeamAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(PaymentState.Empty(true, CcRate, EcheckRate));
 
         return new RegistrationFeeAdjustmentService(jobRepo.Object, feeService.Object, paymentState.Object);

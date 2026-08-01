@@ -371,12 +371,10 @@ public sealed class FeeResolutionService : IFeeResolutionService
     {
         var resolved = await ResolveFeeAsync(jobId, RoleConstants.ClubRep, targetAgegroupId, team.TeamId, ct);
         // The same PaymentState drives the phase decision (paid-past-deposit promotion) and the
-        // totals recompute below — one ledger read, not two. The proc-free base (nonzero only
-        // on proc-on-balance-only jobs) lets hydration decompose CC/eCheck gross without
-        // inventing proc on the deposit slice.
-        var state = await _paymentState.ForTeamAsync(
-            team.TeamId, jobId, ct,
-            TeamProcFreeBase(team, resolved?.EffectiveDeposit ?? 0m, ctx));
+        // totals recompute below — one ledger read, not two. Hydration is slice-aware
+        // internally (proc-on-balance-only jobs decompose CC/eCheck gross without inventing
+        // proc on the deposit slice).
+        var state = await _paymentState.ForTeamAsync(team.TeamId, jobId, ct);
 
         var (deposit, balanceDue, fullPayment) = StampTeamSwapFeeBase(team, resolved, state, ctx);
 
@@ -542,7 +540,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
                         bAddProcessingFees: true,
                         ccRate: ctx.ProcessingFeePercent,
                         echeckRate: await GetEffectiveEcheckProcessingRateAsync(jobId, ct))
-                    : await _paymentState.ForTeamAsync(team.TeamId, jobId, ct, TeamProcFreeBase(team, deposit, ctx)))
+                    : await _paymentState.ForTeamAsync(team.TeamId, jobId, ct))
                 : PaymentState.Empty(false, 0m, 0m); // proc not billable — stamp writes 0 either way
         }
 
@@ -561,19 +559,6 @@ public sealed class FeeResolutionService : IFeeResolutionService
             ? (ctx.ApplyProcessingFeesToDeposit ? feeBase : balanceDue)
             : (ctx.ApplyProcessingFeesToDeposit ? deposit : 0m);
     }
-
-    /// <summary>
-    /// The proc-free slice of a team's bill, for PaymentState hydration: on a
-    /// proc-on-balance-only job (AddProcessingFees on, ApplyProcessingFeesToDeposit off) the
-    /// effective deposit — deposit adjusted by the SAME modifiers as the paid-past-deposit
-    /// promotion in <see cref="StampTeamSwapFeeBase"/> — was billed without proc, so CC/eCheck
-    /// money inside it must not be grossed-up on decomposition. 0 for every other config
-    /// (hydration then behaves exactly as pre-slice).
-    /// </summary>
-    private static decimal TeamProcFreeBase(TeamsEntity team, decimal deposit, TeamFeeApplicationContext ctx) =>
-        ctx.AddProcessingFees && !ctx.ApplyProcessingFeesToDeposit
-            ? Math.Max(0m, deposit - team.TotalDiscount() + (team.FeeLatefee ?? 0m) + (team.FeeDonation ?? 0m))
-            : 0m;
 
     private static void StampTeamProcessingAndTotals(
         TeamsEntity team, decimal deposit, decimal balanceDue,

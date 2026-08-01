@@ -97,7 +97,7 @@ public class DepositDiscountProcRoundingTests
         jobRepo.Setup(j => j.GetEcprocessingFeePercentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(1.5m);
 
-        var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object);
+        var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object, new FeeRepository(ctx), new TeamRepository(ctx));
         var feeSvc = new FeeResolutionService(new FeeRepository(ctx), jobRepo.Object, paymentState);
 
         return (feeSvc, reg, job.JobId, ag.AgegroupId, team.TeamId);

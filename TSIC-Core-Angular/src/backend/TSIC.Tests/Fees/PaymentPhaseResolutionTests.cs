@@ -66,7 +66,7 @@ public class PaymentPhaseResolutionTests
         var jobRepo = new Mock<IJobRepository>();
         jobRepo.Setup(j => j.GetProcessingFeePercentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(3.5m);
-        var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object);
+        var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object, new FeeRepository(ctx), new TeamRepository(ctx));
         var svc = new FeeResolutionService(feeRepo, jobRepo.Object, paymentState);
         return (svc, builder, job.JobId, league.LeagueId, ag.AgegroupId, team.TeamId);
     }

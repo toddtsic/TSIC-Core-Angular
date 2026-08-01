@@ -77,7 +77,7 @@ public class EarlyBirdLateFeeTests
         jobRepo.Setup(j => j.GetProcessingFeePercentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(processingFeePercent);
 
-        var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object);
+        var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object, new FeeRepository(ctx), new TeamRepository(ctx));
         var svc = new FeeResolutionService(feeRepo, jobRepo.Object, paymentState);
 
         // 7th element = the league-scoped fee row id (top modifier tier); tests attach modifiers here.
@@ -604,7 +604,7 @@ public class EarlyBirdLateFeeTests
             .ReturnsAsync(3.5m);
         jobRepo.Setup(j => j.GetJobFeeSettingsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JobFeeSettings { BAddProcessingFees = true, PaymentMethodsAllowedCode = 0 });
-        var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object);
+        var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object, new FeeRepository(ctx), new TeamRepository(ctx));
         var svc = new FeeResolutionService(feeRepo, jobRepo.Object, paymentState);
 
         // Player registered during early bird window — got $25 discount
@@ -673,7 +673,7 @@ public class EarlyBirdLateFeeTests
             .ReturnsAsync(3.5m);
         jobRepo.Setup(j => j.GetJobFeeSettingsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JobFeeSettings { BAddProcessingFees = true, PaymentMethodsAllowedCode = 0 });
-        var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object);
+        var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object, new FeeRepository(ctx), new TeamRepository(ctx));
         var svc = new FeeResolutionService(feeRepo, jobRepo.Object, paymentState);
 
         // Player originally on Team A with early bird discount
@@ -737,7 +737,7 @@ public class EarlyBirdLateFeeTests
         var jobRepo = new Mock<IJobRepository>();
         jobRepo.Setup(j => j.GetProcessingFeePercentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(3.5m);
-        var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object);
+        var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object, new FeeRepository(ctx), new TeamRepository(ctx));
         var svc = new FeeResolutionService(feeRepo, jobRepo.Object, paymentState);
 
         var resolved = await svc.ResolveFeeAsync(job.JobId, RoleConstants.Player, ag.AgegroupId, team.TeamId);
@@ -766,7 +766,7 @@ public class EarlyBirdLateFeeTests
         var jobRepo = new Mock<IJobRepository>();
         jobRepo.Setup(j => j.GetProcessingFeePercentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(3.5m);
-        var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object);
+        var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object, new FeeRepository(ctx), new TeamRepository(ctx));
         var svc = new FeeResolutionService(feeRepo, jobRepo.Object, paymentState);
 
         var reg = new Registrations
@@ -857,7 +857,7 @@ public class EarlyBirdLateFeeTests
         var jobRepo = new Mock<IJobRepository>();
         jobRepo.Setup(j => j.GetProcessingFeePercentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(3.5m);
-        var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object);
+        var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object, new FeeRepository(ctx), new TeamRepository(ctx));
         var svc = new FeeResolutionService(feeRepo, jobRepo.Object, paymentState);
 
         var mods = await svc.EvaluateModifiersAsync(

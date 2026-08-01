@@ -1413,25 +1413,9 @@ public class TeamRegistrationService : ITeamRegistrationService
         var eligibleTeamIds = eligibleTeams.Select(t => t.TeamId).ToList();
         var resolvedByTeam = await _feeService.ResolveFeesByTeamIdsAsync(
             jobId, RoleConstants.ClubRep, eligibleTeamIds);
-
-        // Proc-on-balance-only job: each team's deposit slice was billed WITHOUT proc, so
-        // hydration must know the slice or the CC/eCheck gross ÷ (1+rate) decomposition
-        // invents proc that was never charged (proven: paid-in-full teams repriced to
-        // phantom owed on a league phase flip). Effective deposit uses the SAME formula as
-        // the paid-past-deposit promotion (StampTeamSwapFeeBase), so the phase decision and
-        // the proc split can never disagree.
-        IReadOnlyDictionary<Guid, decimal>? procFreeBaseByTeam = null;
-        if ((job.BAddProcessingFees ?? false) && !(job.BApplyProcessingFeesToTeamDeposit ?? false))
-        {
-            procFreeBaseByTeam = eligibleTeams.ToDictionary(
-                t => t.TeamId,
-                t => Math.Max(0m,
-                    (resolvedByTeam.GetValueOrDefault(t.TeamId)?.EffectiveDeposit ?? 0m)
-                    - t.TotalDiscount() + (t.FeeLatefee ?? 0m) + (t.FeeDonation ?? 0m)));
-        }
-
-        var states = await _paymentState.ForTeamsAsync(
-            eligibleTeamIds, jobId, procFreeBaseByTeam: procFreeBaseByTeam);
+        // Hydration is slice-aware internally (proc-on-balance-only jobs decompose CC/eCheck
+        // gross without inventing proc on the deposit slice) — no caller wiring needed.
+        var states = await _paymentState.ForTeamsAsync(eligibleTeamIds, jobId);
         // Teams with no ledger rows are absent from the batch dictionary — one shared empty
         // state (job config only) replicates ForTeamAsync's per-entity fallback.
         var emptyState = await _paymentState.ForJobAsync(jobId);

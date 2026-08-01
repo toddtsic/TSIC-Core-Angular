@@ -102,6 +102,15 @@ public interface ITeamRepository
     Task<Guid?> GetTeamJobIdAsync(Guid teamId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Lean batch read of the fee-modifier columns for slice-aware PaymentState hydration:
+    /// the proc-free base is the effective deposit (deposit − discount + lateFee + donation,
+    /// the same adjustment set the paid-past-deposit promotion uses). AsNoTracking — reads
+    /// committed values, not pending in-context edits. Teams not found are absent.
+    /// </summary>
+    Task<Dictionary<Guid, TeamFeeModifiers>> GetTeamFeeModifiersAsync(
+        IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get teams with job and age group details for fee recalculation.
     /// </summary>
     Task<List<Teams>> GetTeamsWithDetailsForJobAsync(
@@ -597,6 +606,18 @@ public record TeamWithRegistrationInfo
     public required string TeamName { get; init; }
     public string? Username { get; init; }
     public Guid? ClubrepRegistrationid { get; init; }
+}
+
+/// <summary>
+/// Fee-modifier columns for slice-aware PaymentState hydration (see
+/// <see cref="ITeamRepository.GetTeamFeeModifiersAsync"/>). Discount is the TOTAL
+/// (FeeDiscount + FeeDiscountMp), matching TeamFeeExtensions.TotalDiscount.
+/// </summary>
+public record TeamFeeModifiers
+{
+    public required decimal Discount { get; init; }
+    public required decimal LateFee { get; init; }
+    public required decimal Donation { get; init; }
 }
 
 public record HistoricalTeamInfo

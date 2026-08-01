@@ -285,22 +285,15 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         if ((team.FeeProcessing ?? 0m) <= 0m)
             return 0m;
 
-        // Policy B gate (proc-on-balance-only job): the caller stamps the discount BEFORE
-        // this call, so the team's effective deposit here is post-discount. A discount dollar
-        // absorbed by the still-unpaid deposit slice displaces no proc (that slice never
-        // carried any); only the spillover past FreeSliceRemaining reduces. Every other
-        // config hydrates with base 0 → FreeSliceRemaining 0 → full amount reduces, as before.
-        var procDisplacingAmount = adjustmentAmount;
-        if (!(feeSettings.BApplyProcessingFeesToTeamDeposit ?? false))
-        {
-            var resolved = await _feeService.ResolveFeeAsync(
-                jobId, RoleConstants.ClubRep, team.AgegroupId, team.TeamId);
-            var procFreeBase = Math.Max(0m,
-                (resolved?.EffectiveDeposit ?? 0m)
-                - team.TotalDiscount() + (team.FeeLatefee ?? 0m) + (team.FeeDonation ?? 0m));
-            var state = await _paymentState.ForTeamAsync(team.TeamId, jobId, procFreeBase: procFreeBase);
-            procDisplacingAmount = Math.Max(0m, adjustmentAmount - state.FreeSliceRemaining);
-        }
+        // Policy B gate (proc-on-balance-only job): a discount dollar absorbed by the
+        // still-unpaid deposit slice displaces no proc (that slice never carried any); only
+        // the spillover past FreeSliceRemaining reduces. Hydration computes the slice
+        // internally; every other config yields FreeSliceRemaining 0 → full amount reduces,
+        // as before. (The caller stamps the discount pre-call but pre-save, so the hydrated
+        // base reads the pre-discount committed row — a cents-level conservatism on partial
+        // overlaps that the next recalc snaps exact.)
+        var state = await _paymentState.ForTeamAsync(team.TeamId, jobId);
+        var procDisplacingAmount = Math.Max(0m, adjustmentAmount - state.FreeSliceRemaining);
 
         // Canonical full-CC-rate credit (no proc collected at write time).
         var rate = await _feeService.GetEffectiveProcessingRateAsync(jobId);

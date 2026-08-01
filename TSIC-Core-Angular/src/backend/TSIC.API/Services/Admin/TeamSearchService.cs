@@ -658,25 +658,12 @@ public sealed class TeamSearchService : ITeamSearchService
                 clubTeams = clubTeams.Where(t => t.TeamId == singleTeamId.Value).ToList();
 
             var clubTeamIds = clubTeams.Select(t => t.TeamId).ToList();
-
-            // Proc-on-balance-only job: hydrate slice-aware so (a) PrincipalRemaining
-            // decomposes prior CC/eCheck gross without inventing proc on the deposit slice,
-            // and (b) FreeSliceRemaining gates the proc reduction below (policy B: a check
-            // dollar landing inside the unpaid deposit slice displaces no proc).
-            IReadOnlyDictionary<Guid, decimal>? procFreeBaseByTeam = null;
-            if (bAddProcessingFees && !(feeSettings?.BApplyProcessingFeesToTeamDeposit ?? false))
-            {
-                var resolvedFees = await _feeService.ResolveFeesByTeamIdsAsync(
-                    jobId, RoleConstants.ClubRep, clubTeamIds, ct);
-                procFreeBaseByTeam = clubTeams.ToDictionary(
-                    t => t.TeamId,
-                    t => Math.Max(0m,
-                        (resolvedFees.GetValueOrDefault(t.TeamId)?.EffectiveDeposit ?? 0m)
-                        - t.TotalDiscount() + (t.FeeLatefee ?? 0m) + (t.FeeDonation ?? 0m)));
-            }
-
-            var teamPaymentStates = await _paymentState.ForTeamsAsync(
-                clubTeamIds, jobId, ct, procFreeBaseByTeam);
+            // Hydration is slice-aware internally: on a proc-on-balance-only job
+            // PrincipalRemaining decomposes prior CC/eCheck gross without inventing proc on
+            // the deposit slice, and FreeSliceRemaining gates the proc reduction below
+            // (policy B: a check dollar landing inside the unpaid deposit slice displaces
+            // no proc).
+            var teamPaymentStates = await _paymentState.ForTeamsAsync(clubTeamIds, jobId, ct);
             var emptyTeamState = await BuildEmptyPaymentStateAsync(jobId, ct);
 
             // Check-specific cap — sum of CkOwedTotal across teams in scope (one team
