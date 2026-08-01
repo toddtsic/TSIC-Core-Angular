@@ -144,57 +144,6 @@
 
     <div class="form-section">
       <h6 class="section-title">
-        <button type="button" class="section-toggle" (click)="waiversOpen.set(!waiversOpen())" [attr.aria-expanded]="waiversOpen()">
-          <i class="bi bi-shield-check me-2"></i>Adult Registration Policies &amp; Waivers
-          <i class="bi ms-auto" [class.bi-chevron-down]="waiversOpen()" [class.bi-chevron-right]="!waiversOpen()" aria-hidden="true"></i>
-        </button>
-      </h6>
-      @if (!waiversOpen()) {
-        @if (!bRegistrationAllowStaff() && !bRegistrationAllowReferee() && !bRegistrationAllowRecruiter()) {
-          <div class="section-closed-note">No adult registration flows (coach, referee, recruiter) are offered on this job.</div>
-        }
-      } @else {
-      <div class="text-muted small mb-2">Shown to coach, referee, and recruiter registrants.</div>
-      <div class="row g-2">
-        <div class="col-12">
-          <label class="field-label">Refund Policy</label>
-          <ejs-richtexteditor
-            [value]="adultRegRefundPolicy()"
-            [toolbarSettings]="rteTools"
-            [height]="rteHeight"
-            [enableResize]="true"
-            [enableHtmlSanitizer]="false"
-            (change)="onRteChange('adultRegRefundPolicy', $event)">
-          </ejs-richtexteditor>
-        </div>
-        <div class="col-12">
-          <label class="field-label">Release of Liability</label>
-          <ejs-richtexteditor
-            [value]="adultRegReleaseOfLiability()"
-            [toolbarSettings]="rteTools"
-            [height]="rteHeight"
-            [enableResize]="true"
-            [enableHtmlSanitizer]="false"
-            (change)="onRteChange('adultRegReleaseOfLiability', $event)">
-          </ejs-richtexteditor>
-        </div>
-        <div class="col-12">
-          <label class="field-label">Code of Conduct</label>
-          <ejs-richtexteditor
-            [value]="adultRegCodeOfConduct()"
-            [toolbarSettings]="rteTools"
-            [height]="rteHeight"
-            [enableResize]="true"
-            [enableHtmlSanitizer]="false"
-            (change)="onRteChange('adultRegCodeOfConduct', $event)">
-          </ejs-richtexteditor>
-        </div>
-      </div>
-      }
-    </div>
-
-    <div class="form-section">
-      <h6 class="section-title">
         <button type="button" class="section-toggle" (click)="refereeOpen.set(!refereeOpen())" [attr.aria-expanded]="refereeOpen()">
           <i class="bi bi-flag me-2"></i>Referee Confirmations
           <i class="bi ms-auto" [class.bi-chevron-down]="refereeOpen()" [class.bi-chevron-right]="!refereeOpen()" aria-hidden="true"></i>
@@ -265,6 +214,57 @@
             [enableResize]="true"
             [enableHtmlSanitizer]="false"
             (change)="onRteChange('recruiterRegConfirmationOnScreen', $event)">
+          </ejs-richtexteditor>
+        </div>
+      </div>
+      }
+    </div>
+
+    <div class="form-section">
+      <h6 class="section-title">
+        <button type="button" class="section-toggle" (click)="waiversOpen.set(!waiversOpen())" [attr.aria-expanded]="waiversOpen()">
+          <i class="bi bi-shield-check me-2"></i>Adult Registration Policies &amp; Waivers
+          <i class="bi ms-auto" [class.bi-chevron-down]="waiversOpen()" [class.bi-chevron-right]="!waiversOpen()" aria-hidden="true"></i>
+        </button>
+      </h6>
+      @if (!waiversOpen()) {
+        @if (!bRegistrationAllowStaff() && !bRegistrationAllowReferee() && !bRegistrationAllowRecruiter()) {
+          <div class="section-closed-note">No adult registration flows (coach, referee, recruiter) are offered on this job.</div>
+        }
+      } @else {
+      <div class="text-muted small mb-2">Shown to coach, referee, and recruiter registrants.</div>
+      <div class="row g-2">
+        <div class="col-12">
+          <label class="field-label">Refund Policy</label>
+          <ejs-richtexteditor
+            [value]="adultRegRefundPolicy()"
+            [toolbarSettings]="rteTools"
+            [height]="rteHeight"
+            [enableResize]="true"
+            [enableHtmlSanitizer]="false"
+            (change)="onRteChange('adultRegRefundPolicy', $event)">
+          </ejs-richtexteditor>
+        </div>
+        <div class="col-12">
+          <label class="field-label">Release of Liability</label>
+          <ejs-richtexteditor
+            [value]="adultRegReleaseOfLiability()"
+            [toolbarSettings]="rteTools"
+            [height]="rteHeight"
+            [enableResize]="true"
+            [enableHtmlSanitizer]="false"
+            (change)="onRteChange('adultRegReleaseOfLiability', $event)">
+          </ejs-richtexteditor>
+        </div>
+        <div class="col-12">
+          <label class="field-label">Code of Conduct</label>
+          <ejs-richtexteditor
+            [value]="adultRegCodeOfConduct()"
+            [toolbarSettings]="rteTools"
+            [height]="rteHeight"
+            [enableResize]="true"
+            [enableHtmlSanitizer]="false"
+            (change)="onRteChange('adultRegCodeOfConduct', $event)">
           </ejs-richtexteditor>
         </div>
       </div>
