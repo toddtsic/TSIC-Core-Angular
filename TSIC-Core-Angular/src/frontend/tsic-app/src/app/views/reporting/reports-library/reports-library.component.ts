@@ -85,7 +85,6 @@ const MIGRATED_EF_ACTIONS = new Set<string>([
     'Job_Rosters_NoMedical',
     'clubrostersNoMedicalII',
     'Club_AllJobs_Rosters_NoMedical',
-    'ThirdPartyRosterExport',
 ]);
 
 function parseSpRunParams(parametersJson: string | null | undefined): SpRunParams {
@@ -238,11 +237,13 @@ export class ReportsLibraryComponent implements OnInit {
         // Native DB-row endpoints (e.g. Third-Party Roster Export) — Crystal-kind rows
         // whose Action is a bare native endpoint with no TYPE1 entry. Without this branch
         // the TYPE1-duplication guard above would hide them from every non-SU role.
+        // isCrystal stays FALSE: these were never Crystal-served, so they get neither the
+        // "SF" migrated marker nor the "Crystal" badge/tint — they render neutral like SP
+        // rows. Dispatch rides endpointPath, which runEntry checks directly.
         const nativeDb: LibraryEntry[] = this.type2Entries()
             .filter(e => e.kind === 'CrystalReport' && NATIVE_DB_ACTIONS.has(e.action))
             .map(e => ({
-                isCrystal: true,
-                isMigrated: true,
+                isCrystal: false,
                 roles: [],
                 id: `ndb-${e.jobReportId}`,
                 title: e.title,
@@ -298,7 +299,10 @@ export class ReportsLibraryComponent implements OnInit {
             const isBold = base.kind === 'BoldReport';
             const isSp = base.kind === 'StoredProcedure';
             const isSpa = base.kind === 'SpaComponent';
-            const isCrystal = !isBold && !isSp && !isSpa;
+            const isCrystalKind = !isBold && !isSp && !isSpa;
+            // Born-native DB reports ride the Crystal dispatch bucket but were never
+            // Crystal-served — no "SF"/"Crystal" badge or tint (those track CR retirement).
+            const isCrystal = isCrystalKind && !NATIVE_DB_ACTIONS.has(base.action);
             const spParsed = isSp ? parseStoredProcAction(base.action) : null;
             const boldParsed = isBold ? parseBoldReportAction(base.action) : null;
             entries.push({
@@ -311,7 +315,7 @@ export class ReportsLibraryComponent implements OnInit {
                 iconName: base.iconName,
                 category: normalizeReportCategory(base.groupLabel),
                 sortOrder: base.sortOrder,
-                endpointPath: isCrystal ? base.action : undefined,
+                endpointPath: isCrystalKind ? base.action : undefined,
                 storedProcName: spParsed?.spName ?? undefined,
                 parametersJson: spParsed?.parametersJson ?? null,
                 boldReportName: boldParsed?.reportName ?? undefined,
@@ -452,10 +456,12 @@ export class ReportsLibraryComponent implements OnInit {
 
         this.runningId.set(entry.id);
 
+        // Dispatch on endpointPath (set for Crystal AND born-native DB entries) rather
+        // than isCrystal, which is now purely the badge/tint semantic.
         const download$ = entry.boldReportName
             ? this.reportingService.downloadReport('export-bold', { reportName: entry.boldReportName })
-            : entry.isCrystal
-                ? this.reportingService.downloadReport(entry.endpointPath!)
+            : entry.endpointPath
+                ? this.reportingService.downloadReport(entry.endpointPath)
                 : (() => {
                     const sp = parseSpRunParams(entry.parametersJson);
                     return this.reportingService.downloadReport('export-sp', {
