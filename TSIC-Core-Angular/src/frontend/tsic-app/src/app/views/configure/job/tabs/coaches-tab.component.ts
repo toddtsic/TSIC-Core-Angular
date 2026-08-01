@@ -26,7 +26,8 @@ export class CoachesTabComponent implements OnInit {
   // CoachReg pair = coach persona; club-rep confirmations live on the Teams tab.
   coachRegConfirmationEmail = linkedSignal(() => this.svc.coaches()?.coachRegConfirmationEmail ?? null);
   coachRegConfirmationOnScreen = linkedSignal(() => this.svc.coaches()?.coachRegConfirmationOnScreen ?? null);
-  adultRegRefundPolicy = linkedSignal(() => this.svc.coaches()?.adultRegRefundPolicy ?? null);
+  // No adult refund policy editor: AdultReg_RefundPolicy is a dead column (adult flows are
+  // unpaid). The job-wide refund policy is edited on the Payment tab.
   adultRegReleaseOfLiability = linkedSignal(() => this.svc.coaches()?.adultRegReleaseOfLiability ?? null);
   adultRegCodeOfConduct = linkedSignal(() => this.svc.coaches()?.adultRegCodeOfConduct ?? null);
   refereeRegConfirmationEmail = linkedSignal(() => this.svc.coaches()?.refereeRegConfirmationEmail ?? null);
@@ -53,7 +54,6 @@ export class CoachesTabComponent implements OnInit {
       bRegistrationAllowRecruiter: c.bRegistrationAllowRecruiter,
       coachRegConfirmationEmail: c.coachRegConfirmationEmail,
       coachRegConfirmationOnScreen: c.coachRegConfirmationOnScreen,
-      adultRegRefundPolicy: c.adultRegRefundPolicy,
       adultRegReleaseOfLiability: c.adultRegReleaseOfLiability,
       adultRegCodeOfConduct: c.adultRegCodeOfConduct,
       refereeRegConfirmationEmail: c.refereeRegConfirmationEmail,
@@ -149,7 +149,6 @@ export class CoachesTabComponent implements OnInit {
       bRegistrationAllowRecruiter: this.bRegistrationAllowRecruiter(),
       coachRegConfirmationEmail: this.coachRegConfirmationEmail(),
       coachRegConfirmationOnScreen: this.coachRegConfirmationOnScreen(),
-      adultRegRefundPolicy: this.adultRegRefundPolicy(),
       adultRegReleaseOfLiability: this.adultRegReleaseOfLiability(),
       adultRegCodeOfConduct: this.adultRegCodeOfConduct(),
       refereeRegConfirmationEmail: this.refereeRegConfirmationEmail(),

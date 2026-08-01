@@ -24,7 +24,7 @@ export class PlayerTabComponent implements OnInit {
   regformNamePlayer = linkedSignal(() => this.svc.player()?.regformNamePlayer ?? '');
   playerRegConfirmationEmail = linkedSignal(() => this.svc.player()?.playerRegConfirmationEmail ?? null);
   playerRegConfirmationOnScreen = linkedSignal(() => this.svc.player()?.playerRegConfirmationOnScreen ?? null);
-  playerRegRefundPolicy = linkedSignal(() => this.svc.player()?.playerRegRefundPolicy ?? null);
+  // Refund policy is job-wide (players + club reps) — edited on the Payment tab.
   playerRegReleaseOfLiability = linkedSignal(() => this.svc.player()?.playerRegReleaseOfLiability ?? null);
   playerRegCodeOfConduct = linkedSignal(() => this.svc.player()?.playerRegCodeOfConduct ?? null);
   playerRegCovid19Waiver = linkedSignal(() => this.svc.player()?.playerRegCovid19Waiver ?? null);
@@ -45,7 +45,6 @@ export class PlayerTabComponent implements OnInit {
       regformNamePlayer: p.regformNamePlayer,
       playerRegConfirmationEmail: p.playerRegConfirmationEmail,
       playerRegConfirmationOnScreen: p.playerRegConfirmationOnScreen,
-      playerRegRefundPolicy: p.playerRegRefundPolicy,
       playerRegReleaseOfLiability: p.playerRegReleaseOfLiability,
       playerRegCodeOfConduct: p.playerRegCodeOfConduct,
       playerRegCovid19Waiver: p.playerRegCovid19Waiver,
@@ -89,7 +88,6 @@ export class PlayerTabComponent implements OnInit {
       regformNamePlayer: this.regformNamePlayer(),
       playerRegConfirmationEmail: this.playerRegConfirmationEmail(),
       playerRegConfirmationOnScreen: this.playerRegConfirmationOnScreen(),
-      playerRegRefundPolicy: this.playerRegRefundPolicy(),
       playerRegReleaseOfLiability: this.playerRegReleaseOfLiability(),
       playerRegCodeOfConduct: this.playerRegCodeOfConduct(),
       playerRegCovid19Waiver: this.playerRegCovid19Waiver(),

@@ -223,7 +223,7 @@
     <div class="form-section">
       <h6 class="section-title">
         <button type="button" class="section-toggle" (click)="waiversOpen.set(!waiversOpen())" [attr.aria-expanded]="waiversOpen()">
-          <i class="bi bi-shield-check me-2"></i>Adult Registration Policies &amp; Waivers
+          <i class="bi bi-shield-check me-2"></i>Adult Registration Waivers
           <i class="bi ms-auto" [class.bi-chevron-down]="waiversOpen()" [class.bi-chevron-right]="!waiversOpen()" aria-hidden="true"></i>
         </button>
       </h6>
@@ -234,17 +234,6 @@
       } @else {
       <div class="text-muted small mb-2">Shown to coach, referee, and recruiter registrants.</div>
       <div class="row g-2">
-        <div class="col-12">
-          <label class="field-label">Refund Policy</label>
-          <ejs-richtexteditor
-            [value]="adultRegRefundPolicy()"
-            [toolbarSettings]="rteTools"
-            [height]="rteHeight"
-            [enableResize]="true"
-            [enableHtmlSanitizer]="false"
-            (change)="onRteChange('adultRegRefundPolicy', $event)">
-          </ejs-richtexteditor>
-        </div>
         <div class="col-12">
           <label class="field-label">Release of Liability</label>
           <ejs-richtexteditor

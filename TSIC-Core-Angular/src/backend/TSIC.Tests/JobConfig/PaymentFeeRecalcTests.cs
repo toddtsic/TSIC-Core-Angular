@@ -399,6 +399,7 @@ public class PaymentFeeRecalcTests
             BIncludeTeamDonation = bIncludeTeamDonation ?? job.BIncludeTeamDonation,
             BAllowRefundsInPriorMonths = job.BAllowRefundsInPriorMonths,
             BAllowCreditAll = job.BAllowCreditAll,
+            PlayerRegRefundPolicy = job.PlayerRegRefundPolicy,
             PerPlayerCharge = job.PerPlayerCharge,
             PerTeamCharge = job.PerTeamCharge,
             PerMonthCharge = job.PerMonthCharge,

@@ -172,6 +172,9 @@ public class JobConfigService : IJobConfigService
         job.BIncludeTeamDonation = req.BIncludeTeamDonation;
         job.BAllowRefundsInPriorMonths = req.BAllowRefundsInPriorMonths;
         job.BAllowCreditAll = req.BAllowCreditAll;
+        // Job-wide refund policy (one policy regardless of registering audience) — edited here,
+        // rendered by both the player wizard and team registration.
+        job.PlayerRegRefundPolicy = req.PlayerRegRefundPolicy;
 
         // SuperUser-only — per-unit charges + ARB
         if (isSuperUser)
@@ -266,7 +269,6 @@ public class JobConfigService : IJobConfigService
         job.RegformNamePlayer = req.RegformNamePlayer;
         job.PlayerRegConfirmationEmail = req.PlayerRegConfirmationEmail;
         job.PlayerRegConfirmationOnScreen = req.PlayerRegConfirmationOnScreen;
-        job.PlayerRegRefundPolicy = req.PlayerRegRefundPolicy;
         job.PlayerRegReleaseOfLiability = req.PlayerRegReleaseOfLiability;
         job.PlayerRegCodeOfConduct = req.PlayerRegCodeOfConduct;
         job.PlayerRegCovid19Waiver = req.PlayerRegCovid19Waiver;
@@ -341,7 +343,6 @@ public class JobConfigService : IJobConfigService
         // with the materialized AdultProfileMetadataJson. A plain coaches save must never desync them.
         job.CoachRegConfirmationEmail = req.CoachRegConfirmationEmail;
         job.CoachRegConfirmationOnScreen = req.CoachRegConfirmationOnScreen;
-        job.AdultRegRefundPolicy = req.AdultRegRefundPolicy;
         job.AdultRegReleaseOfLiability = req.AdultRegReleaseOfLiability;
         job.AdultRegCodeOfConduct = req.AdultRegCodeOfConduct;
         job.RefereeRegConfirmationEmail = req.RefereeRegConfirmationEmail;
@@ -740,6 +741,7 @@ public class JobConfigService : IJobConfigService
         BIncludeTeamDonation = job.BIncludeTeamDonation,
         BAllowRefundsInPriorMonths = job.BAllowRefundsInPriorMonths,
         BAllowCreditAll = job.BAllowCreditAll,
+        PlayerRegRefundPolicy = job.PlayerRegRefundPolicy,
         // SuperUser-only — per-unit charges
         PerPlayerCharge = isSuperUser ? job.PerPlayerCharge : null,
         PerTeamCharge = isSuperUser ? job.PerTeamCharge : null,
@@ -782,7 +784,6 @@ public class JobConfigService : IJobConfigService
         RegformNamePlayer = job.RegformNamePlayer,
         PlayerRegConfirmationEmail = job.PlayerRegConfirmationEmail,
         PlayerRegConfirmationOnScreen = job.PlayerRegConfirmationOnScreen,
-        PlayerRegRefundPolicy = job.PlayerRegRefundPolicy,
         PlayerRegReleaseOfLiability = job.PlayerRegReleaseOfLiability,
         PlayerRegCodeOfConduct = job.PlayerRegCodeOfConduct,
         PlayerRegCovid19Waiver = job.PlayerRegCovid19Waiver,
@@ -845,7 +846,6 @@ public class JobConfigService : IJobConfigService
             // edits. The render-side fallback still covers jobs never saved through this tab.
             CoachRegConfirmationEmail = job.CoachRegConfirmationEmail ?? job.AdultRegConfirmationEmail,
             CoachRegConfirmationOnScreen = job.CoachRegConfirmationOnScreen ?? job.AdultRegConfirmationOnScreen,
-            AdultRegRefundPolicy = job.AdultRegRefundPolicy,
             AdultRegReleaseOfLiability = job.AdultRegReleaseOfLiability,
             AdultRegCodeOfConduct = job.AdultRegCodeOfConduct,
             RefereeRegConfirmationEmail = job.RefereeRegConfirmationEmail ?? job.AdultRegConfirmationEmail,

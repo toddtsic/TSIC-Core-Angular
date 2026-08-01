@@ -23,6 +23,7 @@ export type JobConfigPaymentDto = {
     bIncludeTeamDonation: boolean;
     bAllowRefundsInPriorMonths: boolean | null;
     bAllowCreditAll: boolean | null;
+    playerRegRefundPolicy: string | null;
     perPlayerCharge?: number | null;
     perTeamCharge?: number | null;
     perMonthCharge?: number | null;

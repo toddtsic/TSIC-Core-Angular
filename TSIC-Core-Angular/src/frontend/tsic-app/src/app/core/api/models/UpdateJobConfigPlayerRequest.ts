@@ -8,7 +8,6 @@ export type UpdateJobConfigPlayerRequest = {
     regformNamePlayer: string;
     playerRegConfirmationEmail: string | null;
     playerRegConfirmationOnScreen: string | null;
-    playerRegRefundPolicy: string | null;
     playerRegReleaseOfLiability: string | null;
     playerRegCodeOfConduct: string | null;
     playerRegCovid19Waiver: string | null;

@@ -116,17 +116,6 @@
           </ejs-richtexteditor>
         </div>
         <div class="col-12">
-          <label class="field-label">Refund Policy</label>
-          <ejs-richtexteditor
-            [value]="playerRegRefundPolicy()"
-            [toolbarSettings]="rteTools"
-            [height]="rteHeight"
-            [enableResize]="true"
-            [enableHtmlSanitizer]="false"
-            (change)="onRteChange('playerRegRefundPolicy', $event)">
-          </ejs-richtexteditor>
-        </div>
-        <div class="col-12">
           <label class="field-label">Release of Liability</label>
           <ejs-richtexteditor
             [value]="playerRegReleaseOfLiability()"

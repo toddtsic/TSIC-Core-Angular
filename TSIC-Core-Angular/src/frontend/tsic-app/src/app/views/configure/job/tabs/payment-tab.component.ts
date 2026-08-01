@@ -1,8 +1,9 @@
 import { Component, inject, ChangeDetectionStrategy, computed, linkedSignal, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RichTextEditorAllModule } from '@syncfusion/ej2-angular-richtexteditor';
 import { JobConfigService } from '../job-config.service';
-import { toDateOnly } from '../shared/rte-config';
+import { JOB_CONFIG_RTE_TOOLS, JOB_CONFIG_RTE_HEIGHT, toDateOnly } from '../shared/rte-config';
 import type {
   UpdateJobConfigPaymentRequest,
   CreateAdminChargeRequest,
@@ -22,12 +23,15 @@ interface AdminChargeDraft {
 @Component({
   selector: 'app-payment-tab',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RichTextEditorAllModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './payment-tab.component.html',
 })
 export class PaymentTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
+
+  readonly rteTools = JOB_CONFIG_RTE_TOOLS;
+  readonly rteHeight = JOB_CONFIG_RTE_HEIGHT;
 
   // ── Local form model ──
 
@@ -56,6 +60,9 @@ export class PaymentTabComponent implements OnInit {
   bIncludeTeamDonation = linkedSignal(() => this.svc.payment()?.bIncludeTeamDonation ?? false);
   bAllowRefundsInPriorMonths = linkedSignal(() => this.svc.payment()?.bAllowRefundsInPriorMonths ?? null);
   bAllowCreditAll = linkedSignal(() => this.svc.payment()?.bAllowCreditAll ?? null);
+  // Job-wide refund policy — shown to families in player registration and to club reps
+  // in team registration (they formally accept it). One policy regardless of audience.
+  playerRegRefundPolicy = linkedSignal(() => this.svc.payment()?.playerRegRefundPolicy ?? null);
 
   // SuperUser-only
   perPlayerCharge = linkedSignal(() => this.svc.payment()?.perPlayerCharge ?? null);
@@ -178,6 +185,7 @@ export class PaymentTabComponent implements OnInit {
       bIncludeTeamDonation: p.bIncludeTeamDonation,
       bAllowRefundsInPriorMonths: p.bAllowRefundsInPriorMonths,
       bAllowCreditAll: p.bAllowCreditAll,
+      playerRegRefundPolicy: p.playerRegRefundPolicy,
     };
     if (this.svc.isSuperUser()) {
       req.perPlayerCharge = p.perPlayerCharge ?? null;
@@ -204,6 +212,12 @@ export class PaymentTabComponent implements OnInit {
     } else {
       this.svc.markDirty('payment');
     }
+  }
+
+  onRteChange(field: string, event: any): void {
+    const sig = (this as any)[field];
+    if (sig?.set) sig.set(event.value ?? '');
+    this.onFieldChange();
   }
 
   /**
@@ -257,6 +271,7 @@ export class PaymentTabComponent implements OnInit {
       bIncludeTeamDonation: this.bIncludeTeamDonation(),
       bAllowRefundsInPriorMonths: this.bAllowRefundsInPriorMonths(),
       bAllowCreditAll: this.bAllowCreditAll(),
+      playerRegRefundPolicy: this.playerRegRefundPolicy(),
     };
     if (this.svc.isSuperUser()) {
       req.perPlayerCharge = this.perPlayerCharge();

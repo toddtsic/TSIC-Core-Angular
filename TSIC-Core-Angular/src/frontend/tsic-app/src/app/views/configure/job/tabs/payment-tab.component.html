@@ -388,5 +388,22 @@
            still round-trip both values untouched, so config save is entirely unaffected. -->
     </div>
 
+    <!-- Refund Policy -->
+    <div class="form-section">
+      <h6 class="section-title"><i class="bi bi-arrow-counterclockwise me-2"></i>Refund Policy</h6>
+      <div class="text-muted small mb-2">
+        One policy for the whole job &mdash; shown to families during player registration and to
+        club reps during team registration, where acceptance is recorded.
+      </div>
+      <ejs-richtexteditor
+        [value]="playerRegRefundPolicy()"
+        [toolbarSettings]="rteTools"
+        [height]="rteHeight"
+        [enableResize]="true"
+        [enableHtmlSanitizer]="false"
+        (change)="onRteChange('playerRegRefundPolicy', $event)">
+      </ejs-richtexteditor>
+    </div>
+
   </div>
 }

@@ -113,6 +113,11 @@ public record JobConfigPaymentDto
     public required bool BIncludeTeamDonation { get; init; }
     public required bool? BAllowRefundsInPriorMonths { get; init; }
     public required bool? BAllowCreditAll { get; init; }
+    // The job-wide refund policy (column PlayerReg_RefundPolicy). One policy regardless of
+    // who registers: shown to families in the player wizard and to club reps in team
+    // registration, where acceptance is recorded (BWaiverSigned3). AdultReg_RefundPolicy
+    // is dead (never populated) — adult flows are unpaid.
+    public required string? PlayerRegRefundPolicy { get; init; }
 
     // SuperUser-only — per-unit charges
     public decimal? PerPlayerCharge { get; init; }
@@ -150,6 +155,8 @@ public record UpdateJobConfigPaymentRequest
     public required bool BIncludeTeamDonation { get; init; }
     public required bool? BAllowRefundsInPriorMonths { get; init; }
     public required bool? BAllowCreditAll { get; init; }
+    // Job-wide refund policy — see JobConfigPaymentDto.
+    public required string? PlayerRegRefundPolicy { get; init; }
 
     // SuperUser-only (ignored for non-super callers) — per-unit charges
     public decimal? PerPlayerCharge { get; init; }
@@ -232,7 +239,6 @@ public record JobConfigPlayerDto
     public required string RegformNamePlayer { get; init; }
     public required string? PlayerRegConfirmationEmail { get; init; }
     public required string? PlayerRegConfirmationOnScreen { get; init; }
-    public required string? PlayerRegRefundPolicy { get; init; }
     public required string? PlayerRegReleaseOfLiability { get; init; }
     public required string? PlayerRegCodeOfConduct { get; init; }
     public required string? PlayerRegCovid19Waiver { get; init; }
@@ -253,7 +259,6 @@ public record UpdateJobConfigPlayerRequest
     public required string RegformNamePlayer { get; init; }
     public required string? PlayerRegConfirmationEmail { get; init; }
     public required string? PlayerRegConfirmationOnScreen { get; init; }
-    public required string? PlayerRegRefundPolicy { get; init; }
     public required string? PlayerRegReleaseOfLiability { get; init; }
     public required string? PlayerRegCodeOfConduct { get; init; }
     public required string? PlayerRegCovid19Waiver { get; init; }
@@ -335,9 +340,10 @@ public record JobConfigCoachesDto
 
     // CoachReg pair = coach persona. The AdultReg confirmation pair (club-rep/team-reg copy)
     // lives on the Teams DTO; it remains the ?? fallback SOURCE for the role pairs below.
+    // AdultReg_RefundPolicy deliberately absent: dead column (0 of 1,066 jobs ever set it —
+    // adult flows are unpaid). The job-wide refund policy lives on the Payment DTO.
     public required string? CoachRegConfirmationEmail { get; init; }
     public required string? CoachRegConfirmationOnScreen { get; init; }
-    public required string? AdultRegRefundPolicy { get; init; }
     public required string? AdultRegReleaseOfLiability { get; init; }
     public required string? AdultRegCodeOfConduct { get; init; }
     public required string? RefereeRegConfirmationEmail { get; init; }
@@ -361,7 +367,6 @@ public record UpdateJobConfigCoachesRequest
     public required bool? BRegistrationAllowRecruiter { get; init; }
     public required string? CoachRegConfirmationEmail { get; init; }
     public required string? CoachRegConfirmationOnScreen { get; init; }
-    public required string? AdultRegRefundPolicy { get; init; }
     public required string? AdultRegReleaseOfLiability { get; init; }
     public required string? AdultRegCodeOfConduct { get; init; }
     public required string? RefereeRegConfirmationEmail { get; init; }

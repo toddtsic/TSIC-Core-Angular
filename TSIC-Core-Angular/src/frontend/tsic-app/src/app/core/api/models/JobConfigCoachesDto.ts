@@ -13,7 +13,6 @@ export type JobConfigCoachesDto = {
     availableAdultCoachProfiles: Array<AdultCoachProfileOptionDto>;
     coachRegConfirmationEmail: string | null;
     coachRegConfirmationOnScreen: string | null;
-    adultRegRefundPolicy: string | null;
     adultRegReleaseOfLiability: string | null;
     adultRegCodeOfConduct: string | null;
     refereeRegConfirmationEmail: string | null;
