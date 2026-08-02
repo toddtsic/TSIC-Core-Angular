@@ -56,6 +56,26 @@
 	padding: var(--space-3);
 	max-height: calc(100vh - var(--space-6, 48px));
 	overflow-y: auto;
+
+	// ── The pane's type scale, stated once ──
+	// Three roles, three sizes, and weight carries hierarchy instead of size:
+	// group headings are uppercase and small, rows are the readable body size, notes sit
+	// one step down. Every rule below references these rather than picking its own value —
+	// this pane had drifted to five sizes with 600-weight on labels, headings, summaries
+	// and dt alike, so nothing read as more important than anything else.
+	--jc-plan-heading: 0.72rem;
+	--jc-plan-row: 0.82rem;
+	--jc-plan-note: 0.75rem;
+}
+
+// One heading style for every group in the pane — the "TEAMS"/"RATES" sections and the
+// collapsible summaries are the same rank and now look it.
+@mixin jc-plan-heading {
+	font-size: var(--jc-plan-heading);
+	font-weight: var(--font-weight-semibold, 600);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--brand-text-muted);
 }
 
 .jc-plan-header {
@@ -76,15 +96,12 @@
 	display: inline-flex;
 	align-items: center;
 	gap: var(--space-1);
-	font-size: 0.8rem;
+	font-size: var(--jc-plan-note);
 	color: var(--brand-text-muted);
 }
 
 .jc-fresh {
-	font-size: 0.75rem;
-	font-weight: 600;
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
+	@include jc-plan-heading;
 	color: var(--bs-success);
 }
 
@@ -94,6 +111,7 @@
 	list-style: disc;
 	padding-left: var(--space-3);
 	margin: 0;
+	font-size: var(--jc-plan-note);
 
 	li { padding: 2px 0; }
 }
@@ -110,16 +128,18 @@
 		gap: var(--space-2);
 		padding: var(--space-1) 0;
 		border-bottom: 1px dashed var(--bs-border-color);
-		font-size: 0.85rem;
+		font-size: var(--jc-plan-row);
 
 		&:last-child { border-bottom: none; }
 		&.jc-zero { opacity: 0.55; }
 	}
 }
 
+// Medium, not semibold: every row is a label, so 600 across the whole column made the
+// list uniformly loud and left nothing for the actual headings to outrank.
 .jc-step-name {
 	min-width: 130px;
-	font-weight: 600;
+	font-weight: var(--font-weight-medium, 500);
 	color: var(--brand-text);
 }
 
@@ -128,27 +148,26 @@
 	color: var(--brand-text);
 }
 
+// Indented to the count column so a note reads as belonging to the row above it rather
+// than as another flush-left entry in the list.
 .jc-step-notes {
 	flex-basis: 100%;
-	font-size: 0.78rem;
+	padding-left: calc(130px + var(--space-2));
+	font-size: var(--jc-plan-note);
 	color: var(--brand-text-muted);
 }
 
 .jc-plan-section {
-	margin-top: var(--space-2);
+	margin-top: var(--space-3);
 
 	h4 {
-		font-size: 0.8rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.03em;
-		color: var(--brand-text-muted);
+		@include jc-plan-heading;
 		margin: 0 0 var(--space-1) 0;
 	}
 }
 
 .jc-plan-line {
-	font-size: 0.85rem;
+	font-size: var(--jc-plan-row);
 	color: var(--brand-text);
 	margin: 0;
 
@@ -162,29 +181,30 @@
 	margin: 0;
 
 	dt {
-		font-weight: 600;
+		font-weight: var(--font-weight-medium, 500);
 		color: var(--brand-text-muted);
-		font-size: 0.8rem;
+		font-size: var(--jc-plan-row);
 	}
 
 	dd {
 		margin: 0;
-		font-size: 0.8rem;
+		font-size: var(--jc-plan-row);
 		font-family: monospace;
 		color: var(--brand-text);
 	}
 }
 
 .jc-plan-details {
-	margin-top: var(--space-2);
+	margin-top: var(--space-3);
 
+	// A collapsible group is the same rank as a "TEAMS"/"RATES" section, so it gets the
+	// same heading treatment rather than a third look of its own.
 	summary {
-		font-size: 0.85rem;
-		font-weight: 600;
-		color: var(--brand-text);
+		@include jc-plan-heading;
 		cursor: pointer;
 
 		&:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+		&:hover { color: var(--brand-text); }
 	}
 }
 
@@ -194,7 +214,7 @@
 	margin: var(--space-1) 0 0 0;
 
 	li {
-		font-size: 0.8rem;
+		font-size: var(--jc-plan-note);
 		color: var(--brand-text-muted);
 		padding: 2px 0;
 	}

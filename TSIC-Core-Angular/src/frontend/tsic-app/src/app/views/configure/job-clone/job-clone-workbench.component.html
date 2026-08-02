@@ -399,12 +399,12 @@
 			<section class="jc-panel jc-safe-state">
 				<h3>What arrives switched off</h3>
 				<p class="jc-hint jc-panel-intro">
-					A clone never goes live by itself. Nothing below is a choice on this page — it is how
-					every clone lands, so a half-built job cannot be reached by the public or by a phone.
+					Every clone lands in this state, so a half-built job can never be reached by the
+					public. Work through it in your own time — the job waits until you say otherwise.
 				</p>
 
 				<div class="jc-safe-group">
-					<h4><i class="bi bi-lock-fill" aria-hidden="true"></i> Released from the Release page</h4>
+					<h4><i class="bi bi-lock-fill" aria-hidden="true"></i> Nobody can get in yet</h4>
 					<ul class="jc-safe-list">
 						<li><strong>The public site is hidden.</strong> Nobody outside your admins can reach it
 							until you release it in step 2.</li>
@@ -417,17 +417,7 @@
 				</div>
 
 				<div class="jc-safe-group">
-					<h4><i class="bi bi-phone" aria-hidden="true"></i> Mobile app — off until configured</h4>
-					<ul class="jc-safe-list">
-						<li>Mobile login and mobile registration are off.</li>
-						<li>RSVP and TSIC Teams are off.</li>
-						<li><strong>Team chat is off</strong> and never turns itself on — team messaging reaches
-							families directly, so switching it on is always a deliberate act.</li>
-					</ul>
-				</div>
-
-				<div class="jc-safe-group">
-					<h4><i class="bi bi-eye-slash" aria-hidden="true"></i> Public visibility — off until real</h4>
+					<h4><i class="bi bi-eye-slash" aria-hidden="true"></i> Nothing is public yet</h4>
 					<ul class="jc-safe-list">
 						<li><strong>No public schedule access.</strong> There is no schedule yet, and an empty
 							one published early reads as a cancelled season.</li>
@@ -436,7 +426,10 @@
 					</ul>
 				</div>
 
-				<!-- Two clone resets are deliberately NOT listed here:
+				<!-- Clone resets deliberately NOT listed here. All three still HAPPEN — only the lines
+				     are gone, so nobody re-adds them thinking the panel is incomplete:
+				     · the whole mobile surface (login, registration, RSVP, TSIC Teams, team chat) —
+				       cut on request; it is not what a director is deciding about on this screen.
 				     · club-rep add/edit/delete reopening — only means anything on tournament jobs.
 				     · BPlayersFullPaymentRequired zeroing — it is NOT the PIF switch. PaymentService
 				       gates PIF on (AllowPif || BPlayersFullPaymentRequired), and AllowPif comes from
@@ -446,8 +439,9 @@
 				       template in Configure → Job, not to this panel. -->
 
 				<p class="jc-hint">
-					Everything here is a job setting afterwards — none of it is permanent, and none of it
-					depends on the choices above.
+					To turn these on: release the site and open registration from the
+					<strong>Release page</strong>, which opens as soon as the clone finishes. Schedule
+					and roster visibility live under <strong>Configure → Job</strong>.
 				</p>
 			</section>
 
