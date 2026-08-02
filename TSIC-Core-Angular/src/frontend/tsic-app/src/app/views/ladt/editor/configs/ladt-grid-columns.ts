@@ -36,8 +36,11 @@ export const LEAGUE_COLUMNS: LadtColumnDef[] = [
   { field: '_lateFee', header: 'Late Fee', type: 'modifier', width: '90px' },
   { field: '_phase', header: 'Payment Phase', type: 'phase', width: '180px' },
   { field: 'rescheduleEmailsToAddon', header: 'Reschedule Emails', type: 'string', width: '180px' },
-  { field: 'bHideContacts', header: 'Hide Contacts', type: 'boolean', width: '95px' },
-  { field: 'bHideStandings', header: 'Hide Standings', type: 'boolean', width: '95px' },
+  // 08-02 (Todd): 95px left a 57px text box (width − 38px chrome), which clipped
+  // the wrapped second line to "CONTA…" / "STANDI…". Uppercase "STANDINGS" needs
+  // ~72px at 12px/600 — 115px fits both with headroom.
+  { field: 'bHideContacts', header: 'Hide Contacts', type: 'boolean', width: '115px' },
+  { field: 'bHideStandings', header: 'Hide Standings', type: 'boolean', width: '115px' },
 ];
 
 // ── Agegroup ──
