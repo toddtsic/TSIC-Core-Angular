@@ -436,16 +436,14 @@
 					</ul>
 				</div>
 
-				<!-- The clone ALSO resets club-rep add/edit/delete to open (see the reset rules).
-				     Deliberately not listed: it only means anything on tournament jobs, and spending a
-				     line on it here would cost more attention than it returns for everyone else. -->
-				<div class="jc-safe-group">
-					<h4><i class="bi bi-credit-card" aria-hidden="true"></i> Payments</h4>
-					<ul class="jc-safe-list">
-						<li><strong>Pay-in-full-by-choice starts off.</strong> Turn it on in job settings if you
-							want families to be able to pay the whole balance up front.</li>
-					</ul>
-				</div>
+				<!-- Two clone resets are deliberately NOT listed here:
+				     · club-rep add/edit/delete reopening — only means anything on tournament jobs.
+				     · BPlayersFullPaymentRequired zeroing — it is NOT the PIF switch. PaymentService
+				       gates PIF on (AllowPif || BPlayersFullPaymentRequired), and AllowPif comes from
+				       the ALLOWPIF segment of Jobs.CoreRegformPlayer — the player template, which the
+				       clone copies untouched. So on any job whose template carries ALLOWPIF, PIF still
+				       works and claiming it "starts off" would be a lie. PIF belongs to the player
+				       template in Configure → Job, not to this panel. -->
 
 				<p class="jc-hint">
 					Everything here is a job setting afterwards — none of it is permanent, and none of it
