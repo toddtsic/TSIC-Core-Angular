@@ -57,7 +57,7 @@
               <ejs-dropdownlist [dataSource]="roleGroup.roleRegistrations" [fields]="fields"
                 [placeholder]="'Select a registration...'" [allowFiltering]="true"
                 [filterBarPlaceholder]="'Type to search...'" [enabled]="!isLoading()" [popupHeight]="'400px'"
-                [popupWidth]="'100%'"
+                [popupWidth]="'100%'" [isDeviceFullScreen]="false"
                 [htmlAttributes]="{ 'aria-label': 'Select ' + roleGroup.roleName + ' registration', 'aria-describedby': 'rs-help-' + i }"
                 (filtering)="onFiltering($event, roleGroup)" (change)="onDropdownChange($event)">
                 <ng-template #itemTemplate let-data>
