@@ -26,6 +26,14 @@ export interface RepriceDialog {
         <i class="bi bi-exclamation-triangle-fill reprice-confirm-icon"></i>
         <div class="reprice-confirm-msg" [innerHTML]="dialog().message"></div>
       </div>
+      @if (dialog().isPhase) {
+        <!-- PL-062 (Ann): after flipping the phase it wasn't obvious Convert is REQUIRED —
+             the flip applies to existing registrations only when Convert is clicked. -->
+        <div class="tsic-callout tsic-callout--info tsic-callout--block">
+          <i class="bi bi-info-circle" aria-hidden="true"></i>
+          <span>Click <strong>Convert</strong> to apply this phase to existing registrations — Cancel reverts the change.</span>
+        </div>
+      }
       <div class="reprice-confirm-actions">
         @if (dialog().isPhase) {
           <button type="button" class="btn btn-sm btn-warning" autofocus (click)="convert.emit()">Convert</button>
