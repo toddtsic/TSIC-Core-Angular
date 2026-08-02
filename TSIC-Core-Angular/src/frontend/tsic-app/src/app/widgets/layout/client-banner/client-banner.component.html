@@ -27,12 +27,12 @@
         <img [src]="bannerImageUrl()" [alt]="jobName() + ' Banner'" class="banner-image" />
     </div>
     } @else {
-    <!-- Text-only banner when no images: show the jobName, not leftover banner-overlay text -->
+    <!-- Text-only banner: the jobName ALONE. Overlay text belongs to the custom banner, so
+         neither Text1 nor Text2 may appear here. Text2 used to leak through, which meant a
+         job that turned the custom banner off - or a clone that started on a plain banner -
+         still showed last season's caption on its public home page. -->
     <div class="banner-text">
         <h1 class="banner-title">{{ jobName() }}</h1>
-        @if (jobBannerText2Decoded()) {
-        <p class="banner-subtitle" [innerHTML]="jobBannerText2Decoded()"></p>
-        }
     </div>
     }
     } @else {

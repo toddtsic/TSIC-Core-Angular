@@ -419,6 +419,7 @@ public sealed class JobClonePlanner
             SourceEcheckProcessingFeePercent = sourceJob.EcprocessingFeePercent,
             SourceBEnableEcheck = sourceJob.BEnableEcheck,
             SourceBEnableStore = sourceJob.BEnableStore ?? false,
+            BannerPreview = BuildBannerPreview(displayOptions, req),
             RegFormFrom = sourceJob.RegFormFrom,
             RegFormCcs = sourceJob.RegFormCcs,
             RegFormBccs = sourceJob.RegFormBccs,
@@ -482,6 +483,33 @@ public sealed class JobClonePlanner
         return teamsScope
             ? $"structure teams only — {exclusions}"
             : $"LADT scope not selected — no teams clone ({eligible} structure team(s) would be eligible; {exclusions})";
+    }
+
+    /// <summary>
+    /// What the cloned home-page banner will be. Runs the REAL reset rule against the source
+    /// row rather than re-deriving the option logic here — a second implementation would drift
+    /// from the executing one the first time either changes, and the whole point of showing
+    /// the banner is that the preview is trustworthy.
+    ///
+    /// Safe to call outside a transaction: CloneDisplayOptions is pure, and CopyScalars hands
+    /// back a detached copy — the source entity is never mutated.
+    /// </summary>
+    private static ClonedBannerPreviewDto? BuildBannerPreview(
+        JobDisplayOptions? source, JobCloneRequest req)
+    {
+        if (source is null) return null;
+
+        var cloned = JobCloneResetRules.CloneDisplayOptions(
+            source, newJobId: Guid.Empty, req, userId: string.Empty, now: default);
+
+        return new ClonedBannerPreviewDto
+        {
+            IsCustom = cloned.ParallaxSlideCount > 0,
+            BackgroundImage = cloned.ParallaxBackgroundImage,
+            OverlayImage = cloned.ParallaxSlide1Image,
+            Text1 = cloned.ParallaxSlide1Text1,
+            Text2 = cloned.ParallaxSlide1Text2,
+        };
     }
 
     /// <summary>

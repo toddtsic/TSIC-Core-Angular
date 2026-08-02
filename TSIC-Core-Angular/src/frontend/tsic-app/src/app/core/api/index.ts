@@ -176,6 +176,7 @@ export type { CloneByDowRequest } from './models/CloneByDowRequest';
 export type { CloneByFieldRequest } from './models/CloneByFieldRequest';
 export type { CloneDateRecordRequest } from './models/CloneDateRecordRequest';
 export type { CloneDatesRequest } from './models/CloneDatesRequest';
+export type { ClonedBannerPreviewDto } from './models/ClonedBannerPreviewDto';
 export type { CloneFieldDowRequest } from './models/CloneFieldDowRequest';
 export type { CloneFieldsRequest } from './models/CloneFieldsRequest';
 export type { ClonePlanDto } from './models/ClonePlanDto';

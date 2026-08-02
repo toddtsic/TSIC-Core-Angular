@@ -249,6 +249,93 @@
 	}
 }
 
+// ── Home-page banner preview ──
+// A scaled replica of client-banner's three branches (hero / bare image / plain). Aspect
+// ratio is the 50:11 the Branding tab tells directors to upload at, so what they see here
+// is proportioned like the real thing rather than a letterboxed guess.
+.jc-banner-preview {
+	margin: var(--space-3) 0 0;
+
+	figcaption {
+		font-size: 0.78rem;
+		font-weight: var(--font-weight-semibold, 600);
+		color: var(--brand-text-muted);
+		margin-bottom: var(--space-1);
+
+		em { font-style: normal; opacity: 0.7; }
+	}
+}
+
+.jc-bp-stage {
+	position: relative;
+	display: flex;
+	align-items: center;
+	aspect-ratio: 50 / 11;
+	min-height: 72px;
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--bs-border-radius);
+	background-color: var(--bs-body-tertiary-bg, var(--bs-body-bg));
+	background-size: cover;
+	background-position: center;
+	overflow: hidden;
+
+	&.jc-bp-plain {
+		justify-content: center;
+		// Not a real palette surface — this is the default TSIC banner standing in, so it
+		// reads as "no artwork" rather than as a styled panel.
+		background: var(--bs-secondary-bg, var(--bs-body-tertiary-bg));
+	}
+
+	&.jc-bp-imageonly { background-color: var(--bs-body-bg); }
+}
+
+.jc-bp-overlay {
+	position: absolute;
+	right: var(--space-3);
+	max-height: 76%;
+	max-width: 38%;
+	object-fit: contain;
+}
+
+.jc-bp-flat {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+
+// Text sits left, matching the real banner. The scrim is what makes light captions legible
+// over an arbitrary photo — the public banner leans on the same idea.
+.jc-bp-text {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	max-width: 58%;
+	padding: var(--space-2) var(--space-3);
+	text-shadow: 0 1px 3px rgb(0 0 0 / 70%);
+	color: var(--bs-white, #fff);
+}
+
+.jc-bp-t1 {
+	font-size: 0.95rem;
+	font-weight: var(--font-weight-bold, 700);
+	line-height: 1.2;
+}
+
+.jc-bp-t2 {
+	font-size: 0.8rem;
+	line-height: 1.3;
+}
+
+.jc-bp-plain .jc-bp-t1 {
+	color: var(--brand-text);
+	text-shadow: none;
+}
+
+.jc-bp-note {
+	margin: var(--space-1) 0 0;
+}
+
 .jc-option-label {
 	display: block;
 	font-size: 11px;

@@ -4,6 +4,7 @@
 /* eslint-disable */
 import type { AgegroupPreviewDto } from './AgegroupPreviewDto';
 import type { BulletinShiftDto } from './BulletinShiftDto';
+import type { ClonedBannerPreviewDto } from './ClonedBannerPreviewDto';
 import type { ClonePlanStepDto } from './ClonePlanStepDto';
 import type { DateShiftDto } from './DateShiftDto';
 import type { FeeModifierShiftDto } from './FeeModifierShiftDto';
@@ -19,6 +20,7 @@ export type ClonePlanDto = {
     sourceEcheckProcessingFeePercent?: number | null;
     sourceBEnableEcheck: boolean;
     sourceBEnableStore: boolean;
+    bannerPreview?: (null | ClonedBannerPreviewDto);
     regFormFrom?: string | null;
     regFormCcs?: string | null;
     regFormBccs?: string | null;

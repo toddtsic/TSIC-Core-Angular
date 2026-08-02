@@ -11,6 +11,8 @@ import { JobCloneService } from './services/job-clone.service';
 import { JobContextService } from '@infrastructure/services/job-context.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { buildAssetUrl } from '@infrastructure/utils/asset-url.utils';
+import { decodeOverlayText } from '@infrastructure/utils/banner-text.utils';
 import type {
 	ClonePlanDto,
 	JobCloneRequest,
@@ -141,6 +143,29 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	/** Snapshot of the current inputs — recomputes on any form-signal change. */
 	readonly requestKey = computed(() => JSON.stringify(this.buildCloneRequest(null)));
 	readonly planFresh = computed(() => this.planKey() !== null && this.planKey() === this.requestKey());
+
+	// ── Home-page banner preview ──
+	// The planner runs the real reset rule, so these are the values the released home page
+	// will carry — already year-bumped or cleared per the options above. Resolved through the
+	// SAME helpers the public banner uses, so what shows here is what the public sees.
+	// Legacy bit us repeatedly by hiding this until after release.
+	readonly bannerPreview = computed(() => this.plan()?.bannerPreview ?? null);
+	readonly bannerBackgroundUrl = computed(() => buildAssetUrl(this.bannerPreview()?.backgroundImage));
+	readonly bannerOverlayUrl = computed(() => buildAssetUrl(this.bannerPreview()?.overlayImage));
+	readonly bannerText1 = computed(() => decodeOverlayText(this.bannerPreview()?.text1));
+	readonly bannerText2 = computed(() => decodeOverlayText(this.bannerPreview()?.text2));
+
+	/**
+	 * Which of client-banner's three branches the new job will land on. Mirrors
+	 * client-banner.component.html exactly — 'hero' needs the background, 'image' is the
+	 * bare overlay, 'plain' is the job name alone.
+	 */
+	readonly bannerMode = computed<'hero' | 'image' | 'plain'>(() => {
+		const p = this.bannerPreview();
+		if (!p?.isCustom) return 'plain';
+		if (this.bannerBackgroundUrl()) return 'hero';
+		return this.bannerOverlayUrl() ? 'image' : 'plain';
+	});
 
 	private static readonly SlugPattern = /^[A-Za-z0-9][A-Za-z0-9-]*$/;
 

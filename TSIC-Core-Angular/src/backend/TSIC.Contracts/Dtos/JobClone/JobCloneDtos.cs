@@ -191,6 +191,12 @@ public record ClonePlanDto
     public required bool SourceBEnableEcheck { get; init; }
     public required bool SourceBEnableStore { get; init; }
 
+    /// <summary>
+    /// What the new job's home-page banner will actually look like once the plan runs.
+    /// Null when the source has no JobDisplayOptions row. See ClonedBannerPreviewDto.
+    /// </summary>
+    public ClonedBannerPreviewDto? BannerPreview { get; init; }
+
     // Communications defaults (source values — the workbench pre-fills its form fields).
     public string? RegFormFrom { get; init; }
     public string? RegFormCcs { get; init; }
@@ -268,6 +274,29 @@ public record DateShiftDto
 {
     public DateTime? From { get; init; }
     public DateTime? To { get; init; }
+}
+
+/// <summary>
+/// The new job's home-page banner as it will stand the moment the clone lands — image
+/// filenames and overlay text AFTER the year-bump and plain-banner options are applied.
+/// The planner produces this by running the real reset rule, so it cannot drift from
+/// what executes.
+///
+/// Image values are raw filenames ({sourceJobId}_paralaxbackgroundimage.jpg and friends,
+/// per JobImageService's naming convention); the workbench resolves them through the same
+/// buildAssetUrl helper the public banner uses. Text values are raw as stored — legacy
+/// HTML-encoded or &lt;br&gt;-joined — and are decoded client-side by the shared overlay-text
+/// helper, exactly as the public banner does.
+/// </summary>
+public record ClonedBannerPreviewDto
+{
+    /// <summary>parallaxSlideCount > 0 — the ONLY custom-banner switch the homesite reads.</summary>
+    public required bool IsCustom { get; init; }
+
+    public string? BackgroundImage { get; init; }
+    public string? OverlayImage { get; init; }
+    public string? Text1 { get; init; }
+    public string? Text2 { get; init; }
 }
 
 public record BulletinShiftDto

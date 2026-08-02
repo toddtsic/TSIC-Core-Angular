@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, computed, signal } from '@angular/core';
 import { JobService } from '@infrastructure/services/job.service';
 import { buildAssetUrl } from '@infrastructure/utils/asset-url.utils';
+import { decodeOverlayText } from '@infrastructure/utils/banner-text.utils';
 
 @Component({
     selector: 'app-client-banner',
@@ -26,8 +27,8 @@ export class ClientBannerComponent {
     jobBannerText2 = computed(() => this.job()?.jobBannerText2 || '');
 
     // Decoded HTML text for proper rendering
-    jobBannerText1Decoded = computed(() => this.decodeHtmlText(this.jobBannerText1()));
-    jobBannerText2Decoded = computed(() => this.decodeHtmlText(this.jobBannerText2()));
+    jobBannerText1Decoded = computed(() => decodeOverlayText(this.jobBannerText1()));
+    jobBannerText2Decoded = computed(() => decodeOverlayText(this.jobBannerText2()));
 
     // Build banner image URL if available (foreground slide image)
     bannerImageUrl = computed(() => {
@@ -76,34 +77,4 @@ export class ClientBannerComponent {
         this.overlayImageValid.set(false);
     }
 
-    /**
-     * Sanitizes overlay text for safe [innerHTML] rendering.
-     * Handles both legacy HTML-encoded data (with inline styles/tags)
-     * and new plain-text data (with \n for line breaks).
-     */
-    private decodeHtmlText(text: string): string {
-        if (!text) return '';
-
-        // Step 1: Decode HTML entities (legacy data is HTML-encoded in DB)
-        const textarea = document.createElement('textarea');
-        textarea.innerHTML = text;
-        let clean = textarea.value;
-
-        // Step 2: Convert <br> tags to newlines (normalize)
-        clean = clean.replaceAll(/<br\s*\/?>/gi, '\n');
-
-        // Step 3: Strip all remaining HTML tags (legacy <span>, <i>, etc.)
-        clean = clean.replaceAll(/<[^>]+>/g, '');
-
-        // Step 4: Clean up &nbsp; remnants
-        clean = clean.replaceAll(/\u00A0/g, ' ');
-
-        // Step 5: Trim lines, drop ALL blanks (including bare \r isolated by `<br />\r\n` patterns)
-        const lines = clean.split('\n')
-            .map(l => l.trim())
-            .filter(l => l.length > 0);
-
-        // Step 6: Convert newlines back to <br> for [innerHTML]
-        return lines.join('<br>');
-    }
 }

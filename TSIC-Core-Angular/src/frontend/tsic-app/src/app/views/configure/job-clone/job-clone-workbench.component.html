@@ -285,6 +285,56 @@
 							reusing the artwork as-is.
 						}
 					</p>
+
+					@if (bannerPreview(); as bp) {
+						<figure class="jc-banner-preview">
+							<figcaption>
+								How the new home page will open
+								@if (!planFresh()) { <em>— refreshing…</em> }
+							</figcaption>
+
+							@switch (bannerMode()) {
+								@case ('hero') {
+									<div class="jc-bp-stage" [style.background-image]="'url(' + bannerBackgroundUrl() + ')'">
+										@if (bannerOverlayUrl()) {
+											<img class="jc-bp-overlay" [src]="bannerOverlayUrl()" alt="" />
+										}
+										<div class="jc-bp-text">
+											@if (bannerText1()) { <span class="jc-bp-t1" [innerHTML]="bannerText1()"></span> }
+											@if (bannerText2()) { <span class="jc-bp-t2" [innerHTML]="bannerText2()"></span> }
+										</div>
+									</div>
+								}
+								@case ('image') {
+									<div class="jc-bp-stage jc-bp-imageonly">
+										<img class="jc-bp-flat" [src]="bannerOverlayUrl()" alt="" />
+									</div>
+								}
+								@default {
+									<div class="jc-bp-stage jc-bp-plain">
+										<span class="jc-bp-t1">{{ jobNameTarget() || 'Your job name' }}</span>
+									</div>
+								}
+							}
+
+							<p class="jc-hint jc-bp-note">
+								@switch (bannerMode()) {
+									@case ('hero') {
+										Carried from <strong>{{ source()?.jobName }}</strong>. Read the wording —
+										anything naming last season needs replacing under
+										<strong>Configure → Job → Branding</strong> before release.
+									}
+									@case ('image') {
+										The overlay artwork carries over with no background photo behind it.
+										Check it for a season or date burned into the image.
+									}
+									@default {
+										No images, no leftover text — just the job name.
+									}
+								}
+							</p>
+						</figure>
+					}
 				</div>
 			</section>
 
