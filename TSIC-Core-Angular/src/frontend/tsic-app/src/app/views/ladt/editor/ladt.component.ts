@@ -1155,6 +1155,44 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
       });
     }
 
+    // PL-062 (Ann): league "Deposit first" is stored as NO stamp (null by design —
+    // league is the cascade top, only PIF stamps a row), so a deposit-first league had
+    // no entry for the role and the cell fell back to "See age group level" while PIF
+    // rendered a pill. Synthesize the missing roles' pills from the job baseline:
+    // any role with fee rows in this league's scope but nothing at the job/league tier
+    // gets value = job baseline, source = job (inherited styling). twoPhase = a
+    // deposit exists somewhere in scope — with none, the phase is inert → "Single".
+    // Display-only: feeds the grid pills (and ancestorPhase, whose per-role fallback
+    // already returns these exact values); writes and reprice untouched.
+    if (scopeType === 'league') {
+      const nodes = this.flatNodes();
+      const agIds = new Set(nodes.filter(n => n.level === 1 && n.parentId === scopeId).map(n => n.id));
+      const divIds = new Set(nodes.filter(n => n.level === 2 && n.parentId && agIds.has(n.parentId)).map(n => n.id));
+      const teamIds = new Set(nodes.filter(n => n.level === 3 && n.parentId
+        && (agIds.has(n.parentId) || divIds.has(n.parentId))).map(n => n.id));
+      const inScope = (f: JobFeeDto) =>
+        (!f.leagueId && !f.agegroupId && !f.teamId)
+        || f.leagueId === scopeId
+        || (f.agegroupId != null && agIds.has(f.agegroupId))
+        || (f.teamId != null && teamIds.has(f.teamId));
+      const depositByRole = new Map<string, boolean>();
+      for (const f of fees) {
+        if (!f.roleId || !inScope(f)) continue;
+        depositByRole.set(f.roleId, (depositByRole.get(f.roleId) ?? false) || (f.deposit ?? 0) > 0);
+      }
+      for (const [roleId, hasDeposit] of depositByRole.entries()) {
+        if (roleMap.has(roleId)) continue; // real entry above wins
+        phase.push({
+          roleId,
+          roleLabel: LadtEditorComponent.ROLE_LABELS[roleId] ?? roleId.substring(0, 6),
+          fullPayment: this.jobBaselineFor(roleId),
+          source: 'job',
+          inherited: true,
+          twoPhase: hasDeposit,
+        });
+      }
+    }
+
     return { fees: feesOut, earlyBird, lateFee, phase };
   }
 
