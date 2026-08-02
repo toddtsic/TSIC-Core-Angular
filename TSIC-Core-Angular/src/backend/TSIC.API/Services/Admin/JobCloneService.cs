@@ -56,7 +56,7 @@ public sealed class JobCloneService : IJobCloneService
     {
         var sourceJob = await _repo.GetSourceJobAsync(request.SourceJobId, ct)
             ?? throw new KeyNotFoundException($"Source job {request.SourceJobId} not found.");
-        GuardSameCustomer(authorCustomerId, sourceJob.CustomerId);
+        GuardCustomerScope(authorCustomerId, sourceJob.CustomerId, request.TargetCustomerId);
 
         var ctx = await _planner.BuildPlanAsync(request, actorUserId, ct);
         return ctx.Dto;
@@ -74,7 +74,7 @@ public sealed class JobCloneService : IJobCloneService
     {
         var sourceJob = await _repo.GetSourceJobAsync(request.SourceJobId, ct)
             ?? throw new KeyNotFoundException($"Source job {request.SourceJobId} not found.");
-        GuardSameCustomer(authorCustomerId, sourceJob.CustomerId);
+        GuardCustomerScope(authorCustomerId, sourceJob.CustomerId, request.TargetCustomerId);
 
         await _repo.BeginTransactionAsync(ct);
         try
@@ -171,7 +171,7 @@ public sealed class JobCloneService : IJobCloneService
                 BActive = true,
                 BConfirmationSent = false,
                 RegistrationTs = now,
-                CustomerId = ctx.SourceJob.CustomerId,
+                CustomerId = req.TargetCustomerId,   // the NEW job's owner, not the source's
                 LebUserId = userId,
                 Modified = now,
                 FeeBase = 0, FeeProcessing = 0, FeeDiscount = 0, FeeDiscountMp = 0,
@@ -347,138 +347,22 @@ public sealed class JobCloneService : IJobCloneService
         return (steps, actorRegId.Value);
     }
 
-    private static void GuardSameCustomer(Guid? authorCustomerId, Guid targetCustomerId)
+    /// <summary>
+    /// authorCustomerId=null → the SuperUser-only controller, which may retarget freely (that IS
+    /// the onboarding path). A scoped caller must own BOTH ends: the source it copies from and the
+    /// customer it hands the new job to — checking only one would let a director either read
+    /// another customer's job or mint a job under someone else's merchant account.
+    /// </summary>
+    private static void GuardCustomerScope(
+        Guid? authorCustomerId, Guid sourceCustomerId, Guid targetCustomerId)
     {
-        // authorCustomerId=null → SuperUser-only controller (target always inherits
-        // source.CustomerId, so cross-customer is impossible by construction).
-        if (authorCustomerId.HasValue && authorCustomerId.Value != targetCustomerId)
-        {
-            throw new UnauthorizedAccessException(
-                "Cross-customer cloning is not allowed. Use the Blank-job flow to onboard a new customer.");
-        }
-    }
+        if (!authorCustomerId.HasValue) return;
 
-    // ══════════════════════════════════════════════════════════
-    // Blank-job creation (new-customer onboarding)
-    // ══════════════════════════════════════════════════════════
+        if (authorCustomerId.Value != sourceCustomerId)
+            throw new UnauthorizedAccessException("Cannot clone another customer's job.");
 
-    public async Task<BlankJobResponse> CreateBlankJobAsync(
-        BlankJobRequest request,
-        string authorUserId,
-        Guid? authorCustomerId = null,
-        CancellationToken ct = default)
-    {
-        if (authorCustomerId.HasValue && authorCustomerId.Value != request.CustomerId)
-        {
-            throw new UnauthorizedAccessException(
-                "Cannot create a blank job for a different customer.");
-        }
-
-        if (!JobClonePlanner.JobPathSlugRegex.IsMatch(request.JobPathTarget)
-            || request.JobPathTarget.Length > JobClonePlanner.MaxJobPathLength)
-        {
-            throw new ArgumentException(
-                $"Job path '{request.JobPathTarget}' is not a valid URL segment (letters, digits, hyphens; max {JobClonePlanner.MaxJobPathLength} chars).");
-        }
-
-        if (await _repo.JobPathExistsAsync(request.JobPathTarget, ct))
-            throw new InvalidOperationException($"Job path '{request.JobPathTarget}' already exists.");
-        if (await _repo.JobNameExistsAsync(request.JobNameTarget, ct))
-            throw new InvalidOperationException($"Job name '{request.JobNameTarget}' already exists.");
-
-        var now = DateTime.Now;
-        var newJobId = Guid.NewGuid();
-
-        await _repo.BeginTransactionAsync(ct);
-        try
-        {
-            _logger.LogInformation(
-                "Creating blank job {TargetPath} for customer {CustomerId} (author {AuthorUserId})",
-                request.JobPathTarget, request.CustomerId, authorUserId);
-
-            var blankJob = BuildBlankJob(request, newJobId, authorUserId, now);
-            _repo.AddJob(blankJob);
-
-            // Author's own admin Registration — active (they need to configure the job).
-            var authorReg = new Registrations
-            {
-                RegistrationId = Guid.NewGuid(),
-                JobId = newJobId,
-                RoleId = RoleConstants.Superuser,
-                UserId = authorUserId,
-                BActive = true,
-                BConfirmationSent = false,
-                RegistrationTs = now,
-                CustomerId = request.CustomerId,
-                LebUserId = authorUserId,
-                Modified = now,
-                FeeBase = 0,
-                FeeProcessing = 0,
-                FeeDiscount = 0,
-                FeeDiscountMp = 0,
-                FeeDonation = 0,
-                FeeLatefee = 0,
-                PaidTotal = 0,
-            };
-            _repo.AddRegistrations(new[] { authorReg });
-
-            await _repo.SaveChangesAsync(ct);
-            await _repo.CommitTransactionAsync(ct);
-
-            _logger.LogInformation(
-                "Blank job created: {NewJobPath} ({NewJobId})",
-                request.JobPathTarget, newJobId);
-
-            return new BlankJobResponse
-            {
-                NewJobId = newJobId,
-                NewJobPath = request.JobPathTarget,
-                NewJobName = request.JobNameTarget,
-            };
-        }
-        catch
-        {
-            await _repo.RollbackTransactionAsync(ct);
-            throw;
-        }
-    }
-
-    private static Jobs BuildBlankJob(BlankJobRequest req, Guid newJobId, string userId, DateTime now)
-    {
-        return new Jobs
-        {
-            JobId = newJobId,
-            JobPath = req.JobPathTarget,
-            JobName = req.JobNameTarget,
-            JobDescription = req.JobNameTarget,
-            Year = req.YearTarget,
-            Season = req.SeasonTarget,
-            DisplayName = req.DisplayName,
-            CustomerId = req.CustomerId,
-            BillingTypeId = req.BillingTypeId,
-            JobTypeId = req.JobTypeId,
-            SportId = req.SportId,
-            ExpiryAdmin = req.ExpiryAdmin,
-            ExpiryUsers = req.ExpiryUsers,
-            RegFormFrom = req.RegFormFrom,
-            Modified = now,
-            LebUserId = userId,
-
-            // Safe-by-default state (same contract as clone)
-            BSuspendPublic = true,
-            BClubRepAllowEdit = true,
-            BClubRepAllowDelete = true,
-            BClubRepAllowAdd = true,
-            ProcessingFeePercent = FeeConstants.NewJobProcessingFeePercent,
-            EcprocessingFeePercent = FeeConstants.NewJobEcprocessingFeePercent,
-            BEnableEcheck = false,
-
-            // Required strings — sensible defaults (job settings can override later)
-            RegformNamePlayer = "Player Registration",
-            RegformNameTeam = "Team Registration",
-            RegformNameCoach = "Coach Registration",
-            RegformNameClubRep = "Club Representative Registration",
-        };
+        if (authorCustomerId.Value != targetCustomerId)
+            throw new UnauthorizedAccessException("Cannot assign the new job to a different customer.");
     }
 
     // ══════════════════════════════════════════════════════════
@@ -571,12 +455,6 @@ public sealed class JobCloneService : IJobCloneService
         return _repo.GetReleasableAdminsAsync(jobId, ct);
     }
 
-    public Task<List<SuspendedJobDto>> GetSuspendedJobsAsync(
-        Guid? authorCustomerId = null, CancellationToken ct = default)
-    {
-        return _repo.GetSuspendedJobsAsync(authorCustomerId, ct);
-    }
-
     public Task<bool> JobPathExistsAsync(string jobPath, CancellationToken ct = default)
     {
         return _repo.JobPathExistsAsync(jobPath, ct);
@@ -618,10 +496,13 @@ public sealed class JobCloneService : IJobCloneService
         var bulletins = await _repo.GetSourceBulletinsAsync(jobId, ct);
         var admins = await _repo.GetReleasableAdminsAsync(jobId, ct);
         var feeCount = (await _feeRepo.GetJobFeesByJobAsync(jobId, ct)).Count;
+        var customerName = await _repo.GetCustomerNameAsync(job.CustomerId, ct);
+        var billingTypeName = await _repo.GetBillingTypeNameAsync(job.BillingTypeId, ct);
+        var hasAdnCredentials = await _repo.CustomerHasAdnCredentialsAsync(job.CustomerId, ct);
 
         return JobVerifyChecklistBuilder.Build(
             job, jobTypeName, leagueNames, agegroupCount, divisionCount, teamCount,
-            bulletins, admins, feeCount);
+            bulletins, admins, feeCount, customerName, billingTypeName, hasAdnCredentials);
     }
 
     public async Task<RegistrationFlagsDto> OpenRegistrationAsync(

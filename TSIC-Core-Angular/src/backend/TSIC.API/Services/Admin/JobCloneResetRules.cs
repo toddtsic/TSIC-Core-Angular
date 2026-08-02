@@ -44,6 +44,18 @@ public static class JobCloneResetRules
         job.Modified = now;
         job.LebUserId = userId;
 
+        // ── Owning customer: EXPLICIT, never inherited ──
+        // CopyScalars would carry source.CustomerId silently, and this column is the pointer to
+        // whose Authorize.Net merchant account collects (Customers.AdnLoginId/AdnTransactionKey,
+        // resolved job → customer at charge time). A same-customer clone makes this a no-op; the
+        // point is that the money path stops being an accident of the copier.
+        //
+        // Jobs.customerID is the ONLY place job ownership is recorded. Registrations.customerID
+        // and Leagues.teams.customerID also exist but are NULL on every row in the database
+        // (probed 08-02: 0/664,870 and 0/51,050 populated), and Jobs.Job_Customers is empty —
+        // do NOT "complete" the retarget by writing them. Nothing else maintains those columns.
+        job.CustomerId = req.TargetCustomerId;
+
         // ── Target identity from the form ──
         job.JobPath = req.JobPathTarget;
         job.JobName = req.JobNameTarget;

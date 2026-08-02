@@ -324,33 +324,30 @@ public class JobCloneRepository : IJobCloneRepository
             .ToListAsync(ct);
     }
 
-    public async Task<List<SuspendedJobDto>> GetSuspendedJobsAsync(
-        Guid? customerId, CancellationToken ct = default)
+    public async Task<string?> GetBillingTypeNameAsync(int billingTypeId, CancellationToken ct = default)
     {
-        var query = _context.Jobs.AsNoTracking().Where(j => j.BSuspendPublic);
-        if (customerId.HasValue)
-            query = query.Where(j => j.CustomerId == customerId.Value);
+        return await _context.BillingTypes
+            .AsNoTracking()
+            .Where(bt => bt.BillingTypeId == billingTypeId)
+            .Select(bt => bt.BillingTypeName)
+            .FirstOrDefaultAsync(ct);
+    }
 
-        // Inactive admin count per job via correlated subquery.
-        return await query
-            .OrderByDescending(j => j.Modified)
-            .Select(j => new SuspendedJobDto
-            {
-                JobId = j.JobId,
-                JobPath = j.JobPath,
-                JobName = j.JobName ?? j.JobPath,
-                Year = j.Year,
-                Season = j.Season,
-                DisplayName = j.DisplayName,
-                CustomerId = j.CustomerId,
-                Modified = j.Modified,
-                InactiveAdminCount = _context.Registrations
-                    .Count(r => r.JobId == j.JobId
-                                && r.RoleId != null
-                                && AdminRoleIds.Contains(r.RoleId)
-                                && (r.BActive == false || r.BActive == null)),
-            })
-            .ToListAsync(ct);
+    public async Task<string?> GetCustomerNameAsync(Guid customerId, CancellationToken ct = default)
+    {
+        return await _context.Customers.AsNoTracking()
+            .Where(c => c.CustomerId == customerId)
+            .Select(c => c.CustomerName)
+            .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<bool> CustomerHasAdnCredentialsAsync(Guid customerId, CancellationToken ct = default)
+    {
+        // Projects to a boolean inside the query — no credential ever materializes in memory.
+        return await _context.Customers.AsNoTracking()
+            .AnyAsync(c => c.CustomerId == customerId
+                           && c.AdnLoginId != null && c.AdnLoginId != ""
+                           && c.AdnTransactionKey != null && c.AdnTransactionKey != "", ct);
     }
 
     // ══════════════════════════════════════════════════════════

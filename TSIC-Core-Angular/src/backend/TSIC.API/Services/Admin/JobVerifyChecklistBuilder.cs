@@ -51,7 +51,10 @@ public static class JobVerifyChecklistBuilder
         int teamCount,
         List<Bulletins> bulletins,
         List<ReleasableAdminDto> admins,
-        int feeCount)
+        int feeCount,
+        string? customerName,
+        string? billingTypeName,
+        bool customerHasAdnCredentials)
     {
         var sections = new Dictionary<string, List<VerifyItemDto>>
         {
@@ -69,6 +72,14 @@ public static class JobVerifyChecklistBuilder
             ],
             [SecPayments] =
             [
+                // Owner first: Jobs.CustomerId decides WHOSE Authorize.Net merchant account
+                // collects on this job (credentials live on Customers, resolved job → customer
+                // at charge time). On a retargeted clone it is the single most consequential
+                // field on the page, and a missing merchant credential means cards simply fail.
+                Item("Customer (owner)", customerName ?? "— UNKNOWN —", null),
+                Item("Merchant credentials on file",
+                    customerHasAdnCredentials ? "yes" : "NO — card payments will fail", null),
+                Item("Billing type", billingTypeName ?? job.BillingTypeId.ToString(), null),
                 Item("CC processing fee %", job.ProcessingFeePercent?.ToString("0.0#") ?? "—", JobSettingsRoute),
                 Item("eCheck processing fee %", job.EcprocessingFeePercent?.ToString("0.0#") ?? "—", JobSettingsRoute),
                 Item("eCheck enabled", OnOff(job.BEnableEcheck), JobSettingsRoute),

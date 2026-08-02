@@ -18,8 +18,6 @@ import type {
 	JobConfigReferenceDataDto,
 } from '@core/api';
 
-type Flavor = 'clone' | 'blank';
-
 interface LeagueRenameRow {
 	readonly sourceLeagueId: string;
 	readonly sourceName: string;
@@ -54,8 +52,10 @@ const STEP_LABELS: Record<string, string> = {
  * request snapshot) — the stale-preview and step-bypass defect classes are structurally
  * impossible here.
  *
- * The blank flavor swaps Identity to reference-data dropdowns and shows a static plan
- * (a blank job creates exactly two rows).
+ * The owning customer is a first-class input, seeded from the source. Pointing it at a
+ * different customer is the new-customer onboarding path (it replaced a separate blank-job
+ * flow): the plan comes back flagged cross-customer with its own warnings, and the server
+ * withholds the source's admin registrations.
  */
 @Component({
 	selector: 'app-job-clone-workbench',
@@ -74,13 +74,11 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	private readonly toast = inject(ToastService);
 	private readonly destroyRef = inject(DestroyRef);
 
-	readonly flavor: Flavor = (this.route.snapshot.data['flavor'] as Flavor) ?? 'clone';
-
-	// ── Source (clone flavor) ──
+	// ── Source ──
 	readonly source = signal<JobCloneSourceDto | null>(null);
 	readonly isLoadingSource = signal(true);
 
-	// ── Reference data (blank flavor) ──
+	// ── Reference data (customer picker) ──
 	readonly referenceData = signal<JobConfigReferenceDataDto | null>(null);
 
 	// ── Identity ──
@@ -91,11 +89,12 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	readonly displayName = signal('');
 	readonly leagueRenames = signal<LeagueRenameRow[]>([]);
 
-	// Blank-flavor FKs
+	/**
+	 * Owning customer of the NEW job — seeded from the source, changeable. This is the
+	 * merchant account that will collect on the job, so it is a form field rather than an
+	 * inherited value.
+	 */
 	readonly customerId = signal('');
-	readonly billingTypeId = signal<number | null>(null);
-	readonly jobTypeId = signal<number | null>(null);
-	readonly sportId = signal('');
 
 	// ── Dates ──
 	readonly expiryAdmin = signal('');
@@ -156,23 +155,25 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	readonly slugValid = computed(() =>
 		JobCloneWorkbenchComponent.SlugPattern.test(this.jobPathTarget()) && this.jobPathTarget().length <= 80);
 
+	/** True once the operator points the job at a customer other than the source's. */
+	readonly isCrossCustomer = computed(() => {
+		const src = this.source();
+		return !!src && !!this.customerId() && this.customerId() !== src.customerId;
+	});
+
 	readonly formValid = computed(() => {
 		if (!this.jobPathTarget() || !this.slugValid()) return false;
 		if (!this.jobNameTarget() || !this.yearTarget() || !this.seasonTarget() || !this.displayName()) return false;
 		if (!this.expiryAdmin() || !this.expiryUsers()) return false;
 		if (this.pathCollision() || this.nameCollision()) return false;
-		if (this.flavor === 'clone') {
-			if (!this.source()) return false;
-			if (this.ladtScope() !== 'none' && this.leagueRenames().some(r => !r.nameTarget.trim())) return false;
-		} else {
-			if (!this.customerId() || this.billingTypeId() === null || this.jobTypeId() === null || !this.sportId()) return false;
-		}
+		if (!this.source() || !this.customerId()) return false;
+		if (this.ladtScope() !== 'none' && this.leagueRenames().some(r => !r.nameTarget.trim())) return false;
 		return true;
 	});
 
 	readonly canClone = computed(() =>
 		this.formValid() && this.affirmationChecked() && !this.isSubmitting()
-		&& (this.flavor === 'blank' || (this.plan() !== null && this.planFresh() && !this.planRefreshing())));
+		&& this.plan() !== null && this.planFresh() && !this.planRefreshing());
 
 	constructor() {
 		// Debounce at the keystroke source; one in-flight plan request at a time.
@@ -198,16 +199,12 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	}
 
 	ngOnInit(): void {
-		if (this.flavor === 'clone') {
-			this.loadSourceFromRoute();
-		} else {
-			this.isLoadingSource.set(false);
-			this.seedBlankDefaults();
-			this.cloneService.getReferenceData().subscribe({
-				next: data => this.referenceData.set(data),
-				error: () => this.toast.show('Failed to load reference data', 'danger', 4000),
-			});
-		}
+		this.loadSourceFromRoute();
+		// Customer list for the owner picker — the only reference data the workbench needs.
+		this.cloneService.getReferenceData().subscribe({
+			next: data => this.referenceData.set(data),
+			error: () => this.toast.show('Failed to load customers', 'danger', 4000),
+		});
 	}
 
 	// ══════════════════════════════════════════════════════════
@@ -227,7 +224,7 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	}
 
 	private requestPlan(): void {
-		if (this.flavor !== 'clone' || !this.source()) return;
+		if (!this.source()) return;
 		this.planTrigger$.next();
 	}
 
@@ -263,6 +260,9 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	private seedFromSource(source: JobCloneSourceDto): void {
 		// Next-season defaults: +1 year everywhere a 20xx token appears (mirrors the
 		// server's IncrementYearsInName — full century, not a hardcoded decade).
+		// Same owner by default — retargeting is a deliberate act, never a default.
+		this.customerId.set(source.customerId);
+
 		const sourceYear = source.year ?? '';
 		const targetYear = sourceYear && /^\d{4}$/.test(sourceYear) ? String(Number(sourceYear) + 1) : sourceYear;
 
@@ -274,15 +274,6 @@ export class JobCloneWorkbenchComponent implements OnInit {
 		this.seasonTarget.set(source.season ?? '');
 		this.displayName.set(this.jobNameTarget());
 
-		const oneYearOut = new Date();
-		oneYearOut.setFullYear(oneYearOut.getFullYear() + 1);
-		this.expiryAdmin.set(this.toDateInput(oneYearOut));
-		this.expiryUsers.set(this.toDateInput(oneYearOut));
-	}
-
-	private seedBlankDefaults(): void {
-		const today = new Date();
-		this.yearTarget.set(String(today.getFullYear() + 1));
 		const oneYearOut = new Date();
 		oneYearOut.setFullYear(oneYearOut.getFullYear() + 1);
 		this.expiryAdmin.set(this.toDateInput(oneYearOut));
@@ -364,11 +355,6 @@ export class JobCloneWorkbenchComponent implements OnInit {
 		this.isSubmitting.set(true);
 		this.error.set(null);
 
-		if (this.flavor === 'blank') {
-			this.submitBlank();
-			return;
-		}
-
 		const request = this.buildCloneRequest(this.plan()?.planFingerprint ?? null);
 		this.cloneService.cloneJob(request).subscribe({
 			next: response => {
@@ -387,12 +373,13 @@ export class JobCloneWorkbenchComponent implements OnInit {
 							// release page works from the URL alone (SuperUser is jobPath-exempt).
 							this.isSubmitting.set(false);
 							this.toast.show('Could not enter the new job; releasing from here.', 'warning', 5000);
-							this.router.navigate(['..', 'release', response.newJobId],
+							this.router.navigate(['release', response.newJobId],
 								{ relativeTo: this.route, state: { celebrate: true } });
 						},
 					});
 				} else {
-					// Stay in the source job — the clone shows up on the landing's Unreleased list.
+					// Stay in the source job. The release page keeps working from its URL —
+					// the toast above carries the new job path.
 					this.isSubmitting.set(false);
 					this.router.navigate(['..'], { relativeTo: this.route });
 				}
@@ -416,38 +403,10 @@ export class JobCloneWorkbenchComponent implements OnInit {
 		});
 	}
 
-	private submitBlank(): void {
-		this.cloneService.createBlank({
-			customerId: this.customerId(),
-			jobPathTarget: this.jobPathTarget(),
-			jobNameTarget: this.jobNameTarget(),
-			yearTarget: this.yearTarget(),
-			seasonTarget: this.seasonTarget(),
-			displayName: this.displayName(),
-			expiryAdmin: this.expiryAdmin(),
-			expiryUsers: this.expiryUsers(),
-			billingTypeId: this.billingTypeId()!,
-			jobTypeId: this.jobTypeId()!,
-			sportId: this.sportId(),
-			regFormFrom: this.regFormFrom() || undefined,
-		}).subscribe({
-			next: response => {
-				this.isSubmitting.set(false);
-				this.toast.show(`Job created: ${response.newJobPath}`, 'success');
-				this.router.navigate(['..', 'release', response.newJobId], { relativeTo: this.route });
-			},
-			error: err => {
-				this.isSubmitting.set(false);
-				const message = err.error?.message ?? 'Create failed. Please check the parameters.';
-				this.error.set(message);
-				this.toast.show(message, 'danger', 4000);
-			},
-		});
-	}
-
 	private buildCloneRequest(planFingerprint: string | null): JobCloneRequest {
 		return {
 			sourceJobId: this.source()?.jobId ?? '',
+			targetCustomerId: this.customerId(),
 			jobPathTarget: this.jobPathTarget(),
 			jobNameTarget: this.jobNameTarget(),
 			yearTarget: this.yearTarget(),

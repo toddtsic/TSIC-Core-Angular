@@ -59,6 +59,9 @@ public class JobCloneServiceTests
     /// Seeds a source Job + League + JobLeague + Agegroup + Division. Returns IDs for
     /// follow-up assertions / team seeding.
     /// </summary>
+    /// <summary>Fixed so BaseRequest can target the same customer the source job belongs to.</summary>
+    private static readonly Guid TestCustomerId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
     private static async Task<(Guid jobId, Guid leagueId, Guid agegroupId, Guid divId)>
         SeedSourceJobAsync(
             SqlDbContext ctx,
@@ -71,7 +74,7 @@ public class JobCloneServiceTests
             string agegroupName = "Boys U10")
     {
         var jobId = Guid.NewGuid();
-        var customerId = Guid.NewGuid();
+        var customerId = TestCustomerId;
         var leagueId = Guid.NewGuid();
         var agegroupId = Guid.NewGuid();
         var divId = Guid.NewGuid();
@@ -207,6 +210,8 @@ public class JobCloneServiceTests
         return new JobCloneRequest
         {
             SourceJobId = sourceJobId,
+            // Same customer as the seeded source — every existing case is a same-customer clone.
+            TargetCustomerId = TestCustomerId,
             JobPathTarget = $"new-{Guid.NewGuid():N}"[..16],
             JobNameTarget = $"New {Guid.NewGuid():N}"[..16],
             YearTarget = yearTarget,

@@ -112,37 +112,6 @@ public class JobCloneController : ControllerBase
     }
 
     /// <summary>
-    /// Create a brand-new empty job (no source) for new-customer onboarding.
-    /// Lands with the same safe-by-default state as a clone. Author's admin reg is active.
-    /// </summary>
-    [HttpPost("blank")]
-    public async Task<ActionResult<BlankJobResponse>> CreateBlank(
-        [FromBody] BlankJobRequest request,
-        CancellationToken ct)
-    {
-        var authorUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? throw new UnauthorizedAccessException("User ID not found in token.");
-
-        try
-        {
-            var result = await _cloneService.CreateBlankJobAsync(request, authorUserId, authorCustomerId: null, ct);
-            return CreatedAtAction(nameof(GetVerifyChecklist), new { jobId = result.NewJobId }, result);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { message = ex.Message });
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
-
-    /// <summary>
     /// Inline identity uniqueness check — flags whether the proposed jobPath and/or
     /// jobName already exist on another job. Returns { pathExists, nameExists }.
     /// </summary>
@@ -156,16 +125,6 @@ public class JobCloneController : ControllerBase
         var pathExists = await _cloneService.JobPathExistsAsync(path, ct);
         var nameExists = await _cloneService.JobNameExistsAsync(name, ct);
         return Ok(new IdentityExistsResponse { PathExists = pathExists, NameExists = nameExists });
-    }
-
-    /// <summary>
-    /// List suspended (unreleased) jobs for the Landing screen.
-    /// </summary>
-    [HttpGet("suspended")]
-    public async Task<ActionResult<List<SuspendedJobDto>>> GetSuspended(CancellationToken ct)
-    {
-        var result = await _cloneService.GetSuspendedJobsAsync(authorCustomerId: null, ct);
-        return Ok(result);
     }
 
     /// <summary>

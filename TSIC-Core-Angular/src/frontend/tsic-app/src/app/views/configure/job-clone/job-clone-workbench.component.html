@@ -1,69 +1,44 @@
 <div class="jc-workbench">
 	<header class="jc-header">
-		<button type="button" class="jc-back-link" (click)="goBack()">← Job Clone</button>
-		@if (flavor === 'clone') {
-			<h2>Clone workbench</h2>
-			@if (source(); as src) {
-				<p class="jc-subtitle">
-					Source: <strong>{{ src.jobName }}</strong>
-					<span class="jc-mono">/{{ src.jobPath }} · {{ src.year ?? '—' }} {{ src.season ?? '' }}</span>
-				</p>
-			} @else if (isLoadingSource()) {
-				<p class="jc-subtitle loading-text">Resolving current job…</p>
-			}
-		} @else {
-			<h2>Blank job</h2>
-			<p class="jc-subtitle">New-customer onboarding — an empty job with safe defaults.</p>
+		<button type="button" class="jc-back-link" (click)="goBack()">← Configure</button>
+		<h2>Clone workbench</h2>
+		@if (source(); as src) {
+			<p class="jc-subtitle">
+				Source: <strong>{{ src.jobName }}</strong>
+				<span class="jc-mono">/{{ src.jobPath }} · {{ src.year ?? '—' }} {{ src.season ?? '' }}</span>
+			</p>
+		} @else if (isLoadingSource()) {
+			<p class="jc-subtitle loading-text">Resolving current job…</p>
 		}
 	</header>
 
-	<div class="jc-columns" [class.jc-single]="flavor === 'blank'">
+	<div class="jc-columns">
 		<!-- ══════════ LEFT: the form ══════════ -->
 		<div class="jc-form-col">
 
-			@if (flavor === 'blank') {
-				<section class="jc-panel">
-					<h3>Customer & type</h3>
-					@if (referenceData(); as refs) {
-						<div class="jc-grid">
-							<label class="field-label">Customer
-								<select class="field-input" [ngModel]="customerId()" (ngModelChange)="set(customerId, $event)">
-									<option value="">— select —</option>
-									@for (c of refs.customers; track c.customerId) {
-										<option [value]="c.customerId">{{ c.name }}</option>
-									}
-								</select>
-							</label>
-							<label class="field-label">Sport
-								<select class="field-input" [ngModel]="sportId()" (ngModelChange)="set(sportId, $event)">
-									<option value="">— select —</option>
-									@for (s of refs.sports; track s.sportId) {
-										<option [value]="s.sportId">{{ s.name }}</option>
-									}
-								</select>
-							</label>
-							<label class="field-label">Job type
-								<select class="field-input" [ngModel]="jobTypeId()" (ngModelChange)="set(jobTypeId, $event)">
-									<option [ngValue]="null">— select —</option>
-									@for (t of refs.jobTypes; track t.jobTypeId) {
-										<option [ngValue]="t.jobTypeId">{{ t.jobTypeName }}</option>
-									}
-								</select>
-							</label>
-							<label class="field-label">Billing type
-								<select class="field-input" [ngModel]="billingTypeId()" (ngModelChange)="set(billingTypeId, $event)">
-									<option [ngValue]="null">— select —</option>
-									@for (b of refs.billingTypes; track b.billingTypeId) {
-										<option [ngValue]="b.billingTypeId">{{ b.name }}</option>
-									}
-								</select>
-							</label>
-						</div>
-					} @else {
-						<p class="loading-text">Loading reference data…</p>
-					}
-				</section>
-			}
+			<section class="jc-panel">
+				<h3>Owner</h3>
+				<div class="jc-grid">
+					<label class="field-label">Customer
+						@if (referenceData(); as refs) {
+							<select class="field-input" [ngModel]="customerId()" (ngModelChange)="set(customerId, $event)">
+								<option value="">— select —</option>
+								@for (c of refs.customers; track c.customerId) {
+									<option [value]="c.customerId">{{ c.name }}</option>
+								}
+							</select>
+						} @else {
+							<span class="loading-text">Loading customers…</span>
+						}
+						@if (isCrossCustomer()) {
+							<span class="field-error">
+								New owner — this job will bill to a different customer's merchant account.
+								Review the plan warnings before cloning.
+							</span>
+						}
+					</label>
+				</div>
+			</section>
 
 			<section class="jc-panel">
 				<h3>Identity</h3>
@@ -96,7 +71,7 @@
 					</label>
 				</div>
 
-				@if (flavor === 'clone' && leagueRenames().length > 0) {
+				@if (leagueRenames().length > 0) {
 					<h4>League names</h4>
 					@for (row of leagueRenames(); track row.sourceLeagueId) {
 						<label class="field-label jc-league-row">
@@ -122,124 +97,110 @@
 
 			<section class="jc-panel">
 				<h3>Communications</h3>
-				@if (flavor === 'clone') {
-					<p class="jc-hint">Pre-filled from the source job. Emptying a field clears it on the new job.</p>
-				}
+				<p class="jc-hint">Pre-filled from the source job. Emptying a field clears it on the new job.</p>
 				<div class="jc-grid">
 					<label class="field-label">Reg-form From
 						<input class="field-input" type="text" [ngModel]="regFormFrom()" (ngModelChange)="set(regFormFrom, $event)" />
 					</label>
-					@if (flavor === 'clone') {
-						<label class="field-label">Reg-form CCs
-							<input class="field-input" type="text" [ngModel]="regFormCcs()" (ngModelChange)="set(regFormCcs, $event)" />
-						</label>
-						<label class="field-label">Reg-form BCCs
-							<input class="field-input" type="text" [ngModel]="regFormBccs()" (ngModelChange)="set(regFormBccs, $event)" />
-						</label>
-						<label class="field-label">Reschedule email list
-							<input class="field-input" type="text" [ngModel]="rescheduleemaillist()" (ngModelChange)="set(rescheduleemaillist, $event)" />
-						</label>
-						<label class="field-label">Always-copy email list
-							<input class="field-input" type="text" [ngModel]="alwayscopyemaillist()" (ngModelChange)="set(alwayscopyemaillist, $event)" />
-						</label>
-						<label class="field-label">Mail-to address
-							<input class="field-input" type="text" [ngModel]="mailTo()" (ngModelChange)="set(mailTo, $event)" />
-						</label>
-						<label class="field-label">Pay-to name
-							<input class="field-input" type="text" [ngModel]="payTo()" (ngModelChange)="set(payTo, $event)" />
-						</label>
-						<label class="field-label">Store contact email
-							<input class="field-input" type="text" [ngModel]="storeContactEmail()" (ngModelChange)="set(storeContactEmail, $event)" />
-						</label>
-					}
+					<label class="field-label">Reg-form CCs
+						<input class="field-input" type="text" [ngModel]="regFormCcs()" (ngModelChange)="set(regFormCcs, $event)" />
+					</label>
+					<label class="field-label">Reg-form BCCs
+						<input class="field-input" type="text" [ngModel]="regFormBccs()" (ngModelChange)="set(regFormBccs, $event)" />
+					</label>
+					<label class="field-label">Reschedule email list
+						<input class="field-input" type="text" [ngModel]="rescheduleemaillist()" (ngModelChange)="set(rescheduleemaillist, $event)" />
+					</label>
+					<label class="field-label">Always-copy email list
+						<input class="field-input" type="text" [ngModel]="alwayscopyemaillist()" (ngModelChange)="set(alwayscopyemaillist, $event)" />
+					</label>
+					<label class="field-label">Mail-to address
+						<input class="field-input" type="text" [ngModel]="mailTo()" (ngModelChange)="set(mailTo, $event)" />
+					</label>
+					<label class="field-label">Pay-to name
+						<input class="field-input" type="text" [ngModel]="payTo()" (ngModelChange)="set(payTo, $event)" />
+					</label>
+					<label class="field-label">Store contact email
+						<input class="field-input" type="text" [ngModel]="storeContactEmail()" (ngModelChange)="set(storeContactEmail, $event)" />
+					</label>
 				</div>
 			</section>
 
-			@if (flavor === 'clone') {
-				<section class="jc-panel">
-					<h3>Scope & options</h3>
+			<section class="jc-panel">
+				<h3>Scope & options</h3>
 
-					<div class="jc-option-group">
-						<span class="jc-option-label">Structure (LADT)</span>
-						<div class="field-check-row">
-							<label class="field-check">
-								<input type="radio" name="ladtScope" value="none" [ngModel]="ladtScope()" (ngModelChange)="set(ladtScope, $event)" />
-								<span>None — configure post-release</span>
-							</label>
-							<label class="field-check">
-								<input type="radio" name="ladtScope" value="lad" [ngModel]="ladtScope()" (ngModelChange)="set(ladtScope, $event)" />
-								<span>Leagues + agegroups + divisions</span>
-							</label>
-							<label class="field-check">
-								<input type="radio" name="ladtScope" value="ladt" [ngModel]="ladtScope()" (ngModelChange)="set(ladtScope, $event)" />
-								<span>…+ structure teams</span>
-							</label>
-						</div>
+				<div class="jc-option-group">
+					<span class="jc-option-label">Structure (LADT)</span>
+					<div class="field-check-row">
+						<label class="field-check">
+							<input type="radio" name="ladtScope" value="none" [ngModel]="ladtScope()" (ngModelChange)="set(ladtScope, $event)" />
+							<span>None — configure post-release</span>
+						</label>
+						<label class="field-check">
+							<input type="radio" name="ladtScope" value="lad" [ngModel]="ladtScope()" (ngModelChange)="set(ladtScope, $event)" />
+							<span>Leagues + agegroups + divisions</span>
+						</label>
+						<label class="field-check">
+							<input type="radio" name="ladtScope" value="ladt" [ngModel]="ladtScope()" (ngModelChange)="set(ladtScope, $event)" />
+							<span>…+ structure teams</span>
+						</label>
 					</div>
+				</div>
 
-					<div class="jc-option-group">
-						<span class="jc-option-label">eCheck</span>
-						<div class="field-check-row">
-							<label class="field-check">
-								<input type="radio" name="echeck" value="off" [ngModel]="enableEcheckChoice()" (ngModelChange)="set(enableEcheckChoice, $event)" />
-								<span>Off (re-enable later)</span>
-							</label>
-							<label class="field-check">
-								<input type="radio" name="echeck" value="source" [ngModel]="enableEcheckChoice()" (ngModelChange)="set(enableEcheckChoice, $event)" />
-								<span>Copy source setting</span>
-							</label>
-						</div>
+				<div class="jc-option-group">
+					<span class="jc-option-label">eCheck</span>
+					<div class="field-check-row">
+						<label class="field-check">
+							<input type="radio" name="echeck" value="off" [ngModel]="enableEcheckChoice()" (ngModelChange)="set(enableEcheckChoice, $event)" />
+							<span>Off (re-enable later)</span>
+						</label>
+						<label class="field-check">
+							<input type="radio" name="echeck" value="source" [ngModel]="enableEcheckChoice()" (ngModelChange)="set(enableEcheckChoice, $event)" />
+							<span>Copy source setting</span>
+						</label>
 					</div>
+				</div>
 
-					<div class="jc-option-group">
-						<span class="jc-option-label">Store</span>
-						<div class="field-check-row">
-							<label class="field-check">
-								<input type="radio" name="store" value="disable" [ngModel]="storeChoice()" (ngModelChange)="set(storeChoice, $event)" />
-								<span>Disable (inventory never clones)</span>
-							</label>
-							<label class="field-check">
-								<input type="radio" name="store" value="keep" [ngModel]="storeChoice()" (ngModelChange)="set(storeChoice, $event)" />
-								<span>Keep source setting</span>
-							</label>
-						</div>
+				<div class="jc-option-group">
+					<span class="jc-option-label">Store</span>
+					<div class="field-check-row">
+						<label class="field-check">
+							<input type="radio" name="store" value="disable" [ngModel]="storeChoice()" (ngModelChange)="set(storeChoice, $event)" />
+							<span>Disable (inventory never clones)</span>
+						</label>
+						<label class="field-check">
+							<input type="radio" name="store" value="keep" [ngModel]="storeChoice()" (ngModelChange)="set(storeChoice, $event)" />
+							<span>Keep source setting</span>
+						</label>
 					</div>
+				</div>
 
-					<label class="field-check">
-						<input type="checkbox" [ngModel]="upAgegroupNamesByOne()" (ngModelChange)="set(upAgegroupNamesByOne, $event)" />
-						<span>Advance a season — bump 20xx tokens in names & content, shift DOB/grad-year ranges</span>
-					</label>
-					<label class="field-check">
-						<input type="checkbox" [ngModel]="noParallaxSlide1()" (ngModelChange)="set(noParallaxSlide1, $event)" />
-						<span>Clear parallax slide 1 text</span>
-					</label>
-				</section>
-			}
+				<label class="field-check">
+					<input type="checkbox" [ngModel]="upAgegroupNamesByOne()" (ngModelChange)="set(upAgegroupNamesByOne, $event)" />
+					<span>Advance a season — bump 20xx tokens in names & content, shift DOB/grad-year ranges</span>
+				</label>
+				<label class="field-check">
+					<input type="checkbox" [ngModel]="noParallaxSlide1()" (ngModelChange)="set(noParallaxSlide1, $event)" />
+					<span>Clear parallax slide 1 text</span>
+				</label>
+			</section>
 
 			<!-- ══════════ Commit bar ══════════ -->
 			<section class="jc-panel jc-commit">
 				<label class="field-check">
 					<input type="checkbox" [ngModel]="affirmationChecked()" (ngModelChange)="affirmationChecked.set($event)" />
-					<span>
-						@if (flavor === 'clone') {
-							I've reviewed the plan — clone it.
-						} @else {
-							Create this blank job.
-						}
-					</span>
+					<span>I've reviewed the plan — clone it.</span>
 				</label>
-				@if (flavor === 'clone') {
-					<label class="field-check">
-						<input type="checkbox" [ngModel]="enterNewJob()" (ngModelChange)="enterNewJob.set($event)" />
-						<span>Enter the new job after cloning</span>
-					</label>
-				}
+				<label class="field-check">
+					<input type="checkbox" [ngModel]="enterNewJob()" (ngModelChange)="enterNewJob.set($event)" />
+					<span>Enter the new job after cloning</span>
+				</label>
 				<div class="jc-commit-actions">
 					<button type="button" class="jc-btn-primary" [disabled]="!canClone()" (click)="onSubmit()">
 						@if (isSubmitting()) { <span class="spinner" aria-hidden="true"></span> }
-						{{ flavor === 'clone' ? 'Clone job' : 'Create job' }}
+						Clone job
 					</button>
-					@if (flavor === 'clone' && plan() && !planFresh()) {
+					@if (plan() && !planFresh()) {
 						<span class="jc-stale-note">plan refreshing…</span>
 					}
 				</div>
@@ -248,125 +209,110 @@
 		</div>
 
 		<!-- ══════════ RIGHT: the live plan ══════════ -->
-		@if (flavor === 'clone') {
-			<aside class="jc-plan-col" [class.jc-plan-stale]="!planFresh()">
-				<div class="jc-plan-sticky">
-					<header class="jc-plan-header">
-						<h3>Plan</h3>
-						@if (planRefreshing()) {
-							<span class="jc-refreshing"><span class="spinner" aria-hidden="true"></span> refreshing…</span>
-						} @else if (planFresh()) {
-							<span class="jc-fresh">current</span>
-						}
-					</header>
-
-					@if (plan(); as p) {
-						@if (p.warnings?.length) {
-							<div class="warning-banner">
-								<ul class="jc-warning-list">
-									@for (w of p.warnings; track w) { <li>{{ w }}</li> }
-								</ul>
-							</div>
-						}
-
-						<ul class="jc-step-list">
-							@for (s of p.steps; track s.stepKey) {
-								<li [class.jc-zero]="s.count === 0">
-									<span class="jc-step-name">{{ stepLabel(s.stepKey) }}</span>
-									<span class="jc-step-count">{{ s.count }}</span>
-									@if (s.notes) { <span class="jc-step-notes">{{ s.notes }}</span> }
-								</li>
-							}
-						</ul>
-
-						<div class="jc-plan-section">
-							<h4>Teams</h4>
-							<p class="jc-plan-line">
-								{{ p.teamsToClone }} structure team(s) clone ·
-								{{ p.teamsExcludedCompeting }} competing excluded ·
-								{{ p.teamsExcludedWaitlistDropped }} waitlist/dropped ·
-								{{ p.teamsExcludedInactive }} inactive
-							</p>
-						</div>
-
-						<div class="jc-plan-section">
-							<h4>Rates</h4>
-							<p class="jc-plan-line">
-								CC {{ p.resolvedProcessingFeePercent }}%
-								@if (p.sourceProcessingFeePercent != null && p.sourceProcessingFeePercent !== p.resolvedProcessingFeePercent) {
-									<em>(raised from {{ p.sourceProcessingFeePercent }}%)</em>
-								}
-								· eCheck {{ p.resolvedEcheckProcessingFeePercent }}%
-								@if (p.sourceEcheckProcessingFeePercent != null && p.sourceEcheckProcessingFeePercent !== p.resolvedEcheckProcessingFeePercent) {
-									<em>(raised from {{ p.sourceEcheckProcessingFeePercent }}%)</em>
-								}
-							</p>
-						</div>
-
-						@if (p.eventStartShift || p.eventEndShift || p.uslaxNumberValidThroughShift) {
-							<div class="jc-plan-section">
-								<h4>Date shifts (Δ{{ p.yearDelta }}y)</h4>
-								<dl class="jc-shift-list">
-									@if (p.eventStartShift) { <dt>Event start</dt><dd>{{ formatShift(p.eventStartShift) }}</dd> }
-									@if (p.eventEndShift) { <dt>Event end</dt><dd>{{ formatShift(p.eventEndShift) }}</dd> }
-									@if (p.adnArbStartShift) { <dt>ARB start</dt><dd>{{ formatShift(p.adnArbStartShift) }}</dd> }
-									@if (p.uslaxNumberValidThroughShift) { <dt>USLax valid thru</dt><dd>{{ formatShift(p.uslaxNumberValidThroughShift) }}</dd> }
-								</dl>
-							</div>
-						}
-
-						@if (p.agegroups?.length) {
-							<details class="jc-plan-details">
-								<summary>Agegroups ({{ p.agegroups!.length }})</summary>
-								<ul class="jc-detail-list">
-									@for (a of p.agegroups; track a.sourceAgegroupId) {
-										<li>{{ a.sourceName }} @if (a.newName !== a.sourceName) { → {{ a.newName }} }</li>
-									}
-								</ul>
-							</details>
-						}
-
-						@if (p.bulletins?.length) {
-							<details class="jc-plan-details">
-								<summary>Bulletins ({{ p.bulletins!.length }}) — all arrive inactive</summary>
-								<ul class="jc-detail-list">
-									@for (b of p.bulletins; track b.sourceBulletinId) {
-										<li>{{ b.title }} <span class="jc-mono">{{ formatShift(b.startDate) }}</span></li>
-									}
-								</ul>
-							</details>
-						}
-
-						@if (p.feeModifiers?.length) {
-							<details class="jc-plan-details">
-								<summary>Fee modifiers ({{ p.feeModifiers!.length }})</summary>
-								<ul class="jc-detail-list">
-									@for (m of p.feeModifiers; track m.sourceFeeModifierId) {
-										<li>{{ m.modifierType }} {{ m.amount }} <span class="jc-mono">{{ formatShift(m.startDate) }}</span></li>
-									}
-								</ul>
-							</details>
-						}
-					} @else if (planRefreshing()) {
-						<p class="loading-text">Computing plan…</p>
-					} @else {
-						<p class="empty-text">The plan appears once the source resolves.</p>
+		<aside class="jc-plan-col" [class.jc-plan-stale]="!planFresh()">
+			<div class="jc-plan-sticky">
+				<header class="jc-plan-header">
+					<h3>Plan</h3>
+					@if (planRefreshing()) {
+						<span class="jc-refreshing"><span class="spinner" aria-hidden="true"></span> refreshing…</span>
+					} @else if (planFresh()) {
+						<span class="jc-fresh">current</span>
 					}
-				</div>
-			</aside>
-		} @else {
-			<aside class="jc-plan-col">
-				<div class="jc-plan-sticky">
-					<header class="jc-plan-header"><h3>What gets created</h3></header>
+				</header>
+
+				@if (plan(); as p) {
+					@if (p.warnings?.length) {
+						<div class="warning-banner">
+							<ul class="jc-warning-list">
+								@for (w of p.warnings; track w) { <li>{{ w }}</li> }
+							</ul>
+						</div>
+					}
+
 					<ul class="jc-step-list">
-						<li><span class="jc-step-name">Job</span><span class="jc-step-count">1</span>
-							<span class="jc-step-notes">safe-state defaults, suspended from public</span></li>
-						<li><span class="jc-step-name">Your admin registration</span><span class="jc-step-count">1</span>
-							<span class="jc-step-notes">active — you configure the job</span></li>
+						@for (s of p.steps; track s.stepKey) {
+							<li [class.jc-zero]="s.count === 0">
+								<span class="jc-step-name">{{ stepLabel(s.stepKey) }}</span>
+								<span class="jc-step-count">{{ s.count }}</span>
+								@if (s.notes) { <span class="jc-step-notes">{{ s.notes }}</span> }
+							</li>
+						}
 					</ul>
-					<p class="jc-plan-line">Everything else (structure, fees, content) is configured after creation.</p>
-				</div>
-			</aside>
-		}
+
+					<div class="jc-plan-section">
+						<h4>Teams</h4>
+						<p class="jc-plan-line">
+							{{ p.teamsToClone }} structure team(s) clone ·
+							{{ p.teamsExcludedCompeting }} competing excluded ·
+							{{ p.teamsExcludedWaitlistDropped }} waitlist/dropped ·
+							{{ p.teamsExcludedInactive }} inactive
+						</p>
+					</div>
+
+					<div class="jc-plan-section">
+						<h4>Rates</h4>
+						<p class="jc-plan-line">
+							CC {{ p.resolvedProcessingFeePercent }}%
+							@if (p.sourceProcessingFeePercent != null && p.sourceProcessingFeePercent !== p.resolvedProcessingFeePercent) {
+								<em>(raised from {{ p.sourceProcessingFeePercent }}%)</em>
+							}
+							· eCheck {{ p.resolvedEcheckProcessingFeePercent }}%
+							@if (p.sourceEcheckProcessingFeePercent != null && p.sourceEcheckProcessingFeePercent !== p.resolvedEcheckProcessingFeePercent) {
+								<em>(raised from {{ p.sourceEcheckProcessingFeePercent }}%)</em>
+							}
+						</p>
+					</div>
+
+					@if (p.eventStartShift || p.eventEndShift || p.uslaxNumberValidThroughShift) {
+						<div class="jc-plan-section">
+							<h4>Date shifts (Δ{{ p.yearDelta }}y)</h4>
+							<dl class="jc-shift-list">
+								@if (p.eventStartShift) { <dt>Event start</dt><dd>{{ formatShift(p.eventStartShift) }}</dd> }
+								@if (p.eventEndShift) { <dt>Event end</dt><dd>{{ formatShift(p.eventEndShift) }}</dd> }
+								@if (p.adnArbStartShift) { <dt>ARB start</dt><dd>{{ formatShift(p.adnArbStartShift) }}</dd> }
+								@if (p.uslaxNumberValidThroughShift) { <dt>USLax valid thru</dt><dd>{{ formatShift(p.uslaxNumberValidThroughShift) }}</dd> }
+							</dl>
+						</div>
+					}
+
+					@if (p.agegroups?.length) {
+						<details class="jc-plan-details">
+							<summary>Agegroups ({{ p.agegroups!.length }})</summary>
+							<ul class="jc-detail-list">
+								@for (a of p.agegroups; track a.sourceAgegroupId) {
+									<li>{{ a.sourceName }} @if (a.newName !== a.sourceName) { → {{ a.newName }} }</li>
+								}
+							</ul>
+						</details>
+					}
+
+					@if (p.bulletins?.length) {
+						<details class="jc-plan-details">
+							<summary>Bulletins ({{ p.bulletins!.length }}) — all arrive inactive</summary>
+							<ul class="jc-detail-list">
+								@for (b of p.bulletins; track b.sourceBulletinId) {
+									<li>{{ b.title }} <span class="jc-mono">{{ formatShift(b.startDate) }}</span></li>
+								}
+							</ul>
+						</details>
+					}
+
+					@if (p.feeModifiers?.length) {
+						<details class="jc-plan-details">
+							<summary>Fee modifiers ({{ p.feeModifiers!.length }})</summary>
+							<ul class="jc-detail-list">
+								@for (m of p.feeModifiers; track m.sourceFeeModifierId) {
+									<li>{{ m.modifierType }} {{ m.amount }} <span class="jc-mono">{{ formatShift(m.startDate) }}</span></li>
+								}
+							</ul>
+						</details>
+					}
+				} @else if (planRefreshing()) {
+					<p class="loading-text">Computing plan…</p>
+				} @else {
+					<p class="empty-text">The plan appears once the source resolves.</p>
+				}
+			</div>
+		</aside>
 	</div>
 </div>

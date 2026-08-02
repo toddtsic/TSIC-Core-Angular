@@ -101,10 +101,20 @@ public interface IJobCloneRepository
     /// </summary>
     Task<List<ReleasableAdminDto>> GetReleasableAdminsAsync(Guid jobId, CancellationToken ct = default);
 
+    // ── Target-customer probes (cross-customer clone warnings) ──
+
+    /// <summary>Customer display name, or null when the id matches no customer.</summary>
+    Task<string?> GetCustomerNameAsync(Guid customerId, CancellationToken ct = default);
+
+    /// <summary>Billing-type display name for the verify checklist.</summary>
+    Task<string?> GetBillingTypeNameAsync(int billingTypeId, CancellationToken ct = default);
+
     /// <summary>
-    /// Returns jobs currently BSuspendPublic=true. When customerId is supplied, filters to that customer.
+    /// True when the customer has both Authorize.Net credentials populated. Returns a BOOLEAN
+    /// deliberately — the plan warns that a target customer can't take card payments without
+    /// ever moving key material out of the repository.
     /// </summary>
-    Task<List<SuspendedJobDto>> GetSuspendedJobsAsync(Guid? customerId, CancellationToken ct = default);
+    Task<bool> CustomerHasAdnCredentialsAsync(Guid customerId, CancellationToken ct = default);
 
     // ── Dev-only undo (cascade delete a freshly-cloned job) ──
 

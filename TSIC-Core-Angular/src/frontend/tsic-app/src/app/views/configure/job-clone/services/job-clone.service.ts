@@ -3,8 +3,6 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
 import type {
-	BlankJobRequest,
-	BlankJobResponse,
 	ClonePlanDto,
 	DevUndoStatusResponse,
 	IdentityExistsResponse,
@@ -18,7 +16,6 @@ import type {
 	ReleasableAdminDto,
 	ReleaseAdminsRequest,
 	ReleaseResponse,
-	SuspendedJobDto,
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -45,19 +42,9 @@ export class JobCloneService {
 		return this.http.get<IdentityExistsResponse>(`${this.apiUrl}/identity-exists`, { params });
 	}
 
-	// ── Blank flow ──
-	createBlank(request: BlankJobRequest): Observable<BlankJobResponse> {
-		return this.http.post<BlankJobResponse>(`${this.apiUrl}/blank`, request);
-	}
-
-	/** Customers / sports / job types / billing types for the blank flavor's dropdowns. */
+	/** Customers (plus sports / job types / billing types) — feeds the owner picker. */
 	getReferenceData(): Observable<JobConfigReferenceDataDto> {
 		return this.http.get<JobConfigReferenceDataDto>(`${environment.apiUrl}/job-config/reference-data`);
-	}
-
-	// ── Landing ──
-	getSuspended(): Observable<SuspendedJobDto[]> {
-		return this.http.get<SuspendedJobDto[]>(`${this.apiUrl}/suspended`);
 	}
 
 	// ── Release flow (verify → site → admins → open registration) ──

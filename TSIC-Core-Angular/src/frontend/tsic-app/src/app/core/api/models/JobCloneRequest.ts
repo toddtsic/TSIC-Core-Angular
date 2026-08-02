@@ -5,6 +5,7 @@
 import type { LeagueRenameDto } from './LeagueRenameDto';
 export type JobCloneRequest = {
     sourceJobId: string;
+    targetCustomerId: string;
     jobPathTarget: string;
     jobNameTarget: string;
     yearTarget: string;

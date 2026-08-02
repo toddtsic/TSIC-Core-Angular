@@ -30,16 +30,6 @@ public interface IJobCloneService
     Task<List<JobCloneSourceDto>> GetCloneableJobsAsync(CancellationToken ct = default);
 
     /// <summary>
-    /// Create a new empty job (no source) for new-customer onboarding.
-    /// Lands with the same safe-by-default state as a clone.
-    /// </summary>
-    Task<BlankJobResponse> CreateBlankJobAsync(
-        BlankJobRequest request,
-        string authorUserId,
-        Guid? authorCustomerId = null,
-        CancellationToken ct = default);
-
-    /// <summary>
     /// Build the clone PLAN without committing — per-step counts, eligibility breakdown,
     /// warnings, resolved rates, date shifts, fingerprint. The workbench renders this
     /// continuously; the same planner runs inside the clone transaction, so preview and
@@ -77,14 +67,6 @@ public interface IJobCloneService
     /// </summary>
     Task<List<ReleasableAdminDto>> GetReleasableAdminsAsync(
         Guid jobId,
-        CancellationToken ct = default);
-
-    /// <summary>
-    /// List jobs currently suspended (BSuspendPublic = true) — the Landing page's
-    /// "unreleased jobs" list.
-    /// </summary>
-    Task<List<SuspendedJobDto>> GetSuspendedJobsAsync(
-        Guid? authorCustomerId = null,
         CancellationToken ct = default);
 
     /// <summary>True when a Job with the given jobPath already exists (inline uniqueness check).</summary>

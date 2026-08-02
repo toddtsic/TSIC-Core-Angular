@@ -28,6 +28,8 @@ export type ClonePlanDto = {
     payTo?: string | null;
     storeContactEmail?: string | null;
     sourceJobTypeId: number;
+    sourceCustomerId: string;
+    isCrossCustomer: boolean;
     eventStartShift?: (null | DateShiftDto);
     eventEndShift?: (null | DateShiftDto);
     adnArbStartShift?: (null | DateShiftDto);

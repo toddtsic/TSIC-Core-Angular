@@ -74,6 +74,36 @@ public sealed class JobClonePlanner
             ?? throw new KeyNotFoundException($"Source job {req.SourceJobId} not found.");
 
         var warnings = new List<string>();
+
+        // ── Cross-customer onboarding: clone a template job, then retarget the owner ──
+        // Jobs.CustomerId points at the Authorize.Net merchant account that will collect
+        // (Customers.AdnLoginId/AdnTransactionKey, resolved job → customer at charge time), so a
+        // retarget moves the money and every warning below exists to make that visible pre-release.
+        var isCrossCustomer = req.TargetCustomerId != sourceJob.CustomerId;
+        if (isCrossCustomer)
+        {
+            var targetCustomerName = await _repo.GetCustomerNameAsync(req.TargetCustomerId, ct);
+            if (targetCustomerName == null)
+                warnings.Add($"Target customer {req.TargetCustomerId} does not exist.");
+
+            warnings.Add(
+                $"NEW OWNER: this job will belong to {targetCustomerName ?? "the target customer"}, "
+                + "not the source's customer. Source admin registrations are NOT copied — you get a "
+                + "Superuser row and nothing else, so the new owner's directors must be added by hand.");
+
+            if (!await _repo.CustomerHasAdnCredentialsAsync(req.TargetCustomerId, ct))
+                warnings.Add(
+                    "Target customer has NO Authorize.Net credentials on file — card payments on this "
+                    + "job will fail until they are set. Fix before opening registration.");
+
+            warnings.Add(
+                "Branding is inherited from the source: header/footer logos, parallax and block images "
+                + "(JobDisplayOptions) plus the carousel (JobOwlImages) all copy. Replace them before release.");
+
+            warnings.Add(
+                "Billing type is inherited from the source job — confirm it matches the new customer's agreement.");
+        }
+
         var yearDelta = ComputeYearDelta(sourceJob.Year, req.YearTarget);
         var advance = req.UpAgegroupNamesByOne;
         var ladCloned = !string.Equals(req.LadtScope, "none", StringComparison.OrdinalIgnoreCase);
@@ -104,6 +134,13 @@ public sealed class JobClonePlanner
         var navs = await _repo.GetSourceNavWithItemsAsync(req.SourceJobId, ct);
         var adminRegs = await _repo.GetSourceAdminRegistrationsAsync(req.SourceJobId, ct);
         var sourceFees = await _feeRepo.GetJobFeesByJobAsync(req.SourceJobId, ct);
+
+        // Retargeting the owner means the source's admins belong to a DIFFERENT company. They
+        // would land inactive, but release panel 3 lists inactive admins as activation candidates
+        // — one wrong click hands another customer's staff a way in. Drop them; the executor's
+        // "no actor row" branch mints a fresh Superuser registration, which is all a new owner
+        // should start with.
+        if (isCrossCustomer) adminRegs = [];
 
         var actorHasSourceReg = adminRegs.Any(r =>
             string.Equals(r.UserId, actorUserId, StringComparison.OrdinalIgnoreCase));
@@ -211,6 +248,14 @@ public sealed class JobClonePlanner
         // Teams only actually clone under "ladt" — the plan reports the split regardless.
         var plannedTeams = teamsScope ? eligibleTeams.Count : 0;
 
+        // Structure teams arrive ownerless (ClubrepId/ClubrepRegistrationid nulled), so nothing
+        // points back at the source customer — but the NAMES do carry. Choosing "lad" avoids it.
+        if (isCrossCustomer && plannedTeams > 0)
+            warnings.Add(
+                $"{plannedTeams} structure team(s) will clone under the new owner carrying the source's "
+                + "team names. They arrive ownerless, but the names are the previous customer's — "
+                + "choose the \"lad\" scope to leave teams out entirely.");
+
         // ── Fee eligibility: same maps the executor will mint, expressed as set
         //    membership. A skipped row means its scope target didn't clone.
         var eligibleTeamIds = teamsScope
@@ -252,8 +297,10 @@ public sealed class JobClonePlanner
             new() { StepKey = JobCloneStepOrder.Nav, Count = navs.Count,
                     Notes = navs.Count > 0 ? $"{navItemCount} nav items" : null },
             new() { StepKey = JobCloneStepOrder.AdminRegistrations, Count = plannedAdminRegs,
-                    Notes = $"{adminsToDeactivate} director(s) land inactive"
-                            + (actorHasSourceReg ? string.Empty : "; +1 fresh Superuser row for you") },
+                    Notes = isCrossCustomer
+                        ? "new owner — source admins NOT copied; 1 fresh Superuser row for you"
+                        : $"{adminsToDeactivate} director(s) land inactive"
+                          + (actorHasSourceReg ? string.Empty : "; +1 fresh Superuser row for you") },
             new() { StepKey = JobCloneStepOrder.Leagues, Count = leagueUnits.Count },
             new() { StepKey = JobCloneStepOrder.JobLeagues, Count = leagueUnits.Count },
             new() { StepKey = JobCloneStepOrder.Agegroups, Count = leagueUnits.Sum(u => u.Agegroups.Count) },
@@ -340,7 +387,7 @@ public sealed class JobClonePlanner
                 : 0,
         }).ToList();
 
-        var fingerprint = ComputeFingerprint(req.SourceJobId, yearDelta, steps,
+        var fingerprint = ComputeFingerprint(req.SourceJobId, req.TargetCustomerId, yearDelta, steps,
             excludedCompeting, excludedBucket, excludedInactive);
 
         var dto = new ClonePlanDto
@@ -368,6 +415,8 @@ public sealed class JobClonePlanner
             PayTo = sourceJob.PayTo,
             StoreContactEmail = sourceJob.StoreContactEmail,
             SourceJobTypeId = sourceJob.JobTypeId,
+            SourceCustomerId = sourceJob.CustomerId,
+            IsCrossCustomer = isCrossCustomer,
             EventStartShift = ShiftDto(sourceJob.EventStartDate, yearDelta),
             EventEndShift = ShiftDto(sourceJob.EventEndDate, yearDelta),
             AdnArbStartShift = ShiftDto(sourceJob.AdnArbstartDate, yearDelta),
@@ -426,12 +475,14 @@ public sealed class JobClonePlanner
     /// Data-moved guard fingerprint: SHA-256 over the ordered per-step counts + team
     /// split. Coarse by design — it catches source rows appearing/disappearing between
     /// preview and execute; in-place edits to a row don't change counts and are accepted.
+    /// The target customer is folded in because it decides where money settles: changing it
+    /// after approval must invalidate the plan even when every step count happens to match.
     /// </summary>
     private static string ComputeFingerprint(
-        Guid sourceJobId, int yearDelta, List<ClonePlanStepDto> steps,
+        Guid sourceJobId, Guid targetCustomerId, int yearDelta, List<ClonePlanStepDto> steps,
         int competing, int bucket, int inactive)
     {
-        var canonical = $"{sourceJobId:N}|{yearDelta}"
+        var canonical = $"{sourceJobId:N}|{targetCustomerId:N}|{yearDelta}"
             + $"|{string.Join(",", steps.Select(s => $"{s.StepKey}={s.Count}"))}"
             + $"|T:{competing}/{bucket}/{inactive}";
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));

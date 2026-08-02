@@ -8,6 +8,18 @@ public record JobCloneRequest
 {
     public required Guid SourceJobId { get; init; }
 
+    /// <summary>
+    /// Customer that OWNS the new job. Normally the source's customer (the workbench seeds it from
+    /// the picked source); pointing it elsewhere is the new-customer onboarding path — clone a
+    /// template job, then retarget.
+    ///
+    /// MONEY PATH: Customers holds the ADN merchant credentials (AdnLoginId/AdnTransactionKey) and
+    /// the payment path resolves them job → customer (GetJobAdnCredentials_FromJobId). Jobs.CustomerId
+    /// IS the pointer to whose merchant account collects, so this is an explicit request field —
+    /// never an accidental CopyScalars inheritance — and it participates in the plan fingerprint.
+    /// </summary>
+    public required Guid TargetCustomerId { get; init; }
+
     // Target identity
     public required string JobPathTarget { get; init; }
     public required string JobNameTarget { get; init; }
@@ -138,47 +150,6 @@ public record IdentityExistsResponse
 }
 
 // ══════════════════════════════════════
-// Blank-job creation (new-customer onboarding)
-// ══════════════════════════════════════
-
-/// <summary>
-/// Create a brand-new empty job (no source). Used when onboarding a new customer that
-/// has no prior job to clone from. Lands with the same safe-by-default state as a clone:
-/// BSuspendPublic=true, BClubRepAllowEdit/Delete/Add=true, ProcessingFeePercent=current floor.
-/// The author's own admin Registration is created with BActive=true (they need to work the job).
-/// </summary>
-public record BlankJobRequest
-{
-    public required Guid CustomerId { get; init; }
-
-    // Target identity
-    public required string JobPathTarget { get; init; }
-    public required string JobNameTarget { get; init; }
-    public required string YearTarget { get; init; }
-    public required string SeasonTarget { get; init; }
-    public required string DisplayName { get; init; }
-
-    // Target dates
-    public required DateTime ExpiryAdmin { get; init; }
-    public required DateTime ExpiryUsers { get; init; }
-
-    // Required FKs on Jobs (workbench populates via reference-data dropdowns)
-    public required int BillingTypeId { get; init; }
-    public required int JobTypeId { get; init; }
-    public required Guid SportId { get; init; }
-
-    // Email
-    public string? RegFormFrom { get; init; }
-}
-
-public record BlankJobResponse
-{
-    public required Guid NewJobId { get; init; }
-    public required string NewJobPath { get; init; }
-    public required string NewJobName { get; init; }
-}
-
-// ══════════════════════════════════════
 // Clone plan (one plan, two consumers: preview renders it, execute re-plans
 // inside the transaction and materializes it)
 // ══════════════════════════════════════
@@ -220,6 +191,19 @@ public record ClonePlanDto
 
     /// <summary>Source JobTypeId — drives workbench type-aware defaults (T9-A).</summary>
     public required int SourceJobTypeId { get; init; }
+
+    /// <summary>
+    /// The source job's owning customer. The workbench seeds its customer selector from this;
+    /// picking a different one is the new-customer onboarding path.
+    /// </summary>
+    public required Guid SourceCustomerId { get; init; }
+
+    /// <summary>
+    /// True when the request's TargetCustomerId differs from the source's. Drives the cross-customer
+    /// behaviors: source admin registrations are NOT copied, and the branding/billing/merchant-
+    /// credential warnings below are raised.
+    /// </summary>
+    public required bool IsCrossCustomer { get; init; }
 
     // Jobs date shifts (by yearDelta, when present)
     public DateShiftDto? EventStartShift { get; init; }
@@ -454,20 +438,4 @@ public record DevUndoCounts
     /// </summary>
     public required int AncillaryRows { get; init; }
     public List<string> AncillaryBreakdown { get; init; } = [];
-}
-
-/// <summary>
-/// Suspended job for the Landing list — the author clicks through to the Release mode.
-/// </summary>
-public record SuspendedJobDto
-{
-    public required Guid JobId { get; init; }
-    public required string JobPath { get; init; }
-    public required string JobName { get; init; }
-    public string? Year { get; init; }
-    public string? Season { get; init; }
-    public string? DisplayName { get; init; }
-    public required Guid CustomerId { get; init; }
-    public DateTime? Modified { get; init; }
-    public required int InactiveAdminCount { get; init; }
 }
