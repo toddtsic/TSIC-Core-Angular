@@ -138,39 +138,45 @@
 					afterwards, but registration should not open until you have verified it.
 				</p>
 
+				<!-- The structural decision of the whole clone. Each choice names everything it brings,
+				     standing on its own rather than trailing off the one above, and carries its own
+				     consequence — you compare all three at once instead of clicking each to find out
+				     what it does. -->
 				<div class="jc-option-group">
-					<span class="jc-option-label">League structure</span>
-					<div class="field-check-row">
-						<label class="field-check">
+					<span class="jc-option-label">How much of the league structure to copy</span>
+					<div class="jc-choice-list">
+						<label class="field-check jc-choice">
 							<input type="radio" name="ladtScope" value="none" [ngModel]="ladtScope()" (ngModelChange)="set(ladtScope, $event)" />
-							<span>Nothing — build it later</span>
+							<span class="jc-choice-body">
+								<span class="jc-choice-title">Nothing — start empty</span>
+								<span class="jc-choice-note">
+									You build the leagues, age groups and pools yourself on the LADT screen.
+									Nobody can register until you do.
+								</span>
+							</span>
 						</label>
-						<label class="field-check">
+						<label class="field-check jc-choice">
 							<input type="radio" name="ladtScope" value="lad" [ngModel]="ladtScope()" (ngModelChange)="set(ladtScope, $event)" />
-							<span>Leagues, age groups and pools</span>
+							<span class="jc-choice-body">
+								<span class="jc-choice-title">Leagues, age groups and pools — no teams</span>
+								<span class="jc-choice-note">
+									Last season's shape carries over, ready to take a new season's entries.
+									Teams do not come with it: clubs re-register their teams every season.
+								</span>
+							</span>
 						</label>
-						<label class="field-check">
+						<label class="field-check jc-choice">
 							<input type="radio" name="ladtScope" value="ladt" [ngModel]="ladtScope()" (ngModelChange)="set(ladtScope, $event)" />
-							<span>…and your own teams</span>
+							<span class="jc-choice-body">
+								<span class="jc-choice-title">Leagues, age groups and pools — plus your own teams</span>
+								<span class="jc-choice-note">
+									Everything above, and the house teams your organization created and still
+									owns. Teams belonging to outside clubs are <strong>never</strong> copied —
+									those clubs re-register each season.
+								</span>
+							</span>
 						</label>
 					</div>
-					<p class="jc-hint">
-						@switch (ladtScope()) {
-							@case ('none') {
-								The new job starts with no leagues or age groups — you build them on the
-								LADT screen before anyone can register.
-							}
-							@case ('lad') {
-								Copies the league, its age groups and their pools. Teams do not carry over;
-								clubs re-register their teams each season.
-							}
-							@case ('ladt') {
-								Also copies <strong>your own teams</strong> — house teams the club created
-								and still owns. Teams belonging to outside clubs are never copied; those
-								clubs re-register each season.
-							}
-						}
-					</p>
 				</div>
 
 				@if (ladtScope() !== 'none') {
