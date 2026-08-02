@@ -111,7 +111,7 @@
       </h6>
       @if (!coachOpen()) {
         @if (!bRegistrationAllowStaff()) {
-          <div class="section-closed-note">Coach/staff registration is not offered on this job &mdash; enable it under Registration Availability above.</div>
+          <div class="section-closed-note">Coach/staff registration is not offered on this job right now. You can still open this section and edit the copy &mdash; it will be used when you enable it under Registration Availability above.</div>
         }
       } @else {
       <div class="text-muted small mb-2">Shown/sent to coaches, staff, and volunteers after registering.</div>
@@ -151,7 +151,7 @@
       </h6>
       @if (!refereeOpen()) {
         @if (!bRegistrationAllowReferee()) {
-          <div class="section-closed-note">Referee registration is not offered on this job &mdash; enable it under Registration Availability above.</div>
+          <div class="section-closed-note">Referee registration is not offered on this job right now. You can still open this section and edit the copy &mdash; it will be used when you enable it under Registration Availability above.</div>
         }
       } @else {
       <div class="row g-2">
@@ -190,7 +190,7 @@
       </h6>
       @if (!recruiterOpen()) {
         @if (!bRegistrationAllowRecruiter()) {
-          <div class="section-closed-note">College recruiter registration is not offered on this job &mdash; enable it under Registration Availability above.</div>
+          <div class="section-closed-note">College recruiter registration is not offered on this job right now. You can still open this section and edit the copy &mdash; it will be used when you enable it under Registration Availability above.</div>
         }
       } @else {
       <div class="row g-2">
@@ -229,7 +229,7 @@
       </h6>
       @if (!waiversOpen()) {
         @if (!bRegistrationAllowStaff() && !bRegistrationAllowReferee() && !bRegistrationAllowRecruiter()) {
-          <div class="section-closed-note">No adult registration flows (coach, referee, recruiter) are offered on this job.</div>
+          <div class="section-closed-note">No adult registration flows (coach, referee, recruiter) are offered on this job right now. You can still open this section and edit this text &mdash; it will be used when you enable one under Registration Availability above.</div>
         }
       } @else {
       <div class="text-muted small mb-2">Shown to coach, referee, and recruiter registrants.</div>
