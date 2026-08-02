@@ -12,7 +12,7 @@ import { JobContextService } from '@infrastructure/services/job-context.service'
 import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { buildAssetUrl } from '@infrastructure/utils/asset-url.utils';
-import { decodeOverlayText } from '@infrastructure/utils/banner-text.utils';
+import { plainTextToHtml } from '@infrastructure/utils/banner-text.utils';
 import type {
 	ClonePlanDto,
 	JobCloneRequest,
@@ -118,6 +118,9 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	readonly copyDivisions = signal(true);
 	readonly upAgegroupNamesByOne = signal(true);
 	readonly noParallaxSlide1 = signal(false);
+	/** Banner headline / caption, plain text. Seeded ONCE — see bannerTextSeeded. */
+	readonly bannerText1Target = signal('');
+	readonly bannerText2Target = signal('');
 	readonly enableEcheckChoice = signal<'off' | 'source'>('off');
 	readonly storeChoice = signal<'keep' | 'disable'>('disable');
 
@@ -139,21 +142,32 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	private readonly planTrigger$ = new Subject<void>();
 	private commSeeded = false;
 	private typeDefaultsSeeded = false;
+	/**
+	 * Banner wording is seeded from the FIRST plan and never re-seeded. Deliberate: re-seeding
+	 * on a later advance-flag toggle would silently overwrite wording the author typed — the
+	 * same class of write-what-you-read bug the effect() ban exists to prevent. The preview
+	 * shows the author what will actually ship, so the trade-off is visible rather than silent.
+	 */
+	private bannerTextSeeded = false;
 
 	/** Snapshot of the current inputs — recomputes on any form-signal change. */
 	readonly requestKey = computed(() => JSON.stringify(this.buildCloneRequest(null)));
 	readonly planFresh = computed(() => this.planKey() !== null && this.planKey() === this.requestKey());
 
-	// ── Home-page banner preview ──
-	// The planner runs the real reset rule, so these are the values the released home page
-	// will carry — already year-bumped or cleared per the options above. Resolved through the
-	// SAME helpers the public banner uses, so what shows here is what the public sees.
-	// Legacy bit us repeatedly by hiding this until after release.
-	readonly bannerPreview = computed(() => this.plan()?.bannerPreview ?? null);
-	readonly bannerBackgroundUrl = computed(() => buildAssetUrl(this.bannerPreview()?.backgroundImage));
-	readonly bannerOverlayUrl = computed(() => buildAssetUrl(this.bannerPreview()?.overlayImage));
-	readonly bannerText1 = computed(() => decodeOverlayText(this.bannerPreview()?.text1));
-	readonly bannerText2 = computed(() => decodeOverlayText(this.bannerPreview()?.text2));
+	// ── Branding preview (banner + header logo) ──
+	// The planner runs the real reset rule, so these are the values the released site will
+	// carry — already year-bumped, overridden or cleared per the options above. Resolved
+	// through the SAME buildAssetUrl the public chrome uses, so what shows here is what the
+	// public sees. Legacy bit us repeatedly by hiding this until after release.
+	readonly brandingPreview = computed(() => this.plan()?.brandingPreview ?? null);
+	readonly bannerBackgroundUrl = computed(() => buildAssetUrl(this.brandingPreview()?.backgroundImage));
+	readonly bannerOverlayUrl = computed(() => buildAssetUrl(this.brandingPreview()?.overlayImage));
+	readonly logoUrl = computed(() => buildAssetUrl(this.brandingPreview()?.logoImage));
+
+	// Rendered from the LOCAL editors, not the plan — the plan refetch is debounced 400ms and
+	// a preview that trails your typing by a beat reads as broken.
+	readonly bannerText1Html = computed(() => plainTextToHtml(this.bannerText1Target()));
+	readonly bannerText2Html = computed(() => plainTextToHtml(this.bannerText2Target()));
 
 	/**
 	 * Which of client-banner's three branches the new job will land on. Mirrors
@@ -161,7 +175,7 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	 * bare overlay, 'plain' is the job name alone.
 	 */
 	readonly bannerMode = computed<'hero' | 'image' | 'plain'>(() => {
-		const p = this.bannerPreview();
+		const p = this.brandingPreview();
 		if (!p?.isCustom) return 'plain';
 		if (this.bannerBackgroundUrl()) return 'hero';
 		return this.bannerOverlayUrl() ? 'image' : 'plain';
@@ -328,6 +342,12 @@ export class JobCloneWorkbenchComponent implements OnInit {
 			this.upAgegroupNamesByOne.set(planDto.advanceFlagDefault);
 			reseeded = true;
 		}
+		if (!this.bannerTextSeeded && planDto.brandingPreview) {
+			this.bannerTextSeeded = true;
+			this.bannerText1Target.set(planDto.brandingPreview.text1 ?? '');
+			this.bannerText2Target.set(planDto.brandingPreview.text2 ?? '');
+			reseeded = true;
+		}
 		if (!this.typeDefaultsSeeded) {
 			this.typeDefaultsSeeded = true;
 			const scope = JobCloneWorkbenchComponent.ScopeByJobType[planDto.sourceJobTypeId];
@@ -457,6 +477,10 @@ export class JobCloneWorkbenchComponent implements OnInit {
 			storeContactEmail: this.commSeeded ? this.storeContactEmail() : null,
 			upAgegroupNamesByOne: this.upAgegroupNamesByOne(),
 			noParallaxSlide1: this.noParallaxSlide1(),
+			// Null until seeded, so the first plan reports the source's own wording rather than
+			// an empty override that would read back as "author cleared the banner".
+			bannerText1Target: this.bannerTextSeeded ? this.bannerText1Target() : null,
+			bannerText2Target: this.bannerTextSeeded ? this.bannerText2Target() : null,
 			ladtScope: this.ladtScope(),
 			copyDivisions: this.copyDivisions(),
 			enableEcheckChoice: this.enableEcheckChoice(),

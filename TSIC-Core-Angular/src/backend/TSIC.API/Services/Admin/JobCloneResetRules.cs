@@ -1,3 +1,4 @@
+using TSIC.API.Services.Shared.Utilities;
 using TSIC.Contracts.Dtos.JobClone;
 using TSIC.Contracts.Extensions;
 using TSIC.Domain.Constants;
@@ -224,6 +225,16 @@ public static class JobCloneResetRules
             d.ParallaxSlide3Text1 = BumpYears(source.ParallaxSlide3Text1);
             d.ParallaxSlide3Text2 = BumpYears(source.ParallaxSlide3Text2);
         }
+
+        // Author's own wording wins over the source's, bumped or not. Applied AFTER the bump so
+        // the text typed in the workbench lands verbatim — it was seeded from the bumped value,
+        // and bumping it again would advance the years twice. Null = "keep what the source gave".
+        // Stored through the same converter the Branding tab uses, so a clone and a hand-edit
+        // put the identical byte sequence in the column.
+        if (req.BannerText1Target is not null)
+            d.ParallaxSlide1Text1 = OverlayText.ToStoredHtml(req.BannerText1Target);
+        if (req.BannerText2Target is not null)
+            d.ParallaxSlide1Text2 = OverlayText.ToStoredHtml(req.BannerText2Target);
 
         // NoParallaxSlide1 = "open on a plain banner". parallaxSlideCount is the ONLY
         // custom-banner switch the homesite reads, so zeroing it drops client-banner to

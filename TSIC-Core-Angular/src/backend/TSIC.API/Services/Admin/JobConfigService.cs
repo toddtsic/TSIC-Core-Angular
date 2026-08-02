@@ -1,4 +1,3 @@
-using System.Net;
 using System.Text.RegularExpressions;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.JobConfig;
@@ -654,47 +653,11 @@ public class JobConfigService : IJobConfigService
         LogoHeader = jdo?.LogoHeader,
     };
 
-    /// <summary>
-    /// Converts legacy HTML-encoded/rich-text overlay values to plain text.
-    /// Decodes HTML entities, converts &lt;br&gt; to newlines, strips remaining tags.
-    /// </summary>
-    private static string? SanitizeOverlayText(string? raw)
-    {
-        if (string.IsNullOrWhiteSpace(raw)) return null;
+    // Overlay-text normalization lives in Shared/Utilities/OverlayText \u2014 job clone writes the
+    // same column and previews the result, so both paths must normalize identically.
+    private static string? SanitizeOverlayText(string? raw) => OverlayText.ToPlainText(raw);
 
-        // Decode HTML entities (legacy data is HTML-encoded)
-        var text = WebUtility.HtmlDecode(raw);
-
-        // Convert <br> variants to newline
-        text = Regex.Replace(text, @"<br\s*/?>", "\n", RegexOptions.IgnoreCase);
-
-        // Strip all remaining HTML tags
-        text = Regex.Replace(text, @"<[^>]+>", "");
-
-        // Collapse &nbsp; remnants
-        text = text.Replace("\u00A0", " ");
-
-        // Trim each line and drop ALL blank lines.
-        // Drops the bare \r isolated by `<br />\r\n` patterns that survive Windows-line-ending splits,
-        // plus any other blank middle lines from legacy data.
-        var lines = text.Split('\n')
-            .Select(l => l.Trim())
-            .Where(l => l.Length > 0)
-            .ToList();
-
-        var result = string.Join("\n", lines);
-        return result.Length > 0 ? result : null;
-    }
-
-    /// <summary>
-    /// Converts newlines from textarea input to &lt;br&gt; for DB storage.
-    /// Returns null for empty/whitespace-only input.
-    /// </summary>
-    private static string? NewlineToBr(string? text)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return null;
-        return text.Trim().Replace("\r\n", "<br>").Replace("\n", "<br>");
-    }
+    private static string? NewlineToBr(string? text) => OverlayText.ToStoredHtml(text);
 
     private static JobConfigGeneralDto MapGeneral(Jobs job, bool isSuperUser) => new()
     {

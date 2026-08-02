@@ -28,3 +28,24 @@ export function decodeOverlayText(text?: string | null): string {
 
     return lines.join('<br>');
 }
+
+/**
+ * Plain text (newline-separated, as the API's OverlayText.ToPlainText returns and as the
+ * textareas hold it) -> the <br>-joined form used for [innerHTML] rendering.
+ *
+ * Escapes first: this renders author-typed text, and the stored form is markup. Without the
+ * escape, typing a tag into the banner headline would inject it into the preview.
+ */
+export function plainTextToHtml(text?: string | null): string {
+    if (!text) return '';
+
+    const escaped = text
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
+
+    return escaped.split('\n')
+        .map(l => l.trim())
+        .filter(l => l.length > 0)
+        .join('<br>');
+}

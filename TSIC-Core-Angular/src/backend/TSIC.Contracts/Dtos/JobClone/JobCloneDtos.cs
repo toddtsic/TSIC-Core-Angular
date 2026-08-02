@@ -56,7 +56,23 @@ public record JobCloneRequest
     /// </summary>
     public bool UpAgegroupNamesByOne { get; init; }
 
+    /// <summary>
+    /// Start the new job on the default plain banner: no overlay artwork, no overlay text,
+    /// parallaxSlideCount zeroed. Wins over the banner text below — if there is no custom
+    /// banner there is nothing for the wording to sit on.
+    /// </summary>
     public bool NoParallaxSlide1 { get; init; }
+
+    /// <summary>
+    /// Author's wording for the home-page banner headline / caption, as plain text with '\n'
+    /// line breaks (stored via OverlayText.ToStoredHtml, exactly as the Branding tab writes it).
+    ///
+    /// Null means "leave whatever the source gives", which after the year bump is the source's
+    /// text with its years advanced. The workbench seeds these ONCE from the first plan, so a
+    /// later toggle of the advance flag cannot silently overwrite wording the author typed.
+    /// </summary>
+    public string? BannerText1Target { get; init; }
+    public string? BannerText2Target { get; init; }
 
     // ── LADT scope ──
     // "none" = no League/Agegroup/Division (configure post-release)
@@ -192,10 +208,10 @@ public record ClonePlanDto
     public required bool SourceBEnableStore { get; init; }
 
     /// <summary>
-    /// What the new job's home-page banner will actually look like once the plan runs.
-    /// Null when the source has no JobDisplayOptions row. See ClonedBannerPreviewDto.
+    /// What the new job's banner and logo will actually look like once the plan runs.
+    /// Null when the source has no JobDisplayOptions row. See ClonedBrandingPreviewDto.
     /// </summary>
-    public ClonedBannerPreviewDto? BannerPreview { get; init; }
+    public ClonedBrandingPreviewDto? BrandingPreview { get; init; }
 
     // Communications defaults (source values — the workbench pre-fills its form fields).
     public string? RegFormFrom { get; init; }
@@ -277,18 +293,20 @@ public record DateShiftDto
 }
 
 /// <summary>
-/// The new job's home-page banner as it will stand the moment the clone lands — image
-/// filenames and overlay text AFTER the year-bump and plain-banner options are applied.
-/// The planner produces this by running the real reset rule, so it cannot drift from
-/// what executes.
+/// The new job's public-facing branding as it will stand the moment the clone lands — banner
+/// images, overlay wording and header logo AFTER the year-bump, author overrides and
+/// plain-banner options are applied. The planner produces this by running the real reset rule,
+/// so it cannot drift from what executes.
 ///
-/// Image values are raw filenames ({sourceJobId}_paralaxbackgroundimage.jpg and friends,
-/// per JobImageService's naming convention); the workbench resolves them through the same
-/// buildAssetUrl helper the public banner uses. Text values are raw as stored — legacy
-/// HTML-encoded or &lt;br&gt;-joined — and are decoded client-side by the shared overlay-text
-/// helper, exactly as the public banner does.
+/// Image values are raw filenames ({sourceJobId}_paralaxbackgroundimage.jpg and friends, per
+/// JobImageService's naming convention); the workbench resolves them through the same
+/// buildAssetUrl helper the public chrome uses. Note the source's job id in that name — until
+/// the new job re-uploads, it is pointing at the source job's file.
+///
+/// Text values are PLAIN text with '\n' breaks (OverlayText.ToPlainText), matching what the
+/// Branding tab puts in its textareas — the workbench both displays and edits them.
 /// </summary>
-public record ClonedBannerPreviewDto
+public record ClonedBrandingPreviewDto
 {
     /// <summary>parallaxSlideCount > 0 — the ONLY custom-banner switch the homesite reads.</summary>
     public required bool IsCustom { get; init; }
@@ -297,6 +315,12 @@ public record ClonedBannerPreviewDto
     public string? OverlayImage { get; init; }
     public string? Text1 { get; init; }
     public string? Text2 { get; init; }
+
+    /// <summary>
+    /// Header logo (JobDisplayOptions.logoHeader) — what the job chrome shows on every page,
+    /// not just the home page. Always carried by the clone; there is no option to drop it.
+    /// </summary>
+    public string? LogoImage { get; init; }
 }
 
 public record BulletinShiftDto

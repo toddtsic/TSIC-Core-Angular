@@ -2,11 +2,12 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type ClonedBannerPreviewDto = {
+export type ClonedBrandingPreviewDto = {
     isCustom: boolean;
     backgroundImage?: string | null;
     overlayImage?: string | null;
     text1?: string | null;
     text2?: string | null;
+    logoImage?: string | null;
 };
 

@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using TSIC.API.Services.Shared.Utilities;
 using TSIC.Contracts.Dtos.JobClone;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
@@ -419,7 +420,7 @@ public sealed class JobClonePlanner
             SourceEcheckProcessingFeePercent = sourceJob.EcprocessingFeePercent,
             SourceBEnableEcheck = sourceJob.BEnableEcheck,
             SourceBEnableStore = sourceJob.BEnableStore ?? false,
-            BannerPreview = BuildBannerPreview(displayOptions, req),
+            BrandingPreview = BuildBrandingPreview(displayOptions, req),
             RegFormFrom = sourceJob.RegFormFrom,
             RegFormCcs = sourceJob.RegFormCcs,
             RegFormBccs = sourceJob.RegFormBccs,
@@ -486,15 +487,18 @@ public sealed class JobClonePlanner
     }
 
     /// <summary>
-    /// What the cloned home-page banner will be. Runs the REAL reset rule against the source
-    /// row rather than re-deriving the option logic here — a second implementation would drift
-    /// from the executing one the first time either changes, and the whole point of showing
-    /// the banner is that the preview is trustworthy.
+    /// What the cloned banner and logo will be. Runs the REAL reset rule against the source row
+    /// rather than re-deriving the option logic here — a second implementation would drift from
+    /// the executing one the first time either changes, and the whole point of showing the
+    /// branding is that the preview is trustworthy.
     ///
     /// Safe to call outside a transaction: CloneDisplayOptions is pure, and CopyScalars hands
     /// back a detached copy — the source entity is never mutated.
+    ///
+    /// Text comes back as plain text because the workbench EDITS it: what it renders is what
+    /// sits in its textareas, and what those textareas hold is what comes back on the request.
     /// </summary>
-    private static ClonedBannerPreviewDto? BuildBannerPreview(
+    private static ClonedBrandingPreviewDto? BuildBrandingPreview(
         JobDisplayOptions? source, JobCloneRequest req)
     {
         if (source is null) return null;
@@ -502,13 +506,14 @@ public sealed class JobClonePlanner
         var cloned = JobCloneResetRules.CloneDisplayOptions(
             source, newJobId: Guid.Empty, req, userId: string.Empty, now: default);
 
-        return new ClonedBannerPreviewDto
+        return new ClonedBrandingPreviewDto
         {
             IsCustom = cloned.ParallaxSlideCount > 0,
             BackgroundImage = cloned.ParallaxBackgroundImage,
             OverlayImage = cloned.ParallaxSlide1Image,
-            Text1 = cloned.ParallaxSlide1Text1,
-            Text2 = cloned.ParallaxSlide1Text2,
+            Text1 = OverlayText.ToPlainText(cloned.ParallaxSlide1Text1),
+            Text2 = OverlayText.ToPlainText(cloned.ParallaxSlide1Text2),
+            LogoImage = cloned.LogoHeader,
         };
     }
 

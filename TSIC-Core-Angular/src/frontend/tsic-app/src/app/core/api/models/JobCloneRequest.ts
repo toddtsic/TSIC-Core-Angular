@@ -24,6 +24,8 @@ export type JobCloneRequest = {
     storeContactEmail?: string | null;
     upAgegroupNamesByOne?: boolean;
     noParallaxSlide1?: boolean;
+    bannerText1Target?: string | null;
+    bannerText2Target?: string | null;
     ladtScope?: string;
     copyDivisions?: boolean;
     enableEcheckChoice?: string;

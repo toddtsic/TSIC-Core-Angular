@@ -286,10 +286,10 @@
 						}
 					</p>
 
-					@if (bannerPreview(); as bp) {
+					@if (brandingPreview(); as bp) {
 						<figure class="jc-banner-preview">
 							<figcaption>
-								How the new home page will open
+								How the new site will open
 								@if (!planFresh()) { <em>— refreshing…</em> }
 							</figcaption>
 
@@ -300,8 +300,8 @@
 											<img class="jc-bp-overlay" [src]="bannerOverlayUrl()" alt="" />
 										}
 										<div class="jc-bp-text">
-											@if (bannerText1()) { <span class="jc-bp-t1" [innerHTML]="bannerText1()"></span> }
-											@if (bannerText2()) { <span class="jc-bp-t2" [innerHTML]="bannerText2()"></span> }
+											@if (bannerText1Html()) { <span class="jc-bp-t1" [innerHTML]="bannerText1Html()"></span> }
+											@if (bannerText2Html()) { <span class="jc-bp-t2" [innerHTML]="bannerText2Html()"></span> }
 										</div>
 									</div>
 								}
@@ -320,19 +320,67 @@
 							<p class="jc-hint jc-bp-note">
 								@switch (bannerMode()) {
 									@case ('hero') {
-										Carried from <strong>{{ source()?.jobName }}</strong>. Read the wording —
-										anything naming last season needs replacing under
-										<strong>Configure → Job → Branding</strong> before release.
+										Carried from <strong>{{ source()?.jobName }}</strong>. Edit the wording below —
+										the artwork itself is replaced under <strong>Configure → Job → Branding</strong>.
 									}
 									@case ('image') {
-										The overlay artwork carries over with no background photo behind it.
-										Check it for a season or date burned into the image.
+										The overlay artwork carries over with no background photo behind it, and a
+										banner in this shape shows no text. Check the image for a season or date
+										burned into it.
 									}
 									@default {
 										No images, no leftover text — just the job name.
 									}
 								}
 							</p>
+						</figure>
+
+						<!-- Wording is editable here because the banner is the one thing a released job
+						     shows before anyone clicks anything. Only the hero layout paints text. -->
+						@if (bannerMode() === 'hero') {
+							<div class="jc-banner-fields">
+								<label class="field-label" for="jcBannerText1">Headline</label>
+								<textarea id="jcBannerText1" rows="2" class="field-input"
+									placeholder="No headline"
+									[ngModel]="bannerText1Target()"
+									(ngModelChange)="set(bannerText1Target, $event)"></textarea>
+
+								<label class="field-label" for="jcBannerText2">Caption</label>
+								<textarea id="jcBannerText2" rows="2" class="field-input"
+									placeholder="No caption"
+									[ngModel]="bannerText2Target()"
+									(ngModelChange)="set(bannerText2Target, $event)"></textarea>
+
+								<p class="jc-hint">
+									Line breaks are kept. Once you edit either box your wording stands as typed —
+									turning the season roll-forward on or off afterwards will not rewrite it.
+								</p>
+							</div>
+						}
+
+						<!-- The logo rides on every page, not just the home page, and no option drops it.
+						     Cross-customer it is the loudest wrong-brand artifact on the new site. -->
+						<figure class="jc-logo-preview">
+							<figcaption>Header logo</figcaption>
+							@if (logoUrl()) {
+								<div class="jc-lp-frame">
+									<img [src]="logoUrl()" alt="Header logo carried from the source job" />
+								</div>
+								<p class="jc-hint jc-bp-note">
+									Carried from <strong>{{ source()?.jobName }}</strong> and shown in the header of
+									every page.
+									@if (plan()?.isCrossCustomer) {
+										<strong>This is the previous customer's logo</strong> — replace it under
+										Configure → Job → Branding before the site goes public.
+									} @else {
+										Replace it under Configure → Job → Branding if it carries a season or date.
+									}
+								</p>
+							} @else {
+								<p class="jc-hint jc-bp-note">
+									The source job has no header logo, so the new job starts without one.
+								</p>
+							}
 						</figure>
 					}
 				</div>
