@@ -112,6 +112,8 @@ export class JobCloneWorkbenchComponent implements OnInit {
 
 	// ── Scope & options ──
 	readonly ladtScope = signal<'none' | 'lad' | 'ladt'>('lad');
+	/** false = clone the shape but not last year's pools (every agegroup still gets Unassigned). */
+	readonly copyDivisions = signal(true);
 	readonly upAgegroupNamesByOne = signal(true);
 	readonly noParallaxSlide1 = signal(false);
 	readonly enableEcheckChoice = signal<'off' | 'source'>('off');
@@ -431,6 +433,7 @@ export class JobCloneWorkbenchComponent implements OnInit {
 			upAgegroupNamesByOne: this.upAgegroupNamesByOne(),
 			noParallaxSlide1: this.noParallaxSlide1(),
 			ladtScope: this.ladtScope(),
+			copyDivisions: this.copyDivisions(),
 			enableEcheckChoice: this.enableEcheckChoice(),
 			storeChoice: this.storeChoice(),
 			planFingerprint,

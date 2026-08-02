@@ -147,6 +147,25 @@
 					</div>
 				</div>
 
+				@if (ladtScope() !== 'none') {
+					<div class="jc-option-group">
+						<span class="jc-option-label">Divisions (pools)</span>
+						<div class="field-check-row">
+							<label class="field-check">
+								<input type="radio" name="copyDivisions" [value]="true" [ngModel]="copyDivisions()" (ngModelChange)="set(copyDivisions, $event)" />
+								<span>Copy source pools</span>
+							</label>
+							<label class="field-check">
+								<input type="radio" name="copyDivisions" [value]="false" [ngModel]="copyDivisions()" (ngModelChange)="set(copyDivisions, $event)" />
+								<span>Fresh — one Unassigned pool per agegroup</span>
+							</label>
+						</div>
+						<p class="jc-hint">
+							Every agegroup gets an Unassigned pool either way; cloned teams land there when pools are fresh.
+						</p>
+					</div>
+				}
+
 				<div class="jc-option-group">
 					<span class="jc-option-label">eCheck</span>
 					<div class="field-check-row">

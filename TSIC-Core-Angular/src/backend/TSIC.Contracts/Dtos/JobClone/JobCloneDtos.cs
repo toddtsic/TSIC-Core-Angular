@@ -64,6 +64,18 @@ public record JobCloneRequest
     // "ladt" = "lad" + clone Teams (structure teams only — see planner eligibility rule)
     public string LadtScope { get; init; } = "lad";
 
+    /// <summary>
+    /// Carry the source's divisions (pools) or start fresh. Mirrors
+    /// <c>CloneAgegroupRequest.CopyDivisions</c> on the LADT agegroup clone, default and all.
+    ///
+    /// false = "clone the shape, not last year's pools": no pools carry and every cloned agegroup
+    /// gets the single Unassigned holding division. Cloned structure teams land in it.
+    ///
+    /// Either way every cloned agegroup ends with an Unassigned division — that invariant is not
+    /// optional (see JobCloneResetRules.CloneDivisions).
+    /// </summary>
+    public bool CopyDivisions { get; init; } = true;
+
     // ── eCheck enable flag ──
     // "off"    = BEnableEcheck=false on new job (recommended; admin re-opts in)
     // "source" = copy source.BEnableEcheck

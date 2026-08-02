@@ -25,6 +25,7 @@ export type JobCloneRequest = {
     upAgegroupNamesByOne?: boolean;
     noParallaxSlide1?: boolean;
     ladtScope?: string;
+    copyDivisions?: boolean;
     enableEcheckChoice?: string;
     storeChoice?: string;
     planFingerprint?: string | null;

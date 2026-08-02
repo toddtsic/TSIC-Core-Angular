@@ -568,23 +568,89 @@ public static class JobCloneResetRules
     // Divisions
     // ══════════════════════════════════════════════════════════
 
+    /// <summary>
+    /// Divisions for the cloned agegroups, in the same two modes the LADT agegroup-clone uses
+    /// (<c>CloneAgegroupRequest.CopyDivisions</c>, LadtService):
+    ///
+    ///   copyDivisions = true  → carry the source's pools (Gold/Silver/Pool A…) verbatim.
+    ///   copyDivisions = false → "clone the shape, not last year's pools": no pools carry, and
+    ///                           every cloned agegroup gets the single Unassigned holding division.
+    ///
+    /// INVARIANT either way: every cloned agegroup ends with an Unassigned division. That is the
+    /// system-wide rule (DivisionConstants.Unassigned — "the holding division every agegroup must
+    /// have", auto-created by CreateAgegroupAsync and by team placement), and job clone previously
+    /// broke it whenever a source agegroup had no Unassigned row of its own.
+    ///
+    /// In fresh-pool mode EVERY source division of an agegroup maps to that agegroup's new
+    /// Unassigned row, so cloned structure teams land in the holding pool rather than dangling on
+    /// a division that no longer exists (teams.divID is non-null on all 51,050 rows).
+    /// </summary>
+    /// <param name="newAgegroupIdsInScope">
+    /// The NEW agegroup ids this call is responsible for — the current league's, not every
+    /// agegroup mapped so far. The executor calls this once per league against a shared
+    /// agegroupIdMap, so seeding from the whole map would re-mint earlier leagues' holding rows.
+    /// </param>
     public static List<Divisions> CloneDivisions(
         List<Divisions> sources, IReadOnlyDictionary<Guid, Guid> agegroupIdMap,
-        Dictionary<Guid, Guid> divisionIdMap, string userId, DateTime now)
+        IEnumerable<Guid> newAgegroupIdsInScope,
+        Dictionary<Guid, Guid> divisionIdMap, bool copyDivisions, string userId, DateTime now)
     {
-        return sources
-            .Where(d => agegroupIdMap.ContainsKey(d.AgegroupId))
-            .Select(src =>
+        var cloned = new List<Divisions>();
+        var eligible = sources.Where(d => agegroupIdMap.ContainsKey(d.AgegroupId)).ToList();
+
+        // New-agegroup id → its Unassigned row, minted on demand below.
+        var unassignedByNewAgegroup = new Dictionary<Guid, Guid>();
+
+        Guid UnassignedFor(Guid newAgegroupId)
+        {
+            if (unassignedByNewAgegroup.TryGetValue(newAgegroupId, out var existing)) return existing;
+            var newId = Guid.NewGuid();
+            cloned.Add(new Divisions
             {
+                DivId = newId,
+                AgegroupId = newAgegroupId,
+                DivName = DivisionConstants.Unassigned,
+                LebUserId = userId,
+                Modified = now,
+            });
+            unassignedByNewAgegroup[newAgegroupId] = newId;
+            return newId;
+        }
+
+        if (copyDivisions)
+        {
+            foreach (var src in eligible)
+            {
+                var newAgegroupId = agegroupIdMap[src.AgegroupId];
+                if (string.Equals(src.DivName, DivisionConstants.Unassigned, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Route the source's own Unassigned through the same mint so an agegroup
+                    // never ends up with two of them.
+                    divisionIdMap[src.DivId] = UnassignedFor(newAgegroupId);
+                    continue;
+                }
+
                 var d = JobCloneEntityCopier.CopyScalars(src);
                 var newId = Guid.NewGuid();
                 divisionIdMap[src.DivId] = newId;
                 d.DivId = newId;
-                d.AgegroupId = agegroupIdMap[src.AgegroupId];
+                d.AgegroupId = newAgegroupId;
                 d.Modified = now;
                 d.LebUserId = userId;
-                return d;
-            }).ToList();
+                cloned.Add(d);
+            }
+        }
+        else
+        {
+            foreach (var src in eligible)
+                divisionIdMap[src.DivId] = UnassignedFor(agegroupIdMap[src.AgegroupId]);
+        }
+
+        // Agegroups whose source had no divisions at all still need the holding row.
+        foreach (var newAgegroupId in newAgegroupIdsInScope)
+            UnassignedFor(newAgegroupId);
+
+        return cloned;
     }
 
     // ══════════════════════════════════════════════════════════

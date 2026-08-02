@@ -280,6 +280,18 @@ public sealed class JobClonePlanner
         var adminsPreserved = adminRegs.Count - adminsToDeactivate;
         var plannedAdminRegs = adminRegs.Count + (actorHasSourceReg ? 0 : 1);
 
+        // ── Divisions: mirrors JobCloneResetRules.CloneDivisions exactly (one Unassigned per
+        //    cloned agegroup, always; the source's named pools only when CopyDivisions) ──
+        var clonedAgegroupCount = leagueUnits.Sum(u => u.Agegroups.Count);
+        var namedPools = req.CopyDivisions
+            ? leagueUnits.SelectMany(u => u.Divisions)
+                .Count(d => !string.Equals(d.DivName, DivisionConstants.Unassigned, StringComparison.OrdinalIgnoreCase))
+            : 0;
+        var plannedDivisions = clonedAgegroupCount + namedPools;
+        var divisionsNote = req.CopyDivisions
+            ? $"{namedPools} source pool(s) + 1 Unassigned per agegroup"
+            : $"fresh pools — 1 Unassigned per agegroup, {leagueUnits.Sum(u => u.Divisions.Count)} source division(s) dropped";
+
         // ── Steps in manifest order (Count = rows the executor will create) ──
         var menuItemCount = menus.Sum(m => m.JobMenuItems.Count);
         var navItemCount = navs.Sum(n => n.NavItem.Count);
@@ -304,7 +316,8 @@ public sealed class JobClonePlanner
             new() { StepKey = JobCloneStepOrder.Leagues, Count = leagueUnits.Count },
             new() { StepKey = JobCloneStepOrder.JobLeagues, Count = leagueUnits.Count },
             new() { StepKey = JobCloneStepOrder.Agegroups, Count = leagueUnits.Sum(u => u.Agegroups.Count) },
-            new() { StepKey = JobCloneStepOrder.Divisions, Count = leagueUnits.Sum(u => u.Divisions.Count) },
+            new() { StepKey = JobCloneStepOrder.Divisions, Count = plannedDivisions,
+                    Notes = divisionsNote },
             new() { StepKey = JobCloneStepOrder.Teams, Count = plannedTeams,
                     Notes = BuildTeamsNote(teamsScope, eligibleTeams.Count, excludedCompeting,
                                            excludedBucket, excludedInactive, excludedUnmapped) },

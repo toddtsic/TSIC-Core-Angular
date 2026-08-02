@@ -689,7 +689,8 @@ public class JobCloneServiceTests
 
         StepCount(resp, JobCloneStepOrder.Leagues).Should().Be(1);
         StepCount(resp, JobCloneStepOrder.Agegroups).Should().Be(1);
-        StepCount(resp, JobCloneStepOrder.Divisions).Should().Be(1);
+        // Source pool "A" + the Unassigned holding division every cloned agegroup now gets.
+        StepCount(resp, JobCloneStepOrder.Divisions).Should().Be(2);
         StepCount(resp, JobCloneStepOrder.Teams).Should().Be(0);
 
         var newTeams = await ctx.Teams.AsNoTracking()

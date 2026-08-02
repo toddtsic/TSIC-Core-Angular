@@ -214,8 +214,13 @@ public sealed class JobCloneService : IJobCloneService
             jobLeagues.Add(JobCloneResetRules.CloneJobLeague(unit.JobLeague, newJobId, newLeagueId, userId, now));
             agegroups.AddRange(JobCloneResetRules.CloneAgegroups(
                 unit.Agegroups, newLeagueId, req, userId, now, agegroupIdMap));
+            var newAgegroupIds = unit.Agegroups
+                .Where(a => agegroupIdMap.ContainsKey(a.AgegroupId))
+                .Select(a => agegroupIdMap[a.AgegroupId])
+                .ToList();
             divisions.AddRange(JobCloneResetRules.CloneDivisions(
-                unit.Divisions, agegroupIdMap, divisionIdMap, userId, now));
+                unit.Divisions, agegroupIdMap, newAgegroupIds, divisionIdMap,
+                req.CopyDivisions, userId, now));
         }
 
         List<TSIC.Domain.Entities.Teams> teams = ctx.TeamsScope
