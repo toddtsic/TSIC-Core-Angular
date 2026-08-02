@@ -67,10 +67,13 @@ export const AGEGROUP_COLUMNS: LadtColumnDef[] = [
   { field: 'maxTeams', header: 'Max Teams', type: 'number', group: 'Limits', width: '95px' },
   // AM-038 re-open (Ann, 08-01): header needs the ⓘ gloss — "3rd Party" alone
   // meant nothing. 100px = "PARTY" + ⓘ on the wrapped line + the 38px chrome
-  // (70px ellipsized at "3RD PA…"). Tooltip copy is placeholder — Todd to refine.
+  // (70px ellipsized at "3RD PA…"). Copy (Todd, 08-02): the flag opts the age
+  // group into the Third-Party Roster Export library report — NOT live API
+  // access (the free SportsRecruits feed is retired; clients hand data to third
+  // parties themselves, at their own risk). Field name keeps the legacy "Api".
   {
     field: 'bAllowApiRosterAccess', header: '3rd Party', type: 'boolean', width: '100px',
-    headerTooltip: 'API roster access is enabled for this age group — approved third-party platforms may read its rosters.',
+    headerTooltip: 'Includes this age group in the Third-Party Roster Export (Report Library). TSIC no longer sends player data to third parties — you run the export and share it directly, at your discretion.',
   },
 ];
 
