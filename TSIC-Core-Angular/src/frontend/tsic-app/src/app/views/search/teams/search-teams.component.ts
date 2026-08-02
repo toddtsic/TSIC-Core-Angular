@@ -173,7 +173,13 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 	});
 
 	// Grid configuration
-	pageSettings: PageSettingsModel = { pageSize: 20, pageSizes: [20, 50, 100, 'All'] };
+	// AM-067 (Ann 08-02, Todd go): default 20 made Directors re-set the page size on every
+	// lookup. Matches Search/Registrations' 100 default; the sub-100 options are dropped so
+	// the list starts at the default there too. Unlike Registrations this grid is CLIENT-side
+	// paged (bound to the in-memory result array, no dataStateChange), so page size costs DOM
+	// rendering only — never a fetch — which is why 'All' is safe here and was WON'T DO on
+	// Registrations (AM-026: 10.6K server-paged rows vs ~748 teams on the largest job).
+	pageSettings: PageSettingsModel = { pageSize: 100, pageSizes: [100, 500, 'All'] };
 	sortSettings: SortSettingsModel = { columns: [] };
 
 	// Syncfusion MultiSelect fields
