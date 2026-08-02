@@ -97,9 +97,14 @@ public sealed class JobClonePlanner
                     "Target customer has NO Authorize.Net credentials on file — card payments on this "
                     + "job will fail until they are set. Fix before opening registration.");
 
+            // Points at the branding preview rather than listing tables: the author can SEE the
+            // banner and logo they are about to inherit, so naming entities here would be both
+            // jargon and a worse description than the picture. Image files are named for the
+            // SOURCE job, so until re-upload this job literally serves the old owner's artwork.
             warnings.Add(
-                "Branding is inherited from the source: header/footer logos, parallax and block images "
-                + "(JobDisplayOptions) plus the carousel (JobOwlImages) all copy. Replace them before release.");
+                "The banner and header logo shown below carry over from the source job — this new "
+                + "owner's site will open with the previous customer's artwork on every page until "
+                + "you replace it under Configure → Job → Branding.");
 
             warnings.Add(
                 "Billing type is inherited from the source job — confirm it matches the new customer's agreement.");
