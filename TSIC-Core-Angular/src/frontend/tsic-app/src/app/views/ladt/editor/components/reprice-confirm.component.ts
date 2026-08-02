@@ -13,7 +13,8 @@ export interface RepriceDialog {
  *
  * Semantics mirror the former modal:
  *  - Amount/modifier change → Update all (retroactive) | Future only | Keep editing (abort).
- *  - Phase flip            → Convert (always retroactive) | Cancel (reverts the toggle).
+ *  - Phase flip            → Save (always retroactive) | Cancel (reverts the toggle).
+ *    The `convert` output keeps its name; only the button's label reads "Save" (AM-069).
  * The parent owns the behaviour; this is presentation + intent only.
  */
 @Component({
@@ -27,16 +28,18 @@ export interface RepriceDialog {
         <div class="reprice-confirm-msg" [innerHTML]="dialog().message"></div>
       </div>
       @if (dialog().isPhase) {
-        <!-- PL-062 (Ann): after flipping the phase it wasn't obvious Convert is REQUIRED —
-             the flip applies to existing registrations only when Convert is clicked. -->
+        <!-- PL-062 (Ann): after flipping the phase it wasn't obvious the action button is
+             REQUIRED — the flip applies to existing registrations only when it is clicked.
+             AM-069 (Ann, Todd go 08-02): that button is labelled "Save", not "Convert" —
+             Save is the word that reads as "you're done". -->
         <div class="tsic-callout tsic-callout--info tsic-callout--block">
           <i class="bi bi-info-circle" aria-hidden="true"></i>
-          <span>Click <strong>Convert</strong> to apply this phase to existing registrations — Cancel reverts the change.</span>
+          <span>Click <strong>Save</strong> to apply this phase to existing registrations — Cancel reverts the change.</span>
         </div>
       }
       <div class="reprice-confirm-actions">
         @if (dialog().isPhase) {
-          <button type="button" class="btn btn-sm btn-warning" autofocus (click)="convert.emit()">Convert</button>
+          <button type="button" class="btn btn-sm btn-warning" autofocus (click)="convert.emit()">Save</button>
           <button type="button" class="btn btn-sm btn-outline-secondary" (click)="secondary.emit()">Cancel</button>
         } @else {
           <!-- "Update all" is the default: a fee change is normally meant to reach existing
