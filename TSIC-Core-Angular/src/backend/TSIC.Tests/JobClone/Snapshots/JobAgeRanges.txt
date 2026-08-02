@@ -1,0 +1,7 @@
+AgeRangeId
+JobId
+LebUserId
+Modified
+RangeLeft
+RangeName
+RangeRight

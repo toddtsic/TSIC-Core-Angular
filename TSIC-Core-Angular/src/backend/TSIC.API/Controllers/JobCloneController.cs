@@ -8,7 +8,8 @@ using TSIC.Contracts.Services;
 namespace TSIC.API.Controllers;
 
 /// <summary>
-/// SuperUser-only endpoint for cloning a job (tournament/event) to create a new season.
+/// SuperUser-only endpoint for cloning a job (tournament/event) to create a new season,
+/// plus the verify-then-release flow on the cloned job.
 /// </summary>
 [ApiController]
 [Route("api/job-clone")]
@@ -36,6 +37,8 @@ public class JobCloneController : ControllerBase
 
     /// <summary>
     /// Clone a source job into a new job with the given parameters.
+    /// Returns 409 with the FRESH plan when the data-moved guard trips (source data
+    /// changed between preview and submit).
     /// </summary>
     [HttpPost]
     public async Task<ActionResult<JobCloneResponse>> CloneJob(
@@ -49,13 +52,18 @@ public class JobCloneController : ControllerBase
         {
             // authorCustomerId=null → skip same-customer guard (current endpoint is SuperUser-only
             // and target always inherits source.CustomerId, so cross-customer is impossible by construction).
-            // Phase D will pass the author's customerId when non-SuperUser roles can hit this endpoint.
             var result = await _cloneService.CloneJobAsync(request, superUserId, authorCustomerId: null, ct);
-            return CreatedAtAction(nameof(GetSources), null, result);
+            // Location: the release page's data source for the freshly-cloned job.
+            return CreatedAtAction(nameof(GetVerifyChecklist), new { jobId = result.NewJobId }, result);
         }
         catch (KeyNotFoundException ex)
         {
             return NotFound(new { message = ex.Message });
+        }
+        catch (ClonePlanChangedException ex)
+        {
+            // Data-moved guard: body carries the fresh plan so the workbench re-renders it.
+            return Conflict(new { message = ex.Message, freshPlan = ex.FreshPlan });
         }
         catch (InvalidOperationException ex)
         {
@@ -72,18 +80,20 @@ public class JobCloneController : ControllerBase
     }
 
     /// <summary>
-    /// Preview the transforms a clone will perform — year-delta shifts, name inference,
-    /// admin deactivation counts — without committing. Used by the wizard's preview pane.
+    /// Build the clone plan (no writes) — per-step counts, warnings, eligibility breakdown,
+    /// fingerprint. The workbench's live plan pane refetches this on debounced input change.
     /// </summary>
     [HttpPost("preview")]
-    public async Task<ActionResult<JobClonePreviewResponse>> PreviewClone(
+    public async Task<ActionResult<ClonePlanDto>> PreviewClone(
         [FromBody] JobCloneRequest request,
         CancellationToken ct)
     {
+        var actorUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? throw new UnauthorizedAccessException("User ID not found in token.");
+
         try
         {
-            // SuperUser-only → skip same-customer guard. Phase D passes the author's customerId.
-            var result = await _cloneService.PreviewCloneAsync(request, authorCustomerId: null, ct);
+            var result = await _cloneService.PreviewCloneAsync(request, actorUserId, authorCustomerId: null, ct);
             return Ok(result);
         }
         catch (KeyNotFoundException ex)
@@ -93,6 +103,11 @@ public class JobCloneController : ControllerBase
         catch (UnauthorizedAccessException ex)
         {
             return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            // Same input → same status as submit (bad choice strings are 400 here too).
+            return BadRequest(new { message = ex.Message });
         }
     }
 
@@ -110,9 +125,8 @@ public class JobCloneController : ControllerBase
 
         try
         {
-            // SuperUser-only endpoint → no same-customer guard. Phase D opens up to in-customer admins.
             var result = await _cloneService.CreateBlankJobAsync(request, authorUserId, authorCustomerId: null, ct);
-            return CreatedAtAction(nameof(GetSources), null, result);
+            return CreatedAtAction(nameof(GetVerifyChecklist), new { jobId = result.NewJobId }, result);
         }
         catch (InvalidOperationException ex)
         {
@@ -129,8 +143,8 @@ public class JobCloneController : ControllerBase
     }
 
     /// <summary>
-    /// Step 2→3 uniqueness check — flags whether the proposed jobPath and/or jobName
-    /// already exist on another job. Returns { pathExists, nameExists }.
+    /// Inline identity uniqueness check — flags whether the proposed jobPath and/or
+    /// jobName already exist on another job. Returns { pathExists, nameExists }.
     /// </summary>
     [HttpGet("identity-exists")]
     public async Task<ActionResult<IdentityExistsResponse>> IdentityExists(
@@ -150,7 +164,6 @@ public class JobCloneController : ControllerBase
     [HttpGet("suspended")]
     public async Task<ActionResult<List<SuspendedJobDto>>> GetSuspended(CancellationToken ct)
     {
-        // SuperUser-only endpoint → null customerId returns all suspended jobs. Phase D filters.
         var result = await _cloneService.GetSuspendedJobsAsync(authorCustomerId: null, ct);
         return Ok(result);
     }
@@ -168,7 +181,26 @@ public class JobCloneController : ControllerBase
     }
 
     /// <summary>
-    /// Flip Jobs.BSuspendPublic = false (release site to public).
+    /// Verify-then-release checklist (release panel 1): the cloned job's live settings
+    /// grouped by section, ordered by job-type relevance, with configure deep-links.
+    /// </summary>
+    [HttpGet("{jobId:guid}/verify")]
+    public async Task<ActionResult<JobVerifyChecklistDto>> GetVerifyChecklist(
+        Guid jobId, CancellationToken ct)
+    {
+        try
+        {
+            var result = await _cloneService.GetVerifyChecklistAsync(jobId, ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Flip Jobs.BSuspendPublic = false (release site to public). Release panel 2.
     /// </summary>
     [HttpPost("{jobId:guid}/release-site")]
     public async Task<ActionResult<ReleaseResponse>> ReleaseSite(
@@ -194,6 +226,7 @@ public class JobCloneController : ControllerBase
 
     /// <summary>
     /// Activate a set of admin registrations on a suspended job (flip BActive = true).
+    /// Release panel 3.
     /// </summary>
     [HttpPost("{jobId:guid}/release-admins")]
     public async Task<ActionResult<ReleaseResponse>> ReleaseAdmins(
@@ -220,6 +253,35 @@ public class JobCloneController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Open registration for the chosen personas (release panel 4). All five
+    /// BRegistrationAllow* flags start FALSE on every clone; this flips the chosen ones ON.
+    /// </summary>
+    [HttpPost("{jobId:guid}/open-registration")]
+    public async Task<ActionResult<RegistrationFlagsDto>> OpenRegistration(
+        Guid jobId,
+        [FromBody] OpenRegistrationRequest request,
+        CancellationToken ct)
+    {
+        var actorUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? throw new UnauthorizedAccessException("User ID not found in token.");
+
+        try
+        {
+            var result = await _cloneService.OpenRegistrationAsync(
+                jobId, request, actorUserId, authorCustomerId: null, ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+        }
+    }
+
     // ── Sandbox undo (cascade delete a freshly-cloned job) ──
     // Gated by IsSandbox() (Development + Staging) on top of SuperUserOnly. In prod, both
     // endpoints 404 so a cascade delete is never reachable there.
@@ -227,7 +289,7 @@ public class JobCloneController : ControllerBase
     /// <summary>
     /// Sandbox only: returns whether a freshly-cloned job can be cascade-deleted, with row counts
     /// for the confirm modal. CanUndo=true requires only admin Registrations, zero
-    /// RegistrationAccounting, and zero rows in any ancillary FK table.
+    /// RegistrationAccounting, and zero rows in any ancillary job-scoped table.
     /// </summary>
     [HttpGet("{jobId:guid}/dev-undo-status")]
     public async Task<ActionResult<DevUndoStatusResponse>> GetDevUndoStatus(

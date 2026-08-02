@@ -13,5 +13,6 @@ export type DevUndoCounts = {
     agegroups: number;
     divisions: number;
     ancillaryRows: number;
+    ancillaryBreakdown?: Array<string>;
 };
 

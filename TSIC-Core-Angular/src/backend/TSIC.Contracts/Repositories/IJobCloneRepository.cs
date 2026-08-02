@@ -4,14 +4,18 @@ using TSIC.Domain.Entities;
 namespace TSIC.Contracts.Repositories;
 
 /// <summary>
-/// Source-team projection used for LADT scope. Carries the full Teams entity plus the joined
-/// AgegroupName (status tokens like WAITLIST/DROPPED live encoded in this string) so the
-/// service can apply both the paid filter and the status filter without a second query.
+/// Source-team projection used for LADT scope. Carries the full Teams entity plus the
+/// joined AgegroupName (status tokens like WAITLIST/Dropped live encoded in this string)
+/// and the owning club rep's ClubName — the structure-vs-competing eligibility signal:
+/// an owned team whose owner's club_name is EMPTY is a director-created house team
+/// (structure) and clones; an owned team with a real club name is a competing team and
+/// never clones.
 /// </summary>
 public record TeamCloneSource
 {
     public required Teams Team { get; init; }
     public required string? AgegroupName { get; init; }
+    public required string? OwnerClubName { get; init; }
 }
 
 public interface IJobCloneRepository
@@ -31,17 +35,23 @@ public interface IJobCloneRepository
     /// </summary>
     Task<List<Nav>> GetSourceNavWithItemsAsync(Guid jobId, CancellationToken ct = default);
     Task<List<Registrations>> GetSourceAdminRegistrationsAsync(Guid jobId, CancellationToken ct = default);
-    Task<Leagues?> GetSourceLeagueAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// ALL JobLeagues rows for the job with League eager-loaded, primary first (T3 —
+    /// every league clones; nothing is silently dropped).
+    /// </summary>
+    Task<List<JobLeagues>> GetSourceJobLeaguesAsync(Guid jobId, CancellationToken ct = default);
     Task<List<Agegroups>> GetSourceAgegroupsAsync(Guid leagueId, string? season, CancellationToken ct = default);
     Task<List<Divisions>> GetSourceDivisionsAsync(List<Guid> agegroupIds, CancellationToken ct = default);
 
     /// <summary>
-    /// Source teams classified for LADT cloning. Each row carries the team + its agegroup name
-    /// (so the service can apply the WAITLIST/DROPPED filter without a second query) and a flag
-    /// indicating whether the team is "ClubRep-paid" (Teams.ClubrepRegistrationid IS NOT NULL).
-    /// Caller filters out paid + waitlist/dropped before cloning.
+    /// Source teams with the classification signals (agegroup name + owner's club name)
+    /// joined in. Eligibility itself is decided by JobClonePlanner.
     /// </summary>
     Task<List<TeamCloneSource>> GetSourceTeamsAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>Display name of a job type (verify checklist header).</summary>
+    Task<string?> GetJobTypeNameAsync(int jobTypeId, CancellationToken ct = default);
 
     // ── Validation ──
     Task<bool> JobPathExistsAsync(string jobPath, CancellationToken ct = default);
@@ -79,7 +89,7 @@ public interface IJobCloneRepository
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 
     // ── Release ops ──
-    /// <summary>Returns the tracked Jobs entity for mutation (release-site toggle).</summary>
+    /// <summary>Returns the tracked Jobs entity for mutation (release toggles + open-registration).</summary>
     Task<Jobs?> GetJobForUpdateAsync(Guid jobId, CancellationToken ct = default);
 
     /// <summary>Returns tracked Registrations for the given job + regIds (for activation).</summary>
@@ -87,7 +97,7 @@ public interface IJobCloneRepository
 
     /// <summary>
     /// Returns admin registrations for a job with person info joined.
-    /// Used by the Release screen's activation panel.
+    /// Used by the Release screen's activation panel and the verify checklist.
     /// </summary>
     Task<List<ReleasableAdminDto>> GetReleasableAdminsAsync(Guid jobId, CancellationToken ct = default);
 
@@ -99,29 +109,29 @@ public interface IJobCloneRepository
     // ── Dev-only undo (cascade delete a freshly-cloned job) ──
 
     /// <summary>
-    /// Counts rows across every table that references the given Job. Used by the dev-undo
-    /// flow to gate the delete (all "user-touched" indicators must be 0) and to populate
-    /// the confirm modal with row-by-table breakdown.
+    /// Counts rows across every table that references the given Job. The ancillary sum is
+    /// generated from an EF-model walk (every entity with a JobId property that is NOT
+    /// part of the clone manifest) — a new job-scoped table is counted automatically, so
+    /// dev-undo can never delete through a table it doesn't know about.
     /// </summary>
     Task<DevUndoCounts> GetDevUndoCountsAsync(Guid jobId, CancellationToken ct = default);
 
     /// <summary>
-    /// Returns true if the cloned league is referenced by ONLY this job's JobLeagues row
-    /// — guards against a future change that might link an existing Leagues to multiple
-    /// jobs. If false, the dev-undo skips deleting the Leagues row.
+    /// Returns true if the cloned league is referenced by ONLY this job's JobLeagues row.
+    /// If false, the dev-undo skips deleting that Leagues row.
     /// </summary>
     Task<bool> IsLeagueExclusivelyOwnedByJobAsync(Guid jobId, Guid leagueId, CancellationToken ct = default);
 
     /// <summary>
-    /// Loads the JobLeagues row for the job (single primary, if any) so the service can
-    /// resolve the cloned LeagueId for cleanup.
+    /// Loads ALL JobLeagues rows for the job (tracked) so the service can resolve every
+    /// cloned LeagueId for cleanup (T3 multi-league).
     /// </summary>
-    Task<JobLeagues?> GetJobLeagueForJobAsync(Guid jobId, CancellationToken ct = default);
+    Task<List<JobLeagues>> GetJobLeaguesForJobAsync(Guid jobId, CancellationToken ct = default);
 
     /// <summary>
-    /// Cascade-deletes a Jobs row + every entity created during clone. Safety predicates
-    /// MUST be checked by the service inside the same transaction before this is called;
-    /// this method assumes deletion is authorized.
+    /// Cascade-deletes a Jobs row + every entity created during clone, iterating the
+    /// JobCloneStepOrder manifest in REVERSE. Safety predicates MUST be checked by the
+    /// service inside the same transaction before this is called.
     /// </summary>
-    Task CascadeDeleteJobAsync(Guid jobId, Guid? clonedLeagueId, CancellationToken ct = default);
+    Task CascadeDeleteJobAsync(Guid jobId, IReadOnlyList<Guid> clonedLeagueIds, CancellationToken ct = default);
 }

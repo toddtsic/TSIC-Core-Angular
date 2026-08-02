@@ -1,0 +1,13 @@
+Action
+Active
+Controller
+GroupLabel
+IconName
+JobId
+JobReportId
+Kind
+LebUserId
+Modified
+RoleId
+SortOrder
+Title

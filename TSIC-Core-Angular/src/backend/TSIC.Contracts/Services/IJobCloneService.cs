@@ -5,22 +5,18 @@ namespace TSIC.Contracts.Services;
 public interface IJobCloneService
 {
     /// <summary>
-    /// Clone a source job into a new job with the given parameters.
-    /// Clones: Job, DisplayOptions, OwlImages, Bulletins, AgeRanges,
-    /// Menus (with items), Admin Registrations, League, Agegroups, Divisions, Fees.
+    /// Clone a source job into a new job. COPY-EVERYTHING philosophy: every scalar field
+    /// of every cloned table copies mechanically; exceptions live in the versioned reset
+    /// rules (JobCloneResetRules). The clone re-plans INSIDE its transaction; when the
+    /// request carries a PlanFingerprint and source data moved since preview, it throws
+    /// ClonePlanChangedException carrying the fresh plan (controller → 409).
     ///
-    /// Safe-by-default state on every clone:
-    ///   BSuspendPublic=true; Director+SuperDirector regs BActive=false (Superuser unchanged);
-    ///   BClubRepAllowEdit/Delete/Add=true; ProcessingFeePercent reset to current minimum.
+    /// Safe-by-default on every clone: BSuspendPublic=true; all five BRegistrationAllow*
+    /// false; mobile/schedule/roster exposure off; Director+SuperDirector regs inactive;
+    /// processing rates floored at the current new-job rate; bulletins inactive.
     ///
-    /// Date-sensitive fields shift by year-delta (Bulletins, FeeModifier windows,
-    /// Agegroup DOB + discount/late-fee windows when UpAgegroupNamesByOne is true,
-    /// Jobs EventStart/End, AdnArbstartDate).
-    ///
-    /// authorCustomerId (optional): when supplied, enforces same-customer guard
-    /// (source.CustomerId must equal authorCustomerId or the call throws).
-    /// Null skips the guard (today's SuperUser-only controller passes null — target
-    /// always inherits source.CustomerId so cross-customer attempts are impossible).
+    /// authorCustomerId (optional): same-customer guard; null skips (SuperUser-only
+    /// controller — target always inherits source.CustomerId).
     /// </summary>
     Task<JobCloneResponse> CloneJobAsync(
         JobCloneRequest request,
@@ -35,12 +31,7 @@ public interface IJobCloneService
 
     /// <summary>
     /// Create a new empty job (no source) for new-customer onboarding.
-    /// Lands with the same safe-by-default state as a clone: BSuspendPublic=true,
-    /// BClubRepAllowEdit/Delete/Add=true, ProcessingFeePercent=current floor.
-    /// Author's own admin Registration is created with BActive=true.
-    ///
-    /// authorCustomerId: when supplied, enforces same-customer guard
-    /// (request.CustomerId must equal authorCustomerId). SuperUser passes null to bypass.
+    /// Lands with the same safe-by-default state as a clone.
     /// </summary>
     Task<BlankJobResponse> CreateBlankJobAsync(
         BlankJobRequest request,
@@ -49,20 +40,19 @@ public interface IJobCloneService
         CancellationToken ct = default);
 
     /// <summary>
-    /// Preview the transforms a clone will perform — year-delta shifts, name inference,
-    /// admin deactivation counts — without committing. Used by the wizard's Step 3
-    /// preview pane.
-    ///
-    /// authorCustomerId: same guard semantics as CloneJobAsync.
+    /// Build the clone PLAN without committing — per-step counts, eligibility breakdown,
+    /// warnings, resolved rates, date shifts, fingerprint. The workbench renders this
+    /// continuously; the same planner runs inside the clone transaction, so preview and
+    /// clone cannot diverge. actorUserId feeds the +1-actor-registration count.
     /// </summary>
-    Task<JobClonePreviewResponse> PreviewCloneAsync(
+    Task<ClonePlanDto> PreviewCloneAsync(
         JobCloneRequest request,
+        string actorUserId,
         Guid? authorCustomerId = null,
         CancellationToken ct = default);
 
     /// <summary>
     /// Flip Jobs.BSuspendPublic = false on the target job (release site to public).
-    /// authorCustomerId, if supplied, must equal the job's CustomerId.
     /// </summary>
     Task<ReleaseResponse> ReleaseSiteAsync(
         Guid jobId,
@@ -71,9 +61,8 @@ public interface IJobCloneService
         CancellationToken ct = default);
 
     /// <summary>
-    /// Flip Registrations.BActive = true on the given registration IDs — scoped to the target job.
-    /// Any registrationId NOT belonging to the target job is rejected with 403.
-    /// authorCustomerId, if supplied, must equal the job's CustomerId.
+    /// Flip Registrations.BActive = true on the given registration IDs — scoped to the
+    /// target job. Any registrationId NOT belonging to the target job is rejected with 403.
     /// </summary>
     Task<ReleaseResponse> ReleaseAdminsAsync(
         Guid jobId,
@@ -83,48 +72,59 @@ public interface IJobCloneService
         CancellationToken ct = default);
 
     /// <summary>
-    /// List all admin registrations (Superuser/Director/SuperDirector) on a job, with person info.
-    /// Used to populate the Release screen's admin-activation panel.
+    /// List all admin registrations (Superuser/Director/SuperDirector) on a job.
+    /// Populates the Release page's admin-activation panel.
     /// </summary>
     Task<List<ReleasableAdminDto>> GetReleasableAdminsAsync(
         Guid jobId,
         CancellationToken ct = default);
 
     /// <summary>
-    /// List jobs currently in the suspended state (BSuspendPublic = true). Used by the Landing
-    /// screen to show a "ready to release" list. authorCustomerId filters to that customer's jobs.
+    /// List jobs currently suspended (BSuspendPublic = true) — the Landing page's
+    /// "unreleased jobs" list.
     /// </summary>
     Task<List<SuspendedJobDto>> GetSuspendedJobsAsync(
         Guid? authorCustomerId = null,
         CancellationToken ct = default);
 
-    /// <summary>
-    /// Returns true when a Job with the given jobPath already exists. Used by the Step 2→3
-    /// uniqueness check so authors aren't surprised at Submit.
-    /// </summary>
+    /// <summary>True when a Job with the given jobPath already exists (inline uniqueness check).</summary>
     Task<bool> JobPathExistsAsync(string jobPath, CancellationToken ct = default);
 
-    /// <summary>
-    /// Returns true when a Job with the given jobName already exists. Used by the Step 2→3
-    /// uniqueness check alongside JobPathExistsAsync.
-    /// </summary>
+    /// <summary>True when a Job with the given jobName already exists (inline uniqueness check).</summary>
     Task<bool> JobNameExistsAsync(string jobName, CancellationToken ct = default);
 
-    // ── Dev-only undo (controller enforces IsDevelopment + SuperUser policy) ──
+    /// <summary>
+    /// Type-aware verify-then-release checklist (the modern JobCloneQA): the job's LIVE
+    /// settings grouped by section, ordered by job-type relevance, with configure
+    /// deep-links. Release panel 1.
+    /// </summary>
+    Task<JobVerifyChecklistDto> GetVerifyChecklistAsync(
+        Guid jobId, CancellationToken ct = default);
 
     /// <summary>
-    /// Returns whether a freshly-cloned job can be safely deleted from dev DB, with row counts
-    /// for the confirm modal. CanUndo=true requires: only admin Registrations, zero
-    /// RegistrationAccounting, and zero rows in any ancillary FK table. Reasons enumerates
-    /// each blocking predicate when CanUndo=false.
+    /// Open registration for the chosen personas (release panel 4). Additive: flips the
+    /// requested BRegistrationAllow* flags ON (they start false on every clone); closing
+    /// lives in job settings.
+    /// </summary>
+    Task<RegistrationFlagsDto> OpenRegistrationAsync(
+        Guid jobId,
+        OpenRegistrationRequest request,
+        string actorUserId,
+        Guid? authorCustomerId = null,
+        CancellationToken ct = default);
+
+    // ── Dev-only undo (controller enforces sandbox + SuperUser policy) ──
+
+    /// <summary>
+    /// Returns whether a freshly-cloned job can be safely deleted from dev DB, with row
+    /// counts for the confirm modal.
     /// </summary>
     Task<DevUndoStatusResponse> GetDevUndoStatusAsync(Guid jobId, CancellationToken ct = default);
 
     /// <summary>
-    /// Cascade-deletes a freshly-cloned Job (and all entities the clone created) from dev DB.
-    /// Re-runs predicate checks inside the same transaction (TOCTOU defense). The cloned
-    /// Leagues row is only removed if it's exclusively owned by this job.
-    /// Throws InvalidOperationException with reasons if predicates fail at delete time.
+    /// Cascade-deletes a freshly-cloned Job (and all entities the clone created) from dev
+    /// DB. Re-runs predicate checks inside the same transaction (TOCTOU defense). Cloned
+    /// Leagues rows are removed only when exclusively owned by this job.
     /// </summary>
     Task DeleteClonedJobAsync(Guid jobId, CancellationToken ct = default);
 }

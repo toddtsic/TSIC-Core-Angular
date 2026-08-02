@@ -308,6 +308,7 @@ builder.Services.AddScoped<IUserWidgetService, UserWidgetService>();
 builder.Services.AddScoped<IWidgetDashboardService, WidgetDashboardService>();
 builder.Services.AddScoped<IWidgetEditorService, WidgetEditorService>();
 builder.Services.AddScoped<IJobCloneService, JobCloneService>();
+builder.Services.AddScoped<TSIC.API.Services.Admin.JobClonePlanner>();
 builder.Services.AddScoped<IDdlOptionsService, DdlOptionsService>();
 builder.Services.AddScoped<IJobConfigService, JobConfigService>();
 builder.Services.AddScoped<IJobVisibilityService, JobVisibilityService>();

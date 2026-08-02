@@ -1,0 +1,6 @@
+Active
+JobId
+Modified
+ModifiedBy
+NavId
+RoleId

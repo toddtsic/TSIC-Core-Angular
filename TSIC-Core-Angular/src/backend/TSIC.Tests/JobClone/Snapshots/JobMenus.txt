@@ -1,0 +1,8 @@
+Active
+JobId
+LebUserId
+MenuId
+MenuTypeId
+Modified
+RoleId
+Tag

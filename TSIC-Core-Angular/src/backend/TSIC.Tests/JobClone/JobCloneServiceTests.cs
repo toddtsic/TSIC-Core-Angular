@@ -12,22 +12,24 @@ using TSIC.Tests.Helpers;
 namespace TSIC.Tests.JobClone;
 
 /// <summary>
-/// Behavior tests for JobCloneService against the InMemory EF provider.
+/// Behavior tests for the copy-everything JobCloneService against the InMemory EF provider.
 ///
 /// Coverage:
-///   - Choice validation rejects invalid scope/choice strings + out-of-range custom fees
-///   - CC + eCheck processing-fee resolution honors source / current / custom
+///   - Safe-state reset list (all five BRegistrationAllow* forced off, exposure flags off)
+///   - CC + eCheck processing-fee floor (max(source, new-job rate) — no choices)
 ///   - eCheck enable + Store choices applied to new Job
 ///   - LadtScope: none / lad / ladt produce expected entity sets
-///   - LADT team filter: ClubRep-paid + WAITLIST/DROPPED excluded
+///   - Team eligibility: structure-vs-competing (owner club_name), waitlist/dropped
+///     buckets, inactive teams
 ///   - Cloned teams: ClubRep refs nulled, financials zeroed, lineage flagged
-///   - Team-level JobFees remap via teamIdMap
+///   - Fee remap incl. multi-league; BFullPaymentRequired derived from deposit shape
+///   - Preview/clone parity (same planner, identical per-step counts)
+///   - Data-moved guard (fingerprint mismatch → ClonePlanChangedException)
+///   - Dev-undo manifest-reversed cascade delete
 ///
-/// **NOT covered** (InMemory limitation, accepted gap): transactional rollback. EF InMemory
-/// has no real transactions — BeginTransaction/Commit/Rollback are silent no-ops here.
-/// FK + unique-constraint enforcement and SQL-translation semantics also diverge from prod
-/// SQL Server. Treat these as shape/behavior tests, not integrity tests. Mid-clone failure
-/// scenarios + constraint-violation paths must be verified against real SQL Server.
+/// **NOT covered** (InMemory limitation, accepted gap): transactional rollback, FK and
+/// unique-constraint enforcement, the D2 raw-SQL ancillary walk (relational-only; skipped
+/// on InMemory). Verify those against real SQL Server.
 /// </summary>
 public class JobCloneServiceTests
 {
@@ -42,9 +44,16 @@ public class JobCloneServiceTests
         var ctx = DbContextFactory.Create();
         var repo = new JobCloneRepository(ctx);
         var feeRepo = new FeeRepository(ctx);
-        var svc = new JobCloneService(repo, feeRepo, NullLogger<JobCloneService>.Instance);
+        var planner = new JobClonePlanner(repo, feeRepo);
+        var svc = new JobCloneService(repo, feeRepo, planner, NullLogger<JobCloneService>.Instance);
         return (svc, ctx);
     }
+
+    private static int StepCount(JobCloneResponse resp, string stepKey) =>
+        resp.Steps.Single(s => s.StepKey == stepKey).Count;
+
+    private static int StepCount(ClonePlanDto plan, string stepKey) =>
+        plan.Steps.Single(s => s.StepKey == stepKey).Count;
 
     /// <summary>
     /// Seeds a source Job + League + JobLeague + Agegroup + Division. Returns IDs for
@@ -73,7 +82,7 @@ public class JobCloneServiceTests
         {
             JobId = jobId,
             JobPath = $"src-{Guid.NewGuid():N}"[..16],
-            JobName = "Source Job",
+            JobName = $"Source {Guid.NewGuid():N}"[..20],
             JobDescription = "Source Job",
             Year = year,
             Season = season,
@@ -137,7 +146,7 @@ public class JobCloneServiceTests
     private static Teams SeedTeam(
         SqlDbContext ctx, Guid jobId, Guid leagueId, Guid agegroupId, Guid? divId,
         string name, Guid? clubRepRegistrationId = null,
-        decimal feeBase = 100m, decimal paidTotal = 50m)
+        decimal feeBase = 100m, decimal paidTotal = 50m, bool active = true)
     {
         var team = new Teams
         {
@@ -149,7 +158,7 @@ public class JobCloneServiceTests
             TeamName = name,
             Year = "2025",
             Season = "Spring",
-            Active = true,
+            Active = active,
             ClubrepRegistrationid = clubRepRegistrationId,
             ClubrepId = clubRepRegistrationId.HasValue ? "rep-id" : null,
             FeeBase = feeBase,
@@ -167,117 +176,118 @@ public class JobCloneServiceTests
         return team;
     }
 
-    private static JobCloneRequest BaseRequest(Guid sourceJobId, string ladtScope = "lad",
-        string processingFeeChoice = "current",
-        decimal? customCcFee = null,
-        string echeckProcessingFeeChoice = "current",
-        decimal? customEcheckFee = null,
+    /// <summary>Seeds a ClubRep registration owning teams; clubName drives eligibility.</summary>
+    private static Guid SeedClubRep(SqlDbContext ctx, Guid jobId, string? clubName)
+    {
+        var regId = Guid.NewGuid();
+        ctx.Registrations.Add(new Registrations
+        {
+            RegistrationId = regId,
+            JobId = jobId,
+            RoleId = RoleConstants.ClubRep,
+            UserId = $"rep-{Guid.NewGuid():N}"[..12],
+            ClubName = clubName,
+            BActive = true,
+            RegistrationTs = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+        });
+        return regId;
+    }
+
+    private static JobCloneRequest BaseRequest(
+        Guid sourceJobId,
+        Guid? renameLeagueId = null,
+        string ladtScope = "lad",
         string enableEcheckChoice = "off",
-        string storeChoice = "disable")
+        string storeChoice = "disable",
+        bool advance = false,
+        string yearTarget = "2026",
+        string? planFingerprint = null)
     {
         return new JobCloneRequest
         {
             SourceJobId = sourceJobId,
             JobPathTarget = $"new-{Guid.NewGuid():N}"[..16],
             JobNameTarget = $"New {Guid.NewGuid():N}"[..16],
-            YearTarget = "2026",
+            YearTarget = yearTarget,
             SeasonTarget = "Spring",
             DisplayName = "New",
-            LeagueNameTarget = "New League",
+            Leagues = renameLeagueId.HasValue
+                ? [new LeagueRenameDto { SourceLeagueId = renameLeagueId.Value, NameTarget = "New League" }]
+                : [],
             ExpiryAdmin = DateTime.UtcNow.AddYears(1),
             ExpiryUsers = DateTime.UtcNow.AddYears(1),
-            UpAgegroupNamesByOne = false,
+            UpAgegroupNamesByOne = advance,
             LadtScope = ladtScope,
-            ProcessingFeeChoice = processingFeeChoice,
-            CustomProcessingFeePercent = customCcFee,
-            EcheckProcessingFeeChoice = echeckProcessingFeeChoice,
-            CustomEcheckProcessingFeePercent = customEcheckFee,
             EnableEcheckChoice = enableEcheckChoice,
             StoreChoice = storeChoice,
+            PlanFingerprint = planFingerprint,
         };
     }
 
     // ══════════════════════════════════════════════════════════
-    // Choice validation
+    // Validation
     // ══════════════════════════════════════════════════════════
 
     [Fact]
     public async Task Validation_InvalidLadtScope_Throws()
     {
         var (svc, ctx) = BuildService();
-        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx);
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx);
 
-        var act = () => svc.CloneJobAsync(BaseRequest(jobId, ladtScope: "all"), SuperUserId);
+        var act = () => svc.CloneJobAsync(BaseRequest(jobId, leagueId, ladtScope: "all"), SuperUserId);
 
         await act.Should().ThrowAsync<ArgumentException>().WithMessage("*LadtScope*");
     }
 
     [Fact]
-    public async Task Validation_InvalidProcessingFeeChoice_Throws()
+    public async Task Validation_InvalidJobPathSlug_Throws()
     {
         var (svc, ctx) = BuildService();
-        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx);
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx);
 
-        var act = () => svc.CloneJobAsync(
-            BaseRequest(jobId, processingFeeChoice: "average"), SuperUserId);
+        var req = BaseRequest(jobId, leagueId) with { JobPathTarget = "Bad Path!" };
+        var act = () => svc.CloneJobAsync(req, SuperUserId);
 
-        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*ProcessingFeeChoice*");
+        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*URL segment*");
     }
 
     [Fact]
-    public async Task Validation_CustomCcFee_BelowMin_Throws()
+    public async Task Validation_DuplicateJobName_Throws()
     {
         var (svc, ctx) = BuildService();
-        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx);
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx);
+        var sourceName = (await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == jobId)).JobName!;
 
-        var act = () => svc.CloneJobAsync(
-            BaseRequest(jobId, processingFeeChoice: "custom", customCcFee: 1.0m), SuperUserId);
+        var req = BaseRequest(jobId, leagueId) with { JobNameTarget = sourceName };
+        var act = () => svc.CloneJobAsync(req, SuperUserId);
 
-        await act.Should().ThrowAsync<ArgumentException>()
-            .WithMessage("*CustomProcessingFeePercent*");
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*already exists*");
     }
 
     [Fact]
-    public async Task Validation_CustomCcFee_AboveMax_Throws()
+    public async Task Validation_MissingLeagueRename_Throws()
     {
         var (svc, ctx) = BuildService();
         var (jobId, _, _, _) = await SeedSourceJobAsync(ctx);
 
-        var act = () => svc.CloneJobAsync(
-            BaseRequest(jobId, processingFeeChoice: "custom", customCcFee: 5.0m), SuperUserId);
+        // lad scope but NO rename row for the source league.
+        var act = () => svc.CloneJobAsync(BaseRequest(jobId, renameLeagueId: null), SuperUserId);
 
-        await act.Should().ThrowAsync<ArgumentException>()
-            .WithMessage("*CustomProcessingFeePercent*");
-    }
-
-    [Fact]
-    public async Task Validation_CustomEcheckFee_OutOfRange_Throws()
-    {
-        var (svc, ctx) = BuildService();
-        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx);
-
-        var act = () => svc.CloneJobAsync(
-            BaseRequest(jobId, echeckProcessingFeeChoice: "custom", customEcheckFee: 5.0m),
-            SuperUserId);
-
-        await act.Should().ThrowAsync<ArgumentException>()
-            .WithMessage("*CustomEcheckProcessingFeePercent*");
+        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*target name*");
     }
 
     // ══════════════════════════════════════════════════════════
-    // Processing fee resolution
+    // Processing fee floors (T1 — no choices; max(source, new-job rate))
     // ══════════════════════════════════════════════════════════
-
-    // The clone carries the source job's stored rate forward, floored at the current
-    // new-job rate (CC 3.8 / eCheck 1.5). The request's fee-choice fields are not consulted.
 
     [Fact]
     public async Task ProcessingFee_SourceAboveFloor_CarriedForward()
     {
         var (svc, ctx) = BuildService();
-        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx, processingFeePercent: 3.9m);
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx, processingFeePercent: 3.9m);
 
-        var resp = await svc.CloneJobAsync(BaseRequest(jobId), SuperUserId);
+        var resp = await svc.CloneJobAsync(BaseRequest(jobId, leagueId), SuperUserId);
 
         var newJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == resp.NewJobId);
         newJob.ProcessingFeePercent.Should().Be(3.9m);
@@ -287,9 +297,9 @@ public class JobCloneServiceTests
     public async Task ProcessingFee_SourceBelowFloor_RaisedToNewJobRate()
     {
         var (svc, ctx) = BuildService();
-        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx, processingFeePercent: 3.5m);
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx, processingFeePercent: 3.5m);
 
-        var resp = await svc.CloneJobAsync(BaseRequest(jobId), SuperUserId);
+        var resp = await svc.CloneJobAsync(BaseRequest(jobId, leagueId), SuperUserId);
 
         var newJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == resp.NewJobId);
         newJob.ProcessingFeePercent.Should().Be(3.8m); // FeeConstants.NewJobProcessingFeePercent
@@ -299,21 +309,21 @@ public class JobCloneServiceTests
     public async Task ProcessingFee_SourceNull_UsesNewJobRate()
     {
         var (svc, ctx) = BuildService();
-        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx, processingFeePercent: null);
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx, processingFeePercent: null);
 
-        var resp = await svc.CloneJobAsync(BaseRequest(jobId), SuperUserId);
+        var resp = await svc.CloneJobAsync(BaseRequest(jobId, leagueId), SuperUserId);
 
         var newJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == resp.NewJobId);
-        newJob.ProcessingFeePercent.Should().Be(3.8m); // FeeConstants.NewJobProcessingFeePercent
+        newJob.ProcessingFeePercent.Should().Be(3.8m);
     }
 
     [Fact]
     public async Task EcheckProcessingFee_SourceAboveFloor_CarriedForward()
     {
         var (svc, ctx) = BuildService();
-        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx, ecprocessingFeePercent: 1.85m);
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx, ecprocessingFeePercent: 1.85m);
 
-        var resp = await svc.CloneJobAsync(BaseRequest(jobId), SuperUserId);
+        var resp = await svc.CloneJobAsync(BaseRequest(jobId, leagueId), SuperUserId);
 
         var newJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == resp.NewJobId);
         newJob.EcprocessingFeePercent.Should().Be(1.85m);
@@ -323,26 +333,26 @@ public class JobCloneServiceTests
     public async Task EcheckProcessingFee_SourceNull_UsesNewJobRate()
     {
         var (svc, ctx) = BuildService();
-        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx, ecprocessingFeePercent: null);
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx, ecprocessingFeePercent: null);
 
-        var resp = await svc.CloneJobAsync(BaseRequest(jobId), SuperUserId);
+        var resp = await svc.CloneJobAsync(BaseRequest(jobId, leagueId), SuperUserId);
 
         var newJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == resp.NewJobId);
         newJob.EcprocessingFeePercent.Should().Be(1.5m); // FeeConstants.NewJobEcprocessingFeePercent
     }
 
     // ══════════════════════════════════════════════════════════
-    // EnableEcheck + Store
+    // EnableEcheck + Store choices
     // ══════════════════════════════════════════════════════════
 
     [Fact]
     public async Task EnableEcheckChoice_Off_DisablesOnNewJob_RegardlessOfSource()
     {
         var (svc, ctx) = BuildService();
-        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx, bEnableEcheck: true);
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx, bEnableEcheck: true);
 
         var resp = await svc.CloneJobAsync(
-            BaseRequest(jobId, enableEcheckChoice: "off"), SuperUserId);
+            BaseRequest(jobId, leagueId, enableEcheckChoice: "off"), SuperUserId);
 
         var newJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == resp.NewJobId);
         newJob.BEnableEcheck.Should().BeFalse();
@@ -352,81 +362,88 @@ public class JobCloneServiceTests
     public async Task EnableEcheckChoice_Source_CopiesSourceFlag()
     {
         var (svc, ctx) = BuildService();
-        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx, bEnableEcheck: true);
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx, bEnableEcheck: true);
 
         var resp = await svc.CloneJobAsync(
-            BaseRequest(jobId, enableEcheckChoice: "source"), SuperUserId);
+            BaseRequest(jobId, leagueId, enableEcheckChoice: "source"), SuperUserId);
 
         var newJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == resp.NewJobId);
         newJob.BEnableEcheck.Should().BeTrue();
     }
 
     [Fact]
-    public async Task StoreChoice_Disable_DisablesOnNewJob_RegardlessOfSource()
+    public async Task StoreChoice_Disable_DisablesStoreAndWalkup_RegardlessOfSource()
     {
         var (svc, ctx) = BuildService();
-        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx, bEnableStore: true);
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx, bEnableStore: true);
+        var src = await ctx.Jobs.FirstAsync(j => j.JobId == jobId);
+        src.BAllowStoreWalkup = true;
+        await ctx.SaveChangesAsync();
 
         var resp = await svc.CloneJobAsync(
-            BaseRequest(jobId, storeChoice: "disable"), SuperUserId);
+            BaseRequest(jobId, leagueId, storeChoice: "disable"), SuperUserId);
 
         var newJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == resp.NewJobId);
         newJob.BEnableStore.Should().BeFalse();
+        newJob.BAllowStoreWalkup.Should().BeFalse();
     }
 
     [Fact]
-    public async Task StoreChoice_Keep_CopiesSourceFlag()
+    public async Task StoreChoice_Keep_CopiesSourceFlag_AndWalkupRidesAlong()
     {
         var (svc, ctx) = BuildService();
-        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx, bEnableStore: true);
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx, bEnableStore: true);
+        var src = await ctx.Jobs.FirstAsync(j => j.JobId == jobId);
+        src.BAllowStoreWalkup = true;
+        await ctx.SaveChangesAsync();
 
         var resp = await svc.CloneJobAsync(
-            BaseRequest(jobId, storeChoice: "keep"), SuperUserId);
+            BaseRequest(jobId, leagueId, storeChoice: "keep"), SuperUserId);
 
         var newJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == resp.NewJobId);
         newJob.BEnableStore.Should().Be(true);
+        newJob.BAllowStoreWalkup.Should().BeTrue();
     }
 
     // ══════════════════════════════════════════════════════════
-    // Profile metadata carry-forward
+    // Copy-everything: config carries; safe-state resets force exposure off
     // ══════════════════════════════════════════════════════════
 
-    // Regression guard: the clone must carry BOTH materialized profile forms. Player was
-    // always copied; adult (AdultProfileMetadataJson) was dropped until the copy block was
-    // fixed, silently collapsing every adult role on a cloned job to the SpecialRequests
-    // fallback even though its ListSizes_* apparel lists rode along in JsonOptions.
     [Fact]
     public async Task Clone_CarriesPlayerAndAdultProfileMetadataJson()
     {
         var (svc, ctx) = BuildService();
-        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx);
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx);
 
         const string playerJson = "{\"fields\":[{\"name\":\"jerseyNumber\"}]}";
-        const string adultJson =
-            "{\"UnassignedAdult\":{\"fields\":[{\"name\":\"jerseySize\"}]}," +
-            "\"Referee\":{\"fields\":[]},\"Recruiter\":{\"fields\":[]}}";
+        const string adultJson = "{\"UnassignedAdult\":{\"fields\":[{\"name\":\"jerseySize\"}]}}";
 
         var src = await ctx.Jobs.FirstAsync(j => j.JobId == jobId);
         src.PlayerProfileMetadataJson = playerJson;
         src.AdultProfileMetadataJson = adultJson;
+        src.BplayerRegRequiresToken = true;
+        src.BIncludePlayerDonation = true;
+        src.JsonOptions = "{\"x\":1}";
         await ctx.SaveChangesAsync();
 
-        var resp = await svc.CloneJobAsync(BaseRequest(jobId), SuperUserId);
+        var resp = await svc.CloneJobAsync(BaseRequest(jobId, leagueId), SuperUserId);
 
         var newJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == resp.NewJobId);
         newJob.PlayerProfileMetadataJson.Should().Be(playerJson);
         newJob.AdultProfileMetadataJson.Should().Be(adultJson);
+        newJob.BplayerRegRequiresToken.Should().BeTrue();
+        newJob.BIncludePlayerDonation.Should().BeTrue();
+        newJob.JsonOptions.Should().Be("{\"x\":1}");
     }
 
-    // Regression guard: BRegistrationAllow{Staff,Referee,Recruiter} were added to Jobs after the
-    // clone copy-block was written, so clone carried Player/Team but silently dropped the three
-    // adult-role enablement switches — a cloned multi-role job came out coach-only (it kept the
-    // ref/recruiter confirmation emails but lost the flags that actually turn those regs on).
+    // T2 (Todd-decided 08-02): ALL FIVE BRegistrationAllow* flags force FALSE on clone —
+    // a released clone must never instantly open registration. The release page's
+    // open-registration panel is the deliberate flip.
     [Fact]
-    public async Task Clone_CarriesAllRegistrationAllowFlags()
+    public async Task Clone_ForcesAllRegistrationAllowFlagsOff()
     {
         var (svc, ctx) = BuildService();
-        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx);
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx);
 
         var src = await ctx.Jobs.FirstAsync(j => j.JobId == jobId);
         src.BRegistrationAllowPlayer = true;
@@ -436,58 +453,197 @@ public class JobCloneServiceTests
         src.BRegistrationAllowRecruiter = true;
         await ctx.SaveChangesAsync();
 
-        var resp = await svc.CloneJobAsync(BaseRequest(jobId), SuperUserId);
+        var resp = await svc.CloneJobAsync(BaseRequest(jobId, leagueId), SuperUserId);
 
         var newJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == resp.NewJobId);
-        newJob.BRegistrationAllowPlayer.Should().BeTrue();
-        newJob.BRegistrationAllowTeam.Should().BeTrue();
-        newJob.BRegistrationAllowStaff.Should().BeTrue();
-        newJob.BRegistrationAllowReferee.Should().BeTrue();
-        newJob.BRegistrationAllowRecruiter.Should().BeTrue();
+        newJob.BRegistrationAllowPlayer.Should().BeFalse();
+        newJob.BRegistrationAllowTeam.Should().BeFalse();
+        newJob.BRegistrationAllowStaff.Should().BeFalse();
+        newJob.BRegistrationAllowReferee.Should().BeFalse();
+        newJob.BRegistrationAllowRecruiter.Should().BeFalse();
     }
 
-    // Regression guard: auditing the copy-block after the role flags found 8 more scalar columns
-    // silently dropped — registration token-gating, public-roster privacy, ADN trial (partial ARB
-    // copy), donations, and store walk-up. Each had copied siblings; none was intentional. Two
-    // refinements verified here: AdnStartDateAfterTrial year-shifts like AdnArbstartDate, and
-    // BAllowStoreWalkup follows the resolved store state (can't leak back on under "disable store").
+    // The complete safe-state reset list: access/exposure OFF, restrictions ON.
     [Fact]
-    public async Task Clone_CarriesRecoveredRegistrationBillingAndStoreConfig()
+    public async Task Clone_AppliesSafeStateResets()
     {
         var (svc, ctx) = BuildService();
-        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx, year: "2025", bEnableStore: true);
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx);
 
-        var trialStart = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc);
         var src = await ctx.Jobs.FirstAsync(j => j.JobId == jobId);
-        src.BplayerRegRequiresToken = true;
-        src.BteamRegRequiresToken = true;
-        src.BRestrictPublicRosters = true;
-        src.BIncludePlayerDonation = true;
-        src.BIncludeTeamDonation = true;
-        src.AdnArbtrial = true;
-        src.AdnStartDateAfterTrial = trialStart;
-        src.BAllowStoreWalkup = true;
+        src.BAllowMobileLogin = true;
+        src.BAllowMobileRegn = true;
+        src.BEnableMobileRsvp = true;
+        src.BEnableMobileTeamChat = true;
+        src.BEnableTsicteams = true;
+        src.BScheduleAllowPublicAccess = true;
+        src.BAllowRosterViewPlayer = true;
+        src.BAllowRosterViewAdult = true;
+        src.BRestrictPublicRosters = false;
+        src.BSignalRschedule = true;
+        src.BClubRepAllowEdit = false;
+        src.BClubRepAllowDelete = false;
+        src.BClubRepAllowAdd = false;
         await ctx.SaveChangesAsync();
 
-        // storeChoice "keep" → store stays enabled, so walk-up rides along.
-        var kept = await svc.CloneJobAsync(BaseRequest(jobId, storeChoice: "keep"), SuperUserId);
-        var keptJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == kept.NewJobId);
+        var resp = await svc.CloneJobAsync(BaseRequest(jobId, leagueId), SuperUserId);
 
-        keptJob.BplayerRegRequiresToken.Should().BeTrue();
-        keptJob.BteamRegRequiresToken.Should().BeTrue();
-        keptJob.BRestrictPublicRosters.Should().BeTrue();
-        keptJob.BIncludePlayerDonation.Should().BeTrue();
-        keptJob.BIncludeTeamDonation.Should().BeTrue();
-        keptJob.AdnArbtrial.Should().BeTrue();
-        keptJob.BAllowStoreWalkup.Should().BeTrue();
-        // 2025 source → 2026 target = +1yr, mirroring AdnArbstartDate's shift (not copied raw).
-        keptJob.AdnStartDateAfterTrial.Should().NotBeNull();
-        keptJob.AdnStartDateAfterTrial!.Value.Year.Should().Be(2026);
+        var j = await ctx.Jobs.AsNoTracking().FirstAsync(x => x.JobId == resp.NewJobId);
+        j.BSuspendPublic.Should().BeTrue();
+        j.BAllowMobileLogin.Should().BeFalse();
+        j.BAllowMobileRegn.Should().BeFalse();
+        j.BEnableMobileRsvp.Should().BeFalse();
+        j.BEnableMobileTeamChat.Should().BeFalse();
+        j.BEnableTsicteams.Should().BeFalse();
+        j.BScheduleAllowPublicAccess.Should().BeFalse();
+        j.BAllowRosterViewPlayer.Should().BeFalse();
+        j.BAllowRosterViewAdult.Should().BeFalse();
+        j.BRestrictPublicRosters.Should().BeTrue();
+        j.BSignalRschedule.Should().BeFalse();
+        j.BClubRepAllowEdit.Should().BeTrue();
+        j.BClubRepAllowDelete.Should().BeTrue();
+        j.BClubRepAllowAdd.Should().BeTrue();
+    }
 
-        // storeChoice "disable" → store off, so walk-up is forced off regardless of source.
-        var disabled = await svc.CloneJobAsync(BaseRequest(jobId, storeChoice: "disable"), SuperUserId);
-        var disabledJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == disabled.NewJobId);
-        disabledJob.BAllowStoreWalkup.Should().BeFalse();
+    // Retired columns zeroed (Todd-decided 08-02).
+    [Fact]
+    public async Task Clone_ZeroesRetiredColumns()
+    {
+        var (svc, ctx) = BuildService();
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx);
+
+        var src = await ctx.Jobs.FirstAsync(j => j.JobId == jobId);
+        src.BTeamsFullPaymentRequired = true;
+        src.BPlayersFullPaymentRequired = true;
+        src.PlayerRegMultiPlayerDiscountMin = 2;
+        src.PlayerRegMultiPlayerDiscountPercent = 10;
+        await ctx.SaveChangesAsync();
+
+        var resp = await svc.CloneJobAsync(BaseRequest(jobId, leagueId), SuperUserId);
+
+        var j = await ctx.Jobs.AsNoTracking().FirstAsync(x => x.JobId == resp.NewJobId);
+        j.BTeamsFullPaymentRequired.Should().BeNull();
+        j.BPlayersFullPaymentRequired.Should().BeFalse();
+        j.PlayerRegMultiPlayerDiscountMin.Should().BeNull();
+        j.PlayerRegMultiPlayerDiscountPercent.Should().BeNull();
+    }
+
+    // Advance flag: content year-bump incl. JobNameQbp (QuickBooks IIF alias — copied +
+    // bumped, superseding legacy's null).
+    [Fact]
+    public async Task Clone_AdvanceFlag_BumpsContentYearTokens()
+    {
+        var (svc, ctx) = BuildService();
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx);
+
+        var src = await ctx.Jobs.FirstAsync(j => j.JobId == jobId);
+        src.PlayerRegConfirmationEmail = "Welcome to the 2025 season!";
+        src.JobNameQbp = "QBP 2025";
+        await ctx.SaveChangesAsync();
+
+        var resp = await svc.CloneJobAsync(
+            BaseRequest(jobId, leagueId, advance: true), SuperUserId);
+
+        var j = await ctx.Jobs.AsNoTracking().FirstAsync(x => x.JobId == resp.NewJobId);
+        j.PlayerRegConfirmationEmail.Should().Be("Welcome to the 2026 season!");
+        j.JobNameQbp.Should().Be("QBP 2026");
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // Admin registrations
+    // ══════════════════════════════════════════════════════════
+
+    // RegistrationTs = source + yearDelta (Todd-decided 08-02): the earliest-registered
+    // ordering is the default-administrator fallback; "= now" was a bug.
+    [Fact]
+    public async Task Clone_ShiftsAdminRegistrationTsByYearDelta_AndRemapsPrimaryContact()
+    {
+        var (svc, ctx) = BuildService();
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx, year: "2025");
+
+        var directorRegId = Guid.NewGuid();
+        ctx.Registrations.Add(new Registrations
+        {
+            RegistrationId = directorRegId,
+            JobId = jobId,
+            RoleId = RoleConstants.Director,
+            UserId = "director-1",
+            BActive = true,
+            RegistrationTs = new DateTime(2025, 3, 1, 8, 0, 0),
+            Modified = DateTime.UtcNow,
+        });
+        var src = await ctx.Jobs.FirstAsync(j => j.JobId == jobId);
+        src.PrimaryContactRegistrationId = directorRegId;
+        await ctx.SaveChangesAsync();
+
+        var resp = await svc.CloneJobAsync(BaseRequest(jobId, leagueId), SuperUserId);
+
+        var newRegs = await ctx.Registrations.AsNoTracking()
+            .Where(r => r.JobId == resp.NewJobId).ToListAsync();
+        var newDirector = newRegs.Single(r => r.UserId == "director-1");
+
+        newDirector.RegistrationTs.Should().Be(new DateTime(2026, 3, 1, 8, 0, 0));
+        newDirector.BActive.Should().BeFalse();             // inactive until release panel 3
+        newDirector.BConfirmationSent.Should().BeFalse();
+        newDirector.FeeTotal.Should().Be(0);
+        newDirector.OwedTotal.Should().Be(0);
+
+        var newJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == resp.NewJobId);
+        newJob.PrimaryContactRegistrationId.Should().Be(newDirector.RegistrationId);
+        newJob.PrimaryContactRegistrationId.Should().NotBe(directorRegId);
+    }
+
+    [Fact]
+    public async Task Clone_ActorWithoutSourceReg_GetsFreshActiveSuperuserReg()
+    {
+        var (svc, ctx) = BuildService();
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx);
+
+        var resp = await svc.CloneJobAsync(BaseRequest(jobId, leagueId), SuperUserId);
+
+        StepCount(resp, JobCloneStepOrder.AdminRegistrations).Should().Be(1);
+        var actorReg = await ctx.Registrations.AsNoTracking()
+            .FirstAsync(r => r.RegistrationId == resp.NewSuperUserRegistrationId);
+        actorReg.JobId.Should().Be(resp.NewJobId);
+        actorReg.UserId.Should().Be(SuperUserId);
+        actorReg.BActive.Should().BeTrue();
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // Bulletins
+    // ══════════════════════════════════════════════════════════
+
+    // Forced inactive (legacy 8/2024 rule adopted) + yearDelta date shift.
+    [Fact]
+    public async Task Clone_Bulletins_ArriveInactive_DatesShifted()
+    {
+        var (svc, ctx) = BuildService();
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx, year: "2025");
+
+        ctx.Bulletins.Add(new Bulletins
+        {
+            BulletinId = Guid.NewGuid(),
+            JobId = jobId,
+            Title = "Welcome 2025",
+            Text = "See you in 2025!",
+            Active = true,
+            CreateDate = new DateTime(2025, 1, 10),
+            StartDate = new DateTime(2025, 2, 1),
+            EndDate = new DateTime(2025, 6, 1),
+            Modified = DateTime.UtcNow,
+        });
+        await ctx.SaveChangesAsync();
+
+        var resp = await svc.CloneJobAsync(
+            BaseRequest(jobId, leagueId, advance: true), SuperUserId);
+
+        var b = await ctx.Bulletins.AsNoTracking().SingleAsync(x => x.JobId == resp.NewJobId);
+        b.Active.Should().BeFalse();
+        b.CreateDate.Should().Be(new DateTime(2026, 1, 10));
+        b.StartDate.Should().Be(new DateTime(2026, 2, 1));
+        b.EndDate.Should().Be(new DateTime(2026, 6, 1));
+        b.Title.Should().Be("Welcome 2026");
+        b.Text.Should().Be("See you in 2026!");
     }
 
     // ══════════════════════════════════════════════════════════
@@ -503,12 +659,12 @@ public class JobCloneServiceTests
         await ctx.SaveChangesAsync();
 
         var resp = await svc.CloneJobAsync(
-            BaseRequest(jobId, ladtScope: "none"), SuperUserId);
+            BaseRequest(jobId, renameLeagueId: null, ladtScope: "none"), SuperUserId);
 
-        resp.Summary.LeaguesCloned.Should().Be(0);
-        resp.Summary.AgegroupsCloned.Should().Be(0);
-        resp.Summary.DivisionsCloned.Should().Be(0);
-        resp.Summary.TeamsCloned.Should().Be(0);
+        StepCount(resp, JobCloneStepOrder.Leagues).Should().Be(0);
+        StepCount(resp, JobCloneStepOrder.Agegroups).Should().Be(0);
+        StepCount(resp, JobCloneStepOrder.Divisions).Should().Be(0);
+        StepCount(resp, JobCloneStepOrder.Teams).Should().Be(0);
 
         var newJobLeagues = await ctx.JobLeagues.AsNoTracking()
             .Where(jl => jl.JobId == resp.NewJobId).ToListAsync();
@@ -524,12 +680,12 @@ public class JobCloneServiceTests
         await ctx.SaveChangesAsync();
 
         var resp = await svc.CloneJobAsync(
-            BaseRequest(jobId, ladtScope: "lad"), SuperUserId);
+            BaseRequest(jobId, leagueId, ladtScope: "lad"), SuperUserId);
 
-        resp.Summary.LeaguesCloned.Should().Be(1);
-        resp.Summary.AgegroupsCloned.Should().Be(1);
-        resp.Summary.DivisionsCloned.Should().Be(1);
-        resp.Summary.TeamsCloned.Should().Be(0);
+        StepCount(resp, JobCloneStepOrder.Leagues).Should().Be(1);
+        StepCount(resp, JobCloneStepOrder.Agegroups).Should().Be(1);
+        StepCount(resp, JobCloneStepOrder.Divisions).Should().Be(1);
+        StepCount(resp, JobCloneStepOrder.Teams).Should().Be(0);
 
         var newTeams = await ctx.Teams.AsNoTracking()
             .Where(t => t.JobId == resp.NewJobId).ToListAsync();
@@ -546,9 +702,9 @@ public class JobCloneServiceTests
         await ctx.SaveChangesAsync();
 
         var resp = await svc.CloneJobAsync(
-            BaseRequest(jobId, ladtScope: "ladt"), SuperUserId);
+            BaseRequest(jobId, leagueId, ladtScope: "ladt"), SuperUserId);
 
-        resp.Summary.TeamsCloned.Should().Be(1);
+        StepCount(resp, JobCloneStepOrder.Teams).Should().Be(1);
 
         var newTeams = await ctx.Teams.AsNoTracking()
             .Where(t => t.JobId == resp.NewJobId).ToListAsync();
@@ -556,43 +712,76 @@ public class JobCloneServiceTests
         newTeams[0].TeamName.Should().Be("Eagles");
         newTeams[0].PrevTeamId.Should().Be(sourceTeam.TeamId);
         newTeams[0].BnewTeam.Should().BeTrue();
+        newTeams[0].LastSeasonYear.Should().Be("2025");
     }
 
+    // CRITICAL eligibility rule (Todd-decided 08-02): clone STRUCTURE teams, never
+    // COMPETING teams. Competing = owned AND the owner has a real club name.
     [Fact]
-    public async Task LadtScope_Ladt_ExcludesClubRepPaidTeam()
+    public async Task LadtScope_Ladt_ExcludesCompetingTeam_ButClonesHouseTeam()
     {
         var (svc, ctx) = BuildService();
         var (jobId, leagueId, agegroupId, divId) = await SeedSourceJobAsync(ctx);
-        SeedTeam(ctx, jobId, leagueId, agegroupId, divId, "Paid Team",
-            clubRepRegistrationId: Guid.NewGuid());
+
+        // Competing: owned by a rep with a real club name.
+        var competingRep = SeedClubRep(ctx, jobId, "Rockets Lacrosse Club");
+        SeedTeam(ctx, jobId, leagueId, agegroupId, divId, "Rockets 2012",
+            clubRepRegistrationId: competingRep);
+
+        // House team: owned by a rep with an EMPTY club name (director-created pattern —
+        // Main Event / ISP / HHH). This is STRUCTURE and clones, arriving ownerless.
+        var houseRep = SeedClubRep(ctx, jobId, "");
+        SeedTeam(ctx, jobId, leagueId, agegroupId, divId, "House Team A",
+            clubRepRegistrationId: houseRep);
+
+        // Unowned structure team.
         SeedTeam(ctx, jobId, leagueId, agegroupId, divId, "Open Team",
             clubRepRegistrationId: null);
         await ctx.SaveChangesAsync();
 
         var resp = await svc.CloneJobAsync(
-            BaseRequest(jobId, ladtScope: "ladt"), SuperUserId);
+            BaseRequest(jobId, leagueId, ladtScope: "ladt"), SuperUserId);
 
-        resp.Summary.TeamsCloned.Should().Be(1);
-
+        StepCount(resp, JobCloneStepOrder.Teams).Should().Be(2);
         var newTeams = await ctx.Teams.AsNoTracking()
             .Where(t => t.JobId == resp.NewJobId).ToListAsync();
-        newTeams.Should().HaveCount(1);
-        newTeams[0].TeamName.Should().Be("Open Team");
+        newTeams.Select(t => t.TeamName).Should().BeEquivalentTo("House Team A", "Open Team");
+        // Cloned house team arrives ownerless (clubrep pointers nulled).
+        newTeams.Should().OnlyContain(t =>
+            t.ClubrepRegistrationid == null && t.ClubrepId == null);
     }
 
     [Fact]
-    public async Task LadtScope_Ladt_ExcludesWaitlistAndDroppedAgegroupTeams()
+    public async Task LadtScope_Ladt_ExcludesInactiveTeams()
     {
         var (svc, ctx) = BuildService();
-        var (jobId, leagueId, _, divId) = await SeedSourceJobAsync(ctx,
+        var (jobId, leagueId, agegroupId, divId) = await SeedSourceJobAsync(ctx);
+        SeedTeam(ctx, jobId, leagueId, agegroupId, divId, "Active Team");
+        SeedTeam(ctx, jobId, leagueId, agegroupId, divId, "Dead Team", active: false);
+        await ctx.SaveChangesAsync();
+
+        var resp = await svc.CloneJobAsync(
+            BaseRequest(jobId, leagueId, ladtScope: "ladt"), SuperUserId);
+
+        StepCount(resp, JobCloneStepOrder.Teams).Should().Be(1);
+        var newTeams = await ctx.Teams.AsNoTracking()
+            .Where(t => t.JobId == resp.NewJobId).ToListAsync();
+        newTeams.Should().ContainSingle().Which.TeamName.Should().Be("Active Team");
+    }
+
+    // WAITLIST mirrors + Dropped graveyard: neither the AGEGROUPS nor their teams clone.
+    [Fact]
+    public async Task LadtScope_Ladt_ExcludesWaitlistAndDroppedBuckets_AgegroupsAndTeams()
+    {
+        var (svc, ctx) = BuildService();
+        var (jobId, leagueId, agegroupId, divId) = await SeedSourceJobAsync(ctx,
             agegroupName: "Boys U10");
 
-        // Seed two extra agegroups: one WAITLIST, one DROPPED. Same league.
         var waitlistAg = new Agegroups
         {
             AgegroupId = Guid.NewGuid(),
             LeagueId = leagueId,
-            AgegroupName = "Boys U10 - WAITLIST",
+            AgegroupName = "WAITLIST - Boys U10",
             Season = "Spring",
             Modified = DateTime.UtcNow,
         };
@@ -600,42 +789,38 @@ public class JobCloneServiceTests
         {
             AgegroupId = Guid.NewGuid(),
             LeagueId = leagueId,
-            AgegroupName = "DROPPED",
+            AgegroupName = "Dropped Teams",
             Season = "Spring",
             Modified = DateTime.UtcNow,
         };
         ctx.Agegroups.AddRange(waitlistAg, droppedAg);
 
-        // Source teams: one in normal agegroup (eligible), one in WAITLIST, one in DROPPED.
-        var normalAgegroupId = await ctx.Agegroups.AsNoTracking()
-            .Where(a => a.AgegroupName == "Boys U10").Select(a => a.AgegroupId).FirstAsync();
         SeedTeam(ctx, jobId, leagueId, waitlistAg.AgegroupId, divId: null, name: "Waitlisted");
         SeedTeam(ctx, jobId, leagueId, droppedAg.AgegroupId, divId: null, name: "Dropped");
-        SeedTeam(ctx, jobId, leagueId, normalAgegroupId, divId, name: "Eligible");
-
+        SeedTeam(ctx, jobId, leagueId, agegroupId, divId, name: "Eligible");
         await ctx.SaveChangesAsync();
 
         var resp = await svc.CloneJobAsync(
-            BaseRequest(jobId, ladtScope: "ladt"), SuperUserId);
+            BaseRequest(jobId, leagueId, ladtScope: "ladt"), SuperUserId);
 
-        resp.Summary.TeamsCloned.Should().Be(1);
+        StepCount(resp, JobCloneStepOrder.Agegroups).Should().Be(1);   // only Boys U10
+        StepCount(resp, JobCloneStepOrder.Teams).Should().Be(1);
         var newTeams = await ctx.Teams.AsNoTracking()
             .Where(t => t.JobId == resp.NewJobId).ToListAsync();
         newTeams.Should().ContainSingle().Which.TeamName.Should().Be("Eligible");
     }
 
     [Fact]
-    public async Task LadtScope_Ladt_ResetsClubRepAndFinancialsOnClone()
+    public async Task LadtScope_Ladt_ResetsClubRepFinancialsStandingsOnClone()
     {
         var (svc, ctx) = BuildService();
         var (jobId, leagueId, agegroupId, divId) = await SeedSourceJobAsync(ctx);
         SeedTeam(ctx, jobId, leagueId, agegroupId, divId, "Eagles",
-            clubRepRegistrationId: null, // eligible
-            feeBase: 500m, paidTotal: 250m);
+            clubRepRegistrationId: null, feeBase: 500m, paidTotal: 250m);
         await ctx.SaveChangesAsync();
 
         var resp = await svc.CloneJobAsync(
-            BaseRequest(jobId, ladtScope: "ladt"), SuperUserId);
+            BaseRequest(jobId, leagueId, ladtScope: "ladt"), SuperUserId);
 
         var newTeam = await ctx.Teams.AsNoTracking()
             .FirstAsync(t => t.JobId == resp.NewJobId);
@@ -650,9 +835,31 @@ public class JobCloneServiceTests
         newTeam.Wins.Should().Be(0);
         newTeam.Losses.Should().Be(0);
         newTeam.Points.Should().Be(0);
+        newTeam.StandingsRank.Should().BeNull();
+        newTeam.LastLeagueRecord.Should().BeNull();
         newTeam.AdnSubscriptionStatus.Should().BeNull();
         newTeam.ViPolicyId.Should().BeNull();
     }
+
+    // Team NAME year-bump under the advance flag (fixes a gap in both stacks).
+    [Fact]
+    public async Task LadtScope_Ladt_AdvanceFlag_BumpsTeamNameYearTokens()
+    {
+        var (svc, ctx) = BuildService();
+        var (jobId, leagueId, agegroupId, divId) = await SeedSourceJobAsync(ctx);
+        SeedTeam(ctx, jobId, leagueId, agegroupId, divId, "Eagles 2032");
+        await ctx.SaveChangesAsync();
+
+        var resp = await svc.CloneJobAsync(
+            BaseRequest(jobId, leagueId, ladtScope: "ladt", advance: true), SuperUserId);
+
+        var newTeam = await ctx.Teams.AsNoTracking().FirstAsync(t => t.JobId == resp.NewJobId);
+        newTeam.TeamName.Should().Be("Eagles 2033");
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // Fees
+    // ══════════════════════════════════════════════════════════
 
     [Fact]
     public async Task LadtScope_Ladt_RemapsTeamLevelJobFees()
@@ -661,7 +868,6 @@ public class JobCloneServiceTests
         var (jobId, leagueId, agegroupId, divId) = await SeedSourceJobAsync(ctx);
         var team = SeedTeam(ctx, jobId, leagueId, agegroupId, divId, "Eagles");
 
-        // Team-level fee row (TeamId set) for ClubRep role.
         ctx.JobFees.Add(new JobFees
         {
             JobFeeId = Guid.NewGuid(),
@@ -676,10 +882,9 @@ public class JobCloneServiceTests
         await ctx.SaveChangesAsync();
 
         var resp = await svc.CloneJobAsync(
-            BaseRequest(jobId, ladtScope: "ladt"), SuperUserId);
+            BaseRequest(jobId, leagueId, ladtScope: "ladt"), SuperUserId);
 
-        var newTeam = await ctx.Teams.AsNoTracking()
-            .FirstAsync(t => t.JobId == resp.NewJobId);
+        var newTeam = await ctx.Teams.AsNoTracking().FirstAsync(t => t.JobId == resp.NewJobId);
         var newTeamFees = await ctx.JobFees.AsNoTracking()
             .Where(f => f.JobId == resp.NewJobId && f.TeamId != null).ToListAsync();
 
@@ -693,7 +898,6 @@ public class JobCloneServiceTests
     [Fact]
     public async Task LadtScope_Lad_DropsTeamLevelJobFees()
     {
-        // Confirms LAD scope skips team-level fees (no team to point at).
         var (svc, ctx) = BuildService();
         var (jobId, leagueId, agegroupId, divId) = await SeedSourceJobAsync(ctx);
         var team = SeedTeam(ctx, jobId, leagueId, agegroupId, divId, "Eagles");
@@ -711,67 +915,293 @@ public class JobCloneServiceTests
         await ctx.SaveChangesAsync();
 
         var resp = await svc.CloneJobAsync(
-            BaseRequest(jobId, ladtScope: "lad"), SuperUserId);
+            BaseRequest(jobId, leagueId, ladtScope: "lad"), SuperUserId);
 
         var newTeamFees = await ctx.JobFees.AsNoTracking()
             .Where(f => f.JobId == resp.NewJobId && f.TeamId != null).ToListAsync();
         newTeamFees.Should().BeEmpty();
     }
 
+    // BFullPaymentRequired is DERIVED FROM FEE SHAPE, never copied (Todd-decided 08-02):
+    // deposit configured → deposit phase (false); no deposit → full-pay (true).
+    [Fact]
+    public async Task Clone_JobFees_PhaseDerivedFromDepositShape()
+    {
+        var (svc, ctx) = BuildService();
+        var (jobId, leagueId, agegroupId, _) = await SeedSourceJobAsync(ctx);
+
+        ctx.JobFees.Add(new JobFees
+        {
+            JobFeeId = Guid.NewGuid(),
+            JobId = jobId,
+            RoleId = RoleConstants.Player,
+            AgegroupId = agegroupId,
+            Deposit = 100m,
+            BalanceDue = 400m,
+            BFullPaymentRequired = true,    // source in full-pay phase — must NOT copy
+            Modified = DateTime.UtcNow,
+        });
+        ctx.JobFees.Add(new JobFees
+        {
+            JobFeeId = Guid.NewGuid(),
+            JobId = jobId,
+            RoleId = RoleConstants.Player,
+            Deposit = null,                 // no deposit configured (job-wide row)
+            BalanceDue = 300m,
+            BFullPaymentRequired = false,
+            Modified = DateTime.UtcNow,
+        });
+        await ctx.SaveChangesAsync();
+
+        var resp = await svc.CloneJobAsync(BaseRequest(jobId, leagueId), SuperUserId);
+
+        var newFees = await ctx.JobFees.AsNoTracking()
+            .Where(f => f.JobId == resp.NewJobId).ToListAsync();
+        newFees.Single(f => f.AgegroupId != null).BFullPaymentRequired
+            .Should().BeFalse("deposit configured → clone starts in deposit phase");
+        newFees.Single(f => f.AgegroupId == null).BFullPaymentRequired
+            .Should().BeTrue("no deposit → deposit phase is meaningless; full-pay from day one");
+    }
+
     // ══════════════════════════════════════════════════════════
-    // Preview team counts
+    // Multi-league (T3)
     // ══════════════════════════════════════════════════════════
 
     [Fact]
-    public async Task Preview_PopulatesTeamCounts()
+    public async Task Clone_MultiLeague_ClonesAllLeagues_AndRemapsLeagueScopedFees()
+    {
+        var (svc, ctx) = BuildService();
+        var (jobId, league1, _, _) = await SeedSourceJobAsync(ctx);
+
+        var league2 = Guid.NewGuid();
+        ctx.Leagues.Add(new Leagues
+        {
+            LeagueId = league2,
+            LeagueName = "Second League",
+            SportId = Guid.NewGuid(),
+            Modified = DateTime.UtcNow,
+        });
+        ctx.JobLeagues.Add(new JobLeagues
+        {
+            JobLeagueId = Guid.NewGuid(),
+            JobId = jobId,
+            LeagueId = league2,
+            BIsPrimary = false,
+            Modified = DateTime.UtcNow,
+        });
+        // League-scoped fee row on the SECOND league — was silently dropped pre-T3.
+        ctx.JobFees.Add(new JobFees
+        {
+            JobFeeId = Guid.NewGuid(),
+            JobId = jobId,
+            RoleId = RoleConstants.ClubRep,
+            LeagueId = league2,
+            Deposit = 250m,
+            BalanceDue = 750m,
+            Modified = DateTime.UtcNow,
+        });
+        await ctx.SaveChangesAsync();
+
+        var req = BaseRequest(jobId, renameLeagueId: null) with
+        {
+            Leagues =
+            [
+                new LeagueRenameDto { SourceLeagueId = league1, NameTarget = "New League One" },
+                new LeagueRenameDto { SourceLeagueId = league2, NameTarget = "New League Two" },
+            ],
+        };
+        var resp = await svc.CloneJobAsync(req, SuperUserId);
+
+        StepCount(resp, JobCloneStepOrder.Leagues).Should().Be(2);
+        StepCount(resp, JobCloneStepOrder.JobLeagues).Should().Be(2);
+
+        var newLinks = await ctx.JobLeagues.AsNoTracking()
+            .Where(jl => jl.JobId == resp.NewJobId).ToListAsync();
+        newLinks.Should().HaveCount(2);
+        newLinks.Count(jl => jl.BIsPrimary).Should().Be(1);     // BIsPrimary preserved
+
+        var newLeagueIds = newLinks.Select(jl => jl.LeagueId).ToHashSet();
+        var newLeagues = await ctx.Leagues.AsNoTracking()
+            .Where(l => newLeagueIds.Contains(l.LeagueId)).ToListAsync();
+        newLeagues.Select(l => l.LeagueName)
+            .Should().BeEquivalentTo("New League One", "New League Two");
+
+        var leagueFee = await ctx.JobFees.AsNoTracking()
+            .SingleAsync(f => f.JobId == resp.NewJobId && f.LeagueId != null);
+        newLeagueIds.Should().Contain(leagueFee.LeagueId!.Value);
+        leagueFee.LeagueId.Should().NotBe(league2);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // One plan, two consumers — parity + data-moved guard
+    // ══════════════════════════════════════════════════════════
+
+    [Fact]
+    public async Task PreviewAndClone_ProduceIdenticalPerStepCounts()
     {
         var (svc, ctx) = BuildService();
         var (jobId, leagueId, agegroupId, divId) = await SeedSourceJobAsync(ctx);
-
-        var waitlistAg = new Agegroups
+        var competingRep = SeedClubRep(ctx, jobId, "Real Club");
+        SeedTeam(ctx, jobId, leagueId, agegroupId, divId, "Competing", competingRep);
+        SeedTeam(ctx, jobId, leagueId, agegroupId, divId, "Structure");
+        ctx.Bulletins.Add(new Bulletins
         {
-            AgegroupId = Guid.NewGuid(),
-            LeagueId = leagueId,
-            AgegroupName = "WAITLIST",
-            Season = "Spring",
+            BulletinId = Guid.NewGuid(),
+            JobId = jobId,
+            Title = "B1",
+            Active = true,
+            CreateDate = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
-        };
-        ctx.Agegroups.Add(waitlistAg);
-
-        SeedTeam(ctx, jobId, leagueId, agegroupId, divId, "Eligible1",
-            clubRepRegistrationId: null);
-        SeedTeam(ctx, jobId, leagueId, agegroupId, divId, "Eligible2",
-            clubRepRegistrationId: null);
-        SeedTeam(ctx, jobId, leagueId, agegroupId, divId, "Paid",
-            clubRepRegistrationId: Guid.NewGuid());
-        SeedTeam(ctx, jobId, leagueId, waitlistAg.AgegroupId, null, "Waitlisted",
-            clubRepRegistrationId: null);
+        });
+        ctx.JobFees.Add(new JobFees
+        {
+            JobFeeId = Guid.NewGuid(),
+            JobId = jobId,
+            RoleId = RoleConstants.Player,
+            AgegroupId = agegroupId,
+            Deposit = 50m,
+            BalanceDue = 200m,
+            Modified = DateTime.UtcNow,
+        });
         await ctx.SaveChangesAsync();
 
-        var preview = await svc.PreviewCloneAsync(BaseRequest(jobId, ladtScope: "ladt"));
+        var req = BaseRequest(jobId, leagueId, ladtScope: "ladt");
+        var plan = await svc.PreviewCloneAsync(req, SuperUserId);
+        var resp = await svc.CloneJobAsync(
+            req with { PlanFingerprint = plan.PlanFingerprint }, SuperUserId);
 
-        preview.TeamsToClone.Should().Be(2);
-        preview.TeamsExcludedPaid.Should().Be(1);
-        preview.TeamsExcludedWaitlistDropped.Should().Be(1);
+        // Row-by-row parity — same planner feeds both consumers.
+        foreach (var step in plan.Steps)
+            StepCount(resp, step.StepKey).Should().Be(step.Count, $"step {step.StepKey}");
+
+        plan.TeamsToClone.Should().Be(1);
+        plan.TeamsExcludedCompeting.Should().Be(1);
     }
 
     [Fact]
-    public async Task Preview_SourceFlags_PopulatedFromSourceJob()
+    public async Task Clone_StaleFingerprint_ThrowsClonePlanChanged()
     {
         var (svc, ctx) = BuildService();
-        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx,
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx);
+
+        var req = BaseRequest(jobId, leagueId);
+        var plan = await svc.PreviewCloneAsync(req, SuperUserId);
+
+        // Source data moves between preview and submit: a bulletin appears.
+        ctx.Bulletins.Add(new Bulletins
+        {
+            BulletinId = Guid.NewGuid(),
+            JobId = jobId,
+            Title = "Late-breaking",
+            Active = true,
+            CreateDate = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+        });
+        await ctx.SaveChangesAsync();
+
+        var act = () => svc.CloneJobAsync(
+            req with { PlanFingerprint = plan.PlanFingerprint }, SuperUserId);
+
+        var ex = await act.Should().ThrowAsync<ClonePlanChangedException>();
+        StepCount(ex.Which.FreshPlan, JobCloneStepOrder.Bulletins).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Preview_SourceRatesAndFlags_Populated()
+    {
+        var (svc, ctx) = BuildService();
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx,
             processingFeePercent: 3.85m,
             ecprocessingFeePercent: 1.95m,
             bEnableEcheck: true,
             bEnableStore: true);
 
-        var preview = await svc.PreviewCloneAsync(BaseRequest(jobId));
+        var plan = await svc.PreviewCloneAsync(BaseRequest(jobId, leagueId), SuperUserId);
 
-        preview.SourceProcessingFeePercent.Should().Be(3.85m);
-        preview.SourceEcheckProcessingFeePercent.Should().Be(1.95m);
-        preview.SourceBEnableEcheck.Should().BeTrue();
-        preview.SourceBEnableStore.Should().BeTrue();
-        preview.CurrentProcessingFeePercent.Should().Be(3.8m); // FeeConstants.NewJobProcessingFeePercent
-        preview.CurrentEcheckProcessingFeePercent.Should().Be(1.5m);
+        plan.SourceProcessingFeePercent.Should().Be(3.85m);
+        plan.ResolvedProcessingFeePercent.Should().Be(3.85m);   // above floor → carried
+        plan.SourceEcheckProcessingFeePercent.Should().Be(1.95m);
+        plan.ResolvedEcheckProcessingFeePercent.Should().Be(1.95m);
+        plan.SourceBEnableEcheck.Should().BeTrue();
+        plan.SourceBEnableStore.Should().BeTrue();
+        plan.YearDelta.Should().Be(1);
+        plan.AdvanceFlagDefault.Should().BeTrue();
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // Open registration (release panel 4)
+    // ══════════════════════════════════════════════════════════
+
+    [Fact]
+    public async Task OpenRegistration_FlipsOnlyRequestedPersonas()
+    {
+        var (svc, ctx) = BuildService();
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx);
+        var resp = await svc.CloneJobAsync(BaseRequest(jobId, leagueId), SuperUserId);
+
+        var flags = await svc.OpenRegistrationAsync(
+            resp.NewJobId,
+            new OpenRegistrationRequest { OpenPlayer = true, OpenTeam = true },
+            SuperUserId);
+
+        flags.AllowPlayer.Should().BeTrue();
+        flags.AllowTeam.Should().BeTrue();
+        flags.AllowStaff.Should().BeFalse();
+        flags.AllowReferee.Should().BeFalse();
+        flags.AllowRecruiter.Should().BeFalse();
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // Dev-undo (manifest-reversed cascade delete)
+    // ══════════════════════════════════════════════════════════
+
+    [Fact]
+    public async Task DevUndo_FullLadtClone_DeletesEverythingTheCloneCreated()
+    {
+        var (svc, ctx) = BuildService();
+        var (jobId, leagueId, agegroupId, divId) = await SeedSourceJobAsync(ctx);
+        SeedTeam(ctx, jobId, leagueId, agegroupId, divId, "Eagles");
+        ctx.Bulletins.Add(new Bulletins
+        {
+            BulletinId = Guid.NewGuid(),
+            JobId = jobId,
+            Title = "B1",
+            Active = true,
+            CreateDate = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+        });
+        ctx.JobFees.Add(new JobFees
+        {
+            JobFeeId = Guid.NewGuid(),
+            JobId = jobId,
+            RoleId = RoleConstants.Player,
+            AgegroupId = agegroupId,
+            Deposit = 50m,
+            BalanceDue = 200m,
+            Modified = DateTime.UtcNow,
+        });
+        await ctx.SaveChangesAsync();
+
+        var resp = await svc.CloneJobAsync(
+            BaseRequest(jobId, leagueId, ladtScope: "ladt"), SuperUserId);
+        var newJobId = resp.NewJobId;
+
+        var status = await svc.GetDevUndoStatusAsync(newJobId);
+        status.CanUndo.Should().BeTrue(string.Join("; ", status.Reasons));
+
+        await svc.DeleteClonedJobAsync(newJobId);
+
+        (await ctx.Jobs.AsNoTracking().AnyAsync(j => j.JobId == newJobId)).Should().BeFalse();
+        (await ctx.Teams.AsNoTracking().AnyAsync(t => t.JobId == newJobId)).Should().BeFalse();
+        (await ctx.Registrations.AsNoTracking().AnyAsync(r => r.JobId == newJobId)).Should().BeFalse();
+        (await ctx.Bulletins.AsNoTracking().AnyAsync(b => b.JobId == newJobId)).Should().BeFalse();
+        (await ctx.JobFees.AsNoTracking().AnyAsync(f => f.JobId == newJobId)).Should().BeFalse();
+        (await ctx.JobLeagues.AsNoTracking().AnyAsync(jl => jl.JobId == newJobId)).Should().BeFalse();
+
+        // Cloned league gone; SOURCE league untouched.
+        var newLeagueNames = await ctx.Leagues.AsNoTracking()
+            .Select(l => l.LeagueName).ToListAsync();
+        newLeagueNames.Should().NotContain("New League");
+        newLeagueNames.Should().Contain("Source League");
     }
 }

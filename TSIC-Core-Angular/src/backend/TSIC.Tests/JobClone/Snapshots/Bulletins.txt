@@ -1,0 +1,12 @@
+Active
+Bcore
+BulletinId
+CreateDate
+EndDate
+ExpireHours
+JobId
+LebUserId
+Modified
+StartDate
+Text
+Title

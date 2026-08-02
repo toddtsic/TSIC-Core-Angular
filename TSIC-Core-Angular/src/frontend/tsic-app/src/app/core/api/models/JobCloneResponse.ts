@@ -2,12 +2,12 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { CloneSummary } from './CloneSummary';
+import type { ClonePlanStepDto } from './ClonePlanStepDto';
 export type JobCloneResponse = {
     newJobId: string;
     newJobPath: string;
     newJobName: string;
-    summary: CloneSummary;
+    steps: Array<ClonePlanStepDto>;
     newSuperUserRegistrationId: string;
 };
 

@@ -4,27 +4,45 @@
 /* eslint-disable */
 import type { AgegroupPreviewDto } from './AgegroupPreviewDto';
 import type { BulletinShiftDto } from './BulletinShiftDto';
+import type { ClonePlanStepDto } from './ClonePlanStepDto';
 import type { DateShiftDto } from './DateShiftDto';
 import type { FeeModifierShiftDto } from './FeeModifierShiftDto';
-export type JobClonePreviewResponse = {
+import type { LeaguePlanDto } from './LeaguePlanDto';
+export type ClonePlanDto = {
+    steps: Array<ClonePlanStepDto>;
+    planFingerprint: string;
     yearDelta: number;
-    inferredLeagueName: string;
-    currentProcessingFeePercent: number;
+    advanceFlagDefault: boolean;
+    resolvedProcessingFeePercent: number;
     sourceProcessingFeePercent?: number | null;
-    currentEcheckProcessingFeePercent: number;
+    resolvedEcheckProcessingFeePercent: number;
     sourceEcheckProcessingFeePercent?: number | null;
     sourceBEnableEcheck: boolean;
     sourceBEnableStore: boolean;
+    regFormFrom?: string | null;
+    regFormCcs?: string | null;
+    regFormBccs?: string | null;
+    rescheduleemaillist?: string | null;
+    alwayscopyemaillist?: string | null;
+    mailTo?: string | null;
+    payTo?: string | null;
+    storeContactEmail?: string | null;
+    sourceJobTypeId: number;
     eventStartShift?: (null | DateShiftDto);
     eventEndShift?: (null | DateShiftDto);
     adnArbStartShift?: (null | DateShiftDto);
+    adnStartDateAfterTrialShift?: (null | DateShiftDto);
+    uslaxNumberValidThroughShift?: (null | DateShiftDto);
     adminsToDeactivate: number;
     adminsPreserved: number;
     teamsToClone: number;
-    teamsExcludedPaid: number;
+    teamsExcludedCompeting: number;
     teamsExcludedWaitlistDropped: number;
+    teamsExcludedInactive: number;
+    leagues?: Array<LeaguePlanDto>;
     bulletins?: Array<BulletinShiftDto>;
     agegroups?: Array<AgegroupPreviewDto>;
     feeModifiers?: Array<FeeModifierShiftDto>;
+    warnings?: Array<string>;
 };
 

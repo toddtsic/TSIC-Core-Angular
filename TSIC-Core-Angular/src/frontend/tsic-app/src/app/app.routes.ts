@@ -192,9 +192,32 @@ export const routes: Routes = [
 					},
 					{
 						path: 'job-clone',
-						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser] },
-						loadComponent: () => import('./views/configure/job-clone/job-clone.component').then(m => m.JobCloneComponent)
+						children: [
+							{
+								path: '',
+								canActivate: [authGuard],
+								data: { roles: [Roles.Superuser], helpKey: 'job-clone' },
+								loadComponent: () => import('./views/configure/job-clone/job-clone-landing.component').then(m => m.JobCloneLandingComponent)
+							},
+							{
+								path: 'workbench',
+								canActivate: [authGuard],
+								data: { roles: [Roles.Superuser], helpKey: 'job-clone', flavor: 'clone' },
+								loadComponent: () => import('./views/configure/job-clone/job-clone-workbench.component').then(m => m.JobCloneWorkbenchComponent)
+							},
+							{
+								path: 'blank',
+								canActivate: [authGuard],
+								data: { roles: [Roles.Superuser], helpKey: 'job-clone', flavor: 'blank' },
+								loadComponent: () => import('./views/configure/job-clone/job-clone-workbench.component').then(m => m.JobCloneWorkbenchComponent)
+							},
+							{
+								path: 'release/:jobId',
+								canActivate: [authGuard],
+								data: { roles: [Roles.Superuser], helpKey: 'job-clone' },
+								loadComponent: () => import('./views/configure/job-clone/job-release.component').then(m => m.JobReleaseComponent)
+							},
+						]
 					},
 					]
 			},

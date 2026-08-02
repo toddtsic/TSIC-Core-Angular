@@ -14,54 +14,69 @@ public record JobCloneRequest
     public required string YearTarget { get; init; }
     public required string SeasonTarget { get; init; }
     public required string DisplayName { get; init; }
-    public required string LeagueNameTarget { get; init; }
+
+    /// <summary>
+    /// One rename row per source league (walked from Jobs.JobLeagues — ALL leagues clone).
+    /// The workbench pre-fills one row per source league with a year-bumped name; the
+    /// author edits before submit. Every source league must have a row.
+    /// </summary>
+    public List<LeagueRenameDto> Leagues { get; init; } = [];
 
     // Target dates
     public required DateTime ExpiryAdmin { get; init; }
     public required DateTime ExpiryUsers { get; init; }
 
-    // Email
+    // ── Communications (all 8 parameters are request fields, pre-filled from source
+    //    by the workbench and inline-editable — they land verbatim on the new job) ──
     public string? RegFormFrom { get; init; }
+    public string? RegFormCcs { get; init; }
+    public string? RegFormBccs { get; init; }
+    public string? Rescheduleemaillist { get; init; }
+    public string? Alwayscopyemaillist { get; init; }
+    public string? MailTo { get; init; }
+    public string? PayTo { get; init; }
+    public string? StoreContactEmail { get; init; }
 
-    // Flags
+    /// <summary>
+    /// Advance flag: year-bump names/content and shift DOB/GradYear by one year.
+    /// Workbench defaults this to (yearDelta >= 1) — ON for next-year clones, OFF for
+    /// same-year siblings.
+    /// </summary>
     public bool UpAgegroupNamesByOne { get; init; }
-
-    // DEAD FIELD (kept for backward compat with existing frontend payloads).
-    // Behavior is now unconditional and narrowed: Director + SuperDirector regs land
-    // with BActive=false on every clone; Superuser regs are unchanged. The server
-    // ignores whatever value is sent here. Remove from DTO after frontend is updated
-    // (Phase D) to stop sending it.
-    public bool SetDirectorsToInactive { get; init; }
 
     public bool NoParallaxSlide1 { get; init; }
 
-    // ── Step 4: LADT scope ──
+    // ── LADT scope ──
     // "none" = no League/Agegroup/Division (configure post-release)
-    // "lad"  = clone League + Agegroups + Divisions (Teams re-register each season)
-    // "ladt" = "lad" + clone Teams (filtered: exclude ClubRep-paid + WAITLIST/DROPPED)
+    // "lad"  = clone Leagues + Agegroups + Divisions (Teams re-register each season)
+    // "ladt" = "lad" + clone Teams (structure teams only — see planner eligibility rule)
     public string LadtScope { get; init; } = "lad";
 
-    // ── Step 5: CC processing fee ──
-    // "source"  = copy source.ProcessingFeePercent
-    // "current" = reset to FeeConstants.MinProcessingFeePercent (recommended; default)
-    // "custom"  = use CustomProcessingFeePercent (must be in [Min,Max])
-    public string ProcessingFeeChoice { get; init; } = "current";
-    public decimal? CustomProcessingFeePercent { get; init; }
-
-    // ── Step 5: eCheck processing fee ──
-    // Same shape as ProcessingFeeChoice but for EcprocessingFeePercent.
-    public string EcheckProcessingFeeChoice { get; init; } = "current";
-    public decimal? CustomEcheckProcessingFeePercent { get; init; }
-
-    // ── Step 5: eCheck enable flag ──
+    // ── eCheck enable flag ──
     // "off"    = BEnableEcheck=false on new job (recommended; admin re-opts in)
     // "source" = copy source.BEnableEcheck
     public string EnableEcheckChoice { get; init; } = "off";
 
-    // ── Step 5: Store ──
+    // ── Store ──
     // "keep"    = copy source.BEnableStore
     // "disable" = BEnableStore=false on new job (recommended — inventory never clones)
     public string StoreChoice { get; init; } = "disable";
+
+    /// <summary>
+    /// Data-moved guard: the PlanFingerprint from the ClonePlanDto the operator approved.
+    /// The clone re-plans inside the transaction; if the fresh plan's fingerprint differs
+    /// (source data changed since preview), the clone aborts with 409 + the fresh plan so
+    /// the operator reviews what moved instead of silently cloning it.
+    /// Null skips the guard (non-interactive callers only — the workbench always sends it).
+    /// </summary>
+    public string? PlanFingerprint { get; init; }
+}
+
+/// <summary>Per-league rename row (T3 multi-league walk).</summary>
+public record LeagueRenameDto
+{
+    public required Guid SourceLeagueId { get; init; }
+    public required string NameTarget { get; init; }
 }
 
 // ══════════════════════════════════════
@@ -73,33 +88,21 @@ public record JobCloneResponse
     public required Guid NewJobId { get; init; }
     public required string NewJobPath { get; init; }
     public required string NewJobName { get; init; }
-    public required CloneSummary Summary { get; init; }
+
+    /// <summary>
+    /// Actual per-step created counts, in JobCloneStepOrder — same shape as the plan's
+    /// Steps list so preview/clone parity is a row-by-row comparison.
+    /// </summary>
+    public required List<ClonePlanStepDto> Steps { get; init; }
 
     /// <summary>
     /// The Superuser RegistrationId on the new job for the user who executed the clone.
     /// The frontend uses this to call AuthService.selectRegistration() and re-mint the JWT
-    /// scoped to the new job, so the user is truly *in* the new job after a successful clone.
+    /// scoped to the new job (only when the operator opted to enter the new job).
     /// Always populated — if the actor had no source Registration to clone, the service
     /// creates a fresh active Superuser Registration for them on the new job.
     /// </summary>
     public required Guid NewSuperUserRegistrationId { get; init; }
-}
-
-public record CloneSummary
-{
-    public int BulletinsCloned { get; init; }
-    public int AgeRangesCloned { get; init; }
-    public int MenusCloned { get; init; }
-    public int MenuItemsCloned { get; init; }
-    public int JobReportsCloned { get; init; }
-    public int NavCloned { get; init; }
-    public int NavItemsCloned { get; init; }
-    public int AdminRegistrationsCloned { get; init; }
-    public int LeaguesCloned { get; init; }
-    public int AgegroupsCloned { get; init; }
-    public int DivisionsCloned { get; init; }
-    public int TeamsCloned { get; init; }
-    public int FeesCloned { get; init; }
 }
 
 // ══════════════════════════════════════
@@ -117,15 +120,15 @@ public record JobCloneSourceDto
     public required Guid CustomerId { get; init; }
 
     /// <summary>
-    /// Source league name (joined through JobLeagues). Null if the job has no league
-    /// association. The wizard uses this to seed the leagueNameTarget default — stripping
-    /// any year/season tokens so the author sees just the "name" portion to carry forward.
+    /// Primary league name (first by BIsPrimary through JobLeagues). Null if the job has
+    /// no league association. Display-only in the picker; the workbench's rename rows come
+    /// from the plan's Leagues list, which walks ALL leagues.
     /// </summary>
     public string? LeagueName { get; init; }
 }
 
 /// <summary>
-/// Response for the Step 2→3 identity uniqueness check — flags whether the proposed
+/// Response for the identity uniqueness check — flags whether the proposed
 /// jobPath and/or jobName already exist on another job.
 /// </summary>
 public record IdentityExistsResponse
@@ -159,7 +162,7 @@ public record BlankJobRequest
     public required DateTime ExpiryAdmin { get; init; }
     public required DateTime ExpiryUsers { get; init; }
 
-    // Required FKs on Jobs (wizard picks defaults in Step 1/2)
+    // Required FKs on Jobs (workbench populates via reference-data dropdowns)
     public required int BillingTypeId { get; init; }
     public required int JobTypeId { get; init; }
     public required Guid SportId { get; init; }
@@ -176,44 +179,93 @@ public record BlankJobResponse
 }
 
 // ══════════════════════════════════════
-// Clone preview (dry-run transforms; no writes)
+// Clone plan (one plan, two consumers: preview renders it, execute re-plans
+// inside the transaction and materializes it)
 // ══════════════════════════════════════
 
-/// <summary>
-/// Preview the transforms a clone will perform without committing. The author uses this
-/// to verify year-delta shifts and name inference before submitting.
-/// Reuses JobCloneRequest as input (same fields the real clone needs).
-/// </summary>
-public record JobClonePreviewResponse
+public record ClonePlanDto
 {
+    /// <summary>Per-step planned counts in JobCloneStepOrder, with human notes.</summary>
+    public required List<ClonePlanStepDto> Steps { get; init; }
+
+    /// <summary>
+    /// SHA-256 over the ordered step counts + source rowversion-ish inputs. The workbench
+    /// echoes this back on JobCloneRequest.PlanFingerprint (data-moved guard).
+    /// </summary>
+    public required string PlanFingerprint { get; init; }
+
     public required int YearDelta { get; init; }
-    public required string InferredLeagueName { get; init; }
-    public required decimal CurrentProcessingFeePercent { get; init; }
+
+    /// <summary>Workbench default for the advance flag: yearDelta >= 1.</summary>
+    public required bool AdvanceFlagDefault { get; init; }
+
+    // Resolved fee rates (max(source, new-job floor)) — read-only display; no choices.
+    public required decimal ResolvedProcessingFeePercent { get; init; }
     public decimal? SourceProcessingFeePercent { get; init; }
-    public required decimal CurrentEcheckProcessingFeePercent { get; init; }
+    public required decimal ResolvedEcheckProcessingFeePercent { get; init; }
     public decimal? SourceEcheckProcessingFeePercent { get; init; }
+
     public required bool SourceBEnableEcheck { get; init; }
     public required bool SourceBEnableStore { get; init; }
 
+    // Communications defaults (source values — the workbench pre-fills its form fields).
+    public string? RegFormFrom { get; init; }
+    public string? RegFormCcs { get; init; }
+    public string? RegFormBccs { get; init; }
+    public string? Rescheduleemaillist { get; init; }
+    public string? Alwayscopyemaillist { get; init; }
+    public string? MailTo { get; init; }
+    public string? PayTo { get; init; }
+    public string? StoreContactEmail { get; init; }
+
+    /// <summary>Source JobTypeId — drives workbench type-aware defaults (T9-A).</summary>
+    public required int SourceJobTypeId { get; init; }
+
+    // Jobs date shifts (by yearDelta, when present)
     public DateShiftDto? EventStartShift { get; init; }
     public DateShiftDto? EventEndShift { get; init; }
     public DateShiftDto? AdnArbStartShift { get; init; }
+    public DateShiftDto? AdnStartDateAfterTrialShift { get; init; }
+    public DateShiftDto? UslaxNumberValidThroughShift { get; init; }
 
     public required int AdminsToDeactivate { get; init; }
     public required int AdminsPreserved { get; init; }
 
-    /// <summary>
-    /// Number of source Teams that would be cloned under LadtScope="ladt".
-    /// Filtered: excludes ClubRep-paid teams and any with WAITLIST/DROPPED registration status.
-    /// Always populated so the wizard can show the count regardless of selected scope.
-    /// </summary>
+    // Team eligibility breakdown (structure-vs-competing split; always populated so the
+    // workbench can show it regardless of selected scope)
     public required int TeamsToClone { get; init; }
-    public required int TeamsExcludedPaid { get; init; }
+    public required int TeamsExcludedCompeting { get; init; }
     public required int TeamsExcludedWaitlistDropped { get; init; }
+    public required int TeamsExcludedInactive { get; init; }
+
+    /// <summary>One row per source league (T3) — feeds the workbench rename rows.</summary>
+    public List<LeaguePlanDto> Leagues { get; init; } = [];
 
     public List<BulletinShiftDto> Bulletins { get; init; } = [];
     public List<AgegroupPreviewDto> Agegroups { get; init; } = [];
     public List<FeeModifierShiftDto> FeeModifiers { get; init; } = [];
+
+    public List<string> Warnings { get; init; } = [];
+}
+
+public record ClonePlanStepDto
+{
+    /// <summary>A JobCloneStepOrder key.</summary>
+    public required string StepKey { get; init; }
+    public required int Count { get; init; }
+    public string? Notes { get; init; }
+}
+
+public record LeaguePlanDto
+{
+    public required Guid SourceLeagueId { get; init; }
+    public string? SourceName { get; init; }
+    /// <summary>Year-bumped default target name (author-editable in the workbench).</summary>
+    public string? DefaultNameTarget { get; init; }
+    public required bool IsPrimary { get; init; }
+    public required int AgegroupCount { get; init; }
+    public required int DivisionCount { get; init; }
+    public required int TeamCount { get; init; }
 }
 
 public record DateShiftDto
@@ -258,7 +310,7 @@ public record FeeModifierShiftDto
 }
 
 // ══════════════════════════════════════
-// Release (site toggle + admin activation)
+// Release (site toggle + admin activation + verify + open registration)
 // ══════════════════════════════════════
 
 /// <summary>
@@ -296,12 +348,78 @@ public record ReleaseResponse
     public required int AdminsActivated { get; init; }
 }
 
+/// <summary>
+/// Type-aware verify-then-release checklist (modern JobCloneQA): the cloned job's live
+/// settings grouped into sections, ordered by relevance to the job's type. Rendered by
+/// the release page's "Verify settings" panel before anything goes public.
+/// </summary>
+public record JobVerifyChecklistDto
+{
+    public required Guid JobId { get; init; }
+
+    /// <summary>The job's URL segment — the release page builds configure deep-links from it.</summary>
+    public required string JobPath { get; init; }
+    public required string JobName { get; init; }
+    public required int JobTypeId { get; init; }
+    public string? JobTypeName { get; init; }
+
+    /// <summary>Machine-readable release state — drives the release page's panel 2 button.</summary>
+    public required bool BSuspendPublic { get; init; }
+
+    /// <summary>Current registration-allow flags — seeds the open-registration panel.</summary>
+    public required RegistrationFlagsDto RegistrationFlags { get; init; }
+
+    public required List<VerifySectionDto> Sections { get; init; }
+}
+
+public record VerifySectionDto
+{
+    public required string Title { get; init; }
+    public required List<VerifyItemDto> Items { get; init; }
+}
+
+public record VerifyItemDto
+{
+    public required string Label { get; init; }
+    public required string Value { get; init; }
+
+    /// <summary>
+    /// Relative configure route (under the job's :jobPath prefix) where this setting is
+    /// edited — the release page renders it as a deep-link. Null = display-only.
+    /// </summary>
+    public string? ConfigureRoute { get; init; }
+}
+
+/// <summary>
+/// Open-registration action (release panel 4): which personas to open. All five
+/// BRegistrationAllow* flags start FALSE on every clone; this is the deliberate flip.
+/// </summary>
+public record OpenRegistrationRequest
+{
+    public bool OpenPlayer { get; init; }
+    public bool OpenTeam { get; init; }
+    public bool OpenStaff { get; init; }
+    public bool OpenReferee { get; init; }
+    public bool OpenRecruiter { get; init; }
+}
+
+/// <summary>Current registration-allow flags after an open-registration action.</summary>
+public record RegistrationFlagsDto
+{
+    public required Guid JobId { get; init; }
+    public required bool AllowPlayer { get; init; }
+    public required bool AllowTeam { get; init; }
+    public required bool AllowStaff { get; init; }
+    public required bool AllowReferee { get; init; }
+    public required bool AllowRecruiter { get; init; }
+}
+
 // ══════════════════════════════════════
 // Dev-only "Delete and return" — undo a clone in dev environment
 // ══════════════════════════════════════
 
 /// <summary>
-/// Status payload for the "Delete and return" button on the celebrate landing.
+/// Status payload for the "Delete and return" button on the release page.
 /// CanUndo is true only when every safety predicate passes; Reasons enumerates
 /// any blocking conditions when CanUndo is false. Counts drive the confirm modal
 /// so the SuperUser can see the row impact before confirming.
@@ -328,8 +446,14 @@ public record DevUndoCounts
     public required int Bulletins { get; init; }
     public required int Agegroups { get; init; }
     public required int Divisions { get; init; }
-    /// <summary>Sum of rows across ancillary FK tables (CalendarEvents, EmailLogs, Schedule, etc.) — must be 0 to undo.</summary>
+
+    /// <summary>
+    /// Sum of rows across every OTHER job-scoped table (generated by the EF model walk —
+    /// any entity with a JobId property that isn't part of the clone manifest). Must be 0
+    /// to undo. Breakdown lists each non-zero table by name.
+    /// </summary>
     public required int AncillaryRows { get; init; }
+    public List<string> AncillaryBreakdown { get; init; } = [];
 }
 
 /// <summary>

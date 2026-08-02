@@ -153,9 +153,33 @@ public class JobCloneTransformsTests
     [Fact]
     public void IncrementYearsInName_NonYearDigits_LeftAlone()
     {
-        // 4-digit numbers outside 2020-2039 are not mangled
+        // Only standalone 20xx tokens bump — other 4-digit numbers are not mangled,
+        // and digits embedded in a longer token (no word boundary) are left alone.
         JobCloneTransforms.IncrementYearsInName("Game 1500").Should().Be("Game 1500");
         JobCloneTransforms.IncrementYearsInName("Room 1234").Should().Be("Room 1234");
+        JobCloneTransforms.IncrementYearsInName("SED2025").Should().Be("SED2025");
     }
 
+    [Fact]
+    public void IncrementYearsInName_FullCentury_2039Boundary_Works()
+    {
+        // Regex is \b(20\d{2})\b — the old 20[2-3]\d pattern died in 2040.
+        JobCloneTransforms.IncrementYearsInName("Class of 2039").Should().Be("Class of 2040");
+        JobCloneTransforms.IncrementYearsInName("Class of 2099").Should().Be("Class of 2100");
+    }
+
+    // ── BumpYears (null-tolerant wrapper used by the reset rules) ──
+
+    [Fact]
+    public void BumpYears_Null_ReturnsNull()
+    {
+        JobCloneTransforms.BumpYears(null).Should().BeNull();
+    }
+
+    [Fact]
+    public void BumpYears_Content_BumpsAllTokens()
+    {
+        JobCloneTransforms.BumpYears("Welcome to the 2025 season! See you spring 2025.")
+            .Should().Be("Welcome to the 2026 season! See you spring 2026.");
+    }
 }

@@ -1,0 +1,16 @@
+Active
+BadgeText
+DefaultNavItemId
+DefaultParentNavItemId
+IconName
+Modified
+ModifiedBy
+NavId
+NavItemId
+NavigateUrl
+ParentNavItemId
+RouterLink
+SortOrder
+Target
+Text
+VisibilityRules

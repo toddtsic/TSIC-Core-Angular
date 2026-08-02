@@ -1,0 +1,11 @@
+AgegroupId
+BFullPaymentRequired
+BalanceDue
+Deposit
+JobFeeId
+JobId
+LeagueId
+LebUserId
+Modified
+RoleId
+TeamId

@@ -1,0 +1,8 @@
+Amount
+EndDate
+FeeModifierId
+JobFeeId
+LebUserId
+Modified
+ModifierType
+StartDate

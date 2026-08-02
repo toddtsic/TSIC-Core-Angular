@@ -1,0 +1,231 @@
+// Shared visual language for the job-clone suite (landing / workbench / release).
+// Included via styleUrls alongside each component's own sheet.
+
+:host {
+	display: block;
+	padding: var(--space-4) var(--space-3);
+}
+
+.jc-header {
+	margin-bottom: var(--space-4);
+
+	h2 {
+		font-size: 1.5rem;
+		font-weight: 600;
+		color: var(--brand-text);
+		margin: 0 0 var(--space-1) 0;
+		display: flex;
+		align-items: baseline;
+		gap: var(--space-2);
+	}
+}
+
+.jc-subtitle {
+	color: var(--brand-text-muted);
+	margin: 0;
+	font-size: 0.9rem;
+}
+
+.jc-back-link {
+	background: none;
+	border: none;
+	color: var(--bs-primary);
+	cursor: pointer;
+	font-size: 0.85rem;
+	padding: 0 0 var(--space-1) 0;
+	text-decoration: none;
+
+	&:hover { text-decoration: underline; }
+	&:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+}
+
+.jc-panel {
+	background: var(--bs-body-bg);
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--bs-border-radius);
+	padding: var(--space-3);
+	margin-bottom: var(--space-3);
+
+	h3 {
+		font-size: 1rem;
+		font-weight: 600;
+		color: var(--brand-text);
+		margin: 0 0 var(--space-2) 0;
+	}
+
+	h4 {
+		font-size: 0.95rem;
+		font-weight: 600;
+		color: var(--brand-text);
+		margin: 0 0 var(--space-2) 0;
+	}
+}
+
+.jc-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: var(--space-3);
+	margin-bottom: var(--space-2);
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+	}
+}
+
+// ── Buttons ──
+
+.jc-btn-primary,
+.jc-btn-secondary,
+.jc-btn-ghost,
+.jc-btn-danger {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	padding: var(--space-1) var(--space-3);
+	border-radius: var(--bs-border-radius);
+	font-size: 0.9rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition: opacity 0.15s;
+
+	&:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+	&:disabled { opacity: 0.5; cursor: not-allowed; }
+
+	@media (prefers-reduced-motion: reduce) { transition: none; }
+}
+
+.jc-btn-primary {
+	background: var(--bs-primary);
+	color: var(--bs-white, #fff);
+	border: 1px solid var(--bs-primary);
+
+	&:hover:not(:disabled) { opacity: 0.9; }
+}
+
+.jc-btn-secondary {
+	background: var(--bs-body-bg);
+	color: var(--brand-text);
+	border: 1px solid var(--bs-border-color);
+
+	&:hover:not(:disabled) { border-color: var(--bs-primary); }
+}
+
+.jc-btn-ghost {
+	background: transparent;
+	color: var(--brand-text-muted);
+	border: 1px solid transparent;
+
+	&:hover:not(:disabled) { color: var(--brand-text); }
+}
+
+.jc-btn-danger {
+	background: var(--bs-danger);
+	color: var(--bs-white, #fff);
+	border: 1px solid var(--bs-danger);
+
+	&:hover:not(:disabled) { opacity: 0.9; }
+}
+
+.jc-link-btn {
+	background: none;
+	border: none;
+	color: var(--bs-primary);
+	cursor: pointer;
+	font-size: 0.85rem;
+	padding: 0;
+
+	&:hover { text-decoration: underline; }
+	&:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+}
+
+// ── Banners + text ──
+
+.loading-text {
+	color: var(--brand-text-muted);
+	font-style: italic;
+}
+
+.empty-text {
+	color: var(--brand-text-muted);
+	font-style: italic;
+	margin: var(--space-2) 0;
+}
+
+.error-banner {
+	padding: var(--space-2);
+	background: var(--bs-danger-bg-subtle, rgba(220, 53, 69, 0.1));
+	color: var(--bs-danger);
+	border: 1px solid var(--bs-danger);
+	border-radius: var(--bs-border-radius);
+	font-size: 0.9rem;
+	margin-top: var(--space-2);
+}
+
+.success-banner {
+	padding: var(--space-2);
+	background: var(--bs-success-bg-subtle, rgba(25, 135, 84, 0.1));
+	color: var(--bs-success);
+	border: 1px solid var(--bs-success);
+	border-radius: var(--bs-border-radius);
+	font-size: 0.9rem;
+}
+
+.warning-banner {
+	padding: var(--space-2);
+	background: var(--bs-warning-bg-subtle, rgba(255, 176, 32, 0.08));
+	color: var(--bs-warning-text-emphasis, #8a6d00);
+	border: 1px solid var(--bs-warning, #ffb020);
+	border-radius: var(--bs-border-radius);
+	font-size: 0.85rem;
+}
+
+.spinner {
+	display: inline-block;
+	width: 16px;
+	height: 16px;
+	border: 2px solid currentColor;
+	border-top-color: transparent;
+	border-radius: 50%;
+	animation: jc-spin 0.6s linear infinite;
+}
+
+@keyframes jc-spin {
+	to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.spinner { animation: none; }
+}
+
+// ── Modal (dev-undo confirm) ──
+
+.jc-modal-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1050;
+	padding: var(--space-4);
+}
+
+.jc-modal {
+	background: var(--bs-body-bg);
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--bs-border-radius-lg);
+	box-shadow: var(--shadow-elevated, 0 10px 40px rgba(0, 0, 0, 0.2));
+	padding: var(--space-4);
+	max-width: 500px;
+	width: 100%;
+	color: var(--brand-text);
+
+	h3 { margin-top: 0; }
+}
+
+.jc-modal-actions {
+	display: flex;
+	gap: var(--space-2);
+	justify-content: flex-end;
+	margin-top: var(--space-3);
+}

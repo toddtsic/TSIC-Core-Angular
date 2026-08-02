@@ -5,15 +5,20 @@ import { environment } from '@environments/environment';
 import type {
 	BlankJobRequest,
 	BlankJobResponse,
+	ClonePlanDto,
 	DevUndoStatusResponse,
 	IdentityExistsResponse,
-	JobClonePreviewResponse,
 	JobCloneRequest,
 	JobCloneResponse,
 	JobCloneSourceDto,
+	JobConfigReferenceDataDto,
+	JobVerifyChecklistDto,
+	OpenRegistrationRequest,
+	RegistrationFlagsDto,
 	ReleasableAdminDto,
 	ReleaseAdminsRequest,
 	ReleaseResponse,
+	SuspendedJobDto,
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -21,18 +26,18 @@ export class JobCloneService {
 	private readonly http = inject(HttpClient);
 	private readonly apiUrl = `${environment.apiUrl}/job-clone`;
 
-	// ── Source picker (existing) ──
+	// ── Source picker ──
 	getSources(): Observable<JobCloneSourceDto[]> {
 		return this.http.get<JobCloneSourceDto[]>(`${this.apiUrl}/sources`);
 	}
 
-	// ── Clone flow ──
-	cloneJob(request: JobCloneRequest): Observable<JobCloneResponse> {
-		return this.http.post<JobCloneResponse>(this.apiUrl, request);
+	// ── Clone flow (one plan, two consumers) ──
+	previewClone(request: JobCloneRequest): Observable<ClonePlanDto> {
+		return this.http.post<ClonePlanDto>(`${this.apiUrl}/preview`, request);
 	}
 
-	previewClone(request: JobCloneRequest): Observable<JobClonePreviewResponse> {
-		return this.http.post<JobClonePreviewResponse>(`${this.apiUrl}/preview`, request);
+	cloneJob(request: JobCloneRequest): Observable<JobCloneResponse> {
+		return this.http.post<JobCloneResponse>(this.apiUrl, request);
 	}
 
 	jobIdentityExists(path: string, name: string): Observable<IdentityExistsResponse> {
@@ -45,7 +50,21 @@ export class JobCloneService {
 		return this.http.post<BlankJobResponse>(`${this.apiUrl}/blank`, request);
 	}
 
-	// ── Release flow ──
+	/** Customers / sports / job types / billing types for the blank flavor's dropdowns. */
+	getReferenceData(): Observable<JobConfigReferenceDataDto> {
+		return this.http.get<JobConfigReferenceDataDto>(`${environment.apiUrl}/job-config/reference-data`);
+	}
+
+	// ── Landing ──
+	getSuspended(): Observable<SuspendedJobDto[]> {
+		return this.http.get<SuspendedJobDto[]>(`${this.apiUrl}/suspended`);
+	}
+
+	// ── Release flow (verify → site → admins → open registration) ──
+	getVerifyChecklist(jobId: string): Observable<JobVerifyChecklistDto> {
+		return this.http.get<JobVerifyChecklistDto>(`${this.apiUrl}/${jobId}/verify`);
+	}
+
 	getAdmins(jobId: string): Observable<ReleasableAdminDto[]> {
 		return this.http.get<ReleasableAdminDto[]>(`${this.apiUrl}/${jobId}/admins`);
 	}
@@ -56,6 +75,10 @@ export class JobCloneService {
 
 	releaseAdmins(jobId: string, request: ReleaseAdminsRequest): Observable<ReleaseResponse> {
 		return this.http.post<ReleaseResponse>(`${this.apiUrl}/${jobId}/release-admins`, request);
+	}
+
+	openRegistration(jobId: string, request: OpenRegistrationRequest): Observable<RegistrationFlagsDto> {
+		return this.http.post<RegistrationFlagsDto>(`${this.apiUrl}/${jobId}/open-registration`, request);
 	}
 
 	// ── Dev-only undo (404 in prod) ──

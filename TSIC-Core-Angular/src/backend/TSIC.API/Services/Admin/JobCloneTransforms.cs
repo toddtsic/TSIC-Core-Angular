@@ -35,16 +35,27 @@ public static class JobCloneTransforms
     public static DateOnly? ShiftByYears(DateOnly? date, int years) =>
         date.HasValue ? ShiftByYears(date.Value, years) : null;
 
-    // ── Agegroup name year-bump ────────────────────────────────
+    // ── Year-token bump (names + content) ─────────────────────
 
     /// <summary>
-    /// Finds 4-digit year patterns (2020–2039) in a string and increments each by 1.
+    /// Finds 4-digit year tokens (2000–2099) in a string and increments each by 1.
     /// E.g., "2025 Boys" → "2026 Boys", "Class of 2027" → "Class of 2028".
     /// No-op for names without a year token (e.g., "Boys Advanced" stays "Boys Advanced").
+    /// Pattern is the full century (\b20\d{2}\b), not a hardcoded decade — the previous
+    /// [2-3]\d range would have silently stopped matching in 2040.
     /// </summary>
     public static string IncrementYearsInName(string name)
     {
-        return Regex.Replace(name, @"\b(20[2-3]\d)\b", m =>
+        return Regex.Replace(name, @"\b(20\d{2})\b", m =>
             (int.Parse(m.Value) + 1).ToString());
     }
+
+    /// <summary>
+    /// Null-tolerant year-token bump for long-text content fields (confirmation emails,
+    /// waivers, bulletin bodies, parallax texts). Known caveat, accepted by design: EVERY
+    /// 20xx token bumps, including non-seasonal years in prose ("Est. 2021") — content is
+    /// expert-reviewed on the verify page before release.
+    /// </summary>
+    public static string? BumpYears(string? text) =>
+        string.IsNullOrEmpty(text) ? text : IncrementYearsInName(text);
 }

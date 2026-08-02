@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { LeagueRenameDto } from './LeagueRenameDto';
 export type JobCloneRequest = {
     sourceJobId: string;
     jobPathTarget: string;
@@ -9,19 +10,22 @@ export type JobCloneRequest = {
     yearTarget: string;
     seasonTarget: string;
     displayName: string;
-    leagueNameTarget: string;
+    leagues?: Array<LeagueRenameDto>;
     expiryAdmin: string;
     expiryUsers: string;
     regFormFrom?: string | null;
+    regFormCcs?: string | null;
+    regFormBccs?: string | null;
+    rescheduleemaillist?: string | null;
+    alwayscopyemaillist?: string | null;
+    mailTo?: string | null;
+    payTo?: string | null;
+    storeContactEmail?: string | null;
     upAgegroupNamesByOne?: boolean;
-    setDirectorsToInactive?: boolean;
     noParallaxSlide1?: boolean;
     ladtScope?: string;
-    processingFeeChoice?: string;
-    customProcessingFeePercent?: number | null;
-    echeckProcessingFeeChoice?: string;
-    customEcheckProcessingFeePercent?: number | null;
     enableEcheckChoice?: string;
     storeChoice?: string;
+    planFingerprint?: string | null;
 };
 

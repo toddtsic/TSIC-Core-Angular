@@ -1,0 +1,13 @@
+BIsPrimary
+BaseFee
+DiscountFee
+DiscountFeeEnd
+DiscountFeeStart
+JobId
+JobLeagueId
+LateFee
+LateFeeEnd
+LateFeeStart
+LeagueId
+LebUserId
+Modified
