@@ -77,6 +77,31 @@ export interface ParentBreadcrumb {
 
         <!-- Data columns — dynamic via @for -->
         @for (col of columns(); track col.field) {
+          @if (col.headerTooltip) {
+            <!-- AM-038: header-tooltip columns need a headerTemplate, which must be a
+                 direct (unconditional) child for ej2's ContentChild query — hence this
+                 dedicated branch. Cell rendering here covers boolean + plain text only;
+                 extend the switch before putting a tooltip on a fees/modifier/phase col. -->
+            <e-column [field]="col.field" [headerText]="col.header"
+                      [width]="parseWidth(col.width)"
+                      [textAlign]="getTextAlign(col)"
+                      [allowSorting]="true">
+              <ng-template #headerTemplate>
+                <span class="hdr-label">{{ col.header }}</span><span (click)="$event.stopPropagation()"><app-info-tooltip trigger="hover" [message]="col.headerTooltip ?? ''" /></span>
+              </ng-template>
+              <ng-template #template let-data>
+                @if (col.type === 'boolean') {
+                  @if (data[col.field] === true) {
+                    <i class="bi bi-check-lg text-success"></i>
+                  } @else if (data[col.field] === false) {
+                    <i class="bi bi-x-lg text-danger opacity-50"></i>
+                  }
+                } @else {
+                  {{ data[col.field] ?? '' }}
+                }
+              </ng-template>
+            </e-column>
+          } @else {
           <e-column [field]="col.field" [headerText]="col.header"
                     [width]="parseWidth(col.width)"
                     [textAlign]="getTextAlign(col)"
@@ -182,6 +207,7 @@ export interface ParentBreadcrumb {
               }
             </ng-template>
           </e-column>
+          }
         }
       </e-columns>
     </ejs-grid>
@@ -267,12 +293,25 @@ export interface ParentBreadcrumb {
          headers kept splitting — keep-all alone doesn't stop English mid-word breaks.
          white-space needs the same treatment (08-01): the theme's
          .e-grid.e-responsive .e-headercelldiv rule sets nowrap+ellipsis, which was
-         truncating narrow headers ("M/F" → "M…", "3RD PA…") instead of wrapping. */
+         truncating narrow headers ("M/F" → "M…", "3RD PA…") instead of wrapping.
+         08-02: that didn't kill the "…" — the operative ellipsis is one layer
+         DEEPER, on the theme's inner .e-headertext span (overflow:hidden +
+         text-overflow:ellipsis), and it fires whenever the text box (column
+         width minus 16px cell padding minus 22px sort-icon reserve) can't fit a
+         word. The ellipsis is left in place as the honest too-narrow signal;
+         the fix is widths in ladt-grid-columns.ts budgeting that 38px chrome. */
       white-space: normal !important;
       word-break: keep-all !important;
       overflow-wrap: normal !important;
       word-wrap: normal !important;
       line-height: var(--line-height-tight);
+    }
+
+    /* AM-038 (08-02): headerTemplate columns lose the theme's centering — its
+       rule keys on :has(span.e-headertext), which templated headers don't
+       render — so restore it for center-aligned templated headers. */
+    :host ::ng-deep .e-grid .e-headercell.e-templatecell.e-centeralign .e-headercelldiv {
+      justify-content: center;
     }
 
     :host ::ng-deep .e-grid .e-rowcell {

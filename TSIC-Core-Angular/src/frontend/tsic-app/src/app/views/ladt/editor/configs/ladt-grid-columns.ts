@@ -13,6 +13,14 @@ export interface LadtColumnDef {
   width?: string;
   /** When set, renders a color swatch dot using the value from this field on the row */
   colorField?: string;
+  /**
+   * When set, the header renders an ⓘ info-tooltip beside the label (AM-038:
+   * "3rd Party" meant nothing to Ann without a gloss). NOTE: tooltip columns
+   * render via a dedicated e-column branch in ladt-sibling-grid that currently
+   * supports boolean + plain-text cells only — extend that branch's @switch
+   * before putting a tooltip on a fees/modifier/phase column.
+   */
+  headerTooltip?: string;
 }
 
 // ── League ──
@@ -47,14 +55,23 @@ export const LEAGUE_COLUMNS: LadtColumnDef[] = [
 // single letters) to pay for part of it.
 export const AGEGROUP_COLUMNS: LadtColumnDef[] = [
   { field: 'agegroupName', header: 'Age Group', type: 'string', frozen: true, width: '180px', colorField: 'color' },
-  { field: 'gender', header: 'M/F', type: 'string', width: '60px' },
+  // AM-038 re-open (08-02): header text gets width − 38px of chrome (16px cell
+  // padding + 22px sort-icon reserve) before ej2's .e-headertext ellipsizes —
+  // 60px left 22px for the unbreakable "M/F" (~24px) → "M…". 70px fits it.
+  { field: 'gender', header: 'M/F', type: 'string', width: '70px' },
   { field: '_fees', header: 'Fees', type: 'fees', width: '220px' },
   { field: '_earlyBird', header: 'Early Bird', type: 'modifier', width: '120px' },
   { field: '_lateFee', header: 'Late Fee', type: 'modifier', width: '120px' },
   { field: '_phase', header: 'Payment Phase', type: 'phase', width: '180px' },
   // Limits
   { field: 'maxTeams', header: 'Max Teams', type: 'number', group: 'Limits', width: '95px' },
-  { field: 'bAllowApiRosterAccess', header: '3rd Party', type: 'boolean', width: '70px' },
+  // AM-038 re-open (Ann, 08-01): header needs the ⓘ gloss — "3rd Party" alone
+  // meant nothing. 100px = "PARTY" + ⓘ on the wrapped line + the 38px chrome
+  // (70px ellipsized at "3RD PA…"). Tooltip copy is placeholder — Todd to refine.
+  {
+    field: 'bAllowApiRosterAccess', header: '3rd Party', type: 'boolean', width: '100px',
+    headerTooltip: 'API roster access is enabled for this age group — approved third-party platforms may read its rosters.',
+  },
 ];
 
 // ── Division ──
