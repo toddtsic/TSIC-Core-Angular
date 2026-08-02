@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal, OnInit, OnDestroy, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, OnInit, OnDestroy, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { AdministratorService } from '../services/administrator.service';
@@ -35,7 +35,7 @@ export interface AdminFormResult {
                                 [ngModel]="selectedRole()"
                                 (ngModelChange)="onRoleChange($event)">
                                 <option value="" disabled>Select a role...</option>
-                                @for (role of availableRoles; track role) {
+                                @for (role of roleOptions(); track role) {
                                     <option [value]="role">{{ role }}</option>
                                 }
                             </select>
@@ -213,7 +213,24 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
     private readonly adminService = inject(AdministratorService);
     private readonly destroy$ = new Subject<void>();
 
-    readonly availableRoles = ['Director', 'SuperDirector', 'ApiAuthorized', 'Ref Assignor', 'Store Admin', 'STPAdmin'];
+    // 'ApiAuthorized' removed 08-02: the free third-party roster API (SportsRecruits)
+    // is retired — COPPA/privacy exposure, no contract. Per-age-group data sharing is
+    // now the Third-Party Roster Export library report the client runs themselves;
+    // no new ApiAuthorized admins should ever be minted.
+    readonly availableRoles = ['Director', 'SuperDirector', 'Ref Assignor', 'Store Admin', 'STPAdmin'];
+
+    /**
+     * Options for the role select. Add mode = availableRoles only. Edit mode also
+     * includes the admin's CURRENT role when it's no longer offered (a legacy
+     * ApiAuthorized admin must display their role, not a blank select — and saving
+     * an Active toggle must not silently rewrite their role).
+     */
+    readonly roleOptions = computed(() => {
+        const current = this.mode() === 'edit' ? this.admin()?.roleName : null;
+        return current && !this.availableRoles.includes(current)
+            ? [...this.availableRoles, current]
+            : this.availableRoles;
+    });
 
     // State
     readonly searchInput = signal('');
