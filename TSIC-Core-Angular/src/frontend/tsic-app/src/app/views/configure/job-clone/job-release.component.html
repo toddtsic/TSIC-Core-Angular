@@ -13,10 +13,10 @@
 					<i class="bi bi-rocket-takeoff page-title-icon"></i>
 					Release Job
 				</h2>
-				<p class="page-subtitle">
-					<strong>{{ c.jobName }}</strong>
+				<p class="page-subtitle jc-identity-line">
+					<span><strong>{{ c.jobName }}</strong></span>
 					<span class="jc-mono">/{{ c.jobPath }}</span>
-					· {{ c.jobTypeName ?? 'type ' + c.jobTypeId }}
+					<span>{{ c.jobTypeName ?? 'type ' + c.jobTypeId }}</span>
 					@if (c.bSuspendPublic) {
 						<span class="jc-state-chip jc-suspended">SUSPENDED</span>
 					} @else {

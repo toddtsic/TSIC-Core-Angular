@@ -6,9 +6,10 @@
 				Clone Job
 			</h2>
 			@if (source(); as src) {
-				<p class="page-subtitle">
-					Source: <strong>{{ src.jobName }}</strong>
-					<span class="jc-mono">/{{ src.jobPath }} · {{ src.year ?? '—' }} {{ src.season ?? '' }}</span>
+				<p class="page-subtitle jc-identity-line">
+					<span>Source: <strong>{{ src.jobName }}</strong></span>
+					<span class="jc-mono">/{{ src.jobPath }}</span>
+					<span>{{ src.year ?? '—' }} {{ src.season ?? '' }}</span>
 				</p>
 			} @else if (isLoadingSource()) {
 				<p class="page-subtitle loading-text">Resolving current job…</p>
@@ -131,81 +132,151 @@
 			</section>
 
 			<section class="jc-panel">
-				<h3>Scope & options</h3>
+				<h3>What gets copied</h3>
+				<p class="jc-hint jc-panel-intro">
+					These choices decide what the new job starts with. Everything here is editable
+					afterwards, but registration should not open until you have verified it.
+				</p>
 
 				<div class="jc-option-group">
-					<span class="jc-option-label">Structure (LADT)</span>
+					<span class="jc-option-label">League structure</span>
 					<div class="field-check-row">
 						<label class="field-check">
 							<input type="radio" name="ladtScope" value="none" [ngModel]="ladtScope()" (ngModelChange)="set(ladtScope, $event)" />
-							<span>None — configure post-release</span>
+							<span>Nothing — build it later</span>
 						</label>
 						<label class="field-check">
 							<input type="radio" name="ladtScope" value="lad" [ngModel]="ladtScope()" (ngModelChange)="set(ladtScope, $event)" />
-							<span>Leagues + agegroups + divisions</span>
+							<span>Leagues, age groups and pools</span>
 						</label>
 						<label class="field-check">
 							<input type="radio" name="ladtScope" value="ladt" [ngModel]="ladtScope()" (ngModelChange)="set(ladtScope, $event)" />
-							<span>…+ structure teams</span>
+							<span>…and your own teams</span>
 						</label>
 					</div>
+					<p class="jc-hint">
+						@switch (ladtScope()) {
+							@case ('none') {
+								The new job starts with no leagues or age groups — you build them on the
+								LADT screen before anyone can register.
+							}
+							@case ('lad') {
+								Copies the league, its age groups and their pools. Teams do not carry over;
+								clubs re-register their teams each season.
+							}
+							@case ('ladt') {
+								Also copies <strong>your own teams</strong> — house teams the club created
+								and still owns. Teams belonging to outside clubs are never copied; those
+								clubs re-register each season.
+							}
+						}
+					</p>
 				</div>
 
 				@if (ladtScope() !== 'none') {
 					<div class="jc-option-group">
-						<span class="jc-option-label">Divisions (pools)</span>
+						<span class="jc-option-label">Pools within each age group</span>
 						<div class="field-check-row">
 							<label class="field-check">
 								<input type="radio" name="copyDivisions" [value]="true" [ngModel]="copyDivisions()" (ngModelChange)="set(copyDivisions, $event)" />
-								<span>Copy source pools</span>
+								<span>Keep last season's pools</span>
 							</label>
 							<label class="field-check">
 								<input type="radio" name="copyDivisions" [value]="false" [ngModel]="copyDivisions()" (ngModelChange)="set(copyDivisions, $event)" />
-								<span>Fresh — one Unassigned pool per agegroup</span>
+								<span>Start fresh</span>
 							</label>
 						</div>
 						<p class="jc-hint">
-							Every agegroup gets an Unassigned pool either way; cloned teams land there when pools are fresh.
+							@if (copyDivisions()) {
+								Named pools from the source (Gold, Silver, Pool A…) come across as empty
+								pools, ready to re-seed.
+							} @else {
+								Named pools are dropped. Each age group gets a single
+								<strong>Unassigned</strong> pool and any copied teams land in it, so you
+								re-pool from scratch once registration closes.
+							}
+							Every age group always has an Unassigned pool — that is where newly registered
+							teams wait until you place them.
 						</p>
 					</div>
 				}
 
 				<div class="jc-option-group">
-					<span class="jc-option-label">eCheck</span>
+					<span class="jc-option-label">eCheck payments</span>
 					<div class="field-check-row">
 						<label class="field-check">
 							<input type="radio" name="echeck" value="off" [ngModel]="enableEcheckChoice()" (ngModelChange)="set(enableEcheckChoice, $event)" />
-							<span>Off (re-enable later)</span>
+							<span>Start turned off</span>
 						</label>
 						<label class="field-check">
 							<input type="radio" name="echeck" value="source" [ngModel]="enableEcheckChoice()" (ngModelChange)="set(enableEcheckChoice, $event)" />
-							<span>Copy source setting</span>
+							<span>Match the source job</span>
 						</label>
 					</div>
+					<p class="jc-hint">
+						@if (plan(); as p) {
+							eCheck is currently <strong>{{ p.sourceBEnableEcheck ? 'ON' : 'OFF' }}</strong>
+							on the source job.
+						}
+						Starting off is the safe default — turn it back on once the new season's bank
+						details are confirmed.
+					</p>
 				</div>
 
 				<div class="jc-option-group">
-					<span class="jc-option-label">Store</span>
+					<span class="jc-option-label">Online store</span>
 					<div class="field-check-row">
 						<label class="field-check">
 							<input type="radio" name="store" value="disable" [ngModel]="storeChoice()" (ngModelChange)="set(storeChoice, $event)" />
-							<span>Disable (inventory never clones)</span>
+							<span>Start turned off</span>
 						</label>
 						<label class="field-check">
 							<input type="radio" name="store" value="keep" [ngModel]="storeChoice()" (ngModelChange)="set(storeChoice, $event)" />
-							<span>Keep source setting</span>
+							<span>Match the source job</span>
 						</label>
 					</div>
+					<p class="jc-hint">
+						@if (plan(); as p) {
+							The store is currently <strong>{{ p.sourceBEnableStore ? 'ON' : 'OFF' }}</strong>
+							on the source job.
+						}
+						Merchandise and inventory are never copied, so a store switched on here would open
+						with nothing in it.
+					</p>
 				</div>
 
-				<label class="field-check">
-					<input type="checkbox" [ngModel]="upAgegroupNamesByOne()" (ngModelChange)="set(upAgegroupNamesByOne, $event)" />
-					<span>Advance a season — bump 20xx tokens in names & content, shift DOB/grad-year ranges</span>
-				</label>
-				<label class="field-check">
-					<input type="checkbox" [ngModel]="noParallaxSlide1()" (ngModelChange)="set(noParallaxSlide1, $event)" />
-					<span>Clear parallax slide 1 text</span>
-				</label>
+				<div class="jc-option-group">
+					<span class="jc-option-label">Season roll-forward</span>
+					<label class="field-check">
+						<input type="checkbox" [ngModel]="upAgegroupNamesByOne()" (ngModelChange)="set(upAgegroupNamesByOne, $event)" />
+						<span>Move everything forward one season</span>
+					</label>
+					<p class="jc-hint">
+						Advances any four-digit year found in age-group names, team names, bulletins and
+						page text — "Boys 2026" becomes "Boys 2027" — and shifts birth-date and graduation-year
+						ranges by a year, so a 2025-26 U10 age group still describes U10s next season.
+						@if (plan(); as p) {
+							@if (p.yearDelta === 0) {
+								<strong>This clone stays in the same year</strong>, so leaving it off is
+								usually right.
+							}
+						}
+						Turn it off when you are building a second job for the <em>same</em> season.
+					</p>
+				</div>
+
+				<div class="jc-option-group">
+					<span class="jc-option-label">Home page</span>
+					<label class="field-check">
+						<input type="checkbox" [ngModel]="noParallaxSlide1()" (ngModelChange)="set(noParallaxSlide1, $event)" />
+						<span>Clear the headline on the first home-page banner</span>
+					</label>
+					<p class="jc-hint">
+						The first banner's headline and caption usually name last season's event or dates.
+						Clearing them leaves the image in place with no text, so nothing stale is showing
+						when the site goes public.
+					</p>
+				</div>
 			</section>
 
 			<!-- ══════════ Commit bar ══════════ -->
