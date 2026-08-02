@@ -73,7 +73,7 @@ export const AGEGROUP_COLUMNS: LadtColumnDef[] = [
   // parties themselves, at their own risk). Field name keeps the legacy "Api".
   {
     field: 'bAllowApiRosterAccess', header: '3rd Party', type: 'boolean', width: '100px',
-    headerTooltip: 'Includes this age group in the Third-Party Roster Export (Report Library). TSIC no longer sends player data to third parties — you run the export and share it directly, at your discretion.',
+    headerTooltip: 'Age groups with this enabled appear in the Third-Party Roster Export (Report Library) — you run the export and share it at your discretion.',
   },
 ];
 
