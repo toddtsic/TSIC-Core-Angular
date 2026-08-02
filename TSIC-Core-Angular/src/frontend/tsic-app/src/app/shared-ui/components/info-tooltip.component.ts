@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, HostListener, inject, signal, input, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, HostListener, Injector, afterNextRender, inject, signal, input, viewChild } from '@angular/core';
 
 
 /**
@@ -31,7 +31,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, HostListener, inject, s
         <i class="bi bi-info-circle text-info" aria-hidden="true"></i>
       </button>
       @if (open()) {
-        <span class="info-tooltip-panel" role="tooltip"
+        <span #panel class="info-tooltip-panel" role="tooltip"
               [style.top.px]="top()"
               [style.left.px]="left()">
           {{ message() }}
@@ -69,7 +69,8 @@ import { ChangeDetectionStrategy, Component, ElementRef, HostListener, inject, s
       transform: translateX(-50%);
       z-index: 2000;
       min-width: 220px;
-      max-width: 320px;
+      /* never wider than the viewport minus the 8px clamp margins */
+      max-width: min(320px, calc(100vw - 16px));
       padding: var(--space-2) var(--space-3);
       border-radius: var(--radius-md);
       background: var(--brand-surface);
@@ -92,8 +93,10 @@ export class InfoTooltipComponent {
   readonly trigger = input<'click' | 'hover'>('click');
 
   readonly btnRef = viewChild<ElementRef<HTMLButtonElement>>('btn');
+  readonly panelRef = viewChild<ElementRef<HTMLElement>>('panel');
 
   private readonly host = inject(ElementRef<HTMLElement>);
+  private readonly injector = inject(Injector);
   readonly open = signal(false);
   readonly top = signal(0);
   readonly left = signal(0);
@@ -134,6 +137,22 @@ export class InfoTooltipComponent {
     const rect = el.getBoundingClientRect();
     this.top.set(rect.bottom + 4);
     this.left.set(rect.left + rect.width / 2);
+    // The panel is inside @if, so it only exists after the next render — clamp
+    // then (AM-038: a header ⓘ near the viewport's right edge spilled off-page).
+    afterNextRender(() => this.clampToViewport(), { injector: this.injector });
+  }
+
+  /** Shifts the centered panel back inside the viewport (8px margin) if it overflows either edge. */
+  private clampToViewport(): void {
+    const panel = this.panelRef()?.nativeElement;
+    if (!panel) return;
+    const margin = 8;
+    const r = panel.getBoundingClientRect();
+    if (r.right > window.innerWidth - margin) {
+      this.left.set(this.left() - (r.right - (window.innerWidth - margin)));
+    } else if (r.left < margin) {
+      this.left.set(this.left() + (margin - r.left));
+    }
   }
 
   @HostListener('document:click', ['$event'])
