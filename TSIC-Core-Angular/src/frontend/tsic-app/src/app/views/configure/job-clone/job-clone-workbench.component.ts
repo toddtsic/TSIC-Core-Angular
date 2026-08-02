@@ -26,6 +26,18 @@ interface LeagueRenameRow {
 	readonly nameTarget: string;
 }
 
+/**
+ * Steps the plan still performs but the pane does not list.
+ *
+ * OwlImages — the legacy home-page carousel (JobOwlImages). Confirmed dead 08-02: the Angular
+ * app never renders it, no screen edits it, and BrandingImageConventions has no upload for it,
+ * so a cloned row is invisible and unfixable. The clone step is slated for REMOVAL (step order,
+ * reset rule, repo add/delete, D1 snapshot, and a NotCloned entry with a reason) — deferred so
+ * it doesn't ride along with unrelated work. Hidden here in the meantime because listing it
+ * implies something useful happened. Delete this set once the step is gone.
+ */
+const HIDDEN_STEPS = new Set<string>(['OwlImages']);
+
 /** Friendly labels for the plan pane's step list (keys = JobCloneStepOrder). */
 const STEP_LABELS: Record<string, string> = {
 	Job: 'Job',
@@ -495,6 +507,11 @@ export class JobCloneWorkbenchComponent implements OnInit {
 
 	stepLabel(key: string): string {
 		return STEP_LABELS[key] ?? key;
+	}
+
+	/** Plan steps worth showing — see HIDDEN_STEPS for what is suppressed and why. */
+	visibleSteps(steps: ClonePlanDto['steps']): ClonePlanDto['steps'] {
+		return steps.filter(s => !HIDDEN_STEPS.has(s.stepKey));
 	}
 
 	formatDate(value: string | null | undefined): string {

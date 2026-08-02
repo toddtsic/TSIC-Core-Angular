@@ -454,6 +454,60 @@
 	.jc-choice-title { transition: none; }
 }
 
+// ── "What arrives switched off" ──
+// Reads as a briefing, not a form: no controls, so it gets tighter type and grouped rules
+// rather than the option-group separators used by the panel above it.
+.jc-safe-state {
+	h4 {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		font-size: 0.8rem;
+		font-weight: var(--font-weight-semibold, 600);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--brand-text-muted);
+		margin: 0 0 var(--space-2) 0;
+
+		i { font-size: 0.95rem; }
+	}
+}
+
+.jc-safe-group {
+	padding: var(--space-3) 0;
+
+	& + & { border-top: 1px solid var(--bs-border-color); }
+	&:first-of-type { padding-top: 0; }
+}
+
+.jc-safe-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+
+	li {
+		position: relative;
+		padding-left: var(--space-4);
+		font-size: 0.85rem;
+		line-height: 1.5;
+		color: var(--brand-text-muted);
+
+		strong { color: var(--brand-text); }
+
+		// Marker is a glyph, not colour alone — the list states restrictions and must read
+		// the same to anyone who can't distinguish the accent (WCAG: never colour-only).
+		&::before {
+			content: '\2013';
+			position: absolute;
+			left: var(--space-2);
+			color: var(--bs-border-color);
+		}
+	}
+}
+
 .jc-commit {
 	.field-check + .field-check { margin-top: var(--space-1); }
 }

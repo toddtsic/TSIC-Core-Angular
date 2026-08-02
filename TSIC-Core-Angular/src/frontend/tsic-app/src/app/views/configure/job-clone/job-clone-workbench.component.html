@@ -392,6 +392,67 @@
 				</div>
 			</section>
 
+			<!-- The clone's safe state, stated plainly. These are NOT options — every one of them is
+			     unconditional (JobCloneResetRules "SAFE-STATE RESET LIST"). Directors coming from legacy
+			     expect a clone to arrive live like its source did; it does not, and finding that out by
+			     discovering the site is dark is worse than reading it here. -->
+			<section class="jc-panel jc-safe-state">
+				<h3>What arrives switched off</h3>
+				<p class="jc-hint jc-panel-intro">
+					A clone never goes live by itself. Nothing below is a choice on this page — it is how
+					every clone lands, so a half-built job cannot be reached by the public or by a phone.
+				</p>
+
+				<div class="jc-safe-group">
+					<h4><i class="bi bi-lock-fill" aria-hidden="true"></i> Released from the Release page</h4>
+					<ul class="jc-safe-list">
+						<li><strong>The public site is hidden.</strong> Nobody outside your admins can reach it
+							until you release it in step 2.</li>
+						<li><strong>All five registration types are closed</strong> — players, teams, staff,
+							referees and recruiters. You open them in step 4, one by one; opening is additive
+							and deliberate.</li>
+						<li><strong>Cloned admins arrive inactive.</strong> You activate them in step 3, so
+							nobody gets access to a job you are still building.</li>
+					</ul>
+				</div>
+
+				<div class="jc-safe-group">
+					<h4><i class="bi bi-phone" aria-hidden="true"></i> Mobile app — off until configured</h4>
+					<ul class="jc-safe-list">
+						<li>Mobile login and mobile registration are off.</li>
+						<li>RSVP and TSIC Teams are off.</li>
+						<li><strong>Team chat is off</strong> and never turns itself on — team messaging reaches
+							families directly, so switching it on is always a deliberate act.</li>
+					</ul>
+				</div>
+
+				<div class="jc-safe-group">
+					<h4><i class="bi bi-eye-slash" aria-hidden="true"></i> Public visibility — off until real</h4>
+					<ul class="jc-safe-list">
+						<li><strong>No public schedule access.</strong> There is no schedule yet, and an empty
+							one published early reads as a cancelled season.</li>
+						<li><strong>Rosters are not viewable</strong> by players or adults, and public rosters
+							are set to the restricted setting rather than whatever the source used.</li>
+					</ul>
+				</div>
+
+				<div class="jc-safe-group">
+					<h4><i class="bi bi-unlock" aria-hidden="true"></i> Deliberately re-opened</h4>
+					<ul class="jc-safe-list">
+						<li><strong>Club reps can add, edit and delete teams again.</strong> The source job was
+							probably locked down once its schedule was built; a new clone starts back at the
+							registration phase, so those permissions reset to open.</li>
+						<li><strong>Pay-in-full-by-choice starts off.</strong> Turn it on in job settings if you
+							want families to be able to pay the whole balance up front.</li>
+					</ul>
+				</div>
+
+				<p class="jc-hint">
+					Everything here is a job setting afterwards — none of it is permanent, and none of it
+					depends on the choices above.
+				</p>
+			</section>
+
 			<!-- ══════════ Commit bar ══════════ -->
 			<section class="jc-panel jc-commit">
 				<label class="field-check">
@@ -437,7 +498,7 @@
 					}
 
 					<ul class="jc-step-list">
-						@for (s of p.steps; track s.stepKey) {
+						@for (s of visibleSteps(p.steps); track s.stepKey) {
 							<li [class.jc-zero]="s.count === 0">
 								<span class="jc-step-name">{{ stepLabel(s.stepKey) }}</span>
 								<span class="jc-step-count">{{ s.count }}</span>
