@@ -54,7 +54,11 @@ export class JobConfigComponent implements OnInit, HasUnsavedChanges {
     { key: 'payment', label: 'Payment', icon: '' },
     { key: 'communications', label: 'Comms', icon: '' },
     { key: 'player', label: 'Players', icon: '' },
-    { key: 'teams', label: 'Teams', icon: '' },
+    // AM-065 pt2 (Ann's 3rd ask, Todd go 08-02): the tab also holds Club Rep
+    // settings + confirmations, so "Teams" alone hid them. "Teams/Reps" keeps the
+    // strip's terse convention (cf. "Comms", "Adult", "Mobile/Store"); the full
+    // "Teams & Club Reps" stays on the save toast, as every tab's long form does.
+    { key: 'teams', label: 'Teams/Reps', icon: '' },
     { key: 'coaches', label: 'Adult', icon: '' },
     { key: 'scheduling', label: 'Scheduling', icon: '' },
     { key: 'mobileStore', label: 'Mobile/Store', icon: '', superUserOnly: true },
