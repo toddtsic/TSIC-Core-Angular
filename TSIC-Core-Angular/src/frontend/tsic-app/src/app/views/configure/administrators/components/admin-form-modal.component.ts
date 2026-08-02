@@ -213,11 +213,17 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
     private readonly adminService = inject(AdministratorService);
     private readonly destroy$ = new Subject<void>();
 
-    // 'ApiAuthorized' removed 08-02: the free third-party roster API (SportsRecruits)
-    // is retired — COPPA/privacy exposure, no contract. Per-age-group data sharing is
-    // now the Third-Party Roster Export library report the client runs themselves;
-    // no new ApiAuthorized admins should ever be minted.
-    readonly availableRoles = ['Director', 'SuperDirector', 'Ref Assignor', 'Store Admin', 'STPAdmin'];
+    readonly availableRoles = [
+        'Director',
+        'SuperDirector',
+        // 'ApiAuthorized', — retired 08-02: the free third-party roster API (SportsRecruits)
+        // is gone (COPPA/privacy exposure, no contract). Per-age-group data sharing is now
+        // the Third-Party Roster Export library report the client runs themselves; no new
+        // ApiAuthorized admins should ever be minted. Do not un-comment.
+        'Ref Assignor',
+        'Store Admin',
+        'STPAdmin',
+    ];
 
     /**
      * Options for the role select. Add mode = availableRoles only. Edit mode also
