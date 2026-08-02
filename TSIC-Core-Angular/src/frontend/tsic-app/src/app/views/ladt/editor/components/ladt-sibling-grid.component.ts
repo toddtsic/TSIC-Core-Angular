@@ -719,13 +719,25 @@ export class LadtSiblingGridComponent implements OnChanges {
     return 'Left';
   }
 
-  /** Tooltip text for the ⓘ icon: where in the L→AG→T cascade a fee/phase was set or inherited from. */
+  /** Tooltip text for the ⓘ icon: where in the L→AG→T cascade a fee/phase was set or inherited from.
+   *
+   *  AM-066 (Ann 08-02, Todd go): the job tier renders as "League" to Directors. "Job default"
+   *  named a level the UI never shows — since the PL-062 phase rework the League card IS the
+   *  top-level control, so a Director has no "job" tier in their model. `job` and `league`
+   *  deliberately collapse to the same label: they are one level as far as this UI presents
+   *  them, and distinguishing them would reintroduce the vocabulary Ann objected to.
+   *  Note the consequence at league scope: a job-baseline pill reads "Inherited from League
+   *  level" while you are on the league row — correct under the new model (the value does come
+   *  from the League card's tier), and Ann's requested wording verbatim.
+   *
+   *  "level" moved into the shared template so both branches read as a level, and the labels
+   *  are title-case to match the tab/card names Directors see. */
   sourceTooltip(source: string, inherited: boolean): string {
     const labels: Record<string, string> = {
-      job: 'job default', league: 'league', agegroup: 'age-group', team: 'team'
+      job: 'League', league: 'League', agegroup: 'Age Group', team: 'Team'
     };
     const label = labels[source] ?? source;
-    return inherited ? `Inherited from ${label}` : `Set at ${label} level`;
+    return inherited ? `Inherited from ${label} level` : `Set at ${label} level`;
   }
 
   getBadgeClass(level: number): string {
