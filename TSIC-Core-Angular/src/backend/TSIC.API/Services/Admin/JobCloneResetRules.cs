@@ -138,6 +138,14 @@ public static class JobCloneResetRules
         // "disable store" clone can't leak walk-up back on.
         job.BAllowStoreWalkup = enableStore == true && source.BAllowStoreWalkup;
 
+        // ── Home-page banner: keep Jobs.bBannerIsCustom in step with the real switch ──
+        // The switch is JobDisplayOptions.parallaxSlideCount, not this column: both read
+        // paths derive the flag from the count (JobRepository.GetJobMetadataByPathAsync,
+        // JobConfigService.MapBranding), and nothing reads Jobs.bBannerIsCustom. Copied
+        // blind it would land TRUE against a zeroed count — inert today, a lie the moment
+        // anyone wires a read to it. See CloneDisplayOptions for the count side.
+        if (req.NoParallaxSlide1) job.BBannerIsCustom = false;
+
         // ── Date fields shift by yearDelta (seasonal cadence; AddYears clamps Feb-29) ──
         job.EventStartDate = ShiftByYears(source.EventStartDate, yearDelta);
         job.EventEndDate = ShiftByYears(source.EventEndDate, yearDelta);
@@ -217,10 +225,26 @@ public static class JobCloneResetRules
             d.ParallaxSlide3Text2 = BumpYears(source.ParallaxSlide3Text2);
         }
 
+        // NoParallaxSlide1 = "open on a plain banner". parallaxSlideCount is the ONLY
+        // custom-banner switch the homesite reads, so zeroing it drops client-banner to
+        // its text-only branch (jobName as the headline).
+        //
+        // The overlay TEXT must go with it. client-banner.component.html paints
+        // jobBannerText2 (= ParallaxSlide1Text2) as the subtitle even on that plain
+        // branch — so before this, last season's caption stayed live on the new job's
+        // public home page with the option ON. Text1 is dormant there but returns the
+        // instant a director re-enables the custom banner, carrying the old season with
+        // it. Both are cleared.
+        //
+        // ParallaxBackgroundImage is deliberately KEPT: the backdrop is usually a generic
+        // sport photo worth reusing, and it renders nothing while the count is 0. The
+        // slide-1 overlay is the season-branded artwork, so that one is dropped.
         if (req.NoParallaxSlide1)
         {
-            d.ParallaxSlide1Image = null;
             d.ParallaxSlideCount = 0;
+            d.ParallaxSlide1Image = null;
+            d.ParallaxSlide1Text1 = null;
+            d.ParallaxSlide1Text2 = null;
         }
 
         return d;

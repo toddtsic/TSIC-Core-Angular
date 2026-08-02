@@ -266,15 +266,24 @@
 				</div>
 
 				<div class="jc-option-group">
-					<span class="jc-option-label">Home page</span>
+					<span class="jc-option-label">Home page banner</span>
 					<label class="field-check">
 						<input type="checkbox" [ngModel]="noParallaxSlide1()" (ngModelChange)="set(noParallaxSlide1, $event)" />
-						<span>Clear the headline on the first home-page banner</span>
+						<span>Start on a plain banner</span>
 					</label>
 					<p class="jc-hint">
-						The first banner's headline and caption usually name last season's event or dates.
-						Clearing them leaves the image in place with no text, so nothing stale is showing
-						when the site goes public.
+						@if (noParallaxSlide1()) {
+							The home page opens with the job name across a plain banner — last season's
+							overlay artwork, headline and caption are all dropped, so nothing stale can
+							show when the site goes public. The background photo is kept, ready for when
+							you switch the custom banner back on. Upload this season's artwork under
+							<strong>Configure → Job → Branding</strong>.
+						} @else {
+							The new job opens with the source job's banner exactly as it stands today —
+							same background, same overlay artwork, same headline and caption. Those
+							usually name last season's event or dates, so leave this on unless you are
+							reusing the artwork as-is.
+						}
 					</p>
 				</div>
 			</section>
