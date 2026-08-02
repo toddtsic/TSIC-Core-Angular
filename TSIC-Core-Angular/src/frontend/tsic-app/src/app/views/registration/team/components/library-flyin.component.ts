@@ -1133,7 +1133,15 @@ interface LibraryGroup {
 
       /* Submit/Cancel row — bottom-right terminal action for the picker. Submit
          commits the selected LOP + age group (a new reg, or a change when
-         editing); it stays disabled until the required picks are made. */
+         editing); it stays disabled until the required picks are made.
+
+         Both buttons are token-driven on purpose — do NOT convert them to
+         Bootstrap's .btn-primary / .btn-outline-secondary. Bootstrap ships here
+         PRECOMPILED (angular.json → bootstrap.min.css), so those classes carry
+         literal #0d6efd / #6c757d and ignore --bs-primary; our palette only
+         reaches them inside the wizard mixin and dark mode. Submit's
+         var(--bs-primary) tracks the brand and the 8 palettes; .btn-primary
+         would not. */
       .register-actions {
         display: flex;
         justify-content: flex-end;
@@ -1142,17 +1150,27 @@ interface LibraryGroup {
         margin-top: var(--space-1);
       }
 
+      /* AM-068 (Ann 08-02): was border:none + background:none with an underline
+         hover — the LINK idiom — so Cancel read as plain text, not a choice.
+         Now an outlined secondary: visible boundary, still clearly subordinate
+         to the solid Submit. Vertical padding is 5px against Submit's 6px so the
+         1px border lands both buttons on the same height. */
       .btn-register-cancel {
-        padding: 4px var(--space-2);
-        border: none;
-        background: none;
+        padding: 5px var(--space-3);
+        border: 1px solid var(--bs-border-color);
+        background: transparent;
         color: var(--brand-text-muted);
         font-size: var(--font-size-sm);
         font-weight: var(--font-weight-medium);
         border-radius: var(--radius-sm);
         cursor: pointer;
+        transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
       }
-      .btn-register-cancel:hover { color: var(--brand-text); text-decoration: underline; }
+      .btn-register-cancel:hover {
+        color: var(--brand-text);
+        border-color: var(--brand-text-muted);
+        background: color-mix(in srgb, var(--brand-text-muted) 8%, transparent);
+      }
       .btn-register-cancel:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 
       .btn-register-submit {
@@ -1396,7 +1414,7 @@ interface LibraryGroup {
         .library-panel { transition: none; }
         .lib-icon-btn, .btn-register-cell, .btn-add-team, .btn-flyin-done,
         .lib-group-header, .lib-group-card, .lib-howto-toggle,
-        .lib-item-main { transition: none; }
+        .lib-item-main, .btn-register-cancel, .btn-register-submit { transition: none; }
         .btn-register-cell:hover:not(:disabled) { transform: none; }
       }
     `],
