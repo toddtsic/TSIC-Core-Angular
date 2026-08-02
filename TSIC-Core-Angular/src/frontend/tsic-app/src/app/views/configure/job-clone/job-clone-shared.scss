@@ -1,42 +1,13 @@
-// Shared visual language for the job-clone suite (landing / workbench / release).
+// Shared visual language for the job-clone suite (workbench / release).
 // Included via styleUrls alongside each component's own sheet.
+//
+// Page headers use the GLOBAL .page-header / .page-title / .page-title-icon /
+// .page-subtitle from styles/_utilities.scss — the suite deliberately owns no
+// header styles of its own.
 
 :host {
 	display: block;
 	padding: var(--space-4) var(--space-3);
-}
-
-.jc-header {
-	margin-bottom: var(--space-4);
-
-	h2 {
-		font-size: 1.5rem;
-		font-weight: 600;
-		color: var(--brand-text);
-		margin: 0 0 var(--space-1) 0;
-		display: flex;
-		align-items: baseline;
-		gap: var(--space-2);
-	}
-}
-
-.jc-subtitle {
-	color: var(--brand-text-muted);
-	margin: 0;
-	font-size: 0.9rem;
-}
-
-.jc-back-link {
-	background: none;
-	border: none;
-	color: var(--bs-primary);
-	cursor: pointer;
-	font-size: 0.85rem;
-	padding: 0 0 var(--space-1) 0;
-	text-decoration: none;
-
-	&:hover { text-decoration: underline; }
-	&:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 }
 
 .jc-panel {

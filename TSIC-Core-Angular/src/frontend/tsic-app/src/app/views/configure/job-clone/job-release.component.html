@@ -1,30 +1,39 @@
 <div class="jc-release">
-	<header class="jc-header">
-		<button type="button" class="jc-back-link" (click)="goBack()">← Job Clone</button>
+	@if (celebrate()) {
+		<div class="success-banner jc-celebrate">
+			🎉 Clone complete. Walk the checklist below, then release in three moves:
+			site → admins → registration.
+		</div>
+	}
 
-		@if (celebrate()) {
-			<div class="success-banner jc-celebrate">
-				🎉 Clone complete. Walk the checklist below, then release in three moves:
-				site → admins → registration.
-			</div>
-		}
-
-		@if (checklist(); as c) {
-			<h2>Release: {{ c.jobName }}</h2>
-			<p class="jc-subtitle">
-				<span class="jc-mono">/{{ c.jobPath }}</span>
-				· {{ c.jobTypeName ?? 'type ' + c.jobTypeId }}
-				@if (c.bSuspendPublic) {
-					<span class="jc-state-chip jc-suspended">SUSPENDED</span>
-				} @else {
-					<span class="jc-state-chip jc-public">PUBLIC</span>
+	<div class="page-header">
+		<div>
+			@if (checklist(); as c) {
+				<h2 class="page-title">
+					<i class="bi bi-rocket-takeoff page-title-icon"></i>
+					Release Job
+				</h2>
+				<p class="page-subtitle">
+					<strong>{{ c.jobName }}</strong>
+					<span class="jc-mono">/{{ c.jobPath }}</span>
+					· {{ c.jobTypeName ?? 'type ' + c.jobTypeId }}
+					@if (c.bSuspendPublic) {
+						<span class="jc-state-chip jc-suspended">SUSPENDED</span>
+					} @else {
+						<span class="jc-state-chip jc-public">PUBLIC</span>
+					}
+				</p>
+			} @else {
+				<h2 class="page-title">
+					<i class="bi bi-rocket-takeoff page-title-icon"></i>
+					Release Job
+				</h2>
+				@if (isLoadingChecklist()) {
+					<p class="page-subtitle loading-text">Loading…</p>
 				}
-			</p>
-		} @else if (isLoadingChecklist()) {
-			<h2>Release</h2>
-			<p class="jc-subtitle loading-text">Loading…</p>
-		}
-	</header>
+			}
+		</div>
+	</div>
 
 	<!-- ══════════ Panel 1: Verify settings ══════════ -->
 	<section class="jc-panel">

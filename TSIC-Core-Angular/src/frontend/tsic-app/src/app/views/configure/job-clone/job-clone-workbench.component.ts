@@ -444,10 +444,6 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	// Template helpers
 	// ══════════════════════════════════════════════════════════
 
-	goBack(): void {
-		this.router.navigate(['..'], { relativeTo: this.route });
-	}
-
 	stepLabel(key: string): string {
 		return STEP_LABELS[key] ?? key;
 	}

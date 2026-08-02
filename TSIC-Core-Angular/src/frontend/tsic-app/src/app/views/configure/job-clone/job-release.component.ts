@@ -325,9 +325,5 @@ export class JobReleaseComponent implements OnInit {
 	// Template helpers
 	// ══════════════════════════════════════════════════════════
 
-	goBack(): void {
-		this.router.navigate(['../..'], { relativeTo: this.route });
-	}
-
 	trackAdmin = (_: number, a: ReleasableAdminDto) => a.registrationId;
 }

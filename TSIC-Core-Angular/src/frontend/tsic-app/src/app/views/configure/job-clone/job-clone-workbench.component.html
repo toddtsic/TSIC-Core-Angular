@@ -1,16 +1,20 @@
 <div class="jc-workbench">
-	<header class="jc-header">
-		<button type="button" class="jc-back-link" (click)="goBack()">← Configure</button>
-		<h2>Clone workbench</h2>
-		@if (source(); as src) {
-			<p class="jc-subtitle">
-				Source: <strong>{{ src.jobName }}</strong>
-				<span class="jc-mono">/{{ src.jobPath }} · {{ src.year ?? '—' }} {{ src.season ?? '' }}</span>
-			</p>
-		} @else if (isLoadingSource()) {
-			<p class="jc-subtitle loading-text">Resolving current job…</p>
-		}
-	</header>
+	<div class="page-header">
+		<div>
+			<h2 class="page-title">
+				<i class="bi bi-copy page-title-icon"></i>
+				Clone Job
+			</h2>
+			@if (source(); as src) {
+				<p class="page-subtitle">
+					Source: <strong>{{ src.jobName }}</strong>
+					<span class="jc-mono">/{{ src.jobPath }} · {{ src.year ?? '—' }} {{ src.season ?? '' }}</span>
+				</p>
+			} @else if (isLoadingSource()) {
+				<p class="page-subtitle loading-text">Resolving current job…</p>
+			}
+		</div>
+	</div>
 
 	<div class="jc-columns">
 		<!-- ══════════ LEFT: the form ══════════ -->
