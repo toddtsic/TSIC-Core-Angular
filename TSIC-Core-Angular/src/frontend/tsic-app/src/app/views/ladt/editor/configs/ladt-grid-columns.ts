@@ -71,7 +71,8 @@ export const TEAM_COLUMNS: LadtColumnDef[] = [
   { field: 'teamName', header: 'Team', type: 'string', frozen: true, width: '160px' },
   // AM-038 nit 3 (Ann): "ACTI VE" / "PLAYE RS" clipped mid-word — widths fit the header word
   { field: 'active', header: 'Active', type: 'boolean', width: '85px' },
-  { field: 'playerCount', header: 'Players', type: 'number', width: '90px' },
+  // AM-038 re-open (Ann, 08-01): 90px ellipsized the single-word header ("PLAYE…")
+  { field: 'playerCount', header: 'Players', type: 'number', width: '100px' },
   { field: 'maxCount', header: 'Max Roster', type: 'number', width: '95px' },
   // Dates come BEFORE the fee columns (AM-038): with them trailing ~710px of
   // Fees/EBD/LateFee/Phase, Start/End/Effective/Expires were always off-screen.
