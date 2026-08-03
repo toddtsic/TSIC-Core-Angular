@@ -636,11 +636,12 @@ export class LadtSiblingGridComponent implements OnChanges {
    * past the bottom edge is UNREACHABLE, not merely clipped — on the last rows of any list
    * that silently removed Delete, Clone and drill-down.
    *
-   * Mobile-only by deliberate choice. The defect exists on desktop too, but this is a Phase 2
-   * change under .claude/rules/mobile-readiness.md: the desktop path returns before touching
-   * anything, so desktop behaviour is unchanged BY CONSTRUCTION rather than by an argument
-   * about Math.min being a no-op. Extending it to desktop is a separate, separately-tested
-   * decision.
+   * Applies at EVERY viewport. It shipped mobile-only first, on the reasoning that a clamp is
+   * a no-op whenever the menu already fits and so could not disturb desktop — but that is an
+   * argument, and the cost of being cautious was leaving a live defect for desktop directors.
+   * Math.min/Math.max return the requested position unchanged in every case that renders
+   * correctly today; they only engage when the menu would otherwise be off-screen, which is
+   * precisely the broken case.
    *
    * afterNextRender is the sanctioned tool here — .claude/rules/frontend-angular.md bans
    * effect() but explicitly exempts afterNextRender for DOM work against the rendered view,
@@ -651,8 +652,6 @@ export class LadtSiblingGridComponent implements OnChanges {
    * is added.
    */
   private clampMenuIntoViewport(): void {
-    if (!window.matchMedia('(max-width: 767.98px)').matches) return;
-
     afterNextRender(() => {
       const el = this.rowMenu()?.nativeElement;
       if (!el) return;
