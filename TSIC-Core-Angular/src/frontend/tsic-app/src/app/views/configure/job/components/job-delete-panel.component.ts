@@ -3,6 +3,7 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { JobCloneService } from '../../job-clone/services/job-clone.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { environment } from '@environments/environment';
@@ -84,6 +85,7 @@ export class JobDeletePanelComponent implements OnInit {
 	private readonly cloneService = inject(JobCloneService);
 	private readonly toast = inject(ToastService);
 	private readonly router = inject(Router);
+	private readonly auth = inject(AuthService);
 
 	readonly jobId = input.required<string>();
 
@@ -118,12 +120,21 @@ export class JobDeletePanelComponent implements OnInit {
 		this.cloneService.deleteClonedJob(this.jobId()).subscribe({
 			next: () => {
 				this.isDeleting.set(false);
-				// The session is scoped to the job that just vanished, so every
-				// job-scoped route is now a dead end. Role-selection is the app's own
-				// "pick where to work" screen; 'tsic' is the jobless prefix its
-				// siblings use (header switchRole, the ToS fallback).
+				// The session is scoped to the job that just vanished, so every job-scoped
+				// route is now a dead end and there is no "previous job" to fall back to —
+				// LastLocationService keeps a single value and it is this job. Role-selection
+				// is the app's own "pick where to work" screen, and it is NOT job-scoped:
+				// when authenticated it lists the user's registrations across every job.
+				//
+				// Route it under the CURRENT jobPath, dead as that path now is, NOT under the
+				// jobless 'tsic' prefix. authGuard tests `urlJob === 'tsic' && user.jobPath
+				// !== 'tsic'` BEFORE it reaches its own `/role-selection` cross-job allowance,
+				// so /tsic/role-selection is bounced straight back to user.jobPath — i.e. back
+				// into the job that was just deleted, which is exactly the bug this replaces.
+				// Same-path keeps the mismatch branch from firing at all.
+				const jobPath = this.auth.currentUser()?.jobPath;
 				this.toast.show('Job deleted. Select a job to continue.', 'success', 5000);
-				this.router.navigate(['/tsic/role-selection']);
+				this.router.navigate([`/${jobPath ?? 'tsic'}/role-selection`]);
 			},
 			error: err => {
 				this.isDeleting.set(false);
