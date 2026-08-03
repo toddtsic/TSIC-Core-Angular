@@ -32,6 +32,18 @@ export type ReadinessAudience = 'player' | 'team';
 export class RegistrationReadinessComponent {
 	readonly audience = input.required<ReadinessAudience>();
 
+	/**
+	 * The tab's CURRENT (possibly unsaved) registration toggle. Null = unknown.
+	 *
+	 * Not used to evaluate anything — the verdicts stay the server's. It answers one narrow
+	 * question: has the operator already changed the input this clause is reporting on? Without
+	 * it the panel puts a red ✗ on "Player registration is turned on" directly beside the box
+	 * that was just ticked, which reads as a broken panel however carefully the header explains
+	 * staleness. With it, that one clause goes to a pending state and the others keep their
+	 * (still accurate) verdicts.
+	 */
+	readonly pendingToggleOn = input<boolean | null>(null);
+
 	protected readonly svc = inject(JobConfigService);
 
 	protected readonly clauses = computed<ReadinessClauseDto[]>(() => {
@@ -59,6 +71,16 @@ export class RegistrationReadinessComponent {
 	 */
 	protected readonly pending = computed(() =>
 		this.svc.dirtyTabs().has(this.audience() === 'player' ? 'player' : 'teams'));
+
+	/**
+	 * This clause reports on an input the operator has already changed but not saved. Only the
+	 * toggle clause can be in this state — it is the one thing this tab edits.
+	 */
+	protected clausePending(c: ReadinessClauseDto): boolean {
+		if (c.key !== 'toggle-on' || !this.pending()) return false;
+		const local = this.pendingToggleOn();
+		return local !== null && local !== c.passed;
+	}
 
 	protected readonly channelLabel = computed(() =>
 		this.audience() === 'player' ? 'Player registration' : 'Team registration');
@@ -95,7 +117,10 @@ export class RegistrationReadinessComponent {
 		switch (clause.fixTarget) {
 			case 'scheduling': return 'Open the Scheduling tab';
 			case 'fees': return 'Set up fees in the League editor';
-			case 'teams': return 'Open team registration windows in the League editor';
+			// Neutral wording on purpose: this clause fails either because no teams exist or
+			// because every team's window has closed, and the detail line above already says
+			// which. A label naming one case is wrong instructions half the time.
+			case 'teams': return 'Open the League editor';
 			default: return null;
 		}
 	}

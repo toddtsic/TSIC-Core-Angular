@@ -28,19 +28,32 @@
 
 		<ul class="rr__list" [class.is-stale]="pending()">
 			@for (c of clauses(); track c.key) {
-				<li class="rr__clause" [class.is-pass]="c.passed" [class.is-fail]="!c.passed">
+				<li class="rr__clause"
+					[class.is-pending]="clausePending(c)"
+					[class.is-pass]="c.passed && !clausePending(c)"
+					[class.is-fail]="!c.passed && !clausePending(c)">
 					<i class="bi rr__icon"
-						[class.bi-check-circle-fill]="c.passed"
-						[class.bi-x-circle-fill]="!c.passed"
+						[class.bi-pencil-fill]="clausePending(c)"
+						[class.bi-check-circle-fill]="c.passed && !clausePending(c)"
+						[class.bi-x-circle-fill]="!c.passed && !clausePending(c)"
 						aria-hidden="true"></i>
 					<div class="rr__clausebody">
 						<span class="rr__label">
 							{{ c.label }}
-							<span class="visually-hidden">— {{ c.passed ? 'passing' : 'not met' }}</span>
+							<span class="visually-hidden">
+								— {{ clausePending(c) ? 'changed, not saved yet' : (c.passed ? 'passing' : 'not met') }}
+							</span>
 						</span>
-						<span class="rr__detail">{{ c.detail }}</span>
 
-						@if (!c.passed && fixLabel(c)) {
+						<!-- The operator already changed this one; repeating the saved verdict here would
+						     just argue with the control they used. -->
+						@if (clausePending(c)) {
+							<span class="rr__detail">You changed this — save the tab to apply it.</span>
+						} @else {
+							<span class="rr__detail">{{ c.detail }}</span>
+						}
+
+						@if (!c.passed && !clausePending(c) && fixLabel(c)) {
 							@if (fixTab(c); as tab) {
 								<button type="button" class="rr__fix" (click)="goToTab(tab)">
 									{{ fixLabel(c) }} <i class="bi bi-arrow-right-short" aria-hidden="true"></i>

@@ -93,6 +93,10 @@
 
 	.is-pass & { color: var(--bs-success); }
 	.is-fail & { color: var(--bs-danger); }
+	// Changed but not saved — deliberately neither green nor red. Marking it failed would
+	// contradict the control the operator just used; marking it passed would assert a verdict
+	// the server has not given.
+	.is-pending & { color: var(--bs-primary); }
 }
 
 .rr__clausebody {
@@ -108,6 +112,7 @@
 	color: var(--brand-text);
 
 	.is-fail & { color: var(--bs-danger-text-emphasis); }
+	.is-pending & { color: var(--bs-primary); }
 }
 
 // The evidence line — dates and counts. Wraps freely; never truncated, since the numbers
