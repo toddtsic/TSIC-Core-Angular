@@ -605,25 +605,14 @@ public class JobRepository : IJobRepository
             {
                 Pulse = new Contracts.Dtos.JobPulseDto
                 {
-                    // Fee-driven, symmetric with the team gate below: player reg is only
-                    // open when Player fees are configured so the registration can be priced
-                    // (a $0 row counts — "configured" means a JobFees row exists, not amount > 0;
-                    // no row at all → FeeResolutionService throws, so the card would dead-end).
-                    PlayerRegistrationOpen = j.BRegistrationAllowPlayer == true
-                        && _context.JobFees.Any(f => f.JobId == j.JobId && f.RoleId == playerRoleId),
-                    // Mirrors TeamRepository.GetAvailableTeamsQueryResultsAsync — same window rule:
-                    // a real window must contain 'now'; a null/zero-width/sub-second window is
-                    // meaningless, so availability rests on Active + agegroup alone.
-                    PlayerTeamsAvailableForRegistration = _context.Teams.Any(t =>
-                        t.JobId == j.JobId
-                        && (t.Active ?? true)
-                        && ((t.BAllowSelfRostering ?? false) || (t.Agegroup.BAllowSelfRostering ?? false))
-                        && (t.Effectiveasofdate == null
-                            || t.Expireondate == null
-                            || t.Expireondate <= t.Effectiveasofdate.Value.AddSeconds(1)
-                            || (t.Effectiveasofdate <= now && t.Expireondate >= now))
-                        && !(t.Agegroup.AgegroupName ?? "").StartsWith("Dropped")
-                        && !(t.Agegroup.AgegroupName ?? "").StartsWith("Waitlist")),
+                    // Toggle ONLY here. The fee clause and the create door are ANDed in the
+                    // step-3 fold via RegistrationReadiness.Compose, which is the same function
+                    // the admin readiness readout composes with — one evaluation, two consumers,
+                    // so the screen that explains this field cannot drift from the field.
+                    PlayerRegistrationOpen = j.BRegistrationAllowPlayer == true,
+                    // Team availability comes from the shared snapshot below (one query, one
+                    // copy of the self-roster rule) — not an inline subquery per field.
+                    PlayerTeamsAvailableForRegistration = false,
                     PlayerRegRequiresToken = j.BplayerRegRequiresToken == true,
                     // USLax requirement is a JSON-parse of PlayerProfileMetadataJson, which
                     // EF can't translate — placeholder here, folded in post-materialization
@@ -631,11 +620,9 @@ public class JobRepository : IJobRepository
                     // column, so it rides the projection directly.
                     PlayerRegRequiresUsLax = false,
                     UsLaxMembershipValidThrough = j.UslaxNumberValidThroughDate,
-                    // Team reg relevance is fee-driven, not job-type-driven: it's only
-                    // meaningful when ClubRep (team) fees are configured so the registration
-                    // can be priced. Mirrors the Quick Links editor's TeamFeesConfigured gate.
-                    TeamRegistrationOpen = j.BRegistrationAllowTeam == true
-                        && _context.JobFees.Any(f => f.JobId == j.JobId && f.RoleId == clubRepRoleId),
+                    // Toggle ONLY, as with the player flag above — fees + door are ANDed in the
+                    // step-3 fold through RegistrationReadiness.Compose.
+                    TeamRegistrationOpen = j.BRegistrationAllowTeam == true,
                     TeamRegRequiresToken = j.BteamRegRequiresToken,
                     ClubRepAllowAdd = j.BClubRepAllowAdd == true,
                     ClubRepAllowEdit = j.BClubRepAllowEdit == true,
@@ -668,28 +655,11 @@ public class JobRepository : IJobRepository
                     RecruiterRegistrationOpen = j.BRegistrationAllowRecruiter == true,
                     PublicSuspended = j.BSuspendPublic,
                     RegistrationExpiry = j.ExpiryUsers,
-                    // Soonest close among currently-open self-rosterable teams (same
-                    // filter as PlayerTeamsAvailableForRegistration). Null → no open
-                    // team with a close date; the hero shows no countdown.
-                    PlayerRegClosesSoonest = _context.Teams
-                        .Where(t => t.JobId == j.JobId
-                            && (t.Active ?? true)
-                            && ((t.BAllowSelfRostering ?? false) || (t.Agegroup.BAllowSelfRostering ?? false))
-                            && (t.Effectiveasofdate == null || t.Effectiveasofdate <= now)
-                            && t.Expireondate != null && t.Expireondate >= now
-                            && !(t.Agegroup.AgegroupName ?? "").StartsWith("Dropped")
-                            && !(t.Agegroup.AgegroupName ?? "").StartsWith("Waitlist"))
-                        .Min(t => (DateTime?)t.Expireondate),
-                    // Soonest upcoming open among teams not yet in their window.
-                    PlayerRegOpensSoonest = _context.Teams
-                        .Where(t => t.JobId == j.JobId
-                            && (t.Active ?? true)
-                            && ((t.BAllowSelfRostering ?? false) || (t.Agegroup.BAllowSelfRostering ?? false))
-                            && t.Effectiveasofdate != null && t.Effectiveasofdate > now
-                            && (t.Expireondate == null || t.Expireondate >= now)
-                            && !(t.Agegroup.AgegroupName ?? "").StartsWith("Dropped")
-                            && !(t.Agegroup.AgegroupName ?? "").StartsWith("Waitlist"))
-                        .Min(t => (DateTime?)t.Effectiveasofdate),
+                    // Countdown dates come from the shared team-availability snapshot too — they
+                    // are cuts of the SAME eligible-team set, and were three hand-copies of one
+                    // filter (available / closing-soonest / opening-soonest) before it moved.
+                    PlayerRegClosesSoonest = null,
+                    PlayerRegOpensSoonest = null,
                     // Factual event bounds from the published schedule (day-granular).
                     // The hero derives "in season" / "concluded" from these vs now,
                     // so a director toggle left on after the last game can't keep the
@@ -719,6 +689,13 @@ public class JobRepository : IJobRepository
                 j.JobName,
                 j.CustomerId,
                 j.Year,
+                // Fee configuration rides the OUTER shape, not the pulse: it is an input to the
+                // registration verdicts (a role with no JobFees row can't be priced, so
+                // FeeResolutionService would throw and the card would dead-end), but it is not
+                // itself a public fact. Keeping it here lets RegistrationReadiness.Compose do
+                // the ANDing without widening the pulse payload.
+                PlayerFeesConfigured = _context.JobFees.Any(f => f.JobId == j.JobId && f.RoleId == playerRoleId),
+                TeamFeesConfigured = _context.JobFees.Any(f => f.JobId == j.JobId && f.RoleId == clubRepRoleId),
                 // Pulled for the post-projection USLax-requirement parse (can't run in SQL).
                 j.PlayerProfileMetadataJson
             })
@@ -732,79 +709,247 @@ public class JobRepository : IJobRepository
         // new-vs-concluded discriminator; messy/null Years are simply skipped (signal absent).
         var eventYear = int.TryParse(row.Year?.Trim(), out var parsedYear) ? parsedYear : (int?)null;
 
-        // Step 2: supersession check. Only meaningful when the current name parses
-        // to year + prefix; otherwise we can't identify the series.
-        var current = ParseSeriesNameAndYear(row.JobName);
-        if (current is not null)
-        {
-            // Sibling pool: same customer, not this job, released to public, currently
-            // accepting either registration type, and within its own deadline.
-            var siblings = await _context.Jobs
-                .AsNoTracking()
-                .Where(s => s.CustomerId == row.CustomerId
-                    && s.JobId != row.JobId
-                    && !s.BSuspendPublic
-                    && (s.BRegistrationAllowPlayer == true || s.BRegistrationAllowTeam == true)
-                    && s.ExpiryUsers > now
-                    && s.JobName != null
-                    && s.JobPath != null)
-                .Select(s => new { s.JobName, s.JobPath })
-                .ToListAsync(cancellationToken);
+        // Step 2: supersession check (shared with the admin readiness readout — same series
+        // heuristic, so the page that explains supersession agrees with the page that applies it).
+        var supersedingEvent = await FindSupersedingEventAsync(
+            row.JobId, row.JobName, row.CustomerId, now, cancellationToken);
+        if (supersedingEvent is not null)
+            pulse = pulse with { SupersededByLaterEvent = supersedingEvent };
 
-            // Match by stripped-prefix + later year; pick the closest year forward.
-            var supersedingEvent = siblings
-                .Select(s =>
-                {
-                    var parsed = ParseSeriesNameAndYear(s.JobName);
-                    return parsed is null
-                        ? null
-                        : new { s.JobName, s.JobPath, parsed.Value.Prefix, parsed.Value.Year };
-                })
-                .Where(s => s != null
-                    && string.Equals(s.Prefix, current.Value.Prefix, StringComparison.OrdinalIgnoreCase)
-                    && s.Year > current.Value.Year)
-                .OrderBy(s => s!.Year)
-                .Select(s => new Contracts.Dtos.SupersedingEventInfoDto
-                {
-                    JobPath = s!.JobPath!,
-                    JobName = s.JobName!
-                })
-                .FirstOrDefault();
+        // Step 3: team-availability snapshot — ONE query answering the self-roster question
+        // (and its two countdown cuts) through TeamSelfRosterAvailability, the single definition
+        // shared with the player wizard's team list and the admin readiness readout.
+        var teams = await GetTeamAvailabilitySnapshotAsync(row.JobId, now, cancellationToken);
 
-            if (supersedingEvent is not null)
-                pulse = pulse with { SupersededByLaterEvent = supersedingEvent };
-        }
-
-        // Step 3: fold the create DOOR into the pulse. eventConcluded uses the SAME shared
-        // predicate as the write authority (JobLifecycle.EventConcluded over the published
-        // lastGameDate → EventEndDate → ExpiryUsers fallback hierarchy), so the disabled control
-        // and the refused write can never disagree. door = NOT concluded AND NOT superseded;
-        // every CREATE field is ANDed with it. Manage-existing fields (ClubRepAllowEdit) and
-        // SETTLE/display fields are left untouched (create-freeze, not full-CRUD freeze).
-        var concluded = TSIC.Domain.JobRules.JobLifecycle.EventConcluded(
-            pulse.SchedulePublished,
-            pulse.LastGameDate,
-            pulse.EventEndDate,
-            pulse.RegistrationExpiry ?? DateTime.MaxValue,
+        // Step 4: compose the registration verdicts. RegistrationReadiness.Compose owns the
+        // composition — toggle AND fees AND the create door (NOT concluded AND NOT superseded),
+        // with eventConcluded coming from the SAME JobLifecycle predicate the write authority
+        // enforces, so a disabled control and a refused write can never disagree. The admin
+        // "why isn't this showing?" readout calls the same function over the same facts: it
+        // explains this pulse rather than re-deriving a second opinion of it.
+        var verdicts = TSIC.Domain.JobRules.RegistrationReadiness.Compose(
+            new TSIC.Domain.JobRules.RegistrationReadiness.CoreFacts
+            {
+                SchedulePublished = pulse.SchedulePublished,
+                LastGameDate = pulse.LastGameDate,
+                EventEndDate = pulse.EventEndDate,
+                ExpiryUsers = pulse.RegistrationExpiry ?? DateTime.MaxValue,
+                Superseded = pulse.SupersededByLaterEvent is not null,
+                PlayerToggleOn = pulse.PlayerRegistrationOpen,   // projection carried the toggle only
+                PlayerFeesConfigured = row.PlayerFeesConfigured,
+                PlayerTeamsAvailable = teams.AvailableNow > 0,
+                TeamToggleOn = pulse.TeamRegistrationOpen,       // ditto
+                TeamFeesConfigured = row.TeamFeesConfigured,
+            },
             now);
-        var door = !concluded && pulse.SupersededByLaterEvent is null;
+
+        // The remaining CREATE fields are ANDed with the same door. Manage-existing fields
+        // (ClubRepAllowEdit) and SETTLE/display fields are left untouched — create-freeze,
+        // not full-CRUD freeze.
+        var door = verdicts.DoorOpen;
 
         return pulse with
         {
             EventYear = eventYear,
-            EventConcluded = concluded,
+            EventConcluded = verdicts.EventConcluded,
             // Pure profile fact — independent of the create door. The bulletin ANDs it
             // with reg-open client-side; folding the door in here would wrongly drop the
             // notice the instant the event concluded.
             PlayerRegRequiresUsLax = UsLaxMetadataPolicy.RequiresUsLax(row.PlayerProfileMetadataJson),
-            PlayerRegistrationOpen = pulse.PlayerRegistrationOpen && door,
-            TeamRegistrationOpen = pulse.TeamRegistrationOpen && door,
+            PlayerRegistrationOpen = verdicts.PlayerRegistrationOpen,
+            PlayerTeamsAvailableForRegistration = verdicts.PlayerTeamsAvailable,
+            PlayerRegClosesSoonest = teams.ClosesSoonest,
+            PlayerRegOpensSoonest = teams.OpensSoonest,
+            TeamRegistrationOpen = verdicts.TeamRegistrationOpen,
             ClubRepAllowAdd = pulse.ClubRepAllowAdd && door,
             ClubRepAllowDelete = pulse.ClubRepAllowDelete && door,
             StaffRegistrationOpen = pulse.StaffRegistrationOpen && door,
             RefereeRegistrationOpen = pulse.RefereeRegistrationOpen && door,
             RecruiterRegistrationOpen = pulse.RecruiterRegistrationOpen && door,
         };
+    }
+
+    /// <summary>
+    /// Every availability question the pulse and the admin readiness readout ask between them:
+    /// is any team open now, when does the soonest one close, when does the next one open, and —
+    /// for the readout — how many teams exist versus how many are eligible at all.
+    ///
+    /// The availability test itself is <see cref="TeamSelfRosterAvailability"/>'s expression,
+    /// evaluated in SQL. It is NOT re-tested in memory here: a C# copy of that window rule beside
+    /// the EF one is precisely the duplication this refactor removed. The countdown cuts below
+    /// are STRICT window edges (a real window, not yet closed / not yet opened) — a genuinely
+    /// different question from availability, which honours the zero-width-window exemption. That
+    /// asymmetry is inherited verbatim from the three subqueries this replaced, and it is right:
+    /// a team with no meaningful window is available but has no date to count down to.
+    ///
+    /// Sequential awaits — one scoped DbContext, never Task.WhenAll.
+    /// </summary>
+    private async Task<TeamAvailabilitySnapshot> GetTeamAvailabilitySnapshotAsync(
+        Guid jobId, DateTime now, CancellationToken cancellationToken)
+    {
+        var jobTeams = _context.Teams.AsNoTracking().Where(t => t.JobId == jobId);
+        var eligible = jobTeams.Where(TeamSelfRosterAvailability.EligibleIgnoringWindow);
+
+        var teamsTotal = await jobTeams.CountAsync(cancellationToken);
+        var eligibleCount = await eligible.CountAsync(cancellationToken);
+        var availableNow = await eligible.CountAsync(
+            TeamSelfRosterAvailability.WindowContains(now), cancellationToken);
+
+        var closesSoonest = await eligible
+            .Where(t => (t.Effectiveasofdate == null || t.Effectiveasofdate <= now)
+                        && t.Expireondate != null && t.Expireondate >= now)
+            .MinAsync(t => (DateTime?)t.Expireondate, cancellationToken);
+
+        var opensSoonest = await eligible
+            .Where(t => t.Effectiveasofdate != null && t.Effectiveasofdate > now
+                        && (t.Expireondate == null || t.Expireondate >= now))
+            .MinAsync(t => (DateTime?)t.Effectiveasofdate, cancellationToken);
+
+        // Readout-only: "they ALL closed, the last one on …" — the sentence that names the
+        // year-shifted clone window as the culprit.
+        var latestClose = await eligible
+            .Where(t => t.Expireondate != null && t.Expireondate < now)
+            .MaxAsync(t => (DateTime?)t.Expireondate, cancellationToken);
+
+        return new TeamAvailabilitySnapshot
+        {
+            TeamsTotal = teamsTotal,
+            EligibleIgnoringWindow = eligibleCount,
+            AvailableNow = availableNow,
+            ClosesSoonest = closesSoonest,
+            OpensSoonest = opensSoonest,
+            LatestClose = latestClose,
+        };
+    }
+
+    /// <summary>
+    /// The later-year sibling that has taken this event's place, if any: same customer, same
+    /// series name-prefix, higher year, public, accepting registration, and inside its own
+    /// deadline. Null when the name carries no parseable year (the heuristic can't identify
+    /// the series) or nothing later exists.
+    ///
+    /// Shared by the public pulse and the admin readiness readout so a director reading "a later
+    /// event replaced this one" is reading the same match that redirected their visitors.
+    /// </summary>
+    private async Task<Contracts.Dtos.SupersedingEventInfoDto?> FindSupersedingEventAsync(
+        Guid jobId, string? jobName, Guid customerId, DateTime now, CancellationToken cancellationToken)
+    {
+        var current = ParseSeriesNameAndYear(jobName);
+        if (current is null) return null;
+
+        // Sibling pool: same customer, not this job, released to public, currently
+        // accepting either registration type, and within its own deadline.
+        var siblings = await _context.Jobs
+            .AsNoTracking()
+            .Where(s => s.CustomerId == customerId
+                && s.JobId != jobId
+                && !s.BSuspendPublic
+                && (s.BRegistrationAllowPlayer == true || s.BRegistrationAllowTeam == true)
+                && s.ExpiryUsers > now
+                && s.JobName != null
+                && s.JobPath != null)
+            .Select(s => new { s.JobName, s.JobPath })
+            .ToListAsync(cancellationToken);
+
+        // Match by stripped-prefix + later year; pick the closest year forward.
+        return siblings
+            .Select(s =>
+            {
+                var parsed = ParseSeriesNameAndYear(s.JobName);
+                return parsed is null
+                    ? null
+                    : new { s.JobName, s.JobPath, parsed.Value.Prefix, parsed.Value.Year };
+            })
+            .Where(s => s != null
+                && string.Equals(s.Prefix, current.Value.Prefix, StringComparison.OrdinalIgnoreCase)
+                && s.Year > current.Value.Year)
+            .OrderBy(s => s!.Year)
+            .Select(s => new Contracts.Dtos.SupersedingEventInfoDto
+            {
+                JobPath = s!.JobPath!,
+                JobName = s.JobName!
+            })
+            .FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Facts for the admin "why isn't this showing?" readout. Deliberately raw: every predicate
+    /// is applied by <see cref="RegistrationReadiness"/>, the same type the public pulse composes
+    /// through, so this method cannot form its own opinion about visibility.
+    /// </summary>
+    public async Task<Contracts.Dtos.JobConfig.RegistrationReadinessFacts?> GetRegistrationReadinessFactsAsync(
+        Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.Now;
+        var playerRoleId = RoleConstants.Player;
+        var clubRepRoleId = RoleConstants.ClubRep;
+
+        var job = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new
+            {
+                j.JobId,
+                j.JobName,
+                j.CustomerId,
+                j.JobTypeId,
+                SchedulePublished = j.BScheduleAllowPublicAccess == true,
+                LastGameDate = _context.Schedule
+                    .Where(s => s.JobId == j.JobId && s.GDate != null)
+                    .Max(s => (DateTime?)s.GDate),
+                j.EventEndDate,
+                j.ExpiryUsers,
+                PlayerToggleOn = j.BRegistrationAllowPlayer == true,
+                TeamToggleOn = j.BRegistrationAllowTeam == true,
+                PlayerFeesConfigured = _context.JobFees.Any(f => f.JobId == j.JobId && f.RoleId == playerRoleId),
+                TeamFeesConfigured = _context.JobFees.Any(f => f.JobId == j.JobId && f.RoleId == clubRepRoleId),
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (job == null) return null;
+
+        // Sequential — one scoped DbContext.
+        var superseding = await FindSupersedingEventAsync(
+            job.JobId, job.JobName, job.CustomerId, now, cancellationToken);
+        var teams = await GetTeamAvailabilitySnapshotAsync(job.JobId, now, cancellationToken);
+
+        return new Contracts.Dtos.JobConfig.RegistrationReadinessFacts
+        {
+            Core = new RegistrationReadiness.CoreFacts
+            {
+                SchedulePublished = job.SchedulePublished,
+                LastGameDate = job.LastGameDate,
+                EventEndDate = job.EventEndDate,
+                ExpiryUsers = job.ExpiryUsers,
+                Superseded = superseding is not null,
+                PlayerToggleOn = job.PlayerToggleOn,
+                PlayerFeesConfigured = job.PlayerFeesConfigured,
+                PlayerTeamsAvailable = teams.AvailableNow > 0,
+                TeamToggleOn = job.TeamToggleOn,
+                TeamFeesConfigured = job.TeamFeesConfigured,
+            },
+            Describe = new RegistrationReadiness.DescribeFacts
+            {
+                JobTypeId = job.JobTypeId,
+                TeamsTotal = teams.TeamsTotal,
+                TeamsSelfRosterEligible = teams.EligibleIgnoringWindow,
+                TeamsInWindowNow = teams.AvailableNow,
+                LatestTeamWindowClose = teams.LatestClose,
+                NextTeamWindowOpen = teams.OpensSoonest,
+                SupersedingJobName = superseding?.JobName,
+            },
+        };
+    }
+
+    /// <summary>Team-availability counts and window dates for one job at one instant.</summary>
+    private sealed record TeamAvailabilitySnapshot
+    {
+        public required int TeamsTotal { get; init; }
+        public required int EligibleIgnoringWindow { get; init; }
+        public required int AvailableNow { get; init; }
+        public DateTime? ClosesSoonest { get; init; }
+        public DateTime? OpensSoonest { get; init; }
+        public DateTime? LatestClose { get; init; }
     }
 
     /// <summary>

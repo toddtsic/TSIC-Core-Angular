@@ -15,6 +15,17 @@
 	margin: 0 0 var(--space-2) 0;
 }
 
+// Inline field warning — the shared .warning-banner (job-clone-shared.scss) carries the
+// colours; this only lays the icon beside the text.
+.jc-field-warning {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-2);
+	margin: var(--space-2) 0 0 0;
+
+	i { margin-top: 2px; }
+}
+
 // ── Two-column layout: form left, live plan right ──
 
 .jc-columns {

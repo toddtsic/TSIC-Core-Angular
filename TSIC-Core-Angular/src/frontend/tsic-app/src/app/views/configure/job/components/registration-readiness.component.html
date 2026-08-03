@@ -1,0 +1,50 @@
+@if (clauses().length) {
+	<section class="rr" [class.rr--live]="visible()" [class.rr--blocked]="!visible()"
+		[attr.aria-label]="channelLabel() + ' visibility'">
+
+		<header class="rr__head">
+			<!-- Icon AND wording carry the state; colour only reinforces it. -->
+			<i class="bi rr__status-icon"
+				[class.bi-broadcast]="visible()"
+				[class.bi-eye-slash-fill]="!visible()"
+				aria-hidden="true"></i>
+			<div class="rr__headtext">
+				<h6 class="rr__title">{{ headline() }}</h6>
+				<p class="rr__sub">
+					All of the following must be true. They are checked on the public site exactly as
+					listed here.
+				</p>
+			</div>
+		</header>
+
+		<ul class="rr__list">
+			@for (c of clauses(); track c.key) {
+				<li class="rr__clause" [class.is-pass]="c.passed" [class.is-fail]="!c.passed">
+					<i class="bi rr__icon"
+						[class.bi-check-circle-fill]="c.passed"
+						[class.bi-x-circle-fill]="!c.passed"
+						aria-hidden="true"></i>
+					<div class="rr__clausebody">
+						<span class="rr__label">
+							{{ c.label }}
+							<span class="visually-hidden">— {{ c.passed ? 'passing' : 'not met' }}</span>
+						</span>
+						<span class="rr__detail">{{ c.detail }}</span>
+
+						@if (!c.passed && fixLabel(c)) {
+							@if (fixTab(c); as tab) {
+								<button type="button" class="rr__fix" (click)="goToTab(tab)">
+									{{ fixLabel(c) }} <i class="bi bi-arrow-right-short" aria-hidden="true"></i>
+								</button>
+							} @else if (isLadtFix(c)) {
+								<a class="rr__fix" routerLink="../../ladt/editor">
+									{{ fixLabel(c) }} <i class="bi bi-arrow-right-short" aria-hidden="true"></i>
+								</a>
+							}
+						}
+					</div>
+				</li>
+			}
+		</ul>
+	</section>
+}

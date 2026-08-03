@@ -95,6 +95,8 @@
 
 			<section class="jc-panel">
 				<h3>Dates</h3>
+				<p class="jc-hint">All four are seeded from the source job plus one year. Leave an event
+					date blank to keep the shifted source value.</p>
 				<div class="jc-grid">
 					<label class="field-label">Admin expiry
 						<input class="field-input" type="date" [ngModel]="expiryAdmin()" (ngModelChange)="set(expiryAdmin, $event)" />
@@ -102,7 +104,32 @@
 					<label class="field-label">User expiry
 						<input class="field-input" type="date" [ngModel]="expiryUsers()" (ngModelChange)="set(expiryUsers, $event)" />
 					</label>
+					<label class="field-label">Event start
+						<input class="field-input" type="date" [ngModel]="eventStartDate()" (ngModelChange)="set(eventStartDate, $event)" />
+					</label>
+					<label class="field-label">Event end
+						<input class="field-input" type="date" [ngModel]="eventEndDate()" (ngModelChange)="set(eventEndDate, $event)"
+							[class.is-invalid]="eventEndInPast() || eventDatesInverted()" />
+					</label>
 				</div>
+				<!-- The end date decides whether the new job reads as OVER. Shifted forward from an
+				     older event it can land in the past, and a job born concluded shows no
+				     registration links at all. Flagged here immediately; the server repeats it in
+				     the plan warnings so a stale screen can't hide it. -->
+				@if (eventEndInPast()) {
+					<p class="warning-banner jc-field-warning" role="alert">
+						<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+						This event end date has already passed. The new job will be treated as
+						<strong>concluded</strong> &mdash; no registration links will appear on its public
+						site, whichever registration toggles you turn on. Set it to this season's end date.
+					</p>
+				}
+				@if (eventDatesInverted()) {
+					<p class="warning-banner jc-field-warning" role="alert">
+						<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+						The event end date is before the start date.
+					</p>
+				}
 			</section>
 
 			<section class="jc-panel">
@@ -549,12 +576,12 @@
 						</p>
 					</div>
 
-					@if (p.eventStartShift || p.eventEndShift || p.uslaxNumberValidThroughShift) {
+					<!-- The event window is NOT listed here: it is editable in Dates above, and a
+					     read-only "from → to" row would contradict whatever was typed there. -->
+					@if (p.adnArbStartShift || p.uslaxNumberValidThroughShift) {
 						<div class="jc-plan-section">
 							<h4>Date shifts (Δ{{ p.yearDelta }}y)</h4>
 							<dl class="jc-shift-list">
-								@if (p.eventStartShift) { <dt>Event start</dt><dd>{{ formatShift(p.eventStartShift) }}</dd> }
-								@if (p.eventEndShift) { <dt>Event end</dt><dd>{{ formatShift(p.eventEndShift) }}</dd> }
 								@if (p.adnArbStartShift) { <dt>ARB start</dt><dd>{{ formatShift(p.adnArbStartShift) }}</dd> }
 								@if (p.uslaxNumberValidThroughShift) { <dt>USLax valid thru</dt><dd>{{ formatShift(p.uslaxNumberValidThroughShift) }}</dd> }
 							</dl>

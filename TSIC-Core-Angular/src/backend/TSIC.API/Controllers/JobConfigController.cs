@@ -58,6 +58,24 @@ public class JobConfigController : ControllerBase
     }
 
     /// <summary>
+    /// Registration visibility: why the public "Register Player" / "Register a Team" links are
+    /// (or are not) showing, clause by clause. Same predicate as the public pulse.
+    /// </summary>
+    [HttpGet("registration-readiness")]
+    public async Task<ActionResult<RegistrationReadinessDto>> GetRegistrationReadiness(CancellationToken ct)
+    {
+        var jobId = await GetJobIdAsync();
+        if (jobId is null)
+            return NotFound(new { message = "Job not found for current user." });
+
+        var result = await _configService.GetRegistrationReadinessAsync(jobId.Value, ct);
+        if (result is null)
+            return NotFound(new { message = "Job not found." });
+
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Get reference/lookup data for editor dropdowns (JobTypes, Sports, Customers, BillingTypes, ChargeTypes).
     /// </summary>
     [HttpGet("reference-data")]

@@ -156,8 +156,13 @@ public static class JobCloneResetRules
         if (req.NoParallaxSlide1) job.BBannerIsCustom = false;
 
         // ── Date fields shift by yearDelta (seasonal cadence; AddYears clamps Feb-29) ──
-        job.EventStartDate = ShiftByYears(source.EventStartDate, yearDelta);
-        job.EventEndDate = ShiftByYears(source.EventEndDate, yearDelta);
+        // The event window is the exception: it is ON SCREEN in the workbench (seeded +1yr,
+        // editable), so a supplied value WINS. Null = "use the shift" — it does not clear a
+        // date the source has. EventEndDate decides EventConcluded, so a blind shift that
+        // lands in the past births a concluded job whose registration links can never appear;
+        // the operator has to be able to correct it before the clone runs, not after.
+        job.EventStartDate = req.EventStartDate ?? ShiftByYears(source.EventStartDate, yearDelta);
+        job.EventEndDate = req.EventEndDate ?? ShiftByYears(source.EventEndDate, yearDelta);
         job.AdnArbstartDate = ShiftByYears(source.AdnArbstartDate, yearDelta);
         job.AdnStartDateAfterTrial = ShiftByYears(source.AdnStartDateAfterTrial, yearDelta);
         // Legacy shifted this +1yr on every clone; generalized to yearDelta.

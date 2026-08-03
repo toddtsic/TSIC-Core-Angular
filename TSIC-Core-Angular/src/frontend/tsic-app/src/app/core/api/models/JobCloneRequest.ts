@@ -14,6 +14,8 @@ export type JobCloneRequest = {
     leagues?: Array<LeagueRenameDto>;
     expiryAdmin: string;
     expiryUsers: string;
+    eventStartDate?: string | null;
+    eventEndDate?: string | null;
     regFormFrom?: string | null;
     regFormCcs?: string | null;
     regFormBccs?: string | null;

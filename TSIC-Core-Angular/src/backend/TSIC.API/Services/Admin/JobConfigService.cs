@@ -5,6 +5,7 @@ using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
+using TSIC.Domain.JobRules;
 using TSIC.API.Services.Teams;
 using TSIC.API.Services.Adults;
 using TSIC.API.Services.Metadata;
@@ -19,6 +20,7 @@ namespace TSIC.API.Services.Admin;
 public class JobConfigService : IJobConfigService
 {
     private readonly IJobConfigRepository _repo;
+    private readonly IJobRepository _jobRepo;
     private readonly ITeamRegistrationService _teamRegService;
     private readonly IPlayerRegistrationService _playerRegService;
     private readonly IScheduleRepository _scheduleRepo;
@@ -27,6 +29,7 @@ public class JobConfigService : IJobConfigService
 
     public JobConfigService(
         IJobConfigRepository repo,
+        IJobRepository jobRepo,
         ITeamRegistrationService teamRegService,
         IPlayerRegistrationService playerRegService,
         IScheduleRepository scheduleRepo,
@@ -34,12 +37,57 @@ public class JobConfigService : IJobConfigService
         ILogger<JobConfigService> logger)
     {
         _repo = repo;
+        _jobRepo = jobRepo;
         _teamRegService = teamRegService;
         _playerRegService = playerRegService;
         _scheduleRepo = scheduleRepo;
         _profileMigration = profileMigration;
         _logger = logger;
     }
+
+    // ══════════════════════════════════════════════════════════
+    // Registration visibility readout
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Answers "why isn't my registration link showing?" clause by clause.
+    ///
+    /// The service does no evaluating of its own: it fetches the facts and hands them to
+    /// <see cref="RegistrationReadiness"/>, the same type the public pulse composes its
+    /// registration flags through. That is the whole design — a readout that re-implemented
+    /// the rules would eventually explain a site that no longer behaves that way, which is
+    /// worse than the silence it replaced.
+    /// </summary>
+    public async Task<RegistrationReadinessDto?> GetRegistrationReadinessAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        var facts = await _jobRepo.GetRegistrationReadinessFactsAsync(jobId, ct);
+        if (facts is null) return null;
+
+        var now = DateTime.Now;
+        var verdicts = RegistrationReadiness.Compose(facts.Core, now);
+
+        return new RegistrationReadinessDto
+        {
+            PlayerCardVisible = verdicts.PlayerCardVisible,
+            TeamCardVisible = RegistrationReadiness.TeamCardVisible(verdicts, facts.Describe),
+            PlayerClauses = RegistrationReadiness
+                .DescribePlayer(facts.Core, facts.Describe, verdicts, now)
+                .Select(ToDto).ToList(),
+            TeamClauses = RegistrationReadiness
+                .DescribeTeam(facts.Core, facts.Describe, verdicts, now)
+                .Select(ToDto).ToList(),
+        };
+    }
+
+    private static ReadinessClauseDto ToDto(RegistrationReadiness.Clause c) => new()
+    {
+        Key = c.Key,
+        Label = c.Label,
+        Passed = c.Passed,
+        Detail = c.Detail,
+        FixTarget = c.FixTarget,
+    };
 
     // ══════════════════════════════════════════════════════════
     // GET — Single load, all 8 categories

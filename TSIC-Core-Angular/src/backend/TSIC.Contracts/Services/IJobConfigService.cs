@@ -11,6 +11,12 @@ public interface IJobConfigService
     // Single load — returns ALL categories, role-filtered
     Task<JobConfigFullDto> GetFullConfigAsync(Guid jobId, bool isSuperUser, CancellationToken ct = default);
 
+    /// <summary>
+    /// Clause-by-clause answer to "why isn't my registration link showing on the public site?".
+    /// Evaluated by the same predicate the public pulse uses. Null when the job does not exist.
+    /// </summary>
+    Task<RegistrationReadinessDto?> GetRegistrationReadinessAsync(Guid jobId, CancellationToken ct = default);
+
     // Per-category writes
     Task UpdateGeneralAsync(Guid jobId, UpdateJobConfigGeneralRequest req, bool isSuperUser, CancellationToken ct = default);
     Task UpdatePaymentAsync(Guid jobId, UpdateJobConfigPaymentRequest req, bool isSuperUser, CancellationToken ct = default);

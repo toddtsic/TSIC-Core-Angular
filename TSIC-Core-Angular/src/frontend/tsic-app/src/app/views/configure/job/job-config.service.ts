@@ -20,8 +20,11 @@ import type {
   UpdateAdminChargeRequest,
   JobAdminChargeDto,
   JobImageUploadResultDto,
+  RegistrationReadinessDto,
 } from '@core/api';
 import { Observable } from 'rxjs';
+import { JobPulseService } from '@infrastructure/services/job-pulse.service';
+import { JobService } from '@infrastructure/services/job.service';
 
 export type TabKey =
   | 'general'
@@ -41,6 +44,8 @@ export class JobConfigService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
+  private readonly pulseService = inject(JobPulseService);
+  private readonly jobService = inject(JobService);
 
   private readonly baseUrl = `${environment.apiUrl}/job-config`;
 
@@ -52,6 +57,13 @@ export class JobConfigService {
   readonly isLoading = signal(false);
   readonly isSaving = signal(false);
   readonly dirtyTabs = signal<Set<TabKey>>(new Set());
+
+  /**
+   * Why the public registration links are (or aren't) showing — the same predicate the public
+   * site evaluates, returned clause by clause. Reloaded after every save so the Player/Teams
+   * panels answer for what was just saved, not for what was loaded.
+   */
+  readonly readiness = signal<RegistrationReadinessDto | null>(null);
 
   /** Each tab registers its save callback here on init; FAB calls it. */
   readonly saveHandler = signal<(() => void) | null>(null);
@@ -79,12 +91,25 @@ export class JobConfigService {
         this.config.set(data);
         this.isLoading.set(false);
         this.dirtyTabs.set(new Set());
+        this.loadReadiness();
       },
       error: (err) => {
         console.error('[JOB-CONFIG] Load failed:', err.status, err.statusText, err.error);
         this.toast.show(`Failed to load job config: ${err.status} ${err.statusText}`, 'danger');
         this.isLoading.set(false);
       },
+    });
+  }
+
+  /**
+   * Silent on failure: this is an explanatory panel, and a toast about the explanation failing
+   * would be noise on top of whatever the director actually came here to do. The panel simply
+   * doesn't render.
+   */
+  loadReadiness(): void {
+    this.http.get<RegistrationReadinessDto>(`${this.baseUrl}/registration-readiness`).subscribe({
+      next: (data) => this.readiness.set(data),
+      error: () => this.readiness.set(null),
     });
   }
 
@@ -236,7 +261,15 @@ export class JobConfigService {
         this.toast.show(`${this.tabLabel(tab)} saved.`, 'success');
         this.markClean(tab);
         this.isSaving.set(false);
-        this.loadConfig(); // refresh to pick up latest
+        this.loadConfig(); // refresh to pick up latest (also refreshes readiness)
+
+        // Re-pull the PUBLIC pulse too. It is otherwise loaded only when the job or the
+        // logged-in user changes, so a director who flipped a registration toggle here saw
+        // the old answer on the job's home page until a hard refresh — the toggle looked
+        // saved (it was) and the Smart Bulletins band looked broken (it wasn't). Saving a
+        // job setting is exactly the moment the pulse goes stale, so it is refreshed here.
+        const jobPath = this.jobService.currentJob()?.jobPath;
+        if (jobPath) this.pulseService.load(jobPath);
       },
       error: (err) => {
         console.error(`[JOB-CONFIG] PUT ${url} → ERROR`, err.status, err.error);

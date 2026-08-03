@@ -333,6 +333,15 @@ public interface IJobRepository
     Task<Dtos.JobPulseDto?> GetJobPulseAsync(string jobPath, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Raw facts behind the admin "why isn't my registration link showing?" readout. Evaluated by
+    /// <c>RegistrationReadiness</c> — the same type <see cref="GetJobPulseAsync"/> composes its
+    /// registration flags through, so the explanation and the public site cannot disagree.
+    /// Null when the job does not exist.
+    /// </summary>
+    Task<Dtos.JobConfig.RegistrationReadinessFacts?> GetRegistrationReadinessFactsAsync(
+        Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Find currently-open Jobs for the role-selection "Looking for a new event?"
     /// panel: Jobs whose Customer is in the user's prior-history set, that the
     /// user is NOT already registered in, and that are publicly visible with

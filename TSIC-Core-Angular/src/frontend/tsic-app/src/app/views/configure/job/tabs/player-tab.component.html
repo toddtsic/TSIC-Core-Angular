@@ -3,6 +3,10 @@
     <div class="form-section">
       <h6 class="section-title"><i class="bi bi-person-plus me-2"></i>Player Registration Settings</h6>
 
+      <!-- The toggle below is one of five conditions. This says which of the other four
+           are met, with the dates and counts, so a link that isn't showing explains itself. -->
+      <app-registration-readiness audience="player" />
+
       <div class="toggle-row" [class.is-on]="bRegistrationAllowPlayer()" [class.is-off]="!bRegistrationAllowPlayer()">
         <label class="toggle-control">
           <input type="checkbox"

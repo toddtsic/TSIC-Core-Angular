@@ -2,6 +2,9 @@
   <div class="tab-panel">
     <div class="form-section">
       <h6 class="section-title"><i class="bi bi-shield me-2"></i>Team Registration</h6>
+
+      <!-- Same five-clause answer as the Player tab, for the club-rep channel. -->
+      <app-registration-readiness audience="team" />
       <div class="toggle-row" [class.is-on]="bRegistrationAllowTeam()" [class.is-off]="!bRegistrationAllowTeam()">
         <label class="toggle-control">
           <input type="checkbox"

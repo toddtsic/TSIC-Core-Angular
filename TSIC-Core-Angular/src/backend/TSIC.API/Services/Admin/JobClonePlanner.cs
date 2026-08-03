@@ -262,6 +262,33 @@ public sealed class JobClonePlanner
                 + "team names. They arrive ownerless, but the names are the previous customer's — "
                 + "choose the \"lad\" scope to leave teams out entirely.");
 
+        // ── Event window: warn on the dates the new job will ACTUALLY carry ──
+        //    Same resolution the executor applies (request wins; null = year-shifted source),
+        //    so the warning can't describe a date the clone won't land. EventEndDate is the
+        //    second rung of the EventConcluded hierarchy: land it in the past and the job is
+        //    born concluded — the create door shuts and no registration link ever renders,
+        //    however many toggles the director turns on afterward. That is the exact failure
+        //    a summer event cloned in late summer produces, so it is called out by name.
+        var effectiveEventStart = req.EventStartDate ?? ShiftByYears(sourceJob.EventStartDate, yearDelta);
+        var effectiveEventEnd = req.EventEndDate ?? ShiftByYears(sourceJob.EventEndDate, yearDelta);
+        var today = DateTime.Now.Date;
+
+        if (effectiveEventEnd.HasValue && effectiveEventEnd.Value.Date < today)
+            warnings.Add(
+                $"Event end date {effectiveEventEnd.Value:yyyy-MM-dd} is in the PAST — the new job "
+                + "will be treated as concluded, and NO registration links will appear on its public "
+                + "site regardless of which registration toggles are on. Set it forward in Dates.");
+        else if (!effectiveEventEnd.HasValue && !effectiveEventStart.HasValue)
+            warnings.Add(
+                "No event start or end date — the new job's \"is the event over?\" question falls back "
+                + "to the user expiry date. Setting the event window in Dates is more precise.");
+
+        if (effectiveEventStart.HasValue && effectiveEventEnd.HasValue
+            && effectiveEventEnd.Value.Date < effectiveEventStart.Value.Date)
+            warnings.Add(
+                $"Event end date {effectiveEventEnd.Value:yyyy-MM-dd} is before the start date "
+                + $"{effectiveEventStart.Value:yyyy-MM-dd}.");
+
         // ── Fee eligibility: same maps the executor will mint, expressed as set
         //    membership. A skipped row means its scope target didn't clone.
         var eligibleTeamIds = teamsScope
@@ -437,8 +464,10 @@ public sealed class JobClonePlanner
             SourceJobTypeId = sourceJob.JobTypeId,
             SourceCustomerId = sourceJob.CustomerId,
             IsCrossCustomer = isCrossCustomer,
-            EventStartShift = ShiftDto(sourceJob.EventStartDate, yearDelta),
-            EventEndShift = ShiftDto(sourceJob.EventEndDate, yearDelta),
+            // No EventStart/EventEnd shift rows: those two are editable fields on the workbench
+            // now (seeded +1yr), so a read-only "from → to" preview beside them could contradict
+            // what the operator typed. The Dates section IS the preview; warnings above cover the
+            // dangerous values.
             AdnArbStartShift = ShiftDto(sourceJob.AdnArbstartDate, yearDelta),
             AdnStartDateAfterTrialShift = ShiftDto(sourceJob.AdnStartDateAfterTrial, yearDelta),
             UslaxNumberValidThroughShift = ShiftDto(sourceJob.UslaxNumberValidThroughDate, yearDelta),

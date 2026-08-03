@@ -11,6 +11,7 @@ using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
+using TSIC.Domain.JobRules;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Infrastructure.Utilities;
 
@@ -184,25 +185,13 @@ public class TeamRepository : ITeamRepository
         return await _context.Teams
             .AsNoTracking()
             .Where(t => t.JobId == jobId)
-            .Where(t => (t.Active ?? true))
-            .Where(t => (t.BAllowSelfRostering ?? false) || (t.Agegroup.BAllowSelfRostering ?? false))
-            // Registration window gates availability ONLY when it's a real window. A null,
-            // zero-width, or sub-second Eff/Expire pair (e.g. the getdate() insert default a
-            // self-rostered team gets when no window is set) is meaningless → availability
-            // rests on Active + agegroup alone. A genuine window must still contain 'now'.
-            .Where(t => t.Effectiveasofdate == null
-                        || t.Expireondate == null
-                        || t.Expireondate <= t.Effectiveasofdate.Value.AddSeconds(1)
-                        || (t.Effectiveasofdate <= now && t.Expireondate >= now))
-            // System holding buckets are NOT bookable options. Waitlisting is expressed on the REAL
-            // team via RosterIsFull (the UI badges it "WAITLIST"); the "WAITLIST - {agegroup}" twin is
-            // a payment-time artifact only (PaymentService cart-split moves seat-gone players onto the
-            // $0 twin when they pay) and must never appear as a separate pickable row. A resuming player
-            // sits on the real team until payment, so they still match the real entry — nothing stranded.
-            // Surfacing the twin here produced a duplicate next to the full team (PL-011) and a leftover
-            // option after Max was raised (PL-010). Mirrors AgegroupConstants system-bucket checks inline.
-            .Where(t => !(t.Agegroup.AgegroupName ?? "").StartsWith(AgegroupConstants.DroppedTeams)
-                        && !(t.Agegroup.AgegroupName ?? "").StartsWith(AgegroupConstants.WaitlistPrefix))
+            // The self-roster availability rule (active + self-rostering + not a system bucket,
+            // inside a real registration window) lives in TeamSelfRosterAvailability — this list,
+            // the public pulse's PlayerTeamsAvailableForRegistration, and the admin readiness
+            // readout are the same question and must never answer it differently. Chained rather
+            // than combined: EF ANDs successive Where clauses into one SQL predicate.
+            .Where(TeamSelfRosterAvailability.EligibleIgnoringWindow)
+            .Where(TeamSelfRosterAvailability.WindowContains(now))
             .Select(t => new AvailableTeamQueryResult
             {
                 TeamId = t.TeamId,

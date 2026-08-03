@@ -41,19 +41,46 @@ public static class JobLifecycle
         DateTime? eventEndDate,
         DateTime expiryUsers,
         DateTime now)
+        => Resolve(schedulePublished, lastGameDate, eventEndDate, expiryUsers, now).Concluded;
+
+    /// <summary>Which rung of the hierarchy answered, and with what date.</summary>
+    public enum ConcludedSignal
+    {
+        /// <summary>The published schedule's last game day.</summary>
+        LastGame,
+        /// <summary>The director-stated <c>Jobs.EventEndDate</c>.</summary>
+        EventEnd,
+        /// <summary>Last-resort <c>Jobs.ExpiryUsers</c>.</summary>
+        Expiry,
+    }
+
+    /// <summary>
+    /// The hierarchy walk itself — verdict AND the signal that produced it. <see cref="EventConcluded"/>
+    /// is the bool-only wrapper over this, so the two can never disagree about which rung answered.
+    ///
+    /// The signal is not decoration: it is the entire diagnosis when a director asks why their
+    /// registration links vanished. "The event end date is 2026-07-20, 14 days ago" is actionable;
+    /// a bare `false` is not. The admin readout (<see cref="RegistrationReadiness"/>) renders it.
+    /// </summary>
+    public static (bool Concluded, ConcludedSignal Signal, DateTime Date) Resolve(
+        bool schedulePublished,
+        DateTime? lastGameDate,
+        DateTime? eventEndDate,
+        DateTime expiryUsers,
+        DateTime now)
     {
         var today = now.Date;
 
         if (schedulePublished && lastGameDate.HasValue)
-            return lastGameDate.Value.Date < today;
+            return (lastGameDate.Value.Date < today, ConcludedSignal.LastGame, lastGameDate.Value);
 
         if (eventEndDate.HasValue)
-            return eventEndDate.Value.Date < today;
+            return (eventEndDate.Value.Date < today, ConcludedSignal.EventEnd, eventEndDate.Value);
 
         // Last-resort fallback: ExpiryUsers is non-null by column type, so this branch always
         // resolves. For a generous future ExpiryUsers it reads "not concluded" (correct — we
         // have no "over" signal, so toggles/preconditions decide). The display-only job-age
         // tie-break (Smart-Bulletins phase label) covers the residual where this is too lax.
-        return expiryUsers.Date < today;
+        return (expiryUsers.Date < today, ConcludedSignal.Expiry, expiryUsers);
     }
 }

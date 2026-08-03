@@ -32,8 +32,6 @@ export type ClonePlanDto = {
     sourceJobTypeId: number;
     sourceCustomerId: string;
     isCrossCustomer: boolean;
-    eventStartShift?: (null | DateShiftDto);
-    eventEndShift?: (null | DateShiftDto);
     adnArbStartShift?: (null | DateShiftDto);
     adnStartDateAfterTrialShift?: (null | DateShiftDto);
     uslaxNumberValidThroughShift?: (null | DateShiftDto);

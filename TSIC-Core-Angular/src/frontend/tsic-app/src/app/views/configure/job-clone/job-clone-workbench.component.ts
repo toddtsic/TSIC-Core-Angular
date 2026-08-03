@@ -113,6 +113,36 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	// ── Dates ──
 	readonly expiryAdmin = signal('');
 	readonly expiryUsers = signal('');
+	/**
+	 * The new job's event window. Seeded from the source + 1 year like the expiries above, but
+	 * OPTIONAL: blank means "use the year-shifted source date", which is what the clone did
+	 * silently before these fields existed. Blank does NOT clear a date the source has.
+	 *
+	 * On screen because the end date decides whether the event reads as over. A summer event
+	 * cloned in late summer shifts to an end date that has already passed, and a job born
+	 * concluded shows no registration links at all however many toggles get turned on — the
+	 * failure Ann hit. The warning below fires before the clone runs, not after.
+	 */
+	readonly eventStartDate = signal('');
+	readonly eventEndDate = signal('');
+
+	/** Entered end date already in the past — the born-concluded trap. */
+	readonly eventEndInPast = computed(() => {
+		const v = this.eventEndDate();
+		if (!v) return false;
+		const d = new Date(`${v}T00:00:00`);
+		if (Number.isNaN(d.getTime())) return false;
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+		return d.getTime() < today.getTime();
+	});
+
+	/** End before start — nonsense window, worth catching while it is cheap. */
+	readonly eventDatesInverted = computed(() => {
+		const s = this.eventStartDate();
+		const e = this.eventEndDate();
+		return !!s && !!e && e < s;   // ISO yyyy-MM-dd compares lexicographically
+	});
 
 	// ── Communications (8 params, seeded from the first plan response) ──
 	readonly regFormFrom = signal('');
@@ -357,6 +387,12 @@ export class JobCloneWorkbenchComponent implements OnInit {
 		this.expiryAdmin.set(this.shiftYear(source.expiryAdmin, 1));
 		this.expiryUsers.set(this.shiftYear(source.expiryUsers, 1));
 
+		// Event window: same +1 rule, but absent stays absent — shiftYear's today+1y fallback
+		// is right for a required expiry and wrong here, where a source with no event dates
+		// must seed blank fields and land nulls.
+		this.eventStartDate.set(this.shiftYearOrBlank(source.eventStartDate, 1));
+		this.eventEndDate.set(this.shiftYearOrBlank(source.eventEndDate, 1));
+
 		// Payment methods follow the source — the clone's long-standing behaviour, now on screen.
 		this.paymentMethodsAllowedCode.set(source.paymentMethodsAllowedCode);
 	}
@@ -501,6 +537,10 @@ export class JobCloneWorkbenchComponent implements OnInit {
 			})),
 			expiryAdmin: this.expiryAdmin(),
 			expiryUsers: this.expiryUsers(),
+			// Empty → null → the server falls back to the year-shifted source date. These ride
+			// requestKey, so editing one refetches the plan and re-arms the freshness gate.
+			eventStartDate: this.eventStartDate() || null,
+			eventEndDate: this.eventEndDate() || null,
 			// null before the comm seed = "keep source"; after seeding these are always
 			// strings (empty string deliberately CLEARS the field on the new job).
 			regFormFrom: this.commSeeded ? this.regFormFrom() : null,
@@ -556,6 +596,14 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	 * <input type="date">. Falls back to today + `years` when the source date is absent
 	 * or unparseable, so the field is never left empty (formValid requires it).
 	 */
+	/**
+	 * Same +1 shift as <see cref="shiftYear"/>, but an absent source stays absent — no
+	 * today-based fallback. For an optional date, inventing one is worse than leaving it blank.
+	 */
+	private shiftYearOrBlank(iso: string | null | undefined, years: number): string {
+		return iso ? this.shiftYear(iso, years) : '';
+	}
+
 	private shiftYear(iso: string | null | undefined, years: number): string {
 		const d = iso ? new Date(iso) : new Date();
 		const base = Number.isNaN(d.getTime()) ? new Date() : d;

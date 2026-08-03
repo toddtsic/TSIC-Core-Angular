@@ -199,6 +199,8 @@ public class JobCloneRepository : IJobCloneRepository
                           CustomerId = j.CustomerId,
                           ExpiryAdmin = j.ExpiryAdmin,
                           ExpiryUsers = j.ExpiryUsers,
+                          EventStartDate = j.EventStartDate,
+                          EventEndDate = j.EventEndDate,
                           PaymentMethodsAllowedCode = j.PaymentMethodsAllowedCode,
                           LeagueName = jl != null ? jl.League.LeagueName : null,
                       })

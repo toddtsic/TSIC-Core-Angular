@@ -38,6 +38,20 @@ public record JobCloneRequest
     public required DateTime ExpiryAdmin { get; init; }
     public required DateTime ExpiryUsers { get; init; }
 
+    /// <summary>
+    /// Target event window. On screen in the workbench's Dates section, seeded from the
+    /// source + 1 year. NULL means "use the year-shifted source value" — it does NOT clear
+    /// a date the source has (clearing is a Configure → Job → Scheduling action).
+    ///
+    /// EventEndDate is not cosmetic: it is the second rung of the EventConcluded hierarchy
+    /// (JobLifecycle.EventConcluded), so a clone that lands it in the past is born concluded —
+    /// the create door shuts and NO registration link appears no matter which toggles the
+    /// director turns on. It was auto-shifted and read-only before; a shift that produces a
+    /// past date has to be fixable on the screen that produces it.
+    /// </summary>
+    public DateTime? EventStartDate { get; init; }
+    public DateTime? EventEndDate { get; init; }
+
     // ── Communications (all 8 parameters are request fields, pre-filled from source
     //    by the workbench and inline-editable — they land verbatim on the new job) ──
     public string? RegFormFrom { get; init; }
@@ -178,6 +192,14 @@ public record JobCloneSourceDto
     public required DateTime ExpiryAdmin { get; init; }
     public required DateTime ExpiryUsers { get; init; }
 
+    /// <summary>
+    /// Source event window — seeds the workbench's editable Event start/end fields by the same
+    /// +1 year rule as the expiry pair above. Null when the source never set them (the field
+    /// then seeds blank and the clone lands null, which is correct).
+    /// </summary>
+    public DateTime? EventStartDate { get; init; }
+    public DateTime? EventEndDate { get; init; }
+
     /// <summary>Source Jobs.PaymentMethodsAllowedCode — seeds the workbench's payment-method select.</summary>
     public required int PaymentMethodsAllowedCode { get; init; }
 
@@ -261,9 +283,9 @@ public record ClonePlanDto
     /// </summary>
     public required bool IsCrossCustomer { get; init; }
 
-    // Jobs date shifts (by yearDelta, when present)
-    public DateShiftDto? EventStartShift { get; init; }
-    public DateShiftDto? EventEndShift { get; init; }
+    // Jobs date shifts (by yearDelta, when present). The event window is NOT here: it is an
+    // editable pair of fields on the workbench, so its "shift" is whatever the operator sees
+    // in the Dates section.
     public DateShiftDto? AdnArbStartShift { get; init; }
     public DateShiftDto? AdnStartDateAfterTrialShift { get; init; }
     public DateShiftDto? UslaxNumberValidThroughShift { get; init; }

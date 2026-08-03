@@ -4,12 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { RichTextEditorAllModule } from '@syncfusion/ej2-angular-richtexteditor';
 import { JobConfigService } from '../job-config.service';
 import { JOB_CONFIG_RTE_TOOLS, JOB_CONFIG_RTE_HEIGHT } from '../shared/rte-config';
+import { RegistrationReadinessComponent } from '../components/registration-readiness.component';
 import type { UpdateJobConfigTeamsRequest } from '@core/api';
 
 @Component({
   selector: 'app-teams-tab',
   standalone: true,
-  imports: [CommonModule, FormsModule, RichTextEditorAllModule],
+  imports: [CommonModule, FormsModule, RichTextEditorAllModule, RegistrationReadinessComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './teams-tab.component.html',
 })

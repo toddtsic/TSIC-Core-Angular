@@ -12,6 +12,8 @@ export type JobCloneSourceDto = {
     customerId: string;
     expiryAdmin: string;
     expiryUsers: string;
+    eventStartDate?: string | null;
+    eventEndDate?: string | null;
     paymentMethodsAllowedCode: number;
     leagueName?: string | null;
 };
