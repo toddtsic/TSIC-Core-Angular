@@ -354,17 +354,19 @@
 								<textarea id="jcBannerText1" rows="2" class="field-input"
 									placeholder="No headline"
 									[ngModel]="bannerText1Target()"
-									(ngModelChange)="set(bannerText1Target, $event)"></textarea>
+									(ngModelChange)="setBannerText(bannerText1Target, $event)"></textarea>
 
 								<label class="field-label" for="jcBannerText2">Caption</label>
 								<textarea id="jcBannerText2" rows="2" class="field-input"
 									placeholder="No caption"
 									[ngModel]="bannerText2Target()"
-									(ngModelChange)="set(bannerText2Target, $event)"></textarea>
+									(ngModelChange)="setBannerText(bannerText2Target, $event)"></textarea>
 
 								<p class="jc-hint">
-									Line breaks are kept. Once you edit either box your wording stands as typed —
-									turning the season roll-forward on or off afterwards will not rewrite it.
+									Leave these alone and the wording ships exactly as the source had it, with the
+									years rolled forward and any styling kept. Type in either box and your wording
+									stands as plain text — line breaks are kept, styling is not, and turning the
+									season roll-forward on or off afterwards will not rewrite it.
 								</p>
 							</div>
 						}

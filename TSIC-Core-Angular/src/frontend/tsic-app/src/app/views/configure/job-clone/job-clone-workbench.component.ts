@@ -162,6 +162,9 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	 */
 	private bannerTextSeeded = false;
 
+	/** True only once the author has actually typed in a banner box — see setBannerText. */
+	private bannerTextDirty = false;
+
 	/** Snapshot of the current inputs — recomputes on any form-signal change. */
 	readonly requestKey = computed(() => JSON.stringify(this.buildCloneRequest(null)));
 	readonly planFresh = computed(() => this.planKey() !== null && this.planKey() === this.requestKey());
@@ -268,6 +271,19 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	set<T>(sig: WritableSignal<T>, value: T): void {
 		sig.set(value);
 		this.requestPlan();
+	}
+
+	/**
+	 * Banner wording writer. Flips bannerTextDirty, which is what decides whether the
+	 * request carries an override at all — seeding must NOT count as an edit. The boxes
+	 * hold PLAIN text (OverlayText.ToPlainText strips tags to keep the editor readable),
+	 * so sending them unconditionally flattened source markup — a source headline stored
+	 * as <i>…</i> came out unstyled on a clone nobody had typed into. Untouched now sends
+	 * null and the server's year-bumped original ships with its markup intact.
+	 */
+	setBannerText(sig: WritableSignal<string>, value: string): void {
+		this.bannerTextDirty = true;
+		this.set(sig, value);
 	}
 
 	updateLeagueName(sourceLeagueId: string, nameTarget: string): void {
@@ -489,10 +505,11 @@ export class JobCloneWorkbenchComponent implements OnInit {
 			storeContactEmail: this.commSeeded ? this.storeContactEmail() : null,
 			upAgegroupNamesByOne: this.upAgegroupNamesByOne(),
 			noParallaxSlide1: this.noParallaxSlide1(),
-			// Null until seeded, so the first plan reports the source's own wording rather than
-			// an empty override that would read back as "author cleared the banner".
-			bannerText1Target: this.bannerTextSeeded ? this.bannerText1Target() : null,
-			bannerText2Target: this.bannerTextSeeded ? this.bannerText2Target() : null,
+			// Null unless the author typed. Sending the seeded value back would round-trip
+			// the source's wording through a plain-text editor and strip its markup for no
+			// reason; null lets the server's own year bump write the original verbatim.
+			bannerText1Target: this.bannerTextDirty ? this.bannerText1Target() : null,
+			bannerText2Target: this.bannerTextDirty ? this.bannerText2Target() : null,
 			ladtScope: this.ladtScope(),
 			copyDivisions: this.copyDivisions(),
 			enableEcheckChoice: this.enableEcheckChoice(),
