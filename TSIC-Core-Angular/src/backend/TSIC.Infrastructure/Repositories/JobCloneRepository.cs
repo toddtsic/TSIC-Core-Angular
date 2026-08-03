@@ -157,15 +157,6 @@ public class JobCloneRepository : IJobCloneRepository
             .ToListAsync(ct);
     }
 
-    public async Task<string?> GetJobTypeNameAsync(int jobTypeId, CancellationToken ct = default)
-    {
-        return await _context.JobTypes
-            .AsNoTracking()
-            .Where(t => t.JobTypeId == jobTypeId)
-            .Select(t => t.JobTypeName)
-            .FirstOrDefaultAsync(ct);
-    }
-
     // ══════════════════════════════════════
     // Validation
     // ══════════════════════════════════════
@@ -275,63 +266,6 @@ public class JobCloneRepository : IJobCloneRepository
 
     public async Task<int> SaveChangesAsync(CancellationToken ct = default)
         => await _context.SaveChangesAsync(ct);
-
-    // ══════════════════════════════════════
-    // Release ops
-    // ══════════════════════════════════════
-
-    public async Task<Jobs?> GetJobForUpdateAsync(Guid jobId, CancellationToken ct = default)
-    {
-        // Tracked (no AsNoTracking) — caller mutates + SaveChanges.
-        return await _context.Jobs.FirstOrDefaultAsync(j => j.JobId == jobId, ct);
-    }
-
-    public async Task<List<Registrations>> GetRegistrationsForUpdateAsync(
-        Guid jobId, IList<Guid> registrationIds, CancellationToken ct = default)
-    {
-        if (registrationIds == null || registrationIds.Count == 0)
-            return new List<Registrations>();
-
-        // Tracked — we mutate BActive + Modified on each row.
-        return await _context.Registrations
-            .Where(r => r.JobId == jobId && registrationIds.Contains(r.RegistrationId))
-            .ToListAsync(ct);
-    }
-
-    public async Task<List<ReleasableAdminDto>> GetReleasableAdminsAsync(
-        Guid jobId, CancellationToken ct = default)
-    {
-        return await (from r in _context.Registrations.AsNoTracking()
-                      join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id into uj
-                      from user in uj.DefaultIfEmpty()
-                      join role in _context.AspNetRoles.AsNoTracking() on r.RoleId equals role.Id into rj
-                      from rrole in rj.DefaultIfEmpty()
-                      where r.JobId == jobId
-                            && r.RoleId != null
-                            && AdminRoleIds.Contains(r.RoleId)
-                      orderby user.LastName, user.FirstName
-                      select new ReleasableAdminDto
-                      {
-                          RegistrationId = r.RegistrationId,
-                          RoleId = r.RoleId!,
-                          RoleName = rrole != null ? rrole.Name : null,
-                          UserId = r.UserId,
-                          FirstName = user != null ? user.FirstName : null,
-                          LastName = user != null ? user.LastName : null,
-                          Email = user != null ? user.Email : null,
-                          BActive = r.BActive ?? false,
-                      })
-            .ToListAsync(ct);
-    }
-
-    public async Task<string?> GetBillingTypeNameAsync(int billingTypeId, CancellationToken ct = default)
-    {
-        return await _context.BillingTypes
-            .AsNoTracking()
-            .Where(bt => bt.BillingTypeId == billingTypeId)
-            .Select(bt => bt.BillingTypeName)
-            .FirstOrDefaultAsync(ct);
-    }
 
     public async Task<string?> GetCustomerNameAsync(Guid customerId, CancellationToken ct = default)
     {

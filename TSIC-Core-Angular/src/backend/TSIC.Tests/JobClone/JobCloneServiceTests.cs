@@ -1134,28 +1134,10 @@ public class JobCloneServiceTests
         plan.AdvanceFlagDefault.Should().BeTrue();
     }
 
-    // ══════════════════════════════════════════════════════════
-    // Open registration (release panel 4)
-    // ══════════════════════════════════════════════════════════
-
-    [Fact]
-    public async Task OpenRegistration_FlipsOnlyRequestedPersonas()
-    {
-        var (svc, ctx) = BuildService();
-        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx);
-        var resp = await svc.CloneJobAsync(BaseRequest(jobId, leagueId), SuperUserId);
-
-        var flags = await svc.OpenRegistrationAsync(
-            resp.NewJobId,
-            new OpenRegistrationRequest { OpenPlayer = true, OpenTeam = true },
-            SuperUserId);
-
-        flags.AllowPlayer.Should().BeTrue();
-        flags.AllowTeam.Should().BeTrue();
-        flags.AllowStaff.Should().BeFalse();
-        flags.AllowReferee.Should().BeFalse();
-        flags.AllowRecruiter.Should().BeFalse();
-    }
+    // OpenRegistration_FlipsOnlyRequestedPersonas removed with the release page: opening
+    // registration is the five BRegistrationAllow* flags on Configure → Job, and
+    // Clone_ForcesAllRegistrationAllowFlagsOff still pins the clone-side invariant that
+    // they all arrive false.
 
     // ══════════════════════════════════════════════════════════
     // Dev-undo (manifest-reversed cascade delete)

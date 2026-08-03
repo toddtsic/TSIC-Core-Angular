@@ -53,8 +53,10 @@ public class JobCloneController : ControllerBase
             // authorCustomerId=null → skip same-customer guard (current endpoint is SuperUser-only
             // and target always inherits source.CustomerId, so cross-customer is impossible by construction).
             var result = await _cloneService.CloneJobAsync(request, superUserId, authorCustomerId: null, ct);
-            // Location: the release page's data source for the freshly-cloned job.
-            return CreatedAtAction(nameof(GetVerifyChecklist), new { jobId = result.NewJobId }, result);
+            // 200, not 201-with-Location: the verify-checklist action this used to point at
+            // went with the release page, and this controller has no GET for a single job.
+            // The response body carries NewJobId/NewJobPath, which is what the caller navigates on.
+            return Ok(result);
         }
         catch (KeyNotFoundException ex)
         {
@@ -125,120 +127,6 @@ public class JobCloneController : ControllerBase
         var pathExists = await _cloneService.JobPathExistsAsync(path, ct);
         var nameExists = await _cloneService.JobNameExistsAsync(name, ct);
         return Ok(new IdentityExistsResponse { PathExists = pathExists, NameExists = nameExists });
-    }
-
-    /// <summary>
-    /// List admin registrations on a suspended job — used to populate the Release screen's
-    /// activation panel.
-    /// </summary>
-    [HttpGet("{jobId:guid}/admins")]
-    public async Task<ActionResult<List<ReleasableAdminDto>>> GetAdmins(
-        Guid jobId, CancellationToken ct)
-    {
-        var result = await _cloneService.GetReleasableAdminsAsync(jobId, ct);
-        return Ok(result);
-    }
-
-    /// <summary>
-    /// Verify-then-release checklist (release panel 1): the cloned job's live settings
-    /// grouped by section, ordered by job-type relevance, with configure deep-links.
-    /// </summary>
-    [HttpGet("{jobId:guid}/verify")]
-    public async Task<ActionResult<JobVerifyChecklistDto>> GetVerifyChecklist(
-        Guid jobId, CancellationToken ct)
-    {
-        try
-        {
-            var result = await _cloneService.GetVerifyChecklistAsync(jobId, ct);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// Flip Jobs.BSuspendPublic = false (release site to public). Release panel 2.
-    /// </summary>
-    [HttpPost("{jobId:guid}/release-site")]
-    public async Task<ActionResult<ReleaseResponse>> ReleaseSite(
-        Guid jobId, CancellationToken ct)
-    {
-        var actorUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? throw new UnauthorizedAccessException("User ID not found in token.");
-
-        try
-        {
-            var result = await _cloneService.ReleaseSiteAsync(jobId, actorUserId, authorCustomerId: null, ct);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// Activate a set of admin registrations on a suspended job (flip BActive = true).
-    /// Release panel 3.
-    /// </summary>
-    [HttpPost("{jobId:guid}/release-admins")]
-    public async Task<ActionResult<ReleaseResponse>> ReleaseAdmins(
-        Guid jobId,
-        [FromBody] ReleaseAdminsRequest request,
-        CancellationToken ct)
-    {
-        var actorUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? throw new UnauthorizedAccessException("User ID not found in token.");
-
-        try
-        {
-            var result = await _cloneService.ReleaseAdminsAsync(
-                jobId, request.RegistrationIds, actorUserId, authorCustomerId: null, ct);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// Open registration for the chosen personas (release panel 4). All five
-    /// BRegistrationAllow* flags start FALSE on every clone; this flips the chosen ones ON.
-    /// </summary>
-    [HttpPost("{jobId:guid}/open-registration")]
-    public async Task<ActionResult<RegistrationFlagsDto>> OpenRegistration(
-        Guid jobId,
-        [FromBody] OpenRegistrationRequest request,
-        CancellationToken ct)
-    {
-        var actorUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? throw new UnauthorizedAccessException("User ID not found in token.");
-
-        try
-        {
-            var result = await _cloneService.OpenRegistrationAsync(
-                jobId, request, actorUserId, authorCustomerId: null, ct);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
-        }
     }
 
     // ── Sandbox undo (cascade delete a freshly-cloned job) ──

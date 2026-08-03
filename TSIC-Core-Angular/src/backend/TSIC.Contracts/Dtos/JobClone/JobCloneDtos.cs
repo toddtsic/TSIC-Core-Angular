@@ -359,116 +359,11 @@ public record FeeModifierShiftDto
 }
 
 // ══════════════════════════════════════
-// Release (site toggle + admin activation + verify + open registration)
+// Sandbox-only delete — undo a clone outside Production
 // ══════════════════════════════════════
 
 /// <summary>
-/// Request to activate a set of admin registrations on a suspended job.
-/// Each registrationId must belong to the target job; otherwise the call fails with 403.
-/// </summary>
-public record ReleaseAdminsRequest
-{
-    public required List<Guid> RegistrationIds { get; init; }
-}
-
-/// <summary>
-/// Summary of an admin registration on a suspended job — used to populate the
-/// activation panel on the Release screen.
-/// </summary>
-public record ReleasableAdminDto
-{
-    public required Guid RegistrationId { get; init; }
-    public required string RoleId { get; init; }
-    public string? RoleName { get; init; }
-    public string? UserId { get; init; }
-    public string? FirstName { get; init; }
-    public string? LastName { get; init; }
-    public string? Email { get; init; }
-    public required bool BActive { get; init; }
-}
-
-/// <summary>
-/// Minimal payload returned after a release action — reflects the new state.
-/// </summary>
-public record ReleaseResponse
-{
-    public required Guid JobId { get; init; }
-    public required bool BSuspendPublic { get; init; }
-    public required int AdminsActivated { get; init; }
-}
-
-/// <summary>
-/// Type-aware verify-then-release checklist (modern JobCloneQA): the cloned job's live
-/// settings grouped into sections, ordered by relevance to the job's type. Rendered by
-/// the release page's "Verify settings" panel before anything goes public.
-/// </summary>
-public record JobVerifyChecklistDto
-{
-    public required Guid JobId { get; init; }
-
-    /// <summary>The job's URL segment — the release page builds configure deep-links from it.</summary>
-    public required string JobPath { get; init; }
-    public required string JobName { get; init; }
-    public required int JobTypeId { get; init; }
-    public string? JobTypeName { get; init; }
-
-    /// <summary>Machine-readable release state — drives the release page's panel 2 button.</summary>
-    public required bool BSuspendPublic { get; init; }
-
-    /// <summary>Current registration-allow flags — seeds the open-registration panel.</summary>
-    public required RegistrationFlagsDto RegistrationFlags { get; init; }
-
-    public required List<VerifySectionDto> Sections { get; init; }
-}
-
-public record VerifySectionDto
-{
-    public required string Title { get; init; }
-    public required List<VerifyItemDto> Items { get; init; }
-}
-
-public record VerifyItemDto
-{
-    public required string Label { get; init; }
-    public required string Value { get; init; }
-
-    /// <summary>
-    /// Relative configure route (under the job's :jobPath prefix) where this setting is
-    /// edited — the release page renders it as a deep-link. Null = display-only.
-    /// </summary>
-    public string? ConfigureRoute { get; init; }
-}
-
-/// <summary>
-/// Open-registration action (release panel 4): which personas to open. All five
-/// BRegistrationAllow* flags start FALSE on every clone; this is the deliberate flip.
-/// </summary>
-public record OpenRegistrationRequest
-{
-    public bool OpenPlayer { get; init; }
-    public bool OpenTeam { get; init; }
-    public bool OpenStaff { get; init; }
-    public bool OpenReferee { get; init; }
-    public bool OpenRecruiter { get; init; }
-}
-
-/// <summary>Current registration-allow flags after an open-registration action.</summary>
-public record RegistrationFlagsDto
-{
-    public required Guid JobId { get; init; }
-    public required bool AllowPlayer { get; init; }
-    public required bool AllowTeam { get; init; }
-    public required bool AllowStaff { get; init; }
-    public required bool AllowReferee { get; init; }
-    public required bool AllowRecruiter { get; init; }
-}
-
-// ══════════════════════════════════════
-// Dev-only "Delete and return" — undo a clone in dev environment
-// ══════════════════════════════════════
-
-/// <summary>
-/// Status payload for the "Delete and return" button on the release page.
+/// Status payload for the delete panel on Configure → Job.
 /// CanUndo is true only when every safety predicate passes; Reasons enumerates
 /// any blocking conditions when CanUndo is false. Counts drive the confirm modal
 /// so the SuperUser can see the row impact before confirming.

@@ -50,9 +50,6 @@ public interface IJobCloneRepository
     /// </summary>
     Task<List<TeamCloneSource>> GetSourceTeamsAsync(Guid jobId, CancellationToken ct = default);
 
-    /// <summary>Display name of a job type (verify checklist header).</summary>
-    Task<string?> GetJobTypeNameAsync(int jobTypeId, CancellationToken ct = default);
-
     // ── Validation ──
     Task<bool> JobPathExistsAsync(string jobPath, CancellationToken ct = default);
     Task<bool> JobNameExistsAsync(string jobName, CancellationToken ct = default);
@@ -88,26 +85,10 @@ public interface IJobCloneRepository
     Task RollbackTransactionAsync(CancellationToken ct = default);
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 
-    // ── Release ops ──
-    /// <summary>Returns the tracked Jobs entity for mutation (release toggles + open-registration).</summary>
-    Task<Jobs?> GetJobForUpdateAsync(Guid jobId, CancellationToken ct = default);
-
-    /// <summary>Returns tracked Registrations for the given job + regIds (for activation).</summary>
-    Task<List<Registrations>> GetRegistrationsForUpdateAsync(Guid jobId, IList<Guid> registrationIds, CancellationToken ct = default);
-
-    /// <summary>
-    /// Returns admin registrations for a job with person info joined.
-    /// Used by the Release screen's activation panel and the verify checklist.
-    /// </summary>
-    Task<List<ReleasableAdminDto>> GetReleasableAdminsAsync(Guid jobId, CancellationToken ct = default);
-
     // ── Target-customer probes (cross-customer clone warnings) ──
 
     /// <summary>Customer display name, or null when the id matches no customer.</summary>
     Task<string?> GetCustomerNameAsync(Guid customerId, CancellationToken ct = default);
-
-    /// <summary>Billing-type display name for the verify checklist.</summary>
-    Task<string?> GetBillingTypeNameAsync(int billingTypeId, CancellationToken ct = default);
 
     /// <summary>
     /// True when the customer has both Authorize.Net credentials populated. Returns a BOOLEAN

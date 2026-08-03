@@ -41,59 +41,17 @@ public interface IJobCloneService
         Guid? authorCustomerId = null,
         CancellationToken ct = default);
 
-    /// <summary>
-    /// Flip Jobs.BSuspendPublic = false on the target job (release site to public).
-    /// </summary>
-    Task<ReleaseResponse> ReleaseSiteAsync(
-        Guid jobId,
-        string actorUserId,
-        Guid? authorCustomerId = null,
-        CancellationToken ct = default);
-
-    /// <summary>
-    /// Flip Registrations.BActive = true on the given registration IDs — scoped to the
-    /// target job. Any registrationId NOT belonging to the target job is rejected with 403.
-    /// </summary>
-    Task<ReleaseResponse> ReleaseAdminsAsync(
-        Guid jobId,
-        IList<Guid> registrationIds,
-        string actorUserId,
-        Guid? authorCustomerId = null,
-        CancellationToken ct = default);
-
-    /// <summary>
-    /// List all admin registrations (Superuser/Director/SuperDirector) on a job.
-    /// Populates the Release page's admin-activation panel.
-    /// </summary>
-    Task<List<ReleasableAdminDto>> GetReleasableAdminsAsync(
-        Guid jobId,
-        CancellationToken ct = default);
+    // The release operations (ReleaseSiteAsync, ReleaseAdminsAsync, GetReleasableAdminsAsync,
+    // GetVerifyChecklistAsync, OpenRegistrationAsync) went with the release page. Each was a
+    // second way to do something Configure → Job already does — administrators, registration
+    // flags, and the settings summary — and release-site wrote Jobs.BSuspendPublic under a
+    // name that overstated it: no read path gates a job's own public pages on that column.
 
     /// <summary>True when a Job with the given jobPath already exists (inline uniqueness check).</summary>
     Task<bool> JobPathExistsAsync(string jobPath, CancellationToken ct = default);
 
     /// <summary>True when a Job with the given jobName already exists (inline uniqueness check).</summary>
     Task<bool> JobNameExistsAsync(string jobName, CancellationToken ct = default);
-
-    /// <summary>
-    /// Type-aware verify-then-release checklist (the modern JobCloneQA): the job's LIVE
-    /// settings grouped by section, ordered by job-type relevance, with configure
-    /// deep-links. Release panel 1.
-    /// </summary>
-    Task<JobVerifyChecklistDto> GetVerifyChecklistAsync(
-        Guid jobId, CancellationToken ct = default);
-
-    /// <summary>
-    /// Open registration for the chosen personas (release panel 4). Additive: flips the
-    /// requested BRegistrationAllow* flags ON (they start false on every clone); closing
-    /// lives in job settings.
-    /// </summary>
-    Task<RegistrationFlagsDto> OpenRegistrationAsync(
-        Guid jobId,
-        OpenRegistrationRequest request,
-        string actorUserId,
-        Guid? authorCustomerId = null,
-        CancellationToken ct = default);
 
     // ── Dev-only undo (controller enforces sandbox + SuperUser policy) ──
 
