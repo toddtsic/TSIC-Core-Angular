@@ -522,11 +522,13 @@
 
 		// Marker is a glyph, not colour alone — the list states restrictions and must read
 		// the same to anyone who can't distinguish the accent (WCAG: never colour-only).
+		// A real bullet, not the en-dash this used to draw: the list reads as a to-do list
+		// and an en-dash did not look like a list marker at all (Ann, 08-03).
 		&::before {
-			content: '\2013';
+			content: '\2022';
 			position: absolute;
 			left: var(--space-2);
-			color: var(--bs-border-color);
+			color: var(--brand-text-muted);
 		}
 	}
 }
