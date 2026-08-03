@@ -1,4 +1,4 @@
-import { Component, Input, ChangeDetectionStrategy, signal, computed, OnChanges, SimpleChanges, CUSTOM_ELEMENTS_SCHEMA, input, output, viewChild } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy, signal, computed, OnChanges, SimpleChanges, CUSTOM_ELEMENTS_SCHEMA, input, output, viewChild, inject, afterNextRender, Injector, ElementRef } from '@angular/core';
 import { DecimalPipe, NgClass } from '@angular/common';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import type { LadtColumnDef } from '../configs/ladt-grid-columns';
@@ -214,7 +214,7 @@ export interface ParentBreadcrumb {
 
     @if (menuRow(); as mr) {
       <div class="menu-backdrop" (click)="closeMenu()"></div>
-      <div class="row-menu" [style.top.px]="menuTop()" [style.left.px]="menuLeft()">
+      <div #rowMenu class="row-menu" [style.top.px]="menuTop()" [style.left.px]="menuLeft()">
         @if (parentNavTarget(mr)) {
           <button type="button" class="menu-item" (click)="menuNavUp()">
             <i class="bi bi-arrow-up-short me-2"></i>{{ parentNavLabel() }}
@@ -558,6 +558,8 @@ export class LadtSiblingGridComponent implements OnChanges {
   readonly navigateTo = output<string>();
 
   readonly grid = viewChild<GridComponent>('grid');
+  private readonly rowMenu = viewChild<ElementRef<HTMLElement>>('rowMenu');
+  private readonly injector = inject(Injector);
 
   // Frozen column count (action col + frozen data cols)
   frozenCount = computed(() => countFrozenColumns(this.columns()));
@@ -626,6 +628,39 @@ export class LadtSiblingGridComponent implements OnChanges {
     this.menuTop.set(rect.bottom + 2);
     this.menuLeft.set(rect.left);
     this.menuRow.set(row);
+    this.clampMenuIntoViewport();
+  }
+
+  /**
+   * Keep the menu on screen. `position: fixed` cannot be scrolled to, so a menu that runs
+   * past the bottom edge is UNREACHABLE, not merely clipped — on the last rows of any list
+   * that silently removed Delete, Clone and drill-down.
+   *
+   * Mobile-only by deliberate choice. The defect exists on desktop too, but this is a Phase 2
+   * change under .claude/rules/mobile-readiness.md: the desktop path returns before touching
+   * anything, so desktop behaviour is unchanged BY CONSTRUCTION rather than by an argument
+   * about Math.min being a no-op. Extending it to desktop is a separate, separately-tested
+   * decision.
+   *
+   * afterNextRender is the sanctioned tool here — .claude/rules/frontend-angular.md bans
+   * effect() but explicitly exempts afterNextRender for DOM work against the rendered view,
+   * and passing { injector } is what makes it callable from a method.
+   *
+   * Measured, not estimated from the item count: the template has four independent
+   * visibility conditions, and duplicating them here would drift the first time a menu item
+   * is added.
+   */
+  private clampMenuIntoViewport(): void {
+    if (!window.matchMedia('(max-width: 767.98px)').matches) return;
+
+    afterNextRender(() => {
+      const el = this.rowMenu()?.nativeElement;
+      if (!el) return;
+      const { height, width } = el.getBoundingClientRect();
+      const margin = 8;
+      this.menuTop.set(Math.max(margin, Math.min(this.menuTop(), window.innerHeight - height - margin)));
+      this.menuLeft.set(Math.max(margin, Math.min(this.menuLeft(), window.innerWidth - width - margin)));
+    }, { injector: this.injector });
   }
 
   closeMenu(): void {
