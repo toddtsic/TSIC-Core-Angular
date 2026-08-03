@@ -1,0 +1,15 @@
+{
+  "note": "Violations that predate the guard. The guard fails on anything NOT listed here, and ALSO on a stale entry (one that has since been fixed) so the list can only shrink. Do not add to this by hand — fix the defect instead.",
+  "generated": "npm run verify:mobile -- --write-baseline",
+  "entries": [
+    "app/layouts/components/client-menu/client-menu.component.scss::.dropdown-panel::vh-no-dvh",
+    "app/views/ladt/editor/ladt.component.scss::.btn-add-child::hover-only",
+    "app/views/scheduling/referee-assignment/referee-assignment.component.scss::.ref-card-actions::hover-only",
+    "app/views/scheduling/shared/components/game-card/game-card.component.scss::.cancel-hint::hover-only",
+    "app/views/scheduling/shared/components/game-card/game-card.component.scss::.game-actions::hover-only",
+    "app/views/scheduling/view-schedule/components/games-tab.component.ts::.status-key-popup::hover-only",
+    "app/widgets/communications/smart-bulletins/smart-marker.component.scss::.sm__pop::hover-only",
+    "app/widgets/shared/chart-card/collapsible-chart-card.component.scss::.expand-icon::hover-only",
+    "styles.scss::.hover-popover-panel::hover-only"
+  ]
+}

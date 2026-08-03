@@ -1,3 +1,8 @@
+// mobile-readiness: desktop-only — .team-search-container is display:none below 768px
+// (see the media query at the foot of this file), so the fixed full-height .filters-panel
+// is never rendered on a phone. Not debt; the checks genuinely do not apply. If this view
+// ever gains a mobile presentation, DELETE this line first and work the findings.
+//
 // Grid density: cssClass="tsic-grid tsic-grid--tight" on <ejs-grid>
 // Grid cell utilities: global _syncfusion-cell-utils.scss
 // Dark mode: global _syncfusion-dark.scss
