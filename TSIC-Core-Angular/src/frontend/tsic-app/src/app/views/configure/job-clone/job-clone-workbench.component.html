@@ -213,6 +213,22 @@
 				}
 
 				<div class="jc-option-group">
+					<span class="jc-option-label">Payment methods accepted</span>
+					<label class="field-label">
+						<select class="field-input" [ngModel]="paymentMethodsAllowedCode()"
+						        (ngModelChange)="set(paymentMethodsAllowedCode, +$event)">
+							<option [ngValue]="1">Credit card only</option>
+							<option [ngValue]="2">Credit card or check</option>
+							<option [ngValue]="3">Check only</option>
+						</select>
+					</label>
+					<p class="jc-hint">
+						Starts matching the source job. This decides how the new site can take money —
+						change it here or later on Configure &rarr; Job &rarr; Payment.
+					</p>
+				</div>
+
+				<div class="jc-option-group">
 					<span class="jc-option-label">eCheck payments</span>
 					<div class="field-check-row">
 						<label class="field-check">
@@ -231,6 +247,11 @@
 						}
 						Starting off is the safe default — turn it back on once the new season's bank
 						details are confirmed.
+						@if (echeckBlockedByCcOnly()) {
+							<br />
+							<strong>This choice has no effect</strong> while payment methods are set to credit
+							card only — registrants are never offered eCheck on a card-only job.
+						}
 					</p>
 				</div>
 

@@ -28,6 +28,7 @@ export type JobCloneRequest = {
     bannerText2Target?: string | null;
     ladtScope?: string;
     copyDivisions?: boolean;
+    paymentMethodsAllowedCode: number;
     enableEcheckChoice?: string;
     storeChoice?: string;
     planFingerprint?: string | null;

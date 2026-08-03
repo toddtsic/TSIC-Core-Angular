@@ -92,6 +92,17 @@ public record JobCloneRequest
     /// </summary>
     public bool CopyDivisions { get; init; } = true;
 
+    /// <summary>
+    /// Which payment methods the new job accepts — <see cref="TSIC.Contracts.Constants.PaymentMethodConstants"/>
+    /// (1 CC only, 2 CC or Check, 3 Check only). The workbench seeds it from the source job, so the
+    /// default is unchanged behaviour; making it an explicit request field is the point — it decides
+    /// whether the site can take money at all, and it used to inherit silently through CopyScalars.
+    ///
+    /// It also gates eCheck: the registration UI only offers eCheck when this is NOT CC-only, so
+    /// <see cref="EnableEcheckChoice"/> is inert against a code of 1.
+    /// </summary>
+    public required int PaymentMethodsAllowedCode { get; init; }
+
     // ── eCheck enable flag ──
     // "off"    = BEnableEcheck=false on new job (recommended; admin re-opts in)
     // "source" = copy source.BEnableEcheck
@@ -166,6 +177,9 @@ public record JobCloneSourceDto
     /// </summary>
     public required DateTime ExpiryAdmin { get; init; }
     public required DateTime ExpiryUsers { get; init; }
+
+    /// <summary>Source Jobs.PaymentMethodsAllowedCode — seeds the workbench's payment-method select.</summary>
+    public required int PaymentMethodsAllowedCode { get; init; }
 
     /// <summary>
     /// Primary league name (first by BIsPrimary through JobLeagues). Null if the job has

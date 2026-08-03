@@ -126,6 +126,14 @@ public static class JobCloneResetRules
             source.EcprocessingFeePercent ?? FeeConstants.NewJobEcprocessingFeePercent,
             FeeConstants.NewJobEcprocessingFeePercent);
 
+        // ── Payment methods: an explicit request field, not a CopyScalars inheritance ──
+        //    The workbench seeds it from the source, so the resolved value is normally the
+        //    source's — but this column decides whether the new site can take money at all
+        //    (1 CC only / 2 CC or Check / 3 Check only), and it also gates eCheck: the
+        //    registration UI hides eCheck when the code is CC-only. Too consequential to
+        //    arrive by omission. Validated to a known code at execute.
+        job.PaymentMethodsAllowedCode = req.PaymentMethodsAllowedCode;
+
         // ── eCheck / Store wizard choices ──
         job.BEnableEcheck =
             string.Equals(req.EnableEcheckChoice, "source", StringComparison.OrdinalIgnoreCase)

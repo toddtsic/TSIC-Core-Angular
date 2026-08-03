@@ -199,6 +199,7 @@ public class JobCloneRepository : IJobCloneRepository
                           CustomerId = j.CustomerId,
                           ExpiryAdmin = j.ExpiryAdmin,
                           ExpiryUsers = j.ExpiryUsers,
+                          PaymentMethodsAllowedCode = j.PaymentMethodsAllowedCode,
                           LeagueName = jl != null ? jl.League.LeagueName : null,
                       })
             .ToListAsync(ct);

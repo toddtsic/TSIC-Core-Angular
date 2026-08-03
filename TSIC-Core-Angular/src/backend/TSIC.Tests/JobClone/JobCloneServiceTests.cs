@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using TSIC.API.Services.Admin;
+using TSIC.Contracts.Constants;
 using TSIC.Contracts.Dtos.JobClone;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
@@ -222,6 +223,8 @@ public class JobCloneServiceTests
                 : [],
             ExpiryAdmin = DateTime.UtcNow.AddYears(1),
             ExpiryUsers = DateTime.UtcNow.AddYears(1),
+            // Workbench seeds this from the source; the seeded source is CC-only.
+            PaymentMethodsAllowedCode = PaymentMethodConstants.CreditCardOnly,
             UpAgegroupNamesByOne = advance,
             LadtScope = ladtScope,
             EnableEcheckChoice = enableEcheckChoice,

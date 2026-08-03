@@ -133,8 +133,17 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	/** Banner headline / caption, plain text. Seeded ONCE — see bannerTextSeeded. */
 	readonly bannerText1Target = signal('');
 	readonly bannerText2Target = signal('');
+	/**
+	 * Jobs.PaymentMethodsAllowedCode — 1 CC only, 2 CC or Check, 3 Check only. Seeded from the
+	 * source job (which is what the clone did silently before this control existed). Also gates
+	 * eCheck: the registration UI only offers it when this is not CC-only.
+	 */
+	readonly paymentMethodsAllowedCode = signal(1);
 	readonly enableEcheckChoice = signal<'off' | 'source'>('off');
 	readonly storeChoice = signal<'keep' | 'disable'>('disable');
+
+	/** True when the chosen payment methods make the eCheck choice inert. */
+	readonly echeckBlockedByCcOnly = computed(() => this.paymentMethodsAllowedCode() === 1);
 
 	// ── Commit controls ──
 	readonly affirmationChecked = signal(false);
@@ -347,6 +356,9 @@ export class JobCloneWorkbenchComponent implements OnInit {
 		// the day the clone happened to be built, which is not a date anyone chose.
 		this.expiryAdmin.set(this.shiftYear(source.expiryAdmin, 1));
 		this.expiryUsers.set(this.shiftYear(source.expiryUsers, 1));
+
+		// Payment methods follow the source — the clone's long-standing behaviour, now on screen.
+		this.paymentMethodsAllowedCode.set(source.paymentMethodsAllowedCode);
 	}
 
 	private onPlanArrived(planDto: ClonePlanDto, key: string): void {
@@ -508,6 +520,7 @@ export class JobCloneWorkbenchComponent implements OnInit {
 			bannerText2Target: this.bannerTextDirty ? this.bannerText2Target() : null,
 			ladtScope: this.ladtScope(),
 			copyDivisions: this.copyDivisions(),
+			paymentMethodsAllowedCode: this.paymentMethodsAllowedCode(),
 			enableEcheckChoice: this.enableEcheckChoice(),
 			storeChoice: this.storeChoice(),
 			planFingerprint,

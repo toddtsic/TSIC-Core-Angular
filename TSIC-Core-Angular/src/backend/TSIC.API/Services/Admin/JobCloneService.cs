@@ -1,3 +1,4 @@
+using TSIC.Contracts.Constants;
 using TSIC.Contracts.Dtos.JobClone;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -118,6 +119,13 @@ public sealed class JobCloneService : IJobCloneService
                 throw new ArgumentException(
                     "Every source league needs a target name. Missing: "
                     + string.Join(", ", ctx.MissingLeagueRenames));
+            if (request.PaymentMethodsAllowedCode is not (
+                    PaymentMethodConstants.CreditCardOnly
+                    or PaymentMethodConstants.CreditCardOrCheck
+                    or PaymentMethodConstants.CheckOnly))
+                throw new ArgumentException(
+                    $"Payment methods code {request.PaymentMethodsAllowedCode} is not a known value "
+                    + "(1 = credit card only, 2 = credit card or check, 3 = check only).");
 
             // Data-moved guard: the operator approved a specific plan. If the fresh
             // in-transaction plan differs, abort with the fresh plan for review.
