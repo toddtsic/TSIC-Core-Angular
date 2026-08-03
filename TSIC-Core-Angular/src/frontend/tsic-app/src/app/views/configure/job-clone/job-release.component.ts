@@ -70,7 +70,12 @@ export class JobReleaseComponent implements OnInit {
 	});
 
 	// ── Sandbox-only undo ──
-	readonly isDev = !environment.production;
+	// Mirrors the server's IHostEnvironment.IsSandbox() — everything that is NOT
+	// Production. It must NOT key off environment.production: that flag is an Angular
+	// build-optimization switch and is true for staging, which would have hidden this
+	// panel on the one deployed box where the undo is meant to be used. The server
+	// 404s both dev-undo endpoints in Production regardless of what the UI shows.
+	readonly isSandbox = environment.envName !== 'production';
 	readonly devUndoStatus = signal<DevUndoStatusResponse | null>(null);
 	readonly devUndoConfirmOpen = signal(false);
 	readonly isDeletingClone = signal(false);
@@ -115,7 +120,7 @@ export class JobReleaseComponent implements OnInit {
 		}
 		this.loadChecklist();
 		this.loadAdmins();
-		if (this.isDev) this.loadDevUndoStatus();
+		if (this.isSandbox) this.loadDevUndoStatus();
 	}
 
 	// ══════════════════════════════════════════════════════════

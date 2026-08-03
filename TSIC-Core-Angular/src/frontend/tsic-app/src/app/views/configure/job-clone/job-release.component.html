@@ -154,7 +154,7 @@
 	</section>
 
 	<!-- ══════════ Sandbox-only undo ══════════ -->
-	@if (isDev && devUndoStatus(); as status) {
+	@if (isSandbox && devUndoStatus(); as status) {
 		<section class="jc-panel jc-dev-panel">
 			<h3>Sandbox: delete this clone</h3>
 			@if (status.canUndo) {
