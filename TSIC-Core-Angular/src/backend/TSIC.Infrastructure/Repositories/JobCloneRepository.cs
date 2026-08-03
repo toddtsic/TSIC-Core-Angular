@@ -197,6 +197,8 @@ public class JobCloneRepository : IJobCloneRepository
                           Season = j.Season,
                           DisplayName = j.DisplayName,
                           CustomerId = j.CustomerId,
+                          ExpiryAdmin = j.ExpiryAdmin,
+                          ExpiryUsers = j.ExpiryUsers,
                           LeagueName = jl != null ? jl.League.LeagueName : null,
                       })
             .ToListAsync(ct);

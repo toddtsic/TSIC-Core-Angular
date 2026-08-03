@@ -160,6 +160,14 @@ public record JobCloneSourceDto
     public required Guid CustomerId { get; init; }
 
     /// <summary>
+    /// Source expiry dates. The workbench seeds the target's Admin/User expiry by shifting
+    /// THESE forward a year — not "today + 1 year", which produced a clone whose doors closed
+    /// on the clone's own anniversary instead of the season's (Ann, 08-03).
+    /// </summary>
+    public required DateTime ExpiryAdmin { get; init; }
+    public required DateTime ExpiryUsers { get; init; }
+
+    /// <summary>
     /// Primary league name (first by BIsPrimary through JobLeagues). Null if the job has
     /// no league association. Display-only in the picker; the workbench's rename rows come
     /// from the plan's Leagues list, which walks ALL leagues.

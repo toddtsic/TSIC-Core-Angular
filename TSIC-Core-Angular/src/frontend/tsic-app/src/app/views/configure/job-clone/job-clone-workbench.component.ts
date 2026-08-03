@@ -342,10 +342,11 @@ export class JobCloneWorkbenchComponent implements OnInit {
 		this.seasonTarget.set(source.season ?? '');
 		this.displayName.set(this.jobNameTarget());
 
-		const oneYearOut = new Date();
-		oneYearOut.setFullYear(oneYearOut.getFullYear() + 1);
-		this.expiryAdmin.set(this.toDateInput(oneYearOut));
-		this.expiryUsers.set(this.toDateInput(oneYearOut));
+		// Expiry advances the SOURCE's doors by a year — the same +1 as every other token
+		// on this screen. Seeding from "today + 1 year" made the new season's doors close on
+		// the day the clone happened to be built, which is not a date anyone chose.
+		this.expiryAdmin.set(this.shiftYear(source.expiryAdmin, 1));
+		this.expiryUsers.set(this.shiftYear(source.expiryUsers, 1));
 	}
 
 	private onPlanArrived(planDto: ClonePlanDto, key: string): void {
@@ -537,7 +538,22 @@ export class JobCloneWorkbenchComponent implements OnInit {
 		return `${this.formatDate(shift.from)} → ${this.formatDate(shift.to)}`;
 	}
 
+	/**
+	 * Source date (ISO from the API) advanced by `years`, as a yyyy-MM-dd value for
+	 * <input type="date">. Falls back to today + `years` when the source date is absent
+	 * or unparseable, so the field is never left empty (formValid requires it).
+	 */
+	private shiftYear(iso: string | null | undefined, years: number): string {
+		const d = iso ? new Date(iso) : new Date();
+		const base = Number.isNaN(d.getTime()) ? new Date() : d;
+		const shifted = new Date(base.getTime());
+		shifted.setFullYear(shifted.getFullYear() + years);
+		return this.toDateInput(shifted);
+	}
+
+	/** Local calendar date, not UTC — toISOString() would roll the day in +offset zones. */
 	private toDateInput(d: Date): string {
-		return d.toISOString().slice(0, 10);
+		const pad = (n: number) => String(n).padStart(2, '0');
+		return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 	}
 }
