@@ -1,9 +1,10 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { JobCloneService } from './services/job-clone.service';
 import { AuthService } from '@infrastructure/services/auth.service';
+import { JobContextService } from '@infrastructure/services/job-context.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { environment } from '@environments/environment';
 import type {
@@ -45,6 +46,8 @@ export class JobReleaseComponent implements OnInit {
 	private readonly router = inject(Router);
 	private readonly authService = inject(AuthService);
 	private readonly toast = inject(ToastService);
+	private readonly jobContext = inject(JobContextService);
+	private readonly destroyRef = inject(DestroyRef);
 
 	readonly jobId = this.route.snapshot.paramMap.get('jobId') ?? '';
 
@@ -118,6 +121,12 @@ export class JobReleaseComponent implements OnInit {
 			this.toast.show('Missing job id', 'danger', 4000);
 			return;
 		}
+		// This page is about the job that was just created; the session is still signed
+		// into the job it was cloned FROM, so the chrome would name — and link to — the
+		// wrong one. Blank it while we're here; the page header carries the identity.
+		this.jobContext.suppressChromeIdentity(true);
+		this.destroyRef.onDestroy(() => this.jobContext.suppressChromeIdentity(false));
+
 		this.loadChecklist();
 		this.loadAdmins();
 		if (this.isSandbox) this.loadDevUndoStatus();
