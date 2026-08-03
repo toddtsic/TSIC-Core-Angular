@@ -322,10 +322,15 @@ export class JobReleaseComponent implements OnInit {
 						},
 					});
 				} else {
-					// No return context (page opened from URL alone) — the current JWT may be
-					// scoped to the job that just vanished; send the user to re-select.
+					// No return context (page opened from URL alone) — the current JWT is
+					// scoped to the job that just vanished, so every job-scoped route is now
+					// a dead end. Role-selection is the app's own "pick where to work" screen;
+					// 'tsic' is the jobless prefix its siblings use (header switchRole, the
+					// ToS fallback). Navigating to '/' instead redirected to /tsic, which
+					// canMatch declines for an authenticated phase-2 user, so it fell through
+					// to :jobPath and tried to resolve a job that no longer exists.
 					this.toast.show('Cloned job deleted. Select a job to continue.', 'success', 5000);
-					this.router.navigate(['/']);
+					this.router.navigate(['/tsic/role-selection']);
 				}
 			},
 			error: err => {
