@@ -48,10 +48,23 @@ export class RegistrationReadinessComponent {
 
 	protected readonly failedCount = computed(() => this.clauses().filter(c => !c.passed).length);
 
+	/**
+	 * This tab has edits that haven't been saved yet.
+	 *
+	 * The clause list answers for what is IN THE DATABASE — it is the server's evaluation, and
+	 * re-deriving any of it in the browser to track an unsaved checkbox would fork the predicate
+	 * this whole panel exists to keep singular. So instead of silently contradicting the toggle
+	 * beside it ("registration is off" next to a checkbox the director just ticked), it says the
+	 * answer is stale and what to do about it.
+	 */
+	protected readonly pending = computed(() =>
+		this.svc.dirtyTabs().has(this.audience() === 'player' ? 'player' : 'teams'));
+
 	protected readonly channelLabel = computed(() =>
 		this.audience() === 'player' ? 'Player registration' : 'Team registration');
 
 	protected readonly headline = computed(() => {
+		if (this.pending()) return `${this.channelLabel()} — save to re-check.`;
 		if (this.visible()) return `${this.channelLabel()} is LIVE on the public site.`;
 		const n = this.failedCount();
 		return n === 1

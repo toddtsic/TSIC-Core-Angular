@@ -273,15 +273,16 @@ public sealed class JobClonePlanner
         var effectiveEventEnd = req.EventEndDate ?? ShiftByYears(sourceJob.EventEndDate, yearDelta);
         var today = DateTime.Now.Date;
 
+        // NOTE: absent event dates get NO warning. They are the norm, not an omission — DB probe
+        // 08-03: null on 345/347 clubs, 100/101 camps, 15/16 leagues, and 246/354 TOURNAMENTS.
+        // "Is the event over?" then rests on ExpiryUsers, which the clone sets a year forward, so
+        // the door is open and registration works. Warning here would fire on nearly every clone
+        // and train the operator to skim past the list that carries the real warning below.
         if (effectiveEventEnd.HasValue && effectiveEventEnd.Value.Date < today)
             warnings.Add(
                 $"Event end date {effectiveEventEnd.Value:yyyy-MM-dd} is in the PAST — the new job "
                 + "will be treated as concluded, and NO registration links will appear on its public "
                 + "site regardless of which registration toggles are on. Set it forward in Dates.");
-        else if (!effectiveEventEnd.HasValue && !effectiveEventStart.HasValue)
-            warnings.Add(
-                "No event start or end date — the new job's \"is the event over?\" question falls back "
-                + "to the user expiry date. Setting the event window in Dates is more precise.");
 
         if (effectiveEventStart.HasValue && effectiveEventEnd.HasValue
             && effectiveEventEnd.Value.Date < effectiveEventStart.Value.Date)

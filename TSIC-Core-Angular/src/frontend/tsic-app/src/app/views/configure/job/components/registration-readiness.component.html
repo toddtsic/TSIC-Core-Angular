@@ -1,23 +1,32 @@
 @if (clauses().length) {
-	<section class="rr" [class.rr--live]="visible()" [class.rr--blocked]="!visible()"
+	<section class="rr"
+		[class.rr--live]="visible() && !pending()"
+		[class.rr--blocked]="!visible() && !pending()"
+		[class.rr--pending]="pending()"
 		[attr.aria-label]="channelLabel() + ' visibility'">
 
 		<header class="rr__head">
 			<!-- Icon AND wording carry the state; colour only reinforces it. -->
 			<i class="bi rr__status-icon"
-				[class.bi-broadcast]="visible()"
-				[class.bi-eye-slash-fill]="!visible()"
+				[class.bi-hourglass-split]="pending()"
+				[class.bi-broadcast]="visible() && !pending()"
+				[class.bi-eye-slash-fill]="!visible() && !pending()"
 				aria-hidden="true"></i>
 			<div class="rr__headtext">
 				<h6 class="rr__title">{{ headline() }}</h6>
 				<p class="rr__sub">
-					All of the following must be true. They are checked on the public site exactly as
-					listed here.
+					@if (pending()) {
+						This answers for what is saved, so it does not reflect your unsaved edits yet.
+						Save this tab and it re-checks straight away.
+					} @else {
+						All of the following must be true. They are checked on the public site exactly as
+						listed here.
+					}
 				</p>
 			</div>
 		</header>
 
-		<ul class="rr__list">
+		<ul class="rr__list" [class.is-stale]="pending()">
 			@for (c of clauses(); track c.key) {
 				<li class="rr__clause" [class.is-pass]="c.passed" [class.is-fail]="!c.passed">
 					<i class="bi rr__icon"

@@ -23,6 +23,13 @@
 	background: var(--bs-warning-bg-subtle);
 }
 
+// Unsaved edits on this tab — the verdicts below describe the SAVED job, so the panel steps
+// back to neutral rather than asserting a state that may be one click out of date.
+.rr--pending {
+	border-left-color: var(--bs-secondary);
+	background: var(--bs-secondary-bg-subtle);
+}
+
 .rr__head {
 	display: flex;
 	align-items: flex-start;
@@ -35,6 +42,12 @@
 
 	.rr--live & { color: var(--bs-success); }
 	.rr--blocked & { color: var(--bs-warning-text-emphasis); }
+	.rr--pending & { color: var(--brand-text-muted); }
+}
+
+// Stale verdicts stay legible — they are still the last true answer, just not the current one.
+.rr__list.is-stale {
+	opacity: 0.7;
 }
 
 .rr__headtext { min-width: 0; }
