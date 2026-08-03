@@ -1,4 +1,4 @@
-// Enforces the mechanically-decidable parts of .claude/rules/mobile-readiness.md.
+// Enforces the mechanically-decidable parts of docs/Frontend/mobile-readiness.md.
 // Run via `npm run verify:mobile`. Exits non-zero on any violation.
 //
 // Why a script: tsic-app has no ESLint, and these three defects are invisible in review —
@@ -252,7 +252,7 @@ const fresh = [...found.keys()].filter((k) => !known.has(k)).sort();
 const stale = [...known].filter((k) => !found.has(k)).sort();
 
 if (fresh.length) {
-  console.error(`[mobile] ${fresh.length} NEW violation(s) of .claude/rules/mobile-readiness.md:`);
+  console.error(`[mobile] ${fresh.length} NEW violation(s) of docs/Frontend/mobile-readiness.md:`);
   for (const k of fresh) console.error(`  - ${found.get(k)}`);
 }
 if (stale.length) {
@@ -261,7 +261,7 @@ if (stale.length) {
   for (const k of stale) console.error(`  - ${k}`);
 }
 if (fresh.length || stale.length) {
-  console.error(`\n  Rules + fixes: .claude/rules/mobile-readiness.md`);
+  console.error(`\n  Rules + fixes: docs/Frontend/mobile-readiness.md`);
   console.error(`  Runbook:       docs/Frontend/mobile-readiness-status.md`);
   process.exit(1);
 }

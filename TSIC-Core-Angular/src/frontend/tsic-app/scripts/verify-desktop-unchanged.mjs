@@ -1,5 +1,5 @@
 // Proves a mobile pass changed nothing a DESKTOP user can see.
-// Run via `npm run verify:desktop-unchanged` (see .claude/rules/mobile-readiness.md).
+// Run via `npm run verify:desktop-unchanged` (see docs/Frontend/mobile-readiness.md).
 // Exits non-zero if any changed style source alters the desktop-applicable CSS.
 //
 // Why this exists: the mobile-readiness programme edits many components. The claim
@@ -193,7 +193,7 @@ if (drift.length) {
   outside the @media (max-width: 767.98px) block, or it belongs to a different phase.
 
   If the change is intentional and desktop-affecting, it is NOT a Phase 1 change — see
-  .claude/rules/mobile-readiness.md ("The risk ladder") and split it into its own commit.`);
+  docs/Frontend/mobile-readiness.md ("The risk ladder") and split it into its own commit.`);
   process.exit(1);
 }
 
