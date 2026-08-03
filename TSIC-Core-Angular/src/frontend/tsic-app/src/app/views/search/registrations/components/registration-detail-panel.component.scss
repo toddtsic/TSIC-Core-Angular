@@ -990,12 +990,19 @@
 
 .change-job-modal {
   position: absolute;
-  top: 30%;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   z-index: 11;
   width: 400px;
   max-width: calc(100% - var(--space-8));
+  // Bound to the viewport and lay out as a column so the header and footer
+  // stay pinned while a long body (e.g. a 24-job rename-impact list) scrolls
+  // internally instead of pushing the footer buttons off-screen.
+  max-height: calc(100% - var(--space-16));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--bs-body-bg);
   border: 1px solid var(--bs-border-color);
   border-radius: var(--radius-lg);
@@ -1005,6 +1012,7 @@
 
 .modal-header {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
   padding: var(--space-4) var(--space-5);
@@ -1020,6 +1028,10 @@
 
 .modal-body {
   padding: var(--space-5);
+  // Let a tall body scroll within the bounded modal; header/footer stay fixed.
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 
   .form-label {
     font-size: var(--font-size-base);
@@ -1035,6 +1047,7 @@
 
 .modal-footer {
   display: flex;
+  flex: 0 0 auto;
   justify-content: flex-end;
   gap: var(--space-3);
   padding: var(--space-4) var(--space-5);
