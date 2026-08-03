@@ -449,6 +449,13 @@ public sealed class RosterSwapperService : IRosterSwapperService
         if (reg.JobId != jobId)
             throw new ArgumentException("Registration does not belong to this job.");
 
+        // The method is named TogglePLAYERActive and the roster UI only ever lists players, but
+        // nothing enforced it: the endpoint is AdminOnly, so a Director could pass an
+        // administrator's registrationId here and grant or revoke admin access through the
+        // roster route, bypassing the Superuser gate on the registration-search path.
+        if (!string.Equals(reg.RoleId, RoleConstants.Player, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("Only player registrations can be toggled here.");
+
         reg.BActive = active;
         reg.Modified = DateTime.Now;
         reg.LebUserId = adminUserId;

@@ -461,9 +461,11 @@ public class RegistrationSearchController : ControllerBase
         var (jobId, _, error) = await ResolveContext();
         if (error != null) return error;
 
+        var callerRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+
         try
         {
-            await _searchService.SetActiveAsync(jobId!.Value, registrationId, request.Active, ct);
+            await _searchService.SetActiveAsync(jobId!.Value, registrationId, request.Active, callerRole, ct);
             return NoContent();
         }
         catch (KeyNotFoundException)

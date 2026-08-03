@@ -66,6 +66,10 @@ public interface IRegistrationSearchService
     Task<ChangeJobResponse> ChangeRegistrationJobAsync(Guid jobId, string userId, Guid registrationId, ChangeJobRequest request, CancellationToken ct = default);
     Task<DeleteRegistrationResponse> DeleteRegistrationAsync(Guid jobId, string userId, string callerRole, Guid registrationId, CancellationToken ct = default);
     Task SetEmailOptOutAsync(Guid jobId, Guid registrationId, bool optOut, CancellationToken ct = default);
-    Task SetActiveAsync(Guid jobId, Guid registrationId, bool active, CancellationToken ct = default);
+    /// <param name="callerRole">
+    /// Required: flipping an ADMIN registration active is an access grant, so the target's role
+    /// is authorized against the caller's — mirrors DeleteRegistrationAsync above.
+    /// </param>
+    Task SetActiveAsync(Guid jobId, Guid registrationId, bool active, string callerRole, CancellationToken ct = default);
     Task UpdateFamilyAccountDemographicsAsync(Guid jobId, string userId, UpdateUserDemographicsRequest request, CancellationToken ct = default);
 }

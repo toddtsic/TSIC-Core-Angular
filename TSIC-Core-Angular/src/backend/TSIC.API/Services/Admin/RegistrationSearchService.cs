@@ -1252,7 +1252,8 @@ public async Task<ChangeJobResponse> ChangeRegistrationJobAsync(
         await _registrationRepo.SetEmailOptOutAsync(registrationId, optOut, ct);
     }
 
-    public async Task SetActiveAsync(Guid jobId, Guid registrationId, bool active, CancellationToken ct = default)
+    public async Task SetActiveAsync(
+        Guid jobId, Guid registrationId, bool active, string callerRole, CancellationToken ct = default)
     {
         var regs = await _registrationRepo.GetByIdsAsync(new List<Guid> { registrationId }, ct);
         var reg = regs.FirstOrDefault();
@@ -1260,6 +1261,18 @@ public async Task<ChangeJobResponse> ChangeRegistrationJobAsync(
             throw new KeyNotFoundException($"Registration {registrationId} not found.");
         if (reg.JobId != jobId)
             throw new InvalidOperationException("Registration does not belong to this job.");
+
+        // Flipping an ADMIN registration is an access grant in one direction and a lockout in
+        // the other, so it is Superuser-only — the same shape DeleteRegistrationAsync uses for
+        // the roles it guards. This endpoint's policy is AdminOnly (Superuser + Director +
+        // SuperDirector) and the job-ownership check above was the ONLY gate, which let any
+        // Director activate a Director/SuperDirector row or deactivate a colleague's.
+        if (RoleConstants.AdminRoleIds.Contains(reg.RoleId, StringComparer.OrdinalIgnoreCase)
+            && !string.Equals(callerRole, RoleConstants.Names.SuperuserName, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "Only Superuser can change the active status of an administrator registration.");
+        }
 
         await _registrationRepo.SetActiveAsync(registrationId, active, ct);
     }
