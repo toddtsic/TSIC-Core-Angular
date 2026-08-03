@@ -64,8 +64,10 @@ body.e-dark-mode .modal-content {
    LADT fly-in: sticky save bar
    Shared by league / age-group / division / team detail panels. Pins Save to the
    bottom of the scrolling fly-in so it's always in reach, and signals unsaved edits.
-   The fly-in scroll container is `.detail-flyin`; `.flyin-body` pads with --space-4,
-   so the bar uses negative margins to span full-bleed and sit flush at the bottom.
+   The scroll container is `.flyin-body` (the panel itself is clipped by the shared
+   `.detail-panel` contract), so `bottom: 0` pins to the real panel bottom rather
+   than a 100vh bottom hidden under iOS Safari's URL bar. `.flyin-body` pads with
+   --space-4, so the bar uses negative margins to span full-bleed and sit flush.
    ============================================ */
 .detail-save-bar {
    position: sticky;

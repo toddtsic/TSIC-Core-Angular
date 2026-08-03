@@ -387,34 +387,12 @@
 }
 
 // ── Fly-in Detail Panel ──
-
-.detail-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.3);
-  z-index: 1049;
-}
-
-.detail-flyin {
-  position: fixed;
-  top: 0;
-  right: 0;
-  width: 560px;
-  height: 100vh;
-  background: var(--bs-body-bg);
-  border-left: 1px solid var(--bs-border-color);
-  box-shadow: var(--shadow-xl);
-  z-index: 1050;
-  transform: translateX(100%);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-
-  &.open {
-    transform: translateX(0);
-  }
-}
+//
+// Positioning, width, backdrop, and the mobile below-header anchoring all come
+// from the shared contract (styles/_flyin.scss) via `.detail-panel` on the panel
+// root. Do NOT re-declare any of that here — a component-scoped copy outranks
+// the plain global and silently retakes the full screen on mobile, which is
+// exactly what this panel used to do. Only panel-interior styles live below.
 
 .flyin-header {
   display: flex;
@@ -423,9 +401,7 @@
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--bs-border-color);
   background: var(--bs-body-bg);
-  position: sticky;
-  top: 0;
-  z-index: 1;
+  flex-shrink: 0;
 }
 
 .flyin-title {
@@ -528,8 +504,15 @@
   }
 }
 
+// The BODY scrolls, not the panel — the contract clips the panel itself. This is
+// what pins `.detail-save-bar` (position:sticky; bottom:0) to the real panel
+// bottom instead of a 100vh bottom sitting under iOS Safari's URL bar.
+// min-height:0 is load-bearing: a flex child defaults to min-height:auto and
+// would grow to its content instead of scrolling.
 .flyin-body {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   padding: var(--space-4);
 }
 
@@ -562,9 +545,15 @@
 }
 
 @media (max-width: 767.98px) {
+  // Tree drawer starts BELOW the app header, per the shared flyin contract
+  // (styles/_flyin.scss) — the job identity stays visible through the dimmed
+  // backdrop, which still covers the header and keeps it non-interactive.
+  // top + bottom (not a height) so the drawer can't over-run the viewport when
+  // the header wraps to two lines. The token is measured live by
+  // client-header-bar; the 48px is only a fallback — never hardcode it.
   .tree-panel {
     position: fixed;
-    top: 0;
+    top: var(--app-header-height-mobile, 48px);
     left: 0;
     bottom: 0;
     z-index: 1050;
@@ -578,14 +567,43 @@
       transform: translateX(0);
       box-shadow: var(--bs-box-shadow-lg, 0 0.5rem 1rem rgba(0, 0, 0, 0.15));
     }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
   }
 
   .grid-panel {
     padding: var(--space-3);
   }
 
-  .detail-flyin {
-    width: 100%;
+  // Header wraps on a phone (mirrors the contract's .header-wrap-full intent).
+  // The wrap has to happen INSIDE .flyin-nav-select, not on .flyin-header: when
+  // a node has siblings there is no .flyin-title, so dropping the whole nav
+  // block to row 2 would leave row 1 holding nothing but the close X. Instead
+  // the level icon + label keep row 1 (with the X), and the ▲ / sibling <select>
+  // / ▼ stepper — the part that actually can't shrink — takes row 2 in full.
+  .flyin-header {
+    align-items: flex-start; // X sits on row 1, not centred across both rows
+  }
+
+  .flyin-nav-select {
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
+    margin-right: var(--space-2);
+  }
+
+  .flyin-nav-stepper {
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  // The body must never pan sideways: overflow-y:auto silently computes
+  // overflow-x to auto too, so ONE over-wide child turns the whole body into a
+  // horizontal scroller and swiping anywhere drags every card. Same rule the
+  // contract applies to .panel-body.
+  .flyin-body {
+    overflow-x: hidden;
   }
 }
 

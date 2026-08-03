@@ -322,7 +322,11 @@
 @if (isDetailOpen()) {
   <div class="detail-backdrop" (click)="closeDetail()"></div>
 }
-<div class="detail-flyin" [class.open]="isDetailOpen()" appResizablePanel storageKey="ladtPanelWidth" panelSide="right">
+<!-- .detail-panel = the shared flyin contract (styles/_flyin.scss) — it owns
+     position, width, the .open transform, and the mobile below-header anchoring.
+     Never re-declare those in ladt.component.scss; a component-scoped copy wins
+     the cascade and silently retakes the full screen on mobile. -->
+<div class="detail-panel" [class.open]="isDetailOpen()" appResizablePanel storageKey="ladtPanelWidth" panelSide="right">
   @if (detailNode(); as node) {
     <div class="flyin-header">
       @if (flyinSiblings().length > 1) {
@@ -358,7 +362,11 @@
           <span class="flyin-title-text">{{ node.name }}</span>
         </h5>
       }
-      <button type="button" class="btn-close" (click)="closeDetail()"></button>
+      <!-- &times; is required, not decorative: the contract's `.detail-panel
+           .btn-close` sets background:transparent, which out-specifies (0,2,0 vs
+           0,1,0) Bootstrap's background-image X and would leave a blank button.
+           Matches the search/registrations + search/teams panels. -->
+      <button type="button" class="btn-close" (click)="closeDetail()" aria-label="Close">&times;</button>
     </div>
     <div class="flyin-body">
       @if (node.level === 0) {
