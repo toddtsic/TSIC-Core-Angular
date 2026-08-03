@@ -422,25 +422,33 @@
 
 			<!-- The clone's safe state, stated plainly. These are NOT options — every one of them is
 			     unconditional (JobCloneResetRules "SAFE-STATE RESET LIST"). Directors coming from legacy
-			     expect a clone to arrive live like its source did; it does not, and finding that out by
-			     discovering the site is dark is worse than reading it here. -->
+			     expect a clone to arrive live like its source did; it does not, and finding that out
+			     after the fact is worse than reading it here.
+
+			     Do NOT reinstate the old "the public site is hidden" claim. Jobs.bSuspendPublic gates the
+			     TSIC-Events job listing, the sibling cross-sell, and the pulse flag — no read path darkens
+			     a job's OWN public pages, which are reachable at its address the moment the clone commits.
+			     The real protection is that registration is closed and cloned admins are inactive. -->
 			<section class="jc-panel jc-safe-state">
 				<h3>What arrives switched off</h3>
 				<p class="jc-hint jc-panel-intro">
-					Every clone lands in this state, so a half-built job can never be reached by the
-					public. Work through it in your own time — the job waits until you say otherwise.
+					Every clone lands in this state, so nobody can sign up for — or administer — a job you
+					are still building. Work through it in your own time; the job waits until you say
+					otherwise.
 				</p>
 
 				<div class="jc-safe-group">
-					<h4><i class="bi bi-lock-fill" aria-hidden="true"></i> Nobody can get in yet</h4>
+					<h4><i class="bi bi-lock-fill" aria-hidden="true"></i> Nobody can sign up yet</h4>
 					<ul class="jc-safe-list">
-						<li><strong>The public site is hidden.</strong> Nobody outside your admins can reach it
-							until you release it in step 2.</li>
 						<li><strong>All five registration types are closed</strong> — players, teams, staff,
-							referees and recruiters. You open them in step 4, one by one; opening is additive
-							and deliberate.</li>
-						<li><strong>Cloned admins arrive inactive.</strong> You activate them in step 3, so
+							referees and recruiters. You open them one at a time, and opening is additive and
+							deliberate.</li>
+						<li><strong>Cloned admins arrive inactive.</strong> You activate the ones you want, so
 							nobody gets access to a job you are still building.</li>
+						<li><strong>The new job is kept off the public job listing</strong> — it will not appear
+							alongside your other events until a Superuser lists it. Its own pages answer at its
+							web address as soon as the clone finishes; there is simply nothing to sign up for
+							until you open registration.</li>
 					</ul>
 				</div>
 
@@ -467,9 +475,11 @@
 				       template in Configure → Job, not to this panel. -->
 
 				<p class="jc-hint">
-					To turn these on: release the site and open registration from the
-					<strong>Release page</strong>, which opens as soon as the clone finishes. Schedule
-					and roster visibility live under <strong>Configure → Job</strong>.
+					Where to turn these on, once the clone finishes: registration opens on the
+					<strong>Players</strong>, <strong>Teams/ClubReps</strong> and <strong>Adult</strong> tabs
+					of <strong>Configure → Job</strong>; schedule and roster visibility on its
+					<strong>Scheduling</strong> and <strong>Teams/ClubReps</strong> tabs; cloned admins under
+					<strong>Configure → Administrators</strong>.
 				</p>
 			</section>
 
