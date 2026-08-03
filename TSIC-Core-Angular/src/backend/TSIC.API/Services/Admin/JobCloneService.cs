@@ -596,6 +596,17 @@ public sealed class JobCloneService : IJobCloneService
         await _repo.BeginTransactionAsync(ct);
         try
         {
+            // Already gone? A double-click sends two DELETEs. The second one used to run the
+            // whole cascade against rows the first had removed and surface as an unhandled
+            // DbUpdateConcurrencyException ("expected to affect 1 row(s), but actually affected
+            // 0") from inside EF's batch executor — an alarming stack trace for what is simply
+            // "that job isn't there any more". The transaction always rolled back, so nothing
+            // was ever half-deleted; only the diagnosis was bad.
+            var job = await _repo.GetSourceJobAsync(jobId, ct);
+            if (job is null)
+                throw new KeyNotFoundException(
+                    $"Job {jobId} not found — it may already have been deleted.");
+
             // Re-run predicate inside the txn so a row inserted between status fetch and
             // delete can't slip through.
             var counts = await _repo.GetDevUndoCountsAsync(jobId, ct);

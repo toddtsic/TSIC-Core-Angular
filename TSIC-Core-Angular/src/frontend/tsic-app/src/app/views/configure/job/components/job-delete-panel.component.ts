@@ -108,11 +108,16 @@ export class JobDeletePanelComponent implements OnInit {
 	cancelConfirm(): void { this.confirmOpen.set(false); }
 
 	confirmDelete(): void {
+		// The confirm dialog's button has no busy state of its own, so a double-click would
+		// fire two DELETEs. Guard re-entry AND close the dialog immediately — the second
+		// request then has neither a handler nor a button. (The server also 404s a delete
+		// for a job that is already gone; this just stops it being asked twice.)
+		if (this.isDeleting()) return;
 		this.isDeleting.set(true);
+		this.confirmOpen.set(false);
 		this.cloneService.deleteClonedJob(this.jobId()).subscribe({
 			next: () => {
 				this.isDeleting.set(false);
-				this.confirmOpen.set(false);
 				// The session is scoped to the job that just vanished, so every
 				// job-scoped route is now a dead end. Role-selection is the app's own
 				// "pick where to work" screen; 'tsic' is the jobless prefix its
@@ -122,7 +127,6 @@ export class JobDeletePanelComponent implements OnInit {
 			},
 			error: err => {
 				this.isDeleting.set(false);
-				this.confirmOpen.set(false);
 				this.toast.show(err.error?.message ?? 'Delete failed.', 'danger', 5000);
 			},
 		});
