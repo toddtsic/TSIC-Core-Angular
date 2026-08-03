@@ -186,6 +186,13 @@ const JOB_TYPE_TOURNAMENT = 2;
     .settings-card { background: var(--bs-tertiary-bg); box-shadow: var(--shadow-sm); }
     .fee-label { font-size: 0.75rem; color: var(--bs-secondary-color); margin-bottom: 2px; display: block; }
     .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); font-size: 0.85rem; }
+
+    // Under 16px iOS Safari auto-zooms on focus and never zooms back; .form-control-sm is
+    // 14px. See .claude/rules/mobile-readiness.md rule 5. Silent // comments deliberately —
+    // sass PRESERVES /* */ in expanded output and would alter the desktop CSS fingerprint.
+    @media (max-width: 767.98px) {
+      input, select, textarea, .form-control, .form-select { font-size: 16px; }
+    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

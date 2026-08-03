@@ -3,7 +3,6 @@
   "generated": "npm run verify:mobile -- --write-baseline",
   "entries": [
     "app/layouts/components/client-menu/client-menu.component.scss::.dropdown-panel::vh-no-dvh",
-    "app/views/ladt/editor/ladt.component.scss::.btn-add-child::hover-only",
     "app/views/scheduling/referee-assignment/referee-assignment.component.scss::.ref-card-actions::hover-only",
     "app/views/scheduling/shared/components/game-card/game-card.component.scss::.cancel-hint::hover-only",
     "app/views/scheduling/shared/components/game-card/game-card.component.scss::.game-actions::hover-only",

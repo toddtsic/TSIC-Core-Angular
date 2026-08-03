@@ -101,6 +101,15 @@ import type { DivisionDetailDto, UpdateDivisionRequest } from '../../../../core/
     }
     .settings-card { background: var(--bs-tertiary-bg); box-shadow: var(--shadow-sm); }
     .fee-label { font-size: 0.75rem; color: var(--bs-secondary-color); margin-bottom: 2px; display: block; }
+
+    // iOS Safari auto-zooms any input under 16px on focus and never zooms back, so renaming
+    // a division began with the page lurching. Bootstrap's .form-control-sm is 14px, and
+    // index.html deliberately sets no maximum-scale (that would break pinch-zoom), which
+    // leaves font-size as the only lever. Silent // comments throughout: sass PRESERVES
+    // /* */ in expanded output, which would alter the desktop CSS fingerprint.
+    @media (max-width: 767.98px) {
+      input, select, textarea, .form-control, .form-select { font-size: 16px; }
+    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

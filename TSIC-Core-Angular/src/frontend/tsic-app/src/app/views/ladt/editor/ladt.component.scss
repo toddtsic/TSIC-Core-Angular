@@ -557,8 +557,11 @@
     left: 0;
     bottom: 0;
     z-index: 1050;
-    width: 300px;
-    min-width: 300px;
+    // At level 3 the inline indent (level * 20 + 8 = 68px) plus a 40px toggle left almost
+    // nothing for the label in 300px. min-width:0 so 90vw can still win on a 320px phone —
+    // the base rule's 280px min-width would otherwise pin it wider than the viewport allows.
+    width: min(90vw, 360px);
+    min-width: 0;
     transform: translateX(-100%);
     transition: transform 0.25s ease;
     box-shadow: none;
@@ -575,6 +578,41 @@
 
   .grid-panel {
     padding: var(--space-3);
+  }
+
+  // ── Tree: the front door to every league / age group / division / team ──
+  //
+  // Add and remove are gated behind `.tree-node:hover` on desktop. Touch has no hover, so
+  // on a phone there was NO gesture that reached them — adding or deleting anything from
+  // the tree was impossible, not merely awkward. Reveal them unconditionally here.
+  .btn-add-child,
+  .btn-remove-node {
+    display: flex;
+    width: 40px;
+    height: 40px;
+  }
+
+  // WCAG 2.2 SC 2.5.8 (Level AA) puts the floor at 24x24. These were 20x20 and a 22px row.
+  // Being generous rather than exactly compliant: this is the primary navigation surface,
+  // and every division is reached by expanding two ancestors first.
+  .tree-node {
+    min-height: 40px;
+
+    &.has-club {
+      min-height: 48px;
+    }
+  }
+
+  .tree-toggle {
+    width: 40px;
+    height: 40px;
+  }
+
+  // The only way to set an age-group colour, and it was a 12px target. Scoped to the
+  // --clickable modifier so the decorative inherited dots on divisions stay small.
+  .tree-color-dot--clickable {
+    width: 24px;
+    height: 24px;
   }
 
   // Header wraps on a phone (mirrors the contract's .header-wrap-full intent).

@@ -309,6 +309,13 @@ const JOB_TYPE_TOURNAMENT = 2;
     .color-option.active { background: var(--bs-primary-bg-subtle); font-weight: 600; }
 
     .section-locked { opacity: 0.45; pointer-events: none; }
+
+    // Under 16px iOS Safari auto-zooms on focus and never zooms back; .form-control-sm is
+    // 14px. See .claude/rules/mobile-readiness.md rule 5. Silent // comments deliberately —
+    // sass PRESERVES /* */ in expanded output and would alter the desktop CSS fingerprint.
+    @media (max-width: 767.98px) {
+      input, select, textarea, .form-control, .form-select { font-size: 16px; }
+    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
