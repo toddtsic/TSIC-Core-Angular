@@ -45,6 +45,25 @@ public sealed class JobCloneService : IJobCloneService
     }
 
     // ══════════════════════════════════════════════════════════
+    // Entry normalization — one place, before anything reads the values
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Trims the two operator-typed identity fields at the door.
+    /// SQL Server's '=' ignores TRAILING spaces but not LEADING ones, so " Fall 2026"
+    /// sails past the duplicate-name check and then lands in Jobs looking identical to
+    /// "Fall 2026" — the legacy failure this guard exists to prevent. Normalizing once
+    /// here (rather than in the planner and again in the reset rules) means the value
+    /// the existence check tested and the value actually written cannot disagree.
+    /// Case needs no handling: the DB collates CI, so "fall 2026" already collides.
+    /// </summary>
+    private static JobCloneRequest Normalize(JobCloneRequest request) => request with
+    {
+        JobPathTarget = request.JobPathTarget?.Trim() ?? string.Empty,
+        JobNameTarget = request.JobNameTarget?.Trim() ?? string.Empty,
+    };
+
+    // ══════════════════════════════════════════════════════════
     // Preview — render the plan (no writes)
     // ══════════════════════════════════════════════════════════
 
@@ -54,6 +73,8 @@ public sealed class JobCloneService : IJobCloneService
         Guid? authorCustomerId = null,
         CancellationToken ct = default)
     {
+        request = Normalize(request);
+
         var sourceJob = await _repo.GetSourceJobAsync(request.SourceJobId, ct)
             ?? throw new KeyNotFoundException($"Source job {request.SourceJobId} not found.");
         GuardCustomerScope(authorCustomerId, sourceJob.CustomerId, request.TargetCustomerId);
@@ -72,6 +93,8 @@ public sealed class JobCloneService : IJobCloneService
         Guid? authorCustomerId = null,
         CancellationToken ct = default)
     {
+        request = Normalize(request);
+
         var sourceJob = await _repo.GetSourceJobAsync(request.SourceJobId, ct)
             ?? throw new KeyNotFoundException($"Source job {request.SourceJobId} not found.");
         GuardCustomerScope(authorCustomerId, sourceJob.CustomerId, request.TargetCustomerId);
