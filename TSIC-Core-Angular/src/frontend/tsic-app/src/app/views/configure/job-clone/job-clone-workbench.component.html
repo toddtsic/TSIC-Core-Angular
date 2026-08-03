@@ -458,10 +458,10 @@
 					<input type="checkbox" [ngModel]="affirmationChecked()" (ngModelChange)="affirmationChecked.set($event)" />
 					<span>I've reviewed the plan — clone it.</span>
 				</label>
-				<label class="field-check">
-					<input type="checkbox" [ngModel]="enterNewJob()" (ngModelChange)="enterNewJob.set($event)" />
-					<span>Enter the new job after cloning</span>
-				</label>
+				<p class="jc-hint">
+					Cloning switches you into the new job and lands on its home page. Registration
+					stays closed until you open it in Configure → Job.
+				</p>
 				<div class="jc-commit-actions">
 					<button type="button" class="jc-btn-primary" [disabled]="!canClone()" (click)="onSubmit()">
 						@if (isSubmitting()) { <span class="spinner" aria-hidden="true"></span> }

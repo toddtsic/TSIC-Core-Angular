@@ -140,6 +140,10 @@
           </div>
         </div>
       </div>
+
+      <!-- Renders itself only when the server says this job still qualifies for the
+           cascade delete (nothing registered, nothing used) and we're not in production. -->
+      <app-job-delete-panel [jobId]="g.jobId" />
     }
 
   </div>

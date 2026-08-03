@@ -191,22 +191,15 @@ export const routes: Routes = [
 						loadComponent: () => import('./views/configure/quick-links/quick-links.component').then(m => m.QuickLinksComponent)
 					},
 					{
+						// The workbench is the whole feature: clone, then you're in the new job.
+						// There is no release sequence — a new job's registration flags,
+						// administrators, branding and TSIC-Events visibility are ordinary
+						// settings screens, and duplicating them behind a wizard only created a
+						// second place for them to disagree.
 						path: 'job-clone',
-						children: [
-							{
-								// The workbench IS the entry point — there is no landing screen.
-								path: '',
-								canActivate: [authGuard],
-								data: { roles: [Roles.Superuser], helpKey: 'job-clone' },
-								loadComponent: () => import('./views/configure/job-clone/job-clone-workbench.component').then(m => m.JobCloneWorkbenchComponent)
-							},
-							{
-								path: 'release/:jobId',
-								canActivate: [authGuard],
-								data: { roles: [Roles.Superuser], helpKey: 'job-clone' },
-								loadComponent: () => import('./views/configure/job-clone/job-release.component').then(m => m.JobReleaseComponent)
-							},
-						]
+						canActivate: [authGuard],
+						data: { roles: [Roles.Superuser], helpKey: 'job-clone' },
+						loadComponent: () => import('./views/configure/job-clone/job-clone-workbench.component').then(m => m.JobCloneWorkbenchComponent)
 					},
 					]
 			},

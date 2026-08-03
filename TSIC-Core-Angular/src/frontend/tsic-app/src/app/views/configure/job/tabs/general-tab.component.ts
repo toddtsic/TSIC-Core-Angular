@@ -3,12 +3,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JobConfigService } from '../job-config.service';
 import { toDateOnly } from '../shared/rte-config';
+import { JobDeletePanelComponent } from '../components/job-delete-panel.component';
 import type { UpdateJobConfigGeneralRequest } from '@core/api';
 
 @Component({
   selector: 'app-general-tab',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, JobDeletePanelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './general-tab.component.html',
   styles: [`

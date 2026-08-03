@@ -5,7 +5,6 @@ import { combineLatest, debounceTime, filter } from 'rxjs';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
-import { JobContextService } from '@infrastructure/services/job-context.service';
 import { ThemeService } from '@infrastructure/services/theme.service';
 import { buildAssetUrl } from '@infrastructure/utils/asset-url.utils';
 import { Roles } from '@infrastructure/constants/roles.constants';
@@ -36,18 +35,13 @@ export class ClientHeaderBarComponent {
     private readonly router = inject(Router);
     readonly themeService = inject(ThemeService);
     private readonly menuState = inject(MenuStateService);
-    private readonly jobContext = inject(JobContextService);
 
     readonly pulse = this.pulseService.pulse;
 
     readonly isAdmin = this.auth.isAdmin;
 
-    // Job-related signals.
-    // Both go blank while a route suppresses chrome identity — currentJob follows the JWT,
-    // so on a screen about a different job (post-clone release) the name and logo would name
-    // the wrong one AND link to it. See JobContextService.suppressChromeIdentity.
+    // Job-related signals
     jobLogoPath = computed(() => {
-        if (this.jobContext.chromeIdentitySuppressed()) return '';
         const job = this.jobService.currentJob();
         if (job?.jobLogoPath) {
             return buildAssetUrl(job.jobLogoPath);
@@ -55,8 +49,7 @@ export class ClientHeaderBarComponent {
         return '';
     });
 
-    jobName = computed(() =>
-        this.jobContext.chromeIdentitySuppressed() ? '' : (this.jobService.currentJob()?.jobName || ''));
+    jobName = computed(() => this.jobService.currentJob()?.jobName || '');
 
     /** Split job name on ':' for compact two-line mobile display */
     jobNameLines = computed(() => {

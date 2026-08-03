@@ -138,7 +138,6 @@ export class JobCloneWorkbenchComponent implements OnInit {
 
 	// ── Commit controls ──
 	readonly affirmationChecked = signal(false);
-	readonly enterNewJob = signal(true);
 	readonly isSubmitting = signal(false);
 	readonly error = signal<string | null>(null);
 
@@ -434,30 +433,26 @@ export class JobCloneWorkbenchComponent implements OnInit {
 		this.cloneService.cloneJob(request).subscribe({
 			next: response => {
 				this.toast.show(`Cloned to ${response.newJobPath}`, 'success');
-				if (this.enterNewJob()) {
-					// Re-mint the JWT scoped to the new job, then land on ITS release page.
-					this.authService.selectRegistration(response.newSuperUserRegistrationId).subscribe({
-						next: () => {
-							this.isSubmitting.set(false);
-							this.router.navigate(
-								['/', response.newJobPath, 'configure', 'job-clone', 'release', response.newJobId],
-								{ state: { celebrate: true } });
-						},
-						error: () => {
-							// Clone succeeded; JWT switch didn't. Stay in the source job — the
-							// release page works from the URL alone (SuperUser is jobPath-exempt).
-							this.isSubmitting.set(false);
-							this.toast.show('Could not enter the new job; releasing from here.', 'warning', 5000);
-							this.router.navigate(['release', response.newJobId],
-								{ relativeTo: this.route, state: { celebrate: true } });
-						},
-					});
-				} else {
-					// Stay in the source job. The release page keeps working from its URL —
-					// the toast above carries the new job path.
-					this.isSubmitting.set(false);
-					this.router.navigate(['..'], { relativeTo: this.route });
-				}
+				// Land IN the new job, on its home page. Everything a new job needs is a
+				// normal settings screen — registration flags, administrators, branding,
+				// TSIC-Events visibility — so there is no release sequence to walk, and
+				// arriving anywhere else means working on one job while signed into another.
+				// The clone already minted this actor's Superuser registration on the new
+				// job; re-minting the JWT against it is what makes the landing real.
+				this.authService.selectRegistration(response.newSuperUserRegistrationId).subscribe({
+					next: () => {
+						this.isSubmitting.set(false);
+						this.router.navigate(['/', response.newJobPath]);
+					},
+					error: () => {
+						// Clone succeeded; the JWT switch didn't. Say so plainly and stay put —
+						// the toast above carries the new job path to log into.
+						this.isSubmitting.set(false);
+						this.toast.show(
+							`Cloned, but could not switch into ${response.newJobPath} — log into it directly.`,
+							'warning', 6000);
+					},
+				});
 			},
 			error: err => {
 				this.isSubmitting.set(false);

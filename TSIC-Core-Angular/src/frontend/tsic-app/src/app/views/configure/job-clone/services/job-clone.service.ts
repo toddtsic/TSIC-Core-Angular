@@ -10,12 +10,6 @@ import type {
 	JobCloneResponse,
 	JobCloneSourceDto,
 	JobConfigReferenceDataDto,
-	JobVerifyChecklistDto,
-	OpenRegistrationRequest,
-	RegistrationFlagsDto,
-	ReleasableAdminDto,
-	ReleaseAdminsRequest,
-	ReleaseResponse,
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -47,28 +41,15 @@ export class JobCloneService {
 		return this.http.get<JobConfigReferenceDataDto>(`${environment.apiUrl}/job-config/reference-data`);
 	}
 
-	// ── Release flow (verify → site → admins → open registration) ──
-	getVerifyChecklist(jobId: string): Observable<JobVerifyChecklistDto> {
-		return this.http.get<JobVerifyChecklistDto>(`${this.apiUrl}/${jobId}/verify`);
-	}
+	// The release-flow callers (verify checklist, releasable admins, release-site,
+	// release-admins, open-registration) went with the release page. Each duplicated a
+	// Configure → Job screen, and release-site wrote Jobs.bSuspendPublic under a name
+	// that claimed far more than that column does — it gates TSIC-Events listing and
+	// cross-sell, not the job's own public pages. The API endpoints still exist and are
+	// now unreferenced; removing them is a separate pass.
 
-	getAdmins(jobId: string): Observable<ReleasableAdminDto[]> {
-		return this.http.get<ReleasableAdminDto[]>(`${this.apiUrl}/${jobId}/admins`);
-	}
-
-	releaseSite(jobId: string): Observable<ReleaseResponse> {
-		return this.http.post<ReleaseResponse>(`${this.apiUrl}/${jobId}/release-site`, {});
-	}
-
-	releaseAdmins(jobId: string, request: ReleaseAdminsRequest): Observable<ReleaseResponse> {
-		return this.http.post<ReleaseResponse>(`${this.apiUrl}/${jobId}/release-admins`, request);
-	}
-
-	openRegistration(jobId: string, request: OpenRegistrationRequest): Observable<RegistrationFlagsDto> {
-		return this.http.post<RegistrationFlagsDto>(`${this.apiUrl}/${jobId}/open-registration`, request);
-	}
-
-	// ── Dev-only undo (404 in prod) ──
+	// ── Sandbox-only undo (404s outside Development/Staging) ──
+	// Consumed by the Configure → Job delete panel.
 	getDevUndoStatus(jobId: string): Observable<DevUndoStatusResponse> {
 		return this.http.get<DevUndoStatusResponse>(`${this.apiUrl}/${jobId}/dev-undo-status`);
 	}

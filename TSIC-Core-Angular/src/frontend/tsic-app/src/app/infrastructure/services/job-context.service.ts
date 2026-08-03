@@ -85,23 +85,6 @@ export class JobContextService {
 
     /** Get current jobPath value */
     jobPath(): string | null { return this._jobPath(); }
-
-    // ── Chrome job identity suppression ──────────────────────────
-    // The header names the job from the SESSION (JobService.currentJob), which follows
-    // the JWT, not the URL. A screen that is entirely about a DIFFERENT job — the
-    // post-clone release page, which opens on the new job while you are still signed
-    // into the one you cloned from — therefore renders under the wrong job's name and
-    // logo. Relabelling the chrome would be worse: the name and logo are click targets
-    // that navigate to currentJob().jobPath, so a correct-looking label would take you
-    // to the wrong job. Suppressing asserts nothing and removes the mislabelled link;
-    // the page body carries the identity instead.
-    private readonly _chromeIdentitySuppressed = signal(false);
-    readonly chromeIdentitySuppressed = this._chromeIdentitySuppressed.asReadonly();
-
-    /** Callers MUST clear this on destroy — the header is app-wide and outlives the route. */
-    suppressChromeIdentity(suppressed: boolean): void {
-        this._chromeIdentitySuppressed.set(suppressed);
-    }
 }
 
 export { extractJobPath }; // Exported for isolated unit tests if needed.

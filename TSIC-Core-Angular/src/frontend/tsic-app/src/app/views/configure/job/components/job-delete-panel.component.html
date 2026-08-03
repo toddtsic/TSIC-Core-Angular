@@ -1,0 +1,39 @@
+<!-- Renders only when the SERVER says this job qualifies. The frontend never decides
+     eligibility; it renders the verdict and echoes the counts the delete will destroy. -->
+@if (isSandbox && status()?.canUndo) {
+	<div class="danger-zone">
+		<h6 class="danger-zone__title">
+			<i class="bi bi-exclamation-octagon"></i>
+			Delete this job
+		</h6>
+		<p class="danger-zone__hint">
+			Nothing has been registered against this job, so it can still be removed outright —
+			the cascade deletes it and everything created with it. The moment a single registration
+			arrives this stops being possible. Not available in production.
+		</p>
+		@if (status(); as s) {
+			<ul class="danger-zone__counts">
+				<li>{{ s.counts.adminRegistrations }} admin registration(s)</li>
+				<li>{{ s.counts.teams }} team(s)</li>
+				<li>{{ s.counts.agegroups }} agegroup(s) · {{ s.counts.divisions }} division(s)</li>
+				<li>{{ s.counts.jobFees }} fee row(s) · {{ s.counts.feeModifiers }} modifier(s)</li>
+				<li>{{ s.counts.bulletins }} bulletin(s)</li>
+			</ul>
+		}
+		<button type="button" class="danger-zone__btn" [disabled]="isDeleting()" (click)="openConfirm()">
+			Delete this job…
+		</button>
+	</div>
+}
+
+@if (confirmOpen()) {
+	<confirm-dialog
+		title="Delete this job?"
+		message="This deletes the job and everything created with it. There is no undo."
+		confirmLabel="Delete"
+		confirmVariant="danger"
+		[requireConfirmText]="true"
+		(confirmed)="confirmDelete()"
+		(cancelled)="cancelConfirm()">
+	</confirm-dialog>
+}
