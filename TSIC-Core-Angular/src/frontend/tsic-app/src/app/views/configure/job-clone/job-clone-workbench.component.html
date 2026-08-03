@@ -79,7 +79,12 @@
 				@if (leagueRenames().length > 0) {
 					<h4>League names</h4>
 					@for (row of leagueRenames(); track row.sourceLeagueId) {
-						<label class="field-label jc-league-row">
+						<!-- NOT .field-label: that class is 10px uppercase, and this row's
+						     left cell is DATA (the source league's real name), not a caption.
+						     It was shouting "AIM PLAYERS 2025-2026" at a league actually
+						     stored as "Aim Players 2025-2026" — a preview that misreports
+						     the source is the one thing this screen can't do. -->
+						<label class="jc-league-row">
 							<span class="jc-league-source">{{ row.sourceName }} →</span>
 							<input class="field-input" type="text" [ngModel]="row.nameTarget"
 								(ngModelChange)="updateLeagueName(row.sourceLeagueId, $event)" />

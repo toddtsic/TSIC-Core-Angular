@@ -235,10 +235,13 @@
 	gap: var(--space-2);
 	margin-bottom: var(--space-1);
 
+	// Verbatim source name — no text-transform, so what the operator reads is what
+	// the row in Leagues actually says.
 	.jc-league-source {
 		min-width: 180px;
 		font-size: 0.85rem;
 		color: var(--brand-text-muted);
+		text-transform: none;
 	}
 
 	.field-input { flex: 1; }
