@@ -484,6 +484,13 @@
 	color: var(--brand-text-muted);
 }
 
+// AM-080: the waitlist note lines up under the choice text rather than the
+// radio, so it reads as a footnote to the option above it. Colour, border and
+// weight all come from the shared .tsic-callout--info — nothing overridden here.
+.jc-choice-callout {
+	margin-left: calc(1em + var(--space-2));
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.jc-choice-title { transition: none; }
 }
