@@ -644,7 +644,13 @@ public class JobRepository : IJobRepository
                     SchedulePublished = j.BScheduleAllowPublicAccess == true,
                     PlayerRegistrationPlanned = j.PlayerProfileMetadataJson != null
                         && j.BRegistrationAllowPlayer != true,
-                    AdultRegistrationPlanned = j.AdultProfileMetadataJson != null,
+                    // Gate on the three adult availability toggles, NOT on AdultProfileMetadataJson:
+                    // an adult form is DERIVED from RegformName_Coach, so the blob is empty on every
+                    // job and this predicate was false everywhere — the three adult CTA resolvers
+                    // could never emit a button.
+                    AdultRegistrationPlanned = j.BRegistrationAllowStaff == true
+                        || j.BRegistrationAllowReferee == true
+                        || j.BRegistrationAllowRecruiter == true,
                     // Coach/staff release gate (BRegistrationAllowStaff) AND teams exist —
                     // a coach can only request a team once teams are in. Mirrors the Quick
                     // Links editor's TeamsConfigured relevance.
