@@ -450,6 +450,32 @@ public class JobCloneRepository : IJobCloneRepository
     public async Task CascadeDeleteJobAsync(
         Guid jobId, IReadOnlyList<Guid> clonedLeagueIds, CancellationToken ct = default)
     {
+        // ── Break the Jobs ⇄ Registrations FK cycle BEFORE anything is marked deleted ──
+        //
+        // Every step below queues a delete and the whole set is flushed in ONE SaveChanges,
+        // which makes EF topologically sort the deletes. Two constraints point in opposite
+        // directions between the same two tables:
+        //     Registrations.jobID                → Jobs           (regs must go first)
+        //     Jobs.PrimaryContactRegistrationId  → Registrations  (the job must go first)
+        // With both rows in the Deleted state EF cannot order them and throws
+        // "a circular dependency was detected in the data to be saved" — the delete fails
+        // whole, so the job survives and looks undeletable.
+        //
+        // It only bites when the job HAS a primary contact, which is why it did not show up
+        // until a clone whose source had one: JobCloneResetRules deliberately remaps that
+        // pointer to the same person's new registration, so any clone of a job with a primary
+        // contact was born undeletable. Clearing it here is not a data decision — the row it
+        // points at is about to be deleted along with the job.
+        //
+        // Own SaveChanges, on purpose: nothing else is pending yet, so this is exactly one
+        // UPDATE, and the cycle is gone before the manifest loop queues its first delete.
+        var jobForContactClear = await _context.Jobs.FirstOrDefaultAsync(j => j.JobId == jobId, ct);
+        if (jobForContactClear?.PrimaryContactRegistrationId != null)
+        {
+            jobForContactClear.PrimaryContactRegistrationId = null;
+            await _context.SaveChangesAsync(ct);
+        }
+
         // MANIFEST-DRIVEN: one delete action per JobCloneStepOrder key, executed in exact
         // REVERSE manifest order. Set-equality with the manifest is checked at runtime on
         // every undo — clone/undo drift fails loudly, never silently.
