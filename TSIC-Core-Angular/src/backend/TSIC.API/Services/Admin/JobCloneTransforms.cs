@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -60,6 +61,25 @@ public static class JobCloneTransforms
     /// </summary>
     public static string? BumpYears(string? text) =>
         string.IsNullOrEmpty(text) ? text : IncrementYearsInName(text);
+
+    // ── Legacy HTML-entity decode (names) ──────────────────────
+
+    /// <summary>
+    /// Turns HTML-entity residue left by the old system back into the characters it stands for
+    /// — <c>Hero&amp;#39;s Tryouts</c> → <c>Hero's Tryouts</c>, <c>Clinics &amp;amp; Leagues</c> →
+    /// <c>Clinics &amp; Leagues</c> (AM-076).
+    ///
+    /// The encoding is dead data, not an ongoing behaviour: nothing in the current write path
+    /// produces it, and it survives only in rows minted by the legacy system. Decoding here — at
+    /// the clone's name chokepoint — stops each new season inheriting its parent's residue, which
+    /// a one-time row cleanup alone would not: the next clone would re-mint it.
+    ///
+    /// `&amp;`-free strings return unchanged, so the overwhelming majority of names never touch
+    /// the decoder. Decoding is idempotent for our data: the artifacts are `&amp;#39;`/`&amp;amp;`/
+    /// `&amp;quot;`, and a name that legitimately contains a bare `&amp;` decodes to itself.
+    /// </summary>
+    public static string? DecodeLegacyEntities(string? text) =>
+        string.IsNullOrEmpty(text) || !text.Contains('&') ? text : WebUtility.HtmlDecode(text);
 
     // ── Grad-year dropdown roll-forward (Jobs.JsonOptions) ─────
 

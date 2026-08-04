@@ -190,15 +190,28 @@ public sealed class JobClonePlanner
 
                 // Rename row resolution: request row wins; default = year-bumped source
                 // name for next-year clones, verbatim for same-year siblings.
-                var defaultName = yearDelta >= 1 && !string.IsNullOrEmpty(league.LeagueName)
-                    ? IncrementYearsInName(league.LeagueName)
-                    : league.LeagueName ?? string.Empty;
+                // Legacy HTML-entity residue is decoded BEFORE the year bump, so the name the
+                // author sees pre-filled — and the one that lands on the new league — reads
+                // "Hero's Tryouts 2027-2028", not "Hero&#39;s Tryouts 2027-2028" (AM-076).
+                // 19 source league names carry it. Left alone the clone propagates it forward
+                // one season at a time, so cleaning the rows behind it would not hold.
+                var sourceLeagueName = DecodeLegacyEntities(league.LeagueName);
+                var defaultName = yearDelta >= 1 && !string.IsNullOrEmpty(sourceLeagueName)
+                    ? IncrementYearsInName(sourceLeagueName)
+                    : sourceLeagueName ?? string.Empty;
                 var hasRename = renameByLeague.TryGetValue(league.LeagueId, out var renameTarget)
                                 && !string.IsNullOrWhiteSpace(renameTarget);
                 if (!hasRename) missingRenames.Add(league.LeagueId);
-                var nameTarget = hasRename ? renameTarget!.Trim() : defaultName;
+                // Decoded on the request path too: this is the value that becomes Leagues.leagueName
+                // (JobCloneService → CloneLeague), and the workbench can echo back an encoded name
+                // it pre-filled from a plan built before this rule existed.
+                var nameTarget = hasRename
+                    ? DecodeLegacyEntities(renameTarget!.Trim())!
+                    : defaultName;
 
-                if (string.Equals(nameTarget.Trim(), league.LeagueName?.Trim(), StringComparison.OrdinalIgnoreCase))
+                // Compared against the DECODED source: an entity-only difference is not a rename,
+                // and comparing raw would silence this warning on exactly the 19 affected leagues.
+                if (string.Equals(nameTarget.Trim(), sourceLeagueName?.Trim(), StringComparison.OrdinalIgnoreCase))
                     warnings.Add($"League name '{nameTarget}' is unchanged from the source — a NEW league with the same name will be created.");
 
                 leagueUnits.Add(new LeagueCloneUnit
@@ -435,7 +448,9 @@ public sealed class JobClonePlanner
         var leaguePlans = leagueUnits.Select(u => new LeaguePlanDto
         {
             SourceLeagueId = u.League.LeagueId,
-            SourceName = u.League.LeagueName,
+            // Decoded for display too — the workbench renders this with text interpolation, which
+            // does not decode entities, so an encoded name reached the screen literally (AM-076).
+            SourceName = DecodeLegacyEntities(u.League.LeagueName),
             DefaultNameTarget = u.DefaultNameTarget,
             IsPrimary = u.JobLeague.BIsPrimary,
             AgegroupCount = u.Agegroups.Count,
