@@ -749,8 +749,19 @@ public static class JobCloneResetRules
                 t.TeamFullName = BumpYears(src.TeamFullName);
             }
 
-            // ── Date windows shift by yearDelta ──
-            t.Effectiveasofdate = ShiftByYears(src.Effectiveasofdate, yearDelta);
+            // ── Date windows shift by yearDelta — EXCEPT the registration-window start ──
+            // Every cloned team opens TODAY (Todd-decided 08-03). The old behaviour shifted the
+            // source's start by a year along with everything else, which is how a clone arrived
+            // with its player-registration windows already expired: registration looked on, the
+            // public card never appeared, and nothing said why. Player registration is TEAM-level,
+            // so a stale window silently vetoes the job toggle.
+            //
+            // Opening today makes every team available whichever way the shifted end date lands:
+            // a future end gives a window containing now; a past end makes the window zero-width
+            // (expire <= start + 1s), which TeamSelfRosterAvailability treats as "no meaningful
+            // window" and therefore available. So the job's registration toggle becomes the only
+            // switch — which is how directors actually run it.
+            t.Effectiveasofdate = now.Date;
             t.Expireondate = ShiftByYears(src.Expireondate, yearDelta);
             t.Startdate = ShiftByYears(src.Startdate, yearDelta);
             t.Enddate = ShiftByYears(src.Enddate, yearDelta);

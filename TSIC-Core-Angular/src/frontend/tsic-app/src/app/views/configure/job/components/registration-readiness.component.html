@@ -1,4 +1,4 @@
-@if (clauses().length) {
+@if (svc.isSuperUser() && clauses().length) {
 	<section class="rr"
 		[class.rr--live]="visible() && !pending()"
 		[class.rr--blocked]="!visible() && !pending()"
@@ -15,7 +15,9 @@
 			<div class="rr__headtext">
 				<h6 class="rr__title">{{ headline() }}</h6>
 				<p class="rr__sub">
-					@if (pending()) {
+					@if (svc.readinessLoading()) {
+						Re-checking against what was just saved.
+					} @else if (pending()) {
 						This answers for what is saved, so it does not reflect your unsaved edits yet.
 						Save this tab and it re-checks straight away.
 					} @else {

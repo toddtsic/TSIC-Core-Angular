@@ -60,8 +60,14 @@ public class JobConfigController : ControllerBase
     /// <summary>
     /// Registration visibility: why the public "Register Player" / "Register a Team" links are
     /// (or are not) showing, clause by clause. Same predicate as the public pulse.
+    ///
+    /// SuperUser-only (Todd, 08-03). It is a diagnostic view of internal preconditions — fee-row
+    /// existence, supersession, team-window state — and the actions it points at (League editor,
+    /// event dates) are not a director's to take. Gated at the API as well as in the UI: hiding
+    /// the panel while leaving the endpoint open to any admin would be a UI-only gate.
     /// </summary>
     [HttpGet("registration-readiness")]
+    [Authorize(Policy = "SuperUserOnly")]
     public async Task<ActionResult<RegistrationReadinessDto>> GetRegistrationReadiness(CancellationToken ct)
     {
         var jobId = await GetJobIdAsync();

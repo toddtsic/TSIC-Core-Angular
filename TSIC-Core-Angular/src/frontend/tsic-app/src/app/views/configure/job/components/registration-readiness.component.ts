@@ -70,7 +70,11 @@ export class RegistrationReadinessComponent {
 	 * answer is stale and what to do about it.
 	 */
 	protected readonly pending = computed(() =>
-		this.svc.dirtyTabs().has(this.audience() === 'player' ? 'player' : 'teams'));
+		this.svc.dirtyTabs().has(this.audience() === 'player' ? 'player' : 'teams')
+		// A fetch in flight means the verdicts on screen are the PRE-save ones. saveTab clears
+		// the dirty flag before that fetch lands, so without this the panel would spend that
+		// window presenting a stale ✗ as the current answer.
+		|| this.svc.readinessLoading());
 
 	/**
 	 * This clause reports on an input the operator has already changed but not saved. Only the
@@ -86,6 +90,7 @@ export class RegistrationReadinessComponent {
 		this.audience() === 'player' ? 'Player registration' : 'Team registration');
 
 	protected readonly headline = computed(() => {
+		if (this.svc.readinessLoading()) return `${this.channelLabel()} — re-checking…`;
 		if (this.pending()) return `${this.channelLabel()} — save to re-check.`;
 		if (this.visible()) return `${this.channelLabel()} is LIVE on the public site.`;
 		const n = this.failedCount();

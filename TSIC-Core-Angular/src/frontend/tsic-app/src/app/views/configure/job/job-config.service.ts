@@ -65,6 +65,16 @@ export class JobConfigService {
    */
   readonly readiness = signal<RegistrationReadinessDto | null>(null);
 
+  /**
+   * A readiness fetch is in flight.
+   *
+   * Needed because saveTab calls markClean BEFORE the reload lands: for that window the tab is
+   * no longer dirty but `readiness` still holds the PRE-save verdicts, so the panel would drop
+   * its pending state and present a stale red ✗ as the current answer — the exact flicker the
+   * pending state exists to prevent, just moved a second later.
+   */
+  readonly readinessLoading = signal(false);
+
   /** Each tab registers its save callback here on init; FAB calls it. */
   readonly saveHandler = signal<(() => void) | null>(null);
 
@@ -102,14 +112,27 @@ export class JobConfigService {
   }
 
   /**
-   * Silent on failure: this is an explanatory panel, and a toast about the explanation failing
-   * would be noise on top of whatever the director actually came here to do. The panel simply
+   * SuperUser-only, matching the endpoint's policy — a Director would get a 403, so we don't ask.
+   *
+   * Silent on failure otherwise: this is an explanatory panel, and a toast about the explanation
+   * failing would be noise on top of whatever the user actually came here to do. The panel simply
    * doesn't render.
    */
   loadReadiness(): void {
+    if (!this.isSuperUser()) {
+      this.readiness.set(null);
+      return;
+    }
+    this.readinessLoading.set(true);
     this.http.get<RegistrationReadinessDto>(`${this.baseUrl}/registration-readiness`).subscribe({
-      next: (data) => this.readiness.set(data),
-      error: () => this.readiness.set(null),
+      next: (data) => {
+        this.readiness.set(data);
+        this.readinessLoading.set(false);
+      },
+      error: () => {
+        this.readiness.set(null);
+        this.readinessLoading.set(false);
+      },
     });
   }
 
