@@ -76,8 +76,32 @@ import type { DevUndoStatusResponse } from '@core/api';
 		.danger-zone__btn:hover:not(:disabled) { background: var(--bs-danger); color: var(--bs-body-bg); }
 		.danger-zone__btn:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 		.danger-zone__btn:disabled { opacity: 0.6; cursor: not-allowed; }
+		.danger-zone__btn[aria-busy="true"] {
+			display: inline-flex;
+			align-items: center;
+			gap: var(--space-2);
+			/* The busy label is shorter than the idle one; without this the button shrinks
+			   the moment it is clicked, which reads as the control disappearing. */
+			opacity: 1;
+		}
+		.danger-zone__spinner {
+			width: 0.875em;
+			height: 0.875em;
+			border: 2px solid currentColor;
+			border-right-color: transparent;
+			border-radius: 50%;
+			animation: danger-zone-spin 0.7s linear infinite;
+		}
+		.danger-zone__progress {
+			margin: var(--space-2) 0 0 0;
+			font-size: var(--font-size-xs);
+			color: var(--brand-text-muted);
+		}
+		@keyframes danger-zone-spin { to { transform: rotate(360deg); } }
 		@media (prefers-reduced-motion: reduce) {
 			.danger-zone__btn { transition: none; }
+			/* Still a distinct mark, just not a moving one — the wording carries the state. */
+			.danger-zone__spinner { animation: none; border-right-color: currentColor; opacity: 0.5; }
 		}
 	`],
 })

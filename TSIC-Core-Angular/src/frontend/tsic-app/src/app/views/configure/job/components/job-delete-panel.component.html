@@ -20,9 +20,25 @@
 				<li>{{ s.counts.bulletins }} bulletin(s)</li>
 			</ul>
 		}
-		<button type="button" class="danger-zone__btn" [disabled]="isDeleting()" (click)="openConfirm()">
-			Delete this job…
+		<!-- The cascade runs across ~16 manifest steps inside one transaction and can sit for
+		     several seconds. The confirm dialog closes the instant it is accepted, so without a
+		     busy state here the screen goes completely quiet until either a toast or a navigation
+		     arrives — long enough to read as "nothing happened" and click again. -->
+		<button type="button" class="danger-zone__btn" [disabled]="isDeleting()"
+			[attr.aria-busy]="isDeleting()" (click)="openConfirm()">
+			@if (isDeleting()) {
+				<span class="danger-zone__spinner" aria-hidden="true"></span>
+				Deleting…
+			} @else {
+				Delete this job…
+			}
 		</button>
+		@if (isDeleting()) {
+			<p class="danger-zone__progress" aria-live="polite">
+				Removing the job and everything created with it. This can take a few seconds — don't
+				close this page.
+			</p>
+		}
 	</div>
 }
 
