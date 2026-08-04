@@ -2,3 +2,23 @@
     display: block;
     height: 100%;
 }
+
+.shell-back {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: var(--space-2) 0;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--brand-text-muted);
+    text-decoration: none;
+
+    &:hover {
+        color: var(--bs-primary);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+}

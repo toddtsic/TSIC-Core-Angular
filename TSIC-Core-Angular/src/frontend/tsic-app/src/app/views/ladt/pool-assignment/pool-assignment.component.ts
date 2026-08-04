@@ -1,7 +1,7 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, ElementRef, Injector, afterNextRender, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ToastService } from '@shared-ui/toast.service';
 import { JobService } from '@infrastructure/services/job.service';
 import {
@@ -43,6 +43,10 @@ export class PoolAssignmentComponent {
     private readonly poolService = inject(PoolAssignmentService);
     private readonly toast = inject(ToastService);
     private readonly jobService = inject(JobService);
+    private readonly route = inject(ActivatedRoute);
+
+    /** Set when the Scheduling Checklist deep-linked here — renders the way back. */
+    readonly cameFromScheduling = this.route.snapshot.queryParamMap.get('from') === 'scheduling';
 
     readonly isLacrosseJob = computed(() => !!this.jobService.currentJob()?.usLaxNumberValidThroughDate);
 
