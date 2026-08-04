@@ -98,21 +98,32 @@ const JOB_TYPE_TOURNAMENT = 2;
                   } @else if (state.jobCtx.isCacMode()) {
                     <!-- CAC: Keyword filter -->
                     @if (getAvailableTeamDtos(pid).length > 5) {
-                      <div class="camp-filter">
-                        <i class="bi bi-search camp-filter-icon"></i>
-                        <!-- AM-084: "Filter events..." named the control, not the job. This
-                             prompts the action and names the goal without promising which
-                             fields match — the filter reads team, division and agegroup, and
-                             which of those is meaningful varies by job. -->
-                        <input type="text" class="camp-filter-input"
-                               placeholder="Start typing to find an event"
-                               [value]="getCampFilter(pid)"
-                               (input)="setCampFilter(pid, $any($event.target).value)">
-                        @if (getCampFilter(pid)) {
-                          <button type="button" class="camp-filter-clear"
-                                  (click)="setCampFilter(pid, '')"
-                                  aria-label="Clear filter">×</button>
-                        }
+                      <!-- AM-084: the filter sat above a wall of cards as a bare input, so it
+                           read as decoration and went unused. The label is what makes it
+                           legible as a tool — and it is also the control's only accessible
+                           name: a placeholder is not a label, and it vanishes once the user
+                           types. The wrapper exists so .camp-filter stays the positioning
+                           context for the icon and clear button, both centred on top: 50% —
+                           labelling inside it would centre them on label-plus-input. -->
+                      <div class="camp-filter-group">
+                        <label class="camp-filter-label" [for]="'camp-filter-' + pid">Filter Events</label>
+                        <div class="camp-filter">
+                          <i class="bi bi-search camp-filter-icon"></i>
+                          <!-- "Filter events..." named the control, not the job. This prompts
+                               the action and names the goal without promising which fields
+                               match — the filter reads team, division and agegroup, and which
+                               of those is meaningful varies by job. -->
+                          <input type="text" class="camp-filter-input"
+                                 [id]="'camp-filter-' + pid"
+                                 placeholder="Start typing to find an event"
+                                 [value]="getCampFilter(pid)"
+                                 (input)="setCampFilter(pid, $any($event.target).value)">
+                          @if (getCampFilter(pid)) {
+                            <button type="button" class="camp-filter-clear"
+                                    (click)="setCampFilter(pid, '')"
+                                    aria-label="Clear filter">×</button>
+                          }
+                        </div>
                       </div>
                     }
                     <!-- CAC: Selected camps (top section) -->
@@ -521,9 +532,22 @@ const JOB_TYPE_TOURNAMENT = 2;
       /* Syncfusion dropdown item template */
 
       /* ── CAC camp filter ── */
+      /* AM-084: the outer group owns the spacing below the whole unit, so the gap
+         falls between the filter and the list rather than between label and input. */
+      .camp-filter-group {
+        margin-bottom: var(--space-2);
+      }
+
+      .camp-filter-label {
+        display: block;
+        margin-bottom: var(--space-1);
+        font-size: var(--font-size-sm);
+        font-weight: 600;
+        color: var(--brand-text);
+      }
+
       .camp-filter {
         position: relative;
-        margin-bottom: var(--space-2);
       }
 
       .camp-filter-icon {
@@ -531,7 +555,9 @@ const JOB_TYPE_TOURNAMENT = 2;
         left: var(--space-3);
         top: 50%;
         transform: translateY(-50%);
-        color: var(--neutral-400);
+        /* One step darker than the page's hairline vocabulary — the filter has to
+           read as a control, not another divider (AM-084). */
+        color: var(--neutral-500);
         font-size: var(--font-size-sm);
         pointer-events: none;
       }
@@ -541,7 +567,7 @@ const JOB_TYPE_TOURNAMENT = 2;
         padding: var(--space-2) var(--space-3);
         padding-left: var(--space-8);
         font-size: var(--font-size-sm);
-        border: 1px solid var(--border-color);
+        border: 1px solid var(--neutral-400);
         border-radius: var(--radius-sm);
         background: var(--brand-surface);
         color: var(--brand-text);
