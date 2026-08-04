@@ -291,18 +291,29 @@ public sealed class JobClonePlanner
                 + $"{effectiveEventStart.Value:yyyy-MM-dd}.");
 
         // ── Fee eligibility: same maps the executor will mint, expressed as set
-        //    membership. A skipped row means its scope target didn't clone.
+        //    membership. A skipped row means its scope target didn't clone — except
+        //    phase-only rows (no amounts, no modifiers), which exist solely to carry a
+        //    BFullPaymentRequired stamp. The clone resets phase to silence
+        //    (CloneJobFee nulls the stamp), so cloning one would land an all-null junk
+        //    row — the shape ApplyLeaguePhase's clear-to-inherit deliberately avoids.
         var eligibleTeamIds = teamsScope
             ? eligibleTeams.Select(t => t.Team.TeamId).ToHashSet()
             : new HashSet<Guid>();
         var eligibleFees = new List<JobFees>();
         var skippedFees = 0;
+        var skippedPhaseOnly = 0;
         foreach (var fee in sourceFees)
         {
             var ok = true;
             if (fee.AgegroupId.HasValue && !eligibleAgegroupIds.Contains(fee.AgegroupId.Value)) ok = false;
             if (fee.TeamId.HasValue && !eligibleTeamIds.Contains(fee.TeamId.Value)) ok = false;
             if (fee.LeagueId.HasValue && !sourceLeagueIds.Contains(fee.LeagueId.Value)) ok = false;
+            if (ok && fee.Deposit == null && fee.BalanceDue == null
+                   && (fee.FeeModifiers == null || fee.FeeModifiers.Count == 0))
+            {
+                skippedPhaseOnly++;
+                continue;
+            }
             if (ok) eligibleFees.Add(fee); else skippedFees++;
         }
         var plannedModifiers = eligibleFees.Sum(f => f.FeeModifiers?.Count ?? 0);
@@ -356,7 +367,7 @@ public sealed class JobClonePlanner
                     Notes = BuildTeamsNote(teamsScope, eligibleTeams.Count, excludedCompeting,
                                            excludedBucket, excludedInactive, excludedUnmapped) },
             new() { StepKey = JobCloneStepOrder.JobFees, Count = eligibleFees.Count,
-                    Notes = skippedFees > 0 ? $"{skippedFees} row(s) skipped — scope target not cloned" : null },
+                    Notes = BuildFeeNotes(skippedFees, skippedPhaseOnly) },
             new() { StepKey = JobCloneStepOrder.FeeModifiers, Count = plannedModifiers },
         };
 
@@ -509,6 +520,14 @@ public sealed class JobClonePlanner
             MissingLeagueRenames = missingRenames,
             Dto = dto,
         };
+    }
+
+    private static string? BuildFeeNotes(int skippedScope, int skippedPhaseOnly)
+    {
+        var parts = new List<string>();
+        if (skippedScope > 0) parts.Add($"{skippedScope} row(s) skipped — scope target not cloned");
+        if (skippedPhaseOnly > 0) parts.Add($"{skippedPhaseOnly} phase-only row(s) skipped — payment phase resets on clone");
+        return parts.Count > 0 ? string.Join("; ", parts) : null;
     }
 
     private static string? BuildTeamsNote(

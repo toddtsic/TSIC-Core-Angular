@@ -23,7 +23,8 @@ namespace TSIC.Tests.JobClone;
 ///   - Team eligibility: structure-vs-competing (owner club_name), waitlist/dropped
 ///     buckets, inactive teams
 ///   - Cloned teams: ClubRep refs nulled, financials zeroed, lineage flagged
-///   - Fee remap incl. multi-league; BFullPaymentRequired derived from deposit shape
+///   - Fee remap incl. multi-league; BFullPaymentRequired reset to null (tri-state
+///     silence — league card governs); phase-only rows not cloned
 ///   - Preview/clone parity (same planner, identical per-step counts)
 ///   - Data-moved guard (fingerprint mismatch → ClonePlanChangedException)
 ///   - Dev-undo manifest-reversed cascade delete
@@ -931,10 +932,16 @@ public class JobCloneServiceTests
         newTeamFees.Should().BeEmpty();
     }
 
-    // BFullPaymentRequired is DERIVED FROM FEE SHAPE, never copied (Todd-decided 08-02):
-    // deposit configured → deposit phase (false); no deposit → full-pay (true).
+    // BFullPaymentRequired is RESET TO NULL, never copied or derived (Todd-decided
+    // 08-04). It is tri-state: null = inherit, false = explicit deposit VETO, true =
+    // full payment. Any non-null clone output is a per-scope override that beats the
+    // league-level phase control — the earlier shape-derive (false when a deposit
+    // exists) vetoed the league card on every AG row of every clone. All-null = the
+    // new season opens deposit-phase and the league card governs from day one.
+    // Phase-only source rows (no amounts, no modifiers) are NOT cloned at all — with
+    // the stamp nulled they would be all-null junk rows.
     [Fact]
-    public async Task Clone_JobFees_PhaseDerivedFromDepositShape()
+    public async Task Clone_JobFees_PhaseResetToNull_PhaseOnlyRowsDropped()
     {
         var (svc, ctx) = BuildService();
         var (jobId, leagueId, agegroupId, _) = await SeedSourceJobAsync(ctx);
@@ -943,21 +950,33 @@ public class JobCloneServiceTests
         {
             JobFeeId = Guid.NewGuid(),
             JobId = jobId,
-            RoleId = RoleConstants.Player,
+            RoleId = RoleConstants.ClubRep,
             AgegroupId = agegroupId,
             Deposit = 100m,
             BalanceDue = 400m,
-            BFullPaymentRequired = true,    // source in full-pay phase — must NOT copy
+            BFullPaymentRequired = false,   // source AG veto — must NOT copy (would
+                                            // make the new job's league card inert)
             Modified = DateTime.UtcNow,
         });
         ctx.JobFees.Add(new JobFees
         {
             JobFeeId = Guid.NewGuid(),
             JobId = jobId,
-            RoleId = RoleConstants.Player,
+            RoleId = RoleConstants.ClubRep,
             Deposit = null,                 // no deposit configured (job-wide row)
             BalanceDue = 300m,
-            BFullPaymentRequired = false,
+            BFullPaymentRequired = true,    // source in full-pay phase — must NOT copy
+            Modified = DateTime.UtcNow,
+        });
+        // League-scope phase-only stamp (the §8P / league-card SaveFee shape):
+        // no amounts, no modifiers — must not clone at all.
+        ctx.JobFees.Add(new JobFees
+        {
+            JobFeeId = Guid.NewGuid(),
+            JobId = jobId,
+            RoleId = RoleConstants.ClubRep,
+            LeagueId = leagueId,
+            BFullPaymentRequired = true,
             Modified = DateTime.UtcNow,
         });
         await ctx.SaveChangesAsync();
@@ -966,10 +985,10 @@ public class JobCloneServiceTests
 
         var newFees = await ctx.JobFees.AsNoTracking()
             .Where(f => f.JobId == resp.NewJobId).ToListAsync();
-        newFees.Single(f => f.AgegroupId != null).BFullPaymentRequired
-            .Should().BeFalse("deposit configured → clone starts in deposit phase");
-        newFees.Single(f => f.AgegroupId == null).BFullPaymentRequired
-            .Should().BeTrue("no deposit → deposit phase is meaningless; full-pay from day one");
+        newFees.Should().HaveCount(2, "phase-only rows are not cloned");
+        newFees.Should().OnlyContain(f => f.BFullPaymentRequired == null,
+            "a clone carries no phase opinion at any scope — the league card governs");
+        StepCount(resp, JobCloneStepOrder.JobFees).Should().Be(2);
     }
 
     // ══════════════════════════════════════════════════════════

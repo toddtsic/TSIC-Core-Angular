@@ -854,11 +854,17 @@ public static class JobCloneResetRules
         f.Modified = now;
         f.LebUserId = userId;
 
-        // PHASE IS DERIVED FROM FEE SHAPE, never copied (Todd-decided 08-02): payment
-        // phase is lifecycle state and a clone starts at the lifecycle start. Deposit
-        // configured → deposit phase (false); no deposit → full-pay from day one (true),
-        // because a deposit phase is meaningless without a deposit.
-        f.BFullPaymentRequired = (source.Deposit ?? 0m) == 0m;
+        // PHASE IS RESET TO SILENCE, never copied or derived (Todd-decided 08-04).
+        // BFullPaymentRequired is TRI-STATE: null = follow the level above, false =
+        // explicit deposit VETO, true = full payment — so ANY non-null value is a
+        // per-scope override that beats the league-level phase control. The earlier
+        // shape-derive (false when a deposit exists) stamped a veto on every AG/team
+        // row and made the league card's phase flip inert on every clone. Null on
+        // every row = the new season opens deposit-phase (resolver default,
+        // ResolveFullPaymentPhase ?? false) and the league card governs from day one.
+        // No shape-derive is needed for deposit-less rows either: deposit-phase
+        // charging already falls back to BalanceDue (FeeResolutionService).
+        f.BFullPaymentRequired = null;
 
         return f;
     }
