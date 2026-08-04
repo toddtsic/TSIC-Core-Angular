@@ -168,6 +168,16 @@ public static class JobCloneResetRules
         // Legacy shifted this +1yr on every clone; generalized to yearDelta.
         job.UslaxNumberValidThroughDate = ShiftByYears(source.UslaxNumberValidThroughDate, yearDelta);
 
+        // ── Grad-year dropdowns roll forward with everything else (AM-078, Ann) ──
+        // The two graduation-year option lists live inside the JsonOptions blob, which
+        // CopyScalars carries verbatim. Meanwhile the clone already advances the grad-year
+        // BOUNDS on age groups (GradYearMin/Max) and teams — so the cloned job's structure
+        // moved to next season while the player-facing dropdown still offered last season's
+        // years, and the two contradicted each other on the same job. Advance-only; every
+        // other key in the blob is untouched, and an unparseable blob is left exactly as the
+        // copier produced it (see ShiftGradYearOptions).
+        job.JsonOptions = ShiftGradYearOptions(job.JsonOptions, yearDelta);
+
         // ── PrimaryContactRegistrationId: REMAPPED to the same person's NEW registration
         //    (Todd-decided 08-02 — the primary contact must carry over). Null only when the
         //    source has none or the source registration didn't clone (non-admin role).
