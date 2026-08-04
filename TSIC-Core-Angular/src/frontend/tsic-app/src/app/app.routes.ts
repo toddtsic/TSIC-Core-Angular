@@ -157,6 +157,7 @@ export const routes: Routes = [
 					{
 						path: 'ddl-options',
 						canActivate: [authGuard],
+						canDeactivate: [unsavedChangesGuard],
 						data: { roles: [Roles.Superuser] },
 						loadComponent: () => import('./views/configure/ddl-options/ddl-options.component').then(m => m.DdlOptionsComponent)
 					},
@@ -181,6 +182,7 @@ export const routes: Routes = [
 					{
 						path: 'widget-editor',
 						canActivate: [authGuard],
+						canDeactivate: [unsavedChangesGuard],
 						data: { roles: [Roles.Superuser] },
 						loadComponent: () => import('./views/configure/widget-editor/widget-editor.component').then(m => m.WidgetEditorComponent)
 					},

@@ -17,6 +17,7 @@ import type {
 	JobRefDto,
 	JobWidgetEntryDto,
 } from '@core/api';
+import { HasUnsavedChanges } from '../../../infrastructure/guards/unsaved-changes.guard';
 
 // ── Local view-model types ──
 
@@ -60,7 +61,7 @@ const WORKSPACE_LABELS: Record<string, string> = {
 	templateUrl: './widget-editor.component.html',
 	styleUrl: './widget-editor.component.scss',
 })
-export class WidgetEditorComponent {
+export class WidgetEditorComponent implements HasUnsavedChanges {
 	private readonly editorService = inject(WidgetEditorService);
 	private readonly toast = inject(ToastService);
 
@@ -364,6 +365,14 @@ export class WidgetEditorComponent {
 		}
 		return false;
 	});
+
+	/**
+	 * AM-079: route guard hook. BOTH editors on this screen count — the widget matrix and the
+	 * per-job override grid each have their own save, and either can be left pending.
+	 */
+	hasUnsavedChanges(): boolean {
+		return this.isDirty() || this.isOverrideDirty();
+	}
 
 	constructor() {
 		this.loadReferenceData();

@@ -5,6 +5,7 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
 import { environment } from '@environments/environment';
 import { ToastService } from '@shared-ui/toast.service';
 import { JobConfigService } from '../job/job-config.service';
+import { HasUnsavedChanges } from '../../../infrastructure/guards/unsaved-changes.guard';
 import type { JobDdlOptionsDto } from '@core/api';
 
 // ── Category metadata (data-driven rendering) ──
@@ -75,7 +76,7 @@ const GROUP_LABELS: Record<string, string> = {
 	styleUrl: './ddl-options.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DdlOptionsComponent {
+export class DdlOptionsComponent implements HasUnsavedChanges {
 	private readonly http = inject(HttpClient);
 	private readonly toast = inject(ToastService);
 	private readonly apiUrl = `${environment.apiUrl}/job-ddl-options`;
@@ -112,6 +113,16 @@ export class DdlOptionsComponent {
 
 	/** Emits true when dirty, false when clean — lets a parent track this component's dirty state. */
 	readonly dirtyChange = output<boolean>();
+
+	/**
+	 * AM-079: route guard hook. Only bites on the STANDALONE /configure/ddl-options route —
+	 * mounted as a Job Settings tab this component isn't the routed component, and the shell's
+	 * own guard covers it via its dirtyTabs set. Same guard and same wording as Job Settings,
+	 * which was the only screen in the app that had this protection.
+	 */
+	hasUnsavedChanges(): boolean {
+		return this.isDirty();
+	}
 
 	readonly changeCount = computed(() => {
 		const current = this.options();
