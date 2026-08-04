@@ -839,10 +839,11 @@ type ScheduleRow =
         }
 
         /* ── Score columns (three real subgrid tracks) ── */
-        /* Home number · dash · away number. Each number cell right-aligns, so home and
-           away scores each stack on their own right edge down the ledger; the dash lives
-           in an isolated centre track and can never nudge a number. The "Score" header
-           spans all three (.hdr-score → grid-column: span 3). */
+        /* Home number · dash · away number. The two numbers align TOWARD the dash — home
+           right, away left — so each butts the centre track from its own side and the dash
+           reads as an unbroken vertical spine down the ledger. The dash lives in an isolated
+           track and can never nudge a number. The "Score" header spans all three
+           (.hdr-score → grid-column: span 3). */
         .cell-t1-score,
         .cell-dash,
         .cell-t2-score {
@@ -860,9 +861,24 @@ type ScheduleRow =
             overflow: visible;
         }
 
-        /* Both numbers hug the right edge of their track → perfect vertical stacking. */
+        /* Both numbers hug the dash — MIRRORED, not both right-aligned. Right-aligning the
+           away number made it hug the away TEAM NAME instead, so a one-digit away score sat
+           a character further right than a two-digit one and the pair read lopsided
+           ("4 - 14" tight, "4 -  9" loose). Aligning each number toward the centre track
+           makes every row a symmetric xx-y unit; the ragged edges fall on the OUTSIDE, next
+           to the record pills, where slack reads as breathing room.
+
+           min-width equalises the two tracks' min-content contributions, so they stay the
+           same width even when (say) every home score is one digit and every away score is
+           two — otherwise the 3-track span's geometric centre drifts off the dash and takes
+           the centred "Score" header with it. Two digits at --font-size-lg monospace is
+           ~1.35rem and the editor caps scores at 99, so 1.75rem is the ceiling plus slack.
+           A floor, not a fixed width: the inline editor spans these tracks and still needs
+           to size them intrinsically. */
         .cell-t1-score,
-        .cell-t2-score { justify-content: flex-end; }
+        .cell-t2-score { min-width: 1.75rem; }
+        .cell-t1-score { justify-content: flex-end; }
+        .cell-t2-score { justify-content: flex-start; }
 
         /* Tight scoreline — the grid's column-gap (--space-2) flanks the dash on BOTH
            sides, which reads as "1  -  2". Cancel it with negative inline margins so the
