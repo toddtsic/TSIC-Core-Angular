@@ -1,8 +1,3 @@
-// mobile-readiness: desktop-only — .team-search-container is display:none below 768px
-// (see the media query at the foot of this file), so the fixed full-height .filters-panel
-// is never rendered on a phone. Not debt; the checks genuinely do not apply. If this view
-// ever gains a mobile presentation, DELETE this line first and work the findings.
-//
 // Grid density: cssClass="tsic-grid tsic-grid--tight" on <ejs-grid>
 // Grid cell utilities: global _syncfusion-cell-utils.scss
 // Dark mode: global _syncfusion-dark.scss
@@ -626,9 +621,63 @@
   }
 }
 
-// ── Desktop Only (Hide on Mobile) ──
-@media (max-width: 767px) {
+// ── Mobile — same view, tightened ─────────────────────────────────────────
+// This view used to be switched OFF below 767px (`.team-search-container { display: none }`)
+// with nothing in its place — every other top-level block in the template is @if-gated on
+// state only reachable through that container, so a director who tapped Search Teams on a
+// phone got a blank page. Un-hidden here; the grid was reshaped for a phone first (see
+// b36f376b), so no commit ever exposed a grid with 425px of frozen columns on a 390px screen.
+//
+// Full search parity with search-registrations, whose mobile block this mirrors: the grid
+// swipes horizontally under the frozen Team column, and the drawer, chips and detail panel
+// are the same surfaces desktop uses.
+//
+// 767.98px, not the 767px this file used to break at — everything else in the app breaks at
+// .98, and isMobile() in the component now matches, so CSS and TS flip together.
+@media (max-width: 767.98px) {
   .team-search-container {
-    display: none;
+    padding: var(--space-2) var(--space-2) var(--space-4);
+    gap: var(--space-2);
+  }
+
+  // Title left, Set Filters launcher right — space-between beats the desktop
+  // "tucked just after the title" layout when there is no width to spare.
+  .search-page-header {
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  // Filters drawer goes full-bleed below the app header, per the shared flyin
+  // contract (_flyin.scss). Width itself comes from the global [appResizablePanel]
+  // mobile rule (100vw !important — beats the resize handle's stored inline width).
+  .filters-panel {
+    top: var(--app-header-height-mobile, 48px);
+    height: calc(100vh - var(--app-header-height-mobile, 48px));
+    height: calc(100dvh - var(--app-header-height-mobile, 48px));
+  }
+
+  // Summary hero: count + financials share row 1; the action buttons drop to
+  // their own full-width row so nothing crushes to an ellipsis.
+  .results-summary {
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-2) var(--space-3);
+
+    // Redundant chrome on a phone — the count says it all.
+    .results-summary-label,
+    .results-icon {
+      display: none;
+    }
+
+    .result-financials {
+      gap: var(--space-3);
+    }
+
+    .results-actions {
+      flex-basis: 100%;
+      margin-left: 0;
+      flex-wrap: wrap;
+      gap: var(--space-1);
+    }
   }
 }

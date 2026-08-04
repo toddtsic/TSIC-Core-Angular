@@ -47,7 +47,7 @@ stays out of individual commits until the per-component pattern has proven itsel
 |---|---|---|---|---|---|
 | `ladt/editor` | ✅ `4b4cd4f6` | ✅ `5172e204` | ✅ mobile column sets | A director fixes a division | Device pass outstanding. See below. |
 | `search/registrations` | ✅ pre-programme | — | — | Find and edit a registrant | Fly-in contract + filters drawer already anchored |
-| `search/teams` | n/a | n/a | n/a | — | `// mobile-readiness: desktop-only` — container is `display:none` below 768px |
+| `search/teams` | ✅ un-hidden + tightened | — | ✅ mobile grid shape | Find a team; check what it owes | Was switched OFF below 767px. Device pass outstanding. See below. |
 | everything else | ⬜ | ⬜ | ⬜ | *unnamed* | Name the task before starting |
 
 ### `ladt/editor` detail
@@ -81,3 +81,41 @@ stays out of individual commits until the per-component pattern has proven itsel
   heights until its next data bind. Crossing 768px mid-session also swaps the column set,
   which does force a rebind — but that ordering is inferred, not observed. Rotate a phone at
   team level during the device pass and confirm rows are not clipped.
+
+### `search/teams` detail
+
+The finding was not a layout problem. The view was **switched off** below 767px —
+`.team-search-container { display: none }` with nothing in its place, and every other
+top-level block in the template `@if`-gated on state only reachable through that container.
+A director who tapped Search Teams on a phone got a **blank page**. The route is role-gated
+only; nothing stopped them landing there.
+
+**Fixed** — in this order, deliberately, so no commit ever shipped a reachable-but-unusable grid:
+- `b36f376b` (Phase 3, landed while the view was still hidden and therefore inert) — desktop
+  froze #/Team/Active = 50 + 280 + 95 = **425px on a 390px phone**, i.e. *negative* scrollable
+  area. On mobile the `#` column is dropped, Team narrows 280→200, and `frozenColumns` goes
+  3→1, leaving ~190px of swipe room. Mirrors `search-registrations`, which had already solved
+  this with an `isMobile()` signal — reusing the sibling's pattern rather than porting LADT's
+  mobile-column-set approach, since a second pattern in the same view family is one more thing
+  to keep in step.
+- Phase 1 — `display: none` deleted; registrations' 47-line mobile block ported (container
+  padding, header `space-between`, drawer below the app header per the `_flyin.scss` contract,
+  summary hero wrapping with the action buttons on their own row). The breakpoint moved
+  `767px` → `767.98px` so CSS and `isMobile()` flip together instead of disagreeing across a
+  fractional-pixel band.
+
+**Free wins already in place** — `team-detail-panel` was already on the shared `.detail-panel`
+contract, and `.filters-panel` already paired `100vh` with `100dvh`. Removing the
+`// mobile-readiness: desktop-only` marker put this file back under `verify:mobile`, and it
+passes on its own merits rather than by exemption.
+
+**Open**
+- **No device pass.** Same as LADT: everything here is a claim about touch.
+- The Team cell renders `Club: Team` on **one line**. At 200px a long club name will
+  ellipsize the team name off the end — the exact identity problem LADT solved by stacking the
+  pair. Left single-line on purpose: it is the trade `search-registrations` already ships, and
+  inventing a second identity pattern mid-pass is how the two views drift. If the device pass
+  shows it truncating unusably, the fix is LADT's `identity` cell and it is ready to port.
+- There is no separate `search/players` — the player search *is* `search/registrations`, which
+  was made mobile-ready before this programme started. Teams was the only one of the pair still
+  switched off.
