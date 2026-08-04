@@ -53,9 +53,16 @@ public class AccountingDataBuilder
         bool bTeamsFullPaymentRequired = false,
         bool bPlayersFullPaymentRequired = false)
     {
+        // Jobs.Customer is a REQUIRED navigation. Read paths that Include it (e.g.
+        // JobConfigRepository.GetJobByIdAsync, which needs CustomerAi for the ADN invoice
+        // prefix) drop any job whose customer row is missing. Every production job has one,
+        // so seed it here rather than leaving each test to remember.
+        var customer = AddCustomer();
+
         var job = new Jobs
         {
             JobId = Guid.NewGuid(),
+            CustomerId = customer.CustomerId,
             JobPath = $"test-job-{Guid.NewGuid():N}"[..20],
             RegformNamePlayer = "Player",
             RegformNameTeam = "Team",

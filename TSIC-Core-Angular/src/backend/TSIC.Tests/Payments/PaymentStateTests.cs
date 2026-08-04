@@ -512,12 +512,25 @@ public class PaymentStateTests
     [Fact(DisplayName = "ProcCreditForCharge: caps at FeeProcessing (over-credit guard)")]
     public void ProcCreditForCharge_CappedAtFeeProcessing()
     {
-        // Raw rate-delta would credit $14, but the reg has only $3 of proc left.
+        // The credit is a DIFFERENCE of two independently rounded fees: the CC proc on the
+        // principal — capped at the proc actually embedded in the balance, so we never credit
+        // phantom proc — minus the method's own directly-rounded fee.
+        //   principal 500 @ 3.8% = $19 CC proc; @ 1.0% = $5 eCheck fee.
         var s = PaymentState.Empty(true, 0.038m, 0.01m);
-        var credit = s.ProcCreditForCharge(
-            ccCharge: 519m, feeBase: 500m, discount: 0m, lateFee: 0m, donation: 0m, feeProcessing: 3m, methodRate: 0.01m);
 
-        credit.Should().Be(3m);
+        // Only $10 of proc embedded on the reg → the cap bites (min(19, 10) = 10), leaving
+        // $10 − $5 = $5. Uncapped it would have credited $19 − $5 = $14.
+        s.ProcCreditForCharge(
+            ccCharge: 519m, feeBase: 500m, discount: 0m, lateFee: 0m, donation: 0m,
+            feeProcessing: 10m, methodRate: 0.01m)
+            .Should().Be(5m, "credit is capped at the embedded proc, then net of the method's own fee");
+
+        // Only $3 embedded — less than the $5 the eCheck itself levies. There is nothing to
+        // credit back and the guard floors at zero; it never returns a negative credit.
+        s.ProcCreditForCharge(
+            ccCharge: 519m, feeBase: 500m, discount: 0m, lateFee: 0m, donation: 0m,
+            feeProcessing: 3m, methodRate: 0.01m)
+            .Should().Be(0m, "embedded proc below the method fee yields no credit, never a negative one");
     }
 
     // ── Donation threading: a donation is a late-fee-shaped, proc-bearing modifier ──

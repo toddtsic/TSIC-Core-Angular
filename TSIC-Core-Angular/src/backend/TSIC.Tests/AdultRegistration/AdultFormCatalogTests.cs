@@ -227,7 +227,7 @@ public class AdultFormCatalogTests
 
     // ── (b) BuildRoleSet — Referee / Recruiter (uniform) ─────────────────────
 
-    [Theory(DisplayName = "Referee and Recruiter are uniform single-required-field blocks, independent of profile/USLax")]
+    [Theory(DisplayName = "Referee and Recruiter blocks are uniform, independent of profile/USLax")]
     [InlineData("AC1", AdultUsLaxMode.None)]
     [InlineData("AC1", AdultUsLaxMode.Required)]
     [InlineData("AC2", AdultUsLaxMode.None)]
@@ -238,10 +238,26 @@ public class AdultFormCatalogTests
     {
         var set = AdultFormCatalog.BuildRoleSet(profile, usLax);
 
-        set.Referee.Fields.Should().ContainSingle();
-        set.Referee.Fields[0].Name.Should().Be("specialRequests");
-        set.Referee.Fields[0].InputType.Should().Be("TEXTAREA");
-        set.Referee.Fields[0].Validation!.Required.Should().BeTrue();
+        // Referee: optional certification credentials, then a required Special Requests.
+        // The credential fields target the SAME columns the referee xlsx import writes, so a
+        // self-registered and an imported referee carry identical data.
+        set.Referee.Fields.Select(f => f.Name)
+            .Should().Equal("certificationNumber", "certificationExpiry", "specialRequests");
+        set.Referee.Fields.Select(f => f.Order).Should().Equal(1, 2, 3);
+
+        // The Name is deliberately NOT "sportAssnId" — that name triggers the coach USA-Lacrosse
+        // verification widget in the wizard. Mapping is by DbColumn, so the column target survives.
+        set.Referee.Fields.Should().NotContain(f => f.Name == "sportAssnId");
+        set.Referee.Fields[0].DbColumn.Should().Be("SportAssnId");
+        set.Referee.Fields[0].InputType.Should().Be("TEXT");
+        set.Referee.Fields[0].Validation!.Required.Should().BeFalse();
+
+        set.Referee.Fields[1].DbColumn.Should().Be("SportAssnIdexpDate");
+        set.Referee.Fields[1].InputType.Should().Be("DATE");
+        set.Referee.Fields[1].Validation!.Required.Should().BeFalse();
+
+        set.Referee.Fields[2].InputType.Should().Be("TEXTAREA");
+        set.Referee.Fields[2].Validation!.Required.Should().BeTrue();
 
         set.Recruiter.Fields.Should().ContainSingle();
         set.Recruiter.Fields[0].Name.Should().Be("specialRequests");

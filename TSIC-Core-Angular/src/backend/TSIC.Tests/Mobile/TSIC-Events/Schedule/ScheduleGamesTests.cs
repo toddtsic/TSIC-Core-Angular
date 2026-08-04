@@ -27,8 +27,8 @@ public class ScheduleGamesTests
         var league = b.AddLeague(jobId);
         var ag = b.AddAgegroup(league.LeagueId, "U10");
         var div = b.AddDivision(ag.AgegroupId, "Gold");
-        var t1 = b.AddTeam(div.DivId, "Eagles", ag.AgegroupId);
-        var t2 = b.AddTeam(div.DivId, "Hawks", ag.AgegroupId);
+        var t1 = b.AddTeam(div.DivId, "Eagles", ag.AgegroupId, jobId, league.LeagueId);
+        var t2 = b.AddTeam(div.DivId, "Hawks", ag.AgegroupId, jobId, league.LeagueId);
         var field = b.AddField("Field 1", "Allentown", "PA");
         return (b, jobId, league.LeagueId, ag.AgegroupId, div.DivId, field.FieldId, t1.TeamId, t2.TeamId);
     }
@@ -121,6 +121,10 @@ public class ScheduleGamesTests
         b.AddGame(jobId, leagueId, fieldId: fieldId, agegroupId: agId, divId: divId, t1Id: t1Id, t2Id: t2Id, DateTime.Today.AddDays(1), rnd: 2,
             agegroupName: "U10", divName: "Gold", t1Name: "Eagles", t2Name: "Hawks");
         await b.SaveAsync();
+
+        // The grid reads the STORED pool-record columns, which score entry maintains. Run the
+        // canonical rebuild so the seeded scores are reflected there, as they would be live.
+        await svc.RebuildTeamRecordsAsync(jobId);
 
         var result = await svc.GetGamesAsync(jobId, new ScheduleFilterRequest());
 

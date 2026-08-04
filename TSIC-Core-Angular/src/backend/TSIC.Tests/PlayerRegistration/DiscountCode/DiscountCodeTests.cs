@@ -563,7 +563,8 @@ public class DiscountCodeTests
         dto.SuccessCount.Should().Be(0);
         dto.FailureCount.Should().Be(1);
         dto.Results[0].Success.Should().BeFalse();
-        dto.Results[0].Message.Should().Contain("already applied");
+        dto.Results[0].Message.Should().Contain("Only one Discount Code can be applied per player",
+            "the rejection has to name the one-code rule, not a generic failure");
 
         var dbReg = await ctx.Registrations.FirstAsync(r => r.RegistrationId == reg.RegistrationId);
         dbReg.FeeDiscount.Should().Be(25m);

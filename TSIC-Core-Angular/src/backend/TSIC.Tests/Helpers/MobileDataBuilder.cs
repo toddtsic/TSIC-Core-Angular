@@ -44,6 +44,11 @@ public class MobileDataBuilder
             SportId = DefaultSportId,
             SportName = "Soccer",
             Ai = 1,
+            // Standings points come off the sport row (win/draw/loss), so a points-less
+            // sport silently flattens every team to 0. Seed the production soccer values.
+            WinPts = 3,
+            DrawPts = 1,
+            LossPts = 0,
             Modified = DateTime.UtcNow
         });
     }
@@ -156,7 +161,12 @@ public class MobileDataBuilder
         return div;
     }
 
-    public Teams AddTeam(Guid divId, string name = "Test Team", Guid? agegroupId = null, Guid? jobId = null)
+    /// <summary>
+    /// Pass <paramref name="jobId"/> and <paramref name="leagueId"/> for anything that reads
+    /// team records: the stored pool-record columns are looked up by JobId, and the sport's
+    /// point values resolve through Team → League → Sport.
+    /// </summary>
+    public Teams AddTeam(Guid divId, string name = "Test Team", Guid? agegroupId = null, Guid? jobId = null, Guid? leagueId = null)
     {
         var team = new Teams
         {
@@ -164,6 +174,7 @@ public class MobileDataBuilder
             DivId = divId,
             AgegroupId = agegroupId ?? Guid.Empty,
             JobId = jobId ?? Guid.Empty,
+            LeagueId = leagueId ?? Guid.Empty,
             TeamName = name,
             Active = true,
             Modified = DateTime.UtcNow

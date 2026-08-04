@@ -15,16 +15,18 @@ using TSIC.Infrastructure.Data.Identity;
 namespace TSIC.Tests.TeamRegistration.MaxTeamsPerClub;
 
 /// <summary>
-/// MAX TEAMS PER CLUB TESTS
+/// TEAM CAP TESTS
 ///
-/// Validates that TeamRegistrationService enforces the MaxTeamsPerClub
-/// limit on the Agegroups entity. This prevents a single club from
-/// dominating an age group by registering too many teams.
+/// The per-club cap (Agegroups.MaxTeamsPerClub) was RETIRED in PL-041 (2026-07-22) in favor of
+/// the per-age-group "Max Teams" cap alone. Its director UI is gone, so the column is unsettable
+/// and dormant; enforcing a stray low legacy value would silently block a club with no UI to
+/// diagnose why. The column and its DTOs are intentionally left intact so Configure Job keeps
+/// round-tripping — only the enforcement is gone.
 ///
 /// What these tests prove:
-///   - Club under limit → registration proceeds to placement
-///   - Club at limit → returns Success = false with friendly message
-///   - MaxTeamsPerClub = 0 → unlimited (check skipped entirely)
+///   - Registration reaches placement on the happy path
+///   - No stored MaxTeamsPerClub value blocks registration, and the count query never runs
+///   - The per-AGE-GROUP MaxTeams cap (via placement) still blocks or waitlists
 ///
 /// Service under test: TeamRegistrationService.RegisterTeamForEventAsync()
 /// All 17 dependencies are mocked. The mock chain ensures the service
@@ -198,63 +200,42 @@ public class MaxTeamsPerClubTests
 
     // ── Tests ─────────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "Register: club under limit (2/3) → reaches placement")]
-    public async Task Register_UnderClubLimit_ReachesPlacement()
+    [Fact(DisplayName = "Register: club rep with no cap in play → reaches placement")]
+    public async Task Register_ReachesPlacement()
     {
-        // Arrange — club has 2 teams, limit is 3
-        var (svc, _, placement, _) = CreateService(maxTeamsPerClub: 3, currentClubTeamCount: 2);
+        var (svc, _, placement, _) = CreateService(maxTeamsPerClub: 0, currentClubTeamCount: 2);
 
-        // Act
         var result = await svc.RegisterTeamForEventAsync(MakeRequest(), TestRegId, TestUserId);
 
-        // Assert — registration proceeded past the MaxTeamsPerClub check
-        result.Success.Should().BeTrue("club is under the per-club limit");
-
-        // Verify placement was called (meaning the check passed)
+        result.Success.Should().BeTrue();
         placement.Verify(p => p.ResolvePlacementAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(),
             It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
-            Times.Once, "placement should be called when under the club limit");
+            Times.Once, "registration should proceed to placement");
     }
 
-    [Fact(DisplayName = "Register: club at limit (3/3) → returns Success = false with message")]
-    public async Task Register_AtClubLimit_ReturnsFailure()
+    [Theory(DisplayName = "Register: the per-club cap is RETIRED — a stored value never blocks or is even read")]
+    [InlineData(0, 100)]   // unlimited, as every live agegroup effectively is
+    [InlineData(3, 3)]     // exactly at a stray legacy value
+    [InlineData(1, 50)]    // far over a stray legacy value
+    public async Task Register_PerClubCap_IsRetired(int maxTeamsPerClub, int currentClubTeamCount)
     {
-        // Arrange — club already has 3 teams, limit is 3
-        var (svc, _, placement, _) = CreateService(maxTeamsPerClub: 3, currentClubTeamCount: 3);
+        var (svc, teamRepo, placement, _) = CreateService(maxTeamsPerClub, currentClubTeamCount);
 
-        // Act
         var result = await svc.RegisterTeamForEventAsync(MakeRequest(), TestRegId, TestUserId);
 
-        // Assert — blocked with a friendly message
-        result.Success.Should().BeFalse("club has reached the per-club limit");
-        result.Message.Should().Contain("maximum of 3", "message should tell the user the limit");
-        result.Message.Should().Contain("Boys U14", "message should name the agegroup");
-        result.TeamId.Should().Be(Guid.Empty);
-
-        // Verify placement was NEVER called (blocked before reaching placement)
+        result.Success.Should().BeTrue("the per-club cap was retired in PL-041");
         placement.Verify(p => p.ResolvePlacementAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(),
             It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
-            Times.Never, "placement should not be called when the club limit is reached");
-    }
+            Times.Once, "no stored MaxTeamsPerClub value may short-circuit placement");
 
-    [Fact(DisplayName = "Register: MaxTeamsPerClub = 0 (unlimited) → check skipped, reaches placement")]
-    public async Task Register_MaxTeamsPerClubZero_SkipsCheck()
-    {
-        // Arrange — no per-club limit (0 = unlimited), even with 100 teams
-        var (svc, teamRepo, _, _) = CreateService(maxTeamsPerClub: 0, currentClubTeamCount: 100);
-
-        // Act
-        var result = await svc.RegisterTeamForEventAsync(MakeRequest(), TestRegId, TestUserId);
-
-        // Assert — registration proceeded (unlimited means no check)
-        result.Success.Should().BeTrue("MaxTeamsPerClub = 0 means unlimited");
-
-        // Verify the count query was NEVER called (check is skipped entirely)
+        // The count query is the check's only observable cost. Never issuing it proves the
+        // enforcement is gone, not merely passing — and fails loudly if it is ever restored
+        // without the director UI needed to diagnose a block.
         teamRepo.Verify(t => t.GetRegisteredCountForClubRepAndAgegroupAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
-            Times.Never, "should not query club team count when MaxTeamsPerClub = 0");
+            Times.Never, "the retired cap must not even query the club team count");
     }
 
     // ── Agegroup MaxTeams tests (full service flow) ──────────────────

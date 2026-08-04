@@ -8,23 +8,42 @@ namespace TSIC.Tests.Mobile.TSIC_Events.Schedule;
 
 public class StandingsTests
 {
+    /// <summary>
+    /// Pool standings read the STORED per-team record columns (the hybrid cache maintained on
+    /// every score write), not a per-request re-tally. Seeding scored games alone therefore
+    /// leaves every team at 0-0-0 — the canonical rebuild has to run, exactly as it does in
+    /// production when a score is entered. Call this after <c>SaveAsync</c>.
+    /// </summary>
+    private static Task SeedStoredRecordsAsync(ViewScheduleService svc, Guid jobId)
+        => svc.RebuildTeamRecordsAsync(jobId);
+
     private static (ViewScheduleService svc, MobileDataBuilder builder, Guid jobId)
         CreateServiceWithScoredGames(string sportName = "Soccer")
     {
         var ctx = DbContextFactory.Create();
         var builder = new MobileDataBuilder(ctx);
 
-        // Override sport name if needed
+        // Override sport name if needed. Points mirror the production soccer/lacrosse rows —
+        // the standings Points column is computed from these at record-maintenance time.
         var sportId = Guid.NewGuid();
-        ctx.Sports.Add(new Domain.Entities.Sports { SportId = sportId, SportName = sportName, Ai = 2, Modified = DateTime.UtcNow });
+        ctx.Sports.Add(new Domain.Entities.Sports
+        {
+            SportId = sportId,
+            SportName = sportName,
+            Ai = 2,
+            WinPts = 3,
+            DrawPts = 1,
+            LossPts = 0,
+            Modified = DateTime.UtcNow
+        });
 
         var job = builder.AddJob(sportId: sportId);
         var league = builder.AddLeague(job.JobId, sportId);
         var ag = builder.AddAgegroup(league.LeagueId, "U10");
         var div = builder.AddDivision(ag.AgegroupId, "Gold");
-        var t1 = builder.AddTeam(div.DivId, "Eagles", ag.AgegroupId);
-        var t2 = builder.AddTeam(div.DivId, "Hawks", ag.AgegroupId);
-        var t3 = builder.AddTeam(div.DivId, "Wolves", ag.AgegroupId);
+        var t1 = builder.AddTeam(div.DivId, "Eagles", ag.AgegroupId, job.JobId, league.LeagueId);
+        var t2 = builder.AddTeam(div.DivId, "Hawks", ag.AgegroupId, job.JobId, league.LeagueId);
+        var t3 = builder.AddTeam(div.DivId, "Wolves", ag.AgegroupId, job.JobId, league.LeagueId);
         var field = builder.AddField();
 
         // Eagles 3-1 Hawks (Eagles win)
@@ -57,6 +76,7 @@ public class StandingsTests
     {
         var (svc, b, jobId) = CreateServiceWithScoredGames();
         await b.SaveAsync();
+        await SeedStoredRecordsAsync(svc, jobId);
 
         var result = await svc.GetStandingsAsync(jobId, new ScheduleFilterRequest());
 
@@ -77,6 +97,7 @@ public class StandingsTests
     {
         var (svc, b, jobId) = CreateServiceWithScoredGames("Soccer");
         await b.SaveAsync();
+        await SeedStoredRecordsAsync(svc, jobId);
 
         var result = await svc.GetStandingsAsync(jobId, new ScheduleFilterRequest());
         var teams = result.Divisions[0].Teams;
@@ -91,6 +112,7 @@ public class StandingsTests
     {
         var (svc, b, jobId) = CreateServiceWithScoredGames("Lacrosse");
         await b.SaveAsync();
+        await SeedStoredRecordsAsync(svc, jobId);
 
         var result = await svc.GetStandingsAsync(jobId, new ScheduleFilterRequest());
         var teams = result.Divisions[0].Teams;
@@ -107,8 +129,8 @@ public class StandingsTests
         var league = b.AddLeague(job.JobId);
         var ag = b.AddAgegroup(league.LeagueId, "U10");
         var div = b.AddDivision(ag.AgegroupId, "Gold");
-        var t1 = b.AddTeam(div.DivId, "Eagles", ag.AgegroupId);
-        var t2 = b.AddTeam(div.DivId, "Hawks", ag.AgegroupId);
+        var t1 = b.AddTeam(div.DivId, "Eagles", ag.AgegroupId, job.JobId, league.LeagueId);
+        var t2 = b.AddTeam(div.DivId, "Hawks", ag.AgegroupId, job.JobId, league.LeagueId);
         var field = b.AddField();
 
         // Blowout: 15-0
@@ -121,6 +143,7 @@ public class StandingsTests
         var scheduleRepo = new ScheduleRepository(ctx);
         var teamRepo = new TeamRepository(ctx);
         var svc = SchedulingTestFactory.ViewSchedule(ctx, scheduleRepo, teamRepo);
+        await SeedStoredRecordsAsync(svc, job.JobId);
 
         var result = await svc.GetStandingsAsync(job.JobId, new ScheduleFilterRequest());
 
@@ -137,6 +160,7 @@ public class StandingsTests
     {
         var (svc, b, jobId) = CreateServiceWithScoredGames();
         await b.SaveAsync();
+        await SeedStoredRecordsAsync(svc, jobId);
 
         var result = await svc.GetStandingsAsync(jobId, new ScheduleFilterRequest());
 
@@ -157,8 +181,8 @@ public class StandingsTests
         var league = b.AddLeague(job.JobId);
         var ag = b.AddAgegroup(league.LeagueId, "U10");
         var div = b.AddDivision(ag.AgegroupId, "Gold");
-        var t1 = b.AddTeam(div.DivId, "Eagles", ag.AgegroupId);
-        var t2 = b.AddTeam(div.DivId, "Hawks", ag.AgegroupId);
+        var t1 = b.AddTeam(div.DivId, "Eagles", ag.AgegroupId, job.JobId, league.LeagueId);
+        var t2 = b.AddTeam(div.DivId, "Hawks", ag.AgegroupId, job.JobId, league.LeagueId);
         var field = b.AddField();
 
         // Unscored game
@@ -170,6 +194,7 @@ public class StandingsTests
         var scheduleRepo = new ScheduleRepository(ctx);
         var teamRepo = new TeamRepository(ctx);
         var svc = SchedulingTestFactory.ViewSchedule(ctx, scheduleRepo, teamRepo);
+        await SeedStoredRecordsAsync(svc, job.JobId);
 
         var result = await svc.GetStandingsAsync(job.JobId, new ScheduleFilterRequest());
 
