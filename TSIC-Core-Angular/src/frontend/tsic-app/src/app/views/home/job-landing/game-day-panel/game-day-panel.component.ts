@@ -46,6 +46,11 @@ export class GameDayPanelComponent {
 
 	protected readonly scheduleLink = computed(() => `/${this.jobPath()}/schedule`);
 
+	/** The CTA must land on what its label promises: a concluded event says "View Final
+	 *  Standings", so it deep-links the Standings tab; live says "View Schedule" → Games
+	 *  (the view's own default, so no param). */
+	protected readonly scheduleQueryParams = computed(() => this.live() ? {} : { tab: 'standings' });
+
 	/** The viewer's platform — drives which store badge leads (primary emphasis).
 	 *  Best-effort UA sniff; desktop is the safe default (shows both equally). */
 	protected readonly platform: Platform = this.detectPlatform();

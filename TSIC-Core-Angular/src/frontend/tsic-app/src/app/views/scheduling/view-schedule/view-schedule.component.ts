@@ -1504,6 +1504,13 @@ export class ViewScheduleComponent implements OnInit {
             }
         }
 
+        // Deep-link support: ?tab=games|standings|brackets opens that tab directly.
+        // Callers that mean a specific view (e.g. the concluded-event "View Final
+        // Standings" CTA) land on it instead of on Games with a manual click to follow.
+        const requestedTab = this.route.snapshot.queryParamMap.get('tab');
+        const initialTab: TabId = this.isTabId(requestedTab) ? requestedTab : 'games';
+        this.activeTab.set(initialTab);
+
         // Restore persisted filters before kicking off the initial data load so the
         // first /games request honors the saved selection (no extra round-trip).
         this.restoreFiltersFromStorage();
@@ -1524,8 +1531,17 @@ export class ViewScheduleComponent implements OnInit {
             this.capabilities.set(caps);
         });
 
-        this.loadTabData('games');
+        this.loadTabData(initialTab);
         this.probeGameClock();
+    }
+
+    /**
+     * Narrow an untrusted (query-param) string to a deep-linkable TabId.
+     * `contacts` is deliberately excluded — its tab is gated on the director's
+     * `hideContacts` capability, and a URL must not open what that gate closes.
+     */
+    private isTabId(value: string | null): value is TabId {
+        return value === 'games' || value === 'standings' || value === 'brackets';
     }
 
     // ══════════════════════════════════════════════════════════════════
