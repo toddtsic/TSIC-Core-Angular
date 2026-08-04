@@ -82,10 +82,10 @@ interface FilterChip {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <div class="view-schedule-page">
-            <app-checklist-back-link />
             <!-- Header -->
             <div class="page-header">
                 <h1 class="page-title">
+                    <app-checklist-back-link />
                     Schedule
                     @if (activeTab() === 'games') {
                         <span class="title-badge">{{ gameCountLabel() }}</span>

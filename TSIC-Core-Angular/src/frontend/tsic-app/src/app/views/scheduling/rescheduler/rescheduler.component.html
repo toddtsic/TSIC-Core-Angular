@@ -1,9 +1,8 @@
 <div class="rescheduler-container">
-    <app-checklist-back-link />
 
     <!-- ── Header ── -->
     <div class="rescheduler-header">
-        <h2 class="page-title"><i class="bi bi-arrow-repeat page-title-icon"></i> Rescheduler</h2>
+        <h2 class="page-title"><app-checklist-back-link /><i class="bi bi-arrow-repeat page-title-icon"></i> Rescheduler</h2>
         <div class="d-flex gap-1">
             @if (isSingleDaySelected()) {
                 <button class="btn btn-sm btn-outline-warning" (click)="openWeatherModal()">

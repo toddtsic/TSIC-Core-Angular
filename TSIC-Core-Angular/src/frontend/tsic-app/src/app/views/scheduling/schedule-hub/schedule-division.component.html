@@ -65,8 +65,9 @@
 
                 <div class="toolbar-row toolbar-row--top">
 
-                <!-- Left slot: breadcrumbs (Schedule mode only) -->
+                <!-- Left slot: back to checklist + breadcrumbs (Schedule mode only) -->
                 <div class="toolbar-left">
+                    <app-checklist-back-link target=".." always routePath="schedule-hub" />
                     @if (!activeTool() && mode() === 'schedule') {
                         @if (scope().level === 'event') {
                             <span class="crumb-current">Event</span>

@@ -12,13 +12,14 @@ import { PairingsService } from '../pairings/services/pairings.service';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import type { AgegroupWithDivisionsDto, DivisionSummaryDto } from '@core/api';
+import { ChecklistBackLinkComponent } from '../shared/components/checklist-back-link/checklist-back-link.component';
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 @Component({
     selector: 'app-manage-timeslots',
     standalone: true,
-    imports: [CommonModule, FormsModule, TsicDialogComponent, ConfirmDialogComponent],
+    imports: [CommonModule, FormsModule, TsicDialogComponent, ConfirmDialogComponent, ChecklistBackLinkComponent],
     templateUrl: './manage-timeslots.component.html',
     styleUrl: './manage-timeslots.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush

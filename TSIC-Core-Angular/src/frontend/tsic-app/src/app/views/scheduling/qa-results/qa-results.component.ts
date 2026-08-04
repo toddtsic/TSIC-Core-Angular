@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ScheduleQaService } from './services/schedule-qa.service';
 import type { AutoBuildQaResult } from '@core/api';
+import { ChecklistBackLinkComponent } from '../shared/components/checklist-back-link/checklist-back-link.component';
 
 @Component({
     selector: 'app-qa-results',
     standalone: true,
-    imports: [CommonModule, RouterLink],
+    imports: [CommonModule, RouterLink, ChecklistBackLinkComponent],
     templateUrl: './qa-results.component.html',
     styleUrl: './qa-results.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush

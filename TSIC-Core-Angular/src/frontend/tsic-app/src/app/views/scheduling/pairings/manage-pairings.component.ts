@@ -19,6 +19,7 @@ import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { buildRenameImpactMessage } from '@shared/teams/rename-impact';
 import type { ScheduleScope } from '../shared/utils/scheduling-helpers';
+import { ChecklistBackLinkComponent } from '../shared/components/checklist-back-link/checklist-back-link.component';
 
 /** Team-type code legend for tooltips. */
 const TYPE_LABELS: Record<string, string> = {
@@ -41,7 +42,7 @@ const BRACKET_OPTIONS = [
 @Component({
     selector: 'app-manage-pairings',
     standalone: true,
-    imports: [CommonModule, FormsModule, DivisionNavigatorComponent, WpwMatrixComponent, DivisionTeamsTableComponent, TsicDialogComponent, ConfirmDialogComponent],
+    imports: [CommonModule, FormsModule, DivisionNavigatorComponent, WpwMatrixComponent, DivisionTeamsTableComponent, TsicDialogComponent, ConfirmDialogComponent, ChecklistBackLinkComponent],
     templateUrl: './manage-pairings.component.html',
     styleUrl: './manage-pairings.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush

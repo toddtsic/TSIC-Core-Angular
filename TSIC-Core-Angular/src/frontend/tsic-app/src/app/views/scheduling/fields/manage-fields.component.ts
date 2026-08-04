@@ -8,6 +8,7 @@ import {
     FieldDto,
     LeagueSeasonFieldDto,
 } from './services/field-management.service';
+import { ChecklistBackLinkComponent } from '../shared/components/checklist-back-link/checklist-back-link.component';
 
 type SortDir = 'asc' | 'desc' | null;
 type AvailableSortCol = keyof FieldDto | null;
@@ -16,7 +17,7 @@ type AssignedSortCol = keyof LeagueSeasonFieldDto | null;
 @Component({
     selector: 'app-manage-fields',
     standalone: true,
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, ChecklistBackLinkComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './manage-fields.component.html',
     styleUrl: './manage-fields.component.scss'

@@ -39,6 +39,7 @@ import { BuildResultsPanelComponent } from './components/build-results-panel/bui
 import { DivisionBuildConfirmModalComponent, type FieldOption, type DivisionBuildOverrides } from './components/division-build-confirm-modal/division-build-confirm-modal.component';
 import { BulkDateAssignModalComponent } from './components/bulk-date-assign-modal/bulk-date-assign-modal.component';
 import { ScheduleConfigPanelComponent } from './components/schedule-config-panel/schedule-config-panel.component';
+import { ChecklistBackLinkComponent } from '../shared/components/checklist-back-link/checklist-back-link.component';
 import { ManageFieldsComponent } from '../fields/manage-fields.component';
 import { ManagePairingsComponent } from '../pairings/manage-pairings.component';
 import { ManageTimeslotsComponent } from '../timeslots/manage-timeslots.component';
@@ -59,7 +60,7 @@ import { LadtService } from '../../ladt/editor/services/ladt.service';
 @Component({
     selector: 'app-schedule-division',
     standalone: true,
-    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, DivisionBuildConfirmModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent, ManageFieldsComponent, ManagePairingsComponent, ManageTimeslotsComponent, PoolAssignmentComponent, BracketSeedsComponent, BracketDevToolsComponent, MasterScheduleComponent, QaResultsComponent, ConfirmDialogComponent],
+    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, DivisionBuildConfirmModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent, ManageFieldsComponent, ManagePairingsComponent, ManageTimeslotsComponent, PoolAssignmentComponent, BracketSeedsComponent, BracketDevToolsComponent, MasterScheduleComponent, QaResultsComponent, ConfirmDialogComponent, ChecklistBackLinkComponent],
     templateUrl: './schedule-division.component.html',
     styleUrl: './schedule-division.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,

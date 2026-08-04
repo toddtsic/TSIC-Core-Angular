@@ -1,10 +1,8 @@
 <div class="pool-assignment-container">
 
-  <app-checklist-back-link target="../../scheduling" />
-
   <!-- Header -->
   <div class="pool-header">
-    <h2 class="page-title"><i class="bi bi-people page-title-icon"></i> Team Pool Assignment</h2>
+    <h2 class="page-title"><app-checklist-back-link target="../../scheduling" routePath="pool-assignment" /><i class="bi bi-people page-title-icon"></i> Team Pool Assignment</h2>
     <div class="d-flex gap-2">
       @if (isLacrosseJob()) {
         <a class="btn btn-sm btn-outline-primary" routerLink="../../tools/uslax-rankings">
