@@ -134,9 +134,9 @@ type ScheduleRow =
                                 <button type="button" class="team-name team-link"
                                         [attr.title]="'View ' + game.t1Name + ' results'"
                                         [attr.aria-label]="'View ' + game.t1Name + ' results'"
-                                        (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Name }}</button>
+                                        (click)="viewTeamResults.emit(game.t1Id!)">{{ teamLabel(game.t1Name) }}</button>
                             } @else {
-                                <span class="team-name">{{ game.t1Name }}</span>
+                                <span class="team-name">{{ teamLabel(game.t1Name) }}</span>
                             }
                             @if (game.t1Record && game.t1Id) {
                                 <button type="button" class="record-btn"
@@ -216,9 +216,9 @@ type ScheduleRow =
                                 <button type="button" class="team-name team-link"
                                         [attr.title]="'View ' + game.t2Name + ' results'"
                                         [attr.aria-label]="'View ' + game.t2Name + ' results'"
-                                        (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Name }}</button>
+                                        (click)="viewTeamResults.emit(game.t2Id!)">{{ teamLabel(game.t2Name) }}</button>
                             } @else {
-                                <span class="team-name">{{ game.t2Name }}</span>
+                                <span class="team-name">{{ teamLabel(game.t2Name) }}</span>
                             }
                             @if (game.t2Record && game.t2Id) {
                                 <button type="button" class="record-btn"
@@ -301,9 +301,9 @@ type ScheduleRow =
                                     <button type="button" class="team-name team-link"
                                             [attr.title]="'View ' + game.t1Name + ' results'"
                                             [attr.aria-label]="'View ' + game.t1Name + ' results'"
-                                            (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Name }}</button>
+                                            (click)="viewTeamResults.emit(game.t1Id!)">{{ teamLabel(game.t1Name) }}</button>
                                 } @else {
-                                    <span class="team-name">{{ game.t1Name }}</span>
+                                    <span class="team-name">{{ teamLabel(game.t1Name) }}</span>
                                 }
                                 @if (game.t1Record && game.t1Id) {
                                     <button type="button" class="record-btn"
@@ -334,9 +334,9 @@ type ScheduleRow =
                                     <button type="button" class="team-name team-link"
                                             [attr.title]="'View ' + game.t2Name + ' results'"
                                             [attr.aria-label]="'View ' + game.t2Name + ' results'"
-                                            (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Name }}</button>
+                                            (click)="viewTeamResults.emit(game.t2Id!)">{{ teamLabel(game.t2Name) }}</button>
                                 } @else {
-                                    <span class="team-name">{{ game.t2Name }}</span>
+                                    <span class="team-name">{{ teamLabel(game.t2Name) }}</span>
                                 }
                                 @if (game.t2Record && game.t2Id) {
                                     <button type="button" class="record-btn"
@@ -385,19 +385,42 @@ type ScheduleRow =
         /* Container grid — columns sized across ALL rows (table-like alignment).
            subgrid on each row inherits these tracks so every cell in a column
            shares the exact same left/right edges, just like a <table>. */
+        /* Track sizing: content-packed, then CENTRED as a block (justify-content).
+           Every track was "auto" before, and CSS Grid hands leftover width to auto tracks
+           in EQUAL shares — so ~250px of slack at a 1490px window got sprayed into seven
+           separate ~36px voids. Two of them landed either side of the score (marooning the
+           record pill and the away star off the numbers) and two more collided into a
+           chasm between the pool label and the home names.
+
+           Fix is typographic, not arithmetic: give the ledger a MEASURE. No track stretches
+           now — the row packs to its own content and justify-content puts the leftover
+           OUTSIDE the row, split evenly, where it reads as a margin instead of a hole.
+           No magic max-width to keep in sync with the content; the measure follows the data.
+
+           "safe" centring matters: plain center would overflow equally in both directions
+           on a narrow desktop and push the row number off the left edge, unreachable.
+           Safe falls back to start-alignment the moment content exceeds the container.
+
+           minmax(0, max-content) on the two name tracks: caps them at their content (so
+           they never stretch) while still allowing them to shrink and ellipsize when the
+           window is tight. They are the only shrinkable tracks, so they absorb the squeeze
+           first — which is right, they are the only cells with an ellipsis to fall back on.
+
+           NOTE: no backticks anywhere in this styles block — it is a template literal. */
         .games-grid {
             display: none;
             grid-template-columns:
                 2rem                    /* #          */
                 5.5rem                  /* date/time  */
-                auto                    /* location   */
-                auto                    /* pool       */
-                auto                    /* home →     */
-                auto                    /* home score */
+                minmax(0, max-content)  /* location   */
+                max-content             /* pool       */
+                minmax(0, max-content)  /* home →     */
+                max-content             /* home score */
                 min-content             /* dash       */
-                auto                    /* away score */
-                auto                    /* ← away     */
-                auto;                   /* status     */
+                max-content             /* away score */
+                minmax(0, max-content)  /* ← away     */
+                max-content;            /* status     */
+            justify-content: safe center;
             column-gap: var(--space-2);
             margin: 0 var(--space-2);
         }
@@ -680,10 +703,15 @@ type ScheduleRow =
            summary, so clicking it to see the games behind it is self-explanatory.
            Note the record is null for bracket games (pool-play teams only), so those
            rows have no results entry point — accepted; it isn't relevant by then. */
+        /* Border is TRANSPARENT at rest, not absent — the pill still reserves its exact
+           footprint, so revealing it on hover cannot reflow the row. Four bordered objects
+           per row (two records, two stars) put ~80 little boxes on a 20-row screen, all at
+           the same visual weight as the score you actually came to read. The record is a
+           season stat, not a result: it should be quiet text until you reach for it. */
         .record-btn {
             appearance: none;
             padding: 0 var(--space-2);
-            border: 1px solid var(--bs-border-color);
+            border: 1px solid transparent;
             border-radius: var(--radius-full);
             background: transparent;
             font: inherit;
@@ -830,6 +858,22 @@ type ScheduleRow =
         }
         @media (prefers-reduced-motion: reduce) {
             .team-star { transition: none !important; }
+        }
+
+        /* Stars rest INVISIBLE in the desktop ledger and appear on row hover. Two per row
+           over 20 rows is 40 outlines competing with the score; at rest they carry no
+           information, since the state that matters (this team is one of mine) is the
+           FILLED star, which stays lit via .is-on below.
+
+           Gated on (hover: hover) so a touch device — which never fires row hover — keeps
+           them visible, and scoped to .game-row so the mobile cards are untouched.
+           Opacity only, never display/visibility: the button must stay focusable, and
+           :focus-visible brings it back for keyboard users mid-tab-order. */
+        @media (hover: hover) {
+            .game-row .team-star { opacity: 0; }
+            .game-row:hover .team-star,
+            .game-row .team-star:focus-visible,
+            .game-row .team-star.is-on { opacity: 1; }
         }
 
         .annotation {
@@ -1218,10 +1262,13 @@ type ScheduleRow =
             .games-cards { display: none; }
         }
 
+        /* Only the date/time track widens here — every other track stays content-sized so
+           the measure holds (see the .games-grid comment). */
         @media (min-width: 1200px) {
             .games-grid {
                 grid-template-columns:
-                    2rem 6rem auto auto auto auto min-content auto auto auto;
+                    2rem 6rem minmax(0, max-content) max-content minmax(0, max-content)
+                    max-content min-content max-content minmax(0, max-content) max-content;
             }
         }
     `]
@@ -1289,6 +1336,38 @@ export class GamesTabComponent {
     readonly editT2Score = signal<number | null>(0);
 
     // ══════════════════════════════════════════════════════════════════
+    // Team labels
+    // ══════════════════════════════════════════════════════════════════
+
+    /**
+     * Display label for a stored team name, with a repeated club prefix collapsed out.
+     *
+     * Schedules.T1Name / T2Name are denormalized as "{club}:{team}" — "Metro:2034/35 Blue",
+     * "All Lax Select:2034". Some clubs then name the team after the club again, so the
+     * stored string doubles back on itself: "North Bay Lacrosse Club:North Bay Lacrosse
+     * Club-Riptide". Those are the longest labels in the ledger and the first to ellipsize,
+     * and the half that gets cut is the half that identifies the team.
+     *
+     * Collapsing to "North Bay Lacrosse Club:Riptide" keeps the club:team shape every other
+     * row uses. DISPLAY ONLY — title and aria-label keep the stored value, so hovering,
+     * screen readers, and anyone matching against what the club typed still see it verbatim.
+     * Fixing it in the data would touch every consumer of T1Name (brackets, standings, team
+     * results) and rewrite what directors entered; this stays in the one view that suffers.
+     */
+    teamLabel(name: string | null | undefined): string {
+        const raw = name ?? '';
+        const sep = raw.indexOf(':');
+        if (sep <= 0) return raw;
+        const club = raw.slice(0, sep);
+        const team = raw.slice(sep + 1);
+        if (!team.toLowerCase().startsWith(club.toLowerCase())) return raw;
+        // Drop the echoed club plus whatever joins it to the real name ("-", " ", "/", ":").
+        const rest = team.slice(club.length).replace(/^[\s\-–—:_/|]+/, '').trim();
+        // Team named EXACTLY after its club has nothing left to show — keep it verbatim.
+        return rest ? `${club}:${rest}` : raw;
+    }
+
+    // ══════════════════════════════════════════════════════════════════
     // Date / time formatting
     // ══════════════════════════════════════════════════════════════════
 
@@ -1344,9 +1423,26 @@ export class GamesTabComponent {
     // Status dots
     // ══════════════════════════════════════════════════════════════════
 
-    /** Show the status badge for any non-scheduled, non-null status. Code 1 = scheduled is the default quiet state. */
+    /**
+     * Show the status badge only when the status says something the row does not already.
+     *
+     * Code 1 (scheduled) is the quiet default. Code 6 (final) is a TAUTOLOGY on a scored
+     * game: ViewScheduleService derives it from the score itself — entering a score sets 6,
+     * clearing one resets to 1 — so an F chip on a scored row repeats what the two numbers
+     * beside it already said, once per row, all the way down a 1,278-game ledger. Muting it
+     * is what lets the column mean something again: what survives is R / X / C, and for a
+     * parent scanning her kid's four games "Cancelled" is the most important word on the
+     * page. It was previously indistinguishable at a glance from 322 F's.
+     *
+     * Final WITHOUT a score still shows — that pairing is contradictory (the service
+     * actively prevents creating it), so if legacy data has one it is worth surfacing,
+     * not hiding.
+     */
     showStatusBadge(game: ViewGameDto): boolean {
-        return game.gStatusCode != null && game.gStatusCode !== 1 && !!game.gStatusText;
+        if (game.gStatusCode == null || !game.gStatusText) return false;
+        if (game.gStatusCode === 1) return false;
+        if (game.gStatusCode === 6 && this.hasScore(game)) return false;
+        return true;
     }
 
     /** Single-letter code for the Status column. Full word stays in the title/aria-label. */
