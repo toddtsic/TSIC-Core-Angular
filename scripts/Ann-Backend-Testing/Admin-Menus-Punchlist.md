@@ -1283,7 +1283,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **For Todd**: one-line copy edit at [:476](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job-clone/job-clone-workbench.component.html#L476) — append **`under <strong>Configure → Discount Codes</strong>`** so the bullet parallels its siblings.
 - **Severity**: UX / docs (trivial copy edit — discoverability parity)
 - **Cross-ref**: AM-073/075 (same Job Clone screen copy pass).
-- **Status**: Open — filed 2026-08-04 (code-located, one-line edit). → Todd.
+- **Status**: 🟢 **BUILT** (Todd go, 2026-08-04) — [job-clone-workbench.component.html:476-477](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job-clone/job-clone-workbench.component.html#L476) now reads *"**Discount Codes:** not cloned. Add any you want under **Configure → Discount Codes**."* Copy only — no logic or flow change. Path verified against the route (`configure/discount-codes`, [app.routes.ts:140](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/app.routes.ts#L140)) and matches how the sibling Administrators bullet names `Configure → Administrators`.
 
 ### AM-078: [Configure / Job Clone → Dropdowns] Grad Years & Recruiting Grad Years dropdowns are NOT advanced on clone (unlike age groups/teams)
 - **Source**: Ann (2026-08-04) — Job Clone walkthrough
