@@ -7,6 +7,5 @@ export type CopyFormSourceDto = {
     jobName: string;
     year?: string | null;
     hasPlayerForm: boolean;
-    hasCoachForm: boolean;
 };
 

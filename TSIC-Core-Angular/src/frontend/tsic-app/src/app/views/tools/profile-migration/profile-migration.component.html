@@ -2,7 +2,7 @@
     <div class="row">
         <div class="col-12">
             <div class="page-header">
-                <h2 class="page-title"><i class="bi bi-database-gear me-2"></i>{{ mode() === 'adult' ? 'Adult' : 'Player' }} Profile Migration</h2>
+                <h2 class="page-title"><i class="bi bi-database-gear me-2"></i>Player Profile Migration</h2>
                 <div class="page-header-actions">
                     <div class="btn-group btn-group-sm">
                         <a [routerLink]="['/', jobPath(), 'home']" class="btn btn-outline-secondary">
@@ -21,19 +21,9 @@
                 </div>
             </div>
 
-            <!-- Player / Adult segment -->
-            <div class="btn-group mb-4" role="group" aria-label="Migration mode">
-                <button type="button" class="btn" [class.btn-primary]="mode() === 'player'"
-                    [class.btn-outline-primary]="mode() !== 'player'" (click)="setMode('player')">
-                    <i class="bi bi-person-arms-up me-1"></i> Player
-                </button>
-                <button type="button" class="btn" [class.btn-primary]="mode() === 'adult'"
-                    [class.btn-outline-primary]="mode() !== 'adult'" (click)="setMode('adult')">
-                    <i class="bi bi-person-badge me-1"></i> Adult
-                </button>
-            </div>
+            <!-- Adult migration was removed: adult forms are DERIVED from Jobs.RegformName_Coach, so
+                 there is nothing to materialize. Configure → Job → Adult is the single writer. -->
 
-            @if (mode() === 'player') {
             <!-- Alert Messages -->
             @if (errorMessage()) {
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -234,9 +224,6 @@
                     }
                 </div>
             </div>
-            } @else {
-            <app-adult-profile-migration-panel></app-adult-profile-migration-panel>
-            }
         </div>
     </div>
 </div>

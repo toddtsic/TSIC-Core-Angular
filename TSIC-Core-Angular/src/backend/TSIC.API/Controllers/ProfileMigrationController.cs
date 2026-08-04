@@ -343,84 +343,13 @@ public class ProfileMigrationController : ControllerBase
         }
     }
 
-    /// <summary>Preview (dry run) what materializing a single adult profile would produce.</summary>
-    [HttpGet("adult/preview/{profile}")]
-    public async Task<ActionResult<AdultProfileMigrationResult>> PreviewAdultProfile(string profile)
-    {
-        try
-        {
-            var result = await _migrationService.PreviewAdultProfileMigrationAsync(profile);
-            if (!result.Success)
-            {
-                return BadRequest(result);
-            }
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to preview adult profile {Profile}", profile);
-            return StatusCode(500, new { error = "Adult preview failed", details = ex.Message });
-        }
-    }
-
-    /// <summary>Materialize a single adult profile across its jobs (skips already-migrated unless force=true).</summary>
-    [HttpPost("adult/migrate/{profile}")]
-    public async Task<ActionResult<AdultProfileMigrationResult>> MigrateAdultProfile(string profile, [FromQuery] bool force = false)
-    {
-        try
-        {
-            var result = await _migrationService.MigrateAdultProfileAsync(profile, dryRun: false, force: force);
-            if (!result.Success)
-            {
-                return BadRequest(result);
-            }
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to migrate adult profile {Profile}", profile);
-            return StatusCode(500, new { error = MigrationFailedMsg, details = ex.Message });
-        }
-    }
-
-    /// <summary>Materialize all adult profiles (or a filtered subset), skipping already-migrated jobs unless force.</summary>
-    [HttpPost("adult/migrate-all")]
-    public async Task<ActionResult<AdultProfileBatchMigrationReport>> MigrateAllAdultProfiles([FromBody] AdultMigrateAllRequest request)
-    {
-        try
-        {
-            _logger.LogInformation(
-                "Materializing adult profiles (DryRun: {DryRun}, Force: {Force}, Filter: {Filter})",
-                request.DryRun, request.Force,
-                request.Profiles != null ? string.Join(", ", request.Profiles) : "all");
-
-            var report = await _migrationService.MigrateAllAdultProfilesAsync(request.DryRun, request.Force, request.Profiles);
-            return Ok(report);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, MigrationFailedMsg);
-            return StatusCode(500, new { error = MigrationFailedMsg, details = ex.Message });
-        }
-    }
-
-    /// <summary>Export SQL applying adult metadata to another database (touches only [AdultProfileMetadataJson]).</summary>
-    [HttpPost("adult/export-sql")]
-    public async Task<IActionResult> ExportAdultMigrationSql()
-    {
-        try
-        {
-            var sql = await _migrationService.GenerateAdultMigrationSqlScriptAsync();
-            var fileName = $"adult-profile-migration-{DateTime.Now:yyyyMMdd-HHmmss}.sql";
-            var bytes = System.Text.Encoding.UTF8.GetBytes(sql);
-            return File(bytes, "text/plain", fileName);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to export adult migration SQL");
-            return StatusCode(500, new { error = "Adult SQL export failed", details = ex.Message });
-        }
-    }
+    // The bulk adult-materialization endpoints (adult/preview, adult/migrate, adult/migrate-all,
+    // adult/export-sql) were removed. Adult forms are DERIVED from Jobs.RegformName_Coach via
+    // AdultFormCatalog, so an empty AdultProfileMetadataJson means "use the catalog" rather than
+    // "unconfigured" — materializing ~1,034 AC1 jobs would have written a copy of the catalog onto a
+    // thousand rows. Configure -> Job -> Adult is the single writer; it sets the identity and the blob
+    // together so they cannot desync. The removed force=true path rebuilt the whole three-role blob and
+    // would have erased per-job form edits.
 
     /// <summary>Type-scoped adult editor READ: the role-keyed metadata for a canonical profile (AC1/AC2).</summary>
     [HttpGet("adult-profiles/{profile}/metadata")]

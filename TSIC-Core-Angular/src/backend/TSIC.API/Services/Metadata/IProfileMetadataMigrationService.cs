@@ -32,12 +32,10 @@ public interface IProfileMetadataMigrationService
     Task<AdultRoleMetadataSet?> GetCurrentJobAdultMetadataAsync(Guid regId);
     Task<ProfileMetadata?> UpdateCurrentJobAdultRoleMetadataAsync(Guid regId, string roleKey, ProfileMetadata metadata);
 
-    // Adult profile materialization (AC1/AC2 canonical profiles ← legacy RegformName_Coach)
+    // Adult profile summary (AC1/AC2/AC3 canonical profiles ← legacy RegformName_Coach). The bulk
+    // materialization members are gone: adult forms are DERIVED from RegformName_Coach, so an empty
+    // AdultProfileMetadataJson means "use the catalog". Configure → Job → Adult is the single writer.
     Task<List<AdultProfileSummary>> GetAdultProfileSummariesAsync();
-    Task<AdultProfileMigrationResult> PreviewAdultProfileMigrationAsync(string profile);
-    Task<AdultProfileMigrationResult> MigrateAdultProfileAsync(string profile, bool dryRun = false, bool force = false);
-    Task<AdultProfileBatchMigrationReport> MigrateAllAdultProfilesAsync(bool dryRun = false, bool force = false, List<string>? profiles = null);
-    Task<string> GenerateAdultMigrationSqlScriptAsync();
 
     // Adult profile editor (type-scoped, mirrors the player profile editor)
 

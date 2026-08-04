@@ -43,75 +43,44 @@ public class CopyJobFormsTests
             NullLogger<ProfileMetadataMigrationService>.Instance);
     }
 
-    private static CopyJobFormsRequest Req(Guid sourceJobId, bool player, bool coach) =>
-        new() { SourceJobId = sourceJobId, IncludePlayer = player, IncludeCoach = coach };
+    private static CopyJobFormsRequest Req(Guid sourceJobId, bool player) =>
+        new() { SourceJobId = sourceJobId, IncludePlayer = player };
 
+    /// <summary>
+    /// Adult/coach forms are NOT copyable: a job's adult form is its RegformName_Coach identity, and
+    /// Configure → Job → Adult is the single writer (it sets the identity and the blob together).
+    /// Copy Forms only ever wrote the blob, so it was a second, half-complete writer. These tests lock
+    /// in that the adult write never fires from this path.
+    /// </summary>
     [Fact]
-    public async Task Copy_Both_WritesBothFormsToCurrentJob()
+    public async Task Copy_Player_WritesPlayerFormAndNeverTouchesAdult()
     {
         var regId = Guid.NewGuid();
         var targetJobId = Guid.NewGuid();
         var sourceJobId = Guid.NewGuid();
         var svc = BuildService(regId, targetJobId, sourceJobId, out var repo);
 
-        var result = await svc.CopyFormsToCurrentJobAsync(regId, Req(sourceJobId, player: true, coach: true));
+        var result = await svc.CopyFormsToCurrentJobAsync(regId, Req(sourceJobId, player: true));
 
         result.Success.Should().BeTrue();
         result.PlayerCopied.Should().BeTrue();
-        result.CoachCopied.Should().BeTrue();
         result.SourceJobName.Should().Be("Source Job");
-        repo.Verify(r => r.UpdateJobPlayerMetadataAsync(targetJobId, PlayerJson), Times.Once);
-        repo.Verify(r => r.UpdateJobAdultMetadataAsync(targetJobId, AdultJson), Times.Once);
-    }
-
-    [Fact]
-    public async Task Copy_PlayerOnly_DoesNotTouchAdult()
-    {
-        var regId = Guid.NewGuid();
-        var targetJobId = Guid.NewGuid();
-        var sourceJobId = Guid.NewGuid();
-        var svc = BuildService(regId, targetJobId, sourceJobId, out var repo);
-
-        var result = await svc.CopyFormsToCurrentJobAsync(regId, Req(sourceJobId, player: true, coach: false));
-
-        result.Success.Should().BeTrue();
-        result.PlayerCopied.Should().BeTrue();
-        result.CoachCopied.Should().BeFalse();
         repo.Verify(r => r.UpdateJobPlayerMetadataAsync(targetJobId, PlayerJson), Times.Once);
         repo.Verify(r => r.UpdateJobAdultMetadataAsync(It.IsAny<Guid>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
-    public async Task Copy_CoachOnly_DoesNotTouchPlayer()
+    public async Task Copy_PlayerFormMissingOnSource_FailsWithoutWriting()
     {
         var regId = Guid.NewGuid();
         var targetJobId = Guid.NewGuid();
         var sourceJobId = Guid.NewGuid();
-        var svc = BuildService(regId, targetJobId, sourceJobId, out var repo);
+        var svc = BuildService(regId, targetJobId, sourceJobId, out var repo, sourcePlayerJson: null);
 
-        var result = await svc.CopyFormsToCurrentJobAsync(regId, Req(sourceJobId, player: false, coach: true));
-
-        result.Success.Should().BeTrue();
-        result.CoachCopied.Should().BeTrue();
-        result.PlayerCopied.Should().BeFalse();
-        repo.Verify(r => r.UpdateJobAdultMetadataAsync(targetJobId, AdultJson), Times.Once);
-        repo.Verify(r => r.UpdateJobPlayerMetadataAsync(It.IsAny<Guid>(), It.IsAny<string>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task Copy_RequestedFormMissingOnSource_FailsWithoutWriting()
-    {
-        var regId = Guid.NewGuid();
-        var targetJobId = Guid.NewGuid();
-        var sourceJobId = Guid.NewGuid();
-        // Source has a player form but NO adult form; the request asks for both.
-        var svc = BuildService(regId, targetJobId, sourceJobId, out var repo, sourceAdultJson: null);
-
-        var result = await svc.CopyFormsToCurrentJobAsync(regId, Req(sourceJobId, player: true, coach: true));
+        var result = await svc.CopyFormsToCurrentJobAsync(regId, Req(sourceJobId, player: true));
 
         result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("coach");
-        // No partial copy — neither write fired.
+        result.ErrorMessage.Should().Contain("player");
         repo.Verify(r => r.UpdateJobPlayerMetadataAsync(It.IsAny<Guid>(), It.IsAny<string>()), Times.Never);
         repo.Verify(r => r.UpdateJobAdultMetadataAsync(It.IsAny<Guid>(), It.IsAny<string>()), Times.Never);
     }
@@ -123,7 +92,7 @@ public class CopyJobFormsTests
         var jobId = Guid.NewGuid();
         var svc = BuildService(regId, jobId, jobId, out var repo); // source == target
 
-        var result = await svc.CopyFormsToCurrentJobAsync(regId, Req(jobId, player: true, coach: false));
+        var result = await svc.CopyFormsToCurrentJobAsync(regId, Req(jobId, player: true));
 
         result.Success.Should().BeFalse();
         repo.Verify(r => r.UpdateJobPlayerMetadataAsync(It.IsAny<Guid>(), It.IsAny<string>()), Times.Never);
@@ -135,7 +104,7 @@ public class CopyJobFormsTests
         var regId = Guid.NewGuid();
         var svc = BuildService(regId, Guid.NewGuid(), Guid.NewGuid(), out var repo);
 
-        var result = await svc.CopyFormsToCurrentJobAsync(regId, Req(Guid.NewGuid(), player: false, coach: false));
+        var result = await svc.CopyFormsToCurrentJobAsync(regId, Req(Guid.NewGuid(), player: false));
 
         result.Success.Should().BeFalse();
         repo.Verify(r => r.GetJobDataForRegistrationAsync(It.IsAny<Guid>()), Times.Never);
@@ -160,7 +129,7 @@ public class CopyJobFormsTests
     }
 
     [Fact]
-    public async Task CopySources_MergesFormFlags_ExcludesCurrentAndFormlessJobs_OrdersByName()
+    public async Task CopySources_ExcludesCurrentAndFormlessJobs_OrdersByName()
     {
         var regId = Guid.NewGuid();
         var current = Guid.NewGuid();
@@ -186,20 +155,14 @@ public class CopyJobFormsTests
 
         var result = await svc.GetCopyFormSourcesAsync(regId);
 
-        // Alpha (both forms), Bravo (player only), Charlie (coach only) — ordered by name; Delta & self dropped.
-        result.Select(r => r.JobName).Should().Equal("Alpha", "Bravo", "Charlie");
+        // Only player forms are copyable now, so a source must carry one: Alpha and Bravo. Delta has no
+        // player form, Current is self, and Charlie is adult-only — all dropped.
+        result.Select(r => r.JobName).Should().Equal("Alpha", "Bravo");
 
         var a = result.Single(r => r.JobId == jobA);
         a.HasPlayerForm.Should().BeTrue();
-        a.HasCoachForm.Should().BeTrue();
-        a.Year.Should().Be("2025");
+        a.Year.Should().Be("2025");   // display year still comes from the adult summary read
 
-        var b = result.Single(r => r.JobId == jobB);
-        b.HasPlayerForm.Should().BeTrue();
-        b.HasCoachForm.Should().BeFalse();
-
-        var c = result.Single(r => r.JobId == jobC);
-        c.HasPlayerForm.Should().BeFalse();
-        c.HasCoachForm.Should().BeTrue();
+        result.Should().NotContain(r => r.JobId == jobC);
     }
 }

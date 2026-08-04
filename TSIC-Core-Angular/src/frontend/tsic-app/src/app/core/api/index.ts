@@ -36,10 +36,8 @@ export type { AdultCoachProfileOptionDto } from './models/AdultCoachProfileOptio
 export type { AdultConfirmationResponse } from './models/AdultConfirmationResponse';
 export type { AdultExistingRegistrationDto } from './models/AdultExistingRegistrationDto';
 export type { AdultFeeBreakdownDto } from './models/AdultFeeBreakdownDto';
-export type { AdultMigrateAllRequest } from './models/AdultMigrateAllRequest';
 export type { AdultPaymentRequestDto } from './models/AdultPaymentRequestDto';
 export type { AdultPaymentResponseDto } from './models/AdultPaymentResponseDto';
-export type { AdultProfileBatchMigrationReport } from './models/AdultProfileBatchMigrationReport';
 export type { AdultProfileMigrationResult } from './models/AdultProfileMigrationResult';
 export type { AdultProfileSummary } from './models/AdultProfileSummary';
 export type { AdultRegFormResponse } from './models/AdultRegFormResponse';

@@ -21,8 +21,11 @@ public record CopyJobFormsRequest
     /// <summary>Copy the source's <c>PlayerProfileMetadataJson</c>.</summary>
     public bool IncludePlayer { get; init; }
 
-    /// <summary>Copy the source's <c>AdultProfileMetadataJson</c> (all three adult roles at once).</summary>
-    public bool IncludeCoach { get; init; }
+    // IncludeCoach was removed. A job's adult form is its RegformName_Coach identity, and
+    // Configure → Job → Adult is the only place that changes — it writes the identity and the
+    // materialized blob together so they cannot desync. Copy Forms only ever wrote the blob, which
+    // made it a second, half-complete writer. (It was also never usable: the checkbox disabled itself
+    // on !hasCoachForm, and that flag read the always-empty AdultProfileMetadataJson.)
 
     /// <summary>
     /// Also copy the source's profile-type pointer (<c>CoreRegformPlayer</c>). Requires
@@ -39,7 +42,6 @@ public record CopyJobFormsResult
 {
     public required bool Success { get; init; }
     public required bool PlayerCopied { get; init; }
-    public required bool CoachCopied { get; init; }
     public bool PointerCopied { get; init; }
     public bool OptionsCopied { get; init; }
     public required string SourceJobName { get; init; } = string.Empty;
@@ -57,5 +59,4 @@ public record CopyFormSourceDto
     public required string JobName { get; init; }
     public string? Year { get; init; }
     public required bool HasPlayerForm { get; init; }
-    public required bool HasCoachForm { get; init; }
 }

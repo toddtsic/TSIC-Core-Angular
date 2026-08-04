@@ -68,15 +68,6 @@
                     <span>Profile type (which template the job uses)</span>
                 </label>
 
-                <label class="cfc-check" [class.cfc-check--disabled]="!src.hasCoachForm">
-                    <input type="checkbox"
-                           [checked]="includeCoach()"
-                           [disabled]="!src.hasCoachForm || isCopying()"
-                           (change)="includeCoach.set($any($event.target).checked)">
-                    <span>Coach / adult form</span>
-                    @if (!src.hasCoachForm) { <span class="cfc-none">(none on source)</span> }
-                </label>
-
                 <label class="cfc-check">
                     <input type="checkbox"
                            [checked]="includeOptions()"

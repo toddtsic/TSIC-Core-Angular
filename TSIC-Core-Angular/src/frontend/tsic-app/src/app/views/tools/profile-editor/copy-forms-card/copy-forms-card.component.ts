@@ -31,7 +31,6 @@ export class CopyFormsCardComponent implements OnInit {
     readonly selectedTargetId = signal<string | null>(null);
 
     readonly includePlayer = signal(false);
-    readonly includeCoach = signal(false);
     readonly includePointer = signal(false);
     readonly includeOptions = signal(false);
 
@@ -58,12 +57,11 @@ export class CopyFormsCardComponent implements OnInit {
     readonly targetHasForm = computed(() => !!this.selectedTarget()?.hasPlayerForm);
 
     readonly anyIncludes = computed(() =>
-        this.includePlayer() || this.includeCoach() || this.includeOptions());
+        this.includePlayer() || this.includeOptions());
 
     readonly readBack = computed(() => {
         const parts: string[] = [];
         if (this.includePlayer()) parts.push(this.includePointer() ? 'player form + profile type' : 'player form');
-        if (this.includeCoach()) parts.push('coach form');
         if (this.includeOptions()) parts.push('dropdown options');
         const what = parts.length ? parts.join(', ') : 'nothing selected';
         return `Copy the ${what} FROM “${this.sourceName() || '…'}” INTO ${this.targetName()}.`;
@@ -102,7 +100,6 @@ export class CopyFormsCardComponent implements OnInit {
         // Default the checkboxes to whatever the chosen source actually offers.
         const src = this.selectedSource();
         this.includePlayer.set(!!src?.hasPlayerForm);
-        this.includeCoach.set(!!src?.hasCoachForm);
         this.includePointer.set(false);
         this.includeOptions.set(false);
     }
@@ -132,7 +129,6 @@ export class CopyFormsCardComponent implements OnInit {
                 sourceJobId: src.jobId,
                 targetJobId: this.selectedTargetId(),
                 includePlayer: this.includePlayer(),
-                includeCoach: this.includeCoach(),
                 includePointer: this.includePointer(),
                 includeOptions: this.includeOptions()
             },
@@ -153,11 +149,10 @@ export class CopyFormsCardComponent implements OnInit {
         );
     }
 
-    /** Option label: "Job Name (2025) — Player, Coach". */
+    /** Option label: "Job Name (2025) — Player". */
     sourceLabel(s: CopyFormSourceDto): string {
         const forms: string[] = [];
         if (s.hasPlayerForm) forms.push('Player');
-        if (s.hasCoachForm) forms.push('Coach');
         const year = s.year ? ` (${s.year})` : '';
         const suffix = forms.length ? ` — ${forms.join(', ')}` : '';
         return `${s.jobName}${year}${suffix}`;

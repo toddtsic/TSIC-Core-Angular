@@ -11,141 +11,123 @@ using TSIC.Domain.Entities;
 namespace TSIC.Tests.AdultRegistration;
 
 /// <summary>
-/// Materialization + idempotency for the adult migrate path (<c>MigrateAdultProfileAsync</c>). The repository
-/// is mocked — no DbContext: the service mutates the tracked <see cref="Jobs"/> entities in place, so we assert
-/// directly on them. Locks four behaviors: writes all three roles, seeds <c>ListSizes_*</c> for AC2, leaves
-/// other-profile jobs untouched, and is idempotent (skip-already-migrated unless force; dry-run writes nothing).
+/// The coach-form build, exercised through <c>ComputeCoachFormSwap</c> — the compute step behind
+/// Configure → Job → Adult, and now the only writer of <c>Jobs.AdultProfileMetadataJson</c>.
+///
+/// <para>These assertions previously ran through the bulk adult migration. That was removed once adult
+/// forms became DERIVED from <c>RegformName_Coach</c> (an empty blob means "use the catalog", so
+/// materializing ~1,034 AC1 jobs would have written a copy of the catalog). The behavior they cover —
+/// per-profile apparel sets and the USLax field — lives on in <c>MaterializeAdultForJob</c>, which
+/// <c>ComputeCoachFormSwap</c> still calls, so the coverage moved with it rather than being deleted.</para>
+///
+/// <para>Pure compute: no DbContext, nothing persisted. The service mutates the passed
+/// <see cref="Jobs"/> entity's <c>JsonOptions</c> and returns the new blob.</para>
 /// </summary>
 public class AdultProfileMaterializationTests
 {
     private static readonly JsonSerializerOptions CaseInsensitive = new() { PropertyNameCaseInsensitive = true };
 
-    private static ProfileMetadataMigrationService BuildService(List<Jobs> jobs, out Mock<IProfileMetadataRepository> repo)
-    {
-        repo = new Mock<IProfileMetadataRepository>();
-        repo.Setup(r => r.GetJobsForAdultMigrationAsync()).ReturnsAsync(jobs);
-        repo.Setup(r => r.UpdateMultipleJobsAdultMetadataAsync(It.IsAny<List<Jobs>>())).Returns(Task.CompletedTask);
-        return new ProfileMetadataMigrationService(
-            repo.Object,
-            Mock.Of<IGitHubProfileFetcher>(),
-            new CSharpToMetadataParser(NullLogger<CSharpToMetadataParser>.Instance),
-            NullLogger<ProfileMetadataMigrationService>.Instance);
-    }
+    private static ProfileMetadataMigrationService BuildService() => new(
+        Mock.Of<IProfileMetadataRepository>(),
+        Mock.Of<IGitHubProfileFetcher>(),
+        new CSharpToMetadataParser(NullLogger<CSharpToMetadataParser>.Instance),
+        NullLogger<ProfileMetadataMigrationService>.Instance);
 
-    private static Jobs Job(string regform, string? existing = null) => new()
+    private static Jobs Job(string regform) => new()
     {
         JobId = Guid.NewGuid(),
         JobName = regform + " Job",
         Year = "2026",
-        RegformNameCoach = regform,
-        AdultProfileMetadataJson = existing
+        RegformNameCoach = regform
     };
 
-    [Fact(DisplayName = "Migrating AC2 writes all three roles + seeds ListSizes_* into JsonOptions; other-profile jobs untouched")]
-    public async Task Migrate_AC2_WritesRolesAndSeedsApparel()
+    [Fact(DisplayName = "AC2 builds all three roles and seeds ListSizes_* into the job's JsonOptions")]
+    public void AC2_WritesRolesAndSeedsApparel()
     {
-        var ac2 = Job("StaffSTEPS");    // → AC2, no USLax
-        var ac1 = Job("Default_Form");  // → AC1
-        var jobs = new List<Jobs> { ac2, ac1 };
-        var svc = BuildService(jobs, out var repo);
+        var job = Job("StaffSTEPS");
+        var svc = BuildService();
 
-        var result = await svc.MigrateAdultProfileAsync("AC2", dryRun: false, force: false);
+        var json = svc.ComputeCoachFormSwap(job, "AC2", AdultUsLaxMode.None);
 
-        result.Success.Should().BeTrue();
-        result.JobsAffected.Should().Be(1);
-
-        var set = JsonSerializer.Deserialize<AdultRoleMetadataSet>(ac2.AdultProfileMetadataJson!, CaseInsensitive)!;
+        var set = JsonSerializer.Deserialize<AdultRoleMetadataSet>(json, CaseInsensitive)!;
         set.UnassignedAdult.Fields.Should().Contain(f => f.Name == "jerseySize");
         set.UnassignedAdult.Fields.Should().Contain(f => f.Name == "specialRequests");
-        set.Referee.Fields.Should().ContainSingle();
-        set.Recruiter.Fields.Should().ContainSingle();
+        set.Referee.Fields.Should().NotBeEmpty();
+        set.Recruiter.Fields.Should().NotBeEmpty();
 
-        ac2.JsonOptions.Should().NotBeNull();
-        ac2.JsonOptions!.Should().Contain("ListSizes_CoachJersey");
+        job.JsonOptions.Should().NotBeNull();
+        job.JsonOptions!.Should().Contain("ListSizes_CoachJersey");
 
         // Seeded items MUST use the legacy { "Text", "Value" } PascalCase shape so the Configure Job
         // Dropdowns editor (DdlOptionsService, case-sensitive) can read them — not { "value", "label" }.
-        using var opts = JsonDocument.Parse(ac2.JsonOptions!);
+        using var opts = JsonDocument.Parse(job.JsonOptions!);
         var firstCoachJersey = opts.RootElement.GetProperty("ListSizes_CoachJersey")[0];
         firstCoachJersey.GetProperty("Value").GetString().Should().Be("SM");
         firstCoachJersey.GetProperty("Text").GetString().Should().Be("SM");
-
-        ac1.AdultProfileMetadataJson.Should().BeNull(); // AC1 job is not part of an AC2 migration
-        repo.Verify(r => r.UpdateMultipleJobsAdultMetadataAsync(It.IsAny<List<Jobs>>()), Times.Once);
     }
 
-    [Fact(DisplayName = "Migrating AC3 (StaffASL) writes shirt+shoe ONLY and seeds just those two size sets — no shorts/waist")]
-    public async Task Migrate_AC3_ShirtAndShoeOnly()
+    [Fact(DisplayName = "AC3 builds shirt+shoe ONLY and seeds just those two size sets — no shorts/waist")]
+    public void AC3_ShirtAndShoeOnly()
     {
-        var ac3 = Job("StaffASL");      // → AC3 (legacy StaffASL: jersey + shoe only)
-        var ac2 = Job("StaffSTEPS");    // → AC2, must stay out of an AC3 migration
-        var svc = BuildService(new List<Jobs> { ac3, ac2 }, out _);
+        var job = Job("StaffASL");
+        var svc = BuildService();
 
-        var result = await svc.MigrateAdultProfileAsync("AC3", dryRun: false, force: false);
+        var json = svc.ComputeCoachFormSwap(job, "AC3", AdultUsLaxMode.None);
 
-        result.Success.Should().BeTrue();
-        result.JobsAffected.Should().Be(1);
-
-        var set = JsonSerializer.Deserialize<AdultRoleMetadataSet>(ac3.AdultProfileMetadataJson!, CaseInsensitive)!;
+        var set = JsonSerializer.Deserialize<AdultRoleMetadataSet>(json, CaseInsensitive)!;
         var names = set.UnassignedAdult.Fields.Select(f => f.Name).ToList();
         names.Should().Contain(new[] { "jerseySize", "shoes", "specialRequests" });
         names.Should().NotContain(new[] { "shortsSize", "sweatpants" });   // the over-collection bug this fixes
 
         // Only the two referenced size sets are seeded — not the full apparel four.
-        ac3.JsonOptions.Should().NotBeNull();
-        ac3.JsonOptions!.Should().Contain("ListSizes_CoachJersey");
-        ac3.JsonOptions!.Should().Contain("ListSizes_CoachShoes");
-        ac3.JsonOptions!.Should().NotContain("ListSizes_CoachShorts");
-        ac3.JsonOptions!.Should().NotContain("ListSizes_CoachWaist");
-
-        ac2.AdultProfileMetadataJson.Should().BeNull(); // AC2 job untouched by an AC3 migration
+        job.JsonOptions.Should().NotBeNull();
+        job.JsonOptions!.Should().Contain("ListSizes_CoachJersey");
+        job.JsonOptions!.Should().Contain("ListSizes_CoachShoes");
+        job.JsonOptions!.Should().NotContain("ListSizes_CoachShorts");
+        job.JsonOptions!.Should().NotContain("ListSizes_CoachWaist");
     }
 
-    [Fact(DisplayName = "A USLax job gets a required sportAssnId in the materialized coach block")]
-    public async Task Migrate_UsLaxJob_PrependsSportAssnId()
+    [Theory(DisplayName = "USLax rides on the coach block independently of profile — required only when Required")]
+    [InlineData("AC1", AdultUsLaxMode.Required, true)]
+    [InlineData("AC3", AdultUsLaxMode.Required, true)]    // impossible under the legacy form names
+    [InlineData("AC2", AdultUsLaxMode.Optional, false)]   // collected, hard-validated when supplied, never blocking
+    public void UsLax_PrependsSportAssnId(string profile, AdultUsLaxMode usLax, bool required)
     {
-        var job = Job("StaffLaxValidate"); // → AC1 + USLax
-        var svc = BuildService(new List<Jobs> { job }, out _);
+        var job = Job("Default_Form");
+        var svc = BuildService();
 
-        var result = await svc.MigrateAdultProfileAsync("AC1", dryRun: false, force: false);
+        var json = svc.ComputeCoachFormSwap(job, profile, usLax);
 
-        result.JobsAffected.Should().Be(1);
-        result.UsLaxJobsAffected.Should().Be(1);
-
-        var set = JsonSerializer.Deserialize<AdultRoleMetadataSet>(job.AdultProfileMetadataJson!, CaseInsensitive)!;
+        var set = JsonSerializer.Deserialize<AdultRoleMetadataSet>(json, CaseInsensitive)!;
         var sportAssn = set.UnassignedAdult.Fields.SingleOrDefault(f => f.Name == "sportAssnId");
         sportAssn.Should().NotBeNull();
-        sportAssn!.Validation!.Required.Should().BeTrue();
+        sportAssn!.Validation!.Required.Should().Be(required);
     }
 
-    [Fact(DisplayName = "Migrate is idempotent: an already-materialized job is skipped unless force")]
-    public async Task Migrate_SkipsAlreadyMaterialized_UnlessForce()
+    [Fact(DisplayName = "No USLax on the job ⇒ no sportAssnId field on the coach block")]
+    public void NoUsLax_OmitsSportAssnId()
     {
-        const string existing = "{\"UnassignedAdult\":{\"fields\":[]}}";
-        var job = Job("StaffSTEPS", existing);
-        var svc = BuildService(new List<Jobs> { job }, out var repo);
+        var job = Job("Default_Form");
+        var svc = BuildService();
 
-        var skip = await svc.MigrateAdultProfileAsync("AC2", dryRun: false, force: false);
-        skip.JobsAffected.Should().Be(0);
-        job.AdultProfileMetadataJson.Should().Be(existing); // untouched
-        repo.Verify(r => r.UpdateMultipleJobsAdultMetadataAsync(It.IsAny<List<Jobs>>()), Times.Never);
+        var json = svc.ComputeCoachFormSwap(job, "AC1", AdultUsLaxMode.None);
 
-        var forced = await svc.MigrateAdultProfileAsync("AC2", dryRun: false, force: true);
-        forced.JobsAffected.Should().Be(1);
-        job.AdultProfileMetadataJson.Should().NotBe(existing);        // rewritten
-        job.AdultProfileMetadataJson.Should().Contain("jerseySize");
+        var set = JsonSerializer.Deserialize<AdultRoleMetadataSet>(json, CaseInsensitive)!;
+        set.UnassignedAdult.Fields.Should().NotContain(f => f.Name == "sportAssnId");
     }
 
-    [Fact(DisplayName = "Dry-run reports affected jobs but writes nothing")]
-    public async Task Migrate_DryRun_WritesNothing()
+    [Fact(DisplayName = "An existing blob keeps its Referee/Recruiter blocks — only the coach role is rebuilt")]
+    public void ExistingBlob_RebuildsCoachOnly()
     {
         var job = Job("StaffSTEPS");
-        var svc = BuildService(new List<Jobs> { job }, out var repo);
+        job.AdultProfileMetadataJson =
+            """{"UnassignedAdult":{"fields":[]},"Referee":{"fields":[{"name":"customRefField","order":1}]},"Recruiter":{"fields":[]}}""";
+        var svc = BuildService();
 
-        var result = await svc.MigrateAdultProfileAsync("AC2", dryRun: true, force: true);
+        var json = svc.ComputeCoachFormSwap(job, "AC2", AdultUsLaxMode.None);
 
-        result.JobsAffected.Should().Be(1);              // reported
-        job.AdultProfileMetadataJson.Should().BeNull();  // but not written
-        repo.Verify(r => r.UpdateMultipleJobsAdultMetadataAsync(It.IsAny<List<Jobs>>()), Times.Never);
+        var set = JsonSerializer.Deserialize<AdultRoleMetadataSet>(json, CaseInsensitive)!;
+        set.UnassignedAdult.Fields.Should().Contain(f => f.Name == "jerseySize");   // rebuilt
+        set.Referee.Fields.Should().ContainSingle(f => f.Name == "customRefField"); // left verbatim
     }
 }

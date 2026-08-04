@@ -58,25 +58,6 @@ public record AdultProfileMigrationResult
     public required string? ErrorMessage { get; init; }
 }
 
-/// <summary>Batch report for adult profile materialization. Adult analog of <see cref="ProfileBatchMigrationReport"/>.</summary>
-public record AdultProfileBatchMigrationReport
-{
-    public required DateTime StartedAt { get; init; }
-    public required DateTime? CompletedAt { get; init; }
-    public required int TotalProfiles { get; init; }
-    public required int SuccessCount { get; init; }
-    public required int FailureCount { get; init; }
-    public required int TotalJobsAffected { get; init; }
-    public required List<AdultProfileMigrationResult> Results { get; init; } = new();
-    public required List<string> GlobalWarnings { get; init; } = new();
-}
-
-/// <summary>Request to materialize adult profiles. Adult analog of <see cref="MigrateProfilesRequest"/>, plus a force flag.</summary>
-public record AdultMigrateAllRequest
-{
-    public required bool DryRun { get; init; } = true;
-    /// <summary>When true, re-materialize jobs that already have AdultProfileMetadataJson (default: skip them).</summary>
-    public bool Force { get; init; }
-    /// <summary>Optional profile filter (AC1/AC2). Null/empty = all profiles.</summary>
-    public List<string>? Profiles { get; init; }
-}
+// AdultProfileBatchMigrationReport and AdultMigrateAllRequest were removed with the bulk
+// materialization endpoints. AdultProfileMigrationResult survives — it is still the return type of
+// UpdateAdultProfileRoleAsync (the type-scoped Profile Editor save).

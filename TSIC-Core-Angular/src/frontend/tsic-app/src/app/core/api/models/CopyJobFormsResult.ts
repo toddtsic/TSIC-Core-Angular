@@ -5,7 +5,6 @@
 export type CopyJobFormsResult = {
     success: boolean;
     playerCopied: boolean;
-    coachCopied: boolean;
     pointerCopied?: boolean;
     optionsCopied?: boolean;
     sourceJobName: string;

@@ -1255,16 +1255,20 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     }
 
     /// <summary>
-    /// Copy another job's player and/or adult (coach) form definition onto the current job (resolved
-    /// from <paramref name="regId"/>). Form-JSON only: the runtime renders from the materialized
-    /// metadata, so the copied form works immediately with its baked-in options. Template pointers
-    /// (CoreRegformPlayer / RegformNameCoach) and JsonOptions size customizations are intentionally NOT
-    /// carried. Validates the requested form(s) exist on the source BEFORE writing — never a partial copy.
+    /// Copy another job's PLAYER form definition onto the current job (resolved from
+    /// <paramref name="regId"/>). Form-JSON only: the runtime renders from the materialized metadata,
+    /// so the copied form works immediately with its baked-in options. Validates the form exists on the
+    /// source BEFORE writing — never a partial copy.
+    ///
+    /// <para>Adult/coach forms are deliberately NOT copyable. A job's adult form is its
+    /// <c>RegformName_Coach</c> identity, and Configure → Job → Adult is the only writer — it sets the
+    /// identity and the materialized blob together so they cannot desync. Copying only the blob made
+    /// this a second, half-complete writer.</para>
     /// </summary>
     public async Task<CopyJobFormsResult> CopyFormsToCurrentJobAsync(Guid regId, CopyJobFormsRequest request)
     {
-        if (!request.IncludePlayer && !request.IncludeCoach)
-            return Fail("Select at least the player or the coach form to copy.");
+        if (!request.IncludePlayer)
+            return Fail("Select the player form to copy.");
 
         var target = await _repo.GetJobDataForRegistrationAsync(regId);
         if (target == null)
@@ -1277,35 +1281,19 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         if (source == null)
             return Fail("Source job not found.");
 
-        if (request.IncludePlayer && string.IsNullOrWhiteSpace(source.PlayerProfileMetadataJson))
+        if (string.IsNullOrWhiteSpace(source.PlayerProfileMetadataJson))
             return Fail($"'{source.JobName}' has no player form to copy.");
-        if (request.IncludeCoach && string.IsNullOrWhiteSpace(source.AdultProfileMetadataJson))
-            return Fail($"'{source.JobName}' has no coach/adult form to copy.");
 
-        var playerCopied = false;
-        var coachCopied = false;
-
-        if (request.IncludePlayer)
-        {
-            await _repo.UpdateJobPlayerMetadataAsync(target.JobId, source.PlayerProfileMetadataJson!);
-            playerCopied = true;
-        }
-
-        if (request.IncludeCoach)
-        {
-            await _repo.UpdateJobAdultMetadataAsync(target.JobId, source.AdultProfileMetadataJson!);
-            coachCopied = true;
-        }
+        await _repo.UpdateJobPlayerMetadataAsync(target.JobId, source.PlayerProfileMetadataJson!);
 
         _logger.LogInformation(
-            "Copied forms from job {SourceJobId} onto current job {TargetJobId} (player={PlayerCopied}, coach={CoachCopied})",
-            request.SourceJobId, target.JobId, playerCopied, coachCopied);
+            "Copied player form from job {SourceJobId} onto current job {TargetJobId}",
+            request.SourceJobId, target.JobId);
 
         return new CopyJobFormsResult
         {
             Success = true,
-            PlayerCopied = playerCopied,
-            CoachCopied = coachCopied,
+            PlayerCopied = true,
             SourceJobName = source.JobName,
             ErrorMessage = null
         };
@@ -1314,17 +1302,18 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         {
             Success = false,
             PlayerCopied = false,
-            CoachCopied = false,
             SourceJobName = string.Empty,
             ErrorMessage = message
         };
     }
 
     /// <summary>
-    /// List every job that can serve as a copy source for <see cref="CopyFormsToCurrentJobAsync"/>,
-    /// flagged with which form(s) it carries. Composes the two summary reads the migration tooling
-    /// already exposes (player + adult) — no new repository query. The current job (resolved from
+    /// List every job that can serve as a PLAYER-form copy source for
+    /// <see cref="CopyFormsToCurrentJobAsync"/>. The current job (resolved from
     /// <paramref name="regId"/>) is excluded so it can't be picked as its own source.
+    ///
+    /// <para>The second read is for the display Year only — coach forms are no longer copyable, so
+    /// there is no adult flag to compute.</para>
     /// </summary>
     public async Task<List<CopyFormSourceDto>> GetCopyFormSourcesAsync(Guid regId)
     {
@@ -1334,39 +1323,19 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
 
         // Sequential awaits — both reads share the same scoped DbContext (never Task.WhenAll).
         var playerJobs = await _repo.GetJobsForProfileSummaryAsync();
-        var adultJobs = await _repo.GetJobsForAdultProfileSummaryAsync();
+        var yearByJob = (await _repo.GetJobsForAdultProfileSummaryAsync())
+            .GroupBy(a => a.JobId)
+            .ToDictionary(g => g.Key, g => g.First().Year);
 
-        var byJob = new Dictionary<Guid, CopyFormSourceDto>();
-
-        foreach (var p in playerJobs)
-        {
-            byJob[p.JobId] = new CopyFormSourceDto
+        return playerJobs
+            .Where(p => p.JobId != currentJobId && !string.IsNullOrWhiteSpace(p.PlayerProfileMetadataJson))
+            .Select(p => new CopyFormSourceDto
             {
                 JobId = p.JobId,
                 JobName = p.JobName,
-                Year = null,
-                HasPlayerForm = !string.IsNullOrWhiteSpace(p.PlayerProfileMetadataJson),
-                HasCoachForm = false
-            };
-        }
-
-        foreach (var a in adultJobs)
-        {
-            var hasCoach = !string.IsNullOrWhiteSpace(a.AdultProfileMetadataJson);
-            byJob[a.JobId] = byJob.TryGetValue(a.JobId, out var existing)
-                ? existing with { Year = a.Year, HasCoachForm = hasCoach }
-                : new CopyFormSourceDto
-                {
-                    JobId = a.JobId,
-                    JobName = a.JobName,
-                    Year = a.Year,
-                    HasPlayerForm = false,
-                    HasCoachForm = hasCoach
-                };
-        }
-
-        return byJob.Values
-            .Where(j => j.JobId != currentJobId && (j.HasPlayerForm || j.HasCoachForm))
+                Year = yearByJob.TryGetValue(p.JobId, out var year) ? year : null,
+                HasPlayerForm = true
+            })
             .OrderBy(j => j.JobName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(j => j.Year)
             .ToList();
@@ -1490,7 +1459,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     /// </summary>
     public async Task<CopyJobFormsResult> CopyFormsAsync(Guid callerRegId, CopyJobFormsRequest request)
     {
-        if (!request.IncludePlayer && !request.IncludeCoach && !request.IncludeOptions && !request.IncludePointer)
+        if (!request.IncludePlayer && !request.IncludeOptions && !request.IncludePointer)
             return Fail("Select at least one thing to copy.");
         if (request.IncludePointer && !request.IncludePlayer)
             return Fail("Copying the profile-type pointer requires copying the player form too.");
@@ -1523,12 +1492,10 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
 
         if (request.IncludePlayer && string.IsNullOrWhiteSpace(source.PlayerProfileMetadataJson))
             return Fail($"'{source.JobName}' has no player form to copy.");
-        if (request.IncludeCoach && string.IsNullOrWhiteSpace(source.AdultProfileMetadataJson))
-            return Fail($"'{source.JobName}' has no coach/adult form to copy.");
         if (request.IncludePointer && string.IsNullOrWhiteSpace(source.CoreRegformPlayer))
             return Fail($"'{source.JobName}' has no profile-type pointer to copy.");
 
-        bool playerCopied = false, coachCopied = false, pointerCopied = false, optionsCopied = false;
+        bool playerCopied = false, pointerCopied = false, optionsCopied = false;
 
         if (request.IncludePlayer)
         {
@@ -1541,12 +1508,6 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
             }
         }
 
-        if (request.IncludeCoach)
-        {
-            await _repo.UpdateJobAdultMetadataAsync(targetJobId, source.AdultProfileMetadataJson!);
-            coachCopied = true;
-        }
-
         if (request.IncludeOptions)
         {
             await _repo.UpdateJobJsonOptionsAsync(targetJobId, source.JsonOptions ?? string.Empty);
@@ -1554,14 +1515,13 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         }
 
         _logger.LogInformation(
-            "Copied forms from job {SourceJobId} INTO job {TargetJobId} (player={Player}, coach={Coach}, pointer={Pointer}, options={Options})",
-            request.SourceJobId, targetJobId, playerCopied, coachCopied, pointerCopied, optionsCopied);
+            "Copied forms from job {SourceJobId} INTO job {TargetJobId} (player={Player}, pointer={Pointer}, options={Options})",
+            request.SourceJobId, targetJobId, playerCopied, pointerCopied, optionsCopied);
 
         return new CopyJobFormsResult
         {
             Success = true,
             PlayerCopied = playerCopied,
-            CoachCopied = coachCopied,
             PointerCopied = pointerCopied,
             OptionsCopied = optionsCopied,
             SourceJobName = source.JobName,
@@ -1573,7 +1533,6 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         {
             Success = false,
             PlayerCopied = false,
-            CoachCopied = false,
             SourceJobName = string.Empty,
             TargetJobName = null,
             ErrorMessage = message
@@ -1673,148 +1632,13 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
             .ToList();
     }
 
-    /// <summary>Preview (dry run) materialization for a single adult profile — shows the full scope + metadata.</summary>
-    public async Task<AdultProfileMigrationResult> PreviewAdultProfileMigrationAsync(string profile)
-        => await MigrateAdultProfileAsync(profile, dryRun: true, force: true);
-
-    /// <summary>
-    /// Materialize one canonical adult profile across all its jobs: for each job,
-    /// <c>MapLegacy</c> → <c>BuildRoleSet</c> → seed apparel option sets (AC2) → inject job options →
-    /// normalize each role → write the full three-role object. Idempotent: skips already-materialized jobs
-    /// unless <paramref name="force"/>.
-    /// </summary>
-    public async Task<AdultProfileMigrationResult> MigrateAdultProfileAsync(string profile, bool dryRun = false, bool force = false)
-    {
-        profile = AdultFormCatalog.Canonical(profile);
-        if (!AdultFormCatalog.IsKnownProfile(profile))
-            return FailedAdultResult(profile, $"Unknown adult profile '{profile}'");
-
-        try
-        {
-            var allJobs = await _repo.GetJobsForAdultMigrationAsync();
-            var target = allJobs
-                .Where(j => string.Equals(AdultFormCatalog.MapLegacy(j.RegformNameCoach).Profile, profile, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            var affected = new List<Jobs>();
-            var uslaxAffected = 0;
-
-            foreach (var job in target)
-            {
-                if (!force && !string.IsNullOrEmpty(job.AdultProfileMetadataJson))
-                    continue; // already materialized — idempotent skip
-
-                var (_, usLax) = AdultFormCatalog.MapLegacy(job.RegformNameCoach);
-                if (!dryRun)
-                    job.AdultProfileMetadataJson = MaterializeAdultForJob(job, profile, usLax);
-
-                affected.Add(job);
-                if (usLax != AdultUsLaxMode.None) uslaxAffected++;
-            }
-
-            if (!dryRun && affected.Count > 0)
-                await _repo.UpdateMultipleJobsAdultMetadataAsync(allJobs);
-
-            var anyUsLax = target.Exists(j => AdultFormCatalog.MapLegacy(j.RegformNameCoach).UsLax != AdultUsLaxMode.None);
-
-            _logger.LogInformation(
-                "Adult profile {Profile}: materialized {Count} jobs ({UsLax} with USLax), DryRun={DryRun}, Force={Force}",
-                profile, affected.Count, uslaxAffected, dryRun, force);
-
-            return new AdultProfileMigrationResult
-            {
-                Profile = profile,
-                DisplayName = AdultFormCatalog.DisplayName(profile),
-                Success = true,
-                JobsAffected = affected.Count,
-                UsLaxJobsAffected = uslaxAffected,
-                AffectedJobIds = affected.Select(j => j.JobId).ToList(),
-                AffectedJobNames = affected.Select(j => j.JobName ?? "Unnamed Job").ToList(),
-                AffectedJobYears = affected.Select(j => j.Year ?? "").ToList(),
-                GeneratedMetadata = AdultFormCatalog.BuildRoleSet(profile, AdultUsLaxMode.None),
-                GeneratedMetadataUsLax = anyUsLax ? AdultFormCatalog.BuildRoleSet(profile, AdultUsLaxMode.Required) : null,
-                Warnings = new List<string>(),
-                ErrorMessage = null
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to materialize adult profile {Profile}", profile);
-            return FailedAdultResult(profile, ex.Message);
-        }
-    }
-
-    /// <summary>Materialize multiple adult profiles (or all if no filter). Adult analog of <see cref="MigrateMultipleProfilesAsync"/>.</summary>
-    public async Task<AdultProfileBatchMigrationReport> MigrateAllAdultProfilesAsync(bool dryRun = false, bool force = false, List<string>? profiles = null)
-    {
-        var startedAt = DateTime.UtcNow;
-        var results = new List<AdultProfileMigrationResult>();
-
-        var targets = AdultFormCatalog.AllProfiles
-            .Where(p => profiles == null || profiles.Count == 0
-                || profiles.Exists(f => string.Equals(f, p, StringComparison.OrdinalIgnoreCase)))
-            .ToList();
-
-        foreach (var profile in targets)
-            results.Add(await MigrateAdultProfileAsync(profile, dryRun, force));
-
-        var successCount = results.Count(r => r.Success);
-
-        return new AdultProfileBatchMigrationReport
-        {
-            StartedAt = startedAt,
-            CompletedAt = DateTime.UtcNow,
-            TotalProfiles = targets.Count,
-            SuccessCount = successCount,
-            FailureCount = results.Count - successCount,
-            TotalJobsAffected = results.Where(r => r.Success).Sum(r => r.JobsAffected),
-            Results = results,
-            GlobalWarnings = new List<string>()
-        };
-    }
-
-    /// <summary>
-    /// SQL export for adult metadata — idempotent, touches ONLY [AdultProfileMetadataJson]. Inline apparel
-    /// options make each row self-contained, so no JsonOptions rows are exported (never clobbers a job's options).
-    /// </summary>
-    public async Task<string> GenerateAdultMigrationSqlScriptAsync()
-    {
-        var jobs = await _repo.GetJobsForAdultProfileSummaryAsync();
-        var withMetadata = jobs.Where(j => !string.IsNullOrEmpty(j.AdultProfileMetadataJson)).ToList();
-
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine("-- =====================================================");
-        sb.AppendLine("-- Adult Profile Migration SQL Export");
-        sb.AppendLine($"-- Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
-        sb.AppendLine($"-- Jobs with adult metadata: {withMetadata.Count}");
-        sb.AppendLine("-- Idempotent: safe to run multiple times");
-        sb.AppendLine("-- Only touches: [Jobs].[Jobs].[AdultProfileMetadataJson]");
-        sb.AppendLine("-- =====================================================");
-        sb.AppendLine();
-        sb.AppendLine("SET NOCOUNT ON;");
-        sb.AppendLine("SET XACT_ABORT ON;");
-        sb.AppendLine("BEGIN TRANSACTION;");
-        sb.AppendLine();
-
-        foreach (var job in withMetadata)
-        {
-            var escapedJson = job.AdultProfileMetadataJson!.Replace("'", "''");
-            sb.AppendLine($"-- {job.JobName ?? "Unnamed"} (Job ID: {job.JobId})");
-            sb.AppendLine("UPDATE [Jobs].[Jobs]");
-            sb.AppendLine($"SET [AdultProfileMetadataJson] = '{escapedJson}'");
-            sb.AppendLine($"WHERE [jobID] = '{job.JobId}';");
-            sb.AppendLine();
-        }
-
-        sb.AppendLine("COMMIT TRANSACTION;");
-        sb.AppendLine();
-        sb.AppendLine($"PRINT 'Adult profile migration complete: {withMetadata.Count} jobs updated';");
-        sb.AppendLine();
-        sb.AppendLine("-- Verify results:");
-        sb.AppendLine("SELECT COUNT(*) AS [Jobs With Adult Metadata] FROM [Jobs].[Jobs] WHERE [AdultProfileMetadataJson] IS NOT NULL;");
-
-        return sb.ToString();
-    }
+    // MigrateAdultProfileAsync / MigrateAllAdultProfilesAsync / PreviewAdultProfileMigrationAsync /
+    // GenerateAdultMigrationSqlScriptAsync were removed. Adult forms are DERIVED from
+    // Jobs.RegformName_Coach via AdultFormCatalog, so an empty AdultProfileMetadataJson means "use the
+    // catalog", not "unconfigured" -- bulk materialization would have written a copy of the catalog onto
+    // ~1,034 AC1 jobs. Configure -> Job -> Adult is the single writer (UpdateCoachFormTemplateAsync ->
+    // ComputeCoachFormSwap), which sets the identity and the blob together so they cannot desync.
+    // MaterializeAdultForJob below survives because ComputeCoachFormSwap still uses it.
 
     /// <summary>
     /// Materializes one job's full three-role adult metadata for the given profile/USLax, seeding apparel
