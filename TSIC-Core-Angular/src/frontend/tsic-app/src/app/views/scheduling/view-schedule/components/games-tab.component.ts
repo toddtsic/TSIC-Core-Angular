@@ -85,17 +85,25 @@ type ScheduleRow =
                         <!-- Row number -->
                         <span class="cell cell-num" role="cell" aria-colindex="1">{{ i + 1 }}</span>
 
-                        <!-- Date/Time — admins: click to open full edit -->
-                        <span class="cell cell-dt" role="cell" aria-colindex="2"
-                              [class.editable]="canScore()"
-                              [attr.tabindex]="canScore() ? 0 : null"
-                              [attr.role]="canScore() ? 'button' : 'cell'"
-                              [attr.aria-label]="canScore() ? 'Edit game #' + game.gid : null"
-                              (click)="canScore() && editGame.emit(game.gid)"
-                              (keydown.enter)="canScore() && editGame.emit(game.gid)"
-                              (keydown.space)="canScore() && editGame.emit(game.gid); canScore() && $event.preventDefault()">
-                            <span class="dt-date">{{ formatDate(game.gDate) }}</span>
-                            <span class="dt-time">{{ formatTime(game.gDate) }}</span>
+                        <!-- Date/Time — admins: click to open the full edit modal.
+                             The trigger is a REAL button nested inside the cell rather than
+                             ARIA bolted onto the cell itself: the span has to keep role="cell"
+                             for the grid's table semantics, and an element cannot be both a
+                             cell and a button. Nesting also hands us Enter/Space/focus/
+                             announcement for free — this used to be four hand-rolled
+                             attribute bindings plus two keydown handlers. -->
+                        <span class="cell cell-dt" role="cell" aria-colindex="2">
+                            @if (canScore()) {
+                                <button type="button" class="dt-edit"
+                                        [attr.aria-label]="'Edit game #' + game.gid"
+                                        (click)="editGame.emit(game.gid)">
+                                    <span class="dt-date">{{ formatDate(game.gDate) }}</span>
+                                    <span class="dt-time">{{ formatTime(game.gDate) }}</span>
+                                </button>
+                            } @else {
+                                <span class="dt-date">{{ formatDate(game.gDate) }}</span>
+                                <span class="dt-time">{{ formatTime(game.gDate) }}</span>
+                            }
                         </span>
 
                         <!-- Location -->
@@ -592,23 +600,47 @@ type ScheduleRow =
             color: var(--bs-secondary-color);
         }
 
-        /* Admin: date/time is the edit trigger */
-        .cell-dt.editable {
+        /* Admin: date/time is the edit trigger.
+           At REST it is indistinguishable from a non-admin's date/time — plain ink, no
+           colour. It used to paint both lines --bs-primary, which put 323 blue anchors down
+           the leftmost column: the loudest colour in the row, spent on its RAREST action,
+           and the only non-doctrinal colour in a layout where colour means age-group
+           identity or a win and nothing else. Blue now belongs solely to the location link,
+           which actually navigates.
+
+           The affordance arrives on hover instead — same bargain as the follow stars. Safe
+           here because this is not the hot path: scoring is a click on the score cells
+           (onScoreCellClick); this opens the FULL edit modal (reschedule / field / status),
+           which is rare and which you are already pointing at by the time it lights up. */
+        .dt-edit {
+            appearance: none;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            width: 100%;
+            padding: 0;
+            border: none;
+            background: transparent;
+            font: inherit;
+            line-height: inherit;
+            text-align: left;
+            color: inherit;
             cursor: pointer;
             border-radius: var(--radius-sm);
             transition: background-color 0.15s;
         }
 
-        .cell-dt.editable .dt-date,
-        .cell-dt.editable .dt-time { color: var(--bs-primary); }
-        .cell-dt.editable .dt-time { opacity: 0.85; }
-        .cell-dt.editable:hover    { background: var(--bs-primary-bg-subtle); }
-        .cell-dt.editable:hover .dt-date,
-        .cell-dt.editable:hover .dt-time { text-decoration: underline; }
+        .dt-edit:hover { background: var(--bs-primary-bg-subtle); }
+        .dt-edit:hover .dt-date,
+        .dt-edit:hover .dt-time { text-decoration: underline; }
 
-        .cell-dt.editable:focus-visible {
+        .dt-edit:focus-visible {
             outline: none;
             box-shadow: var(--shadow-focus);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .dt-edit { transition: none !important; }
         }
 
         /* Location */
