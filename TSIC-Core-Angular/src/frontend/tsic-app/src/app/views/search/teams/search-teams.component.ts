@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, HostListener, signal, computed, inject, ChangeDetectionStrategy, CUSTOM_ELEMENTS_SCHEMA, viewChild, viewChildren } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, signal, computed, inject, DestroyRef, ChangeDetectionStrategy, CUSTOM_ELEMENTS_SCHEMA, viewChild, viewChildren } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GridAllModule, GridComponent, PageSettingsModel, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
 import { GridRowNumbersDirective } from '@shared-ui/directives/grid-row-numbers.directive';
@@ -61,6 +61,28 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 	readonly ladtTreeRef = viewChild<LadtTreeFilterComponent>('ladtTreeRef');
 	readonly cadtTreeRef = viewChild<CadtTreeFilterComponent>('cadtTreeRef');
 	readonly multiSelects = viewChildren(MultiSelectComponent);
+
+	/**
+	 * True below the 768px breakpoint. Drives the grid's mobile column shape (see the
+	 * template) — the same job `isMobile` does in search-registrations, which is the
+	 * proven pattern for this view family.
+	 *
+	 * Differs from registrations in two deliberate ways: `matchMedia` + a `change`
+	 * listener rather than a resize handler, so it fires only when the breakpoint is
+	 * actually CROSSED instead of on every pixel of a drag; and 767.98px rather than
+	 * 767px, so it flips in lockstep with the SCSS media queries instead of
+	 * disagreeing with them across a fractional-pixel band. Registrations is left
+	 * alone — that is its own pass.
+	 */
+	readonly isMobile = signal(false);
+
+	constructor() {
+		const mql = window.matchMedia('(max-width: 767.98px)');
+		this.isMobile.set(mql.matches);
+		const onChange = (e: MediaQueryListEvent) => this.isMobile.set(e.matches);
+		mql.addEventListener('change', onChange);
+		inject(DestroyRef).onDestroy(() => mql.removeEventListener('change', onChange));
+	}
 
 	// Filter options
 	filterOptions = signal<TeamFilterOptionsDto | null>(null);

@@ -388,17 +388,25 @@
         [allowPaging]="true"
         [allowSorting]="true"
         [allowExcelExport]="true"
-        [frozenColumns]="3"
+        [frozenColumns]="isMobile() ? 1 : 3"
         [pageSettings]="pageSettings"
         [sortSettings]="sortSettings"
       >
         <e-columns>
           <!-- Row number (unbound — stamped by tsicRowNumbers; no offset binding, so the grid's
-               own pager numbers CONTINUOUSLY across pages: page 2 of 20 starts at 21) -->
-          <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"
-                    [customAttributes]="{ class: 'row-number-cell' }"></e-column>
-          <!-- Frozen columns -->
-          <e-column field="teamName" headerText="Team" width="280">
+               own pager numbers CONTINUOUSLY across pages: page 2 of 20 starts at 21).
+               Desktop only: on a phone every frozen px is swipe room, so the column is dropped
+               outright — no cells to stamp, and the directive stamps nothing. Mirrors
+               search-registrations. -->
+          @if (!isMobile()) {
+            <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"
+                      [customAttributes]="{ class: 'row-number-cell' }"></e-column>
+          }
+          <!-- Frozen columns. Desktop freezes #/Team/Active = 50+280+95 = 425px, which is MORE
+               than a 390px phone is wide — the grid could not be scrolled at all. On mobile
+               only Team stays frozen, at 200px, leaving ~190px of swipe area for everything
+               else. -->
+          <e-column field="teamName" headerText="Team" [width]="isMobile() ? 200 : 280">
             <ng-template #template let-data>
               <a href="javascript:void(0)" (click)="openDetail(data.teamId)"
                  class="detail-link"
