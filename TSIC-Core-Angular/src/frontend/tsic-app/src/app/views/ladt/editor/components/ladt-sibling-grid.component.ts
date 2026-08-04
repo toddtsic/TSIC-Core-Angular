@@ -48,7 +48,7 @@ export interface ParentBreadcrumb {
       [textWrapSettings]="{ wrapMode: 'Header' }"
       [frozenColumns]="frozenCount()"
       [enableStickyHeader]="true"
-      [rowHeight]="32"
+      [rowHeight]="rowHeight()"
       [allowSelection]="true"
       (rowDataBound)="onRowDataBound($event)"
       (rowSelected)="onRowSelect($event)"
@@ -193,6 +193,21 @@ export interface ParentBreadcrumb {
                     } @else {
                       <span class="text-body-tertiary">—</span>
                     }
+                  }
+                }
+                @case ('identity') {
+                  <!-- Two fields stacked in one cell (mobile team level: club over team).
+                       No club → the secondary is promoted, so the cell never renders a
+                       blank first line above the only value it has. -->
+                  @if (data[col.field]) {
+                    <span class="id-stack">
+                      <span class="id-primary">{{ data[col.field] }}</span>
+                      <span class="id-secondary">{{ data[col.secondaryField ?? ''] ?? '' }}</span>
+                    </span>
+                  } @else {
+                    <span class="id-stack">
+                      <span class="id-primary">{{ data[col.secondaryField ?? ''] ?? '' }}</span>
+                    </span>
                   }
                 }
                 @default {
@@ -489,6 +504,38 @@ export interface ParentBreadcrumb {
       margin-left: var(--space-2);
       vertical-align: middle;
     }
+
+    @media (max-width: 767.98px) {
+      /* ── Stacked identity cell (type: 'identity') ──
+         Only the mobile column sets declare an identity column, so this markup cannot
+         appear on desktop — but the rules are gated on the same breakpoint anyway so
+         they are absent from desktop's stylesheet, not merely inert in it. Mirrors the
+         tree's team node (.tree-label-group / -primary / -secondary in
+         ladt.component.scss) so the grid reads the same as the tree the director came
+         from. Breakpoint must stay in step with isNarrow in ladt.component.ts. */
+
+      .id-stack {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-width: 0;
+        line-height: 1.25;
+      }
+      .id-primary,
+      .id-secondary {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .id-primary {
+        font-weight: 600;
+      }
+      .id-secondary {
+        font-size: 0.8125rem;
+        color: var(--bs-secondary-color);
+      }
+    }
+
     /* ── Fee pills ── */
 
     .fee-pills {
@@ -563,6 +610,15 @@ export class LadtSiblingGridComponent implements OnChanges {
 
   // Frozen column count (action col + frozen data cols)
   frozenCount = computed(() => countFrozenColumns(this.columns()));
+
+  /**
+   * 32px fits one line of text; an `identity` column stacks two, so the row grows to 48.
+   * Derived from the COLUMN SET rather than the viewport on purpose: only the mobile sets
+   * carry an `identity` column, so no desktop column set can reach 48 — the desktop row
+   * height is provably the same 32 it has always been, with no viewport logic in this
+   * component at all.
+   */
+  rowHeight = computed(() => this.columns().some(c => c.type === 'identity') ? 48 : 32);
 
   // Uniform action column width — fits pencil + ⋮ menu (nav badges moved into menu)
   actionColWidth(): number {

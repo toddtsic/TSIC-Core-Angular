@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, AfterViewChecked, HostListener, signal, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, AfterViewChecked, HostListener, signal, computed, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CdkTreeModule } from '@angular/cdk/tree';
 import { Observable, forkJoin } from 'rxjs';
@@ -16,7 +16,7 @@ import { TsicDialogComponent } from '../../../shared-ui/components/tsic-dialog/t
 import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
 import { FormsModule } from '@angular/forms';
 import {
-  COLUMNS_BY_LEVEL, ID_FIELD_BY_LEVEL,
+  COLUMNS_BY_LEVEL, MOBILE_COLUMNS_BY_LEVEL, ID_FIELD_BY_LEVEL,
   type LadtColumnDef
 } from './configs/ladt-grid-columns';
 import type { ParentBreadcrumb } from './components/ladt-sibling-grid.component';
@@ -128,6 +128,28 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     return { waitlisted, nonWaitlisted, scheduled };
   });
 
+  /**
+   * True below the 768px breakpoint — the sibling grid then uses the mobile column sets.
+   *
+   * Live, not read once: a director who rotates a phone mid-edit crosses the breakpoint,
+   * and a stale column set would leave the grid panning horizontally with no way back.
+   * `matchMedia` rather than a resize listener because the browser only fires it when the
+   * breakpoint is actually CROSSED, not on every pixel of a resize drag.
+   *
+   * This is the whole viewport dependency for the grid — `ladt-sibling-grid` itself has
+   * none. Above 768px `isNarrow()` is false and every downstream value is byte-identical
+   * to what it was before this existed.
+   */
+  readonly isNarrow = signal(false);
+
+  constructor() {
+    const mql = window.matchMedia('(max-width: 767.98px)');
+    this.isNarrow.set(mql.matches);
+    const onChange = (e: MediaQueryListEvent) => this.isNarrow.set(e.matches);
+    mql.addEventListener('change', onChange);
+    inject(DestroyRef).onDestroy(() => mql.removeEventListener('change', onChange));
+  }
+
   // Show club column only when there are 2+ distinct clubs in the job
   showClubColumn = computed(() => {
     const clubs = new Set<string>();
@@ -202,7 +224,29 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
 
   // Sibling grid state
   siblingData = signal<any[]>([]);
-  siblingColumns = signal<LadtColumnDef[]>([]);
+  /** Level whose siblings the grid is showing; -1 before the first selection. */
+  siblingLevel = signal(-1);
+
+  /**
+   * Derived, not set by `loadSiblings()`, so that crossing the 768px breakpoint (rotating a
+   * phone) re-picks the column set instead of leaving whatever was chosen at load time.
+   */
+  siblingColumns = computed<LadtColumnDef[]>(() => {
+    const level = this.siblingLevel();
+    if (level < 0) return [];
+
+    const narrow = this.isNarrow();
+    let cols = narrow ? MOBILE_COLUMNS_BY_LEVEL[level] : COLUMNS_BY_LEVEL[level];
+
+    // Hide the club column at team level when the job has 0-1 distinct clubs — a column
+    // repeating one value, or none, is dead width. Desktop only: the mobile set's club
+    // field IS its identity column, and that cell already promotes the team name when
+    // there is no club, so filtering it here would leave teams with no name at all.
+    if (level === 3 && !narrow && !this.showClubColumn()) {
+      cols = cols.filter(c => c.field !== 'clubName');
+    }
+    return cols;
+  });
   siblingIdField = signal('');
   siblingLevelLabel = signal('');
   siblingLevelIcon = signal('bi-list');
@@ -637,12 +681,9 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
 
   private loadSiblings(node: LadtFlatNode): void {
     const level = node.level;
-    let cols = COLUMNS_BY_LEVEL[level];
-    // Hide club column at team level when there's only 0-1 distinct clubs
-    if (level === 3 && !this.showClubColumn()) {
-      cols = cols.filter(c => c.field !== 'clubName');
-    }
-    this.siblingColumns.set(cols);
+    // Columns are derived from this (see the siblingColumns computed) so the set tracks
+    // the viewport, not just the moment of selection.
+    this.siblingLevel.set(level);
     this.siblingIdField.set(ID_FIELD_BY_LEVEL[level]);
     this.siblingLevelLabel.set(this.getLevelLabel(level));
     this.siblingLevelIcon.set(this.getLevelIcon(level));

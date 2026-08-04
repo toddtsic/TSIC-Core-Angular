@@ -7,12 +7,20 @@
 export interface LadtColumnDef {
   field: string;
   header: string;
-  type: 'string' | 'number' | 'boolean' | 'currency' | 'date' | 'dateOnly' | 'fees' | 'modifier' | 'phase';
+  type: 'string' | 'number' | 'boolean' | 'currency' | 'date' | 'dateOnly' | 'fees' | 'modifier' | 'phase' | 'identity';
   group?: string;
   frozen?: boolean;
   width?: string;
   /** When set, renders a color swatch dot using the value from this field on the row */
   colorField?: string;
+  /**
+   * `type: 'identity'` only — the value stacked UNDER `field` in a single cell. A team is
+   * identified by club AND team name together, which is 320px as two columns and does not
+   * fit a phone; stacked it is ~210px. Mirrors how the tree already renders a team node
+   * (.tree-label-group in ladt.component.html), so the grid reads the same as the tree the
+   * director just came from.
+   */
+  secondaryField?: string;
   /**
    * When set, the header renders an ⓘ info-tooltip beside the label (AM-038:
    * "3rd Party" meant nothing to Ann without a gloss). NOTE: tooltip columns
@@ -128,6 +136,57 @@ export const COLUMNS_BY_LEVEL: LadtColumnDef[][] = [
   AGEGROUP_COLUMNS,
   DIVISION_COLUMNS,
   TEAM_COLUMNS,
+];
+
+// ── Mobile ──
+//
+// Below 768px the sibling grid is an IDENTIFY-AND-TAP surface, not a comparison
+// surface: the director finds the right row and taps it to open the fly-in, which
+// is where every edit happens anyway. So each level keeps only what distinguishes
+// one row from its siblings.
+//
+// Sized against a 390px viewport (iPhone 12/13/14/15 and the narrowest phone worth
+// supporting). The 64px action column is always frozen, so a level's data columns
+// must total under ~326px or the grid pans horizontally.
+//
+// The team level is the reason this exists: club + team as two frozen columns is
+// 64 + 160 + 160 = 384px on a 390px screen, leaving ~6px of scrollable area — the
+// grid was unusable. Stacked as one `identity` cell it is 274px total.
+//
+// Nothing here is `frozen`: with no horizontal overflow there is nothing to freeze
+// against, and the frozen region is pure cost.
+
+const LEAGUE_COLUMNS_MOBILE: LadtColumnDef[] = [
+  { field: 'leagueName', header: 'League', type: 'string', width: '210px' },
+  { field: 'sportName', header: 'Sport', type: 'string', width: '110px' },
+];
+
+const AGEGROUP_COLUMNS_MOBILE: LadtColumnDef[] = [
+  { field: 'agegroupName', header: 'Age Group', type: 'string', width: '190px', colorField: 'color' },
+  { field: 'gender', header: 'M/F', type: 'string', width: '70px' },
+];
+
+const DIVISION_COLUMNS_MOBILE: LadtColumnDef[] = [
+  { field: 'divName', header: 'Division', type: 'string', width: '190px' },
+  { field: 'maxRoundNumberToShow', header: 'Max Round#', type: 'number', width: '75px' },
+];
+
+const TEAM_COLUMNS_MOBILE: LadtColumnDef[] = [
+  // Club is PRIMARY and team SECONDARY, matching the tree's team node — the
+  // director is two taps from having seen exactly that pairing.
+  { field: 'clubName', header: 'Team', type: 'identity', secondaryField: 'teamName', width: '210px' },
+  { field: 'playerCount', header: 'Players', type: 'number', width: '100px' },
+];
+
+/**
+ * Maps hierarchy level (0-3) to its mobile column definitions. Applied by
+ * `loadSiblings()` when the viewport is under 768px; desktop never reads this.
+ */
+export const MOBILE_COLUMNS_BY_LEVEL: LadtColumnDef[][] = [
+  LEAGUE_COLUMNS_MOBILE,
+  AGEGROUP_COLUMNS_MOBILE,
+  DIVISION_COLUMNS_MOBILE,
+  TEAM_COLUMNS_MOBILE,
 ];
 
 /** Maps hierarchy level (0-3) to the DTO's primary key field */

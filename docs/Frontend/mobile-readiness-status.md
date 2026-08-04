@@ -45,7 +45,7 @@ stays out of individual commits until the per-component pattern has proven itsel
 
 | Component | Phase 1 | Phase 2 | Phase 3 | Task it must support | Notes |
 |---|---|---|---|---|---|
-| `ladt/editor` | ✅ `4b4cd4f6` | ✅ `5172e204` | ⏸ awaiting go/no-go | A director fixes a division | Device pass outstanding. See below. |
+| `ladt/editor` | ✅ `4b4cd4f6` | ✅ `5172e204` | ✅ mobile column sets | A director fixes a division | Device pass outstanding. See below. |
 | `search/registrations` | ✅ pre-programme | — | — | Find and edit a registrant | Fly-in contract + filters drawer already anchored |
 | `search/teams` | n/a | n/a | n/a | — | `// mobile-readiness: desktop-only` — container is `display:none` below 768px |
 | everything else | ⬜ | ⬜ | ⬜ | *unnamed* | Name the task before starting |
@@ -58,7 +58,15 @@ stays out of individual commits until the per-component pattern has proven itsel
 - `4b4cd4f6` (Phase 1) — tree add/remove un-gated from `:hover` (**the blocker**); tree targets
   20×20→40×40 and 22px→40px rows; clickable colour dot 12px→24×24; drawer →`min(90vw, 360px)`;
   16px inputs in all four detail components
-- `5172e204` (Phase 2) — row ⋮ menu clamped into the viewport, mobile-only
+- `5172e204` (Phase 2) — row ⋮ menu clamped into the viewport, later extended to desktop in
+  `20491d56` (the bug was never mobile-only; the mobile-first fix was the cautious half)
+- Phase 3 — `MOBILE_COLUMNS_BY_LEVEL`: below 768px the sibling grid becomes an
+  identify-and-tap surface rather than a comparison surface. Team level was the reason —
+  club + team as two frozen columns is 384px on a 390px screen, leaving ~6px of scrollable
+  area. Stacked into one `identity` cell (club over team, matching the tree node the
+  director just tapped) the level totals 274px with no frozen region and no horizontal pan.
+  Row height derives from the column set (`identity` present → 48px), not the viewport, so
+  no desktop column set can reach it.
 
 **Deliberately not fixed**
 - Grid action buttons stay 24×24 — already meet SC 2.5.8 Level AA. Inflating them would be
@@ -68,9 +76,8 @@ stays out of individual commits until the per-component pattern has proven itsel
   another carries real regression risk for no user-visible gain.
 
 **Open**
-- **Phase 3 go/no-go**: team level has 64 + 160 + 160 = **384px of frozen columns on a 390px
-  viewport**, leaving ~6px of scrollable area. Division level fits fine at 319px. The route is
-  low-risk — `loadSiblings()` already filters columns conditionally, and `frozenCount` is
-  computed from `columns()` so it follows automatically, touching no ej2 API — but it changes
-  `siblingColumns` from a signal to a computed, which is outside what the fingerprint proves.
-- **No device pass yet.** Phase 1 is a claim about touch; only a phone settles it.
+- **No device pass yet.** Every phase so far is a claim about touch; only a phone settles it.
+- Phase 3's one unproven edge: `[rowHeight]` is an ej2 input, and ej2 may not repaint row
+  heights until its next data bind. Crossing 768px mid-session also swaps the column set,
+  which does force a rebind — but that ordering is inferred, not observed. Rotate a phone at
+  team level during the device pass and confirm rows are not clipped.
