@@ -63,8 +63,22 @@ export class SchedulingChecklistComponent implements OnInit {
             linkLabel: 'Pool Assignment'
         };
 
-        const dates: StepRow = {
+        const pairings: StepRow = {
             num: 2,
+            title: 'Pairings',
+            icon: 'bi-arrow-left-right',
+            state: c.pairings.complete ? 'done' : 'info',
+            reason: c.pairings.complete
+                ? 'All pool sizes have pairings'
+                : `Missing for pool size${c.pairings.missingPoolSizes.length === 1 ? '' : 's'} `
+                    + `${c.pairings.missingPoolSizes.join(', ')} — generated automatically at build`,
+            route: 'pairings',
+            queryParams: null,
+            linkLabel: 'Pairings'
+        };
+
+        const dates: StepRow = {
+            num: 3,
             title: 'Assign Play Dates',
             icon: 'bi-calendar3',
             state: c.dates.complete ? 'done' : 'todo',
@@ -77,7 +91,7 @@ export class SchedulingChecklistComponent implements OnInit {
         };
 
         const fields: StepRow = {
-            num: 3,
+            num: 4,
             title: 'Assign Fields',
             icon: 'bi-geo-alt',
             state: c.fields.complete ? 'done' : 'todo',
@@ -90,7 +104,7 @@ export class SchedulingChecklistComponent implements OnInit {
         };
 
         const rules: StepRow = {
-            num: 4,
+            num: 5,
             title: 'Set Game Guarantees',
             icon: 'bi-sliders',
             state: c.rules.complete ? 'done' : 'todo',
@@ -100,20 +114,6 @@ export class SchedulingChecklistComponent implements OnInit {
             route: 'schedule-hub',
             queryParams: null,
             linkLabel: 'Build Rules'
-        };
-
-        const pairings: StepRow = {
-            num: 5,
-            title: 'Pairings',
-            icon: 'bi-arrow-left-right',
-            state: c.pairings.complete ? 'done' : 'info',
-            reason: c.pairings.complete
-                ? 'All pool sizes have pairings'
-                : `Missing for pool size${c.pairings.missingPoolSizes.length === 1 ? '' : 's'} `
-                    + `${c.pairings.missingPoolSizes.join(', ')} — generated automatically at build`,
-            route: 'pairings',
-            queryParams: null,
-            linkLabel: 'Pairings'
         };
 
         const blockers = [
@@ -138,7 +138,7 @@ export class SchedulingChecklistComponent implements OnInit {
             linkLabel: 'Schedule Hub'
         };
 
-        return [pools, dates, fields, rules, pairings, build];
+        return [pools, pairings, dates, fields, rules, build];
     });
 
     readonly tools: ToolRow[] = [
