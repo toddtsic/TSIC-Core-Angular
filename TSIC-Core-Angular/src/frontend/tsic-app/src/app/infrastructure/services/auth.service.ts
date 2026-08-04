@@ -184,6 +184,22 @@ export class AuthService {
   }
 
   /**
+   * Drop the one-shot caches so the next role-selection visit re-fetches.
+   *
+   * The registration list is fetched ONCE per browser session (see the guard above) and was
+   * otherwise reset only by logout. That is fine while the set of jobs is fixed, and wrong the
+   * moment this session creates or destroys one: deleting a job navigates straight to
+   * role-selection, which then re-rendered the cached array — deleted job still listed, looking
+   * like the delete had failed. Call this from any flow that changes which jobs the account can
+   * open; it does NOT fetch, so the next `loadAvailableRegistrations()` does the work on the
+   * screen that needs it.
+   */
+  invalidateRegistrationsCache(): void {
+    this._registrationsFetched = false;
+    this._suggestedEventsFetched = false;
+  }
+
+  /**
    * Role-selection helper — Jobs the user has prior history with (as a
    * Family or as a ClubRep) but no active registration in. Backend picks
    * the audience (player-reg-open vs team-reg-open) from history. Empty

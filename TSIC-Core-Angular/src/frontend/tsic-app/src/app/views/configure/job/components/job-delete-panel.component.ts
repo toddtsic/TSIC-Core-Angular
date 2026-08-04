@@ -132,6 +132,14 @@ export class JobDeletePanelComponent implements OnInit {
 				// so /tsic/role-selection is bounced straight back to user.jobPath — i.e. back
 				// into the job that was just deleted, which is exactly the bug this replaces.
 				// Same-path keeps the mismatch branch from firing at all.
+				//
+				// Role-selection's list is fetched once per browser session and was reset only
+				// on logout, so landing there straight after a delete re-rendered the CACHED
+				// array with the deleted job still in it. It reads as a delete that silently
+				// failed — the one reading the cache makes impossible to distinguish from the
+				// truth. Drop it here, before navigating, so the screen refetches on arrival.
+				this.auth.invalidateRegistrationsCache();
+
 				const jobPath = this.auth.currentUser()?.jobPath;
 				this.toast.show('Job deleted. Select a job to continue.', 'success', 5000);
 				this.router.navigate([`/${jobPath ?? 'tsic'}/role-selection`]);

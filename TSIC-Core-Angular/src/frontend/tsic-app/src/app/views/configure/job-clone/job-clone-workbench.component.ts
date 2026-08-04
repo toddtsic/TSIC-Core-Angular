@@ -482,6 +482,11 @@ export class JobCloneWorkbenchComponent implements OnInit {
 		this.cloneService.cloneJob(request).subscribe({
 			next: response => {
 				this.toast.show(`Cloned to ${response.newJobPath}`, 'success');
+				// The clone minted this actor a registration on a job that did not exist when
+				// role-selection's list was fetched (once, at login). Without this the new job
+				// is missing from "Open a Registration" for the rest of the session — the same
+				// staleness that makes a deleted job linger there, in the other direction.
+				this.authService.invalidateRegistrationsCache();
 				// Land IN the new job, on its home page. Everything a new job needs is a
 				// normal settings screen — registration flags, administrators, branding,
 				// TSIC-Events visibility — so there is no release sequence to walk, and
