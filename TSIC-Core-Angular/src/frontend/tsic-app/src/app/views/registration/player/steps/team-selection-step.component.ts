@@ -100,8 +100,12 @@ const JOB_TYPE_TOURNAMENT = 2;
                     @if (getAvailableTeamDtos(pid).length > 5) {
                       <div class="camp-filter">
                         <i class="bi bi-search camp-filter-icon"></i>
+                        <!-- AM-084: "Filter events..." named the control, not the job. This
+                             prompts the action and names the goal without promising which
+                             fields match — the filter reads team, division and agegroup, and
+                             which of those is meaningful varies by job. -->
                         <input type="text" class="camp-filter-input"
-                               placeholder="Filter events..."
+                               placeholder="Start typing to find an event"
                                [value]="getCampFilter(pid)"
                                (input)="setCampFilter(pid, $any($event.target).value)">
                         @if (getCampFilter(pid)) {
