@@ -95,41 +95,53 @@
 
 			<section class="jc-panel">
 				<h3>Dates</h3>
-				<p class="jc-hint">All four are seeded from the source job plus one year. Leave an event
-					date blank to keep the shifted source value.</p>
-				<div class="jc-grid">
-					<label class="field-label">Admin expiry
-						<input class="field-input" type="date" [ngModel]="expiryAdmin()" (ngModelChange)="set(expiryAdmin, $event)" />
-					</label>
-					<label class="field-label">User expiry
-						<input class="field-input" type="date" [ngModel]="expiryUsers()" (ngModelChange)="set(expiryUsers, $event)" />
-					</label>
-					<label class="field-label">Event start
-						<input class="field-input" type="date" [ngModel]="eventStartDate()" (ngModelChange)="set(eventStartDate, $event)" />
-					</label>
-					<label class="field-label">Event end
-						<input class="field-input" type="date" [ngModel]="eventEndDate()" (ngModelChange)="set(eventEndDate, $event)"
-							[class.is-invalid]="eventEndInPast() || eventDatesInverted()" />
-					</label>
+				<!-- AM-080/075 (Ann): the expiry pair and the event pair do not behave alike, so one
+				     caption over all four read as if they did. Each pair now carries its own hint,
+				     directly above the fields it describes. -->
+				<div class="jc-date-group">
+					<p class="jc-hint">Expiry Dates are seeded from the source job plus one year.</p>
+					<div class="jc-grid">
+						<label class="field-label">Admin expiry
+							<input class="field-input" type="date" [ngModel]="expiryAdmin()" (ngModelChange)="set(expiryAdmin, $event)" />
+						</label>
+						<label class="field-label">User expiry
+							<input class="field-input" type="date" [ngModel]="expiryUsers()" (ngModelChange)="set(expiryUsers, $event)" />
+						</label>
+					</div>
 				</div>
-				<!-- The end date decides whether the new job reads as OVER. Shifted forward from an
-				     older event it can land in the past, and a job born concluded shows no
-				     registration links at all. Flagged here immediately; the server repeats it in
-				     the plan warnings so a stale screen can't hide it. -->
-				@if (eventEndInPast()) {
-					<p class="warning-banner jc-field-warning" role="alert">
-						<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
-						This event end date has already passed. The new job will be treated as
-						<strong>concluded</strong> &mdash; no registration links will appear on its public
-						site, whichever registration toggles you turn on. Set it to this season's end date.
-					</p>
-				}
-				@if (eventDatesInverted()) {
-					<p class="warning-banner jc-field-warning" role="alert">
-						<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
-						The event end date is before the start date.
-					</p>
-				}
+
+				<div class="jc-date-group">
+					<p class="jc-hint">Enter Event Start and Event End only for tournaments. Player sites
+						will automatically seed the team's dates from the source job plus one year.</p>
+					<div class="jc-grid">
+						<label class="field-label">Event start
+							<input class="field-input" type="date" [ngModel]="eventStartDate()" (ngModelChange)="set(eventStartDate, $event)" />
+						</label>
+						<label class="field-label">Event end
+							<input class="field-input" type="date" [ngModel]="eventEndDate()" (ngModelChange)="set(eventEndDate, $event)"
+								[class.is-invalid]="eventEndInPast() || eventDatesInverted()" />
+						</label>
+					</div>
+					<!-- The end date decides whether the new job reads as OVER. Shifted forward from an
+					     older event it can land in the past, and a job born concluded shows no
+					     registration links at all. Flagged here immediately; the server repeats it in
+					     the plan warnings so a stale screen can't hide it. Kept inside the event group
+					     so the warning stays with the pair it is about. -->
+					@if (eventEndInPast()) {
+						<p class="warning-banner jc-field-warning" role="alert">
+							<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+							This event end date has already passed. The new job will be treated as
+							<strong>concluded</strong> &mdash; no registration links will appear on its public
+							site, whichever registration toggles you turn on. Set it to this season's end date.
+						</p>
+					}
+					@if (eventDatesInverted()) {
+						<p class="warning-banner jc-field-warning" role="alert">
+							<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+							The event end date is before the start date.
+						</p>
+					}
+				</div>
 			</section>
 
 			<section class="jc-panel">
