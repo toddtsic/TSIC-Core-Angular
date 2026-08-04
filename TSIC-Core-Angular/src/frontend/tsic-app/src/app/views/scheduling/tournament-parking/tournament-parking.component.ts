@@ -2,6 +2,7 @@ import { Component, ChangeDetectionStrategy, signal, computed, inject, OnInit } 
 import { FormsModule } from '@angular/forms';
 import { ChartAllModule, ChartComponent } from '@syncfusion/ej2-angular-charts';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
+import { ChecklistBackLinkComponent } from '../shared/components/checklist-back-link/checklist-back-link.component';
 import {
 	TournamentParkingService,
 	type TournamentParkingResponse,
@@ -18,7 +19,7 @@ function cssVar(v: string, fallback: string): string {
 @Component({
 	selector: 'app-tournament-parking',
 	standalone: true,
-	imports: [FormsModule, ChartAllModule, GridAllModule],
+	imports: [FormsModule, ChartAllModule, GridAllModule, ChecklistBackLinkComponent],
 	templateUrl: './tournament-parking.component.html',
 	styleUrl: './tournament-parking.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush

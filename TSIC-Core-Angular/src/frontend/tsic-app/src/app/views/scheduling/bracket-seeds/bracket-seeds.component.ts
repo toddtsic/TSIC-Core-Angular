@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BracketSeedService } from './services/bracket-seed.service';
 import { ViewScheduleService } from '../view-schedule/services/view-schedule.service';
+import { ChecklistBackLinkComponent } from '../shared/components/checklist-back-link/checklist-back-link.component';
 import type {
 	BracketSeedGameDto,
 	BracketSeedDivisionOptionDto,
@@ -13,7 +14,7 @@ import type {
 @Component({
 	selector: 'app-bracket-seeds',
 	standalone: true,
-	imports: [CommonModule, FormsModule],
+	imports: [CommonModule, FormsModule, ChecklistBackLinkComponent],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './bracket-seeds.component.html',
 	styleUrl: './bracket-seeds.component.scss',

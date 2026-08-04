@@ -19,6 +19,8 @@ interface ToolRow {
     title: string;
     icon: string;
     route: string;
+    /** Standalone tools (outside the scheduling shell) get ?from=scheduling so they can render a back chip. */
+    queryParams: Record<string, string> | null;
 }
 
 /**
@@ -140,13 +142,13 @@ export class SchedulingChecklistComponent implements OnInit {
     });
 
     readonly tools: ToolRow[] = [
-        { title: 'View Schedule', icon: 'bi-eye', route: '../scheduling/view-schedule' },
-        { title: 'Master Schedule', icon: 'bi-calendar-week', route: '../scheduling/master-schedule' },
-        { title: 'Rescheduler', icon: 'bi-arrow-repeat', route: '../scheduling/rescheduler' },
-        { title: 'QA Results', icon: 'bi-check2-square', route: 'qa-results' },
-        { title: 'Bracket Seeds', icon: 'bi-trophy', route: '../scheduling/bracket-seeds' },
-        { title: 'Tournament Parking', icon: 'bi-car-front', route: '../scheduling/tournament-parking' },
-        { title: 'Mobile Scorers', icon: 'bi-phone', route: '../scheduling/mobile-scorers' }
+        { title: 'View Schedule', icon: 'bi-eye', route: '../scheduling/view-schedule', queryParams: { from: 'scheduling' } },
+        { title: 'Master Schedule', icon: 'bi-calendar-week', route: '../scheduling/master-schedule', queryParams: { from: 'scheduling' } },
+        { title: 'Rescheduler', icon: 'bi-arrow-repeat', route: '../scheduling/rescheduler', queryParams: { from: 'scheduling' } },
+        { title: 'QA Results', icon: 'bi-check2-square', route: 'qa-results', queryParams: null },
+        { title: 'Bracket Seeds', icon: 'bi-trophy', route: '../scheduling/bracket-seeds', queryParams: { from: 'scheduling' } },
+        { title: 'Tournament Parking', icon: 'bi-car-front', route: '../scheduling/tournament-parking', queryParams: { from: 'scheduling' } },
+        { title: 'Mobile Scorers', icon: 'bi-phone', route: '../scheduling/mobile-scorers', queryParams: { from: 'scheduling' } }
     ];
 
     ngOnInit(): void {

@@ -20,11 +20,12 @@ import { LadtTreeFilterComponent } from '../shared/components/ladt-tree-filter/l
 import { JobFilterTreeService } from '../../../core/services/job-filter-tree.service';
 import type { CadtClubNode, LadtAgegroupNode } from '@core/api';
 import { TsicDialogComponent } from '../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
+import { ChecklistBackLinkComponent } from '../shared/components/checklist-back-link/checklist-back-link.component';
 
 @Component({
     selector: 'app-rescheduler',
     standalone: true,
-    imports: [CommonModule, FormsModule, RichTextEditorModule, ScheduleGridComponent, CadtTreeFilterComponent, LadtTreeFilterComponent, TsicDialogComponent],
+    imports: [CommonModule, FormsModule, RichTextEditorModule, ScheduleGridComponent, CadtTreeFilterComponent, LadtTreeFilterComponent, TsicDialogComponent, ChecklistBackLinkComponent],
     templateUrl: './rescheduler.component.html',
     styleUrl: './rescheduler.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush

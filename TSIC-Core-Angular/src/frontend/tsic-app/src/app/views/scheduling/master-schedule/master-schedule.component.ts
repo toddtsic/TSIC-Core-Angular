@@ -5,10 +5,12 @@ import {
 } from '@angular/core';
 import type { MasterScheduleResponse, MasterScheduleDay } from '@core/api';
 import { MasterScheduleService } from './services/master-schedule.service';
+import { ChecklistBackLinkComponent } from '../shared/components/checklist-back-link/checklist-back-link.component';
 
 @Component({
 	selector: 'app-master-schedule',
 	standalone: true,
+	imports: [ChecklistBackLinkComponent],
 	templateUrl: './master-schedule.component.html',
 	styleUrl: './master-schedule.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush,

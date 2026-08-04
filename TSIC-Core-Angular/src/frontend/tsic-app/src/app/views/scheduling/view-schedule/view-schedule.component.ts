@@ -29,6 +29,7 @@ import { ViewScheduleService } from './services/view-schedule.service';
 import { ScheduleFiltersStore } from './services/schedule-filters.store';
 import { JobFilterTreeService } from '../../../core/services/job-filter-tree.service';
 import { CadtTreeFilterComponent } from '../shared/components/cadt-tree-filter/cadt-tree-filter.component';
+import { ChecklistBackLinkComponent } from '../shared/components/checklist-back-link/checklist-back-link.component';
 import { LadtTreeFilterComponent } from '../shared/components/ladt-tree-filter/ladt-tree-filter.component';
 import { GamesTabComponent } from './components/games-tab.component';
 import { StandingsTabComponent } from './components/standings-tab.component';
@@ -73,13 +74,15 @@ interface FilterChip {
         GameClockModalComponent,
         InlineGameClockComponent,
         EventSeedToolsComponent,
-        TsicDialogComponent
+        TsicDialogComponent,
+        ChecklistBackLinkComponent
     ],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
     providers: [CheckBoxSelectionService],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <div class="view-schedule-page">
+            <app-checklist-back-link />
             <!-- Header -->
             <div class="page-header">
                 <h1 class="page-title">

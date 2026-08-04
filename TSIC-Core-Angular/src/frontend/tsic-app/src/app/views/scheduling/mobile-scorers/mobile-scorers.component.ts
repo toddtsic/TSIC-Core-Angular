@@ -4,12 +4,13 @@ import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/con
 import { ToastService } from '@shared-ui/toast.service';
 import { MobileScorersService } from './mobile-scorers.service';
 import { ScorerDialogComponent, type ScorerDialogMode } from './scorer-dialog/scorer-dialog.component';
+import { ChecklistBackLinkComponent } from '../shared/components/checklist-back-link/checklist-back-link.component';
 import type { MobileScorerDto, CreateMobileScorerRequest, UpdateMobileScorerRequest } from '@core/api';
 
 @Component({
     selector: 'app-mobile-scorers',
     standalone: true,
-    imports: [GridAllModule, ConfirmDialogComponent, ScorerDialogComponent],
+    imports: [GridAllModule, ConfirmDialogComponent, ScorerDialogComponent, ChecklistBackLinkComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './mobile-scorers.component.html',
     styleUrl: './mobile-scorers.component.scss'
