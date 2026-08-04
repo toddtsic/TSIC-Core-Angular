@@ -5,6 +5,7 @@ using Moq;
 using TSIC.API.Services.Metadata;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Adults;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Tests.AdultRegistration;

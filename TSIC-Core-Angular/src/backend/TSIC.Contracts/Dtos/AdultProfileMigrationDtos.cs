@@ -1,4 +1,22 @@
+using TSIC.Domain.Adults;
+
 namespace TSIC.Contracts.Dtos;
+
+/// <summary>
+/// The canonical adult profile the CURRENT job is configured for, derived from its
+/// <c>RegformName_Coach</c> — the same mapping Configure → Job's coach-form picker shows. Lets the
+/// Profile Editor open on the job's own profile instead of the first in the list.
+/// </summary>
+public record CurrentJobAdultProfileDto
+{
+    public required Guid JobId { get; init; }
+    public required string Profile { get; init; } = string.Empty;        // AC1 | AC2 | AC3
+    public required string DisplayName { get; init; } = string.Empty;
+    /// <summary>Whether this job collects a USA Lacrosse number, and whether it blocks registration.</summary>
+    public required AdultUsLaxMode UsLax { get; init; }
+    /// <summary>Whether this job has a materialized AdultProfileMetadataJson — i.e. whether editor saves reach it.</summary>
+    public required bool IsMaterialized { get; init; }
+}
 
 /// <summary>
 /// Summary of one canonical adult coach profile (AC1/AC2) and its usage across jobs. The adult analog of

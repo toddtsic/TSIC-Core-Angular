@@ -298,6 +298,35 @@ public class ProfileMigrationController : ControllerBase
     // USLax is an orthogonal per-job capability (a required sportAssnId), never a separate form.
     // ============================================================================
 
+    /// <summary>
+    /// The canonical adult profile the CURRENT job is configured for, derived from RegformName_Coach.
+    /// The editor opens on this instead of the first profile in the list.
+    /// </summary>
+    [HttpGet("adult/current/config")]
+    public async Task<ActionResult<CurrentJobAdultProfileDto>> GetCurrentJobAdultProfile()
+    {
+        try
+        {
+            var regIdClaim = User.FindFirst(RegIdClaim)?.Value;
+            if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+            {
+                return BadRequest(new { error = MissingRegIdMsg });
+            }
+
+            var result = await _migrationService.GetCurrentJobAdultProfileAsync(regId);
+            if (result is null)
+            {
+                return NotFound(new { error = "Current job not found" });
+            }
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get current job adult profile");
+            return StatusCode(500, new { error = "Failed to get current job adult profile", details = ex.Message });
+        }
+    }
+
     /// <summary>Summarize the canonical adult profiles (AC1/AC2): job counts, USLax counts, migration status.</summary>
     [HttpGet("adult/summary")]
     public async Task<ActionResult<List<AdultProfileSummary>>> GetAdultProfileSummaries()

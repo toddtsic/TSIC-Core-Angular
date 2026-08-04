@@ -412,17 +412,17 @@ public class JobConfigService : IJobConfigService
         var profile = AdultFormCatalog.Canonical(req.ProfileCode);
         if (!AdultFormCatalog.IsKnownProfile(profile))
             throw new ArgumentException($"Unknown coach form template '{req.ProfileCode}'.", nameof(req));
-        if (req.RequiresUsLax && !AdultFormCatalog.CanRequireUsLax(profile))
-            throw new ArgumentException($"Template '{profile}' cannot require a USA Lacrosse number.", nameof(req));
+        if (!Enum.IsDefined(req.UsLax))
+            throw new ArgumentException($"Unknown USA Lacrosse mode '{req.UsLax}'.", nameof(req));
 
-        var legacyName = AdultFormCatalog.ToLegacyRegformName(profile, req.RequiresUsLax)
+        var legacyName = AdultFormCatalog.ToLegacyRegformName(profile, req.UsLax)
             ?? throw new ArgumentException($"Unsupported template/USLax combination for '{profile}'.", nameof(req));
 
         var job = await _repo.GetJobTrackedAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Job {jobId} not found.");
 
         // Rebuild the coach role (mutates job.JsonOptions for apparel seeding) and re-sync the identity.
-        job.AdultProfileMetadataJson = _profileMigration.ComputeCoachFormSwap(job, profile, req.RequiresUsLax);
+        job.AdultProfileMetadataJson = _profileMigration.ComputeCoachFormSwap(job, profile, req.UsLax);
         job.RegformNameCoach = legacyName;
         job.Modified = DateTime.Now;
         await _repo.SaveChangesAsync(ct);
@@ -840,7 +840,7 @@ public class JobConfigService : IJobConfigService
     private static JobConfigCoachesDto MapCoaches(Jobs job)
     {
         // Derive the coach-form identity from the legacy string — the single source of truth.
-        var (profile, requiresUsLax) = AdultFormCatalog.MapLegacy(job.RegformNameCoach);
+        var (profile, usLax) = AdultFormCatalog.MapLegacy(job.RegformNameCoach);
         return new()
         {
             BRegistrationAllowStaff = job.BRegistrationAllowStaff,
@@ -848,7 +848,7 @@ public class JobConfigService : IJobConfigService
             BRegistrationAllowRecruiter = job.BRegistrationAllowRecruiter,
             AdultCoachProfileCode = profile,
             AdultCoachProfileName = AdultFormCatalog.DisplayName(profile),
-            AdultCoachRequiresUsLax = requiresUsLax,
+            AdultCoachUsLax = usLax,
             AvailableAdultCoachProfiles = s_adultCoachProfileOptions,
             // Role pairs surface their EFFECTIVE value — the same ?? fallback the render path
             // applies (AdultRegistrationService) — so the editor never shows blank while the

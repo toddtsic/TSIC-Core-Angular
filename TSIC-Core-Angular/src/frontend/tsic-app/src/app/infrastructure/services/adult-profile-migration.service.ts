@@ -6,7 +6,8 @@ import {
     AdultProfileMigrationResult,
     AdultProfileBatchMigrationReport,
     AdultMigrateAllRequest,
-    AdultRoleMetadataSet
+    AdultRoleMetadataSet,
+    CurrentJobAdultProfileDto
 } from '@core/api';
 import {
     ProfileMetadata,
@@ -171,6 +172,18 @@ export class AdultProfileMigrationService {
     // ============================================================================
     // CURRENT-JOB ADULT FORM DESIGNER (resolved from JWT regId)
     // ============================================================================
+
+    /**
+     * The canonical adult profile THIS job is configured for, derived from RegformName_Coach — the same
+     * value Configure → Job's coach-form picker shows. The editor opens on it instead of the first
+     * profile in the list, which is AC1 and was wrong for any job that isn't AC1.
+     */
+    getCurrentJobAdultProfile(onSuccess: (resp: CurrentJobAdultProfileDto) => void, onError?: (error: any) => void): void {
+        this.http.get<CurrentJobAdultProfileDto>(`${this.apiUrl}/adult/current/config`).subscribe({
+            next: resp => onSuccess(resp),
+            error: err => { if (onError) onError(err); }
+        });
+    }
 
     /** Load all three adult roles' metadata for the current job. */
     getCurrentJobAdultMetadata(onSuccess: (resp: AdultRoleMetadataResponse) => void, onError?: (error: any) => void): void {

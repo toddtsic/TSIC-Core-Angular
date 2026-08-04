@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using TSIC.API.Services.Adults;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Adults;
 using TSIC.Domain.Entities;
 
 namespace TSIC.API.Services.Metadata;
@@ -1663,7 +1664,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
                 Profile = g.Key,
                 DisplayName = AdultFormCatalog.DisplayName(g.Key),
                 JobCount = g.Count(),
-                UsLaxJobCount = g.Count(j => j.Map.RequiresUsLax),
+                UsLaxJobCount = g.Count(j => j.Map.UsLax != AdultUsLaxMode.None),
                 MigratedJobCount = g.Count(j => j.HasMetadata),
                 AllJobsMigrated = g.All(j => j.HasMetadata),
                 SampleJobNames = g.Take(5).Select(j => j.JobName ?? "Unnamed Job").ToList()
@@ -1703,18 +1704,18 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
                 if (!force && !string.IsNullOrEmpty(job.AdultProfileMetadataJson))
                     continue; // already materialized — idempotent skip
 
-                var (_, requiresUsLax) = AdultFormCatalog.MapLegacy(job.RegformNameCoach);
+                var (_, usLax) = AdultFormCatalog.MapLegacy(job.RegformNameCoach);
                 if (!dryRun)
-                    job.AdultProfileMetadataJson = MaterializeAdultForJob(job, profile, requiresUsLax);
+                    job.AdultProfileMetadataJson = MaterializeAdultForJob(job, profile, usLax);
 
                 affected.Add(job);
-                if (requiresUsLax) uslaxAffected++;
+                if (usLax != AdultUsLaxMode.None) uslaxAffected++;
             }
 
             if (!dryRun && affected.Count > 0)
                 await _repo.UpdateMultipleJobsAdultMetadataAsync(allJobs);
 
-            var anyUsLax = target.Exists(j => AdultFormCatalog.MapLegacy(j.RegformNameCoach).RequiresUsLax);
+            var anyUsLax = target.Exists(j => AdultFormCatalog.MapLegacy(j.RegformNameCoach).UsLax != AdultUsLaxMode.None);
 
             _logger.LogInformation(
                 "Adult profile {Profile}: materialized {Count} jobs ({UsLax} with USLax), DryRun={DryRun}, Force={Force}",
@@ -1730,8 +1731,8 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
                 AffectedJobIds = affected.Select(j => j.JobId).ToList(),
                 AffectedJobNames = affected.Select(j => j.JobName ?? "Unnamed Job").ToList(),
                 AffectedJobYears = affected.Select(j => j.Year ?? "").ToList(),
-                GeneratedMetadata = AdultFormCatalog.BuildRoleSet(profile, requiresUsLax: false),
-                GeneratedMetadataUsLax = anyUsLax ? AdultFormCatalog.BuildRoleSet(profile, requiresUsLax: true) : null,
+                GeneratedMetadata = AdultFormCatalog.BuildRoleSet(profile, AdultUsLaxMode.None),
+                GeneratedMetadataUsLax = anyUsLax ? AdultFormCatalog.BuildRoleSet(profile, AdultUsLaxMode.Required) : null,
                 Warnings = new List<string>(),
                 ErrorMessage = null
             };
@@ -1819,9 +1820,9 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     /// Materializes one job's full three-role adult metadata for the given profile/USLax, seeding apparel
     /// option sets into the job's JsonOptions (upsert-if-absent) for AC2. Mutates <paramref name="job"/>.JsonOptions.
     /// </summary>
-    private string MaterializeAdultForJob(Jobs job, string profile, bool requiresUsLax)
+    private string MaterializeAdultForJob(Jobs job, string profile, AdultUsLaxMode usLax)
     {
-        var roleSet = AdultFormCatalog.BuildRoleSet(profile, requiresUsLax);
+        var roleSet = AdultFormCatalog.BuildRoleSet(profile, usLax);
 
         // Seed the apparel ListSizes_* into Jobs.JsonOptions so sizes are admin-editable via the option-set
         // editor — but ONLY the sets this profile's coach form actually references (AC2 → 4 sets, AC3 →
@@ -1859,7 +1860,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     /// when the job has no (or malformed) existing blob. Mutates <paramref name="job"/>.JsonOptions; does not
     /// persist. See the interface doc for the caller contract.
     /// </summary>
-    public string ComputeCoachFormSwap(Jobs job, string profile, bool requiresUsLax)
+    public string ComputeCoachFormSwap(Jobs job, string profile, AdultUsLaxMode usLax)
     {
         profile = AdultFormCatalog.Canonical(profile);
 
@@ -1871,10 +1872,10 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
             catch { existing = null; /* malformed — rebuild from scratch */ }
         }
         if (existing is null)
-            return MaterializeAdultForJob(job, profile, requiresUsLax);
+            return MaterializeAdultForJob(job, profile, usLax);
 
         // Existing blob → rebuild the coach role only, leaving Referee/Recruiter sub-objects verbatim.
-        var coach = AdultFormCatalog.BuildRoleSet(profile, requiresUsLax).UnassignedAdult;
+        var coach = AdultFormCatalog.BuildRoleSet(profile, usLax).UnassignedAdult;
 
         // Seed only the apparel sets this coach form references (upsert-if-absent; AC1 seeds none).
         var apparelKeys = coach.Fields
@@ -1956,7 +1957,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
             };
         }
 
-        return AdultFormCatalog.BuildRoleSet(profile, requiresUsLax: false);
+        return AdultFormCatalog.BuildRoleSet(profile, AdultUsLaxMode.None);
     }
 
     /// <summary>
@@ -1964,6 +1965,27 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     /// preserving the other two roles per job. For the coach role, the incoming sportAssnId is stripped and
     /// re-composed per job from RegformName_Coach (USLax jobs keep their required sportAssnId).
     /// </summary>
+    /// <summary>
+    /// The canonical adult profile the current job is configured for. Pure derivation from
+    /// <c>RegformName_Coach</c> via <see cref="AdultFormCatalog.MapLegacy"/> — the identical mapping the
+    /// Configure → Job coach-form picker displays, so the two screens can never disagree.
+    /// </summary>
+    public async Task<CurrentJobAdultProfileDto?> GetCurrentJobAdultProfileAsync(Guid regId)
+    {
+        var jobData = await _repo.GetJobDataForRegistrationAsync(regId);
+        if (jobData == null) return null;
+
+        var (profile, usLax) = AdultFormCatalog.MapLegacy(jobData.RegformNameCoach);
+        return new CurrentJobAdultProfileDto
+        {
+            JobId = jobData.JobId,
+            Profile = profile,
+            DisplayName = AdultFormCatalog.DisplayName(profile),
+            UsLax = usLax,
+            IsMaterialized = !string.IsNullOrWhiteSpace(jobData.AdultProfileMetadataJson)
+        };
+    }
+
     public async Task<AdultProfileMigrationResult> UpdateAdultProfileRoleAsync(string profile, string roleKey, ProfileMetadata metadata)
     {
         profile = AdultFormCatalog.Canonical(profile);
@@ -1988,12 +2010,14 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
 
             foreach (var job in target)
             {
-                var (_, requiresUsLax) = AdultFormCatalog.MapLegacy(job.RegformNameCoach);
+                var (_, usLax) = AdultFormCatalog.MapLegacy(job.RegformNameCoach);
                 var roleMeta = CloneMetadata(baseMeta);
 
-                if (isCoach && requiresUsLax)
+                // Re-apply the job's own USLax capability on top of the type-scoped edit, preserving
+                // whether it blocks — an Optional job must not be silently promoted to Required.
+                if (isCoach && usLax != AdultUsLaxMode.None)
                 {
-                    roleMeta.Fields.Insert(0, AdultFormCatalog.UsLaxField());
+                    roleMeta.Fields.Insert(0, AdultFormCatalog.UsLaxField(required: usLax == AdultUsLaxMode.Required));
                     uslaxAffected++;
                 }
 

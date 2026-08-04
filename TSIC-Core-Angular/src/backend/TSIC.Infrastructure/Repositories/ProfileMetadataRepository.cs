@@ -276,7 +276,8 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
                 CoreRegformPlayer = r.Job.CoreRegformPlayer,
                 JsonOptions = r.Job.JsonOptions,
                 PlayerProfileMetadataJson = r.Job.PlayerProfileMetadataJson,
-                AdultProfileMetadataJson = r.Job.AdultProfileMetadataJson
+                AdultProfileMetadataJson = r.Job.AdultProfileMetadataJson,
+                RegformNameCoach = r.Job.RegformNameCoach
             })
             .FirstOrDefaultAsync();
     }

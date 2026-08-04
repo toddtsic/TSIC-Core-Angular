@@ -5,7 +5,7 @@ import { RichTextEditorAllModule } from '@syncfusion/ej2-angular-richtexteditor'
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { JobConfigService } from '../job-config.service';
 import { JOB_CONFIG_RTE_TOOLS, JOB_CONFIG_RTE_HEIGHT } from '../shared/rte-config';
-import type { UpdateJobConfigCoachesRequest } from '@core/api';
+import type { UpdateJobConfigCoachesRequest, AdultUsLaxMode } from '@core/api';
 
 @Component({
   selector: 'app-coaches-tab',
@@ -85,13 +85,30 @@ export class CoachesTabComponent implements OnInit {
 
   readonly availableCoachProfiles = computed(() => this.svc.coaches()?.availableAdultCoachProfiles ?? []);
 
+  /**
+   * The three USA Lacrosse states. AdultUsLaxMode generates as a bare `number`, so the values are named
+   * here rather than scattered as literals. Optional is the safe middle: the field is collected and a
+   * SUPPLIED number is still hard-validated against USA Lacrosse, but a coach without one is never
+   * blocked from registering.
+   */
+  readonly usLaxOptions: { value: AdultUsLaxMode; label: string; hint: string }[] = [
+    { value: 0, label: 'Not collected', hint: 'No USA Lacrosse field on the coach form.' },
+    {
+      value: 1, label: 'Collected — not required',
+      hint: 'Shown but optional. A number that is entered is still verified; leaving it blank never blocks registration.',
+    },
+    {
+      value: 2, label: 'Required',
+      hint: 'A coach cannot complete registration without an active USA Lacrosse membership.',
+    },
+  ];
+
   // Staged picker values — reseed from the server-derived identity whenever the config reloads.
   coachProfileCode = linkedSignal(() => this.svc.coaches()?.adultCoachProfileCode ?? '');
-  coachRequiresUsLax = linkedSignal(() => this.svc.coaches()?.adultCoachRequiresUsLax ?? false);
+  coachUsLax = linkedSignal<AdultUsLaxMode>(() => this.svc.coaches()?.adultCoachUsLax ?? 0);
 
-  /** Whether the currently-selected profile supports the USA Lacrosse capability (AC3 does not). */
-  readonly selectedProfileCanUsLax = computed(() =>
-    this.availableCoachProfiles().find(p => p.code === this.coachProfileCode())?.canRequireUsLax ?? false);
+  readonly selectedUsLaxHint = computed(() =>
+    this.usLaxOptions.find(o => o.value === this.coachUsLax())?.hint ?? '');
 
   readonly selectedProfileName = computed(() =>
     this.availableCoachProfiles().find(p => p.code === this.coachProfileCode())?.name ?? this.coachProfileCode());
@@ -101,26 +118,24 @@ export class CoachesTabComponent implements OnInit {
     const c = this.svc.coaches();
     if (!c) return false;
     return this.coachProfileCode() !== c.adultCoachProfileCode
-      || (this.selectedProfileCanUsLax() && this.coachRequiresUsLax()) !== c.adultCoachRequiresUsLax;
+      || this.coachUsLax() !== c.adultCoachUsLax;
   });
 
   showSwapConfirm = signal(false);
 
   onCoachProfileChange(code: string): void {
+    // No coercion: USLax now rides on a RegformName_Coach pipe token rather than on the choice of
+    // legacy form name, so every profile — AC3 included — can carry it.
     this.coachProfileCode.set(code);
-    // AC3 can't carry a USLax number — coerce the flag off so a stale check doesn't ride along.
-    if (!this.selectedProfileCanUsLax()) this.coachRequiresUsLax.set(false);
   }
 
-  readonly swapConfirmMessage = computed(() =>
-    `Rebuild this job's coach form to <strong>${this.selectedProfileName()}</strong>`
-    + `${this.effectiveRequiresUsLax() ? ' <em>(with USA Lacrosse number)</em>' : ''}?`
-    + `<br><br>This replaces any custom-added fields on the coach form. `
-    + `Referee and Recruiter forms are unaffected.`);
-
-  private effectiveRequiresUsLax(): boolean {
-    return this.selectedProfileCanUsLax() && this.coachRequiresUsLax();
-  }
+  readonly swapConfirmMessage = computed(() => {
+    const usLax = this.usLaxOptions.find(o => o.value === this.coachUsLax());
+    return `Rebuild this job's coach form to <strong>${this.selectedProfileName()}</strong>`
+      + `, USA Lacrosse number <strong>${(usLax?.label ?? '').toLowerCase()}</strong>?`
+      + `<br><br>This replaces any custom-added fields on the coach form. `
+      + `Referee and Recruiter forms are unaffected.`;
+  });
 
   requestSwap(): void {
     if (this.coachFormDirty()) this.showSwapConfirm.set(true);
@@ -130,7 +145,7 @@ export class CoachesTabComponent implements OnInit {
     this.showSwapConfirm.set(false);
     this.svc.swapCoachFormTemplate({
       profileCode: this.coachProfileCode(),
-      requiresUsLax: this.effectiveRequiresUsLax(),
+      usLax: this.coachUsLax(),
     });
   }
 

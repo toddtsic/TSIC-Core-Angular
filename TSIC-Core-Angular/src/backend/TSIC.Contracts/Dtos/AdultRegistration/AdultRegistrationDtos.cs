@@ -194,6 +194,13 @@ public record AdultRegJobData
     /// <summary>Director gate for college-recruiter self-registration. Null/false = closed.</summary>
     public required bool BRegistrationAllowRecruiter { get; init; }
     public string? AdultProfileMetadataJson { get; init; }
+    /// <summary>
+    /// The job's coach-form identity (<c>Jobs.RegformName_Coach</c>). Carried so the registration read
+    /// path can DERIVE the adult form from the job's AC profile when
+    /// <see cref="AdultProfileMetadataJson"/> has never been materialized — the same
+    /// <c>AdultFormCatalog.MapLegacy</c> mapping Configure → Job's coach-form picker displays.
+    /// </summary>
+    public string? RegformNameCoach { get; init; }
     public string? JsonOptions { get; init; }
     public string? AdultRegConfirmationEmail { get; init; }
     public string? AdultRegConfirmationOnScreen { get; init; }

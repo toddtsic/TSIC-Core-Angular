@@ -73,18 +73,16 @@
               }
             </select>
 
-            <div class="form-check mt-2">
-              <input class="form-check-input" type="checkbox" id="coachUsLax"
-                [ngModel]="coachRequiresUsLax()"
-                (ngModelChange)="coachRequiresUsLax.set($event)"
-                [disabled]="!svc.isSuperUser() || !selectedProfileCanUsLax()" />
-              <label class="form-check-label" for="coachUsLax">
-                Require USA Lacrosse #
-                @if (!selectedProfileCanUsLax()) {
-                  <span class="text-muted small">— not available for this form</span>
-                }
-              </label>
-            </div>
+            <label class="field-label mt-3" for="coachUsLax">USA Lacrosse Number</label>
+            <select class="form-select field-input" id="coachUsLax"
+              [ngModel]="coachUsLax()"
+              (ngModelChange)="coachUsLax.set($event)"
+              [disabled]="!svc.isSuperUser()">
+              @for (o of usLaxOptions; track o.value) {
+                <option [ngValue]="o.value">{{ o.label }}</option>
+              }
+            </select>
+            <div class="text-muted small mt-1">{{ selectedUsLaxHint() }}</div>
 
             @if (svc.isSuperUser()) {
               <button type="button" class="btn btn-warning btn-sm mt-3"

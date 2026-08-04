@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, signal, computed, inject, OnInit } 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdultProfileMigrationService } from '@infrastructure/services/adult-profile-migration.service';
+import type { CurrentJobAdultProfileDto } from '@core/api';
 import { ProfileMetadata, ProfileMetadataField, ValidationTestResult, AdultRoleKey } from '@infrastructure/view-models/profile-migration.models';
 import { FieldSetEditorComponent } from '../field-set-editor/field-set-editor.component';
 import { ADULT_ALLOWED_FIELDS } from '../adult-allowed-fields';
@@ -69,14 +70,35 @@ export class AdultProfileEditorPanelComponent implements OnInit {
     testResult = signal<ValidationTestResult | null>(null);
     isTesting = signal(false);
 
+    /** The profile THIS job is configured for (Configure → Job → Coaches), or null if unresolved. */
+    currentJobProfile = signal<CurrentJobAdultProfileDto | null>(null);
+
+    /**
+     * Open on the CURRENT job's profile, not the first in the list. The list is ordered AC1-first, so the
+     * old `summaries[0]` default silently showed AC1's fields to anyone editing an AC2 or AC3 job.
+     * Falls back to the first profile when there is no job context or no matching summary.
+     */
     ngOnInit(): void {
         this.isLoading.set(true);
+        this.service.getCurrentJobAdultProfile(
+            resp => {
+                this.currentJobProfile.set(resp);
+                this.loadSummariesAndSelect(resp.profile);
+            },
+            () => this.loadSummariesAndSelect(null)
+        );
+    }
+
+    private loadSummariesAndSelect(preferred: string | null): void {
         this.service.loadAdultSummaries(summaries => {
-            if (summaries.length > 0 && !this.selectedProfile()) {
-                this.selectProfile(summaries[0].profile);
-            } else {
+            if (summaries.length === 0 || this.selectedProfile()) {
                 this.isLoading.set(false);
+                return;
             }
+            const match = preferred
+                ? summaries.find(s => s.profile.toLowerCase() === preferred.toLowerCase())
+                : undefined;
+            this.selectProfile((match ?? summaries[0]).profile);
         });
     }
 

@@ -3,13 +3,14 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { AdultCoachProfileOptionDto } from './AdultCoachProfileOptionDto';
+import type { AdultUsLaxMode } from './AdultUsLaxMode';
 export type JobConfigCoachesDto = {
     bRegistrationAllowStaff: boolean | null;
     bRegistrationAllowReferee: boolean | null;
     bRegistrationAllowRecruiter: boolean | null;
     adultCoachProfileCode: string;
     adultCoachProfileName: string;
-    adultCoachRequiresUsLax: boolean;
+    adultCoachUsLax: AdultUsLaxMode;
     availableAdultCoachProfiles: Array<AdultCoachProfileOptionDto>;
     coachRegConfirmationEmail: string | null;
     coachRegConfirmationOnScreen: string | null;

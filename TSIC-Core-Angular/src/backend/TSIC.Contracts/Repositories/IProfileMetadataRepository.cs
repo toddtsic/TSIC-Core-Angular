@@ -203,4 +203,6 @@ public record RegistrationJobProjection
     public string? JsonOptions { get; init; }
     public string? PlayerProfileMetadataJson { get; init; }
     public string? AdultProfileMetadataJson { get; init; }
+    /// <summary>Coach-form identity — maps to the canonical AC profile via AdultFormCatalog.MapLegacy.</summary>
+    public string? RegformNameCoach { get; init; }
 }

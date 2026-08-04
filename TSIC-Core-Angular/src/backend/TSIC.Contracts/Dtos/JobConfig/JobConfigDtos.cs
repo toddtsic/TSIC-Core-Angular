@@ -1,3 +1,5 @@
+using TSIC.Domain.Adults;
+
 namespace TSIC.Contracts.Dtos.JobConfig;
 
 // ════════════════════════════════════════════════════════════════
@@ -335,7 +337,8 @@ public record JobConfigCoachesDto
     // string is intentionally NOT surfaced; the picker shows/edits the mapped profile instead.
     public required string AdultCoachProfileCode { get; init; }
     public required string AdultCoachProfileName { get; init; }
-    public required bool AdultCoachRequiresUsLax { get; init; }
+    /// <summary>None / Optional / Required — the USA Lacrosse capability, carried as a RegformName_Coach pipe token.</summary>
+    public required AdultUsLaxMode AdultCoachUsLax { get; init; }
     public required IReadOnlyList<AdultCoachProfileOptionDto> AvailableAdultCoachProfiles { get; init; }
 
     // CoachReg pair = coach persona. The AdultReg confirmation pair (club-rep/team-reg copy)
@@ -382,7 +385,11 @@ public record UpdateJobConfigCoachesRequest
 public record UpdateCoachFormTemplateRequest
 {
     public required string ProfileCode { get; init; }
-    public required bool RequiresUsLax { get; init; }
+    /// <summary>
+    /// None = no USA Lacrosse field; Optional = collected but never blocking; Required = a coach cannot
+    /// register without an active membership. Persisted as a pipe token on RegformName_Coach.
+    /// </summary>
+    public required AdultUsLaxMode UsLax { get; init; }
 }
 
 // ════════════════════════════════════════════════════════════════

@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos;
+using TSIC.Domain.Adults;
 
 namespace TSIC.API.Services.Adults;
 
@@ -65,49 +66,92 @@ public static class AdultFormCatalog
     // (a) Legacy → canonical mapping
     // ────────────────────────────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Maps a legacy <c>RegformName_Coach</c> value to (canonical profile, requiresUsLax). Mirrors the exact
-    /// legacy routing in <c>StartARegistrationController</c>: only <c>StaffSTEPS</c>/<c>StaffLaxValidate</c>/
-    /// <c>StaffLaxValidatePlus</c>/<c>StaffASL</c> are special-cased; everything else (incl. <c>CP-STEPS</c>,
-    /// <c>RegAdult_WANTTOCOACH_RegForm</c>, the two "Default" spellings, and null/empty) falls to the base
-    /// coach form (AC1).
-    /// </summary>
-    public static (string Profile, bool RequiresUsLax) MapLegacy(string? regformNameCoach)
-    {
-        var v = (regformNameCoach ?? string.Empty).Trim();
+    // ── USLax pipe tokens on RegformName_Coach ──
+    // The capability is encoded as a suffix token — "StaffSTEPS|USLAX-R" — mirroring the pipe encoding
+    // Jobs.CoreRegformPlayer already uses for the player side ("PP27|BYGRADYEAR"). varchar(50) has ample
+    // headroom: the longest form name is 28 chars and the longest token adds 9.
+    public const string UsLaxRequiredToken = "USLAX-R";
+    public const string UsLaxOptionalToken = "USLAX-NR";
 
-        if (Eq(v, "StaffSTEPS")) return (AC2, false);            // full apparel (jersey/shorts/waist/shoe)
-        if (Eq(v, "StaffLaxValidatePlus")) return (AC2, true);   // full apparel + USLax
-        if (Eq(v, "StaffLaxValidate")) return (AC1, true);       // base + USLax
-        if (Eq(v, "StaffASL")) return (AC3, false);              // shirt + shoe ONLY (legacy StaffASL subset)
+    /// <summary>
+    /// Maps a <c>RegformName_Coach</c> value to (canonical profile, USLax mode).
+    ///
+    /// <para>The value is <c>formName[|TOKEN…]</c>. The form name is matched exactly as the legacy routing
+    /// in <c>StartARegistrationController</c> does: only <c>StaffSTEPS</c>/<c>StaffLaxValidate</c>/
+    /// <c>StaffLaxValidatePlus</c>/<c>StaffASL</c> are special-cased; everything else (incl.
+    /// <c>CP-STEPS</c>, <c>RegAdult_WANTTOCOACH_RegForm</c>, the two "Default" spellings, and null/empty)
+    /// falls to the base coach form (AC1).</para>
+    ///
+    /// <para><b>Precedence:</b> an explicit USLax token always wins. With no token the form name supplies
+    /// the default, so the legacy USLax names keep meaning what they always meant.</para>
+    /// </summary>
+    public static (string Profile, AdultUsLaxMode UsLax) MapLegacy(string? regformNameCoach)
+    {
+        var raw = (regformNameCoach ?? string.Empty).Trim();
+
+        // Split the identity from its capability tokens. Must happen BEFORE the name match — an
+        // un-split piped value would miss every case below and silently downgrade the job to AC1.
+        var parts = raw.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var formName = parts.Length > 0 ? parts[0] : string.Empty;
+
+        AdultUsLaxMode? explicitMode = null;
+        for (var i = 1; i < parts.Length; i++)
+        {
+            if (Eq(parts[i], UsLaxRequiredToken)) explicitMode = AdultUsLaxMode.Required;
+            else if (Eq(parts[i], UsLaxOptionalToken)) explicitMode = AdultUsLaxMode.Optional;
+        }
+
+        var (profile, nameDefault) = MapFormName(formName);
+        return (profile, explicitMode ?? nameDefault);
+    }
+
+    /// <summary>The bare form name's (profile, default USLax mode), ignoring any tokens.</summary>
+    private static (string Profile, AdultUsLaxMode UsLax) MapFormName(string formName)
+    {
+        if (Eq(formName, "StaffSTEPS")) return (AC2, AdultUsLaxMode.None);                    // full apparel
+        if (Eq(formName, "StaffLaxValidatePlus")) return (AC2, AdultUsLaxMode.Required);      // full apparel + USLax
+        if (Eq(formName, "StaffLaxValidate")) return (AC1, AdultUsLaxMode.Required);          // base + USLax
+        if (Eq(formName, "StaffASL")) return (AC3, AdultUsLaxMode.None);                      // shirt + shoe subset
 
         // Default "Staff" base coach form: RegAdult_WANTTOCOACH_RegForm, Defalt_Form, Default_Form,
         // CP-STEPS, and anything unrecognized.
-        return (AC1, false);
+        return (AC1, AdultUsLaxMode.None);
     }
 
     /// <summary>
-    /// Whether a profile supports the USA-Lacrosse capability overlay. AC3 (the legacy StaffASL shirt+shoe
-    /// subset) does not: no legacy <c>RegformName_Coach</c> value maps to (AC3, USLax), so the per-job
-    /// picker (which persists the choice by writing back a legacy string via <see cref="ToLegacyRegformName"/>)
-    /// cannot represent that combination. Historically that form never carried a USLax number.
+    /// Whether a profile supports the USA-Lacrosse capability overlay. Now true for every profile: the
+    /// capability rides on a pipe token rather than on the choice of form name, so AC3 + USLax — previously
+    /// unrepresentable, since no legacy name encoded that pair — is expressible like any other combination.
     /// </summary>
-    public static bool CanRequireUsLax(string profile) => !Eq(Canonical(profile), AC3);
+    public static bool CanRequireUsLax(string profile) => IsKnownProfile(profile);
 
     /// <summary>
-    /// Reverse of <see cref="MapLegacy"/>: the canonical legacy <c>RegformName_Coach</c> string for a
-    /// (profile, requiresUsLax) pair, chosen so <c>MapLegacy</c> round-trips back to the same pair. Returns
-    /// <c>null</c> for the one unrepresentable combination (AC3 + USLax). Used by the per-job coach-form
-    /// picker to keep the immutable legacy identity field in sync with the re-materialized blob without a
-    /// schema change.
+    /// Reverse of <see cref="MapLegacy"/>: the <c>RegformName_Coach</c> string for a (profile, USLax mode)
+    /// pair, chosen so <c>MapLegacy</c> round-trips back to the same pair. Every combination is now
+    /// representable, so this returns <c>null</c> only for an unknown profile.
+    ///
+    /// <para>The mode is always written as an explicit token — never left implicit in a legacy name — so
+    /// there is exactly ONE representation of each state and no ambiguity between
+    /// <c>StaffLaxValidate</c> and <c>Default_Form|USLAX-R</c>.</para>
     /// </summary>
-    public static string? ToLegacyRegformName(string profile, bool requiresUsLax) => Canonical(profile) switch
+    public static string? ToLegacyRegformName(string profile, AdultUsLaxMode usLax)
     {
-        AC1 => requiresUsLax ? "StaffLaxValidate" : "Default_Form",
-        AC2 => requiresUsLax ? "StaffLaxValidatePlus" : "StaffSTEPS",
-        AC3 => requiresUsLax ? null : "StaffASL",
-        _ => null
-    };
+        var baseName = Canonical(profile) switch
+        {
+            AC1 => "Default_Form",
+            AC2 => "StaffSTEPS",
+            AC3 => "StaffASL",
+            _ => null
+        };
+        if (baseName is null) return null;
+
+        return usLax switch
+        {
+            AdultUsLaxMode.Required => $"{baseName}|{UsLaxRequiredToken}",
+            AdultUsLaxMode.Optional => $"{baseName}|{UsLaxOptionalToken}",
+            _ => baseName
+        };
+    }
 
     // ────────────────────────────────────────────────────────────────────────────────────
     // (b) Materialize the three-role set for a job
@@ -115,28 +159,31 @@ public static class AdultFormCatalog
 
     /// <summary>
     /// Builds the full role-keyed adult metadata (UnassignedAdult/Referee/Recruiter) for a job of the given
-    /// profile. The coach (UnassignedAdult) block carries the profile's substantive fields, with a required
-    /// <c>sportAssnId</c> prepended iff <paramref name="requiresUsLax"/>. Referee and Recruiter are uniform.
-    /// Every field is fully formed (camelCase Name, PascalCase DbColumn, Order, Visibility, Validation, and —
-    /// for apparel SELECTs — inline Options + a matching <c>ListSizes_*</c> DataSource).
+    /// profile. The coach (UnassignedAdult) block carries the profile's substantive fields, with a
+    /// <c>sportAssnId</c> prepended when <paramref name="usLax"/> is not <see cref="AdultUsLaxMode.None"/>.
+    /// Referee and Recruiter are uniform. Every field is fully formed (camelCase Name, PascalCase DbColumn,
+    /// Order, Visibility, Validation, and — for apparel SELECTs — inline Options + a matching
+    /// <c>ListSizes_*</c> DataSource).
     /// </summary>
-    public static AdultRoleMetadataSet BuildRoleSet(string profile, bool requiresUsLax) => new()
+    public static AdultRoleMetadataSet BuildRoleSet(string profile, AdultUsLaxMode usLax) => new()
     {
-        UnassignedAdult = BuildCoach(Canonical(profile), requiresUsLax),
+        UnassignedAdult = BuildCoach(Canonical(profile), usLax),
         Referee = BuildReferee(),
         Recruiter = BuildRecruiter()
     };
 
-    private static ProfileMetadata BuildCoach(string profile, bool requiresUsLax)
+    private static ProfileMetadata BuildCoach(string profile, AdultUsLaxMode usLax)
     {
         var fields = new List<ProfileMetadataField>();
         var order = 1;
 
-        // USLax capability (orthogonal to the profile): a required USA Lacrosse number. Its presence is what
-        // drives MetadataRequiresUsLax server-side and the inline 2FA UI (frontend isUsLaxField: name==='sportassnid').
-        if (requiresUsLax)
+        // USLax capability (orthogonal to the profile). Presence drives the inline 2FA UI (frontend
+        // isUsLaxField: name==='sportassnid'); REQUIREDNESS is what UsLaxMetadataPolicy.RequiresUsLax reads,
+        // so Optional shows the field and hard-validates a supplied number without ever blocking a coach
+        // who has none.
+        if (usLax != AdultUsLaxMode.None)
         {
-            fields.Add(UsLaxField(order++));
+            fields.Add(UsLaxField(order++, required: usLax == AdultUsLaxMode.Required));
         }
 
         // Apparel: sizes carried as legacy option lists (inline Options + per-job ListSizes_*).
@@ -266,7 +313,7 @@ public static class AdultFormCatalog
         new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "sportAssnId", "sportAssnIdexpDate" };
 
     /// <summary>The required USA Lacrosse number field prepended to a coach form when USLax is on.</summary>
-    public static ProfileMetadataField UsLaxField(int order = 1) => new()
+    public static ProfileMetadataField UsLaxField(int order = 1, bool required = true) => new()
     {
         Name = "sportAssnId",
         DbColumn = "SportAssnId",
@@ -274,7 +321,7 @@ public static class AdultFormCatalog
         InputType = "TEXT",
         Order = order,
         Visibility = "public",
-        Validation = new FieldValidation { Required = true, MinLength = 7, MaxLength = 12 }
+        Validation = new FieldValidation { Required = required, MinLength = 7, MaxLength = 12 }
     };
 
     // ── helpers ──

@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos;
+using TSIC.Domain.Adults;
 using TSIC.Domain.Entities;
 
 namespace TSIC.API.Services.Metadata;
@@ -39,6 +40,14 @@ public interface IProfileMetadataMigrationService
     Task<string> GenerateAdultMigrationSqlScriptAsync();
 
     // Adult profile editor (type-scoped, mirrors the player profile editor)
+
+    /// <summary>
+    /// The canonical adult profile the CURRENT job is configured for, derived from its
+    /// <c>RegformName_Coach</c>. Lets the editor open on the job's own profile instead of defaulting to
+    /// the first in the list (AC1), which silently misled anyone editing a job that is not AC1.
+    /// </summary>
+    Task<CurrentJobAdultProfileDto?> GetCurrentJobAdultProfileAsync(Guid regId);
+
     Task<AdultRoleMetadataSet> GetAdultProfileMetadataAsync(string profile);
     Task<AdultProfileMigrationResult> UpdateAdultProfileRoleAsync(string profile, string roleKey, ProfileMetadata metadata);
 
@@ -50,5 +59,5 @@ public interface IProfileMetadataMigrationService
     /// compute — does NOT persist and does NOT touch RegformName_Coach; the caller writes the reverse-mapped
     /// legacy identity (<see cref="Adults.AdultFormCatalog.ToLegacyRegformName"/>) and saves.
     /// </summary>
-    string ComputeCoachFormSwap(Jobs job, string profile, bool requiresUsLax);
+    string ComputeCoachFormSwap(Jobs job, string profile, AdultUsLaxMode usLax);
 }

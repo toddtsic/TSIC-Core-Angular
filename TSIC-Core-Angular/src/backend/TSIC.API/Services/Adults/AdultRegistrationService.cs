@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Identity;
 using TSIC.API.Services.Metadata;
 using TSIC.Application.Services.Shared.Html;
@@ -173,10 +175,12 @@ public class AdultRegistrationService : IAdultRegistrationService
 
         List<JobRegFieldDto> fields;
 
-        if (!string.IsNullOrWhiteSpace(jobData.AdultProfileMetadataJson))
+        var roleKey = GetRoleKey(roleType);
+        var metadataJson = ResolveAdultMetadataJson(jobData, roleKey);
+
+        if (!string.IsNullOrWhiteSpace(metadataJson))
         {
-            var roleKey = GetRoleKey(roleType);
-            var parsed = _metadataService.ParseForRole(jobData.AdultProfileMetadataJson, roleKey, jobData.JsonOptions);
+            var parsed = _metadataService.ParseForRole(metadataJson, roleKey, jobData.JsonOptions);
 
             fields = parsed.TypedFields.Select(tf => new JobRegFieldDto
             {
@@ -451,9 +455,9 @@ public class AdultRegistrationService : IAdultRegistrationService
         // registration (jersey/shoe/sportAssnId/etc.) — the same reflection map the save path uses,
         // run in reverse. Without this, only teams + the note rehydrated and the size selects came
         // back blank on return.
-        var schemaFields = !string.IsNullOrWhiteSpace(jobData.AdultProfileMetadataJson)
-            ? _metadataService.ParseForRole(jobData.AdultProfileMetadataJson, GetRoleKey(roleType), jobData.JsonOptions).TypedFields
-            : [];
+        var rehydrateRoleKey = GetRoleKey(roleType);
+        var schemaFields = _metadataService.ParseForRole(
+            ResolveAdultMetadataJson(jobData, rehydrateRoleKey), rehydrateRoleKey, jobData.JsonOptions).TypedFields;
 
         var mapped = schemaFields
             .Where(f => !string.IsNullOrWhiteSpace(f.Name))
@@ -510,10 +514,12 @@ public class AdultRegistrationService : IAdultRegistrationService
 
         // Profile fields: metadata-configured, or fallback per role.
         List<JobRegFieldDto> fields;
-        if (!string.IsNullOrWhiteSpace(jobData.AdultProfileMetadataJson))
+        var metaKey = GetRoleKey(roleType);
+        var roleMetadataJson = ResolveAdultMetadataJson(jobData, metaKey);
+
+        if (!string.IsNullOrWhiteSpace(roleMetadataJson))
         {
-            var metaKey = GetRoleKey(roleType);
-            var parsed = _metadataService.ParseForRole(jobData.AdultProfileMetadataJson, metaKey, jobData.JsonOptions);
+            var parsed = _metadataService.ParseForRole(roleMetadataJson, metaKey, jobData.JsonOptions);
 
             fields = parsed.TypedFields.Select(tf => new JobRegFieldDto
             {
@@ -1242,7 +1248,8 @@ public class AdultRegistrationService : IAdultRegistrationService
         if (formValues != null && formValues.Count > 0)
         {
             var roleKey = GetRoleKey(roleType);
-            var nameToProperty = FormValueMapper.BuildFieldNameToPropertyMapForRole(jobData.AdultProfileMetadataJson, roleKey);
+            var nameToProperty = FormValueMapper.BuildFieldNameToPropertyMapForRole(
+                ResolveAdultMetadataJson(jobData, roleKey), roleKey);
             var writableProps = FormValueMapper.BuildWritablePropertyMap();
             FormValueMapper.ApplyFormValues(registration, formValues, nameToProperty, writableProps);
         }
@@ -1619,6 +1626,92 @@ public class AdultRegistrationService : IAdultRegistrationService
         _ => "UnassignedAdult"
     };
 
+    // ── Effective adult form resolution ───────────────────────────────────────────────
+    // THE chokepoint. Every read of the adult form — render, rehydrate, validate, save-map —
+    // goes through ResolveAdultMetadataJson. Reading Jobs.AdultProfileMetadataJson directly
+    // here is the bug this replaces: it is NULL on every unmaterialized job, so the job's
+    // AC1/AC2/AC3 setting was ignored and a generic fallback rendered instead.
+
+    private static readonly JsonSerializerOptions s_CamelCase = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
+    /// <summary>
+    /// Catalog-derived forms, keyed by canonical profile. The catalog is static and the derived path
+    /// never carries USLax, so this holds at most three entries for the life of the process.
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, string> s_DerivedAdultForms =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The role-keyed adult metadata this job's registration should actually use.
+    ///
+    /// <para>A materialized <c>Jobs.AdultProfileMetadataJson</c> ALWAYS wins when it carries fields for
+    /// the requested role, so hand customization and per-job option sets are never overridden. The check
+    /// is per ROLE, not per job: a blob written before Referee/Recruiter existed still derives those two.</para>
+    ///
+    /// <para>Otherwise the form is DERIVED from the job's profile identity
+    /// (<c>Jobs.RegformName_Coach</c> → <see cref="AdultFormCatalog.MapLegacy"/>) — the same mapping
+    /// Configure → Job's coach-form picker displays. That column is <c>NOT NULL</c> on every job, so every
+    /// job resolves to a real form whether or not it has ever been materialized.</para>
+    ///
+    /// <para>The USLax capability rides along, because it is now carried explicitly by a
+    /// <c>RegformName_Coach</c> pipe token (<c>|USLAX-R</c> / <c>|USLAX-NR</c>) rather than inferred. Absent
+    /// token ⇒ <see cref="AdultUsLaxMode.None"/>, so no job gains a USA Lacrosse field it was not already
+    /// configured for.</para>
+    /// </summary>
+    private static string? ResolveAdultMetadataJson(AdultRegJobData jobData, string roleKey)
+    {
+        if (RoleHasFields(jobData.AdultProfileMetadataJson, roleKey))
+            return jobData.AdultProfileMetadataJson;
+
+        var (profile, usLax) = AdultFormCatalog.MapLegacy(jobData.RegformNameCoach);
+        return s_DerivedAdultForms.GetOrAdd(
+            $"{AdultFormCatalog.Canonical(profile)}|{usLax}",
+            _ => BuildDerivedAdultForm(profile, usLax));
+    }
+
+    /// <summary>True when the stored blob carries at least one field for this role. Malformed ⇒ derive.</summary>
+    private static bool RoleHasFields(string? roleKeyedJson, string roleKey)
+    {
+        if (string.IsNullOrWhiteSpace(roleKeyedJson)) return false;
+        try
+        {
+            using var doc = JsonDocument.Parse(roleKeyedJson);
+            return doc.RootElement.ValueKind == JsonValueKind.Object
+                && doc.RootElement.TryGetProperty(roleKey, out var roleEl)
+                && roleEl.ValueKind == JsonValueKind.Object
+                && roleEl.TryGetProperty("fields", out var fieldsEl)
+                && fieldsEl.ValueKind == JsonValueKind.Array
+                && fieldsEl.GetArrayLength() > 0;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Serializes the catalog's three-role set for a profile into the same role-keyed shape the stored
+    /// column uses. Root keys are written literally (PascalCase role keys); field properties are camelCase
+    /// because <c>ProfileMetadataService.BuildField</c> reads them case-sensitively.
+    /// </summary>
+    private static string BuildDerivedAdultForm(string profile, AdultUsLaxMode usLax)
+    {
+        var roleSet = AdultFormCatalog.BuildRoleSet(profile, usLax);
+        var root = new JsonObject
+        {
+            [AdultMetadataRoleKeys.UnassignedAdult] =
+                JsonNode.Parse(JsonSerializer.Serialize(roleSet.UnassignedAdult, s_CamelCase)),
+            [AdultMetadataRoleKeys.Referee] =
+                JsonNode.Parse(JsonSerializer.Serialize(roleSet.Referee, s_CamelCase)),
+            [AdultMetadataRoleKeys.Recruiter] =
+                JsonNode.Parse(JsonSerializer.Serialize(roleSet.Recruiter, s_CamelCase))
+        };
+        return root.ToJsonString();
+    }
+
     private static string GetRoleDisplayName(AdultRoleType roleType) => roleType switch
     {
         AdultRoleType.UnassignedAdult => "Coach / Volunteer",
@@ -1633,7 +1726,8 @@ public class AdultRegistrationService : IAdultRegistrationService
         var errors = new List<AdultValidationErrorDto>();
 
         var roleKey = GetRoleKey(roleType);
-        var parsed = _metadataService.ParseForRole(jobData.AdultProfileMetadataJson, roleKey, jobData.JsonOptions);
+        var parsed = _metadataService.ParseForRole(
+            ResolveAdultMetadataJson(jobData, roleKey), roleKey, jobData.JsonOptions);
 
         var formValues = request.FormValues ?? new();
 

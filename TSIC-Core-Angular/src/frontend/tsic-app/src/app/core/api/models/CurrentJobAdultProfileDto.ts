@@ -3,8 +3,11 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { AdultUsLaxMode } from './AdultUsLaxMode';
-export type UpdateCoachFormTemplateRequest = {
-    profileCode: string;
+export type CurrentJobAdultProfileDto = {
+    jobId: string;
+    profile: string;
+    displayName: string;
     usLax: AdultUsLaxMode;
+    isMaterialized: boolean;
 };
 
