@@ -26,6 +26,10 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
+  // AM-081: anchors the appResizablePanel handle, which is absolutely positioned
+  // on the panel's right inner edge. 280px stays the floor; the directive writes
+  // the live width inline and remembers it in localStorage.
+  position: relative;
 }
 
 .tree-header {
@@ -560,7 +564,12 @@
     // At level 3 the inline indent (level * 20 + 8 = 68px) plus a 40px toggle left almost
     // nothing for the label in 300px. min-width:0 so 90vw can still win on a 320px phone —
     // the base rule's 280px min-width would otherwise pin it wider than the viewport allows.
-    width: min(90vw, 360px);
+    // !important defends the drawer against the global mobile rule that ships with
+    // appResizablePanel (`[appResizablePanel] { width: 100vw !important }`,
+    // styles/_flyin.scss) — that rule exists to stop a stored DESKTOP width leaking
+    // onto a phone, but here it would also stretch the drawer to full-bleed and
+    // discard the 360px cap this block deliberately sets.
+    width: min(90vw, 360px) !important;
     min-width: 0;
     transform: translateX(-100%);
     transition: transform 0.25s ease;

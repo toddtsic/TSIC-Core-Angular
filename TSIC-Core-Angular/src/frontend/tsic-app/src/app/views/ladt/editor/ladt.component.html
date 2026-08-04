@@ -28,7 +28,12 @@
   }
 
   <!-- Tree panel (left) -->
-  <aside class="tree-panel" [class.drawer-open]="drawerOpen()">
+  <!-- AM-081 (Ann): 280px clipped every team name and there was no way to read one in full.
+       Same appResizablePanel used by this screen's detail panel, anchored left so the handle
+       sits on the tree's right edge; width persists per-user, double-click resets to 280. -->
+  <aside class="tree-panel" [class.drawer-open]="drawerOpen()"
+         appResizablePanel storageKey="ladtTreeWidth" panelSide="left"
+         [defaultWidth]="280" [minWidth]="280" [maxWidth]="560">
     <div class="tree-header">
       <h6 class="mb-0" title="Leagues, Age Groups, Divisions, Teams">LADT Tree</h6>
       <div class="tree-stats">
