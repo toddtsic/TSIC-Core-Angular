@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, input } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 /**
@@ -14,7 +14,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
     imports: [RouterLink],
     template: `
         @if (visible) {
-            <a class="checklist-back" routerLink="../scheduling">
+            <a class="checklist-back" [routerLink]="target()">
                 <i class="bi bi-arrow-left"></i>
                 Scheduling Checklist
             </a>
@@ -45,6 +45,9 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 })
 export class ChecklistBackLinkComponent {
     private readonly route = inject(ActivatedRoute);
+
+    /** Relative route back to the checklist — hosts deeper than one route level override this. */
+    readonly target = input('../scheduling');
 
     readonly visible = this.route.snapshot.queryParamMap.get('from') === 'scheduling';
 }

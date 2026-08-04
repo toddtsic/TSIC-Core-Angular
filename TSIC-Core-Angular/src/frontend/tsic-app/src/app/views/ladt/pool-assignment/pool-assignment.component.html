@@ -1,16 +1,10 @@
 <div class="pool-assignment-container">
 
+  <app-checklist-back-link target="../../scheduling" />
+
   <!-- Header -->
   <div class="pool-header">
-    <div class="d-flex align-items-center gap-2">
-      @if (cameFromScheduling) {
-        <a class="btn btn-sm btn-outline-secondary" routerLink="../../scheduling"
-           title="Back to Scheduling Checklist">
-          <i class="bi bi-arrow-left"></i>
-        </a>
-      }
-      <h5 class="mb-0">Team Pool Assignment</h5>
-    </div>
+    <h5 class="mb-0">Team Pool Assignment</h5>
     <div class="d-flex gap-2">
       @if (isLacrosseJob()) {
         <a class="btn btn-sm btn-outline-primary" routerLink="../../tools/uslax-rankings">
