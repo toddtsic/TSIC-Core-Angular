@@ -652,9 +652,22 @@ type ScheduleRow =
 
         .loc-link:hover { text-decoration: underline; }
 
+        /* Raised by a relative offset, NOT by vertical-align: super.
+           "super" shifts the glyph's BOX, and a raised box grows the line box upward. The
+           cell is a grid item under align-items: center, so a box that got taller on top is
+           re-centred by pushing its text baseline DOWN — the location link sat ~2px below
+           the pool label and the team names on every row that HAD a maps link (rows without
+           one render a plain span with no icon and sat correctly, which is what made it read
+           as the link being low rather than the icon being tall).
+
+           position: relative offsets paint only: the line box is still measured from the
+           un-offset position, so the row's baseline is untouched. -0.35em of the icon's own
+           0.6rem is ~3px — tune that one number to taste, it cannot move anything else. */
         .loc-icon {
             font-size: 0.6rem;
-            vertical-align: super;
+            vertical-align: baseline;
+            position: relative;
+            top: -0.35em;
             opacity: 0.6;
         }
 
