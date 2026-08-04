@@ -582,17 +582,17 @@ export const routes: Routes = [
 				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], title: 'Mobile Scorers', helpKey: 'mobile-scorers' },
 				loadComponent: () => import('./views/scheduling/mobile-scorers/mobile-scorers.component').then(m => m.MobileScorersComponent)
 			},
-			// Scheduling — pipeline shell (dashboard + steps)
+			// Scheduling — shell (checklist front door + steps)
 			{
 				path: 'scheduling',
 				canActivate: [authGuard],
 				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
-				loadComponent: () => import('./views/scheduling/dashboard/scheduling-shell.component').then(m => m.SchedulingShellComponent),
+				loadComponent: () => import('./views/scheduling/shell/scheduling-shell.component').then(m => m.SchedulingShellComponent),
 				children: [
 					{
 						path: '',
-						data: { helpKey: 'scheduling-dashboard' },
-						loadComponent: () => import('./views/scheduling/dashboard/scheduling-dashboard.component').then(m => m.SchedulingDashboardComponent)
+						data: { helpKey: 'scheduling-checklist' },
+						loadComponent: () => import('./views/scheduling/checklist/scheduling-checklist.component').then(m => m.SchedulingChecklistComponent)
 					},
 					{
 						path: 'fields',

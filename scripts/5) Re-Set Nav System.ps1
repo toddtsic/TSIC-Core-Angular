@@ -134,7 +134,7 @@ $rulesCampSales          = '{"jobTypes":["Camp Registration","Sales Venue"]}'
 # (see -Standalone in the manifest) and carry their gate rule inline on the leaf,
 # so the L1 section-rule mechanism does not apply to them.
 $sectionRules = @{
-    'Scheduling'  = $rulesTournamentLeague
+    # 'Scheduling' is a -Standalone leaf as of 2026-08-04 — its T/L gate rides inline
     'Officials'   = $rulesTournamentLeague
     'USA Lacrosse' = $rulesLacrosse
 }
@@ -150,7 +150,6 @@ $sectionRules = @{
 # (Configure = this job; TSIC Admin = the platform/other tenants). No "Tools".
 # Excluded by design:
 #   - parameterized routes (e.g. arb/update-cc/:registrationId)
-#   - the scheduling shell index (loads dashboard; not a discrete action)
 #   - public/anonymous routes (no admin guard)
 $adminManifest = @(
     # -- 1. Search ---------------------------------------------------------
@@ -181,19 +180,16 @@ $adminManifest = @(
     (New-AdminItem 'Teams & Rosters' 'diagram-3' 3 'Camp Day/Night Groups' 'sun'              'tools/camp-groups'    6 1 1 1 $rulesCampSales)
     (New-AdminItem 'Teams & Rosters' 'diagram-3' 3 'Check-In'              'clipboard-check'  'tools/checkin'        7 1 1 1 '{"jobTypes":["Tournament Scheduling","League Scheduling","Camp Registration"]}' 'NEW')
 
-    # -- 4. Scheduling (section-gated to Tournament/League via $sectionRules) -
-    # Schedule Hub leads the section as the entry-point dashboard with a NEW chip.
-    (New-AdminItem 'Scheduling' 'trophy' 4 'Schedule Hub'       'house-door'      'scheduling/schedule-hub'       1  1 1 1 -Badge 'NEW')
-    (New-AdminItem 'Scheduling' 'trophy' 4 'View Schedule'      'eye'             'scheduling/view-schedule'      2  1 1 1)
-    (New-AdminItem 'Scheduling' 'trophy' 4 'Bracket Seeds'      'trophy'          'scheduling/bracket-seeds'      3  1 1 1)
-    (New-AdminItem 'Scheduling' 'trophy' 4 'Master Schedule'    'calendar-week'   'scheduling/master-schedule'    4  1 1 1)
-    (New-AdminItem 'Scheduling' 'trophy' 4 'Rescheduler'        'arrow-repeat'    'scheduling/rescheduler'        5  1 1 1)
-    (New-AdminItem 'Scheduling' 'trophy' 4 'Tournament Parking' 'car-front'       'scheduling/tournament-parking' 6  1 1 1)
-    (New-AdminItem 'Scheduling' 'trophy' 4 'Mobile Scorers'     'phone'           'scheduling/mobile-scorers'     7  1 1 1 $rulesMobileEnabled)
-    (New-AdminItem 'Scheduling' 'trophy' 4 'Fields'             'geo-alt'         'scheduling/fields'             8  1 1 1)
-    (New-AdminItem 'Scheduling' 'trophy' 4 'Pairings'           'arrows-collapse' 'scheduling/pairings'           9  1 1 1)
-    (New-AdminItem 'Scheduling' 'trophy' 4 'Timeslots'          'clock'           'scheduling/timeslots'          10 1 1 1)
-    (New-AdminItem 'Scheduling' 'trophy' 4 'QA Results'         'check2-square'   'scheduling/qa-results'         11 1 1 1)
+    # -- 4. Scheduling — ONE front door (2026-08-04) -----------------------
+    # The Scheduling Checklist (shell index route) is the single entry point:
+    # ordered steps with live readiness deep-linking to pools/dates/fields/hub,
+    # plus a Tools section that unlocks post-build (View/Master/Rescheduler/QA/...).
+    # The former 11-item section (Schedule Hub, View Schedule, Fields, Timeslots,
+    # Pairings, QA, ...) was deliberately retired — every destination is reachable
+    # from the checklist in workflow order. Standalone leaf: a one-child dropdown
+    # is pure friction, so it renders as a direct top-level link with the
+    # Tournament/League gate inline.
+    (New-AdminItem 'Scheduling' 'list-check' 4 'Scheduling Checklist' 'list-check' 'scheduling' 1 1 1 1 $rulesTournamentLeague -Standalone)
 
     # -- 5. Officials (referee ops; split from Scheduling, same T/L gate) --
     (New-AdminItem 'Officials' 'person-check' 5 'Referee Assignment' 'clipboard-check' 'scheduling/referee-assignment' 1 1 1 1)

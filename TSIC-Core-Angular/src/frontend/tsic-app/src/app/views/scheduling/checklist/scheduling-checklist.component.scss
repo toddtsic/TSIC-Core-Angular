@@ -1,0 +1,169 @@
+// Scheduling Checklist — page dialect comes from shared _utilities.scss
+// (.page-header/.page-title/.badge-count/.list-empty-state). Only the step
+// rows and tool grid are local.
+
+.checklist-section {
+    margin-top: var(--space-4);
+}
+
+.checklist-section-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--brand-text-muted);
+    margin-bottom: var(--space-2);
+}
+
+.tools-hint {
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+    margin-left: var(--space-2);
+    font-style: italic;
+}
+
+.step-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.step-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border: 1px solid var(--brand-border);
+    border-radius: var(--radius-md);
+    background: var(--brand-surface);
+}
+
+.step-num {
+    flex: 0 0 auto;
+    width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-weight: 600;
+    background: var(--bs-secondary-bg);
+    color: var(--brand-text);
+}
+
+.step-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.step-title {
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.step-title-icon {
+    color: var(--brand-text-muted);
+}
+
+.step-reason {
+    font-size: 0.875rem;
+    color: var(--brand-text-muted);
+    overflow-wrap: anywhere;
+}
+
+.step-action {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.step-action:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+}
+
+// State accents — icon + border pair with the color so state never rides on color alone
+.step-done {
+    border-left: 4px solid var(--bs-success);
+
+    .step-num {
+        background: var(--bs-success);
+        color: #fff;
+    }
+}
+
+.step-todo {
+    border-left: 4px solid var(--bs-warning);
+}
+
+.step-locked {
+    border-left: 4px solid var(--brand-border);
+    opacity: 0.75;
+
+    .step-num {
+        color: var(--brand-text-muted);
+    }
+}
+
+.step-info {
+    border-left: 4px solid var(--bs-info);
+}
+
+.tool-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+    gap: var(--space-2);
+}
+
+.tool-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border: 1px solid var(--brand-border);
+    border-radius: var(--radius-md);
+    background: var(--brand-surface);
+    color: var(--brand-text);
+    text-decoration: none;
+    font-weight: 500;
+
+    i {
+        color: var(--brand-text-muted);
+    }
+}
+
+a.tool-card:hover {
+    border-color: var(--bs-primary);
+    color: var(--bs-primary);
+
+    i {
+        color: var(--bs-primary);
+    }
+}
+
+a.tool-card:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+}
+
+.tool-card-disabled {
+    opacity: 0.5;
+}
+
+@media (max-width: 576px) {
+    .step-row {
+        flex-wrap: wrap;
+    }
+
+    .step-action {
+        margin-left: calc(2rem + var(--space-3));
+    }
+}

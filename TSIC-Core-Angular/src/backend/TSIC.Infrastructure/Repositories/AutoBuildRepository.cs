@@ -309,11 +309,19 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
     public async Task<int> GetUnassignedActiveTeamCountAsync(
         Guid jobId, CancellationToken ct = default)
     {
+        // Unpooled = no division OR parked in the "Unassigned" holding division that
+        // TeamPlacementService creates per agegroup. The original DivId==null-only check
+        // reported PoolsAssigned=true for jobs where every team sat in a named
+        // "Unassigned" division — which the build engine then silently skipped.
+        // WAITLIST/Dropped agegroups are system buckets and never count.
         return await _context.Teams
             .AsNoTracking()
             .Where(t => t.JobId == jobId
                         && t.Active == true
-                        && t.DivId == null
+                        && t.Agegroup != null
+                        && !t.Agegroup!.AgegroupName!.StartsWith("WAITLIST")
+                        && !t.Agegroup!.AgegroupName!.StartsWith("DROPPED")
+                        && (t.DivId == null || t.Div!.DivName == DivisionConstants.Unassigned)
                         && t.TeamName != "Unassigned"
                         && t.TeamName != "WAITLIST"
                         && t.TeamName != "DROPPED")
@@ -356,6 +364,48 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
             return [];
 
         // Resolve agegroup names
+        return await _context.Agegroups
+            .AsNoTracking()
+            .Where(a => missingIds.Contains(a.AgegroupId))
+            .Select(a => a.AgegroupName ?? "")
+            .OrderBy(n => n)
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<string>> GetAgegroupsMissingFieldAssignmentsAsync(
+        Guid jobId, string season, string year, CancellationToken ct = default)
+    {
+        // Mirror of GetAgegroupsMissingTimeslotDatesAsync against field assignments:
+        // an agegroup with dates but zero TimeslotsLeagueSeasonFields rows passes the
+        // date check yet gives the engine no field to place a single game on.
+        var agegroupIdsWithTeams = await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId
+                        && t.Active == true
+                        && t.DivId != null
+                        && t.Agegroup != null
+                        && !t.Agegroup!.AgegroupName!.StartsWith("WAITLIST")
+                        && !t.Agegroup!.AgegroupName!.StartsWith("DROPPED")
+                        && t.Div != null
+                        && t.Div!.DivName != DivisionConstants.Unassigned)
+            .Select(t => t.AgegroupId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var agegroupIdsWithFields = await _context.TimeslotsLeagueSeasonFields
+            .AsNoTracking()
+            .Where(f => f.Season == season && f.Year == year)
+            .Select(f => f.AgegroupId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var missingIds = agegroupIdsWithTeams
+            .Except(agegroupIdsWithFields)
+            .ToHashSet();
+
+        if (missingIds.Count == 0)
+            return [];
+
         return await _context.Agegroups
             .AsNoTracking()
             .Where(a => missingIds.Contains(a.AgegroupId))

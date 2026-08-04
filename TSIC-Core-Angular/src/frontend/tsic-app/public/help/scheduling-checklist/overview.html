@@ -1,0 +1,76 @@
+<h3>Scheduling Checklist</h3>
+<p>
+  This is your scheduling home — an ordered list of everything that has to happen before a schedule
+  can be built, with live status. Each step shows exactly what's still missing (which age groups,
+  which teams, which divisions) and links straight to the screen where you fix it. Work down the
+  list top to bottom.
+</p>
+
+<div class="help-callout help-callout--info">
+  <i class="bi bi-list-check" aria-hidden="true"></i>
+  <div>
+    <strong>The build stays locked until the steps above it are green.</strong>
+    <p class="help-callout__body">
+      Teams left in the <em>Unassigned</em> pool can never be scheduled — the checklist won't let a
+      build run that would silently skip them.
+    </p>
+  </div>
+</div>
+
+<h4>The steps, in order</h4>
+<div class="help-menu-list">
+  <div class="help-menu-row">
+    <i class="bi bi-people" aria-hidden="true"></i>
+    <div class="help-menu-row__body">
+      <div class="help-menu-row__title">1 · Assign Teams To Pools</div>
+      <div class="help-menu-row__sub">Every team moves out of Unassigned into a real pool. The step lists each age group still holding unpooled teams.</div>
+    </div>
+  </div>
+  <div class="help-menu-row">
+    <i class="bi bi-calendar3" aria-hidden="true"></i>
+    <div class="help-menu-row__body">
+      <div class="help-menu-row__title">2 · Assign Play Dates</div>
+      <div class="help-menu-row__sub">Which dates each age group plays.</div>
+    </div>
+  </div>
+  <div class="help-menu-row">
+    <i class="bi bi-geo-alt" aria-hidden="true"></i>
+    <div class="help-menu-row__body">
+      <div class="help-menu-row__title">3 · Assign Fields</div>
+      <div class="help-menu-row__sub">Which fields each age group plays on, with start times and game intervals.</div>
+    </div>
+  </div>
+  <div class="help-menu-row">
+    <i class="bi bi-sliders" aria-hidden="true"></i>
+    <div class="help-menu-row__body">
+      <div class="help-menu-row__title">4 · Set Game Guarantees</div>
+      <div class="help-menu-row__sub">How many games each team is guaranteed. A division without a guarantee is skipped by the builder.</div>
+    </div>
+  </div>
+  <div class="help-menu-row">
+    <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+    <div class="help-menu-row__body">
+      <div class="help-menu-row__title">5 · Pairings</div>
+      <div class="help-menu-row__sub">Who-plays-whom per pool size. Informational — anything missing is generated automatically at build time.</div>
+    </div>
+  </div>
+  <div class="help-menu-row">
+    <i class="bi bi-calendar-check" aria-hidden="true"></i>
+    <div class="help-menu-row__body">
+      <div class="help-menu-row__title">6 · Build Schedule</div>
+      <div class="help-menu-row__sub">Unlocks when steps 1–4 are green. Opens the Schedule Hub to run the build.</div>
+    </div>
+  </div>
+</div>
+
+<h4>After the build</h4>
+<ul>
+  <li>The <strong>Tools</strong> section lights up once games exist: View Schedule, Master Schedule, Rescheduler, QA Results and more.</li>
+  <li>The checklist stays useful all event long — come back to confirm everything is still green after roster or pool changes.</li>
+</ul>
+
+<h4>Common mistakes</h4>
+<ul>
+  <li><strong>Ignoring a partially-red step.</strong> One age group with unpooled teams blocks the whole build — the step's detail line names it.</li>
+  <li><strong>Skipping a step because it "looks" done.</strong> Trust the status — it reflects the real data, not your memory of setting it up.</li>
+</ul>

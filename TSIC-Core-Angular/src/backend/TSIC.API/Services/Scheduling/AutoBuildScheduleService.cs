@@ -202,6 +202,14 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
         var timeslotsConfigured = agegroupsMissing.Count == 0;
 
+        // 4. Fields: every agegroup with active divisions has at least one field assignment.
+        //    Without this an agegroup with dates but zero fields passed prerequisites and
+        //    the build silently placed nothing.
+        var agegroupsMissingFields = await _autoBuildRepo
+            .GetAgegroupsMissingFieldAssignmentsAsync(jobId, season, year, ct);
+
+        var fieldsConfigured = agegroupsMissingFields.Count == 0;
+
         return new PrerequisiteCheckResponse
         {
             PoolsAssigned = poolsAssigned,
@@ -211,7 +219,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             ExistingPairingRounds = existingRounds,
             TimeslotsConfigured = timeslotsConfigured,
             AgegroupsMissingTimeslots = agegroupsMissing,
-            AllPassed = poolsAssigned && pairingsCreated && timeslotsConfigured
+            FieldsConfigured = fieldsConfigured,
+            AgegroupsMissingFields = agegroupsMissingFields,
+            AllPassed = poolsAssigned && pairingsCreated && timeslotsConfigured && fieldsConfigured
         };
     }
 
@@ -1546,7 +1556,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     /// Filter division summaries to only schedulable divisions:
     /// excludes Waitlist/Dropped agegroups, Unassigned divisions, and Dropped divisions.
     /// </summary>
-    private static List<CurrentDivisionSummary> FilterSchedulableDivisions(
+    internal static List<CurrentDivisionSummary> FilterSchedulableDivisions(
         List<CurrentDivisionSummary> divisions)
     {
         return divisions

@@ -1,0 +1,93 @@
+<div class="page-header">
+    <h2 class="page-title">
+        <i class="bi bi-list-check page-title-icon"></i>
+        Scheduling Checklist
+        @if (hasGames()) {
+            <span class="badge-count">{{ gameCount() }} games</span>
+        }
+    </h2>
+    <div class="page-header-actions">
+        <button class="btn btn-outline-secondary btn-sm" (click)="load()" [disabled]="isLoading()"
+                title="Refresh">
+            <i class="bi bi-arrow-clockwise"></i>
+        </button>
+    </div>
+</div>
+
+@if (hasError()) {
+    <div class="alert alert-danger d-flex align-items-center" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        Failed to load scheduling status.
+    </div>
+}
+
+@if (isLoading() && !checklist()) {
+    <div class="list-empty-state">
+        <div class="spinner-border spinner-border-sm text-secondary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+
+@if (checklist(); as c) {
+    <section class="checklist-section" aria-label="Scheduling steps">
+        <h3 class="checklist-section-title">Steps</h3>
+        <ol class="step-list">
+            @for (step of steps(); track step.num) {
+                <li class="step-row" [class]="'step-' + step.state">
+                    <span class="step-num" aria-hidden="true">
+                        @if (step.state === 'done') {
+                            <i class="bi bi-check-lg"></i>
+                        } @else if (step.state === 'locked') {
+                            <i class="bi bi-lock-fill"></i>
+                        } @else {
+                            {{ step.num }}
+                        }
+                    </span>
+                    <span class="step-body">
+                        <span class="step-title">
+                            <i class="bi {{ step.icon }} step-title-icon"></i>
+                            {{ step.title }}
+                        </span>
+                        @if (step.reason) {
+                            <span class="step-reason">{{ step.reason }}</span>
+                        }
+                    </span>
+                    @if (step.state !== 'locked') {
+                        <a class="btn btn-sm step-action"
+                           [class.btn-primary]="step.state === 'todo'"
+                           [class.btn-outline-secondary]="step.state !== 'todo'"
+                           [routerLink]="step.route" [queryParams]="step.queryParams">
+                            {{ step.linkLabel }}
+                            <i class="bi bi-arrow-right-short"></i>
+                        </a>
+                    }
+                </li>
+            }
+        </ol>
+    </section>
+
+    <section class="checklist-section" aria-label="Scheduling tools">
+        <h3 class="checklist-section-title">
+            Tools
+            @if (!hasGames()) {
+                <span class="tools-hint">available once games are scheduled</span>
+            }
+        </h3>
+        <div class="tool-grid">
+            @for (tool of tools; track tool.route) {
+                @if (hasGames()) {
+                    <a class="tool-card" [routerLink]="tool.route">
+                        <i class="bi {{ tool.icon }}"></i>
+                        <span>{{ tool.title }}</span>
+                    </a>
+                } @else {
+                    <span class="tool-card tool-card-disabled" aria-disabled="true">
+                        <i class="bi {{ tool.icon }}"></i>
+                        <span>{{ tool.title }}</span>
+                    </span>
+                }
+            }
+        </div>
+    </section>
+}

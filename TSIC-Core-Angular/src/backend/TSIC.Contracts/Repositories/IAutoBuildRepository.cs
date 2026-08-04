@@ -136,8 +136,9 @@ public interface IAutoBuildRepository
     // ── Prerequisite Checks ────────────────────────────────
 
     /// <summary>
-    /// Count active teams with no division assignment (DivId is null) for the given job.
-    /// Teams with status WAITLIST, DROPPED, or name "Unassigned" are excluded.
+    /// Count active teams that are unpooled — no division assignment (DivId null) or parked
+    /// in the "Unassigned" holding division. WAITLIST/Dropped agegroups and placeholder
+    /// team names are excluded.
     /// </summary>
     Task<int> GetUnassignedActiveTeamCountAsync(Guid jobId, CancellationToken ct = default);
 
@@ -145,6 +146,12 @@ public interface IAutoBuildRepository
     /// Get agegroup names that have active divisions but no timeslot dates configured.
     /// </summary>
     Task<List<string>> GetAgegroupsMissingTimeslotDatesAsync(
+        Guid jobId, string season, string year, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get agegroup names that have active divisions but no field assignments configured.
+    /// </summary>
+    Task<List<string>> GetAgegroupsMissingFieldAssignmentsAsync(
         Guid jobId, string season, string year, CancellationToken ct = default);
 
     // ── Cross-Event Analysis ──────────────────────────────────

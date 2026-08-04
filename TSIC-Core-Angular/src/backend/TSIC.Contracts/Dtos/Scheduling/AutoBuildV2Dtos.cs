@@ -174,7 +174,12 @@ public record PrerequisiteCheckResponse
     /// <summary>Agegroup names missing timeslot configuration.</summary>
     public required List<string> AgegroupsMissingTimeslots { get; init; }
 
-    /// <summary>True when all three checks pass.</summary>
+    /// <summary>All agegroups with active divisions have at least one field assignment.</summary>
+    public required bool FieldsConfigured { get; init; }
+    /// <summary>Agegroup names missing field assignments.</summary>
+    public required List<string> AgegroupsMissingFields { get; init; }
+
+    /// <summary>True when all checks pass.</summary>
     public required bool AllPassed { get; init; }
 }
 

@@ -302,6 +302,7 @@ builder.Services.AddScoped<IViewScheduleService, ViewScheduleService>();
 builder.Services.AddScoped<IMasterScheduleService, MasterScheduleService>();
 builder.Services.AddScoped<IReschedulerService, ReschedulerService>();
 builder.Services.AddScoped<ISchedulingDashboardService, SchedulingDashboardService>();
+builder.Services.AddScoped<ISchedulingChecklistService, SchedulingChecklistService>();
 builder.Services.AddScoped<ITournamentParkingService, TournamentParkingService>();
 // Widget Dashboard
 builder.Services.AddScoped<IUserWidgetService, UserWidgetService>();

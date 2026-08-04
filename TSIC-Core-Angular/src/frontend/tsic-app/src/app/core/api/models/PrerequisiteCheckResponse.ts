@@ -10,6 +10,8 @@ export type PrerequisiteCheckResponse = {
     existingPairingRounds: Record<string, number>;
     timeslotsConfigured: boolean;
     agegroupsMissingTimeslots: Array<string>;
+    fieldsConfigured: boolean;
+    agegroupsMissingFields: Array<string>;
     allPassed: boolean;
 };
 
