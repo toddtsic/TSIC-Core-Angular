@@ -1328,3 +1328,66 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Severity**: 🟡 UX (can't read full team names in the tree)
 - **Cross-ref**: AM-067 (Search/Teams page-size — same "let me see more" theme), LADT editor.
 - **Status**: Open — filed 2026-08-04 (code-located; recommend tooltip + resizable panel). → Todd.
+
+<!-- ═══════════ CAC (Camps & Clinics) player registration — Ann 2026-08-04 ═══════════
+     Test job: LI Yellow Jackets:Fall Signups 2026 (835a3c4d-c7b3-4b0a-9c93-870d70f632cc).
+     Screens: "Select Events" = team-selection-step.component.ts; per-player forms + events
+     summary = player-forms-step.component.ts; Review = player review-step.component. -->
+
+### AM-082: [CAC registration / Select Events] Long event list opens scrolled to the BOTTOM — must land at the top
+- **Source**: Ann (2026-08-04) — job LI Yellow Jackets:Fall Signups 2026 (`835a3c4d-c7b3-4b0a-9c93-870d70f632cc`)
+- **What Ann saw**: with a long list of events, the Select Events screen **opens scrolled to the bottom** of the list. It must land at the **top**.
+- **Root cause (not yet code-pinned)**: no explicit `scrollTo`/`scrollIntoView`/`autofocus` in [team-selection-step.component.ts](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts) or [player-forms-step.component.ts](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/player-forms-step.component.ts) — so the jump likely comes from the wizard step-change (scroll not reset on step entry) or a late-rendered focused control pulling the viewport. **Todd to runtime-confirm.**
+- **For Todd**: on entering the Select Events step, reset scroll to top (wizard-shell step-change hook, or `afterNextRender` scroll-to-top on the step container). Verify with a long list (this job).
+- **Severity**: 🔴 UX (screen unusable-feeling — user must scroll up to start)
+- **Cross-ref**: AM-083/084/085/086 (same CAC pass).
+- **Status**: Open — filed 2026-08-04 (behavior observed; needs runtime root-cause). → Todd.
+
+### AM-083: [CAC registration / LADT Team Keywords] Team-level "Keywords" (Legacy) not surfaced or used — the event filter has nothing to match on
+- **Source**: Ann (2026-08-04)
+- **What Ann said**: in Legacy, **Keywords** lived at the **LADT Team Level** and drove the event-list filter. In the new system it "doesn't exist" — so filtering a long event list has nothing useful to match.
+- **Root cause (verified, code)**: the Team DTO **does** carry a keyword field — `keywordPairs` ([TeamDetailDto.ts:41](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/core/api/models/TeamDetailDto.ts#L41), also Create/UpdateTeamRequest) — but (a) it is **NOT surfaced in the LADT team editor** (`grep keyword` in [team-detail.component.ts](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/ladt/editor/components/team-detail.component.ts) = 0 hits, so a Director can't enter it), and (b) the Select-Events filter `filterCamps` only matches **teamName / divisionName / agegroupName** ([team-selection-step.component.ts:930-938](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L930)) — it never reads `keywordPairs`.
+- **For Todd**: (1) surface a **Keywords** field on the LADT team editor bound to `keywordPairs` (the plumbing/DTO already exists — confirm backend read/write path); (2) include `keywordPairs` in `filterCamps` so registrants can filter events by the Director's keywords, restoring Legacy parity. Confirm the `keywordPairs` format (pairs vs free text) and how Legacy used it.
+- **Severity**: 🟡 Feature parity (Legacy filter capability missing) — gates AM-084's usefulness
+- **Cross-ref**: AM-084 (Filter Events prominence — depends on this), Legacy LADT Team Keywords.
+- **RESOLUTION (Ann, 2026-08-04): ✅ CLOSED — WON'T DO. Todd made Keywords unnecessary.** The Select-Events filter already matches on **grad year (agegroupName) + event/team name**, which covers the need — no team-level Keywords field required. Only follow-up is the AM-084 placeholder-text edit to say so.
+- **Status**: ✅ CLOSED — Won't Do (Keywords not needed; filter works by grad year + event name). Superseded by AM-084 text edit.
+
+### AM-084: [CAC registration / Select Events] Relabel the Filter Events placeholder AND make the filter more prominent
+- **Source**: Ann (2026-08-04; refined 2026-08-04 after AM-083 closed)
+- **What Ann wants** (two parts):
+  1. **Relabel the placeholder** so registrants know what it matches: **"Filter events by grad year or event name"**.
+  2. **Make the filter bolder / highlighted** so it's obviously there and gets used — today it's easy to miss.
+- **Current implementation (code)**: the filter input reads `placeholder="Filter events..."` ([team-selection-step.component.ts:104](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L104)); styling `.camp-filter*` at [:519-560](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L519). `filterCamps` matches **teamName / divisionName / agegroupName** ([:930-938](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L930)) — i.e. grad year (agegroup) + event/team name, exactly what the new copy describes.
+- **For Todd**: (1) set the placeholder to **"Filter events by grad year or event name"** ([:104](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L104)); (2) give the filter more visual weight so it reads as an obvious control — e.g. a stronger bordered field + search icon, a visible **"Filter Events"** label above it, and/or the AM-064 callout weight; consider showing it only when the list is long enough to matter. Design-system tokens, WCAG AA, focus-visible.
+- **Severity**: UX (copy + discoverability — filter is easy to miss)
+- **Cross-ref**: AM-083 (Keywords — CLOSED, made the filter text-based on grad year + name), AM-064 (prominence treatment), AM-082/085/086 (same CAC pass).
+- **Status**: Open — filed 2026-08-04 (placeholder text + make it prominent). → Todd.
+
+### AM-085: [CAC registration / player details] Selected-events display sits in different places for 1 vs. 2+ events — make it consistent
+- **Source**: Ann (2026-08-04) — see image
+- **What Ann saw**: under a player's details, **1 selected event** shows as a **pill below the name**, but **2+ events** show as a **"N events selected — click to collapse" summary at the top-right** with an expandable list. If only 1 is selected it should sit in the **same place** as when 2+ are selected — otherwise it's confusing.
+- **Root cause (code)**: two different branches in [player-forms-step.component.ts:74-101](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/player-forms-step.component.ts#L74) — `isCacMode() && getTeamIds(pid).length > 1` renders the top-right collapsible summary + `.events-list`; the `@else` (1 event or non-CAC) renders a `.team-pill-row` below the header. So count drives both **placement** and **format**.
+- **For Todd**: unify — render the selected events in **one consistent location/format** regardless of count (e.g. always the summary+list treatment, or always a pill list in the same spot). Keep the expand/collapse for long lists (threshold logic at [:705-712](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/player-forms-step.component.ts#L705)) but don't change *where* the block lives based on count. Align with Ann on which of the two placements to standardize on.
+- **Severity**: 🟡 UX (inconsistent/confusing placement)
+- **Cross-ref**: AM-086 (same display — label format).
+- **Status**: Open — filed 2026-08-04 (code-located). → Todd + Ann (pick the placement).
+
+### AM-086: [CAC registration + Review] Show "Agegroup: Team Name" in the selected-events display (not just team name) — important for Camps & Clinics
+- **Source**: Ann (2026-08-04)
+- **What Ann wants**: in the selected-events display (and in **Review**), show **Agegroup: Team Name**, not just the team name. This matters on many **other Camps & Clinics** sites where the agegroup disambiguates similarly-named events.
+- **Root cause (code)**: the summary/pill in player-forms-step drops the agegroup — `getTeamName` returns just the display name ([player-forms-step.component.ts:687-691](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/player-forms-step.component.ts#L687)) and `getTeamPillLabel` returns `clubName:teamName` ([:693-699](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/player-forms-step.component.ts#L693)) — **no agegroup**. (By contrast the *Select* screen already builds `clubName:agegroupName:teamName`, [team-selection-step.component.ts:778](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L778) — so the agegroup is available on the team DTO, just not used in the summary/pill/Review.)
+- **For Todd**: include `agegroupName` in the selected-events labels — format **"Agegroup: Team Name"** per Ann — in both `getTeamName`/`getTeamPillLabel` (player-forms-step) and the **player Review step** (`review-step.component`). Confirm exact separator/format with Ann ("Agegroup: Team Name" vs the Select screen's `club:agegroup:team`).
+- **Severity**: 🟡 UX / clarity (esp. Camps & Clinics disambiguation)
+- **Cross-ref**: AM-085 (same display), team-selection-step label at [:778](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L778) (agegroup already shown there — reuse the pattern).
+- **Status**: Open — filed 2026-08-04 (code-located; agegroup available, not used in summary/Review). → Todd.
+- **Reinforced (Ann, 2026-08-04, AM-087 image)**: a real case shows why this matters — the same team name **"Test 1"** appears under two different groupings ("Draw Control Training" and "AIM Spring Train & Play"), so the bare team name in the selected-events summary is ambiguous. **⚠ Division-vs-Agegroup to confirm**: in the CAC event list the disambiguating middle line is the **`divisionName`** ([team-selection-step.component.ts:134-135](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L134)), but this item's wording said "Agegroup:Team". Todd + Ann confirm which field to prefix (Division vs Agegroup) — for the Camps & Clinics examples it looks like **Division**.
+
+### AM-087: [CAC registration / Select Events] Sort order — when start dates match, sort by Division then Team Name
+- **Source**: Ann (2026-08-04) — see image (CAC event list, all events start 8/4/2026)
+- **What Ann wants**: the event list should sort by **start date**, and **when the start date is the same, by Division first (e.g. "AIM Spring Train & Play"), then by Team Name (e.g. "Test 1")**. Today same-start-date events group by team name, so the two divisions interleave under each team.
+- **Root cause (code)**: the CAC sort comparator is **start date, then team name only** — no division ([team-selection-step.component.ts:905-911](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L905)): `if (da !== db) return da - db; return a.teamName.localeCompare(...)`.
+- **For Todd**: add **`divisionName`** as the secondary key so the CAC comparator becomes **startDate → divisionName → teamName** (numeric-aware `localeCompare`, null-safe like the non-CAC branch at [:917-924](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L917)). This groups all "AIM Spring Train & Play" events together, then "Draw Control Training", each ordered Test 1/2/3.
+- **Severity**: 🟡 UX (list ordering — events read grouped/predictably)
+- **Cross-ref**: AM-086 (label should show Division/Agegroup:Team — this example is *why*), AM-082/084/085 (same CAC pass).
+- **Status**: Open — filed 2026-08-04 (code-located; add divisionName to the CAC sort). → Todd.
