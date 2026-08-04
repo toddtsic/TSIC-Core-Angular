@@ -1,5 +1,8 @@
+using System.Collections.Concurrent;
+using System.Text.Json;
 using AuthorizeNet.Api.Contracts.V1;
 using Microsoft.Extensions.DependencyInjection;
+using TSIC.API.Services.Adults;
 using TSIC.API.Services.Payments;
 using TSIC.API.Services.Players;
 using TSIC.API.Services.Shared.Adn;
@@ -16,6 +19,7 @@ using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Adults;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 
@@ -175,11 +179,85 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         return await _registrationRepo.GetCadtTreeForJobAsync(jobId, ct);
     }
 
+    /// <summary>
+    /// Registration detail for the slide-over panel, with the adult form DERIVED when the job has
+    /// never materialized one.
+    ///
+    /// <para>The repository slices the requested role out of <c>Jobs.AdultProfileMetadataJson</c>.
+    /// That column is NULL on every job, so for coach/Staff/Referee/Recruiter it returns null, the
+    /// panel's field list comes back empty, and <c>showProfileCard()</c> hides the whole section —
+    /// the registrant's answers are read from the database and shipped to the browser in
+    /// <c>ProfileValues</c>, then dropped because nothing supplies the labels and input types.</para>
+    ///
+    /// <para>Derive here rather than in the repository: this service is in the same assembly as
+    /// <see cref="AdultFormCatalog"/>, which <c>TSIC.Infrastructure</c> cannot reach. Same source of
+    /// truth the registration form itself uses (<c>AdultRegistrationService.ResolveAdultMetadataJson</c>),
+    /// so the admin panel and the coach see the same form.</para>
+    ///
+    /// <para>A materialized blob always wins — this only fills the gap.</para>
+    /// </summary>
     public async Task<RegistrationDetailDto?> GetRegistrationDetailAsync(
         Guid registrationId, Guid jobId, CancellationToken ct = default)
     {
-        return await _registrationRepo.GetRegistrationDetailAsync(registrationId, jobId, ct);
+        var detail = await _registrationRepo.GetRegistrationDetailAsync(registrationId, jobId, ct);
+        if (detail is null || !string.IsNullOrWhiteSpace(detail.ProfileMetadataJson))
+            return detail;
+
+        var roleKey = AdultMetadataRoleResolver.KeyForRoleId(detail.RoleId);
+        if (roleKey is null)
+            return detail;   // player, club rep, director — not an adult template role
+
+        return detail with { ProfileMetadataJson = DeriveFlatAdultTemplate(detail.RegformNameCoach, roleKey) };
     }
+
+    /// <summary>
+    /// Catalog-derived flat <c>{"fields":[...]}</c> templates, keyed by profile + USLax mode + role.
+    /// The catalog is compiled, so an entry never goes stale; at most 27 for the life of the process.
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, string> s_DerivedDetailTemplates =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// One adult role's fields, in the flat shape the detail panel's parser expects. Field properties
+    /// are camelCase because that parser reads <c>dbColumn</c> / <c>displayName</c> / <c>inputType</c>
+    /// case-sensitively. <c>SpecialRequests</c> is dropped for the coach block exactly as
+    /// <c>RegistrationRepository.SliceAdultRoleTemplate</c> drops it — that column holds the codified
+    /// team-request blob, never an editable free-text answer, and the human note is surfaced separately
+    /// as <c>CoachRequestNote</c>.
+    /// </summary>
+    private static string DeriveFlatAdultTemplate(string? regformNameCoach, string roleKey)
+    {
+        var (profile, usLax) = AdultFormCatalog.MapLegacy(regformNameCoach);
+        var cacheKey = $"{AdultFormCatalog.Canonical(profile)}|{usLax}|{roleKey}";
+
+        return s_DerivedDetailTemplates.GetOrAdd(cacheKey, _ =>
+        {
+            var roleSet = AdultFormCatalog.BuildRoleSet(profile, usLax);
+            var role = roleKey switch
+            {
+                AdultMetadataRoleResolver.Referee => roleSet.Referee,
+                AdultMetadataRoleResolver.Recruiter => roleSet.Recruiter,
+                _ => roleSet.UnassignedAdult
+            };
+
+            var fields = role.Fields;
+            if (roleKey == AdultMetadataRoleResolver.UnassignedAdult)
+            {
+                fields = fields
+                    .Where(f => !string.Equals(f.DbColumn, nameof(Registrations.SpecialRequests),
+                                               StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
+            return JsonSerializer.Serialize(new ProfileMetadata { Fields = fields }, s_DetailTemplateJson);
+        });
+    }
+
+    private static readonly JsonSerializerOptions s_DetailTemplateJson = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    };
 
     /// <summary>
     /// Re-ping this single registration's USA Lacrosse membership and refresh the stored

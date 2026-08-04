@@ -23,6 +23,23 @@ public record RegistrationDetailDto
 
     // Context
     public required string RoleName { get; init; }
+
+    /// <summary>
+    /// The registration's AspNetRoles id. Carried alongside RoleName because role identity must be
+    /// matched on VALUE, not on a display string — the panel's referee branch currently compares
+    /// <c>roleName === 'referee'</c>, which breaks the moment a role is renamed. Also what
+    /// <see cref="TSIC.Domain.Adults.AdultMetadataRoleResolver.KeyForRoleId"/> needs to fold Coach
+    /// and Staff onto the same adult metadata block.
+    /// </summary>
+    public string? RoleId { get; init; }
+
+    /// <summary>
+    /// The job's coach-form identity (<c>Jobs.RegformName_Coach</c>). Carried so the service can
+    /// DERIVE this job's adult form when <c>AdultProfileMetadataJson</c> has never been
+    /// materialized — which is every job. See RegistrationSearchService.GetRegistrationDetailAsync.
+    /// </summary>
+    public string? RegformNameCoach { get; init; }
+
     public required bool Active { get; init; }
     public string? TeamName { get; init; }
     /// <summary>Computed: "ClubRepClub AgegroupName TeamName" from live join chain.</summary>

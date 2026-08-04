@@ -2374,6 +2374,10 @@ public class RegistrationRepository : IRegistrationRepository
             Phone = reg.User?.Cellphone.FormatPhone(),
             UserId = reg.UserId,
             RoleName = reg.Role?.Name ?? "",
+            RoleId = reg.RoleId,
+            // Carried for the service-layer derive: when the job never materialized an adult form,
+            // RegistrationSearchService builds one from this identity via AdultFormCatalog.
+            RegformNameCoach = reg.Job?.RegformNameCoach,
             Active = reg.BActive ?? false,
             TeamName = reg.AssignedTeam?.TeamName,
             Assignment = reg.AssignedTeam != null

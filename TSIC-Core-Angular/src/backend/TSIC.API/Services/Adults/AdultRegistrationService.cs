@@ -1638,8 +1638,9 @@ public class AdultRegistrationService : IAdultRegistrationService
     };
 
     /// <summary>
-    /// Catalog-derived forms, keyed by canonical profile. The catalog is static and the derived path
-    /// never carries USLax, so this holds at most three entries for the life of the process.
+    /// Catalog-derived forms, keyed by canonical profile AND USLax mode — the mode rides on a
+    /// RegformName_Coach pipe token, so it varies per job. The catalog is compiled, so an entry can
+    /// never go stale; at most nine (3 profiles x 3 modes) for the life of the process.
     /// </summary>
     private static readonly ConcurrentDictionary<string, string> s_DerivedAdultForms =
         new(StringComparer.OrdinalIgnoreCase);

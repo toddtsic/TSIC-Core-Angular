@@ -15,6 +15,8 @@ export type RegistrationDetailDto = {
     phone?: string | null;
     userId?: string | null;
     roleName: string;
+    roleId?: string | null;
+    regformNameCoach?: string | null;
     active: boolean;
     teamName?: string | null;
     assignment?: string | null;
