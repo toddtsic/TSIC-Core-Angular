@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-08-04 10:07:20 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-08-04 10:18:05 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -187,7 +187,7 @@ CREATE TABLE #AdminLeaves (
     VisibilityRules NVARCHAR(MAX) NULL,
     BadgeText       NVARCHAR(20)  NULL
 );
-INSERT INTO #AdminLeaves VALUES (N'Scheduling Checklist', N'list-check', N'scheduling', 4, 1, 1, 1, N'{"jobTypes":["Tournament Scheduling","League Scheduling"]}', NULL);
+INSERT INTO #AdminLeaves VALUES (N'Scheduling Checklist', N'calendar-week', N'scheduling', 4, 1, 1, 1, N'{"jobTypes":["Tournament Scheduling","League Scheduling"]}', NULL);
 INSERT INTO #AdminLeaves VALUES (N'Store', N'shop', N'store/admin', 9, 1, 1, 1, N'{"requiresFlags":["storeEnabled"]}', NULL);
 INSERT INTO #AdminLeaves VALUES (N'ARB Health', N'heart-pulse', N'arb/health', 10, 1, 1, 1, N'{"requiresFlags":["adnArb"]}', NULL);
 

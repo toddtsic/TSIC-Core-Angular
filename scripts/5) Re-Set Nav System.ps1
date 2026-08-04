@@ -189,7 +189,7 @@ $adminManifest = @(
     # from the checklist in workflow order. Standalone leaf: a one-child dropdown
     # is pure friction, so it renders as a direct top-level link with the
     # Tournament/League gate inline.
-    (New-AdminItem 'Scheduling' 'list-check' 4 'Scheduling Checklist' 'list-check' 'scheduling' 1 1 1 1 $rulesTournamentLeague -Standalone)
+    (New-AdminItem 'Scheduling' 'calendar-week' 4 'Scheduling Checklist' 'calendar-week' 'scheduling' 1 1 1 1 $rulesTournamentLeague -Standalone)
 
     # -- 5. Officials (referee ops; split from Scheduling, same T/L gate) --
     (New-AdminItem 'Officials' 'person-check' 5 'Referee Assignment' 'clipboard-check' 'scheduling/referee-assignment' 1 1 1 1)
