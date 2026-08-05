@@ -704,7 +704,7 @@
     <!-- ═══════════════════════ CHANGE JOB MODAL ═══════════════════════ -->
     @if (showChangeJobModal()) {
       <div class="modal-backdrop" (click)="cancelChangeJob()" (keydown.escape)="cancelChangeJob()"></div>
-      <div class="change-job-modal">
+      <div class="change-job-modal" appDraggableModal>
         <div class="modal-header">
           <h4 class="modal-title">Change Registrant's Job</h4>
           <button type="button" class="btn-close" (click)="cancelChangeJob()" aria-label="Close"></button>
@@ -739,7 +739,10 @@
     <!-- ═══════════════════════ RENAME CLUB MODAL (SuperUser) ═══════════════════════ -->
     @if (showRenameClubModal()) {
       <div class="modal-backdrop" (click)="cancelRenameClub()" (keydown.escape)="cancelRenameClub()"></div>
-      <div class="change-job-modal">
+      <!-- Draggable by its header: a club in many scheduled jobs makes this modal tall, and
+           Ann hit a state where it covered what she needed to see (AM-070). Part 1 gave the
+           body an internal scroll; this is part 2. -->
+      <div class="change-job-modal" appDraggableModal>
         <div class="modal-header">
           <h4 class="modal-title">Rename Club</h4>
           <button type="button" class="btn-close" (click)="cancelRenameClub()" aria-label="Close"></button>

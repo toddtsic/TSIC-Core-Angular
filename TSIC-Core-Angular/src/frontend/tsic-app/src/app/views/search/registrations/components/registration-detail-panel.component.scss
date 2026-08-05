@@ -992,7 +992,12 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  // Centering uses the INDEPENDENT `translate` property, not `transform` — appDraggableModal
+  // drives dragging by writing `transform: translate()` on this same element, and the two would
+  // collide if centering lived there (first drag would wipe the -50%/-50% and jump the modal).
+  // The individual transform properties apply before `transform`, so the two compose: centered
+  // at rest, offset by the drag. Do NOT move this back into `transform`.
+  translate: -50% -50%;
   z-index: 11;
   width: 400px;
   max-width: calc(100% - var(--space-8));
@@ -1008,6 +1013,11 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-2xl);
   animation: fadeIn 0.2s ease;
+
+  // Suppress text selection while a header drag is in flight (appDraggableModal).
+  &.is-dragging {
+    user-select: none;
+  }
 }
 
 .modal-header {

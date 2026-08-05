@@ -13,6 +13,7 @@ import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/con
 import { ClubRepPaymentComponent } from '@shared-ui/components/club-rep-payment/club-rep-payment.component';
 import { FamilyPaymentComponent } from '@shared-ui/components/family-payment/family-payment.component';
 import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
+import { DraggableModalDirective } from '@shared-ui/directives/draggable-modal.directive';
 import { MedFormViewComponent } from './medform-view.component';
 import { EmailBodyEditorComponent } from '@shared-ui/components/email-body-editor/email-body-editor.component';
 import { TestSendButtonComponent, type TestSendOptions } from '@shared-ui/components/test-send-button/test-send-button.component';
@@ -121,7 +122,7 @@ function isWaiverField(key: string, label: string, inputType: string): boolean {
 @Component({
   selector: 'app-registration-detail-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, AccountingLedgerComponent, ConfirmDialogComponent, ClubRepPaymentComponent, FamilyPaymentComponent, ResizablePanelDirective, MedFormViewComponent, EmailBodyEditorComponent, TestSendButtonComponent],
+  imports: [CommonModule, FormsModule, AccountingLedgerComponent, ConfirmDialogComponent, ClubRepPaymentComponent, FamilyPaymentComponent, ResizablePanelDirective, DraggableModalDirective, MedFormViewComponent, EmailBodyEditorComponent, TestSendButtonComponent],
   templateUrl: './registration-detail-panel.component.html',
   styleUrl: './registration-detail-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
