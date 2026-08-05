@@ -21,7 +21,7 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
   private readonly route = inject(ActivatedRoute);
   private readonly menuState = inject(MenuStateService);
 
-  /** Below this row count, render a section as a stack of clickable cards instead of a typeahead. */
+  /** At or above this row count in ANY role group, the whole page renders as typeaheads. */
   private static readonly TYPEAHEAD_THRESHOLD = 7;
 
   readonly registrations = computed(() => this.authService.registrations());
@@ -47,9 +47,16 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     this.registrations().some(g => g.roleName === 'Player' || g.roleName === 'Club Rep')
   );
 
-  useTypeahead(roleGroup: { roleRegistrations: unknown[] }): boolean {
-    return roleGroup.roleRegistrations.length >= RoleSelectionComponent.TYPEAHEAD_THRESHOLD;
-  }
+  /**
+   * Page-wide mode switch: if ANY role group is at/over the threshold, EVERY
+   * group renders as a typeahead; otherwise every group renders as cards.
+   * Never mix the two controls on one page — a dropdown beside a card list
+   * reads as two different UIs for the same task.
+   */
+  readonly useTypeaheadMode = computed(() =>
+    this.registrations().some(g =>
+      g.roleRegistrations.length >= RoleSelectionComponent.TYPEAHEAD_THRESHOLD)
+  );
 
   /**
    * Split the colon-mashed displayText into a title + detail line for cards mode.
@@ -104,14 +111,14 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     if (this._openedOnce) return;
     // Skip auto-open on mobile — Syncfusion opens a full-screen overlay on touch devices
     if (window.innerWidth < 768) return;
-    // Auto-open the LAST role section's typeahead. Multi-role accounts (e.g.
-    // SuperDirector + Director) get the lower-privileged section focused so the
-    // user can start typing immediately — it's the more common landing target.
-    // Cards-mode sections don't get auto-opened (entries are already visible),
-    // so if the last section is cards we leave focus alone rather than opening
-    // an earlier typeahead the user didn't ask for.
+    // Auto-open ONLY when the page holds exactly one role group in typeahead
+    // mode (the SuperUser/director "one giant list" case — land and start
+    // typing). With multiple groups, an auto-opened popup covers the other
+    // sections before the user has seen what's on the page, so we leave it
+    // closed and let them orient first. Cards mode never auto-opens — the
+    // entries are already visible.
     const groups = this.registrations();
-    if (groups.length === 0 || !this.useTypeahead(groups[groups.length - 1])) return;
+    if (groups.length !== 1 || !this.useTypeaheadMode()) return;
     const last = this.dropdowns?.last;
     if (last) {
       this._openedOnce = true;

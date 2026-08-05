@@ -36,24 +36,20 @@
             }
 
             @if (registrations() && registrations().length > 0) {
-            @if (hasSuggestableRegistration()) {
+            @if (hasSuggestableRegistration() && hasSuggestedEvents()) {
             <p class="role-pivot">
               Looking to register for a new event?
-              @if (hasSuggestedEvents()) {
               <button type="button" class="role-pivot-link" (click)="openSuggestedEventsModal()">
                 Show {{ suggestedEvents().length }}
                 {{ suggestedEvents().length === 1 ? 'suggestion' : 'suggestions' }}
                 <i class="bi bi-arrow-right" aria-hidden="true"></i>
               </button>
-              } @else {
-              <span class="role-pivot-text">Visit the event's website to start a new registration there.</span>
-              }
             </p>
             }
             @for (roleGroup of registrations(); track roleGroup.roleName; let i = $index) {
             <div class="role-section" [class.mt-4]="i > 0">
+              @if (useTypeaheadMode()) {
               <label class="role-label" [attr.id]="'rs-label-' + i">{{ roleGroup.roleName }}</label>
-              @if (useTypeahead(roleGroup)) {
               <ejs-dropdownlist [dataSource]="roleGroup.roleRegistrations" [fields]="fields"
                 [placeholder]="'Select a registration...'" [allowFiltering]="true"
                 [filterBarPlaceholder]="'Type to search...'" [enabled]="!isLoading()" [popupHeight]="'400px'"
@@ -72,6 +68,7 @@
               <span class="visually-hidden" [id]="'rs-help-' + i">Use search to filter registrations. Arrow keys
                 navigate, Enter selects.</span>
               } @else {
+              <h3 class="role-label" [attr.id]="'rs-label-' + i">{{ roleGroup.roleName }}</h3>
               <ul class="role-card-list" [attr.aria-labelledby]="'rs-label-' + i">
                 @for (reg of roleGroup.roleRegistrations; track reg.regId) {
                 <li>
@@ -94,6 +91,12 @@
               </ul>
               }
             </div>
+            }
+            @if (hasSuggestableRegistration()) {
+            <p class="role-pivot-footnote">
+              Don't see the event you're looking for? Events appear here only after you've
+              registered for them. To register for a new event, start from that event's website.
+            </p>
             }
             }
 

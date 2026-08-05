@@ -61,17 +61,38 @@
   }
 }
 
-.role-pivot-text {
-  color: var(--brand-text);
+// ─── Footnote below the role sections ────────────
+// Catches the user whose scan of the list just failed — validates what they
+// saw ("it really isn't there") and teaches the event-first rule. Deliberately
+// quiet: no tint, no accent border.
+.role-pivot-footnote {
+  margin: var(--space-4) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-color);
+  font-size: var(--font-size-sm);
+  color: var(--brand-text-muted);
 }
 
-// ─── Role label (above dropdown) ─────────────────
+// ─── Role group header (eyebrow above dropdown / card list) ─
 .role-label {
-  display: block;
-  font-size: var(--font-size-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
-  color: var(--brand-text);
-  margin-bottom: var(--space-2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--brand-text-muted);
+  margin: 0 0 var(--space-2);
+
+  // Hairline rule extending to the right edge — carries the group boundary
+  // even when the header text is short.
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+  }
 }
 
 // ─── Cards-mode role list (used when section has < TYPEAHEAD_THRESHOLD entries) ─
