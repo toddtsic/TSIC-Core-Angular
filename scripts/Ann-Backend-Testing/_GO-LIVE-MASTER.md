@@ -9,8 +9,8 @@
 | Item | Where | Priority | Ask |
 |---|---|---|---|
 | **AM-041 + AM-089** | AM | 🔴 Gate | Donations must **report** a donation (itemized on confirmation for tax + Director/fly-in view + allow at $0 owed) **before** the feature can be enabled by anyone. AM-089 is the hard prerequisite; AM-041 stays off until it ships |
-| **PL-037** | PL | 🔴 Reopened | Club Rep "Pay Balance Due" — waitlist-badge / balance behavior |
 | **PL-036** | PL | Todd E2E | Coach Approval Queue sort tech-debt — his end-to-end (not Ann's) |
+| **PL-037** | PL | Todd E2E | *(item CLOSED)* — mixed cart (active + waitlist teams) → Pay Balance Due → WL badge renders on the payment grid. **Needs an API restart first** (badge depends on the server-computed `isWaitlisted` / `ageGroupDisplayName` fields) |
 | **AM-063** | AM | ◻ Low | Draft-with-AI: reuse prior email copy (enhancement) |
 | **AM-043 / 044 / 045** | AM | 🔵 Tabled | Bulletin-AI cluster — needs a **Todd + Ann walkthrough** (incl. Ann's "AI Format appears to do nothing" note) |
 
