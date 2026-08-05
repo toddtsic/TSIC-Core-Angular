@@ -83,6 +83,29 @@
   }
 }
 
+/* ============================================
+   RTE insert-image dialog — URL only
+
+   `Image` in our toolbar links to an image on the CLIENT's server; we never
+   accept an upload (see shared-ui/rte-config.ts for the full rationale and the
+   other two ingestion routes, which are closed in TsicRteDirective).
+
+   Syncfusion appends the upload/drop half of this dialog unconditionally in HTML
+   mode — `image-module.js` gates it only on `editorMode`, with no setting to
+   suppress it — so hiding it here is the available lever, not a preference.
+
+   Leaving it visible would be the trap: with no `saveUrl` configured, Browse
+   yields a `blob:` URL that renders for the author and is dead for everyone
+   else. Removing the affordance is what makes the failure impossible rather
+   than merely unlikely.
+
+   `.e-linkheader` (the "Web Address" label) is deliberately kept — with the
+   upload block gone it is the only thing labelling the remaining field.
+   ============================================ */
+.e-rte-img-dialog .e-img-uploadwrap {
+  display: none;
+}
+
 /* Compact list-item density (relocated from role-selection.component.scss —
    was a bare `::ng-deep .e-dropdownbase .e-list-item`, i.e. already global). */
 .e-dropdownbase .e-list-item {

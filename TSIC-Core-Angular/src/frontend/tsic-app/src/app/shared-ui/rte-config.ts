@@ -22,9 +22,41 @@ export const TSIC_RTE_TOOLS = {
     'FontColor', 'BackgroundColor', 'FontSize', '|',
     'OrderedList', 'UnorderedList', '|',
     'CreateTable', '|',
-    'CreateLink', '|', 'Undo', 'Redo',
+    'CreateLink', 'Image', '|', 'Undo', 'Redo',
   ],
 };
+
+/**
+ * `Image` is **link-only**. We never host an uploaded file, and we never embed one.
+ *
+ * Syncfusion will happily ingest a file by three separate routes, and with `saveUrl`
+ * unset — which it stays, because there is no upload endpoint and there will not be
+ * one — each produces something worse than a refusal:
+ *
+ *   1. **Browse**, in the insert-image dialog → a `blob:` URL. Works perfectly for the
+ *      author, is dead for every reader and dead for the author too after one refresh.
+ *      The default `saveFormat` is `Blob`, so this is what happens out of the box.
+ *   2. **Drag-and-drop** onto the editor → same `blob:` URL.
+ *   3. **Paste** a screenshot → base64 inlined into the `text` column. A 2 MB photo
+ *      becomes ~2.7 MB of nvarchar on every read of that bulletin.
+ *
+ * All three are closed, each at its own layer, because no single one covers the others:
+ *
+ *   - the dialog's upload half is hidden in CSS (`_syncfusion-popups.scss`) — Syncfusion
+ *     appends it unconditionally in HTML mode, with no setting to suppress it
+ *   - drop and file-paste are intercepted by `TsicRteDirective` in the capture phase
+ *   - `blob:` is refused at render by `sanitizeRichText`, so anything that somehow got
+ *     stored before this landed fails quietly instead of showing a broken-image icon
+ *
+ * What remains is the URL field: the director pastes a link to an image on their own
+ * server and we store the link. Rendered images are bounded by CSS
+ * (`.bulletin-body img { max-width: min(100%, 450px) }`) — necessary because inline
+ * sizing typed into the editor is advisory at best and the source image is not ours.
+ *
+ * The costs of link-only are real and belong to the director, not to us: their server
+ * going down breaks the image, and most mail clients block remote images by default.
+ * An image must therefore never carry information that is not also in the text.
+ */
 
 /**
  * The curated font-size list — the second half of shipping `FontSize`, not optional polish.
