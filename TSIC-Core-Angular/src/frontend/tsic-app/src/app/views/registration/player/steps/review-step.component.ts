@@ -78,7 +78,7 @@ import { JobService } from '@infrastructure/services/job.service';
                 <ul class="review-events-list review-events-list--priced">
                   @for (li of getLineItemsForPlayer(player.userId); track li.teamId) {
                     <li>
-                      <span class="event-name">{{ li.teamName }}</span>
+                      <span class="event-name">{{ getEventLabel(li.teamId) }}</span>
                       @if (li.feeConfigured === false) {
                         <span class="event-fee event-fee--unset"><i class="bi bi-exclamation-triangle me-1"></i>Fee not set</span>
                       } @else {
@@ -97,9 +97,16 @@ import { JobService } from '@infrastructure/services/job.service';
                 <div class="review-player-teams">
                   @for (t of getTeamEntriesForPlayer(player.userId); track t.teamId) {
                     <span class="review-team-pill">
-                      @if (t.club) { <span class="team-seg team-club">{{ t.club }}</span> }
-                      @if (t.showAgegroup) { <span class="team-seg team-age">{{ t.agegroup }}</span> }
-                      <span class="team-seg team-name">{{ t.team }}</span>
+                      @if (state.jobCtx.isCacMode()) {
+                        <!-- CAC single event — DIVISION disambiguates here, not agegroup
+                             (AM-086); matches the label the 2+ list above uses and the
+                             Select Events card the parent came from. -->
+                        <span class="team-seg team-name">{{ getEventLabel(t.teamId) }}</span>
+                      } @else {
+                        @if (t.club) { <span class="team-seg team-club">{{ t.club }}</span> }
+                        @if (t.showAgegroup) { <span class="team-seg team-age">{{ t.agegroup }}</span> }
+                        <span class="team-seg team-name">{{ t.team }}</span>
+                      }
                     </span>
                   }
                 </div>
@@ -456,6 +463,22 @@ export class ReviewStepComponent {
      * lands on the twin team whose name already is "WAITLIST - {name}"). The age-group segment
      * is dropped when it would just repeat the team name (e.g. a team literally named "2029").
      */
+    /**
+     * CAC event label — "Division: Team Name" (AM-086). Mirrors getEventLabel in
+     * player-forms-step so Player Details and Review can't print the same event differently.
+     *
+     * DIVISION, not agegroup: on a Camps & Clinics job the Select Events card prints
+     * `divisionName` under the team name, and that is what separates two same-named events
+     * (Ann's example: two "Test 1" teams, split only by "Draw Control Training" vs "AIM Spring
+     * Train & Play"). The clubName:agegroupName:teamName identity below belongs to NON-CAC jobs.
+     */
+    getEventLabel(teamId: string): string {
+        const team = this.teamService.getTeamById(teamId);
+        const name = this.teamService.getTeamDisplayName(teamId);
+        const division = team?.divisionName?.trim();
+        return division ? `${division}: ${name}` : name;
+    }
+
     getTeamEntriesForPlayer(
         playerId: string
     ): { teamId: string; club: string | null; agegroup: string | null; team: string; showAgegroup: boolean }[] {

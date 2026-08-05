@@ -71,27 +71,39 @@ type FieldGroup = { kind: 'plain' | 'recruiting'; fields: PlayerProfileFieldSche
                   @if (isRegistered(pid)) {
                     <span class="reg-badge"><i class="bi bi-lock-fill me-1"></i>Registered</span>
                   }
-                  @if (getTeamIds(pid).length && state.jobCtx.isCacMode() && getTeamIds(pid).length > 1) {
+                  <!-- CAC: the selected-events summary ALWAYS lives here, in the header row, for
+                       ANY count (AM-085 — count used to drive placement AND format, so a parent's
+                       eye had to hunt between two spots). Ann's pick: one event reads
+                       "1 event selected", same control, same place. The header string stays
+                       BOUNDED — event names live in the list below, never in this non-wrapping
+                       flex row where a long director-authored name would squeeze the player's
+                       name. At <= 4 events the list defaults open, so a single event is still
+                       readable without a click. -->
+                  @if (state.jobCtx.isCacMode() && getTeamIds(pid).length) {
                     <button type="button" class="events-summary"
                             (click)="toggleEventsList(pid)">
                       <i class="bi me-1"
                          [class.bi-chevron-right]="!isEventsExpanded(pid)"
                          [class.bi-chevron-down]="isEventsExpanded(pid)"></i>
-                      <i class="bi bi-calendar-event me-1"></i>{{ getTeamIds(pid).length }} events selected
+                      <i class="bi bi-calendar-event me-1"></i>{{ getTeamIds(pid).length }} event{{ getTeamIds(pid).length === 1 ? '' : 's' }} selected
                       <span class="events-summary-hint">— click to {{ isEventsExpanded(pid) ? 'collapse' : 'expand' }}</span>
                     </button>
                   }
                 </div>
                 @if (getTeamIds(pid).length) {
-                  @if (state.jobCtx.isCacMode() && getTeamIds(pid).length > 1) {
+                  @if (state.jobCtx.isCacMode()) {
+                    <!-- The list is where event names belong — ANY count, including one. -->
                     @if (isEventsExpanded(pid)) {
                       <ul class="events-list">
                         @for (tid of getTeamIds(pid); track tid) {
-                          <li>{{ getTeamName(tid) }}</li>
+                          <li>{{ getEventLabel(tid) }}</li>
                         }
                       </ul>
                     }
                   } @else {
+                    <!-- NON-CAC (tournament / league / season) — untouched. This branch used to
+                         double as "CAC with exactly one event", which is why AM-085's placement
+                         fix had to split the condition rather than restyle the pill. -->
                     <div class="team-pill-row">
                       @for (tid of getTeamIds(pid); track tid) {
                         <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle">{{ getTeamPillLabel(tid) }}</span>
@@ -365,6 +377,13 @@ type FieldGroup = { kind: 'plain' | 'recruiting'; fields: PlayerProfileFieldSche
         padding: 0;
 
         &:hover { text-decoration: underline; }
+
+        // Was missing entirely — this is a real control and had no visible keyboard focus.
+        &:focus-visible {
+          outline: none;
+          box-shadow: var(--shadow-focus);
+          border-radius: var(--radius-sm);
+        }
       }
 
       .events-summary-hint {
@@ -684,10 +703,25 @@ export class PlayerFormsStepComponent implements OnDestroy {
         return this.state.eligibility.selectedTeams()[playerId] ?? [];
     }
 
-    getTeamName(teamId: string): string {
-        // Real team name; a player waitlisted at payment lands on the twin (already named
-        // "WAITLIST - {name}"), so no synthetic prefix is needed here.
-        return this.teamService.getTeamDisplayName(teamId);
+    /**
+     * CAC event label — "Division: Team Name" (AM-086).
+     *
+     * DIVISION, not agegroup. On a Camps & Clinics job the Select Events card the parent just
+     * came from prints `divisionName` under the bold team name (team-selection-step), and that
+     * is the field that separates two same-named events — Ann's own example has two teams both
+     * called "Test 1", told apart only by "Draw Control Training" vs "AIM Spring Train & Play".
+     * The `clubName:agegroupName:teamName` identity used elsewhere in this wizard belongs to the
+     * NON-CAC dropdown; reusing it here would print the same string twice and disambiguate
+     * nothing. Falls back to the bare team name when a division isn't set.
+     *
+     * Team name via getTeamDisplayName — a player waitlisted at payment lands on the twin, which
+     * is already stored as "WAITLIST - {name}", so no synthetic prefix belongs here.
+     */
+    getEventLabel(teamId: string): string {
+        const team = this.teamService.getTeamById(teamId);
+        const name = this.teamService.getTeamDisplayName(teamId);
+        const division = team?.divisionName?.trim();
+        return division ? `${division}: ${name}` : name;
     }
 
     getTeamPillLabel(teamId: string): string {
