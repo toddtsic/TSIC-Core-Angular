@@ -56,6 +56,14 @@ export class PaymentTabComponent implements OnInit {
   balancedueaspercent = linkedSignal(() => this.svc.payment()?.balancedueaspercent ?? null);
   bTeamsFullPaymentRequired = linkedSignal(() => this.svc.payment()?.bTeamsFullPaymentRequired ?? null);
   bPlayersFullPaymentRequired = linkedSignal(() => this.svc.payment()?.bPlayersFullPaymentRequired ?? false);
+  // Donations: ROUND-TRIP ONLY — no UI writer. The SuperUser "Payment Policy" card that owned
+  // these two checkboxes was removed 2026-08-05 (AM-041/AM-089: donations aren't offered until a
+  // donation is itemized on the confirmation and visible to a Director). These signals stay so
+  // each job's stored value is read on load and written back untouched on save; keep them and
+  // their entries in buildPayload() — UpdateJobConfigPaymentRequest types both as non-optional
+  // booleans, so dropping either 400s every Payment-tab save. Same arrangement the
+  // bTeamsFullPaymentRequired / bPlayersFullPaymentRequired flags have had since their toggles
+  // moved to the LADT fee cards. Restore the card from the commented block in the .html.
   bIncludePlayerDonation = linkedSignal(() => this.svc.payment()?.bIncludePlayerDonation ?? false);
   bIncludeTeamDonation = linkedSignal(() => this.svc.payment()?.bIncludeTeamDonation ?? false);
   bAllowRefundsInPriorMonths = linkedSignal(() => this.svc.payment()?.bAllowRefundsInPriorMonths ?? null);
