@@ -663,11 +663,22 @@ type ScheduleRow =
            Values are duplicated from .team-link rather than inherited because .team-name is
            also used bare — an unresolved bracket slot renders a plain span with no link
            affordance, and it still deserves the cue. */
+        /* PRESENCE LADDER — tune here, one line, in this order. Currently at degree 2.
+             1  dotted 1px   (identical to the affordance but gold; where this started)
+             2  dotted 2px   <-- here
+             3  dashed 2px   (same ink, longer strokes, reads more deliberate)
+             4  solid  2px   (no longer a "pattern"; loudest before touching the name itself)
+           Past 4 the next lever is the NAME, not the rule -- font-weight 600 -- but that
+           starts competing with the score for the row's emphasis, so try 3 first.
+
+           Offset moves with thickness: at 2px the rule sits close enough to clip descenders
+           in names like "LI Top Guns" or "Lacrosse", which reads as a rendering bug rather
+           than emphasis. 3px clears them. */
         .team-name.is-winner {
             text-decoration: underline dotted;
             text-decoration-color: var(--winner-gold);
-            text-decoration-thickness: 1px;
-            text-underline-offset: 2px;
+            text-decoration-thickness: 2px;
+            text-underline-offset: 3px;
         }
 
         /* Hover promotes dotted → solid exactly as it does for any other name; this only
@@ -752,6 +763,24 @@ type ScheduleRow =
         .cell-dt {
             display: block;
             line-height: 1.3;
+        }
+
+        /* Clear the age-group rail.
+
+           The rail is an inset box-shadow on the row (see .game-row.row-tinted), so it takes
+           no layout space at all and the date/time was painting directly on top of it. The
+           inset therefore goes on the DATE COLUMN, not the row: padding a subgrid item eats
+           into its first track rather than moving it, which is the same reason the rail is a
+           shadow and not a real border in the first place.
+
+           Header and cell get it identically so the label stays over its own data, and the
+           track (max-content) simply grows by the inset -- the air is real, not borrowed.
+
+           Unconditional, even though a row with no age-group colour has no rail to clear: a
+           column whose left edge moves from row to row is worse than a little extra air. */
+        .hdr-dt,
+        .cell-dt {
+            padding-inline-start: calc(var(--ag-rail-w, 4px) + var(--space-2));
         }
 
         .cell-dt .dt-edit,
