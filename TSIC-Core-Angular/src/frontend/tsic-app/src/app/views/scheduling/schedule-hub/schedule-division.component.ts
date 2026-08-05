@@ -94,10 +94,12 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
     readonly pairingsPanel = viewChild(PairingsPanelComponent);
 
     // ── Hub mode ──
-    // Configure mode (gear button + tabbed config panel) is PARKED, not removed — hidden
-    // 2026-08-05 per Todd; the checklist front door covers setup for now and this surface
-    // may return. Flip this flag to restore the gear and the configure-first landing.
-    readonly showConfigureMode = false;
+    // Configure mode (gear button + tabbed config panel). Briefly parked 2026-08-05, then
+    // restored the same day: build parameters (waves, order, windows, guarantees) are
+    // demand-sensitive and prior-year seeds are a hypothesis, not an answer — a director
+    // needs a surface to review/tune them before a first build. Flag kept so it can be
+    // parked again without surgery.
+    readonly showConfigureMode = true;
     readonly mode = signal<'configure' | 'schedule' | 'master' | 'qa'>(
         this.showConfigureMode ? 'configure' : 'schedule');
     readonly activeTool = signal<'fields' | 'pairings' | 'timeslots' | 'pools' | 'bracket-seeds' | null>(null);
