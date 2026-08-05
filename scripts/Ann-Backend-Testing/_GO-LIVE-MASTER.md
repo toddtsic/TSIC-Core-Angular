@@ -8,7 +8,6 @@
 
 | Item | Where | Priority | Ask |
 |---|---|---|---|
-| **AM-082** | AM | 🔴 **GO-LIVE BLOCKER** | CAC Select Events opens scrolled to the BOTTOM — must land at the **TOP** (do team + adult wizards too — shared shell) |
 | **AM-041 + AM-089** | AM | 🔴 Gate | Donations must **report** a donation (itemized on confirmation for tax + Director/fly-in view + allow at $0 owed) **before** the feature can be enabled by anyone. AM-089 is the hard prerequisite; AM-041 stays off until it ships |
 | **PL-037** | PL | 🔴 Reopened | Club Rep "Pay Balance Due" — waitlist-badge / balance behavior |
 | **PL-063** | PL | ◻ Open (new) | Multiplayer (sibling) Discount % not functional — **Hero's Lacrosse Players** parity: recover Hero's Legacy values (currently NULL) + surface the config field + wire `FeeDiscountMp` (reserved slot already carried through the money math) |
@@ -36,7 +35,6 @@
 
 | Item | Where | What |
 |---|---|---|
-| **AM-082** | AM | *(the blocker above)* — must be **fixed before** launch, then re-verify |
 | **PL-061** | PL | 🔴 **HIGH** — club-rep balance-due payment sent no confirmation email; verify with a REAL CC + eCheck charge (one email/payment, eCheck settlement-pending banner, watch for a 500 on first charge). SES doesn't send off-prod |
 | **PL-028** | PL | External ARB cancel/auto-terminate → "Refresh ARB Statuses" button; cancel a test sub in the ADN portal → Refresh → stored status flips to canceled |
 | **PL-027** | PL | ARB Subscription — live test (dev-only "Stored record…" note gone in prod; exercise Cancel on a test sub) |
@@ -57,6 +55,7 @@
 ---
 
 ### Status snapshot (2026-08-05)
-- **Closed this pass:** AM-015 (Job Clone — covered by AM-071…081), AM-037 (refund policy — via AM-009/033), AM-069 (Convert button WON'T-DO accepted), AM-088 (Coach confirmations closed, accepted), **AM-084 (pt1 accepted as shipped — Ann withdrew the rewording; pt2 already verified. Item fully closed, no code change)**, **AM-075 (closed with the CURRENT event-dates copy — Ann's revision not applied; hint retains its two documented inaccuracies knowingly, `eventEndInPast` banner is the guardrail)**.
+- **Closed this pass:** AM-015 (Job Clone — covered by AM-071…081), AM-037 (refund policy — via AM-009/033), AM-069 (Convert button WON'T-DO accepted), AM-088 (Coach confirmations closed, accepted), **AM-084 (pt1 accepted as shipped — Ann withdrew the rewording; pt2 already verified. Item fully closed, no code change)**, **AM-075 (closed with the CURRENT event-dates copy — Ann's revision not applied; hint retains its two documented inaccuracies knowingly, `eventEndInPast` banner is the guardrail)**, **AM-082 (NON-ISSUE — retesting did not reproduce the Select-Events bottom-scroll; go-live blocker withdrawn, no fix shipped, investigation banked in the item)**.
+- **⚠ There is no longer a go-live blocker on this list.** AM-082 was the only item carrying that tag.
 - **Verified this pass:** AM-011/067/068/070/073/076/077/078/079/080/081/084/085/086, PL-060.
 - **All of Todd's recent decisions reviewed by Ann** — none outstanding.
