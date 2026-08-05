@@ -183,7 +183,7 @@ app-pairings-panel {
     flex-wrap: wrap;
     align-items: center;
     row-gap: var(--space-2);
-    column-gap: var(--space-3);
+    column-gap: var(--space-2);
 
     > .toolbar-left {
         flex: 1 1 0;
@@ -256,7 +256,7 @@ app-pairings-panel {
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
-    padding: 6px var(--space-3);
+    padding: 6px var(--space-2);
     border: none;
     border-radius: calc(var(--radius-md) - 2px);
     background: transparent;
