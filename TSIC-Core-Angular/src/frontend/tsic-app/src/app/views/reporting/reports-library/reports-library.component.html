@@ -1,6 +1,18 @@
 <section class="reports-library">
     <header class="reports-library__header">
-        <h1>Reports Library</h1>
+        <div class="page-header">
+            <h2 class="page-title">
+                <!-- Shows only when the Scheduling Checklist sent us here (?from=scheduling).
+                     'reporting/reports-library' is one route with two URL segments, so it takes
+                     two pops to clear it. -->
+                <app-checklist-back-link target="../../scheduling" />
+                <i class="bi bi-file-earmark-bar-graph page-title-icon" aria-hidden="true"></i>
+                Reports Library
+                @if (tabCounts().get('all'); as total) {
+                    <span class="badge-count">{{ total }}</span>
+                }
+            </h2>
+        </div>
         <div class="reports-library__search" role="search">
             <i class="bi bi-search reports-library__search-icon" aria-hidden="true"></i>
             <input

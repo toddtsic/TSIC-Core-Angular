@@ -3,15 +3,19 @@
     max-width: 1100px;
     margin: 0 auto;
 
+    // Two stacked rows: the standard page header, then the search bar. The title
+    // itself is plain .page-header / .page-title / .badge-count from _utilities —
+    // this used to be a bare <h1> with its own type scale, which is why the page
+    // did not look like the rest of the app. The nested header drops its own
+    // bottom margin; the gap below owns that spacing.
     &__header {
         display: flex;
         flex-direction: column;
         gap: var(--space-4);
         margin-bottom: var(--space-5);
 
-        h1 {
-            margin: 0;
-            color: var(--brand-text);
+        .page-header {
+            margin-bottom: 0;
         }
     }
 

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ChecklistBackLinkComponent } from '../../scheduling/shared/components/checklist-back-link/checklist-back-link.component';
 import { ReportingService } from '@infrastructure/services/reporting.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
@@ -134,7 +135,7 @@ function parseBoldReportAction(action: string | null | undefined): { reportName:
 @Component({
     selector: 'app-reports-library',
     standalone: true,
-    imports: [CommonModule],
+    imports: [CommonModule, ChecklistBackLinkComponent],
     templateUrl: './reports-library.component.html',
     styleUrl: './reports-library.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -146,6 +147,7 @@ export class ReportsLibraryComponent implements OnInit {
     private readonly authService = inject(AuthService);
     private readonly toast = inject(ToastService);
     private readonly router = inject(Router);
+    private readonly route = inject(ActivatedRoute);
 
     readonly type2Entries = signal<JobReportEntryDto[]>([]);
     readonly catalogueLoading = signal(false);
@@ -417,6 +419,23 @@ export class ReportsLibraryComponent implements OnInit {
         return groups;
     });
 
+    /**
+     * Deep-link target from `?tab=`, e.g. the Scheduling Checklist sending a director straight
+     * to Schedules. Read once from the snapshot — this page is not re-entered without a fresh
+     * construction, and a subscription would fight the user's own tab clicks.
+     *
+     * Held rather than applied here: the tab strip only shows categories with entries, and the
+     * catalogue has not loaded at construction. Applying it now could select a tab that turns
+     * out to be empty and is therefore missing from the strip, leaving no tab lit and no way
+     * back but "All". It is applied in loadCatalogue once the counts are real.
+     */
+    private pendingTab: CategoryTab | null = (() => {
+        const requested = this.route.snapshot.queryParamMap.get('tab');
+        return requested && REPORT_CATEGORIES.some(c => c.code === requested)
+            ? requested as CategoryTab
+            : null;
+    })();
+
     ngOnInit(): void {
         this.loadCatalogue();
         this.recentIds.set(this.readRecentsFromStorage());
@@ -435,6 +454,8 @@ export class ReportsLibraryComponent implements OnInit {
     }
 
     selectTab(tab: CategoryTab): void {
+        // A click beats the ?tab= deep link, even if the catalogue is still loading.
+        this.pendingTab = null;
         this.selectedTab.set(tab);
         // Clear search so the user sees the chosen tab's content, not stale results.
         if (this.searchText()) this.searchText.set('');
@@ -521,12 +542,33 @@ export class ReportsLibraryComponent implements OnInit {
             next: rows => {
                 this.type2Entries.set(rows);
                 this.catalogueLoading.set(false);
+                this.applyPendingTab();
             },
             error: () => {
                 this.catalogueLoading.set(false);
                 this.catalogueError.set('Could not load the dynamic report catalogue. Showing legacy reports only.');
+                // Legacy entries still populate the strip, so the deep link can still land.
+                this.applyPendingTab();
             }
         });
+    }
+
+    /**
+     * Honour `?tab=` once the counts are real, and only if that tab actually has reports.
+     * Selecting an empty category would light nothing in the strip; "All" is the honest
+     * fallback, and it still shows the Schedules group heading if any exist.
+     *
+     * Consumes the deep link either way, so a retry after a catalogue error cannot yank the
+     * user off a tab they picked in the meantime. `selectTab` consumes it too, for the same
+     * reason — a click during the load wins over the URL.
+     */
+    private applyPendingTab(): void {
+        const tab = this.pendingTab;
+        this.pendingTab = null;
+
+        if (tab && (this.tabCounts().get(tab) ?? 0) > 0) {
+            this.selectedTab.set(tab);
+        }
     }
 
     // ── Recents (localStorage, keyed per user+job) ────────────────────────────
