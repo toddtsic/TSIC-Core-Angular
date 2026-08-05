@@ -325,16 +325,18 @@
                                 }
                             }
                         }
-                        <button type="button"
-                                class="hub-config-btn"
-                                [class.active]="!activeTool() && mode() === 'configure'"
-                                [class.start-here-pulse]="showStartHereOnConfigure()"
-                                (click)="setMode('configure')"
-                                [attr.aria-pressed]="!activeTool() && mode() === 'configure'">
-                            <i class="bi" [class.bi-gear-fill]="!activeTool() && mode() === 'configure'"
-                                          [class.bi-gear]="activeTool() || mode() !== 'configure'"></i>
-                            <span>Configure</span>
-                        </button>
+                        @if (showConfigureMode) {
+                            <button type="button"
+                                    class="hub-config-btn"
+                                    [class.active]="!activeTool() && mode() === 'configure'"
+                                    [class.start-here-pulse]="showStartHereOnConfigure()"
+                                    (click)="setMode('configure')"
+                                    [attr.aria-pressed]="!activeTool() && mode() === 'configure'">
+                                <i class="bi" [class.bi-gear-fill]="!activeTool() && mode() === 'configure'"
+                                              [class.bi-gear]="activeTool() || mode() !== 'configure'"></i>
+                                <span>Configure</span>
+                            </button>
+                        }
                     }
                 </div>
                 </div>
