@@ -503,15 +503,6 @@ public class TimeslotRepository : ITimeslotRepository
         };
     }
 
-    // ── Capacity ──
-
-    public async Task<int> GetPairingCountAsync(Guid leagueId, string season, int teamCount, CancellationToken ct = default)
-    {
-        return await _context.PairingsLeagueSeason
-            .AsNoTracking()
-            .CountAsync(p => p.LeagueId == leagueId && p.Season == season && p.TCnt == teamCount, ct);
-    }
-
     // ── Cascade date support ──
 
     public async Task<List<TimeslotsLeagueSeasonDates>> GetDatesByDateTrackedAsync(

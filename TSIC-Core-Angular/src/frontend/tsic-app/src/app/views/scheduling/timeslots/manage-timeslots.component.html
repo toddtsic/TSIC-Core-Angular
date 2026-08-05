@@ -236,48 +236,31 @@
                                  user compares against legacy and against games needed. -->
                             <span class="badge-count" title="Droppable game slots">{{ totalGameSlots() }}</span>
 
-                            <!-- View switch, not a second bar: Capacity asks "will this fit?",
-                                 which is a different reading of the same rows, not a different
-                                 section. -->
-                            <div class="mode-seg view-seg" role="group" aria-label="View">
-                                <button type="button" class="mode-btn"
-                                        [class.active]="activeTab() === 'fields'"
-                                        [attr.aria-pressed]="activeTab() === 'fields'"
-                                        (click)="setTab('fields')">Slots</button>
-                                <button type="button" class="mode-btn"
-                                        [class.active]="activeTab() === 'capacity'"
-                                        [attr.aria-pressed]="activeTab() === 'capacity'"
-                                        (click)="setTab('capacity')">Capacity</button>
+                            <div class="section-actions">
+                                <!-- One way in. Disabled without game dates, because the days
+                                     it configures are derived from them — no dates, no days,
+                                     nothing to set up. -->
+                                <button class="btn btn-sm btn-primary"
+                                        (click)="openTimeslotSetup()"
+                                        [disabled]="!canSetupTimeslots()"
+                                        [title]="canSetupTimeslots()
+                                            ? 'Set the shape of each game day'
+                                            : 'Add game dates first'">
+                                    <i class="bi bi-sliders me-1"></i> {{ setupButtonLabel() }}
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger"
+                                        (click)="showDeleteFieldsConfirm.set(true)"
+                                        [disabled]="isDeletingAllFields() || fields().length === 0">
+                                    @if (isDeletingAllFields()) {
+                                        <span class="spinner-border spinner-border-sm"></span>
+                                    } @else {
+                                        <i class="bi bi-trash me-1"></i>
+                                    }
+                                    Delete All
+                                </button>
                             </div>
-
-                            @if (activeTab() === 'fields') {
-                                <div class="section-actions">
-                                    <!-- One way in. Disabled without game dates, because the days
-                                         it configures are derived from them — no dates, no days,
-                                         nothing to set up. -->
-                                    <button class="btn btn-sm btn-primary"
-                                            (click)="openTimeslotSetup()"
-                                            [disabled]="!canSetupTimeslots()"
-                                            [title]="canSetupTimeslots()
-                                                ? 'Set the shape of each game day'
-                                                : 'Add game dates first'">
-                                        <i class="bi bi-sliders me-1"></i> {{ setupButtonLabel() }}
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger"
-                                            (click)="showDeleteFieldsConfirm.set(true)"
-                                            [disabled]="isDeletingAllFields() || fields().length === 0">
-                                        @if (isDeletingAllFields()) {
-                                            <span class="spinner-border spinner-border-sm"></span>
-                                        } @else {
-                                            <i class="bi bi-trash me-1"></i>
-                                        }
-                                        Delete All
-                                    </button>
-                                </div>
-                            }
                         </div>
 
-                    @if (activeTab() === 'fields') {
                         <div class="tab-content">
                             <!-- Fields, folded: one row per field per day, pools summarised.
                                  Raw rows are per pool, so 31 fields × 6 pools is 186 near-identical
@@ -294,13 +277,6 @@
                                         <strong>{{ totalGameSlots() }}</strong> game slots
                                         &middot; <strong>{{ foldedFieldCount() }}</strong> field/day rows
                                         &middot; <strong>{{ fields().length }}</strong> pool timeslots
-                                    </span>
-                                    <span class="sort-control">
-                                        Sort
-                                        <button class="sort-btn" [class.active]="fieldSort() === 'field'"
-                                                (click)="fieldSort.set('field')">Field</button>
-                                        <button class="sort-btn" [class.active]="fieldSort() === 'start'"
-                                                (click)="fieldSort.set('start')">Start</button>
                                     </span>
                                 </div>
 
@@ -392,83 +368,6 @@
                                 </div>
                             }
                         </div>
-                    }
-
-                    <!-- ════════════════════════════════════════════════════ -->
-                    <!-- ── CAPACITY TAB ──                                  -->
-                    <!-- ════════════════════════════════════════════════════ -->
-                    @if (activeTab() === 'capacity') {
-                        <div class="tab-content">
-                            @if (capacityPreview().length > 0) {
-                                <!-- Summary Cards -->
-                                <div class="capacity-summary">
-                                    <div class="capacity-card">
-                                        <div class="capacity-card-label">Total Game Slots</div>
-                                        <div class="capacity-card-value">{{ capacityTotalSlots() }}</div>
-                                    </div>
-                                    <div class="capacity-card">
-                                        <div class="capacity-card-label">Games Needed</div>
-                                        <div class="capacity-card-value">{{ capacityTotalNeeded() }}</div>
-                                    </div>
-                                    <div class="capacity-card"
-                                         [class.capacity-ok]="capacityAllSufficient()"
-                                         [class.capacity-short]="!capacityAllSufficient()">
-                                        <div class="capacity-card-label">Status</div>
-                                        <div class="capacity-card-value">
-                                            @if (capacityAllSufficient()) {
-                                                <i class="bi bi-check-circle-fill me-1"></i> Sufficient
-                                            } @else {
-                                                <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                                                {{ capacityShortDays().length }} day(s) short
-                                            }
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Per-Day Breakdown -->
-                                <div class="capacity-details">
-                                    <div class="capacity-details-header">
-                                        <span class="fw-semibold small">Per-Day Breakdown</span>
-                                    </div>
-                                    @for (c of capacityPreview(); track c.dow) {
-                                        <div class="capacity-row" [class.insufficient]="!c.isSufficient">
-                                            <span class="capacity-dow">{{ c.dow }}</span>
-                                            <div class="capacity-metrics">
-                                                <span class="capacity-metric">
-                                                    <span class="metric-label">Fields</span>
-                                                    <span class="metric-value">{{ c.fieldCount }}</span>
-                                                </span>
-                                                <span class="capacity-metric">
-                                                    <span class="metric-label">Slots</span>
-                                                    <span class="metric-value">{{ c.totalGameSlots }}</span>
-                                                </span>
-                                                <span class="capacity-metric">
-                                                    <span class="metric-label">Needed</span>
-                                                    <span class="metric-value">{{ c.gamesNeeded }}</span>
-                                                </span>
-                                            </div>
-                                            <span class="capacity-status">
-                                                @if (c.isSufficient) {
-                                                    <span class="badge bg-success-subtle text-success-emphasis">
-                                                        <i class="bi bi-check-circle me-1"></i> OK
-                                                    </span>
-                                                } @else {
-                                                    <span class="badge bg-danger-subtle text-danger-emphasis">
-                                                        <i class="bi bi-exclamation-triangle me-1"></i> Short by {{ c.gamesNeeded - c.totalGameSlots }}
-                                                    </span>
-                                                }
-                                            </span>
-                                        </div>
-                                    }
-                                </div>
-                            } @else {
-                                <div class="empty-state-sm">
-                                    <i class="bi bi-bar-chart text-secondary" style="font-size: var(--font-size-2xl);"></i>
-                                    <p class="text-secondary mt-2 mb-0">Configure field timeslots first, then check capacity here.</p>
-                                </div>
-                            }
-                        </div>
-                    }
                     </section>
                 }
             }

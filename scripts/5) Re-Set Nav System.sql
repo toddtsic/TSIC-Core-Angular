@@ -187,8 +187,9 @@ CREATE TABLE #AdminLeaves (
     VisibilityRules NVARCHAR(MAX) NULL,
     BadgeText       NVARCHAR(20)  NULL
 );
--- trophy-fill, not trophy: 'trophy' is already the USA Lacrosse Rankings leaf, and the gold
--- rule in client-menu.component.scss keys on the icon class, so the two must not collide.
+-- trophy-fill, not trophy: 'trophy' is already the USA Lacrosse Rankings leaf, and the
+-- emphasis rule in client-menu.component.scss keys on the icon class, so the two must not
+-- collide -- change this value to 'trophy' and both leaves get the treatment.
 INSERT INTO #AdminLeaves VALUES (N'Scheduling Checklist', N'trophy-fill', N'scheduling', 4, 1, 1, 1, N'{"jobTypes":["Tournament Scheduling","League Scheduling"]}', NULL);
 INSERT INTO #AdminLeaves VALUES (N'Store', N'shop', N'store/admin', 9, 1, 1, 1, N'{"requiresFlags":["storeEnabled"]}', NULL);
 INSERT INTO #AdminLeaves VALUES (N'ARB Health', N'heart-pulse', N'arb/health', 10, 1, 1, 1, N'{"requiresFlags":["adnArb"]}', NULL);

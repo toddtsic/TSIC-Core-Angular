@@ -43,15 +43,6 @@ public record TimeslotConfigurationResponse
     public required List<TimeslotFieldDto> Fields { get; init; }
 }
 
-public record CapacityPreviewDto
-{
-    public required string Dow { get; init; }
-    public required int FieldCount { get; init; }
-    public required int TotalGameSlots { get; init; }
-    public required int GamesNeeded { get; init; }
-    public required bool IsSufficient { get; init; }
-}
-
 // ── Readiness ──
 
 /// <summary>

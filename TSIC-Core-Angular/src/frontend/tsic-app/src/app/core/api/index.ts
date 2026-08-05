@@ -147,7 +147,6 @@ export type { CadtTeamNode } from './models/CadtTeamNode';
 export type { CampGroupOptionsDto } from './models/CampGroupOptionsDto';
 export type { CampPlayerDto } from './models/CampPlayerDto';
 export type { CanvasReadinessResponse } from './models/CanvasReadinessResponse';
-export type { CapacityPreviewDto } from './models/CapacityPreviewDto';
 export type { CascadeDateChangeRequest } from './models/CascadeDateChangeRequest';
 export type { CascadeDateChangeResponse } from './models/CascadeDateChangeResponse';
 export type { CascadeDateDeleteRequest } from './models/CascadeDateDeleteRequest';

@@ -7,8 +7,7 @@ import {
     TimeslotService,
     type TimeslotConfigurationResponse,
     type TimeslotDateDto,
-    type TimeslotFieldDto,
-    type CapacityPreviewDto
+    type TimeslotFieldDto
 } from './services/timeslot.service';
 import { PairingsService } from '../pairings/services/pairings.service';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
@@ -101,17 +100,8 @@ export class ManageTimeslotsComponent implements OnInit {
     // ── Configuration state ──
     readonly dates = signal<TimeslotDateDto[]>([]);
     readonly fields = signal<TimeslotFieldDto[]>([]);
-    readonly capacityPreview = signal<CapacityPreviewDto[]>([]);
     readonly eventFields = signal<EventFieldSummaryDto[]>([]);
     readonly isLoading = signal(false);
-
-    // ── Tabs ──
-    // Dates are a panel above, not a tab: they are the context for field timeslots and hiding
-    // the small list to show the big one was the regression against legacy's single page.
-    readonly activeTab = signal<'fields' | 'capacity'>('fields');
-
-    // ── Fields sort (within each day) ──
-    readonly fieldSort = signal<'field' | 'start'>('field');
 
     // ── Date Modal ──
     readonly showDateModal = signal(false);
@@ -173,7 +163,6 @@ export class ManageTimeslotsComponent implements OnInit {
      */
     readonly dowSections = computed<DowSection[]>(() => {
         const poolCount = this.schedulablePools().length;
-        const sort = this.fieldSort();
         const byKey = new Map<string, FieldGroup>();
 
         for (const f of this.fields()) {
@@ -215,10 +204,12 @@ export class ManageTimeslotsComponent implements OnInit {
         return DAYS_OF_WEEK
             .filter(d => byDow.has(d))
             .map(dow => {
+                // By field name. There was a Field|Start sort toggle here; setup stamps one
+                // start time across a whole day, so every row in a day ties on startTime and
+                // both orders fell through to this same comparison. Start time is still the
+                // tiebreak for legacy data that predates the setup dialog and does stagger.
                 const groups = (byDow.get(dow) ?? []).sort((a, b) =>
-                    sort === 'start'
-                        ? a.startTime.localeCompare(b.startTime) || a.fieldName.localeCompare(b.fieldName)
-                        : a.fieldName.localeCompare(b.fieldName) || a.startTime.localeCompare(b.startTime));
+                    a.fieldName.localeCompare(b.fieldName) || a.startTime.localeCompare(b.startTime));
 
                 const uniform = groups.every(g =>
                     g.startTime === groups[0].startTime
@@ -360,19 +351,6 @@ export class ManageTimeslotsComponent implements OnInit {
         return Math.max(...allDates.map(d => d.rnd)) + 1;
     });
 
-    // ── Computed: capacity summary ──
-    readonly capacityTotalSlots = computed(() =>
-        this.capacityPreview().reduce((sum, c) => sum + c.totalGameSlots, 0));
-
-    readonly capacityTotalNeeded = computed(() =>
-        this.capacityPreview().reduce((sum, c) => sum + c.gamesNeeded, 0));
-
-    readonly capacityAllSufficient = computed(() =>
-        this.capacityPreview().length > 0 && this.capacityPreview().every(c => c.isSufficient));
-
-    readonly capacityShortDays = computed(() =>
-        this.capacityPreview().filter(c => !c.isSufficient));
-
     ngOnInit(): void {
         this.loadAgegroups();
 
@@ -407,8 +385,6 @@ export class ManageTimeslotsComponent implements OnInit {
 
     selectAgegroup(ag: AgegroupWithDivisionsDto): void {
         this.selectedAgegroup.set(ag);
-        this.capacityPreview.set([]);
-        this.activeTab.set('fields');
         this.loadConfiguration(ag.agegroupId);
     }
 
@@ -421,21 +397,6 @@ export class ManageTimeslotsComponent implements OnInit {
                 this.isLoading.set(false);
             },
             error: () => this.isLoading.set(false)
-        });
-    }
-
-    setTab(tab: 'fields' | 'capacity'): void {
-        this.activeTab.set(tab);
-        if (tab === 'capacity') {
-            this.loadCapacity();
-        }
-    }
-
-    loadCapacity(): void {
-        const ag = this.selectedAgegroup();
-        if (!ag) return;
-        this.svc.getCapacityPreview(ag.agegroupId).subscribe({
-            next: (data) => this.capacityPreview.set(data)
         });
     }
 

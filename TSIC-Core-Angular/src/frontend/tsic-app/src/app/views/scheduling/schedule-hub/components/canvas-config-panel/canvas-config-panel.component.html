@@ -236,48 +236,6 @@
                 }
             </div>
 
-            <!-- ══════════ Capacity Preview ══════════ -->
-            @if (capacity().length > 0) {
-                <div class="canvas-section">
-                    <div class="section-header">
-                        <i class="bi bi-bar-chart me-1"></i>
-                        <span>Capacity</span>
-                        @if (capacityAllSufficient()) {
-                            <span class="badge bg-success-subtle text-success-emphasis ms-auto">
-                                <i class="bi bi-check-circle me-1"></i>Sufficient
-                            </span>
-                        } @else {
-                            <span class="badge bg-danger-subtle text-danger-emphasis ms-auto">
-                                <i class="bi bi-exclamation-triangle me-1"></i>Short
-                            </span>
-                        }
-                    </div>
-                    <div class="data-list">
-                        @for (c of capacity(); track c.dow) {
-                            <div class="data-row">
-                                <span class="data-primary">{{ c.dow }}</span>
-                                <span class="text-secondary data-detail">{{ c.fieldCount }} fields</span>
-                                <span class="text-secondary data-detail">{{ c.totalGameSlots }} slots</span>
-                                <span class="text-secondary data-detail">{{ c.gamesNeeded }} needed</span>
-                                @if (c.isSufficient) {
-                                    <i class="bi bi-check-circle-fill text-success"></i>
-                                } @else {
-                                    <i class="bi bi-exclamation-circle text-danger"
-                                       title="Short by {{ c.gamesNeeded - c.totalGameSlots }}"></i>
-                                }
-                            </div>
-                        }
-                        <div class="data-row capacity-total">
-                            <span class="data-primary fw-semibold">Total</span>
-                            <span class="data-detail"></span>
-                            <span class="data-detail fw-semibold">{{ capacityTotalSlots() }}</span>
-                            <span class="data-detail fw-semibold">{{ capacityTotalNeeded() }}</span>
-                            <span></span>
-                        </div>
-                    </div>
-                </div>
-            }
-
             <!-- ══════════ Clone to All Unconfigured ══════════ -->
             @if (canFinish() && unconfiguredAgegroups().length > 0) {
                 <div class="canvas-section">

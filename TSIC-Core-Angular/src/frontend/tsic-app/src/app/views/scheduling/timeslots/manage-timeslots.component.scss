@@ -152,14 +152,6 @@
     text-align: center;
 }
 
-// ── View switch ──
-
-// View switch inside the section head — sits between the count badge and the actions, so the
-// actions still pin right exactly as they do on Play Dates.
-.view-seg {
-    margin-left: var(--space-3);
-}
-
 // ── Tab content ──
 
 .tab-content {
@@ -223,7 +215,7 @@
     overflow: auto;
 }
 
-// ── Folded-field summary + sort ──
+// ── Folded-field summary ──
 
 .fold-note {
     display: flex;
@@ -233,40 +225,6 @@
     font-size: 0.75rem;
     color: var(--bs-secondary-color);
     border-bottom: 1px solid var(--bs-border-color);
-}
-
-.sort-control {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-    margin-left: auto;
-}
-
-.sort-btn {
-    border: 1px solid transparent;
-    border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--bs-secondary-color);
-    font-size: 0.75rem;
-    padding: 0 var(--space-2);
-    line-height: 1.6;
-    cursor: pointer;
-
-    &:hover {
-        color: var(--bs-primary);
-    }
-
-    &:focus-visible {
-        outline: none;
-        box-shadow: var(--shadow-focus);
-    }
-
-    &.active {
-        border-color: var(--bs-primary);
-        color: var(--bs-primary);
-        background: rgba(var(--bs-primary-rgb), 0.08);
-        font-weight: 600;
-    }
 }
 
 // ── Missing-day warning ──
@@ -527,52 +485,6 @@
     }
 }
 
-// ── Segmented control ──
-// Slots | Capacity, in the Timeslots section head — both readings always visible so the
-// choice is legible without opening anything.
-.mode-seg {
-    display: inline-flex;
-    border: 1px solid var(--bs-border-color);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-    background: var(--bs-body-bg);
-}
-
-.mode-btn {
-    border: none;
-    background: transparent;
-    color: var(--bs-secondary-color);
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: var(--space-1) var(--space-3);
-    cursor: pointer;
-    transition: background-color 0.15s, color 0.15s;
-
-    + .mode-btn {
-        border-left: 1px solid var(--bs-border-color);
-    }
-
-    &:hover {
-        color: var(--bs-primary);
-    }
-
-    &:focus-visible {
-        outline: none;
-        box-shadow: var(--shadow-focus);
-    }
-
-    &.active {
-        background: var(--bs-primary);
-        color: var(--bs-btn-primary-color, #fff);
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .mode-btn {
-        transition: none !important;
-    }
-}
-
 // ── Table styles ──
 
 .table-scroll-wrapper {
@@ -662,115 +574,6 @@
     letter-spacing: 0.03em;
 }
 
-// ── Capacity dashboard ──
-
-.capacity-summary {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--space-3);
-    padding: var(--space-3);
-    border-bottom: 1px solid var(--bs-border-color);
-}
-
-.capacity-card {
-    padding: var(--space-3);
-    border-radius: var(--bs-border-radius);
-    border: 1px solid var(--bs-border-color);
-    background: var(--bs-tertiary-bg);
-    text-align: center;
-
-    &.capacity-ok {
-        border-color: var(--bs-success);
-        background: var(--bs-success-bg-subtle);
-
-        .capacity-card-value {
-            color: var(--bs-success-text-emphasis);
-        }
-    }
-
-    &.capacity-short {
-        border-color: var(--bs-danger);
-        background: var(--bs-danger-bg-subtle);
-
-        .capacity-card-value {
-            color: var(--bs-danger-text-emphasis);
-        }
-    }
-}
-
-.capacity-card-label {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--bs-secondary-color);
-    margin-bottom: var(--space-1);
-}
-
-.capacity-card-value {
-    font-size: var(--font-size-xl);
-    font-weight: 700;
-    color: var(--bs-body-color);
-}
-
-.capacity-details {
-    flex: 1;
-    overflow-y: auto;
-}
-
-.capacity-details-header {
-    padding: var(--space-2) var(--space-3);
-    background: var(--bs-tertiary-bg);
-    border-bottom: 1px solid var(--bs-border-color);
-}
-
-.capacity-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-2) var(--space-3);
-    border-bottom: 1px solid var(--bs-border-color);
-
-    &.insufficient {
-        background: var(--bs-danger-bg-subtle);
-    }
-}
-
-.capacity-dow {
-    font-weight: 600;
-    min-width: 80px;
-}
-
-.capacity-metrics {
-    display: flex;
-    gap: var(--space-4);
-    flex: 1;
-}
-
-.capacity-metric {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.metric-label {
-    font-size: 0.625rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--bs-secondary-color);
-}
-
-.metric-value {
-    font-size: 0.875rem;
-    font-weight: 600;
-}
-
-.capacity-status {
-    min-width: 100px;
-    text-align: right;
-}
-
 // ── Mobile: stack panels vertically ──
 
 @media (max-width: 767.98px) {
@@ -790,22 +593,4 @@
         flex-wrap: wrap;
     }
 
-    .capacity-summary {
-        grid-template-columns: 1fr;
-    }
-
-    .capacity-row {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--space-2);
-    }
-
-    .capacity-metrics {
-        width: 100%;
-        justify-content: space-around;
-    }
-
-    .capacity-status {
-        align-self: flex-end;
-    }
 }

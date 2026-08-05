@@ -203,11 +203,6 @@ public interface ITimeslotRepository
     Task<FieldScheduleDefaults?> GetDominantFieldDefaultsAsync(
         Guid leagueId, string season, string year, CancellationToken ct = default);
 
-    // ── Capacity ──
-
-    /// <summary>Count pairings for team count (to compute games needed).</summary>
-    Task<int> GetPairingCountAsync(Guid leagueId, string season, int teamCount, CancellationToken ct = default);
-
     // ── Cascade date support ──
 
     /// <summary>Get ALL date rows for a specific GDate across all agegroups in a league-season-year (tracked for update).</summary>

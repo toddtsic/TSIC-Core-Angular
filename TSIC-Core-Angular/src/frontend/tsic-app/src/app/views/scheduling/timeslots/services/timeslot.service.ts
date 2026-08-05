@@ -6,7 +6,6 @@ import type {
     TimeslotConfigurationResponse,
     TimeslotDateDto,
     TimeslotFieldDto,
-    CapacityPreviewDto,
     CanvasReadinessResponse,
     AddTimeslotDateRequest,
     EditTimeslotDateRequest,
@@ -33,7 +32,6 @@ export type {
     TimeslotConfigurationResponse,
     TimeslotDateDto,
     TimeslotFieldDto,
-    CapacityPreviewDto,
     CanvasReadinessResponse,
     AddTimeslotDateRequest,
     EditTimeslotDateRequest,
@@ -75,10 +73,6 @@ export class TimeslotService {
 
     getConfiguration(agegroupId: string): Observable<TimeslotConfigurationResponse> {
         return this.http.get<TimeslotConfigurationResponse>(`${this.apiUrl}/${agegroupId}`);
-    }
-
-    getCapacityPreview(agegroupId: string): Observable<CapacityPreviewDto[]> {
-        return this.http.get<CapacityPreviewDto[]>(`${this.apiUrl}/${agegroupId}/capacity`);
     }
 
     // ── Dates CRUD ──

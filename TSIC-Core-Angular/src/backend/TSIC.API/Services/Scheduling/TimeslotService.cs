@@ -280,44 +280,6 @@ public sealed class TimeslotService : ITimeslotService
         };
     }
 
-    public async Task<List<CapacityPreviewDto>> GetCapacityPreviewAsync(
-        Guid jobId, Guid agegroupId, CancellationToken ct = default)
-    {
-        var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
-        var fields = await _tsRepo.GetFieldTimeslotsAsync(agegroupId, season, year, ct);
-
-        // Get team count for this agegroup (approximate from division with most teams)
-        var divIds = await _tsRepo.GetActiveDivisionIdsAsync(agegroupId, jobId, ct);
-        var maxTeamCount = 0;
-        foreach (var divId in divIds)
-        {
-            var tc = await _tsRepo.GetPairingCountAsync(leagueId, season, maxTeamCount, ct);
-            if (tc > maxTeamCount) maxTeamCount = tc;
-        }
-
-        // Group field timeslots by DOW
-        var byDow = fields.GroupBy(f => f.Dow);
-        var result = new List<CapacityPreviewDto>();
-
-        foreach (var group in byDow)
-        {
-            var totalSlots = group.Sum(f => f.MaxGamesPerField);
-            var fieldCount = group.Select(f => f.FieldId).Distinct().Count();
-            var gamesNeeded = maxTeamCount > 0 ? (int)Math.Ceiling(maxTeamCount / 2.0) : 0;
-
-            result.Add(new CapacityPreviewDto
-            {
-                Dow = group.Key,
-                FieldCount = fieldCount,
-                TotalGameSlots = totalSlots,
-                GamesNeeded = gamesNeeded,
-                IsSufficient = totalSlots >= gamesNeeded
-            });
-        }
-
-        return result;
-    }
-
     // ── Dates CRUD ──
 
     public async Task<TimeslotDateDto> AddDateAsync(

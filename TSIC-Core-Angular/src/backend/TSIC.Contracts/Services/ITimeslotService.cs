@@ -18,9 +18,6 @@ public interface ITimeslotService
     Task<TimeslotConfigurationResponse> GetConfigurationAsync(
         Guid jobId, Guid agegroupId, CancellationToken ct = default);
 
-    Task<List<CapacityPreviewDto>> GetCapacityPreviewAsync(
-        Guid jobId, Guid agegroupId, CancellationToken ct = default);
-
     // ── Dates CRUD ──
 
     Task<TimeslotDateDto> AddDateAsync(

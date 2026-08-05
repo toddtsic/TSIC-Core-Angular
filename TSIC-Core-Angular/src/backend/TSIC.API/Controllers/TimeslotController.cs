@@ -79,17 +79,6 @@ public class TimeslotController : ControllerBase
         return Ok(result);
     }
 
-    [HttpGet("{agegroupId:guid}/capacity")]
-    public async Task<ActionResult<List<CapacityPreviewDto>>> GetCapacityPreview(
-        Guid agegroupId, CancellationToken ct)
-    {
-        var (jobId, _, error) = await ResolveContext();
-        if (error != null) return error;
-
-        var result = await _timeslotService.GetCapacityPreviewAsync(jobId!.Value, agegroupId, ct);
-        return Ok(result);
-    }
-
     // ── Dates CRUD ──
 
     [HttpPost("date")]

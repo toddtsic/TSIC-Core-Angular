@@ -8,8 +8,7 @@ import type {
     AgegroupWithDivisionsDto,
     AgegroupCanvasReadinessDto,
     TimeslotDateDto,
-    TimeslotFieldDto,
-    CapacityPreviewDto
+    TimeslotFieldDto
 } from '@core/api';
 
 @Component({
@@ -38,7 +37,6 @@ export class CanvasConfigPanelComponent implements OnChanges {
     // ── Data signals ──
     readonly dates = signal<TimeslotDateDto[]>([]);
     readonly fields = signal<TimeslotFieldDto[]>([]);
-    readonly capacity = signal<CapacityPreviewDto[]>([]);
     readonly isLoading = signal(false);
 
     // ── Date form ──
@@ -67,15 +65,6 @@ export class CanvasConfigPanelComponent implements OnChanges {
         if (d.length === 0) return 1;
         return Math.max(...d.map(dd => dd.rnd)) + 1;
     });
-
-    readonly capacityTotalSlots = computed(() =>
-        this.capacity().reduce((sum, c) => sum + c.totalGameSlots, 0));
-
-    readonly capacityTotalNeeded = computed(() =>
-        this.capacity().reduce((sum, c) => sum + c.gamesNeeded, 0));
-
-    readonly capacityAllSufficient = computed(() =>
-        this.capacity().length > 0 && this.capacity().every(c => c.isSufficient));
 
     readonly hasNoFieldsAssigned = computed(() => this.assignedFieldCount() === 0);
 
@@ -115,24 +104,12 @@ export class CanvasConfigPanelComponent implements OnChanges {
                 this.dates.set(config.dates);
                 this.fields.set(config.fields);
                 this.isLoading.set(false);
-                this.refreshCapacity();
             },
             error: () => {
                 this.dates.set([]);
                 this.fields.set([]);
                 this.isLoading.set(false);
             }
-        });
-    }
-
-    refreshCapacity(): void {
-        if (this.dates().length === 0 || this.fields().length === 0) {
-            this.capacity.set([]);
-            return;
-        }
-        this.svc.getCapacityPreview(this.agegroupId()).subscribe({
-            next: (data) => this.capacity.set(data),
-            error: () => this.capacity.set([])
         });
     }
 
@@ -157,7 +134,6 @@ export class CanvasConfigPanelComponent implements OnChanges {
                     .sort((a, b) => new Date(a.gDate).getTime() - new Date(b.gDate).getTime()));
                 this.isSavingDate.set(false);
                 this.showDateForm.set(false);
-                this.refreshCapacity();
             },
             error: () => {
                 this.toast.show('Failed to add date', 'danger');
@@ -170,7 +146,6 @@ export class CanvasConfigPanelComponent implements OnChanges {
         this.svc.deleteDate(ai).subscribe({
             next: () => {
                 this.dates.update(curr => curr.filter(d => d.ai !== ai));
-                this.refreshCapacity();
             },
             error: () => this.toast.show('Failed to delete date', 'danger')
         });
@@ -199,7 +174,6 @@ export class CanvasConfigPanelComponent implements OnChanges {
                 this.fields.update(curr => [...curr, ...newFields]);
                 this.isSavingField.set(false);
                 this.showFieldForm.set(false);
-                this.refreshCapacity();
             },
             error: () => {
                 this.toast.show('Failed to add field schedule', 'danger');
@@ -212,7 +186,6 @@ export class CanvasConfigPanelComponent implements OnChanges {
         this.svc.deleteFieldTimeslot(ai).subscribe({
             next: () => {
                 this.fields.update(curr => curr.filter(f => f.ai !== ai));
-                this.refreshCapacity();
             },
             error: () => this.toast.show('Failed to delete field schedule', 'danger')
         });
