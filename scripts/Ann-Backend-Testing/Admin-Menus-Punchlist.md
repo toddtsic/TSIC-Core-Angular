@@ -289,7 +289,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   3. **Consolidate wizard 7 steps → 2 steps with 4 cards in Step 1 (PL-003, UX/Feature)** — proposed shape: Step 1 = Identity / Dates / LADT scope / Fees cards (parallel), Step 2 = Review & submit. Redistributes the eliminated Step 6 fields (reg-from-email → Identity, parallax toggle + grad-year advance → LADT scope; drop the "DOB windows" half per PL-008). **Decisions**: confirm the 4-card shape, field homes, DOB-windows drop, per-step backend validations (esp. moving the `jobIdentityExists` uniqueness check to the Step 1→2 transition), and stack vs 2×2 layout.
   4. **Step 2 Reset and Back buttons look redundant (PL-001, UX)** — on Step 2 both return to Step 1, though they differ (Reset = destructive wipe, preserves flavor; Back = non-destructive step decrement). Rec **B**: rename Reset → "Start Over" with a confirm dialog to make its destructive nature explicit (optionally also hide it on Step 2 where the destination matches Back).
 - **Severity**: Bug (PL-004, PL-002) + UX (PL-003, PL-001)
-- **Status**: Deferred — Todd + Ann to work Job Clone after the rest of the review (Ann, 2026-07-26)
+- **Status**: ✅ **CLOSED — covered (Ann, 2026-08-05).** The Job Clone cluster was worked in full this cycle — **AM-071 … AM-081** (dates/expiry, league-name decode, discount-codes copy, grad-year roll-forward, waitlist callout, LADT tree, "what you need to turn on" rewrite), most verified. Any residual Job-Clone items are tracked individually (open: AM-075 hint wording). Nothing left under this umbrella item. *(Was: Deferred — Todd + Ann to work Job Clone after the review, 2026-07-26.)*
 
 ### AM-016: [Configure / Widget Editor] The Widget Editor's "public" settings do nothing
 - **Topic**: Configure Menus → Widget Editor (SuperUser-only)
@@ -631,7 +631,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **For Todd**: sequence it with AM-009's refund-policy move — after `adultRegRefundPolicy` leaves the Coaches tab for Payment, confirm Release of Liability lands directly under Confirmation On-Screen and give it the enlarged RTE height from AM-033.
 - **RESOLUTION (Todd, 2026-07-29)**: (1) the Refund-Policy-to-Payment move **stays PARKED with AM-009** (re-raise declined for go-live week — the move carries open design decisions: job-type-aware display, "Adult" vs "Club Rep/Team" labeling, whether the Adult tab's text section reads thin after). (2) is an automatic side effect of (1), so it waits with it. (3) **already satisfied by AM-033** — Release of Liability (like all 15 job-config editors) now has a resize drag-handle.
 - **Severity**: UX (field order + editor size on the Adult tab)
-- **Status**: ✅ **Acknowledged (Ann, 07-29)** — parts 1–2 parked with AM-009 for post-go-live; part 3 accepted as satisfied by AM-033 (resize drag-handle on the Release-of-Liability editor).
+- **Status**: ✅ **VERIFIED / CLOSED (Ann, 2026-08-05).** Parts 1–2 satisfied via **AM-009** (verified passing) — the Refund-Policy placement work landed there; part 3 satisfied by **AM-033** (resize drag-handle, verified). Nothing outstanding. *(Was: Acknowledged 07-29, parts 1-2 parked with AM-009.)*
 
 ---
 
