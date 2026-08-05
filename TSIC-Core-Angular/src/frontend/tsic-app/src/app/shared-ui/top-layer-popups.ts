@@ -1,92 +1,107 @@
 /**
- * Lifts body-parented Syncfusion popups into the top layer while a modal dialog is open.
+ * Moves body-parented Syncfusion popups inside a modal dialog while it is open.
  *
  * ## The bug this exists for
  *
- * `tsic-dialog` opens via `dialog.showModal()`, which promotes the <dialog> into the
- * browser's **top layer**. Top-layer elements paint above the entire normal stacking
- * context — z-index is not part of that comparison at all.
+ * `tsic-dialog` opens via `dialog.showModal()`. That does two things to everything
+ * outside the dialog: it paints them **under** the dialog (the dialog joins the top
+ * layer, which is not part of the z-index comparison), and it makes them **inert** —
+ * non-interactive, not merely hidden.
  *
- * Several Syncfusion controls append their popup to `document.body` rather than to their
- * own element (`ej2-splitbuttons/drop-down-button.js` → `appendToElement = document.body`).
- * A body-parented popup therefore paints UNDER the dialog, always, and no z-index value
- * can rescue it. Measured in the bulletin editor: the Font Size popup was open, sized
- * 96×162, correctly positioned, `visibility: visible`, z-index 1015 — and invisible.
+ * Several Syncfusion controls append their popup to `document.body` rather than to
+ * their own element (`ej2-splitbuttons/drop-down-button.js` → `appendToElement =
+ * document.body`). Inside a modal, such a popup is therefore invisible AND dead.
  *
- * Confirmed affected in the RTE toolbar: **Font Size, Font Colour, Background Colour**
- * (all `DropDownButton`). Confirmed NOT affected: the table quick-toolbar and the link
- * dialog, both of which Syncfusion parents inside the editor element.
+ * Measured in the bulletin editor: the Font Size popup was open, sized 96×162,
+ * correctly positioned, `visibility: visible`, z-index 1015 — and unreachable.
  *
- * ## Why promotion rather than re-parenting
+ * Confirmed affected (all `DropDownButton`): **Font Size, Font Colour, Background
+ * Colour**. Confirmed NOT affected, because Syncfusion parents them inside the editor:
+ * the **table quick-toolbar** and the **link dialog**. Those are left alone.
  *
- * Moving the popup into the dialog would fix the layer but break the position: ej2
- * computes absolute coordinates against `document.body`, so changing the offset parent
- * invalidates them. It would also subject the popup to `.modal-content`'s `overflow:auto`
- * clipping. Promoting via the Popover API leaves the element exactly where it is — same
- * parent, same coordinates — and only changes which layer it paints in. Nothing about
- * Syncfusion's positioning is touched.
+ * ## A dead end worth recording
  *
- * ## Why this is anchored to the dialog, not to the editor
+ * The first attempt promoted the popup into the top layer with the Popover API
+ * (`popover="manual"` + `showPopover()`), leaving it parented to `<body>`. That fixed
+ * the painting — the popups appeared correctly positioned over the dialog — and did
+ * nothing for interactivity: a click listener bound directly to the popup never fired,
+ * not even `mousedown`. **Inertness is decided by DOM ancestry, not by paint layer.**
+ * Do not retry that approach.
+ *
+ * ## What this does instead
+ *
+ * On open, move the popup inside the `<dialog>` element. As a descendant it is both
+ * painted with the dialog and interactive. On close, move it back to `<body>` so
+ * Syncfusion always re-positions it in the context it computes against.
+ *
+ * Two details that matter:
+ *
+ * - **The offset correction.** ej2 writes `top`/`left` resolved against `<body>`. Once
+ *   re-parented, those resolve against the dialog's box instead, so the popup would sit
+ *   off by exactly the dialog's own offset. We measure the element's viewport rect
+ *   *before* moving it and rewrite the coordinates relative to the dialog's rect. Using
+ *   measured rects rather than parsing the inline style keeps this correct regardless of
+ *   scroll position.
+ *
+ * - **Appended to the `<dialog>`, never to `.modal-content`.** That inner element sets
+ *   `overflow: auto` and `max-height: 90vh`, which would clip a dropdown opened near the
+ *   bottom of a tall modal.
+ *
+ * ## Why this is anchored to the dialog rather than to the editor
  *
  * The colour pickers' popup ids (`e-split-btn_1_dropdownbtn-popup`) come from a global
  * counter and carry no reference to the editor that owns them, so "find the popups
  * belonging to this RTE" is not reliably derivable. Anchoring to the dialog sidesteps
- * ownership entirely — and it covers any other body-parented ej2 popup (dropdownlist,
- * date picker, multiselect) dropped into a modal later, which would otherwise hit this
- * same wall with its own bespoke fix.
+ * ownership — and covers any other body-parented ej2 popup (dropdownlist, date picker,
+ * multiselect) dropped into a modal later, which would otherwise need its own fix.
  *
- * The real structural fix is for `tsic-dialog` to stop using `showModal()` and supply its
- * own backdrop, removing the top layer from the picture. That is a change to every modal
- * in the app and is deliberately deferred; this is the contained version.
+ * The structural answer is for `tsic-dialog` to stop using `showModal()` and supply its
+ * own backdrop, removing both the top layer and the inertness from the picture. That
+ * changes every modal in the app — deferred deliberately; this is the contained version.
  */
 
 /** Body-level popups ej2 creates outside the component. Matches the observed markup. */
 const POPUP_SELECTOR = '.e-popup, [id$="-popup"]';
 
-/** True once we know the browser can do this at all. Old browsers degrade to the status quo. */
-const SUPPORTED = typeof HTMLElement !== 'undefined'
-  && typeof (HTMLElement.prototype as { showPopover?: unknown }).showPopover === 'function';
-
 function isVisible(el: HTMLElement): boolean {
   return getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().width > 0;
-}
-
-function promote(el: HTMLElement, dialog: HTMLElement): void {
-  // Already inside the dialog (table quick-toolbar, link dialog) — nothing to fix, and
-  // promoting it would pointlessly re-layer an element that is already correct.
-  if (dialog.contains(el)) return;
-
-  if (!el.hasAttribute('popover')) {
-    // "manual", never "auto": auto brings light-dismiss and popover-stack semantics that
-    // would fight Syncfusion, which already owns this popup's open/close lifecycle.
-    el.setAttribute('popover', 'manual');
-  }
-  if (!el.matches(':popover-open')) {
-    try { el.showPopover(); } catch { /* already shown, or detached mid-flight */ }
-  }
-}
-
-function demote(el: HTMLElement): void {
-  if (el.matches(':popover-open')) {
-    try { el.hidePopover(); } catch { /* detached mid-flight */ }
-  }
 }
 
 /**
  * Start watching. Returns a disposer — call it when the dialog closes.
  *
- * Cost is deliberately bounded: one `childList` observer on <body>'s direct children, plus
- * one attribute observer per popup element filtered to `style`/`class`. No subtree-wide
+ * Observation cost is deliberately bounded: one `childList` observer on `<body>`'s direct
+ * children, plus one `style`/`class` attribute observer per popup element. No subtree-wide
  * attribute observation, which would fire on every style change in the app.
  */
 export function watchTopLayerPopups(dialog: HTMLElement): () => void {
-  if (!SUPPORTED) return () => { /* no-op: pre-Popover-API browser */ };
-
   const watched = new WeakSet<HTMLElement>();
+  /** Popups we have relocated. Also what makes the move idempotent: our own style writes
+   *  re-trigger the observer, and without this we would re-measure an already-moved
+   *  element and walk it across the screen one dialog-offset at a time. */
+  const moved = new Set<HTMLElement>();
   const observers: MutationObserver[] = [];
 
+  const moveIn = (el: HTMLElement) => {
+    if (moved.has(el)) return;
+    const before = el.getBoundingClientRect();   // where ej2 correctly put it
+    dialog.appendChild(el);
+    const box = dialog.getBoundingClientRect();
+    el.style.top = `${before.top - box.top}px`;
+    el.style.left = `${before.left - box.left}px`;
+    moved.add(el);
+  };
+
+  const moveOut = (el: HTMLElement) => {
+    if (!moved.has(el)) return;
+    moved.delete(el);
+    document.body.appendChild(el);
+    // Coordinates are left as-is: ej2 rewrites top/left on every open, so the stale
+    // dialog-relative values never get a chance to be used.
+  };
+
   const sync = (el: HTMLElement) => {
-    if (isVisible(el)) promote(el, dialog); else demote(el);
+    if (isVisible(el)) moveIn(el); else moveOut(el);
   };
 
   const watch = (el: HTMLElement) => {
@@ -100,6 +115,8 @@ export function watchTopLayerPopups(dialog: HTMLElement): () => void {
   };
 
   const scan = () => {
+    // Only body-level popups are broken. Anything Syncfusion already parents inside the
+    // dialog (table quick-toolbar, link dialog) is correct and must not be touched.
     document.body.querySelectorAll<HTMLElement>(POPUP_SELECTOR).forEach(el => {
       if (!dialog.contains(el)) watch(el);
     });
@@ -114,7 +131,7 @@ export function watchTopLayerPopups(dialog: HTMLElement): () => void {
 
   return () => {
     observers.forEach(o => o.disconnect());
-    // Leave nothing in the top layer behind us — a stale entry would outlive the dialog.
-    document.body.querySelectorAll<HTMLElement>(POPUP_SELECTOR).forEach(demote);
+    // Put everything back before the dialog is torn down, or the popups leave with it.
+    [...moved].forEach(moveOut);
   };
 }
