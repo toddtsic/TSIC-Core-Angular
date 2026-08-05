@@ -497,7 +497,7 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
         if (games.Count == 0)
             return new BatchParkResult { ParkedCount = 0, ParkedGames = [] };
 
-        return await ParkGamesInternalAsync(games, userId, ct);
+        return await ParkGamesInternalAsync(jobId, games, userId, ct);
     }
 
     public async Task<BatchParkResult> ParkAllChampionshipAsync(
@@ -541,30 +541,21 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
         var gids = nonTGames.Select(g => g.Gid).ToList();
         var trackedGames = await _scheduleRepo.GetGamesByIdsAsync(gids, ct);
 
-        return await ParkGamesInternalAsync(trackedGames, userId, ct);
+        return await ParkGamesInternalAsync(jobId, trackedGames, userId, ct);
     }
 
     private async Task<BatchParkResult> ParkGamesInternalAsync(
-        List<Schedule> games, string userId, CancellationToken ct)
+        Guid jobId, List<Schedule> games, string userId, CancellationToken ct)
     {
-        // Build a set of already-occupied parking slots to avoid collisions
-        var occupiedParking = new HashSet<(Guid fieldId, DateTime gDate)>();
+        // One query for every occupied (field, time) slot on the affected fields;
+        // only entries inside a 23:45–23:59 window can collide with a parking candidate.
+        var fieldIds = games
+            .Where(g => g.GDate.HasValue && g.FieldId.HasValue)
+            .Select(g => g.FieldId!.Value)
+            .Distinct()
+            .ToList();
 
-        // Pre-load existing parked games (any games with time >= 23:45)
-        foreach (var game in games)
-        {
-            if (!game.GDate.HasValue || !game.FieldId.HasValue) continue;
-
-            var day = game.GDate.Value.Date;
-            // Check for existing games at parking times on this field
-            for (var minute = 0; minute < 15; minute++)
-            {
-                var parkTime = day.Add(ParkingZoneStart).AddMinutes(minute);
-                var existing = await _scheduleRepo.GetGameAtSlotAsync(parkTime, game.FieldId.Value, ct);
-                if (existing != null)
-                    occupiedParking.Add((game.FieldId.Value, parkTime));
-            }
-        }
+        var occupiedParking = await _scheduleRepo.GetOccupiedSlotsAsync(jobId, fieldIds, ct);
 
         var parkedGames = new List<ParkedGameInfo>();
 
