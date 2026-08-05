@@ -70,26 +70,23 @@
   margin-top: var(--space-4);
 }
 
-// ─── Role group header (eyebrow above dropdown / card list) ─
+// ─── Role group header (band above dropdown / card list) ─
+// The search/teams .section-card-header treatment — primary-tinted band,
+// primary text, left accent — so the grouping reads at the same polish
+// weight as the gold-standard admin pages.
 .role-label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--brand-text-muted);
+  display: block;
   margin: 0 0 var(--space-2);
-
-  // Hairline rule extending to the right edge — carries the group boundary
-  // even when the header text is short.
-  &::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border-color);
-  }
+  padding: var(--space-1) var(--space-3);
+  background: color-mix(in srgb, var(--bs-primary) 6%, var(--surface-elevated-bg));
+  border: 1px solid var(--bs-border-color);
+  border-left: 3px solid var(--bs-primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--bs-primary);
 }
 
 // ─── Cards-mode role list (used when section has < TYPEAHEAD_THRESHOLD entries) ─
