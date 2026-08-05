@@ -8,6 +8,7 @@ import { BulletinAdminService } from '../services/bulletin-admin.service';
 import { ToastService } from '../../../../shared-ui/toast.service';
 import { AuthService } from '../../../../infrastructure/services/auth.service';
 import { TsicRteDirective } from '@shared-ui/rte.directive';
+import { RichTextPipe } from '@infrastructure/pipes/rich-text.pipe';
 import type {
     BulletinAdminDto,
     CreateBulletinRequest,
@@ -36,7 +37,7 @@ export type ModalMode = 'add' | 'edit';
 @Component({
     selector: 'bulletin-form-modal',
     standalone: true,
-    imports: [CommonModule, TsicDialogComponent, FormsModule, RichTextEditorAllModule, TsicRteDirective],
+    imports: [CommonModule, TsicDialogComponent, FormsModule, RichTextEditorAllModule, TsicRteDirective, RichTextPipe],
     template: `
         <tsic-dialog [open]="true" size="lg" (requestClose)="close.emit()">
             <div class="modal-content bulletin-modal">
@@ -158,7 +159,7 @@ export type ModalMode = 'add' | 'edit';
                                             <button type="button" class="btn btn-link btn-sm p-0" (click)="resetPulseOverrides()">Reset</button>
                                         }
                                     </div>
-                                    <div class="preview-body" [innerHTML]="previewHtml()"></div>
+                                    <div class="preview-body" [innerHTML]="previewHtml() | richText"></div>
                                 </div>
                             }
                         </div>

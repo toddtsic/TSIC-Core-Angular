@@ -3,11 +3,12 @@ import { AdultWizardStateService } from '../state/adult-wizard-state.service';
 import { AdultRegistrationService } from '@infrastructure/services/adult-registration.service';
 import { TestSendButtonComponent, type TestSendOptions } from '@shared-ui/components/test-send-button/test-send-button.component';
 import { environment } from '@environments/environment';
+import { RichTextPipe } from '@infrastructure/pipes/rich-text.pipe';
 
 @Component({
     selector: 'app-adult-confirmation-step',
     standalone: true,
-    imports: [TestSendButtonComponent],
+    imports: [TestSendButtonComponent, RichTextPipe],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <!-- Centered hero -->
@@ -32,7 +33,7 @@ import { environment } from '@environments/environment';
                         </div>
                     </div>
                 } @else if (state.confirmationHtml()) {
-                    <div class="confirmation-html" [innerHTML]="state.confirmationHtml()"></div>
+                    <div class="confirmation-html" [innerHTML]="state.confirmationHtml() | richText"></div>
                 } @else {
                     <div class="alert alert-info" role="status">
                         Your registration has been recorded.

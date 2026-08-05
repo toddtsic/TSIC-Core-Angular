@@ -5,6 +5,7 @@ import { environment } from '@environments/environment';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 import type { JobPulseDto } from '@core/api';
 import { TestSendButtonComponent, type TestSendOptions } from '@shared-ui/components/test-send-button/test-send-button.component';
+import { RichTextPipe } from '@infrastructure/pipes/rich-text.pipe';
 
 /**
  * Confirmation step — displays the server-rendered confirmation HTML,
@@ -13,7 +14,7 @@ import { TestSendButtonComponent, type TestSendOptions } from '@shared-ui/compon
 @Component({
     selector: 'app-prw-confirmation-step',
     standalone: true,
-    imports: [RouterLink, TestSendButtonComponent],
+    imports: [RouterLink, TestSendButtonComponent, RichTextPipe],
     styles: [`
     .confirmation-content { overflow-x: auto; }
     .confirmation-content ::ng-deep table { width: 100%; min-width: 600px; }
@@ -112,7 +113,7 @@ import { TestSendButtonComponent, type TestSendOptions } from '@shared-ui/compon
             <div class="small text-muted mb-2">{{ resendMessage() }}</div>
           }
 
-          <div class="confirmation-content mt-3" [innerHTML]="conf()!.confirmationHtml"></div>
+          <div class="confirmation-content mt-3" [innerHTML]="conf()!.confirmationHtml | richText"></div>
 
           @if (showStoreCta()) {
             <a [routerLink]="'../../store'" [relativeTo]="route" class="store-cta btn btn-outline-primary">

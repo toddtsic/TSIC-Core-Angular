@@ -6,6 +6,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { RichTextPipe } from '@infrastructure/pipes/rich-text.pipe';
 
 /**
  * Team Waivers step — displays refund policy HTML, requires checkbox acceptance.
@@ -15,7 +16,7 @@ import { ToastService } from '@shared-ui/toast.service';
 @Component({
     selector: 'app-trw-waivers-step',
     standalone: true,
-    imports: [],
+    imports: [RichTextPipe],
     template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -24,7 +25,7 @@ import { ToastService } from '@shared-ui/toast.service';
       <div class="card-body">
         <p class="wizard-tip">Before getting started, please review and accept the refund policy for this event.</p>
 
-        <div class="policy-content" [innerHTML]="policyHtml()"></div>
+        <div class="policy-content" [innerHTML]="policyHtml() | richText"></div>
 
         <div class="acceptance-row">
           <input id="acceptRefund" type="checkbox"

@@ -5,10 +5,17 @@ import { JobService } from '@infrastructure/services/job.service';
 const JOB_TYPE_TOURNAMENT = 2;
 
 /**
- * Legacy inline-style → class map. Angular's HTML sanitizer strips `style`
- * attributes on `[innerHTML]`, so bulletins authored with inline CSS lose
- * their typography. These classes are declared in bulletins.component.scss
- * and mapped to design-system variables.
+ * Legacy inline-style → class map.
+ *
+ * This began as a survival mechanism: Angular's built-in sanitizer strips `style`
+ * attributes, so these hand-listed legacy values were rewritten to classes to keep
+ * their typography. `RichTextPipe` now solves that generally — inline styles survive —
+ * so the mapping is no longer what keeps legacy bulletins readable.
+ *
+ * It is kept because it does something the general fix cannot: these classes resolve to
+ * design-system variables (see `_component-overrides.scss`), so a legacy `#0000ff` shows
+ * as the palette's blue and stays legible in dark mode, where the raw hex would not.
+ * Legacy values get the upgrade; everything else passes through untouched.
  */
 const FONT_SIZE_CLASSES: ReadonlyMap<string, string> = new Map([
     ['14px', 'bl-fs-14'],
@@ -93,12 +100,16 @@ export class TranslateLegacyUrlsPipe implements PipeTransform {
     /**
      * Transforms inline `style="..."` attributes into classes (for known
      * font-size / color values) and HTML width/height attributes (for <img>
-     * width/height styles). Unknown properties are left in `style` and fall
-     * through to Angular's sanitizer — same behavior as before, no regression.
+     * width/height styles). Unknown properties are left in `style`.
      *
-     * Why: [innerHTML] sanitization strips `style` attributes. Legacy bulletins
-     * (~94% of the corpus) rely on inline font-size and color for emphasis.
-     * Classes and width/height attrs survive sanitization and preserve intent.
+     * Why: legacy bulletins (~94% of the corpus) rely on inline font-size and color
+     * for emphasis, and the curated values above map to palette variables that adapt
+     * to the active theme — better than the literal hex the author typed in 2014.
+     *
+     * Declarations this does not recognise are re-emitted in `style` and now render as
+     * authored, because `RichTextPipe` runs after this pipe and permits an allowlist of
+     * CSS properties. That is what carries today's font-size and colour choices; before
+     * it existed, anything not converted here was silently deleted.
      */
     private legacyStylesToSafeForm(html: string): string {
         return html.replace(/<(\w+)([^>]*)>/gi, (_match, tag: string, attrs: string) => {
@@ -144,7 +155,8 @@ export class TranslateLegacyUrlsPipe implements PipeTransform {
                 // background-color:transparent → noise, drop (830 occurrences in corpus)
                 if (property === 'background-color' && value.toLowerCase() === 'transparent') continue;
 
-                // Unknown: keep in style; sanitizer will strip, same as today
+                // Not a curated legacy value: keep it in `style`. RichTextPipe decides
+                // whether the property is allowed to render.
                 keptDecls.push(`${property}:${value}`);
             }
 
@@ -172,7 +184,7 @@ export class TranslateLegacyUrlsPipe implements PipeTransform {
                 }
             }
 
-            // Re-emit any un-transformed style declarations (will be stripped by sanitizer)
+            // Re-emit any un-transformed style declarations
             if (keptDecls.length > 0) {
                 newAttrs = `${newAttrs} style="${keptDecls.join(';')}"`;
             }

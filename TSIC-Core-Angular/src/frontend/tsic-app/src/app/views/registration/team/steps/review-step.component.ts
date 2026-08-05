@@ -6,6 +6,7 @@ import { TeamRegistrationService } from '@views/registration/team/services/team-
 import { ToastService } from '@shared-ui/toast.service';
 import { TestSendButtonComponent, type TestSendOptions } from '@shared-ui/components/test-send-button/test-send-button.component';
 import { environment } from '@environments/environment';
+import { RichTextPipe } from '@infrastructure/pipes/rich-text.pipe';
 
 /**
  * Team Review step — shows confirmation HTML, resend email, finish button.
@@ -13,7 +14,7 @@ import { environment } from '@environments/environment';
 @Component({
     selector: 'app-trw-review-step',
     standalone: true,
-    imports: [TestSendButtonComponent],
+    imports: [TestSendButtonComponent, RichTextPipe],
     styles: [`
     .confirmation-content { overflow-x: auto; }
     .confirmation-content ::ng-deep table { width: 100%; min-width: 600px; }
@@ -71,7 +72,7 @@ import { environment } from '@environments/environment';
             <div class="small text-muted mb-2">{{ resendMessage() }}</div>
           }
 
-          <div class="confirmation-content" [innerHTML]="confirmationHtml()"></div>
+          <div class="confirmation-content" [innerHTML]="confirmationHtml() | richText"></div>
         }
       </div>
     </div>

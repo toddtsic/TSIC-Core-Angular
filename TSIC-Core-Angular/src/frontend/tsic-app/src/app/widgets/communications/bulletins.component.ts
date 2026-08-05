@@ -2,6 +2,7 @@ import { Component, computed, inject, input, signal, ChangeDetectionStrategy } f
 import { ActivatedRoute, ActivatedRouteSnapshot, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { TranslateLegacyUrlsPipe } from '@infrastructure/pipes/translate-legacy-urls.pipe';
+import { RichTextPipe } from '@infrastructure/pipes/rich-text.pipe';
 import { InternalLinkDirective } from '@infrastructure/directives/internal-link.directive';
 import { JobService } from '@infrastructure/services/job.service';
 import { AuthService } from '@infrastructure/services/auth.service';
@@ -28,7 +29,7 @@ import type { BulletinDto } from '@core/api';
 @Component({
     selector: 'app-bulletins',
     standalone: true,
-    imports: [CommonModule, TranslateLegacyUrlsPipe, InternalLinkDirective, SmartBulletinsComponent],
+    imports: [CommonModule, TranslateLegacyUrlsPipe, RichTextPipe, InternalLinkDirective, SmartBulletinsComponent],
     templateUrl: './bulletins.component.html',
     styleUrl: './bulletins.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush

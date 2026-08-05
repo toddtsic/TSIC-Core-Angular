@@ -1,6 +1,7 @@
 import { AfterViewInit, ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AdultWizardStateService } from '../state/adult-wizard-state.service';
+import { RichTextPipe } from '@infrastructure/pipes/rich-text.pipe';
 
 /**
  * Waivers step — matches the player wizard's pattern:
@@ -12,7 +13,7 @@ import { AdultWizardStateService } from '../state/adult-wizard-state.service';
 @Component({
     selector: 'app-adult-waivers-step',
     standalone: true,
-    imports: [FormsModule],
+    imports: [FormsModule, RichTextPipe],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <!-- Centered hero -->
@@ -60,7 +61,7 @@ import { AdultWizardStateService } from '../state/adult-wizard-state.service';
                                         <div class="accordion-body">
                                             <div class="waiver-html-content mb-3 border rounded p-3 bg-body-tertiary"
                                                 style="max-height: 300px; overflow-y: auto"
-                                                [innerHTML]="w.htmlContent"></div>
+                                                [innerHTML]="w.htmlContent | richText"></div>
                                             <div class="form-check">
                                                 <input class="form-check-input" type="checkbox"
                                                     [id]="'adult-waiver-check-' + i"

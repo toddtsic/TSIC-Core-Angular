@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal, AfterViewInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
+import { RichTextPipe } from '@infrastructure/pipes/rich-text.pipe';
 
 /**
  * Waivers step — accordion showing each waiver's HTML content with an
@@ -9,7 +10,7 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 @Component({
     selector: 'app-prw-waivers-step',
     standalone: true,
-    imports: [FormsModule],
+    imports: [FormsModule, RichTextPipe],
     template: `
     <!-- Centered hero -->
     <div class="welcome-hero">
@@ -66,7 +67,7 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
                       @if (w.html) {
                         <div class="waiver-html-content mb-3 border rounded p-3 bg-body-tertiary"
                              style="max-height: 300px; overflow-y: auto"
-                             [innerHTML]="w.html"></div>
+                             [innerHTML]="w.html | richText"></div>
                       }
                       <div class="form-check">
                         <input class="form-check-input" type="checkbox"

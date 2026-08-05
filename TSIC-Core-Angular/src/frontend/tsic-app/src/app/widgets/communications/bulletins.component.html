@@ -38,7 +38,7 @@
             }
 
             <div class="bulletin-body" appInternalLink [jobPath]="jobPath()">
-                <div [innerHTML]="bulletin.text | translateLegacyUrls:jobPath()"></div>
+                <div [innerHTML]="bulletin.text | translateLegacyUrls:jobPath() | richText"></div>
             </div>
         </div>
     </article>
