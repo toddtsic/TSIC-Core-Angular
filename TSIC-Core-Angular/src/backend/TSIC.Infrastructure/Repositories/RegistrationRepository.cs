@@ -338,9 +338,7 @@ public class RegistrationRepository : IRegistrationRepository
             select new RegistrationDto
             {
                 RegId = r.RegistrationId.ToString(),
-                // Role label rides in the row text: these rows surface under the
-                // merged "Adult" group, where the header no longer disambiguates.
-                DisplayText = $"{(j.JobName ?? string.Empty)}:Staff:{ag.AgegroupName}:{t.TeamName}",
+                DisplayText = $"{(j.JobName ?? string.Empty)}:{ag.AgegroupName}:{t.TeamName}",
                 JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
                 JobPath = j.JobPath
             }
@@ -365,7 +363,7 @@ public class RegistrationRepository : IRegistrationRepository
             select new RegistrationDto
             {
                 RegId = r.RegistrationId.ToString(),
-                DisplayText = $"{(j.JobName ?? string.Empty)}:Store Admin",
+                DisplayText = j.JobName ?? string.Empty,
                 JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
                 JobPath = j.JobPath
             }
@@ -390,7 +388,7 @@ public class RegistrationRepository : IRegistrationRepository
             select new RegistrationDto
             {
                 RegId = r.RegistrationId.ToString(),
-                DisplayText = $"{(j.JobName ?? string.Empty)}:Ref Assignor",
+                DisplayText = j.JobName ?? string.Empty,
                 JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
                 JobPath = j.JobPath
             }
@@ -415,7 +413,7 @@ public class RegistrationRepository : IRegistrationRepository
             select new RegistrationDto
             {
                 RegId = r.RegistrationId.ToString(),
-                DisplayText = $"{(j.JobName ?? string.Empty)}:Referee",
+                DisplayText = j.JobName ?? string.Empty,
                 JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
                 JobPath = j.JobPath
             }
