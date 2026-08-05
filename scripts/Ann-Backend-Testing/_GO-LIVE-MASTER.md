@@ -11,7 +11,6 @@
 | **AM-082** | AM | 🔴 **GO-LIVE BLOCKER** | CAC Select Events opens scrolled to the BOTTOM — must land at the **TOP** (do team + adult wizards too — shared shell) |
 | **AM-065 pt1** | AM | 🔴 Reopened | Club Rep **AND all Adult** confirmation/waiver text boxes must be editable **all the time**, NOT gated on the QuickLink / registration-availability toggle (Player already is) |
 | **AM-075** | AM | 🔴 Reopened | Job-Clone event-dates hint → Ann's wording: *"Leave blank to shift the source's event dates forward one year. Check that Event End is in the future — on any job type, a past end date opens the new job concluded (no registration links)."* |
-| **AM-084 pt1** | AM | 🔴 Reopened | CAC filter placeholder → *"Filter your search by name of event or grad year"* |
 | **AM-041 + AM-089** | AM | 🔴 Gate | Donations must **report** a donation (itemized on confirmation for tax + Director/fly-in view + allow at $0 owed) **before** the feature can be enabled by anyone. AM-089 is the hard prerequisite; AM-041 stays off until it ships |
 | **PL-037** | PL | 🔴 Reopened | Club Rep "Pay Balance Due" — waitlist-badge / balance behavior |
 | **PL-063** | PL | ◻ Open (new) | Multiplayer (sibling) Discount % not functional — **Hero's Lacrosse Players** parity: recover Hero's Legacy values (currently NULL) + surface the config field + wire `FeeDiscountMp` (reserved slot already carried through the money math) |
@@ -52,6 +51,6 @@
 ---
 
 ### Status snapshot (2026-08-05)
-- **Closed this pass:** AM-015 (Job Clone — covered by AM-071…081), AM-037 (refund policy — via AM-009/033), AM-069 (Convert button WON'T-DO accepted), AM-088 (Coach confirmations closed, accepted).
-- **Verified this pass:** AM-011/067/068/070/073/076/077/078/079/080/081/085/086, PL-060.
+- **Closed this pass:** AM-015 (Job Clone — covered by AM-071…081), AM-037 (refund policy — via AM-009/033), AM-069 (Convert button WON'T-DO accepted), AM-088 (Coach confirmations closed, accepted), **AM-084 (pt1 accepted as shipped — Ann withdrew the rewording; pt2 already verified. Item fully closed, no code change)**.
+- **Verified this pass:** AM-011/067/068/070/073/076/077/078/079/080/081/084/085/086, PL-060.
 - **All of Todd's recent decisions reviewed by Ann** — none outstanding.
