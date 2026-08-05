@@ -63,8 +63,23 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 export class ChecklistBackLinkComponent {
     private readonly route = inject(ActivatedRoute);
 
-    /** Relative route back to the checklist. Shell children use '..'; deeper hosts override. */
-    readonly target = input('../scheduling');
+    /**
+     * Relative route back to the checklist.
+     *
+     * '..' is right for BOTH scheduling page shapes, because Angular resolves it by popping
+     * one URL SEGMENT, not one route-config node:
+     *
+     *   shell child   'fields' under 'scheduling'   → segments [scheduling, fields]
+     *   flat tool     'scheduling/bracket-seeds'    → segments [scheduling, bracket-seeds]
+     *
+     * Either way one pop lands on /{jobPath}/scheduling, which is the checklist. The old
+     * default was '../scheduling', which popped to /{jobPath}/scheduling and THEN appended
+     * 'scheduling' — every page taking the default 404'd on scheduling/scheduling.
+     *
+     * Hosts outside the scheduling tree still override: pool-assignment sits at
+     * 'ladt/pool-assignment', so it needs '../../scheduling' to clear both segments.
+     */
+    readonly target = input('..');
 
     /** Pages reachable only from the checklist always show the way back. */
     readonly always = input(false, { transform: booleanAttribute });

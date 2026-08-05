@@ -704,3 +704,36 @@ $bottom-bar-h: calc(56px + env(safe-area-inset-bottom, 0));
         animation: none !important;
     }
 }
+// ── Scheduling Checklist trophy ─────────────────────────────────────────────
+// Scheduling is what TSIC is known for, so its leaf is the one marked item in the nav.
+// It stands out on four independent signals, none of which is colour alone:
+//
+//   glyph    the only -fill icon in the whole nav seed; filled among outlines reads
+//            heavier before any colour is involved
+//   colour   competition gold, against peers that inherit the menu's warm grey
+//   opacity  full, against the rail's 0.65 — gold at 0.65 goes to mustard
+//   size     a hair larger; em-relative so it scales with whichever surface renders it,
+//            and the rail's icon cell is a fixed 1.25rem so nothing reflows
+//
+// The colour is deliberately NOT the raw --winner-gold. That token is tuned for the
+// schedule surfaces; on this rail's #ffffff it lands near 2.3:1 and reads washed —
+// the opposite of standing out. Mixing it toward --neutral-900 deepens it to a richer
+// bronze-gold at ~3.5:1, past the 3:1 non-text floor.
+//
+// One expression covers both themes because --neutral-900 inverts: #1c1917 in light,
+// so the mix darkens against white; #fafaf9 in dark, so the SAME mix lightens against
+// the #44403c rail. No media query, no second value to keep in sync.
+:host .bi-trophy-fill {
+    color: color-mix(in srgb, var(--winner-gold) 78%, var(--neutral-900));
+    opacity: 1;
+    font-size: 1.08em;
+}
+
+// ...except on the active route, where the item becomes a solid --bs-primary fill with
+// white text. Gold on that fill is a palette lottery across the 8 brands — fine on the
+// blues, muddy on the ambers — and once you are already there, "you are here" is the
+// signal that matters. The selection cue wins and the trophy joins the white.
+:host .admin-rail__item--active .bi-trophy-fill,
+:host .pill-nav__item--active .bi-trophy-fill {
+    color: inherit;
+}

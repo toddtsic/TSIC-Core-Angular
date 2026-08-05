@@ -130,15 +130,50 @@ export class SchedulingChecklistComponent implements OnInit {
             linkLabel: 'Schedule Hub'
         };
 
-        return [pools, pairings, timeslots, build];
+        // ── Post-build steps ──
+        // Both operate ON a schedule, so neither means anything until games exist. That is the
+        // same gate the Tools grid applied ("available once games are scheduled"); they are
+        // promoted out of it because they are ordered work, not a drawer of utilities.
+        //
+        // Their state is 'info', never 'done'. Nothing on the checklist DTO reports whether a
+        // bracket is seeded or whether a reschedule is outstanding, and inventing a green tick
+        // from data we do not have is worse than not claiming one. The link is the point.
+        const bracketSeeds: StepRow = {
+            num: 5,
+            title: 'Bracket Seeds',
+            icon: 'bi-trophy',
+            state: c.gameCount > 0 ? 'info' : 'locked',
+            reason: c.gameCount > 0
+                ? 'Set who feeds each bracket slot — championship play only'
+                : 'Locked until the schedule is built',
+            route: '../scheduling/bracket-seeds',
+            queryParams: { from: 'scheduling' },
+            linkLabel: 'Bracket Seeds'
+        };
+
+        const rescheduler: StepRow = {
+            num: 6,
+            title: 'Rescheduler',
+            icon: 'bi-arrow-repeat',
+            state: c.gameCount > 0 ? 'info' : 'locked',
+            reason: c.gameCount > 0
+                ? 'Move, swap or re-time games after the build'
+                : 'Locked until the schedule is built',
+            route: '../scheduling/rescheduler',
+            queryParams: { from: 'scheduling' },
+            linkLabel: 'Rescheduler'
+        };
+
+        return [pools, pairings, timeslots, build, bracketSeeds, rescheduler];
     });
 
+    // Bracket Seeds and Rescheduler used to live here. They are steps 5 and 6 now — ordered
+    // work that follows the build, not utilities you reach for. What is left is genuinely a
+    // drawer: ways to look at the schedule, and side tools that sit outside the sequence.
     readonly tools: ToolRow[] = [
         { title: 'View Schedule', icon: 'bi-eye', route: '../scheduling/view-schedule', queryParams: { from: 'scheduling' } },
         { title: 'Master Schedule', icon: 'bi-calendar-week', route: '../scheduling/master-schedule', queryParams: { from: 'scheduling' } },
-        { title: 'Rescheduler', icon: 'bi-arrow-repeat', route: '../scheduling/rescheduler', queryParams: { from: 'scheduling' } },
         { title: 'QA Results', icon: 'bi-check2-square', route: 'qa-results', queryParams: null },
-        { title: 'Bracket Seeds', icon: 'bi-trophy', route: '../scheduling/bracket-seeds', queryParams: { from: 'scheduling' } },
         { title: 'Tournament Parking', icon: 'bi-car-front', route: '../scheduling/tournament-parking', queryParams: { from: 'scheduling' } },
         { title: 'Mobile Scorers', icon: 'bi-phone', route: '../scheduling/mobile-scorers', queryParams: { from: 'scheduling' } }
     ];

@@ -208,7 +208,10 @@
       so the winner is the high-contrast figure in BOTH palettes. */
    --score-strong: var(--neutral-900);
 
-   /* Winner gold — the trophy glyph beside a winning score, and nothing else.
+   /* Winner gold — competition gold, and nothing else. Two sanctioned uses:
+      the winning score in the schedule views, and the Scheduling Checklist's trophy
+      in the admin nav. Both say "competition"; neither is decoration, and it must not
+      spread further without a reason of that kind.
       Deliberately palette-INVARIANT (raw hex, not an alias of --bs-warning): gold
       means "won" in every one of the 8 palettes and both themes, so it must never
       shift with the brand accent. Mirrors TSIC-Events-2025 --ion-color-warning.
