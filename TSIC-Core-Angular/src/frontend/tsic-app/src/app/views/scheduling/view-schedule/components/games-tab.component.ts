@@ -340,8 +340,9 @@ type ScheduleRow =
                         </div>
 
                         <!-- Team 1 (Home): full-width row, score right-aligned.
-                             Black-tie: the name never carries the result — the gold
-                             underline under the winning score is the sole win cue. -->
+                             The win cue is the gold dotted underline on the NAME, identical
+                             to the desktop grid — same property, same values, one language
+                             across both layouts. -->
                         <div class="card-team-row">
                             <span class="card-team-name">
                                 @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
@@ -355,11 +356,12 @@ type ScheduleRow =
                                 }
                                 @if (game.t1Id) {
                                     <button type="button" class="team-name team-link"
+                                            [class.is-winner]="isT1Winner(game)"
                                             [attr.title]="'View ' + game.t1Name + ' results'"
-                                            [attr.aria-label]="'View ' + game.t1Name + ' results'"
+                                            [attr.aria-label]="'View ' + game.t1Name + ' results' + (isT1Winner(game) ? ', winner' : '')"
                                             (click)="viewTeamResults.emit(game.t1Id!)">{{ teamLabel(game.t1Name) }}</button>
                                 } @else {
-                                    <span class="team-name">{{ teamLabel(game.t1Name) }}</span>
+                                    <span class="team-name" [class.is-winner]="isT1Winner(game)">{{ teamLabel(game.t1Name) }}</span>
                                 }
                                 @if (game.t1Record && game.t1Id) {
                                     <button type="button" class="record-btn"
@@ -369,7 +371,7 @@ type ScheduleRow =
                                 }
                                 @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
                             </span>
-                            <span class="card-team-score" [class.is-winner]="isT1Winner(game)">
+                            <span class="card-team-score">
                                 {{ hasScore(game) ? game.t1Score : '' }}
                             </span>
                         </div>
@@ -388,11 +390,12 @@ type ScheduleRow =
                                 }
                                 @if (game.t2Id) {
                                     <button type="button" class="team-name team-link"
+                                            [class.is-winner]="isT2Winner(game)"
                                             [attr.title]="'View ' + game.t2Name + ' results'"
-                                            [attr.aria-label]="'View ' + game.t2Name + ' results'"
+                                            [attr.aria-label]="'View ' + game.t2Name + ' results' + (isT2Winner(game) ? ', winner' : '')"
                                             (click)="viewTeamResults.emit(game.t2Id!)">{{ teamLabel(game.t2Name) }}</button>
                                 } @else {
-                                    <span class="team-name">{{ teamLabel(game.t2Name) }}</span>
+                                    <span class="team-name" [class.is-winner]="isT2Winner(game)">{{ teamLabel(game.t2Name) }}</span>
                                 }
                                 @if (game.t2Record && game.t2Id) {
                                     <button type="button" class="record-btn"
@@ -402,7 +405,7 @@ type ScheduleRow =
                                 }
                                 @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
                             </span>
-                            <span class="card-team-score" [class.is-winner]="isT2Winner(game)">
+                            <span class="card-team-score">
                                 {{ hasScore(game) ? game.t2Score : '' }}
                             </span>
                         </div>
@@ -1575,11 +1578,18 @@ type ScheduleRow =
         }
 
         /* Card team row — one team per line, score right-aligned */
+        /* line-height is PINNED, not inherited. The winner rule now draws on the name here,
+           occupying 3px to 5px below the baseline (offset 3px + 2px thick). A line box at
+           1.5 has roughly 6px of descent at this font size, so the rule sits inside the row
+           and never bleeds into the card's --space-1 gap or crowds the team below it. Left
+           to inherit, that clearance would be at the mercy of whatever line-height the card
+           happens to sit under. */
         .card-team-row {
             display: flex;
             align-items: baseline;
             gap: var(--space-2);
             font-size: var(--font-size-sm);
+            line-height: 1.5;
         }
 
         .card-team-name {
@@ -1587,14 +1597,19 @@ type ScheduleRow =
             min-width: 0;
         }
 
-        /* Plain bold strong figure for BOTH teams; the gold underline under the winning
-           NUMBER is the sole result cue here (.is-winner).
-           Desktop underlines the winning NAME instead. Both are gold underlines, so the
-           language is shared — they differ only in what they sit under, and deliberately.
-           A card gives each team its own line with its score at the end of it, so the number
-           IS that team's line and underlining it says who won without ambiguity. The desktop
-           row mirrors two teams around a shared scoreline, where an underlined number would
-           only be re-stating which digit is larger. */
+        /* Plain bold strong figure for BOTH teams, carrying NO result cue.
+
+           This used to hold the win cue — a gold underline under the winning NUMBER, while
+           desktop underlined the winning NAME. The split was argued for at the time (a card
+           gives each team its own line, so the number IS that team's line) but it meant one
+           product had two visual languages for the same fact, and a parent who checks the
+           schedule on a phone and again on a laptop had to learn both. Whatever the local
+           argument, that cost is not worth paying: the cue is now the same gold dotted rule
+           on the NAME in both layouts, from the same .team-name.is-winner declaration.
+
+           The digits stay full-strength for winner and loser alike. Muting the loser would be
+           a second, redundant channel — the retired scheme's whole failure mode — and the
+           losing score is real information. */
         .card-team-score {
             flex-shrink: 0;
             font-size: var(--font-size-base);
@@ -1604,13 +1619,6 @@ type ScheduleRow =
             min-width: 2ch;
             text-align: center;
             color: var(--score-strong);
-        }
-
-        .card-team-score.is-winner {
-            text-decoration: underline;
-            text-decoration-color: color-mix(in srgb, var(--winner-gold) 80%, transparent);
-            text-decoration-thickness: 2px;
-            text-underline-offset: 4px;
         }
 
         /* Card location row */
