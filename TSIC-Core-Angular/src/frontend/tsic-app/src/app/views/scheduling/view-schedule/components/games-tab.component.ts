@@ -1016,11 +1016,6 @@ type ScheduleRow =
             display: flex;
             align-items: baseline;
             gap: var(--space-1);
-            /* The winner cue is an offset underline (text-underline-offset: 4px) that draws
-               ~4px BELOW the digit — past the bottom of this tight line-box. Inheriting
-               .cell's overflow: hidden clips it away entirely. Scores are short and never
-               ellipsize, so overflow: visible is safe and lets the underline paint. */
-            overflow: visible;
         }
 
         /* Both numbers hug the dash — MIRRORED, not both right-aligned. Right-aligning the
