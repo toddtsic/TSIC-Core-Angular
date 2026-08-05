@@ -6,6 +6,30 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Each item** carries a Claude-verified root cause (code + DB where relevant) and clear **For Todd** directions.
 - **Cross-topic:** if an admin finding actually belongs to another area, it still lives here (with a topic tag) so Todd sees it in this review.
 
+---
+
+## 📌 STATUS INDEX — regenerated 2026-08-05 (authoritative snapshot)
+
+> Built from a **full read of every status line**, not a keyword grep — a grep silently misses items (proven 2026-08-05: two scans each missed different items, incl. the AM-082 go-live blocker). **Regenerate this whenever an item is opened / closed / reopened / parked.** The per-item Status lines below remain the source of truth; this is the fast index so neither side's decisions go unseen.
+
+### ⏭ NEEDS TODD — open / reopened / blocker (his action pending)
+- 🔴 **AM-082 — GO-LIVE BLOCKER**: CAC Select Events opens scrolled to the BOTTOM; must land at the TOP (do team + adult wizards too — shared shell).
+- 🔴 **AM-075 — REOPENED**: swap the Job-Clone event-dates hint to Ann's wording ("Leave blank to shift the source's event dates forward one year. Check that Event End is in the future — …").
+- 🔴 **AM-084 pt1 — REOPENED**: CAC filter placeholder → "Filter your search by name of event or grad year".
+- 🔴 **AM-041 + AM-089 (linked GATE)**: donations must NOT be enabled by anyone until a donation is **reported** (itemized on confirmation for tax + Director/fly-in view + allow at $0 owed). **AM-089 is a hard prerequisite** — build it before donations are ever turned on.
+- ◻ **AM-063** — enhancement (Draft-with-AI: reuse prior email copy). Low priority.
+- 🔵 **AM-043 / AM-044 / AM-045** — bulletin-AI cluster: needs a **Todd + Ann walkthrough** (tabled); includes Ann's "AI Format appears to do nothing" note.
+
+### 👀 TODD'S RECENT DECISIONS — for Ann to notice (parked / closed / won't-do)
+- ⚠️ **AM-069 — WON'T DO (Todd, 08-02)**: the phase button stays "Convert" (built as Ann asked, then reverted). **Ann has NOT reviewed/acknowledged this yet.**
+- ✅ Already reviewed by Ann: AM-071 (closed) + AM-072 (won't-do) acknowledged; AM-074 + AM-087 parked (agreed); AM-088 closed (accepted); AM-083 closed (Ann's own).
+
+### 🔎 BUILT — awaiting Ann's verify (recorded BUILT with no logged Ann-verify — worth a retest pass)
+- AM-019 · AM-042 · AM-047 · AM-051 · AM-053 · AM-054 · AM-064 · AM-065 (pt1) · AM-066
+  *(AM-042 & AM-054 were restyled via AM-064; the whole callout family is one retest.)*
+
+---
+
 ### Marker legend (same as the payment punchlist)
 - `✅ VERIFIED PASSING (Ann, MM-DD)` — Ann retested a fix, confirmed good
 - `🟡 FIXED (Todd, MM-DD) — awaiting Ann verify` — fix shipped, queued for Ann's next-pass retest
@@ -1207,7 +1231,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   - Part 1's internal scroll is untouched — Ann's 08-04 verify still stands.
 - **Severity**: 🔴 Blocking when triggered (couldn't complete/cancel the rename) → mitigated by Part 1; Part 2 is UX polish.
 - **Cross-ref**: AM-060 (same registrant fly-in), PL-062 (LADT confirm-in-place modal pattern).
-- **Status**: ✅ **CLOSED 2026-08-05 — both parts done.** Part 1 **VERIFIED PASSING (Ann, 2026-08-04)** — overflow fix confirmed (list scrolls inside the modal; Cancel / Rename Club stay reachable), committed `e961baeb`. Part 2 (draggable) built 2026-08-05 — see above. → **Ann to verify Part 2**: open Rename Club on a club with many scheduled jobs, drag the modal by its title bar, confirm it moves, stays on screen, and that clicking the ✕ / typing in the name field still works normally. Same check on **Change Job** (it shares the modal class).
+- **Status**: ✅ **CLOSED — both parts VERIFIED.** Part 1 **VERIFIED PASSING (Ann, 2026-08-04)** — overflow fix (list scrolls inside; Cancel / Rename Club reachable), `e961baeb`. **Part 2 (draggable) ✅ VERIFIED PASSING (Ann, 2026-08-05)** — modal drags by its title bar, stays on screen, ✕/name-field still work, resets centered on reopen; Change Job too. Built by Todd 2026-08-05.
 
 ### AM-071: [Configure / Job Clone → Dates] Expiry defaults are wrong — Admin should outlive User by a year, and both should land end-of-month
 - **Source**: Ann (2026-08-03) — Job Clone walkthrough
@@ -1251,7 +1275,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **Implementation notes (if approved)**: two capture modes exist — **authenticated mode** (headshot already uploaded to statics as `{userId}.jpg`, show via the statics URL) and **create mode** (new adult, photo held as `headshotBase64` in wizard state until the account is minted at submit — [adult-wizard-state.service.ts:94-99](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/adult/state/adult-wizard-state.service.ts#L94)). A Review preview should use the **base64** in create mode (works everywhere) and the statics URL in authenticated mode. ⚠️ Note the statics-URL path **won't render on dev/staging** (headshots read from the prod statics host — see the reference note / earlier headshot investigation 2026-08-03), so test the statics-mode preview on prod; the base64 create-mode preview works in all envs.
 - **Severity**: Question / UX enhancement (not a bug)
 - **Cross-ref**: headshot dev/staging display artifact (2026-08-03 investigation), AM-060 (registrant fly-in headshot display).
-- **Status**: 🅿️ **PARKED 2026-08-05 (Todd): "not essential to go live review."** Not declined — deferred past cutover. Do not re-pitch; revisit only if Todd or Ann reopens it.
+- **Status**: 🅿️ **PARKED — Todd + Ann agree (Ann accepted the park 2026-08-05).** "Not essential to go-live review"; not declined — deferred past cutover. Revisit post-launch only if Todd or Ann reopens it.
   - **Investigation banked (2026-08-05) so this doesn't get re-derived:**
     - **Confirmed**: no review-step on ANY wizard echoes the headshot — grep for headshot/photo/avatar across the adult, team and player review components returns nothing. The photo is captured and never shown back.
     - **Two capture modes drive the implementation**: *create mode* holds the image as `headshotBase64` in wizard state until the account is minted at submit (renders in every environment); *authenticated mode* reads it from statics as `{userId}.jpg`.
@@ -1418,7 +1442,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **For Todd**: unify — render the selected events in **one consistent location/format** regardless of count (e.g. always the summary+list treatment, or always a pill list in the same spot). Keep the expand/collapse for long lists (threshold logic at [:705-712](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/player-forms-step.component.ts#L705)) but don't change *where* the block lives based on count. Align with Ann on which of the two placements to standardize on.
 - **Severity**: 🟡 UX (inconsistent/confusing placement)
 - **Cross-ref**: AM-086 (same display — label format).
-- **Status**: ✅ **RESOLVED 2026-08-05 — built as Ann's OPTION A.** The summary renders for ANY count; singular wording at one ("1 event selected"); the expand/collapse threshold is untouched, and since it defaults ≤4 events to *expanded*, a single event still reads without a click.
+- **Status**: ✅ **VERIFIED PASSING (Ann, 2026-08-05)** — built as Ann's OPTION A (Todd, 2026-08-05). The summary renders for ANY count; singular wording at one ("1 event selected"); the expand/collapse threshold is untouched, and since it defaults ≤4 events to *expanded*, a single event still reads without a click.
   - **The `@else` was NOT retired as filed.** That branch was doing two jobs: "CAC with exactly one event" AND **every non-CAC job** (tournament/league/season all render their team pills through it). Retiring it would have restyled player registration platform-wide. The condition was **split** instead — `isCacMode()` now selects the summary+list, and the `.team-pill-row` branch survives untouched for non-CAC. Non-CAC rendering is byte-identical to before.
   - Todd first ruled for a variant showing the single event's name inline in the header; reversed to Ann's A on finding `.player-header-top` is a **non-wrapping flex row** ([:336](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/player-forms-step.component.ts#L336)) with no `flex-shrink: 0` on `.player-name` — a variable-length director-authored event name there squeezes the player's name on narrow screens. The header string stays bounded; event names live in the list.
   - Also fixed en route: `.events-summary` is a real control and had **no `:focus-visible`** at all — added.
@@ -1430,7 +1454,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
 - **For Todd**: include `agegroupName` in the selected-events labels — format **"Agegroup: Team Name"** per Ann — in both `getTeamName`/`getTeamPillLabel` (player-forms-step) and the **player Review step** (`review-step.component`). Confirm exact separator/format with Ann ("Agegroup: Team Name" vs the Select screen's `club:agegroup:team`).
 - **Severity**: 🟡 UX / clarity (esp. Camps & Clinics disambiguation)
 - **Cross-ref**: AM-085 (same display), team-selection-step label at [:778](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L778) (agegroup already shown there — reuse the pattern).
-- **Status**: ✅ **RESOLVED 2026-08-05 — built as `Division: Team Name`. DIVISION ONLY; agegroup is NOT shown.** This **overrides** Ann's 2026-08-04 Option C (`Agegroup: Division: Team`) — Todd's ruling, made after the Division-vs-Agegroup flag below was verified rather than assumed.
+- **Status**: ✅ **VERIFIED PASSING (Ann, 2026-08-05)** — built as `Division: Team Name` (Todd, 2026-08-05). **DIVISION ONLY; agegroup NOT shown.** Todd's override of Ann's 2026-08-04 Option C (`Agegroup: Division: Team`) — **and Ann accepts it**: Division is the disambiguating field for the C&C cases, agegroup not needed. Verified the summary + Review both show `Division: Team` with a clean team-name fallback.
   - **Why division is the right field, verified:** on a CAC job the Select Events card the parent just came from prints **`divisionName`** under the bold team name ([team-selection-step.component.ts:149-151](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L149)) — that is literally the "Draw Control Training" / "AIM Spring Train & Play" line in Ann's AM-087 screenshot, the thing separating her two "Test 1" teams. Agegroup would have prefixed a field that doesn't disambiguate them.
   - **This item's own cross-ref pointed at the wrong screen:** "agegroup already shown there — reuse the pattern" refers to [:805-811](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L805), which builds `clubName:agegroupName:teamName` for the **NON-CAC dropdown**. Right pattern, wrong surface. Non-CAC keeps agegroup; CAC uses division.
   - **Built:** one `getEventLabel(teamId)` in **player-forms-step** (replacing `getTeamName`) and a mirror in **review-step**, so Player Details and Review can't print the same event differently. Review applies it to both the priced 2+ list and the single-event pill; the non-CAC `club / agegroup / team` segments in Review are untouched. Falls back to the bare team name when a division isn't set.
@@ -1465,7 +1489,7 @@ Ann's review of **Director / SuperUser menu functions** (and other admin-side it
   4. Consider whether other non-paying roles (Referee, Recruiter, Staff) have the same inappropriate block — same reasoning if so.
 - **Severity**: 🟡 Content correctness (coaches shown irrelevant payment/refund text)
 - **Cross-ref**: AM-065 (confirmation editors always-editable + Coaches tab), AM-076 (data-normalization pattern — preview→staging→prod), go-live checklist (apply to Production).
-- **Status**: 🟢 **CLOSED 2026-08-05 — NO CODE, NO DATA CHANGE (Todd).** Ann's observation was accurate about the stored *template text*; the conclusion drawn from it was not. Four findings, each verified in code before ruling:
+- **Status**: 🟢 **CLOSED — NO CODE, NO DATA CHANGE (Todd) — ✅ Ann reviewed + ACCEPTS the close (2026-08-05).** Ann understands the `!F-ACCOUNTING-TEAMS` token is structurally inert for coaches (no coach ever saw a payment table), and the refund line is a per-job editorial matter (flag a specific job if genuinely wrong; no blanket fix). Ann's observation was accurate about the stored *template text*; the conclusion drawn from it was not. Four findings, each verified in code before ruling:
   1. **`!F-ACCOUNTING-TEAMS` is STRUCTURALLY INERT in a Coach confirmation — it already renders nothing.** `BuildAccountingTeamsHtmlAsync` calls `GetClubTeamsAsync`, which filters `Teams.ClubrepRegistrationid == registrationId` ([TextSubstitutionRepository.cs:403](../../TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/TextSubstitutionRepository.cs#L403)). A **coach's** registration never owns club teams → empty list → `totalRows == 0` → `return string.Empty` ([TextSubstitutionService.cs:787](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Shared/TextSubstitution/TextSubstitutionService.cs#L787), whose own comment names "adult coach registration with no fees"). **Ann saw the token in the EDITOR, not a rendered block in a delivered confirmation.** Stripping it from 119 rows would be a mass `UPDATE` producing *zero* user-visible change.
   2. **Todd's charge question, answered properly.** Todd (2026-08-05): *"surely someone somewhere will charge for coaches… must have logic that first determines IF there is a charge."* Correct in principle, and the reason a proposed **role-based suppression was rejected** — it would have broken jobs that DO charge coaches. But this token can't express a coach's own charge either way: it summarises money on **teams the registrant owns**. A charged coach's own money is `!A-ACCOUNTING` (per-registration, [:573](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Shared/TextSubstitution/TextSubstitutionService.cs#L573)) — a different token, absent from these templates. Nothing to gate.
   3. **No substring corruption** (checked, since `!F-ACCOUNTING` is a prefix of `!F-ACCOUNTING-TEAMS`): `TokenReplacer` replaces in **descending key-length order** and its comment names this exact pair. Safe.
