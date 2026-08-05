@@ -126,14 +126,9 @@ type ScheduleRow =
                             <span class="ag-label">{{ game.agDiv }}</span>
                         </span>
 
-                        <!-- Home team. The win marker is the FIRST child so it lands on the
-                             cell's outer (left) edge — the cell is justify-content: flex-end,
-                             so a leading item grows leftward and never shifts the name. -->
+                        <!-- Home team. The win caret lives INSIDE the name text (see .win-mark)
+                             so it hugs the first character rather than the column edge. -->
                         <span class="cell cell-home" role="cell" aria-colindex="5">
-                            @if (isT1Winner(game)) {
-                                <i class="bi bi-caret-right-fill win-mark"
-                                   [attr.aria-label]="teamLabel(game.t1Name) + ' won'"></i>
-                            }
                             @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
                             @if (game.t1Id) {
                                 <button type="button" class="team-star"
@@ -146,10 +141,10 @@ type ScheduleRow =
                             @if (game.t1Id) {
                                 <button type="button" class="team-name team-link"
                                         [attr.title]="'View ' + game.t1Name + ' results'"
-                                        [attr.aria-label]="'View ' + game.t1Name + ' results'"
-                                        (click)="viewTeamResults.emit(game.t1Id!)">{{ teamLabel(game.t1Name) }}</button>
+                                        [attr.aria-label]="'View ' + game.t1Name + ' results' + (isT1Winner(game) ? ', winner' : '')"
+                                        (click)="viewTeamResults.emit(game.t1Id!)">@if (isT1Winner(game)) {<i class="bi bi-caret-right-fill win-mark win-mark--home" aria-hidden="true"></i>}{{ teamLabel(game.t1Name) }}</button>
                             } @else {
-                                <span class="team-name">{{ teamLabel(game.t1Name) }}</span>
+                                <span class="team-name">@if (isT1Winner(game)) {<i class="bi bi-caret-right-fill win-mark win-mark--home" aria-hidden="true"></i>}{{ teamLabel(game.t1Name) }}</span>
                             }
                             @if (game.t1Record && game.t1Id) {
                                 <button type="button" class="record-btn"
@@ -229,10 +224,10 @@ type ScheduleRow =
                             @if (game.t2Id) {
                                 <button type="button" class="team-name team-link"
                                         [attr.title]="'View ' + game.t2Name + ' results'"
-                                        [attr.aria-label]="'View ' + game.t2Name + ' results'"
-                                        (click)="viewTeamResults.emit(game.t2Id!)">{{ teamLabel(game.t2Name) }}</button>
+                                        [attr.aria-label]="'View ' + game.t2Name + ' results' + (isT2Winner(game) ? ', winner' : '')"
+                                        (click)="viewTeamResults.emit(game.t2Id!)">{{ teamLabel(game.t2Name) }}@if (isT2Winner(game)) {<i class="bi bi-caret-left-fill win-mark win-mark--away" aria-hidden="true"></i>}</button>
                             } @else {
-                                <span class="team-name">{{ teamLabel(game.t2Name) }}</span>
+                                <span class="team-name">{{ teamLabel(game.t2Name) }}@if (isT2Winner(game)) {<i class="bi bi-caret-left-fill win-mark win-mark--away" aria-hidden="true"></i>}</span>
                             }
                             @if (game.t2Record && game.t2Id) {
                                 <button type="button" class="record-btn"
@@ -241,10 +236,6 @@ type ScheduleRow =
                                         (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Record }}</button>
                             }
                             @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
-                            @if (isT2Winner(game)) {
-                                <i class="bi bi-caret-left-fill win-mark"
-                                   [attr.aria-label]="teamLabel(game.t2Name) + ' won'"></i>
-                            }
                         </span>
 
                         <!-- Status chip -->
@@ -568,16 +559,25 @@ type ScheduleRow =
            (a circle) and the follow STAR — which is what the retired trophy and dot
            treatments could not manage.
 
-           Placement is free of layout cost: .cell-home is justify-content: flex-end so a
-           leading item grows leftward, .cell-away is flex-start so a trailing item grows
-           rightward. Neither shifts the team name. */
+           The caret is INLINE, inside the name element, not a sibling flex item. As a flex
+           item it detached from the team the moment a name wrapped: a wrapped text block is
+           as wide as its column, so the name's BOX filled the track while its ragged text sat
+           elsewhere, stranding the caret at the column edge. Away names only looked right
+           because they happened to fit on one line. Inline, the caret rides the first (home)
+           or last (away) character of the text itself and cannot be separated from it by any
+           amount of wrapping.
+
+           text-decoration: none is load bearing — .team-link puts a dotted underline on the
+           whole name, and without this the caret would be underlined too. */
         .win-mark {
-            flex-shrink: 0;
             font-size: 0.6rem;
-            line-height: 1;
-            align-self: center;
             color: var(--winner-gold);
+            text-decoration: none;
+            vertical-align: baseline;
         }
+
+        .win-mark--home { margin-right: 0.4em; }
+        .win-mark--away { margin-left: 0.4em; }
 
         .row-even       { --row-surface: var(--bs-tertiary-bg); }
         .game-row:hover { --row-surface: var(--bs-secondary-bg); }
