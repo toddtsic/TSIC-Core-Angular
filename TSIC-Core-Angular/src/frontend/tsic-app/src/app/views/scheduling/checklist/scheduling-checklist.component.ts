@@ -23,6 +23,12 @@ interface ToolRow {
     queryParams: Record<string, string> | null;
 }
 
+interface StatChip {
+    icon: string;
+    value: string;
+    label: string;
+}
+
 /**
  * Scheduling Checklist — the single front door for scheduling. Ordered steps with live
  * readiness + a deep link per step; operational tools unlock once games exist.
@@ -44,6 +50,37 @@ export class SchedulingChecklistComponent implements OnInit {
 
     readonly gameCount = computed(() => this.checklist()?.gameCount ?? 0);
     readonly hasGames = computed(() => this.gameCount() > 0);
+
+    // Post-build stats band. Pre-build, the checklist itself is the dashboard — readiness is
+    // the only stat that matters — so the band only exists once games are on the books. The
+    // games count stays in the title's badge-count chip; these chips add what it can't say.
+    readonly statChips = computed<StatChip[]>(() => {
+        const st = this.checklist()?.scheduleStats;
+        if (!st || st.gameCount === 0) return [];
+
+        const chips: StatChip[] = [];
+        const span = this.formatDateSpan(st.firstGameDate, st.lastGameDate);
+        if (span) {
+            chips.push({
+                icon: 'bi-calendar3',
+                value: span,
+                // "play days" not "days": weekend-only events have date-span gaps, and the
+                // distinct-day count is the honest number next to a first–last range.
+                label: st.playDateCount > 1 ? `${st.playDateCount} play days` : ''
+            });
+        }
+        chips.push({
+            icon: 'bi-geo-alt',
+            value: `${st.fieldsInUse}`,
+            label: st.fieldsInUse === 1 ? 'field' : 'fields'
+        });
+        chips.push({
+            icon: 'bi-diagram-3',
+            value: `${st.divisionsScheduled}`,
+            label: st.divisionsScheduled === 1 ? 'division scheduled' : 'divisions scheduled'
+        });
+        return chips;
+    });
 
     readonly steps = computed<StepRow[]>(() => {
         const c = this.checklist();
@@ -251,6 +288,16 @@ export class SchedulingChecklistComponent implements OnInit {
         return clauses.length > 0
             ? clauses.join(' · ')
             : 'Play dates and timeslots are set';
+    }
+
+    /** "Sat, Jun 20 – Sun, Jun 21"; collapses to one date when the span is a single day. */
+    private formatDateSpan(first: string | null, last: string | null): string | null {
+        if (!first) return null;
+        const fmt = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        const from = fmt.format(new Date(first));
+        if (!last) return from;
+        const to = fmt.format(new Date(last));
+        return from === to ? from : `${from} – ${to}`;
     }
 
     /** First few names inline, the rest folded into "+N more" to keep reasons one line. */

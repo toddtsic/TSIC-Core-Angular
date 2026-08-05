@@ -30,6 +30,20 @@
 }
 
 @if (checklist(); as c) {
+    @if (hasGames()) {
+        <div class="stats-bar" role="group" aria-label="Schedule summary">
+            @for (chip of statChips(); track chip.icon) {
+                <span class="stat-chip">
+                    <i class="bi {{ chip.icon }}" aria-hidden="true"></i>
+                    <span class="stat-value">{{ chip.value }}</span>
+                    @if (chip.label) {
+                        <span class="stat-label">{{ chip.label }}</span>
+                    }
+                </span>
+            }
+        </div>
+    }
+
     <section class="checklist-section" aria-label="Scheduling steps">
         <h3 class="checklist-section-title">Steps</h3>
         <ol class="step-list">

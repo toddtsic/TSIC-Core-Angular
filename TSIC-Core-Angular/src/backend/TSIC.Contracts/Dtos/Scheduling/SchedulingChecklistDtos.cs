@@ -34,6 +34,28 @@ public record SchedulingChecklistDto
 
     /// <summary>True when steps 1–4 are all complete — the build may proceed.</summary>
     public required bool BuildUnlocked { get; init; }
+
+    /// <summary>Whole-schedule aggregates for the post-build stats band.</summary>
+    public required ChecklistScheduleStatsDto ScheduleStats { get; init; }
+}
+
+/// <summary>
+/// At-a-glance aggregates over the built schedule. All zeros / nulls until games exist —
+/// the client gates the stats band on <see cref="SchedulingChecklistDto.GameCount"/>.
+/// </summary>
+public record ChecklistScheduleStatsDto
+{
+    public required int GameCount { get; init; }
+    /// <summary>Distinct divisions holding at least one scheduled game.</summary>
+    public required int DivisionsScheduled { get; init; }
+    /// <summary>Distinct fields holding at least one scheduled game.</summary>
+    public required int FieldsInUse { get; init; }
+    /// <summary>Distinct calendar days with games.</summary>
+    public required int PlayDateCount { get; init; }
+    /// <summary>Earliest game day (date only), null when no games.</summary>
+    public required DateTime? FirstGameDate { get; init; }
+    /// <summary>Latest game day (date only), null when no games.</summary>
+    public required DateTime? LastGameDate { get; init; }
 }
 
 /// <summary>Pool-assignment readiness. Offenders are agegroups holding unpooled teams.</summary>

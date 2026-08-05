@@ -1688,7 +1688,7 @@ public sealed class ScheduleRepository : IScheduleRepository
 
     // ── Dashboard ──
 
-    public async Task<(int GameCount, int DivisionsScheduled)> GetSchedulingDashboardStatsAsync(
+    public async Task<ChecklistScheduleStatsDto> GetScheduleSummaryStatsAsync(
         Guid jobId, CancellationToken ct = default)
     {
         var stats = await _context.Schedule
@@ -1698,13 +1698,23 @@ public sealed class ScheduleRepository : IScheduleRepository
             .Select(g => new
             {
                 GameCount = g.Count(),
-                DivisionsScheduled = g.Where(s => s.DivId.HasValue).Select(s => s.DivId!.Value).Distinct().Count()
+                DivisionsScheduled = g.Where(s => s.DivId.HasValue).Select(s => s.DivId!.Value).Distinct().Count(),
+                FieldsInUse = g.Where(s => s.FieldId.HasValue).Select(s => s.FieldId!.Value).Distinct().Count(),
+                PlayDateCount = g.Select(s => s.GDate!.Value.Date).Distinct().Count(),
+                FirstGameDate = (DateTime?)g.Min(s => s.GDate!.Value.Date),
+                LastGameDate = (DateTime?)g.Max(s => s.GDate!.Value.Date)
             })
             .FirstOrDefaultAsync(ct);
 
-        return stats != null
-            ? (stats.GameCount, stats.DivisionsScheduled)
-            : (0, 0);
+        return new ChecklistScheduleStatsDto
+        {
+            GameCount = stats?.GameCount ?? 0,
+            DivisionsScheduled = stats?.DivisionsScheduled ?? 0,
+            FieldsInUse = stats?.FieldsInUse ?? 0,
+            PlayDateCount = stats?.PlayDateCount ?? 0,
+            FirstGameDate = stats?.FirstGameDate,
+            LastGameDate = stats?.LastGameDate
+        };
     }
 
     public async Task<Dictionary<Guid, int>> GetRoundRobinGameCountsByDivisionAsync(

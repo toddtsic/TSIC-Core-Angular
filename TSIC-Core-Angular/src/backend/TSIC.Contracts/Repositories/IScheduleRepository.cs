@@ -325,9 +325,10 @@ public interface IScheduleRepository
     // ── Dashboard ──
 
     /// <summary>
-    /// Returns (totalGames, distinctDivisionIds) for the scheduling dashboard status cards.
+    /// Whole-schedule aggregates (game/division/field/day counts, date span) for the
+    /// checklist's post-build stats band. One grouped query; zeros/nulls when no games.
     /// </summary>
-    Task<(int GameCount, int DivisionsScheduled)> GetSchedulingDashboardStatsAsync(
+    Task<ChecklistScheduleStatsDto> GetScheduleSummaryStatsAsync(
         Guid jobId, CancellationToken ct = default);
 
     /// <summary>

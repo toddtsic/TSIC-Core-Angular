@@ -171,6 +171,7 @@ export type { ChecklistDivisionStepDto } from './models/ChecklistDivisionStepDto
 export type { ChecklistPairingsStepDto } from './models/ChecklistPairingsStepDto';
 export type { ChecklistPoolsStepDto } from './models/ChecklistPoolsStepDto';
 export type { ChecklistRulesStepDto } from './models/ChecklistRulesStepDto';
+export type { ChecklistScheduleStatsDto } from './models/ChecklistScheduleStatsDto';
 export type { ChildDto } from './models/ChildDto';
 export type { ChildOperationResponse } from './models/ChildOperationResponse';
 export type { CloneAgegroupRequest } from './models/CloneAgegroupRequest';

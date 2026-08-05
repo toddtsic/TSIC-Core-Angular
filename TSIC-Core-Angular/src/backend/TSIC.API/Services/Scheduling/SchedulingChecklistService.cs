@@ -53,7 +53,7 @@ public sealed class SchedulingChecklistService : ISchedulingChecklistService
         var eventDefaults = await _cascadeRepo.GetEventDefaultsAsync(jobId, ct);
         var agProfiles = await _cascadeRepo.GetAgegroupProfilesAsync(jobId, ct);
         var divProfiles = await _cascadeRepo.GetDivisionProfilesAsync(jobId, ct);
-        var (gameCount, _) = await _scheduleRepo.GetSchedulingDashboardStatsAsync(jobId, ct);
+        var scheduleStats = await _scheduleRepo.GetScheduleSummaryStatsAsync(jobId, ct);
 
         // Utility agegroups (WAITLIST-*, Dropped Teams) and empty agegroups never gate anything
         var relevantAgegroups = agegroups
@@ -183,8 +183,9 @@ public sealed class SchedulingChecklistService : ISchedulingChecklistService
             Fields = fields,
             Rules = rules,
             Pairings = pairings,
-            GameCount = gameCount,
-            BuildUnlocked = pools.Complete && dates.Complete && fields.Complete && rules.Complete
+            GameCount = scheduleStats.GameCount,
+            BuildUnlocked = pools.Complete && dates.Complete && fields.Complete && rules.Complete,
+            ScheduleStats = scheduleStats
         };
     }
 }
