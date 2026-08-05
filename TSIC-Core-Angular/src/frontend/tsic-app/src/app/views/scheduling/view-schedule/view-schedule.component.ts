@@ -83,14 +83,15 @@ interface FilterChip {
     template: `
         <div class="view-schedule-page">
             <!-- Header -->
-            <div class="page-header">
-                <h1 class="page-title">
+            <div class="page-header page-header--sticky">
+                <h2 class="page-title">
                     <app-checklist-back-link />
-                    Schedule
+                    <i class="bi bi-eye page-title-icon" aria-hidden="true"></i>
+                    Schedule Viewer
                     @if (activeTab() === 'games') {
-                        <span class="title-badge">{{ gameCountLabel() }}</span>
+                        <span class="badge-count">{{ gameCountLabel() }}</span>
                     }
-                </h1>
+                </h2>
                 @if (currentJobId() && hasGameClockGames()) {
                     <app-inline-game-clock
                         [jobId]="currentJobId()"
@@ -605,61 +606,33 @@ interface FilterChip {
             .game-clock-fab { transition: none !important; }
         }
 
-        /* ── Header ── */
-        .page-header {
+        /* ── Header ──
+           Layout, typography and the count pill all come from the global
+           .page-header / .page-title / .page-title-icon / .badge-count in
+           _utilities.scss. This block used to redefine every one of them — a
+           3xl title, a bespoke .title-badge — so the page read as its own
+           product. All that stays local is the pin, because the schedule is a
+           long scroll and the game count has to stay in view.
+
+           The negative inline margin lets it bleed to the page edges; setting
+           margin here also clears the standard header's bottom margin, which
+           a sticky bar must not carry. */
+        .page-header--sticky {
             position: sticky;
             top: 0;
             z-index: 10;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: var(--space-4);
             padding: var(--space-2) var(--space-3);
             margin: 0 calc(var(--space-3) * -1);
             background: var(--bs-body-bg);
             border-bottom: 1px solid var(--bs-border-color);
         }
 
-        .page-title {
-            margin: 0;
-            font-size: var(--font-size-3xl);
-            font-weight: 700;
-            color: var(--bs-body-color);
-            flex-shrink: 0;
-        }
-
-        .title-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            vertical-align: middle;
-            min-width: 28px;
-            padding: 2px 8px;
-            margin-left: var(--space-2);
-            background: var(--bs-primary);
-            color: white;
-            border-radius: var(--radius-full);
-            font-size: var(--font-size-xs);
-            font-weight: 600;
-            line-height: 1.4;
-        }
-
-        .page-subtitle {
-            margin: 0;
-            font-size: var(--font-size-sm);
-            color: var(--bs-secondary-color);
-            font-weight: 400;
-            text-align: right;
-            flex-shrink: 0;
-        }
-
         @media (max-width: 768px) {
-            .page-header {
+            .page-header--sticky {
                 flex-direction: column;
                 align-items: center;
                 gap: var(--space-1);
             }
-            .page-subtitle { text-align: center; }
         }
 
         /* ═══ Desktop Filter Bar ═══
@@ -1188,24 +1161,12 @@ interface FilterChip {
                 gap: var(--space-1);
             }
 
-            .page-header {
+            /* The title used to be shrunk to font-size-sm here, because the local
+               base was 3xl and swallowed the phone viewport. The standard
+               .page-title is font-size-lg, which fits — so only the padding
+               reset is still needed. */
+            .page-header--sticky {
                 padding: 0;
-            }
-
-            .page-title {
-                font-size: var(--font-size-sm);
-                font-weight: 600;
-            }
-
-            .title-badge {
-                padding: 1px 6px;
-                font-size: 10px;
-                min-width: 22px;
-                margin-left: var(--space-1);
-            }
-
-            .page-subtitle {
-                display: none;
             }
 
             .toolbar {

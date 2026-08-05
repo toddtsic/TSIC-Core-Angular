@@ -164,14 +164,46 @@ export class SchedulingChecklistComponent implements OnInit {
             linkLabel: 'Rescheduler'
         };
 
-        return [pools, pairings, timeslots, build, bracketSeeds, rescheduler];
+        const viewer: StepRow = {
+            num: 7,
+            title: 'Schedule Viewer',
+            icon: 'bi-eye',
+            state: c.gameCount > 0 ? 'info' : 'locked',
+            reason: c.gameCount > 0
+                ? 'Check the schedule the way teams and families will see it'
+                : 'Locked until the schedule is built',
+            route: '../scheduling/view-schedule',
+            queryParams: { from: 'scheduling' },
+            linkLabel: 'View Schedule'
+        };
+
+        // Straight to the Schedules tab rather than the library's front page — by this point
+        // the director wants game cards and team schedules, not a catalogue. The library
+        // falls back to All if this event has no schedule reports, so the link is never a
+        // dead end.
+        const reports: StepRow = {
+            num: 8,
+            title: 'Schedule Reports',
+            icon: 'bi-file-earmark-text',
+            state: c.gameCount > 0 ? 'info' : 'locked',
+            reason: c.gameCount > 0
+                ? 'Game cards, team schedules and field grids, ready to print or send'
+                : 'Locked until the schedule is built',
+            route: '../reporting/reports-library',
+            queryParams: { tab: 'Schedules', from: 'scheduling' },
+            linkLabel: 'Schedule Reports'
+        };
+
+        return [pools, pairings, timeslots, build, bracketSeeds, rescheduler, viewer, reports];
     });
 
-    // Bracket Seeds and Rescheduler used to live here. They are steps 5 and 6 now — ordered
-    // work that follows the build, not utilities you reach for. What is left is genuinely a
-    // drawer: ways to look at the schedule, and side tools that sit outside the sequence.
+    // Bracket Seeds, Rescheduler and View Schedule used to live here. They are steps 5–7 now —
+    // ordered work that follows the build, not utilities you reach for. What is left is
+    // genuinely a drawer: side tools that sit outside the sequence.
+    //
+    // Master Schedule stays a tool rather than joining step 7: it is the whole-event grid an
+    // operator uses on site, not the per-team view a director proofreads before publishing.
     readonly tools: ToolRow[] = [
-        { title: 'View Schedule', icon: 'bi-eye', route: '../scheduling/view-schedule', queryParams: { from: 'scheduling' } },
         { title: 'Master Schedule', icon: 'bi-calendar-week', route: '../scheduling/master-schedule', queryParams: { from: 'scheduling' } },
         { title: 'QA Results', icon: 'bi-check2-square', route: 'qa-results', queryParams: null },
         { title: 'Tournament Parking', icon: 'bi-car-front', route: '../scheduling/tournament-parking', queryParams: { from: 'scheduling' } },
