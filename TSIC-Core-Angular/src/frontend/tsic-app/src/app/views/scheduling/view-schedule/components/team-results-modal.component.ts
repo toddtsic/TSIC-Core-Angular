@@ -233,13 +233,16 @@ interface ResultGroup {
             white-space: nowrap;
         }
 
-        /* Neutral pill — same object as the games-tab record button, minus the
-           affordance (here it is a label, not a control). Never green/red: the
-           record is a season stat, not a verdict. */
+        /* Same object as the games-tab record button, and it has to STAY the same object —
+           a W-L-T reads identically wherever it appears or it stops being one token.
+           The border is transparent rather than absent so the metrics match games-tab
+           exactly, where the border is what appears on hover; here there is no hover state
+           to earn, because this is a label, not a control.
+           Never green/red: the record is a season stat, not a verdict. */
         .record-chip {
             flex-shrink: 0;
             padding: 0 var(--space-2);
-            border: 1px solid var(--bs-border-color);
+            border: 1px solid transparent;
             border-radius: var(--radius-full);
             background: transparent;
             font-size: var(--font-size-xs);

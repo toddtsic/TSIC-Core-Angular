@@ -310,9 +310,16 @@ type StandingsMode = 'all' | 'rr';
             white-space: nowrap;
         }
 
+        /* Tabular figures at EVERY width, not just narrow. This was set only inside the
+           narrow-width override below, so the desktop standings table — the one surface
+           whose entire job is comparing columns of numbers down a page — was rendering
+           them proportionally: a 1 is narrower than a 0, so interior digits refuse to
+           stack and the column reads unsettled. Same principle the games grid applies to
+           the scoreline; W-L-T should read identically on every surface it appears. */
         .col-num {
             text-align: right;
             width: 3.5rem;
+            font-variant-numeric: tabular-nums;
         }
 
         /* Team name → results modal. Shares the schedule-wide affordance language with
