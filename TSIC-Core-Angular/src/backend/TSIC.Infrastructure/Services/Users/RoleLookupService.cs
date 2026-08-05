@@ -54,28 +54,27 @@ public class RoleLookupService : IRoleLookupService
             model.Add(new RegistrationRoleDto { RoleName = "Club Rep", RoleRegistrations = lClubRepRoles });
         }
 
+        // Staff, Store Admin, Ref Assignor, and Referee present as ONE "Adult"
+        // group — matching the Configure → Job → Adult vocabulary. The header no
+        // longer disambiguates the role, so each repo query tags its role label
+        // into DisplayText. Selection is by regId and the registration's own
+        // RoleId drives the issued JWT, so grouping is display-only.
+        // Roles with no bucket here (Recruiter, Scorer, StpAdmin, UnassignedAdult)
+        // stay invisible by design — they have no landing experience in this app.
         var lStaffRoles = await _registrationRepo.GetStaffRegistrationsAsync(userId);
-        if (lStaffRoles.Count > 0)
-        {
-            model.Add(new RegistrationRoleDto { RoleName = "Staff", RoleRegistrations = lStaffRoles });
-        }
-
         var lStoreAdminRoles = await _registrationRepo.GetStoreAdminRegistrationsAsync(userId);
-        if (lStoreAdminRoles.Count > 0)
-        {
-            model.Add(new RegistrationRoleDto { RoleName = "Store Admin", RoleRegistrations = lStoreAdminRoles });
-        }
-
         var lRefAssignorRoles = await _registrationRepo.GetRefAssignorRegistrationsAsync(userId);
-        if (lRefAssignorRoles.Count > 0)
-        {
-            model.Add(new RegistrationRoleDto { RoleName = "Ref Assignor", RoleRegistrations = lRefAssignorRoles });
-        }
-
         var lRefRoles = await _registrationRepo.GetRefereeRegistrationsAsync(userId);
-        if (lRefRoles.Count > 0)
+
+        var lAdultRoles = lStaffRoles
+            .Concat(lStoreAdminRoles)
+            .Concat(lRefAssignorRoles)
+            .Concat(lRefRoles)
+            .OrderBy(r => r.DisplayText, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (lAdultRoles.Count > 0)
         {
-            model.Add(new RegistrationRoleDto { RoleName = "Referee", RoleRegistrations = lRefRoles });
+            model.Add(new RegistrationRoleDto { RoleName = "Adult", RoleRegistrations = lAdultRoles });
         }
 
         return model;
