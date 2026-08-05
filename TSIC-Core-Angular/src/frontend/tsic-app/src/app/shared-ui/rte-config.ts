@@ -1,3 +1,5 @@
+import { L10n } from '@syncfusion/ej2-base';
+
 /**
  * Canonical Rich Text Editor configuration — THE settings for every RTE in the app.
  *
@@ -27,7 +29,12 @@ export const TSIC_RTE_TOOLS = {
 };
 
 /**
- * `Image` is **link-only**. We never host an uploaded file, and we never embed one.
+ * `Image` is **link-only**. What gets stored is a URL string and nothing else — no file
+ * on our disk, no bytes in the database. The image lives on the client's own server and
+ * is fetched by the reader's browser at view time, exactly like any other web page.
+ *
+ * The three routes below are the ways Syncfusion would have violated that if left alone.
+ * They are failure modes that are now closed, NOT storage options we support.
  *
  * Syncfusion will happily ingest a file by three separate routes, and with `saveUrl`
  * unset — which it stays, because there is no upload endpoint and there will not be
@@ -83,6 +90,38 @@ export const TSIC_RTE_TOOLS = {
  * `FontName` is never added — an uncontrolled font picker dilutes the brand, and that part
  * of AM-001 stands unamended. Do not read this entry as an opening to grow the toolbar.
  */
+/**
+ * Renames the insert-image dialog to say what it actually does.
+ *
+ * Syncfusion's stock copy assumes the dialog offers both an upload and a URL, so its
+ * sub-heading reads "You can **also** provide a link from the web". With the upload half
+ * removed, that "also" dangles — it refers to a choice the director can no longer see,
+ * which reads as a missing feature rather than a deliberate one.
+ *
+ * So the dialog is renamed for its one job. "Insert Image **Link**" sets the expectation
+ * in the title, before the director has typed anything, rather than leaving them to infer
+ * it from the absence of a Browse button.
+ *
+ * The `https://` in the sub-heading is load-bearing, not decoration: an `http://` image on
+ * our HTTPS pages is blocked by the browser as mixed content and renders as a broken
+ * image, with nothing in the UI explaining why. Saying it up front is cheaper than
+ * diagnosing it later.
+ *
+ * `L10n.load` is global and keyed by culture, so this runs once at module load rather than
+ * per editor. It must be evaluated before any editor is constructed — importing it from
+ * this module, which every RTE surface already depends on for `TSIC_RTE_TOOLS`,
+ * guarantees that ordering without a separate bootstrap step.
+ */
+L10n.load({
+  'en-US': {
+    'richtexteditor': {
+      imageHeader: 'Insert Image Link',
+      editImageHeader: 'Edit Image Link',
+      imageLinkHeader: 'Paste the https:// address of an image hosted on your own website',
+    },
+  },
+});
+
 export const TSIC_RTE_FONT_SIZES = {
   width: '72px',
   items: [
