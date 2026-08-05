@@ -83,6 +83,35 @@
   }
 }
 
+/* ============================================
+   Top-layer promotion — undo the UA popover defaults
+   ============================================
+
+   Syncfusion parents several popups (Font Size, Font Colour, Background Colour)
+   on <body>. Inside a modal <dialog> — which lives in the browser's top layer —
+   those paint underneath it at ANY z-index, because the top layer isn't part of
+   the z-index comparison. top-layer-popups.ts fixes that by giving the popup the
+   native `popover` attribute and calling showPopover(), which lifts it into the
+   same layer without moving it in the DOM.
+
+   The cost is the UA stylesheet's [popover] rules, and `inset: 0` + `margin: auto`
+   is a viewport-centring recipe that would fling the dropdown to the middle of the
+   screen. Undo the geometry ej2 does NOT set for itself.
+
+   Deliberately NOT reset here: background, colour, box-shadow. Syncfusion's own
+   author-origin rules already beat the UA defaults for those, and overriding them
+   from this higher-specificity selector would repaint popups that render correctly. */
+[popover].e-popup,
+[popover][id$='-popup'] {
+  inset: auto;      /* UA: inset 0 — ej2 supplies top/left inline */
+  margin: 0;        /* UA: auto — the other half of the centring */
+  padding: 0;       /* UA: 0.25em */
+  border: 0;        /* UA: solid */
+  overflow: visible; /* UA: auto */
+  width: auto;      /* UA: fit-content — ej2 sets width inline */
+  height: auto;
+}
+
 /* Compact list-item density (relocated from role-selection.component.scss —
    was a bare `::ng-deep .e-dropdownbase .e-list-item`, i.e. already global). */
 .e-dropdownbase .e-list-item {

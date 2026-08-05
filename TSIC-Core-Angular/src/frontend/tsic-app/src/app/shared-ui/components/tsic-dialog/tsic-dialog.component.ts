@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, ElementRef, AfterViewInit, OnChanges, OnDestroy, Renderer2, SimpleChanges, inject, input, output, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FocusTrapDirective } from '../../directives/focus-trap.directive';
+import { watchTopLayerPopups } from '../../top-layer-popups';
 
 /**
  * Reusable wrapper for native <dialog> with an integrated focus trap and ESC-to-close.
@@ -169,7 +170,15 @@ export class TsicDialogComponent implements AfterViewInit, OnChanges, OnDestroy 
 
     ngOnDestroy(): void {
         this.teardownDrag();
+        this.endPopupWatch();
     }
+
+    /**
+     * Disposer for the top-layer popup watcher — live only while this dialog is open.
+     * See top-layer-popups.ts: `showModal()` puts us in the top layer, and Syncfusion
+     * parents several popups on <body>, which then paint underneath us at any z-index.
+     */
+    private stopPopupWatch: (() => void) | null = null;
 
     private syncOpenState() {
         const dialog = this.dialogEl()?.nativeElement;
@@ -180,19 +189,33 @@ export class TsicDialogComponent implements AfterViewInit, OnChanges, OnDestroy 
                 this.resetDragPosition();
                 dialog.showModal();
                 this.markDragHandle();
+                this.startPopupWatch(dialog);
             } else if (!open && dialog.open) {
                 dialog.close();
+                this.endPopupWatch();
             }
         } catch {
             // In case showModal throws due to DOM not ready yet, try on next frame
             requestAnimationFrame(() => {
                 try {
                     const open = this.open();
-                    if (open && !dialog.open) { this.resetDragPosition(); dialog.showModal(); this.markDragHandle(); }
-                    else if (!open && dialog.open) dialog.close();
+                    if (open && !dialog.open) {
+                        this.resetDragPosition(); dialog.showModal(); this.markDragHandle();
+                        this.startPopupWatch(dialog);
+                    } else if (!open && dialog.open) { dialog.close(); this.endPopupWatch(); }
                 } catch { /* no-op */ }
             });
         }
+    }
+
+    private startPopupWatch(dialog: HTMLElement): void {
+        this.endPopupWatch();
+        this.stopPopupWatch = watchTopLayerPopups(dialog);
+    }
+
+    private endPopupWatch(): void {
+        this.stopPopupWatch?.();
+        this.stopPopupWatch = null;
     }
 
     // ── Dragging ──────────────────────────────────────────────────────────
