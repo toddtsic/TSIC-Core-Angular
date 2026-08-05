@@ -8,6 +8,26 @@ Pairs with [Payment-Test-Checklist.md](Payment-Test-Checklist.md). Each item not
 
 ---
 
+## 📌 STATUS INDEX — regenerated 2026-08-05 (authoritative snapshot)
+
+> Built from a **full read of every PL status** (not a keyword grep — a grep silently misses items). **Regenerate whenever a PL item is opened / closed / reopened / parked.** Mirrors the AM punchlist's index so neither side's decisions go unseen. PL-001…062 not listed here are verified / won't-fix / closed.
+
+### ⏭ NEEDS TODD — open / reopened
+- 🔴 **PL-037 — RE-OPENED**: Club Rep "Pay Balance Due" — waitlist-badge / balance behavior.
+- ◻ **PL-063 — Open (new 08-05)**: Multiplayer (sibling) Discount % not functional — **Hero's Lacrosse Players** parity (feature inert + Hero's config NULL). Recover values + surface field + wire `FeeDiscountMp`.
+- **PL-036 — awaiting Todd E2E**: Coach Approval Queue sort tech-debt (his end-to-end, not Ann's).
+
+### 🔎 AWAITING ANN VERIFY (local)
+- **(none)** — both open verifies are ADN/email-bound and moved to go-live (below).
+
+### ⏳ GO-LIVE / PARKED (prod-only verification)
+- **PL-028** — external ARB cancel doesn't sync → "Refresh ARB Statuses" button; verify at cutover (needs an ADN sub to cancel externally). *Deferred to prod (Ann, 08-05).*
+- **PL-061** — club-rep balance-due payment sent no confirmation email; verify with a real CC + eCheck balance-due charge at cutover (SES doesn't send off-prod). 🔴 HIGH.
+- **PL-027** — ARB Subscription — live test at go-live.
+- **PL-035** — eCheck ARB full parity — parked (Ann acknowledged).
+
+---
+
 ## How to Read Severity
 
 | Label | Meaning |
@@ -618,7 +638,7 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **What I expected**: The cancellation to **carry over to the player's data** (stored status → canceled, no more "active"/scheduled autopay), **as legacy does in Production**.
 - **What happened**: It **did not carry over** — the player's stored subscription data still reflects the old (active) state.
 - **Severity**: Bug (data correctness) — a dead subscription shows as **active**; the header ARB badge, "scheduled autopay," accounting, and reports all key off the stored status and misstate it.
-- **Status**: 🟡 **FIXED (Todd, 07-26) — awaiting Ann verify** (deploy + API restart + live/Sandbox ADN sub needed; see verify steps at line ~627). **SUPERSEDES the prior 07-25 Won't-Fix** (kept below for history): Todd went past "on-demand reconciliation is sufficient" and built the standalone **"Refresh ARB Statuses"** chokepoint in ARB Health (`8ea081b8`+`53cf94eb`+`e8e0cd09`) that reconciles EVERY sub in the job regardless of `owes`/`active` — closing the current/paid-up gap Ann's reopen identified. ~~Prior 07-25 ruling: Won't Fix — ARB Health on-demand reconciliation is sufficient; a stored status may lag a live cancel until ARB Health is opened. Revisit only if stale-active subs become a real problem post-launch.~~
+- **Status**: 🟡 **FIXED (Todd, 07-26)** — ⏸ **Ann verify DEFERRED to PRODUCTION (Ann, 2026-08-05)**: not locally testable (needs an Authorize.Net Sandbox/Prod subscription to create + externally cancel); verify at go-live via a prod ARB test (cancel a test sub at ADN → Refresh ARB Statuses → stored status flips to canceled). **→ go-live checklist.** *(orig: awaiting Ann verify — deploy + API restart + live/Sandbox ADN sub needed; see verify steps ~line 627.)* **SUPERSEDES the prior 07-25 Won't-Fix** (kept below for history): Todd went past "on-demand reconciliation is sufficient" and built the standalone **"Refresh ARB Statuses"** chokepoint in ARB Health (`8ea081b8`+`53cf94eb`+`e8e0cd09`) that reconciles EVERY sub in the job regardless of `owes`/`active` — closing the current/paid-up gap Ann's reopen identified. ~~Prior 07-25 ruling: Won't Fix — ARB Health on-demand reconciliation is sufficient; a stored status may lag a live cancel until ARB Health is opened. Revisit only if stale-active subs become a real problem post-launch.~~
 - **Prior — RE-OPENED (Ann, 07-25) — needs discussion with Todd.** The Won't-Fix rests on "batch routines reconcile it," but on inspection that doesn't fully hold — see below.
 - **Reopen detail (07-25) — the reconciliation gap**:
     - The **only scheduled job** is the daily `AdnSweepBackgroundService` ([Program.cs:480](../../TSIC-Core-Angular/src/backend/TSIC.API/Program.cs#L480)), and the sweep is **transaction-driven** ([AdnSweepService.cs:149](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Sweep/AdnSweepService.cs#L149)) — a cancellation produces **no transaction**, so the scheduled batch **never catches it**.
