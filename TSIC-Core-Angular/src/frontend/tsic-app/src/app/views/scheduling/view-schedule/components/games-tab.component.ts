@@ -1028,8 +1028,8 @@ type ScheduleRow =
            min-width equalises the two tracks' min-content contributions, so they stay the
            same width even when (say) every home score is one digit and every away score is
            two — otherwise the 3-track span's geometric centre drifts off the dash and takes
-           the centred "Score" header with it. Two digits at --font-size-lg monospace is
-           ~1.35rem and the editor caps scores at 99, so 1.75rem is the ceiling plus slack.
+           the centred "Score" header with it. Two digits at --font-size-base monospace is
+           ~1.2rem and the editor caps scores at 99, so 1.75rem is the ceiling plus slack.
            A floor, not a fixed width: the inline editor spans these tracks and still needs
            to size them intrinsically. */
         .cell-t1-score,
@@ -1068,9 +1068,21 @@ type ScheduleRow =
            which leaves the digits as pure data. Muting the loser would be a second, redundant
            channel — the retired scheme's whole failure mode — and the losing score is real
            information that deserves full legibility. */
+        /* base/600, stepped down from lg/700.
+           At lg the score ran 1.5x the body of the row (most cells are xs) and 1.29x the
+           team names, with a 300-point weight step on top — two channels pushed at once. It
+           earned that while it carried the win cue and was the result-bearing element; the
+           caret took that job, leaving the score as two numbers still emphasised for the old
+           one. Everything around it got quieter in the same pass (status chips suppressed,
+           stars hidden, date de-blued), so its relative loudness rose without the value ever
+           changing. base also matches .card-team-score, so the same datum is finally one
+           size across both layouts.
+
+           Still the row's numeric focal point: base (1rem) outranks the names at sm and the
+           rest at xs. Weight is the knob to reach for first if it needs more or less. */
         .score-val {
-            font-size: var(--font-size-lg);
-            font-weight: 700;
+            font-size: var(--font-size-base);
+            font-weight: 600;
             font-variant-numeric: tabular-nums;
             color: var(--score-strong);
         }
