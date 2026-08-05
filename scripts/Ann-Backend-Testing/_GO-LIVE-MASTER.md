@@ -4,15 +4,15 @@
 
 ---
 
-## 🔴 NEEDS TODD — build / fix (active)
+## 🔴 NEEDS TODD — active
+
+**No build/fix items remain on either punchlist as of 2026-08-05.** What's left below is his own E2E, one tabled discussion, and the cutover-only verifies further down.
 
 | Item | Where | Priority | Ask |
 |---|---|---|---|
-| **AM-041 + AM-089** | AM | 🔴 Gate | Donations must **report** a donation (itemized on confirmation for tax + Director/fly-in view + allow at $0 owed) **before** the feature can be enabled by anyone. AM-089 is the hard prerequisite; AM-041 stays off until it ships |
 | **PL-036** | PL | Todd E2E | Coach Approval Queue sort tech-debt — his end-to-end (not Ann's) |
 | **PL-037** | PL | Todd E2E | *(item CLOSED)* — mixed cart (active + waitlist teams) → Pay Balance Due → WL badge renders on the payment grid. **Needs an API restart first** (badge depends on the server-computed `isWaitlisted` / `ageGroupDisplayName` fields) |
-| **AM-063** | AM | ◻ Low | Draft-with-AI: reuse prior email copy (enhancement) |
-| **AM-043 / 044 / 045** | AM | 🔵 Tabled | Bulletin-AI cluster — needs a **Todd + Ann walkthrough** (incl. Ann's "AI Format appears to do nothing" note) |
+| **AM-043 / 044 / 045** | AM | 🔵 Tabled | Bulletin-AI cluster — needs a **Todd + Ann walkthrough** (incl. Ann's "AI Format appears to do nothing" note). *When it reopens, check AM-045 first: the 08-04/08-05 RTE work (curated font sizes on every editor, link-only Image) may already have overtaken the font-size/type ask* |
 
 ---
 
@@ -20,6 +20,8 @@
 
 | Item | Where | What |
 |---|---|---|
+| **AM-041 → CLOSED 08-05 / AM-089 deferred** | AM | **Donations are OFF structurally** — the SuperUser Payment Policy card was **removed entirely** from Job Settings → Payment (`6499531f`), so nobody can enable donations from the app. **AM-089 stays the hard prerequisite** for the day a client wants them: itemize the donation on the confirmation (tax) + surface it in the Director fly-in + allow a gift at $0 owed — **and first settle that `FeeDonation` is assigned, not accumulated, with no donation column on the payment-ledger row** (a repeat donor overwrites the first gift). Restoring the card is the last step of that build; the markup is preserved as a comment in place |
+| **AM-063** | AM | Draft-with-AI reuse of prior email copy — **PARKED 08-05** (`c4a8c606`). Post-go-live; the AI is the small part, the work is a cross-job read of email bodies behind the `CanCrossCustomerJobs` gate. Investigation banked in the item |
 | **AM-074** | AM | Headshot on Review (Todd+Ann agree; revisit post-launch) |
 | **AM-087** | AM | CAC division-then-team sort (Todd+Ann agree, image transcribed, build-ready) |
 | **AM-016** | AM | Widget Editor public settings (from CR-117) |
@@ -54,7 +56,9 @@
 
 ---
 
-### Status snapshot (2026-08-05)
+### Status snapshot (2026-08-05, regenerated after the AM-041/089 + AM-063 rulings)
+- **The build queue is EMPTY on both punchlists.** Everything outstanding is (a) Todd's own E2E — PL-036, PL-037 *(restart the API first)*, (b) the tabled bulletin-AI cluster, (c) cutover-only verifies that cannot run off-prod, (d) Ann's local verify of AM-065 pt1, (e) one Ann conversation: **PL-063 — ask Hero's whether they want a sibling discount going forward** (they never had one).
+
 - **Closed this pass:** AM-015 (Job Clone — covered by AM-071…081), AM-037 (refund policy — via AM-009/033), AM-069 (Convert button WON'T-DO accepted), AM-088 (Coach confirmations closed, accepted), **AM-084 (pt1 accepted as shipped — Ann withdrew the rewording; pt2 already verified. Item fully closed, no code change)**, **AM-075 (closed with the CURRENT event-dates copy — Ann's revision not applied; hint retains its two documented inaccuracies knowingly, `eventEndInPast` banner is the guardrail)**, **AM-082 (NON-ISSUE — retesting did not reproduce the Select-Events bottom-scroll; go-live blocker withdrawn, no fix shipped, investigation banked in the item)**.
 - **⚠ There is no longer a go-live blocker on this list.** AM-082 was the only item carrying that tag.
 - **Verified this pass:** AM-011/067/068/070/073/076/077/078/079/080/081/084/085/086, PL-060.
