@@ -101,6 +101,12 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
     // never reassert it afterward (the user's deliberate clicks must stick).
     private hasInitializedMode = false;
 
+    // One-shot initial landing: once BOTH the navigator data and the initial mode are
+    // settled (either request may finish first), select the first division of the first
+    // agegroup so the tree opens with that agegroup expanded.
+    private navSettled = false;
+    private initialScopeApplied = false;
+
     // Pulse Configure as the entry point only when the event is empty.
     readonly showStartHereOnConfigure = computed(() => (this.gameSummary()?.totalGames ?? 0) === 0);
 
@@ -492,10 +498,8 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
         this.loadStrategyProfiles();
         this.checkPairingStatus();
         this.loadChampionshipStatus();
-        // Default mode is 'schedule' at event scope — load full event grid
-        if (this.mode() === 'schedule') {
-            this.loadEventGrid();
-        }
+        // Initial landing (first division of first agegroup) is applied once both
+        // loadAgegroups and refreshGameSummary settle — see tryApplyInitialScope().
     }
 
     ngOnDestroy(): void {
@@ -526,9 +530,36 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
                 this.isNavLoading.set(false);
                 this.agegroupsLoaded = true;
                 this.tryInitConfig();
+                this.navSettled = true;
+                this.tryApplyInitialScope();
             },
-            error: () => this.isNavLoading.set(false)
+            error: () => {
+                this.isNavLoading.set(false);
+                this.navSettled = true;
+                this.tryApplyInitialScope();
+            }
         });
+    }
+
+    /** One-shot: land the tree on the first division of the first agegroup once both
+     * parallel init loads (agegroups + game summary → mode) have settled. Expansion is
+     * derived from scope in the navigator, so selecting the division expands its parent. */
+    private tryApplyInitialScope(): void {
+        if (this.initialScopeApplied || !this.navSettled || !this.hasInitializedMode) return;
+        this.initialScopeApplied = true;
+
+        // Only meaningful where the tree is visible (Schedule mode), and never stomp a
+        // selection the user already made while the init requests were in flight.
+        if (this.mode() !== 'schedule' || this.scope().level !== 'event') return;
+
+        const firstAg = this.agegroups()[0];
+        const firstDiv = firstAg?.divisions[0];
+        if (firstAg && firstDiv) {
+            this.onDivisionSelected({ division: firstDiv, agegroupId: firstAg.agegroupId });
+        } else {
+            // Nothing to land on (empty/failed navigator) — keep the event-grid landing.
+            this.loadEventGrid();
+        }
     }
 
     refreshGameSummary(): void {
@@ -538,13 +569,18 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
                 if (!this.hasInitializedMode) {
                     this.hasInitializedMode = true;
                     if (summary.totalGames > 0) {
-                        this.setMode('schedule');
+                        // Set directly rather than via setMode(): setMode('schedule')
+                        // resets scope to event, which would clobber the initial
+                        // first-division landing applied below / by loadAgegroups.
+                        this.mode.set('schedule');
                     }
+                    this.tryApplyInitialScope();
                 }
             },
             error: () => {
                 this.gameSummary.set(null);
                 this.hasInitializedMode = true;
+                this.tryApplyInitialScope();
             }
         });
     }
