@@ -19,6 +19,8 @@ public sealed class SchedulingChecklistService : ISchedulingChecklistService
     private readonly IScheduleCascadeRepository _cascadeRepo;
     private readonly ITeamRepository _teamRepo;
     private readonly ITimeslotRepository _timeslotRepo;
+    private readonly IBracketRepository _bracketRepo;
+    private readonly IBracketSeedRepository _bracketSeedRepo;
     private readonly ISchedulingContextResolver _contextResolver;
 
     public SchedulingChecklistService(
@@ -28,6 +30,8 @@ public sealed class SchedulingChecklistService : ISchedulingChecklistService
         IScheduleCascadeRepository cascadeRepo,
         ITeamRepository teamRepo,
         ITimeslotRepository timeslotRepo,
+        IBracketRepository bracketRepo,
+        IBracketSeedRepository bracketSeedRepo,
         ISchedulingContextResolver contextResolver)
     {
         _autoBuildRepo = autoBuildRepo;
@@ -36,6 +40,8 @@ public sealed class SchedulingChecklistService : ISchedulingChecklistService
         _cascadeRepo = cascadeRepo;
         _teamRepo = teamRepo;
         _timeslotRepo = timeslotRepo;
+        _bracketRepo = bracketRepo;
+        _bracketSeedRepo = bracketSeedRepo;
         _contextResolver = contextResolver;
     }
 
@@ -172,6 +178,56 @@ public sealed class SchedulingChecklistService : ISchedulingChecklistService
             MissingPoolSizes = missingPoolSizes
         };
 
+        // ── Post-build step: Bracket Seeds ──
+        // Coverage over the seeds-page universe (non-pool games; consolation included — it
+        // seeds by the same path). A slot is covered by a director seed or an advancement
+        // feed. Raw reads only: seed rows and the feed graph are materialized by the bracket
+        // pages themselves, and this flipping green after those visits is the desired
+        // behavior — same shape as the rules step above.
+        var bracketSeeds = new ChecklistBracketStepDto
+        {
+            HasBracketGames = false,
+            Complete = false,
+            UncoveredSlotCount = 0,
+            UncoveredByAgegroup = []
+        };
+        if (scheduleStats.GameCount > 0)
+        {
+            var bracketGames = await _bracketSeedRepo.GetBracketGamesAsync(jobId, ct);
+            var fedSlots = (await _bracketRepo.GetFeedsByTargetJobAsync(jobId, ct))
+                .Select(f => (f.TargetGid, (int)f.TargetSlot))
+                .ToHashSet();
+
+            var uncovered = new List<(string AgegroupName, string Type, int No)>();
+            foreach (var g in bracketGames)
+            {
+                if (!(g.T1SeedDivId.HasValue && g.T1SeedRank.HasValue) && !fedSlots.Contains((g.Gid, 1)))
+                    uncovered.Add((g.AgegroupName, g.T1Type, g.T1No));
+                if (!(g.T2SeedDivId.HasValue && g.T2SeedRank.HasValue) && !fedSlots.Contains((g.Gid, 2)))
+                    uncovered.Add((g.AgegroupName, g.T2Type, g.T2No));
+            }
+
+            bracketSeeds = new ChecklistBracketStepDto
+            {
+                HasBracketGames = bracketGames.Count > 0,
+                Complete = uncovered.Count == 0,
+                UncoveredSlotCount = uncovered.Count,
+                UncoveredByAgegroup = uncovered
+                    .GroupBy(u => u.AgegroupName)
+                    .OrderBy(grp => grp.Key, StringComparer.OrdinalIgnoreCase)
+                    .Select(grp => new ChecklistAgegroupSlotsDto
+                    {
+                        AgegroupName = grp.Key,
+                        SlotLabels = grp
+                            .OrderBy(u => RoundOrder.GetValueOrDefault(u.Type, 99))
+                            .ThenBy(u => u.No)
+                            .Select(u => $"{u.Type}{u.No}")
+                            .ToList()
+                    })
+                    .ToList()
+            };
+        }
+
         return new SchedulingChecklistDto
         {
             Pools = pools,
@@ -179,11 +235,18 @@ public sealed class SchedulingChecklistService : ISchedulingChecklistService
             Fields = fields,
             Rules = rules,
             Pairings = pairings,
+            BracketSeeds = bracketSeeds,
             GameCount = scheduleStats.GameCount,
             BuildUnlocked = pools.Complete && dates.Complete && fields.Complete && rules.Complete,
             ScheduleStats = scheduleStats
         };
     }
+
+    /// <summary>Earliest rounds first — the order the seeds page lists games.</summary>
+    private static readonly Dictionary<string, int> RoundOrder = new()
+    {
+        ["Z"] = 0, ["Y"] = 1, ["X"] = 2, ["Q"] = 3, ["S"] = 4, ["F"] = 5, ["B"] = 6, ["C"] = 7
+    };
 
     public async Task<ScheduleDashboardDto> GetDashboardAsync(Guid jobId, CancellationToken ct = default)
     {

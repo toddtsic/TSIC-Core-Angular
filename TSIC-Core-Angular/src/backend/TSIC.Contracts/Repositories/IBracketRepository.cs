@@ -81,6 +81,9 @@ public interface IBracketRepository
     Task<List<AdvancementFeeds>> GetFeedsByInstanceAsync(
         int bracketInstanceId, CancellationToken ct = default);
 
+    /// <summary>Every advancement feed whose target game belongs to the job.</summary>
+    Task<List<AdvancementFeeds>> GetFeedsByTargetJobAsync(Guid jobId, CancellationToken ct = default);
+
     /// <summary>Game date for each of the given schedule games (null when unscheduled).</summary>
     Task<Dictionary<int, DateTime?>> GetGDatesByGidsAsync(
         IReadOnlyCollection<int> gids, CancellationToken ct = default);

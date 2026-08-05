@@ -164,84 +164,46 @@ export class SchedulingChecklistComponent implements OnInit {
                     : `All prerequisites met — ready to build${guaranteeNote}`,
             route: 'schedule-hub',
             queryParams: null,
-            linkLabel: 'Schedule Hub'
+            linkLabel: 'Schedule'
         };
 
-        // ── Post-build steps ──
-        // Both operate ON a schedule, so neither means anything until games exist. That is the
-        // same gate the Tools grid applied ("available once games are scheduled"); they are
-        // promoted out of it because they are ordered work, not a drawer of utilities.
-        //
-        // Their state is 'info', never 'done'. Nothing on the checklist DTO reports whether a
-        // bracket is seeded or whether a reschedule is outstanding, and inventing a green tick
-        // from data we do not have is worse than not claiming one. The link is the point.
-        const bracketSeeds: StepRow = {
-            num: 5,
-            title: 'Bracket Seeds',
-            icon: 'bi-trophy',
-            state: c.gameCount > 0 ? 'info' : 'locked',
-            reason: c.gameCount > 0
-                ? 'Set who feeds each bracket slot — championship play only'
-                : 'Locked until the schedule is built',
-            route: '../scheduling/bracket-seeds',
-            queryParams: { from: 'scheduling' },
-            linkLabel: 'Bracket Seeds'
-        };
+        const rows = [pools, pairings, timeslots, build];
 
-        const rescheduler: StepRow = {
-            num: 6,
-            title: 'Rescheduler',
-            icon: 'bi-arrow-repeat',
-            state: c.gameCount > 0 ? 'info' : 'locked',
-            reason: c.gameCount > 0
-                ? 'Move, swap or re-time games after the build'
-                : 'Locked until the schedule is built',
-            route: '../scheduling/rescheduler',
-            queryParams: { from: 'scheduling' },
-            linkLabel: 'Rescheduler'
-        };
+        // A row earns a step number only when it is finishable and its completion is computable —
+        // everything else belongs in Tools. Bracket Seeds is the one post-build row that
+        // qualifies: coverage (every non-pool slot carries a seed or an advancement feed) is
+        // reported by the DTO. Hidden outright when the event has no bracket games — a green
+        // check for work that never applied would be a hollow claim.
+        if (c.bracketSeeds.hasBracketGames) {
+            const bs = c.bracketSeeds;
+            rows.push({
+                num: 5,
+                title: 'Bracket Seeds',
+                icon: 'bi-trophy',
+                state: bs.complete ? 'done' : 'todo',
+                reason: bs.complete
+                    ? 'Every bracket slot has a seed or feed source'
+                    : `${bs.uncoveredSlotCount} slot${bs.uncoveredSlotCount === 1 ? '' : 's'} without a seed or feed — `
+                        + this.nameList(bs.uncoveredByAgegroup.map(a => `${a.agegroupName}: ${a.slotLabels.join(', ')}`)),
+                route: '../scheduling/bracket-seeds',
+                queryParams: { from: 'scheduling' },
+                linkLabel: 'Bracket Seeds'
+            });
+        }
 
-        const viewer: StepRow = {
-            num: 7,
-            title: 'Schedule Viewer',
-            icon: 'bi-eye',
-            state: c.gameCount > 0 ? 'info' : 'locked',
-            reason: c.gameCount > 0
-                ? 'Check the schedule the way teams and families will see it'
-                : 'Locked until the schedule is built',
-            route: '../scheduling/view-schedule',
-            queryParams: { from: 'scheduling' },
-            linkLabel: 'View Schedule'
-        };
-
-        // Straight to the Schedules tab rather than the library's front page — by this point
-        // the director wants game cards and team schedules, not a catalogue. The library
-        // falls back to All if this event has no schedule reports, so the link is never a
-        // dead end.
-        const reports: StepRow = {
-            num: 8,
-            title: 'Schedule Reports',
-            icon: 'bi-file-earmark-text',
-            state: c.gameCount > 0 ? 'info' : 'locked',
-            reason: c.gameCount > 0
-                ? 'Game cards, team schedules and field grids, ready to print or send'
-                : 'Locked until the schedule is built',
-            route: '../reporting/reports-library',
-            queryParams: { tab: 'Schedules', from: 'scheduling' },
-            linkLabel: 'Schedule Reports'
-        };
-
-        return [pools, pairings, timeslots, build, bracketSeeds, rescheduler, viewer, reports];
+        return rows;
     });
 
-    // Bracket Seeds, Rescheduler and View Schedule used to live here. They are steps 5–7 now —
-    // ordered work that follows the build, not utilities you reach for. What is left is
-    // genuinely a drawer: side tools that sit outside the sequence.
-    //
-    // Master Schedule stays a tool rather than joining step 7: it is the whole-event grid an
-    // operator uses on site, not the per-team view a director proofreads before publishing.
+    // Operations on a built schedule — reached for repeatedly, never "finished", so none of
+    // them can hold a step number. The grid unlocks once games exist.
     readonly tools: ToolRow[] = [
         { title: 'Master Schedule', icon: 'bi-calendar-week', route: '../scheduling/master-schedule', queryParams: { from: 'scheduling' } },
+        { title: 'Rescheduler', icon: 'bi-arrow-repeat', route: '../scheduling/rescheduler', queryParams: { from: 'scheduling' } },
+        { title: 'Schedule Viewer', icon: 'bi-eye', route: '../scheduling/view-schedule', queryParams: { from: 'scheduling' } },
+        // Straight to the Schedules tab rather than the library's front page — game cards and
+        // team schedules, not a catalogue. The library falls back to All when this event has
+        // no schedule reports, so the link is never a dead end.
+        { title: 'Schedule Reports', icon: 'bi-file-earmark-text', route: '../reporting/reports-library', queryParams: { tab: 'Schedules', from: 'scheduling' } },
         { title: 'QA Results', icon: 'bi-check2-square', route: 'qa-results', queryParams: null },
         { title: 'Tournament Parking', icon: 'bi-car-front', route: '../scheduling/tournament-parking', queryParams: { from: 'scheduling' } },
         { title: 'Mobile Scorers', icon: 'bi-phone', route: '../scheduling/mobile-scorers', queryParams: { from: 'scheduling' } }

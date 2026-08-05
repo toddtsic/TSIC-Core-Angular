@@ -166,7 +166,9 @@ export type { CheckExistingRegistrationsResponse } from './models/CheckExistingR
 export type { CheckinStateDto } from './models/CheckinStateDto';
 export type { ChecklistAgegroupDivisionsDto } from './models/ChecklistAgegroupDivisionsDto';
 export type { ChecklistAgegroupPoolsDto } from './models/ChecklistAgegroupPoolsDto';
+export type { ChecklistAgegroupSlotsDto } from './models/ChecklistAgegroupSlotsDto';
 export type { ChecklistAgegroupStepDto } from './models/ChecklistAgegroupStepDto';
+export type { ChecklistBracketStepDto } from './models/ChecklistBracketStepDto';
 export type { ChecklistDivisionStepDto } from './models/ChecklistDivisionStepDto';
 export type { ChecklistPairingsStepDto } from './models/ChecklistPairingsStepDto';
 export type { ChecklistPoolsStepDto } from './models/ChecklistPoolsStepDto';

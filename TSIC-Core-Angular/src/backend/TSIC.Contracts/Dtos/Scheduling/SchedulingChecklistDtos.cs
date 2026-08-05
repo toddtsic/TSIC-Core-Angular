@@ -29,6 +29,13 @@ public record SchedulingChecklistDto
     /// <summary>Step 5 — informational: missing pairings are auto-generated at build.</summary>
     public required ChecklistPairingsStepDto Pairings { get; init; }
 
+    /// <summary>
+    /// Post-build step — every non-pool slot is covered by a director seed or an advancement
+    /// feed. Absent bracket games the client hides the step entirely rather than showing a
+    /// hollow green check for work that never applied.
+    /// </summary>
+    public required ChecklistBracketStepDto BracketSeeds { get; init; }
+
     /// <summary>Scheduled games currently on the books for this job.</summary>
     public required int GameCount { get; init; }
 
@@ -118,4 +125,27 @@ public record ChecklistPairingsStepDto
 {
     public required bool Complete { get; init; }
     public required List<int> MissingPoolSizes { get; init; }
+}
+
+/// <summary>
+/// Bracket-seed coverage over the seeds-page universe (every non-pool game: ladder rounds,
+/// bronze, consolation). A slot is covered when it carries a director seed
+/// (Leagues.BracketSeeds side with division + rank) or an advancement feed targets it.
+/// </summary>
+public record ChecklistBracketStepDto
+{
+    /// <summary>False when the job has no non-pool games — the step does not apply.</summary>
+    public required bool HasBracketGames { get; init; }
+    public required bool Complete { get; init; }
+    /// <summary>Slots with neither a seed nor a feed, across all agegroups.</summary>
+    public required int UncoveredSlotCount { get; init; }
+    public required List<ChecklistAgegroupSlotsDto> UncoveredByAgegroup { get; init; }
+}
+
+/// <summary>An agegroup and the bracket slot labels under it still lacking coverage.</summary>
+public record ChecklistAgegroupSlotsDto
+{
+    public required string AgegroupName { get; init; }
+    /// <summary>Slot labels ("X1", "F2"), earliest rounds first.</summary>
+    public required List<string> SlotLabels { get; init; }
 }

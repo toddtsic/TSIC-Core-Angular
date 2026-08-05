@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { ChecklistAgegroupStepDto } from './ChecklistAgegroupStepDto';
+import type { ChecklistBracketStepDto } from './ChecklistBracketStepDto';
 import type { ChecklistDivisionStepDto } from './ChecklistDivisionStepDto';
 import type { ChecklistPairingsStepDto } from './ChecklistPairingsStepDto';
 import type { ChecklistPoolsStepDto } from './ChecklistPoolsStepDto';
@@ -14,6 +15,7 @@ export type SchedulingChecklistDto = {
     fields: ChecklistDivisionStepDto;
     rules: ChecklistRulesStepDto;
     pairings: ChecklistPairingsStepDto;
+    bracketSeeds: ChecklistBracketStepDto;
     gameCount: number;
     buildUnlocked: boolean;
     scheduleStats: ChecklistScheduleStatsDto;

@@ -242,6 +242,13 @@ public class BracketRepository : IBracketRepository
             .Where(f => f.BracketInstanceId == bracketInstanceId)
             .ToListAsync(ct);
 
+    public async Task<List<AdvancementFeeds>> GetFeedsByTargetJobAsync(
+        Guid jobId, CancellationToken ct = default) =>
+        await _context.AdvancementFeeds
+            .AsNoTracking()
+            .Where(f => f.TargetG.JobId == jobId)
+            .ToListAsync(ct);
+
     public async Task<Dictionary<int, DateTime?>> GetGDatesByGidsAsync(
         IReadOnlyCollection<int> gids, CancellationToken ct = default)
     {
