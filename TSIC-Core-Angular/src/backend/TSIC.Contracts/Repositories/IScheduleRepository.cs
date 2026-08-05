@@ -331,6 +331,16 @@ public interface IScheduleRepository
     Task<ChecklistScheduleStatsDto> GetScheduleSummaryStatsAsync(
         Guid jobId, CancellationToken ct = default);
 
+    /// <summary>Games per calendar day for the schedule dashboard, ordered by date.</summary>
+    Task<List<GamesPerDayDto>> GetGameCountsByDayAsync(
+        Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Distinct real teams (T1/T2 type "T") holding at least one scheduled game.
+    /// Compared against the active-team count to expose teams the build dropped.
+    /// </summary>
+    Task<int> GetScheduledTeamCountAsync(Guid jobId, CancellationToken ct = default);
+
     /// <summary>
     /// Get the count of round-robin (T1Type="T" AND T2Type="T") scheduled games
     /// grouped by DivId. Used by dashboard to determine fully-scheduled divisions.

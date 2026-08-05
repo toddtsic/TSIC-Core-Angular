@@ -1,0 +1,75 @@
+<div class="page-header">
+    <h2 class="page-title">
+        <app-checklist-back-link always />
+        <i class="bi bi-speedometer2 page-title-icon"></i>
+        Schedule Dashboard
+        @if (hasGames()) {
+            <span class="badge-count">{{ gameCount() }} games</span>
+        }
+    </h2>
+    <div class="page-header-actions">
+        <button class="btn btn-outline-secondary btn-sm" (click)="load()" [disabled]="isLoading()"
+                title="Refresh">
+            <i class="bi bi-arrow-clockwise"></i>
+        </button>
+    </div>
+</div>
+
+@if (hasError()) {
+    <div class="alert alert-danger d-flex align-items-center" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        Failed to load schedule dashboard.
+    </div>
+}
+
+@if (isLoading() && !dash()) {
+    <div class="list-empty-state">
+        <div class="spinner-border spinner-border-sm text-secondary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+
+@if (dash(); as d) {
+    @if (!hasGames()) {
+        <div class="list-empty-state">
+            <i class="bi bi-calendar-x empty-icon" aria-hidden="true"></i>
+            <p>No games scheduled yet — the dashboard fills in once the schedule is built.</p>
+        </div>
+    } @else {
+        <div class="kpi-grid">
+            @for (tile of tiles(); track tile.label) {
+                <div class="kpi-tile" [class.kpi-warn]="tile.warn">
+                    <span class="kpi-head">
+                        <i class="bi {{ tile.icon }}" aria-hidden="true"></i>
+                        {{ tile.label }}
+                    </span>
+                    <span class="kpi-value">{{ tile.value }}</span>
+                    @if (tile.sub) {
+                        <span class="kpi-sub">
+                            @if (tile.warn) {
+                                <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                            }
+                            {{ tile.sub }}
+                        </span>
+                    }
+                </div>
+            }
+        </div>
+
+        <section class="dash-section" aria-label="Games per day">
+            <h3 class="dash-section-title">Games per day</h3>
+            <ul class="day-list">
+                @for (row of dayRows(); track row.label) {
+                    <li class="day-row">
+                        <span class="day-label">{{ row.label }}</span>
+                        <span class="day-count">{{ row.count }}</span>
+                        <span class="day-bar-track" aria-hidden="true">
+                            <span class="day-bar" [style.width.%]="row.pct"></span>
+                        </span>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+}

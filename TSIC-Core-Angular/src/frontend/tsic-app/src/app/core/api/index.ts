@@ -346,6 +346,7 @@ export type { GameDateInfoDto } from './models/GameDateInfoDto';
 export type { GameDayDto } from './models/GameDayDto';
 export type { GameRefAssignmentDto } from './models/GameRefAssignmentDto';
 export type { GameShiftTarget } from './models/GameShiftTarget';
+export type { GamesPerDayDto } from './models/GamesPerDayDto';
 export type { GameStatusOptionDto } from './models/GameStatusOptionDto';
 export type { GameSummaryResponse } from './models/GameSummaryResponse';
 export type { GetChatMessagesRequest } from './models/GetChatMessagesRequest';
@@ -631,6 +632,7 @@ export type { SaveWidgetAssignmentsRequest } from './models/SaveWidgetAssignment
 export type { SaveWidgetDefaultsRequest } from './models/SaveWidgetDefaultsRequest';
 export type { ScheduleCapabilitiesDto } from './models/ScheduleCapabilitiesDto';
 export type { ScheduleCascadeSnapshot } from './models/ScheduleCascadeSnapshot';
+export type { ScheduleDashboardDto } from './models/ScheduleDashboardDto';
 export type { ScheduleExportRequest } from './models/ScheduleExportRequest';
 export type { ScheduleFieldColumn } from './models/ScheduleFieldColumn';
 export type { ScheduleFilterOptionsDto } from './models/ScheduleFilterOptionsDto';

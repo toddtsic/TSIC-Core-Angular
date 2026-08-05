@@ -39,4 +39,16 @@ public class SchedulingChecklistController : ControllerBase
 
         return Ok(await _service.GetChecklistAsync(jobId.Value, ct));
     }
+
+    [HttpGet("dashboard")]
+    [ProducesResponseType(typeof(ScheduleDashboardDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ScheduleDashboardDto>> GetDashboard(CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Scheduling context required" });
+
+        return Ok(await _service.GetDashboardAsync(jobId.Value, ct));
+    }
 }

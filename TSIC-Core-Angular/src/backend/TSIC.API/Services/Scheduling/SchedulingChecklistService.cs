@@ -57,11 +57,7 @@ public sealed class SchedulingChecklistService : ISchedulingChecklistService
 
         // Utility agegroups (WAITLIST-*, Dropped Teams) and empty agegroups never gate anything
         var relevantAgegroups = agegroups
-            .Where(ag =>
-            {
-                var name = (ag.AgegroupName ?? "").ToUpper();
-                return name != "DROPPED TEAMS" && !name.StartsWith("WAITLIST");
-            })
+            .Where(ag => IsSchedulableAgegroup(ag.AgegroupName))
             .Where(ag => teamCountsByAg.TryGetValue(ag.AgegroupId, out var cnt) && cnt > 0)
             .OrderBy(ag => ag.AgegroupName)
             .ToList();
@@ -187,5 +183,40 @@ public sealed class SchedulingChecklistService : ISchedulingChecklistService
             BuildUnlocked = pools.Complete && dates.Complete && fields.Complete && rules.Complete,
             ScheduleStats = scheduleStats
         };
+    }
+
+    public async Task<ScheduleDashboardDto> GetDashboardAsync(Guid jobId, CancellationToken ct = default)
+    {
+        var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
+
+        // Sequential queries — repositories share a single scoped DbContext
+        var stats = await _scheduleRepo.GetScheduleSummaryStatsAsync(jobId, ct);
+        var gamesPerDay = await _scheduleRepo.GetGameCountsByDayAsync(jobId, ct);
+        var teamsScheduled = await _scheduleRepo.GetScheduledTeamCountAsync(jobId, ct);
+        var divisionSummaries = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
+        var agegroups = await _pairingsRepo.GetAgegroupsWithDivisionsAsync(leagueId, season, ct);
+        var teamCountsByAg = await _teamRepo.GetRegistrationCountsByAgeGroupAsync(jobId, ct);
+
+        // Same filters the checklist gates on, so numerator and denominator share a universe:
+        // a team the checklist would demand a pool for is a team the dashboard expects a game for.
+        var activeTeamCount = agegroups
+            .Where(ag => IsSchedulableAgegroup(ag.AgegroupName))
+            .Sum(ag => teamCountsByAg.TryGetValue(ag.AgegroupId, out var cnt) ? cnt : 0);
+
+        return new ScheduleDashboardDto
+        {
+            Stats = stats,
+            SchedulableDivisionCount = AutoBuildScheduleService.FilterSchedulableDivisions(divisionSummaries).Count,
+            TeamsScheduled = teamsScheduled,
+            ActiveTeamCount = activeTeamCount,
+            GamesPerDay = gamesPerDay
+        };
+    }
+
+    /// <summary>Utility agegroups (WAITLIST-*, Dropped Teams) never gate or count anywhere.</summary>
+    private static bool IsSchedulableAgegroup(string? agegroupName)
+    {
+        var name = (agegroupName ?? "").ToUpper();
+        return name != "DROPPED TEAMS" && !name.StartsWith("WAITLIST");
     }
 }

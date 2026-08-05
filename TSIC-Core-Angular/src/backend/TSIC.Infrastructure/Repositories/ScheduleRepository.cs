@@ -1717,6 +1717,34 @@ public sealed class ScheduleRepository : IScheduleRepository
         };
     }
 
+    public async Task<List<GamesPerDayDto>> GetGameCountsByDayAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId && s.GDate.HasValue)
+            .GroupBy(s => s.GDate!.Value.Date)
+            .Select(g => new GamesPerDayDto { Date = g.Key, GameCount = g.Count() })
+            .OrderBy(d => d.Date)
+            .ToListAsync(ct);
+    }
+
+    public async Task<int> GetScheduledTeamCountAsync(Guid jobId, CancellationToken ct = default)
+    {
+        // Real teams only (type "T") — bracket placeholders carry seeds, not team ids.
+        // UNION dedupes server-side, so a team playing both slots counts once.
+        var t1 = _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId && s.GDate.HasValue && s.T1Type == "T" && s.T1Id.HasValue)
+            .Select(s => s.T1Id!.Value);
+        var t2 = _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId && s.GDate.HasValue && s.T2Type == "T" && s.T2Id.HasValue)
+            .Select(s => s.T2Id!.Value);
+
+        return await t1.Union(t2).CountAsync(ct);
+    }
+
     public async Task<Dictionary<Guid, int>> GetRoundRobinGameCountsByDivisionAsync(
         Guid jobId, CancellationToken ct = default)
     {

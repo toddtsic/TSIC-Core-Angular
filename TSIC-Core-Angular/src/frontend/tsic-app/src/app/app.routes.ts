@@ -597,6 +597,11 @@ export const routes: Routes = [
 						loadComponent: () => import('./views/scheduling/checklist/scheduling-checklist.component').then(m => m.SchedulingChecklistComponent)
 					},
 					{
+						path: 'dashboard',
+						data: { helpKey: 'schedule-dashboard' },
+						loadComponent: () => import('./views/scheduling/dashboard/schedule-dashboard.component').then(m => m.ScheduleDashboardComponent)
+					},
+					{
 						path: 'fields',
 						data: { helpKey: 'fields' },
 						loadComponent: () => import('./views/scheduling/fields/manage-fields.component').then(m => m.ManageFieldsComponent)

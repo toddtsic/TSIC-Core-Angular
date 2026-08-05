@@ -8,11 +8,33 @@
 
 // Post-build stats band — same chip dialect as referee-calendar's stats-bar.
 // Values wear text tokens; the primary tint is surface decoration, never the signal.
+// The band is one link: teaser numbers, full story on the Schedule Dashboard.
 .stats-bar {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
     margin-top: var(--space-3);
+    text-decoration: none;
+    color: inherit;
+}
+
+a.stats-bar:hover .stat-chip {
+    border-color: rgba(var(--bs-primary-rgb), 0.4);
+}
+
+a.stats-bar:focus-visible {
+    outline: none;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-focus);
+}
+
+.stats-bar-cta {
+    background: rgba(var(--bs-primary-rgb), 0.12);
+    border-color: rgba(var(--bs-primary-rgb), 0.3);
+
+    .stat-value {
+        color: var(--bs-primary);
+    }
 }
 
 .stat-chip {

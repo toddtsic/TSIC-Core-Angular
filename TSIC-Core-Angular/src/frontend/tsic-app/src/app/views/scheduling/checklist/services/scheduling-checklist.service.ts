@@ -2,9 +2,9 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
-import type { SchedulingChecklistDto } from '@core/api';
+import type { ScheduleDashboardDto, SchedulingChecklistDto } from '@core/api';
 
-export type { SchedulingChecklistDto } from '@core/api';
+export type { ScheduleDashboardDto, SchedulingChecklistDto } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
 export class SchedulingChecklistService {
@@ -13,5 +13,9 @@ export class SchedulingChecklistService {
 
     getChecklist(): Observable<SchedulingChecklistDto> {
         return this.http.get<SchedulingChecklistDto>(this.apiUrl);
+    }
+
+    getDashboard(): Observable<ScheduleDashboardDto> {
+        return this.http.get<ScheduleDashboardDto>(`${this.apiUrl}/dashboard`);
     }
 }

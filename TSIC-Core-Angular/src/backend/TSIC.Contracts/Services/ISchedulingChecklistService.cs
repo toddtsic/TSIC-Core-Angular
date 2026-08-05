@@ -9,4 +9,7 @@ namespace TSIC.Contracts.Services;
 public interface ISchedulingChecklistService
 {
     Task<SchedulingChecklistDto> GetChecklistAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>Post-build stats readout: aggregates, coverage vs active teams, games per day.</summary>
+    Task<ScheduleDashboardDto> GetDashboardAsync(Guid jobId, CancellationToken ct = default);
 }

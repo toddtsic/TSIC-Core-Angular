@@ -31,7 +31,7 @@
 
 @if (checklist(); as c) {
     @if (hasGames()) {
-        <div class="stats-bar" role="group" aria-label="Schedule summary">
+        <a class="stats-bar" routerLink="dashboard" aria-label="Schedule summary — open dashboard">
             @for (chip of statChips(); track chip.icon) {
                 <span class="stat-chip">
                     <i class="bi {{ chip.icon }}" aria-hidden="true"></i>
@@ -41,7 +41,12 @@
                     }
                 </span>
             }
-        </div>
+            <span class="stat-chip stats-bar-cta">
+                <i class="bi bi-speedometer2" aria-hidden="true"></i>
+                <span class="stat-value">Dashboard</span>
+                <i class="bi bi-arrow-right-short" aria-hidden="true"></i>
+            </span>
+        </a>
     }
 
     <section class="checklist-section" aria-label="Scheduling steps">
