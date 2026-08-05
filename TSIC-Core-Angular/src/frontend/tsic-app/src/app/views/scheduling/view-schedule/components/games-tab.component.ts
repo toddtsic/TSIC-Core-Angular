@@ -126,18 +126,28 @@ type ScheduleRow =
                             <span class="ag-label">{{ game.agDiv }}</span>
                         </span>
 
-                        <!-- Home team. The win caret lives INSIDE the name text (see .win-mark)
-                             so it hugs the first character rather than the column edge. -->
+                        <!-- Home team. Child order is the MIRROR of away (name · record · star
+                             vs star · name · record), not a copy of it, and that is load
+                             bearing rather than cosmetic.
+
+                             This cell is right-aligned, so its text is flush on the RIGHT.
+                             A sibling placed BEFORE the name sits at the name element's left
+                             edge — and a wrapped name's element fills the whole column while
+                             its text sits ragged somewhere inside it, so the star stranded
+                             itself ~90px from the team it belonged to. Anything placed AFTER
+                             the name touches the flush edge and cannot detach, which is why
+                             the record pill never had the problem. Away is immune the other
+                             way round: left-aligned text is flush LEFT, so its leading star
+                             is always adjacent.
+
+                             Mirroring also puts both stars beside the score, so "my teams"
+                             reads as two ticks flanking the spine instead of drifting out to
+                             the ragged outer edges.
+
+                             The win caret is exempt from all of this — it lives INSIDE the
+                             name text (see .win-mark), so it rides the characters. -->
                         <span class="cell cell-home" role="cell" aria-colindex="5">
                             @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
-                            @if (game.t1Id) {
-                                <button type="button" class="team-star"
-                                        [class.is-on]="isFollowed(game.t1Id)"
-                                        [attr.aria-label]="(isFollowed(game.t1Id) ? 'Unfollow ' : 'Follow ') + game.t1Name"
-                                        (click)="onStarClick(game.t1Id!)">
-                                    <i class="bi" [class.bi-star-fill]="isFollowed(game.t1Id)" [class.bi-star]="!isFollowed(game.t1Id)"></i>
-                                </button>
-                            }
                             @if (game.t1Id) {
                                 <button type="button" class="team-name team-link"
                                         [attr.title]="'View ' + game.t1Name + ' results'"
@@ -153,6 +163,14 @@ type ScheduleRow =
                                         (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Record }}</button>
                             }
                             @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
+                            @if (game.t1Id) {
+                                <button type="button" class="team-star"
+                                        [class.is-on]="isFollowed(game.t1Id)"
+                                        [attr.aria-label]="(isFollowed(game.t1Id) ? 'Unfollow ' : 'Follow ') + game.t1Name"
+                                        (click)="onStarClick(game.t1Id!)">
+                                    <i class="bi" [class.bi-star-fill]="isFollowed(game.t1Id)" [class.bi-star]="!isFollowed(game.t1Id)"></i>
+                                </button>
+                            }
                         </span>
 
                         <!-- Score — three real columns so home/away numbers each stack on
