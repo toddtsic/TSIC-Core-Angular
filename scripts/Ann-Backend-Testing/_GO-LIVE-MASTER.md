@@ -10,7 +10,6 @@
 |---|---|---|---|
 | **AM-041 + AM-089** | AM | 🔴 Gate | Donations must **report** a donation (itemized on confirmation for tax + Director/fly-in view + allow at $0 owed) **before** the feature can be enabled by anyone. AM-089 is the hard prerequisite; AM-041 stays off until it ships |
 | **PL-037** | PL | 🔴 Reopened | Club Rep "Pay Balance Due" — waitlist-badge / balance behavior |
-| **PL-063** | PL | ◻ Open (new) | Multiplayer (sibling) Discount % not functional — **Hero's Lacrosse Players** parity: recover Hero's Legacy values (currently NULL) + surface the config field + wire `FeeDiscountMp` (reserved slot already carried through the money math) |
 | **PL-036** | PL | Todd E2E | Coach Approval Queue sort tech-debt — his end-to-end (not Ann's) |
 | **AM-063** | AM | ◻ Low | Draft-with-AI: reuse prior email copy (enhancement) |
 | **AM-043 / 044 / 045** | AM | 🔵 Tabled | Bulletin-AI cluster — needs a **Todd + Ann walkthrough** (incl. Ann's "AI Format appears to do nothing" note) |
@@ -28,6 +27,7 @@
 | **AM-001** | AM | Bulletins RTE font controls — re-raised as AM-045 |
 | **PL-035** | PL | eCheck ARB tooling parity (charge/setup works; surrounding tooling CC-centric) |
 | **PL-025** | PL | Pre-submit intra-cart contention warning (persistent notice already shipped + verified) |
+| **PL-063** | PL | Multiplayer (sibling) discount. **Premise corrected — Hero's never used it** (all 23 Hero's jobs NULL back to 2020; the 17 configured jobs are all Cape St. Claire `_chiuso`; no sibling code ever). Not a parity gap, so nothing was lost. Design banked: never-typed SuperUser rule row → writes `FeeDiscountMp`. Stopgap today = Hero's issues an ordinary discount code. **→ Ann to confirm with Hero's whether they want one going forward** |
 
 ---
 
