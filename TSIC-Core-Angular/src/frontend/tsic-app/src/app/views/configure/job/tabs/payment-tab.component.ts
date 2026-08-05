@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RichTextEditorAllModule } from '@syncfusion/ej2-angular-richtexteditor';
 import { JobConfigService } from '../job-config.service';
 import { JOB_CONFIG_RTE_HEIGHT, toDateOnly } from '../shared/rte-config';
-import { TSIC_RTE_TOOLS } from '@shared-ui/rte-config';
+import { TsicRteDirective } from '@shared-ui/rte.directive';
 import type {
   UpdateJobConfigPaymentRequest,
   CreateAdminChargeRequest,
@@ -24,14 +24,13 @@ interface AdminChargeDraft {
 @Component({
   selector: 'app-payment-tab',
   standalone: true,
-  imports: [CommonModule, FormsModule, RichTextEditorAllModule],
+  imports: [CommonModule, FormsModule, RichTextEditorAllModule, TsicRteDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './payment-tab.component.html',
 })
 export class PaymentTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
 
-  readonly rteTools = TSIC_RTE_TOOLS;
   readonly rteHeight = JOB_CONFIG_RTE_HEIGHT;
 
   // ── Local form model ──

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, input, model, viewChild } from '@angular/core';
 import { RichTextEditorAllModule, RichTextEditorComponent } from '@syncfusion/ej2-angular-richtexteditor';
-import { TSIC_RTE_TOOLS } from '@shared-ui/rte-config';
+import { TsicRteDirective } from '@shared-ui/rte.directive';
 
 /**
  * The one email-body compose widget. Every surface that lets a user author an email body
@@ -15,12 +15,12 @@ import { TSIC_RTE_TOOLS } from '@shared-ui/rte-config';
 @Component({
     selector: 'app-email-body-editor',
     standalone: true,
-    imports: [RichTextEditorAllModule],
+    imports: [RichTextEditorAllModule, TsicRteDirective],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <ejs-richtexteditor #rte
             [value]="body()"
-            [toolbarSettings]="rteTools"
+            tsicRte
             [height]="height()"
             [saveInterval]="200"
             [enabled]="!disabled()"
@@ -43,7 +43,6 @@ export class EmailBodyEditorComponent {
     // through token substitution and land in arbitrary mail clients, so keep the
     // markup simple. Tables now ride along — mail clients render <table> unevenly,
     // so review a real send before leaning on one in an email body.
-    readonly rteTools = TSIC_RTE_TOOLS;
 
     private readonly rte = viewChild.required<RichTextEditorComponent>('rte');
 

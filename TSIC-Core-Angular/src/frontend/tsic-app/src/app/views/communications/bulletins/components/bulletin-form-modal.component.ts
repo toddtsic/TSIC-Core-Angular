@@ -7,7 +7,7 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
 import { BulletinAdminService } from '../services/bulletin-admin.service';
 import { ToastService } from '../../../../shared-ui/toast.service';
 import { AuthService } from '../../../../infrastructure/services/auth.service';
-import { TSIC_RTE_TOOLS } from '@shared-ui/rte-config';
+import { TsicRteDirective } from '@shared-ui/rte.directive';
 import type {
     BulletinAdminDto,
     CreateBulletinRequest,
@@ -36,7 +36,7 @@ export type ModalMode = 'add' | 'edit';
 @Component({
     selector: 'bulletin-form-modal',
     standalone: true,
-    imports: [CommonModule, TsicDialogComponent, FormsModule, RichTextEditorAllModule],
+    imports: [CommonModule, TsicDialogComponent, FormsModule, RichTextEditorAllModule, TsicRteDirective],
     template: `
         <tsic-dialog [open]="true" size="lg" (requestClose)="close.emit()">
             <div class="modal-content bulletin-modal">
@@ -132,7 +132,7 @@ export type ModalMode = 'add' | 'edit';
                         <div class="editor-preview-grid" [class.split]="previewOpen()">
                             <ejs-richtexteditor #rteEditor
                                 [value]="text()"
-                                [toolbarSettings]="rteTools"
+                                tsicRte
                                 [height]="rteHeight"
                                 [enableHtmlSanitizer]="false"
                                 (change)="onRteChange($event)">
@@ -411,7 +411,6 @@ export class BulletinFormModalComponent implements OnInit {
     private readonly toastService = inject(ToastService);
     private readonly authService = inject(AuthService);
 
-    rteTools = TSIC_RTE_TOOLS;
     rteHeight = 300;
     textTokens = TEXT_TOKENS;
     simulateFlags = SIMULATE_FLAGS;

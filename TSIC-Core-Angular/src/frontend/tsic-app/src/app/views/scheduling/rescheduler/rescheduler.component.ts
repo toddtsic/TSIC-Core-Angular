@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 // AllModule, not the bare RichTextEditorModule: the table + quick-toolbar services
 // ship with the All variant, and without them the CreateTable button is inert.
 import { RichTextEditorAllModule } from '@syncfusion/ej2-angular-richtexteditor';
-import { TSIC_RTE_TOOLS } from '@shared-ui/rte-config';
+import { TsicRteDirective } from '@shared-ui/rte.directive';
 import {
     ReschedulerService,
     type ScheduleFilterOptionsDto,
@@ -28,7 +28,7 @@ import { ChecklistBackLinkComponent } from '../shared/components/checklist-back-
 @Component({
     selector: 'app-rescheduler',
     standalone: true,
-    imports: [CommonModule, FormsModule, RichTextEditorAllModule, ScheduleGridComponent, CadtTreeFilterComponent, LadtTreeFilterComponent, TsicDialogComponent, ChecklistBackLinkComponent],
+    imports: [CommonModule, FormsModule, RichTextEditorAllModule, TsicRteDirective, ScheduleGridComponent, CadtTreeFilterComponent, LadtTreeFilterComponent, TsicDialogComponent, ChecklistBackLinkComponent],
     templateUrl: './rescheduler.component.html',
     styleUrl: './rescheduler.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -201,7 +201,6 @@ export class ReschedulerComponent implements OnInit {
     });
 
     // ── RTE toolbar config ── (app-wide shared; was a byte-identical local copy)
-    readonly rteTools = TSIC_RTE_TOOLS;
 
     ngOnInit(): void {
         this.loadFilterOptions();

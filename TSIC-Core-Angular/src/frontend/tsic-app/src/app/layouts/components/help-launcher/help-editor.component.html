@@ -115,7 +115,7 @@
               <ejs-richtexteditor
                 #faqRte
                 [value]="item.answerHtml"
-                [toolbarSettings]="rteTools"
+                tsicRte
                 [height]="200"
                 [enableHtmlSanitizer]="false"
                 (change)="updateAnswer(item.id, $event)">
@@ -136,7 +136,7 @@
       <ejs-richtexteditor
         #rteEditor
         [value]="draft()"
-        [toolbarSettings]="rteTools"
+        tsicRte
         height="100%"
         [enableHtmlSanitizer]="false"
         (change)="onRteChange($event)">

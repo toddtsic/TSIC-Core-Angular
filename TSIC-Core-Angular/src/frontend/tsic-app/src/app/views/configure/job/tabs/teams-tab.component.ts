@@ -4,21 +4,20 @@ import { FormsModule } from '@angular/forms';
 import { RichTextEditorAllModule } from '@syncfusion/ej2-angular-richtexteditor';
 import { JobConfigService } from '../job-config.service';
 import { JOB_CONFIG_RTE_HEIGHT } from '../shared/rte-config';
-import { TSIC_RTE_TOOLS } from '@shared-ui/rte-config';
+import { TsicRteDirective } from '@shared-ui/rte.directive';
 import { RegistrationReadinessComponent } from '../components/registration-readiness.component';
 import type { UpdateJobConfigTeamsRequest } from '@core/api';
 
 @Component({
   selector: 'app-teams-tab',
   standalone: true,
-  imports: [CommonModule, FormsModule, RichTextEditorAllModule, RegistrationReadinessComponent],
+  imports: [CommonModule, FormsModule, RichTextEditorAllModule, TsicRteDirective, RegistrationReadinessComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './teams-tab.component.html',
 })
 export class TeamsTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
 
-  readonly rteTools = TSIC_RTE_TOOLS;
   readonly rteHeight = JOB_CONFIG_RTE_HEIGHT;
 
   bRegistrationAllowTeam = linkedSignal(() => this.svc.teams()?.bRegistrationAllowTeam ?? null);

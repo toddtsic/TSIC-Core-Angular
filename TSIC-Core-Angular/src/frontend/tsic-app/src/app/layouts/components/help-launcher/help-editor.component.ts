@@ -20,7 +20,7 @@ import {
   type CdkDragDrop,
   moveItemInArray,
 } from '@angular/cdk/drag-drop';
-import { TSIC_RTE_TOOLS } from '@shared-ui/rte-config';
+import { TsicRteDirective } from '@shared-ui/rte.directive';
 
 /**
  * One FAQ entry while editing the FAQ tab as a structured list (not raw HTML). Parsed from the stored
@@ -136,7 +136,7 @@ const HELP_SNIPPETS: readonly HelpSnippet[] = [
   imports: [
     CommonModule,
     FormsModule,
-    RichTextEditorAllModule,
+    RichTextEditorAllModule, TsicRteDirective,
     CdkDropList,
     CdkDrag,
     CdkDragHandle,
@@ -161,7 +161,6 @@ export class HelpEditorComponent implements OnInit {
   readonly rteEditor = viewChild<RichTextEditorComponent>('rteEditor');
   /** The answer editor for the currently-expanded FAQ card (only one renders at a time). */
   readonly faqRte = viewChild<RichTextEditorComponent>('faqRte');
-  readonly rteTools = TSIC_RTE_TOOLS;
 
   /** The style-sheet building blocks offered by the "Insert" dropdown while editing. */
   readonly snippets = HELP_SNIPPETS;
