@@ -7,7 +7,11 @@ namespace TSIC.Domain.JobRules;
 ///
 /// This is deliberately NOT <see cref="JobExpiry"/>. <c>ExpiryUsers</c>/<c>ExpiryAdmin</c>
 /// are <i>generous</i> data-access windows (directors set <c>ExpiryUsers</c> ~a year past
-/// the event on purpose, so rosters stay viewable and balances stay payable afterward).
+/// the event on purpose, so balances stay payable and a registrant can still reach their
+/// own records afterward). NOTE: that window no longer keeps PUBLIC ROSTERS open — as of
+/// 2026-08-04 tournament directors do not want rosters browsable once an event is over, so
+/// <c>IsPublicRostersRestrictedAsync</c> ORs this predicate in and closes them at conclusion
+/// regardless of how far out <c>ExpiryUsers</c> sits.
 /// Using bare <c>ExpiryUsers</c> to decide "may I register" is the wrong-year leak: on
 /// <c>lftc-summer-2025</c> the event ended 2025-06-29 but <c>ExpiryUsers</c> sits in 2026,
 /// so a bare-expiry gate reads "not over" and a stale toggle resurrects registration.

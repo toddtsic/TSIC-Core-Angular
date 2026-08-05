@@ -78,22 +78,38 @@ export class SmartBulletinsComponent {
 	// ── Section gates (moved out of job-landing, MINUS the isAdmin early-returns) ──
 
 	// THE isolated "schedule is live" signal — schedule published AND games actually
-	// exist (firstGameDate non-null), in a phase where View Schedule belongs.
-	protected readonly showGameDay = computed(() => {
+	// exist (firstGameDate non-null), in a phase where View Schedule belongs. This is the
+	// LINK-WORTHY test, independent of lifecycle: it answers "is there a schedule to point
+	// at", which both the Game-Day panel (live) and the Event Status CTA (concluded) need.
+	private readonly scheduleLinkable = computed(() => {
 		const p = this.pulse();
 		if (!p || !this.jobPath() || !this.competitive()) return false;
 		if (!(p.schedulePublished && p.firstGameDate)) return false;
 		return this.allowedKeys().has('view-schedule');
 	});
 
+	// The Game-Day panel is LIVE-ONLY. Once concluded it had already shed its context line
+	// and both app-store columns, leaving a header + one button under the same bi-flag-fill
+	// icon the Event Status card uses — two stacked cards, one of them near-empty. The link
+	// now rides inside Event Status (standingsLink below) and this panel stands down.
+	protected readonly showGameDay = computed(() => this.scheduleLinkable() && this.live());
+
+	// Final-standings link handed to Event Status in the concluded phase. Null when there's
+	// no schedule to point at, so the notice renders without a button rather than offering a
+	// dead link. Same scheduleLinkable() gate the panel uses, so the two can't disagree.
+	protected readonly standingsLink = computed(() =>
+		!this.live() && this.scheduleLinkable() ? `${this.base()}/schedule` : null);
+
 	// The inline game clock self-fetches and self-hides when nothing is active (and
-	// on phones), so we just mount it whenever a live schedule is showing.
-	protected readonly showClock = computed(() => this.showGameDay() && this.live());
+	// on phones), so we just mount it whenever a live schedule is showing. showGameDay
+	// is already live-only, so no second live() test here.
+	protected readonly showClock = computed(() => this.showGameDay());
 
 	// Mount the Registration panel only on SUBSTANTIVE content. Mirrors the panel's
 	// own selfRosterLinks + manageItems + rosters exactly, so the gate and the rendered
-	// sections stay in lockstep — INCLUDING rosters, so when an event is over but rosters
-	// are still public the panel mounts just to show that row (it can't orphan).
+	// sections stay in lockstep — rosters included, via allowed.has('rosters') below. That
+	// key is absent in the concluded phase, so a finished event drops the rosters row from
+	// BOTH this gate and the panel at once, and the panel self-hides for a public viewer.
 	protected readonly showRegistration = computed(() => {
 		const p = this.pulse();
 		if (!p || !this.jobPath()) return false;

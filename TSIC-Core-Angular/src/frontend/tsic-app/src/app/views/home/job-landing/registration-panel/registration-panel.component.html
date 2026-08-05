@@ -2,7 +2,7 @@
 	<section class="rp" [attr.aria-label]="title()">
 		<div class="rp__inner">
 			<header class="rp__head">
-				<span class="rp__icon" aria-hidden="true"><i class="bi bi-person-vcard"></i></span>
+				<span class="rp__icon" aria-hidden="true"><i class="bi {{ icon() }}"></i></span>
 				<div class="rp__headtext">
 					<h3 class="rp__title">{{ title() }}</h3>
 				</div>
@@ -13,7 +13,7 @@
 				<!-- Self-Rostering — one link per open self-registration role -->
 				@if (selfRosterLinks().length) {
 					<div class="rp__section rp__section--register">
-						<h4 class="rp__section-title">{{ selfRosterTitle() }}</h4>
+						@if (showSectionTitles()) { <h4 class="rp__section-title">{{ selfRosterTitle() }}</h4> }
 						<div class="rp__links">
 							@for (l of selfRosterLinks(); track l.key) {
 								<a class="rp__link" [routerLink]="l.routerLink" [queryParams]="l.queryParams ?? null">
@@ -31,7 +31,7 @@
 				     and the "forgot insurance" add-ons (player + club rep). -->
 				@if (showManage()) {
 					<div class="rp__section rp__section--manage">
-						<h4 class="rp__section-title">Manage</h4>
+						@if (showSectionTitles()) { <h4 class="rp__section-title">Manage</h4> }
 						<div class="rp__links">
 							@for (item of manageItems(); track item.key) {
 								@if (item.action) {
@@ -64,12 +64,13 @@
 					</div>
 				}
 
-				<!-- Teams — Register a Team leads, then the public roster view. Mounts
-				     even when nothing else does (e.g. event over but rosters still
-				     public): the band's gate counts these, so it can't orphan. -->
+				<!-- Teams — My Teams, Register a Team, then the public roster view. ALL THREE
+				     are live-phase only: their keys (my-teams / register-team / rosters) are
+				     absent from CTAS_BY_PHASE.concluded, so this whole section disappears on a
+				     finished event and Wrap-Up is left with money owed, or nothing at all. -->
 				@if (showTeams()) {
 					<div class="rp__section rp__section--teams">
-						<h4 class="rp__section-title">Teams</h4>
+						@if (showSectionTitles()) { <h4 class="rp__section-title">Teams</h4> }
 						<div class="rp__links">
 							@if (showMyTeams()) {
 								<a class="rp__link rp__link--my-teams" [routerLink]="myTeamsLink()" [queryParams]="{ step: 'teams' }">

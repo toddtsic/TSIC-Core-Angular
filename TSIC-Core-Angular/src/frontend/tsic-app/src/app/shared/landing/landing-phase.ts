@@ -28,7 +28,18 @@ export const CTAS_BY_PHASE: Record<EventPhase, ReadonlySet<string>> = {
 	superseded: new Set(),
 	preview: new Set(),
 	planned: new Set(['store']),
-	concluded: new Set(['pay-balance', 'my-teams', 'view-schedule', 'store', 'rosters']),
+	// A finished event keeps exactly one piece of unfinished business: MONEY OWED. The rest are
+	// deliberately absent.
+	//   'rosters'  — public rosters are a live-event surface and close when the event does. The
+	//                authority is the SERVER (IsPublicRostersRestrictedAsync ORs in EventConcluded,
+	//                killing the tree/team endpoints and the mobile capability alike); dropping the
+	//                key here just stops the landing ADVERTISING a link the API won't serve.
+	//   'my-teams' — a club rep's team list routes into the TEAM REGISTRATION WIZARD, which is no
+	//                post-event archive viewer. Its absence is also what makes the Wrap-Up card
+	//                appear ONLY when the rep actually owes money: with no my-teams row, a paid-up
+	//                rep has nothing left and the panel self-hides. ("Edit My Rosters" already
+	//                excluded itself at conclusion — this closes the matching gap.)
+	concluded: new Set(['pay-balance', 'view-schedule', 'store']),
 	// Registration cards are NOT gated by schedule publication — publishing the schedule
 	// must not hide them. This now INCLUDES team registration: per director discretion,
 	// the "Register Team" card stays governed by the director's toggle (+ team fees),

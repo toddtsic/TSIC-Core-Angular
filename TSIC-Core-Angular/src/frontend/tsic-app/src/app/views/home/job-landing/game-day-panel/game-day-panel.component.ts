@@ -28,16 +28,13 @@ export class GameDayPanelComponent {
 	/** Absolute, jobPath-prefixed base (the jobPath is in the path, so it's preserved). */
 	readonly jobPath = input.required<string>();
 
-	/** True while the event is still upcoming/in-progress (live pulse + "live" copy);
-	 *  false once concluded — the schedule becomes the FINAL record (no pulse, results
-	 *  framing). The app promo stays useful either way (review scores/brackets). */
-	readonly live = input<boolean>(true);
-
-	// Title is fixed regardless of lifecycle (keep "Schedule Links" live AND concluded);
-	// the live/concluded distinction is carried by the icon, the app/store promo, and the
-	// button label ("View Schedule" vs "View Final Standings").
-	protected readonly title = computed(() => 'Schedule Links');
-	protected readonly webLabel = computed(() => this.live() ? 'View Schedule' : 'View Final Standings');
+	// LIVE-ONLY panel. It used to serve the concluded phase too, via a `live` input that
+	// switched the icon, the label and the app promo — but concluded stripped it to a header
+	// plus one button wearing the same flag icon as the Event Status card sitting right above
+	// it. That link now lives INSIDE Event Status, the band gates this panel on live, and the
+	// former concluded branches are gone rather than left unreachable.
+	protected readonly title = 'Schedule Links';
+	protected readonly webLabel = 'View Schedule';
 
 	/** Canonical TSIC-Events store URLs — one app serves every event, so these are
 	 *  fixed (same IDs the legacy schedule views and the mobile app itself use). */
@@ -45,11 +42,6 @@ export class GameDayPanelComponent {
 	protected readonly androidUrl = 'https://play.google.com/store/apps/details?id=com.teamsportsinfo.tsicevents';
 
 	protected readonly scheduleLink = computed(() => `/${this.jobPath()}/schedule`);
-
-	/** The CTA must land on what its label promises: a concluded event says "View Final
-	 *  Standings", so it deep-links the Standings tab; live says "View Schedule" → Games
-	 *  (the view's own default, so no param). */
-	protected readonly scheduleQueryParams = computed(() => this.live() ? {} : { tab: 'standings' });
 
 	/** The viewer's platform — drives which store badge leads (primary emphasis).
 	 *  Best-effort UA sniff; desktop is the safe default (shows both equally). */

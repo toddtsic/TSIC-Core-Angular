@@ -12,17 +12,17 @@
 		<div id="sb-panels" class="sb__panels">
 
 			<!-- Event Status — the lifecycle headline for the non-action phases (planned /
-			     preview / concluded). It LEADS when present: in the concluded phase it shares
-			     the band with the Final Schedule below, and "This event has concluded" must
-			     read FIRST. Self-hides in the action phases, where Game-Day leads instead. -->
+			     preview / concluded). Self-hides in the action phases, where Game-Day leads.
+			     In the CONCLUDED phase it is the whole story: it carries the final-standings
+			     link itself (standingsLink) and the Game-Day panel below stands down, so a
+			     finished event renders ONE card instead of two flag-icon cards stacked. -->
 			@if (showEventStatus()) {
-				<app-event-status />
+				<app-event-status [standingsLink]="standingsLink()" />
 			}
 
-			<!-- Game-Day — leads when a schedule is live (Event Status is hidden then); in
-			     the concluded phase it follows the status headline as the Final Schedule. -->
+			<!-- Game-Day — LIVE phases only (Event Status is hidden then, so this leads). -->
 			@if (showGameDay()) {
-				<app-game-day-panel [jobPath]="jobPath()" [live]="live()" />
+				<app-game-day-panel [jobPath]="jobPath()" />
 			}
 
 			@if (showRegistration()) {

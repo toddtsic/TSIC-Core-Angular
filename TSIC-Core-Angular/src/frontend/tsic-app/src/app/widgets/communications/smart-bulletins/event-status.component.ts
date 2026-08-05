@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { derivePhase, startOfDay } from '@shared/landing/landing-phase';
 
@@ -6,6 +7,10 @@ interface StatusView {
 	icon: string;
 	headline: string;
 	sub: string;
+	/** Optional action rendered under the sub-line. Concluded-only today: the final-standings
+	 *  link, absorbed from the Game-Day panel so a finished event shows ONE card instead of a
+	 *  status notice stacked on a near-empty "Schedule Links" card wearing the same flag icon. */
+	cta?: { label: string; link: string; queryParams?: Record<string, string> };
 }
 
 /**
@@ -22,11 +27,19 @@ interface StatusView {
 @Component({
 	selector: 'app-event-status',
 	standalone: true,
+	imports: [RouterLink],
 	templateUrl: './event-status.component.html',
 	styleUrl: './event-status.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EventStatusComponent {
+	/** Absolute, jobPath-prefixed schedule link, or null when this event has no public schedule
+	 *  to link to. The BAND owns that decision (it already enforces competitive + schedulePublished
+	 *  + firstGameDate + the view-schedule key for the Game-Day panel) and hands the resolved link
+	 *  down — so a concluded event that never published a schedule shows the notice with no button,
+	 *  rather than this component re-deriving the same conditions and drifting from that gate. */
+	readonly standingsLink = input<string | null>(null);
+
 	private readonly pulseService = inject(JobPulseService);
 	private readonly pulse = computed(() => this.pulseService.pulse());
 
@@ -52,12 +65,20 @@ export class EventStatusComponent {
 					? { icon: 'bi-lock', headline: 'Registration is closed', sub: 'This event isn’t currently accepting new registrations.' }
 					: { icon: 'bi-hourglass', headline: 'This event is coming soon', sub: 'Details will appear here as they’re announced.' };
 			}
-			case 'concluded':
+			case 'concluded': {
+				// The standings link rides IN this card — the Game-Day panel is suppressed once
+				// concluded (it had already shed its sub-line and both app-store columns there,
+				// leaving a header and a lone button under a duplicate flag icon).
+				const link = this.standingsLink();
 				return {
 					icon: 'bi-flag-fill',
 					headline: 'This event has concluded',
 					sub: 'Thanks for participating — hope to see you back next season!',
+					cta: link
+						? { label: 'View Final Standings', link, queryParams: { tab: 'standings' } }
+						: undefined,
 				};
+			}
 			default:
 				return null; // action phases — the panels own the page
 		}

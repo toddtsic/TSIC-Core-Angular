@@ -102,11 +102,27 @@ export class RegistrationPanelComponent {
 	private readonly competitive = computed(() => this.tournament() || this.league());
 	// Concluded = post-event (schedule released + last game passed). Derived from the
 	// SHARED phase resolver (same pulse, same phase as the band) so the two can't drift.
-	private readonly concluded = computed(() => derivePhase(this.pulse(), new Date()) === 'concluded');
+	protected readonly concluded = computed(() => derivePhase(this.pulse(), new Date()) === 'concluded');
 
-	// Panel title — phase-aware: "Registration Links" while the event is live, but a
-	// concluded event isn't taking registrations, so it reads as a post-event hub
-	// ("Wrap-Up") for the rows that survive: outstanding balances, rosters, teams.
+	// Header icon follows the title. A person-vcard (registration ID card) is right while the
+	// panel IS registration links; on a concluded event's "Wrap-Up" it contradicts the word next
+	// to it, so the finished-event flag leads instead — matching the Event Status card above.
+	protected readonly icon = computed(() => this.concluded() ? 'bi-flag-fill' : 'bi-person-vcard');
+
+	// Section subheads ("Player", "Manage", "Teams") organise a BUSY registration-era panel. A
+	// concluded event leaves at most one section holding one row (Pay Balance Due), where a
+	// subhead is pure scaffolding over a single link — so the rows stand on their own.
+	protected readonly showSectionTitles = computed(() => !this.concluded());
+
+	// Panel title — phase-aware: "Registration Links" while the event is live, but a concluded
+	// event isn't taking registrations, so it reads as a post-event hub ("Wrap-Up").
+	//
+	// Exactly ONE row survives conclusion: MONEY OWED (player or club rep). Rosters, My Teams,
+	// Register Team, My Registration and both insurance add-ons are all absent from
+	// CTAS_BY_PHASE.concluded. So Wrap-Up is a PERSONAL card — invisible to the public and to
+	// any settled-up user (hasContent() goes false and the panel self-hides), and shown only to
+	// someone who still owes. That's the whole point: don't leave a finished event advertising
+	// registration-era links; do make an unpaid balance impossible to miss.
 	protected readonly title = computed(() => this.concluded() ? 'Wrap-Up' : 'Registration Links');
 
 	// ── Self-Rostering section — one link per open self-registration role ────────

@@ -428,11 +428,42 @@ public class JobRepository : IJobRepository
 
     public async Task<bool> IsPublicRostersRestrictedAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
-        return await _context.Jobs
+        // Effective restriction = the director's flag OR "the event is over". Public rosters are a
+        // LIVE-EVENT surface: a concluded event closes them on its own, across EVERY consumer of
+        // this method (the public tree + team-roster endpoints and the mobile capabilities payload),
+        // so a direct URL/API hit dies with the card. Hiding the landing card alone would not do
+        // this — the card is a frontend display list and the route would stay open indefinitely.
+        //
+        // DERIVED, never written. BRestrictPublicRosters keeps the director's real intent, so an
+        // early conclusion caused by a wrong EventEndDate is fixable by correcting the date (a
+        // written-back flag would be indistinguishable from the director having set it, forever),
+        // and the next clone still carries what they actually chose.
+        //
+        // One query, not two: the four EventConcluded inputs ride along with the flag rather than a
+        // second IsEventConcludedAsync round trip. Same Domain predicate the landing phase uses, so
+        // "concluded" here can never drift from "concluded" there.
+        var inputs = await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => j.BRestrictPublicRosters)
+            .Select(j => new
+            {
+                j.BRestrictPublicRosters,
+                SchedulePublished = j.BScheduleAllowPublicAccess == true,
+                LastGameDate = _context.Schedule
+                    .Where(s => s.JobId == j.JobId && s.GDate != null)
+                    .Max(s => (DateTime?)s.GDate),
+                j.EventEndDate,
+                j.ExpiryUsers
+            })
             .FirstOrDefaultAsync(cancellationToken);
+
+        // Fail CLOSED on an unknown job (this previously returned the bool default = "not
+        // restricted", i.e. it failed open on a bad jobId). Rosters are player data; an
+        // unresolvable job must never yield one.
+        return inputs == null
+            || inputs.BRestrictPublicRosters
+            || JobLifecycle.EventConcluded(
+                inputs.SchedulePublished, inputs.LastGameDate, inputs.EventEndDate, inputs.ExpiryUsers, DateTime.Now);
     }
 
     public async Task<decimal?> GetProcessingFeePercentAsync(Guid jobId, CancellationToken cancellationToken = default)
