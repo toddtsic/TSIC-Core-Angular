@@ -63,14 +63,11 @@
 
 // ─── Footnote below the role sections ────────────
 // Catches the user whose scan of the list just failed — validates what they
-// saw ("it really isn't there") and teaches the event-first rule. Deliberately
-// quiet: no tint, no accent border.
+// saw ("it really isn't there") and teaches the event-first rule. Rendered as
+// the standard .tsic-callout--info (AM-064) so it's actually seen; this class
+// only positions it below the lists.
 .role-pivot-footnote {
-  margin: var(--space-4) 0 0;
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border-color);
-  font-size: var(--font-size-sm);
-  color: var(--brand-text-muted);
+  margin-top: var(--space-4);
 }
 
 // ─── Role group header (eyebrow above dropdown / card list) ─
