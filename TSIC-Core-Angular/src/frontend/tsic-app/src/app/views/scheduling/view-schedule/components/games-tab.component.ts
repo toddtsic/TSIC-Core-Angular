@@ -80,9 +80,6 @@ type ScheduleRow =
                          [class.row-even]="i % 2 === 1"
                          [class.row-tinted]="!!game.color"
                          [style.--ag-tint]="game.color"
-                         [class.won-home]="isT1Winner(game)"
-                         [class.won-away]="isT2Winner(game)"
-                         [class.tied]="isTie(game)"
                          [class.row-dimmed]="game.gStatusCode === 5">
 
                         <!-- Row number -->
@@ -129,9 +126,14 @@ type ScheduleRow =
                             <span class="ag-label">{{ game.agDiv }}</span>
                         </span>
 
-                        <!-- Home team — black-tie: names never carry the result (the gold
-                             underline under the winning score does). -->
+                        <!-- Home team. The win marker is the FIRST child so it lands on the
+                             cell's outer (left) edge — the cell is justify-content: flex-end,
+                             so a leading item grows leftward and never shifts the name. -->
                         <span class="cell cell-home" role="cell" aria-colindex="5">
+                            @if (isT1Winner(game)) {
+                                <i class="bi bi-caret-right-fill win-mark"
+                                   [attr.aria-label]="teamLabel(game.t1Name) + ' won'"></i>
+                            }
                             @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
                             @if (game.t1Id) {
                                 <button type="button" class="team-star"
@@ -212,7 +214,8 @@ type ScheduleRow =
                             </span>
                         }
 
-                        <!-- Away team — black-tie: names never carry the result. -->
+                        <!-- Away team. Mirror of home: the win marker is the LAST child so it
+                             lands on this cell's outer (right) edge. -->
                         <span class="cell cell-away" role="cell" aria-colindex="9">
                             @if (game.t2SlotLabel) { <span class="seed-tag">{{ game.t2SlotLabel }}</span> }
                             @if (game.t2Id) {
@@ -238,6 +241,10 @@ type ScheduleRow =
                                         (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Record }}</button>
                             }
                             @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
+                            @if (isT2Winner(game)) {
+                                <i class="bi bi-caret-left-fill win-mark"
+                                   [attr.aria-label]="teamLabel(game.t2Name) + ' won'"></i>
+                            }
                         </span>
 
                         <!-- Status chip -->
@@ -542,53 +549,34 @@ type ScheduleRow =
             padding-top: var(--space-1);
             padding-bottom: var(--space-1);
             min-height: 36px;
-            /* Anchors the result marker below. An absolutely-positioned child of a grid
-               container is taken out of track placement entirely, so it cannot disturb the
-               subgrid columns the way an extra cell would. */
-            position: relative;
         }
 
-        /* ── Result marker (row-level, NOT on the digits) ──
-           The win is expressed as a mark in the row's margin instead of a decoration on the
-           winning number. The digits go back to being undecorated data: identical ink,
-           identical weight, nothing to clip.
+        /* ── Win marker ──
+           A small caret on the OUTER edge of the winning team: left of the home name, right
+           of the away name, pointing inward at the team that won.
 
-           POSITION is the primary channel and colour is only reinforcement — the marker sits
-           at the LEFT edge when home won, the RIGHT edge when away won, and dead CENTRE for a
-           tie. That satisfies the never-colour-alone rule without a second token, and it
-           closes a real hole in the underline scheme it replaces: there, a tie rendered as
-           the ABSENCE of a cue and was indistinguishable from gold that simply failed to
-           paint. Here a tie has its own affirmative mark.
+           Replaces a row-edge gold bar (the first attempt at moving the result off the
+           digits), which failed for a concrete reason worth not repeating: it sat at the same
+           edge as the age-group rail, and the rail's colour is the director's arbitrary hex.
+           Beside an amber age group the two bars were the same object. Anything that lives at
+           the row's edge inherits that collision — the marker has to live NEXT TO THE TEAM,
+           where nothing else is competing.
 
-           The home marker is inset past the age-group rail (--ag-rail-w) rather than flush,
-           because the rail already owns x=0 and its colour is the director's arbitrary hex —
-           an amber age group would otherwise sit flush against an amber win bar. Inset plus
-           a shorter height keeps them legible as two different objects; it does NOT make
-           them independent, which is the main thing to judge on screen. */
-        .game-row.won-home::after,
-        .game-row.won-away::after,
-        .game-row.tied::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 3px;
-            height: 58%;
-            border-radius: var(--radius-full);
-            background: color-mix(in srgb, var(--winner-gold) 80%, transparent);
-            pointer-events: none;
-        }
+           Direction is a real second channel, not decoration: the caret points at its winner,
+           so the cue survives greyscale and colour-blindness without relying on gold. Shape
+           also keeps it distinct from the two glyphs already in the row — the age-group DOT
+           (a circle) and the follow STAR — which is what the retired trophy and dot
+           treatments could not manage.
 
-        .game-row.won-home::after { left: calc(var(--ag-rail-w) + 3px); }
-        .game-row.won-away::after { right: 3px; }
-
-        /* Tie: centred, and deliberately quieter — "neither side" is a weaker statement than
-           "this side", and it should not shout as loudly as a win. */
-        .game-row.tied::after {
-            left: 50%;
-            transform: translate(-50%, -50%);
-            height: 34%;
-            opacity: 0.65;
+           Placement is free of layout cost: .cell-home is justify-content: flex-end so a
+           leading item grows leftward, .cell-away is flex-start so a trailing item grows
+           rightward. Neither shifts the team name. */
+        .win-mark {
+            flex-shrink: 0;
+            font-size: 0.6rem;
+            line-height: 1;
+            align-self: center;
+            color: var(--winner-gold);
         }
 
         .row-even       { --row-surface: var(--bs-tertiary-bg); }
@@ -1081,7 +1069,7 @@ type ScheduleRow =
 
         /* Both scores are plain bold strong figures — SAME weight and ink for winner and
            loser, and now with NO decoration on either. The result is carried entirely by the
-           row-level marker (.won-home / .won-away / .tied, near the top of this stylesheet),
+           win marker beside the winning team's name (.win-mark, near the top of this file),
            which leaves the digits as pure data. Muting the loser would be a second, redundant
            channel — the retired scheme's whole failure mode — and the losing score is real
            information that deserves full legibility. */
@@ -1594,12 +1582,6 @@ export class GamesTabComponent {
         return game.t1Score != null && game.t2Score != null && game.t2Score > game.t1Score;
     }
 
-    /** A scored draw. Needed as its own state because the result marker gives ties an
-     *  affirmative centre mark — under the retired underline scheme a tie was rendered by
-     *  the absence of a cue, indistinguishable from a cue that failed to paint. */
-    isTie(game: ViewGameDto): boolean {
-        return game.t1Score != null && game.t2Score != null && game.t1Score === game.t2Score;
-    }
 
     onScoreCellClick(game: ViewGameDto): void {
         if (!this.canScore()) return;
