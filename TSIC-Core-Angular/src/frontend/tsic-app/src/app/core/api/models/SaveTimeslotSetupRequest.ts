@@ -2,10 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type CloneByDowRequest = {
+import type { TimeslotDaySetupEntry } from './TimeslotDaySetupEntry';
+export type SaveTimeslotSetupRequest = {
     agegroupId: string;
-    sourceDow: string;
-    targetDow: string;
-    newStartTime?: string | null;
+    days: Array<TimeslotDaySetupEntry>;
 };
 

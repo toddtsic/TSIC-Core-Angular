@@ -7,37 +7,42 @@
         <span class="event-badge">{{ eventName() }}</span>
       }
     </div>
-    <div class="config-header-actions">
-      <!-- Tools dropdown -->
-      <div class="tools-dropdown-wrapper">
-        <button class="btn btn-outline-secondary btn-sm"
-                (click)="toggleToolsDropdown()">
-          <i class="bi bi-wrench"></i> Tools
-          <i class="bi bi-chevron-down tools-chevron"
-             [class.tools-chevron-open]="toolsDropdownOpen()"></i>
-        </button>
-        @if (toolsDropdownOpen()) {
-          <div class="tools-dropdown-backdrop" (click)="closeToolsDropdown()"></div>
-          <div class="tools-dropdown-panel">
-            @for (tool of visibleTools(); track tool.key) {
-              <button class="tools-dropdown-item"
-                      [class.active]="activeTool() === tool.key"
-                      (click)="selectTool(tool.key)">
-                <i class="bi" [ngClass]="tool.icon"></i>
-                <span>{{ tool.label }}</span>
-                @if (activeTool() === tool.key) {
-                  <i class="bi bi-check2 ms-auto"></i>
-                }
-              </button>
-            }
-          </div>
-        }
-      </div>
+    <!-- Hidden, not deleted — see showAdvancedHeaderActions in the component for why and for
+         how to restore. The wrapper goes with them so the header does not keep an empty flex
+         column on the right. -->
+    @if (showAdvancedHeaderActions) {
+      <div class="config-header-actions">
+        <!-- Tools dropdown -->
+        <div class="tools-dropdown-wrapper">
+          <button class="btn btn-outline-secondary btn-sm"
+                  (click)="toggleToolsDropdown()">
+            <i class="bi bi-wrench"></i> Tools
+            <i class="bi bi-chevron-down tools-chevron"
+               [class.tools-chevron-open]="toolsDropdownOpen()"></i>
+          </button>
+          @if (toolsDropdownOpen()) {
+            <div class="tools-dropdown-backdrop" (click)="closeToolsDropdown()"></div>
+            <div class="tools-dropdown-panel">
+              @for (tool of visibleTools(); track tool.key) {
+                <button class="tools-dropdown-item"
+                        [class.active]="activeTool() === tool.key"
+                        (click)="selectTool(tool.key)">
+                  <i class="bi" [ngClass]="tool.icon"></i>
+                  <span>{{ tool.label }}</span>
+                  @if (activeTool() === tool.key) {
+                    <i class="bi bi-check2 ms-auto"></i>
+                  }
+                </button>
+              }
+            </div>
+          }
+        </div>
 
-      <button class="btn btn-outline-danger btn-sm" (click)="openResetDialog()">
-        <i class="bi bi-arrow-counterclockwise"></i> Reset
-      </button>
-    </div>
+        <button class="btn btn-outline-danger btn-sm" (click)="openResetDialog()">
+          <i class="bi bi-arrow-counterclockwise"></i> Reset
+        </button>
+      </div>
+    }
   </div>
 
   <!-- Tab bar -->

@@ -3,13 +3,14 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { ChecklistAgegroupStepDto } from './ChecklistAgegroupStepDto';
+import type { ChecklistDivisionStepDto } from './ChecklistDivisionStepDto';
 import type { ChecklistPairingsStepDto } from './ChecklistPairingsStepDto';
 import type { ChecklistPoolsStepDto } from './ChecklistPoolsStepDto';
 import type { ChecklistRulesStepDto } from './ChecklistRulesStepDto';
 export type SchedulingChecklistDto = {
     pools: ChecklistPoolsStepDto;
     dates: ChecklistAgegroupStepDto;
-    fields: ChecklistAgegroupStepDto;
+    fields: ChecklistDivisionStepDto;
     rules: ChecklistRulesStepDto;
     pairings: ChecklistPairingsStepDto;
     gameCount: number;

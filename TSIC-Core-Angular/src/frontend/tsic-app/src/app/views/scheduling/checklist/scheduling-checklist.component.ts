@@ -77,68 +77,60 @@ export class SchedulingChecklistComponent implements OnInit {
             linkLabel: 'Pairings'
         };
 
-        const dates: StepRow = {
+        // One step, two grains — play dates belong to the agegroup, field timeslots to the
+        // division. Both are set on the same page, as they were in legacy.
+        const timeslots: StepRow = {
             num: 3,
-            title: 'Assign Play Dates',
-            icon: 'bi-calendar3',
-            state: c.dates.complete ? 'done' : 'todo',
-            reason: c.dates.complete
-                ? 'Every agegroup has play dates'
-                : `No dates for: ${this.nameList(c.dates.missingAgegroups)}`,
-            route: 'schedule-hub',
+            title: 'Assign Timeslots',
+            icon: 'bi-calendar-range',
+            state: c.dates.complete && c.fields.complete ? 'done' : 'todo',
+            reason: this.timeslotsReason(c),
+            route: 'timeslots',
             queryParams: null,
-            linkLabel: 'Configure Dates'
+            linkLabel: 'Assign Timeslots'
         };
 
-        const fields: StepRow = {
-            num: 4,
-            title: 'Assign Fields',
-            icon: 'bi-geo-alt',
-            state: c.fields.complete ? 'done' : 'todo',
-            reason: c.fields.complete
-                ? 'Every agegroup has field assignments'
-                : `No fields assigned for: ${this.nameList(c.fields.missingAgegroups)}`,
-            route: 'schedule-hub',
-            queryParams: null,
-            linkLabel: 'Configure Fields'
-        };
-
-        const rules: StepRow = {
-            num: 5,
-            title: 'Set Game Guarantees',
-            icon: 'bi-sliders',
-            state: c.rules.complete ? 'done' : 'todo',
-            reason: c.rules.complete
-                ? 'Every division has a game guarantee'
-                : `No game guarantee for: ${this.nameList(c.rules.divisionsWithoutGuarantee)}`,
-            route: 'schedule-hub',
-            queryParams: null,
-            linkLabel: 'Build Rules'
-        };
-
-        const blockers = [
+        // Game guarantees used to be step 4 in their own right, with Build Schedule at 5. Both
+        // rows sent the user to the same place — the hub — because the guarantee is one field on
+        // its Build Rules tab.
+        //
+        // Worse, it gated nothing. AutoBuildScheduleService derives a missing guarantee from the
+        // pairing table (even teams: max round; odd: max round − 1) and writes the derived value
+        // back to the agegroup profile. A red step demanding an answer the engine works out for
+        // itself is the same shape as step 2, which has always said so instead of blocking.
+        //
+        // So it folds in here as a note, not a gate. What still locks this step is the work that
+        // lives in the steps ABOVE it — pools, dates, timeslots — which nothing can derive.
+        const upstreamBlockers = [
             !c.pools.complete ? 'pools' : null,
-            !c.dates.complete ? 'dates' : null,
-            !c.fields.complete ? 'fields' : null,
-            !c.rules.complete ? 'game guarantees' : null
+            !c.dates.complete ? 'play dates' : null,
+            !c.fields.complete ? 'timeslots' : null
         ].filter((b): b is string => b !== null);
 
+        const guaranteeNote = c.rules.complete
+            ? ''
+            : ` · ${c.rules.divisionsWithoutGuarantee.length} division`
+                + `${c.rules.divisionsWithoutGuarantee.length === 1 ? '' : 's'} without a game `
+                + `guarantee — derived from pairings unless you set one on Build Rules`;
+
         const build: StepRow = {
-            num: 6,
+            num: 4,
             title: 'Build Schedule',
             icon: 'bi-calendar-check',
-            state: c.gameCount > 0 ? 'done' : c.buildUnlocked ? 'todo' : 'locked',
+            state: c.gameCount > 0
+                ? 'done'
+                : upstreamBlockers.length > 0 ? 'locked' : 'todo',
             reason: c.gameCount > 0
                 ? `${c.gameCount} game${c.gameCount === 1 ? '' : 's'} scheduled`
-                : c.buildUnlocked
-                    ? 'All prerequisites met — ready to build'
-                    : `Locked until complete: ${blockers.join(', ')}`,
+                : upstreamBlockers.length > 0
+                    ? `Locked until complete: ${upstreamBlockers.join(', ')}`
+                    : `All prerequisites met — ready to build${guaranteeNote}`,
             route: 'schedule-hub',
             queryParams: null,
             linkLabel: 'Schedule Hub'
         };
 
-        return [pools, pairings, dates, fields, rules, build];
+        return [pools, pairings, timeslots, build];
     });
 
     readonly tools: ToolRow[] = [
@@ -168,6 +160,30 @@ export class SchedulingChecklistComponent implements OnInit {
                 this.isLoading.set(false);
             }
         });
+    }
+
+    /**
+     * Step 3 reports two grains. Play dates are missing by agegroup ("2030"); timeslots are
+     * missing by division, grouped under their agegroup ("2030: White, Red") so a single
+     * unconfigured pool is named instead of hiding behind a green agegroup.
+     */
+    private timeslotsReason(c: SchedulingChecklistDto): string {
+        const clauses: string[] = [];
+
+        if (!c.dates.complete) {
+            clauses.push(`No play dates: ${this.nameList(c.dates.missingAgegroups)}`);
+        }
+        if (!c.fields.complete) {
+            const groups = c.fields.missingByAgegroup
+                .map(a => `${a.agegroupName}: ${a.divNames.join(', ')}`);
+            const pools = c.fields.missingDivisionCount;
+            clauses.push(
+                `${pools} pool${pools === 1 ? '' : 's'} without timeslots — ${this.nameList(groups)}`);
+        }
+
+        return clauses.length > 0
+            ? clauses.join(' · ')
+            : 'Play dates and timeslots are set';
     }
 
     /** First few names inline, the rest folded into "+N more" to keep reasons one line. */

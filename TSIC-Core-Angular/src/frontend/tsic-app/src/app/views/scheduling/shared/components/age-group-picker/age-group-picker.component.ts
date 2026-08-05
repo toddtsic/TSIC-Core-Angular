@@ -15,6 +15,8 @@ export interface AgePickerItem {
     id: string;
     label: string;
     color: string | null;
+    /** Optional right-aligned count, matching the age-group rails elsewhere. Omit for none. */
+    count?: number | null;
 }
 
 /**
@@ -64,6 +66,11 @@ export interface AgePickerItem {
                         <span class="ag-dot" [class.ag-dot--empty]="!item.color"
                               [style.background]="item.color || null"></span>
                         <span class="ag-picker-label">{{ item.label }}</span>
+                        @if (item.count !== null && item.count !== undefined) {
+                            <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill ag-picker-count">
+                                {{ item.count }}
+                            </span>
+                        }
                         @if (item.id === selectedId()) {
                             <i class="bi bi-check2 ag-picker-check" aria-hidden="true"></i>
                         }
@@ -173,6 +180,13 @@ export interface AgePickerItem {
         }
         /* The label takes the slack so the check pins to the right edge. */
         .ag-picker-item .ag-picker-label { flex: 1; }
+
+        /* Right-aligned count, same treatment as the age-group rails. The label already
+           takes the slack, so this and the check pin to the right edge in that order. */
+        .ag-picker-count {
+            flex-shrink: 0;
+            font-size: var(--font-size-xs);
+        }
 
         .ag-picker-check {
             flex-shrink: 0;

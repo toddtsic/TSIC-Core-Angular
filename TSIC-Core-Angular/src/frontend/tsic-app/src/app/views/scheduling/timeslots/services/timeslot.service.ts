@@ -11,20 +11,16 @@ import type {
     AddTimeslotDateRequest,
     EditTimeslotDateRequest,
     AddTimeslotFieldRequest,
-    EditTimeslotFieldRequest,
     CloneDatesRequest,
     CloneFieldsRequest,
-    CloneByFieldRequest,
-    CloneByDivisionRequest,
-    CloneByDowRequest,
     CloneDateRecordRequest,
-    CloneFieldDowRequest,
     BulkDateAssignRequest,
     BulkDateAssignResponse,
-    UpdateFieldConfigRequest,
-    UpdateFieldConfigResponse,
     SaveFieldAssignmentsRequest,
     SaveFieldAssignmentsResponse,
+    SaveTimeslotSetupRequest,
+    SaveTimeslotSetupResponse,
+    TimeslotDaySetupEntry,
     CascadeDateChangeRequest,
     CascadeDateChangeResponse,
     CascadeDateDeleteRequest,
@@ -42,20 +38,16 @@ export type {
     AddTimeslotDateRequest,
     EditTimeslotDateRequest,
     AddTimeslotFieldRequest,
-    EditTimeslotFieldRequest,
     CloneDatesRequest,
     CloneFieldsRequest,
-    CloneByFieldRequest,
-    CloneByDivisionRequest,
-    CloneByDowRequest,
     CloneDateRecordRequest,
-    CloneFieldDowRequest,
     BulkDateAssignRequest,
     BulkDateAssignResponse,
-    UpdateFieldConfigRequest,
-    UpdateFieldConfigResponse,
     SaveFieldAssignmentsRequest,
     SaveFieldAssignmentsResponse,
+    SaveTimeslotSetupRequest,
+    SaveTimeslotSetupResponse,
+    TimeslotDaySetupEntry,
     CascadeDateChangeRequest,
     CascadeDateChangeResponse,
     CascadeDateDeleteRequest,
@@ -117,9 +109,11 @@ export class TimeslotService {
         return this.http.post<TimeslotFieldDto[]>(`${this.apiUrl}/field`, request);
     }
 
-    editFieldTimeslot(request: EditTimeslotFieldRequest): Observable<void> {
-        return this.http.put<void>(`${this.apiUrl}/field`, request);
-    }
+    // PARKED 2026-08-04 — route commented out in TimeslotController. Assign Timeslots authors
+    // whole game days in the setup dialog; nothing edits a single row.
+    // editFieldTimeslot(request: EditTimeslotFieldRequest): Observable<void> {
+    //     return this.http.put<void>(`${this.apiUrl}/field`, request);
+    // }
 
     deleteFieldTimeslot(ai: number): Observable<void> {
         return this.http.delete<void>(`${this.apiUrl}/field/${ai}`);
@@ -139,21 +133,24 @@ export class TimeslotService {
         return this.http.post<void>(`${this.apiUrl}/clone-fields`, request);
     }
 
-    cloneByField(request: CloneByFieldRequest): Observable<void> {
-        return this.http.post<void>(`${this.apiUrl}/clone-by-field`, request);
-    }
-
-    cloneByDivision(request: CloneByDivisionRequest): Observable<void> {
-        return this.http.post<void>(`${this.apiUrl}/clone-by-division`, request);
-    }
-
-    cloneByDow(request: CloneByDowRequest): Observable<void> {
-        return this.http.post<void>(`${this.apiUrl}/clone-by-dow`, request);
-    }
-
-    cloneFieldDow(request: CloneFieldDowRequest): Observable<TimeslotFieldDto> {
-        return this.http.post<TimeslotFieldDto>(`${this.apiUrl}/clone-field-dow`, request);
-    }
+    // PARKED 2026-08-04 — routes commented out in TimeslotController. These were the copy row
+    // and the +D row action, both removed from Assign Timeslots: ticking a field on a second
+    // day in the setup dialog is the copy now. See the controller for which are worth reviving.
+    // cloneByField(request: CloneByFieldRequest): Observable<void> {
+    //     return this.http.post<void>(`${this.apiUrl}/clone-by-field`, request);
+    // }
+    //
+    // cloneByDivision(request: CloneByDivisionRequest): Observable<void> {
+    //     return this.http.post<void>(`${this.apiUrl}/clone-by-division`, request);
+    // }
+    //
+    // cloneByDow(request: CloneByDowRequest): Observable<void> {
+    //     return this.http.post<void>(`${this.apiUrl}/clone-by-dow`, request);
+    // }
+    //
+    // cloneFieldDow(request: CloneFieldDowRequest): Observable<TimeslotFieldDto> {
+    //     return this.http.post<TimeslotFieldDto>(`${this.apiUrl}/clone-field-dow`, request);
+    // }
 
     // ── Bulk operations ──
 
@@ -173,13 +170,23 @@ export class TimeslotService {
 
     // ── Field config update ──
 
-    updateFieldConfig(request: UpdateFieldConfigRequest): Observable<UpdateFieldConfigResponse> {
-        return this.http.put<UpdateFieldConfigResponse>(`${this.apiUrl}/field-config`, request);
-    }
+    // PARKED 2026-08-04 — route commented out in TimeslotController. Had no caller even before
+    // the Assign Timeslots rework.
+    // updateFieldConfig(request: UpdateFieldConfigRequest): Observable<UpdateFieldConfigResponse> {
+    //     return this.http.put<UpdateFieldConfigResponse>(`${this.apiUrl}/field-config`, request);
+    // }
 
     // ── Field assignments ──
 
     saveFieldAssignments(request: SaveFieldAssignmentsRequest): Observable<SaveFieldAssignmentsResponse> {
         return this.http.put<SaveFieldAssignmentsResponse>(`${this.apiUrl}/field-assignments`, request);
+    }
+
+    /**
+     * Replace an agegroup's timeslots one game day at a time — the setup path. Days come from
+     * the agegroup's game dates; a day left out of the request is untouched.
+     */
+    saveTimeslotSetup(request: SaveTimeslotSetupRequest): Observable<SaveTimeslotSetupResponse> {
+        return this.http.put<SaveTimeslotSetupResponse>(`${this.apiUrl}/setup`, request);
     }
 }

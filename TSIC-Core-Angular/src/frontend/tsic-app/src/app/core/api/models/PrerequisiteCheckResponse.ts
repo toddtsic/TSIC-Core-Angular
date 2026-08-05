@@ -11,7 +11,7 @@ export type PrerequisiteCheckResponse = {
     timeslotsConfigured: boolean;
     agegroupsMissingTimeslots: Array<string>;
     fieldsConfigured: boolean;
-    agegroupsMissingFields: Array<string>;
+    divisionsMissingFields: Array<string>;
     allPassed: boolean;
 };
 

@@ -725,6 +725,73 @@ public sealed class TimeslotService : ITimeslotService
         await _tsRepo.SaveChangesAsync(ct);
     }
 
+    /// <summary>
+    /// Replace an agegroup's timeslots one game day at a time. See
+    /// <see cref="SaveTimeslotSetupRequest"/> for why the days are derived rather than chosen.
+    /// </summary>
+    public async Task<SaveTimeslotSetupResponse> SaveTimeslotSetupAsync(
+        Guid jobId, string userId, SaveTimeslotSetupRequest request, CancellationToken ct = default)
+    {
+        var (_, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
+
+        // Rows are per division; the caller works at agegroup level. One resolve for every day,
+        // not one per day — sequential awaits on a shared scoped DbContext, never WhenAll.
+        var divIds = await _tsRepo.GetActiveDivisionIdsAsync(request.AgegroupId, jobId, ct);
+
+        var created = 0;
+        var deleted = 0;
+
+        foreach (var day in request.Days)
+        {
+            // Replace, never accumulate: this endpoint states what a day should look like, so
+            // whatever is there for that Dow goes first. An entry with no fields is a valid way
+            // to clear a day the agegroup no longer plays on.
+            deleted += await _tsRepo.DeleteFieldTimeslotsByFilterAsync(
+                request.AgegroupId, season, year, dow: day.Dow, ct: ct);
+
+            if (day.FieldIds.Count == 0 || divIds.Count == 0) continue;
+
+            var rows = new List<TimeslotsLeagueSeasonFields>();
+            foreach (var fieldId in day.FieldIds)
+            {
+                foreach (var divId in divIds)
+                {
+                    rows.Add(new TimeslotsLeagueSeasonFields
+                    {
+                        AgegroupId = request.AgegroupId,
+                        FieldId = fieldId,
+                        DivId = divId,
+                        StartTime = day.StartTime,
+                        GamestartInterval = day.GamestartInterval,
+                        MaxGamesPerField = day.SlotsPerField,
+                        Dow = day.Dow,
+                        Season = season,
+                        Year = year,
+                        LebUserId = userId,
+                        Modified = DateTime.Now
+                    });
+                }
+            }
+
+            await _tsRepo.AddFieldTimeslotsRangeAsync(rows, ct);
+            created += rows.Count;
+        }
+
+        // Unconditional: the deletes above still have to commit when every day was cleared.
+        await _tsRepo.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Timeslot setup for agegroup {AgId}: {Days} day(s), -{Deleted}/+{Created} rows across {Pools} pool(s)",
+            request.AgegroupId, request.Days.Count, deleted, created, divIds.Count);
+
+        return new SaveTimeslotSetupResponse
+        {
+            RowsCreated = created,
+            RowsDeleted = deleted,
+            PoolCount = divIds.Count
+        };
+    }
+
     // ── Cloning: Dates agegroup→agegroup ──
 
     public async Task CloneDatesAsync(
@@ -764,6 +831,12 @@ public sealed class TimeslotService : ITimeslotService
     {
         var (_, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
 
+        // Replace, don't accumulate. This used to append, so cloning onto an agegroup that
+        // already had timeslots doubled every row — and it disagreed with CloneDatesAsync
+        // directly above, which has always cleared the target first. "Clone A to B" means B
+        // ends up looking like A.
+        await _tsRepo.DeleteAllFieldTimeslotsAsync(request.TargetAgegroupId, season, year, ct);
+
         var sourceFields = await _tsRepo.GetFieldTimeslotsByFilterAsync(
             request.SourceAgegroupId, season, year, ct: ct);
 
@@ -785,8 +858,10 @@ public sealed class TimeslotService : ITimeslotService
         if (clones.Count > 0)
         {
             await _tsRepo.AddFieldTimeslotsRangeAsync(clones, ct);
-            await _tsRepo.SaveChangesAsync(ct);
         }
+
+        // Unconditional: the delete above still has to be committed when the source is empty.
+        await _tsRepo.SaveChangesAsync(ct);
 
         _logger.LogInformation("Cloned {Count} field timeslots from AG {Src} to AG {Tgt}",
             clones.Count, request.SourceAgegroupId, request.TargetAgegroupId);
@@ -797,10 +872,18 @@ public sealed class TimeslotService : ITimeslotService
     public async Task CloneByFieldAsync(
         Guid jobId, string userId, CloneByFieldRequest request, CancellationToken ct = default)
     {
+        if (request.SourceFieldId == request.TargetFieldId) return;
+
         var (_, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
 
+        // Read the source before clearing the target — AsNoTracking, so the list survives the
+        // delete below. "Copy A to B" means B ends up looking like A; appending instead would
+        // double the target's rows every time the user repeated the action.
         var sourceTimeslots = await _tsRepo.GetFieldTimeslotsByFilterAsync(
             request.AgegroupId, season, year, fieldId: request.SourceFieldId, ct: ct);
+
+        await _tsRepo.DeleteFieldTimeslotsByFilterAsync(
+            request.AgegroupId, season, year, fieldId: request.TargetFieldId, ct: ct);
 
         var clones = sourceTimeslots.Select(src => new TimeslotsLeagueSeasonFields
         {
@@ -820,8 +903,10 @@ public sealed class TimeslotService : ITimeslotService
         if (clones.Count > 0)
         {
             await _tsRepo.AddFieldTimeslotsRangeAsync(clones, ct);
-            await _tsRepo.SaveChangesAsync(ct);
         }
+
+        // Unconditional: the delete above still has to be committed when the source is empty.
+        await _tsRepo.SaveChangesAsync(ct);
     }
 
     // ── Cloning: by division within agegroup ──
@@ -829,10 +914,16 @@ public sealed class TimeslotService : ITimeslotService
     public async Task CloneByDivisionAsync(
         Guid jobId, string userId, CloneByDivisionRequest request, CancellationToken ct = default)
     {
+        if (request.SourceDivId == request.TargetDivId) return;
+
         var (_, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
 
+        // Source first, then clear the target pool — see CloneByFieldAsync.
         var sourceTimeslots = await _tsRepo.GetFieldTimeslotsByFilterAsync(
             request.AgegroupId, season, year, divId: request.SourceDivId, ct: ct);
+
+        await _tsRepo.DeleteFieldTimeslotsByFilterAsync(
+            request.AgegroupId, season, year, divId: request.TargetDivId, ct: ct);
 
         var clones = sourceTimeslots.Select(src => new TimeslotsLeagueSeasonFields
         {
@@ -852,8 +943,10 @@ public sealed class TimeslotService : ITimeslotService
         if (clones.Count > 0)
         {
             await _tsRepo.AddFieldTimeslotsRangeAsync(clones, ct);
-            await _tsRepo.SaveChangesAsync(ct);
         }
+
+        // Unconditional: the delete above still has to be committed when the source is empty.
+        await _tsRepo.SaveChangesAsync(ct);
     }
 
     // ── Cloning: by day-of-week within agegroup ──
@@ -861,10 +954,17 @@ public sealed class TimeslotService : ITimeslotService
     public async Task CloneByDowAsync(
         Guid jobId, string userId, CloneByDowRequest request, CancellationToken ct = default)
     {
+        if (request.SourceDow == request.TargetDow) return;
+
         var (_, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
 
+        // Source first, then clear the target day — see CloneByFieldAsync. "Copy Saturday to
+        // Friday" run twice used to leave Friday with two of everything.
         var sourceTimeslots = await _tsRepo.GetFieldTimeslotsByFilterAsync(
             request.AgegroupId, season, year, dow: request.SourceDow, ct: ct);
+
+        await _tsRepo.DeleteFieldTimeslotsByFilterAsync(
+            request.AgegroupId, season, year, dow: request.TargetDow, ct: ct);
 
         var clones = sourceTimeslots.Select(src => new TimeslotsLeagueSeasonFields
         {
@@ -884,8 +984,10 @@ public sealed class TimeslotService : ITimeslotService
         if (clones.Count > 0)
         {
             await _tsRepo.AddFieldTimeslotsRangeAsync(clones, ct);
-            await _tsRepo.SaveChangesAsync(ct);
         }
+
+        // Unconditional: the delete above still has to be committed when the source is empty.
+        await _tsRepo.SaveChangesAsync(ct);
     }
 
     // ── Cloning: single field record to next DOW ──

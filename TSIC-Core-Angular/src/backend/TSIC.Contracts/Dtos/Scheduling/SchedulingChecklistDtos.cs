@@ -10,11 +10,18 @@ public record SchedulingChecklistDto
     /// <summary>Step 1 — every active team sits in a pool other than "Unassigned".</summary>
     public required ChecklistPoolsStepDto Pools { get; init; }
 
-    /// <summary>Step 2 — every schedulable agegroup has at least one play date.</summary>
+    /// <summary>
+    /// Step 2 — every schedulable agegroup has at least one play date. Agegroup-grained by
+    /// design: play dates are set for the whole agegroup, not per pool.
+    /// </summary>
     public required ChecklistAgegroupStepDto Dates { get; init; }
 
-    /// <summary>Step 3 — every schedulable agegroup has at least one field assignment.</summary>
-    public required ChecklistAgegroupStepDto Fields { get; init; }
+    /// <summary>
+    /// Step 3 — every schedulable division resolves at least one field. Division-grained:
+    /// field timeslots are authored per pool, so "2030 Red" can be ready while
+    /// "2030 White" is not.
+    /// </summary>
+    public required ChecklistDivisionStepDto Fields { get; init; }
 
     /// <summary>Step 4 — every schedulable division resolves a game guarantee &gt; 0.</summary>
     public required ChecklistRulesStepDto Rules { get; init; }
@@ -48,12 +55,32 @@ public record ChecklistAgegroupPoolsDto
     public required int TeamCount { get; init; }
 }
 
-/// <summary>Shared shape for steps whose unit of readiness is the agegroup (dates, fields).</summary>
+/// <summary>Shape for steps whose unit of readiness is the agegroup (play dates).</summary>
 public record ChecklistAgegroupStepDto
 {
     public required bool Complete { get; init; }
     /// <summary>Names of schedulable agegroups still missing this configuration.</summary>
     public required List<string> MissingAgegroups { get; init; }
+}
+
+/// <summary>
+/// Shape for steps whose unit of readiness is the division (field timeslots). Offenders are
+/// grouped under their agegroup so the reason line reads "2030: Red, White" instead of a flat
+/// list that runs to hundreds of entries on a large event.
+/// </summary>
+public record ChecklistDivisionStepDto
+{
+    public required bool Complete { get; init; }
+    /// <summary>Total divisions still missing configuration, across all agegroups.</summary>
+    public required int MissingDivisionCount { get; init; }
+    public required List<ChecklistAgegroupDivisionsDto> MissingByAgegroup { get; init; }
+}
+
+/// <summary>An agegroup and the divisions under it that are still missing configuration.</summary>
+public record ChecklistAgegroupDivisionsDto
+{
+    public required string AgegroupName { get; init; }
+    public required List<string> DivNames { get; init; }
 }
 
 /// <summary>Build-rules readiness: divisions whose effective game guarantee is unset or zero.</summary>

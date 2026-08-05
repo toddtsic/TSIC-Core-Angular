@@ -101,14 +101,37 @@
 
 // ── Content panel ──
 
+// The content column is a rail that holds cards, not a card itself. Play dates and field
+// timeslots answer different questions — WHICH DAYS WE PLAY vs WHICH SLOTS EXIST TO DROP A
+// PAIRING ONTO — and one white rectangle with a hairline between them read as a single list.
+// The gap is the separator; the recessed backing makes it read as a gap and not as padding.
 .content-panel {
     display: flex;
     flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-secondary-bg);
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.surface-card {
     border: 1px solid var(--bs-border-color);
     border-radius: var(--bs-border-radius);
     background: var(--bs-body-bg);
+    box-shadow: var(--shadow-sm);
     overflow: hidden;
-    min-height: 0;
+}
+
+// Age-group scope bar — belongs to neither card; it names what both are about.
+.ag-bar {
+    flex-shrink: 0;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-body-bg);
+    box-shadow: var(--shadow-sm);
 }
 
 .icon-lg {
@@ -129,41 +152,12 @@
     text-align: center;
 }
 
-// ── Tab bar ──
+// ── View switch ──
 
-.tab-bar {
-    display: flex;
-    border-bottom: 2px solid var(--bs-border-color);
-    background: var(--bs-tertiary-bg);
-}
-
-.tab-btn {
-    padding: var(--space-2) var(--space-3);
-    border: none;
-    background: transparent;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: var(--bs-secondary-color);
-    cursor: pointer;
-    position: relative;
-
-    &:hover {
-        color: var(--bs-body-color);
-    }
-
-    &.active {
-        color: var(--bs-primary);
-
-        &::after {
-            content: '';
-            position: absolute;
-            bottom: -2px;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: var(--bs-primary);
-        }
-    }
+// View switch inside the section head — sits between the count badge and the actions, so the
+// actions still pin right exactly as they do on Play Dates.
+.view-seg {
+    margin-left: var(--space-3);
 }
 
 // ── Tab content ──
@@ -174,6 +168,344 @@
     flex-direction: column;
     min-height: 0;
     overflow: hidden;
+}
+
+// ── Play Dates panel ──
+// Dates sit above the field grid rather than behind a tab: they are the context for every
+// timeslot below, and a two-row list has no business costing a tab switch.
+
+.dates-panel {
+    flex-shrink: 0;
+}
+
+// The pencils. Takes the remaining height so its table scrolls inside the card rather than
+// pushing the page.
+.slots-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 24rem;
+}
+
+.section-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--bs-tertiary-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--bs-body-color);
+}
+
+.section-title-icon {
+    color: var(--bs-primary);
+}
+
+.section-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-left: auto;
+}
+
+// Dates are few by nature; cap the panel so a long list never crowds out the fields grid.
+.dates-scroll {
+    max-height: 13rem;
+    overflow: auto;
+}
+
+// ── Folded-field summary + sort ──
+
+.fold-note {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-1) var(--space-3);
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color);
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.sort-control {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-left: auto;
+}
+
+.sort-btn {
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--bs-secondary-color);
+    font-size: 0.75rem;
+    padding: 0 var(--space-2);
+    line-height: 1.6;
+    cursor: pointer;
+
+    &:hover {
+        color: var(--bs-primary);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+
+    &.active {
+        border-color: var(--bs-primary);
+        color: var(--bs-primary);
+        background: rgba(var(--bs-primary-rgb), 0.08);
+        font-weight: 600;
+    }
+}
+
+// ── Missing-day warning ──
+// Above the scroll box, not inside it: the day it names has no section to sit under, which is
+// the whole reason it is easy to miss. Icon carries the meaning alongside the colour.
+
+.day-gap-warning {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--bs-warning-bg-subtle);
+    color: var(--bs-warning-text-emphasis);
+    font-size: 0.75rem;
+    line-height: var(--line-height-normal);
+    border-bottom: 1px solid var(--bs-border-color);
+
+    > i {
+        flex-shrink: 0;
+    }
+
+    .btn {
+        flex-shrink: 0;
+    }
+}
+
+// ── Day sections ──
+
+.dow-head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-3);
+    background: var(--bs-secondary-bg);
+    border-top: 1px solid var(--bs-border-color);
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.dow-name {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--bs-body-color);
+}
+
+.dow-meta {
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color);
+}
+
+// The day header owns the sticky slot; a second sticky layer under it would overlap.
+.dow-head + .timeslot-table th {
+    position: static;
+}
+
+// ── Pools cell ──
+
+.col-pools {
+    min-width: 190px;
+    white-space: normal;
+}
+
+.pool-all {
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color);
+}
+
+// Paired with the row tint so the gap is never conveyed by colour alone.
+.pool-missing {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--bs-warning-text-emphasis);
+}
+
+.timeslot-table tbody tr.row-partial {
+    background: var(--bs-warning-bg-subtle);
+
+    &:hover {
+        background: var(--bs-warning-bg-subtle);
+    }
+}
+
+// ── Multi-pick chips (Add dialog) ──
+
+// ── Timeslot setup dialog ──
+// One row per game day. Bootstrap table + form controls throughout; the only local rules are
+// column widths and the inline field picker, which reuses the .pick-chip idiom below.
+
+.setup-table {
+    th {
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--bs-secondary-color);
+        white-space: nowrap;
+    }
+
+    td {
+        vertical-align: middle;
+    }
+
+    .col-day { width: 7rem; }
+    .col-fields { width: 12rem; }
+    .col-time { width: 9rem; }
+    .col-num { width: 8rem; }
+
+    tfoot td {
+        border-top: 2px solid var(--bs-border-color);
+    }
+}
+
+.slots-input {
+    max-width: 5.5rem;
+}
+
+.suffix-input {
+    max-width: 7.5rem;
+}
+
+// Trigger for the inline field picker — quiet until reached for, like the day-copy control.
+.field-trigger {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    font-size: 0.8125rem;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+
+    &:hover {
+        border-color: var(--bs-primary);
+        color: var(--bs-primary);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+
+    // No fields = no slots that day. Paired with the "No fields" text, never colour alone.
+    &.is-empty {
+        border-color: var(--bs-warning);
+        color: var(--bs-warning-text-emphasis);
+    }
+
+    .bi-chevron-down {
+        font-size: 0.625rem;
+        transition: transform 0.15s ease;
+
+        &.is-open { transform: rotate(180deg); }
+    }
+}
+
+.picker-row > td {
+    background: var(--bs-tertiary-bg);
+}
+
+.picker-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+.link-btn {
+    border: none;
+    background: none;
+    padding: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--bs-primary);
+    cursor: pointer;
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .field-trigger,
+    .field-trigger .bi-chevron-down { transition: none !important; }
+}
+
+.pick-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+}
+
+.pick-grid-scroll {
+    max-height: 11rem;
+    overflow-y: auto;
+    padding: var(--space-1);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--radius-sm);
+}
+
+.pick-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--radius-pill);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease;
+
+    &:hover {
+        border-color: var(--bs-primary);
+    }
+
+    &:focus-within {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+
+    // Checked state carries a border and weight change, not colour alone.
+    &.picked {
+        border-color: var(--bs-primary);
+        background: rgba(var(--bs-primary-rgb), 0.08);
+        color: var(--bs-primary);
+        font-weight: 600;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pick-chip {
+        transition: none;
+    }
 }
 
 // ── Guidance bar ──
@@ -195,52 +527,50 @@
     }
 }
 
-// ── Action bar ──
-
-.action-bar {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
-    border-bottom: 1px solid var(--bs-border-color);
-    background: var(--bs-tertiary-bg);
-}
-
-// ── Clone panel (collapsible) ──
-
-.clone-panel {
-    border-bottom: 1px solid var(--bs-border-color);
+// ── Segmented control ──
+// Slots | Capacity, in the Timeslots section head — both readings always visible so the
+// choice is legible without opening anything.
+.mode-seg {
+    display: inline-flex;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
     background: var(--bs-body-bg);
 }
 
-.clone-panel-header {
-    padding: var(--space-1) var(--space-3);
-    background: var(--bs-tertiary-bg);
-    border-bottom: 1px solid var(--bs-border-color);
-}
-
-.clone-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-1) var(--space-3);
-    flex-wrap: wrap;
-}
-
-.clone-label {
+.mode-btn {
+    border: none;
+    background: transparent;
+    color: var(--bs-secondary-color);
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--bs-secondary-color);
-    min-width: 56px;
-    text-align: right;
+    padding: var(--space-1) var(--space-3);
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+
+    + .mode-btn {
+        border-left: 1px solid var(--bs-border-color);
+    }
+
+    &:hover {
+        color: var(--bs-primary);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+
+    &.active {
+        background: var(--bs-primary);
+        color: var(--bs-btn-primary-color, #fff);
+    }
 }
 
-.clone-target-select {
-    width: 140px;
-}
-
-.time-input {
-    width: 110px;
+@media (prefers-reduced-motion: reduce) {
+    .mode-btn {
+        transition: none !important;
+    }
 }
 
 // ── Table styles ──
@@ -315,13 +645,6 @@
 .col-actions {
     width: 100px;
     min-width: 100px;
-    text-align: right;
-    white-space: nowrap;
-}
-
-.col-actions-sm {
-    width: 80px;
-    min-width: 80px;
     text-align: right;
     white-space: nowrap;
 }
@@ -465,15 +788,6 @@
 
     .action-bar {
         flex-wrap: wrap;
-    }
-
-    .clone-row {
-        flex-direction: column;
-        align-items: stretch;
-
-        .clone-label {
-            text-align: left;
-        }
     }
 
     .capacity-summary {

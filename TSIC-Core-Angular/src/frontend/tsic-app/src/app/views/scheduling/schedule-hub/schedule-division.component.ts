@@ -1469,7 +1469,7 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
                     hardErrors.push(`Timeslots not configured for: ${result.agegroupsMissingTimeslots.join(', ')}`);
                 }
                 if (!result.fieldsConfigured) {
-                    hardErrors.push(`No fields assigned for: ${result.agegroupsMissingFields.join(', ')}`);
+                    hardErrors.push(`No timeslots assigned for: ${result.divisionsMissingFields.join(', ')}`);
                 }
 
                 if (hardErrors.length > 0) {

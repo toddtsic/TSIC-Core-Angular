@@ -2,7 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type UpdateFieldConfigResponse = {
-    rowsUpdated: number;
+export type SaveTimeslotSetupResponse = {
+    rowsCreated: number;
+    rowsDeleted: number;
+    poolCount: number;
 };
 

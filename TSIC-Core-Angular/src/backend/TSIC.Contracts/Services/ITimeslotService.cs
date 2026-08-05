@@ -62,6 +62,14 @@ public interface ITimeslotService
     Task DeleteAllFieldTimeslotsAsync(
         Guid jobId, Guid agegroupId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Replace an agegroup's field timeslots one game day at a time — the whole setup path.
+    /// Days come from the agegroup's game dates, not from user choice; see
+    /// <see cref="SaveTimeslotSetupRequest"/>.
+    /// </summary>
+    Task<SaveTimeslotSetupResponse> SaveTimeslotSetupAsync(
+        Guid jobId, string userId, SaveTimeslotSetupRequest request, CancellationToken ct = default);
+
     // ── Cloning operations ──
 
     Task CloneDatesAsync(

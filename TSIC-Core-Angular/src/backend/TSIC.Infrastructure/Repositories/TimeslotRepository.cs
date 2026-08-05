@@ -449,6 +449,30 @@ public class TimeslotRepository : ITimeslotRepository
         _context.TimeslotsLeagueSeasonFields.RemoveRange(toDelete);
     }
 
+    public async Task<int> DeleteFieldTimeslotsByFilterAsync(
+        Guid agegroupId, string season, string year,
+        Guid? fieldId = null, Guid? divId = null, string? dow = null,
+        CancellationToken ct = default)
+    {
+        // Deliberately the exact mirror of GetFieldTimeslotsByFilterAsync above: every caller
+        // that reads a scope to copy it also has to be able to clear that scope, and two
+        // predicates that drift apart would silently leave rows behind. Unfiltered args mean
+        // "every row for the agegroup", matching the read.
+        var query = _context.TimeslotsLeagueSeasonFields
+            .Where(f => f.AgegroupId == agegroupId && f.Season == season && f.Year == year);
+
+        if (fieldId.HasValue)
+            query = query.Where(f => f.FieldId == fieldId.Value);
+        if (divId.HasValue)
+            query = query.Where(f => f.DivId == divId.Value);
+        if (dow != null)
+            query = query.Where(f => f.Dow == dow);
+
+        var toDelete = await query.ToListAsync(ct);
+        _context.TimeslotsLeagueSeasonFields.RemoveRange(toDelete);
+        return toDelete.Count;
+    }
+
     // ── Prior-year defaults ──
 
     public async Task<FieldScheduleDefaults?> GetDominantFieldDefaultsAsync(

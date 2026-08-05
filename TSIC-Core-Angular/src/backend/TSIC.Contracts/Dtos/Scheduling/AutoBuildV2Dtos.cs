@@ -174,10 +174,14 @@ public record PrerequisiteCheckResponse
     /// <summary>Agegroup names missing timeslot configuration.</summary>
     public required List<string> AgegroupsMissingTimeslots { get; init; }
 
-    /// <summary>All agegroups with active divisions have at least one field assignment.</summary>
+    /// <summary>
+    /// Every schedulable division resolves at least one field. Field timeslots are authored
+    /// per division, so this is a per-division check — a division inherits its agegroup's
+    /// rows only when it has none of its own.
+    /// </summary>
     public required bool FieldsConfigured { get; init; }
-    /// <summary>Agegroup names missing field assignments.</summary>
-    public required List<string> AgegroupsMissingFields { get; init; }
+    /// <summary>"Agegroup / Division" labels the build would place no games for.</summary>
+    public required List<string> DivisionsMissingFields { get; init; }
 
     /// <summary>True when all checks pass.</summary>
     public required bool AllPassed { get; init; }

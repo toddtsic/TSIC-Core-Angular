@@ -177,20 +177,24 @@ public class TimeslotController : ControllerBase
         }
     }
 
-    [HttpPut("field")]
-    public async Task<ActionResult> EditFieldTimeslot(
-        [FromBody] EditTimeslotFieldRequest request, CancellationToken ct)
-    {
-        var (_, userId, error) = await ResolveContext();
-        if (error != null) return error;
-
-        try
-        {
-            await _timeslotService.EditFieldTimeslotAsync(userId!, request, ct);
-            return NoContent();
-        }
-        catch (KeyNotFoundException) { return NotFound(); }
-    }
+    // PARKED 2026-08-04 — per-row edit. Assign Timeslots dropped its row actions: the setup
+    // dialog authors every game day at once, so nothing in the UI edits a single row any more.
+    // The service method and DTO are left intact; uncomment to bring the route back.
+    //
+    // [HttpPut("field")]
+    // public async Task<ActionResult> EditFieldTimeslot(
+    //     [FromBody] EditTimeslotFieldRequest request, CancellationToken ct)
+    // {
+    //     var (_, userId, error) = await ResolveContext();
+    //     if (error != null) return error;
+    //
+    //     try
+    //     {
+    //         await _timeslotService.EditFieldTimeslotAsync(userId!, request, ct);
+    //         return NoContent();
+    //     }
+    //     catch (KeyNotFoundException) { return NotFound(); }
+    // }
 
     [HttpDelete("field/{ai:int}")]
     public async Task<ActionResult> DeleteFieldTimeslot(int ai, CancellationToken ct)
@@ -214,6 +218,21 @@ public class TimeslotController : ControllerBase
 
         await _timeslotService.DeleteAllFieldTimeslotsAsync(jobId!.Value, agegroupId, ct);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Set up an agegroup's timeslots, one game day at a time. Replaces each day named in the
+    /// request and leaves days it does not name alone.
+    /// </summary>
+    [HttpPut("setup")]
+    public async Task<ActionResult<SaveTimeslotSetupResponse>> SaveTimeslotSetup(
+        [FromBody] SaveTimeslotSetupRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _timeslotService.SaveTimeslotSetupAsync(jobId!.Value, userId!, request, ct);
+        return Ok(result);
     }
 
     // ── Cloning operations ──
@@ -240,38 +259,51 @@ public class TimeslotController : ControllerBase
         return NoContent();
     }
 
-    [HttpPost("clone-by-field")]
-    public async Task<ActionResult> CloneByField(
-        [FromBody] CloneByFieldRequest request, CancellationToken ct)
-    {
-        var (jobId, userId, error) = await ResolveContext();
-        if (error != null) return error;
-
-        await _timeslotService.CloneByFieldAsync(jobId!.Value, userId!, request, ct);
-        return NoContent();
-    }
-
-    [HttpPost("clone-by-division")]
-    public async Task<ActionResult> CloneByDivision(
-        [FromBody] CloneByDivisionRequest request, CancellationToken ct)
-    {
-        var (jobId, userId, error) = await ResolveContext();
-        if (error != null) return error;
-
-        await _timeslotService.CloneByDivisionAsync(jobId!.Value, userId!, request, ct);
-        return NoContent();
-    }
-
-    [HttpPost("clone-by-dow")]
-    public async Task<ActionResult> CloneByDow(
-        [FromBody] CloneByDowRequest request, CancellationToken ct)
-    {
-        var (jobId, userId, error) = await ResolveContext();
-        if (error != null) return error;
-
-        await _timeslotService.CloneByDowAsync(jobId!.Value, userId!, request, ct);
-        return NoContent();
-    }
+    // PARKED 2026-08-04 — the three intra-agegroup copy grains, all reached only from the copy
+    // row that Assign Timeslots removed. Ticking a field on a second day in the setup dialog is
+    // now the copy. Ranked by how likely each is to be wanted back:
+    //
+    //   clone-by-dow      legacy has this (Timeslots/Index.cshtml) and it is the plausible
+    //                     bulk tool if per-day copying is ever asked for again.
+    //   clone-by-field    legacy's #aCloneFieldsByField handler exists but no element ever
+    //                     renders it — unreachable there, so it was never a real feature.
+    //   clone-by-division does not exist in legacy at all; it was invented from the API surface.
+    //
+    // All three REPLACE the target (fixed 2026-08-04 — they used to append, so copying twice
+    // doubled the target). Keep that in mind if any is revived.
+    //
+    // [HttpPost("clone-by-field")]
+    // public async Task<ActionResult> CloneByField(
+    //     [FromBody] CloneByFieldRequest request, CancellationToken ct)
+    // {
+    //     var (jobId, userId, error) = await ResolveContext();
+    //     if (error != null) return error;
+    //
+    //     await _timeslotService.CloneByFieldAsync(jobId!.Value, userId!, request, ct);
+    //     return NoContent();
+    // }
+    //
+    // [HttpPost("clone-by-division")]
+    // public async Task<ActionResult> CloneByDivision(
+    //     [FromBody] CloneByDivisionRequest request, CancellationToken ct)
+    // {
+    //     var (jobId, userId, error) = await ResolveContext();
+    //     if (error != null) return error;
+    //
+    //     await _timeslotService.CloneByDivisionAsync(jobId!.Value, userId!, request, ct);
+    //     return NoContent();
+    // }
+    //
+    // [HttpPost("clone-by-dow")]
+    // public async Task<ActionResult> CloneByDow(
+    //     [FromBody] CloneByDowRequest request, CancellationToken ct)
+    // {
+    //     var (jobId, userId, error) = await ResolveContext();
+    //     if (error != null) return error;
+    //
+    //     await _timeslotService.CloneByDowAsync(jobId!.Value, userId!, request, ct);
+    //     return NoContent();
+    // }
 
     // ── Cascade date operations ──
 
@@ -306,16 +338,21 @@ public class TimeslotController : ControllerBase
 
     // ── Field config update ──
 
-    [HttpPut("field-config")]
-    public async Task<ActionResult<UpdateFieldConfigResponse>> UpdateFieldConfig(
-        [FromBody] UpdateFieldConfigRequest request, CancellationToken ct)
-    {
-        var (jobId, userId, error) = await ResolveContext();
-        if (error != null) return error;
-
-        var result = await _timeslotService.UpdateFieldConfigAsync(jobId!.Value, userId!, request, ct);
-        return Ok(result);
-    }
+    // PARKED 2026-08-04 — bulk GSI/start/max update. Already had no frontend consumer before
+    // the Assign Timeslots rework; the setup dialog covers the same ground per game day. Note
+    // it deliberately does NOT touch TimeslotsLeagueSeasonDates, so R/day and wave assignments
+    // survive it — the setup path does not have that property.
+    //
+    // [HttpPut("field-config")]
+    // public async Task<ActionResult<UpdateFieldConfigResponse>> UpdateFieldConfig(
+    //     [FromBody] UpdateFieldConfigRequest request, CancellationToken ct)
+    // {
+    //     var (jobId, userId, error) = await ResolveContext();
+    //     if (error != null) return error;
+    //
+    //     var result = await _timeslotService.UpdateFieldConfigAsync(jobId!.Value, userId!, request, ct);
+    //     return Ok(result);
+    // }
 
     // ── Bulk operations ──
 
@@ -330,20 +367,24 @@ public class TimeslotController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPost("clone-field-dow")]
-    public async Task<ActionResult<TimeslotFieldDto>> CloneFieldDow(
-        [FromBody] CloneFieldDowRequest request, CancellationToken ct)
-    {
-        var (_, userId, error) = await ResolveContext();
-        if (error != null) return error;
-
-        try
-        {
-            var result = await _timeslotService.CloneFieldDowAsync(userId!, request, ct);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException) { return NotFound(); }
-    }
+    // PARKED 2026-08-04 — "clone this row to the next day", the +D row action Assign Timeslots
+    // removed. Legacy has the equivalent, so this is the second-likeliest of the parked set to
+    // come back. It appends one row per call and never replaces.
+    //
+    // [HttpPost("clone-field-dow")]
+    // public async Task<ActionResult<TimeslotFieldDto>> CloneFieldDow(
+    //     [FromBody] CloneFieldDowRequest request, CancellationToken ct)
+    // {
+    //     var (_, userId, error) = await ResolveContext();
+    //     if (error != null) return error;
+    //
+    //     try
+    //     {
+    //         var result = await _timeslotService.CloneFieldDowAsync(userId!, request, ct);
+    //         return Ok(result);
+    //     }
+    //     catch (KeyNotFoundException) { return NotFound(); }
+    // }
 
     // ── Field assignments ──
 

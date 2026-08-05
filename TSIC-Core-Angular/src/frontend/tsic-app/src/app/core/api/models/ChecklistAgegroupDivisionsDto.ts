@@ -2,9 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type CloneByFieldRequest = {
-    agegroupId: string;
-    sourceFieldId: string;
-    targetFieldId: string;
+export type ChecklistAgegroupDivisionsDto = {
+    agegroupName: string;
+    divNames: Array<string>;
 };
 

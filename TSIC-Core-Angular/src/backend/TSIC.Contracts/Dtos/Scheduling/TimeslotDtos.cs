@@ -458,6 +458,57 @@ public record SaveFieldAssignmentsResponse
     public required int RowsDeleted { get; init; }
 }
 
+// ── Timeslot setup, driven by the agegroup's game days ──
+
+/// <summary>
+/// Replace an agegroup's field timeslots, one day of week at a time.
+/// <para>
+/// The days are not free input: the build engine walks the agegroup's game DATES, derives each
+/// date's day of week, and reads only the field rows carrying that Dow — a day with no rows is
+/// silently skipped, and rows for a day never played are never read. The caller therefore sends
+/// one entry per distinct day of week among the game dates, and each entry REPLACES that day.
+/// </para>
+/// <para>
+/// Rows are stored per division, so one field on one day is N rows underneath. The caller works
+/// at agegroup level and this fans out across every schedulable pool.
+/// </para>
+/// </summary>
+public record SaveTimeslotSetupRequest
+{
+    public required Guid AgegroupId { get; init; }
+
+    /// <summary>One per distinct day of week. A day omitted here is left untouched.</summary>
+    public required List<TimeslotDaySetupEntry> Days { get; init; }
+}
+
+/// <summary>One game day's timeslot shape, applied to every schedulable pool in the agegroup.</summary>
+public record TimeslotDaySetupEntry
+{
+    /// <summary>Day name as stored in the Dow column ("Friday"), matching DayOfWeek.ToString().</summary>
+    public required string Dow { get; init; }
+
+    /// <summary>Fields hosting this agegroup on this day. Empty = clear the day entirely.</summary>
+    public required List<Guid> FieldIds { get; init; }
+
+    /// <summary>First game time, "HH:mm".</summary>
+    public required string StartTime { get; init; }
+
+    /// <summary>Minutes between game starts on a field.</summary>
+    public required int GamestartInterval { get; init; }
+
+    /// <summary>Slots per field on this day — the MaxGamesPerField column.</summary>
+    public required int SlotsPerField { get; init; }
+}
+
+public record SaveTimeslotSetupResponse
+{
+    public required int RowsCreated { get; init; }
+    public required int RowsDeleted { get; init; }
+
+    /// <summary>Pools the rows were fanned out across — for the caller to report honestly.</summary>
+    public required int PoolCount { get; init; }
+}
+
 // ── Cascade Date Operations ──
 
 /// <summary>Change a game date for ALL agegroups in the league-season-year,

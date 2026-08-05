@@ -178,6 +178,22 @@ public interface ITimeslotRepository
     Task DeleteFieldTimeslotsByDivFieldAsync(
         Guid agegroupId, Guid divId, Guid fieldId, string season, string year, CancellationToken ct = default);
 
+    /// <summary>
+    /// Delete field-timeslot rows matching a scope — the exact delete twin of
+    /// <see cref="GetFieldTimeslotsByFilterAsync"/>. Omitted filters widen the scope, so
+    /// (fieldId only) is "this field on every day, every pool". Returns rows removed.
+    /// <para>
+    /// The two methods above are each pinned to a single division — and
+    /// <see cref="DeleteFieldTimeslotsByFieldAsync"/> to the DivId IS NULL agegroup rows, of
+    /// which production has none. Removing a field from an agegroup, and replacing a clone
+    /// target instead of accumulating onto it, both need this wider scope.
+    /// </para>
+    /// </summary>
+    Task<int> DeleteFieldTimeslotsByFilterAsync(
+        Guid agegroupId, string season, string year,
+        Guid? fieldId = null, Guid? divId = null, string? dow = null,
+        CancellationToken ct = default);
+
     // ── Prior-year defaults ──
 
     /// <summary>

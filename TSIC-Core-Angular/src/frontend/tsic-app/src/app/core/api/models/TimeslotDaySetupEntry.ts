@@ -2,13 +2,11 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type EditTimeslotFieldRequest = {
-    ai: number;
+export type TimeslotDaySetupEntry = {
+    dow: string;
+    fieldIds: Array<string>;
     startTime: string;
     gamestartInterval: number;
-    maxGamesPerField: number;
-    dow: string;
-    fieldId?: string | null;
-    divId?: string | null;
+    slotsPerField: number;
 };
 

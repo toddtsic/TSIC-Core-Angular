@@ -2,7 +2,7 @@
 
     <!-- ── Header ── -->
     <div class="timeslots-header">
-        <h2 class="page-title"><app-checklist-back-link target=".." always routePath="timeslots" /><i class="bi bi-clock page-title-icon"></i> Manage Timeslots</h2>
+        <h2 class="page-title"><app-checklist-back-link target=".." always routePath="timeslots" /><i class="bi bi-clock page-title-icon"></i> Assign Timeslots</h2>
     </div>
 
     <!-- ── Main layout: Navigator + Content ── -->
@@ -29,7 +29,7 @@
                                 }
                                 <span class="ag-name">{{ ag.agegroupName }}</span>
                                 <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">
-                                    {{ ag.divisions.length }}
+                                    {{ poolCountOf(ag) }}
                                 </span>
                             </div>
                         }
@@ -46,30 +46,37 @@
                     <p class="text-secondary mt-2 mb-0">Select an age group to configure timeslots</p>
                 </div>
             } @else {
-                <!-- ── Clone Toolbar ── -->
-                <div class="panel-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <!-- ── Age group bar — scope for everything below it ── -->
+                <div class="ag-bar d-flex align-items-center justify-content-between flex-wrap gap-2">
                     <div>
                         <span class="fw-semibold">{{ selectedAgegroup()!.agegroupName }}</span>
                         <span class="badge bg-primary-subtle text-primary-emphasis ms-2">
                             {{ dates().length }} dates
                         </span>
-                        <span class="badge bg-info-subtle text-info-emphasis ms-1">
-                            {{ fields().length }} fields
+                        <span class="badge bg-info-subtle text-info-emphasis ms-1"
+                              title="Droppable game slots across every game day">
+                            {{ totalGameSlots() }} slots
+                        </span>
+                        <span class="badge bg-secondary-subtle text-secondary-emphasis ms-1">
+                            {{ schedulablePools().length }} pools
                         </span>
                     </div>
                     <div class="d-flex gap-1 align-items-center flex-wrap">
                         <span class="small text-secondary me-1">Clone to:</span>
-                        <select class="form-select form-select-sm clone-target-select"
-                                [ngModel]="cloneTargetAgId()"
-                                (ngModelChange)="cloneTargetAgId.set($event)">
-                            <option value="">Select target...</option>
-                            @for (ag of cloneableAgegroups(); track ag.agegroupId) {
-                                <option [value]="ag.agegroupId">{{ ag.agegroupName }}</option>
-                            }
-                        </select>
+                        <app-age-group-picker
+                            [items]="cloneTargetItems()"
+                            [selectedId]="cloneTargetAgId() || null"
+                            emptyLabel="Select target..."
+                            (selectionChange)="cloneTargetAgId.set($event)" />
+                        <!-- Gated on the SOURCE having something to copy. Cloning dates clears
+                             the target first, so an empty source would wipe the target and put
+                             nothing back. -->
                         <button class="btn btn-sm btn-outline-primary"
                                 (click)="cloneDatesToAgegroup()"
-                                [disabled]="!cloneTargetAgId() || isCloningDates()">
+                                [disabled]="!cloneTargetAgId() || isCloningDates() || dates().length === 0"
+                                [title]="dates().length === 0
+                                    ? 'This age group has no game dates to clone'
+                                    : 'Replace the target age group\'s game dates with these'">
                             @if (isCloningDates()) {
                                 <span class="spinner-border spinner-border-sm"></span>
                             }
@@ -77,29 +84,16 @@
                         </button>
                         <button class="btn btn-sm btn-outline-primary"
                                 (click)="cloneFieldsToAgegroup()"
-                                [disabled]="!cloneTargetAgId() || isCloningFields()">
+                                [disabled]="!cloneTargetAgId() || isCloningFields() || fields().length === 0"
+                                [title]="fields().length === 0
+                                    ? 'This age group has no field timeslots to clone'
+                                    : 'Copy these field timeslots to the target age group'">
                             @if (isCloningFields()) {
                                 <span class="spinner-border spinner-border-sm"></span>
                             }
                             Fields
                         </button>
                     </div>
-                </div>
-
-                <!-- ── Tab Bar ── -->
-                <div class="tab-bar">
-                    <button class="tab-btn" [class.active]="activeTab() === 'dates'"
-                            (click)="setTab('dates')">
-                        <i class="bi bi-calendar-event me-1"></i> Dates
-                    </button>
-                    <button class="tab-btn" [class.active]="activeTab() === 'fields'"
-                            (click)="setTab('fields')">
-                        <i class="bi bi-geo-alt me-1"></i> Fields
-                    </button>
-                    <button class="tab-btn" [class.active]="activeTab() === 'capacity'"
-                            (click)="setTab('capacity')">
-                        <i class="bi bi-bar-chart me-1"></i> Capacity
-                    </button>
                 </div>
 
                 <!-- ── Loading ── -->
@@ -110,33 +104,28 @@
                 } @else {
 
                     <!-- ════════════════════════════════════════════════════ -->
-                    <!-- ── DATES TAB ──                                     -->
+                    <!-- ── GAME DATES ──                                    -->
+                    <!-- Always on screen, never behind a tab: what days this -->
+                    <!-- agegroup plays is the context for every timeslot     -->
+                    <!-- below it, and hiding it is what made legacy's single -->
+                    <!-- page read better than ours.                          -->
+                    <!--                                                      -->
+                    <!-- Its own card, with real space beneath it. WHICH DAYS -->
+                    <!-- WE PLAY and WHICH SLOTS EXIST TO DROP PAIRINGS ONTO  -->
+                    <!-- are two different questions; sharing one white       -->
+                    <!-- rectangle separated by a hairline read as one list.  -->
                     <!-- ════════════════════════════════════════════════════ -->
-                    @if (activeTab() === 'dates') {
-                        <div class="tab-content">
-                            <!-- Round guidance -->
-                            <div class="guidance-bar">
-                                <i class="bi bi-info-circle"></i>
-                                <span>
-                                    <strong>Rnd</strong> = first round to be played on that date
-                                    (e.g., Day 1 = Rnd 1, Day 2 = Rnd 4 if 3 rounds on Day 1).
-                                </span>
-                            </div>
-
-                            <!-- Round validation warnings -->
-                            @for (warning of roundWarnings(); track warning) {
-                                <div class="alert alert-warning m-2 mb-0 py-2 d-flex align-items-start gap-2">
-                                    <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
-                                    <span>{{ warning }}</span>
-                                </div>
-                            }
-
-                            <!-- Action bar -->
-                            <div class="action-bar">
+                    <section class="dates-panel surface-card">
+                        <div class="section-head">
+                            <h3 class="section-title">
+                                <i class="bi bi-calendar-event section-title-icon"></i> Age Group Game Dates
+                            </h3>
+                            <span class="badge-count">{{ dates().length }}</span>
+                            <div class="section-actions">
                                 <button class="btn btn-sm btn-primary" (click)="openAddDateModal()">
                                     <i class="bi bi-plus-circle me-1"></i> Add Date
                                 </button>
-                                <button class="btn btn-sm btn-outline-danger ms-auto"
+                                <button class="btn btn-sm btn-outline-danger"
                                         (click)="showDeleteDatesConfirm.set(true)"
                                         [disabled]="isDeletingAllDates() || dates().length === 0">
                                     @if (isDeletingAllDates()) {
@@ -147,262 +136,259 @@
                                     Delete All
                                 </button>
                             </div>
+                        </div>
 
-                            <!-- Dates Table -->
-                            @if (dates().length > 0) {
-                                <div class="table-scroll-wrapper">
-                                    <table class="table table-sm table-hover timeslot-table mb-0">
-                                        <thead>
+                        <div class="guidance-bar">
+                            <i class="bi bi-info-circle"></i>
+                            <span>
+                                <strong>Rnd</strong> = first round to be played on that date
+                                (e.g., Day 1 = Rnd 1, Day 2 = Rnd 4 if 3 rounds on Day 1).
+                            </span>
+                        </div>
+
+                        @for (warning of roundWarnings(); track warning) {
+                            <div class="alert alert-warning m-2 mb-0 py-2 d-flex align-items-start gap-2">
+                                <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+                                <span>{{ warning }}</span>
+                            </div>
+                        }
+
+                        @if (dates().length > 0) {
+                            <div class="dates-scroll">
+                                <table class="table table-sm table-hover timeslot-table mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th class="col-num">#</th>
+                                            <th class="col-date">Date</th>
+                                            <th class="col-rnd">Rnd</th>
+                                            <th class="col-dow">Day</th>
+                                            <th class="col-div">Pool</th>
+                                            <th class="col-actions">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @for (d of dates(); track d.ai; let i = $index) {
                                             <tr>
-                                                <th class="col-date">Date</th>
-                                                <th class="col-rnd">Rnd</th>
-                                                <th class="col-dow">Day</th>
-                                                <th class="col-div">Division</th>
-                                                <th class="col-actions">Actions</th>
+                                                <td class="col-num text-secondary">{{ i + 1 }}</td>
+                                                <td class="col-date">{{ formatDate(d.gDate) }}</td>
+                                                <td class="col-rnd">{{ d.rnd }}</td>
+                                                <td class="col-dow">{{ dayOfWeek(d.gDate) }}</td>
+                                                <td class="col-div">
+                                                    @if (d.divName) {
+                                                        <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                                                            {{ d.divName }}
+                                                        </span>
+                                                    } @else {
+                                                        <span class="text-secondary">All</span>
+                                                    }
+                                                </td>
+                                                <td class="col-actions">
+                                                    <button class="icon-btn" (click)="openEditDateModal(d)"
+                                                            title="Edit date">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                    <button class="icon-btn" (click)="cloneDateDay(d.ai)"
+                                                            title="Clone to the next day">
+                                                        <span class="clone-badge">+D</span>
+                                                    </button>
+                                                    <button class="icon-btn" (click)="cloneDateWeek(d.ai)"
+                                                            title="Clone to the same day next week">
+                                                        <span class="clone-badge">+W</span>
+                                                    </button>
+                                                    <button class="icon-btn" (click)="cloneDateRound(d.ai)"
+                                                            title="Clone this date with the next round">
+                                                        <span class="clone-badge">+R</span>
+                                                    </button>
+                                                    <button class="icon-btn icon-btn-danger" (click)="deleteDate(d.ai)"
+                                                            title="Delete date">
+                                                        <i class="bi bi-x-lg"></i>
+                                                    </button>
+                                                </td>
                                             </tr>
-                                        </thead>
-                                        <tbody>
-                                            @for (d of dates(); track d.ai) {
-                                                <tr>
-                                                    <td class="col-date">{{ formatDate(d.gDate) }}</td>
-                                                    <td class="col-rnd">{{ d.rnd }}</td>
-                                                    <td class="col-dow">{{ dayOfWeek(d.gDate) }}</td>
-                                                    <td class="col-div">
-                                                        @if (d.divName) {
-                                                            <span class="badge bg-secondary-subtle text-secondary-emphasis">
-                                                                {{ d.divName }}
-                                                            </span>
-                                                        } @else {
-                                                            <span class="text-secondary">All</span>
-                                                        }
-                                                    </td>
-                                                    <td class="col-actions">
-                                                        <button class="btn btn-sm btn-link text-primary p-0 me-1"
-                                                                (click)="openEditDateModal(d)"
-                                                                title="Edit">
-                                                            <i class="bi bi-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-sm btn-link p-0 me-1"
-                                                                (click)="cloneDateDay(d.ai)"
-                                                                title="Clone +1 Day">
-                                                            <span class="clone-badge">+D</span>
-                                                        </button>
-                                                        <button class="btn btn-sm btn-link p-0 me-1"
-                                                                (click)="cloneDateWeek(d.ai)"
-                                                                title="Clone +1 Week">
-                                                            <span class="clone-badge">+W</span>
-                                                        </button>
-                                                        <button class="btn btn-sm btn-link p-0 me-1"
-                                                                (click)="cloneDateRound(d.ai)"
-                                                                title="Clone Same Date, Rnd+1">
-                                                            <span class="clone-badge">+R</span>
-                                                        </button>
-                                                        <button class="btn btn-sm btn-link text-danger p-0"
-                                                                (click)="deleteDate(d.ai)"
-                                                                title="Delete">
-                                                            <i class="bi bi-x-lg"></i>
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            }
-                                        </tbody>
-                                    </table>
-                                </div>
-                            } @else {
-                                <div class="empty-state-sm">
-                                    <p class="text-secondary mb-0">No dates configured. Click <strong>Add Date</strong> to get started, or clone from another agegroup.</p>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        } @else {
+                            <div class="empty-state-sm">
+                                <p class="text-secondary mb-0">No game dates yet. Add one, or clone them from another age group above.</p>
+                            </div>
+                        }
+                    </section>
+
+                    <!-- ════════════════════════════════════════════════════ -->
+                    <!-- ── FIELD TIMESLOTS — the pencils ──                 -->
+                    <!-- Second card. Everything from here down is inventory: -->
+                    <!-- the slots a pairing can be dropped onto. The tab     -->
+                    <!-- strip is this card's header, not a divider inside a  -->
+                    <!-- shared surface.                                      -->
+                    <!-- ════════════════════════════════════════════════════ -->
+                    <section class="slots-panel surface-card">
+                        <!-- Same header shape as Game Dates: icon + title + count, actions on
+                             the right. The two cards are peers and have to open the same way. -->
+                        <div class="section-head">
+                            <!-- Legacy called this "Agegroup Fields". Timeslots is what the rows
+                                 actually are, and "Age Group" stays two words to match the rail. -->
+                            <h3 class="section-title">
+                                <i class="bi bi-geo-alt section-title-icon"></i> Age Group Timeslots
+                            </h3>
+                            <!-- Slots, not rows: the card's own count has to be the number the
+                                 user compares against legacy and against games needed. -->
+                            <span class="badge-count" title="Droppable game slots">{{ totalGameSlots() }}</span>
+
+                            <!-- View switch, not a second bar: Capacity asks "will this fit?",
+                                 which is a different reading of the same rows, not a different
+                                 section. -->
+                            <div class="mode-seg view-seg" role="group" aria-label="View">
+                                <button type="button" class="mode-btn"
+                                        [class.active]="activeTab() === 'fields'"
+                                        [attr.aria-pressed]="activeTab() === 'fields'"
+                                        (click)="setTab('fields')">Slots</button>
+                                <button type="button" class="mode-btn"
+                                        [class.active]="activeTab() === 'capacity'"
+                                        [attr.aria-pressed]="activeTab() === 'capacity'"
+                                        (click)="setTab('capacity')">Capacity</button>
+                            </div>
+
+                            @if (activeTab() === 'fields') {
+                                <div class="section-actions">
+                                    <!-- One way in. Disabled without game dates, because the days
+                                         it configures are derived from them — no dates, no days,
+                                         nothing to set up. -->
+                                    <button class="btn btn-sm btn-primary"
+                                            (click)="openTimeslotSetup()"
+                                            [disabled]="!canSetupTimeslots()"
+                                            [title]="canSetupTimeslots()
+                                                ? 'Set the shape of each game day'
+                                                : 'Add game dates first'">
+                                        <i class="bi bi-sliders me-1"></i> {{ setupButtonLabel() }}
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger"
+                                            (click)="showDeleteFieldsConfirm.set(true)"
+                                            [disabled]="isDeletingAllFields() || fields().length === 0">
+                                        @if (isDeletingAllFields()) {
+                                            <span class="spinner-border spinner-border-sm"></span>
+                                        } @else {
+                                            <i class="bi bi-trash me-1"></i>
+                                        }
+                                        Delete All
+                                    </button>
                                 </div>
                             }
                         </div>
-                    }
 
-                    <!-- ════════════════════════════════════════════════════ -->
-                    <!-- ── FIELDS TAB ──                                    -->
-                    <!-- ════════════════════════════════════════════════════ -->
                     @if (activeTab() === 'fields') {
                         <div class="tab-content">
-                            <!-- Action bar -->
-                            <div class="action-bar">
-                                <button class="btn btn-sm btn-primary" (click)="openAddFieldModal()">
-                                    <i class="bi bi-plus-circle me-1"></i> Add All
-                                </button>
-                                <button class="btn btn-sm btn-outline-secondary"
-                                        [class.active]="showClonePanel()"
-                                        (click)="toggleClonePanel()">
-                                    <i class="bi bi-copy me-1"></i> Clone
-                                    <i class="bi" [class.bi-chevron-down]="!showClonePanel()"
-                                       [class.bi-chevron-up]="showClonePanel()"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-danger ms-auto"
-                                        (click)="showDeleteFieldsConfirm.set(true)"
-                                        [disabled]="isDeletingAllFields() || fields().length === 0">
-                                    @if (isDeletingAllFields()) {
-                                        <span class="spinner-border spinner-border-sm"></span>
-                                    } @else {
-                                        <i class="bi bi-trash me-1"></i>
-                                    }
-                                    Delete All
-                                </button>
-                            </div>
+                            <!-- Fields, folded: one row per field per day, pools summarised.
+                                 Raw rows are per pool, so 31 fields × 6 pools is 186 near-identical
+                                 lines; folding them makes the day readable and puts the only
+                                 question that matters — which pools are missing — in the row. -->
+                            @if (fields().length > 0) {
+                                <!-- Three counts, deliberately reconciled in one line. The slots
+                                     are the answer to "will my games fit"; the rows are what is
+                                     on screen; the pool timeslots are what legacy displayed and
+                                     what is actually stored. Showing only the folded count read
+                                     as if we had created 6× fewer slots than legacy. -->
+                                <div class="fold-note">
+                                    <span>
+                                        <strong>{{ totalGameSlots() }}</strong> game slots
+                                        &middot; <strong>{{ foldedFieldCount() }}</strong> field/day rows
+                                        &middot; <strong>{{ fields().length }}</strong> pool timeslots
+                                    </span>
+                                    <span class="sort-control">
+                                        Sort
+                                        <button class="sort-btn" [class.active]="fieldSort() === 'field'"
+                                                (click)="fieldSort.set('field')">Field</button>
+                                        <button class="sort-btn" [class.active]="fieldSort() === 'start'"
+                                                (click)="fieldSort.set('start')">Start</button>
+                                    </span>
+                                </div>
 
-                            <!-- Clone Panel (collapsible) -->
-                            @if (showClonePanel()) {
-                                <div class="clone-panel">
-                                    <div class="clone-panel-header">
-                                        <span class="fw-semibold small">Bulk Clone Operations</span>
-                                    </div>
-                                    <!-- Clone by Field -->
-                                    @if (uniqueFields().length >= 2) {
-                                        <div class="clone-row">
-                                            <span class="clone-label">By Field:</span>
-                                            <select class="form-select form-select-sm"
-                                                    [ngModel]="cloneSourceFieldId()"
-                                                    (ngModelChange)="cloneSourceFieldId.set($event)">
-                                                <option value="">Source...</option>
-                                                @for (f of uniqueFields(); track f.id) {
-                                                    <option [value]="f.id">{{ f.name }}</option>
-                                                }
-                                            </select>
-                                            <i class="bi bi-arrow-right text-secondary"></i>
-                                            <select class="form-select form-select-sm"
-                                                    [ngModel]="cloneTargetFieldId()"
-                                                    (ngModelChange)="cloneTargetFieldId.set($event)">
-                                                <option value="">Target...</option>
-                                                @for (f of uniqueFields(); track f.id) {
-                                                    <option [value]="f.id">{{ f.name }}</option>
-                                                }
-                                            </select>
-                                            <button class="btn btn-sm btn-outline-secondary"
-                                                    (click)="cloneByField()"
-                                                    [disabled]="!cloneSourceFieldId() || !cloneTargetFieldId() || isCloningByField()">
-                                                @if (isCloningByField()) {
-                                                    <span class="spinner-border spinner-border-sm"></span>
-                                                } @else { Go }
-                                            </button>
-                                        </div>
-                                    }
-                                    <!-- Clone by Division -->
-                                    @if (divisions().length >= 2) {
-                                        <div class="clone-row">
-                                            <span class="clone-label">By Div:</span>
-                                            <select class="form-select form-select-sm"
-                                                    [ngModel]="cloneSourceDivId()"
-                                                    (ngModelChange)="cloneSourceDivId.set($event)">
-                                                <option value="">Source...</option>
-                                                @for (d of divisions(); track d.divId) {
-                                                    <option [value]="d.divId">{{ d.divName }}</option>
-                                                }
-                                            </select>
-                                            <i class="bi bi-arrow-right text-secondary"></i>
-                                            <select class="form-select form-select-sm"
-                                                    [ngModel]="cloneTargetDivId()"
-                                                    (ngModelChange)="cloneTargetDivId.set($event)">
-                                                <option value="">Target...</option>
-                                                @for (d of divisions(); track d.divId) {
-                                                    <option [value]="d.divId">{{ d.divName }}</option>
-                                                }
-                                            </select>
-                                            <button class="btn btn-sm btn-outline-secondary"
-                                                    (click)="cloneByDivision()"
-                                                    [disabled]="!cloneSourceDivId() || !cloneTargetDivId() || isCloningByDiv()">
-                                                @if (isCloningByDiv()) {
-                                                    <span class="spinner-border spinner-border-sm"></span>
-                                                } @else { Go }
-                                            </button>
-                                        </div>
-                                    }
-                                    <!-- Clone by DOW -->
-                                    <div class="clone-row">
-                                        <span class="clone-label">By DOW:</span>
-                                        <select class="form-select form-select-sm"
-                                                [ngModel]="cloneSourceDow()"
-                                                (ngModelChange)="cloneSourceDow.set($event)">
-                                            <option value="">Source...</option>
-                                            @for (day of daysOfWeek; track day) {
-                                                <option [value]="day">{{ day }}</option>
-                                            }
-                                        </select>
-                                        <i class="bi bi-arrow-right text-secondary"></i>
-                                        <select class="form-select form-select-sm"
-                                                [ngModel]="cloneTargetDow()"
-                                                (ngModelChange)="cloneTargetDow.set($event)">
-                                            <option value="">Target...</option>
-                                            @for (day of daysOfWeek; track day) {
-                                                <option [value]="day">{{ day }}</option>
-                                            }
-                                        </select>
-                                        <input type="time" class="form-control form-control-sm time-input"
-                                               [ngModel]="cloneDowStartTime()"
-                                               (ngModelChange)="cloneDowStartTime.set($event)"
-                                               placeholder="Start time (optional)">
-                                        <button class="btn btn-sm btn-outline-secondary"
-                                                (click)="cloneByDow()"
-                                                [disabled]="!cloneSourceDow() || !cloneTargetDow() || isCloningByDow()">
-                                            @if (isCloningByDow()) {
-                                                <span class="spinner-border spinner-border-sm"></span>
-                                            } @else { Go }
+                                <!-- A played day with no rows produces no section below, so the
+                                     gap is invisible in the table — and the build silently drops
+                                     every game on it. Name it above the table instead. -->
+                                @if (daysWithoutSlots().length > 0) {
+                                    <div class="day-gap-warning">
+                                        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                                        <span>
+                                            This age group plays
+                                            <strong>{{ daysWithoutSlots().join(', ') }}</strong>
+                                            but has no timeslots there. The schedule builder will
+                                            place no games on
+                                            {{ daysWithoutSlots().length === 1 ? 'that day' : 'those days' }}.
+                                        </span>
+                                        <button type="button" class="btn btn-sm btn-primary ms-auto"
+                                                (click)="openTimeslotSetup()">
+                                            <i class="bi bi-sliders me-1"></i> Fix in setup
                                         </button>
                                     </div>
-                                </div>
-                            }
+                                }
 
-                            <!-- Fields Table -->
-                            @if (fields().length > 0) {
                                 <div class="table-scroll-wrapper">
-                                    <table class="table table-sm table-hover timeslot-table mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th class="col-field">Field</th>
-                                                <th class="col-dow">DOW</th>
-                                                <th class="col-time">Start</th>
-                                                <th class="col-num">Interval</th>
-                                                <th class="col-num">Max</th>
-                                                <th class="col-div">Division</th>
-                                                <th class="col-actions-sm">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @for (f of fields(); track f.ai) {
+                                    @for (section of dowSections(); track section.dow) {
+                                        <div class="dow-head">
+                                            <span class="dow-name">{{ section.dow }}</span>
+                                            <span class="dow-meta">
+                                                {{ section.groups.length }}
+                                                {{ section.groups.length === 1 ? 'field' : 'fields' }}
+                                                · {{ section.summary }}
+                                            </span>
+                                        </div>
+                                        <table class="table table-sm table-hover timeslot-table mb-0">
+                                            <thead>
                                                 <tr>
-                                                    <td class="col-field">{{ f.fieldName }}</td>
-                                                    <td class="col-dow">{{ dowShort(f.dow) }}</td>
-                                                    <td class="col-time">{{ f.startTime }}</td>
-                                                    <td class="col-num">{{ f.gamestartInterval }}m</td>
-                                                    <td class="col-num">{{ f.maxGamesPerField }}</td>
-                                                    <td class="col-div">
-                                                        @if (f.divName) {
-                                                            <span class="badge bg-secondary-subtle text-secondary-emphasis">
-                                                                {{ f.divName }}
-                                                            </span>
-                                                        } @else {
-                                                            <span class="text-secondary">All</span>
-                                                        }
-                                                    </td>
-                                                    <td class="col-actions-sm">
-                                                        <button class="btn btn-sm btn-link text-primary p-0 me-1"
-                                                                (click)="openEditFieldModal(f)"
-                                                                title="Edit">
-                                                            <i class="bi bi-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-sm btn-link p-0 me-1"
-                                                                (click)="cloneFieldDow(f.ai)"
-                                                                title="Clone to next DOW">
-                                                            <span class="clone-badge">+D</span>
-                                                        </button>
-                                                        <button class="btn btn-sm btn-link text-danger p-0"
-                                                                (click)="deleteFieldTimeslot(f.ai)"
-                                                                title="Delete">
-                                                            <i class="bi bi-x-lg"></i>
-                                                        </button>
-                                                    </td>
+                                                    <th class="col-num">#</th>
+                                                    <th class="col-field">Field</th>
+                                                    <th class="col-time">Start</th>
+                                                    <th class="col-num">Interval</th>
+                                                    <th class="col-num">Max</th>
+                                                    <th class="col-pools">Pools</th>
                                                 </tr>
-                                            }
-                                        </tbody>
-                                    </table>
+                                            </thead>
+                                            <tbody>
+                                                @for (g of section.groups; track g.key; let i = $index) {
+                                                    <tr [class.row-partial]="!g.allPools">
+                                                        <td class="col-num text-secondary">{{ i + 1 }}</td>
+                                                        <td class="col-field">{{ g.fieldName }}</td>
+                                                        <td class="col-time">{{ g.startTime }}</td>
+                                                        <td class="col-num">{{ g.gamestartInterval }}m</td>
+                                                        <td class="col-num">{{ g.maxGamesPerField }}</td>
+                                                        <td class="col-pools">
+                                                            @if (g.allPools) {
+                                                                <span class="pool-all">{{ poolLabel(g) }}</span>
+                                                            } @else {
+                                                                @for (p of g.poolNames; track p) {
+                                                                    <span class="badge bg-secondary-subtle text-secondary-emphasis me-1">{{ p }}</span>
+                                                                }
+                                                                @if (g.missingPools > 0) {
+                                                                    <span class="pool-missing">
+                                                                        <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ g.missingPools }} missing
+                                                                    </span>
+                                                                }
+                                                            }
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    }
                                 </div>
                             } @else {
+                                <!-- Names the days back to the user. If the dates are wrong, this
+                                     is where it shows — before slots get built on them. -->
                                 <div class="empty-state-sm">
-                                    <p class="text-secondary mb-0">No field timeslots configured. Click <strong>Add All</strong> to create timeslots for all fields and divisions.</p>
+                                    @if (canSetupTimeslots()) {
+                                        <p class="text-secondary mb-0">
+                                            {{ selectedAgegroup()!.agegroupName }} plays
+                                            <strong>{{ playDaysLabel() }}</strong>.
+                                            Set up timeslots for those days to create the slots games get dropped onto.
+                                        </p>
+                                    } @else {
+                                        <p class="text-secondary mb-0">
+                                            Add <strong>game dates</strong> above first — timeslots are built
+                                            for the days this age group plays.
+                                        </p>
+                                    }
                                 </div>
                             }
                         </div>
@@ -483,6 +469,7 @@
                             }
                         </div>
                     }
+                    </section>
                 }
             }
         </div>
@@ -537,81 +524,144 @@
     </tsic-dialog>
 }
 
-<!-- Field Modal -->
-@if (showFieldModal()) {
-    <tsic-dialog [open]="true" size="sm" (requestClose)="closeFieldModal()">
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- Timeslot Setup — the only path that creates slots.            -->
+<!-- One row per game day, derived from the game dates: the build   -->
+<!-- engine reads field rows by day-of-week, so a day it does not   -->
+<!-- play is dead storage and a day with no rows is silently        -->
+<!-- skipped. Rows here are therefore not a choice.                 -->
+<!-- tsic-dialog is draggable by default — the grid stays readable  -->
+<!-- behind it.                                                     -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+@if (showSetupModal()) {
+    <tsic-dialog [open]="true" size="lg" (requestClose)="closeTimeslotSetup()">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
-                    {{ fieldModalMode() === 'add' ? 'Add Field Timeslots' : 'Edit Field Timeslot' }}
+                    <i class="bi bi-sliders me-2"></i>{{ setupButtonLabel() }}
                 </h5>
-                <button type="button" class="btn-close" (click)="closeFieldModal()" aria-label="Close"></button>
+                <button type="button" class="btn-close" (click)="closeTimeslotSetup()" aria-label="Close"></button>
             </div>
+
             <div class="modal-body">
-                <!-- Read-only context (edit mode only) -->
-                @if (fieldModalMode() === 'edit') {
-                    <div class="d-flex gap-4 mb-3 pb-3 border-bottom">
-                        <div>
-                            <div class="form-label fw-semibold text-secondary small mb-0">Field</div>
-                            <div>{{ fieldModalFieldName() }}</div>
-                        </div>
-                        <div>
-                            <div class="form-label fw-semibold text-secondary small mb-0">Division</div>
-                            <div>{{ fieldModalDivName() ?? 'All' }}</div>
-                        </div>
-                    </div>
-                }
+                <p class="text-secondary small mb-3">
+                    {{ selectedAgegroup()?.agegroupName }} plays <strong>{{ playDaysLabel() }}</strong>.
+                    Set the shape of each day — slots are created on every pool.
+                </p>
 
-                <div class="mb-3">
-                    <label for="modalDow" class="form-label fw-semibold">Day of Week</label>
-                    <select id="modalDow" class="form-select"
-                            [ngModel]="fieldModalDow()"
-                            (ngModelChange)="fieldModalDow.set($event)">
-                        @for (day of daysOfWeek; track day) {
-                            <option [value]="day">{{ day }}</option>
-                        }
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label for="modalStartTime" class="form-label fw-semibold">Start Time</label>
-                    <input id="modalStartTime" type="time" class="form-control"
-                           style="max-width: 140px;"
-                           [ngModel]="fieldModalStartTime()"
-                           (ngModelChange)="fieldModalStartTime.set($event)">
-                </div>
-                <div class="row">
-                    <div class="col-6 mb-3">
-                        <label for="modalInterval" class="form-label fw-semibold">Interval (min)</label>
-                        <input id="modalInterval" type="number" class="form-control"
-                               [ngModel]="fieldModalInterval()"
-                               (ngModelChange)="fieldModalInterval.set($event)"
-                               min="1" max="999">
-                    </div>
-                    <div class="col-6 mb-3">
-                        <label for="modalMaxGames" class="form-label fw-semibold">Max Games</label>
-                        <input id="modalMaxGames" type="number" class="form-control"
-                               [ngModel]="fieldModalMaxGames()"
-                               (ngModelChange)="fieldModalMaxGames.set($event)"
-                               min="1" max="99">
-                    </div>
+                <div class="table-responsive">
+                    <table class="table table-sm setup-table mb-0">
+                        <thead>
+                            <tr>
+                                <th class="col-day">Day</th>
+                                <th class="col-fields">Fields</th>
+                                <th class="col-time">Start</th>
+                                <th class="col-num">Every</th>
+                                <th class="col-num">Slots / field</th>
+                                <th class="col-num text-end">= Slots</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (day of setupDays(); track day.dow) {
+                                <tr>
+                                    <td class="col-day fw-semibold">{{ day.dow }}</td>
+                                    <td class="col-fields">
+                                        <button type="button" class="field-trigger"
+                                                [class.is-empty]="day.fieldIds.length === 0"
+                                                [attr.aria-expanded]="setupExpandedDow() === day.dow"
+                                                (click)="toggleSetupFieldPicker(day.dow)">
+                                            {{ fieldSummary(day) }}
+                                            <i class="bi bi-chevron-down ms-1"
+                                               [class.is-open]="setupExpandedDow() === day.dow"
+                                               aria-hidden="true"></i>
+                                        </button>
+                                    </td>
+                                    <td class="col-time">
+                                        <input type="time" class="form-control form-control-sm"
+                                               [ngModel]="day.startTime"
+                                               (ngModelChange)="setDayStartTime(day.dow, $event)"
+                                               [attr.aria-label]="day.dow + ' start time'">
+                                    </td>
+                                    <td class="col-num">
+                                        <div class="input-group input-group-sm suffix-input">
+                                            <input type="number" class="form-control form-control-sm"
+                                                   min="1" max="999"
+                                                   [ngModel]="day.gamestartInterval"
+                                                   (ngModelChange)="setDayInterval(day.dow, $event)"
+                                                   [attr.aria-label]="day.dow + ' minutes between games'">
+                                            <span class="input-group-text">min</span>
+                                        </div>
+                                    </td>
+                                    <td class="col-num">
+                                        <input type="number" class="form-control form-control-sm slots-input"
+                                               min="1" max="99"
+                                               [ngModel]="day.slotsPerField"
+                                               (ngModelChange)="setDaySlots(day.dow, $event)"
+                                               [attr.aria-label]="day.dow + ' slots per field'">
+                                    </td>
+                                    <td class="col-num text-end fw-semibold">{{ slotsForDay(day) }}</td>
+                                </tr>
+
+                                <!-- Field picker, inline under its own day. Same chip idiom used
+                                     elsewhere on this page; all fields start checked. -->
+                                @if (setupExpandedDow() === day.dow) {
+                                    <tr class="picker-row">
+                                        <td colspan="6">
+                                            <div class="picker-head">
+                                                <span class="fw-semibold small">Fields for {{ day.dow }}</span>
+                                                <button type="button" class="link-btn"
+                                                        (click)="setAllDayFields(day.dow, true)">All</button>
+                                                <button type="button" class="link-btn"
+                                                        (click)="setAllDayFields(day.dow, false)">None</button>
+                                            </div>
+                                            <div class="pick-grid pick-grid-scroll">
+                                                @for (f of eventFields(); track f.fieldId) {
+                                                    <label class="pick-chip"
+                                                           [class.picked]="dayHasField(day, f.fieldId)">
+                                                        <input type="checkbox"
+                                                               [checked]="dayHasField(day, f.fieldId)"
+                                                               (change)="toggleDayField(day.dow, f.fieldId)">
+                                                        {{ f.fieldName }}
+                                                    </label>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="5" class="text-end text-secondary">Total slots</td>
+                                <td class="col-num text-end fw-semibold">{{ setupTotalSlots() }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
 
-                @if (fieldModalMode() === 'add') {
-                    <div class="alert alert-info d-flex align-items-start py-2 mb-0">
-                        <i class="bi bi-info-circle me-2 mt-1"></i>
-                        <small>Creates timeslot entries for <strong>all fields</strong> and <strong>all divisions</strong> in this agegroup.</small>
+                <!-- Rows on days this agegroup does not play are never read by the build. Say so
+                     here, where saving is about to clear them. -->
+                @if (orphanSlotDays().length > 0) {
+                    <div class="alert alert-warning d-flex align-items-start gap-2 py-2 mt-3 mb-0">
+                        <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1" aria-hidden="true"></i>
+                        <span class="small">
+                            There are timeslots on <strong>{{ orphanSlotDays().join(', ') }}</strong>,
+                            which this age group has no game date for. The schedule builder never
+                            reads them.
+                        </span>
                     </div>
                 }
             </div>
+
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" (click)="closeFieldModal()">Cancel</button>
+                <button type="button" class="btn btn-outline-secondary" (click)="closeTimeslotSetup()">Cancel</button>
                 <button type="button" class="btn btn-primary"
-                        (click)="saveFieldModal()"
-                        [disabled]="isSavingField()">
-                    @if (isSavingField()) {
+                        (click)="saveTimeslotSetup()"
+                        [disabled]="isSavingSetup()">
+                    @if (isSavingSetup()) {
                         <span class="spinner-border spinner-border-sm me-1"></span>
                     }
-                    {{ fieldModalMode() === 'add' ? 'Add All' : 'Save Changes' }}
+                    Save Timeslots
                 </button>
             </div>
         </div>
@@ -641,5 +691,19 @@
         confirmVariant="danger"
         (confirmed)="deleteAllFields()"
         (cancelled)="showDeleteFieldsConfirm.set(false)">
+    </confirm-dialog>
+}
+
+<!-- Overwrite Confirmation — every copy replaces its target, so anything landing on
+     occupied ground has to say how much is being lost first. -->
+@if (pendingClone(); as pending) {
+    <confirm-dialog
+        [title]="pending.title"
+        [message]="pending.message"
+        confirmLabel="Replace"
+        cancelLabel="Cancel"
+        confirmVariant="warning"
+        (confirmed)="confirmPendingClone()"
+        (cancelled)="pendingClone.set(null)">
     </confirm-dialog>
 }

@@ -202,13 +202,22 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
         var timeslotsConfigured = agegroupsMissing.Count == 0;
 
-        // 4. Fields: every agegroup with active divisions has at least one field assignment.
-        //    Without this an agegroup with dates but zero fields passed prerequisites and
-        //    the build silently placed nothing.
-        var agegroupsMissingFields = await _autoBuildRepo
-            .GetAgegroupsMissingFieldAssignmentsAsync(jobId, season, year, ct);
+        // 4. Fields: per division, not per agegroup — timeslots are authored per division, so
+        //    "2030 Red" can be ready while "2030 White" is not. An agegroup-grained check
+        //    passed the whole agegroup off a single configured pool, and the build then
+        //    placed nothing for the rest.
+        var fieldIdsPerAgegroup = await _timeslotRepo
+            .GetFieldIdsPerAgegroupAsync(leagueId, season, year, ct);
+        var fieldIdsPerDivision = await _timeslotRepo
+            .GetFieldIdsPerDivisionAsync(leagueId, season, year, ct);
 
-        var fieldsConfigured = agegroupsMissingFields.Count == 0;
+        var divisionsMissingFields = FilterDivisionsMissingFields(
+                schedulableDivisions, fieldIdsPerAgegroup, fieldIdsPerDivision)
+            .Select(d => $"{d.AgegroupName} / {d.DivName}")
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var fieldsConfigured = divisionsMissingFields.Count == 0;
 
         return new PrerequisiteCheckResponse
         {
@@ -220,7 +229,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             TimeslotsConfigured = timeslotsConfigured,
             AgegroupsMissingTimeslots = agegroupsMissing,
             FieldsConfigured = fieldsConfigured,
-            AgegroupsMissingFields = agegroupsMissingFields,
+            DivisionsMissingFields = divisionsMissingFields,
             AllPassed = poolsAssigned && pairingsCreated && timeslotsConfigured && fieldsConfigured
         };
     }
@@ -1568,6 +1577,31 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                      && !d.DivName.Contains(DivisionConstants.Unassigned, StringComparison.OrdinalIgnoreCase)
                      && !d.DivName.StartsWith("DROPPED", StringComparison.OrdinalIgnoreCase))
             .ToList();
+    }
+
+    /// <summary>
+    /// Divisions the engine can resolve no fields for. Field timeslots are authored per
+    /// division ("2030 Red" and "2030 White" are configured separately), so readiness is a
+    /// per-division question — unlike play dates, which are authored per agegroup.
+    /// <para>
+    /// Mirrors the resolution in <see cref="BuildAsync"/>: a division's own rows win, and the
+    /// agegroup's rows (DivId IS NULL) are the fallback for divisions that have none. Both the
+    /// build gate and the scheduling checklist call this, so they cannot disagree about what
+    /// counts as configured.
+    /// </para>
+    /// </summary>
+    internal static List<CurrentDivisionSummary> FilterDivisionsMissingFields(
+        List<CurrentDivisionSummary> schedulableDivisions,
+        Dictionary<Guid, List<Guid>> fieldIdsPerAgegroup,
+        Dictionary<Guid, List<Guid>> fieldIdsPerDivision)
+    {
+        return schedulableDivisions
+            .Where(d => !HasAny(fieldIdsPerDivision, d.DivId)
+                     && !HasAny(fieldIdsPerAgegroup, d.AgegroupId))
+            .ToList();
+
+        static bool HasAny(Dictionary<Guid, List<Guid>> map, Guid key) =>
+            map.TryGetValue(key, out var ids) && ids.Count > 0;
     }
 
     // ══════════════════════════════════════════════════════════

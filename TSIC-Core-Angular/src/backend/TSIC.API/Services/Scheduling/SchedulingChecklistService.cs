@@ -95,30 +95,49 @@ public sealed class SchedulingChecklistService : ISchedulingChecklistService
             Offenders = poolOffenders
         };
 
-        // ── Steps 2 & 3: Dates / Fields per agegroup ──
-        var missingDates = new List<string>();
-        var missingFields = new List<string>();
-        foreach (var ag in relevantAgegroups)
-        {
-            readinessByAg.TryGetValue(ag.AgegroupId, out var readiness);
-            if ((readiness?.DateCount ?? 0) == 0) missingDates.Add(ag.AgegroupName ?? "");
-            if ((readiness?.FieldCount ?? 0) == 0) missingFields.Add(ag.AgegroupName ?? "");
-        }
+        // ── Step 3: Assign Timeslots ──
+        // Two grains in one step, matching how the config is authored and how the engine
+        // resolves it: play dates belong to the agegroup, field timeslots to the division.
+        // Checking fields per agegroup let one configured pool pass the whole agegroup while
+        // the build placed nothing for its siblings.
+        var schedulableDivisions = AutoBuildScheduleService.FilterSchedulableDivisions(divisionSummaries);
+
+        var missingDates = relevantAgegroups
+            .Where(ag => (readinessByAg.TryGetValue(ag.AgegroupId, out var r) ? r.DateCount : 0) == 0)
+            .Select(ag => ag.AgegroupName ?? "")
+            .ToList();
         var dates = new ChecklistAgegroupStepDto
         {
             Complete = missingDates.Count == 0,
             MissingAgegroups = missingDates
         };
-        var fields = new ChecklistAgegroupStepDto
+
+        var fieldIdsPerAgegroup = await _timeslotRepo.GetFieldIdsPerAgegroupAsync(leagueId, season, year, ct);
+        var fieldIdsPerDivision = await _timeslotRepo.GetFieldIdsPerDivisionAsync(leagueId, season, year, ct);
+
+        var missingFieldsByAgegroup = AutoBuildScheduleService
+            .FilterDivisionsMissingFields(schedulableDivisions, fieldIdsPerAgegroup, fieldIdsPerDivision)
+            .GroupBy(d => d.AgegroupName)
+            .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new ChecklistAgegroupDivisionsDto
+            {
+                AgegroupName = g.Key,
+                DivNames = g.Select(d => d.DivName)
+                    .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+                    .ToList()
+            })
+            .ToList();
+
+        var fields = new ChecklistDivisionStepDto
         {
-            Complete = missingFields.Count == 0,
-            MissingAgegroups = missingFields
+            Complete = missingFieldsByAgegroup.Count == 0,
+            MissingDivisionCount = missingFieldsByAgegroup.Sum(a => a.DivNames.Count),
+            MissingByAgegroup = missingFieldsByAgegroup
         };
 
         // ── Step 4: Build rules (game guarantee) ──
         // Raw cascade reads only — the hub's Build Rules tab self-heals from pairings on visit,
         // and this status flipping green after that visit is exactly the desired behavior.
-        var schedulableDivisions = AutoBuildScheduleService.FilterSchedulableDivisions(divisionSummaries);
         var agGuarantee = agProfiles
             .Where(p => p.GameGuarantee.HasValue)
             .ToDictionary(p => p.AgegroupId, p => p.GameGuarantee!.Value);

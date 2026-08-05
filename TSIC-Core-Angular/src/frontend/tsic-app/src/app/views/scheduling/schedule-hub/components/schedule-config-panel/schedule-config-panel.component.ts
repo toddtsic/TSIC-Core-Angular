@@ -89,6 +89,28 @@ export class ScheduleConfigPanelComponent {
   resetConfirmed = output<DevResetOptions>();
   toolSelected = output<ScheduleTool>();
 
+  /**
+   * Hides the Tools menu and Reset from this header. ACCESS ONLY — every handler, output,
+   * dialog and parent wiring below is intact, so flipping this to `true` puts both back
+   * exactly as they were.
+   *
+   * Why they went (2026-08-04):
+   *
+   *   Tools  duplicated the Scheduling Checklist. Pool Assignment, Manage Pairings and Manage
+   *          Timeslots ARE steps 1-3, and reaching them from inside the build screen invites a
+   *          scheduler to reconfigure the inputs while looking at the output of the last build.
+   *          The checklist is the front door; this was a second one opening onto the same rooms.
+   *
+   *   Reset  is not a config reset. It emits games + dates + fieldTimeslots (see
+   *          onResetConfirmed) — one button that throws away steps 3 and 4 of the checklist.
+   *          Far too destructive to sit one click from a schedule, in a red outline, next to
+   *          a tools menu.
+   *
+   * Note this is the only entry point to `activeTool`, so the hub's embedded-tool mode is now
+   * unreachable. That is intended: each of those tools has its own page off the checklist.
+   */
+  readonly showAdvancedHeaderActions = false;
+
   // ── Tools dropdown state ──
   readonly toolsDropdownOpen = signal(false);
   readonly tools: ToolDef[] = [

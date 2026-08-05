@@ -148,11 +148,9 @@ public interface IAutoBuildRepository
     Task<List<string>> GetAgegroupsMissingTimeslotDatesAsync(
         Guid jobId, string season, string year, CancellationToken ct = default);
 
-    /// <summary>
-    /// Get agegroup names that have active divisions but no field assignments configured.
-    /// </summary>
-    Task<List<string>> GetAgegroupsMissingFieldAssignmentsAsync(
-        Guid jobId, string season, string year, CancellationToken ct = default);
+    // Field-assignment readiness is per division, not per agegroup — see
+    // AutoBuildScheduleService.FilterDivisionsMissingFields, which resolves it from
+    // ITimeslotRepository.GetFieldIdsPer{Agegroup,Division}Async.
 
     // ── Cross-Event Analysis ──────────────────────────────────
 
