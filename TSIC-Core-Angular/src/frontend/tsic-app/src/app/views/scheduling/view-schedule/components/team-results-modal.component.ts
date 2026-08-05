@@ -234,15 +234,14 @@ interface ResultGroup {
         }
 
         /* Same object as the games-tab record button, and it has to STAY the same object —
-           a W-L-T reads identically wherever it appears or it stops being one token.
-           The border is transparent rather than absent so the metrics match games-tab
-           exactly, where the border is what appears on hover; here there is no hover state
-           to earn, because this is a label, not a control.
+           a W-L-T reads identically wherever it appears or it stops being one token. Both
+           carry the pill border; if one ever loses it, the other is wrong too, not right.
+           The only difference is the affordance: there it is a control, here a label.
            Never green/red: the record is a season stat, not a verdict. */
         .record-chip {
             flex-shrink: 0;
             padding: 0 var(--space-2);
-            border: 1px solid transparent;
+            border: 1px solid var(--bs-border-color);
             border-radius: var(--radius-full);
             background: transparent;
             font-size: var(--font-size-xs);

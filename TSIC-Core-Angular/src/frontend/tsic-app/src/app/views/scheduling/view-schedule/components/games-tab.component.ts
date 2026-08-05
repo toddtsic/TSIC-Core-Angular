@@ -748,15 +748,19 @@ type ScheduleRow =
            summary, so clicking it to see the games behind it is self-explanatory.
            Note the record is null for bracket games (pool-play teams only), so those
            rows have no results entry point — accepted; it isn't relevant by then. */
-        /* Border is TRANSPARENT at rest, not absent — the pill still reserves its exact
-           footprint, so revealing it on hover cannot reflow the row. Four bordered objects
-           per row (two records, two stars) put ~80 little boxes on a 20-row screen, all at
-           the same visual weight as the score you actually came to read. The record is a
-           season stat, not a result: it should be quiet text until you reach for it. */
+        /* The pill border STAYS. It is what marks the record as its own object — a control
+           you can click, distinct from the team name it sits beside — and without it the
+           W-L-T degrades into a second, dimmer piece of the name. It is also the token's
+           shared identity across surfaces: the same pill appears in the team-results
+           fly-in (.record-chip there), and the two must not drift apart.
+
+           Briefly made transparent-at-rest in cbebc999 to thin out the row's furniture.
+           That was the wrong economy — it bought quiet by dissolving an affordance. If the
+           row needs calming, take it out of something that is not carrying meaning. */
         .record-btn {
             appearance: none;
             padding: 0 var(--space-2);
-            border: 1px solid transparent;
+            border: 1px solid var(--bs-border-color);
             border-radius: var(--radius-full);
             background: transparent;
             font: inherit;
