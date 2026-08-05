@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RichTextEditorAllModule } from '@syncfusion/ej2-angular-richtexteditor';
 import { JobConfigService } from '../job-config.service';
-import { JOB_CONFIG_RTE_TOOLS, JOB_CONFIG_RTE_HEIGHT, toDateOnly } from '../shared/rte-config';
+import { JOB_CONFIG_RTE_HEIGHT, toDateOnly } from '../shared/rte-config';
+import { TSIC_RTE_TOOLS } from '@shared-ui/rte-config';
 import type {
   UpdateJobConfigPaymentRequest,
   CreateAdminChargeRequest,
@@ -30,7 +31,7 @@ interface AdminChargeDraft {
 export class PaymentTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
 
-  readonly rteTools = JOB_CONFIG_RTE_TOOLS;
+  readonly rteTools = TSIC_RTE_TOOLS;
   readonly rteHeight = JOB_CONFIG_RTE_HEIGHT;
 
   // ── Local form model ──

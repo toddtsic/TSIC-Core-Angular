@@ -1,12 +1,7 @@
-/** Shared Rich Text Editor toolbar config for Job Config HTML fields. */
-export const JOB_CONFIG_RTE_TOOLS = {
-  items: [
-    'Bold', 'Italic', 'Underline', '|',
-    'FontColor', 'BackgroundColor', '|',
-    'OrderedList', 'UnorderedList', '|',
-    'CreateLink', '|', 'Undo', 'Redo',
-  ],
-};
+// The toolbar config that used to live here is now the app-wide canonical one:
+// `TSIC_RTE_TOOLS` in @shared-ui/rte-config. It moved because shared-ui and the
+// scheduling rescheduler both mount an RTE too, and a shared component reaching
+// into views/configure/job for its toolbar is the wrong direction of dependency.
 
 export const JOB_CONFIG_RTE_HEIGHT = 200;
 

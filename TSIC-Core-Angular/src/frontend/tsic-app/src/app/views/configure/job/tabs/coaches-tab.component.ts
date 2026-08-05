@@ -4,7 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { RichTextEditorAllModule } from '@syncfusion/ej2-angular-richtexteditor';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { JobConfigService } from '../job-config.service';
-import { JOB_CONFIG_RTE_TOOLS, JOB_CONFIG_RTE_HEIGHT } from '../shared/rte-config';
+import { JOB_CONFIG_RTE_HEIGHT } from '../shared/rte-config';
+import { TSIC_RTE_TOOLS } from '@shared-ui/rte-config';
 import type { UpdateJobConfigCoachesRequest, AdultUsLaxMode } from '@core/api';
 
 @Component({
@@ -17,7 +18,7 @@ import type { UpdateJobConfigCoachesRequest, AdultUsLaxMode } from '@core/api';
 export class CoachesTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
 
-  readonly rteTools = JOB_CONFIG_RTE_TOOLS;
+  readonly rteTools = TSIC_RTE_TOOLS;
   readonly rteHeight = JOB_CONFIG_RTE_HEIGHT;
 
   bRegistrationAllowStaff = linkedSignal(() => this.svc.coaches()?.bRegistrationAllowStaff ?? null);

@@ -7,7 +7,7 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
 import { BulletinAdminService } from '../services/bulletin-admin.service';
 import { ToastService } from '../../../../shared-ui/toast.service';
 import { AuthService } from '../../../../infrastructure/services/auth.service';
-import { JOB_CONFIG_RTE_TOOLS } from '../../../configure/job/shared/rte-config';
+import { TSIC_RTE_TOOLS } from '@shared-ui/rte-config';
 import type {
     BulletinAdminDto,
     CreateBulletinRequest,
@@ -411,7 +411,7 @@ export class BulletinFormModalComponent implements OnInit {
     private readonly toastService = inject(ToastService);
     private readonly authService = inject(AuthService);
 
-    rteTools = JOB_CONFIG_RTE_TOOLS;
+    rteTools = TSIC_RTE_TOOLS;
     rteHeight = 300;
     textTokens = TEXT_TOKENS;
     simulateFlags = SIMULATE_FLAGS;

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, input, model, viewChild } from '@angular/core';
 import { RichTextEditorAllModule, RichTextEditorComponent } from '@syncfusion/ej2-angular-richtexteditor';
+import { TSIC_RTE_TOOLS } from '@shared-ui/rte-config';
 
 /**
  * The one email-body compose widget. Every surface that lets a user author an email body
@@ -37,14 +38,12 @@ export class EmailBodyEditorComponent {
     readonly placeholder = input('Compose your email…');
     readonly disabled = input(false);
 
-    // Deliberately no font-name/size or image tools: bodies travel through token
-    // substitution and land in arbitrary mail clients — keep the markup simple.
-    readonly rteTools = {
-        items: ['Bold', 'Italic', 'Underline', '|',
-            'FontColor', 'BackgroundColor', '|',
-            'OrderedList', 'UnorderedList', '|',
-            'CreateLink', '|', 'Undo', 'Redo']
-    };
+    // Was a byte-identical copy of the app-wide toolbar; now the shared one. The old
+    // note still holds and is why that config omits font-name/size: bodies travel
+    // through token substitution and land in arbitrary mail clients, so keep the
+    // markup simple. Tables now ride along — mail clients render <table> unevenly,
+    // so review a real send before leaning on one in an email body.
+    readonly rteTools = TSIC_RTE_TOOLS;
 
     private readonly rte = viewChild.required<RichTextEditorComponent>('rte');
 

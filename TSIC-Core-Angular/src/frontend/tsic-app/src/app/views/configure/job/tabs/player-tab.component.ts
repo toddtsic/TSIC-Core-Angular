@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RichTextEditorAllModule } from '@syncfusion/ej2-angular-richtexteditor';
 import { JobConfigService } from '../job-config.service';
-import { JOB_CONFIG_RTE_TOOLS, JOB_CONFIG_RTE_HEIGHT, toDateOnly } from '../shared/rte-config';
+import { JOB_CONFIG_RTE_HEIGHT, toDateOnly } from '../shared/rte-config';
+import { TSIC_RTE_TOOLS } from '@shared-ui/rte-config';
 import { RegistrationReadinessComponent } from '../components/registration-readiness.component';
 import type { UpdateJobConfigPlayerRequest } from '@core/api';
 
@@ -17,7 +18,7 @@ import type { UpdateJobConfigPlayerRequest } from '@core/api';
 export class PlayerTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
 
-  readonly rteTools = JOB_CONFIG_RTE_TOOLS;
+  readonly rteTools = TSIC_RTE_TOOLS;
   readonly rteHeight = JOB_CONFIG_RTE_HEIGHT;
 
   bRegistrationAllowPlayer = linkedSignal(() => this.svc.player()?.bRegistrationAllowPlayer ?? null);
