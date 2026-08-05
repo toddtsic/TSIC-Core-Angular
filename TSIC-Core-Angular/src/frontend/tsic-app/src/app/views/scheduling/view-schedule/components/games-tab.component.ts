@@ -44,15 +44,22 @@ type ScheduleRow =
             <div class="games-grid desktop-view" role="table" aria-label="Games schedule">
                 <!-- Header -->
                 <div class="grid-header" role="row">
-                    <span class="hdr hdr-num" role="columnheader" aria-label="Row number"></span>
                     <span class="hdr hdr-dt" role="columnheader">Date / Time</span>
                     <span class="hdr hdr-loc" role="columnheader">Location</span>
                     <span class="hdr hdr-pool" role="columnheader">Pool</span>
                     <span class="hdr hdr-home" role="columnheader">Home</span>
                     <span class="hdr hdr-score" role="columnheader">Score</span>
                     <span class="hdr hdr-away" role="columnheader">Away</span>
-                    <span class="hdr hdr-status" role="columnheader">
-                        Status
+                    <!-- Header is the info icon ALONE, no "Status" word. The column shows
+                         exceptions only — status 6 (Final) is auto-derived from score entry
+                         and suppressed, so every cell is empty on a normal row and the
+                         widest thing this column ever holds is a one-letter chip. Spelling
+                         out "Status" made the HEADER the widest thing in a max-content
+                         track, so a label was setting the width of a column that renders
+                         nothing 99% of the time. The word is carried by aria-label and the
+                         icon's key popup; an actual chip carries its full text in title +
+                         aria-label. -->
+                    <span class="hdr hdr-status" role="columnheader" aria-label="Status">
                         <span class="status-key" tabindex="0" role="button" aria-label="Show status key">
                             <i class="bi bi-info-circle" aria-hidden="true"></i>
                             <span class="status-key-popup" role="tooltip">
@@ -82,9 +89,6 @@ type ScheduleRow =
                          [style.--ag-tint]="game.color"
                          [class.row-dimmed]="game.gStatusCode === 5">
 
-                        <!-- Row number -->
-                        <span class="cell cell-num" role="cell" aria-colindex="1">{{ i + 1 }}</span>
-
                         <!-- Date/Time — admins: click to open the full edit modal.
                              The trigger is a REAL button nested inside the cell rather than
                              ARIA bolted onto the cell itself: the span has to keep role="cell"
@@ -92,7 +96,7 @@ type ScheduleRow =
                              cell and a button. Nesting also hands us Enter/Space/focus/
                              announcement for free — this used to be four hand-rolled
                              attribute bindings plus two keydown handlers. -->
-                        <span class="cell cell-dt" role="cell" aria-colindex="2">
+                        <span class="cell cell-dt" role="cell" aria-colindex="1">
                             @if (canScore()) {
                                 <button type="button" class="dt-edit"
                                         [attr.aria-label]="'Edit game #' + game.gid"
@@ -101,13 +105,19 @@ type ScheduleRow =
                                     <span class="dt-time">{{ formatTime(game.gDate) }}</span>
                                 </button>
                             } @else {
-                                <span class="dt-date">{{ formatDate(game.gDate) }}</span>
-                                <span class="dt-time">{{ formatTime(game.gDate) }}</span>
+                                <!-- .dt-stack mirrors .dt-edit's box so both permission
+                                     branches sit on the row's line identically. Without a
+                                     wrapper the two spans are loose inlines and would sit
+                                     side by side instead of stacking. -->
+                                <span class="dt-stack">
+                                    <span class="dt-date">{{ formatDate(game.gDate) }}</span>
+                                    <span class="dt-time">{{ formatTime(game.gDate) }}</span>
+                                </span>
                             }
                         </span>
 
                         <!-- Location -->
-                        <span class="cell cell-loc" role="cell" aria-colindex="3">
+                        <span class="cell cell-loc" role="cell" aria-colindex="2">
                             @if (mapsUrl(game)) {
                                 <a [href]="mapsUrl(game)" target="_blank" rel="noopener"
                                    class="loc-link" [title]="game.fAddress || game.fName">
@@ -120,32 +130,36 @@ type ScheduleRow =
 
                         <!-- Pool — age-group swatch + label. The swatch is decorative (the label
                              names the age group), so color is never the sole carrier. -->
-                        <span class="cell cell-pool" role="cell" aria-colindex="4">
+                        <span class="cell cell-pool" role="cell" aria-colindex="3">
                             <span class="ag-dot" aria-hidden="true"
                                   [class.ag-dot--empty]="!game.color"></span>
                             <span class="ag-label">{{ game.agDiv }}</span>
                         </span>
 
-                        <!-- Home team. Child order is the MIRROR of away (name · record · star
-                             vs star · name · record), not a copy of it, and that is load
-                             bearing rather than cosmetic.
+                        <!-- Home season record — its OWN cell, outboard of the name. It is a
+                             fixed-width object and the name beside it is not, so sharing a
+                             box made the pill's position a function of name length (see
+                             .cell-home-rec in the styles). -->
+                        <span class="cell cell-home-rec" role="cell" aria-colindex="4">
+                            @if (game.t1Record && game.t1Id) {
+                                <button type="button" class="record-btn"
+                                        [attr.title]="'View ' + game.t1Name + ' results'"
+                                        [attr.aria-label]="'View ' + game.t1Name + ' results, record ' + game.t1Record"
+                                        (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Record }}</button>
+                            }
+                        </span>
 
-                             This cell is right-aligned, so its text is flush on the RIGHT.
-                             A sibling placed BEFORE the name sits at the name element's left
-                             edge — and a wrapped name's element fills the whole column while
-                             its text sits ragged somewhere inside it, so the star stranded
-                             itself ~90px from the team it belonged to. Anything placed AFTER
-                             the name touches the flush edge and cannot detach, which is why
-                             the record pill never had the problem. Away is immune the other
-                             way round: left-aligned text is flush LEFT, so its leading star
-                             is always adjacent.
+                        <!-- Home team. The cell is ONE INLINE TEXT RUN (see .cell-home in the
+                             styles), so star, name and annotation flow and wrap together.
+                             That is what keeps the star beside its team: as a flex sibling it
+                             anchored to the name ELEMENT's edge, and a wrapped name's element
+                             fills the whole column while its text sits ragged inside it,
+                             stranding the star ~90px away. Inline content has no element edge
+                             to anchor to.
 
-                             Mirroring also puts both stars beside the score, so "my teams"
-                             reads as two ticks flanking the spine instead of drifting out to
-                             the ragged outer edges.
-
-                             The win caret is exempt from all of this — it lives INSIDE the
-                             name text (see .win-mark), so it rides the characters. -->
+                             The win cue is not here at all — it is a gold underline on the
+                             name itself (.team-name.is-winner), which is why this cell no
+                             longer needs a marker child on either side. -->
                         <span class="cell cell-home" role="cell" aria-colindex="5">
                             @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
                             @if (game.t1Id) {
@@ -157,18 +171,15 @@ type ScheduleRow =
                                 </button>
                             }
                             @if (game.t1Id) {
-                                <button type="button" class="team-name team-link"
-                                        [attr.title]="'View ' + game.t1Name + ' results'"
-                                        [attr.aria-label]="'View ' + game.t1Name + ' results' + (isT1Winner(game) ? ', winner' : '')"
-                                        (click)="viewTeamResults.emit(game.t1Id!)">@if (isT1Winner(game)) {<i class="bi bi-caret-right-fill win-mark win-mark--home" aria-hidden="true"></i>}{{ teamLabel(game.t1Name) }}</button>
+                                <span class="team-name team-link" role="button" tabindex="0"
+                                      [class.is-winner]="isT1Winner(game)"
+                                      [attr.title]="'View ' + game.t1Name + ' results'"
+                                      [attr.aria-label]="'View ' + game.t1Name + ' results' + (isT1Winner(game) ? ', winner' : '')"
+                                      (click)="viewTeamResults.emit(game.t1Id!)"
+                                      (keydown.enter)="viewTeamResults.emit(game.t1Id!)"
+                                      (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t1Id!)">{{ teamLabel(game.t1Name) }}</span>
                             } @else {
-                                <span class="team-name">@if (isT1Winner(game)) {<i class="bi bi-caret-right-fill win-mark win-mark--home" aria-hidden="true"></i>}{{ teamLabel(game.t1Name) }}</span>
-                            }
-                            @if (game.t1Record && game.t1Id) {
-                                <button type="button" class="record-btn"
-                                        [attr.title]="'View ' + game.t1Name + ' results'"
-                                        [attr.aria-label]="'View ' + game.t1Name + ' results, record ' + game.t1Record"
-                                        (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Record }}</button>
+                                <span class="team-name" [class.is-winner]="isT1Winner(game)">{{ teamLabel(game.t1Name) }}</span>
                             }
                             @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
                         </span>
@@ -227,18 +238,23 @@ type ScheduleRow =
                             </span>
                         }
 
-                        <!-- Away team. Mirror of home: the win marker is the LAST child so it
-                             lands on this cell's outer (right) edge. -->
+                        <!-- Away team. The star PRECEDES the name here exactly as it does on
+                             the home side — deliberately NOT mirrored.
+
+                             Inline flow puts "first" at the start of line one and "last" at
+                             the end of the last line. A mirrored away cell therefore put its
+                             star after the final character of a wrapped name, and when the
+                             name filled the track (which fit-content guarantees for whichever
+                             name is longest) there was no room left, so the star dropped to a
+                             line of its own below the team. The home side never showed this
+                             because its star was already first.
+
+                             There is no inline arrangement that is both mirrored and always
+                             on the first line, so first-line wins: "the star precedes the
+                             team name" is one rule for both sides, and the star is invisible
+                             at rest anyway unless the team is followed. -->
                         <span class="cell cell-away" role="cell" aria-colindex="9">
                             @if (game.t2SlotLabel) { <span class="seed-tag">{{ game.t2SlotLabel }}</span> }
-                            @if (game.t2Id) {
-                                <button type="button" class="team-name team-link"
-                                        [attr.title]="'View ' + game.t2Name + ' results'"
-                                        [attr.aria-label]="'View ' + game.t2Name + ' results' + (isT2Winner(game) ? ', winner' : '')"
-                                        (click)="viewTeamResults.emit(game.t2Id!)">{{ teamLabel(game.t2Name) }}@if (isT2Winner(game)) {<i class="bi bi-caret-left-fill win-mark win-mark--away" aria-hidden="true"></i>}</button>
-                            } @else {
-                                <span class="team-name">{{ teamLabel(game.t2Name) }}@if (isT2Winner(game)) {<i class="bi bi-caret-left-fill win-mark win-mark--away" aria-hidden="true"></i>}</span>
-                            }
                             @if (game.t2Id) {
                                 <button type="button" class="team-star"
                                         [class.is-on]="isFollowed(game.t2Id)"
@@ -247,17 +263,32 @@ type ScheduleRow =
                                     <i class="bi" [class.bi-star-fill]="isFollowed(game.t2Id)" [class.bi-star]="!isFollowed(game.t2Id)"></i>
                                 </button>
                             }
+                            @if (game.t2Id) {
+                                <span class="team-name team-link" role="button" tabindex="0"
+                                      [class.is-winner]="isT2Winner(game)"
+                                      [attr.title]="'View ' + game.t2Name + ' results'"
+                                      [attr.aria-label]="'View ' + game.t2Name + ' results' + (isT2Winner(game) ? ', winner' : '')"
+                                      (click)="viewTeamResults.emit(game.t2Id!)"
+                                      (keydown.enter)="viewTeamResults.emit(game.t2Id!)"
+                                      (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t2Id!)">{{ teamLabel(game.t2Name) }}</span>
+                            } @else {
+                                <span class="team-name" [class.is-winner]="isT2Winner(game)">{{ teamLabel(game.t2Name) }}</span>
+                            }
+                            @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
+                        </span>
+
+                        <!-- Away season record — own cell, outboard of the name (see home). -->
+                        <span class="cell cell-away-rec" role="cell" aria-colindex="10">
                             @if (game.t2Record && game.t2Id) {
                                 <button type="button" class="record-btn"
                                         [attr.title]="'View ' + game.t2Name + ' results'"
                                         [attr.aria-label]="'View ' + game.t2Name + ' results, record ' + game.t2Record"
                                         (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Record }}</button>
                             }
-                            @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
                         </span>
 
                         <!-- Status chip -->
-                        <span class="cell cell-status" role="cell" aria-colindex="10">
+                        <span class="cell cell-status" role="cell" aria-colindex="11">
                             @if (showStatusBadge(game)) {
                                 <span class="status-chip"
                                       [attr.title]="game.gStatusText"
@@ -283,14 +314,12 @@ type ScheduleRow =
                         </div>
                     } @else {
                         @let game = row.game;
-                        @let i = row.index;
                     <div class="game-card"
                          [class.card-tinted]="!!game.color"
                          [style.--ag-tint]="game.color"
                          [class.card-dimmed]="game.gStatusCode === 5">
-                        <!-- Header: #, date/time (admin: tap to edit), pool, status -->
+                        <!-- Header: date/time (admin: tap to edit), pool, status -->
                         <div class="card-top">
-                            <span class="card-num">{{ i + 1 }}</span>
                             @if (canScore()) {
                                 <button type="button" class="card-dt card-dt-editable"
                                         [attr.aria-label]="'Edit game #' + game.gid"
@@ -428,10 +457,20 @@ type ScheduleRow =
            on a narrow desktop and push the row number off the left edge, unreachable.
            Safe falls back to start-alignment the moment content exceeds the container.
 
-           minmax(0, max-content) on the two name tracks: caps them at their content (so
-           they never stretch) while still allowing them to shrink and ellipsize when the
-           window is tight. They are the only shrinkable tracks, so they absorb the squeeze
-           first — which is right, they are the only cells with an ellipsis to fall back on.
+           fit-content(--name-col) on the two name tracks, NOT minmax(0, --name-col). The
+           difference is the whole ballgame and it is easy to get wrong: minmax sets a base
+           of 0 and a growth limit of --name-col, and Grid's "maximize tracks" step grows
+           every track toward its limit out of available free space BEFORE justify-content
+           runs. So minmax(0, 17rem) is not "content, capped at 17rem" — it is "17rem
+           whenever the window has room," regardless of how short the names are. That is
+           what put a fixed ~17rem box around a median 24-character name and pooled the
+           slack on the ragged side, which is the empty band this grid keeps regrowing.
+
+           fit-content(17rem) is min(max-content, 17rem): the track is exactly as wide as
+           the widest name present and never wider than the cap. It still shrinks under a
+           tight window, so these remain the only two shrinkable tracks and still absorb the
+           squeeze first — which is right, they are the only cells whose content can WRAP
+           instead of being clipped.
 
            NOTE: no backticks anywhere in this styles block — it is a template literal. */
         .games-grid {
@@ -439,9 +478,9 @@ type ScheduleRow =
             /* Cap on the two team-name tracks — THE tuning knob for this grid.
                Measured over LFTC's 2,556 names (after the club-prefix collapse): p50 = 24
                characters, p75 = 29, p90 = 34, p99 = 40, max = 45. The track also carries the
-               star, the record pill and two gaps (~4.6rem), so 17rem leaves roughly 31
-               characters of name — about the 85th percentile. Names past that wrap rather
-               than clip.
+               star and one gap (~1.6rem), so 17rem leaves roughly 31 characters of name —
+               about the 85th percentile. Names past that wrap rather than clip. (The record
+               pill used to sit in here too; it has its own track now.)
 
                Uncapped (max-content) the track sized to the single longest name in the whole
                event, so a median row carried ~21 characters of dead space, and because the
@@ -454,28 +493,46 @@ type ScheduleRow =
                band and wrap more. Nothing else depends on the value. */
             --name-col: 17rem;
             grid-template-columns:
-                2rem                    /* #          */
-                5.5rem                  /* date/time  */
-                minmax(0, max-content)  /* location   */
-                max-content             /* pool       */
-                minmax(0, var(--name-col))  /* home →     */
-                max-content             /* home score */
-                min-content             /* dash       */
-                max-content             /* away score */
-                minmax(0, var(--name-col))  /* ← away     */
-                max-content;            /* status     */
+                max-content             /* date/time   */
+                minmax(0, max-content)  /* location    */
+                max-content             /* pool        */
+                max-content                 /* home record */
+                fit-content(var(--name-col))/* home →      */
+                max-content                 /* home score  */
+                min-content                 /* dash        */
+                max-content                 /* away score  */
+                fit-content(var(--name-col))/* ← away      */
+                max-content                 /* away record */
+                max-content;                /* status      */
             justify-content: safe center;
             column-gap: var(--space-2);
             margin: 0 var(--space-2);
         }
 
-        /* Each row inherits parent column sizing via subgrid */
+        /* Each row inherits parent column sizing via subgrid.
+
+           align-items: BASELINE, not center. Cells in this row are not all one line tall:
+           date/time is always two, and a team name past the --name-col cap wraps to two.
+           Under center, every one-line cell floated to the middle of whatever the tallest
+           cell happened to be, so on a wrapped row the score, both records and the opposing
+           team all sank half a line while the pool label — a flex box centring its own dot
+           and text — sank further still. The row lost its line.
+
+           Baseline pins the FIRST baseline of every cell to one line: the date's first line,
+           the pool label, both names' first lines, the scores, the records and the status
+           chip all sit on it, and only genuine overflow (the time, a name's second line)
+           hangs below. That is what a ledger does, and it means row height can vary without
+           the scoreline ever moving.
+
+           Baseline rather than start: start aligns box TOPS, and these cells run different
+           font sizes (xs furniture, sm names, base scores), so their tops do not correspond
+           to anything the eye reads. Baselines do. */
         .grid-header,
         .game-row {
             grid-column: 1 / -1;
             display: grid;
             grid-template-columns: subgrid;
-            align-items: center;
+            align-items: baseline;
         }
 
         /* ── Header ── */
@@ -494,12 +551,37 @@ type ScheduleRow =
             white-space: nowrap;
         }
 
-        /* Column alignment (DOM order already matches visual order). */
+        /* Column alignment (DOM order already matches visual order).
+
+           Home and Away each span TWO tracks — the record pill's track plus the name's —
+           because one word ("Home") heads both. Spanning keeps the header honest without
+           inventing a "Record" column label for a pill that is self-describing. The span
+           inherits the side's alignment, so "Home" still lands on the names' right edge
+           beside the score and "Away" on their left edge, exactly where they were. */
         .hdr-pool,  .cell-pool  { text-align: left; }
-        .hdr-home,  .cell-home  { text-align: right; }
-        .hdr-score { grid-column: span 3; text-align: center; }
-        .hdr-away,  .cell-away  { text-align: left; }
+        .hdr-home   { grid-column: span 2; text-align: right; }
+        .cell-home  { text-align: right; }
+        .hdr-score  { grid-column: span 3; text-align: center; }
+        .hdr-away   { grid-column: span 2; text-align: left; }
+        .cell-away  { text-align: left; }
         .hdr-status,.cell-status{ text-align: center; }
+
+        /* The record pill owns a TRACK of its own, on the OUTER side of each name.
+
+           It used to be the last inline child of the team cell, which made its position a
+           function of the name's length: once names could wrap, a name at or near the
+           17rem cap left no room on its last line and the pill dropped onto a line of its
+           own — on roughly half the rows, since the median name is 24 characters. Pinning
+           the cell to nowrap only traded that for silent clipping (.cell is overflow:
+           hidden), so the pill needed to stop sharing a box with text that resizes.
+
+           OUTER, not inner, deliberately: the inner slot would stack a column of season
+           records flush against the score column, and "2-2-0  4 - 14  3-1-0" reads as one
+           run of numbers. Bookending the row keeps the two kinds of number apart and
+           leaves the names themselves adjacent to the score, which is the pairing that
+           has to survive. Each pill hugs the name it belongs to. */
+        .cell-home-rec { text-align: right; }
+        .cell-away-rec { text-align: left; }
 
         /* ── Broadsheet dateline ──
            A full-width day "chapter" break. Spans every column (grid-column 1/-1) and
@@ -560,42 +642,42 @@ type ScheduleRow =
             min-height: 36px;
         }
 
-        /* ── Win marker ──
-           A small caret on the OUTER edge of the winning team: left of the home name, right
-           of the away name, pointing inward at the team that won.
+        /* ── Win cue: the winner's NAME is underlined gold and SOLID ──
+           This reverses the old black-tie rule that names never carry the result. That rule
+           produced six separate marks over time (bold/mute, trophy, dot, star, superscript,
+           offset underline, edge bar, caret) because every one of them was a BOX that had to
+           be positioned next to ragged, wrapping text — and boxes strand. A text decoration
+           is not a box. It is the text. It cannot detach, cannot be ordered wrong, needs no
+           left/right variant, and one rule covers both sides.
 
-           Replaces a row-edge gold bar (the first attempt at moving the result off the
-           digits), which failed for a concrete reason worth not repeating: it sat at the same
-           edge as the age-group rail, and the rail's colour is the director's arbitrary hex.
-           Beside an amber age group the two bars were the same object. Anything that lives at
-           the row's edge inherits that collision — the marker has to live NEXT TO THE TEAM,
-           where nothing else is competing.
+           COLOUR ONLY — the pattern is identical to the resting affordance (.team-link:
+           dotted, 1px, 2px offset). The winner's rule is the same rule in gold. Keep it that
+           way: a thicker or solid variant reads as a different object and shouts over a
+           ledger where every other name is already underlined.
 
-           Direction is a real second channel, not decoration: the caret points at its winner,
-           so the cue survives greyscale and colour-blindness without relying on gold. Shape
-           also keeps it distinct from the two glyphs already in the row — the age-group DOT
-           (a circle) and the follow STAR — which is what the retired trophy and dot
-           treatments could not manage.
+           Known trade-off, accepted deliberately: hue is then the sole channel separating
+           "clickable" from "won", so the cue does not survive greyscale or colour-blindness.
+           The digits beside it still state the result unambiguously, so nothing is lost that
+           was only available here.
 
-           The caret is INLINE, inside the name element, not a sibling flex item. As a flex
-           item it detached from the team the moment a name wrapped: a wrapped text block is
-           as wide as its column, so the name's BOX filled the track while its ragged text sat
-           elsewhere, stranding the caret at the column edge. Away names only looked right
-           because they happened to fit on one line. Inline, the caret rides the first (home)
-           or last (away) character of the text itself and cannot be separated from it by any
-           amount of wrapping.
-
-           text-decoration: none is load bearing — .team-link puts a dotted underline on the
-           whole name, and without this the caret would be underlined too. */
-        .win-mark {
-            font-size: 0.6rem;
-            color: var(--winner-gold);
-            text-decoration: none;
-            vertical-align: baseline;
+           Values are duplicated from .team-link rather than inherited because .team-name is
+           also used bare — an unresolved bracket slot renders a plain span with no link
+           affordance, and it still deserves the cue. */
+        .team-name.is-winner {
+            text-decoration: underline dotted;
+            text-decoration-color: var(--winner-gold);
+            text-decoration-thickness: 1px;
+            text-underline-offset: 2px;
         }
 
-        .win-mark--home { margin-right: 0.4em; }
-        .win-mark--away { margin-left: 0.4em; }
+        /* Hover promotes dotted → solid exactly as it does for any other name; this only
+           holds the gold, which .team-link:hover would otherwise repaint to currentColor.
+           A longhand at higher specificity beats the shorthand's implied value, so the
+           promotion still happens — only the hue is pinned. */
+        .team-name.is-winner:hover,
+        .team-name.is-winner:focus-visible {
+            text-decoration-color: var(--winner-gold);
+        }
 
         .row-even       { --row-surface: var(--bs-tertiary-bg); }
         .game-row:hover { --row-surface: var(--bs-secondary-bg); }
@@ -647,19 +729,37 @@ type ScheduleRow =
             white-space: nowrap;
         }
 
-        /* Row number */
-        .cell-num {
-            font-size: var(--font-size-xs);
-            color: var(--bs-secondary-color);
-            font-variant-numeric: tabular-nums;
-            text-align: center;
+        /* Date/Time */
+        /* Date and time are two stacked lines of ONE datum, so neither owns the row's
+           baseline — the pair should straddle the row's line, centred on it.
+
+           align-self: center does NOT do that. It centres this cell against the ROW BOX, so
+           the moment a team name wraps and the row grows taller, the date sinks toward the
+           middle of the taller row and drifts off the line every other column sits on. The
+           target is the row's LINE, which does not move; the row's box does.
+
+           So the cell stays a plain block and baseline-aligns like everything else, and the
+           stacking moves to an INLINE-FLEX child with vertical-align: middle. The cell's
+           line box then takes its baseline from the strut — landing exactly where the other
+           columns' baselines land — and the two-line stack is centred on that baseline. Row
+           height can now change without the date moving at all.
+
+           It also makes the two permission branches behave identically. .dt-edit is a real
+           <button>, an atomic inline box whose baseline is its LAST line; under plain
+           baseline alignment that would have put the TIME on the row's line for admins and
+           the DATE on it for everyone else. vertical-align: middle overrides the baseline
+           question for both, so admin and parent see the same column. */
+        .cell-dt {
+            display: block;
+            line-height: 1.3;
         }
 
-        /* Date/Time */
-        .cell-dt {
-            display: flex;
+        .cell-dt .dt-edit,
+        .cell-dt .dt-stack {
+            display: inline-flex;
             flex-direction: column;
-            line-height: 1.3;
+            align-items: flex-start;
+            vertical-align: middle;
         }
 
         .dt-date {
@@ -751,9 +851,22 @@ type ScheduleRow =
            at any weight). A dot carries the same color in a spot where contrast is not load
            bearing, and hands legibility back to plain body text. Same language as the LADT /
            CADT tree filters (.tree-color-dot) and the roster swapper (.color-dot). */
+        /* align-items: BASELINE, with the dot opting out to align-self: center.
+
+           This cell is a flex container, and a flex container only exposes a real baseline
+           if one of its items participates in baseline alignment. Under align-items: center
+           none did, so the row's baseline alignment had nothing to grab and fell back to a
+           baseline synthesised from this cell's bottom border edge — which is why the
+           agegroup:division label sat lower than everything else on the row while the score
+           and both names stayed on the line.
+
+           Baseline here makes .ag-label the first participating item, so the CELL's baseline
+           is the label's baseline and the label lands on the row's line. The dot has no text
+           and would sit on that baseline like a full stop, so it opts out with align-self:
+           center and stays optically centred against the label — unchanged from before. */
         .cell-pool {
             display: flex;
-            align-items: center;
+            align-items: baseline;
             gap: var(--space-2);
             min-width: 0;
         }
@@ -766,6 +879,7 @@ type ScheduleRow =
             width: 10px;
             height: 10px;
             flex-shrink: 0;
+            align-self: center;
             border-radius: 50%;
             border: 1px solid var(--bs-border-color);
             background: var(--ag-ink);
@@ -868,8 +982,9 @@ type ScheduleRow =
             .record-btn { transition: none !important; }
         }
 
-        /* ONE INLINE TEXT RUN, not a flex row. Everything in these cells — star, win caret,
-           name, record, annotation — flows and wraps together as text.
+        /* ONE INLINE TEXT RUN, not a flex row. Everything in these cells — seed tag, star,
+           name, annotation — flows and wraps together as text. (The record pill is NOT in
+           here; it has its own track. See .cell-home-rec.)
 
            Flex was the wrong container the moment names started wrapping, and it failed twice
            the same way. A flex item anchors to the NAME ELEMENT's edge, but a wrapped name's
@@ -880,9 +995,12 @@ type ScheduleRow =
            ragged one and flex siblings can only ever hug the flush one.
 
            Inline flow has no element edge to anchor to. The star lands immediately beside the
-           caret at the text's outer edge on BOTH sides — home reads star · caret · name ·
-           record with the ragged edge on the left, away reads name · caret · star · record
-           with it on the right — and stays there through any amount of wrapping.
+           name's TEXT and stays there through any amount of wrapping. Both sides read
+           star · name — see the away cell in the template for why that is not mirrored.
+
+           The star keeps vertical-align: middle from its base rule, which centres it on the
+           baseline of whatever line it sits on. Since it is always first, that is always the
+           FIRST line — so it tracks the row's line rather than drifting with row height.
 
            Alignment is unchanged: .cell-home is text-align: right, .cell-away left (set with
            the column rules), and .team-link is text-align: inherit.
@@ -894,15 +1012,64 @@ type ScheduleRow =
         .cell-away {
             display: block;
             min-width: 0;
-            white-space: normal;
             line-height: 1.35;
+            /* MUST be normal, and must stay that way. .cell sets nowrap + overflow: hidden +
+               text-overflow: ellipsis for the single-line cells; inheriting that nowrap here
+               re-arms the ellipsis and a long name collapses to a bare "...". Wrapping is the
+               whole point of these two cells. There was briefly a reason to want nowrap — it
+               stopped the W-L-T pill breaking onto its own line — but the pill now has its
+               own track (.cell-home-rec), so nothing in this cell needs it. */
+            white-space: normal;
+            /* .cell's overflow: hidden + text-overflow: ellipsis are for the SINGLE-LINE
+               cells. On a wrapping cell the ellipsis is dead (it only ever renders on an
+               unwrapped line) and the hidden overflow does nothing but silently swallow
+               text. Turning both off here means a mistake in this cell shows up as an
+               overhang you can see rather than a name that quietly disappears. */
+            overflow: visible;
+            text-overflow: clip;
         }
 
-        .cell-home .team-link,
-        .cell-away .team-link { display: inline; }
+        /* HANGING INDENT — away side only.
 
-        .cell-home .record-btn,
-        .cell-away .record-btn { margin-inline-start: var(--space-1); }
+           The star is the first thing in this cell, so it occupies the start of line one.
+           Line two has no star and so started at the cell's left edge, i.e. LEFT of where
+           line one's text began: a left-aligned column with a ragged LEFT edge, which reads
+           as broken ("Spirit" outdented under "Philly Blast Lacrosse:2034").
+
+           The padding pushes every line in by the star's footprint; the negative text-indent
+           pulls the FIRST line back out so the star still begins at the cell edge and nothing
+           moves on unwrapped rows. Continuation lines then align under the name's first
+           character.
+
+           Home needs none of this and must not have it: home is right-aligned, so every line
+           is already flush on the right and the star simply extends line one further left —
+           which is what a ragged left edge is supposed to do.
+
+           Two known imperfections, both rare and both better than the outdent: a bracket row
+           with a seed tag puts an extra token on line one, so continuation lines sit slightly
+           left of that row's first character; and an unresolved feed renders no star at all,
+           leaving its line one outdented by the footprint. */
+        .cell-away {
+            /* .team-star is an 18px box with margin: 0 4px */
+            --star-footprint: 26px;
+            padding-inline-start: var(--star-footprint);
+            text-indent: calc(-1 * var(--star-footprint));
+        }
+
+        /* There is deliberately NO "display: inline" rule for .team-link here any more. There
+           was one, and it never did anything: in the desktop grid the name used to be a
+           <button>, and a button is an ATOMIC inline-level box that no display value can
+           make flow as text. So the name was a single unbreakable brick sharing a line with
+           the star. Whenever star + brick exceeded the track the brick dropped to a line of
+           its own, leaving line 1 holding nothing but an invisible star — which read as a
+           name sitting a line lower than its own row, wrapped its text inside a box that was
+           already on the wrong line, and under nowrap collapsed the whole name to "...".
+           Three separate symptoms, one cause.
+
+           The desktop name is now a span with role="button" + tabindex, so its text really
+           does join this cell's inline run. The mobile cards keep real <button>s: each team
+           there owns its own line, so nothing competes for space and atomicity is free. */
+
 
         /* Long names WRAP; they no longer ellipsize.
            An ellipsis on "North Bay Lacrosse Club:North Bay Lacrosse Club-Riptides" eats the
@@ -990,6 +1157,25 @@ type ScheduleRow =
             transition: opacity 0.15s, color 0.15s, transform 0.15s;
             vertical-align: middle;
         }
+        /* Bootstrap Icons ships .bi::before with vertical-align: -.125em (verified in
+           bootstrap-icons.css, alongside line-height: 1). That nudge assumes the icon sits
+           INLINE BESIDE TEXT at the same size, where dropping the ink is what makes a glyph
+           optically centre on a lowercase run.
+
+           These three buttons are inline-flex with align-items: center, so flex has already
+           centred the icon's BOX. Bootstrap's nudge then lands on top of a centring that
+           already happened and drives the ink ~0.125em below the middle — about 1.5px at
+           --font-size-xs, which is exactly the amount the follow stars were reading low by.
+           Cancel it wherever we do the centring ourselves.
+
+           Deliberately NOT applied to .loc-icon: that one really is inline beside text, and
+           it carries its own tuned offset on top. It still wants Bootstrap's behaviour. */
+        .team-star .bi::before,
+        .status-key .bi::before,
+        .score-clear .bi::before {
+            vertical-align: 0;
+        }
+
         .team-star:hover {
             opacity: 1;
             color: var(--score-strong);
@@ -1024,10 +1210,16 @@ type ScheduleRow =
             .game-row .team-star.is-on { opacity: 1; }
         }
 
+        /* Wraps internally for the same reason the name does: it is the other
+           variable-length child of the team cell, and the cell's nowrap means it cannot
+           start a line of its own to escape a narrow track — without this it would run
+           past the cap and be clipped by .cell's overflow: hidden. */
         .annotation {
             font-style: italic;
             color: var(--bs-secondary-color);
             font-size: var(--font-size-xs);
+            white-space: normal;
+            overflow-wrap: break-word;
         }
 
         /* ── Score columns (three real subgrid tracks) ── */
@@ -1094,7 +1286,7 @@ type ScheduleRow =
 
         /* Both scores are plain bold strong figures — SAME weight and ink for winner and
            loser, and now with NO decoration on either. The result is carried entirely by the
-           win marker beside the winning team's name (.win-mark, near the top of this file),
+           gold underline on the winning team's NAME (.team-name.is-winner, further up),
            which leaves the digits as pure data. Muting the loser would be a second, redundant
            channel — the retired scheme's whole failure mode — and the losing score is real
            information that deserves full legibility. */
@@ -1102,8 +1294,8 @@ type ScheduleRow =
            At lg the score ran 1.5x the body of the row (most cells are xs) and 1.29x the
            team names, with a 300-point weight step on top — two channels pushed at once. It
            earned that while it carried the win cue and was the result-bearing element; the
-           caret took that job, leaving the score as two numbers still emphasised for the old
-           one. Everything around it got quieter in the same pass (status chips suppressed,
+           name underline took that job, leaving the score as two numbers still emphasised for
+           the old one. Everything around it got quieter in the same pass (status chips suppressed,
            stars hidden, date de-blued), so its relative loudness rose without the value ever
            changing. base also matches .card-team-score, so the same datum is finally one
            size across both layouts.
@@ -1147,13 +1339,18 @@ type ScheduleRow =
             border: 1px solid var(--bs-border-color);
         }
 
-        /* Header info icon → hover/focus reveals the key. */
-        .hdr-status { position: relative; overflow: visible; }
+        /* Header info icon → hover/focus reveals the key.
+           align-self: center because this header cell holds no text — under the header row's
+           baseline alignment it would otherwise synthesise a baseline from its box edge and
+           hang below the lettered headers beside it. */
+        .hdr-status { position: relative; overflow: visible; align-self: center; }
 
+        /* No margin-left: it existed only to hold the icon off the word "Status", and the
+           icon is now the entire header. Any margin here is width added to a max-content
+           track that this column cannot spend. */
         .status-key {
             display: inline-flex;
             align-items: center;
-            margin-left: 3px;
             color: var(--bs-secondary-color);
             cursor: help;
             vertical-align: middle;
@@ -1321,12 +1518,6 @@ type ScheduleRow =
             font-size: var(--font-size-xs);
         }
 
-        .card-num {
-            color: var(--bs-secondary-color);
-            font-variant-numeric: tabular-nums;
-            min-width: 20px;
-        }
-
         .card-dt {
             color: var(--bs-body-color);
             font-weight: 600;
@@ -1368,12 +1559,13 @@ type ScheduleRow =
         }
 
         /* Plain bold strong figure for BOTH teams; the gold underline under the winning
-           number is the sole result cue (.is-winner).
-           This DELIBERATELY no longer matches desktop, which moved the result to a row-edge
-           marker. A card puts each team on its own line, so "who won" is already a property
-           of a line here — the underline rides the winning team's own row and needs no
-           left/right encoding. The desktop marker exists precisely because its mirrored
-           single-line layout has no such line to attach to. */
+           NUMBER is the sole result cue here (.is-winner).
+           Desktop underlines the winning NAME instead. Both are gold underlines, so the
+           language is shared — they differ only in what they sit under, and deliberately.
+           A card gives each team its own line with its score at the end of it, so the number
+           IS that team's line and underlining it says who won without ambiguity. The desktop
+           row mirrors two teams around a shared scoreline, where an underlined number would
+           only be re-stating which digit is larger. */
         .card-team-score {
             flex-shrink: 0;
             font-size: var(--font-size-base);
@@ -1409,15 +1601,13 @@ type ScheduleRow =
             .games-cards { display: none; }
         }
 
-        /* Only the date/time track widens here — every other track stays content-sized so
-           the measure holds (see the .games-grid comment). */
-        @media (min-width: 1200px) {
-            .games-grid {
-                grid-template-columns:
-                    2rem 6rem minmax(0, max-content) max-content minmax(0, var(--name-col))
-                    max-content min-content max-content minmax(0, var(--name-col)) max-content;
-            }
-        }
+        /* There is deliberately NO wide-viewport override of grid-template-columns. There used
+           to be one, and it existed for a single purpose: to widen a hand-picked date/time
+           track from 5.5rem to 6rem. That track is now max-content, so it is already exactly
+           as wide as "Wed 12/31" needs at every viewport and the override became a verbatim
+           copy of the base rule. Every track in this grid is content-sized; nothing about the
+           measure is viewport-dependent, so nothing here needs restating. */
+
     `]
 })
 export class GamesTabComponent {
