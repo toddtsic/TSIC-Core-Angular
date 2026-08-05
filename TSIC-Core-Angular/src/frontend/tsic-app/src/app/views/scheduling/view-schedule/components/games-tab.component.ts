@@ -149,6 +149,14 @@ type ScheduleRow =
                         <span class="cell cell-home" role="cell" aria-colindex="5">
                             @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
                             @if (game.t1Id) {
+                                <button type="button" class="team-star"
+                                        [class.is-on]="isFollowed(game.t1Id)"
+                                        [attr.aria-label]="(isFollowed(game.t1Id) ? 'Unfollow ' : 'Follow ') + game.t1Name"
+                                        (click)="onStarClick(game.t1Id!)">
+                                    <i class="bi" [class.bi-star-fill]="isFollowed(game.t1Id)" [class.bi-star]="!isFollowed(game.t1Id)"></i>
+                                </button>
+                            }
+                            @if (game.t1Id) {
                                 <button type="button" class="team-name team-link"
                                         [attr.title]="'View ' + game.t1Name + ' results'"
                                         [attr.aria-label]="'View ' + game.t1Name + ' results' + (isT1Winner(game) ? ', winner' : '')"
@@ -163,14 +171,6 @@ type ScheduleRow =
                                         (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Record }}</button>
                             }
                             @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
-                            @if (game.t1Id) {
-                                <button type="button" class="team-star"
-                                        [class.is-on]="isFollowed(game.t1Id)"
-                                        [attr.aria-label]="(isFollowed(game.t1Id) ? 'Unfollow ' : 'Follow ') + game.t1Name"
-                                        (click)="onStarClick(game.t1Id!)">
-                                    <i class="bi" [class.bi-star-fill]="isFollowed(game.t1Id)" [class.bi-star]="!isFollowed(game.t1Id)"></i>
-                                </button>
-                            }
                         </span>
 
                         <!-- Score — three real columns so home/away numbers each stack on
@@ -232,20 +232,20 @@ type ScheduleRow =
                         <span class="cell cell-away" role="cell" aria-colindex="9">
                             @if (game.t2SlotLabel) { <span class="seed-tag">{{ game.t2SlotLabel }}</span> }
                             @if (game.t2Id) {
-                                <button type="button" class="team-star"
-                                        [class.is-on]="isFollowed(game.t2Id)"
-                                        [attr.aria-label]="(isFollowed(game.t2Id) ? 'Unfollow ' : 'Follow ') + game.t2Name"
-                                        (click)="onStarClick(game.t2Id!)">
-                                    <i class="bi" [class.bi-star-fill]="isFollowed(game.t2Id)" [class.bi-star]="!isFollowed(game.t2Id)"></i>
-                                </button>
-                            }
-                            @if (game.t2Id) {
                                 <button type="button" class="team-name team-link"
                                         [attr.title]="'View ' + game.t2Name + ' results'"
                                         [attr.aria-label]="'View ' + game.t2Name + ' results' + (isT2Winner(game) ? ', winner' : '')"
                                         (click)="viewTeamResults.emit(game.t2Id!)">{{ teamLabel(game.t2Name) }}@if (isT2Winner(game)) {<i class="bi bi-caret-left-fill win-mark win-mark--away" aria-hidden="true"></i>}</button>
                             } @else {
                                 <span class="team-name">{{ teamLabel(game.t2Name) }}@if (isT2Winner(game)) {<i class="bi bi-caret-left-fill win-mark win-mark--away" aria-hidden="true"></i>}</span>
+                            }
+                            @if (game.t2Id) {
+                                <button type="button" class="team-star"
+                                        [class.is-on]="isFollowed(game.t2Id)"
+                                        [attr.aria-label]="(isFollowed(game.t2Id) ? 'Unfollow ' : 'Follow ') + game.t2Name"
+                                        (click)="onStarClick(game.t2Id!)">
+                                    <i class="bi" [class.bi-star-fill]="isFollowed(game.t2Id)" [class.bi-star]="!isFollowed(game.t2Id)"></i>
+                                </button>
                             }
                             @if (game.t2Record && game.t2Id) {
                                 <button type="button" class="record-btn"
@@ -868,29 +868,41 @@ type ScheduleRow =
             .record-btn { transition: none !important; }
         }
 
-        /* Team cells are flex so the follow-star vertically CENTERS with the team
-           name (as inline elements the 18px star button sat on the text baseline
-           and read low). gap replaces the old inter-span spacing; the star's own
-           horizontal margin is zeroed here so it isn't double-spaced. */
+        /* ONE INLINE TEXT RUN, not a flex row. Everything in these cells — star, win caret,
+           name, record, annotation — flows and wraps together as text.
+
+           Flex was the wrong container the moment names started wrapping, and it failed twice
+           the same way. A flex item anchors to the NAME ELEMENT's edge, but a wrapped name's
+           element fills the entire column while its text sits ragged inside it. So whichever
+           sibling sat on the ragged side stranded itself ~90px from the team: first the win
+           caret, then (after moving the caret inline) the follow star. Reordering only ever
+           moved the problem to the other side, because each cell has a flush edge and a
+           ragged one and flex siblings can only ever hug the flush one.
+
+           Inline flow has no element edge to anchor to. The star lands immediately beside the
+           caret at the text's outer edge on BOTH sides — home reads star · caret · name ·
+           record with the ragged edge on the left, away reads name · caret · star · record
+           with it on the right — and stays there through any amount of wrapping.
+
+           Alignment is unchanged: .cell-home is text-align: right, .cell-away left (set with
+           the column rules), and .team-link is text-align: inherit.
+           .team-link also needs display: inline so its text participates in the run rather
+           than forming an atomic inline-block that fills the column all over again.
+           .team-star keeps vertical-align: middle from its base rule — that is what stopped
+           it reading low on the baseline, which is the reason flex was reached for. */
         .cell-home,
         .cell-away {
-            display: flex;
-            align-items: baseline;
-            gap: 4px;
+            display: block;
             min-width: 0;
+            white-space: normal;
+            line-height: 1.35;
         }
-        .cell-home { justify-content: flex-end; }
-        .cell-away { justify-content: flex-start; }
 
-        /* Text items (name/record/annotation, different font-sizes) share ONE baseline —
-           center-alignment centered each independently and let the home/away columns
-           drift apart. The star is not text, so it alone opts out and centers against
-           the text instead of being dropped onto the baseline (which read low). */
-        .cell-home .team-star,
-        .cell-away .team-star {
-            align-self: center;
-            margin: 0;
-        }
+        .cell-home .team-link,
+        .cell-away .team-link { display: inline; }
+
+        .cell-home .record-btn,
+        .cell-away .record-btn { margin-inline-start: var(--space-1); }
 
         /* Long names WRAP; they no longer ellipsize.
            An ellipsis on "North Bay Lacrosse Club:North Bay Lacrosse Club-Riptides" eats the
