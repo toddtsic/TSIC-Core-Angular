@@ -1,7 +1,7 @@
 import {
   Component, ChangeDetectionStrategy, inject, signal, computed,
   OnInit, OnDestroy, ElementRef, NgZone,
-  viewChild
+  viewChild, input, booleanAttribute
 } from '@angular/core';
 import type { MasterScheduleResponse, MasterScheduleDay } from '@core/api';
 import { MasterScheduleService } from './services/master-schedule.service';
@@ -18,6 +18,10 @@ import { ChecklistBackLinkComponent } from '../shared/components/checklist-back-
 export class MasterScheduleComponent implements OnInit, OnDestroy {
 	private readonly svc = inject(MasterScheduleService);
 	private readonly zone = inject(NgZone);
+
+	/** True when rendered inside the schedule hub's Master segment — the hub toolbar already
+	 *  names the pane, so the standalone title hides; the stats subtitle and exports stay. */
+	readonly embedded = input(false, { transform: booleanAttribute });
 
 	readonly msGridRef = viewChild<ElementRef<HTMLElement>>('msGrid');
 	readonly minimapCanvasRef = viewChild<ElementRef<HTMLCanvasElement>>('minimapCanvas');

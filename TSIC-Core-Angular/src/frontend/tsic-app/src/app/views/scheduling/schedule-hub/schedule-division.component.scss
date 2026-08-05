@@ -216,44 +216,6 @@ app-pairings-panel {
     }
 }
 
-// Configure access — visually subordinate to the mode strip.
-// Button-style outline that fills (matches mode-seg active treatment) when in configure mode.
-.hub-config-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: 6px var(--space-3);
-    border: 1px solid var(--bs-border-color);
-    border-radius: var(--radius-md);
-    background: var(--bs-body-bg);
-    color: var(--brand-text);
-    cursor: pointer;
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-semibold);
-    white-space: nowrap;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
-
-    &:hover:not(.active) {
-        background: rgba(var(--bs-body-color-rgb, 0, 0, 0), 0.07);
-        border-color: var(--bs-primary);
-    }
-
-    &.active {
-        background: var(--bs-body-color);
-        color: var(--bs-body-bg);
-        border-color: var(--bs-body-color);
-    }
-
-    &:focus-visible {
-        outline: none;
-        box-shadow: var(--shadow-focus);
-    }
-
-    i {
-        font-size: var(--font-size-sm);
-    }
-}
-
 .toolbar-modes {
     display: flex;
     align-items: center;
@@ -323,7 +285,7 @@ app-pairings-panel {
     color: var(--bs-primary);
 }
 
-// "Start here" emphasis — applied to the Configure gear when the event has no games.
+// "Start here" emphasis — applied to the Configure segment when the event has no games.
 // Generic class so we can reuse on any element that needs this draw-the-eye treatment.
 @keyframes start-here-pulse {
     0%, 100% { box-shadow: 0 0 0 0 rgba(var(--bs-primary-rgb), 0.55); }
@@ -349,6 +311,29 @@ app-pairings-panel {
     .btn-primary, .btn-outline-primary {
         font-weight: var(--font-weight-semibold);
         letter-spacing: 0.01em;
+    }
+
+    // The build action stays ONE line at any scope. The scope name is the only
+    // unbounded text in the toolbar, so it alone ellipsizes under pressure.
+    .build-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        white-space: nowrap;
+
+        > span {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 0.3em;
+            min-width: 0;
+        }
+
+        .scope-name {
+            display: inline-block;
+            max-width: 12rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
     }
 
     .scope-name {

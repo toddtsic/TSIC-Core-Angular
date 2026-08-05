@@ -1,10 +1,13 @@
 <div class="qa-container">
-    <!-- Header -->
-    <div class="qa-header">
-        <div class="header-left">
-            <h2 class="page-title"><app-checklist-back-link target=".." always routePath="qa-results" /><i class="bi bi-check2-square page-title-icon"></i> Schedule QA Report</h2>
-            <p class="page-subtitle">Comprehensive quality validation of the current schedule</p>
-        </div>
+    <!-- Header: title row only when routed standalone — embedded in the hub, the QA
+         segment already names the pane and the hub owns navigation. Actions stay. -->
+    <div class="qa-header" [class.qa-header--embedded]="embedded()">
+        @if (!embedded()) {
+            <div class="header-left">
+                <h2 class="page-title"><app-checklist-back-link target=".." always routePath="qa-results" /><i class="bi bi-check2-square page-title-icon"></i> Schedule QA Report</h2>
+                <p class="page-subtitle">Comprehensive quality validation of the current schedule</p>
+            </div>
+        }
         <div class="header-actions">
             <button class="btn btn-sm btn-outline-success"
                     (click)="exportToExcel()"
@@ -21,10 +24,12 @@
                 <i class="bi bi-arrow-clockwise" [class.spin]="isLoading()"></i>
                 Re-run
             </button>
-            <a routerLink="../" class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i>
-                Back
-            </a>
+            @if (!embedded()) {
+                <a routerLink="../" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i>
+                    Back
+                </a>
+            }
         </div>
     </div>
 

@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, input, booleanAttribute, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ScheduleQaService } from './services/schedule-qa.service';
@@ -15,6 +15,10 @@ import { ChecklistBackLinkComponent } from '../shared/components/checklist-back-
 })
 export class QaResultsComponent {
     private readonly qaService = inject(ScheduleQaService);
+
+    /** True when rendered inside the schedule hub's QA segment — the hub toolbar already
+     *  names the pane, so the standalone title row and Back link stay hidden. */
+    readonly embedded = input(false, { transform: booleanAttribute });
 
     qaResult = signal<AutoBuildQaResult | null>(null);
     isLoading = signal(false);

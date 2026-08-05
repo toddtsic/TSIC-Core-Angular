@@ -215,10 +215,11 @@
                     }
                 </div>
 
-                <!-- Center slot: mode segments -->
+                <!-- Center slot: one segmented control — Schedule/QA/Master/Configure are all
+                     equal modes of this pane; presenting them as separate species (zones +
+                     a subordinate gear) was the old, pre-checklist hierarchy. -->
                 <div class="toolbar-modes" role="tablist">
-                    <!-- Working zone -->
-                    <div class="mode-zone mode-zone--working">
+                    <div class="mode-zone">
                         <button class="mode-seg" [class.active]="!activeTool() && mode() === 'schedule'"
                                 (click)="setMode('schedule')" role="tab">
                             @if (!activeTool() && mode() === 'schedule' && (modeSwitching() || isGridRefreshing())) {
@@ -237,10 +238,6 @@
                                               [class.bi-clipboard-check]="activeTool() || mode() !== 'qa'"></i>
                             }<span>QA</span>
                         </button>
-                    </div>
-
-                    <!-- Finale zone -->
-                    <div class="mode-zone mode-zone--finale">
                         <button class="mode-seg" [class.active]="!activeTool() && mode() === 'master'"
                                 (click)="setMode('master')" role="tab">
                             @if (!activeTool() && mode() === 'master' && modeSwitching()) {
@@ -250,9 +247,23 @@
                                               [class.bi-grid-3x3-gap]="activeTool() || mode() !== 'master'"></i>
                             }<span>Master</span>
                         </button>
+                        @if (showConfigureMode) {
+                            <button class="mode-seg" [class.active]="!activeTool() && mode() === 'configure'"
+                                    [class.start-here-pulse]="showStartHereOnConfigure()"
+                                    (click)="setMode('configure')" role="tab">
+                                @if (!activeTool() && mode() === 'configure' && modeSwitching()) {
+                                    <span class="spinner-border spinner-border-sm mode-seg-spinner" aria-hidden="true"></span>
+                                } @else {
+                                    <i class="bi" [class.bi-gear-fill]="!activeTool() && mode() === 'configure'"
+                                                  [class.bi-gear]="activeTool() || mode() !== 'configure'"></i>
+                                }<span>Configure</span>
+                            </button>
+                        }
                     </div>
                 </div>
-                <!-- Right slot: Back (tool mode) OR scope info + Build + Configure -->
+                <!-- Right slot: Back (tool mode) OR count chip + Build action. Scope NAMES live
+                     in the breadcrumb alone — repeating them here as badges was pure echo; only
+                     the counts (games/teams) say something the crumb doesn't. -->
                 <div class="toolbar-right">
                     @if (activeTool()) {
                         <button class="btn btn-sm btn-outline-secondary" (click)="activeTool.set(null)">
@@ -268,28 +279,24 @@
                                         </span>
                                     }
                                     @if (mode() === 'schedule' && !hasChampionshipPairings()) {
-                                        <button class="btn btn-sm btn-primary"
+                                        <button class="btn btn-sm btn-primary build-btn"
                                                 (click)="openAutoScheduleConfig()"
                                                 [disabled]="isExecuting()">
                                             @if (isExecuting()) {
-                                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                                <span class="spinner-border spinner-border-sm"></span>
+                                            } @else {
+                                                <i class="bi bi-play-fill"></i>
                                             }
-                                            <i class="bi bi-play-fill"></i> {{ hasGamesInScope() ? 'Re-Build' : 'Build' }} Entire Schedule
+                                            <span>{{ hasGamesInScope() ? 'Re-Build' : 'Build' }} Entire Schedule</span>
                                         </button>
                                     }
                                 }
                                 @case ('agegroup') {
                                     @if (isAgegroupConfigured()) {
-                                        <span class="badge"
-                                              [style.background-color]="selectedAgegroupColor()"
-                                              [style.color]="selectedAgegroupTextColor()"
-                                              [class.bg-secondary]="!selectedAgegroupColor()">
-                                            {{ selectedAgegroupName() }}
-                                        </span>
                                         <span class="badge bg-secondary-subtle text-secondary-emphasis">
                                             {{ scopeGameCount() }} games
                                         </span>
-                                        <button class="btn btn-sm btn-outline-primary"
+                                        <button class="btn btn-sm btn-outline-primary build-btn"
                                                 (click)="openAutoScheduleConfig()"
                                                 [disabled]="isExecuting()">
                                             @if (isExecuting()) {
@@ -297,22 +304,15 @@
                                             } @else {
                                                 <i class="bi bi-lightning-fill"></i>
                                             }
-                                            {{ hasGamesInScope() ? 'Re-Build' : 'Build' }} <span class="scope-name">{{ scopeLabel() }}</span>
+                                            <span>{{ hasGamesInScope() ? 'Re-Build' : 'Build' }} <span class="scope-name">{{ scopeLabel() }}</span></span>
                                         </button>
                                     }
                                 }
                                 @case ('division') {
-                                    <span class="badge"
-                                          [style.background-color]="selectedAgegroupColor()"
-                                          [style.color]="selectedAgegroupTextColor()"
-                                          [class.bg-secondary]="!selectedAgegroupColor()">
-                                        {{ selectedAgegroupName() }}
-                                    </span>
-                                    <span class="fw-semibold" style="font-size: var(--font-size-sm)">{{ selectedDivision()!.divName }}</span>
                                     <span class="badge bg-primary-subtle text-primary-emphasis">
                                         {{ teamCount() }} teams
                                     </span>
-                                    <button class="btn btn-sm btn-outline-primary"
+                                    <button class="btn btn-sm btn-outline-primary build-btn"
                                             (click)="openAutoScheduleConfig()"
                                             [disabled]="isExecuting()">
                                         @if (isExecuting()) {
@@ -320,22 +320,10 @@
                                         } @else {
                                             <i class="bi bi-lightning-fill"></i>
                                         }
-                                        {{ hasGamesInScope() ? 'Re-Build' : 'Build' }} <span class="scope-name">{{ scopeLabel() }}</span>
+                                        <span>{{ hasGamesInScope() ? 'Re-Build' : 'Build' }} <span class="scope-name">{{ scopeLabel() }}</span></span>
                                     </button>
                                 }
                             }
-                        }
-                        @if (showConfigureMode) {
-                            <button type="button"
-                                    class="hub-config-btn"
-                                    [class.active]="!activeTool() && mode() === 'configure'"
-                                    [class.start-here-pulse]="showStartHereOnConfigure()"
-                                    (click)="setMode('configure')"
-                                    [attr.aria-pressed]="!activeTool() && mode() === 'configure'">
-                                <i class="bi" [class.bi-gear-fill]="!activeTool() && mode() === 'configure'"
-                                              [class.bi-gear]="activeTool() || mode() !== 'configure'"></i>
-                                <span>Configure</span>
-                            </button>
                         }
                     }
                 </div>
@@ -615,12 +603,12 @@
 
                         <!-- ══════════ MASTER MODE ══════════ -->
                         @case ('master') {
-                            <app-master-schedule />
+                            <app-master-schedule embedded />
                         }
 
                         <!-- ══════════ QA MODE ══════════ -->
                         @case ('qa') {
-                            <app-qa-results />
+                            <app-qa-results embedded />
                         }
                     }
                 }

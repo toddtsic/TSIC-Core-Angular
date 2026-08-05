@@ -499,6 +499,15 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
     });
 
     ngOnInit(): void {
+        // Deep link from the checklist: ?mode=qa|master|configure lands on that segment.
+        // Marks the mode initialized so the game-count default never overrides the ask.
+        const requested = this.route.snapshot.queryParamMap.get('mode');
+        if (requested === 'schedule' || requested === 'qa' || requested === 'master'
+            || (requested === 'configure' && this.showConfigureMode)) {
+            this.hasInitializedMode = true;
+            this.mode.set(requested);
+        }
+
         this.loadAgegroups();
         this.refreshGameSummary();
         this.loadCanvasReadiness();

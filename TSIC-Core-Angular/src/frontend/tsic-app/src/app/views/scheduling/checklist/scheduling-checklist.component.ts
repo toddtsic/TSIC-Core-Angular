@@ -196,15 +196,19 @@ export class SchedulingChecklistComponent implements OnInit {
 
     // Operations on a built schedule — reached for repeatedly, never "finished", so none of
     // them can hold a step number. The grid unlocks once games exist.
+    //
+    // QA Results and Master Schedule are hub segments, so their tools deep-link the hub with
+    // that segment preselected (?mode=) — one door, one chrome — instead of the standalone
+    // twins those routes still serve for direct URLs.
     readonly tools: ToolRow[] = [
-        { title: 'Master Schedule', icon: 'bi-calendar-week', route: '../scheduling/master-schedule', queryParams: { from: 'scheduling' } },
+        { title: 'Master Schedule', icon: 'bi-calendar-week', route: 'schedule-hub', queryParams: { mode: 'master' } },
         { title: 'Rescheduler', icon: 'bi-arrow-repeat', route: '../scheduling/rescheduler', queryParams: { from: 'scheduling' } },
         { title: 'Schedule Viewer', icon: 'bi-eye', route: '../scheduling/view-schedule', queryParams: { from: 'scheduling' } },
         // Straight to the Schedules tab rather than the library's front page — game cards and
         // team schedules, not a catalogue. The library falls back to All when this event has
         // no schedule reports, so the link is never a dead end.
         { title: 'Schedule Reports', icon: 'bi-file-earmark-text', route: '../reporting/reports-library', queryParams: { tab: 'Schedules', from: 'scheduling' } },
-        { title: 'QA Results', icon: 'bi-check2-square', route: 'qa-results', queryParams: null },
+        { title: 'QA Results', icon: 'bi-check2-square', route: 'schedule-hub', queryParams: { mode: 'qa' } },
         { title: 'Tournament Parking', icon: 'bi-car-front', route: '../scheduling/tournament-parking', queryParams: { from: 'scheduling' } },
         { title: 'Mobile Scorers', icon: 'bi-phone', route: '../scheduling/mobile-scorers', queryParams: { from: 'scheduling' } }
     ];

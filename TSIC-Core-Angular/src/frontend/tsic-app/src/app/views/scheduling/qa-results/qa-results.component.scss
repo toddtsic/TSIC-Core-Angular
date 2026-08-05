@@ -10,6 +10,13 @@
     justify-content: space-between;
     gap: var(--space-4);
     margin-bottom: var(--space-6);
+
+    // Embedded in the hub: no title row, so the action buttons alone sit right-aligned
+    // on a tighter band under the hub toolbar.
+    &.qa-header--embedded {
+        justify-content: flex-end;
+        margin-bottom: var(--space-4);
+    }
 }
 
 .header-actions {

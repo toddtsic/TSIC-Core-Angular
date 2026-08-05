@@ -94,7 +94,7 @@
             }
         </h3>
         <div class="tool-grid">
-            @for (tool of tools; track tool.route) {
+            @for (tool of tools; track tool.title) {
                 @if (hasGames()) {
                     <a class="tool-card" [routerLink]="tool.route" [queryParams]="tool.queryParams">
                         <i class="bi {{ tool.icon }}"></i>
