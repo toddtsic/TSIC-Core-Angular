@@ -80,6 +80,9 @@ type ScheduleRow =
                          [class.row-even]="i % 2 === 1"
                          [class.row-tinted]="!!game.color"
                          [style.--ag-tint]="game.color"
+                         [class.won-home]="isT1Winner(game)"
+                         [class.won-away]="isT2Winner(game)"
+                         [class.tied]="isTie(game)"
                          [class.row-dimmed]="game.gStatusCode === 5">
 
                         <!-- Row number -->
@@ -190,7 +193,7 @@ type ScheduleRow =
                                   [class.editable]="canScore()"
                                   (click)="onScoreCellClick(game)">
                                 @if (hasScore(game)) {
-                                    <span class="score-val" [class.is-winner]="isT1Winner(game)">{{ game.t1Score }}</span>
+                                    <span class="score-val">{{ game.t1Score }}</span>
                                 }
                             </span>
                             <!-- Dash — isolated centre track -->
@@ -204,7 +207,7 @@ type ScheduleRow =
                                   [class.editable]="canScore()"
                                   (click)="onScoreCellClick(game)">
                                 @if (hasScore(game)) {
-                                    <span class="score-val" [class.is-winner]="isT2Winner(game)">{{ game.t2Score }}</span>
+                                    <span class="score-val">{{ game.t2Score }}</span>
                                 }
                             </span>
                         }
@@ -417,16 +420,33 @@ type ScheduleRow =
            NOTE: no backticks anywhere in this styles block — it is a template literal. */
         .games-grid {
             display: none;
+            /* Cap on the two team-name tracks — THE tuning knob for this grid.
+               Measured over LFTC's 2,556 names (after the club-prefix collapse): p50 = 24
+               characters, p75 = 29, p90 = 34, p99 = 40, max = 45. The track also carries the
+               star, the record pill and two gaps (~4.6rem), so 17rem leaves roughly 31
+               characters of name — about the 85th percentile. Names past that wrap rather
+               than clip.
+
+               Uncapped (max-content) the track sized to the single longest name in the whole
+               event, so a median row carried ~21 characters of dead space, and because the
+               home names are right-aligned all of it pooled on their left — the band of
+               emptiness between the pool label and the home names. Capping near the median
+               is only safe BECAUSE names now wrap; capping while they still ellipsized would
+               have traded a layout problem for a data-loss one.
+
+               Raise it to widen the ledger and wrap fewer names; lower it to tighten the
+               band and wrap more. Nothing else depends on the value. */
+            --name-col: 17rem;
             grid-template-columns:
                 2rem                    /* #          */
                 5.5rem                  /* date/time  */
                 minmax(0, max-content)  /* location   */
                 max-content             /* pool       */
-                minmax(0, max-content)  /* home →     */
+                minmax(0, var(--name-col))  /* home →     */
                 max-content             /* home score */
                 min-content             /* dash       */
                 max-content             /* away score */
-                minmax(0, max-content)  /* ← away     */
+                minmax(0, var(--name-col))  /* ← away     */
                 max-content;            /* status     */
             justify-content: safe center;
             column-gap: var(--space-2);
@@ -522,6 +542,53 @@ type ScheduleRow =
             padding-top: var(--space-1);
             padding-bottom: var(--space-1);
             min-height: 36px;
+            /* Anchors the result marker below. An absolutely-positioned child of a grid
+               container is taken out of track placement entirely, so it cannot disturb the
+               subgrid columns the way an extra cell would. */
+            position: relative;
+        }
+
+        /* ── Result marker (row-level, NOT on the digits) ──
+           The win is expressed as a mark in the row's margin instead of a decoration on the
+           winning number. The digits go back to being undecorated data: identical ink,
+           identical weight, nothing to clip.
+
+           POSITION is the primary channel and colour is only reinforcement — the marker sits
+           at the LEFT edge when home won, the RIGHT edge when away won, and dead CENTRE for a
+           tie. That satisfies the never-colour-alone rule without a second token, and it
+           closes a real hole in the underline scheme it replaces: there, a tie rendered as
+           the ABSENCE of a cue and was indistinguishable from gold that simply failed to
+           paint. Here a tie has its own affirmative mark.
+
+           The home marker is inset past the age-group rail (--ag-rail-w) rather than flush,
+           because the rail already owns x=0 and its colour is the director's arbitrary hex —
+           an amber age group would otherwise sit flush against an amber win bar. Inset plus
+           a shorter height keeps them legible as two different objects; it does NOT make
+           them independent, which is the main thing to judge on screen. */
+        .game-row.won-home::after,
+        .game-row.won-away::after,
+        .game-row.tied::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 58%;
+            border-radius: var(--radius-full);
+            background: color-mix(in srgb, var(--winner-gold) 80%, transparent);
+            pointer-events: none;
+        }
+
+        .game-row.won-home::after { left: calc(var(--ag-rail-w) + 3px); }
+        .game-row.won-away::after { right: 3px; }
+
+        /* Tie: centred, and deliberately quieter — "neither side" is a weaker statement than
+           "this side", and it should not shout as loudly as a win. */
+        .game-row.tied::after {
+            left: 50%;
+            transform: translate(-50%, -50%);
+            height: 34%;
+            opacity: 0.65;
         }
 
         .row-even       { --row-surface: var(--bs-tertiary-bg); }
@@ -819,12 +886,26 @@ type ScheduleRow =
             margin: 0;
         }
 
-        /* Name truncates within the flex row (ellipsis previously lived on .cell). */
+        /* Long names WRAP; they no longer ellipsize.
+           An ellipsis on "North Bay Lacrosse Club:North Bay Lacrosse Club-Riptides" eats the
+           tail — which is the only part that identifies the TEAM, the club having already
+           been said. Wrapping keeps every character and costs only row height, on the ~15%
+           of names long enough to need it.
+
+           Justification follows the side automatically: .cell-home is text-align: right and
+           .cell-away is left, and .team-link declares text-align: inherit, so wrapped lines
+           stack flush against the score on both sides and the ragged edge stays on the
+           outside where the names' outer edge already was.
+
+           This only WORKS because the name tracks are capped (see .games-grid). An
+           uncapped max-content track is by definition never narrower than its own text, so
+           no wrap opportunity ever arises — capping the track is the change, this rule just
+           says what to do when the cap bites. break-word rather than anywhere: only break
+           inside a word when the word alone will not fit, which for these names is never. */
         .team-name {
             min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            white-space: normal;
+            overflow-wrap: break-word;
         }
 
         /* Team name → team-results modal, the same viewTeamResults target the record
@@ -999,29 +1080,16 @@ type ScheduleRow =
         .cell-t2-score.editable:hover { background: var(--bs-primary-bg-subtle); border-radius: var(--radius-sm); }
 
         /* Both scores are plain bold strong figures — SAME weight and ink for winner and
-           loser. The win is carried by the gold underline under the winning number
-           (.is-winner below); muting the loser would be a second, redundant result channel —
-           the retired scheme's whole failure mode. The losing score is real information and
-           deserves full legibility. */
+           loser, and now with NO decoration on either. The result is carried entirely by the
+           row-level marker (.won-home / .won-away / .tied, near the top of this stylesheet),
+           which leaves the digits as pure data. Muting the loser would be a second, redundant
+           channel — the retired scheme's whole failure mode — and the losing score is real
+           information that deserves full legibility. */
         .score-val {
             font-size: var(--font-size-lg);
             font-weight: 700;
             font-variant-numeric: tabular-nums;
             color: var(--score-strong);
-        }
-
-        /* Winner's gold underline — the SOLE win cue, and the one we landed on: it scans down
-           a column instantly and is the least jarring of the treatments we tried (dot, star,
-           superscript). Gold means "won" — the one sanctioned, palette-invariant use — so the
-           underline appears only on the winner's number, never on a tie. Kept soft (mixed
-           toward transparent) and offset, so a run of scored rows reads warm, not highlighted;
-           the losing number stays full-strength ink. The digits already say who won, so the
-           gold is a highlight, not a colour-only channel. */
-        .score-val.is-winner {
-            text-decoration: underline;
-            text-decoration-color: color-mix(in srgb, var(--winner-gold) 80%, transparent);
-            text-decoration-thickness: 2px;
-            text-underline-offset: 4px;
         }
 
         .score-dash {
@@ -1274,8 +1342,13 @@ type ScheduleRow =
             min-width: 0;
         }
 
-        /* Plain bold strong figure for BOTH teams — the gold underline under the winning
-           number is the sole result cue (.is-winner, matches the desktop treatment). */
+        /* Plain bold strong figure for BOTH teams; the gold underline under the winning
+           number is the sole result cue (.is-winner).
+           This DELIBERATELY no longer matches desktop, which moved the result to a row-edge
+           marker. A card puts each team on its own line, so "who won" is already a property
+           of a line here — the underline rides the winning team's own row and needs no
+           left/right encoding. The desktop marker exists precisely because its mirrored
+           single-line layout has no such line to attach to. */
         .card-team-score {
             flex-shrink: 0;
             font-size: var(--font-size-base);
@@ -1316,8 +1389,8 @@ type ScheduleRow =
         @media (min-width: 1200px) {
             .games-grid {
                 grid-template-columns:
-                    2rem 6rem minmax(0, max-content) max-content minmax(0, max-content)
-                    max-content min-content max-content minmax(0, max-content) max-content;
+                    2rem 6rem minmax(0, max-content) max-content minmax(0, var(--name-col))
+                    max-content min-content max-content minmax(0, var(--name-col)) max-content;
             }
         }
     `]
@@ -1519,6 +1592,13 @@ export class GamesTabComponent {
 
     isT2Winner(game: ViewGameDto): boolean {
         return game.t1Score != null && game.t2Score != null && game.t2Score > game.t1Score;
+    }
+
+    /** A scored draw. Needed as its own state because the result marker gives ties an
+     *  affirmative centre mark — under the retired underline scheme a tie was rendered by
+     *  the absence of a cue, indistinguishable from a cue that failed to paint. */
+    isTie(game: ViewGameDto): boolean {
+        return game.t1Score != null && game.t2Score != null && game.t1Score === game.t2Score;
     }
 
     onScoreCellClick(game: ViewGameDto): void {
