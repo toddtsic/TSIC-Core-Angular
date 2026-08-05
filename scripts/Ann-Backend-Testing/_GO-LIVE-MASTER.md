@@ -9,7 +9,6 @@
 | Item | Where | Priority | Ask |
 |---|---|---|---|
 | **AM-082** | AM | 🔴 **GO-LIVE BLOCKER** | CAC Select Events opens scrolled to the BOTTOM — must land at the **TOP** (do team + adult wizards too — shared shell) |
-| **AM-065 pt1** | AM | 🔴 Reopened | Club Rep **AND all Adult** confirmation/waiver text boxes must be editable **all the time**, NOT gated on the QuickLink / registration-availability toggle (Player already is) |
 | **AM-041 + AM-089** | AM | 🔴 Gate | Donations must **report** a donation (itemized on confirmation for tax + Director/fly-in view + allow at $0 owed) **before** the feature can be enabled by anyone. AM-089 is the hard prerequisite; AM-041 stays off until it ships |
 | **PL-037** | PL | 🔴 Reopened | Club Rep "Pay Balance Due" — waitlist-badge / balance behavior |
 | **PL-063** | PL | ◻ Open (new) | Multiplayer (sibling) Discount % not functional — **Hero's Lacrosse Players** parity: recover Hero's Legacy values (currently NULL) + surface the config field + wire `FeeDiscountMp` (reserved slot already carried through the money math) |
@@ -46,6 +45,14 @@
 | **AM-036** | AM | Shoulberg club-rep permission migration spot-check vs Legacy |
 | **AM-048** | AM | Re-run the PROD nav seed (USA Lacrosse rename) at cutover |
 | **Email sweep** | both | ALL email surfaces only truly send in Production — full surface list in the go-live memory (registration confirmations incl. CC/BCC, batch + fly-in email, ARB defensive + expiring-cards, password reset, reschedule emails, invite-to-register, USAL one-time-code, batch-completion receipt) |
+
+---
+
+## 🔎 BUILT 08-05 — awaiting Ann's verify
+
+| Item | Where | What |
+|---|---|---|
+| **AM-065 pt1** | AM | Club Rep + coach / referee / recruiter / adult-waiver confirmation sections now **start open** regardless of the QuickLink / registration-availability toggles (5 disclosure signals → `signal(true)`; no template change). Also retires the deferred bug where flipping a toggle mid-edit tore down the RTE and ate unblurred copy. **Verify on a job with those flows OFF** — steps in the punchlist item |
 
 ---
 

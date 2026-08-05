@@ -1,4 +1,4 @@
-import { Component, inject, ChangeDetectionStrategy, computed, linkedSignal, OnInit } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy, computed, linkedSignal, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RichTextEditorAllModule } from '@syncfusion/ej2-angular-richtexteditor';
@@ -34,9 +34,14 @@ export class TeamsTabComponent implements OnInit {
   adultRegConfirmationEmail = linkedSignal(() => this.svc.teams()?.adultRegConfirmationEmail ?? null);
   adultRegConfirmationOnScreen = linkedSignal(() => this.svc.teams()?.adultRegConfirmationOnScreen ?? null);
 
-  // Section disclosure: defaults open iff team registration is enabled, reseeding live
-  // when the toggle above flips. Collapsed is de-emphasis, not lockout.
-  clubRepOpen = linkedSignal(() => !!this.bRegistrationAllowTeam());
+  // Section disclosure: always starts open. AM-065 — a director must be able to prep
+  // confirmation copy before releasing registration, so the editor's presence cannot
+  // depend on bRegistrationAllowTeam. This was a linkedSignal seeded from that toggle;
+  // because the section renders the closed-note *instead of* the editors, a job with
+  // team registration off showed no text box at all until you clicked the header.
+  // Plain signal, not linkedSignal, is also what removes the reseed-on-toggle path that
+  // tore down the ej2 RTE mid-edit (ej2 change fires on blur, so unblurred copy was lost).
+  clubRepOpen = signal(true);
 
   // SuperUser-only
   bOfferTeamRegsaverInsurance = linkedSignal(() => this.svc.teams()?.bOfferTeamRegsaverInsurance ?? null);

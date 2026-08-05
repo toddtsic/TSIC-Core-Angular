@@ -36,14 +36,19 @@ export class CoachesTabComponent implements OnInit {
   recruiterRegConfirmationOnScreen = linkedSignal(() => this.svc.coaches()?.recruiterRegConfirmationOnScreen ?? null);
 
   // ── Section disclosure ──
-  // Each confirmation section defaults open iff its flow is enabled, reseeding when the
-  // toggle changes (flip coach registration on and its section opens live, before save).
-  // Collapsed is de-emphasis, not lockout — the header always expands on click.
-  coachOpen = linkedSignal(() => !!this.bRegistrationAllowStaff());
-  refereeOpen = linkedSignal(() => !!this.bRegistrationAllowReferee());
-  recruiterOpen = linkedSignal(() => !!this.bRegistrationAllowRecruiter());
-  waiversOpen = linkedSignal(() =>
-    !!this.bRegistrationAllowStaff() || !!this.bRegistrationAllowReferee() || !!this.bRegistrationAllowRecruiter());
+  // Every section always starts open. AM-065 — a director must be able to prep coach,
+  // referee, recruiter and adult-waiver copy before releasing registration, so the
+  // editors' presence cannot depend on the Registration Availability toggles.
+  // These were linkedSignals seeded from those toggles; because each section renders its
+  // closed-note *instead of* the editors, a job with those flows off showed no text box
+  // at all until you clicked the header. Plain signals, not linkedSignals, also remove
+  // the reseed-on-toggle path that tore down the ej2 RTE mid-edit (ej2 change fires on
+  // blur, so copy typed and not yet blurred was lost when a toggle flipped).
+  // The header toggle still works — the template already does .set(!x()).
+  coachOpen = signal(true);
+  refereeOpen = signal(true);
+  recruiterOpen = signal(true);
+  waiversOpen = signal(true);
 
   private readonly cleanSnapshot = computed(() => {
     const c = this.svc.coaches();
