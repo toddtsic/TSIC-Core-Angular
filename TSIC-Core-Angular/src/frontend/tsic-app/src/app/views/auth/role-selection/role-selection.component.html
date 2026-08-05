@@ -47,7 +47,7 @@
             </p>
             }
             @for (roleGroup of registrations(); track roleGroup.roleName; let i = $index) {
-            <div class="role-section" [class.mt-4]="i > 0">
+            <div class="role-section">
               @if (useTypeaheadMode()) {
               <label class="role-label" [attr.id]="'rs-label-' + i">{{ roleGroup.roleName }}</label>
               <ejs-dropdownlist [dataSource]="roleGroup.roleRegistrations" [fields]="fields"

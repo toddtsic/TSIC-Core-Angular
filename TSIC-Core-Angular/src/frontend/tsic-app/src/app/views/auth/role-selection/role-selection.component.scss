@@ -70,23 +70,21 @@
   margin-top: var(--space-4);
 }
 
-// ─── Role group header (band above dropdown / card list) ─
-// The search/teams .section-card-header treatment — primary-tinted band,
-// primary text, left accent — so the grouping reads at the same polish
-// weight as the gold-standard admin pages.
+// ─── Role group header ───────────────────────────
+// Pure typography — deliberately the only unboxed text among the boxed rows
+// and callout, which is what makes it read as a header. Whitespace above
+// (see .role-section spacing) does the separating; no rule, no band.
 .role-label {
   display: block;
   margin: 0 0 var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  background: color-mix(in srgb, var(--bs-primary) 6%, var(--surface-elevated-bg));
-  border: 1px solid var(--bs-border-color);
-  border-left: 3px solid var(--bs-primary);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-2xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--bs-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--brand-text);
+}
+
+// Generous gap between groups — the whitespace IS the separator.
+.role-section + .role-section {
+  margin-top: var(--space-8);
 }
 
 // ─── Cards-mode role list (used when section has < TYPEAHEAD_THRESHOLD entries) ─
