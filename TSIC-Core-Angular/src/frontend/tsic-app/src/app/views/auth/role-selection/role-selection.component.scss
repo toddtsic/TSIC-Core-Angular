@@ -70,10 +70,8 @@
   margin-top: var(--space-4);
 }
 
-// ─── Role group header ───────────────────────────
-// Pure typography — deliberately the only unboxed text among the boxed rows
-// and callout, which is what makes it read as a header. Whitespace above
-// (see .role-section spacing) does the separating; no rule, no band.
+// ─── Role group label (typeahead mode only) ──────
+// Cards mode carries its header inside the ledger card below.
 .role-label {
   display: block;
   margin: 0 0 var(--space-2);
@@ -82,19 +80,48 @@
   color: var(--brand-text);
 }
 
-// Generous gap between groups — the whitespace IS the separator.
 .role-section + .role-section {
-  margin-top: var(--space-8);
+  margin-top: var(--space-6);
 }
 
-// ─── Cards-mode role list (used when section has < TYPEAHEAD_THRESHOLD entries) ─
-.role-card-list {
+// ─── Cards mode: one ledger card per role group ──
+// The search/teams section-card pattern done properly: the tinted header
+// band is FUSED to the top of a bordered card, and the registrations are
+// divided rows inside it — not a stack of floating boxes.
+.role-ledger {
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  background: var(--brand-surface);
+}
+
+.role-ledger-header {
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  background: color-mix(in srgb, var(--bs-primary) 6%, var(--surface-elevated-bg));
+  border-bottom: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--bs-primary);
+}
+
+.role-ledger-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+
+  li + li {
+    border-top: 1px solid var(--border-color);
+  }
+
+  // Rows share the card's rounded bottom corner so hover/focus tint
+  // doesn't poke square edges past the card radius.
+  li:last-child .role-card-row {
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  }
 }
 
 .role-card-row {
@@ -102,24 +129,24 @@
   align-items: center;
   gap: var(--space-3);
   width: 100%;
-  padding: var(--space-3);
-  background: var(--brand-surface);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  background: transparent;
+  border: 0;
   text-align: left;
   cursor: pointer;
-  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+  transition: background 150ms ease;
   color: var(--brand-text);
 
   &:hover:not(:disabled) {
-    border-color: var(--bs-primary);
     background: rgba(var(--bs-primary-rgb), 0.04);
   }
 
   &:focus-visible {
     outline: none;
     box-shadow: var(--shadow-focus);
-    border-color: var(--bs-primary);
+    // Lift the ring above the sibling rows' divider lines.
+    position: relative;
+    z-index: 1;
   }
 
   &:disabled {

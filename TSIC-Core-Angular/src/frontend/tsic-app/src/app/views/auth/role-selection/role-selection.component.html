@@ -68,10 +68,11 @@
               <span class="visually-hidden" [id]="'rs-help-' + i">Use search to filter registrations. Arrow keys
                 navigate, Enter selects.</span>
               } @else {
-              <h3 class="role-label" [attr.id]="'rs-label-' + i">{{ roleGroup.roleName }}</h3>
-              <ul class="role-card-list" [attr.aria-labelledby]="'rs-label-' + i">
-                @for (reg of roleGroup.roleRegistrations; track reg.regId) {
-                <li>
+              <section class="role-ledger" [attr.aria-labelledby]="'rs-label-' + i">
+                <h3 class="role-ledger-header" [attr.id]="'rs-label-' + i">{{ roleGroup.roleName }}</h3>
+                <ul class="role-ledger-list">
+                  @for (reg of roleGroup.roleRegistrations; track reg.regId) {
+                  <li>
                   <button type="button" class="role-card-row" [disabled]="isLoading()" (click)="selectRole(reg)">
                     @if (reg.jobLogo) {
                     <img class="role-card-logo" [src]="reg.jobLogo" alt="" aria-hidden="true" />
@@ -86,9 +87,10 @@
                     </span>
                     <i class="bi bi-chevron-right role-card-arrow" aria-hidden="true"></i>
                   </button>
-                </li>
-                }
-              </ul>
+                  </li>
+                  }
+                </ul>
+              </section>
               }
             </div>
             }
