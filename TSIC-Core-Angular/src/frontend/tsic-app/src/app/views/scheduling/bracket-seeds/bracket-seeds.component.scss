@@ -65,6 +65,111 @@
 	}
 }
 
+// ── Bracket games, banded by agegroup ──
+// The agegroup lives in the band header ONCE; rows are pure matchups. Same
+// section idiom as Assign Timeslots' day headers.
+.seed-band-head {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	padding: var(--space-2) var(--space-4);
+	background: var(--bg-elevated);
+	border-top: 1px solid var(--border-color);
+	border-bottom: 1px solid var(--border-color);
+}
+
+.seed-band-name {
+	font-weight: var(--font-weight-semibold);
+	font-size: var(--font-size-sm);
+	color: var(--text-primary);
+}
+
+.seed-band-meta {
+	font-size: var(--font-size-xs);
+	color: var(--text-secondary);
+}
+
+// Remaining-work chip — shared by the card header (job-wide) and each band.
+.seed-status {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	margin-left: auto;
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-semibold);
+	padding: 2px var(--space-2);
+	border-radius: var(--radius-sm);
+}
+
+.seed-status--todo {
+	color: var(--bs-warning-text-emphasis);
+	background: var(--bs-warning-bg-subtle);
+}
+
+.seed-status--done {
+	color: var(--bs-success-text-emphasis);
+	background: var(--bs-success-bg-subtle);
+}
+
+.seed-table {
+	td {
+		padding-top: var(--space-1);
+		padding-bottom: var(--space-1);
+	}
+
+	.col-slot {
+		width: 3.5rem;
+		font-weight: var(--font-weight-medium);
+		text-align: center;
+	}
+
+	.col-vs {
+		width: 2.5rem;
+		text-align: center;
+		color: var(--text-secondary);
+		font-size: var(--font-size-xs);
+		text-transform: uppercase;
+	}
+
+	// The two sides split the remaining width evenly so matchups align down the page.
+	.col-side {
+		width: 40%;
+	}
+
+	.col-actions {
+		width: 3rem;
+		text-align: center;
+	}
+}
+
+// Pool + rank read as one fact: "3rd out of Fucshia".
+.seed-rank {
+	font-weight: var(--font-weight-semibold);
+	margin-left: var(--space-1);
+}
+
+// Fed = resolved by an earlier game; deliberately quiet.
+.seed-fed {
+	color: var(--text-secondary);
+	font-size: var(--font-size-xs);
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+// An unseeded seedable slot is the page's whole worklist — loud on purpose,
+// icon + text so the cue never rests on colour alone.
+.seed-needed {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	color: var(--bs-warning-text-emphasis);
+	background: var(--bs-warning-bg-subtle);
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-semibold);
+	padding: 2px var(--space-2);
+	border-radius: var(--radius-sm);
+}
+
 // Responsive
 @media (max-width: 767.98px) {
 	.edit-panel {

@@ -34,89 +34,96 @@
 			</div>
 		</div>
 	} @else {
-		<!-- Bracket Games Table -->
+		<!-- Bracket Games — banded by agegroup; a row is one matchup. -->
 		<div class="card mb-4">
 			<div class="card-header bg-surface border-0 py-3 d-flex justify-content-between align-items-center">
 				<h6 class="mb-0">
 					<i class="bi bi-diagram-3 me-2"></i>
-					Bracket Games ({{ bracketGames().length }})
+					Bracket Games <span class="badge-count">{{ bracketGames().length }}</span>
 				</h6>
+				<!-- The page-level "am I done?" — mirrors the checklist's Bracket Seeds step. -->
+				@if (totalUnseeded() > 0) {
+					<span class="seed-status seed-status--todo">
+						<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+						{{ totalUnseeded() }} slot{{ totalUnseeded() === 1 ? '' : 's' }} unseeded
+					</span>
+				} @else {
+					<span class="seed-status seed-status--done">
+						<i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+						All slots seeded
+					</span>
+				}
 			</div>
-			<div class="table-responsive">
-				<table class="table table-sm table-hover mb-0 align-middle">
-					<thead>
-						<tr>
-							<th>Agegroup</th>
-							<th class="text-center">Slot 1</th>
-							<th>Seed Pool 1</th>
-							<th class="text-center">Seed Rank 1</th>
-							<th class="text-center">Slot 2</th>
-							<th>Seed Pool 2</th>
-							<th class="text-center">Seed Rank 2</th>
-							<th class="text-center">Edit</th>
-						</tr>
-					</thead>
-					<tbody>
-						@for (game of bracketGames(); track game.gid) {
-							<tr class="cursor-pointer" [class.table-active]="editingGame()?.gid === game.gid">
-								<td>{{ game.agegroupName }}</td>
-								<td class="text-center fw-medium">{{ game.t1Type }}{{ game.t1No }}</td>
-								<!-- A fed slot's team advances from an earlier bracket game — there is
-								     no seed to show or set, and "Fed" says so instead of a dash that
-								     reads as unfinished work. -->
-								@if (game.t1Seedable) {
-									<td>
-										@if (game.t1SeedDivName) {
+
+			@for (band of bands(); track band.agegroupName) {
+				<div class="seed-band-head">
+					<span class="seed-band-name">{{ band.agegroupName }}</span>
+					<span class="seed-band-meta">
+						{{ band.games.length }} game{{ band.games.length === 1 ? '' : 's' }}
+					</span>
+					@if (band.unseededCount > 0) {
+						<span class="seed-status seed-status--todo">
+							{{ band.unseededCount }} of {{ band.seedableSlotCount }} slots unseeded
+						</span>
+					} @else {
+						<span class="seed-status seed-status--done">
+							<i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+						</span>
+					}
+				</div>
+				<div class="table-responsive">
+					<table class="table table-sm table-hover seed-table mb-0 align-middle">
+						<tbody>
+							@for (game of band.games; track game.gid) {
+								<tr [class.table-active]="editingGame()?.gid === game.gid">
+									<td class="col-slot">{{ game.t1Type }}{{ game.t1No }}</td>
+									<!-- One cell per side: pool + rank are a single fact ("3rd out of
+									     Fucshia"). A fed slot's team advances from an earlier bracket
+									     game; an unseeded seedable slot is THE work this page exists
+									     for, so it gets the loud treatment, not a quiet dash. -->
+									<td class="col-side">
+										@if (!game.t1Seedable) {
+											<span class="seed-fed">fed</span>
+										} @else if (slotSeeded(game.t1SeedDivId, game.t1SeedRank)) {
 											<span class="badge bg-primary-subtle text-primary">{{ game.t1SeedDivName }}</span>
+											<span class="seed-rank">#{{ game.t1SeedRank }}</span>
 										} @else {
-											<span class="text-muted">—</span>
+											<span class="seed-needed">
+												<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+												needs seed
+											</span>
 										}
 									</td>
-									<td class="text-center">
-										@if (game.t1SeedRank) {
-											<span class="fw-medium">#{{ game.t1SeedRank }}</span>
-										} @else {
-											<span class="text-muted">—</span>
-										}
-									</td>
-								} @else {
-									<td colspan="2" class="text-center">
-										<span class="badge bg-secondary-subtle text-secondary-emphasis">Fed</span>
-									</td>
-								}
-								<td class="text-center fw-medium">{{ game.t2Type }}{{ game.t2No }}</td>
-								@if (game.t2Seedable) {
-									<td>
-										@if (game.t2SeedDivName) {
+									<td class="col-vs">vs</td>
+									<td class="col-slot">{{ game.t2Type }}{{ game.t2No }}</td>
+									<td class="col-side">
+										@if (!game.t2Seedable) {
+											<span class="seed-fed">fed</span>
+										} @else if (slotSeeded(game.t2SeedDivId, game.t2SeedRank)) {
 											<span class="badge bg-primary-subtle text-primary">{{ game.t2SeedDivName }}</span>
+											<span class="seed-rank">#{{ game.t2SeedRank }}</span>
 										} @else {
-											<span class="text-muted">—</span>
+											<span class="seed-needed">
+												<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+												needs seed
+											</span>
 										}
 									</td>
-									<td class="text-center">
-										@if (game.t2SeedRank) {
-											<span class="fw-medium">#{{ game.t2SeedRank }}</span>
-										} @else {
-											<span class="text-muted">—</span>
-										}
+									<td class="col-actions">
+										<button class="icon-btn"
+											(click)="openEdit(game)"
+											[disabled]="isSaving()"
+											[attr.aria-label]="'Edit seeds for ' + game.agegroupName + ' ' + game.t1Type + game.t1No + ' vs ' + game.t2Type + game.t2No"
+											title="Edit seeds">
+											<i class="bi bi-pencil"></i>
+										</button>
 									</td>
-								} @else {
-									<td colspan="2" class="text-center">
-										<span class="badge bg-secondary-subtle text-secondary-emphasis">Fed</span>
-									</td>
-								}
-								<td class="text-center">
-									<button class="btn btn-sm btn-outline-primary"
-										(click)="openEdit(game)"
-										[disabled]="isSaving()">
-										<i class="bi bi-pencil"></i>
-									</button>
-								</td>
-							</tr>
-						}
-					</tbody>
-				</table>
-			</div>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
 		</div>
 
 		<!-- Edit Modal -->

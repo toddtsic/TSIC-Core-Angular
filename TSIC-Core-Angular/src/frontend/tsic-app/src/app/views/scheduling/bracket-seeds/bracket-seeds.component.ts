@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, inject, OnInit, WritableSignal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, signal, inject, OnInit, WritableSignal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BracketSeedService } from './services/bracket-seed.service';
@@ -10,6 +10,17 @@ import type {
 	UpdateBracketSeedRequest,
 	StandingsByDivisionResponse,
 } from '@core/api';
+
+/**
+ * One agegroup's games, banded — the list's natural chunking. The unseeded count is the
+ * band's worklist: seedable slots still missing a pool or a rank.
+ */
+interface SeedBand {
+	agegroupName: string;
+	games: BracketSeedGameDto[];
+	seedableSlotCount: number;
+	unseededCount: number;
+}
 
 @Component({
 	selector: 'app-bracket-seeds',
@@ -48,6 +59,41 @@ export class BracketSeedsComponent implements OnInit {
 	private readonly defaultRanks = Array.from({ length: 12 }, (_, i) => i + 1);
 	t1RankOptions = signal<number[]>(this.defaultRanks);
 	t2RankOptions = signal<number[]>(this.defaultRanks);
+
+	/** A seedable slot counts as seeded only when BOTH pool and rank are set. */
+	slotSeeded(divId: string | null, rank: number | null): boolean {
+		return !!divId && !!rank;
+	}
+
+	/**
+	 * Games banded by agegroup (server order preserved: agegroup → round → slot).
+	 * The band header carries the agegroup ONCE plus its remaining-work count, so the
+	 * rows themselves are pure matchups.
+	 */
+	readonly bands = computed<SeedBand[]>(() => {
+		const bands: SeedBand[] = [];
+		let current: SeedBand | null = null;
+		for (const g of this.bracketGames()) {
+			if (!current || current.agegroupName !== g.agegroupName) {
+				current = { agegroupName: g.agegroupName, games: [], seedableSlotCount: 0, unseededCount: 0 };
+				bands.push(current);
+			}
+			current.games.push(g);
+			if (g.t1Seedable) {
+				current.seedableSlotCount++;
+				if (!this.slotSeeded(g.t1SeedDivId, g.t1SeedRank)) current.unseededCount++;
+			}
+			if (g.t2Seedable) {
+				current.seedableSlotCount++;
+				if (!this.slotSeeded(g.t2SeedDivId, g.t2SeedRank)) current.unseededCount++;
+			}
+		}
+		return bands;
+	});
+
+	/** Job-wide remaining work — the page-level "am I done?" number. */
+	readonly totalUnseeded = computed(() =>
+		this.bands().reduce((sum, b) => sum + b.unseededCount, 0));
 
 	ngOnInit(): void {
 		this.loadBracketGames();
