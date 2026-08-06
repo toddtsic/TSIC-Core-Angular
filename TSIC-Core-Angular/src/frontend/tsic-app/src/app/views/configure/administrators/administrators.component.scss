@@ -1,6 +1,22 @@
+/* The content is intrinsically narrow — a name, a role badge, a username, a date —
+   so the view is capped and centered instead of letting the Name column absorb a
+   monitor's width of dead space. Header shares the cap so its actions stay over
+   the grid's right edge. */
 :host {
     display: block;
     padding: var(--space-4);
+    max-width: 56rem;
+    margin-inline: auto;
+}
+
+/* Usernames are email-shaped and arbitrarily long; wrap them to a second line
+   rather than clipping. Syncfusion's default cell white-space is nowrap, and the
+   td is rendered outside this component's encapsulated scope, so ::ng-deep is
+   scoped to cells flagged via customAttributes.class. */
+:host ::ng-deep .e-grid td.username-cell {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.25;
 }
 
 // Name cell: fixed-width star slot keeps names aligned on non-Director rows

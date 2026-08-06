@@ -79,15 +79,16 @@
                     </span>
                 </ng-template>
             </e-column>
-            <e-column field="roleName" headerText="Role" width="130">
+            <e-column field="roleName" headerText="Role" width="120">
                 <ng-template #template let-data>
                     <span class="badge rounded-pill" [ngClass]="getRoleBadgeClass(data.roleName)">
                         {{ data.isSuperuser ? 'Superuser' : data.roleName }}
                     </span>
                 </ng-template>
             </e-column>
-            <e-column field="userName" headerText="Username" width="140"></e-column>
-            <e-column field="isActive" headerText="Status" width="90" textAlign="Center">
+            <e-column field="userName" headerText="Username" width="190"
+                      [customAttributes]="{ class: 'username-cell' }"></e-column>
+            <e-column field="isActive" headerText="Status" width="85" textAlign="Center">
                 <ng-template #template let-data>
                     @if (data.isActive) {
                         <span class="active-badge active-yes">Active</span>
@@ -96,8 +97,8 @@
                     }
                 </ng-template>
             </e-column>
-            <e-column field="registeredDate" headerText="Registered" width="120" type="date" [format]="{ type: 'date', format: 'MM/dd/yyyy' }"></e-column>
-            <e-column headerText="Actions" width="120" [allowSorting]="false" textAlign="Center">
+            <e-column field="registeredDate" headerText="Registered" width="110" type="date" [format]="{ type: 'date', format: 'MM/dd/yyyy' }"></e-column>
+            <e-column headerText="Actions" width="110" [allowSorting]="false" textAlign="Center">
                 <ng-template #template let-data>
                     @if (!data.isSuperuser) {
                         <div class="action-buttons">
