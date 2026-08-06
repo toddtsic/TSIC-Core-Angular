@@ -1,0 +1,86 @@
+<h3>Schedule Dashboard</h3>
+<p>
+  A one-screen read on the schedule you've built: how big it is, how it spreads across the days, and —
+  the part worth looking at — <strong>what got left out</strong>. Open it by clicking the stat band under
+  the title on the <strong>Scheduling Checklist</strong>; the arrow beside the title brings you back.
+</p>
+
+<div class="help-callout help-callout--info">
+  <i class="bi bi-speedometer2" aria-hidden="true"></i>
+  <div>
+    <strong>It fills in after the build.</strong>
+    <p class="help-callout__body">
+      Before there are games there is nothing to summarize — readiness is the only status that matters,
+      and the Scheduling Checklist is where that lives.
+    </p>
+  </div>
+</div>
+
+<h4>The tiles</h4>
+<div class="help-menu-list">
+  <div class="help-menu-row">
+    <i class="bi bi-calendar-check" aria-hidden="true"></i>
+    <div class="help-menu-row__body">
+      <div class="help-menu-row__title">Games</div>
+      <div class="help-menu-row__sub">Total games on the books for the event.</div>
+    </div>
+  </div>
+  <div class="help-menu-row">
+    <i class="bi bi-calendar3" aria-hidden="true"></i>
+    <div class="help-menu-row__body">
+      <div class="help-menu-row__title">Play days</div>
+      <div class="help-menu-row__sub">Distinct days with games, plus the first-to-last date span beneath. A weekend event with a gap shows both numbers honestly.</div>
+    </div>
+  </div>
+  <div class="help-menu-row">
+    <i class="bi bi-geo-alt" aria-hidden="true"></i>
+    <div class="help-menu-row__body">
+      <div class="help-menu-row__title">Fields in use</div>
+      <div class="help-menu-row__sub">How many fields the build actually put games on — which can be fewer than you assigned.</div>
+    </div>
+  </div>
+  <div class="help-menu-row">
+    <i class="bi bi-diagram-3" aria-hidden="true"></i>
+    <div class="help-menu-row__body">
+      <div class="help-menu-row__title">Divisions scheduled</div>
+      <div class="help-menu-row__sub">Shown as <em>scheduled / schedulable</em> when any division came up short, with the shortfall named underneath.</div>
+    </div>
+  </div>
+  <div class="help-menu-row">
+    <i class="bi bi-people" aria-hidden="true"></i>
+    <div class="help-menu-row__body">
+      <div class="help-menu-row__title">Teams scheduled</div>
+      <div class="help-menu-row__sub">Shown as <em>scheduled / active</em> when any active team has no game at all.</div>
+    </div>
+  </div>
+</div>
+
+<div class="help-callout help-callout--warning">
+  <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+  <div>
+    <strong>A highlighted tile means something was skipped.</strong>
+    <p class="help-callout__body">
+      "3 divisions without games" or "12 teams without a game" is the build telling you it couldn't place
+      them — usually missing timeslots on a day, teams still in <em>Unassigned</em>, or not enough field
+      capacity. A build that skips work does not fail; it just builds less. These two tiles are how you
+      notice.
+    </p>
+  </div>
+</div>
+
+<h4>Games per day</h4>
+<p>
+  A bar per play day, so you can see the shape of the event at a glance. A day carrying far more games than
+  the others usually means the other days are short on timeslots — worth a look in
+  <strong>Assign Timeslots</strong> before anyone tries to play it.
+</p>
+
+<h4>Where to act on what you see</h4>
+<ul>
+  <li><strong>Teams or divisions without games</strong> — check pools and timeslots on the
+      <strong>Scheduling Checklist</strong>, then re-build on the <strong>Schedule</strong> hub.</li>
+  <li><strong>Fewer fields in use than expected</strong> — a field with no timeslots for a day gets no
+      games, even though it's assigned to the event.</li>
+  <li><strong>Conflicts, not counts</strong> — that's <strong>QA</strong>, not this screen. This one tells
+      you what's missing; QA tells you what clashes.</li>
+</ul>

@@ -1,44 +1,124 @@
-<h3>Manage Timeslots</h3>
+<h3>Assign Timeslots</h3>
 <p>
-  Timeslots are the actual game slots — a date, a field, and a start time — that games drop into when you build.
-  You define them here per game day, and the screen tells you whether you've made <strong>enough</strong> slots
-  for the games your event needs.
+  Step 3 of the Scheduling Checklist, and two jobs on one screen: <strong>which days an age group
+  plays</strong>, and <strong>which field slots exist on those days</strong> for games to drop into. You
+  work one age group at a time — pick it in the rail on the left; the badge next to each name is its pool
+  count.
 </p>
 
 <div class="help-callout help-callout--info">
   <i class="bi bi-clock" aria-hidden="true"></i>
   <div>
-    <strong>Slots are the containers; games are what fill them.</strong>
+    <strong>Dates first, then slots.</strong>
     <p class="help-callout__body">
-      No open slot, nowhere to place a game — so timeslot capacity is what makes (or breaks) a build.
+      The days you can set up timeslots for are derived from the game dates above — not chosen separately.
+      Add no dates and there is nothing to configure; add a Sunday date and Sunday appears in setup. The
+      build engine reads timeslots the same way, so a row for a day you never play is never read at all.
     </p>
   </div>
 </div>
 
-<h4>Creating slots for a day</h4>
+<h4>Age Group Game Dates</h4>
+<p>
+  The top card is the calendar for this age group. <strong>Add Date</strong> creates one; the row actions
+  edit, delete, or clone it:
+</p>
 <ul>
-  <li><strong>Add Date</strong> to set up a game day, then generate slots across your assigned fields.</li>
-  <li>The <strong>interval</strong> is the time between game starts on a field; <strong>Max Games</strong> caps how many a field runs that day.</li>
-  <li><strong>Add All</strong> lays slots across every field at once; adjust individual fields afterward if needed.</li>
+  <li><strong>+D</strong> — clone to the next day. <strong>+W</strong> — clone to the same day next week.
+      <strong>+R</strong> — clone this date carrying the next round number.</li>
+  <li><strong>Rnd</strong> is the first round played on that date. Day 1 is Rnd 1; if three rounds run on
+      Day 1, Day 2 starts at Rnd 4. Each calendar date should have its own first round — the screen warns
+      you if two dates share one, or if every date is sitting on Round 1.</li>
 </ul>
 
-<h4>Needed vs. available — the capacity check</h4>
+<h4>Age Group Timeslots</h4>
 <p>
-  The screen compares <strong>Games Needed</strong> (what your pairings and pools require) against the slots
-  you've created. If needed exceeds available, the build won't have room for every game — add more slots, extend
-  the day, or raise Max Games until you have enough. This preview is the point of the screen: catch a shortfall
-  here, not mid-build.
+  The bottom card is the inventory of droppable game slots. <strong>Set Up Timeslots</strong> (or
+  <strong>Edit Timeslots</strong> once some exist) is the only way to create or change them — the table
+  below it is a read-out, not an editor.
+</p>
+<p>
+  The setup dialog lists one row per day this age group plays. For each day you set:
+</p>
+<div class="help-card-grid">
+  <div class="help-card">
+    <span class="badge rounded-pill text-bg-secondary">Fields</span>
+    <p>Which fields host this age group that day. Tick a field to add it; untick to remove it.</p>
+  </div>
+  <div class="help-card">
+    <span class="badge rounded-pill text-bg-secondary">Start</span>
+    <p>The first game time on the day.</p>
+  </div>
+  <div class="help-card">
+    <span class="badge rounded-pill text-bg-secondary">Every</span>
+    <p>Minutes between game starts on a field — the interval.</p>
+  </div>
+  <div class="help-card">
+    <span class="badge rounded-pill text-bg-secondary">Slots / field</span>
+    <p>How many games each field runs that day. Fields &times; slots is the day's total, shown as you type.</p>
+  </div>
+</div>
+<p>
+  Saving writes the slots to <strong>every pool</strong> in the age group — you don't set them up pool by
+  pool. The dialog totals the slots you're about to create so you can compare against the games your
+  pairings need before you commit.
 </p>
 
-<h4>Bulk clone</h4>
+<div class="help-callout help-callout--warning">
+  <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+  <div>
+    <strong>A played day with no timeslots is a silent build failure.</strong>
+    <p class="help-callout__body">
+      The builder places no games on it and says nothing. The screen calls it out above the table —
+      "plays Sunday but has no timeslots there" — with a button straight into setup. The reverse case is
+      flagged too: slots sitting on a day this age group has no game date for are dead rows the builder
+      never reads.
+    </p>
+  </div>
+</div>
+
+<h4>Reading the timeslot table</h4>
 <p>
-  Most events run similar days. Use <strong>Bulk Clone Operations</strong> to copy a day's timeslot setup to
-  other dates instead of rebuilding each one — set up Saturday once, clone it to Sunday.
+  Slots are stored per pool, so a 31-field age group with 6 pools is 186 near-identical rows. The table
+  folds them: <strong>one row per field per day</strong>, with the pools it covers summarised in the last
+  column. A row that doesn't cover every pool is highlighted and shows how many are missing.
 </p>
+<p>
+  Three counts sit above the table and mean different things:
+</p>
+<ul>
+  <li><strong>Game slots</strong> — how many games actually fit. This is the number to compare against
+      what your pairings need. Pools don't multiply it; six pools share the same physical field-hour.</li>
+  <li><strong>Field/day rows</strong> — what's on screen after folding.</li>
+  <li><strong>Pool timeslots</strong> — the raw stored rows. It's the number legacy displayed, and it's
+      why the two don't match.</li>
+</ul>
+
+<h4>Copying to another age group</h4>
+<p>
+  The <strong>Clone to</strong> control at the top copies this age group's <strong>Dates</strong> or its
+  <strong>Fields</strong> to another age group. Set 2030 up the way you want it, then push it across.
+</p>
+<div class="help-callout help-callout--warning">
+  <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+  <div>
+    <strong>Cloning replaces the target — it never appends.</strong>
+    <p class="help-callout__body">
+      If the target age group already has dates or timeslots, they're cleared and replaced with these. You
+      get a confirmation naming what's about to be lost. Cloning the same thing twice is therefore safe;
+      it can't double anything up.
+    </p>
+  </div>
+</div>
 
 <h4>Common mistakes</h4>
 <ul>
-  <li><strong>Too few slots for the games needed.</strong> Watch the needed-vs-available comparison; a shortfall means the scheduler runs out of room.</li>
-  <li><strong>Slots only on some fields.</strong> If a field has no timeslots, the scheduler won't use it that day even though it's assigned.</li>
-  <li><strong>Rebuilding each day by hand.</strong> Clone a configured day to the rest instead.</li>
+  <li><strong>Setting up timeslots before dates.</strong> Setup is disabled until the age group has at
+      least one game date, because the days it configures come from them.</li>
+  <li><strong>Too few slots for the games needed.</strong> Compare the game-slot count against what your
+      pools and pairings require. A shortfall means the builder runs out of room.</li>
+  <li><strong>Leaving a play day empty.</strong> Heed the warning banner — a played day with no slots
+      produces no games and no error.</li>
+  <li><strong>Assuming a clone merged.</strong> It replaced. If the target had dates you wanted to keep,
+      they're gone — re-add them rather than cloning back and forth.</li>
 </ul>

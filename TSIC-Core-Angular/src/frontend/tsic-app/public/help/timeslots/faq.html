@@ -1,11 +1,12 @@
-<h3>Manage Timeslots</h3>
+<h3>Assign Timeslots</h3>
 
 <div class="help-callout help-callout--warning">
   <i class="bi bi-clock-fill" aria-hidden="true"></i>
   <div>
-    <strong>Not enough slots = games with nowhere to go.</strong>
+    <strong>No slot, nowhere to put the game.</strong>
     <p class="help-callout__body">
-      Keep an eye on Games Needed vs the slots you've created — a shortfall here is what stalls a build.
+      Timeslot capacity is what makes or breaks a build — and a play day with no slots at all produces no
+      games and no error. Watch the warnings above the table.
     </p>
   </div>
 </div>
@@ -14,30 +15,108 @@
   <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What exactly is a timeslot?</span></summary>
   <div class="faq-a">
     <p>
-      One game slot: a date, a field, and a start time. When you build the schedule, each game drops into an open
-      slot. Create enough of them, across enough fields, to hold every game your event needs.
+      One droppable game slot: a day, a field, and a start time. When the schedule builds, each game lands
+      in an open slot. Create enough of them, across enough fields, to hold every game your event needs.
     </p>
   </div>
 </details>
 
 <details class="faq-item">
-  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What do Interval and Max Games control?</span></summary>
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why can't I click Set Up Timeslots?</span></summary>
   <div class="faq-a">
     <p>
-      <strong>Interval</strong> is the gap between game starts on a field (e.g. every 60 minutes).
-      <strong>Max Games</strong> caps how many games that field runs on the day. Together they set how many slots
-      a field produces.
+      This age group has no game dates yet. The days the setup dialog offers are derived from the dates in
+      the card above — no dates, no days, nothing to configure. Add at least one date first, or clone dates
+      in from another age group.
     </p>
   </div>
 </details>
 
 <details class="faq-item">
-  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>How do I know if I've made enough slots?</span></summary>
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>How do I edit a single row in the timeslot table?</span></summary>
   <div class="faq-a">
     <p>
-      The screen shows <strong>Games Needed</strong> — derived from your pools and pairings — against the slots
-      you've created. If needed is higher, add slots, extend the day, or raise Max Games until you have room for
-      every game.
+      You don't — the table is a read-out. Everything is set in the <strong>Edit Timeslots</strong> dialog:
+      unticking a field on a day removes its slots, ticking it on another day creates them, and the start,
+      interval and slots-per-field replace what used to be per-row editing. One way in means the table can
+      never disagree with what's stored.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Do I have to set timeslots up for each pool separately?</span></summary>
+  <div class="faq-a">
+    <p>
+      No. Setup works at the age-group level and writes the slots to every pool in it. Pools only appear in
+      the table's last column, so you can see which ones a given field/day row covers.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why do the three counts above the table disagree?</span></summary>
+  <div class="faq-a">
+    <p>
+      They answer different questions. <strong>Game slots</strong> is how many games actually fit — the one
+      to compare against your pairings. <strong>Field/day rows</strong> is what's on screen after folding.
+      <strong>Pool timeslots</strong> is the raw stored count: fields &times; pools &times; days, which is
+      what legacy displayed. Six pools sharing one field-hour is one game slot, not six.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>A row is highlighted and says pools are missing. What does that mean?</span></summary>
+  <div class="faq-a">
+    <p>
+      That field, on that day, has timeslots for some of the age group's pools but not all of them. The
+      pools without slots can't have games placed there. Open setup and save the day again to cover every
+      pool.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What do Every (interval) and Slots / field control?</span></summary>
+  <div class="faq-a">
+    <p>
+      <strong>Every</strong> is the gap between game starts on a field — 60 minutes means 8:00, 9:00, 10:00.
+      <strong>Slots / field</strong> is how many games that field runs on the day. Fields &times; slots is
+      the day's total, and the dialog adds it up for you as you type.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What is the Rnd column on a game date?</span></summary>
+  <div class="faq-a">
+    <p>
+      The first round played on that date. Day 1 is Rnd 1; if three rounds run on Day 1 then Day 2 starts
+      at Rnd 4. Each calendar date should have its own first round — the screen warns you when two dates
+      share one, or when every date is still sitting on Round 1.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What do the +D, +W and +R buttons on a date do?</span></summary>
+  <div class="faq-a">
+    <p>
+      <strong>+D</strong> clones the date to the next day, <strong>+W</strong> to the same day next week,
+      and <strong>+R</strong> clones it carrying the next round number. They're shortcuts for the two shapes
+      most events have: a weekend, or a league that plays the same weekday for weeks.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Does Clone to another age group add to what's already there?</span></summary>
+  <div class="faq-a">
+    <p>
+      No — it <strong>replaces</strong>. If the target age group already has dates or timeslots, they're
+      removed and these are put in their place; you'll get a confirmation naming how many are about to go.
+      The upside is that cloning twice can't double anything up.
     </p>
   </div>
 </details>
@@ -46,18 +125,19 @@
   <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>A field isn't getting any games. Why?</span></summary>
   <div class="faq-a">
     <p>
-      It probably has no timeslots for that day. A field must be both assigned (in Manage Fields) <em>and</em>
-      have slots here for the scheduler to place games on it. Add slots to that field's day.
+      Most likely it has no timeslots on that day for this age group. A field must be both assigned to the
+      event (in <strong>Manage Fields</strong>) <em>and</em> ticked for that day in setup. Check the day's
+      section in the table — if the field isn't listed, it isn't in play.
     </p>
   </div>
 </details>
 
 <details class="faq-item">
-  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Do I have to set up every day from scratch?</span></summary>
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>It says there are timeslots on a day the age group doesn't play.</span></summary>
   <div class="faq-a">
     <p>
-      No — use <strong>Bulk Clone Operations</strong> to copy a fully-configured day to other dates. Set up one
-      day the way you want it, then clone it across the rest of the weekend.
+      Those rows are dead — the builder only reads slots for days that appear in the game dates, so it will
+      never look at them. Either add the matching game date, or let the next setup save clear them.
     </p>
   </div>
 </details>
@@ -65,7 +145,8 @@
 <div class="help-callout help-callout--tip">
   <i class="bi bi-lightbulb" aria-hidden="true"></i>
   <div>
-    <strong>Tip:</strong> configure fields and pairings first, then timeslots. Games Needed comes from your pools
-    and pairings, so with those settled the needed-vs-available check here is accurate the moment you look at it.
+    <strong>Tip:</strong> assign fields and settle pools first, then come here. The game-slot count only
+    means something next to the games your pools and pairings actually need, and setup can only offer
+    fields the event has been given.
   </div>
 </div>

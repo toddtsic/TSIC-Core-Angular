@@ -5,18 +5,31 @@
   <div>
     <strong>Work the steps top to bottom.</strong>
     <p class="help-callout__body">
-      Each step links to the screen that turns it green. When the required steps are green, Build unlocks.
+      Each step links to the screen that turns it green, and every one of those screens has a back arrow to
+      here. When pools, play dates and timeslots are green, Build unlocks.
     </p>
   </div>
 </div>
 
 <details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Where did the rest of the Scheduling menu go?</span></summary>
+  <div class="faq-a">
+    <p>
+      It's all here. The menu used to list eleven scheduling screens with no indication of which ones you
+      still needed; now there's one <strong>Scheduling Checklist</strong> item, and this page routes you to
+      everything — steps at the top, tools below. Every screen it opens has a back arrow to return here.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
   <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why is Build Schedule locked?</span></summary>
   <div class="faq-a">
     <p>
-      One or more of the steps above it isn't finished — the lock row names which ones. The most common blocker
-      is teams still sitting in the <em>Unassigned</em> pool: those teams can never be placed in a schedule, so
-      the build stays locked until every age group is fully pooled.
+      One of the three steps it depends on isn't finished, and the row names them:
+      <em>"Locked until complete: pools, play dates, timeslots"</em>. The most common blocker is teams still
+      sitting in the <em>Unassigned</em> pool — those teams can never be placed in a schedule, so the build
+      stays locked until every age group is fully pooled.
     </p>
   </div>
 </details>
@@ -25,9 +38,22 @@
   <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What does the detail line under a step mean?</span></summary>
   <div class="faq-a">
     <p>
-      It's the live list of what's missing — for example <em>"2029: 12 of 59"</em> under Pools means the 2029 age
-      group still has 12 unpooled teams, and <em>"No dates for: 2030"</em> means that age group has no play dates
-      yet. Fix exactly what's named and the step turns green.
+      It's the live list of what's missing. <em>"2029: 12 of 59"</em> under Pools means that age group still
+      has 12 unpooled teams out of 59. <em>"No play dates: 2030"</em> means that age group has no game dates.
+      <em>"4 pools without timeslots — 2030: White, Red"</em> names the individual pools. Fix exactly what's
+      named and the step turns green.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Play dates and timeslots are one step. Which is which?</span></summary>
+  <div class="faq-a">
+    <p>
+      They're set on the same screen but at different grains. <strong>Play dates belong to the age group</strong>
+      — 2030 plays Saturday and Sunday. <strong>Timeslots belong to the pool</strong> — you set up 2030 Red,
+      then 2030 White. Step 3 reports both, so a green age group can still show individual pools missing
+      timeslots.
     </p>
   </div>
 </details>
@@ -36,8 +62,43 @@
   <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Pairings shows missing pool sizes. Do I have to fix that?</span></summary>
   <div class="faq-a">
     <p>
-      No — pairings are informational. Any missing pool size is generated automatically when the build runs.
-      Visit the Pairings screen only if you want to review or customize who-plays-whom beforehand.
+      No — pairings are informational and never block the build. Any missing pool size is generated
+      automatically when the build runs. Open the Pairings screen only if you want to review or customize
+      who-plays-whom beforehand.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>It mentions divisions without a game guarantee. Is that blocking me?</span></summary>
+  <div class="faq-a">
+    <p>
+      No. If a division has no guarantee set, the builder works one out from the pairing table and writes it
+      back. The note exists so you know it's being derived rather than chosen — if the derived number isn't
+      what your event promises, set it explicitly on the hub's <strong>Build Rules</strong> tab before you build.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>I don't see a Bracket Seeds step.</span></summary>
+  <div class="faq-a">
+    <p>
+      Then this event has no bracket games. The step only appears when there are playoff games to seed —
+      showing a permanently green check for work that never applied would be a hollow claim. Bracket games
+      are created during the build from championship pairings; once they exist, the step appears.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Bracket Seeds is red but I've seeded everything I can see.</span></summary>
+  <div class="faq-a">
+    <p>
+      A slot counts as covered if it has a <strong>seed</strong> ("Pool A #1") <em>or</em> an
+      <strong>advancement feed</strong> — meaning it's filled by the winner or loser of an earlier bracket
+      game. Later-round slots are usually fed, not seeded. The step lists the uncovered slots by age group
+      and slot label, so open Bracket Seeds and look for exactly those.
     </p>
   </div>
 </details>
@@ -46,8 +107,30 @@
   <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why are the Tools grayed out?</span></summary>
   <div class="faq-a">
     <p>
-      The Tools — View Schedule, Master Schedule, Rescheduler, QA Results and friends — operate on games, so
-      they unlock once the schedule has been built. Until then the checklist steps are the whole job.
+      The Tools all operate on games — Master Schedule, Rescheduler, Schedule Viewer, QA Results and the rest
+      — so they unlock once the schedule has been built. Until then the steps are the whole job.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>QA Results opened the Schedule hub instead of its own page. Is that right?</span></summary>
+  <div class="faq-a">
+    <p>
+      Yes. QA Results and Master Schedule are segments of the <strong>Schedule</strong> hub, so their tools
+      open the hub with that segment already selected — one door, one set of chrome. Everything on those
+      screens works the same as it always did; the exports and stats are all still there.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>A step went from green back to red. What happened?</span></summary>
+  <div class="faq-a">
+    <p>
+      The checklist reads live data, so something changed underneath it — new teams registered into an age
+      group and landed in <em>Unassigned</em>, or a pool was added without timeslots. That's the point of it:
+      it stays accurate all event long rather than recording that you once finished a step.
     </p>
   </div>
 </details>
@@ -55,8 +138,8 @@
 <div class="help-callout help-callout--tip">
   <i class="bi bi-lightbulb" aria-hidden="true"></i>
   <div>
-    <strong>Tip:</strong> for a returning event, the checklist is the fastest way to confirm last year's setup
-    carried forward — a quick glance shows whether dates, fields, and guarantees are already green before you
-    build.
+    <strong>Tip:</strong> for a returning event, the checklist is the fastest way to confirm what carried
+    forward from last year. A glance tells you whether dates and timeslots are already green before you spend
+    time in the configuration screens.
   </div>
 </div>

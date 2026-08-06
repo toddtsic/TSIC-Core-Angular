@@ -4,6 +4,11 @@
   Like the Roster Swapper, it's two panels side by side: pick a division on the left and another on the right,
   then move teams between them. Divisions are grouped by age group in each picker.
 </p>
+<p class="help-muted">
+  This is <strong>step 1</strong> of the Scheduling Checklist, and the first thing to get right — nothing
+  downstream can be built until every team is out of <em>Unassigned</em>. The arrow beside the title takes
+  you back to the checklist.
+</p>
 
 <div class="help-callout help-callout--info">
   <i class="bi bi-grid-1x2" aria-hidden="true"></i>
@@ -12,6 +17,19 @@
     <p class="help-callout__body">
       How you split teams here decides who plays whom in pool play — and it feeds scheduling and bracket seeding
       downstream.
+    </p>
+  </div>
+</div>
+
+<div class="help-callout help-callout--warning">
+  <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+  <div>
+    <strong>Nothing can be scheduled out of <em>Unassigned</em>.</strong>
+    <p class="help-callout__body">
+      New teams land in an <em>Unassigned</em> division until you place them. The builder has no pairing
+      pattern for that division, so it silently skips those teams — which is why the Scheduling Checklist
+      blocks the build until every age group is fully pooled. Emptying <em>Unassigned</em> is the goal of
+      this screen.
     </p>
   </div>
 </div>

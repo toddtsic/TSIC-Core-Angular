@@ -1,0 +1,100 @@
+<h3>Schedule Dashboard</h3>
+
+<div class="help-callout help-callout--info">
+  <i class="bi bi-speedometer2" aria-hidden="true"></i>
+  <div>
+    <strong>This screen reports; it doesn't change anything.</strong>
+    <p class="help-callout__body">
+      Read what the build produced here, then fix it on the Scheduling Checklist or the Schedule hub.
+    </p>
+  </div>
+</div>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>How do I get to this screen?</span></summary>
+  <div class="faq-a">
+    <p>
+      Click the stat band under the title on the <strong>Scheduling Checklist</strong> — the row showing the
+      date span, fields, and divisions. The arrow beside this page's title takes you back.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>It says "No games scheduled yet."</span></summary>
+  <div class="faq-a">
+    <p>
+      The schedule hasn't been built. Everything on this page is a summary of existing games, so there's
+      nothing to show until the build has run. Work the <strong>Scheduling Checklist</strong> steps first.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>A tile is highlighted and says teams are without a game. What now?</span></summary>
+  <div class="faq-a">
+    <p>
+      The build couldn't place them. The usual causes, in order of likelihood: those teams are still in the
+      <em>Unassigned</em> pool; their pool has no timeslots on a day the age group plays; or there simply
+      weren't enough open slots. The <strong>Scheduling Checklist</strong> catches the first two by name —
+      start there, then re-build.
+    </p>
+    <p>
+      Worth knowing: a build that can't place everything doesn't fail, it just places less. These tiles are
+      the honest count of what came up short.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why are fewer fields in use than I assigned to the event?</span></summary>
+  <div class="faq-a">
+    <p>
+      Assigning a field to the event only makes it <em>available</em>. It gets games only if it's also
+      ticked for a day in <strong>Assign Timeslots</strong>. A field with no timeslots is invisible to the
+      builder.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Play days and the date span don't match. Is that wrong?</span></summary>
+  <div class="faq-a">
+    <p>
+      No — they're different measures. The span is first game date to last; play days counts the days that
+      actually have games. A Friday–Sunday event that doesn't play Saturday shows a three-day span and two
+      play days. Both numbers are true.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>One day has far more games than the others.</span></summary>
+  <div class="faq-a">
+    <p>
+      Usually the light days are short on timeslots rather than the heavy day being over-booked — the
+      builder puts games where slots exist. Open <strong>Assign Timeslots</strong> for the age groups
+      involved and compare the days.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Is this the same as QA?</span></summary>
+  <div class="faq-a">
+    <p>
+      No, and they're complementary. This page reports what's <strong>missing</strong> — teams and divisions
+      with no games. <strong>QA</strong> reports what <strong>clashes</strong> — a team booked twice, a field
+      double-used, a broken bracket. Run both before you publish.
+    </p>
+  </div>
+</details>
+
+<div class="help-callout help-callout--tip">
+  <i class="bi bi-lightbulb" aria-hidden="true"></i>
+  <div>
+    <strong>Tip:</strong> check this page immediately after every build, before you look at any grid. Two
+    highlighted tiles here take ten seconds to read and will save you finding the same gap by eye an hour
+    later.
+  </div>
+</div>
