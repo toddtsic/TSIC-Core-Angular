@@ -621,6 +621,11 @@ export class TeamTeamsStepComponent implements OnInit {
      * fullPaymentRequired — NOT the single job flag, since a club-rep cart can span scopes
      * that differ in phase. Never reads "Mixed" (PL-052, Ann's decision): when the entered
      * teams disagree — and before any team is entered — it shows the job baseline instead.
+     *
+     * Deposit-less rows (deposit=0, the canonical single-payment shape 6a normalizes
+     * legacy tournaments into) have no phase to name: the one charge IS the whole fee.
+     * A uniform deposit-less cart reads "Single Payment" — "Deposit Only" there promises
+     * a second payment that never comes.
      */
     readonly phaseBadgeLabel = computed(() => {
         const jobLabel = this.state.fullPaymentRequired() ? 'Final Balance Due' : 'Deposit Only';
@@ -628,7 +633,9 @@ export class TeamTeamsStepComponent implements OnInit {
         const teams = this._registeredTeams().filter(t => !t.isWaitlisted);
         if (!teams.length) return jobLabel;
         const full = teams.filter(t => t.fullPaymentRequired).length;
-        if (full === 0) return 'Deposit Only';
+        if (full === 0) {
+            return teams.every(t => t.deposit <= 0) ? 'Single Payment' : 'Deposit Only';
+        }
         if (full === teams.length) return 'Final Balance Due';
         return jobLabel;
     });
