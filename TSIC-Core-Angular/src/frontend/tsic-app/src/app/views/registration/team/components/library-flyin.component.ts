@@ -15,6 +15,17 @@ export interface RegisteredInfo {
     ageGroupDisplayName: string;
     isWaitlisted: boolean;
     levelOfPlay: string;
+    /** Event registration id — what an unregister acts on (NOT the clubTeamId). */
+    teamId: string;
+    /** Money already collected against this registration. Non-zero hides Remove,
+     *  mirroring the teams-step grid; the parent re-checks before acting. */
+    paidTotal: number;
+}
+
+/** One row of the pinned Registered strip: the library team plus its event registration. */
+interface RegisteredRow {
+    team: ClubTeamDto;
+    info: RegisteredInfo;
 }
 
 /** Payload emitted by the inline-expand registration flow. */
@@ -112,6 +123,85 @@ interface LibraryGroup {
           }
         </div>
       </div>
+
+      <!-- ── Registered strip (pinned) ──────────────────────────────
+           Registered teams used to live in the first group card INSIDE the
+           scrolling list, so a rep working a 26-team library scrolled them out
+           of sight and lost track of what was already done. This strip is a
+           flex sibling of .panel-body, so it never scrolls away: strip = done,
+           list below = what's left.
+
+           It also gives Submit a visible consequence — the count ticks and the
+           name appears here — where previously the row silently relocated into
+           a group that was usually off-screen.
+
+           Earns its place over the header-tags row that was removed as
+           redundant: it carries NAMES and actions, not just a count, and it is
+           the zero-registered warning surface (the no-show trap). -->
+      @if (canRegister() || registeredRows().length) {
+        <section class="reg-strip" [class.reg-strip--empty]="!registeredRows().length">
+          <button type="button" class="reg-strip-head"
+                  [attr.aria-expanded]="showRegStrip()"
+                  (click)="toggleRegStrip()">
+            @if (registeredRows().length) {
+              <i class="bi reg-strip-chevron"
+                 [class.bi-chevron-down]="showRegStrip()"
+                 [class.bi-chevron-right]="!showRegStrip()"
+                 aria-hidden="true"></i>
+              <i class="bi bi-check-circle-fill reg-strip-icon" aria-hidden="true"></i>
+              <span class="reg-strip-title">Registered</span>
+              <span class="reg-strip-count">{{ registeredRows().length }}</span>
+            } @else {
+              <i class="bi bi-exclamation-triangle-fill reg-strip-icon reg-strip-icon--warn" aria-hidden="true"></i>
+              <span class="reg-strip-title">No teams registered yet</span>
+              <span class="reg-strip-hint">pick from your library below</span>
+            }
+          </button>
+
+          @if (showRegStrip() && registeredRows().length) {
+            <ul class="reg-strip-list">
+              @for (row of registeredRows(); track row.team.clubTeamId; let i = $index) {
+                <li class="reg-strip-item">
+                  <span class="reg-strip-seq" aria-hidden="true">{{ i + 1 }}</span>
+                  <span class="reg-strip-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
+
+                  <span class="lib-identity">
+                    @if (row.info.ageGroupName) {
+                      <span class="lib-id-pair"><span class="lib-id-label">AG</span><span class="lib-id-value">{{ row.info.ageGroupDisplayName }}@if (row.info.isWaitlisted) {<span class="wl-badge" tabindex="0" title="Waitlisted under {{ row.info.ageGroupDisplayName }} — placed when a roster spot opens">WL</span>}</span></span>
+                    }
+                    @if (row.info.levelOfPlay) {
+                      <span class="lib-id-pair"><span class="lib-id-label">LOP</span><span class="lib-id-value">{{ formatLop(row.info.levelOfPlay) }}</span></span>
+                    }
+                  </span>
+
+                  @if (canRegister()) {
+                    <button type="button" class="lib-icon-btn lib-edit-btn"
+                            title="Edit level of play (age group is locked once registered)"
+                            aria-label="Edit level of play"
+                            [disabled]="actionInProgress()"
+                            (click)="toggleRegister(row.team)">
+                      <i class="bi bi-pencil" aria-hidden="true"></i>
+                    </button>
+                  }
+
+                  <!-- Same rule as the teams-step grid: the trash can appears only
+                       while nothing has been collected. The parent re-checks
+                       paidTotal and runs the confirm dialog. -->
+                  @if (canRemove() && row.info.paidTotal === 0) {
+                    <button type="button" class="lib-icon-btn reg-strip-remove"
+                            [title]="'Remove ' + row.team.clubTeamName + ' from event'"
+                            [attr.aria-label]="'Remove ' + row.team.clubTeamName + ' from event'"
+                            [disabled]="actionInProgress()"
+                            (click)="unregister.emit(row.team.clubTeamId)">
+                      <i class="bi bi-trash3" aria-hidden="true"></i>
+                    </button>
+                  }
+                </li>
+              }
+            </ul>
+          }
+        </section>
+      }
 
       <!-- ── Body ───────────────────────────────────────────────────── -->
       <!-- While a register sheet is up the list goes INERT, not merely quiet:
@@ -665,6 +755,156 @@ interface LibraryGroup {
       }
 
       /* ── Body container ────────────────────────────────────────────── */
+      /* ── Registered strip ──────────────────────────────────────────
+         Pinned between the header and the scrolling list.
+
+         Follows the idiom of .lib-group-card--registered, the card this replaced:
+         TINTED HEAD BAND ONLY, rows on the plain elevated surface, success rail
+         down the left edge. An earlier version washed the whole block in success
+         tint and it read as pasted on — it out-shouted both the list below and
+         the register sheet. Keep the colour in the band and the rail.
+
+         Flips to a warning tone at zero, where it doubles as the no-show-trap
+         alert (a rep who closes the drawer having registered nothing). */
+      .reg-strip {
+        flex-shrink: 0;
+        background: var(--surface-elevated-bg);
+        border-bottom: 1px solid color-mix(in srgb, var(--bs-success) 30%, var(--bs-border-color));
+        box-shadow: inset 3px 0 0 0 var(--bs-success);
+      }
+
+      .reg-strip--empty {
+        border-bottom-color: color-mix(in srgb, var(--bs-warning) 40%, var(--bs-border-color));
+        box-shadow: inset 3px 0 0 0 var(--bs-warning);
+      }
+
+      .reg-strip-head {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        width: 100%;
+        padding: var(--space-2) var(--space-5);
+        background: color-mix(in srgb, var(--bs-success) 10%, transparent);
+        border: none;
+        text-align: left;
+        cursor: pointer;
+        transition: background-color 0.1s ease;
+
+        &:hover { background: color-mix(in srgb, var(--bs-success) 14%, transparent); }
+        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+      }
+
+      .reg-strip--empty .reg-strip-head {
+        background: color-mix(in srgb, var(--bs-warning) 12%, transparent);
+        &:hover { background: color-mix(in srgb, var(--bs-warning) 12%, transparent); }
+      }
+
+      .reg-strip--empty .reg-strip-head { cursor: default; }
+
+      .reg-strip-chevron {
+        font-size: 0.85em;
+        color: var(--brand-text-muted);
+        flex-shrink: 0;
+      }
+
+      .reg-strip-icon {
+        flex-shrink: 0;
+        font-size: var(--font-size-sm);
+        color: var(--bs-success);
+      }
+      .reg-strip-icon--warn { color: var(--bs-warning); }
+
+      .reg-strip-title {
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--bs-success);
+      }
+      .reg-strip--empty .reg-strip-title { color: var(--bs-warning-text-emphasis); }
+
+      .reg-strip-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 22px;
+        padding: 1px var(--space-2);
+        border-radius: var(--radius-full);
+        background: color-mix(in srgb, var(--bs-success) 18%, transparent);
+        color: var(--bs-success);
+        font-size: var(--font-size-2xs);
+        font-weight: var(--font-weight-bold);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .reg-strip-hint {
+        margin-left: auto;
+        font-size: var(--font-size-2xs);
+        font-style: italic;
+        color: var(--brand-text-muted);
+      }
+
+      /* Capped in vh, not %, so it resolves without depending on the flex parent
+         having a definite height. The panel body keeps min-height:0 and simply
+         yields when a long strip and an open sheet both want room. */
+      .reg-strip-list {
+        list-style: none;
+        margin: 0;
+        padding: 0 0 var(--space-1);
+        max-height: 26vh;
+        overflow-y: auto;
+      }
+
+      .reg-strip-item {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: 3px var(--space-5) 3px var(--space-4);
+        border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color) 5%, transparent);
+
+        &:last-child { border-bottom: none; }
+        &:hover { background: color-mix(in srgb, var(--bs-success) 6%, transparent); }
+      }
+
+      .reg-strip-seq {
+        flex-shrink: 0;
+        min-width: 1.25rem;
+        text-align: right;
+        font-size: var(--font-size-2xs);
+        font-weight: var(--font-weight-semibold);
+        font-variant-numeric: tabular-nums;
+        color: var(--brand-text-muted);
+      }
+
+      .reg-strip-name {
+        flex: 1;
+        min-width: 0;
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* Danger tint only on hover — a row of red trash cans would read as an
+         alert state rather than an available action. */
+      .reg-strip-remove:hover:not(:disabled) {
+        background: color-mix(in srgb, var(--bs-danger) 10%, transparent) !important;
+        border-color: color-mix(in srgb, var(--bs-danger) 25%, transparent) !important;
+        color: var(--bs-danger) !important;
+      }
+
+      /* While the register sheet is up the strip's rows fold away: the sheet can
+         claim 60% of the column and the list must not be squeezed to nothing.
+         The head (with its count) stays, ghosted with the rest of the chrome. */
+      .library-panel.sheet-open .reg-strip-list { display: none; }
+      .library-panel.sheet-open .reg-strip {
+        opacity: 0.25;
+        pointer-events: none;
+        transition: opacity 0.18s ease;
+      }
+
       /* min-height:0 so the register sheet below can claim its share of the
          column instead of being pushed past the panel's bottom edge. */
       .panel-body {
@@ -1790,7 +2030,9 @@ interface LibraryGroup {
         .library-panel { transition: none; }
         .register-sheet { animation: none !important; }
         .panel-body.is-ghosted,
-        .library-panel.sheet-open .header-info { transition: none; }
+        .library-panel.sheet-open .header-info,
+        .library-panel.sheet-open .reg-strip,
+        .reg-strip-head { transition: none; }
         .lib-icon-btn, .btn-register-cell, .btn-add-team, .btn-flyin-done,
         .lib-group-header, .lib-group-card, .lib-howto-toggle,
         .lib-item-main, .btn-register-cancel, .btn-register-submit { transition: none; }
@@ -1854,6 +2096,9 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
     readonly droppedTeams = input<readonly RegisteredTeamDto[]>([]);
     readonly clubName = input<string>('');
     readonly canRegister = input(false);
+    /** Director's per-event delete permission, already folded with the registration-open
+     *  door by the parent. Gates the Remove trash can on the Registered strip. */
+    readonly canRemove = input(false);
     /** Director's per-event "Allow Edit" toggle, already folded with the eventConcluded door
      *  (false on a concluded event regardless of the toggle). Gates the "Edit team" menu item. */
     readonly canEdit = input(false);
@@ -1868,6 +2113,10 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
 
     readonly closed = output<void>();
     readonly register = output<RegisterRequest>();
+    /** Remove a team's registration from THIS event (not a library delete). Emits the
+     *  clubTeamId; the parent resolves the RegisteredTeamDto and runs its existing
+     *  confirm-dialog + paid-total guard, so the money check stays at one chokepoint. */
+    readonly unregister = output<number>();
     readonly addNew = output<void>();
     readonly edit = output<ClubTeamDto>();
     readonly archive = output<ClubTeamDto>();
@@ -1881,6 +2130,27 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
 
     readonly showDropped = signal(true);
     toggleDropped(): void { this.showDropped.set(!this.showDropped()); }
+
+    /** Pinned Registered strip — expanded by default; that visibility is its whole point. */
+    readonly showRegStrip = signal(true);
+    toggleRegStrip(): void { this.showRegStrip.set(!this.showRegStrip()); }
+
+    /**
+     * Registered teams for the strip, alphabetical. Keyed off the entered map (the
+     * authority on what is registered) and joined to clubTeams for the name and the
+     * ClubTeamDto the edit pencil needs. Looks across ALL library teams, not just
+     * active ones, so a registration can never fall out of the strip on account of
+     * its library row's archive state.
+     */
+    readonly registeredRows = computed<RegisteredRow[]>(() => {
+        const byId = new Map(this.clubTeams().map(t => [t.clubTeamId, t]));
+        const rows: RegisteredRow[] = [];
+        for (const [clubTeamId, info] of this.enteredTeams()) {
+            const team = byId.get(clubTeamId);
+            if (team) rows.push({ team, info });
+        }
+        return rows.sort((a, b) => a.team.clubTeamName.localeCompare(b.team.clubTeamName));
+    });
 
     /** Header "How this works" disclosure — collapsed by default so the tips
      *  don't crowd the list; a returning rep already knows the flow. */
@@ -2126,12 +2396,15 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
         const entered = this.enteredTeams();
         const oldestOffered = this.oldestOfferedGradYear();
 
-        const registered: ClubTeamDto[] = [];
         const unregistered: ClubTeamDto[] = [];
         const unavailable: ClubTeamDto[] = [];
         for (const t of all) {
             if (entered.has(t.clubTeamId)) {
-                registered.push(t);
+                // Registered teams are owned by the pinned Registered strip above the
+                // list — see the template note. Listing them here too showed the same
+                // teams twice in one panel and put the "done" set back inside the very
+                // scroll region the strip exists to escape.
+                continue;
             } else if (isTeamOfferedAtEvent(oldestOffered, t.clubTeamGradYear)) {
                 unregistered.push(t);
             } else {
@@ -2145,9 +2418,6 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
         }
 
         const groups: LibraryGroup[] = [];
-        if (registered.length) {
-            groups.push({ key: 'registered', title: 'Registered', teams: registered });
-        }
         // Titles describe the team's relationship to THIS EVENT, not a bare status:
         // "Available for This Event" = fits an offered age group, ready to enter;
         // the demoted group says WHY those teams aren't in the working list.

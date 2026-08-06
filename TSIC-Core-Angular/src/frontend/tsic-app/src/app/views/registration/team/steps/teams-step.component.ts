@@ -8,7 +8,7 @@ import { JobService } from '@infrastructure/services/job.service';
 import { TeamFormModalComponent } from './team-form-modal.component';
 import { AddAndRegisterTeamModalComponent } from './add-and-register-team-modal.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
-import { LibraryFlyinComponent, type RegisterRequest } from '../components/library-flyin.component';
+import { LibraryFlyinComponent, type RegisterRequest, type RegisteredInfo } from '../components/library-flyin.component';
 import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto } from '@core/api';
 
 /**
@@ -165,12 +165,14 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
         [clubName]="clubName()"
         [canRegister]="canRegisterTeam()"
         [canEdit]="canEditTeam()"
+        [canRemove]="canRemoveTeam()"
         [actionInProgress]="actionInProgress()"
         [ageGroups]="ageGroups()"
         [enteredTeams]="enteredTeamsMap()"
         [droppedTeams]="droppedTeams()"
         (closed)="closeLibraryFlyin()"
         (register)="onFlyinRegister($event)"
+        (unregister)="onFlyinUnregister($event)"
         (addNew)="showAddModal.set(true)"
         (edit)="openEditModal($event)"
         (archive)="askArchiveTeam($event)"
@@ -671,7 +673,7 @@ export class TeamTeamsStepComponent implements OnInit {
      * Registered AND to display *which* age group + LOP each is registered as.
      */
     readonly enteredTeamsMap = computed(() => {
-        const map = new Map<number, { ageGroupName: string; ageGroupDisplayName: string; isWaitlisted: boolean; levelOfPlay: string }>();
+        const map = new Map<number, RegisteredInfo>();
         for (const r of this._registeredTeams()) {
             if (r.clubTeamId != null) {
                 map.set(r.clubTeamId, {
@@ -679,6 +681,11 @@ export class TeamTeamsStepComponent implements OnInit {
                     ageGroupDisplayName: r.ageGroupDisplayName ?? '',
                     isWaitlisted: r.isWaitlisted ?? false,
                     levelOfPlay: r.levelOfPlay ?? '',
+                    // Carried so the flyin's Registered strip can mirror the grid's
+                    // Remove rule (hidden once anything is paid) without a second
+                    // source of truth. The guard is still re-applied in onRemoveTeam.
+                    teamId: r.teamId,
+                    paidTotal: r.paidTotal,
                 });
             }
         }
@@ -898,6 +905,17 @@ export class TeamTeamsStepComponent implements OnInit {
     onRemoveTeam(team: RegisteredTeamDto): void {
         if (team.paidTotal > 0) return;
         this.pendingRemove.set(team);
+    }
+
+    /**
+     * Remove trash can on the flyin's Registered strip. The flyin emits a
+     * clubTeamId only; the registration DTO is resolved here so the paid-total
+     * guard and the confirm dialog stay on the single path the teams grid already
+     * uses — the flyin never gets its own removal route.
+     */
+    onFlyinUnregister(clubTeamId: number): void {
+        const team = this.getEnteredInfo(clubTeamId);
+        if (team) this.onRemoveTeam(team);
     }
 
     confirmRemove(): void {
