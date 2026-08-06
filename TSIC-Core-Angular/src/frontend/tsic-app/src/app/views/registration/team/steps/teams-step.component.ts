@@ -756,22 +756,23 @@ export class TeamTeamsStepComponent implements OnInit {
                 .pipe(takeUntilDestroyed(this.destroyRef))
                 .subscribe({
                     next: (resp) => {
-                        this.actionInProgress.set(false);
                         if (!resp.success) {
+                            // Bails without refetching, so this path must release the
+                            // flag itself; the success path below lets the reload do it.
+                            this.actionInProgress.set(false);
                             this.toast.show(resp.message || 'Registration failed.', 'danger', 6000);
                             return;
                         }
                         const msg = resp.isWaitlisted
-                            ? `${team.clubTeamName} waitlisted for ${resp.waitlistAgegroupName ?? ''}`
+                            ? `${team.clubTeamName} waitlisted for ${this.stripWaitlistPrefix(resp.waitlistAgegroupName)}`
                             : `${team.clubTeamName} registered for the event!`;
-                        this.toast.show(msg, resp.isWaitlisted ? 'warning' : 'success', 3000);
                         // Keep the flyin open: the row transitions in-place to a green "Registered"
                         // badge, reinforcing that the library team is now ALSO an event registration.
                         // Lets the rep register multiple teams in a row without re-opening the drawer.
-                        this.loadTeamsMetadata();
+                        this.loadTeamsMetadata(false, () =>
+                            this.toast.show(msg, resp.isWaitlisted ? 'warning' : 'success', 3000));
                     },
                     error: () => {
-                        this.actionInProgress.set(false);
                         this.toast.show('Failed to register team.', 'danger', 4000);
                         this.loadTeamsMetadata();
                     },
@@ -783,7 +784,6 @@ export class TeamTeamsStepComponent implements OnInit {
             this.teamReg.unregisterTeamFromEvent(existing.teamId)
                 .pipe(takeUntilDestroyed(this.destroyRef))
                 .subscribe({ next: doRegister, error: () => {
-                    this.actionInProgress.set(false);
                     this.toast.show('Failed to change age group.', 'danger', 4000);
                     this.loadTeamsMetadata();
                 }});
@@ -829,9 +829,8 @@ export class TeamTeamsStepComponent implements OnInit {
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: () => {
-                    this.actionInProgress.set(false);
-                    this.toast.show(`${team.clubTeamName} deleted from library.`, 'success', 3000);
-                    this.loadTeamsMetadata();
+                    this.loadTeamsMetadata(false, () =>
+                        this.toast.show(`${team.clubTeamName} deleted from library.`, 'success', 3000));
                 },
                 error: (err: unknown) => {
                     this.actionInProgress.set(false);
@@ -860,9 +859,8 @@ export class TeamTeamsStepComponent implements OnInit {
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: () => {
-                    this.actionInProgress.set(false);
-                    this.toast.show(`${team.clubTeamName} archived from library.`, 'success', 3000);
-                    this.loadTeamsMetadata();
+                    this.loadTeamsMetadata(false, () =>
+                        this.toast.show(`${team.clubTeamName} archived from library.`, 'success', 3000));
                 },
                 error: (err: unknown) => {
                     this.actionInProgress.set(false);
@@ -891,9 +889,8 @@ export class TeamTeamsStepComponent implements OnInit {
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: () => {
-                    this.actionInProgress.set(false);
-                    this.toast.show(`${team.clubTeamName} restored to library.`, 'success', 3000);
-                    this.loadTeamsMetadata();
+                    this.loadTeamsMetadata(false, () =>
+                        this.toast.show(`${team.clubTeamName} restored to library.`, 'success', 3000));
                 },
                 error: (err: unknown) => {
                     this.actionInProgress.set(false);
@@ -938,6 +935,19 @@ export class TeamTeamsStepComponent implements OnInit {
 
     // ── Private ─────────────────────────────────────────────────────
 
+    /**
+     * Drop the WAITLIST twin's name prefix for display. The server returns the
+     * twin's stored name ("WAITLIST - 2029/2030") and the toast already says the
+     * team was "waitlisted", so the raw name read "waitlisted for WAITLIST -
+     * 2029/2030". Display-only — the stored name is never rewritten.
+     *
+     * The name is optional on the response, so a missing/prefix-only value falls
+     * back to a phrase that still reads as a sentence.
+     */
+    private stripWaitlistPrefix(name: string | null | undefined): string {
+        return (name ?? '').replace(/^\s*WAITLIST\s*-\s*/i, '').trim() || 'the waitlist';
+    }
+
     private unregisterTeam(teamId: string, teamName: string): void {
         this.actionInProgress.set(true);
 
@@ -945,19 +955,40 @@ export class TeamTeamsStepComponent implements OnInit {
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: () => {
-                    this.actionInProgress.set(false);
-                    this.toast.show(`${teamName} removed from event.`, 'success', 3000);
-                    this.loadTeamsMetadata();
+                    // actionInProgress is released by loadTeamsMetadata, not here —
+                    // see its comment. Clearing it now re-enables the trash can while
+                    // the removed team is still on screen. The toast rides along with
+                    // the reload for the same reason: it asserts a state change, so it
+                    // must not appear while the old state is still rendered.
+                    this.loadTeamsMetadata(false, () =>
+                        this.toast.show(`${teamName} removed from event.`, 'success', 3000));
                 },
                 error: () => {
-                    this.actionInProgress.set(false);
                     this.toast.show('Failed to remove team.', 'danger', 4000);
                     this.loadTeamsMetadata();
                 },
             });
     }
 
-    private loadTeamsMetadata(showSpinner = false): void {
+    /**
+     * Reload the step's data. ALSO releases actionInProgress, in both branches.
+     *
+     * Mutations (register / remove / archive / delete / restore) used to clear the
+     * flag the instant their own call returned and THEN kick this refetch, which
+     * left a window where the success toast was already up, the removed team was
+     * still on screen, and its controls were live again — clicking the same trash
+     * can twice fired a second unregister against a registration that was already
+     * gone, surfacing "Failed to remove team." on an action that had succeeded.
+     * Holding the flag until the data lands closes that window.
+     *
+     * The three mutation ERROR branches that do not refetch still clear the flag
+     * themselves — do not remove those, or the panel locks up.
+     *
+     * `onLoaded` runs after the new data is in the signals, for the same reason:
+     * a success toast asserts a state change, so it must not fire while the old
+     * state is still rendered. It is deliberately NOT called on the error branch.
+     */
+    private loadTeamsMetadata(showSpinner = false, onLoaded?: () => void): void {
         if (showSpinner) this.loading.set(true);
         this.error.set(null);
 
@@ -966,15 +997,18 @@ export class TeamTeamsStepComponent implements OnInit {
             .subscribe({
                 next: (meta: TeamsMetadataResponse) => {
                     this.loading.set(false);
+                    this.actionInProgress.set(false);
                     this.clubName.set(meta.clubName || 'your club');
                     this._registeredTeams.set(meta.registeredTeams || []);
                     this._droppedTeams.set(meta.droppedTeams || []);
                     this._clubTeams.set(meta.clubTeams || []);
                     this.ageGroups.set(meta.ageGroups || []);
                     this.state.applyTeamsMetadata(meta);
+                    onLoaded?.();
                 },
                 error: () => {
                     this.loading.set(false);
+                    this.actionInProgress.set(false);
                     this.error.set('Failed to load team registration data.');
                 },
             });
