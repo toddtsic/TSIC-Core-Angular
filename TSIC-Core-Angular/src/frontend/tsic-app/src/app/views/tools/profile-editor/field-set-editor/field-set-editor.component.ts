@@ -318,6 +318,23 @@ export class FieldSetEditorComponent {
         return badges;
     }
 
+    /**
+     * Option-set summary for the table's Input Type cell. Choice fields carry their values inline
+     * (adult apparel sizes ship inline from AdultFormCatalog and are re-injected per job from
+     * Jobs.JsonOptions), so a bare "SELECT" badge told the reader nothing about what it offers.
+     */
+    getOptionCount(field: ProfileMetadataField): number {
+        return field.options?.length ?? 0;
+    }
+
+    /** First few option values, for the count badge's tooltip. */
+    getOptionPreview(field: ProfileMetadataField): string {
+        const opts = field.options ?? [];
+        if (opts.length === 0) return '';
+        const head = opts.slice(0, 12).map(o => o.label || o.value).join(', ');
+        return opts.length > 12 ? `${head}, … (${opts.length} total)` : head;
+    }
+
     // ── Confirm modal helpers ────────────────────────────────────────────
     openConfirm(title: string, message: string, action: () => void) {
         this.confirmModalTitle.set(title);

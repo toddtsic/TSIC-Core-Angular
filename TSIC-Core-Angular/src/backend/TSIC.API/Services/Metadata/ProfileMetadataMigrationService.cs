@@ -1878,7 +1878,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
                 GeneratedMetadata = null,
                 GeneratedMetadataUsLax = null,
                 Warnings = affected.Count == 0
-                    ? new List<string> { "No materialized jobs for this profile yet — run the migration first." }
+                    ? new List<string> { "No job of this profile has its own saved copy yet — nothing was changed. Jobs of this profile render the catalog template until one is saved via Configure -> Job -> Adult." }
                     : new List<string>(),
                 ErrorMessage = null
             };

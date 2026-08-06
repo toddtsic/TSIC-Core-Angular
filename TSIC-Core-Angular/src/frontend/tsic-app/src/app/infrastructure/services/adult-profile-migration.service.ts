@@ -4,7 +4,6 @@ import { environment } from '@environments/environment';
 import {
     AdultProfileSummary,
     AdultProfileMigrationResult,
-    AdultRoleMetadataSet,
     CurrentJobAdultProfileDto
 } from '@core/api';
 import {
@@ -12,6 +11,7 @@ import {
     ProfileMetadataField,
     ValidationTestResult,
     AdultRoleKey,
+    AdultProfileMetadataEnvelope,
     AdultRoleMetadataResponse,
     UpdateAdultRoleMetadataRequest,
     UpdateAdultRoleMetadataResponse
@@ -87,12 +87,24 @@ export class AdultProfileMigrationService {
     // ADULT PROFILE EDITOR (type-scoped by canonical profile AC1/AC2)
     // ============================================================================
 
-    /** Load the role-keyed metadata for a canonical profile (representative materialized job). */
-    getAdultProfileMetadata(profile: string, onSuccess: (set: AdultRoleMetadataSet) => void, onError?: (error: any) => void): void {
-        this.runCall<AdultRoleMetadataSet>(
-            this.http.get<AdultRoleMetadataSet>(`${this.apiUrl}/adult-profiles/${encodeURIComponent(profile)}/metadata`),
+    /**
+     * Load the role-keyed metadata for a canonical profile — a representative materialized job when one
+     * exists, otherwise the AdultFormCatalog template for that profile (AC1/AC2/AC3 always have a shape).
+     *
+     * The endpoint wraps the set: `{ profile, roles: { unassignedAdult, referee, recruiter } }`. Reading
+     * the response as a bare AdultRoleMetadataSet left every role undefined, so the editor rendered an
+     * empty field table for all three profiles regardless of migration state.
+     */
+    getAdultProfileMetadata(
+        profile: string,
+        onSuccess: (roles: AdultProfileMetadataEnvelope['roles']) => void,
+        onError?: (error: any) => void
+    ): void {
+        const empty = (): ProfileMetadata => ({ fields: [] });
+        this.runCall<AdultProfileMetadataEnvelope>(
+            this.http.get<AdultProfileMetadataEnvelope>(`${this.apiUrl}/adult-profiles/${encodeURIComponent(profile)}/metadata`),
             { setLoading: v => this._isLoading.set(v), setError: m => this._errorMessage.set(m), errorMessage: 'Failed to load adult profile metadata' },
-            set => onSuccess(set),
+            resp => onSuccess(resp?.roles ?? { unassignedAdult: empty(), referee: empty(), recruiter: empty() }),
             onError
         );
     }

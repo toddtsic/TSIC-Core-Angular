@@ -58,8 +58,10 @@
 @if (selectedNotMigrated()) {
 <div class="alert alert-warning" role="alert">
     <i class="bi bi-exclamation-circle me-2"></i>
-    This profile has <strong>no materialized jobs yet</strong>. You can preview the form shape, but edits won't reach
-    any job until you migrate it first (Profile Migration → Adult).
+    No job of this profile has its own saved copy yet — the fields below are the
+    <strong>{{ selectedDisplay() }} catalog template</strong>, which is exactly what those
+    {{ selectedSummary()?.jobCount }} jobs render today. Edits here reach nothing until a job saves its own
+    copy via <strong>Configure → Job → Adult</strong>.
 </div>
 }
 

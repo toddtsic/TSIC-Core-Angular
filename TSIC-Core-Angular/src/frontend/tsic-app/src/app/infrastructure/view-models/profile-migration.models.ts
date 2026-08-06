@@ -146,6 +146,20 @@ export interface AdultRoleMetadataResponse {
     };
 }
 
+/**
+ * Type-scoped adult READ (`GET adult-profiles/{profile}/metadata`). Same `roles` wrapper as the
+ * current-job response, plus the echoed canonical profile code — the roles block is the catalog
+ * template (AC1/AC2/AC3) when no job of that profile has been materialized.
+ */
+export interface AdultProfileMetadataEnvelope {
+    profile: string;
+    roles: {
+        unassignedAdult: ProfileMetadata;
+        referee: ProfileMetadata;
+        recruiter: ProfileMetadata;
+    };
+}
+
 export interface UpdateAdultRoleMetadataRequest {
     roleKey: AdultRoleKey;
     metadata: ProfileMetadata;

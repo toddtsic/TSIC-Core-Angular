@@ -26,6 +26,7 @@
                     <tr>
                         <th>Order</th>
                         <th>Field Name</th>
+                        <th>Column / Source</th>
                         <th>Display Name</th>
                         <th>Input Type</th>
                         <th>Validation</th>
@@ -35,14 +36,26 @@
                 <!-- Group: Hidden (first) -->
                 <tbody>
                     <tr class="table-secondary">
-                        <td colspan="6" class="fw-semibold text-uppercase small">Hidden</td>
+                        <td colspan="7" class="fw-semibold text-uppercase small">Hidden</td>
                     </tr>
                     @for (field of hiddenFields(); track field.name) {
                     <tr>
                         <td>{{ field.order }}</td>
                         <td><code>{{ field.name }}</code></td>
+                        <td>
+                            <code class="small text-muted">{{ field.dbColumn }}</code>
+                            @if (field.dataSource) {
+                            <div class="small text-muted">src: {{ field.dataSource }}</div>
+                            }
+                        </td>
                         <td>{{ field.displayName }}</td>
-                        <td><span class="badge bg-info">{{ field.inputType }}</span></td>
+                        <td>
+                            <span class="badge bg-info">{{ field.inputType }}</span>
+                            @if (getOptionCount(field) > 0) {
+                            <span class="badge bg-light text-dark border ms-1"
+                                [title]="getOptionPreview(field)">{{ getOptionCount(field) }} options</span>
+                            }
+                        </td>
                         <td>
                             @if (getValidationBadges(field).length === 0) { <span class="text-muted">—</span> } @else {
                             @for (badge of getValidationBadges(field); track badge) { <span
@@ -66,7 +79,7 @@
                 <!-- Group: Public (second) -->
                 <tbody>
                     <tr class="table-light">
-                        <td colspan="6" class="fw-semibold text-uppercase small">Public</td>
+                        <td colspan="7" class="fw-semibold text-uppercase small">Public</td>
                     </tr>
                 </tbody>
                 <tbody cdkDropList class="registrant-drop-list" (cdkDropListDropped)="onRegistrantDrop($event)">
@@ -78,8 +91,20 @@
                             <span class="align-middle">{{ field.order }}</span>
                         </td>
                         <td><code>{{ field.name }}</code></td>
+                        <td>
+                            <code class="small text-muted">{{ field.dbColumn }}</code>
+                            @if (field.dataSource) {
+                            <div class="small text-muted">src: {{ field.dataSource }}</div>
+                            }
+                        </td>
                         <td>{{ field.displayName }}</td>
-                        <td><span class="badge bg-info">{{ field.inputType }}</span></td>
+                        <td>
+                            <span class="badge bg-info">{{ field.inputType }}</span>
+                            @if (getOptionCount(field) > 0) {
+                            <span class="badge bg-light text-dark border ms-1"
+                                [title]="getOptionPreview(field)">{{ getOptionCount(field) }} options</span>
+                            }
+                        </td>
                         <td>
                             @if (getValidationBadges(field).length === 0) {
                             <span class="text-muted">—</span>
@@ -117,7 +142,7 @@
                     }
                     @if (registrantFields().length === 0) {
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-4">
+                        <td colspan="7" class="text-center text-muted py-4">
                             No fields defined. Click "Add Field" to create one.
                         </td>
                     </tr>
@@ -127,14 +152,26 @@
                 <!-- Group: Admin Only (third) -->
                 <tbody>
                     <tr class="table-warning">
-                        <td colspan="6" class="fw-semibold text-uppercase small">Admin Only</td>
+                        <td colspan="7" class="fw-semibold text-uppercase small">Admin Only</td>
                     </tr>
                     @for (field of adminOnlyFields(); track field.name) {
                     <tr>
                         <td>{{ field.order }}</td>
                         <td><code>{{ field.name }}</code></td>
+                        <td>
+                            <code class="small text-muted">{{ field.dbColumn }}</code>
+                            @if (field.dataSource) {
+                            <div class="small text-muted">src: {{ field.dataSource }}</div>
+                            }
+                        </td>
                         <td>{{ field.displayName }}</td>
-                        <td><span class="badge bg-info">{{ field.inputType }}</span></td>
+                        <td>
+                            <span class="badge bg-info">{{ field.inputType }}</span>
+                            @if (getOptionCount(field) > 0) {
+                            <span class="badge bg-light text-dark border ms-1"
+                                [title]="getOptionPreview(field)">{{ getOptionCount(field) }} options</span>
+                            }
+                        </td>
                         <td>
                             @if (getValidationBadges(field).length === 0) { <span class="text-muted">—</span> } @else {
                             @for (badge of getValidationBadges(field); track badge) { <span

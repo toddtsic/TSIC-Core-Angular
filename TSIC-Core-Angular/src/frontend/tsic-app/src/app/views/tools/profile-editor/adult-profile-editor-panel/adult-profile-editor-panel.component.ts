@@ -115,11 +115,11 @@ export class AdultProfileEditorPanelComponent implements OnInit {
         this.isLoading.set(true);
         this.service.getAdultProfileMetadata(
             profile,
-            set => {
+            roles => {
                 this.roleMetadata.set({
-                    UnassignedAdult: (set.unassignedAdult ?? this.emptyMeta()) as unknown as ProfileMetadata,
-                    Referee: (set.referee ?? this.emptyMeta()) as unknown as ProfileMetadata,
-                    Recruiter: (set.recruiter ?? this.emptyMeta()) as unknown as ProfileMetadata
+                    UnassignedAdult: roles.unassignedAdult ?? this.emptyMeta(),
+                    Referee: roles.referee ?? this.emptyMeta(),
+                    Recruiter: roles.recruiter ?? this.emptyMeta()
                 });
                 this.isLoading.set(false);
             },
