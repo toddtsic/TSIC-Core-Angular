@@ -1,0 +1,132 @@
+<h3>Clone Job</h3>
+<p>
+  This workbench builds next season's job from the one you're standing in. The left side is the form —
+  what to name the new job, what to copy, what to leave behind. The right side is the live
+  <strong>Plan</strong>: it recomputes as you type, showing exactly what the clone will create, with
+  counts, warnings, and date shifts. Nothing happens until you check the affirmation and click
+  <strong>Clone job</strong>.
+</p>
+
+<div class="help-callout help-callout--info">
+  <i class="bi bi-shield-lock" aria-hidden="true"></i>
+  <div>
+    <strong>Clones arrive switched off.</strong>
+    <p class="help-callout__body">
+      Every clone lands with registration closed, bulletins inactive, and administrators deactivated —
+      nobody can sign up for, or administer, a job you're still building. The
+      <strong>What arrives switched off</strong> panel on the form is the checklist of what you turn
+      back on, and where.
+    </p>
+  </div>
+</div>
+
+<h4>The form, top to bottom</h4>
+<div class="help-menu-list">
+  <div class="help-menu-row">
+    <i class="bi bi-person-badge" aria-hidden="true"></i>
+    <div class="help-menu-row__body">
+      <div class="help-menu-row__title">Owner</div>
+      <div class="help-menu-row__sub">Which customer the new job bills to. Picking a different customer than the source is allowed but flagged — review the plan warnings, and remember the header logo carries over from the old owner.</div>
+    </div>
+  </div>
+  <div class="help-menu-row">
+    <i class="bi bi-card-heading" aria-hidden="true"></i>
+    <div class="help-menu-row__body">
+      <div class="help-menu-row__title">Identity</div>
+      <div class="help-menu-row__sub">Job path (the URL segment), job name, year, season, display name. Path and name are checked for collisions as you leave the field. Leagues can be renamed inline for the new season.</div>
+    </div>
+  </div>
+  <div class="help-menu-row">
+    <i class="bi bi-calendar-event" aria-hidden="true"></i>
+    <div class="help-menu-row__body">
+      <div class="help-menu-row__title">Dates</div>
+      <div class="help-menu-row__sub">Expiry dates arrive seeded from the source plus one year. Event start/end are for tournaments only — player sites seed team dates automatically.</div>
+    </div>
+  </div>
+  <div class="help-menu-row">
+    <i class="bi bi-envelope" aria-hidden="true"></i>
+    <div class="help-menu-row__body">
+      <div class="help-menu-row__title">Communications</div>
+      <div class="help-menu-row__sub">From/CC/BCC addresses, reschedule and always-copy lists, mail-to and pay-to. Pre-filled from the source; emptying a field clears it on the new job.</div>
+    </div>
+  </div>
+  <div class="help-menu-row">
+    <i class="bi bi-copy" aria-hidden="true"></i>
+    <div class="help-menu-row__body">
+      <div class="help-menu-row__title">What gets copied</div>
+      <div class="help-menu-row__sub">The structural choices — league structure, pools, payments, store, season roll-forward, and the home-page banner. Each is covered below.</div>
+    </div>
+  </div>
+</div>
+
+<h4>How much of the league structure to copy</h4>
+<p>The one decision that shapes everything else. Three choices:</p>
+<ul>
+  <li><strong>Nothing — start empty.</strong> You build leagues, age groups, and pools yourself on the
+      LADT screen. Nobody can register until you do.</li>
+  <li><strong>Leagues, age groups and pools — no teams.</strong> Last season's shape carries over,
+      ready for a new season's entries. Clubs re-register their teams every season.</li>
+  <li><strong>…plus your own teams.</strong> Everything above, plus the house teams your organization
+      created and still owns. Teams belonging to outside clubs are <strong>never</strong> copied.</li>
+</ul>
+<p class="help-muted">
+  Waitlists are never cloned — they regenerate automatically on the new job whenever an age group's
+  Max number is exceeded.
+</p>
+<p>
+  When structure is copied you also choose what happens to <strong>pools</strong>: keep last season's
+  named pools (they arrive empty, ready to re-seed) or start fresh — every age group gets a single
+  <strong>Unassigned</strong> pool and any copied teams land in it, so you re-pool once registration
+  closes.
+</p>
+
+<h4>Money and store</h4>
+<ul>
+  <li><strong>Payment methods</strong> start matching the source — credit card only, credit card or
+      check, or check only. Changeable here or later on Configure &rarr; Job &rarr; Payment.</li>
+  <li><strong>eCheck</strong> defaults to off — the safe choice until the new season's bank details are
+      confirmed. It has no effect on a card-only job.</li>
+  <li><strong>Online store</strong> can start off or match the source, but merchandise and inventory
+      are never copied — a store switched on here opens empty.</li>
+</ul>
+
+<h4>Season roll-forward</h4>
+<p>
+  When on, any four-digit year in age-group names, team names, bulletins, and page text advances one
+  year — "Boys 2026" becomes "Boys 2027" — and birth-date and graduation-year ranges shift to match, so
+  a U10 age group still describes U10s next season. Turn it <em>off</em> when you're building a second
+  job for the <strong>same</strong> season.
+</p>
+
+<h4>Home page banner and logo</h4>
+<p>
+  The preview shows exactly how the new site will open. <strong>Start on a plain banner</strong> drops
+  last season's overlay artwork, headline, and caption — nothing stale can show — while keeping the
+  background photo for when you re-upload this season's artwork under
+  <strong>Configure &rarr; Job &rarr; Branding</strong>. Leave it unchecked and the source banner
+  carries over as-is; the headline and caption are editable right here before the clone runs.
+</p>
+<p class="help-muted">
+  The header logo always carries over and shows on every page. If the artwork names a season — or the
+  clone changed owners — replace it under Branding before the site goes public.
+</p>
+
+<h4>The Plan panel</h4>
+<p>
+  The right column is the clone spelled out before it happens: warnings first, then a count for every
+  step (age groups, teams, bulletins, fee modifiers…), the team breakdown (structure teams that clone
+  vs. competing, waitlist/dropped, and inactive teams that don't), the processing-fee rates the new job
+  will use, and any automatic date shifts. Expand the detail sections to see each age group and
+  bulletin by name. The Clone button waits for a <em>current</em> plan — if you've just changed
+  something, let "refreshing…" finish.
+</p>
+
+<h4>After the clone</h4>
+<p>
+  You're switched into the new job and land on its home page. Work the
+  <strong>What you need to turn on</strong> list: open registration links under
+  <strong>Configure &rarr; Quick Links</strong>, activate the administrators you want under
+  <strong>Configure &rarr; Administrators</strong>, review and activate bulletins, re-add discount
+  codes, and set roster visibility. Registration stays closed until you open it — verify everything
+  first.
+</p>

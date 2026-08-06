@@ -40,6 +40,8 @@
     "email-troubleshooter/overview",
     "fields/faq",
     "fields/overview",
+    "job-clone/faq",
+    "job-clone/overview",
     "job-settings/faq",
     "job-settings/overview",
     "ladt-editor/faq",

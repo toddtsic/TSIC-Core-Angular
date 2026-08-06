@@ -1,0 +1,162 @@
+<h3>Clone Job</h3>
+
+<div class="help-callout help-callout--warning">
+  <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+  <div>
+    <strong>A clone never arrives live.</strong>
+    <p class="help-callout__body">
+      Registration links closed, bulletins inactive, administrators deactivated — always,
+      regardless of how the source job was set. That's deliberate: you verify the new job first,
+      then turn things on.
+    </p>
+  </div>
+</div>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Which job gets cloned?</span></summary>
+  <div class="faq-a">
+    <p>
+      The job you're currently in — its name and path are shown under the page title. To clone a
+      different job, switch into it first, then come back to this screen.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why didn't my teams come across?</span></summary>
+  <div class="faq-a">
+    <p>
+      Two possibilities. If you picked <strong>Leagues, age groups and pools — no teams</strong>, that's
+      by design: clubs re-register their teams each season. If you picked the option
+      <strong>with teams</strong>, only the house teams your organization created and still owns are
+      copied — teams belonging to outside clubs are never cloned, and neither are competing,
+      waitlisted/dropped, or inactive teams. The <strong>Teams</strong> line in the Plan panel shows
+      exactly how many clone and how many are excluded, and why.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Where is last season's waitlist?</span></summary>
+  <div class="faq-a">
+    <p>
+      Waitlists are never cloned. They're generated automatically on the new job, for all job types,
+      whenever an age group's Max number is exceeded — so the new season's waitlist reflects the new
+      season's registrations, not last year's.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>The pools all say "Unassigned" on the new job.</span></summary>
+  <div class="faq-a">
+    <p>
+      You chose <strong>Start fresh</strong> for pools — named pools were dropped and every age group got
+      a single Unassigned pool, with any copied teams parked in it. That's the intended workflow: re-pool
+      from scratch once registration closes. If you wanted last season's pool names back, they were an
+      option at clone time (<strong>Keep last season's pools</strong>); on the new job you can simply
+      recreate them on the pool-assignment screen.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>The new job's banner still shows last season's dates.</span></summary>
+  <div class="faq-a">
+    <p>
+      The clone carried the source banner as-is — the <strong>Start on a plain banner</strong> option
+      wasn't checked. Fix it on the new job under <strong>Configure &rarr; Job &rarr; Branding</strong>:
+      upload this season's artwork, or edit the headline and caption. The banner preview on this screen
+      exists precisely so you catch this before cloning.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>I cloned to a different customer. Anything special to check?</span></summary>
+  <div class="faq-a">
+    <p>
+      Two things. Payments on the new job bill to the <strong>new</strong> customer's merchant account —
+      that's what the cross-customer warning is about. And the <strong>header logo</strong> carried over
+      from the previous owner and shows on every page — replace it under
+      Configure &rarr; Job &rarr; Branding before the site goes public.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Is the new site visible to the public before I'm ready?</span></summary>
+  <div class="faq-a">
+    <p>
+      The new job doesn't appear in the public job listing, but its own pages are reachable at its web
+      address the moment the clone commits. The real protection is the safe state: registration is
+      closed and cloned administrators are inactive, so nobody can sign up or change anything. Finish
+      your setup, then open registration under Configure &rarr; Quick Links.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>The event-end warning says the job will be "concluded". What does that mean?</span></summary>
+  <div class="faq-a">
+    <p>
+      A job whose event end date is in the past reads as over, and a concluded job shows no registration
+      links on its public site — whatever toggles you turn on. Shifted forward from an older event, the
+      end date can land in the past without you noticing; set it to this season's actual end date before
+      cloning.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Should I turn on the season roll-forward?</span></summary>
+  <div class="faq-a">
+    <p>
+      Rolling into a new season — yes: years in names and text advance one, and birth-date/graduation
+      ranges shift with them. Building a <strong>second job for the same season</strong> — no: there's
+      nothing to advance, and the plan will note the clone stays in the same year.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why is the Clone button disabled?</span></summary>
+  <div class="faq-a">
+    <p>
+      Either something on the form is invalid (a path or name collision, an invalid slug — the field
+      shows the error inline), the affirmation checkbox isn't ticked, or the plan is still refreshing.
+      The clone always runs against the plan you're looking at — if you've just changed a field, wait
+      for the Plan header to read <strong>current</strong>.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Where are my discount codes?</span></summary>
+  <div class="faq-a">
+    <p>
+      Discount codes are never cloned — last season's codes on a new season's prices is a mistake waiting
+      to happen. Add this season's codes on the new job under
+      <strong>Configure &rarr; Discount Codes</strong>.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>I made a practice clone. Can I delete it?</span></summary>
+  <div class="faq-a">
+    <p>
+      On the development and staging environments, yes — Configure &rarr; Job offers a delete for
+      sandbox clones. Production jobs are never deleted.
+    </p>
+  </div>
+</details>
+
+<div class="help-callout help-callout--tip">
+  <i class="bi bi-lightbulb" aria-hidden="true"></i>
+  <div>
+    <strong>Tip:</strong> read the Plan panel like a receipt before you click Clone. The warnings and
+    the per-step counts are the clone telling you, in advance, everything it's about to do — a surprise
+    on the new job means something was visible there first.
+  </div>
+</div>
