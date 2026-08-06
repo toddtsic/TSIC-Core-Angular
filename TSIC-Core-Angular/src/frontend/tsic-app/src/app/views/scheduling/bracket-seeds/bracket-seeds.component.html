@@ -47,13 +47,10 @@
 					<thead>
 						<tr>
 							<th>Agegroup</th>
-							<th class="text-center">Type-1</th>
-							<th class="text-center">Rank-1</th>
+							<th class="text-center">Slot 1</th>
 							<th>Seed Pool 1</th>
 							<th class="text-center">Seed Rank 1</th>
-							<th class="text-center text-muted">Side</th>
-							<th class="text-center">Type-2</th>
-							<th class="text-center">Rank-2</th>
+							<th class="text-center">Slot 2</th>
 							<th>Seed Pool 2</th>
 							<th class="text-center">Seed Rank 2</th>
 							<th class="text-center">Edit</th>
@@ -63,39 +60,51 @@
 						@for (game of bracketGames(); track game.gid) {
 							<tr class="cursor-pointer" [class.table-active]="editingGame()?.gid === game.gid">
 								<td>{{ game.agegroupName }}</td>
-								<td class="text-center fw-medium">{{ game.t1Type }}</td>
-								<td class="text-center">{{ game.t1No }}</td>
-								<td>
-									@if (game.t1SeedDivName) {
-										<span class="badge bg-primary-subtle text-primary">{{ game.t1SeedDivName }}</span>
-									} @else {
-										<span class="text-muted">—</span>
-									}
-								</td>
-								<td class="text-center">
-									@if (game.t1SeedRank) {
-										<span class="fw-medium">#{{ game.t1SeedRank }}</span>
-									} @else {
-										<span class="text-muted">—</span>
-									}
-								</td>
-								<td class="text-center text-muted">{{ game.whichSide || '' }}</td>
-								<td class="text-center fw-medium">{{ game.t2Type }}</td>
-								<td class="text-center">{{ game.t2No }}</td>
-								<td>
-									@if (game.t2SeedDivName) {
-										<span class="badge bg-primary-subtle text-primary">{{ game.t2SeedDivName }}</span>
-									} @else {
-										<span class="text-muted">—</span>
-									}
-								</td>
-								<td class="text-center">
-									@if (game.t2SeedRank) {
-										<span class="fw-medium">#{{ game.t2SeedRank }}</span>
-									} @else {
-										<span class="text-muted">—</span>
-									}
-								</td>
+								<td class="text-center fw-medium">{{ game.t1Type }}{{ game.t1No }}</td>
+								<!-- A fed slot's team advances from an earlier bracket game — there is
+								     no seed to show or set, and "Fed" says so instead of a dash that
+								     reads as unfinished work. -->
+								@if (game.t1Seedable) {
+									<td>
+										@if (game.t1SeedDivName) {
+											<span class="badge bg-primary-subtle text-primary">{{ game.t1SeedDivName }}</span>
+										} @else {
+											<span class="text-muted">—</span>
+										}
+									</td>
+									<td class="text-center">
+										@if (game.t1SeedRank) {
+											<span class="fw-medium">#{{ game.t1SeedRank }}</span>
+										} @else {
+											<span class="text-muted">—</span>
+										}
+									</td>
+								} @else {
+									<td colspan="2" class="text-center">
+										<span class="badge bg-secondary-subtle text-secondary-emphasis">Fed</span>
+									</td>
+								}
+								<td class="text-center fw-medium">{{ game.t2Type }}{{ game.t2No }}</td>
+								@if (game.t2Seedable) {
+									<td>
+										@if (game.t2SeedDivName) {
+											<span class="badge bg-primary-subtle text-primary">{{ game.t2SeedDivName }}</span>
+										} @else {
+											<span class="text-muted">—</span>
+										}
+									</td>
+									<td class="text-center">
+										@if (game.t2SeedRank) {
+											<span class="fw-medium">#{{ game.t2SeedRank }}</span>
+										} @else {
+											<span class="text-muted">—</span>
+										}
+									</td>
+								} @else {
+									<td colspan="2" class="text-center">
+										<span class="badge bg-secondary-subtle text-secondary-emphasis">Fed</span>
+									</td>
+								}
 								<td class="text-center">
 									<button class="btn btn-sm btn-outline-primary"
 										(click)="openEdit(game)"

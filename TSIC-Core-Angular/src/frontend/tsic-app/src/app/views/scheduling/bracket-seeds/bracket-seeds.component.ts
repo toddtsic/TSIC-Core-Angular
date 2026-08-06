@@ -174,12 +174,17 @@ export class BracketSeedsComponent implements OnInit {
 		});
 	}
 
+	/**
+	 * A side is editable only when it's an entry point from pool play. A fed slot's team
+	 * arrives from an earlier bracket game — the server computes this from the bracket
+	 * structure, and games with no seedable side never reach the board at all.
+	 */
 	showT1(game: BracketSeedGameDto): boolean {
-		return game.whichSide !== 2;
+		return game.t1Seedable;
 	}
 
 	showT2(game: BracketSeedGameDto): boolean {
-		return game.whichSide !== 1;
+		return game.t2Seedable;
 	}
 
 	toggleStandings(): void {

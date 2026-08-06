@@ -48,88 +48,43 @@ public class BracketSeedService : IBracketSeedService
     public async Task<BracketSeedBoardDto> GetBracketGamesAsync(
         Guid jobId, string userId, CancellationToken ct = default)
     {
-        // 1. Get all non-RR (bracket) games with current seed data
+        // 1. The universe: every non-RR (bracket) game, with current seed data left-joined.
         var bracketGames = await _repo.GetBracketGamesAsync(jobId, ct);
-        var bracketGids = bracketGames.Select(g => g.Gid).ToHashSet();
 
-        // 2. Get existing BracketSeeds records for cleanup
-        var existingSeeds = await _repo.GetAllForJobAsync(jobId, ct);
+        // 2. Which of those NEED seeding — derived per slot from the bracket structure
+        //    already in hand. A slot is fed when a parent-type game in the same division
+        //    carries its number; a game earns a row iff at least one slot is an entry point.
+        var flagged = FlagSeedability(bracketGames);
+        var needSeeding = flagged.Where(g => g.T1Seedable || g.T2Seedable).ToList();
+        var neededGids = needSeeding.Select(g => g.Gid).ToHashSet();
 
-        // 3. Remove orphans: BracketSeeds rows where Gid no longer matches a bracket game
-        var orphans = existingSeeds.Where(bs => !bracketGids.Contains(bs.Gid)).ToList();
-        if (orphans.Count > 0)
-            _repo.RemoveRange(orphans);
+        // 3. Reconcile storage to the needed set: BracketSeeds rows exist exactly for games
+        //    that need seeding — stale rows (bracket restructured, game no longer an entry
+        //    point) go, missing scaffolds are created EMPTY. Seed values are director
+        //    decisions; nothing here guesses them.
+        var existing = await _repo.GetAllForJobAsync(jobId, ct);
+        var stale = existing.Where(bs => !neededGids.Contains(bs.Gid)).ToList();
+        if (stale.Count > 0)
+            _repo.RemoveRange(stale);
 
-        // 4. Determine which games are seedable (leaf bracket games whose parents are RR or don't exist)
-        var existingSeedGids = existingSeeds.Select(bs => bs.Gid).ToHashSet();
-        var seedableGames = new List<BracketSeedGameDto>();
-
-        foreach (var game in bracketGames)
+        var existingGids = existing.Select(bs => bs.Gid).ToHashSet();
+        var missingGids = neededGids.Where(gid => !existingGids.Contains(gid)).ToList();
+        foreach (var gid in missingGids)
         {
-            if (!ParentTypeMap.TryGetValue(game.T1Type, out var parentType))
-                continue;
-
-            var isSeedable = false;
-
-            if (parentType == "T")
+            await _repo.AddAsync(new BracketSeeds
             {
-                // Championship game — parent is round-robin, always seedable
-                isSeedable = true;
-            }
-            else
-            {
-                // Check if parent bracket games exist for both T1No and T2No
-                // If either parent is missing, this game is seedable (it's a leaf)
-                var schedule = await _repo.GetScheduleTrackedAsync(game.Gid, ct);
-                if (schedule?.DivId != null)
-                {
-                    var hasParent1 = await _repo.ParentBracketGameExistsAsync(
-                        jobId, schedule.DivId.Value, parentType, game.T1No, ct);
-                    var hasParent2 = await _repo.ParentBracketGameExistsAsync(
-                        jobId, schedule.DivId.Value, parentType, game.T2No, ct);
-
-                    isSeedable = !hasParent1 || !hasParent2;
-                }
-            }
-
-            if (isSeedable)
-                seedableGames.Add(game);
+                Gid = gid,
+                LebUserId = userId,
+                Modified = DateTime.Now
+            }, ct);
         }
 
-        // 5. Create missing BracketSeeds records for seedable games
-        var newlyCreatedGids = new List<int>();
-        foreach (var game in seedableGames)
-        {
-            if (!existingSeedGids.Contains(game.Gid))
-            {
-                await _repo.AddAsync(new BracketSeeds
-                {
-                    Gid = game.Gid,
-                    LebUserId = userId,
-                    Modified = DateTime.Now
-                }, ct);
-                newlyCreatedGids.Add(game.Gid);
-            }
-        }
+        if (stale.Count > 0 || missingGids.Count > 0)
+            await _repo.SaveChangesAsync(ct);
 
-        await _repo.SaveChangesAsync(ct);
-
-        // 5.5 Pre-fill seeds from prior year job (auto-discovered)
-        if (newlyCreatedGids.Count > 0)
-        {
-            var priorJob = await _jobRepo.GetPriorYearJobAsync(jobId, ct);
-            if (priorJob != null)
-            {
-                await PreFillSeedsFromSourceAsync(
-                    jobId, priorJob.JobId, priorJob.Year, newlyCreatedGids, ct);
-            }
-        }
-
-        // 6. Re-fetch to get clean data after creates/deletes/pre-fills
-        var result = await _repo.GetBracketGamesAsync(jobId, ct);
-
-        // 7. Sort: AgegroupName → bracket type hierarchy descending → T1No
-        var games = result
+        // 4. Sort: agegroup → earliest bracket round first → slot number. The fetched DTOs
+        //    are already current (new scaffolds carry no seed values) — no re-fetch.
+        var games = needSeeding
             .OrderBy(g => g.AgegroupName)
             .ThenByDescending(g => BracketTypeOrder.GetValueOrDefault(g.T1Type, 7))
             .ThenBy(g => g.T1No)
@@ -137,6 +92,43 @@ public class BracketSeedService : IBracketSeedService
 
         var isReseed = await _jobRepo.GetReseedTournamentFlagAsync(jobId, ct);
         return new BracketSeedBoardDto { IsReseed = isReseed, Games = games };
+    }
+
+    /// <summary>
+    /// Stamp per-slot seedability onto each game, in one pass over the job's bracket games.
+    /// Slot N of type P is FED when a game of P's parent type in the same division carries
+    /// N on either side — its team advances from that game. Everything else (including all
+    /// slots of championship games, whose parent is round-robin) is an entry point from pool
+    /// play and must be seeded. Games with no division or an unknown type keep both flags
+    /// false and are filtered off the board.
+    /// </summary>
+    private static List<BracketSeedGameDto> FlagSeedability(List<BracketSeedGameDto> bracketGames)
+    {
+        var slots = new HashSet<(Guid DivId, string Type, int No)>();
+        foreach (var g in bracketGames)
+        {
+            if (g.DivId is not Guid divId) continue;
+            slots.Add((divId, g.T1Type, g.T1No));
+            slots.Add((divId, g.T2Type, g.T2No));
+        }
+
+        var result = new List<BracketSeedGameDto>(bracketGames.Count);
+        foreach (var g in bracketGames)
+        {
+            if (g.DivId is not Guid divId
+                || !ParentTypeMap.TryGetValue(g.T1Type, out var parentType))
+            {
+                result.Add(g);
+                continue;
+            }
+
+            result.Add(g with
+            {
+                T1Seedable = parentType == "T" || !slots.Contains((divId, parentType, g.T1No)),
+                T2Seedable = parentType == "T" || !slots.Contains((divId, parentType, g.T2No))
+            });
+        }
+        return result;
     }
 
     public async Task<BracketSeedGameDto> UpdateSeedAsync(
@@ -187,10 +179,10 @@ public class BracketSeedService : IBracketSeedService
                     schedule.JobId, new ScheduleFilterRequest { DivisionIds = [.. divIds] }, c), ct);
         }
 
-        // Return updated single game DTO
-        // Re-fetch the specific game's seed data
+        // Return the updated game with seedability re-stamped — the client swaps this row
+        // into its board, so the flags must survive the round trip.
         var allGames = await _repo.GetBracketGamesAsync(schedule!.JobId, ct);
-        return allGames.First(g => g.Gid == request.Gid);
+        return FlagSeedability(allGames).First(g => g.Gid == request.Gid);
     }
 
     public async Task<List<BracketSeedDivisionOptionDto>> GetDivisionsForGameAsync(
@@ -207,96 +199,5 @@ public class BracketSeedService : IBracketSeedService
     public async Task<int> GetRankCeilingAsync(Guid divId, CancellationToken ct = default)
     {
         return await _repo.GetActiveTeamCountByDivAsync(divId, ct);
-    }
-
-    // ── Private: Pre-fill bracket seeds from source/prior year job ──
-
-    /// <summary>
-    /// Pre-fill newly created BracketSeeds rows with seed values from the source job,
-    /// matching by agegroup name (year-adjusted) + bracket type + slot numbers,
-    /// and resolving target division IDs by name matching.
-    /// </summary>
-    private async Task PreFillSeedsFromSourceAsync(
-        Guid jobId, Guid sourceJobId, string sourceYear,
-        List<int> newlyCreatedGids, CancellationToken ct)
-    {
-        // 1. Get source bracket seeds with division names
-        var sourceSeeds = await _repo.GetSourceBracketSeedsAsync(sourceJobId, ct);
-        if (sourceSeeds.Count == 0) return;
-
-        // 2. Compute year delta for agegroup name mapping
-        var targetJobSY = await _jobRepo.GetJobSeasonYearAsync(jobId, ct);
-        var targetYear = targetJobSY?.Year;
-        var yearDelta = 0;
-        if (int.TryParse(targetYear, out var tgt) && int.TryParse(sourceYear, out var src))
-            yearDelta = tgt - src;
-
-        // 3. Get target bracket game context (agegroup name, type, slot numbers)
-        var targetContext = await _repo.GetBracketGameContextAsync(newlyCreatedGids, ct);
-        if (targetContext.Count == 0) return;
-
-        // 4. Build target division name → DivId lookup (per agegroup)
-        // Get all division options for a representative game to build the lookup
-        var targetAgDivs = new Dictionary<string, Dictionary<string, Guid>>(
-            StringComparer.OrdinalIgnoreCase);
-        foreach (var ctx in targetContext.Values)
-        {
-            if (targetAgDivs.ContainsKey(ctx.AgegroupName)) continue;
-            var divOptions = await _repo.GetDivisionsForGameAsync(ctx.Gid, ct);
-            targetAgDivs[ctx.AgegroupName] = divOptions.ToDictionary(
-                d => d.DivName, d => d.DivId, StringComparer.OrdinalIgnoreCase);
-        }
-
-        // 5. Build source seed lookup: (mappedAgName, T1Type, T1No, T2No) → seed info
-        var sourceSeedLookup = new Dictionary<(string AgName, string Type, int T1No, int T2No), SourceBracketSeedInfo>();
-        foreach (var ss in sourceSeeds)
-        {
-            var mappedAgName = yearDelta != 0
-                ? AgegroupNameMapper.OffsetName(ss.AgegroupName, yearDelta)
-                : ss.AgegroupName;
-            var key = (mappedAgName.ToLowerInvariant(), ss.T1Type, ss.T1No, ss.T2No);
-            sourceSeedLookup.TryAdd(key, ss);
-        }
-
-        // 6. Pre-fill each newly created BracketSeeds row
-        var anyUpdated = false;
-        foreach (var gid in newlyCreatedGids)
-        {
-            if (!targetContext.TryGetValue(gid, out var ctx)) continue;
-
-            var lookupKey = (ctx.AgegroupName.ToLowerInvariant(), ctx.T1Type, ctx.T1No, ctx.T2No);
-            if (!sourceSeedLookup.TryGetValue(lookupKey, out var sourceSeed)) continue;
-
-            // Resolve target division IDs by name
-            Guid? t1DivId = null, t2DivId = null;
-            if (sourceSeed.T1SeedDivName != null
-                && targetAgDivs.TryGetValue(ctx.AgegroupName, out var agDivLookup))
-            {
-                agDivLookup.TryGetValue(sourceSeed.T1SeedDivName, out var resolved);
-                t1DivId = resolved != Guid.Empty ? resolved : null;
-            }
-            if (sourceSeed.T2SeedDivName != null
-                && targetAgDivs.TryGetValue(ctx.AgegroupName, out agDivLookup))
-            {
-                agDivLookup.TryGetValue(sourceSeed.T2SeedDivName, out var resolved);
-                t2DivId = resolved != Guid.Empty ? resolved : null;
-            }
-
-            // Only pre-fill if we resolved at least one side
-            if (t1DivId == null && t2DivId == null) continue;
-
-            var seed = await _repo.GetByGidTrackedAsync(gid, ct);
-            if (seed == null) continue;
-
-            seed.T1SeedDivId = t1DivId;
-            seed.T1SeedRank = t1DivId != null ? sourceSeed.T1SeedRank : null;
-            seed.T2SeedDivId = t2DivId;
-            seed.T2SeedRank = t2DivId != null ? sourceSeed.T2SeedRank : null;
-            seed.Modified = DateTime.Now;
-            anyUpdated = true;
-        }
-
-        if (anyUpdated)
-            await _repo.SaveChangesAsync(ct);
     }
 }

@@ -58,33 +58,10 @@ public interface IBracketSeedRepository
         int gid, CancellationToken ct = default);
 
     /// <summary>
-    /// Check if a parent bracket game exists for the given parameters.
-    /// </summary>
-    Task<bool> ParentBracketGameExistsAsync(
-        Guid jobId, Guid divId, string parentType, int rank,
-        CancellationToken ct = default);
-
-    /// <summary>
     /// Get division name by ID (for T1Name/T2Name annotation).
     /// </summary>
     Task<string?> GetDivisionNameAsync(
         Guid divId, CancellationToken ct = default);
 
     Task SaveChangesAsync(CancellationToken ct = default);
-
-    // ── Source job seed lookup (for pre-fill from prior year) ──
-
-    /// <summary>
-    /// Get bracket seed data from a source job, enriched with division names
-    /// for name-matching to the target job.
-    /// </summary>
-    Task<List<SourceBracketSeedInfo>> GetSourceBracketSeedsAsync(
-        Guid sourceJobId, CancellationToken ct = default);
-
-    /// <summary>
-    /// Get lightweight context for a set of bracket games (agegroup name, bracket type, slot numbers).
-    /// Used to match target games against source seed definitions.
-    /// </summary>
-    Task<Dictionary<int, BracketGameContext>> GetBracketGameContextAsync(
-        IEnumerable<int> gids, CancellationToken ct = default);
 }

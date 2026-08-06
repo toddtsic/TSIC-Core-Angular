@@ -15,14 +15,24 @@ public record BracketSeedGameDto
 {
     public required int Gid { get; init; }
     public required string AgegroupName { get; init; }
-    public required int? WhichSide { get; init; }
+    /// <summary>Owning division — the scope seedability is derived within. Null on unplaced games.</summary>
+    public required Guid? DivId { get; init; }
     public required string T1Type { get; init; }
     public required int T1No { get; init; }
+
+    /// <summary>
+    /// True when this slot is an entry point from pool play — a director must seed it.
+    /// False when the slot is fed by an earlier bracket game (a parent-type game in the
+    /// same division carries this slot number), so seeding it would be meaningless.
+    /// Derived from bracket structure by the service; the repository always emits false.
+    /// </summary>
+    public required bool T1Seedable { get; init; }
     public required Guid? T1SeedDivId { get; init; }
     public required string? T1SeedDivName { get; init; }
     public required int? T1SeedRank { get; init; }
     public required string T2Type { get; init; }
     public required int T2No { get; init; }
+    public required bool T2Seedable { get; init; }
     public required Guid? T2SeedDivId { get; init; }
     public required string? T2SeedDivName { get; init; }
     public required int? T2SeedRank { get; init; }
@@ -49,31 +59,3 @@ public record BracketSeedDivisionOptionDto
     public string? AgegroupName { get; init; }
 }
 
-/// <summary>
-/// Bracket seed data from a source/prior year job, enriched with division names
-/// for name-matching to the target job.
-/// </summary>
-public record SourceBracketSeedInfo
-{
-    public required string AgegroupName { get; init; }
-    public required string T1Type { get; init; }
-    public required int T1No { get; init; }
-    public required int T2No { get; init; }
-    public required string? T1SeedDivName { get; init; }
-    public required int? T1SeedRank { get; init; }
-    public required string? T2SeedDivName { get; init; }
-    public required int? T2SeedRank { get; init; }
-}
-
-/// <summary>
-/// Lightweight context for a bracket game — used to match target games
-/// against source seed definitions.
-/// </summary>
-public record BracketGameContext
-{
-    public required int Gid { get; init; }
-    public required string AgegroupName { get; init; }
-    public required string T1Type { get; init; }
-    public required int T1No { get; init; }
-    public required int T2No { get; init; }
-}
