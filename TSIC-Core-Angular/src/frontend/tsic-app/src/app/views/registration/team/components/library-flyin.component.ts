@@ -62,7 +62,7 @@ interface LibraryGroup {
     @if (isOpen()) {
       <div class="library-backdrop" (click)="onClose()"></div>
     }
-    <aside class="library-panel" [class.open]="isOpen()" appResizablePanel storageKey="libraryPanelWidth" panelSide="right" role="dialog" aria-modal="true" aria-labelledby="library-flyin-title">
+    <aside class="library-panel" [class.open]="isOpen()" [class.sheet-open]="!!expandedTeam()" appResizablePanel storageKey="libraryPanelWidth" panelSide="right" role="dialog" aria-modal="true" aria-labelledby="library-flyin-title">
 
       <!-- ── Header ─────────────────────────────────────────────────── -->
       <!-- Mirrors search/registrations registration-detail-panel header:
@@ -112,7 +112,15 @@ interface LibraryGroup {
       </div>
 
       <!-- ── Body ───────────────────────────────────────────────────── -->
-      <div class="panel-body" #panelBody>
+      <!-- While a register sheet is up the list goes INERT, not merely quiet:
+           clicking Register on another row used to swap the sheet's team and
+           reseed it, silently discarding an in-progress LOP + age-group pick.
+           the inert attribute blocks clicks, focus and assistive tech at once;
+           the .is-ghosted styles are the visible half of the same statement
+           (and pointer-events covers Safari < 16.4, where inert is a no-op). -->
+      <div class="panel-body" #panelBody
+           [class.is-ghosted]="!!expandedTeam()"
+           [attr.inert]="expandedTeam() ? '' : null">
         @if (activeTeams().length === 0) {
           <!-- All-archived (or defensive empty) — hero treatment -->
           <div class="lib-empty-hero">
@@ -195,7 +203,7 @@ interface LibraryGroup {
                                 <span class="lib-id-pair"><span class="lib-id-label">LOP</span><span class="lib-id-value">{{ formatLop(registered.levelOfPlay) }}</span></span>
                               }
                             </span>
-                            @if (canRegister() && expandedTeamId() !== team.clubTeamId) {
+                            @if (canRegister()) {
                               <button type="button" class="lib-icon-btn lib-edit-btn"
                                       title="Edit level of play (age group is locked once registered)"
                                       aria-label="Edit level of play"
@@ -205,14 +213,16 @@ interface LibraryGroup {
                               </button>
                             }
                           } @else if (canRegister()) {
-                            @if (expandedTeamId() !== team.clubTeamId) {
-                              <button type="button" class="btn-register-cell"
-                                      [disabled]="actionInProgress()"
-                                      (click)="toggleRegister(team)">
-                                <i class="bi bi-trophy-fill" aria-hidden="true"></i>
-                                <span>Register</span>
-                              </button>
-                            }
+                            <!-- No special-casing for the row whose sheet is open: the
+                                 whole list is ghosted and inert while a sheet is up, so
+                                 this row is as unreachable as every other one and needs
+                                 no marker of its own. The sheet names the team. -->
+                            <button type="button" class="btn-register-cell"
+                                    [disabled]="actionInProgress()"
+                                    (click)="toggleRegister(team)">
+                              <i class="bi bi-trophy-fill" aria-hidden="true"></i>
+                              <span>Register</span>
+                            </button>
                           } @else {
                             <span class="lib-closed-pill">
                               <i class="bi bi-lock-fill" aria-hidden="true"></i>
@@ -270,48 +280,6 @@ interface LibraryGroup {
                         </div>
                       </div>
 
-                      @if (expandedTeamId() === team.clubTeamId) {
-                        <div class="lib-item-expand">
-                          <div class="register-inline">
-                            @if (showDevIds) {
-                              <div class="dev-id-title">Club Team <span class="dev-id">(<span class="dev-id-guid">{{ team.clubTeamId }}</span>)</span></div>
-                            }
-                            <div class="register-step">
-                              <label class="field-label fw-bold">Event Level of Play</label>
-                              <app-level-of-play-picker
-                                [selected]="selectedLop()"
-                                (selectedChange)="selectedLop.set($event)" />
-                            </div>
-
-                            <div class="register-step">
-                              <label class="field-label fw-bold">Event Age Group</label>
-                              @if (editingExisting()) {
-                                <p class="ag-locked-note">
-                                  <i class="bi bi-lock-fill" aria-hidden="true"></i>
-                                  Age group is fixed once a team is registered — it drives team caps, waitlists, and fees. To move age groups, remove this team and register it again.
-                                </p>
-                              }
-                              <app-event-age-group-picker
-                                variant="chip"
-                                [ageGroups]="ageGroups()"
-                                [gradYear]="team.clubTeamGradYear"
-                                [disabled]="actionInProgress() || lopRequired() || editingExisting()"
-                                [selected]="selectedAgeGroupId()"
-                                (selectedChange)="selectedAgeGroupId.set($event)" />
-                            </div>
-
-                            <div class="register-actions">
-                              <button type="button" class="btn-register-cancel" (click)="cancelRegister()">Cancel</button>
-                              <button type="button" class="btn-register-submit"
-                                      [disabled]="!canSubmit()"
-                                      (click)="commitRegister(team)">
-                                <i class="bi bi-check-lg" aria-hidden="true"></i>
-                                {{ editingExisting() ? 'Save Changes' : 'Submit' }}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      }
                     </li>
                   }
                 </ul>
@@ -407,19 +375,123 @@ interface LibraryGroup {
         }
       </div>
 
+      <!-- ── Pinned register sheet ───────────────────────────────────
+           The LOP + age-group picker docks to the panel's bottom edge instead
+           of expanding inline in the list. Inline, it scrolled away mid-decision
+           and never named the team it was committing (the only tie was the tinted
+           row above, which the rep could scroll past).
+
+           This is a FLEX SIBLING of .panel-body, not an overlay: the list above
+           shrinks and stays browsable, and no second backdrop / third Esc level
+           is introduced (a modal here would stack over a portaled z-1050 drawer
+           that already has confirm-dialogs above it). Esc still routes through
+           onEscape's existing menu → sheet → close ladder. -->
+      @if (expandedTeam(); as team) {
+        <section class="register-sheet" aria-labelledby="register-sheet-title">
+          <div class="sheet-head">
+            <span class="sheet-head-medallion" aria-hidden="true">
+              <i class="bi"
+                 [class.bi-pencil-square]="editingExisting()"
+                 [class.bi-trophy-fill]="!editingExisting()"></i>
+            </span>
+
+            <!-- Two lines, not one: the eyebrow states the ACT, the name below it
+                 is the title. Sharing a baseline made neither read as either. -->
+            <span class="sheet-head-id" id="register-sheet-title">
+              <span class="sheet-head-eyebrow">{{ editingExisting() ? 'Editing' : 'Registering' }}</span>
+              <span class="sheet-head-name">{{ team.clubTeamName }}</span>
+            </span>
+
+            <span class="sheet-head-meta">
+              <span class="sheet-meta-pill">
+                <span class="sheet-meta-key">Grad</span>{{ team.clubTeamGradYear || '—' }}
+              </span>
+              @if (showDevIds) {
+                <span class="sheet-dev-id">#{{ team.clubTeamId }}</span>
+              }
+            </span>
+          </div>
+
+          <div class="register-inline">
+            <div class="register-step">
+              <label class="field-label fw-bold">
+                <span class="step-num">1</span>
+                Event Level of Play
+                @if (lopRequired()) { <span class="step-required">Pick one first</span> }
+              </label>
+              <app-level-of-play-picker
+                [selected]="selectedLop()"
+                (selectedChange)="onLopSelected($event)" />
+            </div>
+
+            <div class="register-step">
+              <label class="field-label fw-bold">
+                <span class="step-num">2</span>
+                Event Age Group
+              </label>
+              @if (editingExisting()) {
+                <p class="ag-locked-note">
+                  <i class="bi bi-lock-fill" aria-hidden="true"></i>
+                  Age group is fixed once a team is registered — it drives team caps, waitlists, and fees. To move age groups, remove this team and register it again.
+                </p>
+              } @else if (lopRequired()) {
+                <!-- Without this the chips sat silently disabled and the sheet read
+                     as broken on first open. Loud on purpose (primary callout, not
+                     the muted .ag-locked-note): this is the one state where the rep
+                     has no visible next move, so it must answer "then what?" -->
+                <p class="ag-gate-note">
+                  <i class="bi bi-arrow-up-circle-fill" aria-hidden="true"></i>
+                  Choose a level of play above — then this event's age groups unlock.
+                </p>
+              }
+              <app-event-age-group-picker
+                variant="chip"
+                [ageGroups]="ageGroups()"
+                [gradYear]="team.clubTeamGradYear"
+                [disabled]="actionInProgress() || lopRequired() || editingExisting()"
+                [selected]="selectedAgeGroupId()"
+                (selectedChange)="selectedAgeGroupId.set($event)" />
+            </div>
+
+          </div>
+
+          <!-- Sibling of .register-inline, not a child: the action row is a
+               full-bleed closing band, so it must not inherit the inner
+               container's horizontal padding. -->
+          <div class="register-actions">
+            <button type="button" class="btn-register-cancel" (click)="cancelRegister()">Cancel</button>
+            <button type="button" class="btn-register-submit"
+                    [disabled]="!canSubmit()"
+                    (click)="commitRegister(team)">
+              <i class="bi bi-check-lg" aria-hidden="true"></i>
+              {{ editingExisting() ? 'Save Changes' : 'Submit' }}
+            </button>
+          </div>
+        </section>
+      }
+
       <!-- ── Footer ─────────────────────────────────────────────────── -->
       <!-- Footer warning was dropped — the header status chip carries the
-           same signal (and louder, since it's at the top of the panel). -->
-      <div class="panel-footer">
-        <div class="footer-buttons">
-          <button type="button"
-                  class="btn-flyin-done"
-                  [class.btn-flyin-done-warning]="showNoneRegisteredWarning()"
-                  (click)="onClose()">
-            {{ doneLabel() }}
-          </button>
+           same signal (and louder, since it's at the top of the panel).
+
+           Suppressed while a register sheet is open: the sheet pins Submit to
+           the panel's bottom edge, which put Done/Close directly beneath it —
+           two same-weight buttons one row apart, one committing the
+           registration and the other discarding the panel. The sheet's own
+           Cancel is the escape while it's up, and the footer returns the
+           moment the sheet closes. -->
+      @if (!expandedTeam()) {
+        <div class="panel-footer">
+          <div class="footer-buttons">
+            <button type="button"
+                    class="btn-flyin-done"
+                    [class.btn-flyin-done-warning]="showNoneRegisteredWarning()"
+                    (click)="onClose()">
+              {{ doneLabel() }}
+            </button>
+          </div>
         </div>
-      </div>
+      }
     </aside>
     </div>
     `,
@@ -581,8 +653,11 @@ interface LibraryGroup {
       }
 
       /* ── Body container ────────────────────────────────────────────── */
+      /* min-height:0 so the register sheet below can claim its share of the
+         column instead of being pushed past the panel's bottom edge. */
       .panel-body {
         flex: 1;
+        min-height: 0;
         overflow-y: auto;
         padding: var(--space-5);
       }
@@ -874,9 +949,41 @@ interface LibraryGroup {
         background: color-mix(in srgb, var(--bs-body-color) 3%, transparent);
       }
 
-      /* Active expand source — tie the row to its open editor below. */
+      /* Active sheet source — tie the row to the pinned sheet below. An inset
+         left rail was tried and dropped: it lands on the same x as
+         .lib-group-card's own primary rail, so it merged and read as nothing.
+         Deeper tint carries the link instead. */
       .lib-item.is-expanded > .lib-item-main {
-        background: color-mix(in srgb, var(--bs-primary) 5%, transparent);
+        background: color-mix(in srgb, var(--bs-primary) 15%, transparent);
+      }
+
+      /* ── Ghosted list (sheet open) ─────────────────────────────────
+         Heavy and UNIFORM. An earlier version exempted the row being
+         registered so it stayed lit and continuous with the sheet; that was
+         dropped deliberately — the sheet's head already names the team, so the
+         lit row was a second focal point competing with the thing it pointed
+         at. Nothing in the list is relevant while the sheet is up.
+
+         Grayscale does the real work: opacity alone left the blue Register
+         buttons and the group cards' success/primary rails reading as live
+         colour through the dim.
+
+         Ancestor opacity (rather than the per-element dimming this replaced) is
+         safe here only because nothing inside .panel-body needs to paint
+         outside it — the kebab menus are absolutely positioned WITHIN the body,
+         and inert prevents them opening anyway. */
+      .panel-body.is-ghosted {
+        pointer-events: none;
+        opacity: 0.18;
+        filter: grayscale(0.85);
+        transition: opacity 0.18s ease, filter 0.18s ease;
+      }
+
+      /* The panel header's preamble is the other bright competitor. Title and
+         close X stay lit: one is context, the other is the escape. */
+      .library-panel.sheet-open .header-info {
+        opacity: 0.25;
+        transition: opacity 0.18s ease;
       }
 
       /* Leading sequence number — Registered section only. Fixed-width tabular
@@ -1054,53 +1161,278 @@ interface LibraryGroup {
         font-weight: var(--font-weight-medium);
       }
 
-      /* ── Inline registration expand ──────────────────────────────
-         The Register/Edit control "opens" beneath its row with the LOP +
-         Age Group pickers. Re-homed from the old colspan table row into the
-         list item; .register-inline (below) keeps its own padding. */
-      .lib-item-expand {
-        padding: 0;
-        background: color-mix(in srgb, var(--bs-primary) 4%, transparent);
-        border-top: 1px solid color-mix(in srgb, var(--bs-primary) 18%, transparent);
+      /* ── Pinned register sheet ────────────────────────────────────
+         Docked picker at the panel's bottom edge (flex sibling of
+         .panel-body — see the template note on why this is a sheet and
+         not a modal). Capped so the list never vanishes entirely; past
+         that cap the sheet scrolls internally, with its head and action
+         row pinned so "which team" and Submit can never be lost.
+
+         --sheet-bg is declared here and inherited by the sticky head and
+         action row: both must be OPAQUE against the sheet, or scrolled
+         content shows through them.
+
+         PALETTE — read before changing:
+
+         An inverted neutral dock (bg --neutral-800 / fg --neutral-50, which
+         mirrors under [data-bs-theme='dark']) was built and REJECTED on sight:
+         it gives a black slab in light mode and a glaring white one in dark,
+         and it reads as a different application stapled to the panel. Contrast
+         was excellent and the result was ugly — do not resurrect it.
+
+         What separates the sheet now is ELEVATION and ACCENT, not lightness:
+         it stays in the app's own surface family (--brand-surface, which is
+         already theme-aware) lifted by a 4% primary wash, a primary top edge,
+         a soft upward shadow, and a slightly stronger wash on the head band.
+         Same world, clearly a different plane.
+
+         Consequences worth keeping: every child control (LOP pills, age chips,
+         Cancel) renders on the surface it was designed for, so NONE of them
+         need per-sheet colour overrides; the amber WAITLIST chips stay legible;
+         and no fixed hue is introduced that could collide with a palette's
+         --bs-primary across the 8 palettes.
+
+         The base is --neutral-100, NOT --brand-surface, and that matters: the
+         LOP pills and age chips are themselves --brand-surface, so building the
+         sheet from the same token put controls on an identical field and they
+         flattened into outlines. --neutral-100 is one step off that ramp in both
+         themes (#f5f5f4 light, #1c1917 dark) while --brand-surface is #fff /
+         #44403c — so the chips read as raised keys either way. */
+      .register-sheet {
+        --sheet-bg: color-mix(in srgb, var(--bs-primary) 5%, var(--neutral-100));
+        --sheet-head-bg: color-mix(in srgb, var(--bs-primary) 12%, var(--neutral-100));
+        --sheet-line: color-mix(in srgb, var(--bs-primary) 22%, transparent);
+
+        flex-shrink: 0;
+        max-height: 60%;
+        overflow-y: auto;
+        background: var(--sheet-bg);
+        border-top: 2px solid var(--bs-primary);
+        box-shadow: 0 -8px 20px -14px rgba(var(--bs-body-color-rgb), 0.4);
+        animation: registerSheetRise 0.22s ease-out;
       }
 
-      .register-inline {
-        position: relative;
-        padding: var(--space-2) var(--space-3);
+      /* The motion IS the notification — it's the one cue that fires at the
+         moment of the click, before the rep's eye has moved anywhere. */
+      @keyframes registerSheetRise {
+        from { transform: translateY(100%); opacity: 0.5; }
+        to   { transform: translateY(0); opacity: 1; }
+      }
+
+      /* ── Sheet titlebar ───────────────────────────────────────────
+         Names the team being committed — the gap that made the old inline expand
+         anonymous everywhere except local dev. Identity is carried by TYPE and
+         COMPOSITION, not by a colour fill: a filled primary band was tried and
+         dropped because it shouted the frame rather than the content (and its
+         white-on-primary body text was the one AA risk in the sheet).
+
+         Three zones on one row: medallion mark / stacked eyebrow + name /
+         right-aligned metadata. The gradient carries the accent in from the left
+         edge so the mark sits in the strongest tint and the band fades toward the
+         metadata — depth via gradient + border, per the design-system rule
+         (backdrop-filter is banned project-wide). */
+      .sheet-head {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-2) var(--space-4);
+        background: linear-gradient(
+          to right,
+          color-mix(in srgb, var(--bs-primary) 18%, var(--neutral-100)),
+          var(--sheet-head-bg) 55%
+        );
+        border-bottom: 1px solid var(--sheet-line);
+      }
+
+      /* The icon was a loose glyph; as a ringed medallion it reads as a
+         deliberate mark and anchors the left edge of the band. */
+      .sheet-head-medallion {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 28px;
+        height: 28px;
+        border-radius: var(--radius-full);
+        border: 1px solid color-mix(in srgb, var(--bs-primary) 34%, transparent);
+        background: color-mix(in srgb, var(--bs-primary) 14%, var(--brand-surface));
+        color: var(--bs-primary);
+        font-size: var(--font-size-sm);
+        line-height: 1;
+      }
+
+      .sheet-head-id {
         display: flex;
         flex-direction: column;
-        gap: var(--space-2);
+        min-width: 0;
+        flex: 1;
       }
 
-      /* Dev-only ClubTeamId readout, pinned top-right of the register expand.
-         Mirrors search/registrations .info-section-title + .reg-id formatting.
-         Gated to envName === 'development' — never shows in staging/prod. */
-      .dev-id-title {
-        position: absolute;
-        top: var(--space-2);
-        right: var(--space-3);
-        margin: 0;
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-semibold);
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        pointer-events: none;
-      }
-
-      .dev-id-title .dev-id {
+      .sheet-head-eyebrow {
         font-size: var(--font-size-2xs);
-        font-family: var(--font-family-mono);
-        font-weight: var(--font-weight-medium);
-        text-transform: none;
-        letter-spacing: normal;
-        opacity: 0.7;
+        font-weight: var(--font-weight-bold);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        line-height: 1.3;
+        color: color-mix(in srgb, var(--bs-primary) 70%, var(--brand-text-muted));
       }
 
-      .dev-id-title .dev-id-guid {
-        user-select: all;
-        pointer-events: auto;
+      .sheet-head-name {
+        font-size: var(--font-size-lg);
+        font-weight: var(--font-weight-bold);
+        line-height: var(--line-height-tight);
+        color: var(--brand-text);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
+
+      /* Metadata gets its own quiet container so it stops reading as a second
+         pair of data values trailing the title. */
+      .sheet-head-meta {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        flex-shrink: 0;
+      }
+
+      .sheet-meta-pill {
+        display: inline-flex;
+        align-items: baseline;
+        gap: var(--space-1);
+        padding: 2px var(--space-2);
+        border: 1px solid var(--sheet-line);
+        border-radius: var(--radius-full);
+        background: color-mix(in srgb, var(--brand-surface) 75%, transparent);
+        font-size: var(--font-size-2xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .sheet-meta-key {
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text-muted);
+        opacity: 0.8;
+      }
+
+      /* Dev-only ClubTeamId readout — gated to envName === 'development', never
+         shows in staging/prod. Prefixed # so it reads as an identifier rather
+         than a second value beside the grad year. */
+      .sheet-dev-id {
+        flex-shrink: 0;
+        font-family: var(--font-family-mono);
+        font-size: var(--font-size-2xs);
+        font-weight: var(--font-weight-medium);
+        color: var(--text-muted);
+        opacity: 0.65;
+        user-select: all;
+      }
+
+      /* Numbered steps — answers "then what?" structurally rather than with
+         prose: 1 → 2 → Submit, visible without reading. Outlined, not filled:
+         these are wayfinding chrome sitting beside 2xs uppercase labels, and two
+         solid primary discs at that size fought the chips they were introducing. */
+      .step-num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 17px;
+        height: 17px;
+        margin-right: var(--space-2);
+        vertical-align: middle;
+        border: 1px solid color-mix(in srgb, var(--bs-primary) 45%, transparent);
+        border-radius: var(--radius-full);
+        background: color-mix(in srgb, var(--bs-primary) 10%, transparent);
+        color: var(--bs-primary);
+        font-size: var(--font-size-2xs);
+        font-weight: var(--font-weight-bold);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Loud sibling of .ag-locked-note for the one state with no visible next
+         move: LOP unpicked, so the age chips are disabled. Muted grey read as
+         decoration here; this has to read as the instruction. */
+      .ag-gate-note {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin: 0;
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid color-mix(in srgb, var(--bs-primary) 30%, transparent);
+        border-radius: var(--radius-sm);
+        background: color-mix(in srgb, var(--bs-primary) 8%, var(--brand-surface));
+        color: var(--brand-text);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        line-height: var(--line-height-normal);
+
+        .bi { font-size: 1.05em; color: var(--bs-primary); }
+      }
+
+      /* Steps get real air between them and a hairline rule for rhythm — the
+         cramped stack was most of why the sheet read as cluttered. */
+      .register-inline {
+        padding: var(--space-3) var(--space-4) var(--space-2);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+      }
+
+      .register-inline .register-step + .register-step {
+        padding-top: var(--space-3);
+        border-top: 1px solid color-mix(in srgb, var(--bs-primary) 12%, transparent);
+      }
+
+      /* Inline "required" tag on the LOP label. Deliberately NOT the picker's
+         own "invalid" input — that paints all five pills danger-red, which on a
+         freshly opened sheet reads as an error the rep caused rather than the
+         next step to take. */
+      .step-required {
+        margin-left: var(--space-2);
+        font-size: var(--font-size-2xs);
+        font-weight: var(--font-weight-semibold);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--bs-primary);
+      }
+
+      /* Action row pins to the sheet's bottom edge so Submit survives an
+         internal scroll on short viewports. Its own hairline + head-band tint
+         closes the sheet the way the head opens it, so the picker reads as a
+         bounded card rather than content trailing off. */
+      .register-sheet .register-actions {
+        position: sticky;
+        bottom: 0;
+        margin-top: var(--space-1);
+        padding: var(--space-2) var(--space-4);
+        background: var(--sheet-head-bg);
+        border-top: 1px solid var(--sheet-line);
+      }
+
+      /* Prominent but not clunky — the panel footer is suppressed while the
+         sheet is up, so Submit only has to outrank Cancel, not shout. */
+      .register-sheet .btn-register-submit {
+        padding: 7px var(--space-4);
+        box-shadow: var(--shadow-sm);
+      }
+
+      @media (max-width: 767.98px) {
+        /* Phone reclaims the preamble outright rather than merely ghosting it —
+           it's onboarding text, and the vertical space matters more here. */
+        .library-panel.sheet-open .header-info { display: none; }
+
+        /* Phone: browsing the list mid-pick isn't the job, so let the sheet
+           take most of the panel. Still ONE layer — no extra backdrop, no
+           extra Esc level. That's the difference from a modal. */
+        .register-sheet { max-height: 72%; }
+      }
+
 
       /* A step inside the register expand: a field-label line stacked tightly
          above its chip row. The register-inline gap (space-2) separates the two
@@ -1412,6 +1744,9 @@ interface LibraryGroup {
 
       @media (prefers-reduced-motion: reduce) {
         .library-panel { transition: none; }
+        .register-sheet { animation: none !important; }
+        .panel-body.is-ghosted,
+        .library-panel.sheet-open .header-info { transition: none; }
         .lib-icon-btn, .btn-register-cell, .btn-add-team, .btn-flyin-done,
         .lib-group-header, .lib-group-card, .lib-howto-toggle,
         .lib-item-main, .btn-register-cancel, .btn-register-submit { transition: none; }
@@ -1461,6 +1796,12 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
             root.parentNode.removeChild(root);
         }
     }
+
+    // A scroll-the-source-row-into-view pass used to run here (flag +
+    // ngAfterViewChecked). It was removed with the lit-row treatment: once the
+    // list is uniformly ghosted and inert, the source row's position carries no
+    // information, and NOT scrolling is actively better — Cancel returns the rep
+    // to exactly the scroll offset they left, rather than wherever we moved them.
 
     readonly isOpen = input.required<boolean>();
     readonly clubTeams = input.required<ClubTeamDto[]>();
@@ -1536,6 +1877,17 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
     readonly selectedLop = signal('');
     readonly selectedAgeGroupId = signal('');
 
+    /**
+     * The team whose register sheet is open (null = closed). Resolved from the id
+     * because the sheet is pinned to the panel's bottom edge, outside the list's
+     * @for scope where `team` used to be in hand.
+     */
+    readonly expandedTeam = computed(() => {
+        const id = this.expandedTeamId();
+        if (id === null) return null;
+        return this.activeTeams().find(t => t.clubTeamId === id) ?? null;
+    });
+
     /** True until the rep picks a 1–5 level of play (always required now). */
     readonly lopRequired = computed(() => !this.selectedLop());
 
@@ -1561,21 +1913,45 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
         // grad-year best-match age group (the recommended/asterisked chip) so the
         // common case is Submit-ready. Falls back to unselected when there's no
         // match, leaving Submit disabled until the rep chooses.
+        //
+        // The age-group seed is withheld while LOP is unresolved: the picker is
+        // disabled until a level is chosen, and seeding into a disabled picker
+        // showed a filled-but-unclickable chip beside a dead Submit — a state
+        // that read as broken. onLopSelected() lays the seed in the moment the
+        // gate clears instead.
         const existing = this.registeredInfo(team.clubTeamId);
         const lopCandidate = existing?.levelOfPlay || team.clubTeamLevelOfPlay || '';
-        this.selectedLop.set(normalizeLop(lopCandidate));
+        const seedLop = normalizeLop(lopCandidate);
+        this.selectedLop.set(seedLop);
         this.selectedAgeGroupId.set(
             existing
                 ? this.ageGroupIdByName(existing.ageGroupName)
-                : resolveRecommendedAgeGroupId(this.ageGroups(), team.clubTeamGradYear),
+                : (seedLop ? resolveRecommendedAgeGroupId(this.ageGroups(), team.clubTeamGradYear) : ''),
         );
         this.closeMenu();
         this.expandedTeamId.set(team.clubTeamId);
     }
 
+    /**
+     * LOP pick — also lays the recommended age-group seed the first time a level
+     * is chosen on a fresh registration (see toggleRegister). Never re-seeds over
+     * an existing pick, and never touches the locked age group of an edit.
+     */
+    onLopSelected(lop: string): void {
+        this.selectedLop.set(lop);
+        if (!lop || this.selectedAgeGroupId() || this.editingExisting()) return;
+        const team = this.expandedTeam();
+        if (team) {
+            this.selectedAgeGroupId.set(
+                resolveRecommendedAgeGroupId(this.ageGroups(), team.clubTeamGradYear),
+            );
+        }
+    }
+
     cancelRegister(): void {
         this.expandedTeamId.set(null);
         this.selectedAgeGroupId.set('');
+        this.selectedLop.set('');
     }
 
     /** Resolve an age group's id from its name (RegisteredInfo carries name only). */
