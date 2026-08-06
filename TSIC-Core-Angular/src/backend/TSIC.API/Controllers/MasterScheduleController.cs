@@ -14,7 +14,7 @@ namespace TSIC.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/master-schedule")]
-[Authorize]
+[Authorize(Policy = "AdminOnly")]
 public class MasterScheduleController : ControllerBase
 {
     private readonly IMasterScheduleService _service;

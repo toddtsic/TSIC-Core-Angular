@@ -13,7 +13,7 @@ namespace TSIC.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/bracket-seeds")]
-[Authorize]
+[Authorize(Policy = "AdminOnly")]
 public class BracketSeedController : ControllerBase
 {
     private readonly IBracketSeedService _service;
