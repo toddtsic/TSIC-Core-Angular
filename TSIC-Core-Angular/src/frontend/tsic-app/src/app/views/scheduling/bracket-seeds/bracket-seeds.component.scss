@@ -111,6 +111,13 @@
 	background: var(--bs-success-bg-subtle);
 }
 
+// The content is intrinsically narrow — a slot label, a colour-name badge, a rank —
+// so the card is capped instead of letting the table stretch cells across a monitor.
+// Percentage side columns only ever align matchups WITHIN the cap.
+.seed-card {
+	max-width: 42rem;
+}
+
 .seed-table {
 	td {
 		padding-top: var(--space-1);
@@ -118,13 +125,13 @@
 	}
 
 	.col-slot {
-		width: 3.5rem;
+		width: 3.25rem;
 		font-weight: var(--font-weight-medium);
 		text-align: center;
 	}
 
 	.col-vs {
-		width: 2.5rem;
+		width: 2.25rem;
 		text-align: center;
 		color: var(--text-secondary);
 		font-size: var(--font-size-xs);
@@ -137,7 +144,7 @@
 	}
 
 	.col-actions {
-		width: 3rem;
+		width: 2.75rem;
 		text-align: center;
 	}
 }
