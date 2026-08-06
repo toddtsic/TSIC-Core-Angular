@@ -819,12 +819,12 @@
                 }
               </ng-template>
             </e-column>
-            <e-column field="paidTotal" headerText="Paid" width="90" textAlign="Right">
+            <e-column field="paidTotal" headerText="Paid" width="100" textAlign="Right">
               <ng-template #template let-data>
                 <span class="money-cell money-paid">{{ data.paidTotal | currency }}</span>
               </ng-template>
             </e-column>
-            <e-column field="owedTotal" headerText="Owed" width="90" textAlign="Right">
+            <e-column field="owedTotal" headerText="Owed" width="100" textAlign="Right">
               <ng-template #template let-data>
                 @if (data.paymentScheduled && data.owedTotal > 0) {
                   <span class="money-cell money-scheduled"
