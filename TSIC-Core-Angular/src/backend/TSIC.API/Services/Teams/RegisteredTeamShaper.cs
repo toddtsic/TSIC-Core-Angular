@@ -132,12 +132,19 @@ public sealed class RegisteredTeamShaper : IRegisteredTeamShaper
             // only FeeDiscount here would overstate principal-remaining and drift these columns from
             // the stored OwedTotal.
             var discount = t.TotalDiscount();
+            // Deposit-less single payment (Deposit=NULL, BalanceDue=X — the canonical shape 6a §3
+            // normalizes legacy single-payment tournaments into): the whole fee IS the deposit-phase
+            // obligation, exactly what the charge stamp does (FeeBase = EffectiveDeposit, which falls
+            // back to BalanceDue). Deposit Due must show that same amount — raw Deposit here would
+            // render "Deposit Due $0" beside a full-price Pay button — and Balance Due must show $0:
+            // the same dollars may not appear in both columns, and nothing further is ever due.
+            // Two-phase rows are untouched (EffectiveDeposit = Deposit; balance stays forward-looking).
             var depositDue = teamFullPayment
                 ? 0m
-                : state.DepositPrincipalRemaining(deposit, discount, t.FeeLatefee, donation: 0m);
+                : state.DepositPrincipalRemaining(resolved?.EffectiveDeposit ?? 0m, discount, t.FeeLatefee, donation: 0m);
             var additionalDue = teamFullPayment
                 ? state.PrincipalRemaining(t.FeeBase, discount, t.FeeLatefee, donation: 0m)
-                : balanceDue;
+                : (deposit > 0m ? balanceDue : 0m);
             var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, discount, t.FeeLatefee, donation: 0m, t.FeeProcessing);
             var ccOwedTotal = owed.Cc;
             var ckOwedTotal = owed.Check;

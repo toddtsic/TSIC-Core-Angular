@@ -9,7 +9,9 @@
 --     Camp deposit outlier (type 4): RosterFee=Deposit, TeamFee-RosterFee=BalanceDue
 --   Tournament (2): player fee = $0 UNLESS Teams.PerRegistrantFee > 0
 --   League (3): player fee = Teams.PerRegistrantFee → Leagues.PlayerFeeOverride
---   Team fee (2,3): RosterFee=Deposit, TeamFee=BalanceDue
+--   Team fee (2,3): RosterFee=Deposit, TeamFee=BalanceDue when BOTH set;
+--     one amount alone (either column) = single payment -> Deposit=NULL,
+--     BalanceDue=the amount (6a §3 positional normalization)
 --
 -- Run AFTER seed-fees-from-legacy.sql
 -- ============================================================
@@ -117,19 +119,23 @@ ORDER BY
 PRINT '';
 PRINT '============================================================';
 PRINT 'TEST 3: Team fees — ClubRep (types 2, 3)';
-PRINT '  Legacy: RosterFee=Deposit, TeamFee=BalanceDue';
+PRINT '  Both legacy amounts set: Deposit=RosterFee, BalanceDue=TeamFee';
+PRINT '  One amount alone (either column): single payment -> Deposit=NULL,';
+PRINT '  BalanceDue=the amount (6a s.3 positional normalization)';
 PRINT '============================================================';
 
 SELECT
     j.JobPath,
     ag.AgegroupName,
-    ag.RosterFee                AS [Legacy_RosterFee_Deposit],
-    ag.TeamFee                  AS [Legacy_TeamFee_Balance],
+    ag.RosterFee                AS [Legacy_RosterFee],
+    ag.TeamFee                  AS [Legacy_TeamFee],
     jf.Deposit                  AS [New_Deposit],
     jf.BalanceDue               AS [New_BalanceDue],
     CASE
-        WHEN ISNULL(ag.RosterFee, 0) = ISNULL(jf.Deposit, 0)
-         AND ISNULL(ag.TeamFee, 0) = ISNULL(jf.BalanceDue, 0)
+        WHEN ISNULL(jf.Deposit, 0) =
+             CASE WHEN ISNULL(ag.TeamFee, 0) > 0 THEN ISNULL(ag.RosterFee, 0) ELSE 0 END
+         AND ISNULL(jf.BalanceDue, 0) =
+             CASE WHEN ISNULL(ag.TeamFee, 0) > 0 THEN ag.TeamFee ELSE ISNULL(ag.RosterFee, 0) END
         THEN 'MATCH'
         ELSE '*** MISMATCH ***'
     END AS [Status]
@@ -145,8 +151,11 @@ WHERE j.JobTypeId IN (2, 3)
   AND j.Year IN ('2025', '2026')
   AND (ag.RosterFee > 0 OR ag.TeamFee > 0 OR jf.JobFeeId IS NOT NULL)
 ORDER BY
-    CASE WHEN ISNULL(ag.RosterFee, 0) != ISNULL(jf.Deposit, 0)
-           OR ISNULL(ag.TeamFee, 0) != ISNULL(jf.BalanceDue, 0) THEN 0 ELSE 1 END,
+    CASE WHEN ISNULL(jf.Deposit, 0) !=
+              CASE WHEN ISNULL(ag.TeamFee, 0) > 0 THEN ISNULL(ag.RosterFee, 0) ELSE 0 END
+           OR ISNULL(jf.BalanceDue, 0) !=
+              CASE WHEN ISNULL(ag.TeamFee, 0) > 0 THEN ag.TeamFee ELSE ISNULL(ag.RosterFee, 0) END
+    THEN 0 ELSE 1 END,
     j.JobPath, ag.AgegroupName;
 
 PRINT '';
@@ -363,7 +372,8 @@ ORDER BY
 PRINT '';
 PRINT '============================================================';
 PRINT 'TEST 7: ClubRep structural concordance (types 2, 3)';
-PRINT '  Legacy: RosterFee=Deposit, TeamFee=BalanceDue (agegroup level)';
+PRINT '  Both legacy amounts set: Deposit=RosterFee, BalanceDue=TeamFee (agegroup level)';
+PRINT '  One amount alone: single payment -> Deposit=NULL, BalanceDue=the amount';
 PRINT '  Compares source agegroup columns against fees.JobFees ClubRep rows';
 PRINT '============================================================';
 
@@ -372,17 +382,25 @@ SELECT
     jt.JobTypeName,
     ag.AgegroupName,
 
-    -- Legacy
-    ISNULL(ag.RosterFee, 0)     AS [Legacy_Deposit],
-    ISNULL(ag.TeamFee, 0)       AS [Legacy_BalanceDue],
+    -- Legacy (positional source columns)
+    ISNULL(ag.RosterFee, 0)     AS [Legacy_RosterFee],
+    ISNULL(ag.TeamFee, 0)       AS [Legacy_TeamFee],
+
+    -- Expected after 6a §3 normalization
+    CASE WHEN ISNULL(ag.TeamFee, 0) > 0 THEN ISNULL(ag.RosterFee, 0) ELSE 0 END
+                                AS [Expected_Deposit],
+    CASE WHEN ISNULL(ag.TeamFee, 0) > 0 THEN ag.TeamFee ELSE ISNULL(ag.RosterFee, 0) END
+                                AS [Expected_BalanceDue],
 
     -- New
     ISNULL(jf.Deposit, 0)       AS [New_Deposit],
     ISNULL(jf.BalanceDue, 0)    AS [New_BalanceDue],
 
     CASE
-        WHEN ISNULL(ag.RosterFee, 0) = ISNULL(jf.Deposit, 0)
-         AND ISNULL(ag.TeamFee, 0) = ISNULL(jf.BalanceDue, 0)
+        WHEN ISNULL(jf.Deposit, 0) =
+             CASE WHEN ISNULL(ag.TeamFee, 0) > 0 THEN ISNULL(ag.RosterFee, 0) ELSE 0 END
+         AND ISNULL(jf.BalanceDue, 0) =
+             CASE WHEN ISNULL(ag.TeamFee, 0) > 0 THEN ag.TeamFee ELSE ISNULL(ag.RosterFee, 0) END
         THEN 'MATCH'
         WHEN jf.JobFeeId IS NULL
          AND ISNULL(ag.RosterFee, 0) = 0
@@ -405,8 +423,10 @@ WHERE j.JobTypeId IN (2, 3)
   AND j.Year IN ('2025', '2026')
   AND (ag.RosterFee > 0 OR ag.TeamFee > 0 OR jf.JobFeeId IS NOT NULL)
 ORDER BY
-    CASE WHEN ISNULL(ag.RosterFee, 0) != ISNULL(jf.Deposit, 0)
-           OR ISNULL(ag.TeamFee, 0) != ISNULL(jf.BalanceDue, 0)
+    CASE WHEN ISNULL(jf.Deposit, 0) !=
+              CASE WHEN ISNULL(ag.TeamFee, 0) > 0 THEN ISNULL(ag.RosterFee, 0) ELSE 0 END
+           OR ISNULL(jf.BalanceDue, 0) !=
+              CASE WHEN ISNULL(ag.TeamFee, 0) > 0 THEN ag.TeamFee ELSE ISNULL(ag.RosterFee, 0) END
     THEN 0 ELSE 1 END,
     j.JobPath, ag.AgegroupName;
 
@@ -508,8 +528,10 @@ UNION ALL
 
 SELECT 'Test 7 - ClubRep Fee by Agegroup' AS [Test],
     SUM(CASE
-        WHEN ISNULL(ag.RosterFee, 0) != ISNULL(jf.Deposit, 0)
-          OR ISNULL(ag.TeamFee, 0) != ISNULL(jf.BalanceDue, 0)
+        WHEN ISNULL(jf.Deposit, 0) !=
+             CASE WHEN ISNULL(ag.TeamFee, 0) > 0 THEN ISNULL(ag.RosterFee, 0) ELSE 0 END
+          OR ISNULL(jf.BalanceDue, 0) !=
+             CASE WHEN ISNULL(ag.TeamFee, 0) > 0 THEN ag.TeamFee ELSE ISNULL(ag.RosterFee, 0) END
         THEN 1 ELSE 0
     END) AS [Mismatches],
     COUNT(*) AS [Total]

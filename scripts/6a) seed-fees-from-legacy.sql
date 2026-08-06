@@ -74,12 +74,27 @@ GO
 --    carry distinct clubrep_registrationid values (all NULL or all the same). Tournaments
 --    (type 2) always get ClubRep rows. Without this guard, a League Scheduling job's
 --    agegroup RosterFee/TeamFee leaked into a phantom ClubRep fee card.
+--
+--    POSITIONAL NORMALIZATION: legacy stored these two amounts positionally
+--    (RosterFee = deposit slot, TeamFee = balance slot), and directors of single-payment
+--    tournaments put the whole fee in whichever slot — 2025-2027 carries 11 tournaments
+--    with the full fee in RosterFee (TeamFee empty) and 3 with it in TeamFee beside a
+--    literal RosterFee=0. The new schema's canonical single-payment shape is
+--    Deposit=NULL + BalanceDue=amount (EffectiveDeposit falls back to BalanceDue,
+--    FullPrice sums both, and the fee UI's single-payment disclosure keys on "no
+--    deposit"), so seed by MEANING, not position:
+--      * both amounts set -> genuine two-phase: Deposit=RosterFee, BalanceDue=TeamFee
+--      * one amount set   -> single payment:    Deposit=NULL,      BalanceDue=the amount
+--    A deposit without a balance is not a deposit, and a $0 deposit is not a deposit —
+--    a literal 0 is non-null, so EffectiveDeposit would NOT fall back and the team fee
+--    stamp would price a deposit-phase team at $0. Charge totals are identical for every
+--    shape this produces; the §3-guard below enforces the invariant.
 INSERT INTO fees.JobFees (JobFeeId, JobId, RoleId, AgegroupId, TeamId, Deposit, BalanceDue, Modified)
 SELECT
     NEWID(), j.JobId, '6A26171F-4D94-4928-94FA-2FEFD42C3C3E',
     ag.AgegroupId, NULL,
-    ag.RosterFee,
-    ag.TeamFee,
+    CASE WHEN ISNULL(ag.TeamFee, 0) > 0 THEN NULLIF(ag.RosterFee, 0) ELSE NULL END,
+    CASE WHEN ISNULL(ag.TeamFee, 0) > 0 THEN ag.TeamFee ELSE ag.RosterFee END,
     GETUTCDATE()
 FROM Leagues.agegroups ag
 JOIN Jobs.Job_Leagues jl ON ag.LeagueId = jl.LeagueId
@@ -101,6 +116,36 @@ WHERE j.JobTypeId IN (2, 3)
       )
   );
 PRINT '3  Team-only agegroup rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
+GO
+
+-- 3-guard: the §3 CASE makes a positional shape unseedable — enforce it structurally so a
+-- future legacy-shape surprise fails the run loud (script runs under -b) instead of
+-- reseeding the ambiguity. Banned on any ClubRep row: a literal $0 deposit, and a deposit
+-- with no balance (both are the single-payment amount in the wrong position). §8P's
+-- phase-only stamps (all amounts NULL) pass untouched; they also seed after this batch.
+IF EXISTS (
+    SELECT 1 FROM fees.JobFees jf
+    WHERE jf.RoleId = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E'
+      AND (jf.Deposit = 0 OR (jf.Deposit IS NOT NULL AND ISNULL(jf.BalanceDue, 0) = 0)))
+BEGIN
+    SELECT j.JobPath AS [FAILED_positional_clubrep_shape], jf.Deposit, jf.BalanceDue
+    FROM fees.JobFees jf
+    JOIN Jobs.Jobs j ON j.JobId = jf.JobId
+    WHERE jf.RoleId = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E'
+      AND (jf.Deposit = 0 OR (jf.Deposit IS NOT NULL AND ISNULL(jf.BalanceDue, 0) = 0));
+    THROW 50002, 'ClubRep fee shape gap: positional row seeded ($0 deposit or deposit-without-balance).', 1;
+END
+-- Observability: how many seeded rows came from a positional legacy shape (expected ~97
+-- on 2025-2027 data: 76 full-fee-in-RosterFee + 21 literal-zero-RosterFee).
+DECLARE @normalized INT;
+SELECT @normalized = COUNT(*)
+FROM fees.JobFees jf
+JOIN Leagues.agegroups ag ON ag.AgegroupId = jf.AgegroupId
+WHERE jf.RoleId = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E'
+  AND jf.TeamId IS NULL
+  AND ( (ISNULL(ag.RosterFee, 0) > 0 AND ISNULL(ag.TeamFee, 0) = 0)
+     OR (ag.RosterFee = 0 AND ISNULL(ag.TeamFee, 0) > 0) );
+PRINT '3G Single-payment rows normalized from positional legacy shape: ' + CAST(@normalized AS VARCHAR);
 GO
 
 -- 4. Tournament player fees (type 2) — team level
