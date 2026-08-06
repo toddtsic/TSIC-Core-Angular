@@ -87,7 +87,7 @@
                                 [disabled]="!cloneTargetAgId() || isCloningFields() || fields().length === 0"
                                 [title]="fields().length === 0
                                     ? 'This age group has no field timeslots to clone'
-                                    : 'Copy these field timeslots to the target age group'">
+                                    : 'Replace the target age group\'s field timeslots with these'">
                             @if (isCloningFields()) {
                                 <span class="spinner-border spinner-border-sm"></span>
                             }
