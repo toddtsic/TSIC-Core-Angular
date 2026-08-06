@@ -174,7 +174,13 @@ interface LibraryGroup {
                     }
                   </span>
 
-                  @if (canRegister()) {
+                  <!-- Same paidTotal rule as the trash can below, and for the same
+                       reason: Save Changes runs unregister-then-re-register, so this
+                       pencil IS the delete wearing a different hat. The server
+                       refuses to unregister a paid team, so leaving it enabled only
+                       bought a red toast naming a field the rep never touched. Paid
+                       rows show AG/LOP as read-only facts instead. -->
+                  @if (canRegister() && row.info.paidTotal === 0) {
                     <button type="button" class="lib-icon-btn lib-edit-btn"
                             title="Edit level of play (age group is locked once registered)"
                             aria-label="Edit level of play"

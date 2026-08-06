@@ -783,8 +783,16 @@ export class TeamTeamsStepComponent implements OnInit {
         if (existing) {
             this.teamReg.unregisterTeamFromEvent(existing.teamId)
                 .pipe(takeUntilDestroyed(this.destroyRef))
-                .subscribe({ next: doRegister, error: () => {
-                    this.toast.show('Failed to change age group.', 'danger', 4000);
+                .subscribe({ next: doRegister, error: (err: unknown) => {
+                    // Surface the server's reason, as the delete/archive/restore
+                    // branches do. The refusals here are specific and actionable
+                    // ("contact support for refunds", "event is closed") and the old
+                    // hardcoded string named the age group even on an edit that only
+                    // touched Level of Play.
+                    const httpErr = err as { error?: { message?: string } };
+                    this.toast.show(
+                        httpErr?.error?.message || 'Failed to update this registration.',
+                        'danger', 5000);
                     this.loadTeamsMetadata();
                 }});
         } else {
