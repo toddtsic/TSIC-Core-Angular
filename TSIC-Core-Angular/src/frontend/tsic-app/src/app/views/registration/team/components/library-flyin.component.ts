@@ -4,7 +4,7 @@ import { environment } from '@environments/environment';
 import { normalizeLop } from '@shared/teams/lop-choices';
 import { LevelOfPlayPickerComponent } from './level-of-play-picker.component';
 import { EventAgeGroupPickerComponent } from './event-age-group-picker.component';
-import { resolveRecommendedAgeGroupId } from './event-age-group.util';
+import { isTeamOfferedAtEvent, resolveOldestOfferedGradYear, resolveRecommendedAgeGroupId } from './event-age-group.util';
 import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
 
 export interface RegisteredInfo {
@@ -33,6 +33,8 @@ interface LibraryGroup {
     key: string;
     title: string;
     teams: ClubTeamDto[];
+    /** Italic aside in the group header band (the 'unavailable' group explains itself). */
+    hint?: string;
 }
 
 /**
@@ -164,7 +166,8 @@ interface LibraryGroup {
           @for (group of activeGroups(); track group.key) {
             <section class="lib-group-card"
                      [class.lib-group-card--registered]="group.key === 'registered'"
-                     [class.lib-group-card--unregistered]="group.key === 'unregistered'">
+                     [class.lib-group-card--unregistered]="group.key === 'unregistered'"
+                     [class.lib-group-card--unavailable]="group.key === 'unavailable'">
               <button type="button" class="lib-group-header"
                       [attr.aria-expanded]="!isGroupCollapsed(group.key)"
                       (click)="toggleGroup(group.key)">
@@ -175,8 +178,14 @@ interface LibraryGroup {
                 @if (group.key === 'registered') {
                   <i class="bi bi-check-circle-fill lib-group-icon" aria-hidden="true"></i>
                 }
+                @if (group.key === 'unavailable') {
+                  <i class="bi bi-slash-circle lib-group-icon" aria-hidden="true"></i>
+                }
                 <span class="lib-group-title">{{ group.title }}</span>
                 <span class="lib-group-count">{{ group.teams.length }}</span>
+                @if (group.hint) {
+                  <span class="lib-group-hint">{{ group.hint }}</span>
+                }
               </button>
 
               @if (!isGroupCollapsed(group.key)) {
@@ -461,10 +470,13 @@ interface LibraryGroup {
           <div class="register-actions">
             <button type="button" class="btn-register-cancel" (click)="cancelRegister()">Cancel</button>
             <button type="button" class="btn-register-submit"
+                    [class.is-waitlist]="willWaitlist() && !editingExisting()"
                     [disabled]="!canSubmit()"
                     (click)="commitRegister(team)">
-              <i class="bi bi-check-lg" aria-hidden="true"></i>
-              {{ editingExisting() ? 'Save Changes' : 'Submit' }}
+              <i class="bi" aria-hidden="true"
+                 [class.bi-hourglass-split]="willWaitlist() && !editingExisting()"
+                 [class.bi-check-lg]="!willWaitlist() || editingExisting()"></i>
+              <span class="submit-label">{{ submitLabel() }}</span>
             </button>
           </div>
         </section>
@@ -747,6 +759,17 @@ interface LibraryGroup {
         border-color: var(--bs-border-color);
         background: color-mix(in srgb, var(--bs-body-color) 2%, var(--surface-elevated-bg));
       }
+
+      /* No age group at this event = demoted, NOT blocked. Muted like archived so
+         it recedes from the working list, but with none of the danger tone of
+         Dropped: these teams are perfectly registerable, the event just doesn't
+         run an age group at or below their grad year. */
+      .lib-group-card--unavailable {
+        border-color: var(--bs-border-color);
+        background: color-mix(in srgb, var(--bs-body-color) 2%, var(--surface-elevated-bg));
+      }
+      .lib-group-card--unavailable .lib-group-title,
+      .lib-group-card--unavailable .lib-group-icon { color: var(--brand-text-muted); }
 
       /* Dropped = read-only history: muted like archived, with a danger-tinted
          left rail to distinguish "removed by director" from "self-archived". */
@@ -1416,10 +1439,31 @@ interface LibraryGroup {
       }
 
       /* Prominent but not clunky — the panel footer is suppressed while the
-         sheet is up, so Submit only has to outrank Cancel, not shout. */
+         sheet is up, so Submit only has to outrank Cancel, not shout.
+
+         The label carries the team name, so it must be capped: a long club team
+         name would otherwise stretch the button until it crowded Cancel out of
+         the band (worst on phones, where the panel is full-width). Ellipsis on a
+         name is a poor outcome but a broken action row is a worse one. */
       .register-sheet .btn-register-submit {
         padding: 7px var(--space-4);
         box-shadow: var(--shadow-sm);
+        max-width: 62%;
+        min-width: 0;
+        white-space: nowrap;
+      }
+
+      .register-sheet .btn-register-submit .submit-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      /* Waitlisting is a different outcome from registering, so it gets a
+         different colour as well as different words — amber matches the WAITLIST
+         chips the rep just picked from. */
+      .register-sheet .btn-register-submit.is-waitlist {
+        background: var(--amber-600);
       }
 
       @media (max-width: 767.98px) {
@@ -1843,10 +1887,14 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
     readonly showHowTo = signal(false);
     toggleHowTo(): void { this.showHowTo.set(!this.showHowTo()); }
 
-    /** Collapsed active groups (keyed by group key — 'registered' / 'unregistered').
-     *  Empty = all expanded, the default. Mirrors the Archived collapse affordance
-     *  so a rep can fold away whichever group they're done reviewing. */
-    readonly collapsedGroups = signal<ReadonlySet<string>>(new Set());
+    /** Collapsed active groups (keyed by group key — 'registered' / 'unregistered' /
+     *  'unavailable'). Mirrors the Archived collapse affordance so a rep can fold
+     *  away whichever group they're done reviewing.
+     *
+     *  'unavailable' starts collapsed — that group is the entire point of the
+     *  grad-year filter (a large club's list shrinks to the teams this event has
+     *  age groups for), and the entry is harmless when the group isn't rendered. */
+    readonly collapsedGroups = signal<ReadonlySet<string>>(new Set(['unavailable']));
     isGroupCollapsed(key: string): boolean { return this.collapsedGroups().has(key); }
     toggleGroup(key: string): void {
         const next = new Set(this.collapsedGroups());
@@ -1901,6 +1949,34 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
     readonly canSubmit = computed(() =>
         !this.actionInProgress() && !!this.selectedAgeGroupId() && !this.lopRequired(),
     );
+
+    /**
+     * Will committing this selection WAITLIST the team rather than register it?
+     *
+     * Covers both routes into a waitlist: the rep picked a WAITLIST-named twin,
+     * or they picked a parent age group that is already at capacity (the server
+     * waitlists on submit either way, and the toast afterwards says so).
+     */
+    readonly willWaitlist = computed(() => {
+        const id = this.selectedAgeGroupId();
+        if (!id) return false;
+        const ag = this.ageGroups().find(a => a.ageGroupId === id);
+        if (!ag) return false;
+        return ag.ageGroupName.toUpperCase().startsWith('WAITLIST')
+            || ag.registeredCount >= ag.maxTeams;
+    });
+
+    /**
+     * Commit-button label. "Submit" is a form word; the button should name the
+     * outcome, and name it HONESTLY — a full age group waitlists the team, so
+     * labelling that click "Register" would mislead at the moment of commitment.
+     */
+    readonly submitLabel = computed(() => {
+        const team = this.expandedTeam();
+        if (!team) return 'Submit';
+        if (this.editingExisting()) return 'Save Changes';
+        return `${this.willWaitlist() ? 'Waitlist' : 'Register'} ${team.clubTeamName}`;
+    });
 
     toggleRegister(team: ClubTeamDto): void {
         if (this.expandedTeamId() === team.clubTeamId) {
@@ -2032,6 +2108,14 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
      * group change on register/unregister moves a row (a row jumping to the
      * Registered group reads as "moved to done", which is the intended cue).
      */
+    /**
+     * Oldest grad-year age group this event offers, or null when the event isn't
+     * grad-year-named (in which case the Not Offered group never appears).
+     */
+    readonly oldestOfferedGradYear = computed(() =>
+        resolveOldestOfferedGradYear(this.ageGroups()),
+    );
+
     readonly activeGroups = computed<LibraryGroup[]>(() => {
         const all = this.activeTeams();
         if (!this.canRegister()) {
@@ -2040,17 +2124,43 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
             return [{ key: 'all', title: 'Active Library', teams: all }];
         }
         const entered = this.enteredTeams();
+        const oldestOffered = this.oldestOfferedGradYear();
+
         const registered: ClubTeamDto[] = [];
         const unregistered: ClubTeamDto[] = [];
+        const unavailable: ClubTeamDto[] = [];
         for (const t of all) {
-            (entered.has(t.clubTeamId) ? registered : unregistered).push(t);
+            if (entered.has(t.clubTeamId)) {
+                registered.push(t);
+            } else if (isTeamOfferedAtEvent(oldestOffered, t.clubTeamGradYear)) {
+                unregistered.push(t);
+            } else {
+                // Grad year older than every age group this event runs. Still fully
+                // registerable (ruling: Todd, 08-06) — demoted and labelled, not
+                // blocked, because a director may have approved something the
+                // client can't see. Collapsed by default so a large club's working
+                // list is only the teams this event has age groups for.
+                unavailable.push(t);
+            }
         }
+
         const groups: LibraryGroup[] = [];
         if (registered.length) {
             groups.push({ key: 'registered', title: 'Registered', teams: registered });
         }
+        // Titles describe the team's relationship to THIS EVENT, not a bare status:
+        // "Available for This Event" = fits an offered age group, ready to enter;
+        // the demoted group says WHY those teams aren't in the working list.
         if (unregistered.length) {
-            groups.push({ key: 'unregistered', title: 'Not Registered', teams: unregistered });
+            groups.push({ key: 'unregistered', title: 'Available for This Event', teams: unregistered });
+        }
+        if (unavailable.length) {
+            groups.push({
+                key: 'unavailable',
+                title: 'Outside Event Age Groups',
+                teams: unavailable,
+                hint: `oldest age group here is ${oldestOffered}`,
+            });
         }
         return groups;
     });
