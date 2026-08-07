@@ -596,8 +596,14 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
 
         // A refund policy only means something if money changed hands. On a free event every
         // registration carries FeeBase = 0, and printing "no refunds after X" under a $0
-        // registration reads as a mistake. Gate on ANY registration in the set having been
-        // charged — a family email covering one paid and one free player still needs it.
+        // registration reads as a mistake.
+        //
+        // Scope note: `list` is NOT this one registration. On the family path it is every
+        // registration that FamilyUserId has in this job — all-time, unfiltered by bActive.
+        // Any() over that set is deliberate, because the whole email is family-scoped:
+        // !F-PLAYERS / !F-ACCOUNTING render from this same list. If the body prints a charge
+        // for one player, the policy has to cover it, even when the row being confirmed today
+        // is $0. Only an all-$0 set — a truly free event — suppresses the block.
         if (template.Contains("!F-REFUND-PLAYER-WAIVER", StringComparison.OrdinalIgnoreCase))
         {
             tokens["!F-REFUND-PLAYER-WAIVER"] = list.Any(f => f.FeeBase > 0m)
