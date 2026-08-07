@@ -81,8 +81,8 @@ interface QueueRow {
  * live counts (the progress meter) and are NON-DESTRUCTIVE: picking a chip pins the visible
  * set; granting a coach updates its status + the counts but leaves the row pinned until you
  * re-pick a chip or refresh. The Teams cell is the single grant control: check a requested
- * team to grant it, check "Add team" to place on any team, uncheck to remove. Unchecking the
- * Active column deactivates the coach (removes all teams + drops from the queue).
+ * team to grant it, check "Add team" to place on any team, uncheck to remove. The cell's
+ * footer "Deactivate" link is the coach-level deny (removes all teams + drops from the queue).
  */
 @Component({
     selector: 'app-coach-approval-queue',
@@ -439,6 +439,9 @@ export class CoachApprovalQueueComponent implements OnInit {
         const row = args.data;
         if (!row || !args.row) return;
         args.row.classList.add(`status-${row.status}`);
+        // Nothing pending → the selection checkbox is muted (nothing to batch-approve);
+        // applySelectionDelta carries the matching guard for keyboard/API selection.
+        if (row.ungrantedRequestIds.length === 0) args.row.classList.add('row-inert-select');
     }
 
     /**
@@ -590,9 +593,47 @@ export class CoachApprovalQueueComponent implements OnInit {
         const next = new Set(this.selectedCoaches());
         for (const r of rows) {
             if (!r?.registrationId) continue;
+            // A coach with nothing pending can't be batch-approved — their checkbox is muted
+            // (row-inert-select), and this guard keeps keyboard/API selection out too.
+            if (add && r.ungrantedRequestIds.length === 0) continue;
             if (add) next.add(r.registrationId); else next.delete(r.registrationId);
         }
         this.selectedCoaches.set(next);
+    }
+
+    /** True when every shown coach with pending requests is checked (drives the header box). */
+    readonly allUnassignedSelected = computed(() => {
+        const approvable = this.approvableRows();
+        if (approvable.length === 0) return false;
+        const sel = this.selectedCoaches();
+        return approvable.every(r => sel.has(r.registrationId));
+    });
+
+    /** Header "Select All Unassigned": (un)check every SHOWN coach with pending requests. */
+    toggleSelectAllUnassigned(checked: boolean): void {
+        const next = new Set(this.selectedCoaches());
+        for (const r of this.approvableRows()) {
+            if (checked) next.add(r.registrationId); else next.delete(r.registrationId);
+        }
+        this.selectedCoaches.set(next);
+        this.syncGridSelection();
+    }
+
+    /** Push the authoritative selection onto the rendered rows (clear, then re-tick). */
+    private syncGridSelection(): void {
+        const grid = this.grid();
+        if (!grid) return;
+        const sel = this.selectedCoaches();
+        const view = grid.getCurrentViewRecords() as QueueRow[];
+        const indexes: number[] = [];
+        view.forEach((r, i) => { if (sel.has(r.registrationId)) indexes.push(i); });
+        this.isRestoringSelection = true;
+        try {
+            grid.clearSelection();
+            if (indexes.length > 0) grid.selectRows(indexes);
+        } finally {
+            this.isRestoringSelection = false;
+        }
     }
 
     /**
@@ -744,15 +785,10 @@ export class CoachApprovalQueueComponent implements OnInit {
         });
     }
 
-    // ── Active toggle (deactivate = the old "deny": remove all teams + bActive=0) ──
-
-    /** Active checkbox change: only unchecking is actionable — it arms the deactivate confirm. */
-    onActiveToggle(row: QueueRow, checked: boolean): void {
-        if (!checked && this.busyCoach() !== row.registrationId) this.requestDeny(row);
-    }
+    // ── Deactivate (the coach-level deny: remove all teams + bActive=0) ──
 
     requestDeny(row: QueueRow): void {
-        this.confirmingDeny.set(row.registrationId);
+        if (this.busyCoach() !== row.registrationId) this.confirmingDeny.set(row.registrationId);
     }
 
     cancelDeny(): void {

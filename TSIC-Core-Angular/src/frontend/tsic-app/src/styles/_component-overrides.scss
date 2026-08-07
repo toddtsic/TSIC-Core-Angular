@@ -46,6 +46,14 @@
   box-shadow: inset 3px 0 0 var(--bs-success);
 }
 
+/* AM-092: a coach with nothing pending can't be batch-approved — mute their
+   selection checkbox (row stays visible so the Assigned lens still reads).
+   rowDataBound adds .row-inert-select; applySelectionDelta guards the model side. */
+.coach-grid .e-row.row-inert-select .e-gridchkbox .e-checkbox-wrapper {
+  opacity: 0.25;
+  pointer-events: none;
+}
+
 /* ── customer-job-revenue: Credit Card Records grid ──
    Credit Card Credit rows get a danger tint + left accent bar (rowDataBound adds
    .row-cc-credit). The Type cell text still names the credit — color is supplementary. */

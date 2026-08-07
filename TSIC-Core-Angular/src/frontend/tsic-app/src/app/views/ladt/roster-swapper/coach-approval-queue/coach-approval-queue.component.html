@@ -4,7 +4,7 @@
             <i class="bi bi-person-check-fill me-2"></i>Coach Approval Queue
             <app-info-tooltip
                 trigger="hover"
-                message="The Teams column is the grant control: check a requested team to place the coach on it, use Add team to place them on any team, uncheck to remove. Unassigned = holds no team; Assigned = holds at least one. Unchecking Active deactivates the coach (removes every team and takes them off this list)." />
+                message="The Teams column is the grant control: check a requested team to place the coach on it, use Add team to place them on any team, uncheck to remove. Unassigned = holds no team; Assigned = holds at least one. Deactivate (below a coach's teams) removes every team and takes them off this list." />
         </h4>
         <button type="button" class="btn btn-outline-secondary btn-sm" (click)="load()" [disabled]="isLoading()">
             <i class="bi bi-arrow-clockwise me-1"></i>Refresh
@@ -27,30 +27,6 @@
             </button>
         </div>
         <div class="toolbar-right">
-            <!-- Batch approval. Counts are pending-only: already-approved teams are never re-sent,
-                 and neither button can claim work that is done. "Approve All" appears only when
-                 coaches can't view rosters (approval grants no player PII); the checked-subset
-                 batch is always available because the director has named those coaches. -->
-            <div class="batch-actions">
-                @if (batchBusy()) {
-                    <span class="batch-busy"><span class="spinner-border spinner-border-sm me-1"></span>Approving…</span>
-                }
-                @if (showApproveAll()) {
-                    <button type="button" class="batch-btn batch-btn--all"
-                        [disabled]="batchBusy() || approvableRows().length === 0"
-                        (click)="armBatch('all')">
-                        <i class="bi bi-check2-all"></i>
-                        Approve All Pending ({{ approvableRows().length }})
-                    </button>
-                }
-                <button type="button" class="batch-btn batch-btn--selected"
-                    [class.armed]="selectedApprovableRows().length > 0"
-                    [disabled]="batchBusy() || selectedApprovableRows().length === 0"
-                    (click)="armBatch('selected')">
-                    <i class="bi bi-check2-square"></i>
-                    Approve Checked ({{ selectedApprovableRows().length }})
-                </button>
-            </div>
             <div class="search">
                 <i class="bi bi-search search-icon"></i>
                 <input type="search" class="search-input" placeholder="Search name, club, contact…"
@@ -71,6 +47,31 @@
             <div class="empty-sub">No coach registrations are awaiting placement for this event.</div>
         </div>
     } @else {
+        <!-- Batch approval — right-aligned so the buttons sit over the selection-checkbox
+             column they act on (AM-092). Counts are pending-only: already-approved teams are
+             never re-sent, and neither button can claim work that is done. "Approve All"
+             appears only when coaches can't view rosters (approval grants no player PII); the
+             checked-subset batch is always available because the director named those coaches. -->
+        <div class="batch-bar">
+            @if (batchBusy()) {
+                <span class="batch-busy"><span class="spinner-border spinner-border-sm me-1"></span>Approving…</span>
+            }
+            @if (showApproveAll()) {
+                <button type="button" class="batch-btn batch-btn--all"
+                    [disabled]="batchBusy() || approvableRows().length === 0"
+                    (click)="armBatch('all')">
+                    <i class="bi bi-check2-all"></i>
+                    Approve All Pending ({{ approvableRows().length }})
+                </button>
+            }
+            <button type="button" class="batch-btn batch-btn--selected"
+                [class.armed]="selectedApprovableRows().length > 0"
+                [disabled]="batchBusy() || selectedApprovableRows().length === 0"
+                (click)="armBatch('selected')">
+                <i class="bi bi-check2-square"></i>
+                Approve Checked ({{ selectedApprovableRows().length }})
+            </button>
+        </div>
         <ejs-grid width="100%" #grid tsicRowNumbers
             [dataSource]="gridData()"
             [allowSorting]="true"
@@ -195,6 +196,12 @@
                             <div class="team-ctl-foot">
                                 @if (busyCoach() === data.registrationId) {
                                     <span class="team-busy"><span class="spinner-border spinner-border-sm me-1"></span>Saving…</span>
+                                } @else if (confirmingDeny() === data.registrationId) {
+                                    <div class="deny-confirm">
+                                        <span class="deny-confirm-q">Deactivate &amp; remove all teams?</span>
+                                        <button type="button" class="btn btn-danger btn-sm" (click)="confirmDeny(data)">Yes</button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelDeny()">No</button>
+                                    </div>
                                 } @else {
                                     @if (data.pendingCount > 1) {
                                         <button type="button" class="team-foot-link grant" (click)="grantAll(data)">
@@ -204,36 +211,32 @@
                                     <button type="button" class="team-foot-link add" (click)="openAssign($event, data)">
                                         <i class="bi bi-plus-lg"></i> Add team
                                     </button>
+                                    <!-- The coach-level deny (was the ACTIVE column, AM-092): removes
+                                         EVERY team + deactivates the registration. Per-team removal
+                                         stays the checklist unchecks above. -->
+                                    <button type="button" class="team-foot-link deny" (click)="requestDeny(data)">
+                                        <i class="bi bi-person-dash"></i> Deactivate
+                                    </button>
                                 }
                             </div>
                         </div>
                     </ng-template>
                 </e-column>
 
-                <!-- Active: unchecking deactivates the coach (removes ALL teams + drops from queue) -->
-                <e-column headerText="Active" [width]="160" textAlign="Center" [allowSorting]="false">
-                    <ng-template #template let-data>
-                        <div class="active-cell">
-                            <input type="checkbox" class="active-box"
-                                [checked]="confirmingDeny() !== data.registrationId"
-                                [disabled]="busyCoach() === data.registrationId"
-                                (change)="onActiveToggle(data, $any($event.target).checked)" />
-                            @if (confirmingDeny() === data.registrationId) {
-                                <div class="active-confirm">
-                                    <span class="active-confirm-q">Deactivate &amp; remove all teams?</span>
-                                    <div class="active-confirm-btns">
-                                        <button type="button" class="btn btn-danger btn-sm" (click)="confirmDeny(data)">Yes</button>
-                                        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelDeny()">No</button>
-                                    </div>
-                                </div>
-                            }
-                        </div>
+                <!-- Batch-approval selection checkbox. Kept at the END so the "#" cell stays the
+                     first e-rowcell the tsicRowNumbers directive stamps. The header template
+                     REPLACES Syncfusion's select-all (which ticks every row) with "Select All
+                     Unassigned" — only coaches with pending requests (AM-092). -->
+                <e-column type="checkbox" headerText="" [width]="100" [allowSorting]="false">
+                    <ng-template #headerTemplate>
+                        <label class="selall-hdr" title="Select every coach with pending requests">
+                            <input type="checkbox"
+                                [checked]="allUnassignedSelected()"
+                                (change)="toggleSelectAllUnassigned($any($event.target).checked)" />
+                            <span>Select All Unassigned</span>
+                        </label>
                     </ng-template>
                 </e-column>
-
-                <!-- Batch-approval selection checkbox. Kept at the END so the "#" cell stays the
-                     first e-rowcell the tsicRowNumbers directive stamps. -->
-                <e-column type="checkbox" headerText="" [width]="45" [allowSorting]="false"></e-column>
                 <!-- Hidden primary key — anchors persistSelection across rebinds. -->
                 <e-column field="registrationId" [isPrimaryKey]="true" [visible]="false"></e-column>
             </e-columns>

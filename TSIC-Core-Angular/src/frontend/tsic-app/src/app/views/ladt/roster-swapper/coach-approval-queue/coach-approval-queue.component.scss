@@ -82,8 +82,6 @@
 .chip-unassigned .chip-dot { background: var(--bs-danger); }
 .chip-assigned .chip-dot { background: var(--bs-success); }
 
-/* ── Batch approval controls (sit beside the search, right of the chips) ── */
-
 .toolbar-right {
     display: flex;
     align-items: center;
@@ -91,10 +89,45 @@
     gap: var(--space-3);
 }
 
-.batch-actions {
-    display: inline-flex;
+/* ── Batch approval controls — right-aligned directly above the grid, so they sit
+   over the selection-checkbox column they act on (AM-092). ── */
+
+.batch-bar {
+    display: flex;
     align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
     gap: var(--space-2);
+    margin-bottom: var(--space-1);
+}
+
+/* Header "Select All Unassigned" (replaces SF's all-rows select-all) */
+.selall-hdr {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: 0;
+    cursor: pointer;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--bs-secondary-color);
+    line-height: 1.15;
+    white-space: normal;
+    text-align: left;
+
+    input {
+        flex-shrink: 0;
+        margin: 0;
+        cursor: pointer;
+        accent-color: var(--bs-primary);
+
+        &:focus-visible {
+            outline: none;
+            box-shadow: var(--shadow-focus);
+        }
+    }
 }
 
 .batch-busy {
@@ -431,37 +464,24 @@
     &:focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: var(--radius-sm, 0.25rem); }
 }
 
-/* ── Active cell (uncheck = deactivate + remove all teams) ── */
+/* ── Deactivate (coach-level deny, lives in the Teams-cell footer since AM-092) ── */
 
-.active-cell {
+.team-foot-link.deny {
+    color: var(--bs-danger-text-emphasis, var(--bs-danger));
+    margin-left: auto; /* pushed right — visually apart from the additive grant/add links */
+
+    &:hover { color: var(--bs-danger); }
+}
+.deny-confirm {
     display: flex;
-    flex-direction: column;
     align-items: center;
+    flex-wrap: wrap;
     gap: var(--space-1);
 }
-.active-box {
-    width: 1.1rem;
-    height: 1.1rem;
-    cursor: pointer;
-    accent-color: var(--bs-primary);
-
-    &:disabled { cursor: default; }
-}
-.active-confirm {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-}
-.active-confirm-q {
+.deny-confirm-q {
     font-size: 0.7rem;
     font-weight: 500;
     color: var(--bs-danger);
-    text-align: center;
-}
-.active-confirm-btns {
-    display: flex;
-    gap: var(--space-1);
 }
 
 /* ── Popups (fixed, escape grid cell clipping) ── */
