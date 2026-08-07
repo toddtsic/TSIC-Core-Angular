@@ -58,7 +58,9 @@ docs/iis-env-secrets-setup.md
 docs/Security/iis-env-secrets-setup.local.ps1
 
 # IIS app pool secrets (real credentials — NEVER commit)
-**/app-pool-secrets.ps1
+# Trailing * so backups/variants (.bak, .corrupt-backup, .2026-08-07) are covered too —
+# the bare name left those committable.
+**/app-pool-secrets.ps1*
 docs/Demos/SCHEDULE-A-DEMO.local.md
 
 # Temp swagger exports
