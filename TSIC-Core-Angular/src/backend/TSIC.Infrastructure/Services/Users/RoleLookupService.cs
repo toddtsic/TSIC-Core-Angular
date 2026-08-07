@@ -78,6 +78,15 @@ public class RoleLookupService : IRoleLookupService
             model.Add(new RegistrationRoleDto { RoleName = "Referee", RoleRegistrations = lRefRoles });
         }
 
+        // Vendor export accounts (retired SportsRecruits API replacement). RoleName here is
+        // NOT display-only: SelectRegistration mints the JWT role claim from this string, and
+        // role-menu lookup matches it against AspNetRoles.Name — it MUST be the DB role name.
+        var lApiAuthorizedRoles = await _registrationRepo.GetApiAuthorizedRegistrationsAsync(userId);
+        if (lApiAuthorizedRoles.Count > 0)
+        {
+            model.Add(new RegistrationRoleDto { RoleName = "ApiAuthorized", RoleRegistrations = lApiAuthorizedRoles });
+        }
+
         return model;
     }
 }

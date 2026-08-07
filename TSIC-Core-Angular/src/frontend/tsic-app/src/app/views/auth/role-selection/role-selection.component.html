@@ -49,12 +49,12 @@
             @for (roleGroup of registrations(); track roleGroup.roleName; let i = $index) {
             <div class="role-section">
               @if (useTypeaheadMode()) {
-              <label class="role-label" [attr.id]="'rs-label-' + i">{{ roleGroup.roleName }}</label>
+              <label class="role-label" [attr.id]="'rs-label-' + i">{{ roleLabel(roleGroup.roleName) }}</label>
               <ejs-dropdownlist [dataSource]="roleGroup.roleRegistrations" [fields]="fields"
                 [placeholder]="'Select a registration...'" [allowFiltering]="true"
                 [filterBarPlaceholder]="'Type to search...'" [enabled]="!isLoading()" [popupHeight]="'400px'"
                 [popupWidth]="'100%'" [isDeviceFullScreen]="false"
-                [htmlAttributes]="{ 'aria-label': 'Select ' + roleGroup.roleName + ' registration', 'aria-describedby': 'rs-help-' + i }"
+                [htmlAttributes]="{ 'aria-label': 'Select ' + roleLabel(roleGroup.roleName) + ' registration', 'aria-describedby': 'rs-help-' + i }"
                 (filtering)="onFiltering($event, roleGroup)" (change)="onDropdownChange($event)">
                 <ng-template #itemTemplate let-data>
                   <div class="dropdown-item-custom">
@@ -69,7 +69,7 @@
                 navigate, Enter selects.</span>
               } @else {
               <section class="role-ledger" [attr.aria-labelledby]="'rs-label-' + i">
-                <h3 class="role-ledger-header" [attr.id]="'rs-label-' + i">{{ roleGroup.roleName }}</h3>
+                <h3 class="role-ledger-header" [attr.id]="'rs-label-' + i">{{ roleLabel(roleGroup.roleName) }}</h3>
                 <ul class="role-ledger-list">
                   @for (reg of roleGroup.roleRegistrations; track reg.regId) {
                   <li>

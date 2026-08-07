@@ -40,6 +40,7 @@ namespace TSIC.Domain.Constants
         // Role Names (for claims and authorization policies)
         public static class Names
         {
+            public const string ApiAuthorizedName = "ApiAuthorized";
             public const string SuperuserName = "Superuser";
             public const string DirectorName = "Director";
             public const string SuperDirectorName = "SuperDirector";

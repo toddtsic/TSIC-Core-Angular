@@ -22,7 +22,9 @@
 #   dedicated sections — Accounting (financial ops) and TSIC Admin.
 #   There is no "Tools" junk-drawer: every item names a real functional home.
 #
-#   Narrow admin roles (RefAssignor, StoreAdmin) — single-purpose menus.
+#   Narrow admin roles (RefAssignor, StoreAdmin, ApiAuthorized) — single-purpose
+#   menus. ApiAuthorized (vendor export logins) is a single top-level leaf whose
+#   reporting/* route direct-downloads the file on click.
 #
 #   Non-admin roles (Family, ClubRep, Player, Staff, UnassignedAdult) are NOT
 #   served by this nav system. Their tasks live in the header avatar dropdown
@@ -55,6 +57,7 @@ $roleGuids = [ordered]@{
     SuperUser       = 'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9'
     RefAssignor     = '122075A3-2C42-4092-97F1-9673DF5B6A2C'
     StoreAdmin      = '5B9B7055-4530-4E46-B403-1019FD8B8418'
+    ApiAuthorized   = '114C0272-57CD-4308-B653-79A43C547B63'
 }
 
 # -- Admin manifest ------------------------------------------------------
@@ -318,6 +321,14 @@ $refAssignorMenu = @(
 $storeAdminMenu = @(
     (New-L1 1 'StoreAdmin' 'shop')
       (New-L2 'StoreAdmin' 1 'Store Admin' 'speedometer2' 'store/admin')
+)
+
+# Vendor export logins (retired SportsRecruits API replacement). ONE top-level leaf:
+# the reporting/* route is not a screen, so the client menu intercepts the click and
+# direct-downloads the file (client-menu isReportDownload). Entitlement still rides
+# the reporting.JobReports row + agegroup release flags — the menu is just the door.
+$apiAuthorizedMenu = @(
+    (New-Leaf 1 'Authorized Rosters and Schedule Export' 'file-earmark-arrow-down' 'reporting/ThirdPartyRosterExport')
 )
 
 # -- Emit T-SQL ----------------------------------------------------------
@@ -713,6 +724,9 @@ Emit-RoleMenu $sql 'RefAssignor' $refAssignorMenu 'RefAssignor: Referee Assignme
 [void]$sql.AppendLine("-- -- 8. StoreAdmin ------------------------------------------------------")
 Emit-RoleMenu $sql 'StoreAdmin' $storeAdminMenu 'StoreAdmin: Store Admin'
 
+[void]$sql.AppendLine("-- -- 9. ApiAuthorized ---------------------------------------------------")
+Emit-RoleMenu $sql 'ApiAuthorized' $apiAuthorizedMenu 'ApiAuthorized: Authorized Rosters and Schedule Export'
+
 # 13. Restore reporting items
 [void]$sql.AppendLine("-- -- 13. Restore preserved reporting items ------------------------------")
 [void]$sql.AppendLine(@"
@@ -840,7 +854,7 @@ Write-Host ""
 Write-Host ("=" * 64) -ForegroundColor Green
 Write-Host " Generated: $sqlOutputPath" -ForegroundColor Green
 Write-Host " Admin manifest: $($adminManifest.Count) items" -ForegroundColor Green
-Write-Host " Narrow admins: RefAssignor, StoreAdmin (hand-authored)" -ForegroundColor Green
+Write-Host " Narrow admins: RefAssignor, StoreAdmin, ApiAuthorized (hand-authored)" -ForegroundColor Green
 Write-Host " Non-admin roles: intentionally excluded (see header dropdown)" -ForegroundColor Green
 Write-Host ""
 Write-Host " Apply with: sqlcmd -i `"5) Re-Set Nav System.sql`"" -ForegroundColor Green

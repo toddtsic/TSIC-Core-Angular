@@ -306,6 +306,16 @@ public interface IReportingRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Game rows for the export's Schedule worksheet — exact legacy feed semantics
+    /// (ThirdPartyApis/SchedulesController.GetJobSchedule): the whole job's schedule
+    /// ordered by game date then field, NO agegroup gate. Schedules are public
+    /// information; <c>BAllowApiRosterAccess</c> gates rosters only.
+    /// </summary>
+    Task<List<ThirdPartyScheduleGameDto>> GetThirdPartyScheduleGamesAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Untracked Registrations entities for the given ids — the export service reads
     /// the job's dynamic player-form field values off the entity via FormValueMapper
     /// (reflection), so a full entity fetch is required rather than a projection.

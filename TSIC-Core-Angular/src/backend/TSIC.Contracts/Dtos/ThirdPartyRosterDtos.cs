@@ -44,3 +44,27 @@ public record ThirdPartyRosterContextDto
     public required string JobName { get; init; }
     public required IReadOnlyList<string> AllowedAgegroupNames { get; init; }
 }
+
+/// <summary>
+/// One game row for the Schedule worksheet of the "Authorized Rosters and Schedule
+/// Export" — the exact column set of the retired legacy feed
+/// (ThirdPartyApis/SchedulesController.GetJobSchedule): whole-job schedule, no
+/// agegroup gate. Schedules are public information on the site; the
+/// <c>BAllowApiRosterAccess</c> flag gates ROSTERS only.
+/// </summary>
+public record ThirdPartyScheduleGameDto
+{
+    public required int Gid { get; init; }
+    public DateTime? GDate { get; init; }
+    public string? AgegroupName { get; init; }
+    public string? DivName { get; init; }
+    public string? FName { get; init; }
+    public string? T1Type { get; init; }
+    public int? T1No { get; init; }
+    public string? T1Name { get; init; }
+    public int? T1Score { get; init; }
+    public string? T2Type { get; init; }
+    public int? T2No { get; init; }
+    public string? T2Name { get; init; }
+    public int? T2Score { get; init; }
+}

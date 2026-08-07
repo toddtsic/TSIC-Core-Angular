@@ -420,6 +420,34 @@ public class RegistrationRepository : IRegistrationRepository
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
 
+    public async Task<List<RegistrationDto>> GetApiAuthorizedRegistrationsAsync(
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        // Third-party export accounts (retired SportsRecruits API replacement): rides
+        // ExpiryUsers like the other non-D/SD admin pickers (StoreAdmin, RefAssignor) —
+        // the SHORTER window; vendor access should never outlive the event season.
+        return await (
+            from r in _context.Registrations
+            join role in _context.AspNetRoles on r.RoleId equals role.Id
+            join j in _context.Jobs on r.JobId equals j.JobId
+            join jdo in _context.JobDisplayOptions on j.JobId equals jdo.JobId
+            where
+                (r.UserId == userId)
+                && (r.BActive == true)
+                && DateTime.Now < j.ExpiryUsers
+                && r.RoleId == RoleConstants.ApiAuthorized
+            orderby j.JobName
+            select new RegistrationDto
+            {
+                RegId = r.RegistrationId.ToString(),
+                DisplayText = j.JobName ?? string.Empty,
+                JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                JobPath = j.JobPath
+            }
+        ).AsNoTracking().ToListAsync(cancellationToken);
+    }
+
     public void Add(Registrations registration)
     {
         _context.Registrations.Add(registration);

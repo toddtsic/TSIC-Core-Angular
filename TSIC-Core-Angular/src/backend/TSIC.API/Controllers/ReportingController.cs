@@ -46,6 +46,7 @@ public class ReportingController : ControllerBase
         ["Ref Assignor"] = RoleConstants.RefAssignor,
         ["Staff"] = RoleConstants.Staff,
         ["Store Admin"] = RoleConstants.StoreAdmin,
+        ["ApiAuthorized"] = RoleConstants.ApiAuthorized,
         ["STPAdmin"] = RoleConstants.StpAdmin,
     };
 
@@ -281,10 +282,13 @@ public class ReportingController : ControllerBase
     // per-job player dump, hard-gated to agegroups flagged BAllowApiRosterAccess
     // ("Third-Party Roster Access" in LADT). Dispatched from reporting.JobReports rows
     // (Kind='CrystalReport', Action='ThirdPartyRosterExport') — the row IS the per-job
-    // entitlement, checked here on top of the AdminOnly floor so a job with no row
-    // returns 403 even by direct URL. Minors' PII: keep this deny-by-default.
+    // entitlement, checked here on top of the role floor so a job with no row returns
+    // 403 even by direct URL. Minors' PII: keep this deny-by-default.
+    // Role floor is CanRunThirdPartyExport (admins + ApiAuthorized vendor logins) — the
+    // ONE endpoint beyond login that vendor accounts can reach; everything else on this
+    // controller stays AdminOnly/SuperUserOnly.
     [HttpGet("ThirdPartyRosterExport")]
-    [Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = "CanRunThirdPartyExport")]
     public async Task<ActionResult> ThirdPartyRosterExport(CancellationToken cancellationToken)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);

@@ -6,6 +6,7 @@ import { MenuStateService } from '../../../layouts/services/menu-state.service';
 import { DropDownListModule, FilteringEventArgs, ChangeEventArgs, FieldSettingsModel, DropDownListComponent } from '@syncfusion/ej2-angular-dropdowns';
 import { Query } from '@syncfusion/ej2-data';
 import { SuggestedEventsModalComponent } from './suggested-events-modal.component';
+import { displayRoleName } from '@infrastructure/constants/roles.constants';
 @Component({
   selector: 'app-role-selection',
   standalone: true,
@@ -64,6 +65,11 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
    * rows are usually just "JobName". First segment becomes the title; the rest are
    * joined as a muted detail line.
    */
+  /** Friendly group header for a role (e.g. ApiAuthorized → "3rd Party Access"). Display only. */
+  roleLabel(roleName: string): string {
+    return displayRoleName(roleName);
+  }
+
   parseRowParts(displayText: string): { title: string; detail: string } {
     const parts = (displayText ?? '').split(':');
     const title = parts[0]?.trim() ?? '';

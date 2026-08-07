@@ -10,8 +10,34 @@ export const Roles = {
     Family: 'Family',
     Player: 'Player',
     UnassignedAdult: 'Unassigned Adult',
-    ClubRep: 'Club Rep'
+    ClubRep: 'Club Rep',
+    /** Vendor export logins (Authorized Rosters and Schedule Export) — nav-served, NOT an admin. */
+    ApiAuthorized: 'ApiAuthorized'
 } as const;
+
+/**
+ * Roles the nav.Nav system serves a menu to: full admins plus the narrow
+ * single-purpose menus (RefAssignor, StoreAdmin, ApiAuthorized). Gates nav
+ * chrome ONLY — never use for admin capability checks (that's isAdmin()).
+ */
+export const NAV_SERVED_ROLES: ReadonlySet<string> = new Set([
+    Roles.Superuser, Roles.Director, Roles.SuperDirector,
+    Roles.RefAssignor, Roles.StoreAdmin, Roles.ApiAuthorized
+]);
+
+/**
+ * Display-only overrides for role names in user-facing chrome (role selection).
+ * The underlying role NAME string is load-bearing — the JWT role claim is minted
+ * from it and backend policies/maps match on it — so friendly wording lives HERE,
+ * never in the wire value.
+ */
+const ROLE_DISPLAY_OVERRIDES: Readonly<Record<string, string>> = {
+    [Roles.ApiAuthorized]: '3rd Party Access'
+};
+
+/** Friendly label for a role name; falls back to the wire value. */
+export const displayRoleName = (roleName: string): string =>
+    ROLE_DISPLAY_OVERRIDES[roleName] ?? roleName;
 
 export type RoleName = typeof Roles[keyof typeof Roles];
 

@@ -615,6 +615,17 @@ builder.Services.AddAuthorization(options =>
             RoleConstants.Names.DirectorName,
             RoleConstants.Names.SuperDirectorName));
 
+    // Vendor export logins (ApiAuthorized) + admins. Deliberately NARROW — applied to the
+    // third-party export endpoint ONLY, never as a general admin floor: ApiAuthorized must
+    // not gain the AdminOnly surface. The reporting.JobReports row remains the per-job
+    // entitlement on top of this role floor.
+    options.AddPolicy("CanRunThirdPartyExport", policy =>
+        policy.RequireClaim(System.Security.Claims.ClaimTypes.Role,
+            RoleConstants.Names.SuperuserName,
+            RoleConstants.Names.DirectorName,
+            RoleConstants.Names.SuperDirectorName,
+            RoleConstants.Names.ApiAuthorizedName));
+
     // Roles that may enter game scores: admin roles + event-day Scorer.
     // Capability-named (like CanCrossCustomerJobs); same name as the legacy CanScore policy.
     options.AddPolicy("CanScore", policy =>

@@ -16,14 +16,15 @@ public interface IThirdPartyRosterExportService
 }
 
 /// <summary>
-/// "Third-Party Roster Export" — the in-house replacement for the retired SportsRecruits
-/// Basic-auth API (legacy ThirdPartyApis/RostersController.GetJobRosterPlayerData).
+/// "Authorized Rosters and Schedule Export" — the in-house replacement for the retired
+/// SportsRecruits Basic-auth API (legacy ThirdPartyApis/RostersController.GetJobRosterPlayerData).
 /// Same player dump (fixed contact/team columns + the job's dynamic player-form fields,
 /// minus the legacy disallow list and waiver/upload fields), but HARD-gated to agegroups
 /// flagged <c>BAllowApiRosterAccess</c> — the opt-in the legacy endpoint never enforced.
-/// The sheet leads with a banner stating that scope and an "Included:" audit line so the
-/// file explains its own conditioning wherever it gets forwarded. No schedule export
-/// exists or should be added here — retiring that feed was the point.
+/// The sheet leads with a banner stating that scope, an "Included:" audit line, and the
+/// per-agegroup release instruction, so the file explains its own conditioning — and names
+/// the remedy — wherever it gets forwarded. Release is always the EVENT's act, never TSIC's.
+/// (Schedule worksheet: ruled back IN 2026-08-06 — vendor compliance requirement.)
 /// </summary>
 public class ThirdPartyRosterExportService : IThirdPartyRosterExportService
 {
@@ -88,13 +89,18 @@ public class ThirdPartyRosterExportService : IThirdPartyRosterExportService
             }
         }
 
-        var fileBytes = BuildWorkbook(jobName, allowedAgegroups, players, dynamicFields, formValuesByReg);
+        // Schedule worksheet: exact legacy feed semantics (whole-job schedule, no agegroup
+        // gate — public information). Fetched even when zero agegroups are released: the
+        // roster tab renders its no-authorization message; the schedule is public either way.
+        var games = await _reportingRepository.GetThirdPartyScheduleGamesAsync(jobId, cancellationToken);
+
+        var fileBytes = BuildWorkbook(jobName, allowedAgegroups, players, dynamicFields, formValuesByReg, games);
 
         return new ReportExportResult
         {
             FileBytes = fileBytes,
             ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            FileName = "Third-Party-Roster-Export.xlsx",
+            FileName = "Authorized-Rosters-and-Schedule-Export.xlsx",
         };
     }
 
@@ -143,7 +149,8 @@ public class ThirdPartyRosterExportService : IThirdPartyRosterExportService
         IReadOnlyList<string> allowedAgegroups,
         List<ThirdPartyRosterPlayerDto> players,
         List<DynamicField> dynamicFields,
-        Dictionary<Guid, IReadOnlyDictionary<string, JsonElement>> formValuesByReg)
+        Dictionary<Guid, IReadOnlyDictionary<string, JsonElement>> formValuesByReg,
+        List<ThirdPartyScheduleGameDto> games)
     {
         using var excelEngine = new ExcelEngine();
         var application = excelEngine.Excel;
@@ -156,9 +163,9 @@ public class ThirdPartyRosterExportService : IThirdPartyRosterExportService
         var columnCount = Math.Max(headers.Count, 1);
 
         // Row 1 — scope banner. The file travels; it must state its own conditioning.
-        var banner = $"Third-Party Roster Export — {jobName} — generated {DateTime.Now:MM/dd/yyyy}. " +
-                     "Includes ONLY age groups with \"Third-Party Roster Access\" enabled " +
-                     "(LADT → Age Group settings). Age groups not flagged are excluded.";
+        var banner = $"Authorized Rosters and Schedule Export — {jobName} — generated {DateTime.Now:MM/dd/yyyy}. " +
+                     "Player rosters in this file contain ONLY the age groups this event has authorized for release. " +
+                     "The Schedule tab is the complete event schedule (public information).";
         sheet.Range[1, 1].SetCellValue(banner);
         sheet.Range[1, 1, 1, columnCount].Merge();
         sheet.Range[1, 1].CellStyle.Font.Bold = true;
@@ -166,13 +173,24 @@ public class ThirdPartyRosterExportService : IThirdPartyRosterExportService
         // Row 2 — audit line: exactly which agegroups the flag admits, or the explicit
         // nothing-enabled message so an empty file reads as configuration, not a bug.
         var included = allowedAgegroups.Count > 0
-            ? $"Included: {string.Join(", ", allowedAgegroups)}"
-            : "No age groups have \"Third-Party Roster Access\" enabled for this event — no player data included.";
+            ? $"Authorized age groups: {string.Join(", ", allowedAgegroups)}"
+            : "No age groups are currently authorized — this export contains no player data.";
         sheet.Range[2, 1].SetCellValue(included);
         sheet.Range[2, 1, 2, columnCount].Merge();
         sheet.Range[2, 1].CellStyle.Font.Italic = true;
 
-        // Row 3 blank; row 4 headers; data from row 5.
+        // Row 3 — the remedy, always present: authorization is per age group and only the
+        // event can grant it. Names the exact toggle and where the event finds it, so a
+        // recruiter holding this file knows who to ask and what to ask for — and an empty
+        // or partial file never reads as a TSIC support ticket.
+        var remedy = "Need an age group that isn't listed? Contact the event directly and ask them to enable " +
+                     "\"Third-Party Roster Access\" for that age group (Teams & Rosters → L-A-D-T Editor → " +
+                     "Age Group Details). Authorization is granted per age group, by the event only.";
+        sheet.Range[3, 1].SetCellValue(remedy);
+        sheet.Range[3, 1, 3, columnCount].Merge();
+        sheet.Range[3, 1].CellStyle.Font.Italic = true;
+
+        // Row 4 headers; data from row 5.
         const int headerRow = 4;
         for (var col = 0; col < headers.Count; col++)
         {
@@ -210,7 +228,66 @@ public class ThirdPartyRosterExportService : IThirdPartyRosterExportService
         }
 
         sheet.UsedRange.AutofitColumns();
+
+        BuildScheduleSheet(workbook, games);
         return workbook.ToByteArray();
+    }
+
+    /// <summary>
+    /// Second worksheet — the complete event schedule, exact legacy feed format
+    /// (ThirdPartyApis/SchedulesController.GetJobSchedule): same 13 columns under the
+    /// legacy field names, ordered by game date then field, no agegroup gate.
+    /// Schedules are public information; the release flag gates rosters only.
+    /// </summary>
+    private static void BuildScheduleSheet(IWorkbook workbook, List<ThirdPartyScheduleGameDto> games)
+    {
+        var sheet = workbook.Worksheets.Create("Schedule");
+
+        string[] headers =
+        {
+            "Gid", "GDate", "AgegroupName", "DivName", "FName",
+            "T1Type", "T1No", "T1Name", "T1Score",
+            "T2Type", "T2No", "T2Name", "T2Score",
+        };
+
+        // Row 1 — scope note: this tab is deliberately NOT agegroup-gated.
+        var note = "Complete event schedule — public information; not limited to authorized age groups.";
+        sheet.Range[1, 1].SetCellValue(note);
+        sheet.Range[1, 1, 1, headers.Length].Merge();
+        sheet.Range[1, 1].CellStyle.Font.Italic = true;
+
+        // Row 2 blank; row 3 headers; data from row 4.
+        const int headerRow = 3;
+        for (var col = 0; col < headers.Length; col++)
+        {
+            sheet.Range[headerRow, col + 1].SetCellValue(headers[col]);
+            sheet.Range[headerRow, col + 1].CellStyle.Font.Bold = true;
+        }
+
+        for (var i = 0; i < games.Count; i++)
+        {
+            var g = games[i];
+            var row = headerRow + 1 + i;
+            var values = new object?[]
+            {
+                g.Gid, g.GDate, g.AgegroupName, g.DivName, g.FName,
+                g.T1Type, g.T1No, g.T1Name, g.T1Score,
+                g.T2Type, g.T2No, g.T2Name, g.T2Score,
+            };
+            for (var col = 0; col < values.Length; col++)
+            {
+                if (values[col] == null) continue;
+                var target = sheet.Range[row, col + 1];
+                target.SetCellValue(values[col]);
+                // Game date keeps its TIME — mm/dd/yyyy alone would flatten kickoff times.
+                if (values[col] is DateTime)
+                {
+                    target.NumberFormat = "mm/dd/yyyy hh:mm AM/PM";
+                }
+            }
+        }
+
+        sheet.UsedRange.AutofitColumns();
     }
 
     /// <summary>Date formatting mirrors ReportingService's SP-Excel render (mm/dd/yyyy).</summary>

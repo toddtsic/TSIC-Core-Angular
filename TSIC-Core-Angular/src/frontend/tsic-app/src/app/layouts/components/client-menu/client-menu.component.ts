@@ -10,6 +10,7 @@ import { ToastService } from '@shared-ui/toast.service';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
 import { MenuStateService } from '../../services/menu-state.service';
+import { NAV_SERVED_ROLES } from '@infrastructure/constants/roles.constants';
 
 @Component({
     selector: 'app-client-menu',
@@ -28,8 +29,16 @@ export class ClientMenuComponent {
     private readonly toast = inject(ToastService);
     private readonly injector = inject(Injector);
 
-    // The desktop vertical rail is admin-only chrome; non-admins get no inline nav.
-    readonly isAdmin = this.auth.isAdmin;
+    // The desktop rail renders for every role the nav system serves a menu to —
+    // full admins plus the narrow single-purpose roles (RefAssignor, StoreAdmin,
+    // ApiAuthorized vendor exports). NOT auth.isAdmin(): that gates admin
+    // capability, and e.g. an ApiAuthorized login must see its one menu leaf
+    // without inheriting any admin chrome.
+    readonly hasNavMenu = computed(() => {
+        const user = this.auth.currentUser();
+        const roles = user?.roles || (user?.role ? [user.role] : []);
+        return roles.some(r => NAV_SERVED_ROLES.has(r));
+    });
 
     // Collapsed (icon rail) vs expanded (labels) — shared, persisted in MenuStateService.
     readonly collapsed = this.menuState.sidebarCollapsed;

@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-08-04 10:18:05 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-08-06 16:49:34 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -53,6 +53,7 @@ DECLARE @SuperDirector NVARCHAR(450) = '7B9EB503-53C9-44FA-94A0-17760C512440';
 DECLARE @SuperUser NVARCHAR(450) = 'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9';
 DECLARE @RefAssignor NVARCHAR(450) = '122075A3-2C42-4092-97F1-9673DF5B6A2C';
 DECLARE @StoreAdmin NVARCHAR(450) = '5B9B7055-4530-4E46-B403-1019FD8B8418';
+DECLARE @ApiAuthorized NVARCHAR(450) = '114C0272-57CD-4308-B653-79A43C547B63';
 
 -- -- 3. Preserve reporting items + visibility rules ----------------------
 DECLARE @cnt INT;
@@ -103,7 +104,8 @@ INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES (@SuperDire
 INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES (@SuperUser, NULL, 1, GETDATE());
 INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES (@RefAssignor, NULL, 1, GETDATE());
 INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES (@StoreAdmin, NULL, 1, GETDATE());
-PRINT 'Inserted 5 Nav records';
+INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES (@ApiAuthorized, NULL, 1, GETDATE());
+PRINT 'Inserted 6 Nav records';
 
 -- -- 6. Admin manifest (Director / SuperDirector / SuperUser) -----------
 IF OBJECT_ID('tempdb..#AdminManifest') IS NOT NULL DROP TABLE #AdminManifest;
@@ -187,10 +189,7 @@ CREATE TABLE #AdminLeaves (
     VisibilityRules NVARCHAR(MAX) NULL,
     BadgeText       NVARCHAR(20)  NULL
 );
--- trophy-fill, not trophy: 'trophy' is already the USA Lacrosse Rankings leaf, and the
--- emphasis rule in client-menu.component.scss keys on the icon class, so the two must not
--- collide -- change this value to 'trophy' and both leaves get the treatment.
-INSERT INTO #AdminLeaves VALUES (N'Scheduling Checklist', N'trophy-fill', N'scheduling', 4, 1, 1, 1, N'{"jobTypes":["Tournament Scheduling","League Scheduling"]}', NULL);
+INSERT INTO #AdminLeaves VALUES (N'Scheduling Checklist', N'calendar-week', N'scheduling', 4, 1, 1, 1, N'{"jobTypes":["Tournament Scheduling","League Scheduling"]}', NULL);
 INSERT INTO #AdminLeaves VALUES (N'Store', N'shop', N'store/admin', 9, 1, 1, 1, N'{"requiresFlags":["storeEnabled"]}', NULL);
 INSERT INTO #AdminLeaves VALUES (N'ARB Health', N'heart-pulse', N'arb/health', 10, 1, 1, 1, N'{"requiresFlags":["adnArb"]}', NULL);
 
@@ -307,6 +306,12 @@ INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], Icon
 SET @parentId = SCOPE_IDENTITY();
 INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 1, N'Store Admin', N'speedometer2', N'store/admin', GETDATE());
 PRINT 'StoreAdmin: Store Admin';
+
+-- -- 9. ApiAuthorized ---------------------------------------------------
+-- ApiAuthorized: Authorized Rosters and Schedule Export
+SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @ApiAuthorized AND JobId IS NULL;
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, NULL, 1, 1, N'Authorized Rosters and Schedule Export', N'file-earmark-arrow-down', N'reporting/ThirdPartyRosterExport', GETDATE());
+PRINT 'ApiAuthorized: Authorized Rosters and Schedule Export';
 
 -- -- 13. Restore preserved reporting items ------------------------------
 SELECT @cnt = COUNT(*) FROM #ReportingItems;

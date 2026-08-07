@@ -1,6 +1,6 @@
 <!-- Desktop admin nav (visible on large screens, admins only). Two layouts the
      admin can switch between: a vertical sidebar rail or the horizontal top bar. -->
-@if (isAdmin() && menus() && menus().length > 0) {
+@if (hasNavMenu() && menus() && menus().length > 0) {
 
 <!-- ── Sidebar layout ───────────────────────────────────────────────────── -->
 @if (navLayout() === 'sidebar') {

@@ -35,6 +35,7 @@ public class NavController : ControllerBase
         ["Staff"] = RoleConstants.Staff,
         ["Store Admin"] = RoleConstants.StoreAdmin,
         ["STPAdmin"] = RoleConstants.StpAdmin,
+        ["ApiAuthorized"] = RoleConstants.ApiAuthorized,
     };
 
     public NavController(

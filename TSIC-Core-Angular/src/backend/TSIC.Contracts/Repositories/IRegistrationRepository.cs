@@ -144,6 +144,11 @@ public interface IRegistrationRepository
     Task<List<RegistrationDto>> GetRefereeRegistrationsAsync(string userId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get ApiAuthorized (third-party export) role registrations for a user
+    /// </summary>
+    Task<List<RegistrationDto>> GetApiAuthorizedRegistrationsAsync(string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Add a new registration to the database
     /// </summary>
     /// <param name="registration">The registration to add</param>

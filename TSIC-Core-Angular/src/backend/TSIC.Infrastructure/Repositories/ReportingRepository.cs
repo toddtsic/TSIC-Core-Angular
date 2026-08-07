@@ -1148,6 +1148,37 @@ public class ReportingRepository : IReportingRepository
             }).ToListAsync(cancellationToken);
     }
 
+    public async Task<List<ThirdPartyScheduleGameDto>> GetThirdPartyScheduleGamesAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // Exact legacy feed shape (ThirdPartyApis/SchedulesController.GetJobSchedule):
+        // whole-job schedule ordered by GDate then FName, the same 13 columns, no
+        // agegroup gate — schedules are public information on the site.
+        return await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId)
+            .OrderBy(s => s.GDate)
+            .ThenBy(s => s.FName)
+            .Select(s => new ThirdPartyScheduleGameDto
+            {
+                Gid = s.Gid,
+                GDate = s.GDate,
+                AgegroupName = s.AgegroupName,
+                DivName = s.DivName,
+                FName = s.FName,
+                T1Type = s.T1Type,
+                T1No = s.T1No,
+                T1Name = s.T1Name,
+                T1Score = s.T1Score,
+                T2Type = s.T2Type,
+                T2No = s.T2No,
+                T2Name = s.T2Name,
+                T2Score = s.T2Score,
+            })
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<List<Registrations>> GetRegistrationsForFormFieldReadAsync(
         List<Guid> registrationIds,
         CancellationToken cancellationToken = default)
