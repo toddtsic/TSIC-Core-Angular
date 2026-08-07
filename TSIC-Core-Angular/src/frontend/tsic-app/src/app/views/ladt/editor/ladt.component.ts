@@ -712,11 +712,14 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     if (needsFees && this.jobFees().length === 0) sources['fees'] = this.ladtService.getJobFees();
     if (needsFees && this.feeMap() === null) sources['map'] = this.ladtService.getFeeResolutionMap();
 
-    const combined$ = Object.keys(sources).length > 1 ? forkJoin(sources) : fetch$;
-
-    (combined$ as Observable<any>).subscribe({
+    // ALWAYS forkJoin — even with a single source — so `result` is always the keyed
+    // object. A raw array result here once flowed into `if (result.map)`, which found
+    // Array.prototype.map (truthy!) and cached a FUNCTION as the fee map, silently
+    // blanking every fee pill after the first navigation. Never sniff optional keys
+    // off a value that might be an array.
+    forkJoin(sources).subscribe({
       next: (result: any) => {
-        const data: any[] = result.data ?? result;
+        const data: any[] = result.data;
         if (result.fees) {
           this.jobFees.set(result.fees);
         }
