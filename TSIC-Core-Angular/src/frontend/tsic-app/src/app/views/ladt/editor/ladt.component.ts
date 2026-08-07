@@ -1268,9 +1268,16 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
    * the verified-clean state — the two must never look alike in data.
    *
    * Pill flags: `inherited` = the value came from a LESS specific tier (dim style +
-   * "Inherited from X level"); `fromBelow` = nothing resolves at/above this row and the
-   * pill exists only because MORE specific scopes set values ("Set at Team level" —
-   * the AM-090 case). The two are mutually exclusive and must never share a flag.
+   * "Inherited from X level"); `fromBelow` = the row's pill shows a value carried by MORE
+   * specific scopes — either nothing resolves at/above this row (the AM-090 case) or the
+   * row's resolved value operates on no team (`inert` — every team below sets its own, so
+   * claiming the value is "set here" would be false; Todd's ruling 08-07). `inherited` and
+   * `fromBelow` are mutually exclusive and must never share a flag.
+   *
+   * `dist` (container rows only) is the team-weighted distribution of the row's resolved
+   * value over the non-bucket teams below it: `covered` teams are charged what the pill
+   * shows; `own` teams resolve from a deeper tier. Tooltips speak in these terms — a
+   * level is only ever said to "set" what it actually operates on.
    */
   private enrichWithFees(data: any[], level: number): void {
     if (level === 2) return; // divisions aren't a scope in fees.JobFees
@@ -1280,6 +1287,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     const idField = ID_FIELD_BY_LEVEL[level];
     const ownTier = level === 0 ? 'league' : level === 1 ? 'agegroup' : 'team';
     const ownRank = LadtEditorComponent.TIER_RANK[ownTier];
+    const containment = level === 3 ? null : this.teamsUnderContainers(level);
 
     for (const row of data) {
       const node = index.get(row[idField]);
@@ -1289,40 +1297,60 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
       const earlyBird: any[] = [];
       const lateFee: any[] = [];
       const phase: any[] = [];
+      const teamIds = containment?.get(row[idField]) ?? [];
 
-      for (const entry of [node.player, node.clubRep] as LadtFeeRoleResolutionDto[]) {
+      for (const [roleKey, entry] of [
+        ['player', node.player], ['clubRep', node.clubRep],
+      ] as ReadonlyArray<readonly ['player' | 'clubRep', LadtFeeRoleResolutionDto]>) {
         const roleLabel = LadtEditorComponent.ROLE_LABELS[entry.roleId] ?? entry.roleId.substring(0, 6);
         const below = entry.below ?? null;
+        const dist = (srcOf: (e: LadtFeeRoleResolutionDto) => string | null | undefined,
+                      nullMeans: 'skip' | 'covered') =>
+          containment
+            ? LadtEditorComponent.distributionOf(teamIds, index, roleKey, ownRank, srcOf, nullMeans)
+            : null;
 
         // ── Base-fee pill: shown when configured at/above OR overridden below ──
         if (entry.feeConfigured || (below?.amounts.overrideCount ?? 0) > 0) {
           // Per-field sources can split (deposit from agegroup, balance from team-…);
           // the pill's single ⓘ names the more specific of the two.
           const source = LadtEditorComponent.moreSpecific(entry.depositSource, entry.balanceDueSource);
+          const feeDist = dist(
+            e => e.feeConfigured ? LadtEditorComponent.moreSpecific(e.depositSource, e.balanceDueSource) : null,
+            'skip');
+          const inert = entry.feeConfigured && feeDist != null && feeDist.own > 0 && feeDist.covered === 0;
           fees.push({
             roleId: entry.roleId, roleLabel,
             deposit: entry.deposit ?? null,
             balanceDue: entry.balanceDue ?? null,
             source,
-            inherited: source != null && LadtEditorComponent.TIER_RANK[source] < ownRank,
-            fromBelow: !entry.feeConfigured,
+            inherited: !inert && source != null && LadtEditorComponent.TIER_RANK[source] < ownRank,
+            fromBelow: !entry.feeConfigured || inert,
+            inert,
+            dist: feeDist,
             below: below?.amounts ?? null,
           });
         }
 
         // ── Modifier pills ──
-        for (const [list, win, belowMod] of [
-          [earlyBird, entry.earlyBird ?? null, below?.earlyBird ?? null],
-          [lateFee, entry.lateFee ?? null, below?.lateFee ?? null],
+        for (const [list, win, belowMod, srcOf] of [
+          [earlyBird, entry.earlyBird ?? null, below?.earlyBird ?? null,
+            (e: LadtFeeRoleResolutionDto) => e.earlyBird?.source],
+          [lateFee, entry.lateFee ?? null, below?.lateFee ?? null,
+            (e: LadtFeeRoleResolutionDto) => e.lateFee?.source],
         ] as const) {
           if (win != null || (belowMod?.overrideCount ?? 0) > 0) {
+            const modDist = dist(srcOf, 'skip');
+            const inert = win != null && modDist != null && modDist.own > 0 && modDist.covered === 0;
             (list as any[]).push({
               roleId: entry.roleId, roleLabel,
               amount: win?.amount ?? null,
               source: win?.source ?? null,
               active: win?.active ?? false,
-              inherited: win != null && LadtEditorComponent.TIER_RANK[win.source] < ownRank,
-              fromBelow: win == null,
+              inherited: !inert && win != null && LadtEditorComponent.TIER_RANK[win.source] < ownRank,
+              fromBelow: win == null || inert,
+              inert,
+              dist: modDist,
               below: belowMod,
             });
           }
@@ -1332,13 +1360,18 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
         if (entry.feeConfigured || entry.phaseSource != null || entry.twoPhase
           || (below?.phase.overrideCount ?? 0) > 0) {
           const source = entry.phaseSource ?? 'job';
+          // Teams with no stamp inherit through this row — they count as covered.
+          const phaseDist = dist(e => e.phaseSource, 'covered');
+          const inert = phaseDist != null && phaseDist.own > 0 && phaseDist.covered === 0;
           phase.push({
             roleId: entry.roleId, roleLabel,
             fullPayment: entry.fullPayment,
             twoPhase: entry.twoPhase,
             source,
-            inherited: source !== ownTier,
-            fromBelow: false, // phase resolves at-or-above only
+            inherited: !inert && source !== ownTier,
+            fromBelow: false, // face flips via `inert`, not this flag (phase resolves at-or-above)
+            inert,
+            dist: phaseDist,
             below: below?.phase ?? null,
           });
         }
@@ -1356,6 +1389,70 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     if (a == null) return b ?? null;
     if (b == null) return a;
     return LadtEditorComponent.TIER_RANK[a] >= LadtEditorComponent.TIER_RANK[b] ? a : b;
+  }
+
+  /** Non-bucket team ids under each container (league when level 0, agegroup when level 1),
+   *  from the tree. WAITLIST/Dropped buckets and their teams are no part of any fee
+   *  conclusion — mirrors AgegroupConstants.IsSystemBucket on the server, whose below-
+   *  summaries exclude them the same way. */
+  private teamsUnderContainers(level: number): Map<string, string[]> {
+    const nodes = this.flatNodes();
+    const byId = new Map(nodes.map(n => [n.id, n] as const));
+    const out = new Map<string, string[]>();
+    for (const team of nodes) {
+      if (team.level !== 3) continue;
+      let ag: LadtFlatNode | null = null;
+      let league: LadtFlatNode | null = null;
+      for (let p = team.parentId ? byId.get(team.parentId) : undefined;
+           p; p = p.parentId ? byId.get(p.parentId) : undefined) {
+        if (p.level === 1) ag = p;
+        else if (p.level === 0) league = p;
+      }
+      if (!ag || ag.isSpecial) continue;
+      const container = level === 0 ? league : ag;
+      if (!container) continue;
+      const list = out.get(container.id);
+      if (list) list.push(team.id); else out.set(container.id, [team.id]);
+    }
+    return out;
+  }
+
+  /** How a container row's resolved value distributes over the teams below it, per family.
+   *  `srcOf` extracts a team's source tier for the family; a null return means the family
+   *  doesn't exist for that team and is skipped — except phase, where null is the job
+   *  baseline and the team counts as covered. `covered` teams are charged what the row
+   *  shows (their source is at-or-above the row's tier); `own` teams resolve deeper, at
+   *  the tiers listed in `ownTiers` (broadest first). */
+  private static distributionOf(
+    teamIds: string[],
+    index: Map<string, LadtFeeNodeResolutionDto>,
+    roleKey: 'player' | 'clubRep',
+    ownRank: number,
+    srcOf: (entry: LadtFeeRoleResolutionDto) => string | null | undefined,
+    nullMeans: 'skip' | 'covered',
+  ): { teams: number; covered: number; own: number; ownTiers: string[] } {
+    let covered = 0;
+    let own = 0;
+    const ownTiers = new Set<string>();
+    for (const id of teamIds) {
+      const entry = index.get(id)?.[roleKey];
+      if (!entry) continue;
+      const src = srcOf(entry);
+      if (src == null) {
+        if (nullMeans === 'covered') covered++;
+        continue;
+      }
+      if (LadtEditorComponent.TIER_RANK[src] > ownRank) {
+        own++;
+        ownTiers.add(src);
+      } else {
+        covered++;
+      }
+    }
+    return {
+      teams: teamIds.length, covered, own,
+      ownTiers: [...ownTiers].sort((a, b) => LadtEditorComponent.TIER_RANK[a] - LadtEditorComponent.TIER_RANK[b]),
+    };
   }
 
   private getParentParts(node: LadtFlatNode): ParentBreadcrumb[] {

@@ -133,10 +133,11 @@ export interface ParentBreadcrumb {
                         <div class="fee-pill" [class.fee-inherited]="fee.inherited" [class.fee-from-below]="fee.fromBelow">
                           <span class="fee-role">{{ fee.roleLabel }}:</span>
                           @if (fee.fromBelow) {
-                            <!-- Nothing resolves at/above this row — surface the value(s)
-                                 set by more specific scopes (AM-090). Single agreed value
-                                 shows the amount; disagreement reads "varies", NEVER a
-                                 numeric range (a range reads as deposit–balance). -->
+                            <!-- The operative value(s) live at more specific scopes — either
+                                 nothing resolves at/above this row (AM-090) or the row's own
+                                 value reaches no team (inert). Single agreed value shows the
+                                 amount; disagreement reads "varies", NEVER a numeric range
+                                 (a range reads as deposit–balance). -->
                             @if (singleBelowPair(fee.below); as pair) {
                               @if (pair.deposit != null && pair.deposit > 0) {
                                 <span class="fee-amount">\${{ pair.deposit | number:'1.0-0' }}–\${{ pair.balanceDue | number:'1.0-0' }}</span>
@@ -172,14 +173,9 @@ export interface ParentBreadcrumb {
                       @for (mod of data[col.field]; track mod.roleId) {
                         <div class="fee-pill" [class.fee-inherited]="mod.inherited" [class.fee-from-below]="mod.fromBelow">
                           <span class="fee-role">{{ mod.roleLabel }}:</span>
-                          @if (mod.amount != null) {
-                            <span class="fee-amount"
-                                  [class.fee-discount-text]="col.field === '_earlyBird'"
-                                  [class.fee-latefee-text]="col.field === '_lateFee'">
-                              {{ col.field === '_lateFee' ? '+' : '-' }}\${{ mod.amount | number:'1.0-0' }}
-                            </span>
-                          } @else {
-                            <!-- fromBelow: only more-specific scopes carry this modifier -->
+                          @if (mod.fromBelow) {
+                            <!-- More-specific scopes carry the operative value — either the
+                                 row has none, or its own reaches no team (inert). -->
                             @if (singleBelowValue(mod.below); as v) {
                               <span class="fee-amount"
                                     [class.fee-discount-text]="col.field === '_earlyBird'"
@@ -189,6 +185,12 @@ export interface ParentBreadcrumb {
                             } @else {
                               <span class="fee-amount">varies</span>
                             }
+                          } @else {
+                            <span class="fee-amount"
+                                  [class.fee-discount-text]="col.field === '_earlyBird'"
+                                  [class.fee-latefee-text]="col.field === '_lateFee'">
+                              {{ col.field === '_lateFee' ? '+' : '-' }}\${{ mod.amount | number:'1.0-0' }}
+                            </span>
                           }
                           @if (!mod.fromBelow && mod.below && mod.below.overrideCount > 0) {
                             <span class="below-seg" [class.below-seg--differs]="!mod.below.agrees">↓{{ mod.below.overrideCount }} {{ mod.below.agrees ? 'same' : 'varies' }}</span>
@@ -205,14 +207,23 @@ export interface ParentBreadcrumb {
                   @if (data['_phase']?.length) {
                     <div class="fee-pills">
                       @for (ph of data['_phase']; track ph.roleId) {
-                        <div class="fee-pill" [class.fee-inherited]="ph.inherited">
+                        <div class="fee-pill" [class.fee-inherited]="ph.inherited"
+                             [class.fee-from-below]="ph.inert && ph.twoPhase">
                           <span class="fee-role">{{ ph.roleLabel }}:</span>
-                          @if (ph.twoPhase) {
-                            <span class="phase-value" [class.phase-value--full]="ph.fullPayment">{{ ph.fullPayment ? 'PIF' : 'Deposit' }}</span>
-                          } @else {
+                          @if (!ph.twoPhase) {
                             <span class="phase-value">Single</span>
+                          } @else if (ph.inert) {
+                            <!-- Every team below stamps its own phase — the row's value
+                                 operates on nobody, so show what the teams actually do. -->
+                            @if (singleBelowPhase(ph.below); as pv) {
+                              <span class="phase-value" [class.phase-value--full]="pv.value">{{ pv.value ? 'PIF' : 'Deposit' }}</span>
+                            } @else {
+                              <span class="phase-value">varies</span>
+                            }
+                          } @else {
+                            <span class="phase-value" [class.phase-value--full]="ph.fullPayment">{{ ph.fullPayment ? 'PIF' : 'Deposit' }}</span>
                           }
-                          @if (ph.below && ph.below.overrideCount > 0) {
+                          @if (!ph.inert && ph.below && ph.below.overrideCount > 0) {
                             <span class="below-seg" [class.below-seg--differs]="!ph.below.agrees">↓{{ ph.below.overrideCount }} {{ ph.below.agrees ? 'same' : 'varies' }}</span>
                           }
                           @if (ph.twoPhase || (ph.below && ph.below.overrideCount > 0)) {
@@ -879,11 +890,23 @@ export class LadtSiblingGridComponent implements OnChanges {
    *  "level" moved into the shared template so both branches read as a level, and the labels
    *  are title-case to match the tab/card names Directors see. */
   sourceTooltip(source: string, inherited: boolean): string {
-    const labels: Record<string, string> = {
-      job: 'League', league: 'League', agegroup: 'Age Group', team: 'Team'
-    };
-    const label = labels[source] ?? source;
+    const label = this.tierLabel(source);
     return inherited ? `Inherited from ${label} level` : `Set at ${label} level`;
+  }
+
+  private static readonly TIER_LABELS: Record<string, string> = {
+    job: 'League', league: 'League', agegroup: 'Age Group', team: 'Team'
+  };
+
+  private tierLabel(tier: string): string {
+    return LadtSiblingGridComponent.TIER_LABELS[tier] ?? tier;
+  }
+
+  /** "Team level" / "Age Group and Team levels" — the deeper tiers actually carrying the
+   *  value, from dist.ownTiers; fallback covers a missing dist (defensive only). */
+  private tiersLabel(tiers: string[] | undefined, fallback: string): string {
+    if (!tiers?.length) return `${fallback} level`;
+    return tiers.map(t => this.tierLabel(t)).join(' and ') + (tiers.length > 1 ? ' levels' : ' level');
   }
 
   // ── Below-summary helpers (server resolution map) ──
@@ -903,6 +926,12 @@ export class LadtSiblingGridComponent implements OnChanges {
       ? below.distinctValues[0] : null;
   }
 
+  /** The single agreed phase stamp below, boxed so a `false` stamp survives @if. */
+  singleBelowPhase(below: any): { value: boolean } | null {
+    return below?.overrideCount > 0 && below.distinctValues?.length === 1
+      ? { value: below.distinctValues[0] } : null;
+  }
+
   private belowWho(count: number, level: number): string {
     const noun = level === 0 ? 'more-specific scope' : 'team';
     return count === 1 ? `1 ${noun} sets` : `${count} ${noun}s set`;
@@ -913,52 +942,93 @@ export class LadtSiblingGridComponent implements OnChanges {
     return `$${p.balanceDue ?? 0}`;
   }
 
-  private belowAmountsNote(below: any, level: number): string {
-    if (!below || below.overrideCount === 0) return '';
-    const vals = (below.distinctValues ?? []).map((p: any) => this.pairLabel(p)).join(', ');
-    return below.agrees
-      ? `${this.belowWho(below.overrideCount, level)} the same amount below`
-      : `${this.belowWho(below.overrideCount, level)} own amounts below: ${vals}`;
+  private pairHasCharge(p: { deposit: number | null; balanceDue: number | null }): boolean {
+    return (p.deposit ?? 0) > 0 || (p.balanceDue ?? 0) > 0;
   }
 
+  // ── Pill tooltips ──
+  // Ruling (Todd 08-07): a tooltip may only say a level "set" a value if that value
+  // actually operates on someone. Container-row wording is a distribution over the teams
+  // below (dist = { teams, covered, own, ownTiers }); a $0 on file never gets intent
+  // language ("set") because the data cannot distinguish a decision from save-flow residue.
+
   feePillTooltip(fee: any, level: number): string {
+    const d = fee.dist;
     if (fee.fromBelow) {
-      // Nothing resolves at/above the row — the pill's value came from below.
-      if (level === 1 && this.singleBelowPair(fee.below)) return 'Set at Team level';
-      return this.belowAmountsNote(fee.below, level) || 'Not set';
+      // The pill's value is carried entirely by deeper scopes — either nothing resolves
+      // at/above the row, or the row's own value reaches no team (inert).
+      if (!fee.below || fee.below.overrideCount === 0) return 'Not set';
+      const vals = (fee.below.distinctValues ?? []).map((p: any) => this.pairLabel(p));
+      const where = this.tiersLabel(d?.ownTiers, level === 0 ? 'Age Group or Team' : 'Team');
+      let text = vals.length === 1
+        ? `All fees set at the ${where}: ${vals[0]}`
+        : `All fees set at the ${where} — varies: ${vals.join(', ')}`;
+      if (fee.inert && this.pairHasCharge(fee)) {
+        text += ` · The ${this.tierLabel(fee.source ?? 'job')}-level ${this.pairLabel(fee)} reaches no team`;
+      }
+      return text;
     }
-    const src = this.sourceTooltip(fee.source ?? 'job', fee.inherited);
-    const note = this.belowAmountsNote(fee.below, level);
-    return note ? `${src} · ${note}` : src;
+    const head = this.pairHasCharge(fee)
+      ? this.sourceTooltip(fee.source ?? 'job', fee.inherited)
+      : `$0 on file at ${this.tierLabel(fee.source ?? 'job')} level`;
+    if (!d) return head; // team rows: nothing below to distribute over
+    if (d.teams === 0) return `${head} — no teams here`;
+    if (d.own === 0) return `${head} — applies to all ${d.teams} team${d.teams === 1 ? '' : 's'}`;
+    const vals = (fee.below?.distinctValues ?? []).map((p: any) => this.pairLabel(p)).join(', ');
+    const same = fee.below?.agrees ? ' (same)' : '';
+    return `${head} — applies to ${d.covered} of ${d.teams} teams`
+      + ` · ${d.own} set${d.own === 1 ? 's' : ''} own: ${vals}${same}`;
   }
 
   modifierPillTooltip(mod: any, level: number): string {
-    const noteFor = (b: any): string => {
-      if (!b || b.overrideCount === 0) return '';
-      const vals = (b.distinctValues ?? []).map((v: number) => `$${v}`).join(', ');
-      return b.agrees
-        ? `${this.belowWho(b.overrideCount, level)} the same amount below`
-        : `${this.belowWho(b.overrideCount, level)} own amounts below: ${vals}`;
-    };
+    const d = mod.dist;
     if (mod.fromBelow) {
-      if (level === 1 && this.singleBelowValue(mod.below) != null) return 'Set at Team level';
-      return noteFor(mod.below) || 'Not set';
+      if (!mod.below || mod.below.overrideCount === 0) return 'Not set';
+      const vals = (mod.below.distinctValues ?? []).map((v: number) => `$${v}`);
+      const where = this.tiersLabel(d?.ownTiers, level === 0 ? 'Age Group or Team' : 'Team');
+      let text = vals.length === 1
+        ? `All set at the ${where}: ${vals[0]}`
+        : `All set at the ${where} — varies: ${vals.join(', ')}`;
+      if (mod.inert && mod.amount != null) {
+        text += ` · The ${this.tierLabel(mod.source)}-level $${mod.amount} reaches no team`;
+      }
+      return text;
     }
-    const src = this.sourceTooltip(mod.source, mod.inherited);
-    const note = noteFor(mod.below);
-    return note ? `${src} · ${note}` : src;
+    const head = this.sourceTooltip(mod.source, mod.inherited);
+    if (!d) return head;
+    if (d.teams === 0) return `${head} — no teams here`;
+    if (d.own === 0) return `${head} — applies to all ${d.teams} team${d.teams === 1 ? '' : 's'}`;
+    const vals = (mod.below?.distinctValues ?? []).map((v: number) => `$${v}`).join(', ');
+    const same = mod.below?.agrees ? ' (same)' : '';
+    return `${head} — applies to ${d.covered} of ${d.teams} teams`
+      + ` · ${d.own} set${d.own === 1 ? 's' : ''} own: ${vals}${same}`;
   }
 
   phasePillTooltip(ph: any, level: number): string {
-    const src = this.sourceTooltip(ph.source, ph.inherited);
+    const d = ph.dist;
     const b = ph.below;
-    if (!b || b.overrideCount === 0) return src;
-    const vals = (b.distinctValues ?? [])
-      .map((v: boolean) => (v ? 'Full payment' : 'Deposit first')).join(', ');
-    const note = b.agrees
-      ? `${this.belowWho(b.overrideCount, level)} the same phase below`
-      : `${this.belowWho(b.overrideCount, level)} own phase below: ${vals}`;
-    return `${src} · ${note}`;
+    const phLabel = (v: boolean) => (v ? 'Full payment' : 'Deposit first');
+    if (ph.inert && ph.twoPhase) {
+      const vals = (b?.distinctValues ?? []).map(phLabel);
+      const where = this.tiersLabel(d?.ownTiers, level === 0 ? 'Age Group or Team' : 'Team');
+      const note = ` · The ${this.tierLabel(ph.source)}-level setting reaches no team`;
+      return vals.length === 1
+        ? `All phase set at the ${where}: ${vals[0]}${note}`
+        : `All phase set at the ${where} — varies: ${vals.join(', ')}${note}`;
+    }
+    const src = this.sourceTooltip(ph.source, ph.inherited);
+    if (!b || b.overrideCount === 0) {
+      return d && d.teams > 0 && d.own === 0
+        ? `${src} — applies to all ${d.teams} team${d.teams === 1 ? '' : 's'}`
+        : src;
+    }
+    const vals = (b.distinctValues ?? []).map(phLabel).join(', ');
+    const same = b.agrees ? ' (same)' : '';
+    if (d && d.own > 0 && d.covered > 0) {
+      return `${src} — applies to ${d.covered} of ${d.teams} teams`
+        + ` · ${d.own} set${d.own === 1 ? 's' : ''} own: ${vals}${same}`;
+    }
+    return `${src} · ${this.belowWho(b.overrideCount, level)} own phase below: ${vals}`;
   }
 
   getBadgeClass(level: number): string {
