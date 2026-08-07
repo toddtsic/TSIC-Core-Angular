@@ -12,6 +12,11 @@ public interface ILadtService
 
     Task<LadtTreeRootDto> GetLadtTreeAsync(Guid jobId, CancellationToken cancellationToken = default);
 
+    /// <summary>Canonical fee-resolution map for the LADT grids: per league/agegroup/team
+    /// node × role — effective amounts, phase, modifier winners, each with its source
+    /// tier, plus downward override summaries. Display-only.</summary>
+    Task<LadtFeeResolutionMapDto> GetFeeResolutionMapAsync(Guid jobId, CancellationToken cancellationToken = default);
+
     // ── Lookups ──
 
     Task<List<SportOptionDto>> GetSportsAsync(CancellationToken cancellationToken = default);

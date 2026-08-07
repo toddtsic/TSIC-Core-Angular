@@ -204,6 +204,46 @@ public sealed class LadtService : ILadtService
         };
     }
 
+    /// <summary>
+    /// The canonical fee-resolution map for the LADT grids — one read of the job's fee
+    /// rows plus a league→agegroup→team walk, resolved by the pure
+    /// <see cref="Fees.LadtFeeResolutionMapBuilder"/>. Display-only; the charging path
+    /// is untouched and remains the authority (see the builder's doc).
+    /// </summary>
+    public async Task<LadtFeeResolutionMapDto> GetFeeResolutionMapAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        // Sequential awaits — scoped DbContext is not safe for concurrent access.
+        var jobFees = await _feeRepo.GetJobFeesByJobAsync(jobId, cancellationToken);
+        var leagues = await _leagueRepo.GetLeaguesByJobIdAsync(jobId, cancellationToken);
+
+        var leagueInputs = new List<Fees.LadtFeeResolutionMapBuilder.LeagueInput>();
+        foreach (var league in leagues)
+        {
+            var agegroups = await _agegroupRepo.GetByLeagueIdAsync(league.LeagueId, cancellationToken);
+            var agInputs = new List<Fees.LadtFeeResolutionMapBuilder.AgegroupInput>();
+            foreach (var ag in agegroups)
+            {
+                // All teams under the agegroup — direct or via a division, inactive
+                // included (the team grid shows them, so the map must cover them).
+                var teams = await _teamRepo.GetByAgegroupIdAsync(ag.AgegroupId, cancellationToken);
+                agInputs.Add(new Fees.LadtFeeResolutionMapBuilder.AgegroupInput
+                {
+                    AgegroupId = ag.AgegroupId,
+                    AgegroupName = ag.AgegroupName,
+                    TeamIds = teams.Select(t => t.TeamId).ToList()
+                });
+            }
+            leagueInputs.Add(new Fees.LadtFeeResolutionMapBuilder.LeagueInput
+            {
+                LeagueId = league.LeagueId,
+                Agegroups = agInputs
+            });
+        }
+
+        var tree = new Fees.LadtFeeResolutionMapBuilder.TreeInput { Leagues = leagueInputs };
+        return Fees.LadtFeeResolutionMapBuilder.Build(jobFees, tree, DateTime.Now);
+    }
+
     // ═══════════════════════════════════════════
     // Lookups
     // ═══════════════════════════════════════════

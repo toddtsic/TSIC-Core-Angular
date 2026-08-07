@@ -42,6 +42,21 @@ public class LadtController : ControllerBase
         return Ok(tree);
     }
 
+    /// <summary>
+    /// Canonical fee-resolution map for the LADT grids: per node × role — effective
+    /// amounts, phase, modifier winners, source tiers, and downward override summaries.
+    /// Display-only; the charging path resolves independently.
+    /// </summary>
+    [HttpGet("fees/resolution-map")]
+    public async Task<ActionResult<LadtFeeResolutionMapDto>> GetFeeResolutionMap(CancellationToken cancellationToken)
+    {
+        var (jobId, _, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var map = await _ladtService.GetFeeResolutionMapAsync(jobId!.Value, cancellationToken);
+        return Ok(map);
+    }
+
     // ═══════════════════════════════════════════
     // Lookups
     // ═══════════════════════════════════════════
