@@ -37,19 +37,48 @@
   <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>How do I remove one team without removing the coach?</span></summary>
   <div class="faq-a">
     <p>
-      Uncheck just that team in the Teams cell — it removes only that grant. Don't touch <strong>Active</strong>
-      for this; unchecking Active removes <em>all</em> of the coach's teams and drops them from the queue.
+      Uncheck just that team in the Teams cell — it removes only that grant (after a quick confirm). Don't use
+      <strong>Deactivate</strong> for this; Deactivate removes <em>all</em> of the coach's teams and drops them
+      from the queue.
     </p>
   </div>
 </details>
 
 <details class="faq-item">
-  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What does denying (unchecking Active) do?</span></summary>
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>How do I approve several coaches at once?</span></summary>
   <div class="faq-a">
     <p>
-      It deactivates the coach: every team grant is removed and the coach drops off the worklist. It's the
-      strongest action here, so it asks you to confirm. Use it when someone shouldn't be a coach on this event
-      at all.
+      Check the selection box on the right of each coach's row, then click <strong>Approve Checked</strong>
+      above the grid — it grants every pending request for those coaches in one pass. The header's
+      <strong>Select All Unassigned</strong> checks every listed coach with pending requests, and it respects
+      the status chips and search, so filter first and you're selecting exactly who you see. Coaches with
+      nothing pending have a muted checkbox — there's nothing to batch for them. A confirmation dialog shows
+      the coach and team counts before anything is written, and if one approval fails the rest still complete;
+      the failed coaches stay checked for a retry.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why don't I see an "Approve All Pending" button?</span></summary>
+  <div class="faq-a">
+    <p>
+      It only appears when coaches &amp; staff <em>cannot</em> view team rosters on this event — the
+      "Allow coaches &amp; staff to view their team roster" setting under
+      <strong>Job Settings → Teams/ClubReps → Roster Visibility</strong>. With roster viewing on, every
+      approval hands the coach the personal information of the players on those teams, so blanket approval is
+      deliberately not offered — vet and use <strong>Approve Checked</strong> instead.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What does Deactivate do?</span></summary>
+  <div class="faq-a">
+    <p>
+      <strong>Deactivate</strong> sits at the bottom of the coach's Teams cell. It deactivates the coach:
+      every team grant is removed and the coach drops off the worklist. It's the strongest action here, so it
+      asks you to confirm. Use it when someone shouldn't be a coach on this event at all.
     </p>
   </div>
 </details>

@@ -29,16 +29,33 @@
 <ul>
   <li><strong>Check a requested team</strong> to grant it. <strong>Grant all</strong> approves every team the coach asked for at once.</li>
   <li><strong>Add team</strong> places the coach on a team they didn't request — useful when you're assigning coaches yourself.</li>
-  <li><strong>Uncheck</strong> a granted team to remove that one grant.</li>
+  <li><strong>Uncheck</strong> a granted team to remove that one grant (it asks you to confirm).</li>
 </ul>
 <p>
   Acting on a coach recolors the row <em>in place</em> — it won't jump or disappear under your cursor, so you
   can work down the list steadily.
 </p>
 
-<h4>Denying a coach</h4>
+<h4>Approving in bulk</h4>
 <p>
-  Unchecking <strong>Active</strong> (or <strong>Deny</strong>) deactivates the coach entirely — it removes all
+  For a long queue you don't have to work one row at a time. Each row has a selection checkbox on the right,
+  and the buttons above that column act on it:
+</p>
+<ul>
+  <li><strong>Approve Checked</strong> grants every pending request for the coaches you've checked. Checking named coaches is still per-coach vetting — just batched.</li>
+  <li><strong>Select All Unassigned</strong>, in the column header, checks every listed coach who has pending requests. It follows the status chips and the search box, so it only ever selects coaches you can see.</li>
+  <li><strong>Approve All Pending</strong> grants every pending request in the current list. This button only appears when coaches &amp; staff <em>cannot</em> view team rosters on this event (Job Settings → Teams/ClubReps → Roster Visibility) — because then an approval exposes no player personal information. When roster viewing is on, approval hands over player contact details, so it stays a coach-by-coach decision.</li>
+</ul>
+<p>
+  The counts on both buttons are pending-only: teams already granted are never touched or re-sent, and a
+  checked coach with nothing outstanding is skipped (the confirmation says so). A confirmation dialog spells
+  out exactly what the approval grants on <em>this</em> event before anything is written. If one approval
+  fails, the rest of the batch still completes — the failed coaches stay checked so you can retry.
+</p>
+
+<h4>Deactivating a coach</h4>
+<p>
+  <strong>Deactivate</strong>, at the bottom of a coach's Teams cell, is the coach-level deny: it removes all
   their teams and drops them from the queue. It asks you to confirm first, because it's the strongest action on
   this screen.
 </p>
@@ -47,5 +64,5 @@
 <ul>
   <li><strong>Granting without vetting.</strong> Check "Coached before" and, on lacrosse events, the Verified badge before approving someone you don't recognize.</li>
   <li><strong>Confusing "request" with "granted."</strong> A team the coach asked for is still just a request until you check it. Pending requests aren't access.</li>
-  <li><strong>Denying when you meant to remove one team.</strong> Unchecking Active drops the whole coach; uncheck a single team in the Teams cell to remove just that one.</li>
+  <li><strong>Deactivating when you meant to remove one team.</strong> Deactivate drops the whole coach; uncheck a single team in the Teams cell to remove just that one.</li>
 </ul>
