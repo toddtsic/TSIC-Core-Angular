@@ -101,26 +101,27 @@
       <div class="section-card">
         <div class="section-card-header">Core</div>
         <div class="section-card-body">
-        <div class="filter-row-5">
-          <div class="form-group">
-            <label>Role</label>
-            <ejs-multiselect #ms1
-              [dataSource]="filterOptions()?.roles ?? []"
-              [fields]="msFields"
-              [value]="searchRequest().roleIds"
-              (change)="updateMultiSelect('roleIds', $event.value)"
-              (open)="onMultiSelectOpen(ms1)"
-              [mode]="'CheckBox'"
-              [allowFiltering]="false"
-              [showSelectAll]="true"
-              [showDropDownIcon]="true"
-              [closePopupOnSelect]="false"
-              [changeOnBlur]="false"
-              placeholder="All Roles"
-              [itemTemplate]="countBadgeTemplate"
-              cssClass="filter-ms"
-              [popupWidth]="'auto'">
-            </ejs-multiselect>
+        <div class="filter-row-5 core-filter-grid">
+          <!-- AM-095: Role is the primary filter — rendered as an always-open
+               inline checkbox list (no popup, nothing to overlap) owning the
+               left column; the remaining Core fields stack on the right. -->
+          <div class="form-group role-filter-group">
+            <label id="roleFilterLabel">Role <span class="role-label-hint">(none checked = all)</span></label>
+            <div class="role-options" role="group" aria-labelledby="roleFilterLabel">
+              @for (opt of filterOptions()?.roles ?? []; track opt.value) {
+                <label class="role-option">
+                  <input type="checkbox"
+                    [checked]="(searchRequest().roleIds ?? []).includes(opt.value)"
+                    (change)="toggleRoleOption(opt.value)" />
+                  <span class="filter-item">
+                    <span class="filter-item-text">{{ opt.text }}</span>
+                    <span class="filter-item-count">{{ opt.count }}</span>
+                  </span>
+                </label>
+              } @empty {
+                <div class="role-options-empty">Loading roles&hellip;</div>
+              }
+            </div>
           </div>
 
           <div class="form-group form-group-name">
@@ -136,26 +137,6 @@
                 (ngModelChange)="updateName($event)"
                 (keydown.enter)="executeSearch()" />
             </div>
-          </div>
-
-          <div class="form-group">
-            <label>Active Status</label>
-            <ejs-multiselect #ms3
-              [dataSource]="filterOptions()?.activeStatuses ?? []"
-              [fields]="msFields"
-              [value]="searchRequest().activeStatuses"
-              (change)="updateMultiSelect('activeStatuses', $event.value)"
-              (open)="onMultiSelectOpen(ms3)"
-              [mode]="'CheckBox'"
-              [allowFiltering]="false"
-              [showDropDownIcon]="true"
-              [closePopupOnSelect]="false"
-              [changeOnBlur]="false"
-              placeholder="All Statuses"
-              [itemTemplate]="countBadgeTemplate"
-              cssClass="filter-ms"
-              [popupWidth]="'auto'">
-            </ejs-multiselect>
           </div>
 
           <div class="form-group">
@@ -195,6 +176,26 @@
               [itemTemplate]="countBadgeTemplate"
               cssClass="filter-ms"
               [popupWidth]="'320px'">
+            </ejs-multiselect>
+          </div>
+
+          <div class="form-group">
+            <label>Active Status</label>
+            <ejs-multiselect #ms3
+              [dataSource]="filterOptions()?.activeStatuses ?? []"
+              [fields]="msFields"
+              [value]="searchRequest().activeStatuses"
+              (change)="updateMultiSelect('activeStatuses', $event.value)"
+              (open)="onMultiSelectOpen(ms3)"
+              [mode]="'CheckBox'"
+              [allowFiltering]="false"
+              [showDropDownIcon]="true"
+              [closePopupOnSelect]="false"
+              [changeOnBlur]="false"
+              placeholder="All Statuses"
+              [itemTemplate]="countBadgeTemplate"
+              cssClass="filter-ms"
+              [popupWidth]="'auto'">
             </ejs-multiselect>
           </div>
         </div>

@@ -610,6 +610,86 @@
       }
     }
 
+    // ── AM-095: Core grid — Role is an always-open inline checkbox list ──
+    // Left column = Role (spans the whole stack, sized by the job's role
+    // list); right column = Name / Pay Status / Pay Meth / Active Status.
+    // No popup, so nothing can overlap the fields beside it.
+    .core-filter-grid {
+      align-items: start;
+
+      .role-filter-group {
+        grid-column: 1;
+        grid-row: 1 / span 4;
+      }
+
+      > .form-group:not(.role-filter-group) {
+        grid-column: 2;
+      }
+
+      @media (max-width: 575.98px) {
+        grid-template-columns: 1fr;
+
+        .role-filter-group {
+          grid-row: auto;
+        }
+
+        > .form-group:not(.role-filter-group) {
+          grid-column: 1;
+        }
+      }
+    }
+
+    .role-label-hint {
+      font-weight: 400;
+      color: var(--bs-secondary-color);
+      text-transform: none;
+      letter-spacing: normal;
+    }
+
+    .role-options {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      padding: var(--space-1);
+      background: var(--bs-body-bg);
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--radius-sm);
+    }
+
+    label.role-option {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      margin-bottom: 0;
+      padding: 3px var(--space-2);
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-xs);
+      font-weight: 400;
+      cursor: pointer;
+
+      &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.08);
+      }
+
+      input[type="checkbox"] {
+        flex-shrink: 0;
+        margin: 0;
+        cursor: pointer;
+        accent-color: var(--bs-primary);
+
+        &:focus-visible {
+          outline: none;
+          box-shadow: var(--shadow-focus);
+        }
+      }
+    }
+
+    .role-options-empty {
+      padding: var(--space-1) var(--space-2);
+      font-size: var(--font-size-xs);
+      color: var(--bs-secondary-color);
+    }
+
     // Compact controls inside the drawer
     label {
       font-size: 11px;

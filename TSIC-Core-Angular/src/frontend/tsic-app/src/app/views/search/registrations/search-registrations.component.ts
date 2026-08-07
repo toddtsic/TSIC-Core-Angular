@@ -1247,6 +1247,15 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** AM-095: inline Role checkbox list — toggle one role id (empty selection = all roles). */
+  toggleRoleOption(value: string): void {
+    const current = this.searchRequest().roleIds ?? [];
+    const next = current.includes(value)
+      ? current.filter(v => v !== value)
+      : [...current, value];
+    this.updateMultiSelect('roleIds', next);
+  }
+
   updateName(value: string): void {
     this.searchRequest.update(req => ({ ...req, name: value }));
   }
