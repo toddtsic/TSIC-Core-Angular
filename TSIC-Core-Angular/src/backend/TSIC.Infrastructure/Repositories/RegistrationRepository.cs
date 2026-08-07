@@ -1525,19 +1525,32 @@ public class RegistrationRepository : IRegistrationRepository
 
         // ── Multi-select billing & mobile filters ──
 
-        // ARB subscription statuses (multi-select)
+        // ARB subscription statuses (multi-select). Population = active, fee-bearing,
+        // and a role that participates in subscriptions IN THIS JOB (distinct roles
+        // holding a subscriptionId) — so fee-less roles never pad "not paying", and a
+        // job that never used ARB matches nothing. PAYING = has a subscriptionId that
+        // isn't canceled/terminated ('expired' means the plan completed — they DID pay
+        // by subscription). Must stay in lockstep with GetFilterOptionsAsync.
         if (request.ArbSubscriptionStatuses is { Count: > 0 })
         {
-            var allowedSubStatuses = new List<string> { "active", "suspended" };
+            var endedSubStatuses = new List<string> { "canceled", "terminated" };
+            var subRoleIds = _context.Registrations
+                .Where(r => r.JobId == jobId && r.BActive == true && r.AdnSubscriptionId != null)
+                .Select(r => r.RoleId)
+                .Distinct();
+            query = query.Where(r => r.BActive == true && r.FeeTotal > 0
+                && r.RoleId != null && subRoleIds.Contains(r.RoleId));
+
             var hasPaying = request.ArbSubscriptionStatuses.Contains("PAYING BY SUBSCRIPTION");
             var hasNotPaying = request.ArbSubscriptionStatuses.Contains("NOT PAYING BY SUBSCRIPTION");
             if (hasPaying && !hasNotPaying)
-                query = query.Where(r => r.FeeTotal > 0 && r.AdnSubscriptionStatus != null
-                    && allowedSubStatuses.Contains(r.AdnSubscriptionStatus));
+                query = query.Where(r => r.AdnSubscriptionId != null
+                    && (r.AdnSubscriptionStatus == null || !endedSubStatuses.Contains(r.AdnSubscriptionStatus)));
             else if (hasNotPaying && !hasPaying)
-                query = query.Where(r => r.AdnSubscriptionStatus == null
-                    || !allowedSubStatuses.Contains(r.AdnSubscriptionStatus));
-            // If both selected, no filter needed (all records match)
+                query = query.Where(r => r.AdnSubscriptionId == null
+                    || (r.AdnSubscriptionStatus != null && endedSubStatuses.Contains(r.AdnSubscriptionStatus)));
+            // Both selected: the population gate above applies, no sub split — so the
+            // two checkboxes together return exactly the sum of the facet counts.
         }
 
         // Mobile registrations (multi-select by role name)
@@ -2054,13 +2067,25 @@ public class RegistrationRepository : IRegistrationRepository
         var overpaidCount = await activeBase.CountAsync(r => r.OwedTotal < 0, ct);
 
         // ── ARB subscription status (fixed-value counts) ──
-        var allowedSubStatuses = new List<string> { "active", "suspended" };
-        var withSubCount = await activeBase
-            .CountAsync(r => r.FeeTotal > 0 && r.AdnSubscriptionStatus != null
-                && allowedSubStatuses.Contains(r.AdnSubscriptionStatus), ct);
-        var withoutSubCount = await activeBase
-            .CountAsync(r => r.AdnSubscriptionStatus == null
-                || !allowedSubStatuses.Contains(r.AdnSubscriptionStatus), ct);
+        // Population = active, fee-bearing, and a role that participates in
+        // subscriptions in this job; a job that never used ARB shows 0/0 instead of
+        // "everyone Not Paying". PAYING = has a subscriptionId that isn't
+        // canceled/terminated ('expired' = plan completed, they DID pay by
+        // subscription). Must stay in lockstep with the ArbSubscriptionStatuses
+        // branch in BuildFilteredQueryAsync.
+        var endedSubStatuses = new List<string> { "canceled", "terminated" };
+        var subRoleIds = activeBase
+            .Where(r => r.AdnSubscriptionId != null)
+            .Select(r => r.RoleId)
+            .Distinct();
+        var arbPopulation = activeBase.Where(r => r.FeeTotal > 0
+            && r.RoleId != null && subRoleIds.Contains(r.RoleId));
+        var withSubCount = await arbPopulation
+            .CountAsync(r => r.AdnSubscriptionId != null
+                && (r.AdnSubscriptionStatus == null || !endedSubStatuses.Contains(r.AdnSubscriptionStatus)), ct);
+        var withoutSubCount = await arbPopulation
+            .CountAsync(r => r.AdnSubscriptionId == null
+                || (r.AdnSubscriptionStatus != null && endedSubStatuses.Contains(r.AdnSubscriptionStatus)), ct);
 
         // ── Age ranges (cross-join with JobAgeRanges, match DOB in range) ──
         var ageRanges = await (
