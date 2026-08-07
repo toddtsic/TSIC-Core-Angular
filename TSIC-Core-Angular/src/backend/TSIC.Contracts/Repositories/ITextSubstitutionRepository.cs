@@ -158,6 +158,8 @@ public record FixedFieldsData
     public string? Person { get; init; }
     public string? Assignment { get; init; }
     public string? UserName { get; init; }
+    /// <summary>Base fee stamped on the registration. 0 = free event — gates the refund-policy token.</summary>
+    public decimal FeeBase { get; init; }
     public decimal? FeeTotal { get; init; }
     public decimal? PaidTotal { get; init; }
     public decimal? OwedTotal { get; init; }
@@ -229,6 +231,8 @@ public record RegistrantFixedFieldsData
     public string? Person { get; init; }
     public string? Assignment { get; init; }
     public string? UserName { get; init; }
+    /// <summary>Base fee stamped on the registration. 0 = free event — gates the refund-policy token.</summary>
+    public decimal FeeBase { get; init; }
     public decimal? FeeTotal { get; init; }
     public decimal? PaidTotal { get; init; }
     public decimal? OwedTotal { get; init; }

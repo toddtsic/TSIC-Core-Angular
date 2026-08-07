@@ -40,6 +40,8 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         public string? Person { get; init; }
         public string? Assignment { get; init; }
         public string? UserName { get; init; }
+        /// <summary>Base fee stamped on the registration. 0 = free event — gates the refund-policy token.</summary>
+        public decimal FeeBase { get; init; }
         public decimal? FeeTotal { get; init; }
         public decimal? PaidTotal { get; init; }
         public decimal? OwedTotal { get; init; }
@@ -275,6 +277,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             Person = data.Person,
             Assignment = data.Assignment,
             UserName = data.UserName,
+            FeeBase = data.FeeBase,
             FeeTotal = data.FeeTotal,
             PaidTotal = data.PaidTotal,
             OwedTotal = data.OwedTotal,
@@ -374,6 +377,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             Person = r.Person,
             Assignment = r.Assignment,
             UserName = r.UserName,
+            FeeBase = r.FeeBase,
             FeeTotal = r.FeeTotal,
             PaidTotal = r.PaidTotal,
             OwedTotal = r.OwedTotal,
@@ -590,8 +594,16 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         if (template.Contains("!F-NO-MONEY-TEAMS", StringComparison.OrdinalIgnoreCase) && registrationId.HasValue)
             tokens["!F-NO-MONEY-TEAMS"] = await BuildNoMoneyTeamsHtmlAsync(registrationId.Value, emailMode);
 
+        // A refund policy only means something if money changed hands. On a free event every
+        // registration carries FeeBase = 0, and printing "no refunds after X" under a $0
+        // registration reads as a mistake. Gate on ANY registration in the set having been
+        // charged — a family email covering one paid and one free player still needs it.
         if (template.Contains("!F-REFUND-PLAYER-WAIVER", StringComparison.OrdinalIgnoreCase))
-            tokens["!F-REFUND-PLAYER-WAIVER"] = await BuildWaiverHtmlAsync(first.JobId, first.JobName, first.CustomerName, j => j.PlayerRegRefundPolicy, "Refund Policy:", emailMode);
+        {
+            tokens["!F-REFUND-PLAYER-WAIVER"] = list.Any(f => f.FeeBase > 0m)
+                ? await BuildWaiverHtmlAsync(first.JobId, first.JobName, first.CustomerName, j => j.PlayerRegRefundPolicy, "Refund Policy:", emailMode)
+                : string.Empty;
+        }
 
         if (template.Contains("!F-WAIVER-PLAYER", StringComparison.OrdinalIgnoreCase))
             tokens["!F-WAIVER-PLAYER"] = await BuildWaiverHtmlAsync(first.JobId, first.JobName, first.CustomerName, j => j.PlayerRegReleaseOfLiability, "Waiver:", emailMode);
