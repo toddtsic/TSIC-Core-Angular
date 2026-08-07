@@ -130,16 +130,35 @@ export interface ParentBreadcrumb {
                   @if (data['_fees']?.length) {
                     <div class="fee-pills">
                       @for (fee of data['_fees']; track fee.roleId) {
-                        <div class="fee-pill" [class.fee-inherited]="fee.inherited">
+                        <div class="fee-pill" [class.fee-inherited]="fee.inherited" [class.fee-from-below]="fee.fromBelow">
                           <span class="fee-role">{{ fee.roleLabel }}:</span>
-                          @if (fee.deposit != null && fee.deposit > 0) {
-                            <span class="fee-amount">\${{ fee.deposit | number:'1.0-0' }}–\${{ fee.balanceDue | number:'1.0-0' }}</span>
-                          } @else if (fee.balanceDue != null && fee.balanceDue > 0) {
-                            <span class="fee-amount">\${{ fee.balanceDue | number:'1.0-0' }}</span>
+                          @if (fee.fromBelow) {
+                            <!-- Nothing resolves at/above this row — surface the value(s)
+                                 set by more specific scopes (AM-090). Single agreed value
+                                 shows the amount; disagreement reads "varies", NEVER a
+                                 numeric range (a range reads as deposit–balance). -->
+                            @if (singleBelowPair(fee.below); as pair) {
+                              @if (pair.deposit != null && pair.deposit > 0) {
+                                <span class="fee-amount">\${{ pair.deposit | number:'1.0-0' }}–\${{ pair.balanceDue | number:'1.0-0' }}</span>
+                              } @else {
+                                <span class="fee-amount">\${{ (pair.balanceDue ?? 0) | number:'1.0-0' }}</span>
+                              }
+                            } @else {
+                              <span class="fee-amount">varies</span>
+                            }
                           } @else {
-                            <span class="fee-amount text-body-tertiary">—</span>
+                            @if (fee.deposit != null && fee.deposit > 0) {
+                              <span class="fee-amount">\${{ fee.deposit | number:'1.0-0' }}–\${{ fee.balanceDue | number:'1.0-0' }}</span>
+                            } @else if (fee.balanceDue != null && fee.balanceDue > 0) {
+                              <span class="fee-amount">\${{ fee.balanceDue | number:'1.0-0' }}</span>
+                            } @else {
+                              <span class="fee-amount text-body-tertiary">—</span>
+                            }
+                            @if (fee.below && fee.below.overrideCount > 0) {
+                              <span class="below-seg" [class.below-seg--differs]="!fee.below.agrees">↓{{ fee.below.overrideCount }} {{ fee.below.agrees ? 'same' : 'varies' }}</span>
+                            }
                           }
-                          <app-info-tooltip trigger="hover" [message]="sourceTooltip(fee.source, fee.inherited)" />
+                          <app-info-tooltip trigger="hover" [message]="feePillTooltip(fee, level())" />
                         </div>
                       }
                     </div>
@@ -151,14 +170,30 @@ export interface ParentBreadcrumb {
                   @if (data[col.field]?.length) {
                     <div class="fee-pills">
                       @for (mod of data[col.field]; track mod.roleId) {
-                        <div class="fee-pill" [class.fee-inherited]="mod.inherited">
+                        <div class="fee-pill" [class.fee-inherited]="mod.inherited" [class.fee-from-below]="mod.fromBelow">
                           <span class="fee-role">{{ mod.roleLabel }}:</span>
-                          <span class="fee-amount"
-                                [class.fee-discount-text]="col.field === '_earlyBird'"
-                                [class.fee-latefee-text]="col.field === '_lateFee'">
-                            {{ col.field === '_lateFee' ? '+' : '-' }}\${{ mod.amount | number:'1.0-0' }}
-                          </span>
-                          <app-info-tooltip trigger="hover" [message]="sourceTooltip(mod.source, mod.inherited)" />
+                          @if (mod.amount != null) {
+                            <span class="fee-amount"
+                                  [class.fee-discount-text]="col.field === '_earlyBird'"
+                                  [class.fee-latefee-text]="col.field === '_lateFee'">
+                              {{ col.field === '_lateFee' ? '+' : '-' }}\${{ mod.amount | number:'1.0-0' }}
+                            </span>
+                          } @else {
+                            <!-- fromBelow: only more-specific scopes carry this modifier -->
+                            @if (singleBelowValue(mod.below); as v) {
+                              <span class="fee-amount"
+                                    [class.fee-discount-text]="col.field === '_earlyBird'"
+                                    [class.fee-latefee-text]="col.field === '_lateFee'">
+                                {{ col.field === '_lateFee' ? '+' : '-' }}\${{ v | number:'1.0-0' }}
+                              </span>
+                            } @else {
+                              <span class="fee-amount">varies</span>
+                            }
+                          }
+                          @if (!mod.fromBelow && mod.below && mod.below.overrideCount > 0) {
+                            <span class="below-seg" [class.below-seg--differs]="!mod.below.agrees">↓{{ mod.below.overrideCount }} {{ mod.below.agrees ? 'same' : 'varies' }}</span>
+                          }
+                          <app-info-tooltip trigger="hover" [message]="modifierPillTooltip(mod, level())" />
                         </div>
                       }
                     </div>
@@ -177,8 +212,11 @@ export interface ParentBreadcrumb {
                           } @else {
                             <span class="phase-value">Single</span>
                           }
-                          @if (ph.twoPhase) {
-                            <app-info-tooltip trigger="hover" [message]="sourceTooltip(ph.source, ph.inherited)" />
+                          @if (ph.below && ph.below.overrideCount > 0) {
+                            <span class="below-seg" [class.below-seg--differs]="!ph.below.agrees">↓{{ ph.below.overrideCount }} {{ ph.below.agrees ? 'same' : 'varies' }}</span>
+                          }
+                          @if (ph.twoPhase || (ph.below && ph.below.overrideCount > 0)) {
+                            <app-info-tooltip trigger="hover" [message]="phasePillTooltip(ph, level())" />
                           }
                         </div>
                       }
@@ -565,6 +603,24 @@ export interface ParentBreadcrumb {
       opacity: 0.55;
       font-style: italic;
     }
+    /* From-BELOW value (nothing set at/above the row; more specific scopes carry it —
+       AM-090). Same dim treatment as inherited but a DISTINCT class: "inherited" means
+       from-above and its tooltip wording must never leak here. */
+    .fee-from-below > :not(app-info-tooltip) {
+      opacity: 0.55;
+      font-style: italic;
+    }
+    /* Downward disclosure segment: "↓2 same" / "↓3 varies". Glyph + text carry the
+       meaning; color is supplementary only. */
+    .below-seg {
+      font-size: var(--font-size-xs);
+      color: var(--bs-secondary-color);
+      white-space: nowrap;
+    }
+    .below-seg--differs {
+      color: var(--bs-warning-emphasis);
+      font-weight: 600;
+    }
     .fee-discount-text { color: var(--bs-success); font-weight: 600; }
     .fee-latefee-text { color: var(--bs-danger); font-weight: 600; }
     .phase-value {
@@ -828,6 +884,81 @@ export class LadtSiblingGridComponent implements OnChanges {
     };
     const label = labels[source] ?? source;
     return inherited ? `Inherited from ${label} level` : `Set at ${label} level`;
+  }
+
+  // ── Below-summary helpers (server resolution map) ──
+  // The `below` shapes come from LadtFeeBelowSummaryDto: { overrideCount, agrees,
+  // distinctValues }. Wording is downward-facing ("Set at Team level") and NEVER
+  // routes through the `inherited` branch — that phrasing is from-above only.
+
+  /** The single agreed (deposit, balanceDue) pair below, or null when absent/varied. */
+  singleBelowPair(below: any): { deposit: number | null; balanceDue: number | null } | null {
+    return below?.overrideCount > 0 && below.distinctValues?.length === 1
+      ? below.distinctValues[0] : null;
+  }
+
+  /** The single agreed modifier amount below, or null when absent/varied. */
+  singleBelowValue(below: any): number | null {
+    return below?.overrideCount > 0 && below.distinctValues?.length === 1
+      ? below.distinctValues[0] : null;
+  }
+
+  private belowWho(count: number, level: number): string {
+    const noun = level === 0 ? 'more-specific scope' : 'team';
+    return count === 1 ? `1 ${noun} sets` : `${count} ${noun}s set`;
+  }
+
+  private pairLabel(p: { deposit: number | null; balanceDue: number | null }): string {
+    if (p.deposit != null && p.deposit > 0) return `$${p.deposit}–$${p.balanceDue ?? 0}`;
+    return `$${p.balanceDue ?? 0}`;
+  }
+
+  private belowAmountsNote(below: any, level: number): string {
+    if (!below || below.overrideCount === 0) return '';
+    const vals = (below.distinctValues ?? []).map((p: any) => this.pairLabel(p)).join(', ');
+    return below.agrees
+      ? `${this.belowWho(below.overrideCount, level)} the same amount below`
+      : `${this.belowWho(below.overrideCount, level)} own amounts below: ${vals}`;
+  }
+
+  feePillTooltip(fee: any, level: number): string {
+    if (fee.fromBelow) {
+      // Nothing resolves at/above the row — the pill's value came from below.
+      if (level === 1 && this.singleBelowPair(fee.below)) return 'Set at Team level';
+      return this.belowAmountsNote(fee.below, level) || 'Not set';
+    }
+    const src = this.sourceTooltip(fee.source ?? 'job', fee.inherited);
+    const note = this.belowAmountsNote(fee.below, level);
+    return note ? `${src} · ${note}` : src;
+  }
+
+  modifierPillTooltip(mod: any, level: number): string {
+    const noteFor = (b: any): string => {
+      if (!b || b.overrideCount === 0) return '';
+      const vals = (b.distinctValues ?? []).map((v: number) => `$${v}`).join(', ');
+      return b.agrees
+        ? `${this.belowWho(b.overrideCount, level)} the same amount below`
+        : `${this.belowWho(b.overrideCount, level)} own amounts below: ${vals}`;
+    };
+    if (mod.fromBelow) {
+      if (level === 1 && this.singleBelowValue(mod.below) != null) return 'Set at Team level';
+      return noteFor(mod.below) || 'Not set';
+    }
+    const src = this.sourceTooltip(mod.source, mod.inherited);
+    const note = noteFor(mod.below);
+    return note ? `${src} · ${note}` : src;
+  }
+
+  phasePillTooltip(ph: any, level: number): string {
+    const src = this.sourceTooltip(ph.source, ph.inherited);
+    const b = ph.below;
+    if (!b || b.overrideCount === 0) return src;
+    const vals = (b.distinctValues ?? [])
+      .map((v: boolean) => (v ? 'Full payment' : 'Deposit first')).join(', ');
+    const note = b.agrees
+      ? `${this.belowWho(b.overrideCount, level)} the same phase below`
+      : `${this.belowWho(b.overrideCount, level)} own phase below: ${vals}`;
+    return `${src} · ${note}`;
   }
 
   getBadgeClass(level: number): string {

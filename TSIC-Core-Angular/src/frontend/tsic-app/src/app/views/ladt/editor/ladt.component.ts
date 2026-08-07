@@ -20,7 +20,10 @@ import {
   type LadtColumnDef
 } from './configs/ladt-grid-columns';
 import type { ParentBreadcrumb } from './components/ladt-sibling-grid.component';
-import type { LadtTreeNodeDto, DivisionNameSyncPreview, JobFeeDto } from '../../../core/api';
+import type {
+  LadtTreeNodeDto, DivisionNameSyncPreview, JobFeeDto,
+  LadtFeeResolutionMapDto, LadtFeeNodeResolutionDto, LadtFeeRoleResolutionDto
+} from '../../../core/api';
 import type { DescendantOverrideInfo, PhaseContext } from './components/fee-card.component';
 import { RoleIds } from '@infrastructure/constants/roles.constants';
 import { AGEGROUP_COLORS } from '../../scheduling/shared/utils/scheduling-helpers';
@@ -88,8 +91,18 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   // Scheduled team IDs (raw data from backend, used for KPI computation)
   scheduledTeamIds = signal<Set<string>>(new Set());
 
-  // Fee data for grid enrichment
+  // Fee data for the FLY-IN detail panels (phase context, descendant notes). The grids
+  // no longer resolve from these rows — they consume the server map below.
   private jobFees = signal<JobFeeDto[]>([]);
+
+  // Canonical fee-resolution map for the sibling grids (server-resolved: amounts/phase
+  // + source tiers + below-summaries). null = NOT LOADED — that null is load-bearing:
+  // an unloaded map must render as the "—" placeholder, never as a verified all-clear.
+  private feeMap = signal<LadtFeeResolutionMapDto | null>(null);
+  private feeMapIndex = computed<Map<string, LadtFeeNodeResolutionDto> | null>(() => {
+    const m = this.feeMap();
+    return m ? new Map((m.nodes ?? []).map(n => [n.nodeId, n])) : null;
+  });
 
   // Job-level full-payment phase baselines (from the tree root). The fee resolver falls back
   // to these when no per-scope override exists, so the grid's Payment Phase column must too.
@@ -697,19 +710,23 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     else if (level === 2) fetch$ = this.ladtService.getDivisionSiblings(node.parentId!);
     else fetch$ = this.ladtService.getTeamSiblings(node.parentId!);
 
-    // For levels that show fees, load fees in parallel
+    // For levels that show fees, load in parallel whatever fee caches are cold:
+    // jobFees (fly-in detail panels) and the resolution map (grid pills).
     const needsFees = level === 0 || level === 1 || level === 2 || level === 3;
-    const feesLoaded = this.jobFees().length > 0;
+    const sources: Record<string, Observable<any>> = { data: fetch$ };
+    if (needsFees && this.jobFees().length === 0) sources['fees'] = this.ladtService.getJobFees();
+    if (needsFees && this.feeMap() === null) sources['map'] = this.ladtService.getFeeResolutionMap();
 
-    const combined$ = needsFees && !feesLoaded
-      ? forkJoin({ data: fetch$, fees: this.ladtService.getJobFees() })
-      : fetch$;
+    const combined$ = Object.keys(sources).length > 1 ? forkJoin(sources) : fetch$;
 
     (combined$ as Observable<any>).subscribe({
       next: (result: any) => {
         const data: any[] = result.data ?? result;
         if (result.fees) {
           this.jobFees.set(result.fees);
+        }
+        if (result.map) {
+          this.feeMap.set(result.map);
         }
 
         // Enrich leagues with child agegroup count for drill-down badge
@@ -1237,23 +1254,108 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     return { fees: feesOut, earlyBird, lateFee, phase };
   }
 
-  /** Enrich grid rows with _fees / _earlyBird / _lateFee / _phase column data */
+  /** Tier specificity for source comparison: league < agegroup < team. */
+  private static readonly TIER_RANK: Record<string, number> = { league: 1, agegroup: 2, team: 3 };
+
+  /**
+   * Enrich grid rows with _fees / _earlyBird / _lateFee / _phase column data from the
+   * SERVER resolution map (canonical — mirrors the charging path; see
+   * LadtFeeResolutionMapBuilder). The fly-in detail panels still resolve locally from
+   * jobFees; the grids read only this map.
+   *
+   * Map not loaded (index null) → rows stay unenriched and the cells render the "—"
+   * placeholder. That is the loading state; a loaded map with zero below-overrides is
+   * the verified-clean state — the two must never look alike in data.
+   *
+   * Pill flags: `inherited` = the value came from a LESS specific tier (dim style +
+   * "Inherited from X level"); `fromBelow` = nothing resolves at/above this row and the
+   * pill exists only because MORE specific scopes set values ("Set at Team level" —
+   * the AM-090 case). The two are mutually exclusive and must never share a flag.
+   */
   private enrichWithFees(data: any[], level: number): void {
-    const assign = (row: any, scopeId: string, scopeType: 'league' | 'agegroup' | 'team') => {
-      const d = this.buildFeeData(scopeId, scopeType);
-      row._fees = d.fees;
-      row._earlyBird = d.earlyBird;
-      row._lateFee = d.lateFee;
-      row._phase = d.phase;
-    };
-    if (level === 0) {
-      for (const row of data) assign(row, row.leagueId, 'league');
-    } else if (level === 1) {
-      for (const row of data) assign(row, row.agegroupId, 'agegroup');
-    } else if (level === 3) {
-      for (const row of data) assign(row, row.teamId, 'team');
+    if (level === 2) return; // divisions aren't a scope in fees.JobFees
+    const index = this.feeMapIndex();
+    if (!index) return;
+
+    const idField = ID_FIELD_BY_LEVEL[level];
+    const ownTier = level === 0 ? 'league' : level === 1 ? 'agegroup' : 'team';
+    const ownRank = LadtEditorComponent.TIER_RANK[ownTier];
+
+    for (const row of data) {
+      const node = index.get(row[idField]);
+      if (!node) continue;
+
+      const fees: any[] = [];
+      const earlyBird: any[] = [];
+      const lateFee: any[] = [];
+      const phase: any[] = [];
+
+      for (const entry of [node.player, node.clubRep] as LadtFeeRoleResolutionDto[]) {
+        const roleLabel = LadtEditorComponent.ROLE_LABELS[entry.roleId] ?? entry.roleId.substring(0, 6);
+        const below = entry.below ?? null;
+
+        // ── Base-fee pill: shown when configured at/above OR overridden below ──
+        if (entry.feeConfigured || (below?.amounts.overrideCount ?? 0) > 0) {
+          // Per-field sources can split (deposit from agegroup, balance from team-…);
+          // the pill's single ⓘ names the more specific of the two.
+          const source = LadtEditorComponent.moreSpecific(entry.depositSource, entry.balanceDueSource);
+          fees.push({
+            roleId: entry.roleId, roleLabel,
+            deposit: entry.deposit ?? null,
+            balanceDue: entry.balanceDue ?? null,
+            source,
+            inherited: source != null && LadtEditorComponent.TIER_RANK[source] < ownRank,
+            fromBelow: !entry.feeConfigured,
+            below: below?.amounts ?? null,
+          });
+        }
+
+        // ── Modifier pills ──
+        for (const [list, win, belowMod] of [
+          [earlyBird, entry.earlyBird ?? null, below?.earlyBird ?? null],
+          [lateFee, entry.lateFee ?? null, below?.lateFee ?? null],
+        ] as const) {
+          if (win != null || (belowMod?.overrideCount ?? 0) > 0) {
+            (list as any[]).push({
+              roleId: entry.roleId, roleLabel,
+              amount: win?.amount ?? null,
+              source: win?.source ?? null,
+              active: win?.active ?? false,
+              inherited: win != null && LadtEditorComponent.TIER_RANK[win.source] < ownRank,
+              fromBelow: win == null,
+              below: belowMod,
+            });
+          }
+        }
+
+        // ── Phase pill: null phaseSource = the job baseline (silence = deposit) ──
+        if (entry.feeConfigured || entry.phaseSource != null || entry.twoPhase
+          || (below?.phase.overrideCount ?? 0) > 0) {
+          const source = entry.phaseSource ?? 'job';
+          phase.push({
+            roleId: entry.roleId, roleLabel,
+            fullPayment: entry.fullPayment,
+            twoPhase: entry.twoPhase,
+            source,
+            inherited: source !== ownTier,
+            fromBelow: false, // phase resolves at-or-above only
+            below: below?.phase ?? null,
+          });
+        }
+      }
+
+      row._fees = fees;
+      row._earlyBird = earlyBird;
+      row._lateFee = lateFee;
+      row._phase = phase;
     }
-    // level 2 (Divisions): no fee columns — divisions aren't a scope in fees.JobFees.
+  }
+
+  /** The more specific of two source tiers (null-tolerant). */
+  private static moreSpecific(a: string | null | undefined, b: string | null | undefined): string | null {
+    if (a == null) return b ?? null;
+    if (b == null) return a;
+    return LadtEditorComponent.TIER_RANK[a] >= LadtEditorComponent.TIER_RANK[b] ? a : b;
   }
 
   private getParentParts(node: LadtFlatNode): ParentBreadcrumb[] {
@@ -1376,9 +1478,17 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
 
   // ── Detail panel callbacks ──
 
+  /** Invalidate BOTH fee caches in lockstep — the fly-in rows (jobFees) and the grid
+   *  map (feeMap). Structural invariant: any save/clone/drop that stales one stales
+   *  the other; never null one without the other. */
+  private invalidateFeeCaches(): void {
+    this.jobFees.set([]);
+    this.feeMap.set(null);
+  }
+
   onDetailSaved(): void {
     const node = this.selectedNode();
-    this.jobFees.set([]); // invalidate fee cache so grid reloads fresh
+    this.invalidateFeeCaches(); // grid + fly-in reload fresh
     this.forceCloseDetail();
     this.loadTree();
     if (node) this.loadSiblings(node);
@@ -1386,7 +1496,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
 
   onDetailCloned(newTeamId: string): void {
     // Reload tree and refocus on the clone — fly-in stays open on the new team.
-    this.jobFees.set([]);
+    this.invalidateFeeCaches();
     this.forceCloseDetail();
     this.loadTree(newTeamId, /* openDetailAfter */ true);
   }
@@ -1396,7 +1506,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     // Mirrors onDetailDeleted (SP-005 pattern). A natural refresh later
     // surfaces the team under the Dropped Teams agegroup.
     const dropped = this.selectedNode();
-    this.jobFees.set([]);
+    this.invalidateFeeCaches();
     this.forceCloseDetail();
 
     if (!dropped) return;

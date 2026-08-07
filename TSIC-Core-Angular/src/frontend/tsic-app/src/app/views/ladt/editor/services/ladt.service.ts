@@ -27,6 +27,7 @@ import type {
   DivisionNameSyncRequest,
   DivisionNameSyncResult,
   JobFeeDto,
+  LadtFeeResolutionMapDto,
   SaveJobFeeRequest,
   SaveJobFeeResponse,
   AffectedRegistrationCountDto,
@@ -192,6 +193,13 @@ export class LadtService {
 
   getJobFees(): Observable<JobFeeDto[]> {
     return this.http.get<JobFeeDto[]>(`${environment.apiUrl}/fees/job`);
+  }
+
+  /** Canonical fee-resolution map for the sibling grids: per L/A/T node × role —
+   *  resolved amounts/phase with source tiers + downward override summaries.
+   *  Server-resolved (LadtFeeResolutionMapBuilder); display-only. */
+  getFeeResolutionMap(): Observable<LadtFeeResolutionMapDto> {
+    return this.http.get<LadtFeeResolutionMapDto>(`${this.apiUrl}/fees/resolution-map`);
   }
 
   saveFee(request: SaveJobFeeRequest): Observable<SaveJobFeeResponse> {
