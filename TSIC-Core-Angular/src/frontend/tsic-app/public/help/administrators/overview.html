@@ -15,7 +15,7 @@
       An account is eligible for a role only if it has <strong>never held any other role</strong>,
       anywhere on the platform — or is a <strong>pending coach/staff adult</strong> registered with
       this customer. Director and SuperDirector count as one lane (two trust levels of the same
-      person); Ref Assignor, Store Admin, and STPAdmin are each strictly their own.
+      person); Ref Assignor, Store Admin, STPAdmin, and ApiAuthorized are each strictly their own.
       Family and player logins never qualify for anything — family credentials are shared within a
       household, and elevating one would hand admin access to everyone who knows the password,
       including the kids.
@@ -48,12 +48,26 @@
   <li><strong>Director</strong> — full admin for this job.</li>
   <li><strong>SuperDirector</strong> — Director plus cross-job powers within the customer.</li>
   <li><strong>Ref Assignor / Store Admin / STPAdmin</strong> — scoped admin roles for refereeing, the store, and STP.</li>
+  <li>
+    <strong>ApiAuthorized</strong> — an <em>export-only</em> login for an outside organization you've
+    agreed to share rosters with. It is not an admin: signing in shows a single menu item, the
+    <strong>Authorized Rosters and Schedule Export</strong>, and nothing else on the site.
+  </li>
 </ul>
-<p class="text-body-secondary">
-  <em>ApiAuthorized is retired</em> — direct third-party API access to player data is no longer
-  offered. To share rosters with a third party, run the <strong>Third-Party Roster Export</strong>
-  (Report Library) for age groups you've enabled, and provide it yourself.
-</p>
+<div class="help-callout help-callout--warning">
+  <i class="bi bi-shield-lock" aria-hidden="true"></i>
+  <div>
+    <strong>Before you add an ApiAuthorized login, decide what it may see.</strong>
+    <p class="help-callout__body">
+      The export ships rosters for <strong>only</strong> the age groups where you've turned on
+      <strong>Third-Party Roster Access</strong> (Teams &amp; Rosters → L-A-D-T Editor). No age
+      groups enabled means the file downloads with no roster data. The setting is per event and is
+      never inherited — cloning a job leaves it off on purpose. Schedules are public information
+      and are included in full. Give this role only to an organization you have a relationship with;
+      the data is minors' contact information and it leaves your control once it's downloaded.
+    </p>
+  </div>
+</div>
 
 <h4>Primary contact</h4>
 <p>

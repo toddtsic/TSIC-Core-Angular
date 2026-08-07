@@ -216,10 +216,14 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
     readonly availableRoles = [
         'Director',
         'SuperDirector',
-        // 'ApiAuthorized', — retired 08-02: the free third-party roster API (SportsRecruits)
-        // is gone (COPPA/privacy exposure, no contract). Per-age-group data sharing is now
-        // the Third-Party Roster Export library report the client runs themselves; no new
-        // ApiAuthorized admins should ever be minted. Do not un-comment.
+        // 'ApiAuthorized' was retired 08-02 with the vendor API, then REVIVED 08-06 with a
+        // different job: it is now an export-only login. The role's whole menu is one leaf —
+        // Authorized Rosters and Schedule Export — and the export ships only age groups the
+        // event enabled for Third-Party Roster Access. It is deliberately NOT in AdminOnly;
+        // the single endpoint carries its own narrow CanRunThirdPartyExport policy. The
+        // string must stay exactly 'ApiAuthorized': it is the DB role name the backend maps
+        // to a role id and mints the JWT role claim from.
+        'ApiAuthorized',
         'Ref Assignor',
         'Store Admin',
         'STPAdmin',
@@ -227,9 +231,9 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
 
     /**
      * Options for the role select. Add mode = availableRoles only. Edit mode also
-     * includes the admin's CURRENT role when it's no longer offered (a legacy
-     * ApiAuthorized admin must display their role, not a blank select — and saving
-     * an Active toggle must not silently rewrite their role).
+     * includes the admin's CURRENT role when it's no longer offered — a role retired
+     * after the fact must display, not blank the select (saving an Active toggle must
+     * not silently rewrite the role).
      */
     readonly roleOptions = computed(() => {
         const current = this.mode() === 'edit' ? this.admin()?.roleName : null;
