@@ -35,7 +35,11 @@ Write-Host "[Step 7] Applying app pool environment variables ($Environment)..." 
 
 # Resolve secrets file path
 if (-not $SecretsFile) {
+    # Environment-suffixed name first (app-pool-secrets-PROD.ps1), generic second.
+    # The suffixed form exists so a Prod secrets file is identifiable on sight and
+    # cannot be mistaken for a Dev one after being copied between boxes.
     $candidates = @(
+        (Join-Path $PSScriptRoot ("app-pool-secrets-{0}.ps1" -f $Environment.ToUpper())),
         (Join-Path $PSScriptRoot "app-pool-secrets.ps1")
     )
     foreach ($candidate in $candidates) {

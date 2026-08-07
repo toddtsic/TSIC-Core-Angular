@@ -58,9 +58,11 @@ docs/iis-env-secrets-setup.md
 docs/Security/iis-env-secrets-setup.local.ps1
 
 # IIS app pool secrets (real credentials — NEVER commit)
-# Trailing * so backups/variants (.bak, .corrupt-backup, .2026-08-07) are covered too —
-# the bare name left those committable.
-**/app-pool-secrets.ps1*
+# Prefix match, deliberately loose: covers env-suffixed names
+# (app-pool-secrets-PROD.ps1) and any backup variant (.bak, .corrupt-backup,
+# dated copies). A narrower pattern anchored on ".ps1" has twice left a real
+# credentials file committable after a rename.
+**/app-pool-secrets*
 docs/Demos/SCHEDULE-A-DEMO.local.md
 
 # Temp swagger exports
