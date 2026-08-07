@@ -26,10 +26,36 @@
                 <span class="chip-dot"></span>Assigned <span class="chip-count">{{ counts().assigned }}</span>
             </button>
         </div>
-        <div class="search">
-            <i class="bi bi-search search-icon"></i>
-            <input type="search" class="search-input" placeholder="Search name, club, contact…"
-                [value]="searchTerm()" (input)="onSearch($any($event.target).value)" />
+        <div class="toolbar-right">
+            <!-- Batch approval. Counts are pending-only: already-approved teams are never re-sent,
+                 and neither button can claim work that is done. "Approve All" appears only when
+                 coaches can't view rosters (approval grants no player PII); the checked-subset
+                 batch is always available because the director has named those coaches. -->
+            <div class="batch-actions">
+                @if (batchBusy()) {
+                    <span class="batch-busy"><span class="spinner-border spinner-border-sm me-1"></span>Approving…</span>
+                }
+                @if (showApproveAll()) {
+                    <button type="button" class="batch-btn batch-btn--all"
+                        [disabled]="batchBusy() || approvableRows().length === 0"
+                        (click)="armBatch('all')">
+                        <i class="bi bi-check2-all"></i>
+                        Approve All Pending ({{ approvableRows().length }})
+                    </button>
+                }
+                <button type="button" class="batch-btn batch-btn--selected"
+                    [class.armed]="selectedApprovableRows().length > 0"
+                    [disabled]="batchBusy() || selectedApprovableRows().length === 0"
+                    (click)="armBatch('selected')">
+                    <i class="bi bi-check2-square"></i>
+                    Approve Checked ({{ selectedApprovableRows().length }})
+                </button>
+            </div>
+            <div class="search">
+                <i class="bi bi-search search-icon"></i>
+                <input type="search" class="search-input" placeholder="Search name, club, contact…"
+                    [value]="searchTerm()" (input)="onSearch($any($event.target).value)" />
+            </div>
         </div>
     </div>
 
@@ -50,7 +76,11 @@
             [allowSorting]="true"
             [allowTextWrap]="true"
             [enableStickyHeader]="true"
+            [selectionSettings]="selectionSettings"
             (rowDataBound)="onRowDataBound($event)"
+            (rowSelected)="onRowSelected($event)"
+            (rowDeselected)="onRowDeselected($event)"
+            (dataBound)="onGridDataBound()"
             cssClass="coach-grid">
             <e-columns>
                 <!-- Row number (unbound — stamped by tsicRowNumbers, survives rebind) -->
@@ -200,10 +230,27 @@
                         </div>
                     </ng-template>
                 </e-column>
+
+                <!-- Batch-approval selection checkbox. Kept at the END so the "#" cell stays the
+                     first e-rowcell the tsicRowNumbers directive stamps. -->
+                <e-column type="checkbox" headerText="" [width]="45" [allowSorting]="false"></e-column>
+                <!-- Hidden primary key — anchors persistSelection across rebinds. -->
+                <e-column field="registrationId" [isPrimaryKey]="true" [visible]="false"></e-column>
             </e-columns>
         </ejs-grid>
     }
 </div>
+
+<!-- Batch-approval confirm. Spells out what the approval grants on THIS event. -->
+@if (batchScope()) {
+    <confirm-dialog
+        [title]="confirmTitle()"
+        [message]="confirmMessage()"
+        [confirmLabel]="'Approve'"
+        [confirmVariant]="coachesSeeRosters() ? 'danger' : 'primary'"
+        (confirmed)="confirmBatch()"
+        (cancelled)="cancelBatch()" />
+}
 
 <!-- "Coached before" prior-assignments popup (hover preview / click-pinned) -->
 @if (priorRow(); as pr) {

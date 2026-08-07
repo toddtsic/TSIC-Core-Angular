@@ -82,6 +82,73 @@
 .chip-unassigned .chip-dot { background: var(--bs-danger); }
 .chip-assigned .chip-dot { background: var(--bs-success); }
 
+/* ── Batch approval controls (sit beside the search, right of the chips) ── */
+
+.toolbar-right {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.batch-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.batch-busy {
+    display: inline-flex;
+    align-items: center;
+    color: var(--bs-secondary-color);
+    font-size: 0.825rem;
+}
+
+.batch-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-body-bg);
+    color: var(--bs-secondary-color);
+    font-size: 0.825rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+
+    &:hover:not(:disabled) {
+        border-color: var(--bs-success);
+        background: var(--bs-success-bg-subtle);
+        color: var(--bs-success-emphasis, var(--bs-success));
+    }
+
+    /* Nothing pending / nothing checked — visibly inert rather than hidden, so the
+       count itself tells the director there is no outstanding work. */
+    &:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+
+    /* Checked rows exist — the subset action becomes the ready one. */
+    &.armed {
+        border-color: var(--bs-success);
+        background: var(--bs-success-bg-subtle);
+        color: var(--bs-success-emphasis, var(--bs-success));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .batch-btn { transition: none; }
+}
+
 .search {
     position: relative;
     display: flex;

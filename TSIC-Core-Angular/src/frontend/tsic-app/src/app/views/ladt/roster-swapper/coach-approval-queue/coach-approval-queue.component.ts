@@ -1,10 +1,16 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, viewChild, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { forkJoin } from 'rxjs';
-import { GridAllModule } from '@syncfusion/ej2-angular-grids';
+import { forkJoin, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
+import {
+    GridAllModule, GridComponent, SelectionSettingsModel,
+    RowSelectEventArgs, RowDeselectEventArgs
+} from '@syncfusion/ej2-angular-grids';
 import { GridRowNumbersDirective } from '@shared-ui/directives/grid-row-numbers.directive';
 import { ToastService } from '@shared-ui/toast.service';
 import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.component';
+import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
+import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import {
     RosterSwapperService,
     UnassignedAdultQueueRowDto,
@@ -81,7 +87,7 @@ interface QueueRow {
 @Component({
     selector: 'app-coach-approval-queue',
     standalone: true,
-    imports: [CommonModule, GridAllModule, GridRowNumbersDirective, InfoTooltipComponent],
+    imports: [CommonModule, GridAllModule, GridRowNumbersDirective, InfoTooltipComponent, ConfirmDialogComponent],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './coach-approval-queue.component.html',
@@ -90,6 +96,9 @@ interface QueueRow {
 export class CoachApprovalQueueComponent implements OnInit {
     private readonly swapperService = inject(RosterSwapperService);
     private readonly toast = inject(ToastService);
+    private readonly jobPulse = inject(JobPulseService).pulse;
+
+    readonly grid = viewChild<GridComponent>('grid');
 
     readonly queue = signal<UnassignedAdultQueueRowDto[]>([]);
     readonly isLoading = signal(false);
@@ -111,6 +120,95 @@ export class CoachApprovalQueueComponent implements OnInit {
      * visible (recolored) instead of being ejected from a filtered view.
      */
     private readonly pinnedIds = signal<ReadonlySet<string>>(new Set());
+
+    // ── Batch approval (checkbox selection, mirroring Search Registrations' Email All / Selected) ──
+
+    /** Checkbox-only so clicking a row's cells (team boxes, links) never toggles selection. */
+    readonly selectionSettings: SelectionSettingsModel = { checkboxOnly: true, persistSelection: true };
+    /**
+     * Authoritative selection, accumulated by registrationId from the (de)selection delta —
+     * NOT read off the grid, which loses its ticks on every silent reload after a grant.
+     * Restored onto the rendered rows in restoreSelection().
+     */
+    readonly selectedCoaches = signal<ReadonlySet<string>>(new Set());
+    private isRestoringSelection = false;
+    /** A batch is in flight (disables both batch buttons; per-row controls stay live). */
+    readonly batchBusy = signal(false);
+    /** Which batch the confirm dialog is armed for; null = closed. */
+    readonly batchScope = signal<'all' | 'selected' | null>(null);
+
+    /**
+     * Whether coaches can view rosters on this event (`Jobs.BAllowRosterViewAdult`). TRUE means an
+     * approval hands over player PII, so approvals stay a per-coach decision and only the explicit
+     * selection can be batched. An unloaded pulse reads TRUE — the restrictive default.
+     */
+    readonly coachesSeeRosters = computed(() => this.jobPulse()?.allowRosterViewAdult !== false);
+
+    /** "Approve All" is the unbounded action — offered only when approval grants no PII. */
+    readonly showApproveAll = computed(() => !this.coachesSeeRosters());
+
+    /**
+     * Rows a batch can actually act on: SHOWN coaches holding at least one requested team that is
+     * NOT yet granted. Every count in the toolbar and the confirm dialog comes from here, so the
+     * labels can never claim work that is already done (or hidden by the current chip/search).
+     */
+    readonly approvableRows = computed<QueueRow[]>(() =>
+        this.gridData().filter(r => r.ungrantedRequestIds.length > 0));
+
+    /** The checked subset of the above — what "Approve Selected" acts on. */
+    readonly selectedApprovableRows = computed<QueueRow[]>(() => {
+        const sel = this.selectedCoaches();
+        return this.approvableRows().filter(r => sel.has(r.registrationId));
+    });
+
+    /** Checked coaches with nothing left to approve — named in the confirm so the count adds up. */
+    readonly selectedAlreadyDone = computed<QueueRow[]>(() => {
+        const sel = this.selectedCoaches();
+        return this.gridData().filter(r => sel.has(r.registrationId) && r.ungrantedRequestIds.length === 0);
+    });
+
+    /** Coaches the armed batch will approve. */
+    readonly batchTargets = computed<QueueRow[]>(() => {
+        switch (this.batchScope()) {
+            case 'all': return this.approvableRows();
+            case 'selected': return this.selectedApprovableRows();
+            default: return [];
+        }
+    });
+
+    /** Unapproved requested teams across the armed batch — the second half of "N coaches onto M teams". */
+    readonly batchTeamCount = computed(() =>
+        this.batchTargets().reduce((n, r) => n + r.ungrantedRequestIds.length, 0));
+
+    readonly confirmTitle = computed(() =>
+        this.batchScope() === 'all' ? 'Approve every pending request' : 'Approve the selected coaches');
+
+    /**
+     * Confirm body. The security paragraph is the point of the dialog, and it states what is
+     * actually true of THIS event: with roster viewing on, an approval hands the coach player
+     * PII; with it off, the coach sees only Public Rosters. Never a generic warning — a warning
+     * that doesn't match the event teaches directors to click through it.
+     */
+    readonly confirmMessage = computed(() => {
+        const coaches = this.batchTargets().length;
+        const teams = this.batchTeamCount();
+        const skipped = this.batchScope() === 'selected' ? this.selectedAlreadyDone().length : 0;
+        const lead = `<p>Approve <strong>${coaches}</strong> coach${coaches === 1 ? '' : 'es'}`
+            + ` onto <strong>${teams}</strong> requested team${teams === 1 ? '' : 's'}.`
+            + ` Teams already approved are not touched.</p>`;
+        const skippedNote = skipped > 0
+            ? `<p class="text-muted">${skipped} checked coach${skipped === 1 ? ' has' : 'es have'}`
+              + ` nothing pending and will be skipped.</p>`
+            : '';
+        const security = this.coachesSeeRosters()
+            ? `<p class="text-danger-emphasis"><strong>These approvals give each coach access to the personal`
+              + ` identifier information of every player on the teams they are approved for.</strong>`
+              + ` Approve only coaches you have vetted.</p>`
+            : `<p>Coach roster viewing is <strong>off</strong> for this event, so these coaches will see only`
+              + ` the Public Rosters — no player personal information. Approving places them on the teams`
+              + ` they requested.</p>`;
+        return lead + skippedNote + security;
+    });
 
     // ── Assign-team picker (for no-request coaches, or adding a team beyond requests) ──
     /** Job's teams (pool list, minus the Unassigned pool) — the picker source. */
@@ -477,6 +575,95 @@ export class CoachApprovalQueueComponent implements OnInit {
                 this.busyCoach.set(null);
                 this.load(true);
             }
+        });
+    }
+
+    // ── Batch approval ──
+
+    onRowSelected(args: RowSelectEventArgs): void { this.applySelectionDelta(args?.data, true); }
+    onRowDeselected(args: RowDeselectEventArgs): void { this.applySelectionDelta(args?.data, false); }
+
+    private applySelectionDelta(data: unknown, add: boolean): void {
+        if (this.isRestoringSelection) return;
+        const rows = (Array.isArray(data) ? data : data ? [data] : []) as QueueRow[];
+        if (rows.length === 0) return;
+        const next = new Set(this.selectedCoaches());
+        for (const r of rows) {
+            if (!r?.registrationId) continue;
+            if (add) next.add(r.registrationId); else next.delete(r.registrationId);
+        }
+        this.selectedCoaches.set(next);
+    }
+
+    /**
+     * Every render (initial, Refresh, and the silent reload after each grant) rebinds the grid and
+     * drops its ticks. Re-tick from the authoritative set, and drop ids that left the queue entirely
+     * so a stale pick can't sit in the count. Ids merely hidden by the current chip/search stay —
+     * re-picking the All chip must bring them back checked.
+     */
+    onGridDataBound(): void {
+        const live = new Set(this.rows().map(r => r.registrationId));
+        const pruned = new Set([...this.selectedCoaches()].filter(id => live.has(id)));
+        if (pruned.size !== this.selectedCoaches().size) this.selectedCoaches.set(pruned);
+        if (pruned.size === 0) return;
+
+        const grid = this.grid();
+        if (!grid) return;
+        const view = grid.getCurrentViewRecords() as QueueRow[];
+        const indexes: number[] = [];
+        view.forEach((r, i) => { if (pruned.has(r.registrationId)) indexes.push(i); });
+        if (indexes.length === 0) return;
+        this.isRestoringSelection = true;
+        try { grid.selectRows(indexes); } finally { this.isRestoringSelection = false; }
+    }
+
+    /** Arm the confirm dialog. Nothing is written until it's confirmed. */
+    armBatch(scope: 'all' | 'selected'): void {
+        if (this.batchBusy()) return;
+        const targets = scope === 'all' ? this.approvableRows() : this.selectedApprovableRows();
+        if (targets.length === 0) return;
+        this.batchScope.set(scope);
+    }
+
+    cancelBatch(): void { this.batchScope.set(null); }
+
+    /**
+     * Approve every UNGRANTED requested team across the armed coaches. Each call is isolated with
+     * catchError so one failure can't abort the rest (a plain forkJoin would) — the failures come
+     * back named, stay selected for a one-click retry, and the reload reconciles what actually took.
+     */
+    confirmBatch(): void {
+        const targets = this.batchTargets();
+        const teams = this.batchTeamCount();
+        this.batchScope.set(null);
+        if (targets.length === 0 || this.batchBusy()) return;
+
+        this.batchBusy.set(true);
+        const calls = targets.flatMap(row =>
+            row.ungrantedRequestIds.map(teamId =>
+                this.swapperService.approveRequest(row.registrationId, teamId).pipe(
+                    map(() => ({ id: row.registrationId, ok: true })),
+                    catchError(() => of({ id: row.registrationId, ok: false })))));
+
+        forkJoin(calls).subscribe(results => {
+            const failedIds = new Set(results.filter(r => !r.ok).map(r => r.id));
+            const failedCoaches = targets.filter(t => failedIds.has(t.registrationId));
+            const done = targets.length - failedCoaches.length;
+            this.batchBusy.set(false);
+            // Failures stay checked (retry is one click); a clean run clears the selection.
+            this.selectedCoaches.set(failedIds);
+            if (failedCoaches.length === 0) {
+                this.toast.show(
+                    `Approved ${done} coach${done === 1 ? '' : 'es'} onto ${teams} team${teams === 1 ? '' : 's'}.`,
+                    'success', 4000);
+            } else {
+                const names = failedCoaches.slice(0, 3).map(c => c.playerName).join(', ');
+                const more = failedCoaches.length > 3 ? ` +${failedCoaches.length - 3} more` : '';
+                this.toast.show(
+                    `Approved ${done} of ${targets.length}. Not approved: ${names}${more} — still checked, try again.`,
+                    'warning', 7000);
+            }
+            this.load(true);
         });
     }
 
