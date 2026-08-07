@@ -36,33 +36,35 @@
   can work down the list steadily.
 </p>
 
-<h4>Approving in bulk</h4>
+<h4>Granting in bulk</h4>
 <p>
   For a long queue you don't have to work one row at a time. Each row has a selection checkbox on the right,
-  and the buttons above that column act on it:
+  and the buttons above that column act on it. A row is selectable whenever it has a recorded team that isn't
+  currently granted — a team the coach requested, or one you removed earlier. Rows with nothing to grant have
+  a muted checkbox, and the batch controls only appear when they have something to act on:
 </p>
 <ul>
-  <li><strong>Approve Checked</strong> grants every pending request for the coaches you've checked. Checking named coaches is still per-coach vetting — just batched.</li>
-  <li><strong>Select All Unassigned</strong>, in the column header, checks every listed coach who has pending requests. It follows the status chips and the search box, so it only ever selects coaches you can see.</li>
-  <li><strong>Approve All Pending</strong> grants every pending request in the current list. This button only appears when coaches &amp; staff <em>cannot</em> view team rosters on this event (Job Settings → Teams/ClubReps → Roster Visibility) — because then an approval exposes no player personal information. When roster viewing is on, approval hands over player contact details, so it stays a coach-by-coach decision.</li>
+  <li><strong>Grant Requests of Checked Rows Only</strong> appears once you've checked at least one row, and grants every ungranted team on those rows. Checking named registrants is still per-coach vetting — just batched.</li>
+  <li><strong>Select All With Requests</strong>, in the column header, checks every listed registrant with something to grant. It follows the status chips and the search box, so it only ever selects rows you can see.</li>
+  <li><strong>Grant All Requests</strong> grants every ungranted team in the current list. This button only appears when coaches &amp; staff <em>cannot</em> view team rosters on this event (Job Settings → Teams/ClubReps → Roster Visibility) — because then a grant exposes no player personal information. When roster viewing is on, a grant hands over player contact details, so it stays a coach-by-coach decision.</li>
 </ul>
 <p>
-  The counts on both buttons are pending-only: teams already granted are never touched or re-sent, and a
-  checked coach with nothing outstanding is skipped (the confirmation says so). A confirmation dialog spells
-  out exactly what the approval grants on <em>this</em> event before anything is written. If one approval
-  fails, the rest of the batch still completes — the failed coaches stay checked so you can retry.
+  The counts on both buttons cover only what is ungranted: teams already granted are never touched or
+  re-sent. A confirmation dialog spells out exactly what the grant unlocks on <em>this</em> event before
+  anything is written. If one grant fails, the rest of the batch still completes — the failed rows stay
+  checked so you can retry.
 </p>
 
-<h4>Deactivating a coach</h4>
+<h4>Declining a coach</h4>
 <p>
-  <strong>Deactivate</strong>, at the bottom of a coach's Teams cell, is the coach-level deny: it removes all
-  their teams and drops them from the queue. It asks you to confirm first, because it's the strongest action on
-  this screen.
+  There is no separate deny button — unchecking is the whole story. A registrant holding no teams has no
+  roles on this event: they can't see rosters, can't be messaged as staff, and simply remain listed as
+  <strong>Unassigned</strong>. To decline someone, remove (or never grant) their teams and move on.
 </p>
 
 <h4>Common mistakes</h4>
 <ul>
   <li><strong>Granting without vetting.</strong> Check "Coached before" and, on lacrosse events, the Verified badge before approving someone you don't recognize.</li>
   <li><strong>Confusing "request" with "granted."</strong> A team the coach asked for is still just a request until you check it. Pending requests aren't access.</li>
-  <li><strong>Deactivating when you meant to remove one team.</strong> Deactivate drops the whole coach; uncheck a single team in the Teams cell to remove just that one.</li>
+  <li><strong>Looking for a delete button.</strong> Declining a coach isn't an action — a coach with no granted teams already has no access. Unchecking their teams is all it takes.</li>
 </ul>

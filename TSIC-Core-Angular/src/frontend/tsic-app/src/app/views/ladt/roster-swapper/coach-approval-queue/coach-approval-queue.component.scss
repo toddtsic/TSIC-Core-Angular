@@ -101,7 +101,7 @@
     margin-bottom: var(--space-1);
 }
 
-/* Header "Select All Unassigned" (replaces SF's all-rows select-all) */
+/* Header "Select All With Requests" (replaces SF's all-rows select-all) */
 .selall-hdr {
     display: flex;
     align-items: center;
@@ -462,26 +462,6 @@
     &:hover { color: var(--bs-link-hover-color); text-decoration: underline; }
     &.grant { color: var(--bs-success-text-emphasis); }
     &:focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: var(--radius-sm, 0.25rem); }
-}
-
-/* ── Deactivate (coach-level deny, lives in the Teams-cell footer since AM-092) ── */
-
-.team-foot-link.deny {
-    color: var(--bs-danger-text-emphasis, var(--bs-danger));
-    margin-left: auto; /* pushed right — visually apart from the additive grant/add links */
-
-    &:hover { color: var(--bs-danger); }
-}
-.deny-confirm {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--space-1);
-}
-.deny-confirm-q {
-    font-size: 0.7rem;
-    font-weight: 500;
-    color: var(--bs-danger);
 }
 
 /* ── Popups (fixed, escape grid cell clipping) ── */

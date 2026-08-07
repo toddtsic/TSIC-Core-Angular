@@ -37,9 +37,9 @@
   <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>How do I remove one team without removing the coach?</span></summary>
   <div class="faq-a">
     <p>
-      Uncheck just that team in the Teams cell — it removes only that grant (after a quick confirm). Don't use
-      <strong>Deactivate</strong> for this; Deactivate removes <em>all</em> of the coach's teams and drops them
-      from the queue.
+      Uncheck just that team in the Teams cell — it removes only that grant (after a quick confirm). The
+      removed team stays listed in the cell, so you can re-grant it later — and the row becomes selectable
+      for the batch grant buttons again.
     </p>
   </div>
 </details>
@@ -48,37 +48,41 @@
   <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>How do I approve several coaches at once?</span></summary>
   <div class="faq-a">
     <p>
-      Check the selection box on the right of each coach's row, then click <strong>Approve Checked</strong>
-      above the grid — it grants every pending request for those coaches in one pass. The header's
-      <strong>Select All Unassigned</strong> checks every listed coach with pending requests, and it respects
-      the status chips and search, so filter first and you're selecting exactly who you see. Coaches with
-      nothing pending have a muted checkbox — there's nothing to batch for them. A confirmation dialog shows
-      the coach and team counts before anything is written, and if one approval fails the rest still complete;
-      the failed coaches stay checked for a retry.
+      Check the selection box on the right of each row, then click
+      <strong>Grant Requests of Checked Rows Only</strong> above the grid (it appears once something is
+      checked) — it grants every ungranted team on those rows in one pass. The header's
+      <strong>Select All With Requests</strong> checks every listed registrant with something to grant, and it
+      respects the status chips and search, so filter first and you're selecting exactly who you see. Rows
+      with nothing to grant have a muted checkbox — there's nothing to batch for them. A confirmation dialog
+      shows the registrant and team counts before anything is written, and if one grant fails the rest still
+      complete; the failed rows stay checked for a retry.
     </p>
   </div>
 </details>
 
 <details class="faq-item">
-  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why don't I see an "Approve All Pending" button?</span></summary>
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why don't I see a "Grant All Requests" button?</span></summary>
   <div class="faq-a">
     <p>
-      It only appears when coaches &amp; staff <em>cannot</em> view team rosters on this event — the
-      "Allow coaches &amp; staff to view their team roster" setting under
-      <strong>Job Settings → Teams/ClubReps → Roster Visibility</strong>. With roster viewing on, every
-      approval hands the coach the personal information of the players on those teams, so blanket approval is
-      deliberately not offered — vet and use <strong>Approve Checked</strong> instead.
+      Two possible reasons. If nothing in the current list has an ungranted team, the batch controls don't
+      render at all — there's nothing for them to do. Beyond that, the button only appears when coaches &amp;
+      staff <em>cannot</em> view team rosters on this event — the "Allow coaches &amp; staff to view their
+      team roster" setting under <strong>Job Settings → Teams/ClubReps → Roster Visibility</strong>. With
+      roster viewing on, every grant hands the coach the personal information of the players on those teams,
+      so blanket granting is deliberately not offered — vet, check rows, and use
+      <strong>Grant Requests of Checked Rows Only</strong> instead.
     </p>
   </div>
 </details>
 
 <details class="faq-item">
-  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What does Deactivate do?</span></summary>
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>How do I deny a coach — someone who shouldn't be on any team?</span></summary>
   <div class="faq-a">
     <p>
-      <strong>Deactivate</strong> sits at the bottom of the coach's Teams cell. It deactivates the coach:
-      every team grant is removed and the coach drops off the worklist. It's the strongest action here, so it
-      asks you to confirm. Use it when someone shouldn't be a coach on this event at all.
+      Just don't grant them anything — and uncheck any team they already hold. A registrant with no granted
+      teams has <em>no roles on this event</em>: no roster access, no staff messaging, nothing. There's no
+      separate deny or deactivate button because there's nothing left to turn off; they simply stay listed
+      under <strong>Unassigned</strong>.
     </p>
   </div>
 </details>

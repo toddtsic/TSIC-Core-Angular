@@ -63,12 +63,12 @@ interface QueueRow {
     assignedTeams: DisplayTeam[];
     /** The Teams-cell control list: granted (assigned) on top, then pending requests. */
     checklist: DisplayTeam[];
-    /** Requested teams not yet granted — the count "Grant all" acts on. */
+    /** Recorded teams (any source) not currently granted — the count "Grant all" acts on. */
     pendingCount: number;
     totalCount: number;
     /** First team's label (lowercased) — the sort key for the Teams column. */
     teamSortKey: string;
-    /** Requested (★self) teams not yet granted — what "Grant all" acts on. */
+    /** Recorded teams (any source) not currently granted — what the grant actions act on. */
     ungrantedRequestIds: string[];
 }
 
@@ -81,8 +81,9 @@ interface QueueRow {
  * live counts (the progress meter) and are NON-DESTRUCTIVE: picking a chip pins the visible
  * set; granting a coach updates its status + the counts but leaves the row pinned until you
  * re-pick a chip or refresh. The Teams cell is the single grant control: check a requested
- * team to grant it, check "Add team" to place on any team, uncheck to remove. The cell's
- * footer "Deactivate" link is the coach-level deny (removes all teams + drops from the queue).
+ * team to grant it, check "Add team" to place on any team, uncheck to remove. There is no
+ * coach-level deny: an Unassigned Adult holding no teams has no login roles, so "not wanted"
+ * is simply all assignments unchecked (Todd, AM-092 follow-up).
  */
 @Component({
     selector: 'app-coach-approval-queue',
@@ -104,8 +105,6 @@ export class CoachApprovalQueueComponent implements OnInit {
     readonly isLoading = signal(false);
     /** registrationId of a coach whose grants are being mutated (drives row spinner). */
     readonly busyCoach = signal<string | null>(null);
-    /** registrationId armed for a Deny confirm; null when idle. */
-    readonly confirmingDeny = signal<string | null>(null);
     /** `${registrationId}|${teamId}` armed for a team-removal confirm; null when idle. */
     readonly confirmingRemove = signal<string | null>(null);
     /** registrationId whose USLax membership is being re-validated (drives the link spinner). */
@@ -148,9 +147,10 @@ export class CoachApprovalQueueComponent implements OnInit {
     readonly showApproveAll = computed(() => !this.coachesSeeRosters());
 
     /**
-     * Rows a batch can actually act on: SHOWN coaches holding at least one requested team that is
-     * NOT yet granted. Every count in the toolbar and the confirm dialog comes from here, so the
-     * labels can never claim work that is already done (or hidden by the current chip/search).
+     * Rows a batch can actually act on: SHOWN coaches with at least one recorded team (self-ask
+     * or removed admin grant) that is NOT currently granted. Every count in the toolbar and the
+     * confirm dialog comes from here, so the labels can never claim work that is already done
+     * (or hidden by the current chip/search).
      */
     readonly approvableRows = computed<QueueRow[]>(() =>
         this.gridData().filter(r => r.ungrantedRequestIds.length > 0));
@@ -181,7 +181,7 @@ export class CoachApprovalQueueComponent implements OnInit {
         this.batchTargets().reduce((n, r) => n + r.ungrantedRequestIds.length, 0));
 
     readonly confirmTitle = computed(() =>
-        this.batchScope() === 'all' ? 'Approve every pending request' : 'Approve the selected coaches');
+        this.batchScope() === 'all' ? 'Grant every ungranted request' : 'Grant requests of the checked rows');
 
     /**
      * Confirm body. The security paragraph is the point of the dialog, and it states what is
@@ -193,9 +193,9 @@ export class CoachApprovalQueueComponent implements OnInit {
         const coaches = this.batchTargets().length;
         const teams = this.batchTeamCount();
         const skipped = this.batchScope() === 'selected' ? this.selectedAlreadyDone().length : 0;
-        const lead = `<p>Approve <strong>${coaches}</strong> coach${coaches === 1 ? '' : 'es'}`
-            + ` onto <strong>${teams}</strong> requested team${teams === 1 ? '' : 's'}.`
-            + ` Teams already approved are not touched.</p>`;
+        const lead = `<p>Place <strong>${coaches}</strong> registrant${coaches === 1 ? '' : 's'}`
+            + ` onto <strong>${teams}</strong> team${teams === 1 ? '' : 's'}.`
+            + ` Teams already granted are not touched.</p>`;
         const skippedNote = skipped > 0
             ? `<p class="text-muted">${skipped} checked coach${skipped === 1 ? ' has' : 'es have'}`
               + ` nothing pending and will be skipped.</p>`
@@ -203,10 +203,10 @@ export class CoachApprovalQueueComponent implements OnInit {
         const security = this.coachesSeeRosters()
             ? `<p class="text-danger-emphasis"><strong>These approvals give each coach access to the personal`
               + ` identifier information of every player on the teams they are approved for.</strong>`
-              + ` Approve only coaches you have vetted.</p>`
+              + ` Grant only to coaches you have vetted.</p>`
             : `<p>Coach roster viewing is <strong>off</strong> for this event, so these coaches will see only`
-              + ` the Public Rosters — no player personal information. Approving places them on the teams`
-              + ` they requested.</p>`;
+              + ` the Public Rosters — no player personal information. Granting places them on the listed`
+              + ` teams.</p>`;
         return lead + skippedNote + security;
     });
 
@@ -390,6 +390,10 @@ export class CoachApprovalQueueComponent implements OnInit {
         const requestedTeams = [...selfAsks].sort(byLabel);
         const assignedTeams = teams.filter(t => t.granted).sort(byLabel);
         const pendingRequested = requestedTeams.filter(t => !t.granted);
+        // Grantable = EVERY recorded team not currently granted, regardless of who recorded it
+        // (coach self-ask OR an admin/seeded grant that was later removed). Todd's AM-092
+        // follow-up ruling: unchecking a team must make the registrant batch-grantable again.
+        const ungranted = teams.filter(t => !t.granted);
         // The FULL recorded list, never hiding any team (append-only record is the source of truth):
         //   granted (checked) → pending self-requests (amber) → recorded-but-not-granted (e.g. a
         //   removed/legacy admin grant). The last bucket is what kept legacy teams from vanishing.
@@ -421,11 +425,11 @@ export class CoachApprovalQueueComponent implements OnInit {
             requestedTeams,
             assignedTeams,
             checklist,
-            pendingCount: pendingRequested.length,
+            pendingCount: ungranted.length,
             totalCount: teams.length,
             // Sort the Teams column by the first label the cell shows (assigned first, else requested).
             teamSortKey: (assignedTeams[0]?.displayText ?? requestedTeams[0]?.displayText ?? '').toLowerCase(),
-            ungrantedRequestIds: selfAsks.filter(t => !t.granted).map(t => t.teamId),
+            ungrantedRequestIds: ungranted.map(t => t.teamId),
         };
     }
 
@@ -601,16 +605,16 @@ export class CoachApprovalQueueComponent implements OnInit {
         this.selectedCoaches.set(next);
     }
 
-    /** True when every shown coach with pending requests is checked (drives the header box). */
-    readonly allUnassignedSelected = computed(() => {
+    /** True when every shown coach with ungranted requests is checked (drives the header box). */
+    readonly allWithRequestsSelected = computed(() => {
         const approvable = this.approvableRows();
         if (approvable.length === 0) return false;
         const sel = this.selectedCoaches();
         return approvable.every(r => sel.has(r.registrationId));
     });
 
-    /** Header "Select All Unassigned": (un)check every SHOWN coach with pending requests. */
-    toggleSelectAllUnassigned(checked: boolean): void {
+    /** Header "Select All With Requests": (un)check every SHOWN coach with ungranted requests. */
+    toggleSelectAllWithRequests(checked: boolean): void {
         const next = new Set(this.selectedCoaches());
         for (const r of this.approvableRows()) {
             if (checked) next.add(r.registrationId); else next.delete(r.registrationId);
@@ -695,13 +699,13 @@ export class CoachApprovalQueueComponent implements OnInit {
             this.selectedCoaches.set(failedIds);
             if (failedCoaches.length === 0) {
                 this.toast.show(
-                    `Approved ${done} coach${done === 1 ? '' : 'es'} onto ${teams} team${teams === 1 ? '' : 's'}.`,
+                    `Granted ${done} registrant${done === 1 ? '' : 's'} onto ${teams} team${teams === 1 ? '' : 's'}.`,
                     'success', 4000);
             } else {
                 const names = failedCoaches.slice(0, 3).map(c => c.playerName).join(', ');
                 const more = failedCoaches.length > 3 ? ` +${failedCoaches.length - 3} more` : '';
                 this.toast.show(
-                    `Approved ${done} of ${targets.length}. Not approved: ${names}${more} — still checked, try again.`,
+                    `Granted ${done} of ${targets.length}. Not granted: ${names}${more} — still checked, try again.`,
                     'warning', 7000);
             }
             this.load(true);
@@ -785,32 +789,7 @@ export class CoachApprovalQueueComponent implements OnInit {
         });
     }
 
-    // ── Deactivate (the coach-level deny: remove all teams + bActive=0) ──
-
-    requestDeny(row: QueueRow): void {
-        if (this.busyCoach() !== row.registrationId) this.confirmingDeny.set(row.registrationId);
-    }
-
-    cancelDeny(): void {
-        this.confirmingDeny.set(null);
-    }
-
-    confirmDeny(row: QueueRow): void {
-        if (this.busyCoach() === row.registrationId) return;
-        this.confirmingDeny.set(null);
-        this.busyCoach.set(row.registrationId);
-        this.swapperService.denyCoach(row.registrationId).subscribe({
-            next: () => {
-                // Denied coach drops out of queue() → naturally gone from gridData (it filters
-                // rows by pinnedIds); no re-pin needed, so other rows stay put.
-                this.queue.set(this.queue().filter(r => r.registrationId !== row.registrationId));
-                this.toast.show(`${row.playerName} deactivated — removed from all teams.`, 'info', 3500);
-                this.busyCoach.set(null);
-            },
-            error: err => {
-                this.toast.show(err?.error?.message || 'Could not deny this coach.', 'danger', 4000);
-                this.busyCoach.set(null);
-            }
-        });
-    }
+    // No coach-level deny/deactivate here (Todd, AM-092 follow-up): an Unassigned Adult holding
+    // no teams has no login roles, so "not wanted" = all assignments unchecked. The queue's only
+    // write actions are grant (check / Add team / batch) and per-team removal (uncheck).
 }
