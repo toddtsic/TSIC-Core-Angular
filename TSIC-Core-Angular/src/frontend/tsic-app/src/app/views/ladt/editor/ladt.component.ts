@@ -91,8 +91,10 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   // Scheduled team IDs (raw data from backend, used for KPI computation)
   scheduledTeamIds = signal<Set<string>>(new Set());
 
-  // Fee data for the FLY-IN detail panels (phase context, descendant notes). The grids
-  // no longer resolve from these rows — they consume the server map below.
+  // Raw JobFees rows, retained for ONE purpose: feeRolesPresent (fee-card disclosure).
+  // Job-tier-only rows are in no cascade chain, so the resolution map cannot see them —
+  // but a role with such rows must still show its fee card. Everything else (grids AND
+  // fly-in context) resolves from the server map below.
   private jobFees = signal<JobFeeDto[]>([]);
 
   // Canonical fee-resolution map for the sibling grids (server-resolved: amounts/phase
@@ -104,13 +106,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     return m ? new Map((m.nodes ?? []).map(n => [n.nodeId, n])) : null;
   });
 
-  // Job-level full-payment phase baselines (from the tree root). The fee resolver falls back
-  // to these when no per-scope override exists, so the grid's Payment Phase column must too.
-  // Players flag → Player role; Teams flag → ClubRep role.
-  private jobPlayersFullPayment = signal(false);
-  private jobTeamsFullPayment = signal(false);
-
-  // Role IDs (mirror ROLE_LABELS) for the role→baseline split.
+  // Role IDs (mirror ROLE_LABELS) for feeRolesPresent.
   private static readonly PLAYER_ROLE_ID = RoleIds.Player;
   private static readonly CLUBREP_ROLE_ID = RoleIds.ClubRep;
 
@@ -360,8 +356,6 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
         this.totalTeams.set(root.totalTeams);
         this.totalPlayers.set(root.totalPlayers);
         this.scheduledTeamIds.set(new Set(root.scheduledTeamIds ?? []));
-        this.jobPlayersFullPayment.set(root.bPlayersFullPaymentRequired);
-        this.jobTeamsFullPayment.set(root.bTeamsFullPaymentRequired);
 
         const flat = this.flattenTree(root.leagues as LadtTreeNodeDto[]);
         this.flatNodes.set(flat);
@@ -711,7 +705,8 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     else fetch$ = this.ladtService.getTeamSiblings(node.parentId!);
 
     // For levels that show fees, load in parallel whatever fee caches are cold:
-    // jobFees (fly-in detail panels) and the resolution map (grid pills).
+    // jobFees (fee-card role disclosure only) and the resolution map (grid pills
+    // + all fly-in context).
     const needsFees = level === 0 || level === 1 || level === 2 || level === 3;
     const sources: Record<string, Observable<any>> = { data: fetch$ };
     if (needsFees && this.jobFees().length === 0) sources['fees'] = this.ladtService.getJobFees();
@@ -817,28 +812,10 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   };
 
   /**
-   * Resolve the Deposit/BalanceDue chip and the Early Bird / Late Fee columns
-   * for a grid row from cached jobFees.
-   *
-   * The base fee (deposit/balanceDue) cascades Job → League → Agegroup → Team,
-   * most-specific tier wins as a unit. Each modifier type (EarlyBird, LateFee)
-   * runs the SAME cascade INDEPENDENTLY — most-specific tier that actually has a
-   * modifier of that type wins, tiers do NOT sum (mirrors the backend's
-   * FeeRepository.GetActiveModifiersForCascadeAsync). Job tier is not a modifier
-   * source. A modifier's source can therefore differ from the base fee's source.
-   */
-  /** Job-level full-payment baseline for a role — the resolver's fallback when no override exists. */
-  private jobBaselineFor(roleId: string): boolean {
-    return roleId === LadtEditorComponent.CLUBREP_ROLE_ID
-      ? this.jobTeamsFullPayment()
-      : this.jobPlayersFullPayment();
-  }
-
-  /**
    * Phase resolved from the tiers ABOVE a detail node's own scope — what governs the node when
    * its "Use league/age group setting" radio is chosen. Team → its age group's effective phase
-   * (agegroup → league → job); age group → its league's. Computed from the same cached fees as
-   * the grid pills, and deliberately EXCLUDING the node's own stamp so the fly-in's
+   * (agegroup → league → job); age group → its league's. Read from the same server map as the
+   * grid pills, and deliberately EXCLUDING the node's own stamp so the fly-in's
    * "Currently: …" line stays honest mid-edit (while an unsaved radio change is pending).
    */
   /** Memoized for the open fly-in: a computed keeps the object identity stable across change
@@ -876,8 +853,8 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     const node = this.detailNode();
     if (!node || node.level === 2) return null; // divisions carry no fee cards
     return {
-      player: this.phaseContextFor(node, LadtEditorComponent.PLAYER_ROLE_ID),
-      clubRep: this.phaseContextFor(node, LadtEditorComponent.CLUBREP_ROLE_ID)
+      player: this.phaseContextFor(node, 'player'),
+      clubRep: this.phaseContextFor(node, 'clubRep')
     };
   });
 
@@ -887,17 +864,17 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
    * groups, age-group card → teams). Field-aware — a bare row is not an override (player
    * rows exist structurally at age-group scope); only locally-set values count. WAITLIST/
    * Dropped holding buckets (and their mirror teams' minted $0 rows) are not overrides a
-   * director set — excluded, like every other fee surface. null until jobFees is loaded:
-   * an empty cache must read as "unknown", never as an all-clear. Memoized for
+   * director set — excluded, like every other fee surface. null until the map is loaded:
+   * an unloaded map must read as "unknown", never as an all-clear. Memoized for
    * input-binding identity stability — see detailAncestorPhase.
    */
   readonly detailDescendantOverrides = computed(() => {
     const node = this.detailNode();
     if (!node || node.level > 1) return null; // divisions carry no fee cards; teams are leaves
-    if (!this.jobFees().length) return null;  // not loaded yet — no notes, no all-clear
+    if (!this.feeMapIndex()) return null;     // not loaded yet — no notes, no all-clear
     return {
-      player: this.descendantOverridesFor(node, LadtEditorComponent.PLAYER_ROLE_ID),
-      clubRep: this.descendantOverridesFor(node, LadtEditorComponent.CLUBREP_ROLE_ID)
+      player: this.descendantOverridesFor(node, 'player'),
+      clubRep: this.descendantOverridesFor(node, 'clubRep')
     };
   });
 
@@ -910,348 +887,114 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   readonly detailDeeperOverrides = computed(() => {
     const node = this.detailNode();
     if (!node || node.level !== 0) return null;
-    if (!this.jobFees().length) return null;
+    if (!this.feeMapIndex()) return null;
     return {
-      player: this.teamOverridesUnderLeague(node, LadtEditorComponent.PLAYER_ROLE_ID),
-      clubRep: this.teamOverridesUnderLeague(node, LadtEditorComponent.CLUBREP_ROLE_ID)
+      player: this.teamOverridesUnderLeague(node, 'player'),
+      clubRep: this.teamOverridesUnderLeague(node, 'clubRep')
     };
   });
 
-  /** One tier below `node`, the scopes whose own JobFees rows set a phase stamp, an
-   *  amount, or a modifier for the role — name + what they set, in tree-name order.
-   *  Teams hang off the age group directly or via a division node (mirrors
-   *  subtreeHasDeposit's walk); division scope itself carries no fee rows. */
-  private descendantOverridesFor(node: LadtFlatNode, roleId: string): DescendantOverrideInfo[] {
+  /** One tier below `node`, the scopes whose own values set a phase stamp, an amount, or
+   *  a modifier for the role — name + what they set, in name order. Locality is read off
+   *  the map: a field whose source equals the child's own tier is set THERE, and its
+   *  resolved value IS the local row value. */
+  private descendantOverridesFor(node: LadtFlatNode, roleKey: 'player' | 'clubRep'): DescendantOverrideInfo[] {
+    const index = this.feeMapIndex();
+    if (!index) return [];
     const flat = this.flatNodes();
-    const fees = this.jobFees();
     let children: LadtFlatNode[];
+    let tier: 'agegroup' | 'team';
     if (node.level === 0) {
+      tier = 'agegroup';
       children = flat.filter(n => n.level === 1 && n.parentId === node.id && !this.isSpecialAgegroup(n.name));
     } else {
+      tier = 'team';
       const divIds = new Set(flat.filter(n => n.level === 2 && n.parentId === node.id).map(n => n.id));
       children = flat.filter(n => n.level === 3 && n.parentId && (n.parentId === node.id || divIds.has(n.parentId)));
     }
     const out: DescendantOverrideInfo[] = [];
     for (const child of children) {
-      const rows = fees.filter(f => f.roleId === roleId && (node.level === 0
-        ? f.agegroupId === child.id && !f.teamId
-        : f.teamId === child.id));
-      const info = this.overrideInfoFrom(child.name, rows);
+      const info = this.overrideInfoFromMap(child.name, index.get(child.id)?.[roleKey], tier);
       if (info) out.push(info);
     }
     return out.sort((a, b) => a.name.localeCompare(b.name));
   }
 
   /** Teams under a league's non-bucket age groups (direct or via a division) whose own
-   *  rows set something for the role. Same walk shape as subtreeHasDeposit. */
-  private teamOverridesUnderLeague(node: LadtFlatNode, roleId: string): DescendantOverrideInfo[] {
-    const flat = this.flatNodes();
-    const fees = this.jobFees();
-    const agIds = new Set(flat
-      .filter(n => n.level === 1 && n.parentId === node.id && !this.isSpecialAgegroup(n.name))
-      .map(n => n.id));
-    const divIds = new Set(flat.filter(n => n.level === 2 && n.parentId && agIds.has(n.parentId)).map(n => n.id));
-    const teams = flat.filter(n => n.level === 3 && n.parentId && (agIds.has(n.parentId) || divIds.has(n.parentId)));
+   *  values set something for the role. */
+  private teamOverridesUnderLeague(node: LadtFlatNode, roleKey: 'player' | 'clubRep'): DescendantOverrideInfo[] {
+    const index = this.feeMapIndex();
+    if (!index) return [];
+    const byId = new Map(this.flatNodes().map(n => [n.id, n] as const));
     const out: DescendantOverrideInfo[] = [];
-    for (const team of teams) {
-      const info = this.overrideInfoFrom(team.name, fees.filter(f => f.roleId === roleId && f.teamId === team.id));
+    for (const teamId of this.teamsUnderContainers(0).get(node.id) ?? []) {
+      const info = this.overrideInfoFromMap(byId.get(teamId)?.name ?? '', index.get(teamId)?.[roleKey], 'team');
       if (info) out.push(info);
     }
     return out;
   }
 
-  /** Field-aware row → override info; null when the rows set nothing locally. */
-  private overrideInfoFrom(name: string, rows: JobFeeDto[]): DescendantOverrideInfo | null {
-    if (!rows.length) return null;
+  /** Field-aware map entry → override info; null when the scope sets nothing locally.
+   *  Stale team rows (mismatched agegroup pair) never surface here — the map already
+   *  excludes them, exactly as the charge path does. */
+  private overrideInfoFromMap(
+    name: string,
+    entry: LadtFeeRoleResolutionDto | undefined,
+    tier: 'agegroup' | 'team',
+  ): DescendantOverrideInfo | null {
+    if (!entry) return null;
     const info: DescendantOverrideInfo = {
       name,
-      phase: rows.find(r => r.bFullPaymentRequired != null)?.bFullPaymentRequired ?? null,
-      deposit: rows.find(r => r.deposit != null)?.deposit ?? null,
-      balanceDue: rows.find(r => r.balanceDue != null)?.balanceDue ?? null,
-      earlyBird: rows.some(r => (r.modifiers ?? []).some(m => m.modifierType === 'EarlyBird')),
-      lateFee: rows.some(r => (r.modifiers ?? []).some(m => m.modifierType === 'LateFee'))
+      phase: entry.phaseSource === tier ? entry.fullPayment : null,
+      deposit: entry.depositSource === tier ? entry.deposit ?? null : null,
+      balanceDue: entry.balanceDueSource === tier ? entry.balanceDue ?? null : null,
+      earlyBird: entry.earlyBird?.source === tier,
+      lateFee: entry.lateFee?.source === tier
     };
     return (info.phase !== null || info.deposit != null || info.balanceDue != null || info.earlyBird || info.lateFee)
       ? info : null;
   }
 
-  private phaseContextFor(node: LadtFlatNode, roleId: string): PhaseContext {
-    const scopeType = node.level === 0 ? 'league' : node.level === 1 ? 'agegroup' : 'team';
-    const resolved = this.buildFeeData(node.id, scopeType).fees.find(f => f.roleId === roleId);
-    const resolvedDeposit = resolved?.deposit ?? null;
-    const resolvedBalance = resolved?.balanceDue ?? null;
-    const depositInScope = (resolvedDeposit ?? 0) > 0 || this.subtreeHasDeposit(node, roleId);
+  private phaseContextFor(node: LadtFlatNode, roleKey: 'player' | 'clubRep'): PhaseContext {
+    const index = this.feeMapIndex();
+    const own = index?.get(node.id)?.[roleKey];
+    const resolvedDeposit = own?.deposit ?? null;
+    const resolvedBalance = own?.balanceDue ?? null;
+    // Deposit-ONLY reach — deliberately distinct from the map's `twoPhase` (deposit AND
+    // balance): the phase control is relevant wherever ANY deposit exists at or below
+    // this scope, even when the matching balance lives at another tier.
+    const depositInScope = (resolvedDeposit ?? 0) > 0
+      || this.scopesBelow(node).some(id => ((index?.get(id)?.[roleKey]?.deposit) ?? 0) > 0);
     return { depositInScope, resolvedDeposit, resolvedBalance };
   }
 
-  /** Any deposit-carrying row for the role BELOW this node's scope — age-group/team rows
-   *  under a league, team rows under an age group. Teams hang off the age group directly
-   *  or via a division node; rows are matched through the tree (AG rows don't carry a
-   *  leagueId). Team scope is the leaf — nothing below. */
-  private subtreeHasDeposit(node: LadtFlatNode, roleId: string): boolean {
-    if (node.level === 3) return false;
-    const flat = this.flatNodes();
-    const agIds = node.level === 0
-      ? new Set(flat.filter(n => n.level === 1 && n.parentId === node.id).map(n => n.id))
-      : new Set([node.id]);
-    const divIds = new Set(flat.filter(n => n.level === 2 && n.parentId && agIds.has(n.parentId)).map(n => n.id));
-    const teamIds = new Set(flat
-      .filter(n => n.level === 3 && n.parentId && (agIds.has(n.parentId) || divIds.has(n.parentId)))
-      .map(n => n.id));
-    return this.jobFees().some(f => f.roleId === roleId && (f.deposit ?? 0) > 0 && (
-      (node.level === 0 && f.agegroupId != null && !f.teamId && agIds.has(f.agegroupId))
-      || (f.teamId != null && teamIds.has(f.teamId))
-    ));
+  /** Scope ids below a node that can carry fee rows: non-bucket age groups + their teams
+   *  under a league; teams under an age group; nothing under a team (leaf). */
+  private scopesBelow(node: LadtFlatNode): string[] {
+    if (node.level === 3) return [];
+    const teams = this.teamsUnderContainers(node.level === 0 ? 0 : 1).get(node.id) ?? [];
+    if (node.level !== 0) return teams;
+    const ags = this.flatNodes()
+      .filter(n => n.level === 1 && n.parentId === node.id && !this.isSpecialAgegroup(n.name))
+      .map(n => n.id);
+    return [...ags, ...teams];
   }
 
+  /** The governing ancestor's map entry — which by construction excludes the node's own
+   *  stamp (phase resolves at-or-above, and we read the tier ABOVE the node). Team → its
+   *  age group; age group → its league; league → null (nothing above it in this UI). */
   private ancestorPhaseFor(node: LadtFlatNode): { player: { full: boolean; source: string }; clubRep: { full: boolean; source: string } } | null {
     let scopeId: string | undefined;
-    let scopeType: 'league' | 'agegroup' | undefined;
     if (node.level === 3) {
       const parent = this.flatNodes().find(n => n.id === node.parentId);
-      const agId = parent?.level === 2 ? parent.parentId ?? undefined : parent?.id;
-      if (agId) { scopeId = agId; scopeType = 'agegroup'; }
+      scopeId = parent?.level === 2 ? parent.parentId ?? undefined : parent?.id;
     } else if (node.level === 1 && node.parentId) {
       scopeId = node.parentId;
-      scopeType = 'league';
     }
-    if (!scopeId || !scopeType) return null;
-
-    const phase = this.buildFeeData(scopeId, scopeType).phase;
-    const pick = (roleId: string) => {
-      const e = phase.find(p => p.roleId === roleId);
-      return { full: e?.fullPayment ?? this.jobBaselineFor(roleId), source: e?.source ?? 'job' };
-    };
-    return {
-      player: pick(LadtEditorComponent.PLAYER_ROLE_ID),
-      clubRep: pick(LadtEditorComponent.CLUBREP_ROLE_ID)
-    };
-  }
-
-  private buildFeeData(scopeId: string, scopeType: 'league' | 'agegroup' | 'team'): {
-    fees: any[]; earlyBird: any[]; lateFee: any[]; phase: any[];
-  } {
-    const fees = this.jobFees();
-    if (!fees.length) return { fees: [], earlyBird: [], lateFee: [], phase: [] };
-
-    interface ModWin { amount: number; source: 'league' | 'agegroup' | 'team'; active: boolean; }
-    interface PhaseWin { value: boolean; source: 'league' | 'agegroup' | 'team'; }
-    interface FeeEntry {
-      deposit: number | null;
-      balanceDue: number | null;
-      source: 'job' | 'league' | 'agegroup' | 'team';
-      earlyBird: ModWin | null;
-      lateFee: ModWin | null;
-      phase: PhaseWin | null;
-    }
-
-    const roleMap = new Map<string, FeeEntry>();
-    const now = new Date();
-
-    const upsert = (roleId: string): FeeEntry => {
-      let e = roleMap.get(roleId);
-      if (!e) {
-        e = { deposit: null, balanceDue: null, source: 'job', earlyBird: null, lateFee: null, phase: null };
-        roleMap.set(roleId, e);
-      }
-      return e;
-    };
-
-    // Sum a single fee row's modifiers of one type into one winner candidate.
-    // Multiple active windows of the same type at one tier stack (mirrors backend).
-    const modForType = (f: JobFeeDto, type: string): { amount: number; active: boolean } | null => {
-      const mods = (f.modifiers ?? []).filter(m => m.modifierType === type);
-      if (!mods.length) return null;
-      const amount = mods.reduce((s, m) => s + m.amount, 0);
-      const active = mods.some(m =>
-        (!m.startDate || new Date(m.startDate) <= now) && (!m.endDate || new Date(m.endDate) >= now));
-      return { amount, active };
-    };
-
-    // Overwrite a modifier winner only when this tier's row actually carries that
-    // type — so a more-specific base-fee row without modifiers can't wipe an
-    // inherited modifier from a less-specific tier.
-    const applyMods = (e: FeeEntry, f: JobFeeDto, src: 'league' | 'agegroup' | 'team') => {
-      const eb = modForType(f, 'EarlyBird');
-      if (eb) e.earlyBird = { ...eb, source: src };
-      const lf = modForType(f, 'LateFee');
-      if (lf) e.lateFee = { ...lf, source: src };
-    };
-
-    // Full-payment phase cascades like a modifier — the most-specific tier that
-    // sets bFullPaymentRequired wins. Floor is League (the job baseline is not
-    // surfaced as a phase source here). null = no override at/above this scope.
-    const applyPhase = (e: FeeEntry, f: JobFeeDto, src: 'league' | 'agegroup' | 'team') => {
-      if (f.bFullPaymentRequired != null) e.phase = { value: f.bFullPaymentRequired, source: src };
-    };
-
-    // Base fee cascades per field, most-specific NON-NULL wins (mirrors backend
-    // FeeRepository.GetResolvedFeeAsync's `??=`). Update a field + its source ONLY
-    // when this tier supplies a value — otherwise a modifier-only row (e.g. a
-    // team/agegroup late fee with no Deposit/BalanceDue) would blank the inherited
-    // base and the grid would show $0.
-    const applyBase = (e: FeeEntry, f: JobFeeDto, src: 'job' | 'league' | 'agegroup' | 'team') => {
-      if (f.deposit != null) { e.deposit = f.deposit; e.source = src; }
-      if (f.balanceDue != null) { e.balanceDue = f.balanceDue; e.source = src; }
-    };
-
-    // Resolve the agegroup + league in scope. Team scope walks up through its
-    // division to the agegroup; agegroup scope IS the agegroup; league scope has
-    // no agegroup (only the job→league base + league-tier modifiers apply).
-    let agId: string | undefined;
-    let leagueId: string | undefined;
-    if (scopeType === 'team') {
-      const teamNode = this.flatNodes().find(n => n.id === scopeId);
-      const agNode = teamNode ? this.flatNodes().find(n => n.id === teamNode.parentId) : null;
-      agId = agNode?.level === 2 ? agNode.parentId ?? undefined : agNode?.id;
-      leagueId = agId ? this.flatNodes().find(n => n.id === agId)?.parentId ?? undefined : undefined;
-    } else if (scopeType === 'agegroup') {
-      agId = scopeId;
-      leagueId = this.flatNodes().find(n => n.id === agId)?.parentId ?? undefined;
-    } else {
-      // league scope
-      agId = undefined;
-      leagueId = scopeId;
-    }
-
-    // Layer 1: Job-level base defaults (Player/ClubRep no longer seed here; exclude
-    // league-scoped rows so they don't masquerade as job-level). Job tier is NOT a
-    // modifier source.
-    for (const f of fees) {
-      if (!f.agegroupId && !f.teamId && !f.leagueId && f.roleId) {
-        applyBase(upsert(f.roleId), f, 'job');
-      }
-    }
-
-    // Layer 2: League-level (top tier of base cascade AND modifier cascade)
-    if (leagueId) {
-      for (const f of fees) {
-        if (f.leagueId === leagueId && !f.agegroupId && !f.teamId && f.roleId) {
-          const e = upsert(f.roleId);
-          applyBase(e, f, 'league');
-          applyMods(e, f, 'league');
-          applyPhase(e, f, 'league');
-        }
-      }
-    }
-
-    // Layer 3: Agegroup-level
-    if (agId) {
-      for (const f of fees) {
-        if (f.agegroupId === agId && !f.teamId && f.roleId) {
-          const e = upsert(f.roleId);
-          applyBase(e, f, 'agegroup');
-          applyMods(e, f, 'agegroup');
-          applyPhase(e, f, 'agegroup');
-        }
-      }
-    }
-
-    // Layer 4: Team-level (only for team scope)
-    if (scopeType === 'team') {
-      for (const f of fees) {
-        if (f.teamId === scopeId && f.roleId) {
-          const e = upsert(f.roleId);
-          applyBase(e, f, 'team');
-          applyMods(e, f, 'team');
-          applyPhase(e, f, 'team');
-        }
-      }
-    }
-
-    // "inherited" = the winning tier is above this grid's own scope. A value
-    // sourced from this grid's own tier is "set" here; anything higher is inherited.
-    const isInherited = (src: string) => src !== scopeType;
-
-    const feesOut: any[] = [];
-    const earlyBird: any[] = [];
-    const lateFee: any[] = [];
-    const phase: any[] = [];
-
-    for (const [roleId, e] of roleMap.entries()) {
-      const roleLabel = LadtEditorComponent.ROLE_LABELS[roleId] ?? roleId.substring(0, 6);
-      feesOut.push({
-        roleId, roleLabel,
-        deposit: e.deposit, balanceDue: e.balanceDue,
-        inherited: isInherited(e.source), source: e.source,
-      });
-      if (e.earlyBird) {
-        earlyBird.push({
-          roleId, roleLabel, amount: e.earlyBird.amount,
-          source: e.earlyBird.source, active: e.earlyBird.active,
-          inherited: isInherited(e.earlyBird.source),
-        });
-      }
-      if (e.lateFee) {
-        lateFee.push({
-          roleId, roleLabel, amount: e.lateFee.amount,
-          source: e.lateFee.source, active: e.lateFee.active,
-          inherited: isInherited(e.lateFee.source),
-        });
-      }
-      // The phase pill carries two ORTHOGONAL facts:
-      //   value (WHAT) — Single / Deposit / PIF, the effective phase.
-      //   source (WHERE) — which tier set the phase. A phase override (applyPhase only ever
-      //     sets league/agegroup/team) names its tier; with NO override the phase is the job
-      //     baseline, so the source is the JOB — not where the base fee happens to live. The
-      //     fee's location is a separate axis (the Fees column); conflating them here misreported
-      //     where the phase came from.
-      const phaseSource = e.phase?.source ?? 'job';
-      // The phase choice only MEANS something when the fee has BOTH a deposit and a balance to
-      // split. A balance-only (or deposit-only) fee is a single payment — the phase is inert
-      // (both settings stamp the same FeeBase) — so the pill reads "Single", no phase, no badge.
-      // When THIS tier resolves no amounts at all (e.g. a league phase-only stamp whose
-      // deposits live on the age groups), the single-payment verdict can't be made from here —
-      // show the stamp (Deposit/PIF) rather than a false "Single".
-      const hasAmounts = e.deposit != null || e.balanceDue != null;
-      phase.push({
-        roleId, roleLabel,
-        fullPayment: e.phase?.value ?? this.jobBaselineFor(roleId),
-        source: phaseSource,
-        inherited: isInherited(phaseSource), // job (and any higher-than-scope tier) → "from X"
-        twoPhase: hasAmounts ? (e.deposit ?? 0) > 0 && (e.balanceDue ?? 0) > 0 : e.phase != null,
-      });
-    }
-
-    // PL-062 (Ann): league "Deposit first" is stored as NO stamp (null by design —
-    // league is the cascade top, only PIF stamps a row), so a deposit-first league had
-    // no entry for the role and the cell fell back to "See age group level" while PIF
-    // rendered a pill. Synthesize the missing roles' pills from the job baseline:
-    // any role with fee rows in this league's scope but nothing at the job/league tier
-    // gets value = job baseline, source = job (inherited styling). twoPhase = a
-    // deposit exists somewhere in scope — with none, the phase is inert → "Single".
-    // Display-only: feeds the grid pills (and ancestorPhase, whose per-role fallback
-    // already returns these exact values); writes and reprice untouched.
-    if (scopeType === 'league') {
-      const nodes = this.flatNodes();
-      const agIds = new Set(nodes.filter(n => n.level === 1 && n.parentId === scopeId).map(n => n.id));
-      const divIds = new Set(nodes.filter(n => n.level === 2 && n.parentId && agIds.has(n.parentId)).map(n => n.id));
-      const teamIds = new Set(nodes.filter(n => n.level === 3 && n.parentId
-        && (agIds.has(n.parentId) || divIds.has(n.parentId))).map(n => n.id));
-      const inScope = (f: JobFeeDto) =>
-        (!f.leagueId && !f.agegroupId && !f.teamId)
-        || f.leagueId === scopeId
-        || (f.agegroupId != null && agIds.has(f.agegroupId))
-        || (f.teamId != null && teamIds.has(f.teamId));
-      const depositByRole = new Map<string, boolean>();
-      for (const f of fees) {
-        if (!f.roleId || !inScope(f)) continue;
-        depositByRole.set(f.roleId, (depositByRole.get(f.roleId) ?? false) || (f.deposit ?? 0) > 0);
-      }
-      for (const [roleId, hasDeposit] of depositByRole.entries()) {
-        if (roleMap.has(roleId)) continue; // real entry above wins
-        phase.push({
-          roleId,
-          roleLabel: LadtEditorComponent.ROLE_LABELS[roleId] ?? roleId.substring(0, 6),
-          fullPayment: this.jobBaselineFor(roleId),
-          source: 'job',
-          inherited: true,
-          twoPhase: hasDeposit,
-        });
-      }
-    }
-
-    return { fees: feesOut, earlyBird, lateFee, phase };
+    const entry = scopeId ? this.feeMapIndex()?.get(scopeId) : undefined;
+    if (!entry) return null;
+    const pick = (e: LadtFeeRoleResolutionDto) => ({ full: e.fullPayment, source: e.phaseSource ?? 'job' });
+    return { player: pick(entry.player), clubRep: pick(entry.clubRep) };
   }
 
   /** Tier specificity for source comparison: league < agegroup < team. */
@@ -1575,9 +1318,10 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
 
   // ── Detail panel callbacks ──
 
-  /** Invalidate BOTH fee caches in lockstep — the fly-in rows (jobFees) and the grid
-   *  map (feeMap). Structural invariant: any save/clone/drop that stales one stales
-   *  the other; never null one without the other. */
+  /** Invalidate BOTH fee caches in lockstep — the role-disclosure rows (jobFees) and
+   *  the resolution map (feeMap, feeding grids AND fly-in context). Structural
+   *  invariant: any save/clone/drop that stales one stales the other; never null one
+   *  without the other. */
   private invalidateFeeCaches(): void {
     this.jobFees.set([]);
     this.feeMap.set(null);
