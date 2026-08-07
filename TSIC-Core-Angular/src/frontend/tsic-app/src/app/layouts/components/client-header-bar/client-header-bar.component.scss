@@ -60,7 +60,10 @@
 }
 
 .job-logo {
-    height: var(--space-8); // Component-specific: job logo height - matches TSIC logo
+    // 44px fills the 60px header exactly (16px box padding). A forced height —
+    // not max-height — so tall/square logos scale UP to it; wide logos stay
+    // pinned by the 180px width cap. (AM-094: 32px made square badges tiny.)
+    height: 44px;
     width: auto;
     object-fit: contain;
     display: block;
@@ -256,7 +259,7 @@
 }
 
 .mobile-logo {
-    height: 24px; // Component-specific: mobile logo height - matches button icon size
+    height: 32px; // AM-094: 24px squared-off logos to a speck; 32 + button padding stays inside the 48px mobile bar
     width: auto;
     display: block;
     filter: drop-shadow(var(--shadow-sm));
