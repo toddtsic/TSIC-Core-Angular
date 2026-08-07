@@ -5,7 +5,7 @@ import { forkJoin } from 'rxjs';
 import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto, ClubAffectedJob } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ClubService } from '@infrastructure/services/club.service';
-import { RoleIds } from '@infrastructure/constants/roles.constants';
+import { RoleIds, displayRoleName } from '@infrastructure/constants/roles.constants';
 import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { AccountingLedgerComponent, CcChargeEvent, CheckOrCorrectionEvent, RefundEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
@@ -137,6 +137,11 @@ export class RegistrationDetailPanelComponent implements OnChanges {
 
   closed = output<void>();
   saved = output<void>();
+
+  /** Friendly label for a role name (e.g. ApiAuthorized → "3rd Party Access"). Display only. */
+  roleLabel(roleName: string | null | undefined): string {
+    return displayRoleName(roleName ?? '');
+  }
   // refundRequested removed — refunds now handled inside accounting-ledger modal
 
   private searchService = inject(RegistrationSearchService);

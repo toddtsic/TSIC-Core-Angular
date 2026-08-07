@@ -21,6 +21,7 @@ import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.d
 import { skipErrorToast } from '@app/infrastructure/interceptors/http-error-context';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 import { LocalStorageService } from '@infrastructure/services/local-storage.service';
+import { displayRoleName } from '@infrastructure/constants/roles.constants';
 
 import type {
   RegistrationSearchRequest,
@@ -397,10 +398,27 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     this.isMobile.set(window.matchMedia('(max-width: 767px)').matches);
   }
 
+  /** Friendly label for a role name (e.g. ApiAuthorized → "3rd Party Access"). Display only. */
+  roleLabel(roleName: string | null | undefined): string {
+    return displayRoleName(roleName ?? '');
+  }
+
+  /**
+   * Rewrite the Role filter options' TEXT through the display overrides. Only `text` moves —
+   * `value` is the AspNetRoles GUID the search request rides on, so the wire query is untouched.
+   * Doing it here (once, at ingest) means the multiselect AND the filter chips both pick it up.
+   */
+  private withFriendlyRoleLabels(options: RegistrationFilterOptionsDto): RegistrationFilterOptionsDto {
+    const roles = options.roles ?? [];
+    if (!roles.length) return options;
+    return { ...options, roles: roles.map(r => ({ ...r, text: displayRoleName(r.text) })) };
+  }
+
   loadFilterOptions(): void {
     this.filterOptionsLoading.set(true);
     this.searchService.getFilterOptions().subscribe({
-      next: (options) => {
+      next: (raw) => {
+        const options = this.withFriendlyRoleLabels(raw);
         this.filterOptions.set(options);
         this.filterOptionsLoading.set(false);
         this.applyDefaultChecked(options);
