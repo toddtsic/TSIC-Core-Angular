@@ -101,21 +101,57 @@
     margin-bottom: var(--space-1);
 }
 
-/* Header "Select All With Requests" (replaces SF's all-rows select-all) */
-.selall-hdr {
+/* Header cell: a "Batch Assign" column title stacked above the select-all badge. */
+.selall-hdr-wrap {
     display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+}
+.selall-title {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color);
+    line-height: 1.1;
+}
+
+/* Header "Select All With Requests" (replaces SF's all-rows select-all).
+   Styled as an eye-catching primary badge/pill — the plain muted label didn't
+   signal that a batch action is available (Ann, coach-approval design pass). */
+.selall-hdr {
+    display: inline-flex;
     align-items: center;
     gap: var(--space-1);
     margin: 0;
     cursor: pointer;
-    font-size: 0.65rem;
-    font-weight: 600;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-md, 0.5rem);
+    background: rgba(var(--bs-primary-rgb), 0.08); /* lighter blue infill */
+    border: 1px solid var(--bs-primary);
+    color: var(--bs-primary);
+    font-size: 0.6rem;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.02em;
-    color: var(--bs-secondary-color);
+    letter-spacing: 0.03em;
     line-height: 1.15;
     white-space: normal;
     text-align: left;
+    transition: background 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+
+    /* check-all icon draws the eye to the batch affordance */
+    .bi {
+        flex-shrink: 0;
+        font-size: 0.9rem;
+        line-height: 1;
+    }
+
+    &:hover {
+        background: var(--bs-primary);
+        color: var(--neutral-0, #fff);
+        box-shadow: var(--shadow-sm);
+    }
 
     input {
         flex-shrink: 0;
@@ -127,6 +163,10 @@
             outline: none;
             box-shadow: var(--shadow-focus);
         }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        transition: none;
     }
 }
 
@@ -380,6 +420,12 @@
     overflow-y: auto;
 }
 .team-ck {
+    /* Fixed, uniform width so all tinted fields align on a clean edge — sized to
+       hold a long team name (e.g. "2028 Supercalafragilistic Team · 2028") with
+       clear space before the tag, while keeping a right margin in the column
+       (not full-bleed) (Ann, coach-approval design pass). */
+    width: 380px;
+    max-width: 100%;
     border-radius: var(--radius-sm, 0.25rem);
     /* Pending request = needs action → amber tint; granted = done → blue tint. */
     &.pending { background: var(--bs-warning-bg-subtle); }

@@ -163,7 +163,7 @@
                 </e-column>
 
                 <!-- Teams: the grant control. Check a request to assign, uncheck to remove. -->
-                <e-column field="teamSortKey" headerText="Teams" [width]="330">
+                <e-column field="teamSortKey" headerText="Teams" [width]="420">
                     <ng-template #template let-data>
                         <div class="team-ctl">
                             @if (data.checklist.length > 0) {
@@ -224,17 +224,21 @@
                      first e-rowcell the tsicRowNumbers directive stamps. The header template
                      REPLACES Syncfusion's select-all (which ticks every row) with "Select All
                      With Requests" — only registrants with ungranted recorded teams (AM-092). -->
-                <e-column type="checkbox" headerText="" [width]="100" [allowSorting]="false">
+                <e-column type="checkbox" headerText="" [width]="150" [allowSorting]="false">
                     <ng-template #headerTemplate>
                         <!-- Nothing selectable (nobody has an ungranted request) → no select-all
                              affordance at all; an unusable control is worse than an empty header. -->
                         @if (approvableRows().length > 0) {
-                            <label class="selall-hdr" title="Select every registrant with ungranted team requests">
-                                <input type="checkbox"
-                                    [checked]="allWithRequestsSelected()"
-                                    (change)="toggleSelectAllWithRequests($any($event.target).checked)" />
-                                <span>Select All With Requests</span>
-                            </label>
+                            <div class="selall-hdr-wrap">
+                                <span class="selall-title">Batch Assign</span>
+                                <label class="selall-hdr" title="Select every unassigned registrant with ungranted team requests">
+                                    <input type="checkbox"
+                                        [checked]="allWithRequestsSelected()"
+                                        (change)="toggleSelectAllWithRequests($any($event.target).checked)" />
+                                    <i class="bi bi-check2-all"></i>
+                                    <span>Select all Unassigned</span>
+                                </label>
+                            </div>
                         }
                     </ng-template>
                 </e-column>

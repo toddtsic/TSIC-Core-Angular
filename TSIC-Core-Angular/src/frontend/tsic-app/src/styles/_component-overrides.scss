@@ -54,6 +54,25 @@
   pointer-events: none;
 }
 
+/* Ann design pass (coach-approval): the batch-select row checkboxes should read
+   as the SAME control as the native team-name checkboxes (which use 1rem +
+   accent-color primary). Match the SF frame to that: 1rem, plain grey border
+   unchecked, primary fill when checked. */
+.coach-grid .e-gridchkbox .e-checkbox-wrapper .e-frame {
+  width: 1rem;
+  height: 1rem;
+  line-height: 0.875rem;
+  font-size: 11px; /* the check glyph scales with the frame's font-size */
+  border: 1px solid var(--bs-secondary-color); /* darker grey — matches the native team-name checkbox border */
+  border-radius: 0.2rem;
+  background-color: var(--bs-body-bg);
+}
+.coach-grid .e-gridchkbox .e-checkbox-wrapper .e-frame.e-check {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
+  color: var(--neutral-0, #fff);
+}
+
 /* ── customer-job-revenue: Credit Card Records grid ──
    Credit Card Credit rows get a danger tint + left accent bar (rowDataBound adds
    .row-cc-credit). The Type cell text still names the credit — color is supplementary. */

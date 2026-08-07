@@ -201,9 +201,8 @@ export class CoachApprovalQueueComponent implements OnInit {
               + ` nothing pending and will be skipped.</p>`
             : '';
         const security = this.coachesSeeRosters()
-            ? `<p class="text-danger-emphasis"><strong>These approvals give each coach access to the personal`
-              + ` identifier information of every player on the teams they are approved for.</strong>`
-              + ` Grant only to coaches you have vetted.</p>`
+            ? `<p class="text-danger-emphasis"><strong>These approvals may give each coach access to the personal`
+              + ` identifier information of every player on the teams they are approved for.</strong></p>`
             : `<p>Coach roster viewing is <strong>off</strong> for this event, so these coaches will see only`
               + ` the Public Rosters — no player personal information. Granting places them on the listed`
               + ` teams.</p>`;
