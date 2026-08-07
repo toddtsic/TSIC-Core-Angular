@@ -682,6 +682,20 @@
           box-shadow: var(--shadow-focus);
         }
       }
+
+      // Shared .filter-item-text (Syncfusion popup template) forces
+      // nowrap+ellipsis; here the list is inline, so long labels wrap
+      // and the count badge holds the right column.
+      .filter-item {
+        min-width: 0;
+      }
+
+      .filter-item-text {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+        line-height: 1.25;
+      }
     }
 
     .role-options-empty {
