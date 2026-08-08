@@ -106,6 +106,17 @@ public interface IReportingRepository
         string action,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Tracked Crystal-kind entitlement row for one (job, role, action), or null.
+    /// Used by the 3rd Party Data Access grant chokepoint to ensure the ApiAuthorized
+    /// row exists (a granted login with no row would 403 on download).
+    /// </summary>
+    Task<JobReports?> GetCrystalActionRowTrackedAsync(
+        Guid jobId,
+        string roleId,
+        string action,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Per-role entitlement check for the export-bold endpoint.</summary>
     Task<bool> HasBoldReportEntitlementAsync(
         Guid jobId,

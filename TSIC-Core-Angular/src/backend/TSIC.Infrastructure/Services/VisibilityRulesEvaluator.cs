@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.Infrastructure.Services;
@@ -16,6 +17,7 @@ namespace TSIC.Infrastructure.Services;
 ///   BenableStp        -> mobileEnabled
 ///   CoreRegformPlayer -> teamEligibilityByAge (when 2nd pipe == 'BYAGERANGE')
 ///   JobTypeId in (1,4,6) -> playerSiteOnly
+///   customer has any ApiAuthorized registration -> hasThirdPartyHistory
 /// </summary>
 public class VisibilityRulesEvaluator : IVisibilityRulesEvaluator
 {
@@ -48,7 +50,13 @@ public class VisibilityRulesEvaluator : IVisibilityRulesEvaluator
                 j.BEnableStore,
                 j.AdnArb,
                 j.BenableStp,
-                j.CoreRegformPlayer
+                j.CoreRegformPlayer,
+                // Customer has EVER had a vendor export login (any job, active or not) —
+                // gates the "3rd Party Data Access" console leaf: the screen is reuse-only,
+                // so a customer with no history has nothing to manage there.
+                HasThirdPartyHistory = j.Customer.Jobs
+                    .SelectMany(cj => cj.Registrations)
+                    .Any(r => r.RoleId == RoleConstants.ApiAuthorized)
             })
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -59,6 +67,7 @@ public class VisibilityRulesEvaluator : IVisibilityRulesEvaluator
         if (raw.BEnableStore == true) flags.Add("storeEnabled");
         if (raw.AdnArb == true) flags.Add("adnArb");
         if (raw.BenableStp == true) flags.Add("mobileEnabled");
+        if (raw.HasThirdPartyHistory) flags.Add("hasThirdPartyHistory");
 
         if (!string.IsNullOrEmpty(raw.CoreRegformPlayer))
         {

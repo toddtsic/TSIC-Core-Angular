@@ -1,0 +1,133 @@
+<div class="tpa-container">
+	<div class="page-header">
+		<h2 class="page-title">
+			<i class="bi bi-shield-lock page-title-icon" aria-hidden="true"></i>
+			3rd Party Data Access
+			@if (activeCount() > 0) {
+				<span class="badge-count">{{ activeCount() }} active</span>
+			}
+		</h2>
+	</div>
+
+	@if (loading()) {
+		<p class="loading-text">Loading…</p>
+	} @else if (!overview()) {
+		<p class="empty-text">Could not load third-party access for this organization.</p>
+	} @else if (!hasHistory()) {
+		<!-- Reuse-only screen with no history: nothing can be managed here. Scream why. -->
+		<section class="tpa-scream" role="alert">
+			<i class="bi bi-exclamation-octagon-fill" aria-hidden="true"></i>
+			<div>
+				<h3>No third party has ever been authorized for {{ customerName() }}</h3>
+				<p>
+					This console re-applies an <strong>existing</strong> authorized third-party login
+					across your events — it never creates a first-time login. If your organization has
+					agreed to release data to an outside agency, that first authorization is set up with
+					your TSIC administrator; afterward you manage it here, event by event.
+				</p>
+			</div>
+		</section>
+	} @else {
+		<!-- Standing warning: this screen exists to hand minors' data to an outside agency. -->
+		<section class="tpa-warning" role="note">
+			<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+			<div>
+				<strong>Granting access here permits an outside agency to download data about minors</strong>
+				— player rosters (player and parent names and emails) and the full event schedule.
+				Rosters are released only for age groups flagged <em>Third-Party Roster Access</em> in the
+				L-A-D-T Editor; the schedule is included in full. Once downloaded, the data leaves your
+				control — review your organization's privacy policy before granting.
+			</div>
+		</section>
+
+		<div class="tpa-table-wrap">
+			<table class="tpa-table">
+				<thead>
+					<tr>
+						<th scope="col">Event</th>
+						<th scope="col">Access window ends</th>
+						<th scope="col">3rd party login</th>
+						<th scope="col" class="col-action">Action</th>
+					</tr>
+				</thead>
+				<tbody>
+					@for (job of jobs(); track job.jobId) {
+						<tr>
+							<td class="cell-job">{{ job.jobName }}</td>
+							<td>{{ job.expiryUsers | date: 'M/d/yyyy' }}</td>
+							<td>
+								@if (job.assignment; as a) {
+									<span class="vendor-login">{{ a.userName }}</span>
+									@if (a.isActive) {
+										<span class="chip chip-active"><i class="bi bi-check-circle" aria-hidden="true"></i> Active</span>
+									} @else {
+										<span class="chip chip-disabled"><i class="bi bi-slash-circle" aria-hidden="true"></i> Disabled</span>
+									}
+								} @else {
+									<span class="vendor-none">None</span>
+								}
+							</td>
+							<td class="col-action">
+								@if (job.assignment?.isActive) {
+									<button type="button" class="btn btn-sm btn-outline-danger"
+										[disabled]="busyJobId() !== null"
+										(click)="disable(job)">
+										@if (busyJobId() === job.jobId) {
+											<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+										}
+										Disable
+									</button>
+								} @else if (job.assignment; as a) {
+									<button type="button" class="btn btn-sm btn-warning"
+										[disabled]="busyJobId() !== null"
+										(click)="requestGrant(job, a.userId)">
+										Re-enable
+									</button>
+								} @else {
+									<div class="grant-controls">
+										<label class="visually-hidden" [for]="'vendor-' + job.jobId">Third party for {{ job.jobName }}</label>
+										<select class="form-select form-select-sm" [id]="'vendor-' + job.jobId"
+											[ngModel]="selectionFor(job.jobId)"
+											(ngModelChange)="onSelectVendor(job.jobId, $event)">
+											<option value="">-- Select third party --</option>
+											@for (vendor of vendors(); track vendor.userId) {
+												<option [value]="vendor.userId">{{ vendor.userName }}</option>
+											}
+										</select>
+										<button type="button" class="btn btn-sm btn-warning"
+											[disabled]="!selectionFor(job.jobId) || busyJobId() !== null"
+											(click)="requestGrant(job, selectionFor(job.jobId))">
+											Grant access
+										</button>
+									</div>
+								}
+							</td>
+						</tr>
+					} @empty {
+						<tr>
+							<td colspan="4" class="empty-text">No events with an open access window.</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+
+		<p class="tpa-footnote">
+			Disabling removes the third party's ability to sign in to that event immediately.
+			Which age groups' rosters are released is controlled per event in
+			Teams &amp; Rosters &rarr; L-A-D-T Editor (<em>Third-Party Roster Access</em>).
+		</p>
+	}
+</div>
+
+@if (confirmTarget()) {
+	<confirm-dialog
+		title="Permit outside access to player data?"
+		[message]="confirmMessage()"
+		confirmLabel="Grant access"
+		cancelLabel="Cancel"
+		confirmVariant="danger"
+		[requireConfirmText]="true"
+		(confirmed)="confirmGrant()"
+		(cancelled)="cancelGrant()" />
+}

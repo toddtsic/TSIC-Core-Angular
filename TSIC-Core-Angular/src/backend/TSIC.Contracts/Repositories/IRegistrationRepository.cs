@@ -3,6 +3,7 @@ using TSIC.Contracts.Dtos.CampGroups;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
+using TSIC.Contracts.Dtos.ThirdPartyAccess;
 using TSIC.Contracts.Dtos.UsLax;
 using TSIC.Domain.Entities;
 
@@ -147,6 +148,29 @@ public interface IRegistrationRepository
     /// Get ApiAuthorized (third-party export) role registrations for a user
     /// </summary>
     Task<List<RegistrationDto>> GetApiAuthorizedRegistrationsAsync(string userId, CancellationToken cancellationToken = default);
+
+    // ── "3rd Party Data Access" console (SU + SuperDirector vendor-login management) ──
+
+    /// <summary>
+    /// Distinct accounts that have ever held ApiAuthorized on any of the customer's jobs
+    /// (active or not) — the reuse-only vendor picker.
+    /// </summary>
+    Task<List<ThirdPartyVendorDto>> GetThirdPartyVendorHistoryByCustomerAsync(Guid customerId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Customer's jobs with an open users window (ExpiryUsers in the future), each with
+    /// its ApiAuthorized registration if one exists (active preferred, then most recent).
+    /// </summary>
+    Task<List<ThirdPartyJobRowDto>> GetThirdPartyJobRowsByCustomerAsync(Guid customerId, CancellationToken cancellationToken = default);
+
+    /// <summary>True when the user has ever held ApiAuthorized on any of the customer's jobs.</summary>
+    Task<bool> HasApiAuthorizedHistoryWithCustomerAsync(Guid customerId, string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>All ApiAuthorized registrations on a job, tracked (grant/disable chokepoint).</summary>
+    Task<List<Registrations>> GetApiAuthorizedRegsForJobTrackedAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>All of a user's registrations on a job, tracked (grant conflict checks).</summary>
+    Task<List<Registrations>> GetRegsByJobAndUserTrackedAsync(Guid jobId, string userId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Add a new registration to the database

@@ -1064,6 +1064,20 @@ public class ReportingRepository : IReportingRepository
                 cancellationToken);
     }
 
+    public async Task<JobReports?> GetCrystalActionRowTrackedAsync(
+        Guid jobId,
+        string roleId,
+        string action,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.JobReports
+            .Where(jr => jr.JobId == jobId
+                         && jr.RoleId == roleId
+                         && jr.Kind == KindCrystalReport
+                         && jr.Action == action)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<ThirdPartyRosterContextDto?> GetThirdPartyRosterContextAsync(
         Guid jobId,
         CancellationToken cancellationToken = default)

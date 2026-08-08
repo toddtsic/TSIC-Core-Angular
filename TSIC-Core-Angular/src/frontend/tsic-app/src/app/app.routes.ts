@@ -384,6 +384,14 @@ export const routes: Routes = [
 						canActivate: [authGuard],
 						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'checkin' },
 						loadComponent: () => import('./views/tools/checkin/checkin.component').then(m => m.CheckinComponent)
+					},
+					{
+						// Vendor export-login console (customer-scoped). Deliberately SU+SD only —
+						// mirrors the backend CanCrossCustomerJobs policy; per-job Directors excluded.
+						path: 'third-party-access',
+						canActivate: [authGuard],
+						data: { roles: [Roles.Superuser, Roles.SuperDirector] },
+						loadComponent: () => import('./views/tools/third-party-access/third-party-access.component').then(m => m.ThirdPartyAccessComponent)
 					}
 				]
 			},

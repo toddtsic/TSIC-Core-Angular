@@ -374,6 +374,8 @@ builder.Services.AddScoped<ILastMonthsJobStatsService, LastMonthsJobStatsService
 builder.Services.AddScoped<ICustomerJobRevenueService, CustomerJobRevenueService>();
 // Admin Expiry (SuperUser cross-customer expired-jobs tool)
 builder.Services.AddScoped<IAdminExpiryService, AdminExpiryService>();
+// 3rd Party Data Access (SU + SuperDirector vendor export-login console)
+builder.Services.AddScoped<IThirdPartyAccessService, ThirdPartyAccessService>();
 // Reporting
 builder.Services.Configure<ReportingSettings>(builder.Configuration.GetSection("Reporting"));
 builder.Services.AddScoped<IReportingService, ReportingService>();

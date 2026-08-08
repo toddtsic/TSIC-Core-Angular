@@ -1,0 +1,163 @@
+.tpa-container {
+	padding: var(--space-6);
+	max-width: 1100px;
+	margin: 0 auto;
+}
+
+.loading-text,
+.empty-text {
+	color: var(--brand-text-muted);
+	padding: var(--space-4) 0;
+}
+
+// ── No-history scream: this console is reuse-only; with no vendor history there is
+// nothing to manage here, and the user must understand why (not a broken page).
+.tpa-scream {
+	display: flex;
+	gap: var(--space-4);
+	align-items: flex-start;
+	padding: var(--space-5);
+	border-radius: var(--radius-lg);
+	border: 1px solid color-mix(in srgb, var(--bs-danger) 45%, var(--brand-border));
+	background: color-mix(in srgb, var(--bs-danger) 8%, var(--brand-surface));
+	box-shadow: var(--shadow-sm);
+
+	> .bi {
+		font-size: 1.75rem;
+		color: var(--bs-danger);
+		line-height: 1;
+	}
+
+	h3 {
+		font-size: 1.125rem;
+		font-weight: var(--font-weight-semibold);
+		margin-bottom: var(--space-2);
+		color: var(--brand-text);
+	}
+
+	p {
+		margin: 0;
+		color: var(--brand-text);
+	}
+}
+
+// ── Standing minor-data warning (icon + text — never color alone) ──
+.tpa-warning {
+	display: flex;
+	gap: var(--space-4);
+	align-items: flex-start;
+	padding: var(--space-4) var(--space-5);
+	margin-bottom: var(--space-5);
+	border-radius: var(--radius-lg);
+	border: 1px solid color-mix(in srgb, var(--bs-warning) 45%, var(--brand-border));
+	background: color-mix(in srgb, var(--bs-warning) 12%, var(--brand-surface));
+	color: var(--brand-text);
+
+	> .bi {
+		font-size: 1.375rem;
+		color: color-mix(in srgb, var(--bs-warning) 70%, var(--bs-body-color));
+		line-height: 1;
+	}
+}
+
+// ── Jobs table ──
+.tpa-table-wrap {
+	overflow-x: auto;
+	border: 1px solid var(--brand-border);
+	border-radius: var(--radius-lg);
+	background: var(--brand-surface);
+	box-shadow: var(--shadow-sm);
+}
+
+.tpa-table {
+	width: 100%;
+	border-collapse: collapse;
+
+	th,
+	td {
+		padding: var(--space-3) var(--space-4);
+		text-align: left;
+		border-bottom: 1px solid var(--brand-border);
+		vertical-align: middle;
+	}
+
+	thead th {
+		font-size: var(--font-size-sm);
+		font-weight: var(--font-weight-semibold);
+		color: var(--brand-text-muted);
+		background: var(--bs-primary-bg-subtle, color-mix(in srgb, var(--bs-primary) 6%, var(--brand-surface)));
+		white-space: nowrap;
+	}
+
+	tbody tr:last-child td {
+		border-bottom: none;
+	}
+
+	.cell-job {
+		font-weight: var(--font-weight-semibold);
+		color: var(--brand-text);
+	}
+
+	.col-action {
+		width: 1%;
+		white-space: nowrap;
+	}
+}
+
+.vendor-login {
+	font-family: var(--font-family-monospace, monospace);
+	font-size: var(--font-size-sm);
+	margin-right: var(--space-2);
+}
+
+.vendor-none {
+	color: var(--brand-text-muted);
+	font-style: italic;
+}
+
+// Status chips pair icon + label — state is never conveyed by color alone.
+.chip {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	padding: 0 var(--space-2);
+	border-radius: var(--radius-pill, 999px);
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-semibold);
+	line-height: 1.6;
+}
+
+.chip-active {
+	color: var(--bs-success);
+	background: color-mix(in srgb, var(--bs-success) 12%, transparent);
+	border: 1px solid color-mix(in srgb, var(--bs-success) 40%, transparent);
+}
+
+.chip-disabled {
+	color: var(--brand-text-muted);
+	background: color-mix(in srgb, var(--brand-text-muted) 12%, transparent);
+	border: 1px solid color-mix(in srgb, var(--brand-text-muted) 40%, transparent);
+}
+
+.grant-controls {
+	display: flex;
+	gap: var(--space-2);
+	align-items: center;
+
+	.form-select {
+		min-width: 220px;
+	}
+}
+
+.tpa-footnote {
+	margin-top: var(--space-4);
+	color: var(--brand-text-muted);
+	font-size: var(--font-size-sm);
+}
+
+// Focus visibility on all interactive elements (WCAG)
+.tpa-container button:focus-visible,
+.tpa-container select:focus-visible {
+	outline: none;
+	box-shadow: var(--shadow-focus);
+}

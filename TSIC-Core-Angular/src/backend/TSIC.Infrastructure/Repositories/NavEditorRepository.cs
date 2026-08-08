@@ -275,14 +275,15 @@ public class NavEditorRepository : INavEditorRepository
             .ToListAsync(cancellationToken);
 
         // Static list — flag names are derived from Jobs entity properties
-        // in NavRepository.GetJobNavContextAsync. Keep in sync with that method.
+        // in VisibilityRulesEvaluator.BuildJobContextAsync. Keep in sync with that method.
         var flags = new List<string>
         {
             "storeEnabled",
             "adnArb",
             "mobileEnabled",
             "teamEligibilityByAge",
-            "playerSiteOnly"
+            "playerSiteOnly",
+            "hasThirdPartyHistory"
         };
 
         return new NavVisibilityOptionsDto

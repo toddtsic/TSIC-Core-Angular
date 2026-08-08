@@ -173,6 +173,10 @@ $adminManifest = @(
     # component is the SU-only "Dropdowns" tab inside Job Settings; one door (2026-07-25).
     (New-AdminItem 'Configure' 'gear' 2 'Profile Editor'      'pencil-square' 'tools/profile-editor'              7  0 0 1)
     (New-AdminItem 'Configure' 'gear' 2 'Report Catalogue'    'collection'    'reporting/report-catalogue-editor' 9  0 0 1)
+    # 3rd Party Data Access (SD+SU vendor export-login console; CanCrossCustomerJobs on the
+    # backend). hasThirdPartyHistory strips the leaf at serve time for customers that have
+    # never had a vendor login — the screen is reuse-only, so there'd be nothing to manage.
+    (New-AdminItem 'Configure' 'gear' 2 '3rd Party Data Access' 'shield-lock' 'tools/third-party-access' 10 0 1 1 '{"requiresFlags":["hasThirdPartyHistory"]}')
 
     # -- 3. Teams & Rosters (formerly LADT; team composition + roster ops) -
     (New-AdminItem 'Teams & Rosters' 'diagram-3' 3 'L-A-D-T Editor'        'pencil-square'    'ladt/editor'          1 1 1 1)

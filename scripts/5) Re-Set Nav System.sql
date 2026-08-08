@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-08-06 16:49:34 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-08-08 05:57:53 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -132,6 +132,7 @@ INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Quick Links', N's
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Administrators', N'person-badge', N'configure/administrators', 5, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Profile Editor', N'pencil-square', N'tools/profile-editor', 7, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Report Catalogue', N'collection', N'reporting/report-catalogue-editor', 9, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'3rd Party Data Access', N'shield-lock', N'tools/third-party-access', 10, 0, 1, 1, N'{"requiresFlags":["hasThirdPartyHistory"]}', NULL);
 INSERT INTO #AdminManifest VALUES (N'Teams & Rosters', N'diagram-3', 3, N'L-A-D-T Editor', N'pencil-square', N'ladt/editor', 1, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Teams & Rosters', N'diagram-3', 3, N'Roster Swapper', N'arrow-left-right', N'ladt/roster-swapper', 2, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Teams & Rosters', N'diagram-3', 3, N'Pool Assignment', N'people', N'ladt/pool-assignment', 3, 1, 1, 1, NULL, NULL);

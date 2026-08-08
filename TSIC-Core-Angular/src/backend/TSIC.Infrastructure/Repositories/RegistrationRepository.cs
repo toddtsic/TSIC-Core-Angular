@@ -7,6 +7,7 @@ using TSIC.Contracts.Dtos.CampGroups;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
+using TSIC.Contracts.Dtos.ThirdPartyAccess;
 using TSIC.Contracts.Dtos.UsLax;
 using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Repositories;
@@ -446,6 +447,105 @@ public class RegistrationRepository : IRegistrationRepository
                 JobPath = j.JobPath
             }
         ).AsNoTracking().ToListAsync(cancellationToken);
+    }
+
+    // ── "3rd Party Data Access" console (SU + SuperDirector vendor-login management) ──
+
+    public async Task<List<ThirdPartyVendorDto>> GetThirdPartyVendorHistoryByCustomerAsync(
+        Guid customerId,
+        CancellationToken cancellationToken = default)
+    {
+        // ANY ApiAuthorized registration on the customer's jobs qualifies — active or not,
+        // window open or closed. History is the reuse-only picker; liveness is per-job.
+        var raw = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.Job.CustomerId == customerId
+                        && r.RoleId == RoleConstants.ApiAuthorized
+                        && r.UserId != null)
+            .Select(r => new
+            {
+                UserId = r.UserId!,
+                UserName = r.User!.UserName,
+                r.User.FirstName,
+                r.User.LastName
+            })
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return raw
+            .Select(u => new ThirdPartyVendorDto
+            {
+                UserId = u.UserId,
+                UserName = u.UserName ?? string.Empty,
+                DisplayName = $"{u.LastName}, {u.FirstName}".Trim(' ', ',')
+            })
+            .OrderBy(v => v.UserName)
+            .ToList();
+    }
+
+    public async Task<List<ThirdPartyJobRowDto>> GetThirdPartyJobRowsByCustomerAsync(
+        Guid customerId,
+        CancellationToken cancellationToken = default)
+    {
+        // "Active job" = users window still open (Todd's spec) — deliberately the generous
+        // ExpiryUsers door, NOT JobLifecycle.EventConcluded: a concluded-but-in-window event
+        // still shows so its vendor access can be administered (or shut off).
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.CustomerId == customerId && j.ExpiryUsers > DateTime.Now)
+            .OrderBy(j => j.JobName)
+            .Select(j => new ThirdPartyJobRowDto
+            {
+                JobId = j.JobId,
+                JobName = j.JobName ?? string.Empty,
+                ExpiryUsers = j.ExpiryUsers,
+                Assignment = j.Registrations
+                    .Where(r => r.RoleId == RoleConstants.ApiAuthorized && r.UserId != null)
+                    .OrderByDescending(r => r.BActive == true)
+                    .ThenByDescending(r => r.Modified)
+                    .Select(r => new ThirdPartyAssignmentDto
+                    {
+                        RegistrationId = r.RegistrationId,
+                        UserId = r.UserId!,
+                        UserName = r.User!.UserName ?? string.Empty,
+                        DisplayName = (r.User.LastName + ", " + r.User.FirstName).Trim(' ', ','),
+                        IsActive = r.BActive == true
+                    })
+                    .FirstOrDefault()
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<bool> HasApiAuthorizedHistoryWithCustomerAsync(
+        Guid customerId,
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .AnyAsync(r => r.Job.CustomerId == customerId
+                           && r.RoleId == RoleConstants.ApiAuthorized
+                           && r.UserId == userId,
+                cancellationToken);
+    }
+
+    public async Task<List<Registrations>> GetApiAuthorizedRegsForJobTrackedAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .Where(r => r.JobId == jobId && r.RoleId == RoleConstants.ApiAuthorized)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<Registrations>> GetRegsByJobAndUserTrackedAsync(
+        Guid jobId,
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .Where(r => r.JobId == jobId && r.UserId == userId)
+            .ToListAsync(cancellationToken);
     }
 
     public void Add(Registrations registration)
