@@ -1,0 +1,72 @@
+<h3>3rd Party Data Access</h3>
+<p>
+  This console controls which authorized third party — a recruiting service, for example — may sign in and
+  download your event's data: player rosters (player and parent names and emails) and the full event schedule.
+  You manage it <strong>event by event</strong>: each row is one of your events with an open access window,
+  and each event grants or withholds access on its own.
+</p>
+
+<div class="help-callout help-callout--warning">
+  <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+  <div>
+    <strong>You are releasing data about minors to an outside agency.</strong>
+    <p class="help-callout__body">
+      Once downloaded, the data leaves your control. Review your organization's privacy policy before
+      granting, and grant only to third parties your organization has actually agreed to work with.
+    </p>
+  </div>
+</div>
+
+<h4>What the third party can download</h4>
+<ul>
+  <li><strong>Rosters</strong> — released <strong>only</strong> for age groups you have flagged
+    <em>Third-Party Roster Access</em> in the L-A-D-T Editor (Teams &amp; Rosters). Unflagged age groups
+    are never included.</li>
+  <li><strong>Schedule</strong> — the event's full schedule is included whenever access is active.</li>
+</ul>
+
+<h4>Reading the table</h4>
+<div class="help-card-grid">
+  <div class="help-card">
+    <span class="badge rounded-pill text-bg-success"><i class="bi bi-check-circle"></i> Active</span>
+    <p>The listed login can sign in to this event and download now. The only action is <strong>Inactivate</strong>.</p>
+  </div>
+  <div class="help-card">
+    <span class="badge rounded-pill text-bg-secondary"><i class="bi bi-slash-circle"></i> Inactive</span>
+    <p>This third party held access before but cannot sign in now. <strong>Re-Activate</strong> restores it in one click.</p>
+  </div>
+  <div class="help-card">
+    <span class="badge rounded-pill text-bg-secondary"><i class="bi bi-dash-circle"></i> None</span>
+    <p>No third party has ever been granted on this event. Pick a login and press <strong>Grant access</strong>.</p>
+  </div>
+</div>
+
+<h4>Granting and removing access</h4>
+<ul>
+  <li><strong>Grant access / Re-Activate</strong> take effect immediately — there is no extra confirmation
+    step, so treat the click itself as the decision.</li>
+  <li><strong>Inactivate</strong> ends the third party's ability to sign in to that event immediately. The
+    history is kept, so you can Re-Activate later without setting anything up again.</li>
+  <li>Each event allows <strong>one active third party at a time</strong>. To switch providers, Inactivate
+    the current one first, then grant the other.</li>
+  <li><strong>Access window ends</strong> is the date the login expires on that event regardless of its
+    Active state.</li>
+</ul>
+
+<h4>Why the login list is short (or empty)</h4>
+<p>
+  This screen is <strong>reuse-only</strong>: the picker offers only third-party logins that have already
+  been authorized for your organization at least once. It never creates a first-time login — that initial
+  authorization is set up with your TSIC administrator. Afterward, you apply or remove that login across
+  your events here, yourself.
+</p>
+
+<h4>Common mistakes</h4>
+<ul>
+  <li><strong>Granting access but the third party sees no rosters.</strong> Rosters are released per age
+    group — flag the intended age groups <em>Third-Party Roster Access</em> in the L-A-D-T Editor.</li>
+  <li><strong>Expecting a new provider to appear in the picker.</strong> First-time logins aren't created
+    here; contact your TSIC administrator to authorize a new third party.</li>
+  <li><strong>Forgetting to Inactivate after an event's recruiting period.</strong> Access continues until
+    you Inactivate it or the access window ends — whichever comes first.</li>
+</ul>

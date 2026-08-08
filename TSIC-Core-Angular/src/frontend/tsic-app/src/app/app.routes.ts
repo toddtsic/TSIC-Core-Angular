@@ -390,7 +390,7 @@ export const routes: Routes = [
 						// mirrors the backend CanCrossCustomerJobs policy; per-job Directors excluded.
 						path: 'third-party-access',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.SuperDirector], helpKey: 'third-party-access' },
 						loadComponent: () => import('./views/tools/third-party-access/third-party-access.component').then(m => m.ThirdPartyAccessComponent)
 					}
 				]

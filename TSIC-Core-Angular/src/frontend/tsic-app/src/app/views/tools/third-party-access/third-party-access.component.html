@@ -61,7 +61,7 @@
 									@if (a.isActive) {
 										<span class="chip chip-active"><i class="bi bi-check-circle" aria-hidden="true"></i> Active</span>
 									} @else {
-										<span class="chip chip-disabled"><i class="bi bi-slash-circle" aria-hidden="true"></i> Disabled</span>
+										<span class="chip chip-disabled"><i class="bi bi-slash-circle" aria-hidden="true"></i> Inactive</span>
 									}
 								} @else {
 									<span class="vendor-none">None</span>
@@ -75,13 +75,16 @@
 										@if (busyJobId() === job.jobId) {
 											<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
 										}
-										Disable
+										Inactivate
 									</button>
 								} @else if (job.assignment; as a) {
 									<button type="button" class="btn btn-sm btn-warning"
 										[disabled]="busyJobId() !== null"
-										(click)="requestGrant(job, a.userId)">
-										Re-enable
+										(click)="grant(job, a.userId)">
+										@if (busyJobId() === job.jobId) {
+											<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+										}
+										Re-Activate
 									</button>
 								} @else {
 									<div class="grant-controls">
@@ -96,7 +99,10 @@
 										</select>
 										<button type="button" class="btn btn-sm btn-warning"
 											[disabled]="!selectionFor(job.jobId) || busyJobId() !== null"
-											(click)="requestGrant(job, selectionFor(job.jobId))">
+											(click)="grant(job, selectionFor(job.jobId))">
+											@if (busyJobId() === job.jobId) {
+												<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+											}
 											Grant access
 										</button>
 									</div>
@@ -113,21 +119,10 @@
 		</div>
 
 		<p class="tpa-footnote">
-			Disabling removes the third party's ability to sign in to that event immediately.
+			Inactivating ends the third party's ability to sign in to that event immediately.
 			Which age groups' rosters are released is controlled per event in
 			Teams &amp; Rosters &rarr; L-A-D-T Editor (<em>Third-Party Roster Access</em>).
 		</p>
 	}
 </div>
 
-@if (confirmTarget()) {
-	<confirm-dialog
-		title="Permit outside access to player data?"
-		[message]="confirmMessage()"
-		confirmLabel="Grant access"
-		cancelLabel="Cancel"
-		confirmVariant="danger"
-		[requireConfirmText]="true"
-		(confirmed)="confirmGrant()"
-		(cancelled)="cancelGrant()" />
-}
