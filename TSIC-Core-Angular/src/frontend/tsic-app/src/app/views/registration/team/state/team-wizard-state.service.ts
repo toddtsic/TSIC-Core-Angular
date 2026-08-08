@@ -55,6 +55,15 @@ export class TeamWizardStateService {
     private readonly _waiverAccepted = signal(false);
     readonly waiverAccepted = this._waiverAccepted.asReadonly();
 
+    /** True while a payment submission (card / eCheck / check-intent / insurance-only / ARB
+     *  trial) round-trip is in flight. Shared state, not step-local: the wizard shell reads it
+     *  to raise the same full-screen busy overlay the teams-step capacity check uses — the
+     *  step's small button spinner is easy to miss on a phone during the several-second
+     *  gateway round-trip, and the overlay also blocks stray taps until the charge resolves. */
+    private readonly _paymentSubmitting = signal(false);
+    readonly paymentSubmitting = this._paymentSubmitting.asReadonly();
+    setPaymentSubmitting(v: boolean): void { this._paymentSubmitting.set(v); }
+
     /**
      * Job pulse — exposes team-registration capability flags:
      *   teamRegistrationOpen, clubRepAllowAdd, clubRepAllowEdit, clubRepAllowDelete.

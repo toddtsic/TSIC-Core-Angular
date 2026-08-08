@@ -871,7 +871,9 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
         firstName: '', lastName: '', address: '', zip: '', email: '', phone: '',
     });
     readonly bankAccountValid = signal(false);
-    readonly submitting = signal(false);
+    /** Shared with TeamWizardStateService so the wizard shell raises its full-screen busy
+     *  overlay while a charge is in flight — the button spinner alone is easy to miss. */
+    readonly submitting = this.state.paymentSubmitting;
     readonly lastError = signal<string | null>(null);
     readonly discountCode = signal('');
     readonly arbTrialResult = signal<TeamArbTrialPaymentResponseDto | null>(null);
@@ -1166,6 +1168,10 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
         clearTimeout(this.viInitTimeout);
         this.viScrollTimers.forEach(clearTimeout);
         this.insuranceSvc.reset();
+        // An in-flight submit dies with this component (takeUntilDestroyed), so clear the
+        // shared flag — the shell's tap-blocking overlay must never outlive the step that
+        // raised it.
+        this.state.setPaymentSubmitting(false);
     }
 
     // ── VI offer load + widget init ──────────────────────────────────────
@@ -1198,7 +1204,7 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
     cancelViConfirm(): void {
         this.showViChargeConfirm.set(false);
         this.pendingViSubmitFlow = null;
-        this.submitting.set(false);
+        this.state.setPaymentSubmitting(false);
     }
 
     confirmViAndContinue(): void {
@@ -1221,7 +1227,7 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
     }
 
     private async continueViOnlySubmit(): Promise<void> {
-        this.submitting.set(true);
+        this.state.setPaymentSubmitting(true);
         this.lastError.set(null);
         const ccInfo = this.buildCreditCardInfo();
         try {
@@ -1242,7 +1248,7 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
             console.warn('[Team Payment] VI-only purchase threw', e);
             this.toast.show('Insurance purchase failed.', 'danger', 4000);
         } finally {
-            this.submitting.set(false);
+            this.state.setPaymentSubmitting(false);
         }
     }
 
@@ -1355,7 +1361,7 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
     }
 
     private continueCcSubmit(): void {
-        this.submitting.set(true);
+        this.state.setPaymentSubmitting(true);
         this.lastError.set(null);
         this.chargeResult.set(null);
 
@@ -1397,7 +1403,7 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
                     }
                 },
                 error: (err: HttpErrorResponse) => {
-                    this.submitting.set(false);
+                    this.state.setPaymentSubmitting(false);
                     const msg = (err.error && typeof err.error === 'object')
                         ? (err.error.message || JSON.stringify(err.error))
                         : (err.message || 'Network error');
@@ -1424,8 +1430,8 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
         this.teamReg.getTeamsMetadata()
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
-                next: meta => { this.state.applyTeamsMetadata(meta); this.submitting.set(false); },
-                error: () => this.submitting.set(false),
+                next: meta => { this.state.applyTeamsMetadata(meta); this.state.setPaymentSubmitting(false); },
+                error: () => this.state.setPaymentSubmitting(false),
             });
     }
 
@@ -1461,11 +1467,11 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
             .subscribe({
                 next: meta => {
                     this.state.applyTeamsMetadata(meta);
-                    this.submitting.set(false);
+                    this.state.setPaymentSubmitting(false);
                     this.submitted.emit();
                 },
                 error: () => {
-                    this.submitting.set(false);
+                    this.state.setPaymentSubmitting(false);
                     this.submitted.emit();
                 },
             });
@@ -1477,7 +1483,7 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
             this.toast.show('Bank account form is invalid.', 'danger', 3000);
             return;
         }
-        this.submitting.set(true);
+        this.state.setPaymentSubmitting(true);
         this.lastError.set(null);
         this.chargeResult.set(null);
 
@@ -1526,11 +1532,11 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
                             .subscribe({
                                 next: meta => {
                                     this.state.applyTeamsMetadata(meta);
-                                    this.submitting.set(false);
+                                    this.state.setPaymentSubmitting(false);
                                     this.submitted.emit();
                                 },
                                 error: () => {
-                                    this.submitting.set(false);
+                                    this.state.setPaymentSubmitting(false);
                                     this.submitted.emit();
                                 },
                             });
@@ -1540,7 +1546,7 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
                     }
                 },
                 error: (err: HttpErrorResponse) => {
-                    this.submitting.set(false);
+                    this.state.setPaymentSubmitting(false);
                     const msg = (err.error && typeof err.error === 'object')
                         ? (err.error.message || JSON.stringify(err.error))
                         : (err.message || 'Network error');
@@ -1572,7 +1578,7 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
     }
 
     private continueArbTrialSubmit(): void {
-        this.submitting.set(true);
+        this.state.setPaymentSubmitting(true);
         this.lastError.set(null);
         this.arbTrialResult.set(null);
 
@@ -1623,11 +1629,11 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
                                 .subscribe({
                                     next: meta => {
                                         this.state.applyTeamsMetadata(meta);
-                                        this.submitting.set(false);
+                                        this.state.setPaymentSubmitting(false);
                                         this.submitted.emit();
                                     },
                                     error: () => {
-                                        this.submitting.set(false);
+                                        this.state.setPaymentSubmitting(false);
                                         this.submitted.emit();
                                     },
                                 });
@@ -1658,14 +1664,14 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
                             finishAndAdvance();
                         }
                     } else {
-                        this.submitting.set(false);
+                        this.state.setPaymentSubmitting(false);
                         const msg = resp.message ?? 'ARB-Trial submission failed.';
                         this.lastError.set(msg);
                         this.toast.show(msg, 'danger', 6000);
                     }
                 },
                 error: (err: HttpErrorResponse) => {
-                    this.submitting.set(false);
+                    this.state.setPaymentSubmitting(false);
                     const msg = (err.error && typeof err.error === 'object')
                         ? (err.error.message || JSON.stringify(err.error))
                         : (err.message || 'Network error');
@@ -1678,13 +1684,13 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
     /** Check payment — no backend call, just record intent and move to review. */
     submitCheck(): void {
         if (this.submitting()) return;
-        this.submitting.set(true);
+        this.state.setPaymentSubmitting(true);
         this.state.teamPaymentState.setLastPayment({
             amount: this.checkAmount(),
             message: 'Payment by check — pending receipt',
             paymentMethod: 'Check',
         });
-        this.submitting.set(false);
+        this.state.setPaymentSubmitting(false);
         this.submitted.emit();
     }
 }

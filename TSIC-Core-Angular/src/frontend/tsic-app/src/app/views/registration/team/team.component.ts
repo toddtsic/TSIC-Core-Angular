@@ -46,8 +46,8 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
       [currentIndex]="currentIndex()"
       [config]="shellConfig()"
       [canContinue]="canContinue()"
-      [busy]="transitioning()"
-      [busyMessage]="'Submitting registration…'"
+      [busy]="shellBusy()"
+      [busyMessage]="shellBusyMessage()"
       [showContinue]="showContinue()"
       [showBack]="showBack()"
       [showActionBarOnFirstStep]="hasWizardSession()"
@@ -163,6 +163,14 @@ export class TeamWizardV2Component implements OnInit {
      */
     private readonly teamsStep = viewChild(TeamTeamsStepComponent);
     readonly transitioning = computed(() => this.teamsStep()?.actionInProgress() ?? false);
+
+    /** The shell's busy overlay covers BOTH long round-trips: the teams-step capacity check
+     *  (transitioning) and a payment charge in flight. Payment submits run off the step's own
+     *  buttons, not the shell Continue, so the step shares its in-flight state via
+     *  TeamWizardStateService rather than an output that could be lost on step teardown. */
+    readonly shellBusy = computed(() => this.transitioning() || this.state.paymentSubmitting());
+    readonly shellBusyMessage = computed(() =>
+        this.state.paymentSubmitting() ? 'Processing payment…' : 'Submitting registration…');
 
     readonly steps = computed<WizardStepDef[]>(() => [
         { id: 'login', label: 'Club Rep Info', enabled: true },
@@ -294,6 +302,11 @@ export class TeamWizardV2Component implements OnInit {
 
     // ── Lifecycle ───────────────────────────────────────────────────
     ngOnInit(): void {
+        // Belt-and-suspenders for the shared payment-busy flag (root singleton): a stale true
+        // here would raise the tap-blocking overlay on a fresh wizard entry. Unconditional —
+        // state.reset() below only runs when a jobPath resolves.
+        this.state.setPaymentSubmitting(false);
+
         const jobPath = this.infraJobCtx.resolveFromRoute(this.route);
         if (jobPath) {
             this.state.reset();

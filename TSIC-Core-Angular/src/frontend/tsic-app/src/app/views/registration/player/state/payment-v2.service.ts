@@ -136,6 +136,15 @@ export class PaymentV2Service {
     private readonly _discountAppliedOk = signal(false);
     private readonly _selectedPaymentMethod = signal<'CC' | 'Echeck' | 'Check'>('CC');
 
+    /** True while a payment submission (card / eCheck / check-intent / insurance-only) round-trip
+     *  is in flight. Shared state, not step-local: the wizard shell reads it to raise the same
+     *  full-screen busy overlay the Review→Payment PreSubmit uses — the step's small button
+     *  spinner is easy to miss on a phone during the several-second gateway round-trip, and the
+     *  overlay also blocks stray taps until the charge resolves. */
+    private readonly _paymentSubmitting = signal(false);
+    readonly paymentSubmitting = this._paymentSubmitting.asReadonly();
+    setPaymentSubmitting(v: boolean): void { this._paymentSubmitting.set(v); }
+
     readonly discountMessage = this._discountMessage.asReadonly();
     readonly discountApplying = this._discountApplying.asReadonly();
     /** True after a discount was successfully applied (drives success styling on the message). */

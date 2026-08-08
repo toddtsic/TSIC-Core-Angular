@@ -1028,7 +1028,9 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
         firstName: '', lastName: '', address: '', zip: '', email: '', phone: '',
     });
     readonly bankAccountValid = signal(false);
-    readonly submitting = signal(false);
+    /** Shared with PaymentV2Service so the wizard shell raises its full-screen busy overlay
+     *  while a charge is in flight — the button spinner alone is easy to miss on a phone. */
+    readonly submitting = this.paySvc.paymentSubmitting;
     readonly lastError = signal<{ message: string | null; errorCode: string | null } | null>(null);
     // Per-player charge outcomes — set on a partial-success or all-failed submit so the family
     // sees which player(s) charged and which declined (and why). Null until then.
@@ -1233,6 +1235,10 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
         clearTimeout(this.viInitTimeout);
         this.viScrollTimers.forEach(clearTimeout);
         this.insuranceSvc.resetWidgetInit();
+        // An in-flight submit dies with this component (takeUntilDestroyed), so clear the
+        // shared flag — the shell's tap-blocking overlay must never outlive the step that
+        // raised it.
+        this.paySvc.setPaymentSubmitting(false);
     }
 
     // ── CC form callbacks ────────────────────────────────────────────────
@@ -1260,14 +1266,14 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
      *  forces the CC method the moment quotes exist, so check never carries a premium. */
     submitCheck(): void {
         if (this.submitting()) return;
-        this.submitting.set(true);
+        this.paySvc.setPaymentSubmitting(true);
 
         // Backend stamp first \u2014 flips PaymentMethodChosen=3 + BActive=true so the roster
         // spot is held while the check is in transit. Only advance the wizard on success.
         this.paySvc.submitByCheck().subscribe({
             next: (resp) => {
                 if (!resp?.success) {
-                    this.submitting.set(false);
+                    this.paySvc.setPaymentSubmitting(false);
                     const msg = resp?.message || 'Could not record check submission. Please retry or switch to credit card.';
                     this.lastError.set({ message: msg, errorCode: null });
                     this.toast.show(msg, 'danger', 5000);
@@ -1280,11 +1286,11 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
                     message: 'Payment by check \u2014 pending receipt',
                     paymentMethod: 'Check',
                 });
-                this.submitting.set(false);
+                this.paySvc.setPaymentSubmitting(false);
                 this.advance.emit();
             },
             error: (err: HttpErrorResponse) => {
-                this.submitting.set(false);
+                this.paySvc.setPaymentSubmitting(false);
                 const msg = err?.error?.message || 'Could not record check submission. Please retry or switch to credit card.';
                 this.lastError.set({ message: msg, errorCode: null });
                 this.toast.show(msg, 'danger', 5000);
@@ -1366,7 +1372,7 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     // ── Submit flow ─────────────────────────────────────────────────────
     submit(): void {
         if (this.submitting()) return;
-        this.submitting.set(true);
+        this.paySvc.setPaymentSubmitting(true);
 
         // Gate: insurance — block if widget is visible but user hasn't responded yet (matches legacy)
         if (this.insuranceState.offerPlayerRegSaver()
@@ -1374,7 +1380,7 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
             && this.isViOfferVisible()
             && !!this.insuranceState.verticalInsureOffer().data
             && this.tsicChargeDueNow()) {
-            this.submitting.set(false);
+            this.paySvc.setPaymentSubmitting(false);
             this.toast.show('Please indicate your interest in registration insurance for each player listed.', 'danger', 4000);
             return;
         }
@@ -1389,14 +1395,14 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
         }
 
         if (this.showCcSection() && !this.ccValid()) {
-            this.submitting.set(false);
+            this.paySvc.setPaymentSubmitting(false);
             this.toast.show('Credit card form is invalid.', 'danger', 3000);
             return;
         }
 
         // If VI quotes exist, show charge confirmation first
         if (this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.quotes().length > 0) {
-            this.submitting.set(false);
+            this.paySvc.setPaymentSubmitting(false);
             this.pendingSubmitAfterViConfirm = true;
             this.showViChargeConfirm.set(true);
             return;
@@ -1480,7 +1486,7 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
             this.toast.show('Bank account form is invalid.', 'danger', 3000);
             return;
         }
-        this.submitting.set(true);
+        this.paySvc.setPaymentSubmitting(true);
         this.lastError.set(null);
         this.chargeOutcomes.set(null);
 
@@ -1531,7 +1537,7 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // ── Internal submit ─────────────────────────────────────────────────
     private continueSubmit(): void {
-        this.submitting.set(true);
+        this.paySvc.setPaymentSubmitting(true);
         this.chargeOutcomes.set(null);
 
         if (!this.lastIdemKey) {
@@ -1622,7 +1628,7 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
             const paidJobPath = this.state.jobCtx.jobPath();
             if (paidJobPath) this.state.familyPlayers.loadFamilyPlayers(paidJobPath, this.state.jobCtx.resolveApiBase());
             this.advance.emit();
-            this.submitting.set(false);
+            this.paySvc.setPaymentSubmitting(false);
             if (this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.quotes().length > 0) {
                 this.insuranceSvc.purchaseInsurance(this._creditCard());
             }
@@ -1631,7 +1637,7 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
             // charged. Surface the per-player results and refresh family players so the summary
             // table + "Pay $X Now" button reflect the real remaining balance. Stay on the payment
             // step (do NOT advance) so the family retries ONLY the declined player(s).
-            this.submitting.set(false);
+            this.paySvc.setPaymentSubmitting(false);
             this.lastError.set({ message: response.message || null, errorCode: response.errorCode || null });
             this.toast.show(`[${response.errorCode || 'ERROR'}] ${response.message || 'Payment failed.'}`, 'danger', 6000);
             this.chargeOutcomes.set(response.outcomes && response.outcomes.length > 0
@@ -1644,7 +1650,7 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     private handlePaymentHttpError(error: HttpErrorResponse): void {
-        this.submitting.set(false);
+        this.paySvc.setPaymentSubmitting(false);
         const apiMsg = (error.error && typeof error.error === 'object') ? (error.error.message || JSON.stringify(error.error)) : (error.message || 'Network error');
         const apiCode = (error.error && typeof error.error === 'object') ? (error.error.errorCode || null) : null;
         this.lastError.set({ message: apiMsg, errorCode: apiCode });
@@ -1652,7 +1658,7 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     private processInsuranceOnlyFinish(msg: string): void {
-        this.submitting.set(true);
+        this.paySvc.setPaymentSubmitting(true);
         this.insuranceSvc.purchaseInsurance(this._creditCard(), doneMsg => {
             try {
                 this.paymentState.setLastPayment({
@@ -1665,7 +1671,7 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
                     message: doneMsg || msg,
                 });
             } catch (e) { console.warn('[Payment] setLastPayment (insurance-only) failed', e); }
-            this.submitting.set(false);
+            this.paySvc.setPaymentSubmitting(false);
             this.advance.emit();
         });
     }

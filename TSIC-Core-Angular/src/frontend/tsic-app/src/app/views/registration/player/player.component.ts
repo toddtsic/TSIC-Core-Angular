@@ -58,8 +58,8 @@ import { isPlayerRegistrationEffectivelyOpen } from '@shared/landing/landing-pha
         [currentIndex]="currentIndex()"
         [config]="shellConfig()"
         [canContinue]="canContinue()"
-        [busy]="transitioning()"
-        [busyMessage]="'Submitting registration…'"
+        [busy]="shellBusy()"
+        [busyMessage]="shellBusyMessage()"
         [showBack]="showBack()"
         [showContinue]="showContinue()"
         [continueLabel]="continueLabel()"
@@ -138,6 +138,14 @@ export class PlayerWizardV2Component implements OnInit {
      */
     private readonly _transitioning = signal(false);
     readonly transitioning = this._transitioning.asReadonly();
+
+    /** The shell's busy overlay covers BOTH long round-trips: the Review→Payment PreSubmit
+     *  (transitioning) and a payment charge in flight. Payment submits run off the step's own
+     *  buttons, not the shell Continue, so the step shares its in-flight state via
+     *  PaymentV2Service rather than an output that could be lost on step teardown. */
+    readonly shellBusy = computed(() => this.transitioning() || this.paySvc.paymentSubmitting());
+    readonly shellBusyMessage = computed(() =>
+        this.paySvc.paymentSubmitting() ? 'Processing payment…' : 'Submitting registration…');
 
     // ── Step definitions ──────────────────────────────────────────────
     readonly steps = computed<WizardStepDef[]>(() => [
@@ -268,6 +276,9 @@ export class PlayerWizardV2Component implements OnInit {
 
         // Always reset wizard state (clears stale errors from prior sessions)
         this.state.reset();
+        // Belt-and-suspenders for the shared payment-busy flag (root singleton): a stale true
+        // here would raise the tap-blocking overlay on a fresh wizard entry.
+        this.paySvc.setPaymentSubmitting(false);
 
         if (jobPath) {
             this.state.jobCtx.setJobPath(jobPath);
