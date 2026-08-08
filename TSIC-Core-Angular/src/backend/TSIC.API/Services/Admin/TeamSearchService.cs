@@ -452,8 +452,17 @@ public sealed class TeamSearchService : ITeamSearchService
 
                 refundTransId = voidResult.TransactionId ?? "";
 
-                // Void reverses the full original amount
-                original.Paymeth = (original.Paymeth ?? "") + $" VOIDED {DateTime.Now}";
+                // Mark original record as voided. Write the void fact into Comment — the field
+                // the accounting tab actually renders. (Paymeth is NOT shown: the display prefers
+                // the AccountingPaymentMethods lookup name, so anything appended to Paymeth is
+                // invisible.) Make it unmistakably a VOID, not a refund, so admin can tell at a glance.
+                var voidNote = $"VOIDED {DateTime.Now:g} — CC was not yet settled at "
+                    + $"Authorize.Net, so the original ${originalPay:F2} charge was VOIDED (not refunded). "
+                    + $"ADN void tx {refundTransId}."
+                    + (string.IsNullOrWhiteSpace(request.Reason) ? "" : $" Reason: {request.Reason}");
+                original.Comment = string.IsNullOrWhiteSpace(original.Comment)
+                    ? voidNote
+                    : $"{original.Comment} | {voidNote}";
                 original.Payamt = 0;
             }
             else if (txStatus == "settledSuccessfully")
@@ -506,8 +515,11 @@ public sealed class TeamSearchService : ITeamSearchService
                 var team = await _teamRepo.GetTeamFromTeamId(original.TeamId.Value, ct);
                 if (team != null)
                 {
+                    // Void reverses what was PAID (captured before Payamt was zeroed above), not
+                    // Dueamt — the two only coincide because team charges book Dueamt == Payamt.
+                    // Matches the player path in RegistrationSearchService.
                     var refundAmt = txStatus == "capturedPendingSettlement"
-                        ? (original.Dueamt ?? 0)   // void reverses full original
+                        ? originalPay               // void reverses full original payment
                         : request.RefundAmount;     // refund reverses requested amount
 
                     team.PaidTotal = (team.PaidTotal ?? 0) - refundAmt;
@@ -515,13 +527,16 @@ public sealed class TeamSearchService : ITeamSearchService
                 }
             }
 
-            // Update club rep financials
+            await _accountingRepo.SaveChangesAsync(ct);
+
+            // Update club rep financials — AFTER the save. The sync re-aggregates
+            // SUM(Teams.PaidTotal) with a fresh SQL query, so the team decrement above must be
+            // flushed first or the rep's stored PaidTotal is recomputed from pre-void values
+            // (PL-064: Search grid showed the old paid amount after a void).
             if (original.RegistrationId.HasValue)
             {
                 await _registrationRepo.SynchronizeClubRepFinancialsAsync(original.RegistrationId.Value, userId, ct);
             }
-
-            await _accountingRepo.SaveChangesAsync(ct);
 
             _logger.LogInformation("Team refund processed: AId={AId}, Amount={Amount}, TransId={TransId}",
                 request.AccountingRecordId, request.RefundAmount, refundTransId);
