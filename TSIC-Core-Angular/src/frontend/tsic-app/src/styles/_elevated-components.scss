@@ -427,8 +427,22 @@ body[data-env="staging"] .env-chip-inline {
     &::before { content: 'DEV'; }
 }
 
+// Header instance only: hidden below md — the hazard-stripe tape carries the non-prod
+// signal there and the chip's 55px goes to the job name. Deliberately NOT Bootstrap's
+// d-none/d-md-inline-flex; see the production rule below for why.
+@media (max-width: 767.98px) {
+    .env-chip-inline--md-up {
+        display: none;
+    }
+}
+
+// `!important` is deliberate and load-bearing. Bootstrap's display utilities are all
+// `!important`, so one on the host element outranks this and leaves an empty, unlabelled
+// pill in the production header — which is exactly what `d-md-inline-flex` did until
+// 2026-08-08. An env chip must never be able to paint in prod, whatever classes a host
+// component grows later.
 body[data-env="production"] .env-chip-inline {
-    display: none;
+    display: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
