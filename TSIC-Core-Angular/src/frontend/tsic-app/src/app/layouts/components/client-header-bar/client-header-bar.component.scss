@@ -51,29 +51,31 @@
 
 .job-logo-box {
     flex-shrink: 0;
-    padding: var(--space-2) var(--space-3);
-
-    :host-context([data-bs-theme="dark"]) & {
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: var(--radius-sm);
-    }
+    // Box treatment parked — bare logo for now (may return). Was:
+    // padding: var(--space-2) var(--space-3);
+    // + .logo-box class in the template (white gradient card from _elevated-components.scss)
+    // :host-context([data-bs-theme="dark"]) & {
+    //     background: rgba(0, 0, 0, 0.3);
+    //     border-radius: var(--radius-sm);
+    // }
 }
 
 .job-logo {
-    // 44px fills the 60px header exactly (16px box padding). A forced height —
-    // not max-height — so tall/square logos scale UP to it; wide logos stay
-    // pinned by the 180px width cap. (AM-094: 32px made square badges tiny.)
-    height: 44px;
+    // Bare logo: fixed height fills the 60px box the old padded card occupied
+    // (44px img + 16px padding); width responds to the image's aspect ratio.
+    // Forced height — not max-height — so tall/square logos scale UP to it
+    // (AM-094: 32px made square badges tiny).
+    height: 60px;
     width: auto;
     object-fit: contain;
     display: block;
-    max-width: 180px; // Component-specific: prevent oversized logos
-    filter: drop-shadow(var(--shadow-sm));
-
-    :host-context([data-bs-theme="dark"]) & {
-        filter: brightness(0.65) contrast(0.8) drop-shadow(var(--shadow-sm));
-        opacity: 0.85;
-    }
+    // Parked with the box treatment (may return):
+    // max-width: 180px;
+    // filter: drop-shadow(var(--shadow-sm));
+    // :host-context([data-bs-theme="dark"]) & {
+    //     filter: brightness(0.65) contrast(0.8) drop-shadow(var(--shadow-sm));
+    //     opacity: 0.85;
+    // }
 }
 
 // Job name button styling

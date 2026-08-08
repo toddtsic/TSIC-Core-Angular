@@ -29,9 +29,10 @@
                      the non-prod warning; the chip's 55px goes to the job name instead. -->
                 <span class="env-chip-inline d-none d-md-inline-flex" aria-label="Environment indicator" title="Non-production environment"></span>
 
-                <!-- Job Logo — click navigates to role landing page -->
+                <!-- Job Logo — click navigates to role landing page.
+                     Bare image by design: no .logo-box frame/gradients (parked — may return). -->
                 @if (jobLogoPath()) {
-                <div class="job-logo-box logo-box d-none d-md-block" role="button" tabindex="0"
+                <div class="job-logo-box d-none d-md-block" role="button" tabindex="0"
                     (click)="goHome()" (keydown.enter)="goHome()" title="Go to home page"
                     style="cursor: pointer;">
                     <img [src]="jobLogoPath()" alt="Job Logo" class="job-logo" />
