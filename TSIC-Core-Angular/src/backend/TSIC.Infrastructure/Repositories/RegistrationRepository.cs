@@ -457,11 +457,16 @@ public class RegistrationRepository : IRegistrationRepository
     {
         // ANY ApiAuthorized registration on the customer's jobs qualifies — active or not,
         // window open or closed. History is the reuse-only picker; liveness is per-job.
+        // AM-004 lane purity, vendor lane (Todd 08-08): the account must have ONLY ever held
+        // ApiAuthorized — anywhere, any customer. A routine director who once carried the
+        // vendor role is NOT a vendor account and must not appear as a grant candidate.
         var raw = await _context.Registrations
             .AsNoTracking()
             .Where(r => r.Job.CustomerId == customerId
                         && r.RoleId == RoleConstants.ApiAuthorized
-                        && r.UserId != null)
+                        && r.UserId != null
+                        && !_context.Registrations.Any(o => o.UserId == r.UserId
+                                                            && o.RoleId != RoleConstants.ApiAuthorized))
             .Select(r => new
             {
                 UserId = r.UserId!,
@@ -521,12 +526,22 @@ public class RegistrationRepository : IRegistrationRepository
         string userId,
         CancellationToken cancellationToken = default)
     {
-        return await _context.Registrations
+        // Same predicate as the vendor-history picker: ApiAuthorized history with THIS
+        // customer AND lane-pure (never any other role, anywhere). The wall must match the
+        // picker exactly or a hand-crafted request could grant a non-vendor account.
+        var hasHistory = await _context.Registrations
             .AsNoTracking()
             .AnyAsync(r => r.Job.CustomerId == customerId
                            && r.RoleId == RoleConstants.ApiAuthorized
                            && r.UserId == userId,
                 cancellationToken);
+        if (!hasHistory) return false;
+
+        var hasOtherRole = await _context.Registrations
+            .AsNoTracking()
+            .AnyAsync(r => r.UserId == userId && r.RoleId != RoleConstants.ApiAuthorized,
+                cancellationToken);
+        return !hasOtherRole;
     }
 
     public async Task<List<Registrations>> GetApiAuthorizedRegsForJobTrackedAsync(

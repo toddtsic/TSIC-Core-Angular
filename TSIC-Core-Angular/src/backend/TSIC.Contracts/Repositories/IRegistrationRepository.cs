@@ -153,7 +153,8 @@ public interface IRegistrationRepository
 
     /// <summary>
     /// Distinct accounts that have ever held ApiAuthorized on any of the customer's jobs
-    /// (active or not) — the reuse-only vendor picker.
+    /// (active or not) AND are lane-pure (never held any other role, anywhere) —
+    /// the reuse-only vendor picker.
     /// </summary>
     Task<List<ThirdPartyVendorDto>> GetThirdPartyVendorHistoryByCustomerAsync(Guid customerId, CancellationToken cancellationToken = default);
 
@@ -163,7 +164,10 @@ public interface IRegistrationRepository
     /// </summary>
     Task<List<ThirdPartyJobRowDto>> GetThirdPartyJobRowsByCustomerAsync(Guid customerId, CancellationToken cancellationToken = default);
 
-    /// <summary>True when the user has ever held ApiAuthorized on any of the customer's jobs.</summary>
+    /// <summary>
+    /// True when the user has ever held ApiAuthorized on any of the customer's jobs AND is
+    /// lane-pure (never held any other role, anywhere) — must match the vendor picker.
+    /// </summary>
     Task<bool> HasApiAuthorizedHistoryWithCustomerAsync(Guid customerId, string userId, CancellationToken cancellationToken = default);
 
     /// <summary>All ApiAuthorized registrations on a job, tracked (grant/disable chokepoint).</summary>
