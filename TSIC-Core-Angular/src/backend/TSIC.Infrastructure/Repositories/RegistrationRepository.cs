@@ -1127,6 +1127,7 @@ public class RegistrationRepository : IRegistrationRepository
     {
         return await _context.Registrations
             .Include(r => r.Job)
+            .Include(r => r.User) // digest prints the registrant's name, not the UserId FK
             .FirstOrDefaultAsync(r => r.AdnSubscriptionId == adnSubscriptionId, cancellationToken);
     }
 
@@ -1137,13 +1138,14 @@ public class RegistrationRepository : IRegistrationRepository
         // AdnInvoiceNo (customer_job_registration), resolve the registration the charge belongs to.
         // AsNoTracking — read-only; the orphan sweep only reports, it never writes off this lookup.
         // SingleOrDefault — the AI triple is unique, so >1 match is data corruption and should throw.
-        return await (
-            from r in _context.Registrations
-            join j in _context.Jobs on r.JobId equals j.JobId
-            join c in _context.Customers on j.CustomerId equals c.CustomerId
-            where r.RegistrationAi == registrationAi && j.JobAi == jobAi && c.CustomerAi == customerAi
-            select r
-        ).AsNoTracking().SingleOrDefaultAsync(cancellationToken);
+        // User loaded because the orphan digest row prints the registrant's name.
+        return await _context.Registrations
+            .Include(r => r.User)
+            .Where(r => r.RegistrationAi == registrationAi
+                && r.Job.JobAi == jobAi
+                && r.Job.Customer.CustomerAi == customerAi)
+            .AsNoTracking()
+            .SingleOrDefaultAsync(cancellationToken);
     }
 
     public async Task<List<Registrations>> GetByJobAndUserIdsAsync(Guid jobId, List<string> userIds, CancellationToken cancellationToken = default)

@@ -157,6 +157,7 @@ public class TeamRepository : ITeamRepository
     {
         return await _context.Teams
             .Include(t => t.Job)
+            .Include(t => t.Clubrep) // digest prints the rep's name, not the ClubrepId FK
             .FirstOrDefaultAsync(t => t.AdnSubscriptionId == adnSubscriptionId, cancellationToken);
     }
 

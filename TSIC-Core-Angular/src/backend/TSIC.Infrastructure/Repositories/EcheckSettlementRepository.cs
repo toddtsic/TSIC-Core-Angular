@@ -23,6 +23,10 @@ public class EcheckSettlementRepository : IEcheckSettlementRepository
         return await _context.Settlement
             .Include(s => s.RegistrationAccounting)
                 .ThenInclude(ra => ra.Registration)
+                    .ThenInclude(r => r!.Job)
+            .Include(s => s.RegistrationAccounting)
+                .ThenInclude(ra => ra.Registration)
+                    .ThenInclude(r => r!.User)
             .Where(s => ids.Contains(s.AdnTransactionId))
             .ToListAsync(ct);
     }
@@ -69,11 +73,14 @@ public class EcheckSettlementRepository : IEcheckSettlementRepository
 
     public async Task<List<Settlement>> GetStalePendingAsync(DateTime olderThan, CancellationToken ct = default)
     {
-        // Tracked (the watchdog mutates Status/LastCheckedAt); Job loaded for digest reporting.
+        // Tracked (the watchdog mutates Status/LastCheckedAt); Job + User loaded for digest reporting.
         return await _context.Settlement
             .Include(s => s.RegistrationAccounting)
                 .ThenInclude(ra => ra.Registration)
                     .ThenInclude(r => r!.Job)
+            .Include(s => s.RegistrationAccounting)
+                .ThenInclude(ra => ra.Registration)
+                    .ThenInclude(r => r!.User)
             .Where(s => s.Status == "Pending" && s.SubmittedAt < olderThan)
             .OrderBy(s => s.SubmittedAt)
             .ToListAsync(ct);

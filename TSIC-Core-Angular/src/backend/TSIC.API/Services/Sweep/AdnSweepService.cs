@@ -553,7 +553,7 @@ public sealed class AdnSweepService : IAdnSweepService
 
         return new ArbDigestRow
         {
-            JobName = reg.Job?.DisplayName ?? reg.Job?.JobName ?? "",
+            JobName = reg.Job?.JobName ?? reg.Job?.DisplayName ?? "",
             TransId = tx.transId,
             SubscriptionId = tx.subscription.id.ToString(),
             SubscriptionStatus = reg.AdnSubscriptionStatus,
@@ -562,7 +562,7 @@ public sealed class AdnSweepService : IAdnSweepService
             OwedNow = owedNow,
             PaymentXofY = paymentXofY,
             NextInstallment = nextInstallment,
-            Registrant = reg.UserId,
+            Registrant = RegistrantDisplay(reg),
             RegistrantAssignment = reg.Assignment
         };
     }
@@ -705,12 +705,14 @@ public sealed class AdnSweepService : IAdnSweepService
 
         var (owedNow, paymentXofY, nextInstallment) = ComputeTeamInstallmentMath(team);
 
-        var registrant = team.ClubrepId ?? "";
+        var registrant = team.Clubrep is { } rep
+            ? $"{rep.FirstName} {rep.LastName}".Trim()
+            : team.ClubrepId ?? "";
         var assignment = $"{team.TeamName ?? team.DisplayName ?? team.TeamFullName}";
 
         return new ArbDigestRow
         {
-            JobName = team.Job?.DisplayName ?? team.Job?.JobName ?? "",
+            JobName = team.Job?.JobName ?? team.Job?.DisplayName ?? "",
             TransId = tx.transId,
             SubscriptionId = tx.subscription.id.ToString(),
             SubscriptionStatus = team.AdnSubscriptionStatus,
@@ -723,6 +725,11 @@ public sealed class AdnSweepService : IAdnSweepService
             RegistrantAssignment = assignment
         };
     }
+
+    // Digest-facing registrant cell: the human name (legacy sweep parity — it printed
+    // User.FirstName/LastName); the UserId FK only as a last resort when no User row loads.
+    private static string RegistrantDisplay(Registrations reg)
+        => reg.User is { } u ? $"{u.FirstName} {u.LastName}".Trim() : reg.UserId ?? "";
 
     // Small wrapper to keep the team ARB / NSF paths agnostic about which Registrations
     // method does the rep aggregation. SynchronizeClubRepFinancialsAsync is the single
@@ -756,11 +763,11 @@ public sealed class AdnSweepService : IAdnSweepService
 
         return new EcheckSettledDigestRow
         {
-            JobName = reg.Job?.DisplayName ?? reg.Job?.JobName ?? "",
+            JobName = reg.Job?.JobName ?? reg.Job?.DisplayName ?? "",
             TransId = settlement.AdnTransactionId,
             Amount = ra.Payamt ?? 0m,
             AccountLast4 = settlement.AccountLast4 ?? "",
-            Registrant = reg.UserId,
+            Registrant = RegistrantDisplay(reg),
             SubmittedAt = settlement.SubmittedAt,
             SettledAt = now
         };
@@ -893,13 +900,13 @@ public sealed class AdnSweepService : IAdnSweepService
 
         return new EcheckReturnDigestRow
         {
-            JobName = reg.Job?.DisplayName ?? reg.Job?.JobName ?? "",
+            JobName = reg.Job?.JobName ?? reg.Job?.DisplayName ?? "",
             ReturnTxId = returnTransId,
             OriginalTxId = originalTxId,
             Kind = kind,
             Reason = $"{settlement.ReturnReasonText} ({settlement.ReturnReasonCode})",
             AmountReversed = amount,
-            Registrant = reg.UserId
+            Registrant = RegistrantDisplay(reg)
         };
     }
 
@@ -1010,10 +1017,10 @@ public sealed class AdnSweepService : IAdnSweepService
 
         var row = new WatchdogDigestRow
         {
-            JobName = reg.Job?.DisplayName ?? reg.Job?.JobName ?? "",
+            JobName = reg.Job?.JobName ?? reg.Job?.DisplayName ?? "",
             TransId = settlement.AdnTransactionId,
             Amount = ra.Payamt ?? 0m,
-            Registrant = reg.UserId,
+            Registrant = RegistrantDisplay(reg),
             SubmittedAt = settlement.SubmittedAt,
             Outcome = ""
         };
@@ -1162,7 +1169,7 @@ public sealed class AdnSweepService : IAdnSweepService
             InvoiceNumber = tx.invoiceNumber,
             SettleAmount = tx.settleAmount,
             SubmittedAt = tx.submitTimeLocal,
-            Registrant = reg.UserId,
+            Registrant = RegistrantDisplay(reg),
             Note = "settled at ADN, no local accounting row — review and book by hand"
         };
     }
