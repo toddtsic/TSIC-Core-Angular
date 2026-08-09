@@ -57,14 +57,41 @@
 							<td>{{ job.expiryUsers | date: 'M/d/yyyy' }}</td>
 							<td>
 								@if (job.assignment; as a) {
-									<span class="vendor-login">{{ a.userName }}</span>
+									<span class="vendor-person">{{ primaryLabel(a) }}</span>
 									@if (a.isActive) {
 										<span class="chip chip-active"><i class="bi bi-check-circle" aria-hidden="true"></i> Active</span>
 									} @else {
 										<span class="chip chip-disabled"><i class="bi bi-slash-circle" aria-hidden="true"></i> Inactive</span>
 									}
+									@if (secondaryLabel(a); as login) {
+										<span class="vendor-login">{{ login }}</span>
+									}
+								} @else if (soleVendor(); as v) {
+									<!-- One vendor in history = no choice to make. Never hide the identity
+									     behind a control: show exactly who "Grant access" would authorize. -->
+									<span class="vendor-person vendor-pending">{{ primaryLabel(v) }}</span>
+									<span class="chip chip-disabled"><i class="bi bi-dash-circle" aria-hidden="true"></i> Not granted</span>
+									@if (secondaryLabel(v); as login) {
+										<span class="vendor-login">{{ login }}</span>
+									}
 								} @else {
-									<span class="vendor-none">None</span>
+									<!-- 2+ candidates: radios, not a select — every identity stays on screen. -->
+									<fieldset class="vendor-choice">
+										<legend class="visually-hidden">Third party for {{ job.jobName }}</legend>
+										@for (vendor of vendors(); track vendor.userId) {
+											<label class="vendor-option">
+												<input type="radio" [name]="'vendor-' + job.jobId"
+													[checked]="selectionFor(job.jobId) === vendor.userId"
+													(change)="onSelectVendor(job.jobId, vendor.userId)">
+												<span class="vendor-option-text">
+													<span class="vendor-person">{{ primaryLabel(vendor) }}</span>
+													@if (secondaryLabel(vendor); as login) {
+														<span class="vendor-login">{{ login }}</span>
+													}
+												</span>
+											</label>
+										}
+									</fieldset>
 								}
 							</td>
 							<td class="col-action">
@@ -87,25 +114,14 @@
 										Re-Activate
 									</button>
 								} @else {
-									<div class="grant-controls">
-										<label class="visually-hidden" [for]="'vendor-' + job.jobId">Third party for {{ job.jobName }}</label>
-										<select class="form-select form-select-sm" [id]="'vendor-' + job.jobId"
-											[ngModel]="selectionFor(job.jobId)"
-											(ngModelChange)="onSelectVendor(job.jobId, $event)">
-											<option value="">-- Select third party --</option>
-											@for (vendor of vendors(); track vendor.userId) {
-												<option [value]="vendor.userId">{{ vendor.userName }}</option>
-											}
-										</select>
-										<button type="button" class="btn btn-sm btn-warning"
-											[disabled]="!selectionFor(job.jobId) || busyJobId() !== null"
-											(click)="grant(job, selectionFor(job.jobId))">
-											@if (busyJobId() === job.jobId) {
-												<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
-											}
-											Grant access
-										</button>
-									</div>
+									<button type="button" class="btn btn-sm btn-warning"
+										[disabled]="!selectionFor(job.jobId) || busyJobId() !== null"
+										(click)="grant(job, selectionFor(job.jobId))">
+										@if (busyJobId() === job.jobId) {
+											<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+										}
+										Grant access
+									</button>
 								}
 							</td>
 						</tr>

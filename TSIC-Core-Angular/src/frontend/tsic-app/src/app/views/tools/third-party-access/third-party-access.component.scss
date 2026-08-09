@@ -1,6 +1,6 @@
 .tpa-container {
 	padding: var(--space-6);
-	max-width: 1100px;
+	max-width: 1280px;
 	margin: 0 auto;
 }
 
@@ -104,15 +104,52 @@
 	}
 }
 
-.vendor-login {
-	font-family: var(--font-family-monospace, monospace);
-	font-size: var(--font-size-sm);
+// Lead line: the person, sharing a line with the status chip.
+.vendor-person {
 	margin-right: var(--space-2);
+	color: var(--brand-text);
 }
 
-.vendor-none {
+// Not yet granted — the identity is shown, but must not read as already active.
+.vendor-pending {
 	color: var(--brand-text-muted);
-	font-style: italic;
+}
+
+// Detail line: the login. Vendor logins are email addresses in practice — long
+// enough to need a break opportunity, or they force the whole table wide.
+.vendor-login {
+	display: block;
+	margin-top: var(--space-1);
+	font-family: var(--font-family-monospace, monospace);
+	font-size: var(--font-size-sm);
+	color: var(--brand-text-muted);
+	overflow-wrap: anywhere;
+}
+
+// 2+ vendors in history: radios keep every candidate identity on screen.
+.vendor-choice {
+	border: 0;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+.vendor-option {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-2);
+	cursor: pointer;
+
+	input[type='radio'] {
+		margin-top: 0.2em; // optical align to the first text line
+		flex: none;
+	}
+}
+
+.vendor-option-text .vendor-person {
+	margin-right: 0;
 }
 
 // Status chips pair icon + label — state is never conveyed by color alone.
@@ -139,16 +176,6 @@
 	border: 1px solid color-mix(in srgb, var(--brand-text-muted) 40%, transparent);
 }
 
-.grant-controls {
-	display: flex;
-	gap: var(--space-2);
-	align-items: center;
-
-	.form-select {
-		min-width: 220px;
-	}
-}
-
 .tpa-footnote {
 	margin-top: var(--space-4);
 	color: var(--brand-text-muted);
@@ -157,7 +184,7 @@
 
 // Focus visibility on all interactive elements (WCAG)
 .tpa-container button:focus-visible,
-.tpa-container select:focus-visible {
+.tpa-container input[type='radio']:focus-visible {
 	outline: none;
 	box-shadow: var(--shadow-focus);
 }

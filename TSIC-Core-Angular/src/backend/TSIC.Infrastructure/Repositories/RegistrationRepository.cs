@@ -482,7 +482,7 @@ public class RegistrationRepository : IRegistrationRepository
             {
                 UserId = u.UserId,
                 UserName = u.UserName ?? string.Empty,
-                DisplayName = $"{u.LastName}, {u.FirstName}".Trim(' ', ',')
+                DisplayName = $"{u.FirstName} {u.LastName}".Trim()
             })
             .OrderBy(v => v.UserName)
             .ToList();
@@ -513,7 +513,7 @@ public class RegistrationRepository : IRegistrationRepository
                         RegistrationId = r.RegistrationId,
                         UserId = r.UserId!,
                         UserName = r.User!.UserName ?? string.Empty,
-                        DisplayName = (r.User.LastName + ", " + r.User.FirstName).Trim(' ', ','),
+                        DisplayName = (r.User.FirstName + " " + r.User.LastName).Trim(),
                         IsActive = r.BActive == true
                     })
                     .FirstOrDefault()

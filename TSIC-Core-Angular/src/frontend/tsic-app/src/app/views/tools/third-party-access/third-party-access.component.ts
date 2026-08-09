@@ -1,22 +1,30 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { ToastService } from '@shared-ui/toast.service';
 import { ThirdPartyAccessService } from './services/third-party-access.service';
-import type { ThirdPartyAccessOverviewDto, ThirdPartyJobRowDto } from '@core/api';
+import type { ThirdPartyAccessOverviewDto, ThirdPartyJobRowDto, ThirdPartyVendorDto } from '@core/api';
+
+/** The two identity fields both vendor-carrying DTOs share. */
+type VendorIdentity = { userName: string; displayName: string };
 
 /**
  * "3rd Party Data Access" (SU + SuperDirector): the customer's own console for
  * managing which authorized third party may pull its rosters/schedule export.
- * Reuse-only — the vendor picker offers only accounts that have already held
- * export access with this organization; first-time logins are not created here.
+ * Reuse-only — only accounts that have already held export access with this
+ * organization are offered; first-time logins are not created here.
  * Grant = create-or-reactivate; disable = one click. Both are single-click —
  * the standing on-page warning carries the minors'-data caution.
+ *
+ * The vendor identity is NEVER behind a collapsed control. Releasing minors' data
+ * to a named outside agency is the whole point of the screen, so the row states who
+ * that agency is before the click, not after it: one vendor (the norm) renders as
+ * plain text, 2+ render as radios. A one-option <select> hid exactly the fact the
+ * director most needed to read.
  */
 @Component({
 	selector: 'app-third-party-access',
 	standalone: true,
-	imports: [CommonModule, FormsModule],
+	imports: [CommonModule],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './third-party-access.component.html',
 	styleUrl: './third-party-access.component.scss',
@@ -29,7 +37,7 @@ export class ThirdPartyAccessComponent implements OnInit {
 	readonly overview = signal<ThirdPartyAccessOverviewDto | null>(null);
 	readonly loading = signal(false);
 	readonly busyJobId = signal<string | null>(null);
-	/** Per-row vendor DDL choice, keyed by jobId (immutable updates). */
+	/** Per-row vendor radio choice, keyed by jobId (immutable updates). */
 	readonly selections = signal<Record<string, string>>({});
 
 	// ── Derivations ──
@@ -38,9 +46,32 @@ export class ThirdPartyAccessComponent implements OnInit {
 	readonly customerName = computed(() => this.overview()?.customerName ?? '');
 	readonly hasHistory = computed(() => this.vendors().length > 0);
 	readonly activeCount = computed(() => this.jobs().filter(j => j.assignment?.isActive).length);
+	/**
+	 * The customer's only vendor, when there is exactly one — the norm for a reuse-only
+	 * console. Drives the no-control render: with nothing to choose, the row states the
+	 * identity outright instead of burying it in a one-option picker.
+	 */
+	readonly soleVendor = computed<ThirdPartyVendorDto | null>(() => {
+		const vendors = this.vendors();
+		return vendors.length === 1 ? vendors[0] : null;
+	});
 
 	ngOnInit(): void {
 		this.load();
+	}
+
+	/**
+	 * Name leads — it is the identity a director recognizes and can hold accountable;
+	 * the login is a machine detail. Vendor accounts can carry blank First/Last, so the
+	 * login is promoted to the lead line rather than rendering an empty one.
+	 */
+	primaryLabel(v: VendorIdentity): string {
+		return v.displayName || v.userName;
+	}
+
+	/** Null once the login has been promoted above — never print it twice. */
+	secondaryLabel(v: VendorIdentity): string | null {
+		return v.displayName ? v.userName : null;
 	}
 
 	selectionFor(jobId: string): string {

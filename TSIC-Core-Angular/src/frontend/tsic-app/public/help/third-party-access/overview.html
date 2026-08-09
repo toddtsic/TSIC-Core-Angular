@@ -36,10 +36,24 @@
     <p>This third party held access before but cannot sign in now. <strong>Re-Activate</strong> restores it in one click.</p>
   </div>
   <div class="help-card">
-    <span class="badge rounded-pill text-bg-secondary"><i class="bi bi-dash-circle"></i> None</span>
-    <p>No third party has ever been granted on this event. Pick a login and press <strong>Grant access</strong>.</p>
+    <span class="badge rounded-pill text-bg-secondary"><i class="bi bi-dash-circle"></i> Not granted</span>
+    <p>No third party has access to this event yet. The row still <em>names</em> the third party that
+      <strong>Grant access</strong> would authorize, so you can read it before you click.</p>
   </div>
 </div>
+
+<h4>Who you are granting to</h4>
+<p>
+  Every row names the third party <strong>before</strong> you act — you never have to open a control to find
+  out who is involved. The person's name is on the first line; their login, usually an email address, sits
+  beneath it in a fixed-width font.
+</p>
+<ul>
+  <li>If your organization has authorized <strong>one</strong> third party — the usual case — that name
+    appears on every row and <strong>Grant access</strong> authorizes it. There is nothing to choose.</li>
+  <li>If your organization has authorized <strong>more than one</strong>, the row lists them as radio
+    buttons with every name visible at once. Choose one, then <strong>Grant access</strong>.</li>
+</ul>
 
 <h4>Granting and removing access</h4>
 <ul>
@@ -53,20 +67,23 @@
     Active state.</li>
 </ul>
 
-<h4>Why the login list is short (or empty)</h4>
+<h4>Why only one name (or none) is offered</h4>
 <p>
-  This screen is <strong>reuse-only</strong>: the picker offers only third-party logins that have already
-  been authorized for your organization at least once. It never creates a first-time login — that initial
+  This screen is <strong>reuse-only</strong>: it offers only third-party logins that have already been
+  authorized for your organization at least once. It never creates a first-time login — that initial
   authorization is set up with your TSIC administrator. Afterward, you apply or remove that login across
-  your events here, yourself.
+  your events here, yourself. Most organizations work with a single recruiting service, so seeing one name
+  repeated down the table is normal, not an error.
 </p>
 
 <h4>Common mistakes</h4>
 <ul>
   <li><strong>Granting access but the third party sees no rosters.</strong> Rosters are released per age
     group — flag the intended age groups <em>Third-Party Roster Access</em> in the L-A-D-T Editor.</li>
-  <li><strong>Expecting a new provider to appear in the picker.</strong> First-time logins aren't created
+  <li><strong>Expecting a new provider to appear on its own.</strong> First-time logins aren't created
     here; contact your TSIC administrator to authorize a new third party.</li>
+  <li><strong>Reading a named row as an active grant.</strong> A row can name a third party and still be
+    <em>Not granted</em> — the chip beside the name, not the name itself, tells you whether access is live.</li>
   <li><strong>Forgetting to Inactivate after an event's recruiting period.</strong> Access continues until
     you Inactivate it or the access window ends — whichever comes first.</li>
 </ul>
