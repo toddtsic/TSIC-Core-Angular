@@ -319,6 +319,10 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     if (req.email) chips.push({ category: 'Email', label: req.email, filterKey: 'email', value: req.email });
     if (req.phone) chips.push({ category: 'Phone', label: req.phone, filterKey: 'phone', value: req.phone });
     if (req.schoolName) chips.push({ category: 'School', label: req.schoolName, filterKey: 'schoolName', value: req.schoolName });
+    // "Invoice #"/"Subscription #" — not plain "Subscription", which is already the ARB
+    // paying-by-subscription chip category above.
+    if (req.invoiceNumber) chips.push({ category: 'Invoice #', label: req.invoiceNumber, filterKey: 'invoiceNumber', value: req.invoiceNumber });
+    if (req.subscriptionNumber) chips.push({ category: 'Subscription #', label: req.subscriptionNumber, filterKey: 'subscriptionNumber', value: req.subscriptionNumber });
     if (req.regDateFrom) chips.push({ category: 'On or After', label: req.regDateFrom, filterKey: 'regDateFrom', value: req.regDateFrom });
     if (req.rosterThreshold != null) chips.push({ category: 'Rostered <=', label: String(req.rosterThreshold), filterKey: 'rosterThreshold', value: String(req.rosterThreshold) });
     if (req.hasVIPlayerInsurance != null) {
@@ -726,7 +730,8 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
         updated.rosterThreshold = undefined;
       } else {
         (updated as any)[chip.filterKey] = chip.filterKey === 'name' || chip.filterKey === 'email'
-          || chip.filterKey === 'phone' || chip.filterKey === 'schoolName' ? '' : undefined;
+          || chip.filterKey === 'phone' || chip.filterKey === 'schoolName'
+          || chip.filterKey === 'invoiceNumber' || chip.filterKey === 'subscriptionNumber' ? '' : undefined;
       }
       return updated;
     });
