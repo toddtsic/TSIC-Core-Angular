@@ -55,6 +55,19 @@
 
 .dropdown-anchor {
   position: relative;
+
+  // The menu is toggled manually (no Popper), so Bootstrap's .dropdown-menu-end
+  // right-alignment never engages — its `right: 0; left: auto` only ships under
+  // [data-bs-popper]. Position it ourselves: anchored under the gear, right edge
+  // flush to the button, so it opens leftward INSIDE .tree-panel and the panel's
+  // overflow:hidden (needed for the rounded corners) can't clip it.
+  .dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: auto;
+    margin-top: var(--space-1);
+  }
 }
 
 .tree-toolbar {
