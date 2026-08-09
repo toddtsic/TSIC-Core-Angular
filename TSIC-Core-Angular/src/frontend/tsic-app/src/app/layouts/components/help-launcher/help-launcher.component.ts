@@ -103,13 +103,19 @@ export class HelpLauncherComponent {
   /**
    * Which tabs to show: a tab appears when it has content, or when it can be authored (local dev).
    * So on a deployed build a reader never sees an empty FAQ tab — but locally the author sees it to write.
+   *
+   * Pro Tips is the exception: content-gated EVERYWHERE, local dev included. Those pages are authored
+   * per-screen through the agreed-list workflow (files written directly + manifest regen), not via the
+   * in-drawer pencil — so an empty Pro Tips tab on every screen is noise, not an affordance.
    */
   readonly visibleTabs = computed<HelpTab[]>(() => {
     const component = this.component();
     if (!component) return [];
     const canAuthor = this.manifest.canEdit();
     return this.tabs.filter(
-      (tab) => this.manifest.has(`${component}/${tab.topic}`) || canAuthor
+      (tab) =>
+        this.manifest.has(`${component}/${tab.topic}`) ||
+        (canAuthor && tab.topic !== 'pro-tips')
     );
   });
 

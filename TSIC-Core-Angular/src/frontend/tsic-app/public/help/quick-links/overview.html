@@ -1,9 +1,9 @@
 <h3>Quick Links</h3>
 <p>
-  These are the master switches for what your event's public home page offers — which registration buttons
-  and calls-to-action are live. They power the auto-updating <strong>Smart Bulletins</strong> visitors see:
-  flip a switch on and that path appears on the public page; flip it off and it's hidden. It's the fastest
-  place to open or close registration and features for the event.
+  These are the master switches for what your event's public home page offers. They drive the
+  auto-updating <strong>Smart Bulletins</strong> visitors see — flip a switch and the public page
+  changes, no publishing step. It's the fastest place to open or close registration and features for
+  the event.
 </p>
 
 <div class="help-callout help-callout--warning">
@@ -11,35 +11,155 @@
   <div>
     <strong>Each switch saves the moment you flip it.</strong>
     <p class="help-callout__body">
-      There's no separate save — a toggle is live immediately, so a switch you turn off vanishes from the public
-      page right away.
+      There's no separate save — a toggle is live immediately, so a switch you turn off vanishes from
+      the public page right away. If a save fails, the switch snaps back and a toast tells you.
     </p>
   </div>
 </div>
 
-<h4>What the switches control</h4>
+<h4>Every switch is a Smart Bulletin</h4>
+<p>Each row here owns one Smart Bulletin on the public landing page:</p>
+<div class="help-surface">
+  <div class="help-flow">
+    <i class="bi bi-people" aria-hidden="true"></i>
+    <strong>Register Team</strong>
+    <span class="badge rounded-pill text-bg-success">ON</span>
+    <i class="bi bi-arrow-down help-muted" aria-hidden="true"></i>
+  </div>
+  <div class="help-card">
+    <p><i class="bi bi-person-vcard" aria-hidden="true"></i> <strong>Registration Links</strong></p>
+    <p class="help-muted"><strong>TEAM</strong></p>
+    <p><button type="button" class="btn btn-primary" disabled><i class="bi bi-people"></i> Register Team <i class="bi bi-arrow-right"></i></button></p>
+  </div>
+</div>
 <p>
-  Each toggle exposes or hides one thing on the landing page — player registration, team registration, coach
-  sign-up, the store, and so on. Turning a switch on is how families and clubs get a button to start; leaving it
-  off keeps that path closed until you're ready.
+  Same pairing for every row: the player switch adds the Player link to that Smart Bulletin, View
+  Schedule surfaces the "Game Schedules" Smart Bulletin, Store the "Merch Store" Smart Bulletin, and
+  so on. The public page rebuilds itself from these flags on every visit — which is why the Smart
+  Bulletins are "smart": nobody maintains them.
 </p>
 
-<h4>When a switch is greyed out</h4>
+<h4>One Smart Bulletin, three states</h4>
+<p>A registration Smart Bulletin isn't simply visible or not — there's a state in between, and it works for you:</p>
+<div class="help-card-grid">
+  <div class="help-card help-card--success">
+    <p><i class="bi bi-person-vcard" aria-hidden="true"></i> <strong>Registration Links</strong></p>
+    <p class="help-muted"><strong>PLAYER</strong></p>
+    <p><button type="button" class="btn btn-primary btn-sm" disabled><i class="bi bi-person-plus"></i> Register Player <i class="bi bi-arrow-right"></i></button></p>
+  </div>
+  <div class="help-card">
+    <p><i class="bi bi-person-plus" aria-hidden="true"></i> <strong>Player Registration</strong></p>
+    <p class="help-muted">Coming soon — stay tuned!</p>
+    <p><span class="badge rounded-pill text-bg-light"><i class="bi bi-clock"></i> Coming Soon</span></p>
+  </div>
+  <div class="help-card">
+    <span class="badge rounded-pill text-bg-light">No Smart Bulletin</span>
+    <p class="help-muted">Nothing on the landing page mentions this action at all.</p>
+  </div>
+</div>
 <ul>
-  <li><strong>Disabled with a reason</strong> — the switch doesn't apply to this job type, or its fees aren't set up yet. It stays visible (so you can see its state) but you can't flip it until the underlying setup is done.</li>
-  <li><strong>"SuperUser only"</strong> — a few switches (like insurance or store) are reserved for SuperUsers; you'll see them but can't change them.</li>
-  <li><strong>A caution when ON</strong> — some switches warn about a consequence (for example, opening coach registration when no teams exist yet). It's a heads-up, not a block — you can leave it on if that's intentional.</li>
+  <li><strong>Live</strong> — switch on, everything ready: the full Smart Bulletin with its action button.</li>
+  <li>
+    <strong>Coming Soon</strong> — the switch is <em>off</em>, but the event has its registration set
+    up (player profile built). The public page teases it automatically, so families know it's on the
+    way before you open the doors.
+  </li>
+  <li><strong>Gone</strong> — nothing configured, nothing promised: the Smart Bulletin doesn't exist.</li>
+</ul>
+<p>So "off" is not always invisible — an event mid-setup advertises itself. That's deliberate.</p>
+
+<h4>Info Smart Bulletins — no switch of their own</h4>
+<p>
+  Not every Smart Bulletin has a row on this page. The <em>info</em> Smart Bulletins assemble
+  themselves from your event's setup and ride along with the switches you do have. The best example —
+  the USA Lacrosse membership notice:
+</p>
+<div class="help-card">
+  <p class="help-muted"><i class="bi bi-info-circle" aria-hidden="true"></i> <strong>BEFORE YOU REGISTER</strong></p>
+  <p><i class="bi bi-shield-check" aria-hidden="true"></i> <strong>USA Lacrosse Membership Required</strong></p>
+  <ul class="list-unstyled">
+    <li><i class="bi bi-person-vcard" aria-hidden="true"></i> <strong>Name &amp; date of birth match.</strong> <span class="help-muted">Family Account details must match USA Lacrosse records exactly.</span></li>
+    <li><i class="bi bi-calendar-check" aria-hidden="true"></i> <strong>Membership stays active.</strong> <span class="help-muted">Must not expire before <strong>December 31, 2025</strong>.</span></li>
+    <li><i class="bi bi-patch-check" aria-hidden="true"></i> <strong>Age verification complete.</strong> <span class="help-muted">USA Lacrosse's one-time age verification.</span></li>
+  </ul>
+  <div class="help-flow">
+    <button type="button" class="btn btn-outline-primary btn-sm" disabled><i class="bi bi-search"></i> Look up your number</button>
+    <button type="button" class="btn btn-outline-primary btn-sm" disabled><i class="bi bi-person-plus"></i> Get or renew a membership</button>
+    <button type="button" class="btn btn-outline-primary btn-sm" disabled><i class="bi bi-patch-check"></i> Age verification</button>
+  </div>
+</div>
+<p>
+  It appears on its own when two things are true: player registration is open (your switch), and the
+  player profile requires a USA Lacrosse membership number (your registration setup). The deadline it
+  quotes is your configured validation window — change the setup and the Smart Bulletin rewrites
+  itself; close registration and it retires with the registration Smart Bulletin.
+</p>
+<p>
+  That's the pattern for info Smart Bulletins generally: they exist to answer a family's question
+  <em>before</em> it becomes your support call, and their content is derived from configuration — you
+  never author or maintain them.
+</p>
+
+<h4>Switch ON but no Smart Bulletin? Five clauses decide</h4>
+<p>
+  Your switch is one vote of five. The public "Register Player" Smart Bulletin only shows when
+  <em>all</em> of these pass:
+</p>
+<div class="help-surface">
+  <ul class="list-unstyled">
+    <li><i class="bi bi-check-circle-fill text-success" aria-hidden="true"></i> The event isn't over</li>
+    <li><i class="bi bi-check-circle-fill text-success" aria-hidden="true"></i> No newer edition of this event has replaced it</li>
+    <li><i class="bi bi-check-circle-fill text-success" aria-hidden="true"></i> The registration switch is on <span class="help-muted">(this page)</span></li>
+    <li><i class="bi bi-check-circle-fill text-success" aria-hidden="true"></i> Fees are configured</li>
+    <li><i class="bi bi-x-circle-fill text-danger" aria-hidden="true"></i> A team is open for players to join</li>
+  </ul>
+</div>
+<p>
+  One ✗ anywhere and the Smart Bulletin stays hidden — with your switch honestly ON. The same is true
+  for warnings you'll see right here on some rows: coach registration with no teams built yet, View
+  Schedule with no games entered. The Smart Bulletin appears by itself the moment the missing fact
+  exists.
+</p>
+<div class="help-callout help-callout--tip">
+  <i class="bi bi-lightbulb" aria-hidden="true"></i>
+  <div>
+    <strong>Tip:</strong> the live version of this checklist — with real dates, counts, and a fix link
+    per failing line — sits on the Configure Job registration tabs. It's the server's own evaluation,
+    so it can't disagree with what the public page is doing.
+  </div>
+</div>
+
+<h4>Reading the rows</h4>
+<ul>
+  <li>
+    <strong>The tip line states the current truth.</strong> Under every switch, the small line rewords
+    itself for the position the switch is in — ON: "Teams can register — the 'Register Team' Smart
+    Bulletin shows on the landing page." OFF: "Team registration is closed — the Smart Bulletin is
+    hidden." Read the line, not just the switch.
+  </li>
+  <li>
+    <strong>Locked switches are TSIC-managed.</strong> RegSaver insurance (player and team) and the
+    Store carry a <span class="badge rounded-pill text-bg-light"><i class="bi bi-lock-fill"></i> SuperUser only</span>
+    badge — the state shown is real; the flip just isn't yours. Ask us to change them.
+  </li>
+  <li>
+    <strong>Labels adapt to your event type.</strong> A tournament registers teams and players join
+    one, so its switch reads "Allow Player <strong>Self-Rostering</strong>" where a league's reads
+    "Allow Player <strong>Registration</strong>." Switches that can't apply to your event type simply
+    don't appear — a shorter list means those actions aren't part of this event's shape.
+  </li>
 </ul>
 
 <h4>Same flags, one convenient place</h4>
 <p>
-  These switches also live in their proper <strong>Configure Job</strong> tabs — this screen just gathers the
-  public-facing ones in one spot for quick access. Changing one here is the same as changing it there.
+  These switches also live in their proper <strong>Configure Job</strong> tabs — this screen just
+  gathers the public-facing ones in one spot for quick access. Changing one here is the same as
+  changing it there.
 </p>
 
 <h4>Common mistakes</h4>
 <ul>
   <li><strong>Registration "isn't working" — but the switch is off.</strong> If families can't register, check that its toggle is on here first. This is the most common cause.</li>
   <li><strong>Leaving a path open too long.</strong> A switch left on keeps accepting sign-ups; turn it off when a registration window closes.</li>
-  <li><strong>Expecting a greyed switch to flip.</strong> It's disabled for a reason shown right on it — fix that (job type, fees, or role) first.</li>
+  <li><strong>Expecting a locked switch to flip.</strong> The lock badge means the setting is TSIC-managed for your event — contact us rather than clicking harder.</li>
 </ul>

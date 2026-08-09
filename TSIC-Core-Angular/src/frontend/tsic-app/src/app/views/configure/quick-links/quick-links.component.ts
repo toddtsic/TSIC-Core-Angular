@@ -97,8 +97,8 @@ export class QuickLinksComponent {
 				: !f.teamFeesConfigured
 					? 'Team (Club Rep) fees aren\'t configured — set them in Job Fees to enable.'
 					: null,
-			onTip: 'Teams can register — the "Register Team" card shows on the landing page.',
-			offTip: 'Team registration is closed — the card is hidden.' },
+			onTip: 'Teams can register — the "Register Team" Smart Bulletin shows on the landing page.',
+			offTip: 'Team registration is closed — the Smart Bulletin is hidden.' },
 		{ key: 'allowPlayerRegistration',
 			label: tournament ? 'Allow Player Self-Rostering' : 'Allow Player Registration',
 			icon: 'bi-person-plus',
@@ -106,11 +106,11 @@ export class QuickLinksComponent {
 				? null
 				: 'Player fees aren\'t configured — set them in Job Fees to enable.',
 			onTip: tournament
-				? 'Players can self-roster onto a team — the "Self-Roster Player" card shows on the landing page.'
-				: 'Players can register — the "Register Player" card shows on the landing page.',
+				? 'Players can self-roster onto a team — the "Self-Roster Player" Smart Bulletin shows on the landing page.'
+				: 'Players can register — the "Register Player" Smart Bulletin shows on the landing page.',
 			offTip: tournament
-				? 'Self-rostering is closed — the card is hidden.'
-				: 'Player registration is closed — the card is hidden.' },
+				? 'Self-rostering is closed — the Smart Bulletin is hidden.'
+				: 'Player registration is closed — the Smart Bulletin is hidden.' },
 		// Adult registration releases. Coach is team-relevant: a coach requests a team,
 		// so releasing it with no teams configured surfaces a non-forcing caution (the
 		// hero card also stays hidden until teams exist — pulse gates on teams-exist).
@@ -120,49 +120,49 @@ export class QuickLinksComponent {
 			unavailable: null,
 			warn: f.teamsConfigured
 				? null
-				: 'No teams exist yet — coaches will have nothing to request, and the "Register Coach" card stays hidden until teams are added.',
-			onTip: 'Coaches can register and request teams — the "Register Coach" card shows on the landing page.',
-			offTip: 'Coach registration is closed — the card is hidden.' },
+				: 'No teams exist yet — coaches will have nothing to request, and the "Register Coach" Smart Bulletin stays hidden until teams are added.',
+			onTip: 'Coaches can register and request teams — the "Register Coach" Smart Bulletin shows on the landing page.',
+			offTip: 'Coach registration is closed — the Smart Bulletin is hidden.' },
 		// Public rosters are a tournament-only concept (self-rostering).
 		{ key: 'showPublicRosters', label: 'Rosters', icon: 'bi-list-ul',
 			unavailable: tournamentOnly,
-			onTip: 'Public player rosters are visible — the "Rosters" card shows.',
-			offTip: 'Public rosters are hidden — the card is hidden.' },
+			onTip: 'Public player rosters are visible — the "Rosters" Smart Bulletin shows.',
+			offTip: 'Public rosters are hidden — the Smart Bulletin is hidden.' },
 		// Schedule-relevant: publishing access is a legitimate pre-arm action, so the
 		// toggle stays usable, but with no games entered the public "View Schedule"
-		// card stays hidden (pulse gates on FirstGameDate) — surface that as a
+		// Smart Bulletin stays hidden (pulse gates on FirstGameDate) — surface that as a
 		// non-forcing caution. A game schedule is a competitive-event concept.
 		{ key: 'publishSchedule', label: 'View Schedule', icon: 'bi-calendar-event',
 			unavailable: competitiveOnly,
 			warn: f.scheduleConfigured
 				? null
-				: 'No games are scheduled yet — the "View Schedule" card stays hidden until a schedule is added.',
-			onTip: 'The public schedule is visible — the "View Schedule" card shows.',
-			offTip: 'The schedule is not public — the card is hidden.' },
+				: 'No games are scheduled yet — the "View Schedule" Smart Bulletin stays hidden until a schedule is added.',
+			onTip: 'The public schedule is visible — the "View Schedule" Smart Bulletin shows.',
+			offTip: 'The schedule is not public — the Smart Bulletin is hidden.' },
 		{ key: 'offerPlayerInsurance', label: 'Player RegSaver', icon: 'bi-shield-check',
 			unavailable: null, superUserOnly: true,
-			onTip: 'RegSaver insurance is offered to players — the "Player RegSaver" card shows.',
-			offTip: 'Player RegSaver is not offered — the card is hidden.' },
+			onTip: 'RegSaver insurance is offered to players — the "Player RegSaver" Smart Bulletin shows.',
+			offTip: 'Player RegSaver is not offered — the Smart Bulletin is hidden.' },
 		// Club-rep pathway, mirrors the player toggle above (the card itself suppresses
 		// once every team is already covered). Tournament-OR-league only.
 		{ key: 'offerTeamInsurance', label: 'Team RegSaver', icon: 'bi-shield-check',
 			unavailable: competitiveOnly, superUserOnly: true,
-			onTip: 'RegSaver insurance is offered to club reps — the "Team RegSaver" card shows.',
-			offTip: 'Team RegSaver is not offered — the card is hidden.' },
+			onTip: 'RegSaver insurance is offered to club reps — the "Team RegSaver" Smart Bulletin shows.',
+			offTip: 'Team RegSaver is not offered — the Smart Bulletin is hidden.' },
 		// College recruiters scout at competitive events — tournament OR league only.
 		{ key: 'allowRecruiterRegistration', label: 'Allow College Recruiter Registration', icon: 'bi-mortarboard',
 			unavailable: competitiveOnly,
-			onTip: 'College recruiters can register — the "Register College Recruiter" card shows.',
-			offTip: 'Recruiter registration is closed — the card is hidden.' },
+			onTip: 'College recruiters can register — the "Register College Recruiter" Smart Bulletin shows.',
+			offTip: 'Recruiter registration is closed — the Smart Bulletin is hidden.' },
 		// Referees officiate at competitive events — tournament OR league only.
 		{ key: 'allowRefereeRegistration', label: 'Allow Referee Registration', icon: 'bi-flag',
 			unavailable: competitiveOnly,
-			onTip: 'Referees can register — the "Register Referee" card shows on the landing page.',
-			offTip: 'Referee registration is closed — the card is hidden.' },
+			onTip: 'Referees can register — the "Register Referee" Smart Bulletin shows on the landing page.',
+			offTip: 'Referee registration is closed — the Smart Bulletin is hidden.' },
 		{ key: 'enableStore', label: 'Store', icon: 'bi-bag',
 			unavailable: null, superUserOnly: true,
-			onTip: 'The store is enabled — the "Store" card shows once it has active items.',
-			offTip: 'The store is disabled — the card is hidden.' },
+			onTip: 'The store is enabled — the "Store" Smart Bulletin shows once it has active items.',
+			offTip: 'The store is disabled — the Smart Bulletin is hidden.' },
 		] as ToggleDef[]);
 
 		// Display order is JOB-TYPE-SCOPED. Competitive events (tournament/league) use
