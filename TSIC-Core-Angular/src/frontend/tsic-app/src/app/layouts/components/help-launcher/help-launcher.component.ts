@@ -22,9 +22,10 @@ interface HelpTab {
 
 /**
  * The single, app-wide "?" launcher. It reads the current route's help key (via HelpContextService)
- * and opens a right-side drawer with two tabs for that page: Help (the authored explainer) and FAQ
- * (a growing Q&A). Each tab is a topic under the same component — Help = "overview", FAQ = "faq" —
- * served as a static asset from public/{component}/{topic}.html.
+ * and opens a right-side drawer with tabs for that page: Help (the authored explainer), FAQ (a growing
+ * Q&A), and Pro Tips (power-user features, admin routes only). Each tab is a topic under the same
+ * component — "overview", "faq", "pro-tips" — served as a static asset from
+ * public/{component}/{topic}.html.
  *
  * Content renders with the app's own design-system styles, so illustrations look like the real product.
  * In LOCAL development the served files are the working tree, so the author sees a pencil that edits
@@ -49,6 +50,7 @@ export class HelpLauncherComponent {
   readonly tabs: readonly HelpTab[] = [
     { topic: 'overview', label: 'Help', icon: 'bi-life-preserver' },
     { topic: 'faq', label: 'FAQ', icon: 'bi-patch-question' },
+    { topic: 'pro-tips', label: 'Pro Tips', icon: 'bi-lightning-charge' },
   ];
 
   readonly isOpen = signal(false);

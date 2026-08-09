@@ -5,7 +5,7 @@
 // Rules:
 //   1. Every route `helpKey: '<component>'` must have public/help/<component>/overview.html.
 //   2. Every public/help/<component> folder must be referenced by some route helpKey.
-//   3. Every topic file must be named overview.html or faq.html (the two tabs the launcher renders).
+//   3. Every topic file must be named overview.html, faq.html, or pro-tips.html (the tabs the launcher renders).
 //   4. No content file may carry an inline style="" attribute. Presentation is class-only — the block
 //      vocabulary lives in styles/_help-content.scss, so a restyle is one edit, not a sweep across pages.
 import { readdir, readFile } from 'node:fs/promises';
@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 const scriptsDir = dirname(fileURLToPath(import.meta.url));
 const appDir = join(scriptsDir, '..', 'src', 'app');
 const helpDir = join(scriptsDir, '..', 'public', 'help');
-const KNOWN_TOPICS = new Set(['overview', 'faq']);
+const KNOWN_TOPICS = new Set(['overview', 'faq', 'pro-tips']);
 
 // 1. Collect helpKeys declared in the route table(s).
 const routeKeys = new Set();
@@ -39,7 +39,7 @@ for (const c of await readdir(helpDir, { withFileTypes: true })) {
     if (!f.endsWith('.html')) continue;
     const topic = f.slice(0, -'.html'.length);
     if (!KNOWN_TOPICS.has(topic)) {
-      errors.push(`unexpected topic file public/help/${c.name}/${f} (only overview.html / faq.html render)`);
+      errors.push(`unexpected topic file public/help/${c.name}/${f} (only overview.html / faq.html / pro-tips.html render)`);
     }
     // Content is class-only — an inline style="" defeats the shared _help-content.scss vocabulary.
     const html = await readFile(join(helpDir, c.name, f), 'utf8');

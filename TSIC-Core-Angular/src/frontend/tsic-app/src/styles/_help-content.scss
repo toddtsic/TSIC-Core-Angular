@@ -61,6 +61,27 @@
     border-radius: var(--radius-md);
   }
 
+  /* ── Region header: emphasized L1 divider for pages organized by screen region
+        (Pro Tips). An accent band so the level-1 structure reads above the accordion
+        cards; applied to an h4 so document outline stays intact. ── */
+  h4.help-region-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: var(--space-6) 0 var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-left: 4px solid var(--bs-primary);
+    border-radius: var(--radius-md);
+    background: var(--bs-tertiary-bg);
+    font-size: var(--font-size-sm, 0.875rem);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+
+    > i {
+      color: var(--bs-primary);
+    }
+  }
+
   /* ── Utilities ─────────────────────────────────────────────────────────── */
   /* Secondary/quiet text — flow arrows, sub-lines, captions. */
   .help-muted {

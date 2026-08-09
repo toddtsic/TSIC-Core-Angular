@@ -57,6 +57,11 @@ const FAQ_ITEM_HTML = `<details class="faq-item" open>
  */
 const HELP_SNIPPETS: readonly HelpSnippet[] = [
   {
+    label: 'Region header',
+    icon: 'bi-bookmark',
+    html: `<h4 class="help-region-head"><i class="bi bi-window" aria-hidden="true"></i>Replace with region name</h4>`,
+  },
+  {
     label: 'Question & answer',
     icon: 'bi-chat-left-text',
     html: FAQ_ITEM_HTML,

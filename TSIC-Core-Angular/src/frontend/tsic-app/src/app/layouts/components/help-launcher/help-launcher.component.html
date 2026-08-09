@@ -32,7 +32,7 @@
           <span>{{ pageLabel() || 'Help' }}</span>
         </h3>
 
-        <!-- Tab strip: Help + FAQ, one topic each. Shown only when more than one tab is available. -->
+        <!-- Tab strip: Help + FAQ + Pro Tips, one topic each. Shown only when more than one tab is available. -->
         @if (visibleTabs().length > 1) {
           <div class="help-tabs header-wrap-full" role="tablist" aria-label="Help sections">
             @for (tab of visibleTabs(); track tab.topic) {
@@ -107,6 +107,10 @@
             <i class="bi bi-patch-question" aria-hidden="true"></i>
             <p class="help-empty-title">No questions yet</p>
             <p class="help-empty-sub">Answers to common questions about this page will appear here.</p>
+          } @else if (activeTopic() === 'pro-tips') {
+            <i class="bi bi-lightning-charge" aria-hidden="true"></i>
+            <p class="help-empty-title">No pro tips yet</p>
+            <p class="help-empty-sub">Power-user shortcuts and advanced features for this page will appear here.</p>
           } @else {
             <i class="bi bi-cone-striped" aria-hidden="true"></i>
             <p class="help-empty-title">Under development</p>

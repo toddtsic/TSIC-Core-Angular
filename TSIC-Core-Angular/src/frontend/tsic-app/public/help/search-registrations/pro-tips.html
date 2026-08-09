@@ -1,0 +1,272 @@
+<h3>Pro tips</h3>
+<p class="help-muted">
+  Advanced features on this screen, organized by where you find them. Click any title to expand it.
+</p>
+
+<h4 class="help-region-head"><i class="bi bi-window" aria-hidden="true"></i>Main view</h4>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Email All vs Email Selected</span></summary>
+  <div class="faq-a">
+    <div class="help-surface">
+      <div class="help-flow">
+        <button type="button" class="btn btn-success btn-sm" disabled><i class="bi bi-download"></i> Export</button>
+        <button type="button" class="btn btn-primary btn-sm" disabled><i class="bi bi-envelope"></i> Email All</button>
+        <button type="button" class="btn btn-primary btn-sm" disabled>Email Selected (3)</button>
+        <button type="button" class="btn btn-primary btn-sm" disabled><i class="bi bi-send"></i> Invite all Players</button>
+      </div>
+    </div>
+    <ul>
+      <li>
+        <strong>Email All</strong> targets <em>every registration matching your search</em> — including
+        rows on pages you never scrolled to. The audience is re-resolved from your filter criteria at
+        send time, so the headline count is the real total, not the visible page.
+      </li>
+      <li>
+        <strong>Email Selected</strong> is exactly the rows you've checked — and checks
+        <em>accumulate across pages</em>. Check three people on page 1, page ahead, check two more: the
+        button reads "Email Selected (5)" and the composer lists all five by name.
+      </li>
+    </ul>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Pre-built email templates — the list adapts to your search</span></summary>
+  <div class="faq-a">
+    <p>
+      The batch composer offers ready-made letters, but which ones appear depends on the job's features
+      <em>and</em> what you searched. Scope the search to "ARB Behind — Active/Suspended" and the
+      matching collections letter shows up, pre-written with the right instructions:
+    </p>
+    <div class="help-menu-list">
+      <div class="help-menu-row">
+        <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+        <div class="help-menu-row__body">
+          <div class="help-menu-row__title">Update CC Info (Active/Suspended)</div>
+          <div class="help-menu-row__sub">ARB — Behind in Payment</div>
+        </div>
+        <i class="bi bi-chevron-right help-menu-row__chevron" aria-hidden="true"></i>
+      </div>
+      <div class="help-menu-row">
+        <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+        <div class="help-menu-row__body">
+          <div class="help-menu-row__title">Pay Balance Due (Expired/Terminated)</div>
+          <div class="help-menu-row__sub">ARB — Behind in Payment</div>
+        </div>
+        <i class="bi bi-chevron-right help-menu-row__chevron" aria-hidden="true"></i>
+      </div>
+    </div>
+    <div class="help-callout help-callout--tip">
+      <i class="bi bi-lightbulb" aria-hidden="true"></i>
+      <div>
+        <strong>Tip:</strong> if a template you expect is missing, your search probably isn't scoped to
+        its audience yet — the picker only offers letters that fit the people in your results.
+      </div>
+    </div>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Email Tokens</span></summary>
+  <div class="faq-a">
+    <p>
+      Anywhere you compose — the batch composer here, or a single registrant's Email tab — you can
+      insert tokens that render as each recipient's real values at send time:
+    </p>
+    <div class="help-badge-row">
+      <span class="badge rounded-pill text-bg-light">!PERSON</span>
+      <span class="badge rounded-pill text-bg-light">!EMAIL</span>
+      <span class="badge rounded-pill text-bg-light">!FAMILYUSERNAME</span>
+      <span class="badge rounded-pill text-bg-light">!JOBNAME</span>
+      <span class="badge rounded-pill text-bg-light">!JOBLINK</span>
+      <span class="badge rounded-pill text-bg-light">!AMTFEES</span>
+      <span class="badge rounded-pill text-bg-light">!AMTPAID</span>
+      <span class="badge rounded-pill text-bg-light">!AMTOWED</span>
+      <span class="badge rounded-pill text-bg-light">!SEASON</span>
+      <span class="badge rounded-pill text-bg-light">!SPORT</span>
+      <span class="badge rounded-pill text-bg-light">!CUSTOMERNAME</span>
+    </div>
+    <p>
+      So "Your balance of !AMTOWED for !JOBNAME" personalizes itself for every recipient in one send.
+      Events with recurring billing or USA Lacrosse validation get extra tokens (subscription ID and
+      status, membership valid-through date) — they appear in the token list only where they apply.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Invite all Players / Invite Club Reps</span></summary>
+  <div class="faq-a">
+    <p>
+      Sends each recipient a signed, expiring invitation link into another of your events — no manual
+      link-building. The button appears when two things are true: your search is narrowed to exactly
+      <em>one</em> invitable role (Players or Club Reps), and another event under your organization
+      currently has that registration type open. With rows checked, it flips to inviting just those
+      people:
+    </p>
+    <div class="help-surface">
+      <div class="help-flow">
+        <button type="button" class="btn btn-primary btn-sm" disabled><i class="bi bi-send"></i> Invite all Players</button>
+        <span class="help-muted">&rarr; with 3 rows checked &rarr;</span>
+        <button type="button" class="btn btn-primary btn-sm" disabled><i class="bi bi-send"></i> Invite 3 checked Players</button>
+      </div>
+    </div>
+    <p>
+      You pick the target event and the invitation window; every email in the batch states the same
+      deadline.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Filter chips</span></summary>
+  <div class="faq-a">
+    <p>
+      Every active filter shows as a removable chip above the results — what you see is always exactly
+      what's applied:
+    </p>
+    <div class="help-surface">
+      <div class="help-flow">
+        <span class="badge rounded-pill text-bg-light">Role: Player &times;</span>
+        <span class="badge rounded-pill text-bg-light">Status: Active &times;</span>
+        <span class="badge rounded-pill text-bg-light">Agegroup: 2027 &times;</span>
+      </div>
+    </div>
+    <p>
+      Tree selections stay tidy: checking an agegroup covers every division and team under it but shows
+      <em>one</em> chip, not fifty. Removing that chip un-checks the whole subtree in one click.
+    </p>
+  </div>
+</details>
+
+<h4 class="help-region-head"><i class="bi bi-funnel" aria-hidden="true"></i>Set Filters drawer</h4>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Search by billing/payment properties</span></summary>
+  <div class="faq-a">
+    <p>
+      The Billing section turns payment paperwork into search keys — paste an invoice number from a
+      receipt or processor record and land on the registration behind it. Events with recurring billing
+      can also search by subscription number or subscription status:
+    </p>
+    <div class="help-form-preview">
+      <label class="form-label">ARB Subscription</label>
+      <input type="text" class="form-control form-control-sm" value="All" disabled>
+      <label class="form-label">Invoice #</label>
+      <input type="text" class="form-control form-control-sm" placeholder="Invoice number" disabled>
+      <label class="form-label">Subscription #</label>
+      <input type="text" class="form-control form-control-sm" placeholder="ARB subscription number" disabled>
+    </div>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Search by Roster Size</span></summary>
+  <div class="faq-a">
+    <p>
+      The Roster Scan section finds the clubs falling behind: "Rostered Players &le; N" returns the
+      Club Reps who own at least one team with that few active rostered players. Optionally scope it to
+      specific clubs, then use Email All to nudge every rep in one pass:
+    </p>
+    <div class="help-form-preview">
+      <label class="form-label">Rostered Players &lt;=</label>
+      <input type="text" class="form-control form-control-sm" value="5" disabled>
+      <label class="form-label">For Club</label>
+      <input type="text" class="form-control form-control-sm" value="All Clubs" disabled>
+    </div>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Search for CC-Expiring Registrants</span></summary>
+  <div class="faq-a">
+    <p>
+      In events with recurring billing, the ARB section has a button that isn't a filter — it's a live
+      lookup at the card processor:
+    </p>
+    <div class="help-surface">
+      <p><button type="button" class="btn btn-outline-primary btn-sm" disabled><i class="bi bi-credit-card"></i> Look up CCs expiring this month</button></p>
+      <div class="help-flow">
+        <span class="help-muted">results arrive under a dedicated chip:</span>
+        <span class="badge rounded-pill text-bg-light">ARB: CCs Expiring This Month (12) &times;</span>
+      </div>
+    </div>
+    <p>
+      It deliberately ignores your filters — even dropped or inactive registrants surface if their card
+      is about to fail — so you can collect before an automatic payment bounces. The &times; on the chip
+      exits the lookup and restores your normal filters untouched.
+    </p>
+  </div>
+</details>
+
+<h4 class="help-region-head"><i class="bi bi-person-lines-fill" aria-hidden="true"></i>Registrant detail panel</h4>
+
+<p>
+  Click any name to open the panel. It's divided into three tabs — money first, identity second,
+  correspondence third:
+</p>
+<div class="help-surface">
+  <div class="help-flow">
+    <button type="button" class="btn btn-primary btn-sm" disabled>Accounting</button>
+    <button type="button" class="btn btn-light btn-sm" disabled>Details</button>
+    <button type="button" class="btn btn-light btn-sm" disabled>Email</button>
+  </div>
+</div>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Accounting tab: refund, re-send confirmation, manage subscription</span></summary>
+  <div class="faq-a">
+    <ul>
+      <li>
+        <strong>Process a credit-card refund</strong> — refund directly from the accounting ledger; the
+        record lands in the same ledger you're looking at.
+      </li>
+      <li>
+        <strong>Re-Send Confirmation Email</strong> — one click re-sends the original registration
+        confirmation. It's role-aware: for a player it sends the <em>family</em> confirmation to the
+        family account.
+      </li>
+      <li>
+        <strong>Manage the recurring-billing subscription</strong> — for ARB registrants the
+        subscription card shows payment progress and can pull the <em>live</em> status from the
+        processor on demand; a live, active subscription can be cancelled right here.
+      </li>
+    </ul>
+    <div class="help-surface">
+      <p><button type="button" class="btn btn-outline-primary btn-sm" disabled><i class="bi bi-envelope-check"></i> Re-Send Confirmation Email</button></p>
+      <div class="help-flow">
+        <span class="badge rounded-pill text-bg-success">active</span>
+        <span class="help-muted">Paid 3 of 6</span>
+        <button type="button" class="btn btn-outline-danger btn-sm" disabled>Cancel Subscription</button>
+      </div>
+    </div>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Details tab: revalidate a USA Lacrosse membership</span></summary>
+  <div class="faq-a">
+    <p>
+      On lacrosse events, the Sport Assn ID field carries a
+      <strong><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Live update</strong> link that
+      re-checks the membership at USA Lacrosse and records the current expiration — no need to ask the
+      family for a card.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Email tab: draft with AI</span></summary>
+  <div class="faq-a">
+    <p>
+      Describe the email you need ("payment reminder, friendly, due Friday") and a draft appears in the
+      composer, ready to edit. Tokens work here too — see <em>Email Tokens</em> under Main view.
+    </p>
+    <div class="help-form-preview">
+      <label class="form-label">Draft with AI</label>
+      <input type="text" class="form-control form-control-sm" placeholder="Describe the email..." disabled>
+      <button type="button" class="btn btn-outline-primary btn-sm" disabled>Draft</button>
+    </div>
+  </div>
+</details>
