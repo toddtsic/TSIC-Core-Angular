@@ -35,13 +35,37 @@ $LogFile     = 'C:\DBFiles\TSICV5_1.ldf'
 $PostSql     = Join-Path $PSScriptRoot '00-postdev-db-restore-apppooluser.sql'
 
 # --- 1. Resolve backup file ---------------------------------------------------
+# Backups land here by copy from prod. While a copy is in flight the file is
+# held open by the copier, is only partially written, and carries a LastWriteTime
+# of "now" -- so it sorts FIRST and is the one thing we must not pick. The copier
+# restores the source timestamp when it finishes, which is why an in-flight file's
+# LastWriteTime appears to jump backwards afterwards. An exclusive open is the
+# reliable in-flight test; SQL Server does not hold .bak files between restores.
+function Test-BakSettled {
+    param([System.IO.FileInfo]$File)
+    try {
+        $fs = [IO.File]::Open($File.FullName, 'Open', 'Read', 'None')
+        $fs.Close(); $fs.Dispose()
+        return $true
+    } catch {
+        return $false
+    }
+}
+
 if ($BackupFile) {
     if (-not (Test-Path $BackupFile)) { throw "Backup file not found: $BackupFile" }
     $bak = Get-Item $BackupFile
+    if (-not (Test-BakSettled $bak)) {
+        throw "Backup file is locked by another process -- it is most likely still being copied in from prod. Wait ~1 min and re-run: $($bak.FullName)"
+    }
 } else {
-    $bak = Get-ChildItem (Join-Path $BackupDir '*.bak') |
-        Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    if (-not $bak) { throw "No .bak files found in $BackupDir" }
+    $all = @(Get-ChildItem (Join-Path $BackupDir '*.bak') | Sort-Object LastWriteTime -Descending)
+    if (-not $all) { throw "No .bak files found in $BackupDir" }
+    $bak = $all | Where-Object { Test-BakSettled $_ } | Select-Object -First 1
+    if (-not $bak) { throw "Every .bak in $BackupDir is locked -- a copy from prod is in flight. Wait ~1 min and re-run." }
+    if ($bak.FullName -ne $all[0].FullName) {
+        Write-Host "NOTE: $($all[0].Name) is still being copied in -- falling back to the previous backup." -ForegroundColor Yellow
+    }
 }
 
 $ageHours = [Math]::Round(((Get-Date) - $bak.LastWriteTime).TotalHours, 1)
@@ -54,7 +78,10 @@ Write-Host ""
 
 # --- 2. Verify it really is a TSICV5 backup before destroying the local DB ----
 $fileList = sqlcmd -S $SqlInstance -E -b -W -h -1 -Q "SET NOCOUNT ON; RESTORE FILELISTONLY FROM DISK = N'$($bak.FullName)';"
-if ($LASTEXITCODE -ne 0) { throw "RESTORE FILELISTONLY failed -- file unreadable or not a SQL backup." }
+if ($LASTEXITCODE -ne 0) {
+    # sqlcmd writes its errors to stdout, so $fileList holds the real reason -- print it.
+    throw "RESTORE FILELISTONLY failed -- file unreadable or not a SQL backup. sqlcmd said:`n$($fileList -join "`n")"
+}
 if (-not ($fileList -match '^TSIC2015V6 ')) {
     throw "Backup does not contain expected logical file 'TSIC2015V6' -- refusing to restore. FILELISTONLY said:`n$($fileList -join "`n")"
 }
