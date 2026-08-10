@@ -421,16 +421,28 @@ export class CustomerJobRevenueComponent {
 
 	// Pivot toolbar actions
 	expandAll(): void {
-		const pivotView = this.pivotView();
-		if (pivotView) {
-			pivotView.dataSourceSettings.expandAll = true;
-		}
+		this.setExpandAll(true);
 	}
 
 	collapseAll(): void {
+		this.setExpandAll(false);
+	}
+
+	/**
+	 * Every manual caret click lands in dataSourceSettings.drilledMembers, and the engine
+	 * renders a member in that list as the OPPOSITE of expandAll (engine.js: a member in
+	 * fieldDrillCollection resolves to !isExpandAll). So flipping the flag alone inverts
+	 * exactly the rows the user drilled by hand — Expand All collapses them while the rest
+	 * expand — which reads as the buttons being backwards. Clear the list so the flag is the
+	 * only input to the drill state.
+	 *
+	 * setProperties merges: dataSourceSettings is a @Complex accessor, so only the two keys
+	 * passed here are touched — rows/columns/values/dataSource survive.
+	 */
+	private setExpandAll(expand: boolean): void {
 		const pivotView = this.pivotView();
 		if (pivotView) {
-			pivotView.dataSourceSettings.expandAll = false;
+			pivotView.setProperties({ dataSourceSettings: { expandAll: expand, drilledMembers: [] } });
 		}
 	}
 
