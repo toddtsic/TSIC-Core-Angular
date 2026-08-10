@@ -27,8 +27,40 @@ export class JobService {
         this.currentJob()?.bRegistrationAllowTeam ?? false
     );
 
-    // Set current job metadata
+    /**
+     * Stale-write guard for `currentJob`. A cross-job role switch puts metadata requests
+     * for TWO jobs in flight at once (the layout refetches the outgoing job the moment the
+     * new token lands, then the landing fetches the incoming one), and plain
+     * last-response-wins let the slower OLD response revert `currentJob` — which in turn
+     * re-fired the pulse for the wrong job and left the smart-bulletin band showing the
+     * previous event's lifecycle phase until a browser refresh.
+     *
+     * The guard is on the WRITE, not on cancellation: both requests are legitimately
+     * issued, so whichever answers after a newer one was asked for is simply discarded.
+     */
+    private jobRequestSeq = 0;
+    private latestJobPath: string | null = null;
+
+    /** Same guard, independent stream — bulletins are fetched per jobPath alongside metadata. */
+    private bulletinRequestSeq = 0;
+
+    /** Stamp a new job-metadata request and become the one whose answer counts. */
+    private beginJobRequest(jobPath: string): number {
+        this.latestJobPath = jobPath;
+        return ++this.jobRequestSeq;
+    }
+
+    /** True while `seq` is still the newest job-metadata request issued. */
+    private isCurrentJobRequest(seq: number): boolean {
+        return seq === this.jobRequestSeq;
+    }
+
+    // Set current job metadata. Guarded by jobPath (not seq) because callers hand us an
+    // already-resolved response — a caller holding the result of a SUPERSEDED fetch must
+    // not re-apply it after a newer job has been requested. Case-insensitive to match the
+    // backend's OrdinalIgnoreCase jobPath handling, so a route-cased path never self-rejects.
     setJob(job: JobMetadataResponse) {
+        if (this.latestJobPath && job.jobPath?.toLowerCase() !== this.latestJobPath.toLowerCase()) return;
         this.currentJob.set(job);
     }
 
@@ -38,28 +70,36 @@ export class JobService {
 
     // Command-style load that updates the currentJob signal
     loadJobMetadata(jobPath: string): void {
+        const seq = this.beginJobRequest(jobPath);
         this.jobMetadataLoading.set(true);
         this.http.get<JobMetadataResponse>(`${this.apiUrl}/jobs/${jobPath}`).subscribe({
             next: (metadata) => {
+                if (!this.isCurrentJobRequest(seq)) return;
                 this.currentJob.set(metadata);
                 this.jobMetadataLoading.set(false);
             },
             error: () => {
+                if (!this.isCurrentJobRequest(seq)) return;
                 this.jobMetadataLoading.set(false);
             }
         });
     }
 
-    // Observable-style fetch that returns Observable and updates currentJob signal
+    // Observable-style fetch that returns Observable and updates currentJob signal.
+    // Only the WRITE is guarded — the response still reaches the caller either way, so
+    // the Observable contract is unchanged.
     fetchJobMetadata(jobPath: string): Observable<JobMetadataResponse> {
+        const seq = this.beginJobRequest(jobPath);
         this.jobMetadataLoading.set(true);
         return this.http.get<JobMetadataResponse>(`${this.apiUrl}/jobs/${jobPath}`).pipe(
             tap({
                 next: metadata => {
+                    if (!this.isCurrentJobRequest(seq)) return;
                     this.currentJob.set(metadata);
                     this.jobMetadataLoading.set(false);
                 },
                 error: () => {
+                    if (!this.isCurrentJobRequest(seq)) return;
                     this.jobMetadataLoading.set(false);
                 }
             })
@@ -99,16 +139,23 @@ export class JobService {
      * Available for anonymous users.
      */
     loadBulletins(jobPath: string): void {
+        // Same stale-write guard as currentJob, and for the same reason: the landing kicks
+        // this off from the job-metadata callback, so a cross-job switch can leave two jobs'
+        // bulletin requests in flight and paint the outgoing job's hand-authored bulletins
+        // beside the incoming job's smart band.
+        const seq = ++this.bulletinRequestSeq;
         this.bulletinsLoading.set(true);
         this.bulletinsError.set(null);
         this.http
             .get<BulletinDto[]>(`${this.apiUrl}/bulletins/job/${jobPath}`)
             .subscribe({
                 next: (bulletins) => {
+                    if (seq !== this.bulletinRequestSeq) return;
                     this.bulletins.set(bulletins);
                     this.bulletinsLoading.set(false);
                 },
                 error: (err) => {
+                    if (seq !== this.bulletinRequestSeq) return;
                     this.bulletinsError.set(
                         err?.error?.message || 'Unable to load bulletins. Please try again later.'
                     );
