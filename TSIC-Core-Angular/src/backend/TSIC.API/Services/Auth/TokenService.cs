@@ -32,9 +32,10 @@ public sealed class TokenService : ITokenService
         return WriteToken(claims, issuer, audience, secretKey, expirationMinutes);
     }
 
-    public string GenerateEnrichedJwtToken(ApplicationUser user, string regId, string jobPath, string? jobLogo, string roleName)
+    public string GenerateEnrichedJwtToken(ApplicationUser user, string regId, string jobPath, string? jobLogo, string roleName, int? expirationMinutesOverride = null)
     {
-        var (issuer, audience, secretKey, expirationMinutes) = GetJwtSettings();
+        var (issuer, audience, secretKey, configuredMinutes) = GetJwtSettings();
+        var expirationMinutes = expirationMinutesOverride ?? configuredMinutes;
 
         var claimsList = new List<Claim>
         {

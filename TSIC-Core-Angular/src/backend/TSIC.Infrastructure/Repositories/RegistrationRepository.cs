@@ -421,6 +421,32 @@ public class RegistrationRepository : IRegistrationRepository
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
 
+    public async Task<RegistrationDto?> GetScorerRegistrationForJobAsync(
+        string userId, Guid jobId, CancellationToken cancellationToken = default)
+    {
+        // Same projection as the role-picker reads above, so the token minted from this is
+        // indistinguishable from one select-registration produces. Those methods also join
+        // AspNetRoles; that join is a no-op here — RoleId is already pinned to the constant.
+        return await (
+            from r in _context.Registrations
+            join j in _context.Jobs on r.JobId equals j.JobId
+            join jdo in _context.JobDisplayOptions on j.JobId equals jdo.JobId
+            where
+                (r.UserId == userId)
+                && (r.JobId == jobId)
+                && (r.BActive == true)
+                && DateTime.Now < j.ExpiryUsers
+                && r.RoleId == RoleConstants.Scorer
+            select new RegistrationDto
+            {
+                RegId = r.RegistrationId.ToString(),
+                DisplayText = j.JobName ?? string.Empty,
+                JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                JobPath = j.JobPath
+            }
+        ).AsNoTracking().FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<List<RegistrationDto>> GetApiAuthorizedRegistrationsAsync(
         string userId,
         CancellationToken cancellationToken = default)

@@ -149,6 +149,16 @@ public interface IRegistrationRepository
     /// </summary>
     Task<List<RegistrationDto>> GetApiAuthorizedRegistrationsAsync(string userId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// The active Scorer registration this user holds for ONE job, or null. Unlike the
+    /// role-picker reads above (all jobs for a role), this answers a single job — mobile
+    /// scorer login fixes job scope at authentication. Same bActive + Jobs.ExpiryUsers
+    /// predicate: Scorer is an event-day role, absent from RoleConstants.AdminRoleIds.
+    /// Deliberately NOT wired into RoleLookupService — web scorer login stays unavailable.
+    /// </summary>
+    Task<RegistrationDto?> GetScorerRegistrationForJobAsync(
+        string userId, Guid jobId, CancellationToken cancellationToken = default);
+
     // ── "3rd Party Data Access" console (SU + SuperDirector vendor-login management) ──
 
     /// <summary>

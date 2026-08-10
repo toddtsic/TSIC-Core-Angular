@@ -32,7 +32,7 @@ namespace TSIC.API.Controllers
         private readonly ITokenService _tokenService;
         private readonly IUserRepository _userRepository;
         private readonly IJobRepository _jobRepository;
-        private readonly IMobileScorerRepository _mobileScorerRepository;
+        private readonly IRegistrationRepository _registrationRepository;
         private readonly IWebHostEnvironment _env;
         private readonly IEmailService _emailService;
         private readonly FrontendSettings _frontendSettings;
@@ -48,7 +48,7 @@ namespace TSIC.API.Controllers
             ITokenService tokenService,
             IUserRepository userRepository,
             IJobRepository jobRepository,
-            IMobileScorerRepository mobileScorerRepository,
+            IRegistrationRepository registrationRepository,
             IWebHostEnvironment env,
             IEmailService emailService,
             IOptions<FrontendSettings> frontendSettings,
@@ -63,7 +63,7 @@ namespace TSIC.API.Controllers
             _tokenService = tokenService;
             _userRepository = userRepository;
             _jobRepository = jobRepository;
-            _mobileScorerRepository = mobileScorerRepository;
+            _registrationRepository = registrationRepository;
             _env = env;
             _emailService = emailService;
             _frontendSettings = frontendSettings.Value;
@@ -276,8 +276,8 @@ namespace TSIC.API.Controllers
                 return NotFound(new { Error = "Event not found." });
             }
 
-            var registration = await _mobileScorerRepository
-                .GetScorerRegistrationForUserAndJobAsync(user.Id, request.JobId, ct);
+            var registration = await _registrationRepository
+                .GetScorerRegistrationForJobAsync(user.Id, request.JobId, ct);
             if (registration == null)
             {
                 // Covers all three misses — no scorer row, deactivated scorer, expired event.
@@ -289,6 +289,11 @@ namespace TSIC.API.Controllers
             // Sequential awaits, never Task.WhenAll — these share one scoped DbContext.
             var requiresTos = await _userRepository.RequiresTosSignatureAsync(request.Username);
 
+            // A scorer works a tournament DAY. The legacy LoginAs endpoint this replaces issued a
+            // 1-day token and no refresh token; the standard 60-minute lifetime would drop a scorer
+            // to the app's 401 interceptor mid-event and make them log in again on the field.
+            var expirationMinutes = int.Parse(_configuration["JwtSettings:ScorerExpirationMinutes"] ?? "1440");
+
             // RoleConstants.Names.ScorerName, never a literal: RequireClaim compares the claim
             // VALUE with StringComparer.Ordinal, so "scorer" would authenticate and still 403.
             var token = _tokenService.GenerateEnrichedJwtToken(
@@ -296,9 +301,13 @@ namespace TSIC.API.Controllers
                 registration.RegId,
                 registration.JobPath ?? jobPath,
                 registration.JobLogo,
-                RoleConstants.Names.ScorerName);
+                RoleConstants.Names.ScorerName,
+                expirationMinutes);
+
+            // Still issued: the mobile client posts it to /auth/revoke on logout. It must NOT be
+            // sent to /auth/refresh — that path re-resolves through RoleLookupService, which has no
+            // Scorer branch by design, and would hand back a roleless minimal token with a 200.
             var refreshToken = _refreshTokenService.GenerateRefreshToken(user.Id);
-            var expirationMinutes = int.Parse(_configuration["JwtSettings:ExpirationMinutes"] ?? "60");
 
             return Ok(new AuthTokenResponse
             {
