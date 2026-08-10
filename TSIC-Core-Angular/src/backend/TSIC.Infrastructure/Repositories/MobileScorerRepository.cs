@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.Scoring;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
@@ -47,6 +48,33 @@ public class MobileScorerRepository : IMobileScorerRepository
         return await _context.Registrations
             .FirstOrDefaultAsync(r => r.RegistrationId == registrationId
                                       && r.RoleId == RoleConstants.Scorer, ct);
+    }
+
+    public async Task<RegistrationDto?> GetScorerRegistrationForUserAndJobAsync(
+        string userId, Guid jobId, CancellationToken ct = default)
+    {
+        // Mirrors the role-picker reads in RegistrationRepository (bActive + ExpiryUsers +
+        // the same RegistrationDto projection) so the token this feeds is indistinguishable
+        // from one minted by select-registration. The sibling methods also join AspNetRoles;
+        // that join is a no-op here — RoleId is already pinned to the Scorer constant.
+        return await (
+            from r in _context.Registrations
+            join j in _context.Jobs on r.JobId equals j.JobId
+            join jdo in _context.JobDisplayOptions on j.JobId equals jdo.JobId
+            where
+                r.UserId == userId
+                && r.JobId == jobId
+                && r.RoleId == RoleConstants.Scorer
+                && r.BActive == true
+                && DateTime.Now < j.ExpiryUsers
+            select new RegistrationDto
+            {
+                RegId = r.RegistrationId.ToString(),
+                DisplayText = j.JobName ?? string.Empty,
+                JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                JobPath = j.JobPath
+            }
+        ).AsNoTracking().FirstOrDefaultAsync(ct);
     }
 
     public async Task<int> GetUserRegistrationCountAsync(string userId, CancellationToken ct = default)

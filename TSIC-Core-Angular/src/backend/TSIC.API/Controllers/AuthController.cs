@@ -31,6 +31,8 @@ namespace TSIC.API.Controllers
         private readonly IRefreshTokenService _refreshTokenService;
         private readonly ITokenService _tokenService;
         private readonly IUserRepository _userRepository;
+        private readonly IJobRepository _jobRepository;
+        private readonly IMobileScorerRepository _mobileScorerRepository;
         private readonly IWebHostEnvironment _env;
         private readonly IEmailService _emailService;
         private readonly FrontendSettings _frontendSettings;
@@ -45,6 +47,8 @@ namespace TSIC.API.Controllers
             IRefreshTokenService refreshTokenService,
             ITokenService tokenService,
             IUserRepository userRepository,
+            IJobRepository jobRepository,
+            IMobileScorerRepository mobileScorerRepository,
             IWebHostEnvironment env,
             IEmailService emailService,
             IOptions<FrontendSettings> frontendSettings,
@@ -58,6 +62,8 @@ namespace TSIC.API.Controllers
             _refreshTokenService = refreshTokenService;
             _tokenService = tokenService;
             _userRepository = userRepository;
+            _jobRepository = jobRepository;
+            _mobileScorerRepository = mobileScorerRepository;
             _env = env;
             _emailService = emailService;
             _frontendSettings = frontendSettings.Value;
@@ -221,6 +227,106 @@ namespace TSIC.API.Controllers
                 RequiresTosSignature = requiresTos,
                 Registrations = registrations
             });
+        }
+
+        /// <summary>
+        /// Mobile scorer login — one call, one outcome. Validates credentials AND an active
+        /// Scorer registration for the requested job, then mints the same enriched token
+        /// select-registration produces (sub, username, regId, jobPath, role="Scorer").
+        ///
+        /// Deliberately NOT quick-login: that path falls through to a minimal, roleless token
+        /// and still returns 200, so a scorer appeared logged in and then 403'd on every score.
+        /// Here failure is expressible — 401 bad credentials, 403 not a scorer for this event,
+        /// 404 unknown event — and there is no minimal-token branch at all.
+        ///
+        /// Scoped to the Scorer role only, which is narrower than the CanScore policy: a
+        /// director wanting to score on mobile needs an actual Scorer registration.
+        /// </summary>
+        [AllowAnonymous]
+        [HttpPost("scorer-login")]
+        [ProducesResponseType(typeof(AuthTokenResponse), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(401)]
+        [ProducesResponseType(403)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> ScorerLogin([FromBody] ScorerLoginRequest request, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
+            {
+                return BadRequest(new { Error = "Username and password are required." });
+            }
+
+            if (request.JobId == Guid.Empty)
+            {
+                return BadRequest(new { Error = "An event is required." });
+            }
+
+            var user = await _userManager.FindByNameAsync(request.Username);
+            if (user == null || !await IsPasswordValidAsync(user, request.Password))
+            {
+                return Unauthorized(new { Error = "Invalid username or password" });
+            }
+
+            // Job existence is resolved independently of the scorer lookup so that an unknown
+            // event (404) stays distinguishable from a real event this user may not score (403).
+            // One combined query cannot tell those two apart.
+            var jobPath = await _jobRepository.GetJobPathAsync(request.JobId, ct);
+            if (string.IsNullOrEmpty(jobPath))
+            {
+                return NotFound(new { Error = "Event not found." });
+            }
+
+            var registration = await _mobileScorerRepository
+                .GetScorerRegistrationForUserAndJobAsync(user.Id, request.JobId, ct);
+            if (registration == null)
+            {
+                // Covers all three misses — no scorer row, deactivated scorer, expired event.
+                // Message is shown to the scorer verbatim by the mobile client.
+                return StatusCode(StatusCodes.Status403Forbidden,
+                    new { Error = "You are not a scorer for this event." });
+            }
+
+            // Sequential awaits, never Task.WhenAll — these share one scoped DbContext.
+            var requiresTos = await _userRepository.RequiresTosSignatureAsync(request.Username);
+
+            // RoleConstants.Names.ScorerName, never a literal: RequireClaim compares the claim
+            // VALUE with StringComparer.Ordinal, so "scorer" would authenticate and still 403.
+            var token = _tokenService.GenerateEnrichedJwtToken(
+                user,
+                registration.RegId,
+                registration.JobPath ?? jobPath,
+                registration.JobLogo,
+                RoleConstants.Names.ScorerName);
+            var refreshToken = _refreshTokenService.GenerateRefreshToken(user.Id);
+            var expirationMinutes = int.Parse(_configuration["JwtSettings:ExpirationMinutes"] ?? "60");
+
+            return Ok(new AuthTokenResponse
+            {
+                AccessToken = token,
+                RefreshToken = refreshToken,
+                ExpiresIn = expirationMinutes * 60,
+                RequiresTosSignature = requiresTos
+            });
+        }
+
+        /// <summary>
+        /// Password check including the Development-only bypass. Extracted for ScorerLogin;
+        /// Login and QuickLogin still carry their own inline copies of this logic and could
+        /// adopt this helper in a separate pass.
+        /// </summary>
+        private async Task<bool> IsPasswordValidAsync(ApplicationUser user, string password)
+        {
+            if (_env.IsDevelopment())
+            {
+                var allowBypass = _configuration.GetValue<bool>("DevMode:AllowPasswordBypass");
+                var bypassPassword = _configuration["DevMode:BypassPassword"];
+                if (allowBypass && !string.IsNullOrEmpty(bypassPassword) && password == bypassPassword)
+                {
+                    return true;
+                }
+            }
+
+            return await _userManager.CheckPasswordAsync(user, password);
         }
 
         /// <summary>
