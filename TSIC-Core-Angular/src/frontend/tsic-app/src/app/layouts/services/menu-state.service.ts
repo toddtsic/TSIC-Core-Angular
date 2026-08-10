@@ -66,25 +66,6 @@ export class MenuStateService {
         this.offcanvasOpen.set(false);
     }
 
-    /**
-     * Mobile focused-sheet: tapping a category tab in the bottom nav opens a
-     * full-width sheet showing ONLY that category's children (rises above the
-     * still-visible tab bar). Holds the open category's nav-item id, or null.
-     */
-    mobileSheetCategoryId = signal<string | null>(null);
-
-    /** Toggle the focused sheet for a category (re-tapping the same tab closes it). */
-    toggleMobileSheet(navItemId: string | number): void {
-        const id = String(navItemId);
-        this.offcanvasOpen.set(false); // never overlap with the full-menu offcanvas
-        this.mobileSheetCategoryId.update(cur => (cur === id ? null : id));
-    }
-
-    /** Close the focused sheet. */
-    closeMobileSheet(): void {
-        this.mobileSheetCategoryId.set(null);
-    }
-
     /** Pulse: requests all open menus/dropdowns to close (header dropdown, mobile menu, offcanvas) */
     closeAllMenusRequested = signal(false);
 

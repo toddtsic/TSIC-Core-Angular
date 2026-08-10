@@ -211,7 +211,7 @@
         } @else if (isExternalLink(child)) {
         <a class="dropdown-panel__item" role="menuitem"
             [href]="getLink(child)" [target]="child.target || '_self'"
-            (click)="collapseAll(); closeMobileSheet(); closeOffcanvas()">
+            (click)="collapseAll(); closeOffcanvas()">
             <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
             <span class="dropdown-panel__item-text">{{ child.text }}</span>
         </a>
@@ -220,7 +220,7 @@
             [routerLink]="isReportDownload(child) ? null : getLink(child)"
             [queryParams]="isReportDownload(child) ? null : getQueryParams(child)"
             routerLinkActive="dropdown-panel__item--active"
-            (click)="onLinkClick($event, child); collapseAll(); closeMobileSheet(); closeOffcanvas()">
+            (click)="onLinkClick($event, child); collapseAll(); closeOffcanvas()">
             <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
             <span class="dropdown-panel__item-text">{{ child.text }}</span>
             @if (child.badgeText) {
@@ -317,24 +317,5 @@
     @if (offcanvasOpen()) {
     <div class="offcanvas-backdrop fade show" (click)="closeOffcanvas()"></div>
     }
-</div>
-}
-
-<!-- Mobile focused sheet — shows ONLY the tapped category's children, rising
-     above the still-visible bottom tab bar. Reuses #childList for the rows. -->
-@if (mobileSheetCategory(); as cat) {
-<div class="d-lg-none">
-    <div class="sheet-backdrop" (click)="closeMobileSheet()"></div>
-    <div class="mobile-sheet" role="dialog" [attr.aria-label]="cat.text">
-        <div class="mobile-sheet__header">
-            <span class="mobile-sheet__title">{{ cat.text }}</span>
-            <button type="button" class="mobile-sheet__close" (click)="closeMobileSheet()" aria-label="Close">
-                <i class="bi bi-x-lg" aria-hidden="true"></i>
-            </button>
-        </div>
-        <div class="mobile-sheet__items dropdown-panel__items">
-            <ng-container *ngTemplateOutlet="childList; context: { $implicit: cat }"></ng-container>
-        </div>
-    </div>
 </div>
 }

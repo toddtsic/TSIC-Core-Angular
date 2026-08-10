@@ -407,7 +407,7 @@
 	.ah-panel__grid {
 		grid-template-columns: 1fr;
 		gap: var(--space-5);
-		padding: var(--space-6) var(--space-5) calc(var(--space-8) + 56px);
+		padding: var(--space-6) var(--space-5) var(--space-8);
 	}
 }
 

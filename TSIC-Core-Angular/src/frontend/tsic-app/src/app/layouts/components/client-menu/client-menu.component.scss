@@ -601,93 +601,6 @@
     // backdrop-filter banned — creates containing blocks that trap positioned descendants
 }
 
-// ── Mobile focused sheet ────────────────────────────────────────────────────
-// Rises above the bottom tab bar (56px + safe area) showing only one category's
-// children. Backdrop stops above the bar so the tabs stay visible + tappable
-// (tap another tab to switch categories). z-index sits below the bar (9990).
-$bottom-bar-h: calc(56px + env(safe-area-inset-bottom, 0));
-
-.sheet-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: $bottom-bar-h;
-    z-index: 9985;
-    background: rgba(0, 0, 0, 0.4);
-    // backdrop-filter banned — traps positioned descendants
-}
-
-.mobile-sheet {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: $bottom-bar-h;
-    z-index: 9986;
-    max-height: 60vh;
-    overflow-y: auto;
-    background: var(--brand-surface);
-    border-top: 1px solid var(--brand-border);
-    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-    box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.18);
-    animation: sheetUp 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.mobile-sheet__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    padding: var(--space-4) var(--space-5) var(--space-3);
-    border-bottom: 1px solid var(--brand-border);
-}
-
-.mobile-sheet__title {
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-bold);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--brand-text-muted);
-}
-
-.mobile-sheet__close {
-    display: grid;
-    place-items: center;
-    width: var(--space-8);
-    height: var(--space-8);
-    border: none;
-    border-radius: var(--radius-md);
-    background: transparent;
-    color: var(--brand-text-muted);
-    cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
-
-    &:hover {
-        background: rgba(var(--bs-danger-rgb), 0.1);
-        color: var(--bs-danger);
-    }
-
-    &:focus-visible {
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.4);
-    }
-}
-
-.mobile-sheet__items {
-    padding: var(--space-3);
-
-    // Roomier touch targets than the desktop dropdown rows.
-    .dropdown-panel__item {
-        padding: var(--space-3) var(--space-4);
-        font-size: var(--font-size-base);
-    }
-}
-
-@keyframes sheetUp {
-    from { transform: translateY(100%); }
-    to   { transform: translateY(0); }
-}
-
 // ── Reduced motion ──────────────────────────────────────────────────────────
 @media (prefers-reduced-motion: reduce) {
     .admin-rail,
@@ -697,9 +610,7 @@ $bottom-bar-h: calc(56px + env(safe-area-inset-bottom, 0));
     .pill-nav__item,
     .pill-nav__chevron,
     .dropdown-panel,
-    .dropdown-panel__item,
-    .mobile-sheet,
-    .mobile-sheet__close {
+    .dropdown-panel__item {
         transition: none !important;
         animation: none !important;
     }

@@ -82,13 +82,6 @@ export class ClientMenuComponent {
     // Offcanvas state from shared service
     offcanvasOpen = this.menuState.offcanvasOpen;
 
-    // Mobile focused sheet: the top-level category whose children are shown (or null).
-    readonly mobileSheetCategory = computed<NavItemDto | null>(() => {
-        const id = this.menuState.mobileSheetCategoryId();
-        if (!id) return null;
-        return this.menus().find(i => String(i.navItemId) === id) ?? null;
-    });
-
     // Track which item's dropdown panel is open
     expandedItems = signal<Set<string>>(new Set());
 
@@ -120,11 +113,6 @@ export class ClientMenuComponent {
             return;
         }
         this.openRailFlyout(event.currentTarget as HTMLElement, item.navItemId);
-    }
-
-    /** Close the mobile focused sheet (backdrop tap, or after navigating a child). */
-    closeMobileSheet(): void {
-        this.menuState.closeMobileSheet();
     }
 
     /** Toggle the desktop rail between icon-rail and labelled; close any open accordion/flyout. */
