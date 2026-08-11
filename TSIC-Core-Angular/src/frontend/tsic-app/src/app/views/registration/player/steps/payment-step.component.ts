@@ -374,15 +374,20 @@ import type { LineItem } from '../state/payment-v2.service';
                 <span class="text-muted">({{ viErr }})</span>
               </div>
             } @else {
-              <div #viOffer id="dVIOffer" class="text-center vi-container">
+              <!-- Spinner is a SIBLING of the SDK host, never a child: initWidget clears the
+                   host with replaceChildren() before mounting, which used to destroy this
+                   Angular-rendered spinner behind Angular's back — an SDK that then never
+                   reported ready left a blank box instead of a visible loading state. -->
+              <div class="vi-region">
                 @if (!insuranceSvc.widgetInitialized()) {
-                  <div class="py-4">
+                  <div class="py-4 text-center">
                     <div class="spinner-border spinner-border-sm text-primary" role="status">
                       <span class="visually-hidden">Loading...</span>
                     </div>
                     <p class="text-muted mt-2 small mb-0">Getting Registration Insurance Quote...</p>
                   </div>
                 }
+                <div #viOffer id="dVIOffer" class="text-center"></div>
               </div>
               @if (insuranceSvc.widgetInitialized() && !insuranceSvc.hasUserResponse()) {
                 <div class="alert alert-secondary border-0 py-2 small mb-0 mt-2" role="alert">
@@ -904,7 +909,7 @@ import type { LineItem } from '../state/payment-v2.service';
         }
       }
 
-      .vi-container { min-height: 280px; }
+      .vi-region { min-height: 280px; }
 
       .check-instructions {
         background: rgba(var(--bs-info-rgb), 0.04);

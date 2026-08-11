@@ -34,6 +34,17 @@ import type {
 export abstract class BaseInsuranceService {
     private readonly viDarkMode = inject(ViDarkModeService);
 
+    /** How long the SDK gets to report ready (or error) after construction before we
+     *  fail open. Covers the silent-death failure class the SDK never reports through
+     *  `onError`: the offer fetch eaten by an ad-blocker/content filter, a dead network,
+     *  a VI outage, or an API error the SDK swallows. Without this, that state is a
+     *  blank widget with the submit gate locked forever — a live prod rep was hard-
+     *  blocked from paying a $5,796 balance by exactly this. Generous on purpose: a
+     *  slow-but-working connection must land inside it (cost of firing early is only a
+     *  suppressed OPTIONAL offer, never a lost payment). */
+    private static readonly READY_WATCHDOG_MS = 12_000;
+    private readyWatchdog: ReturnType<typeof setTimeout> | null = null;
+
     protected readonly _quotes = signal<VIQuoteObject[]>([]);
     private readonly _hasUserResponse = signal(false);
     private readonly _widgetInitialized = signal(false);
@@ -79,22 +90,32 @@ export abstract class BaseInsuranceService {
             // the constructor returns. Callbacks won't fire until after mount.
             let instance!: VIWidgetInstance;
 
+            // Every callback ignores a session the watchdog has already failed open
+            // (widgetError set): a late-arriving SDK must not re-lock the gate by
+            // overwriting hasUserResponse, nor set quotes that would lock the
+            // non-card method tiles under an "insurance unavailable" banner.
             const callbacks: VIWidgetCallbacks = {
                 onOfferStateChange: (st: VIWidgetState) => {
+                    if (this._widgetError()) return;
                     instance.validate().then((valid: boolean) => {
+                        if (this._widgetError()) return;
                         this._hasUserResponse.set(valid);
                         this._quotes.set(st?.quotes ?? []);
                         this.viDarkMode.applyViDarkMode(hostSelector);
                     });
                 },
                 onOfferReady: () => {
+                    if (this._widgetError()) return;
+                    this.clearReadyWatchdog();
                     this._widgetInitialized.set(true);
                     instance.validate().then((valid: boolean) => {
+                        if (this._widgetError()) return;
                         this._hasUserResponse.set(valid);
                     });
                     this.viDarkMode.applyViDarkMode(hostSelector);
                 },
                 onError: (err: unknown) => {
+                    this.clearReadyWatchdog();
                     console.error('[VerticalInsure] widget reported error', err);
                     this.markWidgetUnavailable(this.formatWidgetError(err));
                 },
@@ -102,6 +123,7 @@ export abstract class BaseInsuranceService {
 
             instance = new viWindow.VerticalInsure!(hostSelector, offerData, callbacks);
             this._instance = instance;
+            this.startReadyWatchdog(hostSelector);
         } catch (e: unknown) {
             console.error('[VerticalInsure] init threw', e);
             this.markWidgetUnavailable(this.formatWidgetError(e));
@@ -120,6 +142,7 @@ export abstract class BaseInsuranceService {
 
     /** Full reset — clears quotes, response, error, init flag, purchasing, and dark-mode observer. */
     reset(): void {
+        this.clearReadyWatchdog();
         this._quotes.set([]);
         this._hasUserResponse.set(false);
         this._widgetInitialized.set(false);
@@ -128,9 +151,32 @@ export abstract class BaseInsuranceService {
         this.viDarkMode.disconnect();
     }
 
+    /** Arm the ready watchdog for a freshly constructed SDK instance. If neither
+     *  `onOfferReady` nor `onError` lands within the window, tear the widget down and
+     *  route into the same fail-open path `onError` uses — banner + unlocked gate. */
+    private startReadyWatchdog(hostSelector: string): void {
+        this.clearReadyWatchdog();
+        this.readyWatchdog = setTimeout(() => {
+            this.readyWatchdog = null;
+            if (this._widgetInitialized() || this._widgetError()) return;
+            console.warn(
+                `[VerticalInsure] widget not ready after ${BaseInsuranceService.READY_WATCHDOG_MS}ms — failing open`);
+            this.teardownWidget(hostSelector);
+            this.markWidgetUnavailable('The insurance offer did not load. You can continue without it.');
+        }, BaseInsuranceService.READY_WATCHDOG_MS);
+    }
+
+    private clearReadyWatchdog(): void {
+        if (this.readyWatchdog !== null) {
+            clearTimeout(this.readyWatchdog);
+            this.readyWatchdog = null;
+        }
+    }
+
     /** Destroy the prior SDK instance and empty the host element. Safe to call when no widget
      *  is mounted. Called at the top of `initWidget` so every remount starts from a clean host. */
     private teardownWidget(hostSelector: string): void {
+        this.clearReadyWatchdog();
         try {
             this._instance?.destroy?.();
         } catch (e: unknown) {
