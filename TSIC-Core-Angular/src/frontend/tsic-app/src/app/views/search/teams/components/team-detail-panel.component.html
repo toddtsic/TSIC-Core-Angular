@@ -263,6 +263,7 @@
             <app-club-rep-payment
               [clubRepRegistrationId]="team.clubRepRegistrationId"
               [teamId]="team.teamId"
+              [reloadKey]="accountingReloadKey()"
               (paymentComplete)="changed.emit()">
             </app-club-rep-payment>
           } @else {
@@ -366,40 +367,71 @@
       <button type="button" class="btn-close" (click)="cancelRenameToNew()" aria-label="Close"></button>
     </div>
     <div class="modal-body">
-      <!-- The honest contract: this is a substitution, not a library rename. -->
-      <p class="rename-explainer">
-        This creates a <strong>new team</strong> in {{ detail()?.clubName ?? 'the club' }}'s team library
-        and moves this event registration to it. The original library team
-        <strong>{{ detail()?.teamName }}</strong> is unchanged — other events keep their schedules and history.
-        Payments, roster, and schedule for this event carry over.
-      </p>
+      <!-- From → To: the one-glance statement of what this does. The "new" line tracks the
+           name field live so the admin sees exactly what the team will become. -->
+      <div class="rename-flow">
+        <div class="rename-flow-row">
+          <span class="rename-flow-label">Current</span>
+          <span class="rename-flow-name rename-flow-name--old">{{ detail()?.teamName }}</span>
+        </div>
+        <div class="rename-flow-row">
+          <span class="rename-flow-label rename-flow-label--new">
+            <i class="bi bi-arrow-return-right" aria-hidden="true"></i>New team
+          </span>
+          <span class="rename-flow-name rename-flow-name--new"
+                [class.rename-flow-name--pending]="!canSubmitRenameToNew()">{{ renameToNewName().trim() || '—' }}</span>
+        </div>
+      </div>
+
       <div class="form-group">
         <label for="rename-new-name" class="form-label">New team name</label>
         <input id="rename-new-name" type="text" class="form-control"
                [ngModel]="renameToNewName()" (ngModelChange)="renameToNewName.set($event)"
                name="renameToNewName" maxlength="80" autocomplete="off">
         @if (renameToNewName().trim() === (detail()?.teamName ?? '')) {
-          <p class="tip mb-0 mt-1">Edit the name — it must differ from the current name.</p>
+          <p class="field-hint field-hint--warn">
+            <i class="bi bi-pencil me-1" aria-hidden="true"></i>Edit the name — it must differ from the current one.
+          </p>
         }
       </div>
-      <div class="form-group mt-3">
-        <label for="rename-new-gradyear" class="form-label">Graduation year</label>
-        <input id="rename-new-gradyear" type="text" class="form-control"
-               [ngModel]="renameToNewGradYear()" (ngModelChange)="renameToNewGradYear.set($event)"
-               name="renameToNewGradYear" maxlength="10" autocomplete="off">
-        <p class="tip mb-0 mt-1">Library bucket for the new team (a combined-years team still lists under one year).</p>
+
+      <div class="rename-field-row">
+        <div class="form-group">
+          <label for="rename-new-gradyear" class="form-label">Graduation year</label>
+          <input id="rename-new-gradyear" type="text" class="form-control"
+                 [ngModel]="renameToNewGradYear()" (ngModelChange)="renameToNewGradYear.set($event)"
+                 name="renameToNewGradYear" maxlength="10" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="rename-new-lop" class="form-label">Level of play</label>
+          <select id="rename-new-lop" class="form-select"
+                  [ngModel]="renameToNewLop()" (ngModelChange)="renameToNewLop.set($event)"
+                  name="renameToNewLop">
+            <option value="">— Keep current —</option>
+            @for (c of lopChoices; track c.value) {
+              <option [value]="c.value">{{ c.label }}</option>
+            }
+          </select>
+        </div>
       </div>
-      <div class="form-group mt-3">
-        <label for="rename-new-lop" class="form-label">Level of play</label>
-        <select id="rename-new-lop" class="form-select"
-                [ngModel]="renameToNewLop()" (ngModelChange)="renameToNewLop.set($event)"
-                name="renameToNewLop">
-          <option value="">— Keep current —</option>
-          @for (c of lopChoices; track c.value) {
-            <option [value]="c.value">{{ c.label }}</option>
-          }
-        </select>
-      </div>
+      <p class="field-hint">Grad year sets the club-library bucket — a combined-years team lists under one year.</p>
+
+      <!-- The honest contract: substitution, not a library rename. -->
+      <ul class="rename-effects">
+        <li>
+          <i class="bi bi-plus-circle rename-effect-icon rename-effect-icon--add" aria-hidden="true"></i>
+          <span>A new team is created in <strong>{{ detail()?.clubName ?? 'the club' }}</strong>'s library</span>
+        </li>
+        <li>
+          <i class="bi bi-arrow-right-circle rename-effect-icon rename-effect-icon--move" aria-hidden="true"></i>
+          <span>This event's registration — payments, roster, schedule — moves to it</span>
+        </li>
+        <li>
+          <i class="bi bi-shield-check rename-effect-icon rename-effect-icon--safe" aria-hidden="true"></i>
+          <span><strong>{{ detail()?.teamName }}</strong> stays in the library unchanged; other events are untouched</span>
+        </li>
+      </ul>
+
       @if (detail()?.hasScheduleRows) {
         <div class="alert alert-warning mt-3 mb-0 small">
           <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>This team already has games on

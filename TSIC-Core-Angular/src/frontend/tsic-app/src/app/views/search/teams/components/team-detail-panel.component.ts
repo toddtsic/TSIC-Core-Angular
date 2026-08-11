@@ -304,6 +304,11 @@ export class TeamDetailPanelComponent {
 	renameToNewLop = signal('');
 	isRenamingToNew = signal(false);
 
+	/** Bumped after a successful rename so the embedded club-rep-payment reloads — its
+	 *  clubRepRegistrationId/teamId inputs are unchanged by design (TeamId stability), so
+	 *  without this the breakdown + scope pill keep showing the old team name. */
+	accountingReloadKey = signal(0);
+
 	/** Enabled once the name is present and actually different from the current team name. */
 	readonly canSubmitRenameToNew = computed(() => {
 		const name = this.renameToNewName().trim();
@@ -345,6 +350,7 @@ export class TeamDetailPanelComponent {
 				this.toast.show(
 					`Team renamed to '${req.newTeamName}'. The new team was added to ${d.clubName ?? 'the club'}'s library; '${d.teamName}' remains there unchanged.`,
 					'success', 6000);
+				this.accountingReloadKey.update(k => k + 1);
 				this.changed.emit();
 			},
 			error: (err) => {

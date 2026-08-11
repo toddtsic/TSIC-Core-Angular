@@ -1003,7 +1003,7 @@
   // change-job-modal note in registration-detail-panel). Do NOT move this into `transform`.
   translate: -50% -50%;
   z-index: 1061;
-  width: 440px;
+  width: 480px;
   max-width: calc(100% - var(--space-8));
   max-height: calc(100% - var(--space-16));
   display: flex;
@@ -1065,10 +1065,101 @@
   border-top: 1px solid var(--bs-border-color);
 }
 
-.rename-explainer {
-  font-size: var(--font-size-sm);
-  color: var(--text-muted);
+// From → To preview card: current identity above, live new identity below.
+.rename-flow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
   margin-bottom: var(--space-4);
+  background: var(--surface-elevated-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-md);
+}
+
+.rename-flow-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.rename-flow-label {
+  flex: 0 0 auto;
+  min-width: 5.5em;
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+
+  .bi {
+    margin-right: var(--space-1);
+  }
+
+  &--new {
+    color: var(--bs-primary);
+  }
+}
+
+.rename-flow-name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--bs-body-color);
+  overflow-wrap: anywhere;
+
+  &--new {
+    color: var(--bs-primary);
+  }
+
+  // Name not yet valid (empty or unchanged) — show the live slot as provisional.
+  &--pending {
+    color: var(--text-muted);
+    font-weight: var(--font-weight-normal);
+  }
+}
+
+// Grad year + LOP share a row — both are short fields.
+.rename-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.field-hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin: var(--space-1) 0 0;
+
+  &--warn {
+    color: var(--bs-warning-text-emphasis);
+  }
+}
+
+// What-happens contract list — the library-vs-registration distinction, made scannable.
+.rename-effects {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-4) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--bs-body-color);
+
+  li {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+}
+
+.rename-effect-icon {
+  flex: 0 0 auto;
+
+  &--add { color: var(--bs-primary); }
+  &--move { color: var(--bs-info); }
+  &--safe { color: var(--bs-success); }
 }
 
 @media (prefers-reduced-motion: reduce) {

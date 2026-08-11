@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, input, output, signal, inject, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal, inject, computed, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TeamSearchService } from '../../../views/search/teams/services/team-search.service';
 import { RegisteredTeamsGridComponent } from '../../../views/registration/team/components/registered-teams-grid.component';
@@ -23,6 +23,12 @@ export class ClubRepPaymentComponent {
 
   /** Optional: pre-select a specific team (from search/teams entry point) */
   teamId = input<string | undefined>(undefined);
+
+  /** Bump to force a data reload without re-creating the component. Needed when the parent
+   *  changes something this panel displays but the other inputs can't signal — e.g.
+   *  rename-to-new-team keeps clubRepRegistrationId AND teamId identical (TeamId stability
+   *  is the point of that flow), yet the team name shown in the breakdown/scope pill changed. */
+  reloadKey = input<number>(0);
 
   /** Emitted after any payment/refund succeeds — parent should refresh */
   paymentComplete = output<void>();
@@ -122,6 +128,14 @@ export class ClubRepPaymentComponent {
       this.scope.set('team');
     }
     this.loadData();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // Gated on reloadKey only; first change is the initial binding — ngOnInit already loads.
+    const key = changes['reloadKey'];
+    if (key && !key.firstChange) {
+      this.loadData();
+    }
   }
 
   loadData(): void {
