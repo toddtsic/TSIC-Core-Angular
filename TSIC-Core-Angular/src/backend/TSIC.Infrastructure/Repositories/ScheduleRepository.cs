@@ -49,6 +49,15 @@ public sealed class ScheduleRepository : IScheduleRepository
         return schedules.Count;
     }
 
+    public async Task<bool> TeamHasScheduleRowsAsync(Guid jobId, Guid teamId, CancellationToken ct = default)
+    {
+        return await _context.Schedule
+            .AsNoTracking()
+            .AnyAsync(s => s.JobId == jobId
+                && ((s.T1Id == teamId && s.T1Type == "T")
+                 || (s.T2Id == teamId && s.T2Type == "T")), ct);
+    }
+
     public async Task<(int Examined, int Changed)> RecomposeScheduleNamesForJobAsync(
         Guid jobId,
         (Guid Id, string Text)? league = null,

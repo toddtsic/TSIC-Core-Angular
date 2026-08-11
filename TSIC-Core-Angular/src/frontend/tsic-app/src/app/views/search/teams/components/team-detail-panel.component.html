@@ -52,6 +52,16 @@
           <span class="header-tag-value">{{ team.divName }}</span>
         </span>
         }
+        @if (isClubLinked()) {
+          <div class="header-rename-row">
+            <!-- The job-admin door for Kim's case: the true rename is SU-only (club property), but
+                 minting a NEW library team and relinking this event's registration is job-local. -->
+            <button type="button" class="btn btn-sm btn-outline-primary rename-to-new-btn"
+                    (click)="openRenameToNew()" [disabled]="isRenamingToNew()">
+              <i class="bi bi-signpost-split me-1" aria-hidden="true"></i>Rename to New Team
+            </button>
+          </div>
+        }
       </div>
     </div>
 
@@ -345,6 +355,67 @@
     (confirmed)="confirmDiscard()"
     (cancelled)="cancelDiscard()">
   </confirm-dialog>
+}
+
+<!-- ═══════════════════════ RENAME TO NEW TEAM MODAL (job admin, club-linked) ═══════════════════════ -->
+@if (showRenameToNewModal()) {
+  <div class="modal-backdrop" (click)="cancelRenameToNew()" (keydown.escape)="cancelRenameToNew()"></div>
+  <div class="rename-to-new-modal" appDraggableModal>
+    <div class="modal-header">
+      <h4 class="modal-title">Rename to New Team</h4>
+      <button type="button" class="btn-close" (click)="cancelRenameToNew()" aria-label="Close"></button>
+    </div>
+    <div class="modal-body">
+      <!-- The honest contract: this is a substitution, not a library rename. -->
+      <p class="rename-explainer">
+        This creates a <strong>new team</strong> in {{ detail()?.clubName ?? 'the club' }}'s team library
+        and moves this event registration to it. The original library team
+        <strong>{{ detail()?.teamName }}</strong> is unchanged — other events keep their schedules and history.
+        Payments, roster, and schedule for this event carry over.
+      </p>
+      <div class="form-group">
+        <label for="rename-new-name" class="form-label">New team name</label>
+        <input id="rename-new-name" type="text" class="form-control"
+               [ngModel]="renameToNewName()" (ngModelChange)="renameToNewName.set($event)"
+               name="renameToNewName" maxlength="80" autocomplete="off">
+        @if (renameToNewName().trim() === (detail()?.teamName ?? '')) {
+          <p class="tip mb-0 mt-1">Edit the name — it must differ from the current name.</p>
+        }
+      </div>
+      <div class="form-group mt-3">
+        <label for="rename-new-gradyear" class="form-label">Graduation year</label>
+        <input id="rename-new-gradyear" type="text" class="form-control"
+               [ngModel]="renameToNewGradYear()" (ngModelChange)="renameToNewGradYear.set($event)"
+               name="renameToNewGradYear" maxlength="10" autocomplete="off">
+        <p class="tip mb-0 mt-1">Library bucket for the new team (a combined-years team still lists under one year).</p>
+      </div>
+      <div class="form-group mt-3">
+        <label for="rename-new-lop" class="form-label">Level of play</label>
+        <select id="rename-new-lop" class="form-select"
+                [ngModel]="renameToNewLop()" (ngModelChange)="renameToNewLop.set($event)"
+                name="renameToNewLop">
+          <option value="">— Keep current —</option>
+          @for (c of lopChoices; track c.value) {
+            <option [value]="c.value">{{ c.label }}</option>
+          }
+        </select>
+      </div>
+      @if (detail()?.hasScheduleRows) {
+        <div class="alert alert-warning mt-3 mb-0 small">
+          <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>This team already has games on
+          this event's schedule — those games will show the new name.
+        </div>
+      }
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" (click)="cancelRenameToNew()">Cancel</button>
+      <button type="button" class="btn btn-primary" (click)="submitRenameToNew()"
+              [disabled]="!canSubmitRenameToNew() || isRenamingToNew()">
+        @if (isRenamingToNew()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+        Create &amp; Rename
+      </button>
+    </div>
+  </div>
 }
 
 <!-- Rename club-linked team: affected-jobs warning (SuperUser; mirrors the admin club-rename modal) -->

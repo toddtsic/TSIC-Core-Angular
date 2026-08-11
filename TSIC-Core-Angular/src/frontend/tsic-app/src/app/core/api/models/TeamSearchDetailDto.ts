@@ -14,6 +14,9 @@ export type TeamSearchDetailDto = {
     levelOfPlay?: string | null;
     active: boolean;
     clubTeamId?: number | null;
+    clubTeamGradYear?: string | null;
+    clubTeamLevelOfPlay?: string | null;
+    hasScheduleRows?: boolean;
     feeBase: number;
     feeProcessing: number;
     feeTotal: number;

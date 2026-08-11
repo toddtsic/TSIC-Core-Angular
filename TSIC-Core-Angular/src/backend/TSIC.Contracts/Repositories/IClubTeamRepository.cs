@@ -22,6 +22,13 @@ public interface IClubTeamRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get a single ClubTeam by its ID, no tracking (read-only display paths).
+    /// </summary>
+    Task<ClubTeams?> GetByIdReadOnlyAsync(
+        int clubTeamId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Find an existing ClubTeam by identity (club + name + grad year).
     /// Returns the row with the highest LOP if duplicates exist.
     /// </summary>

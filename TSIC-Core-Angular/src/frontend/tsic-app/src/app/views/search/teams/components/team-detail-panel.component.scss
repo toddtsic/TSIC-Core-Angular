@@ -967,3 +967,110 @@
     grid-template-columns: 1fr;
   }
 }
+
+// ═══════════════════════════════════════════
+// RENAME TO NEW TEAM (header button + modal)
+// ═══════════════════════════════════════════
+
+.header-rename-row {
+  margin-top: var(--space-2);
+}
+
+.rename-to-new-btn {
+  font-size: var(--font-size-xs);
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+}
+
+// Modal lives at component root (outside .detail-panel), so it positions against
+// the viewport — fixed, above the flyin shell (z-index 1050 in _flyin.scss).
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1060;
+}
+
+.rename-to-new-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  // Centering uses the INDEPENDENT `translate` property, not `transform` — appDraggableModal
+  // drags via `transform: translate()` on this element; the two compose (see the sibling
+  // change-job-modal note in registration-detail-panel). Do NOT move this into `transform`.
+  translate: -50% -50%;
+  z-index: 1061;
+  width: 440px;
+  max-width: calc(100% - var(--space-8));
+  max-height: calc(100% - var(--space-16));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2xl);
+  animation: fadeIn 0.2s ease;
+
+  // Suppress text selection while a header drag is in flight (appDraggableModal).
+  &.is-dragging {
+    user-select: none;
+  }
+}
+
+.modal-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.modal-title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--bs-body-color);
+}
+
+.modal-body {
+  padding: var(--space-5);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+
+  .form-label {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--space-2);
+  }
+
+  .form-select,
+  .form-control {
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+  }
+}
+
+.modal-footer {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--bs-border-color);
+}
+
+.rename-explainer {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  margin-bottom: var(--space-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rename-to-new-modal { animation: none !important; }
+}

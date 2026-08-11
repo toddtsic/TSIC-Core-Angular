@@ -45,6 +45,13 @@ public interface IScheduleRepository
         CancellationToken ct = default);
 
     /// <summary>
+    /// True when the team occupies a resolved "T" slot (T1 or T2) on this job's schedule.
+    /// Job-scoped on purpose — used by the rename-to-new-team modal to warn that existing
+    /// games in THIS event will show the new name after recompose.
+    /// </summary>
+    Task<bool> TeamHasScheduleRowsAsync(Guid jobId, Guid teamId, CancellationToken ct = default);
+
+    /// <summary>
     /// THE single home for the cross-job fan-out. Loops <see cref="RecomposeScheduleNamesForJobAsync"/>
     /// over <paramref name="jobIds"/> with the same pair, returning per-job (examined, changed). Every
     /// rename ends here: an entity whose id is shared across jobs (club, field, league) passes all its

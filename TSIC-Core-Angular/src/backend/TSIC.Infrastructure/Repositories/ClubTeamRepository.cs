@@ -40,6 +40,16 @@ public class ClubTeamRepository : IClubTeamRepository
             .SingleOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<ClubTeams?> GetByIdReadOnlyAsync(
+        int clubTeamId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.ClubTeams
+            .Where(ct => ct.ClubTeamId == clubTeamId)
+            .AsNoTracking()
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<ClubTeams?> FindByIdentityAsync(
         int clubId, string clubTeamName, string clubTeamGradYear,
         CancellationToken cancellationToken = default)

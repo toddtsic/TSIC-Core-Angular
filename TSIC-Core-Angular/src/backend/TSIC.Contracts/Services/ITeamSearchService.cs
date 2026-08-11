@@ -52,6 +52,16 @@ public interface ITeamSearchService
     /// </summary>
     Task<List<ClubAffectedJob>> GetTeamRenameImpactAsync(Guid teamId, Guid jobId, CancellationToken ct = default);
 
+    /// <summary>
+    /// "Rename" a club-linked team without touching club property: mint a NEW club-library team
+    /// (ClubId derived from the team's committed linkage), relink this job's event copy to it, then
+    /// delegate to ITeamRenameService — whose fan-out over the new ClubTeamId finds exactly this
+    /// job's row, so the canonical path (TeamName stamp, WAITLIST twin, schedule recompose) runs
+    /// job-local. The original library team and every other job referencing it are untouched, which
+    /// is why this door is open to job admins while a true rename stays SuperUser-only.
+    /// </summary>
+    Task RenameToNewClubTeamAsync(Guid teamId, Guid jobId, string userId, RenameToNewTeamRequest request, CancellationToken ct = default);
+
     // ── Individual transaction operations ──
 
     /// <summary>

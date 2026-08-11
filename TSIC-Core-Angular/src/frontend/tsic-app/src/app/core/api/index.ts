@@ -601,6 +601,7 @@ export type { RemoveAllPairingsRequest } from './models/RemoveAllPairingsRequest
 export type { RemoveFieldsRequest } from './models/RemoveFieldsRequest';
 export type { RenameCustomerGroupRequest } from './models/RenameCustomerGroupRequest';
 export type { RenameOptionSetRequest } from './models/RenameOptionSetRequest';
+export type { RenameToNewTeamRequest } from './models/RenameToNewTeamRequest';
 export type { RenderedEmailPreview } from './models/RenderedEmailPreview';
 export type { ReorderMenuItemsRequest } from './models/ReorderMenuItemsRequest';
 export type { ReorderNavItemsRequest } from './models/ReorderNavItemsRequest';
@@ -659,6 +660,7 @@ export type { ScheduleListFieldDto } from './models/ScheduleListFieldDto';
 export type { ScheduleListRequestDto } from './models/ScheduleListRequestDto';
 export type { SchedulingChecklistDto } from './models/SchedulingChecklistDto';
 export type { SchedulingMetrics } from './models/SchedulingMetrics';
+export type { ScorerLoginRequest } from './models/ScorerLoginRequest';
 export type { ScrapeResultDto } from './models/ScrapeResultDto';
 export type { SeedTestRefsRequest } from './models/SeedTestRefsRequest';
 export type { SeedWavesRequest } from './models/SeedWavesRequest';

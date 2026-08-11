@@ -1,13 +1,14 @@
 import { Component, ChangeDetectionStrategy, input, output, signal, computed, inject, linkedSignal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import type { TeamSearchDetailDto, EditTeamRequest, ClubRegistrationDto, SubscriptionDetailDto, ClubAffectedJob } from '@core/api';
+import type { TeamSearchDetailDto, EditTeamRequest, ClubRegistrationDto, SubscriptionDetailDto, ClubAffectedJob, RenameToNewTeamRequest } from '@core/api';
 import { TeamSearchService } from '../services/team-search.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ClubRepPaymentComponent } from '@shared-ui/components/club-rep-payment/club-rep-payment.component';
 import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
+import { DraggableModalDirective } from '@shared-ui/directives/draggable-modal.directive';
 import { LOP_CHOICES, normalizeLop } from '@shared/teams/lop-choices';
 import { buildRenameImpactMessage } from '@shared/teams/rename-impact';
 import { environment } from '@environments/environment';
@@ -25,7 +26,7 @@ function formatPhone(value: string | null | undefined): string | null {
 @Component({
 	selector: 'app-team-detail-panel',
 	standalone: true,
-	imports: [CommonModule, FormsModule, ConfirmDialogComponent, ClubRepPaymentComponent, ResizablePanelDirective],
+	imports: [CommonModule, FormsModule, ConfirmDialogComponent, ClubRepPaymentComponent, ResizablePanelDirective, DraggableModalDirective],
 	templateUrl: './team-detail-panel.component.html',
 	styleUrl: './team-detail-panel.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
@@ -288,6 +289,67 @@ export class TeamDetailPanelComponent {
 				this.toast.show('Failed to update team', 'danger', 4000);
 				console.error('Edit error:', err);
 				this.isSaving.set(false);
+			}
+		});
+	}
+
+	// ── Rename to New Team (club-linked, job-admin) ──
+	// NOT a rename of the library team (that's club property, SU-only above): mints a NEW
+	// club-library team and relinks THIS job's registration to it. Old library team, other
+	// jobs' schedules, TeamId, rosters, and the payment ledger are all untouched.
+
+	showRenameToNewModal = signal(false);
+	renameToNewName = signal('');
+	renameToNewGradYear = signal('');
+	renameToNewLop = signal('');
+	isRenamingToNew = signal(false);
+
+	/** Enabled once the name is present and actually different from the current team name. */
+	readonly canSubmitRenameToNew = computed(() => {
+		const name = this.renameToNewName().trim();
+		return name.length > 0
+			&& name !== (this.detail()?.teamName ?? '')
+			&& this.renameToNewGradYear().trim().length > 0;
+	});
+
+	openRenameToNew(): void {
+		const d = this.detail();
+		if (!d || d.clubTeamId == null) return;
+		// Seed from the current identity each open — the admin edits the name in place
+		// (e.g. "True MA Central 2032" → "True MA Central 2032/2033").
+		this.renameToNewName.set(d.teamName ?? '');
+		this.renameToNewGradYear.set(d.clubTeamGradYear ?? '');
+		this.renameToNewLop.set(normalizeLop(d.clubTeamLevelOfPlay));
+		this.showRenameToNewModal.set(true);
+	}
+
+	cancelRenameToNew(): void {
+		this.showRenameToNewModal.set(false);
+	}
+
+	submitRenameToNew(): void {
+		const d = this.detail();
+		if (!d || !this.canSubmitRenameToNew()) return;
+
+		const req: RenameToNewTeamRequest = {
+			newTeamName: this.renameToNewName().trim(),
+			clubTeamGradYear: this.renameToNewGradYear().trim(),
+			levelOfPlay: this.renameToNewLop() || undefined
+		};
+
+		this.isRenamingToNew.set(true);
+		this.searchService.renameToNewTeam(d.teamId, req).subscribe({
+			next: () => {
+				this.isRenamingToNew.set(false);
+				this.showRenameToNewModal.set(false);
+				this.toast.show(
+					`Team renamed to '${req.newTeamName}'. The new team was added to ${d.clubName ?? 'the club'}'s library; '${d.teamName}' remains there unchanged.`,
+					'success', 6000);
+				this.changed.emit();
+			},
+			error: (err) => {
+				this.isRenamingToNew.set(false);
+				this.toast.show(err?.error?.message || 'Failed to rename team', 'danger', 0, 'Rename Failed');
 			}
 		});
 	}

@@ -190,6 +190,30 @@ public class TeamSearchController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Job admin: "rename" a club-linked team by minting a NEW club-library team and relinking this
+    /// job's copy to it (create-new-only — substitution to an existing library team stays
+    /// drop + re-register). No SU gate: the original library identity and other jobs' schedules are
+    /// untouched, so a job admin has full standing here.
+    /// </summary>
+    [HttpPost("{teamId:guid}/rename-to-new-team")]
+    public async Task<ActionResult> RenameToNewTeam(
+        Guid teamId, [FromBody] RenameToNewTeamRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        try
+        {
+            await _teamSearchService.RenameToNewClubTeamAsync(teamId, jobId!.Value, userId!, request, ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     // ── Team-Level Payment Operations ──
 
     [HttpPost("{teamId:guid}/cc-charge")]

@@ -19,6 +19,7 @@ import type {
 	LadtTreeRootDto,
 	CadtClubNode,
 	ClubRegistrationDto,
+	RenameToNewTeamRequest,
 	ChangeClubRequest,
 	TransferAllTeamsRequest,
 	ClubOperationResultDto,
@@ -55,6 +56,7 @@ export type {
 	CadtClubNode,
 	CreditCardInfo,
 	ClubRegistrationDto,
+	RenameToNewTeamRequest,
 	ChangeClubRequest,
 	TransferAllTeamsRequest,
 	ClubOperationResultDto,
@@ -100,6 +102,12 @@ export class TeamSearchService {
 	/** SuperUser: jobs whose schedules a rename of this club-linked team would rewrite (empty for an orphan team). */
 	getRenameImpact(teamId: string): Observable<ClubAffectedJob[]> {
 		return this.http.get<ClubAffectedJob[]>(`${this.apiUrl}/${teamId}/rename-impact`);
+	}
+
+	/** Job admin: "rename" a club-linked team by minting a NEW club-library team and relinking this
+	 *  job's copy to it. The original library team and other jobs' schedules are untouched. */
+	renameToNewTeam(teamId: string, request: RenameToNewTeamRequest): Observable<void> {
+		return this.http.post<void>(`${this.apiUrl}/${teamId}/rename-to-new-team`, request);
 	}
 
 	chargeCcForTeam(teamId: string, request: TeamCcChargeRequest): Observable<TeamCcChargeResponse> {

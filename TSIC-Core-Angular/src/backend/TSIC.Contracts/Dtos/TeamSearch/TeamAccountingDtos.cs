@@ -24,6 +24,21 @@ public record TeamSearchDetailDto
     /// </summary>
     public int? ClubTeamId { get; init; }
 
+    /// <summary>Library grad year of the linked club team (null for an orphan team). Prefills the
+    /// rename-to-new-team modal's grad-year field.</summary>
+    public string? ClubTeamGradYear { get; init; }
+
+    /// <summary>Library level-of-play of the linked club team (null for an orphan team). Prefills the
+    /// rename-to-new-team modal's LOP field.</summary>
+    public string? ClubTeamLevelOfPlay { get; init; }
+
+    /// <summary>
+    /// True when this team already appears on THIS job's schedule (resolved "T" slots). Drives the
+    /// heads-up in the rename-to-new-team modal: existing games will show the new name after the
+    /// canonical schedule-name recompose.
+    /// </summary>
+    public bool HasScheduleRows { get; init; }
+
     // Financials
     public required decimal FeeBase { get; init; }
     public required decimal FeeProcessing { get; init; }
@@ -160,6 +175,20 @@ public record EditTeamRequest
     public bool? Active { get; init; }
     public string? LevelOfPlay { get; init; }
     public string? TeamComments { get; init; }
+}
+
+/// <summary>
+/// Request to "rename" a club-linked team by minting a NEW club-library team and relinking this
+/// job's event copy to it. NOT a rename of the existing library team (that identity is club
+/// property and stays untouched, along with every other job referencing it) and NOT a
+/// substitution to an existing library team (that path is drop + re-register). ClubId is derived
+/// server-side from the team's committed linkage — never client-supplied.
+/// </summary>
+public record RenameToNewTeamRequest
+{
+    public required string NewTeamName { get; init; }
+    public required string ClubTeamGradYear { get; init; }
+    public string? LevelOfPlay { get; init; }
 }
 
 /// <summary>

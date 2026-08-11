@@ -40,6 +40,8 @@ public sealed class TeamSearchService : ITeamSearchService
     private readonly IPaymentService _paymentService;
     private readonly IRegisteredTeamShaper _shaper;
     private readonly ITeamRenameService _teamRename;
+    private readonly IClubTeamRepository _clubTeamRepo;
+    private readonly IScheduleRepository _scheduleRepo;
     private readonly ILogger<TeamSearchService> _logger;
 
     // Known payment method GUIDs (from AccountingPaymentMethods table)
@@ -60,6 +62,8 @@ public sealed class TeamSearchService : ITeamSearchService
         IPaymentService paymentService,
         IRegisteredTeamShaper shaper,
         ITeamRenameService teamRename,
+        IClubTeamRepository clubTeamRepo,
+        IScheduleRepository scheduleRepo,
         ILogger<TeamSearchService> logger)
     {
         _teamRepo = teamRepo;
@@ -74,6 +78,8 @@ public sealed class TeamSearchService : ITeamSearchService
         _paymentService = paymentService;
         _shaper = shaper;
         _teamRename = teamRename;
+        _clubTeamRepo = clubTeamRepo;
+        _scheduleRepo = scheduleRepo;
         _logger = logger;
     }
 
@@ -142,6 +148,16 @@ public sealed class TeamSearchService : ITeamSearchService
         var lopOptions = await GetLopOptionsAsync(jobId, ct);
         var distinctClubCount = await _teamRepo.GetDistinctClubCountAsync(jobId, ct);
 
+        // Rename-to-new-team modal context: library identity prefill + the "already on this
+        // job's schedule" heads-up. Both null/false for an orphan team (modal not offered).
+        ClubTeams? libTeam = null;
+        var hasScheduleRows = false;
+        if (detail.ClubTeamId is int libId)
+        {
+            libTeam = await _clubTeamRepo.GetByIdReadOnlyAsync(libId, ct);
+            hasScheduleRows = await _scheduleRepo.TeamHasScheduleRowsAsync(jobId, teamId, ct);
+        }
+
         return new TeamSearchDetailDto
         {
             TeamId = detail.TeamId,
@@ -175,7 +191,10 @@ public sealed class TeamSearchService : ITeamSearchService
             PaymentFlagged = detail.PaymentFlagged,
             HasSubscription = detail.HasSubscription,
             StoredSubscription = detail.StoredSubscription,
-            ClubTeamId = detail.ClubTeamId
+            ClubTeamId = detail.ClubTeamId,
+            ClubTeamGradYear = libTeam?.ClubTeamGradYear,
+            ClubTeamLevelOfPlay = libTeam?.ClubTeamLevelOfPlay,
+            HasScheduleRows = hasScheduleRows
         };
     }
 
@@ -191,6 +210,79 @@ public sealed class TeamSearchService : ITeamSearchService
             return [];
 
         return await _teamRepo.GetJobsWithTeamsForClubTeamAsync(clubTeamId, ct);
+    }
+
+    public async Task RenameToNewClubTeamAsync(
+        Guid teamId, Guid jobId, string userId, RenameToNewTeamRequest request, CancellationToken ct = default)
+    {
+        var team = await _teamRepo.GetTeamFromTeamId(teamId, ct)
+            ?? throw new InvalidOperationException("Team not found.");
+
+        if (team.JobId != jobId)
+            throw new InvalidOperationException("Team does not belong to this job.");
+
+        // Only club-linked teams need this door — an orphan team's name is job-local and any
+        // admin renames it directly through EditTeam.
+        if (team.ClubTeamId is not int oldClubTeamId)
+            throw new InvalidOperationException("This team is not linked to a club library — rename it directly instead.");
+
+        if (team.TeamName != null && team.TeamName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Rename the primary team — its WAITLIST twin follows automatically.");
+
+        var newName = request.NewTeamName.Trim();
+        var gradYear = request.ClubTeamGradYear.Trim();
+        if (newName.Length == 0)
+            throw new InvalidOperationException("New team name is required.");
+        if (gradYear.Length == 0)
+            throw new InvalidOperationException("Graduation year is required.");
+        if (string.Equals(newName, team.TeamName, StringComparison.Ordinal))
+            throw new InvalidOperationException("The new name matches the current name.");
+
+        // ClubId comes from the committed linkage — never the client — so this endpoint can't be
+        // used to inject teams into an unrelated club's library.
+        var oldLib = await _clubTeamRepo.GetByIdReadOnlyAsync(oldClubTeamId, ct)
+            ?? throw new InvalidOperationException("Club library team not found.");
+
+        // Dup guard on library identity (club + name + grad year). Matches are never reused here:
+        // relinking to an EXISTING library team is substitution, not rename — that path is
+        // drop + re-register so the money runs through the normal machinery.
+        var collision = await _clubTeamRepo.FindByIdentityAsync(oldLib.ClubId, newName, gradYear, ct);
+        if (collision != null)
+            throw new InvalidOperationException(
+                $"'{newName}' ({gradYear}) already exists in this club's library. "
+                + "To put that team in this event instead, drop this team and have the club rep register it.");
+
+        var newLib = new ClubTeams
+        {
+            ClubId = oldLib.ClubId,
+            ClubTeamName = newName,
+            ClubTeamGradYear = gradYear,
+            ClubTeamLevelOfPlay = string.IsNullOrWhiteSpace(request.LevelOfPlay)
+                ? oldLib.ClubTeamLevelOfPlay
+                : request.LevelOfPlay.Trim(),
+            Active = true,
+            Modified = DateTime.Now,
+            LebUserId = userId,
+        };
+        _clubTeamRepo.Add(newLib);
+        await _clubTeamRepo.SaveChangesAsync(ct);
+
+        // Relink ONLY — TeamName stays untouched so RenameTeamAsync reads the committed old name
+        // (its WAITLIST-twin match keys on "WAITLIST - {oldName}").
+        team.ClubTeamId = newLib.ClubTeamId;
+        team.Modified = DateTime.Now;
+        team.LebUserId = userId;
+        await _teamRepo.SaveChangesAsync(ct);
+
+        // Canonical rename path. The team is now owned by the NEW library row, so the cross-job
+        // fan-out over GetTrackedTeamsByClubTeamIdAsync(newClubTeamId) finds exactly one copy —
+        // this job's — and runs job-local: TeamName stamp, WAITLIST twin, schedule recompose.
+        // The old library team and every other job referencing it are untouched.
+        await _teamRename.RenameTeamAsync(teamId, jobId, newName, userId, ct);
+
+        _logger.LogInformation(
+            "RenameToNewClubTeam: Team {TeamId} in job {JobId} relinked ClubTeam {OldClubTeamId} -> {NewClubTeamId} ('{NewName}') by {UserId}",
+            teamId, jobId, oldClubTeamId, newLib.ClubTeamId, newName, userId);
     }
 
     // ── ARB Subscription (live Authorize.Net) ──

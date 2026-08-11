@@ -95,6 +95,7 @@ public class ProcFreeSliceCheckGateTests
             new Mock<IEmailService>().Object, new Mock<IPaymentService>().Object,
             new Mock<TSIC.API.Services.Teams.IRegisteredTeamShaper>().Object,
             new Mock<TSIC.API.Services.Teams.ITeamRenameService>().Object,
+            new Mock<IClubTeamRepository>().Object, new Mock<IScheduleRepository>().Object,
             new Mock<ILogger<TeamSearchService>>().Object);
 
         return (svc, ctx, job.JobId, team.TeamId, clubRep.RegistrationId, paymentState);
