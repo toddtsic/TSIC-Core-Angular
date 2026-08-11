@@ -396,6 +396,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     window.removeEventListener('resize', this.resizeHandler);
+    this.teardownDiscountPopover();
   }
 
   private checkMobileView(): void {
@@ -784,6 +785,149 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   // selections; row numbers are the `tsicRowNumbers` directive's job.
   onGridDataBound(): void {
     this.restorePageSelection();
+    this.wireDiscountPopover();
+  }
+
+  // ── Discount-code popover ────────────────────────────────────────────────────────
+  // The badge sits in a grid BODY cell in the frozen Name column, and `.detail-link`
+  // itself sets `overflow: hidden` — two clip layers, so a position:absolute panel in
+  // the cell is invisible. We mount a position:fixed panel on <body> to escape both,
+  // reusing the global .hover-popover-panel styles so it matches every other popover.
+  // Same escape hatch as registered-teams-grid's Fee-Adj help, which solved this for a
+  // header cell; this is the body-cell case.
+  //
+  // Listeners are DELEGATED to the grid root rather than bound per badge: rows are torn
+  // down and rebuilt on every page and sort, so per-badge binding would need re-wiring
+  // and bookkeeping on each dataBound. Delegation survives re-render for free.
+  private dcPopover: HTMLElement | null = null;
+  private dcAnchor: HTMLElement | null = null;
+  private dcReposition: (() => void) | null = null;
+  // Hold the root we bound to rather than re-reading the viewChild at teardown:
+  // `grid` is viewChild.required, which throws when the view never initialized.
+  private dcRoot: HTMLElement | null = null;
+
+  private wireDiscountPopover(): void {
+    if (this.dcRoot) return;
+    const root = this.grid()?.element;
+    if (!root) return;
+    this.dcRoot = root;
+
+    // mouseover/mouseout, not mouseenter/mouseleave — only the former bubble to the root.
+    root.addEventListener('mouseover', this.dcOver);
+    root.addEventListener('mouseout', this.dcOut);
+    // focusin/focusout give keyboard parity; the plain focus/blur pair does not bubble.
+    root.addEventListener('focusin', this.dcOver);
+    root.addEventListener('focusout', this.dcOut);
+    // CAPTURE phase is load-bearing: the badge is nested inside the `.detail-link`
+    // anchor, so in the bubble phase openDetail() would already have fired by the time
+    // we saw the click. Capturing at the root lets us stop the event before it reaches
+    // the anchor — which is what makes tap-to-reveal possible on touch, where no hover
+    // event ever fires and the badge would otherwise just open the flyin.
+    root.addEventListener('click', this.dcClick, true);
+  }
+
+  private readonly dcBadgeFrom = (e: Event): HTMLElement | null =>
+    (e.target as HTMLElement | null)?.closest?.('.dc-badge') as HTMLElement | null ?? null;
+
+  private readonly dcOver = (e: Event): void => {
+    const badge = this.dcBadgeFrom(e);
+    if (badge) this.showDiscountPopover(badge);
+  };
+
+  private readonly dcOut = (e: Event): void => {
+    if (this.dcBadgeFrom(e)) this.hideDiscountPopover();
+  };
+
+  private readonly dcClick = (e: Event): void => {
+    const badge = this.dcBadgeFrom(e);
+    // Any other click in the grid dismisses an open panel, but must fall through
+    // untouched — never stop propagation for a click we do not own.
+    if (!badge) {
+      this.hideDiscountPopover();
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    if (this.dcAnchor === badge) this.hideDiscountPopover();
+    else this.showDiscountPopover(badge);
+  };
+
+  private showDiscountPopover(badge: HTMLElement): void {
+    const code = badge.dataset['dcCode'];
+    if (!code) return;
+    const panel = this.ensureDiscountPopover();
+    const value = panel.querySelector('.hover-popover-value');
+    // textContent, never innerHTML — a code name is director-authored free text.
+    if (value) value.textContent = code;
+    this.dcAnchor = badge;
+    panel.style.display = 'block';
+    this.placeDiscountPopover();
+    this.dcReposition = () => this.placeDiscountPopover();
+    window.addEventListener('scroll', this.dcReposition, true);
+    window.addEventListener('resize', this.dcReposition);
+  }
+
+  private placeDiscountPopover(): void {
+    const panel = this.dcPopover;
+    const anchor = this.dcAnchor;
+    if (!panel || !anchor) return;
+    const r = anchor.getBoundingClientRect();
+    // Below the badge by default; flip above when the last rows would push it off-screen.
+    const below = r.bottom + 6;
+    const flipUp = below + panel.offsetHeight > window.innerHeight - 8;
+    panel.style.top = flipUp
+      ? `${Math.max(8, r.top - panel.offsetHeight - 6)}px`
+      : `${below}px`;
+    const left = Math.min(r.left, window.innerWidth - panel.offsetWidth - 8);
+    panel.style.left = `${Math.max(8, left)}px`;
+  }
+
+  private ensureDiscountPopover(): HTMLElement {
+    if (this.dcPopover) return this.dcPopover;
+    const el = document.createElement('div');
+    el.className = 'hover-popover-panel';
+    el.style.position = 'fixed';
+    el.style.right = 'auto';
+    el.style.zIndex = '2000';
+    el.style.display = 'none';
+    // The shared panel's 240px min-width suits the ledger's label/value rows; here it is
+    // one short code, and an oversized panel blankets the two rows underneath. Hug the
+    // content instead, with a cap so a long code name cannot sprawl across the grid.
+    el.style.minWidth = '0';
+    el.style.maxWidth = '280px';
+    el.innerHTML =
+      '<div class="hover-popover-header"><span class="hover-popover-title">Discount Code</span></div>' +
+      '<div class="hover-popover-body"><span class="hover-popover-value"></span></div>';
+    document.body.appendChild(el);
+    this.dcPopover = el;
+    return el;
+  }
+
+  private hideDiscountPopover(): void {
+    if (this.dcPopover) this.dcPopover.style.display = 'none';
+    this.dcAnchor = null;
+    if (this.dcReposition) {
+      window.removeEventListener('scroll', this.dcReposition, true);
+      window.removeEventListener('resize', this.dcReposition);
+      this.dcReposition = null;
+    }
+  }
+
+  // The panel is mounted on <body>, outside this component's DOM — Angular will not
+  // reap it, so tearing it down here is mandatory, not tidiness.
+  private teardownDiscountPopover(): void {
+    this.hideDiscountPopover();
+    const root = this.dcRoot;
+    if (root) {
+      root.removeEventListener('mouseover', this.dcOver);
+      root.removeEventListener('mouseout', this.dcOut);
+      root.removeEventListener('focusin', this.dcOver);
+      root.removeEventListener('focusout', this.dcOut);
+      root.removeEventListener('click', this.dcClick, true);
+    }
+    this.dcRoot = null;
+    this.dcPopover?.remove();
+    this.dcPopover = null;
   }
 
   // Full-set row numbers: offset by the current SERVER page, not the grid's internal pager state
