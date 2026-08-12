@@ -777,6 +777,14 @@ builder.Services.AddHsts(options =>
 // The mobile app's device origins (capacitor://localhost on iOS, https://localhost on Android)
 // appear in every environment: it runs with CapacitorHttp disabled, so its requests leave the
 // WebView as ordinary CORS-checked XHR even on a real handset, not just under `ionic serve`.
+//
+// Development/Staging additionally carry a bare LAN literal (http://10.x.x.x:8100). That is the
+// Ionic live-reload origin: `ionic cap run ios -l --external` serves the bundle off the dev
+// machine's LAN address, so the WebView origin is the IP, not capacitor://localhost. It is
+// DHCP-bound and will rot — when live reload starts failing CORS, re-read the dev machine's
+// address and update both overlays. Deliberately a literal rather than an RFC1918 predicate:
+// dev.teamsportsinfo.com runs Staging and is client-facing, so the allowance stays pinned to
+// one address. Never add it to Production — the shipped app only presents the device origins.
 var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 if (corsOrigins.Length == 0)
 {
