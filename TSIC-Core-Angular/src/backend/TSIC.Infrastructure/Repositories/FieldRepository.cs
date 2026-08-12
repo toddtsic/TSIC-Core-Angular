@@ -77,6 +77,21 @@ public class FieldRepository : IFieldRepository
             .ToListAsync(ct);
     }
 
+    public async Task<int> CountActiveLeagueSeasonFieldsAsync(
+        Guid leagueId,
+        string season,
+        CancellationToken ct = default)
+    {
+        // Same population as GetLeagueSeasonFieldsAsync (the Manage Fields "Assigned" panel),
+        // narrowed to BActive — the assign path always writes BActive = true.
+        return await _context.FieldsLeagueSeason
+            .AsNoTracking()
+            .Where(fls => fls.LeagueId == leagueId && fls.Season == season)
+            .Where(fls => fls.BActive == true)
+            .Where(fls => fls.Field.FName == null || !fls.Field.FName.StartsWith("*"))
+            .CountAsync(ct);
+    }
+
     public async Task<Fields?> GetFieldByIdAsync(Guid fieldId, CancellationToken ct = default)
     {
         return await _context.Fields

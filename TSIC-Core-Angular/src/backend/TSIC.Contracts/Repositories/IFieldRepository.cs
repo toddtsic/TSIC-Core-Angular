@@ -31,6 +31,16 @@ public interface IFieldRepository
         CancellationToken ct = default);
 
     /// <summary>
+    /// Count active fields assigned to a league-season (FieldsLeagueSeason rows with
+    /// BActive true, system '*' fields excluded). Feeds the scheduling checklist's
+    /// step-0 field-setup signal.
+    /// </summary>
+    Task<int> CountActiveLeagueSeasonFieldsAsync(
+        Guid leagueId,
+        string season,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Get a single field by ID (read-only).
     /// </summary>
     Task<Fields?> GetFieldByIdAsync(Guid fieldId, CancellationToken ct = default);

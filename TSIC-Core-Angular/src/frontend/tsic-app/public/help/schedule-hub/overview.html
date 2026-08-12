@@ -2,7 +2,7 @@
 <p>
   This is where the schedule gets built and managed. You arrive here from the <strong>Schedule</strong>
   button on step 4 of the <strong>Scheduling Checklist</strong> — the arrow at the top-left takes you
-  back. The hub has four segments in one control at the top; each is a different job on the same event,
+  back. The hub has three segments in one control at the top; each is a different job on the same event,
   and you move between them freely rather than in a fixed order.
 </p>
 
@@ -17,7 +17,7 @@
   </div>
 </div>
 
-<h4>The four segments</h4>
+<h4>The three segments</h4>
 <div class="help-menu-list">
   <div class="help-menu-row">
     <i class="bi bi-calendar-check" aria-hidden="true"></i>
@@ -40,56 +40,19 @@
       <div class="help-menu-row__sub">The whole event on one grid — the view everyone else consumes, and where you export to Excel.</div>
     </div>
   </div>
-  <div class="help-menu-row">
-    <i class="bi bi-gear" aria-hidden="true"></i>
-    <div class="help-menu-row__body">
-      <div class="help-menu-row__title">Configure</div>
-      <div class="help-menu-row__sub">Everything the build reads: dates, fields, build rules, rounds per day, waves, build order. On a new event this segment pulses <em>Start here</em>.</div>
-    </div>
-  </div>
 </div>
 <p class="help-muted">
   QA and Master are also listed as tools on the Scheduling Checklist. Those links land you right here on
   the matching segment — same screen, same chrome, whichever door you came through.
 </p>
 
-<h4>Configure — review it, don't skip it</h4>
+<h4>Setup lives on the checklist, not here</h4>
 <p>
-  On a returning event the hub seeds fields, dates, and waves from <strong>last year's setup</strong>
-  automatically. That is a starting point, not an answer: how many teams registered, how many waves you
-  need, and how many games you're guaranteeing all change year to year. Configure is the one place to
-  look at those numbers before a build acts on them.
+  Everything the build reads — fields, pools, play dates, timeslots — is authored through the
+  <strong>Scheduling Checklist</strong> steps before you arrive. The hub's setup check verifies it all
+  again at build time and names anything missing. Game guarantees and placement rules are reviewed in
+  the build flow itself.
 </p>
-<div class="help-menu-list">
-  <div class="help-menu-row">
-    <i class="bi bi-calendar-event" aria-hidden="true"></i>
-    <div class="help-menu-row__body">
-      <div class="help-menu-row__title">Dates &middot; Fields</div>
-      <div class="help-menu-row__sub">Which days each age group plays, and which fields it plays on.</div>
-    </div>
-  </div>
-  <div class="help-menu-row">
-    <i class="bi bi-sliders" aria-hidden="true"></i>
-    <div class="help-menu-row__body">
-      <div class="help-menu-row__title">Build Rules</div>
-      <div class="help-menu-row__sub">Game guarantee per division, plus the placement rules the builder honours.</div>
-    </div>
-  </div>
-  <div class="help-menu-row">
-    <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
-    <div class="help-menu-row__body">
-      <div class="help-menu-row__title">Rounds / Day &middot; Waves</div>
-      <div class="help-menu-row__sub">How many rounds land on each day, and which age groups share a start wave.</div>
-    </div>
-  </div>
-  <div class="help-menu-row">
-    <i class="bi bi-sort-numeric-down" aria-hidden="true"></i>
-    <div class="help-menu-row__body">
-      <div class="help-menu-row__title">Build Order &middot; Config Summary</div>
-      <div class="help-menu-row__sub">The order age groups get first pick of slots, and a one-table read-out of every setting above.</div>
-    </div>
-  </div>
-</div>
 
 <h4>Scope: Event, Age Group, or Division</h4>
 <p>
@@ -145,21 +108,11 @@
   </li>
 </ul>
 
-<h4>Tools that open inside the hub</h4>
-<p>
-  From <strong>Configure</strong> you can open <strong>Pool Assignment</strong>, <strong>Manage Fields</strong>,
-  <strong>Manage Pairings</strong>, <strong>Assign Timeslots</strong> and — on championship events —
-  <strong>Bracket Seeds</strong> without leaving the hub. They're the same screens the checklist links to;
-  embedded here they use the hub's <strong>Back</strong> button instead of their own titles.
-</p>
-
 <h4>Common mistakes</h4>
 <ul>
-  <li><strong>Building before configuring.</strong> If the setup check blocks you, the panel names what's
-      missing. Dates, fields, timeslots, and pools are the usual culprits — and the Scheduling Checklist
+  <li><strong>Building before setup is done.</strong> If the setup check blocks you, the panel names what's
+      missing. Fields, dates, timeslots, and pools are the usual culprits — and the Scheduling Checklist
       tracks all of them.</li>
-  <li><strong>Trusting the prior-year carry-forward.</strong> It's a guess based on last year's team counts.
-      Open Configure and confirm it against this year's registration before you build.</li>
   <li><strong>Building at the wrong scope.</strong> Check the scope name on the Build button — it's easy to
       rebuild one division when you meant the whole event, or vice-versa.</li>
   <li><strong>Walking away with championship games unplaced.</strong> Round-robin games build

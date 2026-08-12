@@ -7,6 +7,14 @@ namespace TSIC.Contracts.Dtos.Scheduling;
 /// </summary>
 public record SchedulingChecklistDto
 {
+    /// <summary>
+    /// Step 0 — the league-season has at least one active field assigned. Zero-numbered as
+    /// the prerequisite: fields depend on nothing else and everything downstream is authored
+    /// against them (Todd, 08-12). Deliberately the cheapest honest signal — whether every
+    /// division's timeslots resolve a field is the timeslots step's question, not this one's.
+    /// </summary>
+    public required ChecklistFieldsSetupStepDto FieldsSetup { get; init; }
+
     /// <summary>Step 1 — every active team sits in a pool other than "Unassigned".</summary>
     public required ChecklistPoolsStepDto Pools { get; init; }
 
@@ -63,6 +71,18 @@ public record ChecklistScheduleStatsDto
     public required DateTime? FirstGameDate { get; init; }
     /// <summary>Latest game day (date only), null when no games.</summary>
     public required DateTime? LastGameDate { get; init; }
+}
+
+/// <summary>
+/// Field-setup readiness: the league-season has at least one active, non-system field
+/// assigned (a FieldsLeagueSeason row — the same population the Manage Fields "Assigned"
+/// panel shows).
+/// </summary>
+public record ChecklistFieldsSetupStepDto
+{
+    public required bool Complete { get; init; }
+    /// <summary>Active fields assigned to this league-season.</summary>
+    public required int ActiveFieldCount { get; init; }
 }
 
 /// <summary>Pool-assignment readiness. Offenders are agegroups holding unpooled teams.</summary>

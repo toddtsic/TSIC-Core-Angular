@@ -170,6 +170,7 @@ export type { ChecklistAgegroupSlotsDto } from './models/ChecklistAgegroupSlotsD
 export type { ChecklistAgegroupStepDto } from './models/ChecklistAgegroupStepDto';
 export type { ChecklistBracketStepDto } from './models/ChecklistBracketStepDto';
 export type { ChecklistDivisionStepDto } from './models/ChecklistDivisionStepDto';
+export type { ChecklistFieldsSetupStepDto } from './models/ChecklistFieldsSetupStepDto';
 export type { ChecklistPairingsStepDto } from './models/ChecklistPairingsStepDto';
 export type { ChecklistPoolsStepDto } from './models/ChecklistPoolsStepDto';
 export type { ChecklistRulesStepDto } from './models/ChecklistRulesStepDto';

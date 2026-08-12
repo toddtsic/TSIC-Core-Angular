@@ -86,6 +86,24 @@ export class SchedulingChecklistComponent implements OnInit {
         const c = this.checklist();
         if (!c) return [];
 
+        // Step ZERO by design (Todd, 08-12): the prerequisite, not part of the yearly flow.
+        // Fields depend on nothing else and everything downstream is authored against them.
+        // The signal is deliberately the cheapest honest one — ≥1 active field assigned to
+        // the league-season; whether every division's timeslots resolve a field stays the
+        // timeslots step's question.
+        const fieldsSetup: StepRow = {
+            num: 0,
+            title: 'Set Up Fields',
+            icon: 'bi-geo-alt',
+            state: c.fieldsSetup.complete ? 'done' : 'todo',
+            reason: c.fieldsSetup.complete
+                ? `${c.fieldsSetup.activeFieldCount} field${c.fieldsSetup.activeFieldCount === 1 ? '' : 's'} assigned for this season`
+                : 'No fields assigned to this season yet',
+            route: 'fields',
+            queryParams: null,
+            linkLabel: 'Manage Fields'
+        };
+
         const pools: StepRow = {
             num: 1,
             title: 'Assign Teams To Pools',
@@ -139,6 +157,7 @@ export class SchedulingChecklistComponent implements OnInit {
         // So it folds in here as a note, not a gate. What still locks this step is the work that
         // lives in the steps ABOVE it — pools, dates, timeslots — which nothing can derive.
         const upstreamBlockers = [
+            !c.fieldsSetup.complete ? 'fields' : null,
             !c.pools.complete ? 'pools' : null,
             !c.dates.complete ? 'play dates' : null,
             !c.fields.complete ? 'timeslots' : null
@@ -167,7 +186,7 @@ export class SchedulingChecklistComponent implements OnInit {
             linkLabel: 'Schedule'
         };
 
-        const rows = [pools, pairings, timeslots, build];
+        const rows = [fieldsSetup, pools, pairings, timeslots, build];
 
         // A row earns a step number only when it is finishable and its completion is computable —
         // everything else belongs in Tools. Bracket Seeds is the one post-build row that

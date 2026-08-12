@@ -57,6 +57,12 @@ import { ScheduleCascadeService } from './components/schedule-config/schedule-ca
 import type { CanvasReadinessResponse } from '@core/api';
 import { LadtService } from '../../ladt/editor/services/ladt.service';
 
+// Silent prior-year auto-seed (FLS copy + timing patterns + play dates) on hub init.
+// OFF 2026-08-12 (Todd): the assigners are expert in the established manual workflow and
+// rows appearing on their own reads as confusion, not convenience. Code preserved —
+// tryAutoSeedFromSource and its backend endpoint stay intact; flip to re-enable.
+const AUTO_SEED_FROM_PRIOR_ON_INIT = false;
+
 @Component({
     selector: 'app-schedule-division',
     standalone: true,
@@ -94,12 +100,12 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
     readonly pairingsPanel = viewChild(PairingsPanelComponent);
 
     // ── Hub mode ──
-    // Configure mode (gear button + tabbed config panel). Briefly parked 2026-08-05, then
-    // restored the same day: build parameters (waves, order, windows, guarantees) are
-    // demand-sensitive and prior-year seeds are a hypothesis, not an answer — a director
-    // needs a surface to review/tune them before a first build. Flag kept so it can be
-    // parked again without surgery.
-    readonly showConfigureMode = true;
+    // Configure mode (gear button + tabbed config panel). Briefly parked 2026-08-05,
+    // restored the same day, RE-PARKED 2026-08-12 (Todd): the assigners are expert in the
+    // established workflow — checklist steps + build modal — and the Configure surface's
+    // prior-year projection reads as unfamiliar magic to them. Code preserved; flip to
+    // true to restore the segment (the ?mode=configure deep link is guarded by this flag).
+    readonly showConfigureMode = false;
     readonly mode = signal<'configure' | 'schedule' | 'master' | 'qa'>(
         this.showConfigureMode ? 'configure' : 'schedule');
     readonly activeTool = signal<'fields' | 'pairings' | 'timeslots' | 'pools' | 'bracket-seeds' | null>(null);
@@ -617,7 +623,9 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
 
                 // Proactive auto-seed: if prior job exists and fields are unconfigured,
                 // copy FLS rows + apply timing pattern from source
-                this.tryAutoSeedFromSource(res);
+                if (AUTO_SEED_FROM_PRIOR_ON_INIT) {
+                    this.tryAutoSeedFromSource(res);
+                }
             },
             error: () => {
                 this.canvasReadiness.set({});

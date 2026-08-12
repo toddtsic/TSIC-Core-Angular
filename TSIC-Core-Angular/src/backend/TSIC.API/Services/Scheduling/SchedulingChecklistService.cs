@@ -21,6 +21,7 @@ public sealed class SchedulingChecklistService : ISchedulingChecklistService
     private readonly ITimeslotRepository _timeslotRepo;
     private readonly IBracketRepository _bracketRepo;
     private readonly IBracketSeedRepository _bracketSeedRepo;
+    private readonly IFieldRepository _fieldRepo;
     private readonly ISchedulingContextResolver _contextResolver;
 
     public SchedulingChecklistService(
@@ -32,6 +33,7 @@ public sealed class SchedulingChecklistService : ISchedulingChecklistService
         ITimeslotRepository timeslotRepo,
         IBracketRepository bracketRepo,
         IBracketSeedRepository bracketSeedRepo,
+        IFieldRepository fieldRepo,
         ISchedulingContextResolver contextResolver)
     {
         _autoBuildRepo = autoBuildRepo;
@@ -42,6 +44,7 @@ public sealed class SchedulingChecklistService : ISchedulingChecklistService
         _timeslotRepo = timeslotRepo;
         _bracketRepo = bracketRepo;
         _bracketSeedRepo = bracketSeedRepo;
+        _fieldRepo = fieldRepo;
         _contextResolver = contextResolver;
     }
 
@@ -60,6 +63,16 @@ public sealed class SchedulingChecklistService : ISchedulingChecklistService
         var agProfiles = await _cascadeRepo.GetAgegroupProfilesAsync(jobId, ct);
         var divProfiles = await _cascadeRepo.GetDivisionProfilesAsync(jobId, ct);
         var scheduleStats = await _scheduleRepo.GetScheduleSummaryStatsAsync(jobId, ct);
+        var activeFieldCount = await _fieldRepo.CountActiveLeagueSeasonFieldsAsync(leagueId, season, ct);
+
+        // ── Step 0: Fields set up for the season ──
+        // ≥1 active field assigned to the league-season. Zero-numbered prerequisite (Todd,
+        // 08-12): fields depend on nothing else and timeslots are authored against them.
+        var fieldsSetup = new ChecklistFieldsSetupStepDto
+        {
+            Complete = activeFieldCount > 0,
+            ActiveFieldCount = activeFieldCount
+        };
 
         // Utility agegroups (WAITLIST-*, Dropped Teams) and empty agegroups never gate anything
         var relevantAgegroups = agegroups
@@ -230,6 +243,7 @@ public sealed class SchedulingChecklistService : ISchedulingChecklistService
 
         return new SchedulingChecklistDto
         {
+            FieldsSetup = fieldsSetup,
             Pools = pools,
             Dates = dates,
             Fields = fields,
