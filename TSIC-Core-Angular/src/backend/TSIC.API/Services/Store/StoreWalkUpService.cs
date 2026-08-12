@@ -55,6 +55,16 @@ public sealed class StoreWalkUpService : IStoreWalkUpService
 		if (!await _jobRepo.IsStoreWalkupAllowedAsync(jobId))
 			throw new InvalidOperationException("Walk-up registration is not enabled for this event.");
 
+		// 2b. Anchor gate — BEFORE any writes. Every walk-up registration hangs on the
+		//     "Store Merch" team (under "Dropped Teams"); if it's missing, proceeding
+		//     would mint a user + family + registration with AssignedTeamId = null — an
+		//     orphaned, money-attached row. Clones are born with the anchor
+		//     (JobCloneResetRules.CreateStoreMerchTeam); this guard fails loud for
+		//     older/hand-built jobs instead of writing bad data.
+		var storeMerchTeamId = await _teamRepo.GetStoreMerchTeamIdAsync(jobId)
+			?? throw new InvalidOperationException(
+				"This event's store is not provisioned for walk-up sales (no 'Store Merch' team). Contact the event director.");
+
 		var jobMeta = await _jobLookupService.GetJobMetadataAsync(request.JobPath);
 		var jobLogo = jobMeta?.JobLogoPath;
 
@@ -104,8 +114,7 @@ public sealed class StoreWalkUpService : IStoreWalkUpService
 		_familiesRepo.Add(family);
 		await _familiesRepo.SaveChangesAsync();
 
-		// 6. Find "Store Merch" team (under "Dropped Teams" agegroup)
-		var storeMerchTeamId = await _teamRepo.GetStoreMerchTeamIdAsync(jobId);
+		// 6. (Store Merch anchor already resolved at step 2b — before any writes.)
 
 		// 7. Create registration
 		var regId = Guid.NewGuid();

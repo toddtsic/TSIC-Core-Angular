@@ -1025,7 +1025,7 @@ public sealed class LadtService : ILadtService
 
     private async Task<Guid> FindOrCreateDroppedTeamsAgegroupAsync(Guid leagueId, string userId, CancellationToken cancellationToken)
     {
-        const string DroppedTeamsName = "Dropped Teams";
+        const string DroppedTeamsName = AgegroupConstants.DroppedTeamsFullName;
         var agegroups = await _agegroupRepo.GetByLeagueIdAsync(leagueId, cancellationToken);
         var existing = agegroups.Find(a =>
             string.Equals(a.AgegroupName, DroppedTeamsName, StringComparison.OrdinalIgnoreCase));
@@ -1050,7 +1050,7 @@ public sealed class LadtService : ILadtService
 
     private async Task<Guid> FindOrCreateDroppedTeamsDivisionAsync(Guid droppedAgId, string userId, CancellationToken cancellationToken)
     {
-        const string DroppedTeamsName = "Dropped Teams";
+        const string DroppedTeamsName = AgegroupConstants.DroppedTeamsFullName;
         var divisions = await _divisionRepo.GetByAgegroupIdAsync(droppedAgId, cancellationToken);
         var existing = divisions.Find(d =>
             string.Equals(d.DivName, DroppedTeamsName, StringComparison.OrdinalIgnoreCase));

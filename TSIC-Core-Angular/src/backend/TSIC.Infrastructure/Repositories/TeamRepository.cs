@@ -1590,8 +1590,8 @@ public class TeamRepository : ITeamRepository
             from t in _context.Teams.AsNoTracking()
             join ag in _context.Agegroups.AsNoTracking() on t.AgegroupId equals ag.AgegroupId
             where t.JobId == jobId
-                  && t.TeamName == "Store Merch"
-                  && ag.AgegroupName == "Dropped Teams"
+                  && t.TeamName == TeamConstants.StoreMerch
+                  && ag.AgegroupName == AgegroupConstants.DroppedTeamsFullName
             select (Guid?)t.TeamId
         ).FirstOrDefaultAsync(cancellationToken);
     }

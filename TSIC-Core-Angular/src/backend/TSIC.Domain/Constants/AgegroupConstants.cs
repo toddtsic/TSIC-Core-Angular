@@ -34,6 +34,14 @@ public static class AgegroupConstants
     /// <summary>Graveyard agegroup for dropped teams.</summary>
     public const string DroppedTeams = "Dropped";
 
+    /// <summary>
+    /// The exact name the system mints for the graveyard agegroup AND its single division
+    /// (LadtService drop find-or-create; JobCloneResetRules.CreateDroppedTeamsBucket).
+    /// <see cref="DroppedTeams"/> is the Contains-fragment used by query-side filters;
+    /// this is the full canonical name used when CREATING the bucket.
+    /// </summary>
+    public const string DroppedTeamsFullName = "Dropped Teams";
+
     /// <summary>Pre-placement holding agegroup.</summary>
     public const string Registration = "Registration";
 

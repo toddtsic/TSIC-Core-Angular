@@ -345,10 +345,20 @@ public sealed class JobClonePlanner
             ? leagueUnits.SelectMany(u => u.Divisions)
                 .Count(d => !string.Equals(d.DivName, DivisionConstants.Unassigned, StringComparison.OrdinalIgnoreCase))
             : 0;
-        var plannedDivisions = clonedAgegroupCount + namedPools;
-        var divisionsNote = req.CopyDivisions
+
+        // ── Dropped Teams bucket + Store Merch anchor: MINTED per clone, never copied from
+        //    the source (whose bucket is excluded above with the other system agegroups).
+        //    Mirrors the executor's CreateDroppedTeamsBucket/CreateStoreMerchTeam — one
+        //    agegroup + one division per cloned league, one anchor team per job. Counted
+        //    here so preview/execute step parity holds row-for-row. ──
+        var mintedBuckets = leagueUnits.Count;
+        var mintedAnchorTeams = leagueUnits.Count > 0 ? 1 : 0;
+
+        var plannedDivisions = clonedAgegroupCount + namedPools + mintedBuckets;
+        var divisionsNote = (req.CopyDivisions
             ? $"{namedPools} source pool(s) + 1 Unassigned per agegroup"
-            : $"fresh pools — 1 Unassigned per agegroup, {leagueUnits.Sum(u => u.Divisions.Count)} source division(s) dropped";
+            : $"fresh pools — 1 Unassigned per agegroup, {leagueUnits.Sum(u => u.Divisions.Count)} source division(s) dropped")
+            + (mintedBuckets > 0 ? $"; +{mintedBuckets} Dropped Teams (auto)" : string.Empty);
 
         // ── Steps in manifest order (Count = rows the executor will create) ──
         var menuItemCount = menus.Sum(m => m.JobMenuItems.Count);
@@ -373,12 +383,14 @@ public sealed class JobClonePlanner
                           + (actorHasSourceReg ? string.Empty : "; +1 fresh Superuser row for you") },
             new() { StepKey = JobCloneStepOrder.Leagues, Count = leagueUnits.Count },
             new() { StepKey = JobCloneStepOrder.JobLeagues, Count = leagueUnits.Count },
-            new() { StepKey = JobCloneStepOrder.Agegroups, Count = leagueUnits.Sum(u => u.Agegroups.Count) },
+            new() { StepKey = JobCloneStepOrder.Agegroups, Count = clonedAgegroupCount + mintedBuckets,
+                    Notes = mintedBuckets > 0 ? $"+{mintedBuckets} Dropped Teams bucket(s) (auto)" : null },
             new() { StepKey = JobCloneStepOrder.Divisions, Count = plannedDivisions,
                     Notes = divisionsNote },
-            new() { StepKey = JobCloneStepOrder.Teams, Count = plannedTeams,
+            new() { StepKey = JobCloneStepOrder.Teams, Count = plannedTeams + mintedAnchorTeams,
                     Notes = BuildTeamsNote(teamsScope, eligibleTeams.Count, excludedCompeting,
-                                           excludedBucket, excludedInactive, excludedUnmapped) },
+                                           excludedBucket, excludedInactive, excludedUnmapped)
+                            + (mintedAnchorTeams > 0 ? "; +1 Store Merch anchor (auto)" : string.Empty) },
             new() { StepKey = JobCloneStepOrder.JobFees, Count = eligibleFees.Count,
                     Notes = BuildFeeNotes(skippedFees, skippedPhaseOnly) },
             new() { StepKey = JobCloneStepOrder.FeeModifiers, Count = plannedModifiers },

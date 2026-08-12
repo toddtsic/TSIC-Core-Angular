@@ -237,6 +237,9 @@ public sealed class JobCloneService : IJobCloneService
         var agegroups = new List<Agegroups>();
         var divisions = new List<Divisions>();
 
+        // Primary league's freshly-minted graveyard — home for the Store Merch anchor.
+        (Guid LeagueId, Guid AgegroupId, Guid DivId)? storeMerchHome = null;
+
         foreach (var unit in ctx.LeagueUnits)
         {
             var newLeagueId = Guid.NewGuid();
@@ -252,6 +255,16 @@ public sealed class JobCloneService : IJobCloneService
             divisions.AddRange(JobCloneResetRules.CloneDivisions(
                 unit.Divisions, agegroupIdMap, newAgegroupIds, divisionIdMap,
                 req.CopyDivisions, userId, now));
+
+            // ── Dropped Teams bucket, minted per league (the planner excludes the source's;
+            //    counts stay in parity because the planner adds these back — see its
+            //    Agegroups/Divisions steps) ──
+            var (droppedAg, droppedDiv) = JobCloneResetRules.CreateDroppedTeamsBucket(
+                newLeagueId, req, userId, now);
+            agegroups.Add(droppedAg);
+            divisions.Add(droppedDiv);
+            if (storeMerchHome is null || unit.JobLeague.BIsPrimary)
+                storeMerchHome = (newLeagueId, droppedAg.AgegroupId, droppedDiv.DivId);
         }
 
         List<TSIC.Domain.Entities.Teams> teams = ctx.TeamsScope
@@ -259,6 +272,15 @@ public sealed class JobCloneService : IJobCloneService
                 ctx.EligibleTeams.Select(t => t.Team), newJobId, req, userId, now, yearDelta,
                 leagueIdMap, agegroupIdMap, divisionIdMap, teamIdMap)
             : new List<TSIC.Domain.Entities.Teams>();
+
+        // ── Store Merch anchor — one per job, regardless of LADT scope (it is store
+        //    infrastructure, not a cloned team). Skipped only when no leagues clone,
+        //    where no bucket can exist to hold it. ──
+        if (storeMerchHome is { } home)
+        {
+            teams.Add(JobCloneResetRules.CreateStoreMerchTeam(
+                newJobId, home.LeagueId, home.AgegroupId, home.DivId, req, userId, now));
+        }
 
         // ── Fees: the planner's eligible rows, remapped through the freshly-minted maps.
         //    Direct indexing is deliberate — the planner guaranteed membership; a miss is

@@ -692,14 +692,56 @@ public class JobCloneServiceTests
             BaseRequest(jobId, leagueId, ladtScope: "lad"), SuperUserId);
 
         StepCount(resp, JobCloneStepOrder.Leagues).Should().Be(1);
-        StepCount(resp, JobCloneStepOrder.Agegroups).Should().Be(1);
-        // Source pool "A" + the Unassigned holding division every cloned agegroup now gets.
-        StepCount(resp, JobCloneStepOrder.Divisions).Should().Be(2);
-        StepCount(resp, JobCloneStepOrder.Teams).Should().Be(0);
+        // Boys U10 + the minted Dropped Teams bucket every cloned league is born with.
+        StepCount(resp, JobCloneStepOrder.Agegroups).Should().Be(2);
+        // Source pool "A" + the Unassigned holding division every cloned agegroup now
+        // gets + the minted Dropped Teams division.
+        StepCount(resp, JobCloneStepOrder.Divisions).Should().Be(3);
+        // No CLONED teams — but the Store Merch anchor is minted regardless of scope.
+        StepCount(resp, JobCloneStepOrder.Teams).Should().Be(1);
 
         var newTeams = await ctx.Teams.AsNoTracking()
             .Where(t => t.JobId == resp.NewJobId).ToListAsync();
-        newTeams.Should().BeEmpty();
+        var anchor = newTeams.Should().ContainSingle().Which;
+        anchor.TeamName.Should().Be("Store Merch");
+        anchor.Active.Should().BeFalse();
+    }
+
+    // Every cloned league is born with the canonical Dropped Teams bucket, and the job
+    // gets one Store Merch anchor under it (Todd-decided 08-12). Shape must match
+    // DropTeamAsync's find-or-create exactly — that path FINDS this bucket by name and
+    // must never mint a duplicate alongside it.
+    [Fact]
+    public async Task Clone_MintsDroppedTeamsBucket_AndStoreMerchAnchor()
+    {
+        var (svc, ctx) = BuildService();
+        var (jobId, leagueId, _, _) = await SeedSourceJobAsync(ctx);
+        await ctx.SaveChangesAsync();
+
+        var resp = await svc.CloneJobAsync(
+            BaseRequest(jobId, leagueId, ladtScope: "lad"), SuperUserId);
+
+        var newLeagueId = (await ctx.JobLeagues.AsNoTracking()
+            .SingleAsync(jl => jl.JobId == resp.NewJobId)).LeagueId;
+
+        var bucket = await ctx.Agegroups.AsNoTracking()
+            .SingleAsync(a => a.LeagueId == newLeagueId && a.AgegroupName == "Dropped Teams");
+        bucket.MaxTeams.Should().Be(999);
+        bucket.MaxTeamsPerClub.Should().Be(999);
+        bucket.SortAge.Should().Be(254);
+        bucket.BAllowApiRosterAccess.Should().BeFalse();
+
+        var bucketDiv = await ctx.Divisions.AsNoTracking()
+            .SingleAsync(d => d.AgegroupId == bucket.AgegroupId && d.DivName == "Dropped Teams");
+
+        var anchor = await ctx.Teams.AsNoTracking()
+            .SingleAsync(t => t.JobId == resp.NewJobId && t.TeamName == "Store Merch");
+        anchor.AgegroupId.Should().Be(bucket.AgegroupId);
+        anchor.DivId.Should().Be(bucketDiv.DivId);
+        anchor.LeagueId.Should().Be(newLeagueId);
+        anchor.Active.Should().BeFalse();
+        anchor.ClubrepRegistrationid.Should().BeNull();
+        anchor.FeeTotal.Should().Be(0m);
     }
 
     [Fact]
@@ -714,10 +756,11 @@ public class JobCloneServiceTests
         var resp = await svc.CloneJobAsync(
             BaseRequest(jobId, leagueId, ladtScope: "ladt"), SuperUserId);
 
-        StepCount(resp, JobCloneStepOrder.Teams).Should().Be(1);
+        // Eagles + the minted Store Merch anchor.
+        StepCount(resp, JobCloneStepOrder.Teams).Should().Be(2);
 
         var newTeams = await ctx.Teams.AsNoTracking()
-            .Where(t => t.JobId == resp.NewJobId).ToListAsync();
+            .Where(t => t.JobId == resp.NewJobId && t.TeamName != "Store Merch").ToListAsync();
         newTeams.Should().HaveCount(1);
         newTeams[0].TeamName.Should().Be("Eagles");
         newTeams[0].PrevTeamId.Should().Be(sourceTeam.TeamId);
@@ -752,11 +795,13 @@ public class JobCloneServiceTests
         var resp = await svc.CloneJobAsync(
             BaseRequest(jobId, leagueId, ladtScope: "ladt"), SuperUserId);
 
-        StepCount(resp, JobCloneStepOrder.Teams).Should().Be(2);
+        // House + Open + the minted Store Merch anchor.
+        StepCount(resp, JobCloneStepOrder.Teams).Should().Be(3);
         var newTeams = await ctx.Teams.AsNoTracking()
             .Where(t => t.JobId == resp.NewJobId).ToListAsync();
-        newTeams.Select(t => t.TeamName).Should().BeEquivalentTo("House Team A", "Open Team");
-        // Cloned house team arrives ownerless (clubrep pointers nulled).
+        newTeams.Select(t => t.TeamName)
+            .Should().BeEquivalentTo("House Team A", "Open Team", "Store Merch");
+        // Cloned house team arrives ownerless (clubrep pointers nulled); anchor is too.
         newTeams.Should().OnlyContain(t =>
             t.ClubrepRegistrationid == null && t.ClubrepId == null);
     }
@@ -773,9 +818,10 @@ public class JobCloneServiceTests
         var resp = await svc.CloneJobAsync(
             BaseRequest(jobId, leagueId, ladtScope: "ladt"), SuperUserId);
 
-        StepCount(resp, JobCloneStepOrder.Teams).Should().Be(1);
+        // Active Team + the minted Store Merch anchor.
+        StepCount(resp, JobCloneStepOrder.Teams).Should().Be(2);
         var newTeams = await ctx.Teams.AsNoTracking()
-            .Where(t => t.JobId == resp.NewJobId).ToListAsync();
+            .Where(t => t.JobId == resp.NewJobId && t.TeamName != "Store Merch").ToListAsync();
         newTeams.Should().ContainSingle().Which.TeamName.Should().Be("Active Team");
     }
 
@@ -813,10 +859,13 @@ public class JobCloneServiceTests
         var resp = await svc.CloneJobAsync(
             BaseRequest(jobId, leagueId, ladtScope: "ladt"), SuperUserId);
 
-        StepCount(resp, JobCloneStepOrder.Agegroups).Should().Be(1);   // only Boys U10
-        StepCount(resp, JobCloneStepOrder.Teams).Should().Be(1);
+        // Boys U10 + the MINTED Dropped Teams bucket — the SOURCE's dropped/waitlist
+        // agegroups still never clone; the clone births a fresh, empty graveyard.
+        StepCount(resp, JobCloneStepOrder.Agegroups).Should().Be(2);
+        // Eligible + the minted Store Merch anchor; Waitlisted/Dropped teams excluded.
+        StepCount(resp, JobCloneStepOrder.Teams).Should().Be(2);
         var newTeams = await ctx.Teams.AsNoTracking()
-            .Where(t => t.JobId == resp.NewJobId).ToListAsync();
+            .Where(t => t.JobId == resp.NewJobId && t.TeamName != "Store Merch").ToListAsync();
         newTeams.Should().ContainSingle().Which.TeamName.Should().Be("Eligible");
     }
 
@@ -833,7 +882,7 @@ public class JobCloneServiceTests
             BaseRequest(jobId, leagueId, ladtScope: "ladt"), SuperUserId);
 
         var newTeam = await ctx.Teams.AsNoTracking()
-            .FirstAsync(t => t.JobId == resp.NewJobId);
+            .FirstAsync(t => t.JobId == resp.NewJobId && t.TeamName == "Eagles");
 
         newTeam.ClubrepRegistrationid.Should().BeNull();
         newTeam.ClubrepId.Should().BeNull();
@@ -863,7 +912,8 @@ public class JobCloneServiceTests
         var resp = await svc.CloneJobAsync(
             BaseRequest(jobId, leagueId, ladtScope: "ladt", advance: true), SuperUserId);
 
-        var newTeam = await ctx.Teams.AsNoTracking().FirstAsync(t => t.JobId == resp.NewJobId);
+        var newTeam = await ctx.Teams.AsNoTracking()
+            .FirstAsync(t => t.JobId == resp.NewJobId && t.TeamName != "Store Merch");
         newTeam.TeamName.Should().Be("Eagles 2033");
     }
 
@@ -894,7 +944,8 @@ public class JobCloneServiceTests
         var resp = await svc.CloneJobAsync(
             BaseRequest(jobId, leagueId, ladtScope: "ladt"), SuperUserId);
 
-        var newTeam = await ctx.Teams.AsNoTracking().FirstAsync(t => t.JobId == resp.NewJobId);
+        var newTeam = await ctx.Teams.AsNoTracking()
+            .FirstAsync(t => t.JobId == resp.NewJobId && t.TeamName == "Eagles");
         var newTeamFees = await ctx.JobFees.AsNoTracking()
             .Where(f => f.JobId == resp.NewJobId && f.TeamId != null).ToListAsync();
 

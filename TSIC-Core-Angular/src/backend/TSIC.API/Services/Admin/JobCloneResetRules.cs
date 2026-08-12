@@ -847,6 +847,85 @@ public static class JobCloneResetRules
     }
 
     // ══════════════════════════════════════════════════════════
+    // Dropped Teams bucket + Store Merch anchor — MINTED, never cloned
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Every cloned league is born with the "Dropped Teams" graveyard agegroup + division.
+    /// The planner deliberately excludes the source's bucket (JobClonePlanner — WAITLIST/
+    /// Dropped never clone), and while DropTeamAsync self-heals the bucket on first drop,
+    /// pool assignment can only OFFER a dropped destination that already exists, and a
+    /// director who hand-creates the agegroup gets a protected stray "Unassigned" division
+    /// instead of the canonical one. Minting here, in DropTeamAsync's exact shape, closes
+    /// both gaps at birth (Todd-decided 08-12).
+    /// </summary>
+    public static (Agegroups Agegroup, Divisions Division) CreateDroppedTeamsBucket(
+        Guid newLeagueId, JobCloneRequest req, string userId, DateTime now)
+    {
+        var ag = new Agegroups
+        {
+            AgegroupId = Guid.NewGuid(),
+            LeagueId = newLeagueId,
+            AgegroupName = AgegroupConstants.DroppedTeamsFullName,
+            Season = req.SeasonTarget,
+            // DropTeamAsync's find-or-create values: effectively-unbounded caps (the
+            // graveyard must never refuse a drop), SortAge pinned past every real group.
+            MaxTeams = 999,
+            MaxTeamsPerClub = 999,
+            SortAge = 254,
+            BAllowApiRosterAccess = false,
+            LebUserId = userId,
+            Modified = now,
+        };
+        var div = new Divisions
+        {
+            DivId = Guid.NewGuid(),
+            AgegroupId = ag.AgegroupId,
+            DivName = AgegroupConstants.DroppedTeamsFullName,
+            LebUserId = userId,
+            Modified = now,
+        };
+        return (ag, div);
+    }
+
+    /// <summary>
+    /// The walk-up store's anchor team, under the primary league's Dropped Teams bucket.
+    /// StoreWalkUpService hangs every walk-up registration on this team (resolved by name
+    /// via GetStoreMerchTeamIdAsync — no find-or-create there); without it a kiosk sale
+    /// would write a registration with AssignedTeamId = null. Minted unconditionally:
+    /// BEnableStore/BAllowStoreWalkup can be flipped on any time after the clone, and an
+    /// inactive team in a system bucket is invisible everywhere (Todd-decided 08-12).
+    /// </summary>
+    public static TeamsEntity CreateStoreMerchTeam(
+        Guid newJobId, Guid leagueId, Guid agegroupId, Guid divId,
+        JobCloneRequest req, string userId, DateTime now)
+    {
+        var t = new TeamsEntity
+        {
+            TeamId = Guid.NewGuid(),
+            JobId = newJobId,
+            LeagueId = leagueId,
+            AgegroupId = agegroupId,
+            DivId = divId,
+            TeamName = TeamConstants.StoreMerch,
+            Active = false,             // never competes, never lists
+            DivRank = 1,
+            MaxCount = 100000,          // legacy parity — capacity checks must never block a sale
+            CustomerId = req.TargetCustomerId,
+            Season = req.SeasonTarget,
+            Year = req.YearTarget,
+            Effectiveasofdate = now.Date,
+            Createdate = now,
+            Modified = now,
+            LebUserId = userId,
+            FeeBase = 0m, FeeProcessing = 0m, FeeDiscount = 0m, FeeDiscountMp = 0m,
+            FeeDonation = 0m, FeeLatefee = 0m, PaidTotal = 0m,
+        };
+        t.RecalcTotals();
+        return t;
+    }
+
+    // ══════════════════════════════════════════════════════════
     // fees.JobFees + fees.FeeModifiers
     // ══════════════════════════════════════════════════════════
 
