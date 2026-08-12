@@ -107,49 +107,44 @@ public sealed class RegisteredTeamShaper : IRegisteredTeamShaper
             // totals the rep is shown for CC / check / eCheck equal exactly what each
             // method charges or records (keeps the AMOUNT_MISMATCH tripwire quiet).
             var state = paymentStates.GetValueOrDefault(t.TeamId, emptyState);
-            // donation: 0m — a donation is always charged in full with its payment, so it sits in
-            // BOTH the principal base and PrincipalPaid and nets out of these post-payment display
-            // columns. RegisteredTeamInfo doesn't carry FeeDonation; threading it would change
-            // nothing here. (The charge/stamp paths pass the real FeeDonation.)
-            //
-            // The deposit/balance split follows ONE rule — the discount reduces the deposit FIRST
-            // (front-load), and a "deposit" only exists while the team is in the deposit-collection
-            // phase:
-            //   • Deposit phase  → Deposit Due = the discounted deposit still owed (deposit − discount,
-            //     net of any deposit payment); Balance Due = the configured structural balance, shown
-            //     forward-looking (not yet active).
-            //   • Full-payment phase → the deposit concept is retired: a converted team already paid its
-            //     deposit, and a PIF team pays the whole amount at once (the Pay button charges the full
-            //     remaining, so a non-zero Deposit Due would contradict it). Deposit Due collapses to 0
-            //     and the ENTIRE remaining principal shows as Balance Due — anchored on the canonical
-            //     PrincipalRemaining so it can never disagree with the CC/Check Owed columns, and a
-            //     deposit→full conversion shows Balance Due = full remaining once the discounted deposit
-            //     is paid (no phantom deposit-due from re-spreading an already-consumed discount).
-            // Proportional splitting is reserved for the team ARB-trial payment OPTION (ArbTrialFeeSplitter
-            // must split the discount pro-rata so a discount ≥ deposit can't zero the trial leg); that
-            // option computes its own breakdown when selected and does not drive this default grid.
-            // TotalDiscount() — both buckets, exactly what FeeMath subtracted from FeeTotal. Netting
-            // only FeeDiscount here would overstate principal-remaining and drift these columns from
-            // the stored OwedTotal.
+            // donation: 0m — a donation is always charged in full with its payment, so it nets out
+            // of these post-payment display columns. RegisteredTeamInfo doesn't carry FeeDonation;
+            // threading it would change nothing here. (The charge/stamp paths pass the real FeeDonation.)
+            // TotalDiscount() — both buckets, exactly what FeeMath subtracted from FeeTotal.
             var discount = t.TotalDiscount();
-            // Deposit-less single payment (Deposit=NULL, BalanceDue=X — the canonical shape 6a §3
-            // normalizes legacy single-payment tournaments into): the whole fee IS the deposit-phase
-            // obligation, exactly what the charge stamp does (FeeBase = EffectiveDeposit, which falls
-            // back to BalanceDue). Deposit Due must show that same amount — raw Deposit here would
-            // render "Deposit Due $0" beside a full-price Pay button — and Balance Due must show $0:
-            // the same dollars may not appear in both columns, and nothing further is ever due.
-            // Two-phase rows are untouched (EffectiveDeposit = Deposit; balance stays forward-looking).
-            var depositDue = teamFullPayment
-                ? 0m
-                : state.DepositPrincipalRemaining(resolved?.EffectiveDeposit ?? 0m, discount, t.FeeLatefee, donation: 0m);
-            var additionalDue = teamFullPayment
-                ? state.PrincipalRemaining(t.FeeBase, discount, t.FeeLatefee, donation: 0m)
-                : (deposit > 0m ? balanceDue : 0m);
             var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, discount, t.FeeLatefee, donation: 0m, t.FeeProcessing);
             var ccOwedTotal = owed.Cc;
             var ckOwedTotal = owed.Check;
             var ekOwedTotal = owed.Echeck;
             var feeProcessingDue = Math.Max(0m, ccOwedTotal - ckOwedTotal);
+
+            // Deposit Due / Balance Due anchor on the stored entity totals via ResolveOwed's
+            // proc-free (Check) figure — NEVER on a principal re-derived from the ledger.
+            //
+            // Why: Registration_Accounting.Payamt is money-in, nothing more. The ledger has never
+            // carried a per-row principal/proc split (in the legacy era OR now) — that split lives
+            // only in the entity columns, maintained at write time when it was actually known.
+            // The previous PrincipalRemaining/DepositPrincipalRemaining display math re-decoded
+            // CC rows as gross-with-proc (payamt ÷ (1+rate)), which is only guaranteed for rows
+            // the current charge engine wrote itself. Legacy club-lump allocation rows
+            // ("paid by cc: $1,300.00 of $5,291.00") book flat principal; decoding them invented
+            // ~3.4% of phantom "still owed" — 38 settled prod teams showed $10–57 Balance Due
+            // beside Owed $0.00 (2026-08-11 sweep). CkOwedTotal is the same "principal still
+            // owed if paid proc-free" quantity, but anchored on OwedTotal with the proc credit
+            // capped at stored FeeProcessing — for self-consistent (new-engine) data it equals
+            // the old figure; for legacy-paid teams it agrees with the books by construction.
+            //
+            //   • Deposit phase  → Deposit Due = remaining obligation (CkOwedTotal; the stamp set
+            //     FeeBase = EffectiveDeposit, so owed IS the deposit-phase bill — including the
+            //     deposit-less single-payment shape, where the whole fee shows here and Balance
+            //     Due stays $0). Balance Due = the configured structural balance, forward-looking.
+            //   • Full-payment phase → the deposit concept is retired: Deposit Due collapses to 0
+            //     and the entire remainder (CkOwedTotal) shows as Balance Due, which therefore can
+            //     never disagree with the Owed/Check Owed columns beside it.
+            var depositDue = teamFullPayment ? 0m : ckOwedTotal;
+            var additionalDue = teamFullPayment
+                ? ckOwedTotal
+                : (deposit > 0m ? balanceDue : 0m);
 
             return new RegisteredTeamDto
             {
