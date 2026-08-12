@@ -68,9 +68,12 @@ public interface ITeamRegistrationService
     Task<bool> UpdateClubNameAsync(string userId, string oldClubName, string newClubName);
 
     /// <summary>
-    /// Create a new ClubTeam in the caller's club library.
+    /// Create a new ClubTeam in the caller's club library. The club is resolved from the
+    /// caller's registration context (regId) — the same resolution the metadata read uses —
+    /// never from the rep's club list, so the created team is guaranteed to appear in the
+    /// library the wizard displays.
     /// </summary>
-    Task<ClubTeamDto> CreateClubTeamAsync(string userId, CreateClubTeamRequest request);
+    Task<ClubTeamDto> CreateClubTeamAsync(Guid regId, string userId, CreateClubTeamRequest request);
 
     /// <summary>
     /// Update a ClubTeam in the caller's club library.

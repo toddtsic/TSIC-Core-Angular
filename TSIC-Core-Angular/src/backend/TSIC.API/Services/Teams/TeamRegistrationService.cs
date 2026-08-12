@@ -365,42 +365,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             .Select(id => id!.Value)
             .ToHashSet();
 
-        // Resolve the library's club STRUCTURALLY from those teams rather than by
-        // re-matching the free-text club_name. This guarantees the library and the
-        // teams list can never disagree about the club — the library IS the club of the
-        // teams shown. The free-text name is consulted ONLY when the registration has no
-        // teams yet (fresh reg / first team-add), where there's nothing structural to
-        // key off. This is the fix for club-name fragmentation (e.g. one org split
-        // across "Ultimate" and "Ultimate Lacrosse"): a typo in club_name no longer
-        // strands a rep's teams out of their own library.
-        int effectiveClubId;
-        if (registeredClubTeamIds.Count > 0)
-        {
-            var clubIdByClubTeam = await _clubTeams.GetClubIdsForClubTeamIdsAsync(registeredClubTeamIds);
-            var clubIdGroups = clubIdByClubTeam.Values
-                .GroupBy(cid => cid)
-                .OrderByDescending(g => g.Count())
-                .ToList();
-
-            effectiveClubId = clubIdGroups.Count > 0 ? clubIdGroups[0].Key : 0;
-
-            if (clubIdGroups.Count > 1)
-            {
-                // Data fault: a single registration's teams point at more than one club.
-                // Flag it loudly rather than silently bury it; the dominant club still
-                // reconciles the majority so the wizard stays usable while it's chased down.
-                _logger.LogWarning(
-                    "Registration {RegId} has teams spanning {ClubCount} clubs ({Breakdown}); using dominant club {ClubId}. Investigate club linkage.",
-                    regId, clubIdGroups.Count,
-                    string.Join(", ", clubIdGroups.Select(g => $"{g.Key}:{g.Count()}")),
-                    effectiveClubId);
-            }
-        }
-        else
-        {
-            var club = await _clubs.GetByNameAsync(clubName ?? string.Empty);
-            effectiveClubId = club?.ClubId ?? 0;
-        }
+        var effectiveClubId = await ResolveEffectiveClubIdAsync(regId, registeredClubTeamIds, clubName);
 
         var suggestions = await GetHistoricalTeamSuggestionsAsync(userId, clubName ?? string.Empty, currentYear);
         var ageGroups = await GetAgeGroupsWithCountsAsync(jobId, job.Season ?? string.Empty);
@@ -936,13 +901,84 @@ public class TeamRegistrationService : ITeamRegistrationService
         return true;
     }
 
-    public async Task<ClubTeamDto> CreateClubTeamAsync(string userId, CreateClubTeamRequest request)
+    /// <summary>
+    /// Resolve which club a registration is acting for — STRUCTURALLY from the teams it
+    /// already has registered (ClubTeamId → ClubId, dominant club wins) rather than by
+    /// re-matching the free-text club_name. This guarantees the library and the teams
+    /// list can never disagree about the club — the library IS the club of the teams
+    /// shown. The free-text name is consulted ONLY when the registration has no teams
+    /// yet (fresh reg / first team-add), where there's nothing structural to key off.
+    /// This is the fix for club-name fragmentation (e.g. one org split across
+    /// "Ultimate" and "Ultimate Lacrosse"): a typo in club_name no longer strands a
+    /// rep's teams out of their own library.
+    ///
+    /// THE ONE RESOLVER: every read AND write that needs "the caller's club" must go
+    /// through this method. CreateClubTeamAsync used to resolve independently via
+    /// GetClubsForUserAsync(userId).FirstOrDefault() — for a rep associated with more
+    /// than one club that picked an arbitrary one, so creates landed in a library the
+    /// wizard never displays (True Lacrosse / "Cleveland 2029", 2026-08-12).
+    /// Returns 0 when no club can be resolved; callers decide whether that is fatal.
+    /// </summary>
+    private async Task<int> ResolveEffectiveClubIdAsync(
+        Guid regId, IReadOnlyCollection<int> registeredClubTeamIds, string? clubName)
     {
-        // Resolve club from user's rep assignments
-        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
-        var club = myClubs.FirstOrDefault();
-        if (club == null)
-            throw new InvalidOperationException("No club found for this user.");
+        if (registeredClubTeamIds.Count > 0)
+        {
+            var clubIdByClubTeam = await _clubTeams.GetClubIdsForClubTeamIdsAsync(registeredClubTeamIds);
+            var clubIdGroups = clubIdByClubTeam.Values
+                .GroupBy(cid => cid)
+                .OrderByDescending(g => g.Count())
+                .ToList();
+
+            var effectiveClubId = clubIdGroups.Count > 0 ? clubIdGroups[0].Key : 0;
+
+            if (clubIdGroups.Count > 1)
+            {
+                // Data fault: a single registration's teams point at more than one club.
+                // Flag it loudly rather than silently bury it; the dominant club still
+                // reconciles the majority so the wizard stays usable while it's chased down.
+                _logger.LogWarning(
+                    "Registration {RegId} has teams spanning {ClubCount} clubs ({Breakdown}); using dominant club {ClubId}. Investigate club linkage.",
+                    regId, clubIdGroups.Count,
+                    string.Join(", ", clubIdGroups.Select(g => $"{g.Key}:{g.Count()}")),
+                    effectiveClubId);
+            }
+
+            return effectiveClubId;
+        }
+
+        var club = await _clubs.GetByNameAsync(clubName ?? string.Empty);
+        return club?.ClubId ?? 0;
+    }
+
+    public async Task<ClubTeamDto> CreateClubTeamAsync(Guid regId, string userId, CreateClubTeamRequest request)
+    {
+        // Resolve the club from the caller's REGISTRATION context via the shared resolver —
+        // the same resolution GetTeamsMetadataAsync uses to decide which library to display,
+        // so a created team is by construction visible in the library that comes back on the
+        // post-create reload. GetRegistrationBasicInfoAsync doubles as the access check
+        // (regId must belong to userId), matching the metadata read.
+        var registration = await _registrations.GetRegistrationBasicInfoAsync(regId, userId)
+            ?? throw new InvalidOperationException("Registration not found or access denied");
+
+        var rawRegistered = await _teams.GetRegisteredTeamsForUserAndJobAsync(registration.JobId, userId);
+        var registeredClubTeamIds = rawRegistered
+            .Select(t => t.ClubTeamId)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .ToHashSet();
+
+        var effectiveClubId = await ResolveEffectiveClubIdAsync(regId, registeredClubTeamIds, registration.ClubName);
+        if (effectiveClubId <= 0)
+        {
+            // Fail loud instead of guessing a club — the old FirstOrDefault fallback is
+            // exactly the bug this method was rewritten to kill.
+            _logger.LogWarning(
+                "CreateClubTeam could not resolve a club for registration {RegId} (club_name '{ClubName}', user {UserId})",
+                regId, registration.ClubName, userId);
+            throw new InvalidOperationException(
+                "Your club could not be determined for this registration. Please contact support.");
+        }
 
         var name = request.ClubTeamName.Trim();
         var gradYear = request.ClubTeamGradYear.Trim();
@@ -950,7 +986,7 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         // Check for existing team with same identity (name + grad year) — single SQL query.
         // FindByIdentityAsync sees active AND archived rows; the archived check below uses that.
-        var match = await _clubTeams.FindByIdentityAsync(club.ClubId, name, gradYear);
+        var match = await _clubTeams.FindByIdentityAsync(effectiveClubId, name, gradYear);
 
         if (match != null)
         {
@@ -987,7 +1023,7 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         var entity = new Domain.Entities.ClubTeams
         {
-            ClubId = club.ClubId,
+            ClubId = effectiveClubId,
             ClubTeamName = name,
             ClubTeamGradYear = gradYear,
             ClubTeamLevelOfPlay = lop,

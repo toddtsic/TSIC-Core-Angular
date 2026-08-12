@@ -379,12 +379,20 @@ public class TeamRegistrationController : ControllerBase
     {
         if (!IsClubRepRole())
             return StatusCode(403, new { Message = NotClubRepMessage });
+
+        // regId scopes the create to the caller's current registration — the service resolves
+        // the owning club from it (same resolution the metadata read uses), so the new team
+        // lands in the library this wizard session is displaying.
+        var regIdClaim = User.FindFirst("regId")?.Value;
+        if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+            return Unauthorized(new { Message = "Registration ID not found in token. Please select a club first." });
+
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId)) return Unauthorized(new { Message = UserNotAuthenticatedMessage });
 
         try
         {
-            var result = await _teamRegistrationService.CreateClubTeamAsync(userId, request);
+            var result = await _teamRegistrationService.CreateClubTeamAsync(regId, userId, request);
             return Ok(result);
         }
         catch (InvalidOperationException ex)
