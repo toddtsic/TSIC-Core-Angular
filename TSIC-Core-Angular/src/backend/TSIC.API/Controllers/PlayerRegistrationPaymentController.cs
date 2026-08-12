@@ -266,11 +266,15 @@ public class PlayerRegistrationPaymentController : ControllerBase
             // whose deposit was already settled). Netting only FeeDiscount would rate the code against
             // a bill that ignores the sibling discount and OVER-discount by a share of it. Voluntary
             // donations are excluded. The code's dollars stack onto FeeDiscount (never FeeDiscountMp —
-            // provenance) below. PrincipalPaid (not gross PaidTotal) so proc already collected on a
-            // deposit doesn't eat into discountable principal.
+            // provenance) below. Principal (not gross PaidTotal) so proc already collected on a
+            // deposit doesn't eat into discountable principal — split from the STORED totals
+            // (StoredTotalsMath), never the ledger decode, which under-reads legacy flat-principal
+            // CC rows and would over-rate a percentage code.
             var regState = regStates.GetValueOrDefault(reg.RegistrationId, echeckState);
+            var (_, regPrincipalPaid) = StoredTotalsMath.Split(
+                reg.PaidTotal, reg.OwedTotal, reg.FeeProcessing, regState.CcRate, regState.BAddProcessingFees);
             var netBill = reg.FeeBase - reg.TotalDiscount() + reg.FeeLatefee;
-            var owedBasis = Math.Max(0m, netBill - regState.PrincipalPaid);
+            var owedBasis = Math.Max(0m, netBill - regPrincipalPaid);
             var d = DiscountCalculator.Calculate(owedBasis, amount, bAsPercent ?? false);
             if (d <= 0m)
             {

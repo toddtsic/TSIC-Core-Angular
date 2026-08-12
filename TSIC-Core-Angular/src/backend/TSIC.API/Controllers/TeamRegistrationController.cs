@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using System.Transactions;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Payments;
 using TSIC.Contracts.Services;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Extensions;
@@ -980,11 +981,16 @@ public class TeamRegistrationController : ControllerBase
         // over-discounting the paid portion. Netting only FeeDiscount would likewise over-discount by a
         // share of the sibling discount. Voluntary donations (FeeDonation) are intentionally excluded:
         // a code never discounts a charitable add-on. The code's dollars stack onto FeeDiscount (never
-        // FeeDiscountMp — provenance) below. PrincipalPaid (not gross PaidTotal) so proc already
-        // collected on the deposit does not eat into the discountable principal.
+        // FeeDiscountMp — provenance) below. Principal (not gross PaidTotal) so proc already
+        // collected on the deposit does not eat into the discountable principal — split from the
+        // STORED totals (StoredTotalsMath), never the ledger decode, which under-reads legacy
+        // flat-principal CC rows and would over-rate a percentage code.
         var state = await _paymentState.ForTeamAsync(teamId, jobId);
+        var (_, teamPrincipalPaid) = StoredTotalsMath.Split(
+            team.PaidTotal ?? 0m, team.OwedTotal ?? 0m, team.FeeProcessing ?? 0m,
+            state.CcRate, state.BAddProcessingFees);
         var netBill = (team.FeeBase ?? 0m) - team.TotalDiscount() + (team.FeeLatefee ?? 0m);
-        var owedBasis = Math.Max(0m, netBill - state.PrincipalPaid);
+        var owedBasis = Math.Max(0m, netBill - teamPrincipalPaid);
         var discountAmount = DiscountCalculator.Calculate(owedBasis, amount, bAsPercent);
 
         if (discountAmount <= 0m)

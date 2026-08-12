@@ -317,7 +317,12 @@ public sealed class FeeResolutionService : IFeeResolutionService
 
         const decimal depositPaidTolerance = 0.01m;
         var effectiveDeposit = Math.Max(0m, deposit - reg.TotalDiscount() + reg.FeeLatefee + reg.FeeDonation);
-        var paidPastDeposit = state.PrincipalPaid > effectiveDeposit + depositPaidTolerance;
+        // Principal from the STORED totals, never the ledger decode (StoredTotalsMath) — a
+        // legacy flat-principal CC row decodes ~3.4% short and could hold a paid-past reg
+        // in the deposit tier it has actually left.
+        var (_, principalPaid) = StoredTotalsMath.Split(
+            reg.PaidTotal, reg.OwedTotal, reg.FeeProcessing, state.CcRate, state.BAddProcessingFees);
+        var paidPastDeposit = principalPaid > effectiveDeposit + depositPaidTolerance;
 
         // A reg already stamped at the full price is in full-payment phase and must NOT be re-derived
         // down to the deposit — the same "stamped FeeBase is authoritative" signal PaymentService
@@ -359,7 +364,9 @@ public sealed class FeeResolutionService : IFeeResolutionService
         team.FeeDiscount = modifiers.TotalDiscount;
         team.FeeLatefee = modifiers.TotalLateFee;
 
-        await ApplyTeamProcessingAndTotalsAsync(team, jobId, deposit, balanceDue, ctx, fullPayment, isNew: true, ct);
+        await ApplyTeamProcessingAndTotalsAsync(
+            team, jobId, deposit, balanceDue, ctx, fullPayment, isNew: true,
+            rawDeposit: resolved.Deposit ?? 0m, ct);
     }
 
     // ── Team Entity: Swap ───────────────────────────────────────
@@ -391,7 +398,8 @@ public sealed class FeeResolutionService : IFeeResolutionService
                 team.TotalDiscount(), team.FeeDonation ?? 0m, ct);
         }
 
-        StampTeamProcessingAndTotals(team, deposit, balanceDue, ctx, fullPayment, state);
+        StampTeamProcessingAndTotals(team, deposit, balanceDue, ctx, fullPayment, state,
+            rawDeposit: resolved?.Deposit ?? 0m);
     }
 
     public void ApplyTeamSwapFees(
@@ -405,7 +413,8 @@ public sealed class FeeResolutionService : IFeeResolutionService
                 "AssessActiveLateFee requires ApplyTeamSwapFeesAsync (per-entity modifier reads).", nameof(ctx));
 
         var (deposit, balanceDue, fullPayment) = StampTeamSwapFeeBase(team, resolved, state, ctx);
-        StampTeamProcessingAndTotals(team, deposit, balanceDue, ctx, fullPayment, state);
+        StampTeamProcessingAndTotals(team, deposit, balanceDue, ctx, fullPayment, state,
+            rawDeposit: resolved?.Deposit ?? 0m);
     }
 
     /// <summary>
@@ -431,7 +440,13 @@ public sealed class FeeResolutionService : IFeeResolutionService
         const decimal depositPaidTolerance = 0.01m;
         var effectiveDeposit = Math.Max(
             0m, deposit - team.TotalDiscount() + (team.FeeLatefee ?? 0m) + (team.FeeDonation ?? 0m));
-        var paidPastDeposit = state.PrincipalPaid > effectiveDeposit + depositPaidTolerance;
+        // Principal from the STORED totals, never the ledger decode (StoredTotalsMath) — a
+        // legacy flat-principal CC row decodes ~3.4% short and could hold a paid-past team
+        // in the deposit tier it has actually left.
+        var (_, principalPaid) = StoredTotalsMath.Split(
+            team.PaidTotal ?? 0m, team.OwedTotal ?? 0m, team.FeeProcessing ?? 0m,
+            state.CcRate, state.BAddProcessingFees);
+        var paidPastDeposit = principalPaid > effectiveDeposit + depositPaidTolerance;
 
         var fullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved) || paidPastDeposit;
         team.FeeBase = fullPayment ? (resolved?.FullPrice ?? 0m) : deposit;
@@ -484,15 +499,22 @@ public sealed class FeeResolutionService : IFeeResolutionService
 
     // ── Private: Processing + Totals (canonical) ────────────────
     //
-    // FeeProcessing is computed from PaymentState.FeeProcessingTarget(...),
-    // which encodes the invariant
+    // FeeProcessing is resolved to the invariant
     //   FeeProcessing = ProcCollected + remainingCcBillable × CcRate
-    // — i.e. proc already taken at swipe (CC + eCheck) plus proc that would
-    // be collected if the rest were CC-billed. Per-payment handlers maintain
-    // the same invariant incrementally; recalc paths just resolve it from
-    // PaymentState. Old "subtract NonCcPayments × ccRate" math is replaced —
-    // it lumped eCheck (which DOES collect proc) with check/correction
-    // (which don't), losing the eCheck partial credit on every recalc.
+    // — proc already taken at swipe (CC + eCheck) plus proc that would be
+    // collected if the rest were CC-billed. Per-payment handlers maintain the
+    // same invariant incrementally.
+    //
+    // ProcCollected / PrincipalPaid come from the STORED entity totals via
+    // StoredTotalsMath.Split — NEVER from PaymentState's ledger decode
+    // (payamt ÷ (1+rate)). The decode is only valid for rows the current
+    // charge engine wrote; legacy club-lump allocation rows book flat
+    // principal, and decoding them minted ~3.4% phantom proc → real
+    // owed_total on every reprice of a settled legacy team (proven in
+    // LegacyFlatCcLedgerRepriceTests: $45.50 on a $1,300 balance). For
+    // engine-written entities the split reproduces the decode to the cent,
+    // so this is a strict no-op for self-consistent data. PaymentState still
+    // supplies the phase-promotion inputs and the rate/config context.
 
     private async Task ApplyRegistrationProcessingAndTotalsAsync(
         Registrations reg, Guid jobId, bool isNew, CancellationToken ct, PaymentState? state = null)
@@ -514,18 +536,34 @@ public sealed class FeeResolutionService : IFeeResolutionService
     {
         // TotalDiscount() — the proc basis must net the same discount FeeMath subtracts from FeeTotal,
         // or the proc target disagrees with the total it is a component of.
-        reg.FeeProcessing = reg.FeeBase > 0m
-            ? Math.Round(state.FeeProcessingTarget(reg.FeeBase, reg.TotalDiscount(), reg.FeeLatefee, reg.FeeDonation),
-                2, MidpointRounding.AwayFromZero)
+        // Read the OLD totals before writing: FeeBase was re-stamped by the caller, but
+        // FeeProcessing/PaidTotal/OwedTotal still hold the pre-reprice books the split needs.
+        reg.FeeProcessing = reg.FeeBase > 0m && state.BAddProcessingFees
+            ? RegistrationFeeProcessingTarget(reg, state.CcRate)
             : 0m;
 
         reg.RecalcTotals();
     }
 
+    /// <summary>
+    /// Entity-anchored FeeProcessing for a player reg (no proc-free slice — player proc
+    /// rides the whole bill): proc collected so far + rate on the principal still unpaid
+    /// against the NEW base. Same structure as PaymentState.FeeProcessingTarget with the
+    /// paid split taken from the stored totals instead of the ledger decode.
+    /// </summary>
+    private static decimal RegistrationFeeProcessingTarget(Registrations reg, decimal ccRate)
+    {
+        var (procCollected, principalPaid) = StoredTotalsMath.Split(
+            reg.PaidTotal, reg.OwedTotal, reg.FeeProcessing, ccRate, bAddProcessingFees: true);
+        var principalBase = reg.FeeBase - reg.TotalDiscount() + reg.FeeLatefee + reg.FeeDonation;
+        var remaining = Math.Max(0m, principalBase - principalPaid);
+        return Math.Round(procCollected + remaining * ccRate, 2, MidpointRounding.AwayFromZero);
+    }
+
     private async Task ApplyTeamProcessingAndTotalsAsync(
         TeamsEntity team, Guid jobId, decimal deposit, decimal balanceDue,
-        TeamFeeApplicationContext ctx, bool fullPayment, bool isNew, CancellationToken ct,
-        PaymentState? state = null)
+        TeamFeeApplicationContext ctx, bool fullPayment, bool isNew, decimal rawDeposit,
+        CancellationToken ct, PaymentState? state = null)
     {
         if (state is null)
         {
@@ -544,7 +582,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
                 : PaymentState.Empty(false, 0m, 0m); // proc not billable — stamp writes 0 either way
         }
 
-        StampTeamProcessingAndTotals(team, deposit, balanceDue, ctx, fullPayment, state);
+        StampTeamProcessingAndTotals(team, deposit, balanceDue, ctx, fullPayment, state, rawDeposit);
     }
 
     /// <summary>
@@ -562,18 +600,58 @@ public sealed class FeeResolutionService : IFeeResolutionService
 
     private static void StampTeamProcessingAndTotals(
         TeamsEntity team, decimal deposit, decimal balanceDue,
-        TeamFeeApplicationContext ctx, bool fullPayment, PaymentState state)
+        TeamFeeApplicationContext ctx, bool fullPayment, PaymentState state, decimal rawDeposit)
     {
         // TotalDiscount() — the proc basis must net the same discount FeeMath subtracts from FeeTotal,
         // or the proc target disagrees with the total it is a component of.
         var billableBase = BillableProcBase(ctx, fullPayment, team.FeeBase ?? 0m, deposit, balanceDue);
 
+        // Read the OLD totals before writing: FeeBase was re-stamped above, but
+        // FeeProcessing/PaidTotal/OwedTotal still hold the pre-reprice books the split needs.
         team.FeeProcessing = billableBase > 0m
-            ? Math.Round(
-                state.FeeProcessingTarget(billableBase, team.TotalDiscount(), team.FeeLatefee ?? 0m, team.FeeDonation ?? 0m),
-                2, MidpointRounding.AwayFromZero)
+            ? TeamFeeProcessingTarget(team, rawDeposit, ctx, billableBase, state.CcRate)
             : 0m;
 
         team.RecalcTotals();
+    }
+
+    /// <summary>
+    /// Entity-anchored FeeProcessing for a team: proc collected so far + rate on the
+    /// billable principal still unpaid under the NEW structure. Same slice-aware shape as
+    /// PaymentState.FeeProcessingTarget — the proc-free (deposit) slice fills first, only
+    /// the spillover is billable — with two anchors swapped in: the paid split comes from
+    /// the stored totals (StoredTotalsMath, never the ledger decode), and the proc-free
+    /// base is the TARGET deposit being stamped (the structure the money will be billed
+    /// under), not the hydrated historical one.
+    ///
+    /// The slice is built on the RAW configured deposit (<paramref name="rawDeposit"/>),
+    /// never the EffectiveDeposit fallback: a deposit-less fee (Deposit NULL → Effective
+    /// falls back to BalanceDue) has NO proc-free leg — treating the whole bill as one
+    /// would drop the paid principal out of the billable base and re-project full proc on
+    /// top of collected (population sweep 2026-08-11: 54 settled deposit-less teams,
+    /// $59.50 each on the Big Dawgs College Club shape).
+    /// </summary>
+    private static decimal TeamFeeProcessingTarget(
+        TeamsEntity team, decimal rawDeposit, TeamFeeApplicationContext ctx, decimal billableBase, decimal ccRate)
+    {
+        var (procCollected, principalPaid) = StoredTotalsMath.Split(
+            team.PaidTotal ?? 0m, team.OwedTotal ?? 0m, team.FeeProcessing ?? 0m,
+            ccRate, bAddProcessingFees: true); // billableBase > 0 ⇒ ctx.AddProcessingFees
+
+        var procFreeBase = ctx.ApplyProcessingFeesToDeposit || rawDeposit <= 0m
+            ? 0m
+            : Math.Max(0m, rawDeposit - team.TotalDiscount() + (team.FeeLatefee ?? 0m) + (team.FeeDonation ?? 0m));
+
+        // ProcFreeBase > 0 ⇒ the modifiers ride the proc-free (deposit) slice — they are
+        // already netted inside it, so the billable base passes through raw and paid
+        // principal fills the free slice FIRST. ProcFreeBase = 0 ⇒ legacy netting.
+        var principalBase = procFreeBase > 0m
+            ? billableBase
+            : billableBase - team.TotalDiscount() + (team.FeeLatefee ?? 0m) + (team.FeeDonation ?? 0m);
+        var billablePrincipalPaid = procFreeBase > 0m
+            ? Math.Max(0m, principalPaid - procFreeBase)
+            : principalPaid;
+        var remaining = Math.Max(0m, principalBase - billablePrincipalPaid);
+        return Math.Round(procCollected + remaining * ccRate, 2, MidpointRounding.AwayFromZero);
     }
 }
