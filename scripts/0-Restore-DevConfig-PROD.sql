@@ -9,7 +9,7 @@
 --
 -- ============================================================================
 --
--- Generated: 2026-03-17 09:05:14
+-- Generated: 2026-08-10 15:26:54
 -- Source:    0-Restore-DevConfig-DEV.ps1 (widgets/store from dev DB, nav from route manifest)
 --
 -- WHAT THIS DOES:
@@ -23,7 +23,7 @@
 --   * Data targets ONLY: widgets.*, nav.*, logs.*, stores.StoreItemImage
 --   * ZERO writes to legacy tables
 --
--- Snapshot: 2 widget categories, 7 widgets, 87 defaults, 0 job overrides
+-- Snapshot: 2 widget categories, 7 widgets, 30 defaults, 0 job overrides
 --           10 navs, 180 nav items [from route manifest]
 --           20 store images
 --
@@ -35,7 +35,7 @@ SET NOCOUNT ON;
 PRINT '';
 PRINT '==========================================================';
 PRINT '  0-Restore-DevConfig-PROD.sql';
-PRINT '  Generated: 2026-03-17 09:05:14';
+PRINT '  Generated: 2026-08-10 15:26:54';
 PRINT '==========================================================';
 PRINT '';
 
@@ -311,181 +311,67 @@ PRINT '  Loaded 7 widgets';
 
 SET IDENTITY_INSERT widgets.WidgetDefault ON;
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (1, 0, N'CBF3F384-190F-4962-BF58-40B095628DC8', 1, 1, 1, NULL);
+VALUES (1, 0, N'', 1, 1, 1, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (2, 1, N'CBF3F384-190F-4962-BF58-40B095628DC8', 1, 1, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (3, 2, N'CBF3F384-190F-4962-BF58-40B095628DC8', 1, 1, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (4, 3, N'CBF3F384-190F-4962-BF58-40B095628DC8', 1, 1, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (5, 4, N'CBF3F384-190F-4962-BF58-40B095628DC8', 1, 1, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (6, 5, N'CBF3F384-190F-4962-BF58-40B095628DC8', 1, 1, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (7, 6, N'CBF3F384-190F-4962-BF58-40B095628DC8', 1, 1, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (8, 0, N'CBF3F384-190F-4962-BF58-40B095628DC8', 2, 1, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (9, 1, N'CBF3F384-190F-4962-BF58-40B095628DC8', 2, 1, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (10, 2, N'CBF3F384-190F-4962-BF58-40B095628DC8', 2, 1, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (11, 3, N'CBF3F384-190F-4962-BF58-40B095628DC8', 2, 1, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (12, 4, N'CBF3F384-190F-4962-BF58-40B095628DC8', 2, 1, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (13, 5, N'CBF3F384-190F-4962-BF58-40B095628DC8', 2, 1, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (14, 6, N'CBF3F384-190F-4962-BF58-40B095628DC8', 2, 1, 2, NULL);
+VALUES (8, 0, N'', 2, 1, 2, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (15, 0, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 3, 3, 1, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (16, 1, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 3, 3, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (17, 2, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 3, 3, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (18, 3, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 3, 3, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (19, 4, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 3, 3, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (20, 5, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 3, 3, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (21, 6, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 3, 3, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (22, 0, N'7B9EB503-53C9-44FA-94A0-17760C512440', 3, 3, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (23, 1, N'7B9EB503-53C9-44FA-94A0-17760C512440', 3, 3, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (24, 2, N'7B9EB503-53C9-44FA-94A0-17760C512440', 3, 3, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (25, 3, N'7B9EB503-53C9-44FA-94A0-17760C512440', 3, 3, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (26, 4, N'7B9EB503-53C9-44FA-94A0-17760C512440', 3, 3, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (27, 5, N'7B9EB503-53C9-44FA-94A0-17760C512440', 3, 3, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (28, 6, N'7B9EB503-53C9-44FA-94A0-17760C512440', 3, 3, 1, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (29, 0, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 3, 3, 1, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (30, 1, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 3, 3, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (31, 2, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 3, 3, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (32, 3, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 3, 3, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (33, 4, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 3, 3, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (34, 5, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 3, 3, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (35, 6, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 3, 3, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (36, 0, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 4, 3, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (37, 1, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 4, 3, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (38, 2, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 4, 3, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (39, 3, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 4, 3, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (40, 4, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 4, 3, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (41, 5, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 4, 3, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (42, 6, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 4, 3, 2, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (43, 0, N'7B9EB503-53C9-44FA-94A0-17760C512440', 4, 3, 2, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (44, 1, N'7B9EB503-53C9-44FA-94A0-17760C512440', 4, 3, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (45, 2, N'7B9EB503-53C9-44FA-94A0-17760C512440', 4, 3, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (46, 3, N'7B9EB503-53C9-44FA-94A0-17760C512440', 4, 3, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (47, 4, N'7B9EB503-53C9-44FA-94A0-17760C512440', 4, 3, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (48, 5, N'7B9EB503-53C9-44FA-94A0-17760C512440', 4, 3, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (49, 6, N'7B9EB503-53C9-44FA-94A0-17760C512440', 4, 3, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (50, 0, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 4, 3, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (51, 1, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 4, 3, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (52, 2, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 4, 3, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (53, 3, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 4, 3, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (54, 4, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 4, 3, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (55, 5, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 4, 3, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (56, 6, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 4, 3, 2, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (57, 0, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 5, 3, 3, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (58, 1, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 5, 3, 3, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (59, 2, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 5, 3, 3, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (60, 3, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 5, 3, 3, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (61, 4, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 5, 3, 3, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (62, 5, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 5, 3, 3, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (63, 6, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 5, 3, 3, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (64, 0, N'7B9EB503-53C9-44FA-94A0-17760C512440', 5, 3, 3, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (65, 1, N'7B9EB503-53C9-44FA-94A0-17760C512440', 5, 3, 3, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (66, 2, N'7B9EB503-53C9-44FA-94A0-17760C512440', 5, 3, 3, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (67, 3, N'7B9EB503-53C9-44FA-94A0-17760C512440', 5, 3, 3, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (68, 4, N'7B9EB503-53C9-44FA-94A0-17760C512440', 5, 3, 3, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (69, 5, N'7B9EB503-53C9-44FA-94A0-17760C512440', 5, 3, 3, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (70, 6, N'7B9EB503-53C9-44FA-94A0-17760C512440', 5, 3, 3, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (71, 0, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 5, 3, 3, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (72, 1, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 5, 3, 3, NULL);
+VALUES (472, 0, N'', 21, 1, 3, N'{"label":"Event Contact","icon":"bi-person-fill","displayStyle":"block"}');
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (73, 2, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 5, 3, 3, NULL);
+VALUES (480, 4, N'', 1, 1, 1, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (74, 3, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 5, 3, 3, NULL);
+VALUES (481, 4, N'', 2, 1, 2, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (75, 4, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 5, 3, 3, NULL);
+VALUES (482, 4, N'', 21, 1, 3, N'{"label":"Event Contact","icon":"bi-person-fill","displayStyle":"block"}');
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (76, 5, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 5, 3, 3, NULL);
+VALUES (483, 1, N'', 1, 1, 1, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (77, 6, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 5, 3, 3, NULL);
+VALUES (484, 1, N'', 2, 1, 2, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (470, 4, N'CBF3F384-190F-4962-BF58-40B095628DC8', 21, 1, 3, N'{"label":"Event Contact","icon":"bi-person-fill","displayStyle":"block"}');
+VALUES (485, 1, N'', 21, 1, 3, N'{"label":"Event Contact","icon":"bi-person-fill","displayStyle":"block"}');
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (471, 1, N'CBF3F384-190F-4962-BF58-40B095628DC8', 21, 1, 3, N'{"label":"Event Contact","icon":"bi-person-fill","displayStyle":"block"}');
+VALUES (486, 3, N'', 1, 1, 1, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (472, 0, N'CBF3F384-190F-4962-BF58-40B095628DC8', 21, 1, 3, N'{"label":"Event Contact","icon":"bi-person-fill","displayStyle":"block"}');
+VALUES (487, 3, N'', 2, 1, 2, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (473, 3, N'CBF3F384-190F-4962-BF58-40B095628DC8', 21, 1, 3, N'{"label":"Event Contact","icon":"bi-person-fill","displayStyle":"block"}');
+VALUES (488, 3, N'', 21, 1, 3, N'{"label":"Event Contact","icon":"bi-person-fill","displayStyle":"block"}');
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (474, 5, N'CBF3F384-190F-4962-BF58-40B095628DC8', 21, 1, 3, N'{"label":"Event Contact","icon":"bi-person-fill","displayStyle":"block"}');
+VALUES (489, 5, N'', 1, 1, 1, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (475, 6, N'CBF3F384-190F-4962-BF58-40B095628DC8', 21, 1, 3, N'{"label":"Event Contact","icon":"bi-person-fill","displayStyle":"block"}');
+VALUES (490, 5, N'', 2, 1, 2, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (476, 2, N'CBF3F384-190F-4962-BF58-40B095628DC8', 21, 1, 3, N'{"label":"Event Contact","icon":"bi-person-fill","displayStyle":"block"}');
+VALUES (491, 5, N'', 21, 1, 3, N'{"label":"Event Contact","icon":"bi-person-fill","displayStyle":"block"}');
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (477, 1, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 23, 3, 4, N'{"label":"Year-over-Year Comparison","icon":"bi-arrow-repeat"}');
+VALUES (492, 6, N'', 1, 1, 1, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (478, 1, N'7B9EB503-53C9-44FA-94A0-17760C512440', 23, 3, 4, N'{"label":"Year-over-Year Comparison","icon":"bi-arrow-repeat"}');
+VALUES (493, 6, N'', 2, 1, 2, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (479, 1, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 23, 3, 4, N'{"label":"Year-over-Year Comparison","icon":"bi-arrow-repeat"}');
+VALUES (494, 6, N'', 21, 1, 3, N'{"label":"Event Contact","icon":"bi-person-fill","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (495, 2, N'', 1, 1, 1, NULL);
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (496, 2, N'', 2, 1, 2, NULL);
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (497, 2, N'', 21, 1, 3, N'{"label":"Event Contact","icon":"bi-person-fill","displayStyle":"block"}');
 SET IDENTITY_INSERT widgets.WidgetDefault OFF;
-PRINT '  Loaded 87 defaults';
+PRINT '  Loaded 30 defaults';
 
 PRINT '  Loaded 0 job overrides';
 PRINT '  2A complete';
