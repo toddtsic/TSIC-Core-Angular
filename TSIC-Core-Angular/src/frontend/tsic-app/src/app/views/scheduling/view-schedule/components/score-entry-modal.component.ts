@@ -3,6 +3,7 @@ import {
     input, OnChanges, output, signal, SimpleChanges, viewChild
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { ResizablePanelDirective } from '../../../../shared-ui/directives/resizable-panel.directive';
 import type { EditScoreRequest } from '@core/api';
 
 /**
@@ -67,13 +68,14 @@ const STATUS_CANCELLED = 5;
 @Component({
     selector: 'app-score-entry-modal',
     standalone: true,
-    imports: [DatePipe],
+    imports: [DatePipe, ResizablePanelDirective],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         @if (visible()) {
             <div class="detail-backdrop" (click)="close.emit()"></div>
         }
         <div class="detail-panel score-panel" [class.open]="visible()"
+             appResizablePanel storageKey="scoreEntryPanelWidth" panelSide="right"
              role="dialog" aria-modal="true" aria-labelledby="score-panel-title"
              (keydown)="onKeydown($event)">
 
@@ -286,14 +288,36 @@ const STATUS_CANCELLED = 5;
             color: var(--bs-danger);
         }
 
-        /* ── Team panes ── */
+        /* ── Team panes ──
+           Two abreast at EVERY width, phone included: home | away is a scoreboard, and
+           stacking them was the mistake. A stacked pair is roughly 500px of pads, so on a
+           phone the away team's pad sat below the fold — the scorer had to scroll to reach
+           half the control, on the one surface where the whole point is entering two numbers
+           without thinking. Side by side the whole sheet fits with the footer in view.
+           Width is not the constraint it looked like: the buttons were ~100px wide stacked,
+           more than twice what a digit needs. Halved, they are still ~50px on a 390px phone
+           (see the narrow-viewport block below for the arithmetic).
+           Single column only under 380px, where two columns really would fall below the
+           touch minimum. */
         .score-teams {
             display: grid;
-            grid-template-columns: 1fr;
-            gap: var(--space-4);
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-3);
         }
 
+        @media (max-width: 379.98px) {
+            .score-teams { grid-template-columns: 1fr; }
+        }
+
+        /* Flex column with the pad pushed to the bottom (see .number-pad). Grid stretches
+           both panes to a common height, but the two team NAMES wrap to different line
+           counts — "Hero's Lax:2029 green" beside "Sky Walkers Lacrosse Program:Blue" —
+           which would start the two pads at different heights and leave the 1-4-7 columns
+           out of register across the sheet. Bottom-aligning the pads makes name length
+           irrelevant to where the digits sit. */
         .team-pane {
+            display: flex;
+            flex-direction: column;
             padding: var(--space-3);
             border: 1px solid var(--bs-border-color);
             border-radius: var(--radius-lg);
@@ -365,10 +389,13 @@ const STATUS_CANCELLED = 5;
         }
 
         /* ── Number pad ── */
+        /* margin-top: auto — bottom-aligns the pad within its stretched pane so both pads
+           sit on the same line regardless of how far each team's name wrapped. */
         .number-pad {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: var(--space-2);
+            margin-top: auto;
         }
 
         .pad-btn {
@@ -526,11 +553,46 @@ const STATUS_CANCELLED = 5;
             color: var(--bs-danger);
         }
 
-        /* Two panes abreast once the panel is at its 560px desktop width. Below 768px the
-           panel is full-bleed and the panes stack — six pad columns across a phone would
-           put every button under the touch minimum. */
-        @media (min-width: 768px) {
-            .score-teams { grid-template-columns: 1fr 1fr; }
+        /* ── Narrow viewport (the panel is full-bleed here) ──
+           Everything tightens so both pads plus the status row and footer land on one
+           screen. Worked from a 390px phone: 390 − 24 body padding = 366; two panes with a
+           12px gap = 177 each; − 16 pane padding = 161 inner; three columns with two 4px
+           gaps = 51px per button, against a 44px touch minimum. Raising any padding in
+           this block eats that margin — check the arithmetic before you do.
+
+           The panel-body override needs .detail-panel.score-panel, not .score-panel alone:
+           the global rule it is beating (styles/_flyin.scss) is .detail-panel .panel-body,
+           equal specificity, and which of two equal rules wins would then come down to
+           stylesheet injection order. */
+        @media (max-width: 767.98px) {
+            .detail-panel.score-panel .panel-body { padding: var(--space-3); }
+
+            .team-pane { padding: var(--space-2); }
+
+            .team-head {
+                gap: var(--space-2);
+                margin-bottom: var(--space-2);
+            }
+
+            .team-name { font-size: var(--font-size-xs); }
+
+            .score-readout {
+                min-width: 3.25rem;
+                min-height: 2.5rem;
+                font-size: var(--font-size-xl);
+            }
+
+            .number-pad { gap: var(--space-1); }
+
+            /* 42px, not 44: the pad is a grid of nine same-sized targets with no
+               neighbouring hazard, and 2px per row is 8px of height back. Still inside the
+               spirit of the minimum, and the buttons are ~51px WIDE. */
+            .pad-btn {
+                min-height: 42px;
+                font-size: var(--font-size-base);
+            }
+
+            .pad-word { font-size: var(--font-size-xs); }
         }
     `]
 })
