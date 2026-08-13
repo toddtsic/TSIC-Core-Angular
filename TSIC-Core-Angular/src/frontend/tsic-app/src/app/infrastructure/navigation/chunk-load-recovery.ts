@@ -16,9 +16,10 @@ import { NavigationError } from '@angular/router';
  *
  * index.html is served no-cache (angular web.config), so a full reload always pulls fresh hashes
  * and the route then loads. We reload to the URL the user was trying to reach: a public/anonymous
- * viewer (e.g. /schedule) lands right back on it; an authenticated user is cold-started (the
- * intentional "never resume" logout in auth.guard) and lands on job home to re-login — the exact
- * manual "Ctrl+Shift+R then re-navigate" recovery, automated and firing only when a chunk 404s.
+ * viewer (e.g. /schedule) lands right back on it; an authenticated user's session SURVIVES —
+ * auth.guard recognizes this self-heal reload via `wasChunkRecoveryReload()` (the stamp below)
+ * and exempts it from the cold-start "never resume" logout. Same user, mid-click: they land on
+ * the screen they clicked, still logged in, now running the fresh build.
  *
  * Wired via provideRouter(withNavigationErrorHandler(...)) in app.config.ts.
  */
@@ -28,6 +29,30 @@ const LOOP_GUARD_KEY = 'chunk-reload-at';
 // won't help (fresh index.html would already carry correct hashes) — so we bail to avoid a
 // reload loop and let the navigation fail as it does today.
 const LOOP_GUARD_MS = 15_000;
+
+/**
+ * True when the current document load is (within LOOP_GUARD_MS of) the recovery's own self-heal
+ * reload. auth.guard uses this to exempt that reload from the cold-start "never resume" logout:
+ * the stamp is per-window sessionStorage, written only by chunkLoadRecoveryHandler immediately
+ * before it reloads, so a genuine fresh visit / emailed invite link never carries it.
+ *
+ * READ-ONLY by design — the stamp is NEVER cleared here, for two load-bearing reasons:
+ *   1. It is also the reload-loop brake above; consuming it would let a still-broken deploy
+ *      trigger reload after reload.
+ *   2. authGuard runs once per route level on the same cold-start navigation (parent :jobPath
+ *      guard, then children); every run must see the same answer or a child guard would log out
+ *      the session the parent just preserved.
+ * The 15-second window expires it naturally.
+ */
+export function wasChunkRecoveryReload(): boolean {
+  try {
+    const stampedAt = Number(sessionStorage.getItem(LOOP_GUARD_KEY)) || 0;
+    return stampedAt > 0 && Date.now() - stampedAt < LOOP_GUARD_MS;
+  } catch {
+    // sessionStorage unavailable (private mode / disabled) → no exemption, status-quo behavior.
+    return false;
+  }
+}
 
 /** True for a lazy-chunk fetch failure across bundlers/browsers. */
 export function isChunkLoadError(error: unknown): boolean {

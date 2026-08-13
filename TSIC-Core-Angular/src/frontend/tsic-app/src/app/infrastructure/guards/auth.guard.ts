@@ -5,6 +5,7 @@ import { AuthService } from '../services/auth.service';
 import { LastLocationService } from '../services/last-location.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { type RoleName } from '../constants/roles.constants';
+import { wasChunkRecoveryReload } from '../navigation/chunk-load-recovery';
 
 /**
  * Unified authentication guard.
@@ -18,7 +19,10 @@ import { type RoleName } from '../constants/roles.constants';
  *
  * Cold start (fresh load / refresh / externally-clicked deep link):
  *   Never resume a session — no role is exempt. logoutLocal(), then honor the requested URL
- *   (public/landing render anonymously). Two protected-route sub-cases:
+ *   (public/landing render anonymously). ONE mechanical exception: the chunk-load recovery's
+ *   self-heal reload (deploy deleted a lazy chunk mid-click) keeps the session — identified by
+ *   the recovery's own per-window sessionStorage stamp, see wasChunkRecoveryReload().
+ *   Two protected-route sub-cases:
  *     • fresh anonymous deep link (no prior session) → login with returnUrl preserved, so an
  *       emailed invite is evaluated against whoever logs in FOR that link.
  *     • a LIVE session was discarded (user refreshed while working) → job home. The deep,
@@ -87,13 +91,25 @@ export const authGuard: CanActivateFn = (route, state) => {
     // login/landing pages render anonymously; anything protected lands the user on the job
     // HOME (see below) rather than round-tripping the deep URL through login.
     if (isColdStart && (isAuth || auth.getRefreshToken())) {
-        auth.logoutLocal();
-        // A LIVE session was just discarded on this cold start (a fresh anonymous deep-link
-        // click has no session and never reaches here). Mark it so a role-gated child guard
-        // sends the user to the job home instead of preserving the deep, role-gated returnUrl
-        // — which would teleport the re-login back to e.g. search/registrations.
-        auth.markForcedColdStartLogout();
-        return (flags.allowAnonymous || flags.redirectAuthenticated) ? true : toJob(jobPath());
+        // Exception: the chunk-load recovery's OWN self-heal reload (a deploy deleted a lazy
+        // chunk mid-session → auto full reload to fetch fresh hashes). That is the same user,
+        // mid-click — not a fresh visit — so discarding their session here is exactly the
+        // "click a menu item, get thrown to login" bug. The recovery stamps per-window
+        // sessionStorage right before reloading (a genuine fresh visit / emailed invite link
+        // never carries the stamp, so the invite-link security rationale is untouched); within
+        // its 15s window we keep the session and fall through to normal warm-equivalent
+        // handling below. Read-only check — see wasChunkRecoveryReload() for why the stamp is
+        // never cleared (it doubles as the reload-loop brake, and every guard run on this
+        // navigation must see the same answer).
+        if (!wasChunkRecoveryReload()) {
+            auth.logoutLocal();
+            // A LIVE session was just discarded on this cold start (a fresh anonymous deep-link
+            // click has no session and never reaches here). Mark it so a role-gated child guard
+            // sends the user to the job home instead of preserving the deep, role-gated returnUrl
+            // — which would teleport the re-login back to e.g. search/registrations.
+            auth.markForcedColdStartLogout();
+            return (flags.allowAnonymous || flags.redirectAuthenticated) ? true : toJob(jobPath());
+        }
     }
 
     // ── Bounce authenticated users away from login/landing ──────────
