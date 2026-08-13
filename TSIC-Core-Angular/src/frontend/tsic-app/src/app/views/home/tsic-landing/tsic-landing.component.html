@@ -282,7 +282,8 @@
         </div>
         <div class="site-footer__col">
           <h4>Legal</h4>
-          <a [routerLink]="['/privacy-policy']">Privacy Policy</a>
+          <!-- Static file, not a route — an SPA route returns a blank shell to crawlers. -->
+          <a href="/privacy-policy.html">Privacy Policy</a>
           <a href="#">Terms of Service</a>
         </div>
       </div>

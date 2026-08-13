@@ -51,6 +51,18 @@
       <!-- URL Rewrite for Angular routing -->
       <rewrite>
         <rules>
+          <!-- The privacy policy is a static FILE (public/privacy-policy.html), never a route:
+               an Angular route returns only the SPA shell to a no-JavaScript fetch, which is
+               why Google Play rejected the Android app ("link is inactive ... broken or
+               blank"). This 301 keeps the old route-shaped URL working for anything already
+               published. Submit the .html URL to Play directly — the redirect is a safety net
+               for stale links, not the canonical address.
+               MUST precede "Angular Routes", which matches everything. -->
+          <rule name="Privacy Policy Canonical" stopProcessing="true">
+            <match url="^privacy-policy/?$" />
+            <action type="Redirect" url="/privacy-policy.html" redirectType="Permanent" />
+          </rule>
+
           <rule name="Angular Routes" stopProcessing="true">
             <match url=".*" />
             <conditions logicalGrouping="MatchAll">

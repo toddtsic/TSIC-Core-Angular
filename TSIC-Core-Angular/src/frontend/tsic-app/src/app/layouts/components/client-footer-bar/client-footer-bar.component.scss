@@ -51,6 +51,29 @@
                 }
             }
 
+            // Deliberately NOT hidden on mobile — this is the in-app privacy policy link
+            // Google Play requires to be present and reachable inside the app.
+            .privacy-link {
+                color: var(--brand-text-muted);
+                text-decoration: none;
+                white-space: nowrap;
+
+                &:hover {
+                    color: var(--bs-primary);
+                    text-decoration: underline;
+                }
+
+                &:focus-visible {
+                    outline: none;
+                    box-shadow: var(--shadow-focus);
+                    border-radius: var(--radius-sm);
+                }
+
+                @media (max-width: 767px) {
+                    font-size: 10px;
+                }
+            }
+
             .build-version {
                 font-size: var(--font-size-xs);
                 // Same rule as .tagline: color-dim, not opacity (stacking context).

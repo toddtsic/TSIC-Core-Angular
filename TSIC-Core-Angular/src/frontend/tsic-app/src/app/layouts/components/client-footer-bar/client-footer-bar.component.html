@@ -5,6 +5,11 @@
             <span class="separator">•</span>
             <span class="tagline">Stay connected on and off the field</span>
             <span class="separator">•</span>
+            <!-- Google Play requires a privacy policy link WITHIN the app, not just in the
+                 console listing. Static file, not a route — a route returns a blank shell to
+                 any non-JS fetch. Stays visible at every breakpoint, unlike the dimmed spans. -->
+            <a class="privacy-link" href="/privacy-policy.html">Privacy Policy</a>
+            <span class="separator">•</span>
             <span class="build-version">{{ buildVersion }}</span>
         </div>
     </div>

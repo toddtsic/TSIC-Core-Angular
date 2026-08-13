@@ -21,11 +21,10 @@ export const routes: Routes = [
 		loadComponent: () => import('./views/home/tsic-landing/tsic-landing.component').then(m => m.TsicLandingComponent)
 	},
 
-	// Privacy Policy — public, no auth required, no layout chrome
-	{
-		path: 'privacy-policy',
-		loadComponent: () => import('./views/home/privacy-policy/privacy-policy.component').then(m => m.PrivacyPolicyComponent)
-	},
+	// Privacy Policy is intentionally NOT a route. It is a static file at
+	// public/privacy-policy.html, served straight off disk. Google Play rejected the Android
+	// app because an Angular route returns only the SPA shell to a no-JavaScript fetch
+	// ("link is inactive ... broken or blank"). Do not re-add a route here.
 
 	// Password reset (top-level — not job-scoped, since users span multiple jobs)
 	{
