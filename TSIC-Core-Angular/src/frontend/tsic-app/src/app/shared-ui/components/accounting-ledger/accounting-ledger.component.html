@@ -382,9 +382,11 @@
               <label for="ledger-amount" class="form-label">Amount</label>
               <div class="input-group input-group-sm">
                 <span class="input-group-text">$</span>
+                <!-- Corrections are signed (a minus claws back / raises owed), so no min there;
+                     every other type stays non-negative. -->
                 <input type="number" id="ledger-amount" class="form-control form-control-sm"
                   [ngModel]="amount()" (ngModelChange)="setAmount($event)" step="1"
-                  [min]="0"
+                  [min]="paymentType() === 'correction' && allowNegativeCorrection() ? null : 0"
                   [max]="paymentType() === 'cc' ? null : checkBalanceDue()" />
               </div>
               <div class="owed-badge" [class.text-danger]="checkBalanceDue() > 0" [class.text-success]="checkBalanceDue() <= 0">
@@ -403,6 +405,11 @@
                   <small>Correction cannot exceed Balance Due of {{ checkBalanceDue() | currency }}.</small>
                 </div>
               }
+              @if (correctionNegativeBlocked()) {
+                <div class="form-text text-danger">
+                  <small>A negative correction must target a specific team &mdash; switch to Team scope and select the team.</small>
+                </div>
+              }
             </div>
             <div class="form-group">
               <label for="ledger-comment" class="form-label">Comment</label>
@@ -418,7 +425,7 @@
               @if (paymentType() === 'correction') {
                 <div class="correction-note">
                   <i class="bi bi-info-circle me-1"></i>
-                  <span>A correction <strong>reduces</strong> the amount owed &mdash; for example, to waive a charge or fix an overcharge. It can't exceed the balance due.</span>
+                  <span>A correction adjusts the amount owed. A <strong>positive</strong> amount reduces it (waive a charge, fix an overcharge) and can't exceed the balance due. A <strong>negative</strong> amount increases it (reinstate a charge, fix an over-credit).</span>
                 </div>
                 @if (showActivationNotes()) {
                   <div class="correction-note correction-note--warning">

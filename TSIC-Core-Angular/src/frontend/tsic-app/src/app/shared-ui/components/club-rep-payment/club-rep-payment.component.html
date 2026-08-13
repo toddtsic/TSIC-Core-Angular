@@ -126,6 +126,7 @@
     [checkOwed]="checkOwed()"
     [clubBreakdown]="clubBreakdown()"
     [showActivationNotes]="false"
+    [allowNegativeCorrection]="scope() === 'team' && !!teamId()"
     (refundSubmitted)="onRefundSubmitted($event)"
     (ccChargeSubmitted)="onCcCharge($event)"
     (checkSubmitted)="onCheckSubmitted($event)">

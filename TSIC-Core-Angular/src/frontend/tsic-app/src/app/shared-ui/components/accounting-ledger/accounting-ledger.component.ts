@@ -109,6 +109,13 @@ export class AccountingLedgerComponent {
 	 *  per event so a multi-event player can record against any event, including a record-less one. */
 	addTargets = input<LedgerAddTarget[]>([]);
 
+	/** Negative corrections (claw-backs — raise the amount owed) are allowed wherever the
+	 *  record lands on ONE known target: single registrations, family targets, single teams.
+	 *  The club-rep caller turns this off at CLUB scope, where a new record distributes across
+	 *  teams and a negative has no sensible auto-attribution — the server rejects it too; this
+	 *  input just keeps the admin from composing a request that would bounce. */
+	allowNegativeCorrection = input<boolean>(true);
+
 	/** Unified grouping source: explicit groups, else derived from the team breakdown,
 	 *  else none. Keeps the club-rep caller unchanged (it still passes clubBreakdown only). */
 	private effectiveGroups = computed<LedgerGroup[]>(() => {
@@ -306,12 +313,20 @@ export class AccountingLedgerComponent {
 		this.paymentType() === 'check' && this.amount() > this.checkBalanceDue()
 	);
 
-	/** Correction bounds — corrections are positive-only and can't "pay" more than the
-	 *  balance due (same cap as a check — CkOwedTotal, processing fees removed). */
+	/** Correction bounds — corrections are SIGNED. Positive (forgive) can't exceed the
+	 *  balance due (same cap as a check — CkOwedTotal, processing fees removed). Negative
+	 *  (claw back — raises the amount owed) has NO floor by ruling: it may charge beyond
+	 *  the fee structure, so no lower cap applies. */
 	correctionExceedsBounds = computed(() => {
 		if (this.paymentType() !== 'correction') return false;
 		return this.amount() > this.checkBalanceDue();
 	});
+
+	/** Negative correction typed where it can't land on one known target (club scope).
+	 *  Mirrors the server guard; drives the inline error and disables Submit. */
+	correctionNegativeBlocked = computed(() =>
+		this.paymentType() === 'correction' && this.amount() < 0 && !this.allowNegativeCorrection()
+	);
 
 	/** Add-record entry point. With more than one target, ask which registration first; otherwise
 	 *  go straight to the form (auto-selecting the sole target so its balances bound the amounts).
@@ -438,7 +453,11 @@ export class AccountingLedgerComponent {
 			return amt > 0 && amt <= maxRefund;
 		}
 		if (type === 'correction') {
-			return amt > 0 && amt <= this.checkBalanceDue();
+			// Signed: positive forgives (capped at balance due), negative claws back
+			// (no floor; needs a single known target — blocked at club scope).
+			if (amt === 0) return false;
+			if (amt < 0) return this.allowNegativeCorrection();
+			return amt <= this.checkBalanceDue();
 		}
 		return amt !== 0;
 	}

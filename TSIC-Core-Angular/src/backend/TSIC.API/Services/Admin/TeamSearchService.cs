@@ -745,13 +745,27 @@ public sealed class TeamSearchService : ITeamSearchService
             var isCheck = string.Equals(request.PaymentType, "Check", StringComparison.OrdinalIgnoreCase);
             var paymentMethodId = isCheck ? CheckMethodId : CorrectionMethodId;
 
+            // Corrections are SIGNED: positive forgives, negative claws back (raises owed).
+            if (!isCheck && request.Amount == 0)
+                return new TeamCheckOrCorrectionResponse { Success = false, Error = "A correction amount cannot be $0.00." };
+
+            // A negative correction must name the team it's attributed to — "which team gets
+            // charged back" is the admin's call, never an allocator's. Club-scope distribution
+            // has no sensible ordering for a claw-back, so it is rejected outright (this also
+            // eliminates the old silent no-op, where a negative validated, allocated to zero
+            // teams, and returned Success).
+            if (!isCheck && request.Amount < 0 && !singleTeamId.HasValue)
+                return new TeamCheckOrCorrectionResponse { Success = false, Error = "A negative correction must target a specific team — select the team first." };
+
             // Load club rep registration (tracked via FindAsync for in-place mutation)
             var clubRep = await _registrationRepo.GetByIdAsync(request.ClubRepRegistrationId, ct);
             if (clubRep == null)
                 return new TeamCheckOrCorrectionResponse { Success = false, Error = "Club rep registration not found." };
 
-            // Validate payment doesn't exceed owed
-            if (request.Amount > clubRep.OwedTotal)
+            // Validate a positive payment doesn't exceed owed. Positive-only: a negative
+            // correction raises owed (no floor by ruling — owed may exceed FeeTotal), and
+            // comparing a negative amount against a negative OwedTotal is meaningless.
+            if (request.Amount > 0 && request.Amount > clubRep.OwedTotal)
                 return new TeamCheckOrCorrectionResponse { Success = false, Error = $"Payment ({request.Amount:C}) exceeds amount owed ({clubRep.OwedTotal:C})." };
 
             // Get job processing fee config
@@ -795,24 +809,77 @@ public sealed class TeamSearchService : ITeamSearchService
                 if (request.Amount > scopeCheckOwed)
                     return new TeamCheckOrCorrectionResponse { Success = false, Error = $"Check payment ({request.Amount:C}) exceeds check balance ({scopeCheckOwed:C})." };
             }
-            else
+            else if (request.Amount > 0)
             {
-                // Correction bounds — invariant: balance stays in [0, FeeTotal].
-                // Upper = sum(OwedTotal) ("can't charge more than they owe"),
-                // lower = -sum(PaidTotal) ("can't credit more than they paid").
-                // Per-scope (one team when singleTeamId, club aggregate otherwise) —
-                // mirrors the same scoping discipline as the check cap above.
+                // Positive-correction cap — sum(OwedTotal): can't forgive more than they owe.
+                // Per-scope (one team when singleTeamId, club aggregate otherwise) — mirrors
+                // the same scoping discipline as the check cap above. Negatives have NO floor
+                // by ruling (a claw-back may charge beyond the fee structure), so the old
+                // −sum(PaidTotal) lower bound is gone.
                 decimal scopeOwed = 0m;
-                decimal scopePaid = 0m;
                 foreach (var capTeam in clubTeams)
-                {
                     scopeOwed += capTeam.OwedTotal ?? 0m;
-                    scopePaid += capTeam.PaidTotal ?? 0m;
-                }
                 if (request.Amount > scopeOwed)
                     return new TeamCheckOrCorrectionResponse { Success = false, Error = $"Correction ({request.Amount:C}) exceeds amount owed ({scopeOwed:C})." };
-                if (request.Amount < -scopePaid)
-                    return new TeamCheckOrCorrectionResponse { Success = false, Error = $"Correction ({request.Amount:C}) exceeds amount paid ({scopePaid:C} refundable)." };
+            }
+
+            // ── Negative correction: one row on the admin-named team ──
+            // No distribution loop — the guard above guarantees a single team in scope.
+            // Payamt < 0 lowers the team's PaidTotal (raising OwedTotal) through the same
+            // signed ledger re-sum every row uses; the rep re-aggregates from its teams.
+            if (!isCheck && request.Amount < 0)
+            {
+                var targetTeam = clubTeams.FirstOrDefault();
+                if (targetTeam == null)
+                    return new TeamCheckOrCorrectionResponse { Success = false, Error = "Team not found among this club's active teams." };
+
+                // Symmetric proc restore — the clawed-back balance may be CC-paid, so it must
+                // carry proc again. Ceiling = canonical FeeProcessingTarget of the post-row
+                // state (PaymentState.ProcRestoreForCorrection): a deep claw-back can never
+                // restore more proc than the current balance carries. Slice-aware for free.
+                var negState = teamPaymentStates.GetValueOrDefault(targetTeam.TeamId, emptyTeamState);
+                var procRestore = negState.ProcRestoreForCorrection(
+                    -request.Amount,
+                    targetTeam.FeeBase ?? 0m,
+                    targetTeam.TotalDiscount(),
+                    targetTeam.FeeLatefee ?? 0m,
+                    targetTeam.FeeDonation ?? 0m,
+                    targetTeam.FeeProcessing ?? 0m);
+                if (procRestore > 0m)
+                    targetTeam.FeeProcessing = (targetTeam.FeeProcessing ?? 0m) + procRestore;
+
+                await _accountingRepo.RecordPaymentAndRecomputeAsync(new RegistrationAccounting
+                {
+                    Active = true,
+                    CheckNo = request.CheckNo,
+                    Comment = request.Comment,
+                    Createdate = DateTime.Now,
+                    Dueamt = request.Amount,
+                    Payamt = request.Amount,
+                    PaymentMethodId = paymentMethodId,
+                    TeamId = targetTeam.TeamId,
+                    RegistrationId = clubRep.RegistrationId,
+                    LebUserId = userId,
+                    Modified = DateTime.Now
+                }, userId, ct);
+
+                await _registrationRepo.SynchronizeClubRepFinancialsAsync(clubRep.RegistrationId, userId, ct);
+
+                return new TeamCheckOrCorrectionResponse
+                {
+                    Success = true,
+                    PerTeamAllocations =
+                    [
+                        new TeamPaymentAllocation
+                        {
+                            TeamId = targetTeam.TeamId,
+                            TeamName = targetTeam.TeamName ?? "",
+                            AllocatedAmount = request.Amount,
+                            ProcessingFeeReduction = -procRestore, // a restore is a negative reduction
+                            NewOwedTotal = targetTeam.OwedTotal ?? 0
+                        }
+                    ]
+                };
             }
 
             var allocations = new List<TeamPaymentAllocation>();

@@ -68,6 +68,11 @@ public class PlayerCheckTests
                 PaymentMethodsAllowedCode = 7
             });
 
+        // The negative-correction proc RESTORE reads the CC rate through PaymentState
+        // hydration (jobRepo), not IFeeResolutionService — mirror the reducer's percent.
+        jobRepo.Setup(j => j.GetProcessingFeePercentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(processingFeePercent);
+
         var arbRepo = new Mock<IArbSubscriptionRepository>();
         var familiesRepo = new Mock<IFamiliesRepository>();
         var paymentState = new PaymentStateService(accountingRepo, jobRepo.Object, new FeeRepository(ctx), new TeamRepository(ctx));
@@ -419,5 +424,110 @@ public class PlayerCheckTests
         var recordCount = await ctx.RegistrationAccounting
             .CountAsync(r => r.RegistrationId == reg.RegistrationId);
         recordCount.Should().Be(0, "no record created for rejected correction");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  NEGATIVE CORRECTIONS (claw-backs) — signed-corrections ruling 2026-08-13
+    //  A negative correction RAISES the amount owed (reinstate a charge, undo an
+    //  over-credit). NO FLOOR by ruling: it may charge beyond the fee structure,
+    //  so OwedTotal may exceed FeeTotal and PaidTotal may go negative.
+    // ═══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// SCENARIO: Player owes $100 (no proc). Nothing paid, nothing forgiven.
+    ///           Director records a −$50 correction (add a charge).
+    /// RECORD CREATED: Correction, Payamt=−$50 (append-only — nothing edited)
+    /// REGISTRATION AFTER: PaidTotal=−$50, OwedTotal=$150 — the no-floor pin.
+    /// </summary>
+    [Fact(DisplayName = "Negative correction: −$50 on untouched reg → owed $150 (no floor)")]
+    public async Task Correction_Negative_RaisesOwed_NoFloor()
+    {
+        var (svc, b, ctx, jobId) = await CreateServiceAsync(bAddProcessingFees: false);
+        var reg = b.AddPlayerRegistration(jobId, feeBase: 100m, feeProcessing: 0m);
+        await b.SaveAsync();
+
+        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
+            new RegistrationCheckOrCorrectionRequest
+            {
+                RegistrationId = reg.RegistrationId,
+                Amount = -50m,
+                PaymentType = "Correction",
+                Comment = "Reinstate charge"
+            });
+
+        result.Success.Should().BeTrue("negative corrections have no floor");
+
+        var record = await ctx.RegistrationAccounting
+            .FirstOrDefaultAsync(r => r.RegistrationId == reg.RegistrationId);
+        record!.PaymentMethodId.Should().Be(AccountingDataBuilder.CorrectionMethodId);
+        record.Payamt.Should().Be(-50m, "the claw-back is an appended signed row, never an edit");
+
+        var updated = await ctx.Registrations.FindAsync(reg.RegistrationId);
+        updated!.PaidTotal.Should().Be(-50m, "signed ledger re-sum");
+        updated.OwedTotal.Should().Be(150m, "$100 fee − (−$50 paid) = $150");
+    }
+
+    /// <summary>
+    /// SCENARIO: Proc job (3.5%). +$50 correction, then −$50 correction.
+    /// EXPECTED: Exact round-trip — FeeProcessing back to $3.50, OwedTotal back to
+    ///           $103.50, PaidTotal $0. The restore mirrors the reduction's formula
+    ///           and the FeeProcessingTarget ceiling permits exactly the mirror here.
+    /// </summary>
+    [Fact(DisplayName = "Negative correction: +$50 then −$50 round-trips FeeProcessing exactly")]
+    public async Task Correction_Negative_RoundTrip_RestoresProcessingFee()
+    {
+        var (svc, b, ctx, jobId) = await CreateServiceAsync(processingFeePercent: 3.5m, bAddProcessingFees: true);
+        var reg = b.AddPlayerRegistration(jobId, feeBase: 100m, feeProcessing: 3.50m);
+        await b.SaveAsync();
+
+        var forgive = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
+            new RegistrationCheckOrCorrectionRequest
+            { RegistrationId = reg.RegistrationId, Amount = 50m, PaymentType = "Correction" });
+        forgive.Success.Should().BeTrue();
+
+        var midpoint = await ctx.Registrations.FindAsync(reg.RegistrationId);
+        midpoint!.FeeProcessing.Should().Be(1.75m, "reduced by $50 × 3.5% on the way down");
+
+        var clawBack = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
+            new RegistrationCheckOrCorrectionRequest
+            { RegistrationId = reg.RegistrationId, Amount = -50m, PaymentType = "Correction" });
+        clawBack.Success.Should().BeTrue();
+
+        var updated = await ctx.Registrations.FindAsync(reg.RegistrationId);
+        updated!.FeeProcessing.Should().Be(3.50m, "restored by $50 × 3.5% on the way back");
+        updated.FeeTotal.Should().Be(103.50m);
+        updated.PaidTotal.Should().Be(0m, "+$50 and −$50 correction rows net to zero");
+        updated.OwedTotal.Should().Be(103.50m, "round-trip leaves the books exactly where they started");
+
+        var recordCount = await ctx.RegistrationAccounting
+            .CountAsync(r => r.RegistrationId == reg.RegistrationId);
+        recordCount.Should().Be(2, "both legs are appended rows — the audit trail only gains rows");
+    }
+
+    /// <summary>
+    /// SCENARIO: Proc job (3.5%), untouched reg (proc at its $3.50 target).
+    ///           Director records −$50 — a charge BEYOND the fee structure.
+    /// EXPECTED: Proc follows the enlarged balance: $150 principal × 3.5% = $5.25
+    ///           (formula $1.75 == headroom to the post-row FeeProcessingTarget).
+    ///           OwedTotal $155.25 &gt; FeeTotal-as-billed — allowed by the no-floor ruling.
+    /// </summary>
+    [Fact(DisplayName = "Negative correction: charge beyond fee grosses proc up to the canonical target")]
+    public async Task Correction_Negative_BeyondFee_ProcFollowsBalance()
+    {
+        var (svc, b, ctx, jobId) = await CreateServiceAsync(processingFeePercent: 3.5m, bAddProcessingFees: true);
+        var reg = b.AddPlayerRegistration(jobId, feeBase: 100m, feeProcessing: 3.50m);
+        await b.SaveAsync();
+
+        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
+            new RegistrationCheckOrCorrectionRequest
+            { RegistrationId = reg.RegistrationId, Amount = -50m, PaymentType = "Correction" });
+
+        result.Success.Should().BeTrue();
+
+        var updated = await ctx.Registrations.FindAsync(reg.RegistrationId);
+        updated!.FeeProcessing.Should().Be(5.25m,
+            "post-row target = $150 billable principal × 3.5%; restore capped at that headroom");
+        updated.PaidTotal.Should().Be(-50m);
+        updated.OwedTotal.Should().Be(155.25m, "$100 + $5.25 proc − (−$50) = $155.25");
     }
 }

@@ -737,12 +737,18 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
 
         if (isCheck && request.Amount <= 0)
             return new RegistrationCheckOrCorrectionResponse { Success = false, Error = "A check payment must be > $0.00." };
-        if (isCorrection && request.Amount <= 0)
-            return new RegistrationCheckOrCorrectionResponse { Success = false, Error = "A correction amount must be greater than $0.00." };
+        // Corrections are SIGNED: positive forgives (lowers owed), negative claws back
+        // (raises owed — reinstate a charge, undo an over-credit). Negatives have NO
+        // floor by ruling: a correction may charge beyond the fee structure, so owed
+        // may exceed FeeTotal and PaidTotal may go negative on the books.
+        if (isCorrection && request.Amount == 0)
+            return new RegistrationCheckOrCorrectionResponse { Success = false, Error = "A correction amount cannot be $0.00." };
 
-        // Overpayment guard — check/correction cannot exceed what is owed
+        // Overpayment guard — a positive check/correction cannot exceed what is owed.
+        // Positive-only: a negative correction lowers PaidTotal, so no upper cap applies
+        // (and comparing a negative amount against a negative OwedTotal is meaningless).
         var regForValidation = await _registrationRepo.GetByIdAsync(request.RegistrationId, ct);
-        if (regForValidation != null && request.Amount > regForValidation.OwedTotal)
+        if (regForValidation != null && request.Amount > 0 && request.Amount > regForValidation.OwedTotal)
             return new RegistrationCheckOrCorrectionResponse { Success = false, Error = $"Amount ${request.Amount:F2} exceeds the balance owed of ${regForValidation.OwedTotal:F2}." };
 
         // Check-specific cap — CkOwed (CC owed minus the processing-fee credit that
@@ -778,14 +784,35 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             LebUserId = userId
         };
 
-        // Reduce the processing fee proportionally first (non-CC payments; core accounting
+        // Adjust the processing fee proportionally first (non-CC payments; core accounting
         // principle), then record the row and re-derive PaidTotal/OwedTotal from the ledger in
-        // one transaction. The reducer mutates the tracked registration without saving and does
-        // not read PaidTotal, so the chokepoint's recompute picks up the reduced FeeProcessing.
+        // one transaction. The mutation touches the tracked registration without saving and does
+        // not read PaidTotal, so the chokepoint's recompute picks up the adjusted FeeProcessing.
         var reg = await _registrationRepo.GetByIdAsync(request.RegistrationId, ct)
             ?? throw new InvalidOperationException("Registration not found.");
 
-        await _feeAdjustment.ReduceProcessingFeeProportionalAsync(reg, request.Amount, jobId, userId);
+        if (request.Amount > 0)
+        {
+            await _feeAdjustment.ReduceProcessingFeeProportionalAsync(reg, request.Amount, jobId, userId);
+        }
+        else
+        {
+            // Negative correction: symmetric proc restore — the clawed-back balance may be
+            // CC-paid, so it must carry proc again. Ceiling = canonical FeeProcessingTarget
+            // (PaymentState.ProcRestoreForCorrection), so a deep claw-back can never restore
+            // more proc than the current balance carries (over-restore = invented owed).
+            var restoreState = await _paymentState.ForRegistrationAsync(request.RegistrationId, jobId, ct);
+            var restore = restoreState.ProcRestoreForCorrection(
+                -request.Amount, reg.FeeBase, reg.TotalDiscount(), reg.FeeLatefee, reg.FeeDonation,
+                reg.FeeProcessing);
+            if (restore > 0m)
+            {
+                reg.FeeProcessing += restore;
+                reg.RecalcTotals();
+                reg.Modified = DateTime.Now;
+                reg.LebUserId = userId;
+            }
+        }
 
         // A recorded check is money in — activate the registration, mirroring the canonical CC
         // engine (PaymentService sets BActive=true on charge success). Pending pay-by-check siblings

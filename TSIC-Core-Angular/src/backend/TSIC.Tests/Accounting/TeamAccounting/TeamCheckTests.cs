@@ -88,6 +88,11 @@ public class TeamCheckTests
                 PaymentMethodsAllowedCode = 7
             });
 
+        // The negative-correction proc RESTORE reads the CC rate through PaymentState
+        // hydration (jobRepo), not IFeeResolutionService — mirror the reducer's percent.
+        jobRepo.Setup(j => j.GetProcessingFeePercentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(processingFeePercent);
+
         var paymentState = new PaymentStateService(accountingRepo, jobRepo.Object, new FeeRepository(ctx), new TeamRepository(ctx));
         var svc = new TeamSearchService(
             teamRepo, accountingRepo, registrationRepo, jobRepo.Object,
@@ -293,5 +298,133 @@ public class TeamCheckTests
 
         result.Success.Should().BeFalse("cannot pay more than is owed");
         result.Error.Should().Contain("exceeds");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  NEGATIVE CORRECTIONS (claw-backs) — signed-corrections ruling 2026-08-13
+    //  Allowed ONLY at single-team scope: "which team gets charged back" is the
+    //  admin's call, never an allocator's. Club-scope negative = hard reject
+    //  (replacing the old silent no-op). No floor: owed may exceed FeeTotal.
+    // ═══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// SCENARIO: Director tries a −$100 correction at CLUB scope.
+    /// EXPECTED: Rejected — a negative must name its team. No row written
+    ///           (the old code validated, allocated to zero teams, and returned
+    ///           Success with nothing recorded — that silent no-op is dead).
+    /// </summary>
+    [Fact(DisplayName = "Negative correction: club scope rejected — must target a specific team")]
+    public async Task Correction_Negative_ClubScope_Rejected_NoRecord()
+    {
+        var (svc, b, ctx, jobId, agId, clubRepId) = await CreateServiceAsync(
+            bAddProcessingFees: false, rosterFee: 500m);
+
+        b.AddTeam(jobId, agId, clubRepRegistrationId: clubRepId,
+            teamName: "Eagles 2027", feeBase: 500m, feeProcessing: 0m);
+        await b.SaveAsync();
+
+        var result = await svc.RecordCheckForClubAsync(jobId, UserId,
+            new TeamCheckOrCorrectionRequest
+            {
+                ClubRepRegistrationId = clubRepId,
+                Amount = -100m,
+                PaymentType = "Correction"
+            });
+
+        result.Success.Should().BeFalse("club-scope distribution has no sensible ordering for a claw-back");
+        result.Error.Should().Contain("specific team");
+
+        var recordCount = await ctx.RegistrationAccounting
+            .CountAsync(r => r.RegistrationId == clubRepId);
+        recordCount.Should().Be(0, "rejection must write nothing — no silent no-op, no partial row");
+    }
+
+    /// <summary>
+    /// SCENARIO: Team owes $500 (no proc), nothing paid. Director records a −$200
+    ///           correction in TEAM scope (reinstate a charge).
+    /// RECORD CREATED: Correction, Payamt=−$200, TeamId set, RegistrationId = club rep
+    /// TEAM AFTER: PaidTotal=−$200, OwedTotal=$700 (no floor)
+    /// CLUB REP AFTER: re-aggregated from teams — PaidTotal=−$200, OwedTotal=$700
+    /// </summary>
+    [Fact(DisplayName = "Negative correction: −$200 team scope → one signed row, team owes $700")]
+    public async Task Correction_Negative_SingleTeam_RaisesOwed()
+    {
+        var (svc, b, ctx, jobId, agId, clubRepId) = await CreateServiceAsync(
+            bAddProcessingFees: false, rosterFee: 500m);
+
+        var team = b.AddTeam(jobId, agId, clubRepRegistrationId: clubRepId,
+            teamName: "Eagles 2027", feeBase: 500m, feeProcessing: 0m);
+
+        var clubRep = await ctx.Registrations.FindAsync(clubRepId);
+        clubRep!.FeeBase = 500m; clubRep.FeeTotal = 500m; clubRep.OwedTotal = 500m;
+        await b.SaveAsync();
+
+        var result = await svc.RecordCheckForTeamAsync(jobId, UserId,
+            new TeamCheckOrCorrectionRequest
+            {
+                TeamId = team.TeamId,
+                ClubRepRegistrationId = clubRepId,
+                Amount = -200m,
+                PaymentType = "Correction",
+                Comment = "Reinstate dropped charge"
+            });
+
+        result.Success.Should().BeTrue();
+        result.PerTeamAllocations.Should().HaveCount(1, "exactly the admin-named team — no distribution");
+        result.PerTeamAllocations![0].AllocatedAmount.Should().Be(-200m);
+
+        var record = await ctx.RegistrationAccounting
+            .FirstOrDefaultAsync(r => r.TeamId == team.TeamId);
+        record!.PaymentMethodId.Should().Be(AccountingDataBuilder.CorrectionMethodId);
+        record.Payamt.Should().Be(-200m, "appended signed row — nothing edited or voided");
+        record.RegistrationId.Should().Be(clubRepId, "team rows always belong to the club rep's account");
+
+        var updatedTeam = await ctx.Teams.FindAsync(team.TeamId);
+        updatedTeam!.PaidTotal.Should().Be(-200m);
+        updatedTeam.OwedTotal.Should().Be(700m, "$500 fee − (−$200 paid) = $700 — no floor");
+
+        var updatedRep = await ctx.Registrations.FindAsync(clubRepId);
+        updatedRep!.PaidTotal.Should().Be(-200m, "rep re-aggregates from its teams");
+        updatedRep.OwedTotal.Should().Be(700m);
+    }
+
+    /// <summary>
+    /// SCENARIO: Proc job (3.5%). Team $500 + $17.50 proc. +$200 correction
+    ///           (proc → $10.50), then −$200 correction.
+    /// EXPECTED: Exact round-trip — proc back to $17.50, OwedTotal back to $517.50.
+    ///           Restore formula $200 × 3.5% == headroom to the post-row target.
+    /// </summary>
+    [Fact(DisplayName = "Negative correction: team +$200/−$200 round-trips FeeProcessing exactly")]
+    public async Task Correction_Negative_SingleTeam_RoundTrip_RestoresProc()
+    {
+        var (svc, b, ctx, jobId, agId, clubRepId) = await CreateServiceAsync(
+            processingFeePercent: 3.5m, bAddProcessingFees: true, rosterFee: 500m);
+
+        var team = b.AddTeam(jobId, agId, clubRepRegistrationId: clubRepId,
+            teamName: "Eagles 2027", feeBase: 500m, feeProcessing: 17.50m);
+
+        var clubRep = await ctx.Registrations.FindAsync(clubRepId);
+        clubRep!.FeeBase = 500m; clubRep.FeeTotal = 517.50m; clubRep.OwedTotal = 517.50m;
+        await b.SaveAsync();
+
+        var forgive = await svc.RecordCheckForTeamAsync(jobId, UserId,
+            new TeamCheckOrCorrectionRequest
+            { TeamId = team.TeamId, ClubRepRegistrationId = clubRepId, Amount = 200m, PaymentType = "Correction" });
+        forgive.Success.Should().BeTrue();
+
+        var midpoint = await ctx.Teams.FindAsync(team.TeamId);
+        midpoint!.FeeProcessing.Should().Be(10.50m, "reduced by $200 × 3.5% = $7.00 on the way down");
+
+        var clawBack = await svc.RecordCheckForTeamAsync(jobId, UserId,
+            new TeamCheckOrCorrectionRequest
+            { TeamId = team.TeamId, ClubRepRegistrationId = clubRepId, Amount = -200m, PaymentType = "Correction" });
+        clawBack.Success.Should().BeTrue();
+        clawBack.PerTeamAllocations![0].ProcessingFeeReduction.Should().Be(-7.00m,
+            "a restore is reported as a negative reduction");
+
+        var updatedTeam = await ctx.Teams.FindAsync(team.TeamId);
+        updatedTeam!.FeeProcessing.Should().Be(17.50m, "restored by $200 × 3.5% on the way back");
+        updatedTeam.PaidTotal.Should().Be(0m, "+$200 and −$200 rows net to zero");
+        updatedTeam.OwedTotal.Should().Be(517.50m, "round-trip leaves the books exactly where they started");
     }
 }

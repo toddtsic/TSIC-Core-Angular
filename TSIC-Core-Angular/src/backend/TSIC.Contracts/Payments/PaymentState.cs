@@ -151,6 +151,34 @@ public record PaymentState
     }
 
     /// <summary>
+    /// Proc-fee restore for a NEGATIVE correction (charge-back) of magnitude
+    /// <paramref name="amountMagnitude"/>, computed against THIS (pre-row) state.
+    /// Movement is the symmetric mirror of the reduce path (full CC-rate credit,
+    /// same rounding); the ceiling is the canonical <see cref="FeeProcessingTarget"/>
+    /// of the POST-row state — never a replay of what prior rows reduced, which is
+    /// unknowable (no per-row proc memory) and over-restores when a past reduction
+    /// was capped at zero proc. Over-restore = invented owed; the target ceiling is
+    /// the one bound that can't. Slice-aware for free (a negative row never consumes
+    /// the proc-free slice, matching hydration), 0 on proc-disabled jobs.
+    /// </summary>
+    public decimal ProcRestoreForCorrection(
+        decimal amountMagnitude, decimal feeBase, decimal discount, decimal lateFee, decimal donation,
+        decimal currentFeeProcessing)
+    {
+        if (!BAddProcessingFees || amountMagnitude <= 0m) return 0m;
+        var postRow = this with { CorrectionApplied = CorrectionApplied - amountMagnitude };
+        var target = postRow.FeeProcessingTarget(feeBase, discount, lateFee, donation);
+        var formula = System.Math.Round(
+            PaymentRateMath.NonProcCheckCredit(amountMagnitude, CcRate),
+            2, System.MidpointRounding.AwayFromZero);
+        // Target is unrounded rate math — round the headroom-capped result so the
+        // stamped FeeProcessing stays a clean cents figure like every other writer.
+        var headroom = System.Math.Max(0m, target - currentFeeProcessing);
+        return System.Math.Round(
+            System.Math.Min(formula, headroom), 2, System.MidpointRounding.AwayFromZero);
+    }
+
+    /// <summary>
     /// Principal still owed if the remainder is paid by check (no further proc).
     /// </summary>
     public decimal PrincipalRemaining(decimal feeBase, decimal discount, decimal lateFee, decimal donation) =>
