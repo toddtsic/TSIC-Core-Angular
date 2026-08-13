@@ -24,7 +24,7 @@ export interface TeamOption {
         <div class="detail-panel" [class.open]="visible()">
             <div class="panel-header">
                 <div class="header-top-row">
-                    <h3 class="panel-title">{{ isBracketMode() ? 'Score' : 'Edit Game #' + game()?.gid }}</h3>
+                    <h3 class="panel-title">Edit Game #{{ game()?.gid }}</h3>
                     <button class="btn-close" (click)="close.emit()" aria-label="Close">&times;</button>
                 </div>
             </div>
@@ -39,27 +39,6 @@ export interface TeamOption {
                                   to correct them by hand.</span>
                         </div>
                     }
-                    @if (isBracketMode()) {
-                        <div class="panel-card">
-                            <h4 class="panel-card-title">Score</h4>
-                            <div class="score-row">
-                                <span class="team-label">{{ t1Name() }}</span>
-                                <input type="number" class="form-input score-box"
-                                       min="0" max="99"
-                                       [ngModel]="t1Score()"
-                                       (ngModelChange)="t1Score.set($event)"
-                                       (keydown.enter)="onSave()" />
-                            </div>
-                            <div class="score-row">
-                                <span class="team-label">{{ t2Name() }}</span>
-                                <input type="number" class="form-input score-box"
-                                       min="0" max="99"
-                                       [ngModel]="t2Score()"
-                                       (ngModelChange)="t2Score.set($event)"
-                                       (keydown.enter)="onSave()" />
-                            </div>
-                        </div>
-                    } @else {
                         <div class="panel-card">
                             <h4 class="panel-card-title">Team 1</h4>
 
@@ -144,7 +123,6 @@ export interface TeamOption {
                                 </select>
                             </div>
                         </div>
-                    }
                 }
             </div>
 
@@ -223,37 +201,6 @@ export interface TeamOption {
             cursor: pointer;
         }
 
-        /* ── Compact bracket score layout ── */
-        .score-row {
-            display: flex;
-            align-items: center;
-            gap: var(--space-3);
-            padding: var(--space-2) 0;
-        }
-
-        .score-row + .score-row {
-            border-top: 1px solid var(--bs-border-color);
-        }
-
-        .team-label {
-            flex: 1;
-            font-size: var(--font-size-sm);
-            font-weight: 600;
-            color: var(--bs-body-color);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .score-box {
-            width: 64px;
-            flex: none;
-            text-align: center;
-            font-size: var(--font-size-base);
-            font-weight: 700;
-            font-variant-numeric: tabular-nums;
-        }
-
         /* ── Decided-bracket-game caution ── */
         .bracket-warning {
             display: flex;
@@ -285,8 +232,11 @@ export class EditGameModalComponent implements OnChanges {
     readonly close = output<void>();
     readonly save = output<EditGameRequest>();
 
-    /** Bracket mode: mock game from brackets has empty gDate */
-    readonly isBracketMode = computed(() => !this.game()?.gDate);
+    /* There is deliberately no bracket mode here any more. The brackets strip used to open
+       this panel with a synthesised game (empty gDate standing in for "bracket"), and this
+       component branched on that to show a two-input score form. Both the brackets strip
+       and the games ledger now open app-score-entry-modal instead, so this panel is once
+       again exactly what its title says: the full game editor. */
 
     /** Bold caution when editing a bracket game that already has a recorded result. */
     readonly showDecidedBracketWarning = computed(() => {

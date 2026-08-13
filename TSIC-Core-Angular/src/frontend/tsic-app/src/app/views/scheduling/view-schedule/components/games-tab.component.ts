@@ -2,11 +2,9 @@ import {
   Component,
   ChangeDetectionStrategy,
   input,
-  signal,
   computed,
   output
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import type { ViewGameDto } from '@core/api';
 
 /**
@@ -23,7 +21,6 @@ type ScheduleRow =
 @Component({
     selector: 'app-games-tab',
     standalone: true,
-    imports: [FormsModule],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         @if (isLoading()) {
@@ -186,57 +183,39 @@ type ScheduleRow =
 
                         <!-- Score — three real columns so home/away numbers each stack on
                              their own right edge and the dash sits isolated in the centre
-                             track, unable to nudge either number. While editing, one cell
-                             spans all three for the input pair. -->
-                        @if (editingGid() === game.gid) {
-                            <span class="cell cell-score-edit" role="cell" aria-colindex="6"
-                                  (click)="$event.stopPropagation()">
-                                <span class="score-edit">
-                                    <input type="number" class="score-input" [min]="0" [max]="99"
-                                           [ngModel]="editT1Score()"
-                                           (ngModelChange)="editT1Score.set($event)"
-                                           (keydown.enter)="saveScore(game.gid)"
-                                           (keydown.escape)="cancelEdit()">
-                                    <span class="score-dash">&ndash;</span>
-                                    <input type="number" class="score-input" [min]="0" [max]="99"
-                                           [ngModel]="editT2Score()"
-                                           (ngModelChange)="editT2Score.set($event)"
-                                           (keydown.enter)="saveScore(game.gid)"
-                                           (keydown.escape)="cancelEdit()">
-                                    @if (hasScore(game)) {
-                                        <button type="button" class="score-clear"
-                                                title="Clear score — return game to unscored"
-                                                aria-label="Clear score, return game to unscored"
-                                                (click)="clearScore(game.gid)">
-                                            <i class="bi bi-eraser" aria-hidden="true"></i>
-                                        </button>
-                                    }
-                                </span>
-                            </span>
-                        } @else {
-                            <!-- Home score -->
-                            <span class="cell cell-t1-score" role="cell" aria-colindex="6"
-                                  [class.editable]="canScore()"
-                                  (click)="onScoreCellClick(game)">
-                                @if (hasScore(game)) {
-                                    <span class="score-val">{{ game.t1Score }}</span>
-                                }
-                            </span>
-                            <!-- Dash — isolated centre track -->
-                            <span class="cell cell-dash" role="cell" aria-colindex="7"
-                                  [class.editable]="canScore()"
-                                  (click)="onScoreCellClick(game)">
+                             track, unable to nudge either number. -->
+                        <!-- Home score -->
+                        <span class="cell cell-t1-score" role="cell" aria-colindex="6">
+                            @if (hasScore(game)) {
+                                <span class="score-val">{{ game.t1Score }}</span>
+                            }
+                        </span>
+                        <!-- Centre track — the dash for everyone, a PENCIL for anyone who can
+                             score. It is the only way into score entry: the numbers either
+                             side are inert text. Three click targets for one action (which is
+                             what the old inline editor had — both numbers and the dash all
+                             opened it) leaves nothing on the row that reads as "the control",
+                             and the pencil then means nothing.
+                             The glyph occupies the dash's own isolated min-content track, so
+                             swapping one for the other cannot nudge either number. -->
+                        <span class="cell cell-dash" role="cell" aria-colindex="7">
+                            @if (canScore()) {
+                                <button type="button" class="score-pencil"
+                                        [attr.title]="'Enter score for game #' + game.gid"
+                                        [attr.aria-label]="'Enter score, ' + game.t1Name + ' versus ' + game.t2Name"
+                                        (click)="scoreGame.emit(game)">
+                                    <i class="bi bi-pencil-fill" aria-hidden="true"></i>
+                                </button>
+                            } @else {
                                 <span class="score-dash">&ndash;</span>
-                            </span>
-                            <!-- Away score -->
-                            <span class="cell cell-t2-score" role="cell" aria-colindex="8"
-                                  [class.editable]="canScore()"
-                                  (click)="onScoreCellClick(game)">
-                                @if (hasScore(game)) {
-                                    <span class="score-val">{{ game.t2Score }}</span>
-                                }
-                            </span>
-                        }
+                            }
+                        </span>
+                        <!-- Away score -->
+                        <span class="cell cell-t2-score" role="cell" aria-colindex="8">
+                            @if (hasScore(game)) {
+                                <span class="score-val">{{ game.t2Score }}</span>
+                            }
+                        </span>
 
                         <!-- Away team. The star PRECEDES the name here exactly as it does on
                              the home side — deliberately NOT mirrored.
@@ -339,6 +318,15 @@ type ScheduleRow =
                             }
                         </div>
 
+                        <!-- Both team rows plus the score pencil. The card has no dash to
+                             replace, so the pencil takes the equivalent position: outboard of
+                             the score column, vertically centred between the two numbers —
+                             the same "between the scores" spot the desktop dash occupies.
+                             Wrapping the rows rather than putting a pencil in each keeps ONE
+                             control per game, matching the grid. -->
+                        <div class="card-teams">
+                        <div class="card-teams-rows">
+
                         <!-- Team 1 (Home): full-width row, score right-aligned.
                              The win cue is the gold dotted underline on the NAME, identical
                              to the desktop grid — same property, same values, one language
@@ -410,7 +398,20 @@ type ScheduleRow =
                             </span>
                         </div>
 
+                        </div>
+                        @if (canScore()) {
+                            <button type="button" class="score-pencil card-pencil"
+                                    [attr.title]="'Enter score for game #' + game.gid"
+                                    [attr.aria-label]="'Enter score, ' + game.t1Name + ' versus ' + game.t2Name"
+                                    (click)="scoreGame.emit(game)">
+                                <i class="bi bi-pencil-fill" aria-hidden="true"></i>
+                            </button>
+                        }
+                        </div>
+
                         <!-- Location -->
+
+
                         <div class="card-location">
                             @if (mapsUrl(game)) {
                                 <a [href]="mapsUrl(game)" target="_blank" rel="noopener" class="loc-link">
@@ -1204,7 +1205,7 @@ type ScheduleRow =
            it carries its own tuned offset on top. It still wants Bootstrap's behaviour. */
         .team-star .bi::before,
         .status-key .bi::before,
-        .score-clear .bi::before {
+        .score-pencil .bi::before {
             vertical-align: 0;
         }
 
@@ -1283,9 +1284,9 @@ type ScheduleRow =
            same width even when (say) every home score is one digit and every away score is
            two — otherwise the 3-track span's geometric centre drifts off the dash and takes
            the centred "Score" header with it. Two digits at --font-size-base monospace is
-           ~1.2rem and the editor caps scores at 99, so 1.75rem is the ceiling plus slack.
-           A floor, not a fixed width: the inline editor spans these tracks and still needs
-           to size them intrinsically. */
+           ~1.2rem and the score sheet caps entry at 99, so 1.75rem is the ceiling plus
+           slack. A floor rather than a fixed width so the tracks still size to their own
+           content when a column happens to be narrower. */
         .cell-t1-score,
         .cell-t2-score { min-width: 1.75rem; }
         .cell-t1-score { justify-content: flex-end; }
@@ -1301,20 +1302,58 @@ type ScheduleRow =
             padding-inline: var(--space-1);
         }
 
-        /* Editing swaps all three score tracks for the input pair. */
-        .cell-score-edit {
-            grid-column: span 3;
-            display: flex;
+        /* Score pencil — the sole entry point to score entry, sitting in the dash's track.
+           Sized to the dash it replaces so the centre spine holds its position whether a row
+           is scorable or not, and so a director's ledger has the same column geometry as a
+           parent's. Quiet at rest (secondary ink, no border): 300+ of these run down the
+           middle of the ledger, and a bordered button on every row would out-shout the
+           scores. It lights up on hover/focus, like the date/time edit trigger. */
+        .score-pencil {
+            appearance: none;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
+            width: 22px;
+            height: 22px;
+            padding: 0;
+            border: none;
+            border-radius: var(--radius-sm);
+            background: transparent;
+            color: var(--bs-secondary-color);
+            font-size: var(--font-size-2xs);
+            line-height: 1;
+            cursor: pointer;
+            transition: opacity 0.15s, background-color 0.15s, color 0.15s;
         }
 
-        .cell-t1-score.editable,
-        .cell-dash.editable,
-        .cell-t2-score.editable { cursor: pointer; }
-        .cell-t1-score.editable:hover,
-        .cell-dash.editable:hover,
-        .cell-t2-score.editable:hover { background: var(--bs-primary-bg-subtle); border-radius: var(--radius-sm); }
+        .score-pencil:hover {
+            opacity: 1;
+            background: var(--bs-primary-bg-subtle);
+            color: var(--bs-primary);
+        }
+
+        .score-pencil:focus-visible {
+            outline: none;
+            opacity: 1;
+            box-shadow: var(--shadow-focus);
+        }
+
+        /* Quiet at rest, full strength on row hover — the same bargain as the follow stars,
+           and gated the same way. (hover: hover) is load bearing, not decoration: a touch
+           device never fires row hover, so an ungated dim would leave the ONLY route into
+           score entry permanently faded on a tablet. That is a real case — this grid shows
+           from 768px up, which includes every landscape tablet a director scores from.
+           Pointer devices get the calm ledger; touch devices get a pencil at full strength.
+           Opacity only, never display/visibility: the button must stay focusable. */
+        @media (hover: hover) {
+            .game-row .score-pencil { opacity: 0.55; }
+            .game-row:hover .score-pencil,
+            .game-row .score-pencil:focus-visible { opacity: 1; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .score-pencil { transition: none !important; }
+        }
 
         /* Both scores are plain bold strong figures — SAME weight and ink for winner and
            loser, and now with NO decoration on either. The result is carried entirely by the
@@ -1447,63 +1486,6 @@ type ScheduleRow =
            #57534e, a mid grey, and would read weak at this size. */
         .status-badge { color: var(--score-strong); font-weight: 700; }
 
-        /* Inline score editing */
-        .score-edit {
-            display: inline-flex;
-            align-items: center;
-            gap: var(--space-1);
-        }
-
-        .score-input {
-            width: 44px;
-            padding: 2px var(--space-1);
-            text-align: center;
-            font-size: var(--font-size-base);
-            font-family: var(--bs-font-monospace);
-            border: 1px solid var(--bs-primary);
-            border-radius: var(--radius-sm);
-            background: var(--bs-body-bg);
-            color: var(--bs-body-color);
-            outline: none;
-        }
-
-        .score-input:focus { box-shadow: 0 0 0 2px var(--bs-primary-bg-subtle); }
-
-        .score-input::-webkit-inner-spin-button,
-        .score-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-        .score-input { -moz-appearance: textfield; }
-
-        /* Clear-score (unscore) button — only shown while editing an already-scored game.
-           Neutral by default; reads as a destructive-ish action on hover (danger tint). */
-        .score-clear {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 24px;
-            height: 24px;
-            margin-left: var(--space-1);
-            padding: 0;
-            border: 1px solid var(--bs-border-color);
-            border-radius: var(--radius-sm);
-            background: transparent;
-            color: var(--bs-secondary-color);
-            font-size: var(--font-size-sm);
-            cursor: pointer;
-            transition: background-color 0.15s, border-color 0.15s, color 0.15s;
-        }
-        .score-clear:hover {
-            background: var(--bs-danger-bg-subtle);
-            border-color: var(--bs-danger);
-            color: var(--bs-danger);
-        }
-        .score-clear:focus-visible {
-            outline: none;
-            box-shadow: var(--shadow-focus);
-        }
-        @media (prefers-reduced-motion: reduce) {
-            .score-clear { transition: none !important; }
-        }
-
         /* ═══ MOBILE CARDS ═══ */
 
         .games-cards {
@@ -1575,6 +1557,33 @@ type ScheduleRow =
         button.card-dt-editable:focus-visible {
             background: var(--bs-primary-bg-subtle);
             outline: none;
+        }
+
+        /* Both team rows + the score pencil. The rows keep their own column so the two
+           names and scores stay exactly as they were; the pencil is a sibling of that
+           column, centred across both rows — the card's equivalent of the desktop dash
+           track. */
+        .card-teams {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
+        .card-teams-rows {
+            flex: 1;
+            min-width: 0;
+        }
+
+        /* Touch target, so it is sized to the finger rather than to the glyph — the desktop
+           pencil is a 22px pointer target and would be a miss on a phone. Also permanently
+           visible here: a card has no hover to reveal it with. */
+        .card-pencil {
+            flex: none;
+            width: 40px;
+            height: 40px;
+            font-size: var(--font-size-sm);
+            opacity: 1;
+            border: 1px solid var(--bs-border-color);
         }
 
         /* Card team row — one team per line, score right-aligned */
@@ -1656,11 +1665,10 @@ export class GamesTabComponent {
     readonly followedTeamIds = input<readonly string[]>([]);
 
     // ── Outputs ──
-    readonly quickScore = output<{
-    gid: number;
-    t1Score: number | null;
-    t2Score: number | null;
-}>();
+    /** Pencil clicked — the host opens the score sheet. The whole game goes up rather than
+     *  just the gid: the sheet shows field / time / age group as context and the host would
+     *  otherwise have to look the row back up in a list it just handed us. */
+    readonly scoreGame = output<ViewGameDto>();
     readonly editGame = output<number>();
     readonly viewTeamResults = output<string>();
     /** Emits the teamId when the user clicks a star — parent toggles the set. */
@@ -1701,13 +1709,6 @@ export class GamesTabComponent {
         event?.stopPropagation();
         if (teamId) this.toggleFollow.emit(teamId);
     }
-
-    // ── Inline edit state ──
-    readonly editingGid = signal<number | null>(null);
-    // Nullable: an emptied number input yields null. A blank box is treated as 0 on
-    // save (see saveScore); an explicit unscore goes through clearScore, not here.
-    readonly editT1Score = signal<number | null>(0);
-    readonly editT2Score = signal<number | null>(0);
 
     // ══════════════════════════════════════════════════════════════════
     // Team labels
@@ -1844,36 +1845,5 @@ export class GamesTabComponent {
 
     isT2Winner(game: ViewGameDto): boolean {
         return game.t1Score != null && game.t2Score != null && game.t2Score > game.t1Score;
-    }
-
-
-    onScoreCellClick(game: ViewGameDto): void {
-        if (!this.canScore()) return;
-        if (this.editingGid() === game.gid) return;
-        this.editingGid.set(game.gid);
-        this.editT1Score.set(game.t1Score ?? 0);
-        this.editT2Score.set(game.t2Score ?? 0);
-    }
-
-    saveScore(gid: number): void {
-        // Blank box = 0 (typical "3–0" entry where the loser's box is left empty).
-        // Unscoring is a deliberate act via clearScore, never an accidental blank here.
-        this.quickScore.emit({
-            gid,
-            t1Score: this.editT1Score() ?? 0,
-            t2Score: this.editT2Score() ?? 0
-        });
-        this.editingGid.set(null);
-    }
-
-    /** Return the game to unscored — both scores null. The backend resets a cleared
-     *  game's status from Final(6) back to Scheduled(1). */
-    clearScore(gid: number): void {
-        this.quickScore.emit({ gid, t1Score: null, t2Score: null });
-        this.editingGid.set(null);
-    }
-
-    cancelEdit(): void {
-        this.editingGid.set(null);
     }
 }

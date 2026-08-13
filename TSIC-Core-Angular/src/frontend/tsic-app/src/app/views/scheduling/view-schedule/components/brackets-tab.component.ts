@@ -418,6 +418,9 @@ export class BracketsTabComponent implements OnChanges, AfterViewChecked, OnDest
     t2Name: string;
     t1Score: number | null;
     t2Score: number | null;
+    /** GameRoundTypes letter (Z/Y/X/Q/S/F ladder, B bronze, C consolation). The score
+     *  sheet uses it to decide whether re-scoring can strand a downstream game. */
+    roundType: string;
 }>();
 
     readonly viewTeamResults = output<string>();
@@ -499,7 +502,8 @@ export class BracketsTabComponent implements OnChanges, AfterViewChecked, OnDest
             t1Name: card.t1Name,
             t2Name: card.t2Name,
             t1Score: card.t1Score,
-            t2Score: card.t2Score
+            t2Score: card.t2Score,
+            roundType: card.kind === 'Bronze' ? 'B' : 'C'
         });
     }
 
@@ -682,7 +686,8 @@ export class BracketsTabComponent implements OnChanges, AfterViewChecked, OnDest
                             t1Name: match.t1Name,
                             t2Name: match.t2Name,
                             t1Score: match.t1Score ?? null,
-                            t2Score: match.t2Score ?? null
+                            t2Score: match.t2Score ?? null,
+                            roundType: match.roundType
                         });
                     }
                 }

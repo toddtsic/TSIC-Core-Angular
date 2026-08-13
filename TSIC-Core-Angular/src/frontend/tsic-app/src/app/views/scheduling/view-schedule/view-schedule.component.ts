@@ -2,7 +2,7 @@ import {
     ChangeDetectionStrategy, Component, inject, OnInit, signal, computed, CUSTOM_ELEMENTS_SCHEMA
 } from '@angular/core';
 import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, type HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../../infrastructure/services/auth.service';
 import { JobService } from '../../../infrastructure/services/job.service';
 import { FormsModule } from '@angular/forms';
@@ -37,6 +37,7 @@ import { BracketsTabComponent } from './components/brackets-tab.component';
 import { ContactsTabComponent } from './components/contacts-tab.component';
 import { TeamResultsModalComponent } from './components/team-results-modal.component';
 import { EditGameModalComponent } from './components/edit-game-modal.component';
+import { ScoreEntryModalComponent, type ScoreEntryGame } from './components/score-entry-modal.component';
 import { GameClockModalComponent } from './components/game-clock-modal.component';
 import { InlineGameClockComponent } from './components/inline-game-clock.component';
 import { EventSeedToolsComponent } from './components/event-seed-tools.component';
@@ -71,6 +72,7 @@ interface FilterChip {
         ContactsTabComponent,
         TeamResultsModalComponent,
         EditGameModalComponent,
+        ScoreEntryModalComponent,
         GameClockModalComponent,
         InlineGameClockComponent,
         EventSeedToolsComponent,
@@ -335,7 +337,7 @@ interface FilterChip {
                             [canScore]="auth.isAdmin()"
                             [isLoading]="tabLoading()"
                             [followedTeamIds]="directTeamIds()"
-                            (quickScore)="onQuickScore($event)"
+                            (scoreGame)="onScoreGame($event)"
                             (editGame)="onEditGameOpen($event)"
                             (viewTeamResults)="onViewTeamResults($event)"
                             (toggleFollow)="toggleDirectTeam($event)" />
@@ -510,7 +512,18 @@ interface FilterChip {
             (close)="teamResultsVisible.set(false)"
             (viewOpponent)="onViewTeamResults($event)" />
 
-        <!-- Edit Game Modal -->
+        <!-- Score Entry — the ONE score-entry surface, shared by the games ledger (desktop
+             pencil and mobile card pencil) and the brackets strip. -->
+        <app-score-entry-modal
+            [game]="scoringGame()"
+            [visible]="scoreEntryVisible()"
+            [saving]="scoreSaving()"
+            [error]="scoreError()"
+            (close)="scoreEntryVisible.set(false)"
+            (save)="onScoreSave($event)" />
+
+        <!-- Edit Game Modal — reschedule / field / team swap / annotations. Scores are
+             reachable from here too, but the pencil is the score-only path. -->
         <app-edit-game-modal
             [game]="editingGame()"
             [visible]="editGameVisible()"
@@ -1273,6 +1286,12 @@ export class ViewScheduleComponent implements OnInit {
     readonly editingGame = signal<ViewGameDto | null>(null);
     readonly editGameVisible = signal(false);
 
+    /** Score sheet — fed by both the games ledger and the brackets strip. */
+    readonly scoringGame = signal<ScoreEntryGame | null>(null);
+    readonly scoreEntryVisible = signal(false);
+    readonly scoreSaving = signal(false);
+    readonly scoreError = signal<string | null>(null);
+
     readonly fieldInfo = signal<FieldDisplayDto | null>(null);
     readonly fieldInfoVisible = signal(false);
 
@@ -1896,40 +1915,82 @@ export class ViewScheduleComponent implements OnInit {
         this.loadTabData(this.activeTab());
     }
 
-    onQuickScore(event: { gid: number; t1Score: number | null; t2Score: number | null }): void {
-        // null scores clear the game back to unscored; the backend resets a cleared
-        // game's status from Final(6) → Scheduled(1).
-        const request: EditScoreRequest = {
-            gid: event.gid,
-            t1Score: event.t1Score,
-            t2Score: event.t2Score
-        };
-        this.svc.quickEditScore(request).subscribe(() => {
-            this.loadedTabs.delete('games');
-            this.loadedTabs.delete('standings');
-            this.loadedTabs.delete('brackets');
-            this.loadTabData(this.activeTab());
+    /** Games ledger pencil (desktop grid or mobile card) → open the score sheet. */
+    onScoreGame(game: ViewGameDto): void {
+        this.scoringGame.set({
+            gid: game.gid,
+            t1Name: game.t1Name ?? '',
+            t2Name: game.t2Name ?? '',
+            t1Score: game.t1Score ?? null,
+            t2Score: game.t2Score ?? null,
+            gStatusCode: game.gStatusCode ?? null,
+            fName: game.fName,
+            gDate: game.gDate,
+            agDiv: game.agDiv,
+            t1Type: game.t1Type
         });
+        this.scoreError.set(null);
+        this.scoreEntryVisible.set(true);
     }
 
-    onBracketScoreEdit(event: { gid: number; t1Name: string; t2Name: string; t1Score: number | null; t2Score: number | null }): void {
-        const mockGame: ViewGameDto = {
+    /**
+     * Brackets strip pencil → the same sheet. A bracket card carries no schedule context,
+     * so field / time / age group are simply left off and the sheet's context strip does
+     * not render — which is why the sheet takes a narrow shape rather than ViewGameDto.
+     * This used to synthesise a fake ViewGameDto (empty gDate, empty fName, an invented
+     * status 2, a hardcoded 'F' round type) purely to satisfy the edit panel's signature.
+     */
+    onBracketScoreEdit(event: {
+        gid: number; t1Name: string; t2Name: string;
+        t1Score: number | null; t2Score: number | null; roundType: string;
+    }): void {
+        this.scoringGame.set({
             gid: event.gid,
-            gDate: '',
-            fName: '',
-            fieldId: '',
-            agDiv: '',
             t1Name: event.t1Name,
             t2Name: event.t2Name,
-            t1Score: event.t1Score ?? undefined,
-            t2Score: event.t2Score ?? undefined,
-            t1Type: 'F',
-            t2Type: 'F',
-            rnd: 0,
-            gStatusCode: event.t1Score != null ? 2 : 1
-        };
-        this.editingGame.set(mockGame);
-        this.editGameVisible.set(true);
+            t1Score: event.t1Score,
+            t2Score: event.t2Score,
+            gStatusCode: null,
+            t1Type: event.roundType
+        });
+        this.scoreError.set(null);
+        this.scoreEntryVisible.set(true);
+    }
+
+    /**
+     * Commit a score. The sheet stays open and disabled until the write lands, then the
+     * score-bearing tabs are dropped so standings and any resolved bracket seeds re-read —
+     * a pool result can settle standings, which can in turn fill bracket slots.
+     */
+    onScoreSave(request: EditScoreRequest): void {
+        this.scoreSaving.set(true);
+        this.scoreError.set(null);
+        this.svc.quickEditScore(request).subscribe({
+            next: () => {
+                this.scoreSaving.set(false);
+                this.scoreEntryVisible.set(false);
+                this.loadedTabs.delete('games');
+                this.loadedTabs.delete('standings');
+                this.loadedTabs.delete('brackets');
+                this.loadTabData(this.activeTab());
+            },
+            // Leave the sheet OPEN on failure — the typed score is still in it, so a
+            // retry costs nothing. Closing would silently discard the entry.
+            //
+            // The controller returns BadRequest({ Message }) for its own refusals (the
+            // live one being "a single-elimination game cannot end in a tie"), so that
+            // text is worth showing verbatim: it names the actual rule. Anything else
+            // gets a generic line rather than a raw status code.
+            error: (err: HttpErrorResponse) => {
+                this.scoreSaving.set(false);
+                const msg = err?.error?.Message ?? err?.error?.message;
+                this.scoreError.set(
+                    typeof msg === 'string' && msg
+                        ? msg
+                        : 'Could not save the score. Check your connection and try again.'
+                );
+            }
+        });
     }
 
     onEditGameOpen(gid: number): void {
