@@ -456,6 +456,40 @@
               }
             </div>
           </div>
+
+          <!-- Target-balance calculator: the admin states the desired FINAL balance and the
+               solver inverts the owed effect (A = (owed − target) / (1 + rate)), proc included.
+               "Use" stamps the solved amount into the Amount field above. -->
+          @if (paymentType() === 'correction') {
+            <div class="target-calc">
+              <label for="ledger-target" class="form-label">&hellip;or solve from a target balance</label>
+              <div class="target-calc-row">
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text">$</span>
+                  <input type="number" id="ledger-target" class="form-control form-control-sm" step="1"
+                    [ngModel]="targetOwed()" (ngModelChange)="setTargetOwed($event)"
+                    placeholder="They should owe&hellip;" />
+                </div>
+                @if (targetCorrectionAmount() !== null) {
+                  <button type="button" class="btn btn-sm btn-outline-primary" (click)="applyTargetCorrection()">
+                    Use {{ targetCorrectionAmount() | currency }}
+                  </button>
+                }
+              </div>
+              @if (targetOwed() !== null) {
+                <div class="form-text">
+                  <small>
+                    @if (targetCorrectionAmount(); as a) {
+                      A correction of <strong>{{ a | currency }}</strong> takes the balance from
+                      {{ modalOwed() | currency }} to <strong>{{ targetOwed() | currency }}</strong>.
+                    } @else {
+                      The balance is already {{ modalOwed() | currency }} &mdash; no correction needed.
+                    }
+                  </small>
+                </div>
+              }
+            </div>
+          }
         </div>
 
         <!-- Club allocation preview for check/correction -->

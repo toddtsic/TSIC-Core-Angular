@@ -353,6 +353,32 @@ export class AccountingLedgerComponent {
 		Math.abs(this.amount()) + this.correctionProcEffect()
 	);
 
+	// ── Target-balance calculator (correction form) ──
+	// The admin states the desired FINAL balance ("they should end up owing $5") and the
+	// solver inverts the owed effect — a correction A moves owed by A × (1 + rate), so
+	// A = (currentOwed − target) / (1 + rate). "Use" stamps the result into Amount.
+
+	/** Desired final balance typed into the calculator; null = calculator idle. */
+	targetOwed = signal<number | null>(null);
+
+	/** Correction amount that lands the account on the requested final balance.
+	 *  Null when idle or when the account is already there (A rounds to 0). */
+	targetCorrectionAmount = computed<number | null>(() => {
+		const t = this.targetOwed();
+		if (t == null || this.paymentType() !== 'correction') return null;
+		const a = Math.round(((this.modalOwed() - t) / (1 + this.derivedProcRate())) * 100) / 100;
+		return a === 0 ? null : a;
+	});
+
+	setTargetOwed(value: number | null): void {
+		this.targetOwed.set(value == null || Number.isNaN(value) ? null : Math.round(value * 100) / 100);
+	}
+
+	applyTargetCorrection(): void {
+		const a = this.targetCorrectionAmount();
+		if (a != null) this.amount.set(a);
+	}
+
 	/** Add-record entry point. With more than one target, ask which registration first; otherwise
 	 *  go straight to the form (auto-selecting the sole target so its balances bound the amounts).
 	 *  Zero targets = no per-registration override (single-team / single-registration callers). */
@@ -395,6 +421,7 @@ export class AccountingLedgerComponent {
 
 	/** Clear all entry fields (called before either the picker or the form is shown). */
 	private clearPaymentForm(): void {
+		this.targetOwed.set(null);
 		this.comment.set('');
 		this.checkNo.set('');
 		this.showCcConfirm.set(false);
