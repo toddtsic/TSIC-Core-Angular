@@ -166,7 +166,6 @@ public class UserRepository : IUserRepository
 
     public async Task<List<UserSearchResult>> SearchAdminCandidatesAsync(
         string query,
-        Guid customerId,
         Guid jobId,
         string requestedRoleId,
         IReadOnlyCollection<string> laneRoleIds,
@@ -178,17 +177,16 @@ public class UserRepository : IUserRepository
         // Name match relies on the database's case-insensitive collation — no LOWER() wrappers,
         // which force a per-row scalar computation across the whole scan (measured cost on
         // 314k users; the collation already matches case-insensitively).
-        // AM-004 lane model: eligibility depends on the role being granted. Only LIVE
-        // registrations count — bActive, and the job unexpired for the role type (admin roles
-        // ride Jobs.ExpiryAdmin, every other role rides Jobs.ExpiryUsers — the legacy login
-        // role-picker predicate). A stale/expired grant must not poison an otherwise lane-pure
-        // account. Two qualifying shapes:
-        //  - Lane-pure: every live registration, on any job/customer, lies within the
-        //    lane's role set (Director+SuperDirector share one lane; every other admin type
-        //    is its own lane — no cross-type grants).
-        //  - Pending adult: every live registration is Unassigned Adult with at least one
-        //    on this customer — the sanctioned funnel for brand-new admins ("register as coach
-        //    on the site, then get accepted here").
+        // Two qualifying shapes (ruling 2026-08-13; endpoints are SuperUserOnly):
+        //  - Lane-pure admin: every LIVE registration (bActive, and the job unexpired for the
+        //    role type — admin roles ride Jobs.ExpiryAdmin, every other role rides
+        //    Jobs.ExpiryUsers, the legacy login role-picker predicate) lies within the lane's
+        //    role set (Director+SuperDirector share one lane; every other admin type is its
+        //    own lane).
+        //  - Pending coach: EXACTLY ONE active Unassigned Adult registration, on any job of
+        //    any customer, with NO expiry gate — the add path deletes that row, so a closed
+        //    source event is irrelevant. Other roles on the account (Staff from a roster-swapper
+        //    approval, player history, …) do NOT disqualify this shape.
         // The family-credential exclusion stays GLOBAL (not liveness-gated): a shared household
         // login is structural — accepting one would hand admin access to the whole household.
         return await _context.AspNetUsers
@@ -199,15 +197,15 @@ public class UserRepository : IUserRepository
                 (u.LastName != null && u.LastName.Contains(query)))
             // Never a family credential holder — global, not liveness-gated
             .Where(u => !_context.Registrations.Any(r => r.FamilyUserId == u.Id))
-            // Needs at least one live registration to classify
-            .Where(u => _context.Registrations.Any(r => r.UserId == u.Id
-                && r.BActive == true
-                && (RoleConstants.AdminRoleIds.Contains(r.RoleId!)
-                    ? r.Job.ExpiryAdmin > now
-                    : r.Job.ExpiryUsers > now)))
             .Select(u => new
             {
                 User = u,
+                // Lane purity needs ≥1 live reg (All() over an empty set is vacuously true).
+                HasLiveRegs = _context.Registrations.Any(r => r.UserId == u.Id
+                    && r.BActive == true
+                    && (RoleConstants.AdminRoleIds.Contains(r.RoleId!)
+                        ? r.Job.ExpiryAdmin > now
+                        : r.Job.ExpiryUsers > now)),
                 IsLanePure = _context.Registrations
                     .Where(r => r.UserId == u.Id
                         && r.BActive == true
@@ -215,34 +213,26 @@ public class UserRepository : IUserRepository
                             ? r.Job.ExpiryAdmin > now
                             : r.Job.ExpiryUsers > now))
                     .All(r => laneRoleIds.Contains(r.RoleId!)),
-                IsPendingAdultOnly =
-                    _context.Registrations
-                        .Where(r => r.UserId == u.Id
-                            && r.BActive == true
-                            && (RoleConstants.AdminRoleIds.Contains(r.RoleId!)
-                                ? r.Job.ExpiryAdmin > now
-                                : r.Job.ExpiryUsers > now))
-                        .All(r => r.RoleId == RoleConstants.UnassignedAdult)
-                    && _context.Registrations.Any(r => r.UserId == u.Id
-                        && r.BActive == true
-                        && r.RoleId == RoleConstants.UnassignedAdult
-                        && r.Job.ExpiryUsers > now
-                        && r.Job.CustomerId == customerId),
-                // A registration on this job blocks only if it carries the REQUESTED role
-                // (active or not — reactivate via the grid, never stack a duplicate) or a role
-                // outside the lane. Within the D/SD lane the other role does NOT block: dual-hat
-                // accounts hold Director AND SuperDirector on one job as two registrations. For
-                // single-role lanes (lane = [requested]) this collapses to "any reg on this job".
-                // Mirrors the add-side duplicate guard, so search never offers someone the add
-                // would then reject.
+                ActiveUaCount = _context.Registrations.Count(r => r.UserId == u.Id
+                    && r.BActive == true
+                    && r.RoleId == RoleConstants.UnassignedAdult),
+                // A registration on this job blocks a LANE-PURE candidate if it carries the
+                // REQUESTED role (active or not — reactivate via the grid, never stack a
+                // duplicate) or a role outside the lane. Within the D/SD lane the other role
+                // does NOT block: dual-hat accounts hold Director AND SuperDirector on one job
+                // as two registrations. Mirrors the add-side duplicate guard, so search never
+                // offers someone the add would then reject.
                 HasBlockingRegOnThisJob = _context.Registrations.Any(r => r.UserId == u.Id
                     && r.JobId == jobId
-                    && (r.RoleId == requestedRoleId || !laneRoleIds.Contains(r.RoleId!)))
+                    && (r.RoleId == requestedRoleId || !laneRoleIds.Contains(r.RoleId!))),
+                // A pending coach blocks only on the requested role itself — their Staff/UA
+                // rows on this job are fine (UA is what gets deleted; Staff is their team hat).
+                HasRequestedRoleOnThisJob = _context.Registrations.Any(r => r.UserId == u.Id
+                    && r.JobId == jobId
+                    && r.RoleId == requestedRoleId)
             })
-            // Lane-pure + blocking registration here = already holds the requested role on this
-            // job (possibly deactivated) — manage them in the grid, don't offer them. Pending
-            // adults keep their this-job registration offered: it's what convert consumes.
-            .Where(x => (x.IsLanePure && !x.HasBlockingRegOnThisJob) || x.IsPendingAdultOnly)
+            .Where(x => (x.HasLiveRegs && x.IsLanePure && !x.HasBlockingRegOnThisJob)
+                || (x.ActiveUaCount == 1 && !x.HasRequestedRoleOnThisJob))
             .OrderBy(x => x.User.LastName)
             .ThenBy(x => x.User.FirstName)
             .Take(maxResults)
@@ -252,14 +242,13 @@ public class UserRepository : IUserRepository
                 UserName = x.User.UserName!,
                 FirstName = x.User.FirstName,
                 LastName = x.User.LastName,
-                AccountType = x.IsLanePure ? "Admin" : "PendingAdult"
+                AccountType = x.HasLiveRegs && x.IsLanePure ? "Admin" : "PendingAdult"
             })
             .ToListAsync(cancellationToken);
     }
 
     public async Task<AdminCandidateMissReason> DiagnoseAdminCandidateMissAsync(
         string query,
-        Guid customerId,
         Guid jobId,
         string requestedRoleId,
         IReadOnlyCollection<string> laneRoleIds,
@@ -268,10 +257,10 @@ public class UserRepository : IUserRepository
         var now = DateTime.Now;
 
         // Same name predicate as SearchAdminCandidatesAsync (CI collation, no LOWER()), but no
-        // eligibility filter — we're
-        // asking WHY the eligible set is empty. Enumeration guard: a director typing names must
-        // not learn whether an account exists platform-wide, so only accounts with a registration
-        // footprint on THIS customer (own or family-credential) are acknowledged at all.
+        // eligibility filter — we're asking WHY the eligible set is empty. Only accounts with
+        // SOME registration footprint (own or family-credential, any customer — the endpoint is
+        // SuperUserOnly, so cross-customer acknowledgment is fine) are diagnosed; a bare
+        // identity row reports NotFound.
         var matches = await _context.AspNetUsers
             .AsNoTracking()
             .Where(u =>
@@ -279,19 +268,17 @@ public class UserRepository : IUserRepository
                 (u.FirstName != null && u.FirstName.Contains(query)) ||
                 (u.LastName != null && u.LastName.Contains(query)))
             .Where(u =>
-                _context.Registrations.Any(r => r.FamilyUserId == u.Id && r.Job.CustomerId == customerId) ||
-                _context.Registrations.Any(r => r.UserId == u.Id && r.Job.CustomerId == customerId))
+                _context.Registrations.Any(r => r.FamilyUserId == u.Id) ||
+                _context.Registrations.Any(r => r.UserId == u.Id))
             .Select(u => new
             {
                 IsExactUserName = u.UserName! == query,
-                // Family credential = global (structural); role classification counts only
-                // LIVE registrations, mirroring the eligibility query.
-                IsFamilyOrPlayer =
-                    _context.Registrations.Any(r => r.FamilyUserId == u.Id) ||
-                    _context.Registrations.Any(r => r.UserId == u.Id
-                        && r.BActive == true
-                        && r.Job.ExpiryUsers > now
-                        && (r.RoleId == RoleConstants.Player || r.RoleId == RoleConstants.Family)),
+                // Family credential = global (structural). Player-role history no longer bars
+                // an account — only the shared-household login does.
+                IsFamilyCredential = _context.Registrations.Any(r => r.FamilyUserId == u.Id),
+                ActiveUaCount = _context.Registrations.Count(r => r.UserId == u.Id
+                    && r.BActive == true
+                    && r.RoleId == RoleConstants.UnassignedAdult),
                 HasLiveRegs = _context.Registrations.Any(r => r.UserId == u.Id
                     && r.BActive == true
                     && (RoleConstants.AdminRoleIds.Contains(r.RoleId!)
@@ -308,22 +295,27 @@ public class UserRepository : IUserRepository
             .ToListAsync(cancellationToken);
 
         // An exact username hit is what the user meant — diagnose that account. Otherwise prefer
-        // the family/player explanation (the common household-login case) over the generic one.
+        // the most actionable explanation over the generic one.
         var best = matches.FirstOrDefault(m => m.IsExactUserName)
-            ?? matches.FirstOrDefault(m => m.IsFamilyOrPlayer)
+            ?? matches.FirstOrDefault(m => m.IsFamilyCredential)
             ?? matches.FirstOrDefault(m => m.IsRequestedRoleAdminOnThisJob)
+            ?? matches.FirstOrDefault(m => m.ActiveUaCount > 1)
             ?? matches.FirstOrDefault(m => m.HasLiveRegs);
 
         if (best == null)
             return AdminCandidateMissReason.NotFound;
 
-        if (best.IsFamilyOrPlayer)
+        if (best.IsFamilyCredential)
             return AdminCandidateMissReason.FamilyOrPlayer;
 
         if (best.IsRequestedRoleAdminOnThisJob)
             return AdminCandidateMissReason.AlreadyAdmin;
 
-        // Only dead registrations (inactive / job expired) → same funnel as "not registered here".
+        if (best.ActiveUaCount > 1)
+            return AdminCandidateMissReason.MultiplePending;
+
+        // Zero active pending regs: live non-lane registrations → outside the funnel; only
+        // dead registrations (inactive / job expired) → same funnel as "not registered".
         return best.HasLiveRegs
             ? AdminCandidateMissReason.OutsideLane
             : AdminCandidateMissReason.NotFound;

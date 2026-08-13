@@ -58,24 +58,25 @@ public interface IUserRepository
 
     /// <summary>
     /// Search admin-candidate accounts by username, first name, or last name (case-insensitive contains).
-    /// Lane model (AM-004): eligibility depends on the role being granted, counting only LIVE
-    /// registrations — bActive, and the job unexpired for the role type (admin roles ride
-    /// Jobs.ExpiryAdmin, every other role rides Jobs.ExpiryUsers). An account qualifies only if it
-    /// is never a family credential holder (global — never liveness-gated) AND either (a) lane-pure —
-    /// every live registration lies within <paramref name="laneRoleIds"/> (no cross-type grants) —
-    /// or (b) every live registration is Unassigned Adult with at least one on the given customer
-    /// (pending adult awaiting elevation).
-    /// Family/player logins are shared within a household and are structurally excluded.
+    /// Two qualifying shapes (both endpoints are SuperUserOnly — the ruling of 2026-08-13
+    /// replaced the customer-scoped AM-004 funnel with a platform-wide one):
+    /// (a) lane-pure admin — every LIVE registration (bActive, job unexpired for the role type:
+    /// admin roles ride Jobs.ExpiryAdmin, everything else Jobs.ExpiryUsers) lies within
+    /// <paramref name="laneRoleIds"/>; or (b) pending coach — the account holds EXACTLY ONE
+    /// active Unassigned Adult registration, on any job of any customer, with no expiry gate
+    /// (the add path deletes that row, so a closed source event is irrelevant). Other roles on
+    /// the account do not disqualify shape (b).
+    /// Family credential holders (Registrations.FamilyUserId) are excluded globally — a shared
+    /// household login must never hold an admin role.
     /// Lane-pure accounts holding a BLOCKING registration on <paramref name="jobId"/> (active or
     /// not — mirrors the add-side duplicate guard) are excluded: blocking = the
     /// <paramref name="requestedRoleId"/> itself, or any role outside the lane. Within the
     /// Director/SuperDirector lane the OTHER role does not block — dual-hat accounts hold both
-    /// roles on one job as two registrations. Pending adults keep their this-job registration
-    /// offered — it is what the convert path consumes.
+    /// roles on one job as two registrations. Pending coaches are excluded only when they already
+    /// hold the requested role on this job.
     /// </summary>
     Task<List<UserSearchResult>> SearchAdminCandidatesAsync(
         string query,
-        Guid customerId,
         Guid jobId,
         string requestedRoleId,
         IReadOnlyCollection<string> laneRoleIds,
@@ -84,13 +85,12 @@ public interface IUserRepository
 
     /// <summary>
     /// Explains why <see cref="SearchAdminCandidatesAsync"/> came back empty, so the UI can show
-    /// the right funnel message instead of undifferentiated silence. Enumeration guard: only
-    /// accounts with a registration footprint on the given customer are acknowledged to exist —
-    /// a name that matches solely on other customers still reports <c>NotFound</c>.
+    /// the right funnel message instead of undifferentiated silence. Only accounts with some
+    /// registration footprint (own or family-credential, any customer) are acknowledged —
+    /// a bare identity row with no registrations reports <c>NotFound</c>.
     /// </summary>
     Task<AdminCandidateMissReason> DiagnoseAdminCandidateMissAsync(
         string query,
-        Guid customerId,
         Guid jobId,
         string requestedRoleId,
         IReadOnlyCollection<string> laneRoleIds,
@@ -132,20 +132,23 @@ public record UserNameInfo
     public string? LastName { get; init; }
 }
 
-/// <summary>Why an admin-candidate search returned nothing (AM-004 funnel feedback).</summary>
+/// <summary>Why an admin-candidate search returned nothing (funnel feedback).</summary>
 public enum AdminCandidateMissReason
 {
-    /// <summary>No matching account with a footprint on this customer.</summary>
+    /// <summary>No matching account with any registration footprint.</summary>
     NotFound,
 
-    /// <summary>A match exists but is a family/player credential — structurally barred from admin roles.</summary>
+    /// <summary>A match exists but is a family credential — shared household logins are structurally barred from admin roles.</summary>
     FamilyOrPlayer,
 
-    /// <summary>A match already holds a lane-role registration on this job — manage them in the grid.</summary>
+    /// <summary>A match already holds the requested role on this job — manage them in the grid.</summary>
     AlreadyAdmin,
 
-    /// <summary>A match exists but its registration history lies outside the granted role's lane.</summary>
-    OutsideLane
+    /// <summary>A match exists but holds no pending (Unassigned Adult) registration and is not lane-pure.</summary>
+    OutsideLane,
+
+    /// <summary>A match holds MORE than one active pending registration — ambiguous; remove the extras first.</summary>
+    MultiplePending
 }
 
 public record UserBasicInfo

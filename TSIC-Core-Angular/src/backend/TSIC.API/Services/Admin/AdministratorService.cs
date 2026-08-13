@@ -15,7 +15,8 @@ public sealed class AdministratorService : IAdministratorService
 {
     private readonly IAdministratorRepository _adminRepo;
     private readonly IUserRepository _userRepo;
-    private readonly IJobRepository _jobRepo;
+    private readonly IRegistrationRepository _registrationRepo;
+    private readonly IDeviceRepository _deviceRepo;
     private readonly UserManager<ApplicationUser> _userManager;
 
     /// <summary>
@@ -53,12 +54,14 @@ public sealed class AdministratorService : IAdministratorService
     public AdministratorService(
         IAdministratorRepository adminRepo,
         IUserRepository userRepo,
-        IJobRepository jobRepo,
+        IRegistrationRepository registrationRepo,
+        IDeviceRepository deviceRepo,
         UserManager<ApplicationUser> userManager)
     {
         _adminRepo = adminRepo;
         _userRepo = userRepo;
-        _jobRepo = jobRepo;
+        _registrationRepo = registrationRepo;
+        _deviceRepo = deviceRepo;
         _userManager = userManager;
     }
 
@@ -104,119 +107,115 @@ public sealed class AdministratorService : IAdministratorService
         if (!RoleNameToIdMap.TryGetValue(request.RoleName, out var roleId))
             throw new ArgumentException($"Invalid role name: '{request.RoleName}'.");
 
-        // ── AM-004 eligibility wall (server-side; the search filter is not the only gate) ──
+        // ── Eligibility wall (server-side; the search filter is not the only gate) ──
         // Family logins are shared within the household: elevating one hands Director access
-        // to everyone who knows the password (global check — never liveness-gated). Role
-        // classification counts only LIVE registrations — bActive, and the job unexpired for
-        // the role type (admin roles ride Jobs.ExpiryAdmin, every other role rides
-        // Jobs.ExpiryUsers): a stale/expired grant must not poison an otherwise lane-pure
-        // account. Two qualifying shapes:
-        //  1. Admin-only accounts (every windowed registration carries an admin role)
-        //     → new registration.
-        //  2. Unassigned Adult–only accounts on this customer (the pending-coach funnel)
-        //     → their pending registration is CONVERTED in place, which also removes them
-        //       from the coach-approval queue.
+        // to everyone who knows the password (global check — never liveness-gated). Two
+        // qualifying shapes (ruling 2026-08-13 replaced the customer-scoped convert-in-place
+        // funnel):
+        //  1. Lane-pure admin accounts — every LIVE registration (bActive, and the job
+        //     unexpired for the role type: admin roles ride Jobs.ExpiryAdmin, every other
+        //     role rides Jobs.ExpiryUsers) carries a lane role → new registration.
+        //  2. Pending coach — EXACTLY ONE active Unassigned Adult registration, on any job of
+        //     any customer, no expiry gate. Other roles on the account (a Staff row from a
+        //     roster-swapper approval, player history, …) do not disqualify. → new admin
+        //     registration on this job; the pending row is DELETED in the same stroke (it
+        //     leaves the coach-approval queue; a Staff team hat is left untouched).
         if (await _adminRepo.IsFamilyCredentialHolderAsync(user.Id, cancellationToken))
             throw new ArgumentException(
                 $"'{request.UserName}' is a family login — family credentials are shared within the household " +
-                "and cannot hold admin roles. Have the person register on this site as a coach/staff adult " +
+                "and cannot hold admin roles. Have the person register as a coach/staff adult " +
                 "with their own account, then accept them here.");
 
         var now = DateTime.Now;
-        // Liveness filter applies to CLASSIFICATION only. The duplicate-on-job guard below must
-        // see ALL registrations — a deactivated admin on this job is managed via the grid's
-        // Active toggle, never by stacking a second registration.
+        // Liveness filter applies to lane CLASSIFICATION only. The duplicate-on-job guards
+        // below must see ALL registrations — a deactivated admin on this job is managed via
+        // the grid's Active toggle, never by stacking a second registration.
         var allRegistrations = await _adminRepo.GetRegistrationsByUserIdAsync(user.Id, cancellationToken);
-        var registrations = allRegistrations
+        var liveRegistrations = allRegistrations
             .Where(r => r.BActive == true
                 && (RoleConstants.AdminRoleIds.Contains(r.RoleId, StringComparer.OrdinalIgnoreCase)
                     ? r.Job.ExpiryAdmin > now
                     : r.Job.ExpiryUsers > now))
             .ToList();
 
-        if (registrations.Count == 0)
-            throw new ArgumentException(
-                $"'{request.UserName}' has no active registrations. Have the person register on this " +
-                "site as a coach/staff adult, then accept them here.");
-
         var lane = GetRoleLane(roleId);
-        var isLanePure = registrations.All(r =>
+        var isLanePure = liveRegistrations.Count > 0 && liveRegistrations.All(r =>
             lane.Contains(r.RoleId, StringComparer.OrdinalIgnoreCase));
-        var isPendingAdultOnly = registrations.All(r =>
-            string.Equals(r.RoleId, RoleConstants.UnassignedAdult, StringComparison.OrdinalIgnoreCase));
 
-        if (!isLanePure && !isPendingAdultOnly)
-            throw new ArgumentException(
-                $"'{request.UserName}' has active registrations outside the {request.RoleName} role and is " +
-                "not eligible. Have the person register on this site as a coach/staff adult with a " +
-                "separate account.");
+        Registrations? pendingToDelete = null;
 
-        if (isPendingAdultOnly)
+        if (isLanePure)
         {
-            var customerId = await _jobRepo.GetCustomerIdAsync(jobId, cancellationToken)
-                ?? throw new InvalidOperationException($"Job '{jobId}' not found.");
-
-            // Prefer a pending registration already on this job; otherwise the most recent
-            // one on this customer (retargeted to this job on convert).
-            var candidate = registrations.FirstOrDefault(r => r.JobId == jobId);
-            if (candidate == null)
-            {
-                foreach (var reg in registrations.OrderByDescending(r => r.RegistrationTs))
-                {
-                    var regCustomerId = await _jobRepo.GetCustomerIdAsync(reg.JobId, cancellationToken);
-                    if (regCustomerId == customerId)
-                    {
-                        candidate = reg;
-                        break;
-                    }
-                }
-            }
-
-            if (candidate == null)
+            // Lane-pure account: pin with a new registration on this job.
+            // An inactive admin reg on this job still blocks; reactivate via the grid instead
+            // of creating a duplicate row. Within the D/SD lane the OTHER role does not block:
+            // dual-hat accounts hold Director AND SuperDirector on one job as two
+            // registrations, one per hat, chosen at login. For single-role lanes
+            // (lane = [requested role]) this collapses to "any reg on this job".
+            if (allRegistrations.Any(r => r.JobId == jobId
+                    && (string.Equals(r.RoleId, roleId, StringComparison.OrdinalIgnoreCase)
+                        || !lane.Contains(r.RoleId, StringComparer.OrdinalIgnoreCase))))
                 throw new ArgumentException(
-                    $"'{request.UserName}' has no pending adult registration with this customer. " +
-                    "Have the person register on this site as a coach/staff adult, then accept them here.");
-
-            if (candidate.PaidTotal != 0)
-                throw new InvalidOperationException(
-                    $"'{request.UserName}' has payments recorded on their pending registration — " +
-                    "it cannot be converted to an admin registration automatically. Resolve the payment first.");
-
-            // Convert in place: the pending row BECOMES the admin registration (single row,
-            // continuous history) and drops out of the coach-approval queue in the same stroke.
-            candidate.JobId = jobId;
-            candidate.RoleId = roleId;
-            candidate.RegistrationCategory = "Director";
-            candidate.BActive = true;
-            candidate.Modified = DateTime.Now;
-            candidate.LebUserId = currentUserId;
-            // Admin registrations are fee-free
-            candidate.FeeBase = 0;
-            candidate.FeeDiscount = 0;
-            candidate.FeeDiscountMp = 0;
-            candidate.FeeDonation = 0;
-            candidate.FeeLatefee = 0;
-            candidate.FeeProcessing = 0;
-
-            await _adminRepo.SaveChangesAsync(cancellationToken);
-
-            return await _adminRepo.GetAdminProjectionByIdAsync(candidate.RegistrationId, cancellationToken)
-                ?? throw new InvalidOperationException("Failed to retrieve converted administrator.");
+                    $"'{request.UserName}' already has a registration on this job that blocks adding " +
+                    $"{request.RoleName} — a deactivated admin is reactivated via the grid's Active toggle, " +
+                    "never re-added.");
         }
+        else
+        {
+            // Pending-coach funnel.
+            var pendingRegs = allRegistrations
+                .Where(r => r.BActive == true
+                    && string.Equals(r.RoleId, RoleConstants.UnassignedAdult, StringComparison.OrdinalIgnoreCase))
+                .ToList();
 
-        // Lane-pure account: pin with a new registration on this job.
-        // Guard on ALL registrations (not the live subset) — an inactive admin reg on this job
-        // still blocks; reactivate via the grid instead of creating a duplicate row. Within the
-        // D/SD lane the OTHER role does not block: dual-hat accounts hold Director AND
-        // SuperDirector on one job as two registrations, one per hat, chosen at login. For
-        // single-role lanes (lane = [requested role]) this collapses to "any reg on this job".
-        if (allRegistrations.Any(r => r.JobId == jobId
-                && (string.Equals(r.RoleId, roleId, StringComparison.OrdinalIgnoreCase)
-                    || !lane.Contains(r.RoleId, StringComparer.OrdinalIgnoreCase))))
-            throw new ArgumentException(
-                $"'{request.UserName}' already has a registration on this job that blocks adding " +
-                $"{request.RoleName} — a deactivated admin is reactivated via the grid's Active toggle, " +
-                "never re-added.");
+            if (pendingRegs.Count == 0)
+                throw new ArgumentException(
+                    $"'{request.UserName}' has no pending coach registration. Have the person register " +
+                    "as a coach/staff adult on any event site, then accept them here.");
+
+            if (pendingRegs.Count > 1)
+                throw new ArgumentException(
+                    $"'{request.UserName}' has {pendingRegs.Count} pending coach registrations — it is ambiguous " +
+                    "which one the grant consumes. Delete or deactivate the extras in Search Registrations first.");
+
+            // The person may hold other roles here (e.g. a Staff team hat) — only an existing
+            // registration with the REQUESTED role blocks.
+            if (allRegistrations.Any(r => r.JobId == jobId
+                    && string.Equals(r.RoleId, roleId, StringComparison.OrdinalIgnoreCase)))
+                throw new ArgumentException(
+                    $"'{request.UserName}' already holds {request.RoleName} on this job — a deactivated " +
+                    "admin is reactivated via the grid's Active toggle, never re-added.");
+
+            pendingToDelete = pendingRegs[0];
+
+            // Deletion preconditions — same wall as the Search Registrations delete. Coach
+            // registrations are normally fee-free, so these almost never fire.
+            if (pendingToDelete.PaidTotal != 0)
+                throw new ArgumentException(
+                    $"'{request.UserName}' has payments recorded on their pending coach registration — " +
+                    "it cannot be removed automatically. Resolve the payment first.");
+            if (await _registrationRepo.HasAccountingRecordsAsync(pendingToDelete.RegistrationId, cancellationToken))
+                throw new ArgumentException(
+                    $"'{request.UserName}' has accounting records on their pending coach registration — " +
+                    "it cannot be removed automatically. Resolve them first.");
+            if (await _registrationRepo.HasStoreCartBatchRecordsAsync(pendingToDelete.RegistrationId, cancellationToken))
+                throw new ArgumentException(
+                    $"'{request.UserName}' has store purchase records on their pending coach registration — " +
+                    "it cannot be removed automatically.");
+            if (!string.IsNullOrEmpty(pendingToDelete.RegsaverPolicyId))
+                throw new ArgumentException(
+                    $"'{request.UserName}' has an insurance policy on their pending coach registration — " +
+                    "it cannot be removed automatically.");
+
+            // Device links reference the row being deleted.
+            var deviceRegIds = await _deviceRepo.GetDeviceRegistrationIdsByRegistrationAsync(
+                pendingToDelete.RegistrationId, cancellationToken);
+            if (deviceRegIds.Count > 0)
+            {
+                _deviceRepo.RemoveDeviceRegistrationIds(deviceRegIds);
+                await _deviceRepo.SaveChangesAsync(cancellationToken);
+            }
+        }
 
         var registration = new Registrations
         {
@@ -239,6 +238,11 @@ public sealed class AdministratorService : IAdministratorService
         };
 
         _adminRepo.Add(registration);
+        // Funnel path: the admin row is minted and the pending coach row deleted in ONE
+        // SaveChanges (same scoped context → one transaction) — never an admin without the
+        // pending row consumed, never the reverse.
+        if (pendingToDelete != null)
+            _adminRepo.Remove(pendingToDelete);
         await _adminRepo.SaveChangesAsync(cancellationToken);
 
         // Return projected DTO (no full entity reload needed)
@@ -393,20 +397,16 @@ public sealed class AdministratorService : IAdministratorService
         if (!RoleNameToIdMap.TryGetValue(roleName, out var roleId))
             throw new ArgumentException($"Invalid role name: '{roleName}'.");
 
-        var customerId = await _jobRepo.GetCustomerIdAsync(jobId, cancellationToken);
-        if (customerId == null)
-            return new UserSearchResponseDto { Results = [] };
-
         var lane = GetRoleLane(roleId);
         var results = await _userRepo.SearchAdminCandidatesAsync(
-            query, customerId.Value, jobId, roleId, lane, 10, cancellationToken);
+            query, jobId, roleId, lane, 10, cancellationToken);
 
         if (results.Count == 0)
         {
             // Empty is ambiguous to the user (not registered? wrong kind of account? broken?) —
             // diagnose so the modal can show the matching funnel message.
             var reason = await _userRepo.DiagnoseAdminCandidateMissAsync(
-                query, customerId.Value, jobId, roleId, lane, cancellationToken);
+                query, jobId, roleId, lane, cancellationToken);
 
             return new UserSearchResponseDto
             {
@@ -416,6 +416,7 @@ public sealed class AdministratorService : IAdministratorService
                     AdminCandidateMissReason.FamilyOrPlayer => "familyOrPlayer",
                     AdminCandidateMissReason.AlreadyAdmin => "alreadyAdmin",
                     AdminCandidateMissReason.OutsideLane => "outsideLane",
+                    AdminCandidateMissReason.MultiplePending => "multiplePending",
                     _ => "notFound"
                 }
             };

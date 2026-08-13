@@ -71,8 +71,9 @@ export interface AdminFormResult {
                                     <small class="text-body-secondary d-block mt-1">
                                         Eligible: accounts whose active registrations are all
                                         {{ selectedRole() === 'Director' || selectedRole() === 'SuperDirector' ? 'Director / SuperDirector' : selectedRole() }},
-                                        or pending coach/staff adults registered with this customer.
-                                        Family and player accounts cannot hold admin roles.
+                                        or accounts holding exactly one pending (unassigned adult) coach
+                                        registration — from any event site. Family logins cannot hold
+                                        admin roles.
                                     </small>
                                 }
                                 @if (searchResults().length > 0 && !selectedUser()) {
@@ -102,9 +103,10 @@ export interface AdminFormResult {
                                     </div>
                                     @if (selectedUser()!.accountType === 'PendingAdult') {
                                         <small class="text-warning-emphasis d-block mt-1">
-                                            <i class="bi bi-arrow-repeat me-1"></i>Accepting converts this person's pending
-                                            coach/staff registration into the selected admin role (they leave the
-                                            coach-approval queue).
+                                            <i class="bi bi-arrow-repeat me-1"></i>Accepting grants {{ selectedRole() }}
+                                            on this job and deletes this person's pending coach registration
+                                            (they leave the coach-approval queue; any team-staff assignment
+                                            is kept).
                                         </small>
                                     }
                                 }
@@ -120,9 +122,10 @@ export interface AdminFormResult {
                                         @case ('familyOrPlayer') {
                                             <div class="alert alert-warning d-flex align-items-start gap-2 mt-2 mb-0 py-2 px-3 small" role="status">
                                                 <i class="bi bi-person-x flex-shrink-0"></i>
-                                                <span>"{{ searchInput().trim() }}" matches a family/player account,
-                                                which can never hold admin roles. The person needs their own
-                                                coach/staff registration on this site — then accept them here.</span>
+                                                <span>"{{ searchInput().trim() }}" matches a family login — family
+                                                credentials are shared within the household and can never hold
+                                                admin roles. The person needs a coach registration under their
+                                                own account — then accept them here.</span>
                                             </div>
                                         }
                                         @case ('alreadyAdmin') {
@@ -133,21 +136,30 @@ export interface AdminFormResult {
                                                 the Active toggle to reactivate a deactivated admin).</span>
                                             </div>
                                         }
+                                        @case ('multiplePending') {
+                                            <div class="alert alert-warning d-flex align-items-start gap-2 mt-2 mb-0 py-2 px-3 small" role="status">
+                                                <i class="bi bi-person-x flex-shrink-0"></i>
+                                                <span>"{{ searchInput().trim() }}" has more than one pending coach
+                                                registration, so it's ambiguous which one the grant consumes.
+                                                Delete or deactivate the extras in Search Registrations, then
+                                                accept them here.</span>
+                                            </div>
+                                        }
                                         @case ('outsideLane') {
                                             <div class="alert alert-warning d-flex align-items-start gap-2 mt-2 mb-0 py-2 px-3 small" role="status">
                                                 <i class="bi bi-person-x flex-shrink-0"></i>
-                                                <span>"{{ searchInput().trim() }}" matches an account whose existing
-                                                roles aren't eligible for {{ selectedRole() }}. New admins should
-                                                first register on this site as a coach/staff adult, then be
-                                                accepted here.</span>
+                                                <span>"{{ searchInput().trim() }}" matches an account with no pending
+                                                coach registration and existing roles that aren't eligible for
+                                                {{ selectedRole() }}. Register the person as a coach (any event
+                                                site), then accept them here.</span>
                                             </div>
                                         }
                                         @default {
                                             <div class="alert alert-warning d-flex align-items-start gap-2 mt-2 mb-0 py-2 px-3 small" role="status">
                                                 <i class="bi bi-info-circle flex-shrink-0"></i>
-                                                <span>No account matching "{{ searchInput().trim() }}" is registered
-                                                here. New admins should first register on this site as a coach/staff
-                                                adult, then be accepted here.</span>
+                                                <span>No registered account matches
+                                                "{{ searchInput().trim() }}". New admins should first register
+                                                as a coach/staff adult (any event site), then be accepted here.</span>
                                             </div>
                                         }
                                     }
@@ -251,7 +263,7 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
     readonly errorMessage = signal<string | null>(null);
     readonly saving = signal(false);
     readonly searching = signal(false);
-    /** Why the last search came back empty: 'notFound' | 'familyOrPlayer' | 'outsideLane' | null. */
+    /** Why the last search came back empty: 'notFound' | 'familyOrPlayer' | 'alreadyAdmin' | 'multiplePending' | 'outsideLane' | null. */
     readonly emptyReason = signal<string | null>(null);
     /** Last search request errored (distinct from "no matches"). */
     readonly searchFailed = signal(false);
