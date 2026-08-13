@@ -682,6 +682,7 @@ export type { SportOptionDto } from './models/SportOptionDto';
 export type { SportRefDto } from './models/SportRefDto';
 export type { StandingsByDivisionResponse } from './models/StandingsByDivisionResponse';
 export type { StandingsDto } from './models/StandingsDto';
+export type { StandingsSortProfileOptionDto } from './models/StandingsSortProfileOptionDto';
 export type { StoreCartBatchDto } from './models/StoreCartBatchDto';
 export type { StoreCartLineItemDto } from './models/StoreCartLineItemDto';
 export type { StoreCheckoutRequest } from './models/StoreCheckoutRequest';

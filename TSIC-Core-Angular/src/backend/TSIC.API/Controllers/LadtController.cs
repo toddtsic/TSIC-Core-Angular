@@ -68,6 +68,13 @@ public class LadtController : ControllerBase
         return Ok(sports);
     }
 
+    [HttpGet("standings-sort-profiles")]
+    public async Task<ActionResult<List<StandingsSortProfileOptionDto>>> GetStandingsSortProfiles(CancellationToken cancellationToken)
+    {
+        var profiles = await _ladtService.GetStandingsSortProfilesAsync(cancellationToken);
+        return Ok(profiles);
+    }
+
     // ═══════════════════════════════════════════
     // League
     // ═══════════════════════════════════════════

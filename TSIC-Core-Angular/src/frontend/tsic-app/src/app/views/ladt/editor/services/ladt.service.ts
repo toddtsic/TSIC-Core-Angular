@@ -23,6 +23,7 @@ import type {
   MoveTeamToClubResultDto,
   CreateStubRequest,
   SportOptionDto,
+  StandingsSortProfileOptionDto,
   DivisionNameSyncPreview,
   DivisionNameSyncRequest,
   DivisionNameSyncResult,
@@ -155,6 +156,10 @@ export class LadtService {
 
   getSports(): Observable<SportOptionDto[]> {
     return this.http.get<SportOptionDto[]>(`${this.apiUrl}/sports`);
+  }
+
+  getStandingsSortProfiles(): Observable<StandingsSortProfileOptionDto[]> {
+    return this.http.get<StandingsSortProfileOptionDto[]>(`${this.apiUrl}/standings-sort-profiles`);
   }
 
   // ── Sibling batch queries ──

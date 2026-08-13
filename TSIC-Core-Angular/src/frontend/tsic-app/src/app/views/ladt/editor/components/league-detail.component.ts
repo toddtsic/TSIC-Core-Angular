@@ -9,7 +9,7 @@ import { ToastService } from '../../../../shared-ui/toast.service';
 import { FeeCardComponent, modifierDateError, type DescendantOverrideInfo, type ModifierForm, type PhaseContext } from './fee-card.component';
 import { RepriceConfirmComponent } from './reprice-confirm.component';
 import { JobService } from '../../../../infrastructure/services/job.service';
-import type { LeagueDetailDto, UpdateLeagueRequest, SportOptionDto, JobFeeDto, FeeModifierDto } from '../../../../core/api';
+import type { LeagueDetailDto, UpdateLeagueRequest, SportOptionDto, StandingsSortProfileOptionDto, JobFeeDto, FeeModifierDto } from '../../../../core/api';
 import { RoleIds } from '@infrastructure/constants/roles.constants';
 
 const PLAYER_ROLE = RoleIds.Player;
@@ -52,6 +52,16 @@ const JOB_TYPE_TOURNAMENT = 2;
                 }
               </select>
             </div>
+          </div>
+          <div class="mb-2">
+            <label class="fee-label">Standings Tiebreakers</label>
+            <select class="form-select form-select-sm" [(ngModel)]="form.standingsSortProfileId" name="standingsSortProfileId">
+              <option [ngValue]="null">System default</option>
+              @for (profile of sortProfiles(); track profile.standingsSortProfileId) {
+                <option [ngValue]="profile.standingsSortProfileId">{{ profile.standingsSortProfileName }}</option>
+              }
+            </select>
+            <small class="form-text text-body-secondary" style="font-size: 0.7rem;">{{ selectedProfileRules() }}</small>
           </div>
           <div class="settings-grid">
             <div class="form-check form-switch">
@@ -243,6 +253,7 @@ export class LeagueDetailComponent implements OnChanges, OnInit, OnDestroy {
 
   league = signal<LeagueDetailDto | null>(null);
   sports = signal<SportOptionDto[]>([]);
+  sortProfiles = signal<StandingsSortProfileOptionDto[]>([]);
   isLoading = signal(false);
   isSaving = signal(false);
   saveMessage = signal<string | null>(null);
@@ -295,6 +306,7 @@ export class LeagueDetailComponent implements OnChanges, OnInit, OnDestroy {
     this.clubRepCardOpen.set(this.feeRolesPresent()?.clubRep ?? true);
     this.loadDetail();
     this.loadSports();
+    this.loadSortProfiles();
   }
 
   private loadDetail(): void {
@@ -364,6 +376,22 @@ export class LeagueDetailComponent implements OnChanges, OnInit, OnDestroy {
     this.ladtService.getSports().subscribe({
       next: (list) => this.sports.set(list)
     });
+  }
+
+  private loadSortProfiles(): void {
+    if (this.sortProfiles().length > 0) return;
+    this.ladtService.getStandingsSortProfiles().subscribe({
+      next: (list) => this.sortProfiles.set(list)
+    });
+  }
+
+  /** Rule chain of the selected tiebreaker profile, for the hint under the select.
+   *  Null profile = the standings engine's built-in fallback chain. */
+  selectedProfileRules(): string {
+    const id = this.form.standingsSortProfileId;
+    if (id == null) return 'Points → Goal Differential (uncapped) → Goals For';
+    const profile = this.sortProfiles().find(p => p.standingsSortProfileId === id);
+    return profile ? profile.rules.join(' → ') : '';
   }
 
   save(): void {
@@ -452,7 +480,8 @@ export class LeagueDetailComponent implements OnChanges, OnInit, OnDestroy {
       sportId: this.form.sportId,
       bHideContacts: this.form.bHideContacts,
       bHideStandings: this.form.bHideStandings,
-      rescheduleEmailsToAddon: this.form.rescheduleEmailsToAddon
+      rescheduleEmailsToAddon: this.form.rescheduleEmailsToAddon,
+      standingsSortProfileId: this.form.standingsSortProfileId ?? null
     };
 
     const saves: Observable<any>[] = [

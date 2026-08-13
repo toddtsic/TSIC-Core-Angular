@@ -262,6 +262,11 @@ public sealed class LadtService : ILadtService
             .ToList();
     }
 
+    public async Task<List<StandingsSortProfileOptionDto>> GetStandingsSortProfilesAsync(CancellationToken cancellationToken = default)
+    {
+        return await _leagueRepo.GetStandingsSortProfilesAsync(cancellationToken);
+    }
+
     // ═══════════════════════════════════════════
     // League CRUD
     // ═══════════════════════════════════════════
@@ -286,6 +291,7 @@ public sealed class LadtService : ILadtService
         league.BHideContacts = request.BHideContacts;
         league.BHideStandings = request.BHideStandings;
         league.RescheduleEmailsToAddon = request.RescheduleEmailsToAddon;
+        league.StandingsSortProfileId = request.StandingsSortProfileId;
         league.LebUserId = userId;
         league.Modified = DateTime.Now;
 

@@ -10,5 +10,6 @@ export type LeagueDetailDto = {
     bHideContacts: boolean;
     bHideStandings: boolean;
     rescheduleEmailsToAddon?: string | null;
+    standingsSortProfileId?: number | null;
 };
 

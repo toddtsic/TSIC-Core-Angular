@@ -35,7 +35,8 @@ public class LeagueRepository : ILeagueRepository
                 SportName = l.Sport != null ? l.Sport.SportName : null,
                 BHideContacts = l.BHideContacts,
                 BHideStandings = l.BHideStandings,
-                RescheduleEmailsToAddon = l.RescheduleEmailsToAddon
+                RescheduleEmailsToAddon = l.RescheduleEmailsToAddon,
+                StandingsSortProfileId = l.StandingsSortProfileId
             })
             .ToListAsync(cancellationToken);
     }
@@ -58,7 +59,8 @@ public class LeagueRepository : ILeagueRepository
                 SportName = l.Sport != null ? l.Sport.SportName : null,
                 BHideContacts = l.BHideContacts,
                 BHideStandings = l.BHideStandings,
-                RescheduleEmailsToAddon = l.RescheduleEmailsToAddon
+                RescheduleEmailsToAddon = l.RescheduleEmailsToAddon,
+                StandingsSortProfileId = l.StandingsSortProfileId
             })
             .FirstOrDefaultAsync(cancellationToken);
     }
@@ -83,6 +85,29 @@ public class LeagueRepository : ILeagueRepository
         return await _context.Sports
             .AsNoTracking()
             .OrderBy(s => s.SportName)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<StandingsSortProfileOptionDto>> GetStandingsSortProfilesAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.StandingsSortProfiles
+            .AsNoTracking()
+            .OrderBy(p => p.StandingsSortProfileName)
+            .Select(p => new StandingsSortProfileOptionDto
+            {
+                StandingsSortProfileId = p.StandingsSortProfileId,
+                StandingsSortProfileName = p.StandingsSortProfileName,
+                // Constraint suffix disambiguates capped vs uncapped goal-diff — the DB
+                // descriptions for both read identically ("Goal differential up to max").
+                Rules = p.StandingsSortProfileRules
+                    .OrderBy(r => r.SortOrder)
+                    .Select(r => (r.StandingsSortRule.StandingsSortRuleDescription
+                            ?? r.StandingsSortRule.StandingsSortRuleName)
+                        + (r.StandingsSortRule.StandingsSortRuleConstraint != null
+                            ? " (±" + r.StandingsSortRule.StandingsSortRuleConstraint.ToString() + ")"
+                            : ""))
+                    .ToList()
+            })
             .ToListAsync(cancellationToken);
     }
 

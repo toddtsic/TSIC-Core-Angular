@@ -38,6 +38,11 @@ public interface ILeagueRepository
     /// </summary>
     Task<List<Sports>> GetAllSportsAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Get all standings sort profiles with their ordered rule chains, for dropdown selection.
+    /// </summary>
+    Task<List<StandingsSortProfileOptionDto>> GetStandingsSortProfilesAsync(CancellationToken cancellationToken = default);
+
     void Add(Leagues league);
     void Remove(Leagues league);
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

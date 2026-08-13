@@ -21,6 +21,9 @@ public interface ILadtService
 
     Task<List<SportOptionDto>> GetSportsAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Standings tiebreaker profiles (with ordered rule chains) for the league editor dropdown.</summary>
+    Task<List<StandingsSortProfileOptionDto>> GetStandingsSortProfilesAsync(CancellationToken cancellationToken = default);
+
     // ── League ──
 
     Task<LeagueDetailDto> GetLeagueDetailAsync(Guid leagueId, Guid jobId, CancellationToken cancellationToken = default);
