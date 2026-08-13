@@ -116,6 +116,12 @@ export class AccountingLedgerComponent {
 	 *  input just keeps the admin from composing a request that would bounce. */
 	allowNegativeCorrection = input<boolean>(true);
 
+	/** Job CC processing rate as a MULTIPLIER (e.g. 0.035; 0 = proc disabled), from the
+	 *  host's DTO (`ccProcRate`). Authoritative source for the correction impact note and
+	 *  the net-adjustment solver — with it supplied, both are exact even on a settled
+	 *  balance. When omitted, the modal falls back to deriving the rate from its balances. */
+	procRate = input<number | undefined>(undefined);
+
 	/** Unified grouping source: explicit groups, else derived from the team breakdown,
 	 *  else none. Keeps the club-rep caller unchanged (it still passes clubBreakdown only). */
 	private effectiveGroups = computed<LedgerGroup[]>(() => {
@@ -328,11 +334,13 @@ export class AccountingLedgerComponent {
 		this.paymentType() === 'correction' && this.amount() < 0 && !this.allowNegativeCorrection()
 	);
 
-	/** Effective CC proc rate derived from balances the modal already holds: the full-balance
-	 *  fee credit (modalOwed − checkBalanceDue) over the check balance (≈ principal remaining) —
-	 *  the same ratio the check fee-note is built from, so no job-config plumbing is needed.
-	 *  0 when underivable: proc-disabled job, or a settled balance (nothing to derive from). */
+	/** Effective CC proc rate: the host-supplied authoritative rate when given (exact
+	 *  everywhere, including settled balances), else derived from balances the modal
+	 *  already holds — the full-balance fee credit over the check balance (≈ principal
+	 *  remaining). 0 when proc-disabled or underivable. */
 	private derivedProcRate = computed(() => {
+		const supplied = this.procRate();
+		if (supplied !== undefined && supplied !== null) return supplied;
 		const bal = this.checkBalanceDue();
 		const credit = this.totalFeeReduction();
 		return bal > 0 && credit > 0 ? credit / bal : 0;
@@ -353,29 +361,30 @@ export class AccountingLedgerComponent {
 		Math.abs(this.amount()) + this.correctionProcEffect()
 	);
 
-	// ── Target-balance calculator (correction form) ──
-	// The admin states the desired FINAL balance ("they should end up owing $5") and the
-	// solver inverts the owed effect — a correction A moves owed by A × (1 + rate), so
-	// A = (currentOwed − target) / (1 + rate). "Use" stamps the result into Amount.
+	// ── Net-adjustment solver (correction form) ──
+	// The admin states the NET effect they want on the balance — "assess a $5 penalty"
+	// (−5), "give them $50 off" (50) — and the solver computes the correction to book:
+	// a correction A moves owed by A × (1 + rate), so A = net / (1 + rate). The proc-fee
+	// math is handled for the admin; "Use" stamps the result into Amount. Same sign
+	// convention as the Amount field: positive forgives, negative assesses.
 
-	/** Desired final balance typed into the calculator; null = calculator idle. */
-	targetOwed = signal<number | null>(null);
+	/** Desired net change to the balance; null = solver idle. */
+	netAdjust = signal<number | null>(null);
 
-	/** Correction amount that lands the account on the requested final balance.
-	 *  Null when idle or when the account is already there (A rounds to 0). */
-	targetCorrectionAmount = computed<number | null>(() => {
-		const t = this.targetOwed();
-		if (t == null || this.paymentType() !== 'correction') return null;
-		const a = Math.round(((this.modalOwed() - t) / (1 + this.derivedProcRate())) * 100) / 100;
+	/** Correction amount that produces the requested net change (null when idle or 0). */
+	netCorrectionAmount = computed<number | null>(() => {
+		const net = this.netAdjust();
+		if (net == null || net === 0 || this.paymentType() !== 'correction') return null;
+		const a = Math.round((net / (1 + this.derivedProcRate())) * 100) / 100;
 		return a === 0 ? null : a;
 	});
 
-	setTargetOwed(value: number | null): void {
-		this.targetOwed.set(value == null || Number.isNaN(value) ? null : Math.round(value * 100) / 100);
+	setNetAdjust(value: number | null): void {
+		this.netAdjust.set(value == null || Number.isNaN(value) ? null : Math.round(value * 100) / 100);
 	}
 
-	applyTargetCorrection(): void {
-		const a = this.targetCorrectionAmount();
+	applyNetAdjust(): void {
+		const a = this.netCorrectionAmount();
 		if (a != null) this.amount.set(a);
 	}
 
@@ -421,7 +430,7 @@ export class AccountingLedgerComponent {
 
 	/** Clear all entry fields (called before either the picker or the form is shown). */
 	private clearPaymentForm(): void {
-		this.targetOwed.set(null);
+		this.netAdjust.set(null);
 		this.comment.set('');
 		this.checkNo.set('');
 		this.showCcConfirm.set(false);

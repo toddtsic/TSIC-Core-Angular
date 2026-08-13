@@ -305,4 +305,12 @@ public record ClubRepAccountingDto
     /// actually on offer.
     /// </summary>
     public required bool JobOffersEcheck { get; init; }
+
+    /// <summary>
+    /// Job CC processing rate as a MULTIPLIER (e.g. 0.035), 0 when the job doesn't add
+    /// processing fees. Powers the ledger modal's correction impact note and net-adjustment
+    /// solver — authoritative, so those figures stay exact even on a settled balance
+    /// (where no rate can be derived from the balances themselves).
+    /// </summary>
+    public required decimal CcProcRate { get; init; }
 }

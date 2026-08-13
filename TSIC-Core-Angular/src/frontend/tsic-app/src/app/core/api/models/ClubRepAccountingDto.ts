@@ -13,5 +13,6 @@ export type ClubRepAccountingDto = {
     teams: Array<RegisteredTeamDto>;
     accountingRecords: Array<AccountingRecordDto>;
     jobOffersEcheck: boolean;
+    ccProcRate: number;
 };
 

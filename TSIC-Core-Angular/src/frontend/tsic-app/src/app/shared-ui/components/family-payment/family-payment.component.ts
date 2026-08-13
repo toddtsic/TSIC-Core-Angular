@@ -68,6 +68,10 @@ export class FamilyPaymentComponent {
   /** The player registration the detail panel was opened on (the anchor). */
   registrationId = input.required<string>();
 
+  /** Job CC proc rate (multiplier; 0 = proc disabled) — passed through to the ledger so
+   *  its correction impact note and net-adjustment solver are exact. */
+  procRate = input<number | undefined>(undefined);
+
   /** Emitted after any payment/refund succeeds — host should refresh. */
   paymentComplete = output<void>();
 

@@ -403,6 +403,9 @@ public sealed class TeamSearchService : ITeamSearchService
         var teams = await _shaper.ShapeAsync(jobId, rawTeams, ct: ct);
         var accountingRecords = await _accountingRepo.GetByRegistrationIdAsync(clubRepRegistrationId, ct);
         var jobPaymentInfo = await _jobRepo.GetJobPaymentInfoAsync(jobId, ct);
+        // Job CC proc rate (0 when proc disabled) — powers the ledger modal's correction
+        // impact note and net-adjustment solver; authoritative even on settled balances.
+        var jobState = await _paymentState.ForJobAsync(jobId, ct);
 
         return new ClubRepAccountingDto
         {
@@ -413,7 +416,8 @@ public sealed class TeamSearchService : ITeamSearchService
             OwedTotal = reg.OwedTotal,
             Teams = teams,
             AccountingRecords = accountingRecords,
-            JobOffersEcheck = jobPaymentInfo?.BEnableEcheck ?? false
+            JobOffersEcheck = jobPaymentInfo?.BEnableEcheck ?? false,
+            CcProcRate = jobState.BAddProcessingFees ? jobState.CcRate : 0m
         };
     }
 

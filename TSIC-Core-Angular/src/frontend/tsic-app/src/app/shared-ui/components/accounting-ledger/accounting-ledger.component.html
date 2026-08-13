@@ -457,33 +457,33 @@
             </div>
           </div>
 
-          <!-- Target-balance calculator: the admin states the desired FINAL balance and the
-               solver inverts the owed effect (A = (owed − target) / (1 + rate)), proc included.
-               "Use" stamps the solved amount into the Amount field above. -->
+          <!-- Net-adjustment solver: the admin states the NET effect they want on the balance
+               ("assess a $5 penalty" → −5) and the solver computes the correction to book
+               (A = net / (1 + rate)) so the proc-fee math is handled for them. "Use" stamps
+               the solved amount into the Amount field above. -->
           @if (paymentType() === 'correction') {
             <div class="target-calc">
-              <label for="ledger-target" class="form-label">&hellip;or solve from a target balance</label>
+              <label for="ledger-net" class="form-label">&hellip;or enter the net adjustment you want</label>
               <div class="target-calc-row">
                 <div class="input-group input-group-sm">
                   <span class="input-group-text">$</span>
-                  <input type="number" id="ledger-target" class="form-control form-control-sm" step="1"
-                    [ngModel]="targetOwed()" (ngModelChange)="setTargetOwed($event)"
-                    placeholder="They should owe&hellip;" />
+                  <input type="number" id="ledger-net" class="form-control form-control-sm" step="1"
+                    [ngModel]="netAdjust()" (ngModelChange)="setNetAdjust($event)"
+                    placeholder="e.g. -5 for a $5 penalty" />
                 </div>
-                @if (targetCorrectionAmount() !== null) {
-                  <button type="button" class="btn btn-sm btn-outline-primary" (click)="applyTargetCorrection()">
-                    Use {{ targetCorrectionAmount() | currency }}
+                @if (netCorrectionAmount() !== null) {
+                  <button type="button" class="btn btn-sm btn-outline-primary" (click)="applyNetAdjust()">
+                    Use {{ netCorrectionAmount() | currency }}
                   </button>
                 }
               </div>
-              @if (targetOwed() !== null) {
+              @if (netCorrectionAmount(); as a) {
                 <div class="form-text">
                   <small>
-                    @if (targetCorrectionAmount(); as a) {
-                      A correction of <strong>{{ a | currency }}</strong> takes the balance from
-                      {{ modalOwed() | currency }} to <strong>{{ targetOwed() | currency }}</strong>.
+                    @if (a < 0) {
+                      Assesses exactly <strong>{{ -(netAdjust() ?? 0) | currency }}</strong>: books a {{ a | currency }} correction@if (a !== netAdjust()) {, processing fee makes up the difference}.
                     } @else {
-                      The balance is already {{ modalOwed() | currency }} &mdash; no correction needed.
+                      Forgives exactly <strong>{{ netAdjust() | currency }}</strong>: books a {{ a | currency }} correction@if (a !== netAdjust()) {, processing fee makes up the difference}.
                     }
                   </small>
                 </div>

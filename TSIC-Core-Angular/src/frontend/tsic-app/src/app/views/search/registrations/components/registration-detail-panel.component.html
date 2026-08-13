@@ -550,6 +550,7 @@
           } @else if (isFamilyPlayer()) {
             <app-family-payment
               [registrationId]="reg.registrationId"
+              [procRate]="reg.ccProcRate"
               (paymentComplete)="saved.emit()">
             </app-family-payment>
           } @else {
@@ -558,6 +559,7 @@
               [feeTotal]="reg.feeTotal"
               [paidTotal]="reg.paidTotal"
               [owedTotal]="reg.owedTotal"
+              [procRate]="reg.ccProcRate"
               (refundSubmitted)="onRefundSubmitted($event)"
               (ccChargeSubmitted)="onCcCharge($event)"
               (checkSubmitted)="onCheckSubmitted($event)">

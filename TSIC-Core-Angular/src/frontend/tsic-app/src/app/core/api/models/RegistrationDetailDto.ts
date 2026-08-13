@@ -26,6 +26,7 @@ export type RegistrationDetailDto = {
     feeTotal: number;
     paidTotal: number;
     owedTotal: number;
+    ccProcRate?: number;
     profileValues: Record<string, string>;
     profileMetadataJson?: string | null;
     coachRequestNote?: string | null;

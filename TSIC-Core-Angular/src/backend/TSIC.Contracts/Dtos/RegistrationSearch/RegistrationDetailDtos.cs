@@ -53,6 +53,14 @@ public record RegistrationDetailDto
     public required decimal PaidTotal { get; init; }
     public required decimal OwedTotal { get; init; }
 
+    /// <summary>
+    /// Job CC processing rate as a MULTIPLIER (e.g. 0.035), 0 when the job doesn't add
+    /// processing fees. Enriched by the service (the repo projection doesn't read job
+    /// config). Powers the ledger modal's correction impact note and net-adjustment
+    /// solver — authoritative, so those figures stay exact even on a settled balance.
+    /// </summary>
+    public decimal CcProcRate { get; init; }
+
     // Dynamic profile fields (key = metadata field name, value = current value as string)
     public required Dictionary<string, string?> ProfileValues { get; init; }
 

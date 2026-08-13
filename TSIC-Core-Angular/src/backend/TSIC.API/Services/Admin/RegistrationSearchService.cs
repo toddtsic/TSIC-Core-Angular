@@ -200,7 +200,16 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         Guid registrationId, Guid jobId, CancellationToken ct = default)
     {
         var detail = await _registrationRepo.GetRegistrationDetailAsync(registrationId, jobId, ct);
-        if (detail is null || !string.IsNullOrWhiteSpace(detail.ProfileMetadataJson))
+        if (detail is null)
+            return null;
+
+        // Job CC proc rate (0 when proc disabled) — the ledger modal's correction math
+        // reads this rather than deriving a rate from balances, so it stays exact on a
+        // settled account (the common case for a claw-back penalty).
+        var jobState = await _paymentState.ForJobAsync(jobId, ct);
+        detail = detail with { CcProcRate = jobState.BAddProcessingFees ? jobState.CcRate : 0m };
+
+        if (!string.IsNullOrWhiteSpace(detail.ProfileMetadataJson))
             return detail;
 
         var roleKey = AdultMetadataRoleResolver.KeyForRoleId(detail.RoleId);
