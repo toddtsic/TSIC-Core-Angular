@@ -2,6 +2,7 @@ using AuthorizeNet.Api.Contracts.V1;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.Store;
+using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
@@ -419,7 +420,11 @@ public sealed class StoreCartService : IStoreCartService
     private static void RecalculateLineItemFees(StoreCartBatchSkus lineItem, JobStoreConfig config)
     {
         var subtotal = lineItem.UnitPrice * lineItem.Quantity;
-        lineItem.FeeProcessing = Math.Round(subtotal * config.StoreTsicrate / 100m, 2, MidpointRounding.AwayFromZero);
+        // CC processing fee comes from the job's Payment settings (ProcessingFeePercent,
+        // clamped by ProcessingRateMath) — same source as registration fees. Legacy store
+        // paths all used GetPerJobCCProcessingFee; Jobs.StoreTsicrate is TSIC commission
+        // bookkeeping and is never a customer-facing rate.
+        lineItem.FeeProcessing = Math.Round(subtotal * ProcessingRateMath.ToCcMultiplier(config.ProcessingFeePercent), 2, MidpointRounding.AwayFromZero);
         lineItem.SalesTax = Math.Round(subtotal * config.StoreSalesTax / 100m, 2, MidpointRounding.AwayFromZero);
         lineItem.FeeProduct = 0m; // No product fee in current implementation
         lineItem.FeeTotal = lineItem.FeeProcessing + lineItem.SalesTax + lineItem.FeeProduct;

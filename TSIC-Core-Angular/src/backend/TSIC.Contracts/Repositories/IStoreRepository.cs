@@ -9,7 +9,12 @@ namespace TSIC.Contracts.Repositories;
 public record JobStoreConfig
 {
     public required decimal StoreSalesTax { get; init; }
-    public required decimal StoreTsicrate { get; init; }
+
+    /// <summary>
+    /// Raw Jobs.ProcessingFeePercent (nullable). Convert via
+    /// ProcessingRateMath.ToCcMultiplier — never divide by 100 directly.
+    /// </summary>
+    public required decimal? ProcessingFeePercent { get; init; }
 }
 
 /// <summary>

@@ -38,7 +38,7 @@ public class StoreRepository : IStoreRepository
             .Select(j => new JobStoreConfig
             {
                 StoreSalesTax = j.StoreSalesTax,
-                StoreTsicrate = j.StoreTsicrate ?? 0m
+                ProcessingFeePercent = j.ProcessingFeePercent
             })
             .AsNoTracking()
             .FirstOrDefaultAsync(cancellationToken);
