@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, computed, linkedSignal, OnInit } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, computed, linkedSignal, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JobConfigService } from '../job-config.service';
@@ -111,9 +111,19 @@ export class BrandingTabComponent implements OnInit {
   overlayText2 = linkedSignal(() => this.svc.branding()?.bannerOverlayText2 ?? null);
 
   // ── Image preview URLs (read-only, derived from server data) ──
-  bannerBgUrl = computed(() => buildAssetUrl(this.svc.branding()?.bannerBackgroundImage));
-  bannerOverlayUrl = computed(() => buildAssetUrl(this.svc.branding()?.bannerOverlayImage));
-  logoHeaderUrl = computed(() => buildAssetUrl(this.svc.branding()?.logoHeader));
+  // Uploads reuse the same filename ({jobId}_{convention}.{ext}), so after an upload the
+  // re-fetched URL string is identical and the browser would keep showing its cached copy.
+  // A component-local nonce makes the src a new string, forcing a fresh fetch. Preview-only —
+  // it is never persisted and no other consumer sees it.
+  private readonly refreshNonce = signal(0);
+  bannerBgUrl = computed(() => this.withNonce(buildAssetUrl(this.svc.branding()?.bannerBackgroundImage)));
+  bannerOverlayUrl = computed(() => this.withNonce(buildAssetUrl(this.svc.branding()?.bannerOverlayImage)));
+  logoHeaderUrl = computed(() => this.withNonce(buildAssetUrl(this.svc.branding()?.logoHeader)));
+
+  private withNonce(url: string): string {
+    const n = this.refreshNonce();
+    return url && n > 0 ? `${url}?t=${n}` : url;
+  }
 
   private readonly cleanSnapshot = computed(() => {
     const b = this.svc.branding();
@@ -142,10 +152,12 @@ export class BrandingTabComponent implements OnInit {
   }
 
   onImageUploaded(): void {
+    this.refreshNonce.set(this.refreshNonce() + 1);
     this.svc.loadConfig();
   }
 
   onImageDeleted(): void {
+    this.refreshNonce.set(this.refreshNonce() + 1);
     this.svc.loadConfig();
   }
 
