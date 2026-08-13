@@ -328,6 +328,31 @@ export class AccountingLedgerComponent {
 		this.paymentType() === 'correction' && this.amount() < 0 && !this.allowNegativeCorrection()
 	);
 
+	/** Effective CC proc rate derived from balances the modal already holds: the full-balance
+	 *  fee credit (modalOwed − checkBalanceDue) over the check balance (≈ principal remaining) —
+	 *  the same ratio the check fee-note is built from, so no job-config plumbing is needed.
+	 *  0 when underivable: proc-disabled job, or a settled balance (nothing to derive from). */
+	private derivedProcRate = computed(() => {
+		const bal = this.checkBalanceDue();
+		const credit = this.totalFeeReduction();
+		return bal > 0 && credit > 0 ? credit / bal : 0;
+	});
+
+	/** Proc-fee effect of the ENTERED correction amount (magnitude): positive correction
+	 *  removes it (like a check — the forgiven slice won't be card-paid), negative restores
+	 *  it (the reinstated balance may be card-paid). Display estimate only — the backend
+	 *  figure is canonical (same formula, capped at the FeeProcessingTarget). */
+	correctionProcEffect = computed(() => {
+		if (this.paymentType() !== 'correction') return 0;
+		return Math.round(Math.abs(this.amount()) * this.derivedProcRate() * 100) / 100;
+	});
+
+	/** Total effect of the entered correction on the amount owed (magnitude):
+	 *  |amount| + its proc effect. The single line that answers "what will this do?". */
+	correctionOwedEffect = computed(() =>
+		Math.abs(this.amount()) + this.correctionProcEffect()
+	);
+
 	/** Add-record entry point. With more than one target, ask which registration first; otherwise
 	 *  go straight to the form (auto-selecting the sole target so its balances bound the amounts).
 	 *  Zero targets = no per-registration override (single-team / single-registration callers). */

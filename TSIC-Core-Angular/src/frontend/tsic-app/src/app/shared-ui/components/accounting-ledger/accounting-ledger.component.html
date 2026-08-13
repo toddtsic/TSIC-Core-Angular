@@ -391,8 +391,28 @@
               </div>
               <div class="owed-badge" [class.text-danger]="checkBalanceDue() > 0" [class.text-success]="checkBalanceDue() <= 0">
                 Balance Due: <strong>{{ paymentType() === 'cc' ? (modalOwed() | currency) : (checkBalanceDue() | currency) }}</strong>
-                @if (paymentType() !== 'cc' && totalFeeReduction() > 0) {
+                @if (paymentType() === 'check' && totalFeeReduction() > 0) {
                   <div class="fee-note text-success"><small>{{ totalFeeReduction() | currency }} processing fees removed</small></div>
+                }
+                <!-- Live signed impact of the ENTERED correction amount — the check note above is
+                     full-balance; a correction can be any amount in either direction, so this one
+                     tracks the field: |amount| + its proc-fee effect. -->
+                @if (paymentType() === 'correction' && amount() !== 0 && !correctionNegativeBlocked()) {
+                  <div class="fee-note" [class.text-success]="amount() > 0" [class.text-danger]="amount() < 0">
+                    <small>
+                      @if (amount() > 0) {
+                        Reduces amount owed by <strong>{{ correctionOwedEffect() | currency }}</strong>
+                        @if (correctionProcEffect() > 0) {
+                          ({{ amount() | currency }} + {{ correctionProcEffect() | currency }} processing fee removed)
+                        }
+                      } @else {
+                        Increases amount owed by <strong>{{ correctionOwedEffect() | currency }}</strong>
+                        @if (correctionProcEffect() > 0) {
+                          ({{ -amount() | currency }} + {{ correctionProcEffect() | currency }} processing fee restored)
+                        }
+                      }
+                    </small>
+                  </div>
                 }
               </div>
               @if (checkExceedsBalance()) {
