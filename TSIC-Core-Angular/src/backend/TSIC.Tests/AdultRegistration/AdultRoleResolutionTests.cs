@@ -9,12 +9,18 @@ namespace TSIC.Tests.AdultRegistration;
 /// <summary>
 /// Adult registration role firewall + release gate.
 ///
-/// Two guarantees this locks down:
+/// Three guarantees this locks down:
 ///  1. Each adult role key resolves to its OWN RoleId — Referee→Referee, Recruiter→Recruiter,
 ///     never collapsed into UnassignedAdult. A collapse would leak referees/recruiters into
-///     the coach approval queue (which selects UnassignedAdult rows). Coach intentionally
-///     IS UnassignedAdult (the minor-PII firewall).
-///  2. Each role's director release gate (BRegistrationAllow{Staff,Referee,Recruiter}) blocks
+///     the coach approval queue (which selects UnassignedAdult rows).
+///  2. The coach key resolves by WHO CAN VOUCH (ruling 2026-08-14): Club (player-registration
+///     site) → UnassignedAdult, the minor-PII firewall — only the director can vet a coach.
+///     Tournament/League (team-registration sites) → Staff DIRECT placement — the roster
+///     arrived with the club's own team, so the club vouches; the privacy control there is
+///     the consent-gated BAllowRosterViewAdult toggle, not a vetting queue. A regression to
+///     UA on Tournament/League breaks clients (directors rubber-stamping hundreds of visiting
+///     coaches); a regression to Staff on Club is a minor-PII leak.
+///  3. Each role's director release gate (BRegistrationAllow{Staff,Referee,Recruiter}) blocks
 ///     registration when off — null/false = closed.
 ///
 /// ResolveAdultRole is private static; invoked via reflection so the guarantee is locked at the
@@ -69,14 +75,24 @@ public class AdultRoleResolutionTests
         RoleIdOf(r).Should().NotBe(RoleConstants.UnassignedAdult);
     }
 
-    [Fact(DisplayName = "Coach resolves to UnassignedAdult (minor-PII firewall)")]
-    public void Coach_ResolvesToUnassignedAdult()
+    [Fact(DisplayName = "Coach on a Club (player-registration) site resolves to UnassignedAdult (minor-PII firewall)")]
+    public void Coach_Club_ResolvesToUnassignedAdult()
     {
-        var r = Invoke(Job(), AdultRegRoleKeys.Coach);
+        var r = Invoke(Job(jobTypeId: JobConstants.JobTypeClub), AdultRegRoleKeys.Coach);
         RoleIdOf(r).Should().Be(RoleConstants.UnassignedAdult);
+        RoleIdOf(r).Should().NotBe(RoleConstants.Staff);
     }
 
-    [Theory(DisplayName = "Coach must request a team on EVERY team job type (no no-request rows)")]
+    [Theory(DisplayName = "Coach on a team-registration site resolves to Staff (direct placement — the club vouches)")]
+    [InlineData(JobConstants.JobTypeTournament)]
+    [InlineData(JobConstants.JobTypeLeague)]
+    public void Coach_TeamRegistrationSites_ResolveToStaff(int jobTypeId)
+    {
+        var r = Invoke(Job(jobTypeId: jobTypeId), AdultRegRoleKeys.Coach);
+        RoleIdOf(r).Should().Be(RoleConstants.Staff);
+    }
+
+    [Theory(DisplayName = "Coach must select ≥1 team on EVERY team job type (Club: no no-request queue rows; 2/3: placement needs a target)")]
     [InlineData(JobConstants.JobTypeClub)]
     [InlineData(JobConstants.JobTypeLeague)]
     [InlineData(JobConstants.JobTypeTournament)]

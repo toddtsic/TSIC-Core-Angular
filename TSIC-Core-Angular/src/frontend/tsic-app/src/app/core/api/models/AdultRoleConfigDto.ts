@@ -11,6 +11,7 @@ export type AdultRoleConfigDto = {
     icon: string;
     needsTeamSelection: boolean;
     allowTeamRequests: boolean;
+    directPlacement: boolean;
     profileFields: Array<JobRegFieldDto>;
     waivers: Array<AdultWaiverDto>;
 };

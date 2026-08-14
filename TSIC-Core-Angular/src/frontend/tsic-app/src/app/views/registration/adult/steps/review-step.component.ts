@@ -147,12 +147,13 @@ import { AdultWizardStateService } from '../state/adult-wizard-state.service';
                 </div>
             </div>
 
-            <!-- Teams: non-binding request for every coach (director reviews + approves) -->
+            <!-- Teams: directPlacement (Tournament/League coach) = binding Staff placement;
+                 otherwise a non-binding request the director reviews + approves -->
             @if (state.needsTeamSelection() || (state.allowTeamRequests() && state.teamIdsCoaching().length > 0)) {
                 <div class="review-section">
                     <div class="review-section-header">
                         <i class="bi bi-people-fill"></i>
-                        <span>Teams Requested</span>
+                        <span>{{ state.directPlacement() ? "Teams You're Coaching" : 'Teams Requested' }}</span>
                     </div>
                     <div class="review-section-body">
                         @if (state.teamIdsCoaching().length > 0) {
@@ -161,11 +162,19 @@ import { AdultWizardStateService } from '../state/adult-wizard-state.service';
                                     <span class="review-team-pill">{{ teamLabel(id) }}</span>
                                 }
                             </div>
-                            <p class="tip-important" role="note">
-                                <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
-                                <span>Team Assignment requests need to be reviewed and approved by the
-                                Director before you can access the roster(s).</span>
-                            </p>
+                            @if (state.directPlacement()) {
+                                <p class="tip-important" role="note">
+                                    <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                                    <span>Submitting registers you as staff on <strong>every team listed
+                                    above</strong>.</span>
+                                </p>
+                            } @else {
+                                <p class="tip-important" role="note">
+                                    <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                                    <span>Team Assignment requests need to be reviewed and approved by the
+                                    Director before you can access the roster(s).</span>
+                                </p>
+                            }
                         } @else {
                             <div class="empty-note">
                                 <i class="bi bi-info-circle me-1"></i>

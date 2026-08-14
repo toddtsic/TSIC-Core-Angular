@@ -3,6 +3,7 @@ import { JobService } from '@infrastructure/services/job.service';
 
 /** Mirrors TSIC.Domain.Constants.JobConstants — see backend for canonical IDs. */
 const JOB_TYPE_TOURNAMENT = 2;
+const JOB_TYPE_LEAGUE = 3;
 
 /**
  * Legacy inline-style → class map.
@@ -37,18 +38,19 @@ const COLOR_CLASSES: ReadonlyMap<string, string> = new Map([
  *
  * Translations:
  * - StartARegistration + bPlayer + bStaff → split into TWO links (player + adult).
- *   The adult link uses ?role=unassigned on player sites (BAllowRosterViewAdult=false),
- *   ?role=coach on tournaments. URL is self-describing for the actual outcome.
+ *   The adult link uses ?role=unassigned on player sites (Club), ?role=coach on
+ *   team-registration sites (Tournament/League). URL is self-describing for the
+ *   actual outcome.
  * - StartARegistration + bPlayer=true → /{jobPath}/registration/player
  * - StartARegistration + bClubRep=true → /{jobPath}/registration/team
  * - StartARegistration + bStaff=true → /{jobPath}/registration/adult?role={unassigned|coach}
- *   Same site-aware key choice based on BAllowRosterViewAdult.
+ *   Same site-aware key choice.
  * - Rosters/RostersPublicLookupTourny → /{jobPath}/rosters/public
  * - Schedules/Index (any query string) → /{jobPath}/schedule (public, anonymous-accessible)
  *
- * Site-awareness: pipe reads JobService.currentJob().bAllowRosterViewAdult to decide
- * the URL key. true (tournament with public adult roster) → coach (resolves to Staff).
- * false (player site) → unassigned (resolves unconditionally to UnassignedAdult).
+ * Site-awareness: pipe reads JobService.currentJob().jobTypeId (see adultRoleKey).
+ * Tournament/League → coach (resolves to Staff, direct placement). Club/other →
+ * unassigned (resolves unconditionally to UnassignedAdult, director approves).
  */
 @Pipe({
     name: 'translateLegacyUrls',
@@ -200,14 +202,18 @@ export class TranslateLegacyUrlsPipe implements PipeTransform {
     }
 
     /**
-     * Returns 'unassigned' on Club/League/etc. (player sites), 'coach' on Tournament.
-     * Discriminator is JobTypeId — canonical numeric ID matching backend JobConstants.
-     * Defaults to 'unassigned' (fail closed for minor-PII safety) when job metadata
-     * is not yet loaded; backend rejects 'unassigned' on Tournament jobs so a stale
-     * tournament bulletin would surface loudly rather than silently wrong-routing.
+     * Returns 'coach' on team-registration sites (Tournament/League — coach key resolves
+     * to Staff DIRECT placement, ruling 2026-08-14), 'unassigned' on Club/etc. (player
+     * sites — UA funnel, director approves). Discriminator is JobTypeId — canonical
+     * numeric ID matching backend JobConstants. Defaults to 'unassigned' (fail closed
+     * for minor-PII safety) when job metadata is not yet loaded; backend rejects
+     * 'unassigned' on Tournament jobs so a stale tournament bulletin would surface
+     * loudly rather than silently wrong-routing.
      */
     private adultRoleKey(): 'unassigned' | 'coach' {
-        return this.jobService.currentJob()?.jobTypeId === JOB_TYPE_TOURNAMENT ? 'coach' : 'unassigned';
+        const jobTypeId = this.jobService.currentJob()?.jobTypeId;
+        return jobTypeId === JOB_TYPE_TOURNAMENT || jobTypeId === JOB_TYPE_LEAGUE
+            ? 'coach' : 'unassigned';
     }
 
     /**

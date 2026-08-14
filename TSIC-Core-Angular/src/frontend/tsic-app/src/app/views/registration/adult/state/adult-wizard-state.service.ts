@@ -213,8 +213,14 @@ export class AdultWizardStateService {
     readonly profileFields = computed<JobRegFieldDto[]>(() => this._roleConfig()?.profileFields ?? []);
     readonly waivers = computed<AdultWaiverDto[]>(() => this._roleConfig()?.waivers ?? []);
     readonly needsTeamSelection = computed(() => this._roleConfig()?.needsTeamSelection ?? false);
-    /** Club/League coach: team picker shown as a non-binding REQUEST (no assignment, no PII). */
+    /** Club coach: team picker shown as a non-binding REQUEST (no assignment, no PII). */
     readonly allowTeamRequests = computed(() => this._roleConfig()?.allowTeamRequests ?? false);
+    /**
+     * Tournament/League coach: team picks are BINDING — submission mints one Staff
+     * registration per selected team, no director approval step. Server-derived
+     * (resolved role == Staff); the wizard only picks copy off it, never the role.
+     */
+    readonly directPlacement = computed(() => this._roleConfig()?.directPlacement ?? false);
     /** Whether the team multi-select renders at all — either Staff assignment or UA request. */
     readonly showTeamPicker = computed(() => this.needsTeamSelection() || this.allowTeamRequests());
     readonly roleDisplayName = computed(() => this._roleConfig()?.displayName ?? '');

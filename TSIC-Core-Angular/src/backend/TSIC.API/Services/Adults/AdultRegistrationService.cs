@@ -253,14 +253,14 @@ public class AdultRegistrationService : IAdultRegistrationService
             Modified = DateTime.Now
         };
 
-        // Resolve role server-side (security model gate). This validates roleKey,
-        // checks job type, enforces the BAllowRosterViewAdult invariant for Tournament.
+        // Resolve role server-side (security model gate). Validates roleKey + job type:
+        // Club coach → UnassignedAdult funnel; Tournament/League coach → Staff direct placement.
         var resolution = ResolveAdultRole(jobData, request.RoleKey);
         await EnsureCreateDoorOpenAsync(jobData.JobId, resolution, cancellationToken);
         var roleId = resolution.RoleId;
         var roleType = ResolveRoleTypeFromId(roleId);
 
-        // Team selection is required when the resolver says so (coach in tournament).
+        // Team selection is required when the resolver says so (every coach key).
         if (resolution.NeedsTeamSelection && (request.TeamIdsCoaching == null || request.TeamIdsCoaching.Count == 0))
         {
             throw new InvalidOperationException("You must select at least one team to coach.");
@@ -553,6 +553,9 @@ public class AdultRegistrationService : IAdultRegistrationService
             Icon = resolution.Icon,
             NeedsTeamSelection = resolution.NeedsTeamSelection,
             AllowTeamRequests = resolution.AllowTeamRequests,
+            // Server-derived: the wizard renders "you will be placed" copy iff the
+            // resolved role is Staff (Tournament/League coach). Never inferred client-side.
+            DirectPlacement = resolution.RoleId == RoleConstants.Staff,
             ProfileFields = fields,
             Waivers = BuildWaivers(jobData),
         };
@@ -1473,7 +1476,9 @@ public class AdultRegistrationService : IAdultRegistrationService
     /// and the wizard behavior the frontend should render. Enforces the minor-PII
     /// security model:
     /// <list type="bullet">
-    /// <item>coach + any team job type → UnassignedAdult (director approves/places later)</item>
+    /// <item>coach + Club → UnassignedAdult (director approves/places via Roster Swapper)</item>
+    /// <item>coach + Tournament/League → Staff, placed directly on selected teams
+    ///   (see <see cref="ResolveCoach"/> for why the regimes differ)</item>
     /// <item>coach + other types → reject</item>
     /// <item>referee / recruiter → identical across supported job types</item>
     /// </list>
@@ -1558,35 +1563,42 @@ public class AdultRegistrationService : IAdultRegistrationService
     }
 
     /// <summary>
-    /// Coach role resolution — UNIVERSAL minor-PII firewall across ALL team job types.
-    /// Every coach self-registers as <see cref="RoleConstants.UnassignedAdult"/> with
-    /// non-binding team REQUESTS; no AssignedTeamId, no Staff role, no roster/PII access
-    /// is granted here. A director vets and approves each requested team via the Roster
-    /// Swapper, which mints the per-team Staff row. There is NO job-type branch in the
-    /// security model — the only job-type knob is request requiredness (below).
+    /// Coach role resolution — TWO regimes, split by WHO CAN VOUCH for the coach
+    /// (ruling 2026-08-14, replacing the prior universal-UA firewall):
+    /// <list type="bullet">
+    /// <item><b>Club (player-registration sites)</b> — minors register individually with
+    ///   the director's own org, so the director is the only party who can vet a coach.
+    ///   Coaches land as <see cref="RoleConstants.UnassignedAdult"/> with non-binding team
+    ///   REQUESTS (no AssignedTeamId, no roster/PII access); the director approves each
+    ///   team via the Roster Swapper, which mints the per-team Staff row.</item>
+    /// <item><b>Tournament / League (team-registration sites)</b> — the roster arrived WITH
+    ///   the team (a club rep entered it) and the coach is the visiting club's own person.
+    ///   The director has no basis to vet strangers from another org, and legacy never asked
+    ///   (StaffTournamentController placed directly). Coaches resolve to
+    ///   <see cref="RoleConstants.Staff"/> and submission mints ONE Registration PER SELECTED
+    ///   TEAM (see BuildAndAddRegistrationsAsync). The privacy control on these job types is
+    ///   Jobs.BAllowRosterViewAdult — clone-reset to false and gated behind an
+    ///   informed-consent confirm in the Teams config tab — NOT a vetting queue.</item>
+    /// </list>
     /// </summary>
     private static AdultRoleResolution ResolveCoach(AdultRegJobData job)
     {
         // Release gate: a director opens coach/staff registration only after teams exist
-        // (so coaches have real teams to request). Null/false = closed. The role model is
-        // unchanged — this gates ACCESS, not the resulting role.
+        // (so coaches have real teams to pick). Null/false = closed. This gates ACCESS,
+        // not the resulting role.
         EnsureAdultRegOpen(job.BRegistrationAllowStaff, "Coach/staff");
 
         switch (job.JobTypeId)
         {
             case JobConstants.JobTypeClub:
-            case JobConstants.JobTypeLeague:
-            case JobConstants.JobTypeTournament:
-                // UnassignedAdult firewall for every team job type. AllowTeamRequests lets
-                // the coach multi-select teams they'd LIKE to coach — captured as a
-                // non-binding REQUEST (codified into SpecialRequests as structured JSON),
-                // NOT an AssignedTeamId. NeedsTeamSelection ("must request ≥1 team to submit")
-                // is now REQUIRED on every team job type: a coach always arrives with a real
-                // team request, so the director's approval queue never holds a no-request row.
-                // Safe because coach registration is release-gated on teams-exist (Phase 1):
-                // the picker is never empty by the time a coach can reach this. The
-                // willing-anywhere "register with no team" path moved to the dedicated
-                // Unassigned self-roster key (which stays NeedsTeamSelection:false).
+                // UnassignedAdult firewall. AllowTeamRequests lets the coach multi-select
+                // teams they'd LIKE to coach — captured as a non-binding REQUEST (codified
+                // into SpecialRequests as structured JSON), NOT an AssignedTeamId.
+                // NeedsTeamSelection ("must request ≥1 team to submit") keeps the director's
+                // approval queue free of no-request rows. Safe because coach registration is
+                // release-gated on teams-exist (Phase 1): the picker is never empty by the
+                // time a coach can reach this. The willing-anywhere "register with no team"
+                // path is the dedicated Unassigned self-roster key (NeedsTeamSelection:false).
                 return new AdultRoleResolution(
                     RoleId: RoleConstants.UnassignedAdult,
                     NeedsTeamSelection: true,
@@ -1595,6 +1607,19 @@ public class AdultRegistrationService : IAdultRegistrationService
                                  "your request and assign you to a team.",
                     Icon: "bi-person-badge",
                     AllowTeamRequests: true);
+
+            case JobConstants.JobTypeTournament:
+            case JobConstants.JobTypeLeague:
+                // Direct placement: the selections are BINDING — one Staff Registration per
+                // selected team, no approval step. AllowTeamRequests stays false: these are
+                // assignments, not requests, and nothing is composed into SpecialRequests.
+                return new AdultRoleResolution(
+                    RoleId: RoleConstants.Staff,
+                    NeedsTeamSelection: true,
+                    DisplayName: "Coach / Team Staff",
+                    Description: "Register as team staff. You will be placed on each team " +
+                                 "you select.",
+                    Icon: "bi-person-badge");
 
             default:
                 // Root, Camp, Sales, or anything else — adult coach self-reg not supported.

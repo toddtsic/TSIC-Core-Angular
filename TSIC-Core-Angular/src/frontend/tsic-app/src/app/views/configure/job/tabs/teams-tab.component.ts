@@ -2,6 +2,7 @@ import { Component, inject, ChangeDetectionStrategy, computed, linkedSignal, sig
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RichTextEditorAllModule } from '@syncfusion/ej2-angular-richtexteditor';
+import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { JobConfigService } from '../job-config.service';
 import { JOB_CONFIG_RTE_HEIGHT } from '../shared/rte-config';
 import { TsicRteDirective } from '@shared-ui/rte.directive';
@@ -11,7 +12,7 @@ import type { UpdateJobConfigTeamsRequest } from '@core/api';
 @Component({
   selector: 'app-teams-tab',
   standalone: true,
-  imports: [CommonModule, FormsModule, RichTextEditorAllModule, TsicRteDirective, RegistrationReadinessComponent],
+  imports: [CommonModule, FormsModule, RichTextEditorAllModule, TsicRteDirective, RegistrationReadinessComponent, ConfirmDialogComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './teams-tab.component.html',
 })
@@ -80,6 +81,59 @@ export class TeamsTabComponent implements OnInit {
     } else {
       this.svc.markDirty('teams');
     }
+  }
+
+  // ── Roster-visibility informed consent (ruling 2026-08-14) ──
+  // Checking either roster toggle is a PII disclosure decision, and on Tournament/League
+  // jobs coaches self-place onto teams with NO director vetting — so this toggle is the
+  // only thing between a self-registered adult and minors' data. It must never flip on
+  // casually: checking it opens a confirm dialog that states the exposure and pins the
+  // responsibility on the director; Cancel reverts to off. Unchecking (reducing exposure)
+  // never prompts. Job-clone resets both flags to false (JobCloneResetRules), so every
+  // new season re-extracts this consent.
+  readonly pendingRosterConsent = signal<'player' | 'adult' | null>(null);
+
+  readonly rosterConsentTitle = computed(() =>
+    this.pendingRosterConsent() === 'player'
+      ? 'Expose team rosters to players?'
+      : 'Expose team rosters to coaches & staff?');
+
+  readonly rosterConsentMessage = computed(() => {
+    const who = this.pendingRosterConsent() === 'player'
+      ? 'every rostered player (and their family account)'
+      : 'every adult registered as staff on a team — including coaches who self-registered onto that team';
+    return `<p>Turning this on lets <strong>${who}</strong> view that team's full roster` +
+      ` — including minors' names and the personal details your registration form collects.</p>` +
+      `<ul>` +
+      `<li>Confirm this disclosure is permitted by <strong>your organization's privacy policy</strong>` +
+      ` and the youth-data laws that apply to you.</li>` +
+      `<li>TSIC does not make this decision — <strong>you, the event director, are responsible for it</strong>.</li>` +
+      `</ul>`;
+  });
+
+  onRosterVisibilityChange(which: 'player' | 'adult', checked: boolean): void {
+    const sig = which === 'player' ? this.bAllowRosterViewPlayer : this.bAllowRosterViewAdult;
+    sig.set(checked);
+    if (checked) {
+      // Checkbox shows checked while the dialog is up (it renders what's being
+      // confirmed); dirty-tracking waits for the decision.
+      this.pendingRosterConsent.set(which);
+      return;
+    }
+    this.onFieldChange();
+  }
+
+  confirmRosterConsent(): void {
+    this.pendingRosterConsent.set(null);
+    this.onFieldChange();
+  }
+
+  cancelRosterConsent(): void {
+    const which = this.pendingRosterConsent();
+    if (which === 'player') this.bAllowRosterViewPlayer.set(false);
+    if (which === 'adult') this.bAllowRosterViewAdult.set(false);
+    this.pendingRosterConsent.set(null);
+    this.onFieldChange();
   }
 
   onRteChange(field: string, event: any): void {

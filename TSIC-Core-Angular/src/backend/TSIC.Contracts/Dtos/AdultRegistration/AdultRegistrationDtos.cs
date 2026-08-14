@@ -357,13 +357,15 @@ public record AdultExistingRegistrationDto
 /// needs to render the Profile/Waivers steps for a given (job, roleKey) pair.
 /// Returned by <c>GET /adult-registration/{jobPath}/role-config/{roleKey}</c>.
 ///
-/// The <see cref="NeedsTeamSelection"/> flag is derived from job type:
-/// only true for coach in Tournament context. Club/League coaches register
-/// as UnassignedAdult and don't self-roster.
+/// Team-picker semantics are carried by three flags the SERVER derives from
+/// (roleKey, jobType) — the frontend never re-derives the security model:
+/// <see cref="NeedsTeamSelection"/> (picker required),
+/// <see cref="AllowTeamRequests"/> (picks are non-binding requests), and
+/// <see cref="DirectPlacement"/> (picks are binding Staff placements).
 /// </summary>
 public record AdultRoleConfigDto
 {
-    /// <summary>URL role key — "coach" | "referee" | "recruiter".</summary>
+    /// <summary>URL role key — "coach" | "unassigned" | "referee" | "recruiter".</summary>
     public required string RoleKey { get; init; }
 
     /// <summary>User-facing title: "Coach / Volunteer", "Referee", "College Recruiter".</summary>
@@ -376,20 +378,29 @@ public record AdultRoleConfigDto
     public required string Icon { get; init; }
 
     /// <summary>
-    /// True when the Profile step must present the team multi-select.
-    /// Only true for coach + Tournament job. Club/League coaches get UA status,
-    /// no self-rostering.
+    /// True when the Profile step must present the team multi-select and the coach
+    /// cannot submit without picking at least one team. True for the coach key on
+    /// every team job type (Club, League, Tournament).
     /// </summary>
     public required bool NeedsTeamSelection { get; init; }
 
     /// <summary>
-    /// True when the Profile step should present the team multi-select as a NON-BINDING
-    /// REQUEST (not an assignment). True for coach + Club/League job: the coach registers
-    /// as UnassignedAdult and their picks are composed into SpecialRequests for the
+    /// True when the coach's team picks are NON-BINDING REQUESTS (not assignments).
+    /// True for coach + Club (player-registration) jobs: the coach registers as
+    /// UnassignedAdult and their picks are composed into SpecialRequests for the
     /// director's Roster Swapper view — no AssignedTeamId, no Staff role, no PII granted.
-    /// Mutually exclusive with <see cref="NeedsTeamSelection"/>.
     /// </summary>
     public required bool AllowTeamRequests { get; init; }
+
+    /// <summary>
+    /// True when the coach's team picks are BINDING: submission mints one Staff
+    /// Registration per selected team (AssignedTeamId set) with no director approval
+    /// step. True for coach + Tournament/League (team-registration) jobs, where the
+    /// roster arrived with the club's own team and the privacy control is the
+    /// consent-gated Jobs.BAllowRosterViewAdult toggle — not a vetting queue.
+    /// Mutually exclusive with <see cref="AllowTeamRequests"/>.
+    /// </summary>
+    public required bool DirectPlacement { get; init; }
 
     /// <summary>Dynamic form fields for the Profile step (from job metadata + fallback).</summary>
     public required List<JobRegFieldDto> ProfileFields { get; init; }

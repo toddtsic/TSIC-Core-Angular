@@ -8,11 +8,13 @@ import type { JobRegFieldDto } from '@core/api';
  * Profile step — role-config-driven.
  *
  * Reads fields from <c>state.roleConfig().profileFields</c>. Shows the teams
- * multi-select whenever the coach may make team REQUESTS — i.e. when
- * <c>needsTeamSelection</c> (Tournament: request required) OR
- * <c>allowTeamRequests</c> (Club/League: request optional). Every coach is an
- * UnassignedAdult; selections are non-binding requests the director approves —
- * never an assignment or roster/PII access.
+ * multi-select whenever <c>needsTeamSelection</c> (coach: pick ≥1 to submit) OR
+ * <c>allowTeamRequests</c> (request optional). The MEANING of the picks is
+ * server-derived (ruling 2026-08-14):
+ * - <c>directPlacement</c> (Tournament/League coach): BINDING — one Staff
+ *   registration per selected team, no approval step.
+ * - otherwise (Club coach / UA): non-binding requests the director approves —
+ *   no assignment, no roster/PII access.
  */
 @Component({
     selector: 'app-adult-profile-step',
@@ -41,7 +43,19 @@ import type { JobRegFieldDto } from '@core/api';
             @if (state.showTeamPicker()) {
                 <section class="profile-section"
                     [class.is-required-section]="state.needsTeamSelection() && state.teamIdsCoaching().length === 0">
-                    @if (state.needsTeamSelection()) {
+                    @if (state.directPlacement()) {
+                        <label class="field-label">
+                            Teams you coach <span class="req">*</span>
+                        </label>
+                        <small class="wizard-tip mb-2 d-block">
+                            Required — select every team you coach. Type a club or team name to filter.
+                        </small>
+                        <p class="tip-important mb-2" role="note">
+                            <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                            <span>You will be registered as staff on <strong>each team you select</strong> —
+                            only select teams you actually coach.</span>
+                        </p>
+                    } @else if (state.needsTeamSelection()) {
                         <label class="field-label">
                             Teams you'd like to coach <span class="req">*</span>
                         </label>
@@ -191,7 +205,11 @@ import type { JobRegFieldDto } from '@core/api';
                                                     <i class="bi bi-exclamation-triangle-fill"></i>
                                                     <div>
                                                         We couldn't reach your USA&nbsp;Lacrosse email to verify you.
-                                                        You can continue — a director will verify you before you're assigned.
+                                                        @if (state.directPlacement()) {
+                                                            You can continue — the event director may follow up to verify your identity.
+                                                        } @else {
+                                                            You can continue — a director will verify you before you're assigned.
+                                                        }
                                                         @if (state.usLaxMessage()) {
                                                             <div class="uslax-msg">{{ state.usLaxMessage() }}</div>
                                                         }

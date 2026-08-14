@@ -115,7 +115,7 @@
           <label class="field-check">
             <input type="checkbox"
               [ngModel]="bAllowRosterViewPlayer()"
-              (ngModelChange)="bAllowRosterViewPlayer.set($event); onFieldChange()" />
+              (ngModelChange)="onRosterVisibilityChange('player', $event)" />
             <span class="field-label">Allow players to view their team roster</span>
           </label>
         </div>
@@ -123,7 +123,7 @@
           <label class="field-check">
             <input type="checkbox"
               [ngModel]="bAllowRosterViewAdult()"
-              (ngModelChange)="bAllowRosterViewAdult.set($event); onFieldChange()" />
+              (ngModelChange)="onRosterVisibilityChange('adult', $event)" />
             <span class="field-label">Allow coaches &amp; staff to view their team roster</span>
           </label>
         </div>
@@ -167,4 +167,15 @@
     }
 
   </div>
+}
+
+@if (pendingRosterConsent()) {
+  <confirm-dialog
+    [title]="rosterConsentTitle()"
+    [message]="rosterConsentMessage()"
+    confirmLabel="I understand — enable roster viewing"
+    cancelLabel="Cancel — leave off"
+    confirmVariant="warning"
+    (confirmed)="confirmRosterConsent()"
+    (cancelled)="cancelRosterConsent()" />
 }
