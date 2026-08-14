@@ -1,6 +1,6 @@
 import { inject, Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, tap } from 'rxjs';
+import { Observable, finalize, shareReplay, tap } from 'rxjs';
 import { environment } from '@environments/environment';
 import type { RegistrationStatusRequest, RegistrationStatusResponse, BulletinDto, NavDto, NavItemDto, JobMetadataResponse } from '@core/api';
 
@@ -55,6 +55,56 @@ export class JobService {
         return seq === this.jobRequestSeq;
     }
 
+    /**
+     * In-flight dedupe for `GET /jobs/{jobPath}`. The layout and the landing page each
+     * request the same job's metadata within milliseconds of a cold load — two identical
+     * HTTP round trips, one of whose answers the seq guard always discarded. While a
+     * request for a jobPath is on the wire, every caller shares it; the slot clears when
+     * it settles, so a later remount still issues a FRESH request (that refetch is
+     * load-bearing — its new object reference is what re-fires the pulse on return
+     * visits). A request for a DIFFERENT jobPath bypasses the slot and takes over as
+     * newest via the seq guard, exactly as before.
+     */
+    private inflightJobPath: string | null = null;
+    private inflightJob$: Observable<JobMetadataResponse> | null = null;
+
+    /** Single chokepoint for job-metadata HTTP: dedupes concurrent same-path callers. */
+    private requestJobMetadata(jobPath: string): Observable<JobMetadataResponse> {
+        if (this.inflightJob$ && this.inflightJobPath?.toLowerCase() === jobPath.toLowerCase()) {
+            return this.inflightJob$;
+        }
+        const seq = this.beginJobRequest(jobPath);
+        this.jobMetadataLoading.set(true);
+        const req$: Observable<JobMetadataResponse> = this.http
+            .get<JobMetadataResponse>(`${this.apiUrl}/jobs/${jobPath}`)
+            .pipe(
+                tap({
+                    next: metadata => {
+                        if (!this.isCurrentJobRequest(seq)) return;
+                        this.currentJob.set(metadata);
+                        this.jobMetadataLoading.set(false);
+                    },
+                    error: () => {
+                        if (!this.isCurrentJobRequest(seq)) return;
+                        this.jobMetadataLoading.set(false);
+                    }
+                }),
+                finalize(() => {
+                    if (this.inflightJob$ === req$) {
+                        this.inflightJob$ = null;
+                        this.inflightJobPath = null;
+                    }
+                }),
+                // refCount:false — the request stays hot for late same-path joiners even if
+                // the first subscriber unsubscribes; bufferSize 1 replays the response to a
+                // caller that subscribes just after it lands (slot not yet finalized).
+                shareReplay({ bufferSize: 1, refCount: false })
+            );
+        this.inflightJob$ = req$;
+        this.inflightJobPath = jobPath;
+        return req$;
+    }
+
     // Set current job metadata. Guarded by jobPath (not seq) because callers hand us an
     // already-resolved response — a caller holding the result of a SUPERSEDED fetch must
     // not re-apply it after a newer job has been requested. Case-insensitive to match the
@@ -68,42 +118,18 @@ export class JobService {
         return this.currentJob();
     }
 
-    // Command-style load that updates the currentJob signal
+    // Command-style load that updates the currentJob signal. Signal writes happen in the
+    // shared request's tap; the subscription only exists to fire it (errors surface via
+    // the jobMetadataLoading signal, same as before).
     loadJobMetadata(jobPath: string): void {
-        const seq = this.beginJobRequest(jobPath);
-        this.jobMetadataLoading.set(true);
-        this.http.get<JobMetadataResponse>(`${this.apiUrl}/jobs/${jobPath}`).subscribe({
-            next: (metadata) => {
-                if (!this.isCurrentJobRequest(seq)) return;
-                this.currentJob.set(metadata);
-                this.jobMetadataLoading.set(false);
-            },
-            error: () => {
-                if (!this.isCurrentJobRequest(seq)) return;
-                this.jobMetadataLoading.set(false);
-            }
-        });
+        this.requestJobMetadata(jobPath).subscribe({ error: () => { /* handled in tap */ } });
     }
 
     // Observable-style fetch that returns Observable and updates currentJob signal.
     // Only the WRITE is guarded — the response still reaches the caller either way, so
     // the Observable contract is unchanged.
     fetchJobMetadata(jobPath: string): Observable<JobMetadataResponse> {
-        const seq = this.beginJobRequest(jobPath);
-        this.jobMetadataLoading.set(true);
-        return this.http.get<JobMetadataResponse>(`${this.apiUrl}/jobs/${jobPath}`).pipe(
-            tap({
-                next: metadata => {
-                    if (!this.isCurrentJobRequest(seq)) return;
-                    this.currentJob.set(metadata);
-                    this.jobMetadataLoading.set(false);
-                },
-                error: () => {
-                    if (!this.isCurrentJobRequest(seq)) return;
-                    this.jobMetadataLoading.set(false);
-                }
-            })
-        );
+        return this.requestJobMetadata(jobPath);
     }
 
     // Command-style load for registration status using signals

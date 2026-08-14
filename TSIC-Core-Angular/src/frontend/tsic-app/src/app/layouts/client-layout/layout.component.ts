@@ -166,8 +166,20 @@ export class LayoutComponent implements OnInit, OnDestroy {
       .subscribe(user => {
         const jobPath = this.getActiveJobPath();
         if (jobPath) {
-          // Reload job metadata so currentJob stays in sync after role/job switch
-          this.jobService.loadJobMetadata(jobPath);
+          // Reload job metadata ONLY when the job actually changed. `GET /jobs/{jobPath}`
+          // is claim-blind (the controller never reads the JWT), so a same-job login /
+          // logout / role switch cannot change its answer — refetching it here only
+          // produced a new currentJob object reference, which the header's pulse trigger
+          // read as "job changed" and re-fetched the pulse a second time (the first,
+          // user-triggered pulse fetch already carried the new token). Cross-job switches
+          // still reload: currentJob is either null (role-selection clears it) or holds
+          // the outgoing job while getActiveJobPath() returns the same outgoing path —
+          // the INCOMING job's metadata is fetched by its landing/dashboard on arrival,
+          // as before. Case-insensitive to match the backend's OrdinalIgnoreCase paths.
+          const loadedPath = this.jobService.getCurrentJob()?.jobPath;
+          if (!loadedPath || loadedPath.toLowerCase() !== jobPath.toLowerCase()) {
+            this.jobService.loadJobMetadata(jobPath);
+          }
           // Load nav if authenticated, clear if logged out
           if (user?.regId) {
             this.jobService.loadNav();
