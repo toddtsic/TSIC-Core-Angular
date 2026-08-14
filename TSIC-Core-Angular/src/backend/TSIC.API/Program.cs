@@ -67,7 +67,6 @@ using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.FileProviders;
 using Serilog;
-using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -979,13 +978,6 @@ builder.Host.UseSerilog();
 
 var app = builder.Build();
 
-// Global exception boundary — MUST be outermost. It turns client aborts into a quiet 499
-// (they are not faults; see ExceptionHandlingMiddleware for why the classification is on
-// RequestAborted and never on the exception type) and every real fault into ProblemDetails
-// carrying TraceIdentifier. Registered before UseResponseCompression so nothing escapes to
-// IISHttpServer, which logs ApplicationError from outside this pipeline.
-app.UseMiddleware<TSIC.API.Middleware.ExceptionHandlingMiddleware>();
-
 // Add detailed error handling in development
 if (app.Environment.IsDevelopment())
 {
@@ -1045,18 +1037,6 @@ app.UseSerilogRequestLogging(options =>
     {
         diagnosticContext.Set("StatusCode", httpContext.Response.StatusCode);
     };
-
-    // This middleware sits INSIDE ExceptionHandlingMiddleware and logs-then-rethrows, so it
-    // writes its completion event before the boundary can classify the exception. Without this
-    // override an abandoned request still lands in Seq as "responded 500" at Error, and the
-    // outer handler only removes the IISHttpServer half of the pair. Same test as the boundary
-    // (the token, not the exception type — SqlClient reports an in-flight cancel as SqlException).
-    // The non-aborted branches reproduce Serilog's own default so real faults are unaffected.
-    options.GetLevel = (httpContext, _, ex) =>
-        httpContext.RequestAborted.IsCancellationRequested ? LogEventLevel.Debug
-        : ex != null ? LogEventLevel.Error
-        : httpContext.Response.StatusCode > 499 ? LogEventLevel.Error
-        : LogEventLevel.Information;
 });
 app.UseCors("AllowAngularApp");
 app.UseAuthentication();
