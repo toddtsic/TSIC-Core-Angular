@@ -242,7 +242,14 @@ public sealed record AgeGroupDto
     public required string AgeGroupName { get; init; }
     public required int MaxTeams { get; init; }
     public required int RegisteredCount { get; init; }
+    /// <summary>
+    /// RAW deposit slice (NULL → 0), NOT ResolvedFee.EffectiveDeposit. The client sums
+    /// Deposit + BalanceDue to price an age-group card, and Effective* would double-count a
+    /// deposit-less fee (EffectiveDeposit falls back to BalanceDue). Same rule as
+    /// RegisteredTeamDto.Deposit — do not "fix" either to Effective.
+    /// </summary>
     public required decimal Deposit { get; init; }
+    /// <summary>RAW balance slice (NULL → 0). See <see cref="Deposit"/>.</summary>
     public required decimal BalanceDue { get; init; }
 }
 

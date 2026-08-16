@@ -576,8 +576,14 @@ public class TeamRegistrationService : ITeamRegistrationService
                 AgeGroupId = ag.AgegroupId,
                 AgeGroupName = ag.AgegroupName,
                 MaxTeams = ag.MaxTeams,
-                Deposit = resolved?.EffectiveDeposit ?? 0m,
-                BalanceDue = resolved?.EffectiveBalanceDue ?? 0m,
+                // RAW deposit/balance — NEVER Effective*. The first-team card sums these two
+                // for its price, and EffectiveDeposit falls back to BalanceDue when Deposit is
+                // NULL, so a single-payment agegroup ($325 in the balance slot, no deposit —
+                // the shape 6a §3 normalizes to) rendered $650 on the card while the teams grid
+                // beside it read $325. RegisteredTeamShaper stamps the same two fields raw for
+                // exactly this reason; see ResolvedFee.FullPrice for the canonical warning.
+                Deposit = resolved?.Deposit ?? 0m,
+                BalanceDue = resolved?.BalanceDue ?? 0m,
                 RegisteredCount = registrationCounts.GetValueOrDefault(ag.AgegroupId, 0)
             });
         }
