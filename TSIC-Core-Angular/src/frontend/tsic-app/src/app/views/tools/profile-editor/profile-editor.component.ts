@@ -37,9 +37,17 @@ import { AdultProfileEditorPanelComponent } from './adult-profile-editor-panel/a
  * The server endpoints behind every removed control are commented out in
  * ProfileMigrationController — that, not this component, is the enforcement.
  *
- * NOTE: the Adult tab below is deliberately UNCHANGED and remains type-scoped — editing it
- * writes every materialized job on that adult profile. That was an explicit scoping call,
- * not an oversight; it is out of scope for this lockdown.
+ * OPEN EXPOSURE — the Adult tab below is UNCHANGED and still type-scoped: every field edit
+ * writes to every materialized job on that adult profile, with no confirm and no staging.
+ * That breaks the same rule this lockdown enforces.
+ *
+ * It was DEFERRED from this change, not accepted. The instruction was to keep this pass to
+ * the player side; no one has ruled that the adult fan-out is acceptable. The per-job
+ * replacement already exists unwired on both sides (PUT profiles/current/adult-metadata,
+ * AdultProfileMigrationService.updateCurrentJobAdultRole) if it is picked up.
+ *
+ * Note also that the banner below says "Editing THIS JOB ONLY" while the Player/Adult
+ * segment sits above it — switching to Adult silently inverts the scope the banner claims.
  */
 @Component({
     selector: 'app-profile-editor',
