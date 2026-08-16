@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import { Router, type CanActivateFn } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 import { isStoreEligible } from '../constants/roles.constants';
+import { resolveJobPath } from '../navigation/job-path';
 
 /**
  * Store access guard enforcing three entry modes via route data `storeMode`:
@@ -20,13 +21,9 @@ export const storeGuard: CanActivateFn = (route, state) => {
 	const user = auth.getCurrentUser();
 	const isAuth = auth.isAuthenticated();
 
-	// Resolve jobPath from route hierarchy (same fallback pattern as authGuard)
-	let jobPath = route.paramMap.get('jobPath') || route.parent?.paramMap.get('jobPath');
-	if (!jobPath && state.url) {
-		const match = state.url.match(/^\/([a-z0-9-]{3,40})(\/|$|\?)/);
-		if (match) jobPath = match[1];
-	}
-	jobPath = jobPath || 'tsic';
+	// Store routes sit one level under :jobPath, so this always resolves; the 'tsic' default
+	// is unreachable but kept — every store redirect below needs a path to build.
+	const jobPath = resolveJobPath(route) || 'tsic';
 
 	// ── Walk-up (kiosk): always start with a clean slate ──
 	if (storeMode === 'walk-up') {

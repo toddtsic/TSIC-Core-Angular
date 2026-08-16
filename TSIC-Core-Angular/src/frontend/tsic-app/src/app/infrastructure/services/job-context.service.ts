@@ -9,7 +9,11 @@ const NON_JOB_SEGMENTS = new Set([
 ]);
 
 function isValidJobSegment(seg: string): boolean {
-    return /^[a-z0-9-]{3,40}$/i.test(seg);
+    // 3..80 to match Jobs.JobPath varchar(80). The prior 40-char cap rejected real live
+    // paths (e.g. lielite-younggunsfallfestivalchampionship-2026, 46 chars), leaving the
+    // cached jobPath null — the same too-narrow-shape bug that made the registration
+    // guards evaluate the house job. See infrastructure/navigation/job-path.ts.
+    return /^[a-z0-9-]{3,80}$/i.test(seg);
 }
 
 function extractJobPath(pathname: string): string | null {

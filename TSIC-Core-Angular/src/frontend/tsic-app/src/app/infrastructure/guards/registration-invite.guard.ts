@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { environment } from '@environments/environment';
+import { resolveJobPath } from '../navigation/job-path';
 
 interface InviteGuardConfig {
     /** Pulse field indicating registration is open (e.g. 'playerRegistrationOpen') */
@@ -37,13 +38,10 @@ export function createRegistrationInviteGuard(config: InviteGuardConfig): CanAct
         const router = inject(Router);
         const toast = inject(ToastService);
 
-        // Resolve jobPath from route hierarchy
-        let jobPath = route.paramMap.get('jobPath') || route.parent?.paramMap.get('jobPath');
-        if (!jobPath && state.url) {
-            const match = state.url.match(/^\/([a-z0-9-]{3,40})(\/|$|\?)/);
-            if (match) jobPath = match[1];
-        }
-        jobPath = jobPath || 'tsic';
+        // No job → stand down. The previous `|| 'tsic'` default read the HOUSE job's pulse,
+        // found registration closed there, and bounced registrants off their own open event.
+        const jobPath = resolveJobPath(route);
+        if (!jobPath) return true;
 
         // Fetch job pulse — anonymous, always works. The _ts param makes each URL
         // unique so the browser can never satisfy this GET from a stored copy — a
@@ -165,12 +163,9 @@ export const adultRegistrationGuard: CanActivateFn = async (route, state) => {
     // mirroring the player/team guard's authenticated passthrough.
     if (auth.isAuthenticated()) return true;
 
-    let jobPath = route.paramMap.get('jobPath') || route.parent?.paramMap.get('jobPath');
-    if (!jobPath && state.url) {
-        const match = state.url.match(/^\/([a-z0-9-]{3,40})(\/|$|\?)/);
-        if (match) jobPath = match[1];
-    }
-    jobPath = jobPath || 'tsic';
+    // Same as the player/team guard above — no job, no gate.
+    const jobPath = resolveJobPath(route);
+    if (!jobPath) return true;
 
     let pulse: Record<string, unknown>;
     try {
