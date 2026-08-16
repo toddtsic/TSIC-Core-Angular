@@ -44,10 +44,17 @@ $apiRunning = $false
 $swaggerUrl = "http://localhost:5022/swagger/v1/swagger.json"
 $swaggerUrlHttps = "https://localhost:7215/swagger/v1/swagger.json"
 
+# Probe timeouts raised 2s/1s -> 30s on 2026-08-16. The swagger document is ~1.7 MB and takes
+# well over a second to serialize on a cold hit, so the old timeouts aborted the request while
+# the server was still flushing it. That surfaced in the API log as
+#   HTTP GET /swagger/v1/swagger.json responded 500
+#   System.OperationCanceledException ... HttpResponsePipeWriter.FlushAsync
+# which reads like a server fault but is this script hanging up on itself. The 1s timeout in the
+# wait loop below could never succeed. Do not lower these.
 Write-Host "Checking for API at $swaggerUrl..." -ForegroundColor Yellow
 
 try {
-    $response = Invoke-WebRequest -Uri $swaggerUrl -UseBasicParsing -TimeoutSec 2 -ErrorAction SilentlyContinue
+    $response = Invoke-WebRequest -Uri $swaggerUrl -UseBasicParsing -TimeoutSec 30 -ErrorAction SilentlyContinue
     $apiRunning = $response.StatusCode -eq 200
     if ($apiRunning) {
         Write-Host "[OK] API is running on HTTP (port 5022)" -ForegroundColor Green
@@ -55,7 +62,7 @@ try {
 } catch {
     Write-Host "  HTTP endpoint not responding, trying HTTPS..." -ForegroundColor Gray
     try {
-        $response = Invoke-WebRequest -Uri $swaggerUrlHttps -UseBasicParsing -SkipCertificateCheck -TimeoutSec 2 -ErrorAction SilentlyContinue
+        $response = Invoke-WebRequest -Uri $swaggerUrlHttps -UseBasicParsing -SkipCertificateCheck -TimeoutSec 30 -ErrorAction SilentlyContinue
         $apiRunning = $response.StatusCode -eq 200
         if ($apiRunning) {
             Write-Host "[OK] API is running on HTTPS (port 7215)" -ForegroundColor Green
@@ -100,11 +107,11 @@ if (-not $apiRunning) {
         Write-Host "." -NoNewline
         
         try {
-            $response = Invoke-WebRequest -Uri $swaggerUrl -UseBasicParsing -TimeoutSec 1 -ErrorAction SilentlyContinue
+            $response = Invoke-WebRequest -Uri $swaggerUrl -UseBasicParsing -TimeoutSec 30 -ErrorAction SilentlyContinue
             $apiRunning = $response.StatusCode -eq 200
         } catch {
             try {
-                $response = Invoke-WebRequest -Uri $swaggerUrlHttps -UseBasicParsing -SkipCertificateCheck -TimeoutSec 1 -ErrorAction SilentlyContinue
+                $response = Invoke-WebRequest -Uri $swaggerUrlHttps -UseBasicParsing -SkipCertificateCheck -TimeoutSec 30 -ErrorAction SilentlyContinue
                 $apiRunning = $response.StatusCode -eq 200
             } catch {
                 # Still not ready
