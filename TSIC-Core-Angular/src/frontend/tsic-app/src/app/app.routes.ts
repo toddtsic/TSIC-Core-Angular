@@ -336,12 +336,17 @@ export const routes: Routes = [
 						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'uslax-rankings' },
 						loadComponent: () => import('./views/tools/uslax-rankings/uslax-rankings.component').then(m => m.UsLaxRankingsComponent)
 					},
-					{
-						path: 'profile-migration',
-						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser] },
-						loadComponent: () => import('./views/tools/profile-migration/profile-migration.component').then(m => m.ProfileMigrationComponent)
-					},
+					// DEPRECATED 2026-08-16 — post-go-live lockdown. The migration dashboard bulk-materialized
+						// PlayerProfileMetadataJson across every job carrying a profile type: essential before
+						// go-live, dangerous against a live shared database now. Its endpoints are commented out
+						// in ProfileMigrationController — that is the actual control. Its nav row is Active = 0.
+						// Removing the route only stops a SuperUser reaching the dead page by typing the URL.
+					// {
+						// path: 'profile-migration',
+						// canActivate: [authGuard],
+						// data: { roles: [Roles.Superuser] },
+						// loadComponent: () => import('./views/tools/profile-migration/profile-migration.component').then(m => m.ProfileMigrationComponent)
+					// },
 					{
 						path: 'profile-editor',
 						canActivate: [authGuard],

@@ -1420,6 +1420,36 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         return true;
     }
 
+    // ========================================================================
+    // CURRENT-JOB player form (post-go-live lockdown, 2026-08-16).
+    //
+    // The job is derived from the caller's regId here rather than accepted from the
+    // controller, so no call path exists that could name a different job. The two
+    // by-JobId methods above stay as the implementation underneath — they are simply
+    // no longer reachable from an HTTP route.
+    // ========================================================================
+
+    /// <summary>Read the CURRENT job's player form, resolved from the caller's regId.</summary>
+    public async Task<ProfileMetadata?> GetCurrentJobPlayerFormAsync(Guid regId)
+    {
+        var jobId = await _repo.GetRegistrationJobIdAsync(regId);
+        if (jobId == null || jobId == Guid.Empty) return null;
+        return await GetJobPlayerFormAsync(jobId.Value);
+    }
+
+    /// <summary>
+    /// Write the CURRENT job's player form, resolved from the caller's regId. Returns the JobId
+    /// actually written, or null when the registration resolves to no job.
+    /// </summary>
+    public async Task<Guid?> UpdateCurrentJobPlayerFormAsync(Guid regId, ProfileMetadata metadata)
+    {
+        var jobId = await _repo.GetRegistrationJobIdAsync(regId);
+        if (jobId == null || jobId == Guid.Empty) return null;
+
+        var ok = await UpdateJobPlayerFormAsync(jobId.Value, metadata);
+        return ok ? jobId : null;
+    }
+
     /// <summary>
     /// Preview the blast radius of a template-wide (fan-out) write for a profile type: every job it
     /// would overwrite, with the customized ones flagged so the confirm modal can warn what is lost.
@@ -2216,12 +2246,15 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         return string.Join('|', list);
     }
 
-    public async Task<(string? ProfileType, string? TeamConstraint, string Raw, Guid? JobId, ProfileMetadata? Metadata)> GetCurrentJobProfileConfigAsync(Guid regId)
+    // JobName rides along so the editor can label the current job without the
+    // jobs-enumeration endpoint (GET profiles/jobs), which was removed in the
+    // 2026-08-16 post-go-live lockdown for listing jobs the caller isn't in.
+    public async Task<(string? ProfileType, string? TeamConstraint, string Raw, Guid? JobId, string? JobName, ProfileMetadata? Metadata)> GetCurrentJobProfileConfigAsync(Guid regId)
     {
         var jobData = await _repo.GetJobDataForRegistrationAsync(regId);
         if (jobData == null)
         {
-            return (null, null, string.Empty, null, null);
+            return (null, null, string.Empty, null, null, null);
         }
 
         var raw = jobData.CoreRegformPlayer ?? string.Empty;
@@ -2231,7 +2264,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         {
             metadata = await GetProfileMetadataAsync(pt);
         }
-        return (pt, constraint, raw, jobData.JobId, metadata);
+        return (pt, constraint, raw, jobData.JobId, jobData.JobName, metadata);
     }
 
     public async Task<(string ProfileType, string TeamConstraint, string Raw, ProfileMetadata? Metadata)>

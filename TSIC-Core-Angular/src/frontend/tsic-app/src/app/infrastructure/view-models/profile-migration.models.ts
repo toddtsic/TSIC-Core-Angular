@@ -132,6 +132,10 @@ export interface CurrentJobProfileConfigResponse {
     teamConstraint: string | null;
     coreRegform: string;
     jobId: string | null;
+    // Added 2026-08-16: the editor used to look its own job's display name up out of the
+    // all-jobs list (GET profiles/jobs). That enumeration was removed in the post-go-live
+    // lockdown, so the name travels with the current job's own config instead.
+    jobName: string | null;
     metadata: ProfileMetadata | null;
 }
 

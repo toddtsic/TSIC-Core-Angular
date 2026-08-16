@@ -174,7 +174,12 @@ INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Nav Edit
 INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Widget Editor', N'grid', N'configure/widget-editor', 4, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Job Clone', N'copy', N'configure/job-clone', 5, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Admin Expiry', N'calendar-x', N'tools/admin-expiry', 6, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Profile Migration', N'arrow-right', N'tools/profile-migration', 7, 0, 0, 1, NULL, NULL);
+-- DEPRECATED 2026-08-16 — post-go-live lockdown. The Profile Migration dashboard bulk-rewrote
+-- PlayerProfileMetadataJson across every job carrying a profile type. Its API endpoints and its
+-- Angular route are commented out, and the existing nav row was set Active = 0 in the live
+-- database. Leaving this seed line in would resurrect the menu item (Active = 1) on the next
+-- re-seed, pointing at a route that no longer exists.
+-- INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Profile Migration', N'arrow-right', N'tools/profile-migration', 7, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Change Password', N'key', N'tools/change-password', 8, 0, 0, 1, NULL, NULL);
 
 -- Standalone top-level leaves (direct links, no section dropdown)

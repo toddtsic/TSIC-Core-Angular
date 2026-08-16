@@ -19,7 +19,11 @@ import {
     OptionSetUpdateRequest,
     RenameOptionSetRequest
 } from '../view-models/profile-migration.models';
-import type { CopyFormSourceDto, CopyJobFormsRequest, CopyJobFormsResult, EditableJobDto, AffectedJobsResult } from '@core/api';
+// DEPRECATED 2026-08-16 — these generated models back only the commented-out cross-job
+// endpoints below. Their server actions are commented out in ProfileMigrationController, so
+// they no longer appear in the OpenAPI document and the codegen no longer emits them; the
+// import has to go with them or the next 2-Regenerate-API-Models.ps1 run breaks the build.
+// import type { CopyFormSourceDto, CopyJobFormsRequest, CopyJobFormsResult, EditableJobDto, AffectedJobsResult } from '@core/api';
 
 @Injectable({
     providedIn: 'root'
@@ -244,6 +248,11 @@ export class ProfileMigrationService {
         );
     }
 
+    /**
+     * @deprecated 2026-08-16 — backed the removed "This Job's Profile Assignment" card. The endpoint
+     * never actually wrote (JobId passed where a RegistrationId was expected) and, once repaired, would
+     * re-stamp this job's field set from the profile type. The pointer is set in Configure → Job.
+     */
     updateCurrentJobProfileConfig(
         profileType: string,
         teamConstraint: string,
@@ -316,85 +325,128 @@ export class ProfileMigrationService {
     }
 
     // ============================================================================
-    // COPY FORMS (seed the current job's forms from another job's materialized JSON)
+    // DEPRECATED 2026-08-16 — COPY FORMS (post-go-live lockdown).
+    //
+    // Seeded this job's forms from another job. Cross-job in both directions: the source is
+    // always a job the caller is not in. Job Clone already carries CoreRegformPlayer,
+    // PlayerProfileMetadataJson and JsonOptions (with grad-year shifting) forward, which is
+    // what standing up next season's job actually needs.
+    //
+    // Commented rather than annotated because the generated DTOs these signatures reference
+    // (CopyFormSourceDto / CopyJobFormsRequest / CopyJobFormsResult) leave the OpenAPI
+    // document with their endpoints, so live code cannot keep naming them.
+    // ============================================================================
+//     getCopyFormSources(onSuccess: (sources: CopyFormSourceDto[]) => void, onError?: (error: any) => void): void {
+//         this.runCall<CopyFormSourceDto[]>(
+//             this.http.get<CopyFormSourceDto[]>(`${this.apiUrl}/profiles/copy-sources`),
+//             { setError: m => this._errorMessage.set(m), errorMessage: 'Failed to load copy sources' },
+//             sources => onSuccess(sources),
+//             onError
+//         );
+//     }
+// 
+//     /** @deprecated 2026-08-16 — reads another job's forms; Job Clone carries them forward instead. Endpoint commented out. */
+//     copyFormsToCurrentJob(request: CopyJobFormsRequest, onSuccess: (result: CopyJobFormsResult) => void, onError?: (error: any) => void): void {
+//         this.runCall<CopyJobFormsResult>(
+//             this.http.post<CopyJobFormsResult>(`${this.apiUrl}/profiles/current/copy-forms`, request),
+//             { setError: m => this._errorMessage.set(m), errorMessage: 'Failed to copy forms' },
+//             result => onSuccess(result),
+//             onError
+//         );
+//     }
+// 
+//     /**
+//      * Copy a source job's form(s) INTO an explicit target job (request.targetJobId), or the current
+//      * job when targetJobId is omitted. Also carries the profile-type pointer / option sets when asked.
+//      */
+//     copyForms(request: CopyJobFormsRequest, onSuccess: (result: CopyJobFormsResult) => void, onError?: (error: any) => void): void {
+//         this.runCall<CopyJobFormsResult>(
+//             this.http.post<CopyJobFormsResult>(`${this.apiUrl}/profiles/copy-forms`, request),
+//             { setError: m => this._errorMessage.set(m), errorMessage: 'Failed to copy forms' },
+//             result => onSuccess(result),
+//             onError
+//         );
+//     }
+
+    // ============================================================================
+    // CURRENT-JOB PLAYER FORM EDITING (post-go-live lockdown, 2026-08-16)
+    //
+    // The job is resolved server-side from the JWT regId. Nothing here takes a jobId,
+    // so there is no shape of call that could read or write another job.
     // ============================================================================
 
-    /** List jobs that can serve as a copy source (each flagged with which form it carries). */
-    getCopyFormSources(onSuccess: (sources: CopyFormSourceDto[]) => void, onError?: (error: any) => void): void {
-        this.runCall<CopyFormSourceDto[]>(
-            this.http.get<CopyFormSourceDto[]>(`${this.apiUrl}/profiles/copy-sources`),
-            { setError: m => this._errorMessage.set(m), errorMessage: 'Failed to load copy sources' },
-            sources => onSuccess(sources),
-            onError
-        );
-    }
-
-    /** Copy the chosen job's player and/or coach form JSON onto the current job (resolved from JWT). */
-    copyFormsToCurrentJob(request: CopyJobFormsRequest, onSuccess: (result: CopyJobFormsResult) => void, onError?: (error: any) => void): void {
-        this.runCall<CopyJobFormsResult>(
-            this.http.post<CopyJobFormsResult>(`${this.apiUrl}/profiles/current/copy-forms`, request),
-            { setError: m => this._errorMessage.set(m), errorMessage: 'Failed to copy forms' },
-            result => onSuccess(result),
-            onError
-        );
-    }
-
-    /**
-     * Copy a source job's form(s) INTO an explicit target job (request.targetJobId), or the current
-     * job when targetJobId is omitted. Also carries the profile-type pointer / option sets when asked.
-     */
-    copyForms(request: CopyJobFormsRequest, onSuccess: (result: CopyJobFormsResult) => void, onError?: (error: any) => void): void {
-        this.runCall<CopyJobFormsResult>(
-            this.http.post<CopyJobFormsResult>(`${this.apiUrl}/profiles/copy-forms`, request),
-            { setError: m => this._errorMessage.set(m), errorMessage: 'Failed to copy forms' },
-            result => onSuccess(result),
-            onError
-        );
-    }
-
-    // ============================================================================
-    // PER-JOB PLAYER FORM EDITING (steady-state: the job is the unit of truth)
-    // ============================================================================
-
-    /** List jobs carrying a player form, for the editor's job picker (each flagged type + customized). */
-    listEditableJobs(onSuccess: (jobs: EditableJobDto[]) => void, onError?: (error: any) => void): void {
-        this.runCall<EditableJobDto[]>(
-            this.http.get<EditableJobDto[]>(`${this.apiUrl}/profiles/jobs`),
-            { setError: m => this._errorMessage.set(m), errorMessage: 'Failed to load jobs' },
-            jobs => onSuccess(jobs),
-            onError
-        );
-    }
-
-    /** Read one job's player form by JobId. */
-    getJobPlayerForm(jobId: string, onSuccess: (metadata: ProfileMetadata) => void, onError?: (error: any) => void): void {
+    /** Read THIS job's stored player form. */
+    getCurrentJobPlayerForm(onSuccess: (metadata: ProfileMetadata) => void, onError?: (error: any) => void): void {
         this.runCall<ProfileMetadata>(
-            this.http.get<ProfileMetadata>(`${this.apiUrl}/profiles/job/${jobId}/metadata`),
-            { setLoading: v => this._isLoading.set(v), setError: m => this._errorMessage.set(m), errorMessage: 'Failed to load job form' },
+            this.http.get<ProfileMetadata>(`${this.apiUrl}/profiles/current/form`),
+            { setLoading: v => this._isLoading.set(v), setError: m => this._errorMessage.set(m), errorMessage: 'Failed to load this job\'s form' },
             metadata => { this._currentMetadata.set(metadata); onSuccess(metadata); },
             onError
         );
     }
 
-    /** Write ONE job's player form by JobId — per-job, never a fan-out. */
-    updateJobPlayerForm(jobId: string, metadata: ProfileMetadata, onSuccess: (result: { jobId: string; fieldCount: number }) => void, onError?: (error: any) => void): void {
+    /** Write THIS job's player form. Single job, single column — never a fan-out. */
+    updateCurrentJobPlayerForm(metadata: ProfileMetadata, onSuccess: (result: { jobId: string; fieldCount: number }) => void, onError?: (error: any) => void): void {
         this.runCall<{ jobId: string; fieldCount: number }>(
-            this.http.put<{ jobId: string; fieldCount: number }>(`${this.apiUrl}/profiles/job/${jobId}/metadata`, metadata),
-            { setError: m => this._errorMessage.set(m), errorMessage: 'Failed to update job form' },
+            this.http.put<{ jobId: string; fieldCount: number }>(`${this.apiUrl}/profiles/current/form`, metadata),
+            { setError: m => this._errorMessage.set(m), errorMessage: 'Failed to save this job\'s form' },
             result => onSuccess(result),
             onError
         );
     }
 
-    /** Preview which jobs a template-wide write would overwrite (customized ones flagged). */
-    getAffectedJobs(profileType: string, onSuccess: (result: AffectedJobsResult) => void, onError?: (error: any) => void): void {
-        this.runCall<AffectedJobsResult>(
-            this.http.get<AffectedJobsResult>(`${this.apiUrl}/profiles/${profileType}/affected-jobs`),
-            { setError: m => this._errorMessage.set(m), errorMessage: 'Failed to load affected jobs' },
-            result => onSuccess(result),
-            onError
-        );
-    }
+    // ============================================================================
+    // DEPRECATED 2026-08-16 — post-go-live lockdown.
+    //
+    // Everything below in this block targets jobs other than the caller's, or fans a
+    // write out across every job on a profile type. Their server endpoints are commented
+    // out in ProfileMigrationController, so these methods now resolve to 404s.
+    //
+    // Commented rather than annotated: EditableJobDto and AffectedJobsResult leave the OpenAPI
+    // document along with their endpoints, so the next 2-Regenerate-API-Models.ps1 run deletes
+    // those generated models. Live code cannot keep referencing them.
+    //
+    // DO NOT wire any of these to a new UI without revisiting the lockdown rule:
+    // a SuperUser may only read and write the job they are logged into.
+    // ============================================================================
+//     listEditableJobs(onSuccess: (jobs: EditableJobDto[]) => void, onError?: (error: any) => void): void {
+//         this.runCall<EditableJobDto[]>(
+//             this.http.get<EditableJobDto[]>(`${this.apiUrl}/profiles/jobs`),
+//             { setError: m => this._errorMessage.set(m), errorMessage: 'Failed to load jobs' },
+//             jobs => onSuccess(jobs),
+//             onError
+//         );
+//     }
+// 
+//     /** @deprecated 2026-08-16 — reads an arbitrary job. Use getCurrentJobPlayerForm. Endpoint commented out. */
+//     getJobPlayerForm(jobId: string, onSuccess: (metadata: ProfileMetadata) => void, onError?: (error: any) => void): void {
+//         this.runCall<ProfileMetadata>(
+//             this.http.get<ProfileMetadata>(`${this.apiUrl}/profiles/job/${jobId}/metadata`),
+//             { setLoading: v => this._isLoading.set(v), setError: m => this._errorMessage.set(m), errorMessage: 'Failed to load job form' },
+//             metadata => { this._currentMetadata.set(metadata); onSuccess(metadata); },
+//             onError
+//         );
+//     }
+// 
+//     /** @deprecated 2026-08-16 — writes an arbitrary job. Use updateCurrentJobPlayerForm. Endpoint commented out. */
+//     updateJobPlayerForm(jobId: string, metadata: ProfileMetadata, onSuccess: (result: { jobId: string; fieldCount: number }) => void, onError?: (error: any) => void): void {
+//         this.runCall<{ jobId: string; fieldCount: number }>(
+//             this.http.put<{ jobId: string; fieldCount: number }>(`${this.apiUrl}/profiles/job/${jobId}/metadata`, metadata),
+//             { setError: m => this._errorMessage.set(m), errorMessage: 'Failed to update job form' },
+//             result => onSuccess(result),
+//             onError
+//         );
+//     }
+// 
+//     /** @deprecated 2026-08-16 — blast-radius preview for the removed template fan-out. Endpoint commented out. */
+//     getAffectedJobs(profileType: string, onSuccess: (result: AffectedJobsResult) => void, onError?: (error: any) => void): void {
+//         this.runCall<AffectedJobsResult>(
+//             this.http.get<AffectedJobsResult>(`${this.apiUrl}/profiles/${profileType}/affected-jobs`),
+//             { setError: m => this._errorMessage.set(m), errorMessage: 'Failed to load affected jobs' },
+//             result => onSuccess(result),
+//             onError
+//         );
+//     }
 
     // ============================================================================
     // STATE MANAGEMENT
