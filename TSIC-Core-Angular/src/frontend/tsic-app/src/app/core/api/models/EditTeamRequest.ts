@@ -4,6 +4,7 @@
 /* eslint-disable */
 export type EditTeamRequest = {
     teamName?: string | null;
+    renameLibrary?: boolean;
     active?: boolean | null;
     levelOfPlay?: string | null;
     teamComments?: string | null;

@@ -1,7 +1,7 @@
 import { Component, ChangeDetectionStrategy, input, output, signal, computed, inject, linkedSignal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import type { TeamSearchDetailDto, EditTeamRequest, ClubRegistrationDto, SubscriptionDetailDto, ClubAffectedJob, RenameToNewTeamRequest } from '@core/api';
+import type { TeamSearchDetailDto, EditTeamRequest, ClubRegistrationDto, SubscriptionDetailDto, RenameToNewTeamRequest } from '@core/api';
 import { TeamSearchService } from '../services/team-search.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -10,7 +10,8 @@ import { ClubRepPaymentComponent } from '@shared-ui/components/club-rep-payment/
 import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
 import { DraggableModalDirective } from '@shared-ui/directives/draggable-modal.directive';
 import { LOP_CHOICES, normalizeLop } from '@shared/teams/lop-choices';
-import { buildRenameImpactMessage } from '@shared/teams/rename-impact';
+import { TeamRenameConfirmComponent, type TeamRenameScope, type TeamRenameScopeChoice } from '@shared/teams/team-rename-confirm.component';
+import { TeamLibraryNameHintComponent } from '@shared/teams/team-library-name-hint.component';
 import { environment } from '@environments/environment';
 
 type TabType = 'info' | 'accounting';
@@ -26,7 +27,8 @@ function formatPhone(value: string | null | undefined): string | null {
 @Component({
 	selector: 'app-team-detail-panel',
 	standalone: true,
-	imports: [CommonModule, FormsModule, ConfirmDialogComponent, ClubRepPaymentComponent, ResizablePanelDirective, DraggableModalDirective],
+	imports: [CommonModule, FormsModule, ConfirmDialogComponent, ClubRepPaymentComponent, ResizablePanelDirective, DraggableModalDirective,
+		TeamRenameConfirmComponent, TeamLibraryNameHintComponent],
 	templateUrl: './team-detail-panel.component.html',
 	styleUrl: './team-detail-panel.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
@@ -54,12 +56,9 @@ export class TeamDetailPanelComponent {
 	editComments = linkedSignal(() => this.detail()?.teamComments ?? '');
 	isSaving = signal(false);
 
-	/** Club-linked = the name IS the club's library identity; renaming fans out to every job holding a copy. */
+	/** Club-linked = descends from a club-team library row. An admin rename is THIS EVENT ONLY (the
+	 *  library and other events keep their name); SuperUser may also rename the library itself. */
 	readonly isClubLinked = computed(() => this.detail()?.clubTeamId != null);
-
-	/** Orphan teams: any admin (rename stays in this job). Club-linked: SuperUser only — a job admin
-	 *  renaming from their event would silently rewrite other customers' schedules (backend enforces too). */
-	readonly canEditTeamName = computed(() => !this.isClubLinked() || this.auth.isSuperuser());
 
 	/** Fixed 1–5 Level-of-Play choices (shared). The edit form's LOP select binds to this,
 	 *  not the former per-job jsonOptions `List_Lops`. The stored value is normalized for
@@ -214,55 +213,49 @@ export class TeamDetailPanelComponent {
 
 	// ── Edit ──
 
-	// Rename-impact confirm (SuperUser, club-linked teams). Mirrors the admin club-rename modal:
-	// the rename rewrites every listed job's schedule, so the impact list is shown before the save.
+	// Rename briefing (shared team-rename-confirm). Any name change on a club-linked team is
+	// confirmed: job admins learn it's THIS EVENT ONLY; SuperUser may escalate to the library
+	// (all events) inside the same dialog. Orphan teams get the plain confirm.
 	showRenameConfirm = signal(false);
-	renameAffectedJobs = signal<ClubAffectedJob[]>([]);
-	isLoadingRenameImpact = signal(false);
 
-	/** Confirm-dialog body for a club-linked rename — old → new plus the affected-jobs list. */
-	readonly renameConfirmMessage = computed(() =>
-		buildRenameImpactMessage(this.detail()?.teamName ?? '', this.editTeamName().trim(), this.renameAffectedJobs()));
+	/** SuperUser may rename the library row from here; everyone else renames for this event only. */
+	readonly renameScopeChoice = computed<TeamRenameScopeChoice>(() => this.auth.isSuperuser() ? 'both' : 'this-event');
+
+	/** Lazily invoked by the dialog's library step (SuperUser only — the endpoint is SU-gated). */
+	readonly loadRenameImpact = () => this.searchService.getRenameImpact(this.detail()?.teamId ?? '');
 
 	saveTeamInfo(): void {
 		const d = this.detail();
 		if (!d) return;
 
-		// A club-linked rename fans out across jobs — load the impact list and confirm before saving.
-		// (Non-SuperUser admins can't reach this: the name field is locked, so it can't be dirty.)
+		// Orphan teams rename silently (job-local, nothing to explain); club-linked get the briefing.
 		const nameChanged = (this.editTeamName() ?? '') !== (d.teamName ?? '');
 		if (nameChanged && this.isClubLinked()) {
-			this.isLoadingRenameImpact.set(true);
-			this.searchService.getRenameImpact(d.teamId).subscribe({
-				next: (jobs) => {
-					this.renameAffectedJobs.set(jobs);
-					this.isLoadingRenameImpact.set(false);
-					this.showRenameConfirm.set(true);
-				},
-				error: () => {
-					// Impact is advisory — never block the rename on the preview failing.
-					this.renameAffectedJobs.set([]);
-					this.isLoadingRenameImpact.set(false);
-					this.showRenameConfirm.set(true);
-					this.toast.show('Could not load affected schedules — the rename still applies everywhere.', 'warning', 4000);
-				}
-			});
+			this.showRenameConfirm.set(true);
 			return;
 		}
 
-		this.doSaveTeamInfo();
+		this.doSaveTeamInfo('this-event');
 	}
 
-	confirmRename(): void {
+	confirmRename(scope: TeamRenameScope): void {
 		this.showRenameConfirm.set(false);
-		this.doSaveTeamInfo();
+		this.doSaveTeamInfo(scope);
 	}
 
 	cancelRename(): void {
 		this.showRenameConfirm.set(false);
 	}
 
-	private doSaveTeamInfo(): void {
+	/** Reset = a this-event rename back to the library name, through the same confirm. */
+	resetToLibraryName(): void {
+		const lib = this.detail()?.clubTeamName;
+		if (!lib) return;
+		this.editTeamName.set(lib);
+		this.showRenameConfirm.set(true);
+	}
+
+	private doSaveTeamInfo(scope: TeamRenameScope): void {
 		const d = this.detail();
 		if (!d) return;
 
@@ -274,6 +267,7 @@ export class TeamDetailPanelComponent {
 		this.isSaving.set(true);
 		const req: EditTeamRequest = {
 			teamName: this.editTeamName() || undefined,
+			renameLibrary: scope === 'library',
 			active: this.editActive(),
 			levelOfPlay: lopChanged ? (this.editLevelOfPlay() || undefined) : undefined,
 			teamComments: this.editComments() || undefined
@@ -294,9 +288,10 @@ export class TeamDetailPanelComponent {
 	}
 
 	// ── Rename to New Team (club-linked, job-admin) ──
-	// NOT a rename of the library team (that's club property, SU-only above): mints a NEW
-	// club-library team and relinks THIS job's registration to it. Old library team, other
-	// jobs' schedules, TeamId, rosters, and the payment ledger are all untouched.
+	// The "different team" door (merged roster, new grad year) — NOT a rename of this team: mints
+	// a NEW club-library team and relinks THIS job's registration to it. Old library team, other
+	// jobs' schedules, TeamId, rosters, and the payment ledger are all untouched. A same-team
+	// rename is the Team Name field (this event only) above.
 
 	showRenameToNewModal = signal(false);
 	renameToNewName = signal('');

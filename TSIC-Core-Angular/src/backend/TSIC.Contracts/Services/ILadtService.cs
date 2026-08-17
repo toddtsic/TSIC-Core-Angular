@@ -52,10 +52,10 @@ public interface ILadtService
     Task<TeamDetailDto> GetTeamDetailAsync(Guid teamId, Guid jobId, CancellationToken cancellationToken = default);
     Task<TeamDetailDto> CreateTeamAsync(CreateTeamRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default);
     /// <summary>
-    /// Update team properties. A TeamName change on a club-linked team fans out to every job holding a
-    /// copy (via ITeamRenameService), so it is SuperUser-only; orphan-team renames stay job-local.
+    /// Update team properties. A TeamName change is THIS EVENT ONLY (via ITeamRenameService, ThisJob
+    /// scope): the director's own Teams row; a club-linked team's library and other jobs are untouched.
     /// </summary>
-    Task<TeamDetailDto> UpdateTeamAsync(Guid teamId, UpdateTeamRequest request, Guid jobId, string userId, bool isSuperUser, CancellationToken cancellationToken = default);
+    Task<TeamDetailDto> UpdateTeamAsync(Guid teamId, UpdateTeamRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default);
     Task<DeleteTeamResultDto> DeleteTeamAsync(Guid teamId, Guid jobId, string userId, CancellationToken cancellationToken = default);
     Task<DropTeamResultDto> DropTeamAsync(Guid teamId, Guid jobId, string userId, CancellationToken cancellationToken = default);
     Task<TeamDetailDto> CloneTeamAsync(Guid teamId, CloneTeamRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default);

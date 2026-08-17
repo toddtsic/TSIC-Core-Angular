@@ -19,8 +19,7 @@ import type {
     PlaceGameRequest,
     MoveGameRequest,
     DeleteDivGamesRequest,
-    WhoPlaysWhoResponse,
-    ClubAffectedJob
+    WhoPlaysWhoResponse
 } from '@core/api';
 
 // TODO: remove after API model regeneration — GameDateInfoDto will be auto-generated
@@ -116,11 +115,6 @@ export class ScheduleDivisionService {
         return this.http.put<DivisionTeamDto[]>(
             `${environment.apiUrl}/pairings/division-team`, request
         );
-    }
-
-    /** SuperUser: jobs whose schedules a rename of this club-linked team would rewrite (team-search endpoint). */
-    getRenameImpact(teamId: string): Observable<ClubAffectedJob[]> {
-        return this.http.get<ClubAffectedJob[]>(`${environment.apiUrl}/team-search/${teamId}/rename-impact`);
     }
 
     // ── Who Plays Who ──

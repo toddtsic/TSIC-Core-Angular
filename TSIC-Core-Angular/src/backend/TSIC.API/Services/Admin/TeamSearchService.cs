@@ -148,8 +148,9 @@ public sealed class TeamSearchService : ITeamSearchService
         var lopOptions = await GetLopOptionsAsync(jobId, ct);
         var distinctClubCount = await _teamRepo.GetDistinctClubCountAsync(jobId, ct);
 
-        // Rename-to-new-team modal context: library identity prefill + the "already on this
-        // job's schedule" heads-up. Both null/false for an orphan team (modal not offered).
+        // Library context: the library name (alias detection + reset), identity prefill for the
+        // rename-to-new-team modal, and the "already on this job's schedule" heads-up. All null/false
+        // for an orphan team.
         ClubTeams? libTeam = null;
         var hasScheduleRows = false;
         if (detail.ClubTeamId is int libId)
@@ -192,6 +193,7 @@ public sealed class TeamSearchService : ITeamSearchService
             HasSubscription = detail.HasSubscription,
             StoredSubscription = detail.StoredSubscription,
             ClubTeamId = detail.ClubTeamId,
+            ClubTeamName = libTeam?.ClubTeamName,
             ClubTeamGradYear = libTeam?.ClubTeamGradYear,
             ClubTeamLevelOfPlay = libTeam?.ClubTeamLevelOfPlay,
             HasScheduleRows = hasScheduleRows
@@ -274,11 +276,10 @@ public sealed class TeamSearchService : ITeamSearchService
         team.LebUserId = userId;
         await _teamRepo.SaveChangesAsync(ct);
 
-        // Canonical rename path. The team is now owned by the NEW library row, so the cross-job
-        // fan-out over GetTrackedTeamsByClubTeamIdAsync(newClubTeamId) finds exactly one copy —
-        // this job's — and runs job-local: TeamName stamp, WAITLIST twin, schedule recompose.
-        // The old library team and every other job referencing it are untouched.
-        await _teamRename.RenameTeamAsync(teamId, jobId, newName, userId, ct);
+        // Canonical rename path, job-local by construction: the NEW library row already carries the
+        // new name, so only this job's copy needs the TeamName stamp, WAITLIST twin, and schedule
+        // recompose. The old library team and every other job referencing it are untouched.
+        await _teamRename.RenameTeamAsync(teamId, jobId, newName, userId, TeamRenameScope.ThisJob, ct);
 
         _logger.LogInformation(
             "RenameToNewClubTeam: Team {TeamId} in job {JobId} relinked ClubTeam {OldClubTeamId} -> {NewClubTeamId} ('{NewName}') by {UserId}",
@@ -468,13 +469,13 @@ public sealed class TeamSearchService : ITeamSearchService
             && !string.Equals(oldTeamName, request.TeamName, StringComparison.Ordinal)
             && !oldTeamName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase);
 
-        // Ownership gate: a club-linked team's name is the club's library identity — renaming fans out
-        // to every job holding a copy, including other customers' schedules. A job admin has no standing
-        // there, so only SuperUser may rename. Orphan teams (no ClubTeamId) stay job-local and open.
-        if (teamNameChanged && team.ClubTeamId != null && !isSuperUser)
+        // Scope: by default a rename is THIS EVENT ONLY — the director's own Teams row; the club's
+        // library and every other job keep their name. Reaching the library (fan-out to other
+        // customers' schedules) is SuperUser-only — a job admin has no standing there.
+        var scope = request.RenameLibrary ? TeamRenameScope.Library : TeamRenameScope.ThisJob;
+        if (teamNameChanged && scope == TeamRenameScope.Library && team.ClubTeamId != null && !isSuperUser)
             throw new InvalidOperationException(
-                "This team's name comes from its club's team library and appears in other events' schedules. "
-                + "Only TSIC support can rename it — ask the club rep to rename it in their team library, or contact support.");
+                "Only TSIC support can rename a team in its club's library. Rename it for this event instead.");
 
         if (request.Active.HasValue) team.Active = request.Active.Value;
         if (request.LevelOfPlay != null) team.LevelOfPlay = request.LevelOfPlay;
@@ -485,10 +486,10 @@ public sealed class TeamSearchService : ITeamSearchService
 
         await _teamRepo.SaveChangesAsync(ct);
 
-        // Name change → library + cross-job copies + WAITLIST twin + schedule recompose, all owned by
-        // the service. Previously this path relied entirely on the implicit SaveChanges trigger.
+        // Name change → owned by the service: this job's row + WAITLIST twin + schedule recompose, and
+        // (Library scope) the library row + every other job's mirroring copy.
         if (teamNameChanged)
-            await _teamRename.RenameTeamAsync(teamId, jobId, request.TeamName!, userId, ct);
+            await _teamRename.RenameTeamAsync(teamId, jobId, request.TeamName!, userId, scope, ct);
 
         // Active is one of the filters on the rep-aggregate sync query — flipping it
         // here without re-aggregating leaves clubRep.OwedTotal counting (or omitting)

@@ -76,6 +76,19 @@ public class ClubTeamRepository : IClubTeamRepository
             .ToDictionaryAsync(ct => ct.ClubTeamId, ct => ct.ClubId, cancellationToken);
     }
 
+    public async Task<Dictionary<int, string>> GetLibraryNamesForClubTeamIdsAsync(
+        IEnumerable<int> clubTeamIds,
+        CancellationToken cancellationToken = default)
+    {
+        var idList = clubTeamIds.Distinct().ToList();
+        if (idList.Count == 0) return new Dictionary<int, string>();
+
+        return await _context.ClubTeams
+            .Where(ct => idList.Contains(ct.ClubTeamId))
+            .AsNoTracking()
+            .ToDictionaryAsync(ct => ct.ClubTeamId, ct => ct.ClubTeamName, cancellationToken);
+    }
+
     public void Add(ClubTeams clubTeam)
     {
         _context.ClubTeams.Add(clubTeam);

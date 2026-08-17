@@ -42,6 +42,7 @@ export type TeamDetailDto = {
     teamComments?: string | null;
     clubRepRegistrationId?: string | null;
     clubTeamId?: number | null;
+    clubTeamName?: string | null;
     playerCount?: number;
 };
 

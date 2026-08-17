@@ -5,7 +5,8 @@ namespace TSIC.API.Services.Teams;
 
 /// <summary>
 /// See <see cref="ITeamRenameService"/>. Mirrors <c>ClubService.AdminRenameClubAsync</c> one level down:
-/// <c>ClubTeams.ClubTeamName</c> is the source, <c>Teams.TeamName</c> + the schedule columns are copies.
+/// <c>ClubTeams.ClubTeamName</c> is the source, <c>Teams.TeamName</c> + the schedule columns are copies —
+/// except a copy a director has renamed for their event, which the library fan-out leaves alone.
 /// Reads committed state and writes explicitly — no <c>SaveChanges</c> hook.
 /// </summary>
 public sealed class TeamRenameService : ITeamRenameService
@@ -27,25 +28,25 @@ public sealed class TeamRenameService : ITeamRenameService
     public async Task RenameClubTeamAsync(int clubTeamId, string newName, string userId, CancellationToken ct = default)
     {
         var lib = await _clubTeamRepo.GetByIdAsync(clubTeamId, ct);
-        var oldName = lib?.ClubTeamName ?? string.Empty;
-        await ApplyLibraryRenameAsync(clubTeamId, lib, oldName, newName, userId, ct);
+        await ApplyLibraryRenameAsync(clubTeamId, lib, newName, userId, ct);
     }
 
-    public async Task RenameTeamAsync(Guid teamId, Guid jobId, string newName, string userId, CancellationToken ct = default)
+    public async Task RenameTeamAsync(
+        Guid teamId, Guid jobId, string newName, string userId, TeamRenameScope scope, CancellationToken ct = default)
     {
         var team = await _teamRepo.GetTeamFromTeamId(teamId, ct);
         if (team == null) return;
 
-        var oldName = team.TeamName ?? string.Empty;
-
-        // Library-owned → fan out via the club-team id. Orphan → own row + this job only.
-        if (team.ClubTeamId is int clubTeamId)
+        // Library-owned AND asked to reach the library → fan out via the club-team id.
+        // Otherwise (orphan, or a director's this-event rename) → own row + this job only.
+        if (scope == TeamRenameScope.Library && team.ClubTeamId is int clubTeamId)
         {
             var lib = await _clubTeamRepo.GetByIdAsync(clubTeamId, ct);
-            await ApplyLibraryRenameAsync(clubTeamId, lib, oldName, newName, userId, ct);
+            await ApplyLibraryRenameAsync(clubTeamId, lib, newName, userId, ct);
         }
         else
         {
+            var oldName = team.TeamName ?? string.Empty;
             Stamp(team, newName, userId);
             await RenameTwinInJobAsync(jobId, oldName, newName, userId, ct);
             await _scheduleRepo.RecomposeScheduleNamesForJobAsync(jobId, team: (teamId, newName), ct: ct);
@@ -54,25 +55,44 @@ public sealed class TeamRenameService : ITeamRenameService
     }
 
     /// <summary>
-    /// The three beats for a library-owned team: (1) the library source, (2) every job's event copy and
-    /// its WAITLIST twin, (3) each job's schedule. The per-job canonical writer keys on the job's own
-    /// TeamId — which is why this loops rows rather than passing a single pair to RecomposeAcrossJobs.
+    /// The three beats for a library-owned team: (1) the library source, (2) every job's event copy that
+    /// still mirrors the library and its WAITLIST twin, (3) each such job's schedule. The per-job canonical
+    /// writer keys on the job's own TeamId — which is why this loops rows rather than passing a single
+    /// pair to RecomposeAcrossJobs. The OLD name is the library's, never a copy's — a copy may already
+    /// carry a director's this-event name, and that copy is skipped: their decision stands until they
+    /// reset it.
     /// </summary>
     private async Task ApplyLibraryRenameAsync(
-        int clubTeamId, ClubTeams? lib, string oldName, string newName, string userId, CancellationToken ct)
+        int clubTeamId, ClubTeams? lib, string newName, string userId, CancellationToken ct)
     {
+        var oldName = lib?.ClubTeamName ?? string.Empty;
+        if (oldName == newName) return;
+
+        // Library identity guard (club + name + grad year) at the chokepoint, so every door — library
+        // modal, admin search, LADT, pairings — refuses to rename onto a sibling. Renaming never merges.
+        if (lib != null)
+        {
+            var collision = await _clubTeamRepo.FindByIdentityAsync(lib.ClubId, newName, lib.ClubTeamGradYear, ct);
+            if (collision != null && collision.ClubTeamId != clubTeamId)
+                throw new InvalidOperationException(
+                    $"'{newName}' ({lib.ClubTeamGradYear}) is already in this club's library. Renaming does not merge teams.");
+        }
+
         // Beat 1 — library source (identity of record).
-        if (lib != null && lib.ClubTeamName != newName)
+        if (lib != null)
         {
             lib.ClubTeamName = newName;
             lib.LebUserId = userId;
             lib.Modified = DateTime.Now;
         }
 
-        // Beats 2 + 3 — every event copy across all jobs, its twin, then that job's schedule.
+        // Beats 2 + 3 — every event copy still holding the library name, its twin, then that job's schedule.
         var copies = await _teamRepo.GetTrackedTeamsByClubTeamIdAsync(clubTeamId, ct);
         foreach (var t in copies)
         {
+            if (!string.Equals(t.TeamName, oldName, StringComparison.Ordinal))
+                continue; // diverged for its event — the director's name stands
+
             Stamp(t, newName, userId);
             await RenameTwinInJobAsync(t.JobId, oldName, newName, userId, ct);
             await _scheduleRepo.RecomposeScheduleNamesForJobAsync(t.JobId, team: (t.TeamId, newName), ct: ct);

@@ -402,8 +402,37 @@ public class TeamRegistrationController : ControllerBase
     }
 
     /// <summary>
-    /// Update a ClubTeam in the caller's club library.
-    /// Rejected with 400 if the team has ever appeared on a schedule.
+    /// Events holding a copy of one of the caller's library teams — the affected-events list the
+    /// library edit modal shows before a rename. Rep of the owning club only (403 otherwise).
+    /// </summary>
+    [HttpGet("club-team/{clubTeamId:int}/rename-impact")]
+    [ProducesResponseType(typeof(List<ClubAffectedJob>), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    public async Task<IActionResult> GetClubTeamRenameImpact(int clubTeamId)
+    {
+        if (!IsClubRepRole())
+            return StatusCode(403, new { Message = NotClubRepMessage });
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized(new { Message = UserNotAuthenticatedMessage });
+
+        try
+        {
+            return Ok(await _teamRegistrationService.GetClubTeamRenameImpactAsync(userId, clubTeamId));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { Message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Update a ClubTeam in the caller's club library. Once scheduled anywhere, grad year and level
+    /// of play are locked (400 if changed); the name stays editable and fans out to every event copy.
     /// </summary>
     [HttpPut("club-team/{clubTeamId:int}")]
     [ProducesResponseType(typeof(ClubTeamDto), 200)]

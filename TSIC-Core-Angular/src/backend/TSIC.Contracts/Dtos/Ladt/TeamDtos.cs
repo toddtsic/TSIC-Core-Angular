@@ -57,6 +57,10 @@ public record TeamDetailDto
     public Guid? ClubRepRegistrationId { get; init; }
     public int? ClubTeamId { get; init; }
 
+    /// <summary>The linked club team's LIBRARY name (null for an orphan team). Differs from
+    /// <see cref="TeamName"/> when a director has renamed the team for this event only.</summary>
+    public string? ClubTeamName { get; init; }
+
     // Player count (from Registrations join)
     public int PlayerCount { get; init; }
 }

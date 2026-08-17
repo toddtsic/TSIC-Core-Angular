@@ -25,7 +25,8 @@ import { AutoBuildService } from '../auto-build/services/auto-build.service';
 import { ScheduleQaService } from '../qa-results/services/schedule-qa.service';
 import { TimeslotService } from '../timeslots/services/timeslot.service';
 import { formatTime, teamDes, contrastText, agTeamCount } from '../shared/utils/scheduling-helpers';
-import { buildRenameImpactMessage } from '@shared/teams/rename-impact';
+import { TeamRenameConfirmComponent } from '@shared/teams/team-rename-confirm.component';
+import { TeamLibraryNameHintComponent } from '@shared/teams/team-library-name-hint.component';
 import { findTimeClashInRow } from '../shared/utils/conflict-detection';
 import type { ScheduleScope } from '../shared/utils/scheduling-helpers';
 import { DivisionNavigatorComponent } from '../shared/components/division-navigator/division-navigator.component';
@@ -66,7 +67,7 @@ const AUTO_SEED_FROM_PRIOR_ON_INIT = false;
 @Component({
     selector: 'app-schedule-division',
     standalone: true,
-    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, DivisionBuildConfirmModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent, ManageFieldsComponent, ManagePairingsComponent, ManageTimeslotsComponent, PoolAssignmentComponent, BracketSeedsComponent, BracketDevToolsComponent, MasterScheduleComponent, QaResultsComponent, ConfirmDialogComponent, ChecklistBackLinkComponent],
+    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, DivisionBuildConfirmModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent, ManageFieldsComponent, ManagePairingsComponent, ManageTimeslotsComponent, PoolAssignmentComponent, BracketSeedsComponent, BracketDevToolsComponent, MasterScheduleComponent, QaResultsComponent, ConfirmDialogComponent, ChecklistBackLinkComponent, TeamRenameConfirmComponent, TeamLibraryNameHintComponent],
     templateUrl: './schedule-division.component.html',
     styleUrl: './schedule-division.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -355,19 +356,12 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
 
     // ── Teams state ──
     readonly divisionTeams = signal<DivisionTeamDto[]>([]);
-    readonly editingTeam = signal<{ teamId: string; divRank: number; teamName: string; originalTeamName: string; clubName: string; clubTeamId: number | null } | null>(null);
+    readonly editingTeam = signal<{ teamId: string; divRank: number; teamName: string; originalTeamName: string; clubName: string; clubTeamId: number | null; clubTeamName: string | null } | null>(null);
     readonly isSavingTeam = signal(false);
 
-    /** Orphan teams: any admin (rename stays in this job). Club-linked: SuperUser only — the name is
-     *  the club's library identity and renaming fans out to other customers' schedules (server enforces). */
-    readonly canEditTeamName = computed(() => {
-        const t = this.editingTeam();
-        return t == null || t.clubTeamId == null || this.auth.isSuperuser();
-    });
-
-    // Club-linked rename confirm (SuperUser): affected-jobs warning before the save fires.
+    // Rename briefing (shared team-rename-confirm) before the save fires: a name change here is
+    // THIS EVENT ONLY — the club's library and other events keep their name.
     readonly showRenameConfirm = signal(false);
-    readonly renameConfirmMessage = signal('');
 
     // ── Who Plays Who ──
     readonly whoPlaysWhoMatrix = signal<number[][] | null>(null);
@@ -1003,7 +997,8 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
             teamName: team.teamName ?? '',
             originalTeamName: team.teamName ?? '',
             clubName: team.clubName ?? '',
-            clubTeamId: team.clubTeamId ?? null
+            clubTeamId: team.clubTeamId ?? null,
+            clubTeamName: team.clubTeamName ?? null
         });
     }
 
@@ -1026,21 +1021,9 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
         const team = this.editingTeam();
         if (!team) return;
 
-        // Club-linked rename → affected-jobs confirm first (SuperUser; the field is locked for
-        // other admins so it can't be dirty here).
-        if (team.clubTeamId != null && team.teamName !== team.originalTeamName) {
-            this.svc.getRenameImpact(team.teamId).subscribe({
-                next: (jobs) => {
-                    this.renameConfirmMessage.set(buildRenameImpactMessage(team.originalTeamName, team.teamName.trim(), jobs));
-                    this.showRenameConfirm.set(true);
-                },
-                error: () => {
-                    // Impact is advisory — never block the rename on the preview failing.
-                    this.renameConfirmMessage.set(buildRenameImpactMessage(team.originalTeamName, team.teamName.trim(), []));
-                    this.showRenameConfirm.set(true);
-                    this.toast.show('Could not load affected schedules — the rename still applies everywhere.', 'warning', 4000);
-                }
-            });
+        // Club-linked name change → the rename briefing first (this event only). Orphans rename silently.
+        if (team.clubTeamId != null && team.teamName.trim().length > 0 && team.teamName !== team.originalTeamName) {
+            this.showRenameConfirm.set(true);
             return;
         }
 
@@ -1054,6 +1037,14 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
 
     cancelRename(): void {
         this.showRenameConfirm.set(false);
+    }
+
+    /** Reset = a this-event rename back to the library name, through the same confirm. */
+    resetToLibraryName(): void {
+        const t = this.editingTeam();
+        if (!t?.clubTeamName) return;
+        this.editingTeam.set({ ...t, teamName: t.clubTeamName });
+        this.showRenameConfirm.set(true);
     }
 
     private doSaveTeamEdit(): void {

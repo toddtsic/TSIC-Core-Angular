@@ -147,10 +147,14 @@ public record DivisionTeamDto
     public string? TeamName { get; init; }
 
     /// <summary>
-    /// Club-team library row this event copy descends from. Null for an orphan team. When set, a
-    /// rename fans out to every job holding a copy — the UI locks the name for non-SuperUser admins.
+    /// Club-team library row this event copy descends from. Null for an orphan team. An admin rename
+    /// here is this-event-only; the library and other jobs keep their name.
     /// </summary>
     public int? ClubTeamId { get; init; }
+
+    /// <summary>The linked club team's LIBRARY name (null for an orphan team). Differs from
+    /// <see cref="TeamName"/> when a director has renamed the team for this event only.</summary>
+    public string? ClubTeamName { get; init; }
 }
 
 /// <summary>

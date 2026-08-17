@@ -57,6 +57,14 @@ public interface IClubTeamRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Maps each supplied ClubTeamId to its LIBRARY name in one batched query. Lets a job-scoped
+    /// team list flag copies a director renamed for this event only (Teams.TeamName ≠ library name).
+    /// </summary>
+    Task<Dictionary<int, string>> GetLibraryNamesForClubTeamIdsAsync(
+        IEnumerable<int> clubTeamIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Returns the subset of the supplied ClubTeamIds that have EVER appeared on the schedule
     /// (any job, lifetime). Used to lock edit/delete on library teams with historical performance.
     /// One batched query via ClubTeams → Teams → Schedule (T1Id / T2Id).

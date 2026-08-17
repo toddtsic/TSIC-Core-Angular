@@ -54,8 +54,8 @@
         }
         @if (isClubLinked()) {
           <div class="header-rename-row">
-            <!-- The job-admin door for Kim's case: the true rename is SU-only (club property), but
-                 minting a NEW library team and relinking this event's registration is job-local. -->
+            <!-- The "different team" door (merged roster, new grad year): mints a NEW library team and
+                 relinks this event's registration. A same-team rename is the Team Name field below. -->
             <button type="button" class="btn btn-sm btn-outline-primary rename-to-new-btn"
                     (click)="openRenameToNew()" [disabled]="isRenamingToNew()">
               <i class="bi bi-signpost-split me-1" aria-hidden="true"></i>Rename to New Team
@@ -80,14 +80,13 @@
               <div class="form-group">
                 <label for="teamName">Team Name</label>
                 <input type="text" id="teamName" class="form-control"
-                  [ngModel]="editTeamName()" (ngModelChange)="editTeamName.set($event)" name="teamName"
-                  [disabled]="!canEditTeamName()" />
-                @if (!canEditTeamName()) {
-                  <p class="tip mb-0">
-                    <i class="bi bi-lock me-1" aria-hidden="true"></i>This name comes from the club's team
-                    library and appears in other events' schedules. Ask the club rep to rename it, or contact TSIC support.
-                  </p>
-                }
+                  [ngModel]="editTeamName()" (ngModelChange)="editTeamName.set($event)" name="teamName" />
+                <!-- Says when this event's name differs from the club's library name; Reset routes
+                     through the same rename confirm as any other name change. -->
+                <team-library-name-hint
+                  [teamName]="team.teamName"
+                  [libraryName]="team.clubTeamName"
+                  (reset)="resetToLibraryName()" />
               </div>
               <div class="form-group">
                 <label for="editLop">Level of Play</label>
@@ -107,8 +106,8 @@
               </div>
               <div class="edit-form-actions" [class.is-dirty]="isDirty()">
                 <button type="submit" class="btn btn-primary btn-sm detail-save-btn"
-                        [class.pulse]="isDirty()" [disabled]="isSaving() || isLoadingRenameImpact()">
-                  @if (isSaving() || isLoadingRenameImpact()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        [class.pulse]="isDirty()" [disabled]="isSaving()">
+                  @if (isSaving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
                   Save Changes
                 </button>
                 @if (isDirty()) {
@@ -450,16 +449,16 @@
   </div>
 }
 
-<!-- Rename club-linked team: affected-jobs warning (SuperUser; mirrors the admin club-rename modal) -->
-@if (showRenameConfirm()) {
-  <confirm-dialog
-    title="Rename Team Everywhere?"
-    [message]="renameConfirmMessage()"
-    confirmLabel="Rename Team"
-    confirmVariant="warning"
-    (confirmed)="confirmRename()"
-    (cancelled)="cancelRename()">
-  </confirm-dialog>
+<!-- Rename briefing (shared): this-event-only for admins; SuperUser may escalate to the library. -->
+@if (showRenameConfirm() && detail(); as d) {
+  <team-rename-confirm
+    [currentName]="d.teamName"
+    [newName]="editTeamName().trim()"
+    [libraryName]="d.clubTeamName"
+    [scopeChoice]="renameScopeChoice()"
+    [loadImpact]="loadRenameImpact"
+    (confirmed)="confirmRename($event)"
+    (cancelled)="cancelRename()" />
 }
 
 <!-- Move Team Confirm Dialog -->

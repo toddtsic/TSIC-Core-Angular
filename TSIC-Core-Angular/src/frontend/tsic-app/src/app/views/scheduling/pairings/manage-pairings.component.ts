@@ -15,9 +15,9 @@ import { WpwMatrixComponent } from '../shared/components/wpw-matrix/wpw-matrix.c
 import { DivisionTeamsTableComponent } from '../shared/components/division-teams-table/division-teams-table.component';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
-import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
-import { buildRenameImpactMessage } from '@shared/teams/rename-impact';
+import { TeamRenameConfirmComponent } from '@shared/teams/team-rename-confirm.component';
+import { TeamLibraryNameHintComponent } from '@shared/teams/team-library-name-hint.component';
 import type { ScheduleScope } from '../shared/utils/scheduling-helpers';
 import { ChecklistBackLinkComponent } from '../shared/components/checklist-back-link/checklist-back-link.component';
 
@@ -42,14 +42,14 @@ const BRACKET_OPTIONS = [
 @Component({
     selector: 'app-manage-pairings',
     standalone: true,
-    imports: [CommonModule, FormsModule, DivisionNavigatorComponent, WpwMatrixComponent, DivisionTeamsTableComponent, TsicDialogComponent, ConfirmDialogComponent, ChecklistBackLinkComponent],
+    imports: [CommonModule, FormsModule, DivisionNavigatorComponent, WpwMatrixComponent, DivisionTeamsTableComponent, TsicDialogComponent, ConfirmDialogComponent, ChecklistBackLinkComponent,
+        TeamRenameConfirmComponent, TeamLibraryNameHintComponent],
     templateUrl: './manage-pairings.component.html',
     styleUrl: './manage-pairings.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ManagePairingsComponent implements OnInit {
     private readonly svc = inject(PairingsService);
-    private readonly auth = inject(AuthService);
     private readonly toast = inject(ToastService);
     private readonly navigator = viewChild(DivisionNavigatorComponent);
 
@@ -113,18 +113,11 @@ export class ManagePairingsComponent implements OnInit {
     // ── Division Teams ──
     readonly divisionTeams = signal<DivisionTeamDto[]>([]);
     readonly isSavingTeam = signal(false);
-    readonly editingTeam = signal<{ teamId: string; divRank: number; teamName: string; originalTeamName: string; clubName: string; clubTeamId: number | null } | null>(null);
+    readonly editingTeam = signal<{ teamId: string; divRank: number; teamName: string; originalTeamName: string; clubName: string; clubTeamId: number | null; clubTeamName: string | null } | null>(null);
 
-    /** Orphan teams: any admin (rename stays in this job). Club-linked: SuperUser only — the name is
-     *  the club's library identity and renaming fans out to other customers' schedules (server enforces). */
-    readonly canEditTeamName = computed(() => {
-        const t = this.editingTeam();
-        return t == null || t.clubTeamId == null || this.auth.isSuperuser();
-    });
-
-    // Club-linked rename confirm (SuperUser): affected-jobs warning before the save fires.
+    // Rename briefing (shared team-rename-confirm) before the save fires: a name change here is
+    // THIS EVENT ONLY — the club's library and other events keep their name.
     readonly showRenameConfirm = signal(false);
-    readonly renameConfirmMessage = signal('');
     readonly rankOptions = computed(() =>
         Array.from({ length: this.divisionTeams().length }, (_, i) => i + 1)
     );
@@ -403,7 +396,8 @@ export class ManagePairingsComponent implements OnInit {
             teamName: team.teamName ?? '',
             originalTeamName: team.teamName ?? '',
             clubName: team.clubName ?? '',
-            clubTeamId: team.clubTeamId ?? null
+            clubTeamId: team.clubTeamId ?? null,
+            clubTeamName: team.clubTeamName ?? null
         });
     }
 
@@ -422,21 +416,9 @@ export class ManagePairingsComponent implements OnInit {
         const t = this.editingTeam();
         if (!t) return;
 
-        // Club-linked rename → affected-jobs confirm first (SuperUser; the field is locked for
-        // other admins so it can't be dirty here).
-        if (t.clubTeamId != null && t.teamName !== t.originalTeamName) {
-            this.svc.getRenameImpact(t.teamId).subscribe({
-                next: (jobs) => {
-                    this.renameConfirmMessage.set(buildRenameImpactMessage(t.originalTeamName, t.teamName.trim(), jobs));
-                    this.showRenameConfirm.set(true);
-                },
-                error: () => {
-                    // Impact is advisory — never block the rename on the preview failing.
-                    this.renameConfirmMessage.set(buildRenameImpactMessage(t.originalTeamName, t.teamName.trim(), []));
-                    this.showRenameConfirm.set(true);
-                    this.toast.show('Could not load affected schedules — the rename still applies everywhere.', 'warning', 4000);
-                }
-            });
+        // Club-linked name change → the rename briefing first (this event only). Orphans rename silently.
+        if (t.clubTeamId != null && t.teamName.trim().length > 0 && t.teamName !== t.originalTeamName) {
+            this.showRenameConfirm.set(true);
             return;
         }
 
@@ -450,6 +432,14 @@ export class ManagePairingsComponent implements OnInit {
 
     cancelRename(): void {
         this.showRenameConfirm.set(false);
+    }
+
+    /** Reset = a this-event rename back to the library name, through the same confirm. */
+    resetToLibraryName(): void {
+        const t = this.editingTeam();
+        if (!t?.clubTeamName) return;
+        this.editingTeam.set({ ...t, teamName: t.clubTeamName });
+        this.showRenameConfirm.set(true);
     }
 
     private doSaveTeamEdit(): void {

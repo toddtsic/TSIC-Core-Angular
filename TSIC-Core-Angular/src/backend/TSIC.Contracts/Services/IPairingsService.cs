@@ -79,9 +79,9 @@ public interface IPairingsService
     /// <summary>
     /// Edit a team's rank and/or name. Rank changes perform an atomic swap.
     /// After changes, renumbers ranks and synchronizes schedule records.
-    /// Returns the refreshed team list. A name change on a club-linked team fans out to every job
-    /// holding a copy (via ITeamRenameService), so it is SuperUser-only.
+    /// Returns the refreshed team list. A name change is THIS EVENT ONLY (via ITeamRenameService,
+    /// ThisJob scope) — a club-linked team's library and other jobs are untouched.
     /// </summary>
     Task<List<DivisionTeamDto>> EditDivisionTeamAsync(
-        Guid jobId, string userId, bool isSuperUser, EditDivisionTeamRequest request, CancellationToken ct = default);
+        Guid jobId, string userId, EditDivisionTeamRequest request, CancellationToken ct = default);
 }

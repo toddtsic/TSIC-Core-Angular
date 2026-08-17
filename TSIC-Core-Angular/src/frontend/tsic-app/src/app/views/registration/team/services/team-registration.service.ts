@@ -15,6 +15,7 @@ import {
     CheckExistingRegistrationsResponse,
     UpdateClubTeamRequest,
     EmailTestSendResponse,
+    ClubAffectedJob,
 } from '@core/api';
 
 /**
@@ -255,11 +256,17 @@ export class TeamRegistrationService {
     }
 
     /**
-     * Update a ClubTeam in the caller's club library.
-     * Rejected by the backend if the team has ever appeared on a schedule.
+     * Update a ClubTeam in the caller's club library. Once the team has appeared on any schedule,
+     * grad year and level of play are locked (400 if changed); the name stays editable and fans
+     * out to every event copy still mirroring the library.
      */
     updateClubTeam(clubTeamId: number, request: UpdateClubTeamRequest): Observable<ClubTeamDto> {
         return this.http.put<ClubTeamDto>(`${this.apiUrl}/club-team/${clubTeamId}`, request);
+    }
+
+    /** Events holding a copy of one of the caller's library teams — shown before a library rename. */
+    getClubTeamRenameImpact(clubTeamId: number): Observable<ClubAffectedJob[]> {
+        return this.http.get<ClubAffectedJob[]>(`${this.apiUrl}/club-team/${clubTeamId}/rename-impact`);
     }
 
     /**

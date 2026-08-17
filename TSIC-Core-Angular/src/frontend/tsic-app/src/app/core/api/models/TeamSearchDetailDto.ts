@@ -14,6 +14,7 @@ export type TeamSearchDetailDto = {
     levelOfPlay?: string | null;
     active: boolean;
     clubTeamId?: number | null;
+    clubTeamName?: string | null;
     clubTeamGradYear?: string | null;
     clubTeamLevelOfPlay?: string | null;
     hasScheduleRows?: boolean;

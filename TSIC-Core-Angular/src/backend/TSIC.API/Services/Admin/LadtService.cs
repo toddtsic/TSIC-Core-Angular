@@ -762,7 +762,7 @@ public sealed class LadtService : ILadtService
             ?? throw new KeyNotFoundException($"Team {teamId} not found.");
         var playerCount = await _teamRepo.GetPlayerCountAsync(teamId, cancellationToken);
         var clubName = await _teamRepo.GetClubNameForTeamAsync(teamId, cancellationToken);
-        return MapTeam(team, playerCount, clubName);
+        return MapTeam(team, playerCount, clubName, await GetLibraryNameAsync(team, cancellationToken));
     }
 
     public async Task<TeamDetailDto> CreateTeamAsync(CreateTeamRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default)
@@ -825,7 +825,7 @@ public sealed class LadtService : ILadtService
         return MapTeam(team, 0);
     }
 
-    public async Task<TeamDetailDto> UpdateTeamAsync(Guid teamId, UpdateTeamRequest request, Guid jobId, string userId, bool isSuperUser, CancellationToken cancellationToken = default)
+    public async Task<TeamDetailDto> UpdateTeamAsync(Guid teamId, UpdateTeamRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default)
     {
         await ValidateTeamOwnershipAsync(teamId, jobId, cancellationToken);
         var team = await _teamRepo.GetTeamFromTeamId(teamId, cancellationToken)
@@ -839,12 +839,8 @@ public sealed class LadtService : ILadtService
             && !string.Equals(oldTeamName, request.TeamName, StringComparison.Ordinal)
             && !oldTeamName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase);
 
-        // Ownership gate (mirrors TeamSearchService.EditTeamAsync): a club-linked team's name is the
-        // club's library identity — renaming fans out to other customers' schedules, so SuperUser only.
-        if (teamNameChanged && team.ClubTeamId != null && !isSuperUser)
-            throw new InvalidOperationException(
-                "This team's name comes from its club's team library and appears in other events' schedules. "
-                + "Only TSIC support can rename it — ask the club rep to rename it in their team library, or contact support.");
+        // A rename here is THIS EVENT ONLY (director's own Teams row); the club's library and other
+        // jobs keep their name. Library-wide rename lives in Search Teams (SuperUser) and the rep's library.
 
         if (request.Active.HasValue) team.Active = request.Active;
         if (request.DivisionRequested != null) team.DivisionRequested = request.DivisionRequested;
@@ -879,10 +875,9 @@ public sealed class LadtService : ILadtService
 
         await _teamRepo.SaveChangesAsync(cancellationToken);
 
-        // Team rename → the single chokepoint: writes TeamName across every job's copy + the library
-        // row, carries the WAITLIST twin, and recomposes each affected schedule.
+        // Team rename → the single chokepoint, this job only: TeamName, WAITLIST twin, schedule recompose.
         if (teamNameChanged)
-            await _teamRename.RenameTeamAsync(teamId, jobId, request.TeamName!, userId, cancellationToken);
+            await _teamRename.RenameTeamAsync(teamId, jobId, request.TeamName!, userId, TSIC.API.Services.Teams.TeamRenameScope.ThisJob, cancellationToken);
 
         // Active is one of the filters on the rep-aggregate sync query — flipping it
         // here without re-aggregating leaves clubRep.OwedTotal counting (or omitting)
@@ -893,7 +888,7 @@ public sealed class LadtService : ILadtService
 
         var playerCount = await _teamRepo.GetPlayerCountAsync(teamId, cancellationToken);
         var clubName = await _teamRepo.GetClubNameForTeamAsync(teamId, cancellationToken);
-        return MapTeam(team, playerCount, clubName);
+        return MapTeam(team, playerCount, clubName, await GetLibraryNameAsync(team, cancellationToken));
     }
 
     public async Task<DeleteTeamResultDto> DeleteTeamAsync(Guid teamId, Guid jobId, string userId, CancellationToken cancellationToken = default)
@@ -1721,7 +1716,16 @@ public sealed class LadtService : ILadtService
         MaxRoundNumberToShow = d.MaxRoundNumberToShow
     };
 
-    private static TeamDetailDto MapTeam(TSIC.Domain.Entities.Teams t, int playerCount, string? clubName = null) => new()
+    /// <summary>The linked library row's name (alias detection in the editor); null for an orphan.</summary>
+    private async Task<string?> GetLibraryNameAsync(TSIC.Domain.Entities.Teams team, CancellationToken ct)
+    {
+        if (team.ClubTeamId is not int libId) return null;
+        var lib = await _clubTeamRepo.GetByIdReadOnlyAsync(libId, ct);
+        return lib?.ClubTeamName;
+    }
+
+    /// <param name="libraryName">Library name for the detail views; list mappings pass null (not needed there).</param>
+    private static TeamDetailDto MapTeam(TSIC.Domain.Entities.Teams t, int playerCount, string? clubName = null, string? libraryName = null) => new()
     {
         TeamId = t.TeamId,
         DivId = t.DivId,
@@ -1762,6 +1766,7 @@ public sealed class LadtService : ILadtService
         TeamComments = t.TeamComments,
         ClubRepRegistrationId = t.ClubrepRegistrationid,
         ClubTeamId = t.ClubTeamId,
+        ClubTeamName = libraryName,
         PlayerCount = playerCount
     };
 }

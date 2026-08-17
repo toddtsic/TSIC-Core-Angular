@@ -18,11 +18,18 @@ public record TeamSearchDetailDto
     public required bool Active { get; init; }
 
     /// <summary>
-    /// Club-team library row this event copy descends from. Null for an orphan team. When set, a
-    /// rename fans out to every job holding a copy — so the edit panel locks the name for non-SuperUser
-    /// admins and shows the affected-jobs warning before a SuperUser rename.
+    /// Club-team library row this event copy descends from. Null for an orphan team. When set, an
+    /// admin rename is this-event-only by default; a SuperUser may instead rename the library row,
+    /// which fans out to every job still mirroring it (affected-jobs confirm).
     /// </summary>
     public int? ClubTeamId { get; init; }
+
+    /// <summary>
+    /// The linked club team's LIBRARY name (null for an orphan team). When it differs from
+    /// <see cref="TeamName"/>, this event shows a director's per-event name — the panel says so and
+    /// offers a reset (a this-event rename back to this value).
+    /// </summary>
+    public string? ClubTeamName { get; init; }
 
     /// <summary>Library grad year of the linked club team (null for an orphan team). Prefills the
     /// rename-to-new-team modal's grad-year field.</summary>
@@ -172,6 +179,14 @@ public record ResendInvoicesResponse
 public record EditTeamRequest
 {
     public string? TeamName { get; init; }
+
+    /// <summary>
+    /// False (default): a name change is THIS EVENT ONLY — this job's Teams row; the club's library and
+    /// every other job keep their name. True: also rename the club-team library row and every job's copy
+    /// still mirroring it (SuperUser only; server enforces).
+    /// </summary>
+    public bool RenameLibrary { get; init; }
+
     public bool? Active { get; init; }
     public string? LevelOfPlay { get; init; }
     public string? TeamComments { get; init; }

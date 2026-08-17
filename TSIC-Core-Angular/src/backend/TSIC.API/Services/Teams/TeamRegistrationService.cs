@@ -1051,6 +1051,19 @@ public class TeamRegistrationService : ITeamRegistrationService
         };
     }
 
+    public async Task<List<ClubAffectedJob>> GetClubTeamRenameImpactAsync(string userId, int clubTeamId)
+    {
+        var entity = await _clubTeams.GetByIdReadOnlyAsync(clubTeamId)
+            ?? throw new InvalidOperationException("Team not found.");
+
+        // Authorization: ClubTeam must belong to a club the caller reps.
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+        if (!myClubs.Any(c => c.ClubId == entity.ClubId))
+            throw new UnauthorizedAccessException("You do not have access to this team.");
+
+        return await _teams.GetJobsWithTeamsForClubTeamAsync(clubTeamId);
+    }
+
     public async Task<ClubTeamDto> UpdateClubTeamAsync(string userId, int clubTeamId, UpdateClubTeamRequest request)
     {
         var entity = await _clubTeams.GetByIdAsync(clubTeamId)
@@ -1061,17 +1074,26 @@ public class TeamRegistrationService : ITeamRegistrationService
         if (!myClubs.Any(c => c.ClubId == entity.ClubId))
             throw new UnauthorizedAccessException("You do not have access to this team.");
 
-        // Lock if ever scheduled.
-        var scheduledIds = await _clubTeams.GetScheduledClubTeamIdsAsync(new[] { clubTeamId });
-        if (scheduledIds.Contains(clubTeamId))
-            throw new InvalidOperationException("This team has appeared on a schedule and can no longer be edited.");
-
         var name = request.ClubTeamName.Trim();
         var gradYear = request.ClubTeamGradYear.Trim();
         var lop = request.ClubTeamLevelOfPlay.Trim();
 
         if (string.IsNullOrEmpty(name)) throw new InvalidOperationException("Team name is required.");
         if (string.IsNullOrEmpty(gradYear)) throw new InvalidOperationException("Grad year is required.");
+
+        // Once the team has appeared on any schedule, grad year and level of play are its through-time
+        // identity and lock (event-level age group / LOP stay free at registration). The NAME stays
+        // editable — the rename fans out to every event copy below, so nothing is stranded.
+        var scheduledIds = await _clubTeams.GetScheduledClubTeamIdsAsync(new[] { clubTeamId });
+        var hasBeenScheduled = scheduledIds.Contains(clubTeamId);
+        if (hasBeenScheduled)
+        {
+            var gradYearChanged = !string.Equals(entity.ClubTeamGradYear, gradYear, StringComparison.OrdinalIgnoreCase);
+            var lopChanged = !string.Equals(entity.ClubTeamLevelOfPlay ?? string.Empty, lop, StringComparison.OrdinalIgnoreCase);
+            if (gradYearChanged || lopChanged)
+                throw new InvalidOperationException(
+                    "This team has appeared on a schedule — its grad year and level of play are locked. Only the name can change.");
+        }
 
         // Name-collision guard: if (name, gradYear) changed, another row in the same club
         // must not already own it — active OR archived. Self-matches are ignored.
@@ -1112,7 +1134,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             ClubTeamName = entity.ClubTeamName,
             ClubTeamGradYear = entity.ClubTeamGradYear,
             ClubTeamLevelOfPlay = entity.ClubTeamLevelOfPlay ?? string.Empty,
-            BHasBeenScheduled = false,
+            BHasBeenScheduled = hasBeenScheduled,
             BArchived = !entity.Active,
         };
     }

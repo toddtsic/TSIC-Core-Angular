@@ -17,6 +17,9 @@ export interface RegisteredInfo {
     levelOfPlay: string;
     /** Event registration id — what an unregister acts on (NOT the clubTeamId). */
     teamId: string;
+    /** The event copy's name. Normally the library name; differs when the event's director
+     *  renamed the team for their event only — the strip says so. */
+    eventTeamName: string;
     /** Money already collected against this registration. Non-zero hides Remove,
      *  mirroring the teams-step grid; the parent re-checks before acting. */
     paidTotal: number;
@@ -164,6 +167,14 @@ interface LibraryGroup {
                 <li class="reg-strip-item">
                   <span class="reg-strip-seq" aria-hidden="true">{{ i + 1 }}</span>
                   <span class="reg-strip-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
+                  @if (row.info.eventTeamName && row.info.eventTeamName !== row.team.clubTeamName) {
+                    <!-- The event's director renamed this team for their event only; the library
+                         name above is unchanged. Purely informational for the rep. -->
+                    <span class="reg-strip-alias"
+                          [title]="'This event shows the team as ' + row.info.eventTeamName + '. Your library name is unchanged.'">
+                      <i class="bi bi-tag" aria-hidden="true"></i>{{ row.info.eventTeamName }}
+                    </span>
+                  }
 
                   <span class="lib-identity">
                     @if (row.info.ageGroupName) {
@@ -891,6 +902,21 @@ interface LibraryGroup {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+      }
+
+      /* Director's this-event name, when it differs from the library name. */
+      .reg-strip-alias {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        max-width: 40%;
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: help;
+        i { color: var(--bs-info); }
       }
 
       /* Danger tint only on hover — a row of red trash cans would read as an
@@ -2319,10 +2345,10 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
         this.cancelRegister();
     }
 
-    /** Returns the lock reason for Edit, or null if available. */
-    editLockReason(team: ClubTeamDto): string | null {
+    /** Returns the lock reason for Edit, or null if available. A team with event history is still
+     *  editable — the modal locks grad year / level of play and leaves the name open. */
+    editLockReason(_team: ClubTeamDto): string | null {
         if (!this.canEdit()) return 'Editing is off for this event';
-        if (team.bHasBeenScheduled) return 'Has event history';
         return null;
     }
 

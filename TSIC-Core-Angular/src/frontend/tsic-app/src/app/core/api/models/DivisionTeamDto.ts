@@ -8,5 +8,6 @@ export type DivisionTeamDto = {
     clubName?: string | null;
     teamName?: string | null;
     clubTeamId?: number | null;
+    clubTeamName?: string | null;
 };
 

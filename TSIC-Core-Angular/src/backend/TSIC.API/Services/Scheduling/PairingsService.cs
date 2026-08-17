@@ -15,6 +15,7 @@ public sealed class PairingsService : IPairingsService
     private readonly IBracketRepository _bracketRepo;
     private readonly IDivisionRepository _divisionRepo;
     private readonly ITeamRepository _teamRepo;
+    private readonly IClubTeamRepository _clubTeamRepo;
     private readonly IScheduleRepository _scheduleRepo;
     private readonly ISchedulingContextResolver _contextResolver;
     private readonly TSIC.API.Services.Teams.ITeamRenameService _teamRename;
@@ -31,6 +32,7 @@ public sealed class PairingsService : IPairingsService
         IBracketRepository bracketRepo,
         IDivisionRepository divisionRepo,
         ITeamRepository teamRepo,
+        IClubTeamRepository clubTeamRepo,
         IScheduleRepository scheduleRepo,
         ISchedulingContextResolver contextResolver,
         TSIC.API.Services.Teams.ITeamRenameService teamRename,
@@ -40,6 +42,7 @@ public sealed class PairingsService : IPairingsService
         _bracketRepo = bracketRepo;
         _divisionRepo = divisionRepo;
         _teamRepo = teamRepo;
+        _clubTeamRepo = clubTeamRepo;
         _scheduleRepo = scheduleRepo;
         _contextResolver = contextResolver;
         _teamRename = teamRename;
@@ -362,6 +365,8 @@ public sealed class PairingsService : IPairingsService
         var teams = await _teamRepo.GetByDivisionIdAsync(divId, ct);
         var activeTeams = teams.Where(t => t.Active == true).ToList();
         var clubNames = await _teamRepo.GetClubNamesByJobAsync(jobId, ct);
+        var libraryNames = await _clubTeamRepo.GetLibraryNamesForClubTeamIdsAsync(
+            activeTeams.Where(t => t.ClubTeamId.HasValue).Select(t => t.ClubTeamId!.Value), ct);
 
         return activeTeams
             .OrderBy(t => t.DivRank)
@@ -371,13 +376,14 @@ public sealed class PairingsService : IPairingsService
                 DivRank = t.DivRank,
                 ClubName = clubNames.TryGetValue(t.TeamId, out var cn) ? cn : null,
                 TeamName = t.TeamName,
-                ClubTeamId = t.ClubTeamId
+                ClubTeamId = t.ClubTeamId,
+                ClubTeamName = t.ClubTeamId is int libId && libraryNames.TryGetValue(libId, out var ln) ? ln : null
             })
             .ToList();
     }
 
     public async Task<List<DivisionTeamDto>> EditDivisionTeamAsync(
-        Guid jobId, string userId, bool isSuperUser, EditDivisionTeamRequest request, CancellationToken ct = default)
+        Guid jobId, string userId, EditDivisionTeamRequest request, CancellationToken ct = default)
     {
         var team = await _teamRepo.GetTeamFromTeamId(request.TeamId, ct)
             ?? throw new KeyNotFoundException($"Team {request.TeamId} not found.");
@@ -391,12 +397,8 @@ public sealed class PairingsService : IPairingsService
         var rankChanged = team.DivRank != request.DivRank;
         var nameChanged = request.TeamName != null && team.TeamName != request.TeamName;
 
-        // Ownership gate (mirrors TeamSearchService.EditTeamAsync): a club-linked team's name is the
-        // club's library identity — renaming fans out to other customers' schedules, so SuperUser only.
-        if (nameChanged && team.ClubTeamId != null && !isSuperUser)
-            throw new InvalidOperationException(
-                "This team's name comes from its club's team library and appears in other events' schedules. "
-                + "Only TSIC support can rename it — ask the club rep to rename it in their team library, or contact support.");
+        // A rename here is THIS EVENT ONLY (director's own Teams row); a club-linked team's library and
+        // other jobs keep their name. Library-wide rename lives in Search Teams (SuperUser) and the rep's library.
 
         // Rank swap: give the team at the target rank the editing team's old rank
         if (rankChanged)
@@ -419,11 +421,11 @@ public sealed class PairingsService : IPairingsService
         // Renumber to ensure contiguous 1..N
         await _teamRepo.RenumberDivRanksAsync(divId, ct);
 
-        // Rename (name owned by TeamRenameService): library + cross-job Teams copies +
-        // WAITLIST twin + schedule. Runs before the division re-resolve below so the seat
-        // recompute reads the updated team name.
+        // Rename (name owned by TeamRenameService), this job only: Teams row + WAITLIST twin +
+        // schedule. Runs before the division re-resolve below so the seat recompute reads the
+        // updated team name.
         if (nameChanged)
-            await _teamRename.RenameTeamAsync(request.TeamId, jobId, request.TeamName!, userId, ct);
+            await _teamRename.RenameTeamAsync(request.TeamId, jobId, request.TeamName!, userId, TSIC.API.Services.Teams.TeamRenameScope.ThisJob, ct);
 
         // Re-resolve T1Id/T2Id/T1Name/T2Name in all schedule records for this division
         await _scheduleRepo.SynchronizeScheduleTeamAssignmentsForDivisionAsync(divId, jobId, ct);
