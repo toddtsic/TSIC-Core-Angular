@@ -18,7 +18,28 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 
 ---
 
-<!-- New items go below this line, newest at the bottom, next id = AR-009 -->
+<!-- New items go below this line, newest at the bottom, next id = AR-011 -->
+
+### AR-010: [Payments / ARB] Update CC for ARB subscribers — confirm it works, incl. behind-in-payments catch-up (legacy parity)
+- **Topic**: Payments → ARB subscriptions → **Update CC** menu
+- **Context**: This is a function we **couldn't test before but can now**. In **Legacy**, when an ARB registrant appeared under **"Look/Fall Behind in Payment"** (ARB Subscription Health → behind-in-payments list), going to the **Update CC** menu let them **make that overdue payment** at the same time — and they could **re-enter the same card** as before and still make the payment.
+- **Verify — all 3 scenarios**:
+  1. **Not behind in payments** → Update CC only (just swaps the card on the subscription, no charge).
+  2. **Behind in payments** → Update CC **and make the past-due payment at the same time** (new card).
+  3. **Behind in payments** → enter the **same CC** as before **and still make the payment** (legacy allowed re-using the identical card to catch up — confirm the new system doesn't reject "same card" and block the catch-up).
+- **Test data**: **`YJ North Players 2026-2027`** currently has players who are **Behind in Payments** — use it for scenarios 2 & 3.
+- **For Todd / testing**: confirm the Update CC flow (a) succeeds for the not-behind case, (b) offers/executes the catch-up charge for behind subscribers, and (c) permits the same-card re-entry catch-up. Flag if any scenario errors or silently fails to charge.
+- **Severity**: Legacy-parity verification (test now that ARB behind-payment data exists)
+- **Status**: 🔴 OPEN — to test (Ann / Todd)
+
+### AR-009: [Payments / Add Accounting Record] Deleting the Amount value boots you out of the popup
+- **Topic**: Payments → registrant/team fly-in → **Add Accounting Record** popup → Amount field
+- **Where**: the fly-in for a **Player**, a **Team Club Rep**, or a **Team** → **Add Accounting Record** modal (Credit Card / Check / Correction tabs).
+- **Repro (Ann)**: In the **AMOUNT** field, place the cursor at the **end** of an existing number and **delete the entry** (backspace) to type a different amount → the **modal closes / boots you out** unexpectedly. See image (Check tab, Amount `900` being edited, arrow on the field).
+- **Likely cause (to verify, Claude)**: a **Backspace/Delete keydown on the (now-empty) Amount input is bubbling to a modal-level handler** — either an Escape/close key binding, a `keydown` that treats empty-field backspace as "back/dismiss," or the value going empty/`NaN` tripping a guard that dismisses the dialog. Classic fix: `stopPropagation` on the input's keydown (or don't close the modal on backspace/empty), and treat an empty Amount as `0`/invalid inline rather than closing.
+- **For Todd**: Amount input in the Add Accounting Record modal must let the user clear/retype freely — backspace at field start/end should never close the dialog. Confirm no `@keydown`/host listener is catching Backspace, and that clearing the field doesn't trigger a close/validation-dismiss.
+- **Severity**: Bug / data entry (annoying + risks losing entered check number/comment on close)
+- **Status**: 🔴 OPEN — for Todd
 
 ### AR-008: [Coach Registrations / Email] Direct-placement Staff confirmation email shows no teams — "Teams you will be rostered with:" is blank on tournaments/leagues
 - **Topic**: Coach Registrations → confirmation email → team list token (`!STAFFCHOICES` / `!F-TEAMS`)
