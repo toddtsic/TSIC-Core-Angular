@@ -5,7 +5,7 @@ import { AuthService } from '../services/auth.service';
 import { LastLocationService } from '../services/last-location.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { type RoleName } from '../constants/roles.constants';
-import { wasChunkRecoveryReload } from '../navigation/chunk-load-recovery';
+import { wasPageReloaded } from '../navigation/page-load-kind';
 import { resolveJobPath } from '../navigation/job-path';
 
 /**
@@ -18,12 +18,15 @@ import { resolveJobPath } from '../navigation/job-path';
  *                            Reading the route shows exactly who can reach it.
  *                            Omit for any-authenticated-user access.
  *
- * Cold start (fresh load / refresh / externally-clicked deep link):
- *   Never resume a session — no role is exempt. logoutLocal(), then honor the requested URL
- *   (public/landing render anonymously). ONE mechanical exception: the chunk-load recovery's
- *   self-heal reload (deploy deleted a lazy chunk mid-click) keeps the session — identified by
- *   the recovery's own per-window sessionStorage stamp, see wasChunkRecoveryReload().
- *   Two protected-route sub-cases:
+ * Cold start (the app is booting — router has not navigated yet). ONE rule, keyed on how the
+ * browser says this document was opened (see navigation/page-load-kind.ts):
+ *   • ARRIVED AT from outside (emailed link, typed URL, bookmark, new tab): never resume a
+ *     session — no role is exempt. logoutLocal(), then honor the requested URL (public/landing
+ *     render anonymously). An emailed invite is thereby always judged against whoever logs in
+ *     FOR it, never against whoever was left in the browser.
+ *   • RELOADED (the app reloading itself for a new build or a missing chunk, or the user
+ *     pressing F5): keep the session. Same user, same tab, no outside intent arrived.
+ *   Two protected-route sub-cases of the arrived-at logout:
  *     • fresh anonymous deep link (no prior session) → login with returnUrl preserved, so an
  *       emailed invite is evaluated against whoever logs in FOR that link.
  *     • a LIVE session was discarded (user refreshed while working) → job home. The deep,
@@ -61,12 +64,20 @@ export const authGuard: CanActivateFn = (route, state) => {
     const toLogin = () => router.createUrlTree([`/${jobPath()}/login`], { queryParams: { returnUrl: state.url } });
     const toJob = (jp: string) => router.createUrlTree([`/${jp}`]);
 
-    // ── Cold start = never resume a session ─────────────────────────
-    // App startup (fresh load, refresh, or an externally-clicked deep link such as an
-    // emailed invite) must begin clean. A link is then judged against whoever logs in
-    // *for that link* — never against whoever happened to be left in the browser. NO role
-    // is exempt: the former SuperUser/Director "resume across refresh" carve-out is exactly
-    // what let a privileged token evaluate (and reject) someone else's invite, so it's gone.
+    // ── Cold start, arrived at from outside = never resume a session ──
+    // An externally-opened page (emailed invite, typed URL, bookmark, new tab) must begin
+    // clean. A link is then judged against whoever logs in *for that link* — never against
+    // whoever happened to be left in the browser. NO role is exempt: the former
+    // SuperUser/Director "resume across refresh" carve-out is exactly what let a privileged
+    // token evaluate (and reject) someone else's invite, so it's gone.
+    //
+    // A RELOADED page is the other kind of cold start and keeps its session: the app reloads
+    // itself to pick up a new build (AppVersionService) or a missing chunk (chunk-load-recovery),
+    // and the user presses F5. Same user, same tab, nothing arrived from outside. Discarding
+    // the session there was the "click a menu item, get thrown to login" bug. The browser
+    // reports which kind this is (page-load-kind.ts) — nothing is stored, so an emailed link can
+    // never impersonate a reload. Every guard run on this navigation (parent :jobPath, then
+    // children) reads the same browser fact and gets the same answer.
     //
     // Gate on ANY session material — a live token OR just a refresh token. Gating on isAuth
     // alone would skip an expired-but-refreshable session, which the not-authenticated block
@@ -76,26 +87,14 @@ export const authGuard: CanActivateFn = (route, state) => {
     // Then honor the URL that was actually requested — do NOT redirect home. Public and
     // login/landing pages render anonymously; anything protected lands the user on the job
     // HOME (see below) rather than round-tripping the deep URL through login.
-    if (isColdStart && (isAuth || auth.getRefreshToken())) {
-        // Exception: the chunk-load recovery's OWN self-heal reload (a deploy deleted a lazy
-        // chunk mid-session → auto full reload to fetch fresh hashes). That is the same user,
-        // mid-click — not a fresh visit — so discarding their session here is exactly the
-        // "click a menu item, get thrown to login" bug. The recovery stamps per-window
-        // sessionStorage right before reloading (a genuine fresh visit / emailed invite link
-        // never carries the stamp, so the invite-link security rationale is untouched); within
-        // its 15s window we keep the session and fall through to normal warm-equivalent
-        // handling below. Read-only check — see wasChunkRecoveryReload() for why the stamp is
-        // never cleared (it doubles as the reload-loop brake, and every guard run on this
-        // navigation must see the same answer).
-        if (!wasChunkRecoveryReload()) {
-            auth.logoutLocal();
-            // A LIVE session was just discarded on this cold start (a fresh anonymous deep-link
-            // click has no session and never reaches here). Mark it so a role-gated child guard
-            // sends the user to the job home instead of preserving the deep, role-gated returnUrl
-            // — which would teleport the re-login back to e.g. search/registrations.
-            auth.markForcedColdStartLogout();
-            return (flags.allowAnonymous || flags.redirectAuthenticated) ? true : toJob(jobPath());
-        }
+    if (isColdStart && !wasPageReloaded() && (isAuth || auth.getRefreshToken())) {
+        auth.logoutLocal();
+        // A LIVE session was just discarded on this cold start (a fresh anonymous deep-link
+        // click has no session and never reaches here). Mark it so a role-gated child guard
+        // sends the user to the job home instead of preserving the deep, role-gated returnUrl
+        // — which would teleport the re-login back to e.g. search/registrations.
+        auth.markForcedColdStartLogout();
+        return (flags.allowAnonymous || flags.redirectAuthenticated) ? true : toJob(jobPath());
     }
 
     // ── Bounce authenticated users away from login/landing ──────────
@@ -192,17 +191,18 @@ export const authGuard: CanActivateFn = (route, state) => {
  * so authenticated Phase 2 users fall through to :jobPath and see their
  * workspace at /tsic instead of the corporate landing page.
  *
- * Cold start is exempt: canMatch runs BEFORE canActivate, so on a fresh load a
- * leftover Phase-2 token still reads as hasSelectedRole()===true here — which used
- * to decline the marketing landing and fall through to :jobPath, only for authGuard's
+ * Cold start ARRIVED AT from outside is exempt: canMatch runs BEFORE canActivate, so on
+ * such a load a leftover Phase-2 token still reads as hasSelectedRole()===true here — which
+ * used to decline the marketing landing and fall through to :jobPath, only for authGuard's
  * cold-start "never resume" block to then logoutLocal() and render job-landing
- * anonymously (the "came up logged in, logged out, screen never changed" bug). On cold
- * start the session is always discarded, so treat the user as anonymous and MATCH the
- * corporate landing — consistent with authGuard's own isColdStart handling.
+ * anonymously (the "came up logged in, logged out, screen never changed" bug). authGuard
+ * is about to discard that session, so treat the user as anonymous and MATCH the
+ * corporate landing. A RELOADED cold start keeps its session (see authGuard), so it is
+ * judged like a warm navigation — same rule, same source of truth (page-load-kind.ts).
  */
 export const unselectedRoleMatch: CanMatchFn = () => {
     const auth = inject(AuthService);
     const router = inject(Router);
-    if (!router.navigated) return true;
+    if (!router.navigated && !wasPageReloaded()) return true;
     return !auth.hasSelectedRole();
 };
