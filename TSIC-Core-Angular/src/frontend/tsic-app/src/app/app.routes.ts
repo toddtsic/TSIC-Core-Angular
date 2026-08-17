@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard, unselectedRoleMatch } from './infrastructure/guards/auth.guard';
+import { jobPathMatch } from './infrastructure/guards/job-path-match.guard';
 import { storeGuard } from './infrastructure/guards/store.guard';
 import { unsavedChangesGuard } from './infrastructure/guards/unsaved-changes.guard';
 import { playerInviteGuard, teamInviteGuard, adultRegistrationGuard } from './infrastructure/guards/registration-invite.guard';
@@ -42,10 +43,14 @@ export const routes: Routes = [
 		loadComponent: () => import('./views/errors/not-found/not-found.component').then(m => m.NotFoundComponent)
 	},
 
-	// Job-specific routes - allows both authenticated and anonymous users
+	// Job-specific routes - allows both authenticated and anonymous users.
+	// canMatch verifies the segment names a REAL job before binding it to :jobPath; without
+	// it this route swallows every unmatched URL and the `**` wildcard below is unreachable.
+	// See job-path-match.guard.ts.
 	{
 		path: ':jobPath',
 		component: LayoutComponent,
+		canMatch: [jobPathMatch],
 		canActivate: [authGuard],
 		data: { allowAnonymous: true },
 		children: [

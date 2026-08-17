@@ -10,7 +10,19 @@ export enum LocalStorageKey {
     ClubRepClubCount = 'clubRepClubCount',
 
     // ── Navigation ──
-    LastJobPath = 'last_job_path',
+    /**
+     * Bumped to _v2 2026-08-16. The v1 writer parsed the first URL segment and screened it
+     * with a six-name denylist, so `forgot-password`, `reset-password` and any mistyped URL
+     * (the `**` wildcard keeps the typed path) were all stored as job paths. Those poisoned
+     * values live in real browsers; the new key abandons them rather than trying to sniff
+     * out which stored strings were bogus. LastLocationService purges the v1 key on start.
+     *
+     * That bump fixed the wrong-SEGMENT half only. The nonexistent-JOB half — a real
+     * `:jobPath` binding for a job that does not exist — is closed by jobPathMatch (the
+     * route no longer matches) plus a write gated on a confirmed job and a read that drops
+     * the key when it no longer resolves. No third key bump should be needed.
+     */
+    LastJobPath = 'last_job_path_v2',
 
     // ── Theme / UI ──
     AppTheme = 'app-theme',

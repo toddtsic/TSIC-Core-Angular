@@ -1,6 +1,6 @@
 import { inject, Injectable, signal, computed } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, finalize, shareReplay, tap } from 'rxjs';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Observable, finalize, shareReplay, tap, of, map, catchError } from 'rxjs';
 import { environment } from '@environments/environment';
 import type { RegistrationStatusRequest, RegistrationStatusResponse, BulletinDto, NavDto, NavItemDto, JobMetadataResponse } from '@core/api';
 
@@ -102,6 +102,64 @@ export class JobService {
             );
         this.inflightJob$ = req$;
         this.inflightJobPath = jobPath;
+        return req$;
+    }
+
+    /**
+     * "Does this jobPath name a real job?" — the question `jobPathMatch` asks before the
+     * router will bind a URL segment to `:jobPath`.
+     *
+     * DELIBERATELY SEPARATE from requestJobMetadata / currentJob. It would be tempting to
+     * answer this by reusing the metadata fetch (same endpoint, already deduped), but that
+     * fetch's returned object reference is load-bearing: the header's pulse trigger reads a
+     * new `currentJob` reference as "the job changed" and refetches the pulse. Populating
+     * currentJob from a route-match guard would fire that on a code path it was never tuned
+     * for. See the requestJobMetadata note and commit 1285276b. This one answers a boolean
+     * and writes NO signal.
+     *
+     * Cost is one lightweight GET per DISTINCT jobPath per browser session — not per
+     * navigation — because the verdict is memoized below.
+     */
+    private readonly knownJobs = new Map<string, boolean>();
+    private readonly jobExistsInflight = new Map<string, Observable<boolean>>();
+
+    /** Synchronous read of an already-settled verdict. False when unknown OR known-bad. */
+    isKnownJob(jobPath: string): boolean {
+        return this.knownJobs.get(jobPath.toLowerCase()) === true;
+    }
+
+    /** Forget a verdict, so the next ask re-checks the server. */
+    forgetJob(jobPath: string): void {
+        this.knownJobs.delete(jobPath.toLowerCase());
+    }
+
+    jobExists(jobPath: string): Observable<boolean> {
+        const key = jobPath.toLowerCase();
+
+        const settled = this.knownJobs.get(key);
+        if (settled !== undefined) return of(settled);
+
+        const pending = this.jobExistsInflight.get(key);
+        if (pending) return pending;
+
+        const req$ = this.http.get<JobMetadataResponse>(`${this.apiUrl}/jobs/${jobPath}`).pipe(
+            map(() => { this.knownJobs.set(key, true); return true; }),
+            catchError((err: HttpErrorResponse) => {
+                // Only a definitive 404 condemns a path. A network drop, a 5xx or a CORS
+                // failure must FAIL OPEN and stay uncached — otherwise a momentary API
+                // outage would blacklist real jobs into the not-found page for the rest of
+                // the session, turning a blip into an app-wide outage.
+                if (err.status === 404) {
+                    this.knownJobs.set(key, false);
+                    return of(false);
+                }
+                return of(true);
+            }),
+            finalize(() => this.jobExistsInflight.delete(key)),
+            shareReplay({ bufferSize: 1, refCount: false })
+        );
+
+        this.jobExistsInflight.set(key, req$);
         return req$;
     }
 
