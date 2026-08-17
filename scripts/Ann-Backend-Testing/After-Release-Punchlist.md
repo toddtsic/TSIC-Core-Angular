@@ -55,7 +55,7 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
   - Chose this over removing backdrop-close outright (also offered): it kills the failure mode without taking away a working affordance, and it holds up if her mouse is replaced tomorrow.
 - **FOUND, NOT FIXED — the Amount field cannot be cleared.** `[ngModel]="amount()"` + `setAmount()` doing `value ?? 0` means deleting the last digit emits `null` → stores `0` → Angular writes `0` straight back under the caret. So "delete the entry and type a different amount" literally fights the user. Independent of the backdrop bug, and it IS the action Ann described. **Needs a go — not built.**
 - **NOT SWEPT**: the same `(click)`-on-overlay backdrop pattern likely appears on other modals app-wide. Deliberately left for its own item rather than smuggled into this fix.
-- **Status**: 🟡 FIXED (08-17) — awaiting Ann verify: open Add Accounting Record, press inside the card and release outside it (and drag the card by its header and release over the backdrop) — modal must STAY; then click cleanly on the backdrop — modal must close.
+- **Status**: ✅ VERIFIED PASSING (Ann, 08-17) — **CLOSED.** She is no longer getting the random disappearance (Todd relayed). The press-and-release requirement holds on the machine the bug was native to, which is the only box that could have proved it. Un-park AR-011 only if she re-reports the Amount field itself fighting her.
 
 ### AR-008: [Coach Registrations / Email] Direct-placement Staff confirmation email shows no teams — "Teams you will be rostered with:" is blank on tournaments/leagues
 - **Topic**: Coach Registrations → confirmation email → team list token (`!STAFFCHOICES` / `!F-TEAMS`)
