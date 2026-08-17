@@ -122,10 +122,20 @@ export class JobService {
                             return;
                         }
 
-                        // Fail LOUD but stay put: a 5xx or a dropped connection means we cannot
-                        // tell whether the job exists, and bouncing a user off a real event
-                        // because the API hiccuped would be far worse than a blank panel.
-                        this.toast.show('Unable to load event information. Please try again.', 'danger', 7000);
+                        // Fail LOUD but stay put: anything other than a 404 means we cannot tell
+                        // whether the job exists, and bouncing a user off a real event because
+                        // the API hiccuped would be far worse than a blank panel.
+                        //
+                        // Only raise a toast the interceptor will not. Its status-0 (offline),
+                        // 401 (token refresh) and 403 branches run BEFORE the skipErrorToast
+                        // check and are therefore unconditional — toasting here too would stack
+                        // two messages for the same failure, and a dropped connection is a
+                        // routine one to hit.
+                        const interceptorAlreadySpoke =
+                            err.status === 0 || err.status === 401 || err.status === 403;
+                        if (!interceptorAlreadySpoke) {
+                            this.toast.show('Unable to load event information. Please try again.', 'danger', 7000);
+                        }
                     }
                 }),
                 finalize(() => {

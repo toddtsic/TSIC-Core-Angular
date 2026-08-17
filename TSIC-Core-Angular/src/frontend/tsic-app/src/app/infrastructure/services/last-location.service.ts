@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { toObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { filter } from 'rxjs/operators';
+import { filter, map, distinctUntilChanged } from 'rxjs/operators';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 import { JobService } from '@infrastructure/services/job.service';
 
@@ -35,10 +35,21 @@ export class LastLocationService {
 
         // Confirmed job → remember it. jobPath comes off the response, so it carries the
         // backend's own casing rather than whatever the user typed.
+        //
+        // distinctUntilChanged is not cosmetic: currentJob is deliberately re-set to a NEW
+        // object for the same job on return visits (that fresh reference is what re-fires the
+        // pulse — see JobService.requestJobMetadata), so without it every such refetch rewrites
+        // the identical string to localStorage. Map to the path first so the comparison is on
+        // the value, not the object identity.
         toObservable(this.jobs.currentJob)
-            .pipe(filter(job => !!job?.jobPath), takeUntilDestroyed())
-            .subscribe(job => {
-                try { localStorage.setItem(LocalStorageKey.LastJobPath, job!.jobPath!); }
+            .pipe(
+                map(job => job?.jobPath ?? null),
+                filter((jobPath): jobPath is string => !!jobPath),
+                distinctUntilChanged(),
+                takeUntilDestroyed()
+            )
+            .subscribe(jobPath => {
+                try { localStorage.setItem(LocalStorageKey.LastJobPath, jobPath); }
                 catch { /* storage unavailable */ }
             });
 
