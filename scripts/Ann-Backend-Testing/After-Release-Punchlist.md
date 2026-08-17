@@ -116,7 +116,16 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 - **Observation (Ann)**: In the generated **roster PDF**, the **Position** value is **cut off** — e.g. "Midfield" renders as "Midfiel" (last character clipped). The column is too narrow / the cell text is being truncated rather than fit.
 - **For Todd**: widen the Position column (or shrink/auto-fit the text) in the roster PDF generator so full position names print. Check the longest expected values (Midfield, Attack, Defense, Goalie, Long Stick Midfield / LSM, etc.) so the fix holds for the widest label, not just "Midfield". Likely a fixed column width or a text-clip in the PDF layout, not a data problem (the stored value is complete).
 - **Severity**: Bug / output correctness (non-blocking; cosmetic-but-wrong on a printed artifact)
-- **Status**: 🔴 OPEN — for Todd
+- **BLOCKED — WE DO NOT KNOW WHICH REPORT (Todd, 08-17): "not approachable until you know which report, you could really cause problems with packed reports."** Do NOT touch a generator on inference. **NEXT STEP: ask Ann which roster export she ran.**
+- **Investigation banked (Claude, 08-17) — four generators have a Position column, each with its own width mechanism:**
+  - `PackedRosterPdfService` — label literally **"Position"**, proportional `DefaultWidthWeight = 32`, `SupportsLongText = false` (:49). **HIGHEST RISK to change** — dense legacy-parity export family (PackedByPosition / by-School siblings); widening steals width from neighbours across every variant.
+  - `MyRosterPdfService` — header **"Pos"**, fixed `30f` (:95). Would clip far harder than one character.
+  - `ClubRosterPdfService` — no Position column at all; `DrawClip`s Position onto line 2 of the **DOB** column's width (:258).
+  - `RosterTablePdfService` — configurable `"position"` key (:346); width comes from the caller's column set.
+  - **None of them measure the text — they all clip.** Symptom of exactly one character lost out of eight *suggests* Packed Roster, but that is inference from a screenshot, not proof, and it is precisely the one that must not be changed on a guess.
+  - **`SupportsLongText = false` is a deliberate flag, not an oversight** — so "widen" and "wrap" are two genuinely different fixes (wrap = variable row heights on a dense report).
+  - **Size to the longest value actually in the data, not to "Midfield"** — `Long Stick Midfield` is far wider, so a fix eyeballed against Midfield leaves the bug live for LSM. Same approach settled in AM-038 (size to the longest real value, don't eyeball).
+- **Status**: 🔵 BLOCKED / PARKED (08-17) — un-park the moment Ann names the report.
 
 ### AR-003: [Coach Registrations] "Teams You're Coaching" list is hard to read — stack it vertically with a light (blue?) badge per team
 - **Topic**: Coach Registrations → adult registration wizard → "Teams You're Coaching" review section (direct-placement Staff on Tournament/League)
