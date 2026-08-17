@@ -1,0 +1,279 @@
+// ============================================================
+//  404 — styled off views/home/tsic-landing (hero + veil + pills)
+//  Tokens only: no hardcoded colour, spacing or shadow.
+// ============================================================
+
+:host {
+    display: block;
+
+    // Declared locally, exactly as tsic-landing.component.scss does — the brand green is
+    // not a global token, and the wordmark accent must match the marketing page.
+    --tsic-green: #16a34a;
+}
+
+.nf {
+    position: relative;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+
+    &__bg {
+        position: absolute;
+        inset: 0;
+    }
+
+    &__slide {
+        position: absolute;
+        inset: 0;
+        background-size: cover;
+        background-position: 60% center;
+        opacity: 0;
+        animation: nfSlide 24s ease-in-out infinite;
+        // Slow drift. Paired with the cross-fade it reads as motion without distraction.
+        transform: scale(1.06);
+
+        &--1 {
+            background-image: url('/images/hero-youth-lax.jpg');
+            animation-name: nfSlideFirst;
+            opacity: 1;
+        }
+
+        &--2 {
+            background-image: url('/images/hero-soccer.jpg');
+            animation-delay: 8s;
+        }
+
+        &--3 {
+            background-image: url('/images/hero-basketball.jpg');
+            animation-delay: 16s;
+        }
+    }
+
+    // Veil, not backdrop-filter — backdrop-filter is banned project-wide (it creates a
+    // containing block and traps fixed/absolute descendants). A gradient does the job.
+    //
+    // Built on --neutral-50 via color-mix, NOT rgba(--neutral-0-rgb). Two reasons:
+    //   1. --neutral-0 is #ffffff in BOTH themes, but the neutral scale inverts, so the
+    //      headline (--neutral-900) turns near-white in dark mode. A fixed white veil would
+    //      then be near-white text on a near-white ground — invisible.
+    //   2. --neutral-50-rgb is only declared in _theme-dark.scss, so the rgba() form has no
+    //      light-mode value to read at all.
+    // --neutral-50 inverts (#fafaf9 light / #292524 dark), so the veil follows the theme and
+    // the inverted text stays legible on top of it.
+    &__veil {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            to bottom,
+            color-mix(in srgb, var(--neutral-50) 30%, transparent) 0%,
+            color-mix(in srgb, var(--neutral-50) 72%, transparent) 45%,
+            color-mix(in srgb, var(--neutral-50) 92%, transparent) 100%
+        );
+
+        @media (min-width: 992px) {
+            background: linear-gradient(
+                105deg,
+                color-mix(in srgb, var(--neutral-50) 96%, transparent) 0%,
+                color-mix(in srgb, var(--neutral-50) 88%, transparent) 38%,
+                color-mix(in srgb, var(--neutral-50) 45%, transparent) 68%,
+                color-mix(in srgb, var(--neutral-50) 18%, transparent) 100%
+            );
+        }
+    }
+
+    &__content {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        padding: var(--space-12) var(--space-6);
+
+        @media (min-width: 768px) {
+            padding: var(--space-16) var(--space-8);
+        }
+
+        @media (min-width: 992px) {
+            padding-left: max(var(--space-8), calc((100vw - 1200px) / 2 + var(--space-8)));
+            width: 62%;
+        }
+    }
+
+    &__brand {
+        font-size: clamp(1.25rem, 3vw, 1.75rem);
+        font-weight: var(--font-weight-bold);
+        color: var(--neutral-800);
+        letter-spacing: -0.03em;
+        margin-bottom: var(--space-6);
+    }
+
+    &__brand-accent {
+        color: var(--tsic-green);
+    }
+
+    &__eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--bs-primary);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin-bottom: var(--space-2);
+    }
+
+    // Oversized numeral. Gradient fill with a solid fallback declared FIRST, so a browser
+    // that ignores background-clip still renders readable text rather than nothing.
+    &__numeral {
+        font-size: clamp(5rem, 18vw, 11rem);
+        font-weight: var(--font-weight-bold);
+        line-height: 0.9;
+        letter-spacing: -0.05em;
+        margin-bottom: var(--space-4);
+        color: var(--bs-primary);
+        background: linear-gradient(120deg, var(--bs-primary) 0%, var(--tsic-green) 100%);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    &__headline {
+        font-size: clamp(1.75rem, 4.5vw, 2.75rem);
+        font-weight: var(--font-weight-bold);
+        color: var(--neutral-900);
+        line-height: 1.15;
+        letter-spacing: -0.02em;
+        margin: 0 0 var(--space-4);
+    }
+
+    &__headline-em {
+        color: var(--bs-primary);
+    }
+
+    &__sub {
+        font-size: var(--font-size-lg);
+        color: var(--neutral-600);
+        max-width: 46ch;
+        margin: 0 0 var(--space-6);
+    }
+
+    &__path {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2);
+        margin: 0 0 var(--space-8);
+    }
+
+    &__path-label {
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--neutral-500);
+    }
+
+    &__path-value {
+        // Long job slugs are common (Jobs.JobPath is varchar(80)) — wrap rather than
+        // force the page to scroll sideways.
+        font-family: var(--font-family-monospace, monospace);
+        font-size: var(--font-size-sm);
+        color: var(--neutral-700);
+        background: var(--neutral-100);
+        border: 1px solid var(--neutral-200);
+        border-radius: var(--radius-md);
+        padding: var(--space-1) var(--space-3);
+        overflow-wrap: anywhere;
+        max-width: 100%;
+    }
+
+    &__actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-3);
+    }
+
+    &__btn-primary,
+    &__btn-ghost {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-3) var(--space-6);
+        border-radius: var(--radius-full);
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-semibold);
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s, color 0.2s;
+
+        &:focus-visible {
+            outline: none;
+            box-shadow: var(--shadow-focus);
+        }
+    }
+
+    &__btn-primary {
+        background: var(--bs-primary);
+        color: var(--neutral-0);
+        border: 1px solid transparent;
+
+        &:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(var(--bs-primary-rgb), 0.35);
+        }
+    }
+
+    // --neutral-50, not --neutral-0: the latter is #ffffff in both themes, which would leave
+    // a white button carrying inverted (light) label text in dark mode.
+    &__btn-ghost {
+        background: var(--neutral-50);
+        color: var(--neutral-700);
+        border: 1px solid var(--neutral-300);
+        font-weight: var(--font-weight-medium);
+
+        &:hover {
+            border-color: var(--bs-primary);
+            color: var(--bs-primary);
+        }
+    }
+}
+
+// Slide 1 starts visible; 2 and 3 fade in on their delays. 3 × 8s = 24s cycle.
+@keyframes nfSlideFirst {
+    0%   { opacity: 1; transform: scale(1.06); }
+    28%  { opacity: 1; }
+    33%  { opacity: 0; }
+    95%  { opacity: 0; transform: scale(1.12); }
+    100% { opacity: 1; transform: scale(1.06); }
+}
+
+@keyframes nfSlide {
+    0%   { opacity: 0; transform: scale(1.06); }
+    5%   { opacity: 1; }
+    28%  { opacity: 1; }
+    33%  { opacity: 0; transform: scale(1.12); }
+    100% { opacity: 0; }
+}
+
+// Required by the design system for anything animated. Holds the first image still —
+// the page must not depend on motion to make sense.
+@media (prefers-reduced-motion: reduce) {
+    .nf__slide {
+        animation: none !important;
+        transform: none !important;
+    }
+
+    .nf__slide--2,
+    .nf__slide--3 {
+        opacity: 0 !important;
+    }
+
+    .nf__btn-primary,
+    .nf__btn-ghost {
+        transition: none !important;
+
+        &:hover {
+            transform: none !important;
+        }
+    }
+}

@@ -1,0 +1,55 @@
+<section class="nf">
+
+    <!-- Cross-fading sports imagery, same treatment as the marketing hero. -->
+    <div class="nf__bg" aria-hidden="true">
+        <div class="nf__slide nf__slide--1"></div>
+        <div class="nf__slide nf__slide--2"></div>
+        <div class="nf__slide nf__slide--3"></div>
+    </div>
+    <div class="nf__veil" aria-hidden="true"></div>
+
+    <div class="nf__content">
+
+        <div class="nf__brand">Team<span class="nf__brand-accent">Sports</span>Info</div>
+
+        <span class="nf__eyebrow">
+            <i class="bi bi-compass"></i>
+            Error 404
+        </span>
+
+        <!-- Decorative: the heading below carries the same meaning for assistive tech. -->
+        <div class="nf__numeral" aria-hidden="true">404</div>
+
+        <h1 class="nf__headline">
+            That page took<br>
+            <span class="nf__headline-em">a wrong turn.</span>
+        </h1>
+
+        <p class="nf__sub">
+            We couldn't find anything at this address. The event may have ended, the link may
+            have changed, or there's a typo in the URL.
+        </p>
+
+        @if (showAttemptedPath()) {
+            <p class="nf__path">
+                <span class="nf__path-label">You asked for</span>
+                <code class="nf__path-value">{{ attemptedPath() }}</code>
+            </p>
+        }
+
+        <div class="nf__actions">
+            <button type="button" class="nf__btn-primary" (click)="goHome()">
+                <i class="bi bi-house-door" aria-hidden="true"></i>
+                <span>{{ homeLabel() }}</span>
+            </button>
+
+            @if (canGoBack()) {
+                <button type="button" class="nf__btn-ghost" (click)="goBack()">
+                    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                    <span>Go back</span>
+                </button>
+            }
+        </div>
+
+    </div>
+</section>
