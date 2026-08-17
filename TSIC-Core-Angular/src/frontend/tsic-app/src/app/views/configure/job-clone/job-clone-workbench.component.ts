@@ -190,7 +190,18 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	/** Request snapshot the displayed plan was computed FROM. */
 	private readonly planKey = signal<string | null>(null);
 	private readonly planTrigger$ = new Subject<void>();
-	private commSeeded = false;
+	/**
+	 * SIGNAL, not a plain field — buildCloneRequest reads it, and requestKey is a computed()
+	 * over buildCloneRequest. A plain field flips without notifying the computed, so
+	 * requestKey keeps serving its CACHED value while the freshly-built key reflects the new
+	 * value; planKey === requestKey then never holds and the Clone button stays disabled
+	 * behind a permanent "plan refreshing…" badge. That is exactly what trapped Ann on
+	 * XPO:Florida Girls 2027: the comm seed flipped this to true while every comm signal was
+	 * .set() to the value it already held (signals skip equal writes), so nothing invalidated
+	 * requestKey until she toggled an unrelated checkbox. Any field buildCloneRequest reads
+	 * MUST be a signal.
+	 */
+	private readonly commSeeded = signal(false);
 	private typeDefaultsSeeded = false;
 	/**
 	 * Banner wording is seeded from the FIRST plan and never re-seeded. Deliberate: re-seeding
@@ -201,7 +212,7 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	private bannerTextSeeded = false;
 
 	/** True only once the author has actually typed in a banner box — see setBannerText. */
-	private bannerTextDirty = false;
+	private readonly bannerTextDirty = signal(false);
 
 	/** Snapshot of the current inputs — recomputes on any form-signal change. */
 	readonly requestKey = computed(() => JSON.stringify(this.buildCloneRequest(null)));
@@ -320,7 +331,7 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	 * null and the server's year-bumped original ships with its markup intact.
 	 */
 	setBannerText(sig: WritableSignal<string>, value: string): void {
-		this.bannerTextDirty = true;
+		this.bannerTextDirty.set(true);
 		this.set(sig, value);
 	}
 
@@ -405,8 +416,8 @@ export class JobCloneWorkbenchComponent implements OnInit {
 		// type-aware scope/store defaults. Each seed changes the request → the stream
 		// refetches → the next plan lands fresh against the seeded inputs.
 		let reseeded = false;
-		if (!this.commSeeded) {
-			this.commSeeded = true;
+		if (!this.commSeeded()) {
+			this.commSeeded.set(true);
 			this.regFormFrom.set(planDto.regFormFrom ?? '');
 			this.regFormCcs.set(planDto.regFormCcs ?? '');
 			this.regFormBccs.set(planDto.regFormBccs ?? '');
@@ -548,21 +559,21 @@ export class JobCloneWorkbenchComponent implements OnInit {
 			eventEndDate: this.eventEndDate() || null,
 			// null before the comm seed = "keep source"; after seeding these are always
 			// strings (empty string deliberately CLEARS the field on the new job).
-			regFormFrom: this.commSeeded ? this.regFormFrom() : null,
-			regFormCcs: this.commSeeded ? this.regFormCcs() : null,
-			regFormBccs: this.commSeeded ? this.regFormBccs() : null,
-			rescheduleemaillist: this.commSeeded ? this.rescheduleemaillist() : null,
-			alwayscopyemaillist: this.commSeeded ? this.alwayscopyemaillist() : null,
-			mailTo: this.commSeeded ? this.mailTo() : null,
-			payTo: this.commSeeded ? this.payTo() : null,
-			storeContactEmail: this.commSeeded ? this.storeContactEmail() : null,
+			regFormFrom: this.commSeeded() ? this.regFormFrom() : null,
+			regFormCcs: this.commSeeded() ? this.regFormCcs() : null,
+			regFormBccs: this.commSeeded() ? this.regFormBccs() : null,
+			rescheduleemaillist: this.commSeeded() ? this.rescheduleemaillist() : null,
+			alwayscopyemaillist: this.commSeeded() ? this.alwayscopyemaillist() : null,
+			mailTo: this.commSeeded() ? this.mailTo() : null,
+			payTo: this.commSeeded() ? this.payTo() : null,
+			storeContactEmail: this.commSeeded() ? this.storeContactEmail() : null,
 			upAgegroupNamesByOne: this.upAgegroupNamesByOne(),
 			noParallaxSlide1: this.noParallaxSlide1(),
 			// Null unless the author typed. Sending the seeded value back would round-trip
 			// the source's wording through a plain-text editor and strip its markup for no
 			// reason; null lets the server's own year bump write the original verbatim.
-			bannerText1Target: this.bannerTextDirty ? this.bannerText1Target() : null,
-			bannerText2Target: this.bannerTextDirty ? this.bannerText2Target() : null,
+			bannerText1Target: this.bannerTextDirty() ? this.bannerText1Target() : null,
+			bannerText2Target: this.bannerTextDirty() ? this.bannerText2Target() : null,
 			ladtScope: this.ladtScope(),
 			copyDivisions: this.copyDivisions(),
 			paymentMethodsAllowedCode: this.paymentMethodsAllowedCode(),

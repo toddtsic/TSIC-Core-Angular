@@ -67,7 +67,11 @@ public class JobCloneController : ControllerBase
             // Data-moved guard: body carries the fresh plan so the workbench re-renders it.
             return Conflict(new { message = ex.Message, freshPlan = ex.FreshPlan });
         }
-        catch (InvalidOperationException ex)
+        // Deliberately NOT a bare InvalidOperationException catch: that also caught EF's
+        // "circular dependency detected in the data to be saved" and handed its raw text —
+        // EnableSensitiveDataLogging advice and all — to the operator as a 409. Only
+        // conflicts we author for a human render verbatim; everything else is a 500.
+        catch (CloneConflictException ex)
         {
             return Conflict(new { message = ex.Message });
         }

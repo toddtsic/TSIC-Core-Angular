@@ -112,9 +112,9 @@ public sealed class JobCloneService : IJobCloneService
                 throw new ArgumentException(
                     $"Job path '{request.JobPathTarget}' is not a valid URL segment (letters, digits, hyphens; max {JobClonePlanner.MaxJobPathLength} chars).");
             if (ctx.PathExists)
-                throw new InvalidOperationException($"Job path '{request.JobPathTarget}' already exists.");
+                throw new CloneConflictException($"Job path '{request.JobPathTarget}' already exists.");
             if (ctx.NameExists)
-                throw new InvalidOperationException($"Job name '{request.JobNameTarget}' already exists.");
+                throw new CloneConflictException($"Job name '{request.JobNameTarget}' already exists.");
             if (ctx.MissingLeagueRenames.Count > 0)
                 throw new ArgumentException(
                     "Every source league needs a target name. Missing: "
@@ -141,9 +141,19 @@ public sealed class JobCloneService : IJobCloneService
                 "Cloning job {SourceJobId} → {TargetPath} (yearDelta={YearDelta})",
                 request.SourceJobId, request.JobPathTarget, ctx.YearDelta);
 
-            var (steps, actorRegistrationId) = Materialize(ctx, newJobId, superUserId, now);
+            var (steps, actorRegistrationId, newJob, deferredPrimaryContactId) =
+                Materialize(ctx, newJobId, superUserId, now);
 
             await _repo.SaveChangesAsync(ct);
+
+            // Second flush, same transaction: the primary-contact registration now EXISTS,
+            // so the job's pointer at it can be written without a cycle. See Materialize.
+            if (deferredPrimaryContactId.HasValue)
+            {
+                newJob.PrimaryContactRegistrationId = deferredPrimaryContactId;
+                await _repo.SaveChangesAsync(ct);
+            }
+
             await _repo.CommitTransactionAsync(ct);
 
             _logger.LogInformation(
@@ -173,8 +183,8 @@ public sealed class JobCloneService : IJobCloneService
     /// dictionary MUST cover the manifest exactly — checked at runtime on every clone, so
     /// a manifest key without an executor (or vice versa) fails loudly, never silently.
     /// </summary>
-    private (List<ClonePlanStepDto> Steps, Guid ActorRegistrationId) Materialize(
-        ClonePlanContext ctx, Guid newJobId, string userId, DateTime now)
+    private (List<ClonePlanStepDto> Steps, Guid ActorRegistrationId, Jobs Job, Guid? DeferredPrimaryContactId)
+        Materialize(ClonePlanContext ctx, Guid newJobId, string userId, DateTime now)
     {
         var req = ctx.Request;
         var yearDelta = ctx.YearDelta;
@@ -215,6 +225,19 @@ public sealed class JobCloneService : IJobCloneService
         // ── Job + 1:1s + flat children ──
         var job = JobCloneResetRules.CloneJob(
             ctx.SourceJob, newJobId, req, userId, now, yearDelta, registrationIdMap);
+
+        // ── DEFERRED FK — the insert-side twin of the delete cycle fixed in 7231ddbe ──
+        // Jobs.PrimaryContactRegistrationId points at a registration whose own jobID points
+        // back at this job. Both rows are [Added] in the single flush below, so EF has no
+        // valid insert order and throws "circular dependency detected in the data to be
+        // saved", rolling the whole clone back. Insert the job with a NULL pointer and set
+        // it in a second flush inside the same transaction — the same "null it first" rule
+        // the cascade delete follows. Only bites when the source HAS a primary contact whose
+        // registration also clones (6 of 1069 jobs carry one), which is why every clone
+        // before Ann's XPO:Florida Girls 2027 attempt sailed through.
+        var deferredPrimaryContactId = job.PrimaryContactRegistrationId;
+        job.PrimaryContactRegistrationId = null;
+
         var display = ctx.DisplayOptions != null
             ? JobCloneResetRules.CloneDisplayOptions(ctx.DisplayOptions, newJobId, req, userId, now)
             : null;
@@ -402,7 +425,7 @@ public sealed class JobCloneService : IJobCloneService
             steps.Add(new ClonePlanStepDto { StepKey = key, Count = count, Notes = notes });
         }
 
-        return (steps, actorRegId.Value);
+        return (steps, actorRegId.Value, job, deferredPrimaryContactId);
     }
 
     /// <summary>
