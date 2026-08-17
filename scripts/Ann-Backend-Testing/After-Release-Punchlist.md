@@ -18,7 +18,17 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 
 ---
 
-<!-- New items go below this line, newest at the bottom, next id = AR-011 -->
+<!-- New items go below this line, newest at the bottom, next id = AR-012 -->
+
+### AR-011: [Payments / Add Accounting Record] The Amount field cannot be cleared — a `0` reappears under the caret
+- **Topic**: Payments → registrant/team fly-in → **Add Accounting Record** → AMOUNT field (Credit Card / Check / Correction)
+- **Split out of AR-009 (08-17)**, which was the *disappearing modal* and is fixed. This is the other half of Ann's original write-up — the part about deleting the entry to retype it.
+- **What the admin sees**: Amount shows `900`. Backspacing to retype gives `90`, `9`, then the moment the field goes empty **a `0` appears on its own** with the caret after it, so the new number is typed beside it and the field reads `0900`. The field fights the user.
+- **Root cause (verified, Claude 08-17)**: one-way binding `[ngModel]="amount()"` + `(ngModelChange)="setAmount($event)"`, and `setAmount` coerces with `value ?? 0`. An empty number input emits `null` → stored as `0` → the signal now disagrees with the empty box, so Angular writes `0` back into it. The signal has no way to represent "empty".
+- **NOT a money risk — deliberately deferred on that basis (Todd, 08-17).** `canSubmitPayment()` already refuses zero on every tab (CC needs `amt > 0`; correction returns false at `0`; check falls through to `amt !== 0`), so Save is disabled and a `$0` record cannot be booked. `0900` also parses to `900`, so even the ugly display submits the correct number. The failure mode is confusion and re-typing, not a wrong ledger amount.
+- **Fix when we take it**: let the amount signal hold `null` while the field is empty and let the existing submit guard treat `null` as not-submittable. Two lines, one component, no backend, no DTO. **Money-entry binding — give it its own deliberate pass and its own verification; do NOT ride it along behind an unrelated fix.**
+- **Severity**: UX friction on a money form (no incorrect-amount path)
+- **Status**: 🔵 REVISIT — parked by Todd 08-17. Trigger to un-park: Ann re-reports the field fighting her after the AR-009 backdrop fix lands.
 
 ### AR-010: [Payments / ARB] Update CC for ARB subscribers — confirm it works, incl. behind-in-payments catch-up (legacy parity)
 - **Topic**: Payments → ARB subscriptions → **Update CC** menu
