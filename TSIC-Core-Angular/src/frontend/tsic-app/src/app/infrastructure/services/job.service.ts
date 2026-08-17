@@ -69,22 +69,15 @@ export class JobService {
     private inflightJobPath: string | null = null;
     private inflightJob$: Observable<JobMetadataResponse> | null = null;
 
-    /**
-     * Single chokepoint for job-metadata HTTP: dedupes concurrent same-path callers.
-     *
-     * `silent` suppresses the interceptor's generic 4xx/5xx toast, for the one caller that
-     * treats a 404 as DATA rather than as a failure (jobExists, below). It is not the default
-     * because a real job whose metadata fetch fails should still surface that to the user.
-     */
-    private requestJobMetadata(jobPath: string, opts?: { silent?: boolean }): Observable<JobMetadataResponse> {
+    /** Single chokepoint for job-metadata HTTP: dedupes concurrent same-path callers. */
+    private requestJobMetadata(jobPath: string): Observable<JobMetadataResponse> {
         if (this.inflightJob$ && this.inflightJobPath?.toLowerCase() === jobPath.toLowerCase()) {
             return this.inflightJob$;
         }
         const seq = this.beginJobRequest(jobPath);
         this.jobMetadataLoading.set(true);
         const req$: Observable<JobMetadataResponse> = this.http
-            .get<JobMetadataResponse>(`${this.apiUrl}/jobs/${jobPath}`,
-                opts?.silent ? { context: skipErrorToast() } : {})
+            .get<JobMetadataResponse>(`${this.apiUrl}/jobs/${jobPath}`)
             .pipe(
                 tap({
                     next: metadata => {
@@ -117,17 +110,28 @@ export class JobService {
      * "Does this jobPath name a real job?" — the question `jobPathMatch` asks before the
      * router will bind a URL segment to `:jobPath`.
      *
-     * It answers by running the ORDINARY metadata fetch, not a separate probe. The first cut
-     * of this used its own GET so it would write no signal, on the theory that populating
-     * `currentJob` from a route-match guard might re-fire the pulse (1285276b). Tracing it
-     * kills that theory: on success the layout's `!currentJob()` check at layout.component.ts
-     * skips its own load, so the app makes ONE request and ONE `currentJob` write either way
-     * — exactly the counts it made before this guard existed. The separate probe bought no
-     * safety and cost a second, serialized round trip in front of first paint, on the cold
-     * load that every emailed link and bookmark takes.
+     * DELIBERATELY SEPARATE from requestJobMetadata / currentJob: it answers a boolean and
+     * writes NO signal. This was tried the other way (1c5c686f) and REVERTED — do not retry.
      *
-     * So the cost is now ~zero: the request the app was always going to make, moved a beat
-     * earlier. Verdicts are memoized, so repeat navigations never re-ask.
+     * Delegating to requestJobMetadata looks free, because the layout's `!currentJob()` check
+     * then skips its own load. But the layout is not the only caller. `job-landing` refetches
+     * UNCONDITIONALLY in afterNextRender and pushes the result through setJob(). Today that
+     * call lands while the layout's request is still on the wire, so it JOINS it via the
+     * in-flight slot above and setJob() re-sets the very same object — an Object.is no-op,
+     * no notification. Fetching from a route-match guard destroys that: the request settles
+     * BEFORE any component mounts, the slot is empty by the time the landing asks, and the
+     * landing gets a second HTTP call and a DIFFERENT object instance. That new reference is
+     * precisely what the header's pulse trigger reads as "the job changed" — the regression
+     * 1285276b exists to prevent.
+     *
+     * So the separation is not caution, it is the requirement. Keeping this probe's response
+     * out of currentJob leaves the layout+landing dedupe exactly as 1285276b tuned it.
+     *
+     * Cost, stated honestly: one EXTRA round trip on the cold load of each distinct jobPath,
+     * carrying the full metadata payload (there is no existence-only endpoint), serialized
+     * ahead of route activation. Memoized below, so warm navigations never re-ask. A
+     * dedicated lightweight endpoint would remove the payload cost; the round trip itself is
+     * inherent to gating a route match on server state.
      */
     private readonly knownJobs = new Map<string, boolean>();
     private readonly jobExistsInflight = new Map<string, Observable<boolean>>();
@@ -146,26 +150,20 @@ export class JobService {
         const pending = this.jobExistsInflight.get(key);
         if (pending) return pending;
 
-        // Which job was "newest" before we asked. A 404 must not leave a nonexistent path
-        // stamped as latestJobPath — setJob()'s stale-write guard compares against it, and
-        // would then reject a legitimate write for the job the user actually lands on.
-        const priorJobPath = this.latestJobPath;
-
-        // silent: a 404 here is the ANSWER, not a failure — it is how the guard learns the
-        // path is not a job. Without it the interceptor's 4xx safety net fires a warning toast
-        // on top of the not-found page, which already says the job path is invalid.
-        const req$ = this.requestJobMetadata(jobPath, { silent: true }).pipe(
+        // skipErrorToast: a 404 here is the ANSWER, not a failure — it is how the guard learns
+        // the path is not a job. Without this the interceptor's 4xx safety net fires a warning
+        // toast on top of the not-found page, which already says the job path is invalid.
+        const req$ = this.http.get<JobMetadataResponse>(`${this.apiUrl}/jobs/${jobPath}`, {
+            context: skipErrorToast()
+        }).pipe(
             map(() => { this.knownJobs.set(key, true); return true; }),
             catchError((err: HttpErrorResponse) => {
                 // Only a definitive 404 condemns a path. A network drop, a 5xx or a CORS
                 // failure must FAIL OPEN and stay uncached — otherwise a momentary API
                 // outage would blacklist real jobs into the not-found page for the rest of
-                // the session, turning a blip into an app-wide outage. Failing open also
-                // leaves currentJob unset, so the layout still runs its own (toasting)
-                // fetch and the user sees the real error.
+                // the session, turning a blip into an app-wide outage.
                 if (err.status === 404) {
                     this.knownJobs.set(key, false);
-                    this.latestJobPath = priorJobPath;
                     return of(false);
                 }
                 return of(true);
