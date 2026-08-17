@@ -445,7 +445,25 @@ export class AccountingLedgerComponent {
 		this.ccPhone.set('');
 	}
 
+	/** True while a mouse press that STARTED on the backdrop is still down. */
+	private backdropPressStarted = false;
+
+	/** Arm backdrop dismissal only when the press lands on the backdrop itself — presses inside the
+	 *  card bubble here too, and those must never arm it. */
+	onBackdropPress(event: MouseEvent): void {
+		this.backdropPressStarted = event.target === event.currentTarget;
+	}
+
+	/** Dismiss only when the release ALSO lands on the backdrop. Press-inside/release-outside (the
+	 *  AR-009 data-loss case) and press-outside/release-inside both fall through and do nothing. */
+	onBackdropRelease(event: MouseEvent): void {
+		const startedAndEndedOnBackdrop = this.backdropPressStarted && event.target === event.currentTarget;
+		this.backdropPressStarted = false;
+		if (startedAndEndedOnBackdrop) this.closePaymentModal();
+	}
+
 	closePaymentModal(): void {
+		this.backdropPressStarted = false;
 		this.showPaymentModal.set(false);
 		this.refundRecord.set(null);
 		this.showRefundConfirm.set(false);

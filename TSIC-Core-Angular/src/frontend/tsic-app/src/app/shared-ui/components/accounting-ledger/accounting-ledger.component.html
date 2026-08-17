@@ -151,7 +151,14 @@
      ═══════════════════════════════════════════════════════════════════ -->
 
 @if (showPaymentModal()) {
-  <div class="modal-overlay" (click)="closePaymentModal()" (keydown.escape)="closePaymentModal()">
+  <!-- Backdrop dismissal requires the press AND the release to land on the backdrop itself.
+       A plain (click) here silently discarded a half-entered amount / check no / comment: `click`
+       fires on the nearest common ancestor of mousedown and mouseup, so pressing inside the card
+       and releasing a few pixels outside it — mouse jitter, a click near the card edge, or the
+       draggable card sliding out from under a stationary cursor — dispatched the click on THIS
+       element and closed the modal (AR-009). Escape / X / Cancel are unchanged. -->
+  <div class="modal-overlay" (mousedown)="onBackdropPress($event)" (mouseup)="onBackdropRelease($event)"
+       (keydown.escape)="closePaymentModal()">
     <div class="modal-card" [class.modal-card--wide]="paymentType() === 'cc'" appDraggableModal
          (click)="$event.stopPropagation()" (keydown.escape)="closePaymentModal()">
 
