@@ -24,8 +24,10 @@ import { JobService } from '../services/job.service';
  * is not the URL-regex sniffing that navigation/job-path.ts warns against — there is no
  * ActivatedRouteSnapshot yet at match time, by design.
  *
- * Verdicts are memoized in JobService, so this is one HTTP call per distinct jobPath per
- * session, not per navigation, and it fails OPEN if the API is unreachable.
+ * This adds no HTTP traffic: jobExists runs the ordinary job-metadata fetch, which populates
+ * currentJob and so lets the layout skip its own load. The app makes the same one request it
+ * always made, just a beat earlier. Verdicts are memoized, so repeat navigations never
+ * re-ask, and it fails OPEN if the API is unreachable.
  */
 export const jobPathMatch: CanMatchFn = (_route, segments) => {
     const candidate = segments[0]?.path;
