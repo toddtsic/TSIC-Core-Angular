@@ -974,6 +974,20 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         return HtmlTableBuilder.RenderWaiverBlock(safeLabel, html, emailMode);
     }
 
+    /// <summary>
+    /// Renders the coach's teams for !F-STAFFCHOICES. Like !F-TEAMS, this token is overloaded by
+    /// coach regime, and the two regimes store the teams in different places:
+    /// <list type="bullet">
+    /// <item><b>Unassigned Adult</b> (Club sites): the picks are non-binding REQUESTS, codified into
+    /// <c>Registrations.SpecialRequests</c> JSON — no Staff row, no AssignedTeamId.</item>
+    /// <item><b>Direct placement</b> (Tournament / League, per <c>e6d3bd08</c>): the picks are
+    /// ASSIGNMENTS — one Staff Registration per team with AssignedTeamId set, and
+    /// <c>AllowTeamRequests: false</c> means nothing is ever written to SpecialRequests.</item>
+    /// </list>
+    /// Reading SpecialRequests alone therefore rendered EMPTY for every direct-placement coach —
+    /// the confirmation printed its "teams you will be rostered with" heading over a blank
+    /// (AR-008). Fall back to the assigned Staff rows so both regimes render.
+    /// </summary>
     private async Task<string> BuildStaffChoicesAsync(Guid registrationId, bool emailMode)
     {
         var keys = await _repo.GetStaffInfoAsync(registrationId);
@@ -986,17 +1000,26 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         var record = AdultTeamRequestData.Parse(keys.SpecialRequests);
         var requestedIds = record.GetRequestedTeamIds();
 
+        // No requests on file → this is either a direct-placement coach (assignments, never
+        // requests) or a legacy note-only row. GetCoachTeamChoicesAsync aggregates every ACTIVE
+        // Staff row for this user+job, one per team, so a multi-team coach gets his whole list
+        // from whichever of his N rows is being confirmed.
+        var teams = requestedIds.Count > 0
+            ? await _repo.GetTeamLabelsByIdsAsync(requestedIds)
+            : await _repo.GetCoachTeamChoicesAsync(registrationId);
+
         var sb = new StringBuilder();
-        if (requestedIds.Count > 0)
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var c in teams)
         {
-            var teams = await _repo.GetTeamLabelsByIdsAsync(requestedIds);
-            foreach (var c in teams)
-            {
-                var label = string.IsNullOrWhiteSpace(c.Club)
-                    ? $"{c.Age}: {c.Team}"
-                    : $"{c.Club}: {c.Age}: {c.Team}";
-                sb.Append($"<li>{WebUtility.HtmlEncode(label)}</li>");
-            }
+            var label = string.IsNullOrWhiteSpace(c.Club)
+                ? $"{c.Age}: {c.Team}"
+                : $"{c.Club}: {c.Age}: {c.Team}";
+
+            // One team can carry more than one Staff row for the same coach; the email lists
+            // teams, not rows.
+            if (!seen.Add(label)) continue;
+            sb.Append($"<li>{WebUtility.HtmlEncode(label)}</li>");
         }
 
         // Preserve any human note (legacy free-text SpecialRequests, or a coach's remark).

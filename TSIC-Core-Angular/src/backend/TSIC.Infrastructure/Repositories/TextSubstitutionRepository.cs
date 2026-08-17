@@ -510,16 +510,23 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
 
         if (keys == null) return new List<CoachTeamChoice>();
 
+        // bActive matters: a coach removed from a team keeps the inactive Staff row, and a
+        // resent confirmation must not list a team he is no longer on.
+        // Club name left-joined for the same reason as GetTeamLabelsByIdsAsync — the
+        // Teams.ClubrepRegistrationid FK is nullable, and a rostered team must never drop out
+        // of a coach's confirmation for lacking a club rep.
         return await (from r in _context.Registrations
                       join t in _context.Teams on r.AssignedTeamId equals t.TeamId
-                      join rCR in _context.Registrations on t.ClubrepRegistrationid equals rCR.RegistrationId
                       join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
                       join roles in _context.AspNetRoles on r.RoleId equals roles.Id
-                      where r.JobId == keys.JobId && r.UserId == keys.UserId && roles.Name == "Staff"
+                      join rCR in _context.Registrations on t.ClubrepRegistrationid equals rCR.RegistrationId into crj
+                      from rCR in crj.DefaultIfEmpty()
+                      where r.JobId == keys.JobId && r.UserId == keys.UserId
+                            && r.BActive == true && roles.Name == "Staff"
                       orderby ag.AgegroupName, t.TeamName
                       select new CoachTeamChoice
                       {
-                          Club = rCR.ClubName,
+                          Club = rCR != null ? rCR.ClubName : null,
                           Age = ag.AgegroupName,
                           Team = t.TeamName
                       }).ToListAsync(cancellationToken);
