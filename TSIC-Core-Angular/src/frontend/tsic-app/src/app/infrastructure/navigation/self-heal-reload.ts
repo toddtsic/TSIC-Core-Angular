@@ -20,7 +20,8 @@
  */
 
 const BRAKE_KEY = 'self-heal-reload-at';
-const BRAKE_MS = 15_000;
+export const SELF_HEAL_BRAKE_MS = 15_000;
+const BRAKE_MS = SELF_HEAL_BRAKE_MS;
 
 function lastReloadAt(): number {
     try {

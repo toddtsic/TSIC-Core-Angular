@@ -6,6 +6,7 @@ import { authInterceptor } from './infrastructure/interceptors/auth.interceptor'
 import { routes } from './app.routes';
 import { chunkLoadRecoveryHandler } from './infrastructure/navigation/chunk-load-recovery';
 import { AppVersionService } from './infrastructure/services/app-version.service';
+import { CrossTabSessionSyncService } from './infrastructure/services/cross-tab-session-sync.service';
 import { LastLocationService } from './infrastructure/services/last-location.service';
 import { ThemeOverridesService } from './infrastructure/services/theme-overrides.service';
 import { JobContextService } from './infrastructure/services/job-context.service';
@@ -28,6 +29,9 @@ export const appConfig: ApplicationConfig = {
     // "After I deploy, users get the new code": compare the served build stamp to ours on every
     // URL change and reload once when it differs. See infrastructure/services/app-version.service.
     provideAppInitializer(() => inject(AppVersionService).start()),
+    // One browser, one session: when another tab logs out / in / switches role, this tab
+    // reloads to match instead of showing a user it no longer is. See cross-tab-session-sync.
+    provideAppInitializer(() => inject(CrossTabSessionSyncService).start()),
     // Ensure LastLocationService is instantiated at startup to begin tracking
     provideAppInitializer(() => { inject(LastLocationService); }),
     // Instantiate ThemeOverridesService to auto-apply saved per-job theme tokens
