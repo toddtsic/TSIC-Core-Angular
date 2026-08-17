@@ -219,6 +219,11 @@ if (!$SkipAngular) {
     if (!(Test-Path $distPath)) { Write-Error "Angular build output not found at: $distPath"; exit 1 }
     Copy-Item "$distPath\*" $AngPublish -Recurse -Force
 
+    # version.json: the stamp the running app polls on route change (see _deploy-common.ps1).
+    # Same $BuildStamp that was compiled into environment.buildVersion above.
+    Write-TsicVersionFile -Path $AngPublish -BuildStamp $BuildStamp | Out-Null
+    Write-Host "  Wrote version.json ($BuildStamp)" -ForegroundColor DarkGray
+
     # Apply web.config template
     if (Test-Path $WebConfigAngSrc) {
         $wcDest = Join-Path $AngPublish 'web.config'

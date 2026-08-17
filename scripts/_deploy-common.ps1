@@ -84,6 +84,15 @@ $TsicExclusions = @{
 
 $TsicManifestName = 'deploy-manifest.json'
 
+# version.json is the ONE file the running Angular app reads to learn a deploy
+# happened. It carries the same $BuildStamp compiled into environment.buildVersion;
+# the app compares the two on every route change and full-reloads on mismatch. It
+# is deliberately a single field - deploy-manifest.json stays private to the
+# deploy tooling (gitHash, environment, fileCount are not for public consumption).
+# web.config.angular serves it no-store; without that the 1-year static cache
+# would hide every deploy behind the first copy a browser saw.
+$TsicVersionFileName = 'version.json'
+
 # ---------------------------------------------------------------------------
 # Site lookup
 # ---------------------------------------------------------------------------
@@ -379,6 +388,26 @@ function New-TsicManifest {
     $dest = Join-Path $Path $TsicManifestName
     $manifest | ConvertTo-Json | Set-Content -Path $dest -Encoding UTF8
     return $manifest
+}
+
+function Write-TsicVersionFile {
+    <#
+        Writes version.json into an Angular publish folder. Called by BOTH Angular
+        build paths (1b-Build-Angular.ps1 for local/staging, 1-Build-And-Deploy-Prod.ps1
+        for prod) so the stamp the app reads and the stamp compiled into it come from
+        the same $BuildStamp. Rides the /MIR to live like any other file; rollback
+        restores the backup's copy, so the app sees a changed stamp and reloads once.
+    #>
+    param(
+        [Parameter(Mandatory)] [string] $Path,
+        [Parameter(Mandatory)] [string] $BuildStamp
+    )
+    $dest = Join-Path $Path $TsicVersionFileName
+    $json = [ordered]@{ buildStamp = $BuildStamp } | ConvertTo-Json -Compress
+    # BOM-less UTF-8: PS 5.1's Set-Content -Encoding UTF8 prepends a BOM; keep the
+    # bytes the browser reads to exactly the JSON.
+    [IO.File]::WriteAllText($dest, $json, (New-Object System.Text.UTF8Encoding($false)))
+    return $dest
 }
 
 function Get-TsicManifest {

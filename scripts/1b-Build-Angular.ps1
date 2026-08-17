@@ -18,6 +18,9 @@ param(
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
+# Write-TsicVersionFile lives here (shared with the prod build path).
+. "$PSScriptRoot\_deploy-common.ps1"
+
 # Suppress ANSI color sequences in npm / Angular output. PS 5.1 doesn't always
 # interpret VT escapes, and when these scripts are invoked through nested
 # `& $scriptPath` calls the ESC byte (0x1B) sometimes gets stripped in transit
@@ -106,6 +109,10 @@ Get-ChildItem -Path $OutputPath -Recurse | Remove-Item -Force -Recurse -ErrorAct
 
 # Copy files (ensure index.html lands at root of publish\angular for IIS default document)
 Copy-Item "$DistPath\*" $OutputPath -Recurse -Force
+
+# version.json: the stamp the running app polls on route change (see _deploy-common.ps1).
+Write-TsicVersionFile -Path $OutputPath -BuildStamp $buildStamp | Out-Null
+Write-Host "  Wrote version.json ($buildStamp)" -ForegroundColor DarkGray
 
 # Reset environment files back to 'dev' so git stays clean
 Get-ChildItem $envDir -Filter "environment*.ts" | ForEach-Object {

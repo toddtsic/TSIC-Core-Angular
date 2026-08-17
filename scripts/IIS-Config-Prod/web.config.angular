@@ -16,6 +16,25 @@
     </system.webServer>
   </location>
 
+  <!-- version.json: NEVER cache. The running app fetches this on every route change and
+       compares it to the build stamp compiled into itself; a mismatch means a deploy landed
+       and the app full-reloads to pick it up. Under the 1-year default below a browser would
+       keep the first copy it saw and never learn of another deploy. Same treatment as
+       index.html for the same reason. -->
+  <location path="version.json">
+    <system.webServer>
+      <staticContent>
+        <clientCache cacheControlMode="DisableCache" />
+      </staticContent>
+      <httpProtocol>
+        <customHeaders>
+          <add name="Cache-Control" value="no-cache, no-store, must-revalidate" />
+          <add name="Pragma" value="no-cache" />
+        </customHeaders>
+      </httpProtocol>
+    </system.webServer>
+  </location>
+
   <!-- Context-sensitive help (public/help/**): manifest.json + authored HTML.
        These live in public/ so they are NOT content-hashed — filenames are stable across
        builds. Under the 1-year default below, a returning browser would serve a stale manifest
@@ -48,9 +67,18 @@
         <clientCache cacheControlMode="UseMaxAge" cacheControlMaxAge="365.00:00:00" />
       </staticContent>
 
-      <!-- URL Rewrite for Angular routing -->
+      <!-- URL Rewrite: force HTTPS first, then Angular SPA routing -->
       <rewrite>
         <rules>
+          <!-- Force HTTPS: any HTTP hit redirects to HTTPS (301). Wildcard cert
+               on *.teamsportsinfo.com makes this safe for any subdomain. -->
+          <rule name="Force HTTPS" stopProcessing="true">
+            <match url="(.*)" />
+            <conditions>
+              <add input="{HTTPS}" pattern="off" ignoreCase="true" />
+            </conditions>
+            <action type="Redirect" url="https://{HTTP_HOST}/{R:1}" redirectType="Permanent" />
+          </rule>
           <!-- The privacy policy is a static FILE (public/privacy-policy.html), never a route:
                an Angular route returns only the SPA shell to a no-JavaScript fetch, which is
                why Google Play rejected the Android app ("link is inactive ... broken or
@@ -79,6 +107,9 @@
       <!-- Security headers -->
       <httpProtocol>
         <customHeaders>
+          <!-- HSTS: 1 year, includeSubDomains. Wildcard *.teamsportsinfo.com cert
+               covers all customer-branded subdomains. -->
+          <add name="Strict-Transport-Security" value="max-age=31536000; includeSubDomains" />
           <add name="X-Frame-Options" value="SAMEORIGIN" />
           <add name="X-Content-Type-Options" value="nosniff" />
           <add name="Referrer-Policy" value="strict-origin-when-cross-origin" />

@@ -16,6 +16,25 @@
     </system.webServer>
   </location>
 
+  <!-- version.json: NEVER cache. The running app fetches this on every route change and
+       compares it to the build stamp compiled into itself; a mismatch means a deploy landed
+       and the app full-reloads to pick it up. Under the 1-year default below a browser would
+       keep the first copy it saw and never learn of another deploy. Same treatment as
+       index.html for the same reason. -->
+  <location path="version.json">
+    <system.webServer>
+      <staticContent>
+        <clientCache cacheControlMode="DisableCache" />
+      </staticContent>
+      <httpProtocol>
+        <customHeaders>
+          <add name="Cache-Control" value="no-cache, no-store, must-revalidate" />
+          <add name="Pragma" value="no-cache" />
+        </customHeaders>
+      </httpProtocol>
+    </system.webServer>
+  </location>
+
   <!-- Context-sensitive help (public/help/**): manifest.json + authored HTML.
        These live in public/ so they are NOT content-hashed — filenames are stable across
        builds. Under the 1-year default below, a returning browser would serve a stale manifest
