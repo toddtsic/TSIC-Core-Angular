@@ -348,10 +348,15 @@ import { AdultWizardStateService } from '../state/adult-wizard-state.service';
             color: var(--brand-text);
         }
 
+        /* One team per line, matching the Profile step's "Selected (n):" list. Inline pills at a
+           4px gap read as one run-on string once the labels are full Club:Age:Division:Team
+           (AR-003) — a coach could not tell where one team ended and the next began.
+           align-items keeps each pill hugging its own text instead of stretching the column. */
         .teams-wrap {
             display: flex;
-            flex-wrap: wrap;
-            gap: var(--space-1);
+            flex-direction: column;
+            align-items: flex-start;
+            gap: var(--space-2);
             padding: var(--space-3);
         }
 
