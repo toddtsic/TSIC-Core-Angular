@@ -1,17 +1,27 @@
 import { inject, Injectable, signal, computed } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Observable, finalize, shareReplay, tap, of, map, catchError } from 'rxjs';
+import { Router } from '@angular/router';
+import { Observable, finalize, shareReplay, tap } from 'rxjs';
 import { environment } from '@environments/environment';
 import { skipErrorToast } from '@infrastructure/interceptors/http-error-context';
+import { ToastService } from '@shared-ui/toast.service';
 import type { RegistrationStatusRequest, RegistrationStatusResponse, BulletinDto, NavDto, NavItemDto, JobMetadataResponse } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
 export class JobService {
     private readonly http = inject(HttpClient);
+    private readonly router = inject(Router);
+    private readonly toast = inject(ToastService);
     private readonly apiUrl = environment.apiUrl;
 
     // Signal for reactive state management
     public readonly currentJob = signal<JobMetadataResponse | null>(null);
+
+    /**
+     * jobPath of the most recent metadata fetch that came back 404 — i.e. a job that does
+     * not exist. LastLocationService watches this to drop a poisoned last-job-path.
+     */
+    public readonly jobNotFound = signal<string | null>(null);
     public readonly jobMetadataLoading = signal(false);
     public readonly registrationStatuses = signal<RegistrationStatusResponse[]>([]);
     public readonly registrationLoading = signal(false);
@@ -69,7 +79,22 @@ export class JobService {
     private inflightJobPath: string | null = null;
     private inflightJob$: Observable<JobMetadataResponse> | null = null;
 
-    /** Single chokepoint for job-metadata HTTP: dedupes concurrent same-path callers. */
+    /**
+     * Single chokepoint for job-metadata HTTP: dedupes concurrent same-path callers, and —
+     * because it is the ONE place the app learns a job does not exist — owns the 404 response.
+     *
+     * That 404 used to be swallowed (`error: () => {}`), which is the whole reason a mistyped
+     * URL rendered a blank "Welcome" instead of a not-found page: the router had already bound
+     * the segment to `:jobPath`, the layout mounted, and the server's "no such job" went in the
+     * bin. Handling it HERE covers every caller — layout, landing, widget dashboard, entry,
+     * family, team wizard — with no pre-flight check and no extra request. An earlier attempt
+     * gated the route match on a separate existence probe instead; it cost a duplicate
+     * round trip and broke the landing's in-flight dedupe (see 1c5c686f, reverted).
+     *
+     * skipErrorToast + an explicit toast below: the interceptor's generic 4xx handler would
+     * otherwise fire a warning on top of the not-found page. Non-404 failures still toast,
+     * they just do it from here so the 404 can be silent.
+     */
     private requestJobMetadata(jobPath: string): Observable<JobMetadataResponse> {
         if (this.inflightJob$ && this.inflightJobPath?.toLowerCase() === jobPath.toLowerCase()) {
             return this.inflightJob$;
@@ -77,7 +102,7 @@ export class JobService {
         const seq = this.beginJobRequest(jobPath);
         this.jobMetadataLoading.set(true);
         const req$: Observable<JobMetadataResponse> = this.http
-            .get<JobMetadataResponse>(`${this.apiUrl}/jobs/${jobPath}`)
+            .get<JobMetadataResponse>(`${this.apiUrl}/jobs/${jobPath}`, { context: skipErrorToast() })
             .pipe(
                 tap({
                     next: metadata => {
@@ -85,9 +110,22 @@ export class JobService {
                         this.currentJob.set(metadata);
                         this.jobMetadataLoading.set(false);
                     },
-                    error: () => {
+                    error: (err: HttpErrorResponse) => {
                         if (!this.isCurrentJobRequest(seq)) return;
                         this.jobMetadataLoading.set(false);
+
+                        if (err.status === 404) {
+                            // skipLocationChange keeps the URL the user typed in the bar while
+                            // showing the 404 — the address is the thing they need to see is wrong.
+                            this.jobNotFound.set(jobPath);
+                            this.router.navigateByUrl('/not-found', { skipLocationChange: true });
+                            return;
+                        }
+
+                        // Fail LOUD but stay put: a 5xx or a dropped connection means we cannot
+                        // tell whether the job exists, and bouncing a user off a real event
+                        // because the API hiccuped would be far worse than a blank panel.
+                        this.toast.show('Unable to load event information. Please try again.', 'danger', 7000);
                     }
                 }),
                 finalize(() => {
@@ -103,76 +141,6 @@ export class JobService {
             );
         this.inflightJob$ = req$;
         this.inflightJobPath = jobPath;
-        return req$;
-    }
-
-    /**
-     * "Does this jobPath name a real job?" — the question `jobPathMatch` asks before the
-     * router will bind a URL segment to `:jobPath`.
-     *
-     * DELIBERATELY SEPARATE from requestJobMetadata / currentJob: it answers a boolean and
-     * writes NO signal. This was tried the other way (1c5c686f) and REVERTED — do not retry.
-     *
-     * Delegating to requestJobMetadata looks free, because the layout's `!currentJob()` check
-     * then skips its own load. But the layout is not the only caller. `job-landing` refetches
-     * UNCONDITIONALLY in afterNextRender and pushes the result through setJob(). Today that
-     * call lands while the layout's request is still on the wire, so it JOINS it via the
-     * in-flight slot above and setJob() re-sets the very same object — an Object.is no-op,
-     * no notification. Fetching from a route-match guard destroys that: the request settles
-     * BEFORE any component mounts, the slot is empty by the time the landing asks, and the
-     * landing gets a second HTTP call and a DIFFERENT object instance. That new reference is
-     * precisely what the header's pulse trigger reads as "the job changed" — the regression
-     * 1285276b exists to prevent.
-     *
-     * So the separation is not caution, it is the requirement. Keeping this probe's response
-     * out of currentJob leaves the layout+landing dedupe exactly as 1285276b tuned it.
-     *
-     * Cost, stated honestly: one EXTRA round trip on the cold load of each distinct jobPath,
-     * carrying the full metadata payload (there is no existence-only endpoint), serialized
-     * ahead of route activation. Memoized below, so warm navigations never re-ask. A
-     * dedicated lightweight endpoint would remove the payload cost; the round trip itself is
-     * inherent to gating a route match on server state.
-     */
-    private readonly knownJobs = new Map<string, boolean>();
-    private readonly jobExistsInflight = new Map<string, Observable<boolean>>();
-
-    /** Synchronous read of an already-settled verdict. False when unknown OR known-bad. */
-    isKnownJob(jobPath: string): boolean {
-        return this.knownJobs.get(jobPath.toLowerCase()) === true;
-    }
-
-    jobExists(jobPath: string): Observable<boolean> {
-        const key = jobPath.toLowerCase();
-
-        const settled = this.knownJobs.get(key);
-        if (settled !== undefined) return of(settled);
-
-        const pending = this.jobExistsInflight.get(key);
-        if (pending) return pending;
-
-        // skipErrorToast: a 404 here is the ANSWER, not a failure — it is how the guard learns
-        // the path is not a job. Without this the interceptor's 4xx safety net fires a warning
-        // toast on top of the not-found page, which already says the job path is invalid.
-        const req$ = this.http.get<JobMetadataResponse>(`${this.apiUrl}/jobs/${jobPath}`, {
-            context: skipErrorToast()
-        }).pipe(
-            map(() => { this.knownJobs.set(key, true); return true; }),
-            catchError((err: HttpErrorResponse) => {
-                // Only a definitive 404 condemns a path. A network drop, a 5xx or a CORS
-                // failure must FAIL OPEN and stay uncached — otherwise a momentary API
-                // outage would blacklist real jobs into the not-found page for the rest of
-                // the session, turning a blip into an app-wide outage.
-                if (err.status === 404) {
-                    this.knownJobs.set(key, false);
-                    return of(false);
-                }
-                return of(true);
-            }),
-            finalize(() => this.jobExistsInflight.delete(key)),
-            shareReplay({ bufferSize: 1, refCount: false })
-        );
-
-        this.jobExistsInflight.set(key, req$);
         return req$;
     }
 

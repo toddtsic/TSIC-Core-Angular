@@ -1,8 +1,7 @@
 import { Injectable, inject } from '@angular/core';
-import { Router, NavigationEnd, type ActivatedRouteSnapshot } from '@angular/router';
+import { toObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs/operators';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
-import { resolveJobPath } from '@infrastructure/navigation/job-path';
 import { JobService } from '@infrastructure/services/job.service';
 
 /** The v1 physical key, purged once on start. See LocalStorageKey.LastJobPath. */
@@ -12,42 +11,46 @@ const LEGACY_KEY = 'last_job_path';
  * Remembers the last JOB the user was on, so the anonymous `/tsic` landing can return them
  * to it (authGuard's `redirectAuthenticated` arm).
  *
- * "Is this a job?" is answered by the ROUTER, not by inspecting the URL string. The previous
- * version took the first URL segment and screened it against a hardcoded list of six route
- * names — of which five (`error`, `unauthorized`, `login`, `register`, `privacy-policy`) are
- * not top-level routes at all, while the two that are (`forgot-password`, `reset-password`)
- * were missing. Visiting the forgot-password page therefore stored it as a job path, and the
- * next visit to `/tsic` redirected there. The `**` wildcard leaves the typed URL intact, so
- * any mistyped address did the same. A name list cannot track the route table; the
- * `:jobPath` param IS the route table's own answer.
+ * "Is this a job?" is answered by the SERVER, not by the URL and not by the router. Two
+ * earlier versions got this wrong in the same way, one segment at a time:
+ *   v1 took the first URL segment and screened it against a hardcoded list of six route
+ *     names, so `forgot-password` and every mistyped address were stored as job paths.
+ *   v2 asked the router for its `:jobPath` param instead — correct about which SEGMENT is
+ *     the job, still silent about whether that job EXISTS, because `:jobPath` binds anything.
  *
- * A navigation with no `:jobPath` (the `tsic` landing, password reset, a 404) simply leaves
- * the stored value alone — it does not change which job the user was last on. v1 cleared on
- * not-found only because it would otherwise have stored `not-found` AS a job.
+ * This version writes only when job metadata actually came back, which is the only evidence
+ * that settles the question. It hangs off `JobService.currentJob` rather than `NavigationEnd`
+ * for exactly that reason: at NavigationEnd the fetch is still on the wire, so gating a
+ * navigation-time write on "do we have metadata yet" would never fire for a real job either.
  *
- * The write additionally requires the job to have been CONFIRMED to exist. jobPathMatch
- * already declines to bind a nonexistent job, so in practice a bogus path never reaches
- * NavigationEnd — but this is the write chokepoint, and the invariant ("only a real job is
- * ever stored") belongs here rather than resting on a guard somewhere else staying correct.
- * It also covers jobPathMatch's fail-open arm: when the existence check could not be
- * completed (API unreachable), the route is allowed through but the path is NOT persisted.
+ * `toObservable` + `subscribe`, not `effect()` — the sanctioned way to react to a service
+ * signal here. See .claude/rules/frontend-angular.md.
  */
 @Injectable({ providedIn: 'root' })
 export class LastLocationService {
-    private readonly router = inject(Router);
     private readonly jobs = inject(JobService);
 
     constructor() {
         try { localStorage.removeItem(LEGACY_KEY); } catch { /* storage unavailable */ }
 
-        this.router.events
-            .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
-            .subscribe(() => {
-                // Deepest activated route, then the shared walk back up for :jobPath — the
-                // same resolver the guards use, so "which job" has ONE definition app-wide.
-                const jobPath = resolveJobPath(this.deepestActivatedRoute());
-                if (jobPath && this.jobs.isKnownJob(jobPath)) {
-                    localStorage.setItem(LocalStorageKey.LastJobPath, jobPath);
+        // Confirmed job → remember it. jobPath comes off the response, so it carries the
+        // backend's own casing rather than whatever the user typed.
+        toObservable(this.jobs.currentJob)
+            .pipe(filter(job => !!job?.jobPath), takeUntilDestroyed())
+            .subscribe(job => {
+                try { localStorage.setItem(LocalStorageKey.LastJobPath, job!.jobPath!); }
+                catch { /* storage unavailable */ }
+            });
+
+        // A job came back 404. If it is the one we have stored, drop it — otherwise this
+        // browser redirects to a dead job from the site root on every future visit, which is
+        // how the v1 poisoning became permanent for real users.
+        toObservable(this.jobs.jobNotFound)
+            .pipe(filter((p): p is string => !!p), takeUntilDestroyed())
+            .subscribe(missingPath => {
+                const stored = this.getLastJobPath();
+                if (stored && stored.toLowerCase() === missingPath.toLowerCase()) {
+                    this.clearLastJobPath();
                 }
             });
     }
@@ -56,14 +59,7 @@ export class LastLocationService {
         return localStorage.getItem(LocalStorageKey.LastJobPath) || null;
     }
 
-    /** Drop a stored path that no longer resolves. See authGuard's redirectAuthenticated arm. */
     clearLastJobPath(): void {
         try { localStorage.removeItem(LocalStorageKey.LastJobPath); } catch { /* storage unavailable */ }
-    }
-
-    private deepestActivatedRoute(): ActivatedRouteSnapshot {
-        let r = this.router.routerState.snapshot.root;
-        while (r.firstChild) r = r.firstChild;
-        return r;
     }
 }

@@ -3,7 +3,6 @@ import { Router, type CanActivateFn, type CanMatchFn } from '@angular/router';
 import { map, catchError } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
 import { LastLocationService } from '../services/last-location.service';
-import { JobService } from '../services/job.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { type RoleName } from '../constants/roles.constants';
 import { wasChunkRecoveryReload } from '../navigation/chunk-load-recovery';
@@ -36,7 +35,6 @@ export const authGuard: CanActivateFn = (route, state) => {
     const router = inject(Router);
     const toast = inject(ToastService);
     const last = inject(LastLocationService);
-    const jobs = inject(JobService);
 
     const user = auth.getCurrentUser();
     const isAuth = auth.isAuthenticated();
@@ -109,22 +107,12 @@ export const authGuard: CanActivateFn = (route, state) => {
                 || route.queryParamMap.has('intent')) {
                 return true;
             }
+            // No pre-validation here on purpose — it would cost a round trip on every visit
+            // to catch a case that resolves itself. If the stored job is dead, the redirect
+            // lands on it, its metadata 404s, JobService shows not-found and LastLocationService
+            // drops the key. The user sees the 404 once; the next visit is clean.
             const lastJob = last.getLastJobPath();
-            if (!lastJob) return true;
-
-            // Validate before bouncing. A stored path can be stale (job deleted) or poisoned
-            // by the pre-jobPathMatch writer, and redirecting to one now lands on the
-            // not-found page — so the SITE ROOT would 404 forever for that browser, with no
-            // way out but clearing storage by hand. Confirm it, and drop the key on a miss so
-            // an already-poisoned browser self-heals on its next visit. Memoized in
-            // JobService: this costs a round trip once per session, on this arm only.
-            return jobs.jobExists(lastJob).pipe(
-                map(exists => {
-                    if (exists) return toJob(lastJob);
-                    last.clearLastJobPath();
-                    return true;
-                })
-            );
+            return lastJob ? toJob(lastJob) : true;
         }
 
         const returnUrl = route.queryParamMap.get('returnUrl');

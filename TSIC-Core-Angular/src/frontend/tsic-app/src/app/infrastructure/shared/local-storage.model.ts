@@ -17,10 +17,10 @@ export enum LocalStorageKey {
      * values live in real browsers; the new key abandons them rather than trying to sniff
      * out which stored strings were bogus. LastLocationService purges the v1 key on start.
      *
-     * That bump fixed the wrong-SEGMENT half only. The nonexistent-JOB half — a real
-     * `:jobPath` binding for a job that does not exist — is closed by jobPathMatch (the
-     * route no longer matches) plus a write gated on a confirmed job and a read that drops
-     * the key when it no longer resolves. No third key bump should be needed.
+     * That bump fixed the wrong-SEGMENT half only — it still could not tell whether the job
+     * EXISTS. That half is closed by moving the write off NavigationEnd and onto resolved job
+     * metadata: LastLocationService now stores a jobPath only once the server has returned it,
+     * and drops it when that job 404s. No third key bump should be needed.
      */
     LastJobPath = 'last_job_path_v2',
 

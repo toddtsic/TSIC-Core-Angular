@@ -1,6 +1,5 @@
 import { Routes } from '@angular/router';
 import { authGuard, unselectedRoleMatch } from './infrastructure/guards/auth.guard';
-import { jobPathMatch } from './infrastructure/guards/job-path-match.guard';
 import { storeGuard } from './infrastructure/guards/store.guard';
 import { unsavedChangesGuard } from './infrastructure/guards/unsaved-changes.guard';
 import { playerInviteGuard, teamInviteGuard, adultRegistrationGuard } from './infrastructure/guards/registration-invite.guard';
@@ -44,13 +43,16 @@ export const routes: Routes = [
 	},
 
 	// Job-specific routes - allows both authenticated and anonymous users.
-	// canMatch verifies the segment names a REAL job before binding it to :jobPath; without
-	// it this route swallows every unmatched URL and the `**` wildcard below is unreachable.
-	// See job-path-match.guard.ts.
+	//
+	// This binds ANY single segment, so a mistyped URL still matches here rather than falling
+	// to the `**` wildcard. That is deliberate: proving the job exists first would mean an HTTP
+	// round trip inside a canMatch guard, ahead of every job page load, duplicating a request
+	// the app is about to make anyway. Instead JobService.requestJobMetadata redirects to
+	// /not-found when the server 404s the job — the answer arrives on the fetch the app already
+	// performs. See the note on requestJobMetadata.
 	{
 		path: ':jobPath',
 		component: LayoutComponent,
-		canMatch: [jobPathMatch],
 		canActivate: [authGuard],
 		data: { allowAnonymous: true },
 		children: [
