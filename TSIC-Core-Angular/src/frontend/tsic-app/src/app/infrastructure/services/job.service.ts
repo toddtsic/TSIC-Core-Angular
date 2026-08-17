@@ -2,6 +2,7 @@ import { inject, Injectable, signal, computed } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, finalize, shareReplay, tap, of, map, catchError } from 'rxjs';
 import { environment } from '@environments/environment';
+import { skipErrorToast } from '@infrastructure/interceptors/http-error-context';
 import type { RegistrationStatusRequest, RegistrationStatusResponse, BulletinDto, NavDto, NavItemDto, JobMetadataResponse } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -142,7 +143,12 @@ export class JobService {
         const pending = this.jobExistsInflight.get(key);
         if (pending) return pending;
 
-        const req$ = this.http.get<JobMetadataResponse>(`${this.apiUrl}/jobs/${jobPath}`).pipe(
+        // skipErrorToast: a 404 here is the ANSWER, not a failure — it is how the guard learns
+        // the path is not a job. Without this the interceptor's 4xx safety net fires a warning
+        // toast on top of the not-found page, which already says the job path is invalid.
+        const req$ = this.http.get<JobMetadataResponse>(`${this.apiUrl}/jobs/${jobPath}`, {
+            context: skipErrorToast()
+        }).pipe(
             map(() => { this.knownJobs.set(key, true); return true; }),
             catchError((err: HttpErrorResponse) => {
                 // Only a definitive 404 condemns a path. A network drop, a 5xx or a CORS
