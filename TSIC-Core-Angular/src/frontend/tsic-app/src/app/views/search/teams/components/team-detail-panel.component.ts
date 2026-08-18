@@ -283,6 +283,14 @@ export class TeamDetailPanelComponent {
 	// jobs' schedules, TeamId, rosters, and the payment ledger are all untouched. A same-team
 	// rename is the Team Name field (this event only) above.
 
+	/**
+	 * HIDDEN 2026-08-18 (Todd's call): with renaming now presented as an explicit two-place model —
+	 * this event vs the Club Team Library, carried across by a checkbox — a third "Rename to New
+	 * Team" button reads as a confusing fourth option rather than the distinct act it is. Everything
+	 * below stays wired and the server endpoint is untouched; set this true to restore the button.
+	 */
+	protected readonly SHOW_RENAME_TO_NEW_TEAM = false;
+
 	showRenameToNewModal = signal(false);
 	renameToNewName = signal('');
 	renameToNewGradYear = signal('');

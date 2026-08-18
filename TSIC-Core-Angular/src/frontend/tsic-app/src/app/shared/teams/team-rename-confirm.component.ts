@@ -85,10 +85,16 @@ const UNNAMED_EVENT = 'this event';
                                 <i class="bi bi-arrow-right name-arrow" aria-hidden="true"></i>
                                 <span class="name-now">{{ effectiveNewName() || '…' }}</span>
                             </p>
-                        } @else if (registeredHere()) {
-                            <p class="name-card-value">
-                                {{ propagate() ? (effectiveNewName() || '…') : currentName() }}
+                        } @else if (registeredHere() && propagateReplacesName()) {
+                            <!-- Ticked: show what it costs, in place. The struck-through name says
+                                 "this is what you are about to lose" better than a sentence can. -->
+                            <p class="name-card-pair">
+                                <span class="name-was">{{ currentName() }}</span>
+                                <i class="bi bi-arrow-right name-arrow" aria-hidden="true"></i>
+                                <span class="name-now">{{ effectiveNewName() }}</span>
                             </p>
+                        } @else if (registeredHere()) {
+                            <p class="name-card-value">{{ currentName() }}</p>
                         } @else {
                             <p class="name-card-value is-empty">This team isn't registered for this event.</p>
                         }
@@ -108,15 +114,6 @@ const UNNAMED_EVENT = 'this event';
                                     Use the new name for this event too
                                 </label>
                             </div>
-                            @if (propagateReplacesName()) {
-                                <p class="name-card-warn">
-                                    <i class="bi bi-exclamation-triangle-fill name-card-warn-icon" aria-hidden="true"></i>
-                                    <span>
-                                        This replaces <strong>{{ currentName() }}</strong>, the name this event
-                                        uses today.
-                                    </span>
-                                </p>
-                            }
                         }
                     </section>
 
@@ -139,10 +136,16 @@ const UNNAMED_EVENT = 'this event';
                                        [ngModel]="draft()" (ngModelChange)="draft.set($event)"
                                        (keydown.enter)="submit()"
                                        [attr.maxlength]="maxLength()" autocomplete="off" autofocus>
-                            } @else {
-                                <p class="name-card-value">
-                                    {{ (origin() === 'event' && propagate()) ? (effectiveNewName() || '…') : libraryName() }}
+                            } @else if (origin() === 'event' && propagateReplacesName()) {
+                                <!-- Ticked: the struck-through name is the thing being given up.
+                                     Showing only the new name would bury it. -->
+                                <p class="name-card-pair">
+                                    <span class="name-was">{{ libraryName() }}</span>
+                                    <i class="bi bi-arrow-right name-arrow" aria-hidden="true"></i>
+                                    <span class="name-now">{{ effectiveNewName() }}</span>
                                 </p>
+                            } @else {
+                                <p class="name-card-value">{{ libraryName() }}</p>
                             }
 
                             <p class="name-card-note">
@@ -164,15 +167,6 @@ const UNNAMED_EVENT = 'this event';
                                         Rename it in my Club Team Library too
                                     </label>
                                 </div>
-                                @if (propagateReplacesName()) {
-                                    <p class="name-card-warn">
-                                        <i class="bi bi-exclamation-triangle-fill name-card-warn-icon" aria-hidden="true"></i>
-                                        <span>
-                                            This replaces <strong>{{ libraryName() }}</strong>, the name your
-                                            Club Team Library uses today.
-                                        </span>
-                                    </p>
-                                }
                             }
                         </section>
                     }
@@ -182,15 +176,9 @@ const UNNAMED_EVENT = 'this event';
                         <span>{{ footNote() }}</span>
                     </p>
 
-                    @if (audience() === 'admin' && mode() === 'this-event') {
-                        <p class="rename-foot">
-                            <i class="bi bi-signpost-split rename-foot-icon" aria-hidden="true"></i>
-                            <span>
-                                A different team entirely — merged roster, new grad year? Use
-                                <strong>Rename to New Team</strong> in Search Teams instead.
-                            </span>
-                        </p>
-                    }
+                    <!-- The "Rename to New Team" pointer lived here. Removed 2026-08-18 with the
+                         button itself (team-detail-panel) — a signpost to something a director can
+                         no longer see is worse than no signpost. Restore both together. -->
                 </div>
 
                 <div class="modal-footer">
@@ -295,20 +283,6 @@ const UNNAMED_EVENT = 'this event';
             color: var(--brand-text);
         }
         .form-check-input:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-
-        .name-card-warn {
-            display: flex;
-            align-items: flex-start;
-            gap: var(--space-2);
-            margin: 0;
-            font-size: var(--font-size-xs);
-            line-height: 1.5;
-            color: var(--brand-text);
-        }
-        .name-card-warn-icon {
-            margin-top: 0.15em;
-            color: var(--bs-warning);
-        }
 
         .rename-foot {
             display: flex;
