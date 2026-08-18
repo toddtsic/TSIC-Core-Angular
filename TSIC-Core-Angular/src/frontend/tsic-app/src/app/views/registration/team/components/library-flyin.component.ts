@@ -168,13 +168,14 @@ interface LibraryGroup {
               @for (row of registeredRows(); track row.team.clubTeamId; let i = $index) {
                 <li class="reg-strip-item">
                   <span class="reg-strip-seq" aria-hidden="true">{{ i + 1 }}</span>
-                  <span class="reg-strip-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
+                  <span class="reg-strip-name" [attr.title]="row.info.eventTeamName || row.team.clubTeamName">{{ row.info.eventTeamName || row.team.clubTeamName }}</span>
                   @if (row.info.eventTeamName && row.info.eventTeamName !== row.team.clubTeamName) {
-                    <!-- This event's copy carries a different name (this-event rename). Library
-                         name stays primary — the row IS the library team; the event name rides
-                         alongside so the strip agrees with the Registered Teams grid. -->
-                    <span class="reg-strip-event-name"
-                          [attr.title]="'Registered in this event as ' + row.info.eventTeamName">({{ row.info.eventTeamName }})</span>
+                    <!-- The strip lists what is registered for THIS event, so the event's own name
+                         leads — it is what the Registered Teams grid, the schedule and the invoice
+                         all show. The library name rides alongside when a this-event rename has
+                         moved them apart. -->
+                    <span class="reg-strip-alt-name"
+                          [attr.title]="'In your Club Team Library as ' + row.team.clubTeamName">({{ row.team.clubTeamName }})</span>
                   }
 
                   <span class="lib-identity">
@@ -918,9 +919,9 @@ interface LibraryGroup {
         text-overflow: ellipsis;
       }
 
-      /* This event's name when it differs from the library name — muted, in parens,
-         truncates before the library name does. */
-      .reg-strip-event-name {
+      /* The library name when it differs from this event's — muted, in parens,
+         truncates before the event name does. */
+      .reg-strip-alt-name {
         flex: 0 1 auto;
         min-width: 0;
         max-width: 45%;
@@ -2197,7 +2198,8 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
             const team = byId.get(clubTeamId);
             if (team) rows.push({ team, info });
         }
-        return rows.sort((a, b) => a.team.clubTeamName.localeCompare(b.team.clubTeamName));
+        return rows.sort((a, b) =>
+            (a.info.eventTeamName || a.team.clubTeamName).localeCompare(b.info.eventTeamName || b.team.clubTeamName));
     });
 
     /** Header "How this works" disclosure — collapsed by default so the tips
