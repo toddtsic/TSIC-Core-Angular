@@ -2,8 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type RenameRegisteredTeamRequest = {
-    teamName: string;
-    alsoRenameLibrary?: boolean;
+export type RenameClubTeamRequest = {
+    clubTeamName: string;
+    alsoRenameInThisJob?: boolean;
 };
 

@@ -585,6 +585,7 @@ export type { RegSaverUploadResultDto } from './models/RegSaverUploadResultDto';
 export type { RegSaverUploadRowError } from './models/RegSaverUploadRowError';
 export type { RemoveAllPairingsRequest } from './models/RemoveAllPairingsRequest';
 export type { RemoveFieldsRequest } from './models/RemoveFieldsRequest';
+export type { RenameClubTeamRequest } from './models/RenameClubTeamRequest';
 export type { RenameCustomerGroupRequest } from './models/RenameCustomerGroupRequest';
 export type { RenameOptionSetRequest } from './models/RenameOptionSetRequest';
 export type { RenameRegisteredTeamRequest } from './models/RenameRegisteredTeamRequest';

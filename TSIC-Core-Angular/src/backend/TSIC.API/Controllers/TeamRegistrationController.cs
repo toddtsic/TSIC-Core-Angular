@@ -402,9 +402,11 @@ public class TeamRegistrationController : ControllerBase
     }
 
     /// <summary>
-    /// Rename one of the caller's registered teams for THIS EVENT only — the Registered Teams grid's
-    /// pencil. The club library and every other event keep their name; renaming there is closed to
-    /// reps (see UpdateClubTeam). Gated by the director's per-event "Allow Edit" toggle.
+    /// Rename one of the caller's registered teams for THIS EVENT — the Registered Teams grid's
+    /// pencil. Other events never change. The caller's own club library changes only if they ticked
+    /// "update my team list too" (<see cref="RenameRegisteredTeamRequest.AlsoRenameLibrary"/>);
+    /// a rep may write their own list from here, a director has no such door at all.
+    /// Gated by the director's per-event "Allow Edit" toggle.
     /// </summary>
     [HttpPut("teams/{teamId:guid}/rename")]
     [ProducesResponseType(200)]
@@ -433,7 +435,54 @@ public class TeamRegistrationController : ControllerBase
 
         try
         {
-            await _teamRegistrationService.RenameRegisteredTeamAsync(teamId, regId, userId, request.TeamName);
+            await _teamRegistrationService.RenameRegisteredTeamAsync(
+                teamId, regId, userId, request.TeamName, request.AlsoRenameLibrary);
+            return Ok(new { Success = true });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { Message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Rename a club-team LIBRARY entry — the pick list the rep registers from next time. Name only,
+    /// and permitted even once the team has event history: an unfixable typo in the list either
+    /// follows the rep forever or pushes them into creating a duplicate entry, which is the
+    /// fragmentation the library exists to prevent (Todd's ruling, 2026-08-18). Grad year and level
+    /// of play remain locked after scheduling — see <see cref="UpdateClubTeam"/>.
+    /// Renaming here reaches NO event unless the rep ticked "use this name for this event too".
+    /// </summary>
+    [HttpPut("club-team/{clubTeamId:int}/rename")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    public async Task<IActionResult> RenameClubTeam(int clubTeamId, [FromBody] RenameClubTeamRequest request)
+    {
+        if (!IsClubRepRole())
+            return StatusCode(403, new { Message = NotClubRepMessage });
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized(new { Message = UserNotAuthenticatedMessage });
+
+        // Same BClubRepAllowEdit gate as every other rep-facing team edit, so the disabled control
+        // and the refused write always agree.
+        var jobPath = User.GetJobPath();
+        var jobId = string.IsNullOrEmpty(jobPath) ? null : await _jobLookupService.GetJobIdByPathAsync(jobPath);
+        if (jobId is null)
+            return StatusCode(403, new { Message = "Team editing is not available in this session." });
+        var caps = await _capabilities.ResolveAsync(jobId.Value, User.ToCapabilityActor());
+        if (!caps.CanEditTeam)
+            return StatusCode(403, new { Message = "Team editing is not enabled for this event." });
+
+        try
+        {
+            await _teamRegistrationService.RenameClubTeamNameAsync(
+                userId, clubTeamId, jobId.Value, request.ClubTeamName, request.AlsoRenameInThisJob);
             return Ok(new { Success = true });
         }
         catch (UnauthorizedAccessException ex)

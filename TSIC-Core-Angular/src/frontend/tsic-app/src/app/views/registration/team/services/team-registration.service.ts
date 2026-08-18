@@ -14,6 +14,7 @@ import {
     ClubTeamDto,
     CheckExistingRegistrationsResponse,
     UpdateClubTeamRequest,
+    RenameClubTeamRequest,
     RenameRegisteredTeamRequest,
     EmailTestSendResponse,
 } from '@core/api';
@@ -134,12 +135,23 @@ export class TeamRegistrationService {
     }
 
     /**
-     * Rename one of the rep's registered teams for THIS EVENT only (the event's Teams row —
-     * the club library and every other event keep their name). Registered Teams grid pencil.
+     * Rename one of the rep's registered teams for THIS EVENT (the event's Teams row). Registered
+     * Teams grid pencil. Other events never change. `alsoRenameLibrary` additionally writes the
+     * rep's own club-team library entry — their explicit tick, never implied.
      */
-    renameRegisteredTeam(teamId: string, teamName: string): Observable<void> {
-        const body: RenameRegisteredTeamRequest = { teamName };
+    renameRegisteredTeam(teamId: string, teamName: string, alsoRenameLibrary = false): Observable<void> {
+        const body: RenameRegisteredTeamRequest = { teamName, alsoRenameLibrary };
         return this.http.put<void>(`${this.apiUrl}/teams/${teamId}/rename`, body);
+    }
+
+    /**
+     * Rename a club-team LIBRARY entry — the pick list future registrations seed from. Allowed even
+     * once the team has event history (name only; grad year / level of play stay locked). Reaches no
+     * event unless `alsoRenameInThisJob` is set, which applies it to this event's registered copy.
+     */
+    renameClubTeam(clubTeamId: number, clubTeamName: string, alsoRenameInThisJob = false): Observable<void> {
+        const body: RenameClubTeamRequest = { clubTeamName, alsoRenameInThisJob };
+        return this.http.put<void>(`${this.apiUrl}/club-team/${clubTeamId}/rename`, body);
     }
 
     /**

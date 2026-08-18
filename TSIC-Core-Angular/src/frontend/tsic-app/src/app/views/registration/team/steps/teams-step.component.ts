@@ -13,6 +13,14 @@ import { TeamRenameConfirmComponent, type TeamRenameConfirmation } from '@shared
 import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto } from '@core/api';
 
 /**
+ * Which side of the two-name model the rep opened the dialog from. The dialog shows both names
+ * either way — origin only decides which one is editable and which direction the checkbox runs.
+ */
+type PendingRename =
+    | { origin: 'event'; team: RegisteredTeamDto }
+    | { origin: 'library'; team: ClubTeamDto };
+
+/**
  * Teams step — single screen combining library management + event registration.
  * Assigning an age group IS the registration act. No separate review step needed.
  */
@@ -177,6 +185,7 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
         (register)="onFlyinRegister($event)"
         (unregister)="onFlyinUnregister($event)"
         (addNew)="showAddModal.set(true)"
+        (rename)="onRenameClubTeam($event)"
         (edit)="openEditModal($event)"
         (archive)="askArchiveTeam($event)"
         (delete)="askDeleteTeam($event)"
@@ -212,15 +221,19 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
         (closed)="editingTeam.set(null)" />
     }
 
-    <!-- Rep's this-event rename (Registered Teams pencil). The dialog owns the name input; the
-         briefing tells the rep their library and other events keep the old name. -->
+    <!-- ONE name dialog, two origins: the Registered Teams pencil (this event) and the library's
+         Rename (their list). The rep edits the side they came from and can tick the other across;
+         nothing sweeps on its own. -->
     @if (pendingRename(); as renaming) {
       <team-rename-confirm
         [editable]="true"
         audience="rep"
-        [currentName]="renaming.teamName"
-        [newName]="renaming.teamName"
-        [libraryName]="libraryNameFor(renaming)"
+        [origin]="renaming.origin"
+        [eventLabel]="eventName()"
+        [currentName]="renameEventName(renaming)"
+        [newName]="renameSeed(renaming)"
+        [libraryName]="renameLibraryName(renaming)"
+        [registeredHere]="renameRegisteredHere(renaming)"
         (confirmed)="confirmRename($event)"
         (cancelled)="pendingRename.set(null)" />
     }
@@ -668,8 +681,8 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly showAddAndRegisterModal = signal(false);
     /** When set, the library edit modal is open for this (unscheduled) team. */
     readonly editingTeam = signal<ClubTeamDto | null>(null);
-    /** When set, the this-event rename dialog is open for this registered team. */
-    readonly pendingRename = signal<RegisteredTeamDto | null>(null);
+    /** When set, the shared name dialog is open — carrying which side it was opened from. */
+    readonly pendingRename = signal<PendingRename | null>(null);
     /** When set, the delete-confirm dialog is open for this team. */
     readonly pendingDelete = signal<ClubTeamDto | null>(null);
     /** When set, the archive-confirm dialog is open for this team. */
@@ -851,27 +864,57 @@ export class TeamTeamsStepComponent implements OnInit {
     // WAITLIST twin + this job's schedule. The library and every other event keep their name.
 
     onRenameTeam(team: RegisteredTeamDto): void {
-        this.pendingRename.set(team);
+        this.pendingRename.set({ origin: 'event', team });
     }
 
-    /** Library name for the briefing — looked up from the library the step already holds. */
-    libraryNameFor(team: RegisteredTeamDto): string | null {
-        if (team.clubTeamId == null) return null;
-        return this._clubTeams().find(c => c.clubTeamId === team.clubTeamId)?.clubTeamName ?? null;
+    /** Library Rename (kebab). Same dialog, opened on the list side. */
+    onRenameClubTeam(team: ClubTeamDto): void {
+        this.pendingRename.set({ origin: 'library', team });
+    }
+
+    /** This event's copy name — '' at library origin when the team isn't registered here. */
+    renameEventName(p: PendingRename): string {
+        if (p.origin === 'event') return p.team.teamName;
+        return this.enteredTeamsMap().get(p.team.clubTeamId)?.eventTeamName ?? '';
+    }
+
+    /** What seeds the editable field: the side they opened from. */
+    renameSeed(p: PendingRename): string {
+        return p.origin === 'event' ? p.team.teamName : p.team.clubTeamName;
+    }
+
+    /** Library name — looked up from the library the step already holds; null for an orphan. */
+    renameLibraryName(p: PendingRename): string | null {
+        if (p.origin === 'library') return p.team.clubTeamName;
+        if (p.team.clubTeamId == null) return null;
+        return this._clubTeams().find(c => c.clubTeamId === p.team.clubTeamId)?.clubTeamName ?? null;
+    }
+
+    /** Is there an event copy to offer the checkbox for? */
+    renameRegisteredHere(p: PendingRename): boolean {
+        return p.origin === 'event' || this.enteredTeamsMap().has(p.team.clubTeamId);
     }
 
     confirmRename(c: TeamRenameConfirmation): void {
-        const team = this.pendingRename();
-        if (!team) return;
+        const pending = this.pendingRename();
+        if (!pending) return;
         this.pendingRename.set(null);
         this.actionInProgress.set(true);
 
-        this.teamReg.renameRegisteredTeam(team.teamId, c.name)
-            .pipe(takeUntilDestroyed(this.destroyRef))
+        const call$ = pending.origin === 'event'
+            ? this.teamReg.renameRegisteredTeam(pending.team.teamId, c.name, c.alsoPropagate)
+            : this.teamReg.renameClubTeam(pending.team.clubTeamId, c.name, c.alsoPropagate);
+
+        const oldName = pending.origin === 'event' ? pending.team.teamName : pending.team.clubTeamName;
+        const where = pending.origin === 'event'
+            ? (c.alsoPropagate ? 'in this event and your team list' : 'in this event')
+            : (c.alsoPropagate ? 'in your team list and this event' : 'in your team list');
+
+        call$.pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: () => {
                     this.loadTeamsMetadata(false, () =>
-                        this.toast.show(`${team.teamName} is now ${c.name} in this event.`, 'success', 3000));
+                        this.toast.show(`${oldName} is now ${c.name} ${where}.`, 'success', 3000));
                 },
                 error: (err: unknown) => {
                     this.actionInProgress.set(false);

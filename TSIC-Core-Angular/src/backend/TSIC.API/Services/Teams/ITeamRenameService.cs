@@ -6,24 +6,26 @@ namespace TSIC.API.Services.Teams;
 /// per-job event copy (<c>Teams.TeamName</c>), and the denormalized schedule columns — and this
 /// service keeps them in step, explicitly, replacing the old implicit <c>SaveChanges</c> trigger.
 ///
-/// Two entries, two reaches, by construction (Todd's ruling, 2026-08-17):
+/// Two entries, NEITHER of which reaches the other, by construction (Todd's rulings, 2026-08-17/18):
 /// <list type="bullet">
 /// <item><see cref="RenameTeamAsync"/> — by per-job team id — is ALWAYS this event only. Every
 /// admin door (LADT / Search Teams / Pairings / Schedule Hub) and the club rep's Registered Teams
 /// pencil land here. No role reaches the library from an event.</item>
-/// <item><see cref="RenameClubTeamAsync"/> — by library id — renames the library row and fans out
-/// to every job's copy that still mirrors it. Reached only from the rep's own library edit, which
-/// is closed once the team has event history.</item>
+/// <item><see cref="RenameClubTeamAsync"/> — by library id — renames the library row and NOTHING
+/// else. No event, no schedule, no other job.</item>
 /// </list>
-/// A job's copy may therefore diverge from the library, and a later library rename leaves such a
-/// copy alone — the same "a copy naming something else is the record of intent" rule the
-/// club-rename path applies to <c>Registrations.ClubName</c>. Reset = a rename back to the library name.
+/// There is deliberately no sweep in either direction. The library is the seed a FUTURE registration
+/// copies, not a mirror of live events: a rep fixing a typo in their pick list must not rewrite a
+/// schedule they are not looking at. A caller that genuinely wants both — the rep's own rename
+/// dialog, from either origin — makes two explicit calls, because the human ticked a box saying so.
+/// A job's copy therefore diverges freely from the library, and neither side ever chases the other.
 /// </summary>
 public interface ITeamRenameService
 {
     /// <summary>
-    /// Library entry: rename by club-team id (the seed). Fans the new name out to every job's
-    /// <c>Teams</c> copy that still mirrors the library, and their schedules.
+    /// Library entry: rename by club-team id (the seed for future registrations). Writes
+    /// <c>ClubTeams.ClubTeamName</c> and nothing else. Guarded by the club + name + grad year
+    /// identity check so a rename can never merge two library entries.
     /// </summary>
     Task RenameClubTeamAsync(int clubTeamId, string newName, string userId, CancellationToken ct = default);
 

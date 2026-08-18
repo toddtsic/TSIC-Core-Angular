@@ -4,9 +4,9 @@ using TSIC.Domain.Entities;
 namespace TSIC.API.Services.Teams;
 
 /// <summary>
-/// See <see cref="ITeamRenameService"/>. Mirrors <c>ClubService.AdminRenameClubAsync</c> one level down:
-/// <c>ClubTeams.ClubTeamName</c> is the seed, <c>Teams.TeamName</c> + the schedule columns are the
-/// per-event copies — and a copy renamed for its event is left alone by the library fan-out.
+/// See <see cref="ITeamRenameService"/>. <c>ClubTeams.ClubTeamName</c> is the seed a future
+/// registration copies; <c>Teams.TeamName</c> + the schedule columns are that event's own name.
+/// The two are independent after registration — neither write sweeps into the other.
 /// Reads committed state and writes explicitly — no <c>SaveChanges</c> hook.
 /// </summary>
 public sealed class TeamRenameService : ITeamRenameService
@@ -47,51 +47,29 @@ public sealed class TeamRenameService : ITeamRenameService
     }
 
     /// <summary>
-    /// The three beats for a library-owned team: (1) the library source, (2) every job's event copy that
-    /// still mirrors the library and its WAITLIST twin, (3) each such job's schedule. The per-job canonical
-    /// writer keys on the job's own TeamId — which is why this loops rows rather than passing a single
-    /// pair to RecomposeAcrossJobs. The OLD name is the library's, never a copy's — a copy may already
-    /// carry a director's this-event name, and that copy is skipped: their decision stands until they
-    /// reset it.
+    /// ONE beat: the library row. A library rename reaches NO event, ever (Todd's ruling, 2026-08-18) —
+    /// the list seeds FUTURE registrations, so rewriting a live event's schedule from a pick-list field
+    /// is a side effect nobody standing in that field would predict. An event copy changes only when
+    /// someone asks for it by name, through <see cref="RenameTeamAsync"/>.
     /// </summary>
     private async Task ApplyLibraryRenameAsync(
         int clubTeamId, ClubTeams? lib, string newName, string userId, CancellationToken ct)
     {
-        var oldName = lib?.ClubTeamName ?? string.Empty;
-        if (oldName == newName) return;
+        if (lib == null) return;
+        if (lib.ClubTeamName == newName) return;
 
-        // Library identity guard (club + name + grad year) at the chokepoint, so every door — library
-        // modal, admin search, LADT, pairings — refuses to rename onto a sibling. Renaming never merges.
-        if (lib != null)
-        {
-            var collision = await _clubTeamRepo.FindByIdentityAsync(lib.ClubId, newName, lib.ClubTeamGradYear, ct);
-            if (collision != null && collision.ClubTeamId != clubTeamId)
-                throw new InvalidOperationException(
-                    $"'{newName}' ({lib.ClubTeamGradYear}) is already in this club's library. Renaming does not merge teams.");
-        }
+        // Library identity guard (club + name + grad year). The list IS the product now, so two
+        // entries with one identity is the fragmentation the library exists to prevent.
+        var collision = await _clubTeamRepo.FindByIdentityAsync(lib.ClubId, newName, lib.ClubTeamGradYear, ct);
+        if (collision != null && collision.ClubTeamId != clubTeamId)
+            throw new InvalidOperationException(
+                $"'{newName}' ({lib.ClubTeamGradYear}) is already in this club's library. Renaming does not merge teams.");
 
-        // Beat 1 — library source (identity of record).
-        if (lib != null)
-        {
-            lib.ClubTeamName = newName;
-            lib.LebUserId = userId;
-            lib.Modified = DateTime.Now;
-        }
+        lib.ClubTeamName = newName;
+        lib.LebUserId = userId;
+        lib.Modified = DateTime.Now;
 
-        // Beats 2 + 3 — every event copy still holding the library name, its twin, then that job's schedule.
-        var copies = await _teamRepo.GetTrackedTeamsByClubTeamIdAsync(clubTeamId, ct);
-        foreach (var t in copies)
-        {
-            if (!string.Equals(t.TeamName, oldName, StringComparison.Ordinal))
-                continue; // diverged for its event — the director's name stands
-
-            Stamp(t, newName, userId);
-            await RenameTwinInJobAsync(t.JobId, oldName, newName, userId, ct);
-            await _scheduleRepo.RecomposeScheduleNamesForJobAsync(t.JobId, team: (t.TeamId, newName), ct: ct);
-        }
-
-        // Flush the library row + any copy whose job had no schedule rows (canonical skips those).
-        await _teamRepo.SaveChangesAsync(ct);
+        await _clubTeamRepo.SaveChangesAsync(ct);
     }
 
     /// <summary>

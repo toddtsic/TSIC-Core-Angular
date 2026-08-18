@@ -918,7 +918,8 @@ public class TeamRegistrationService : ITeamRegistrationService
         return true;
     }
 
-    public async Task RenameRegisteredTeamAsync(Guid teamId, Guid regId, string userId, string newName)
+    public async Task RenameRegisteredTeamAsync(
+        Guid teamId, Guid regId, string userId, string newName, bool alsoRenameLibrary = false)
     {
         // Ownership is the rep's registration for this event: the token's regId must be the caller's
         // own ClubRep registration, and the team must hang off it (that is exactly the set the
@@ -941,13 +942,76 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("Team names cannot contain WAITLIST.");
         if (team.TeamName != null && team.TeamName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Rename the primary team — its WAITLIST twin follows automatically.");
-        if (string.Equals(team.TeamName, name, StringComparison.Ordinal)) return;
 
-        // THIS EVENT ONLY: this job's row + WAITLIST twin + this job's schedule. The club library
-        // and every other event keep their name — the single name writer owns the whole write.
-        await _teamRename.RenameTeamAsync(teamId, team.JobId, name, userId);
+        var eventNameChanged = !string.Equals(team.TeamName, name, StringComparison.Ordinal);
+        if (!eventNameChanged && !alsoRenameLibrary) return;
 
-        _logger.LogInformation("Club rep {UserId} renamed team {TeamId} to '{Name}' for job {JobId}", userId, teamId, name, team.JobId);
+        // The library half FIRST when both were asked for: it is the half that can refuse (identity
+        // collision), and a refusal must leave nothing written. Reversing this order would rename the
+        // event and then throw, which is the one outcome the rep cannot undo from the dialog.
+        if (alsoRenameLibrary && team.ClubTeamId is int clubTeamId)
+            await RenameLibraryEntryAsync(clubTeamId, userId, name);
+
+        // THIS EVENT: this job's row + WAITLIST twin + this job's schedule. Other events are never
+        // touched, whatever the checkbox said — the library is a seed, not a mirror.
+        if (eventNameChanged)
+            await _teamRename.RenameTeamAsync(teamId, team.JobId, name, userId);
+
+        _logger.LogInformation(
+            "Club rep {UserId} renamed team {TeamId} to '{Name}' for job {JobId} (library too: {AlsoLibrary})",
+            userId, teamId, name, team.JobId, alsoRenameLibrary);
+    }
+
+    public async Task RenameClubTeamNameAsync(
+        string userId, int clubTeamId, Guid jobId, string newName, bool alsoRenameInThisJob = false)
+    {
+        var name = newName.Trim();
+        if (string.IsNullOrEmpty(name)) throw new InvalidOperationException("Team name is required.");
+        if (name.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Team names cannot contain WAITLIST.");
+
+        // Library ownership + the rename itself. NOTE there is deliberately no "has been scheduled"
+        // lock here: the list is what the rep registers from next season, so a typo they can never
+        // fix would either follow them forever or push them into creating a duplicate entry — the
+        // exact fragmentation the library exists to prevent (Todd's ruling, 2026-08-18). Grad year
+        // and level of play stay locked once scheduled; those carry the squad's identity, not its label.
+        await RenameLibraryEntryAsync(clubTeamId, userId, name);
+
+        if (!alsoRenameInThisJob) return;
+
+        // This event's copy, only if the team is actually registered here. Same single write the
+        // Registered Teams pencil performs — no sweep to any other job.
+        var copies = await _teams.GetTrackedTeamsByClubTeamIdAsync(clubTeamId);
+        var here = copies.FirstOrDefault(t => t.JobId == jobId);
+        if (here == null) return;
+        if (here.TeamName != null && here.TeamName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase)) return;
+        if (string.Equals(here.TeamName, name, StringComparison.Ordinal)) return;
+
+        await _teamRename.RenameTeamAsync(here.TeamId, jobId, name, userId);
+
+        _logger.LogInformation(
+            "Club rep {UserId} renamed club team {ClubTeamId} to '{Name}' and applied it to job {JobId}",
+            userId, clubTeamId, name, jobId);
+    }
+
+    /// <summary>
+    /// Write a club-team library name after checking the caller reps that club. The collision guard
+    /// (club + name + grad year) lives in the rename chokepoint, so every library door refuses to
+    /// merge two entries identically.
+    /// </summary>
+    private async Task RenameLibraryEntryAsync(int clubTeamId, string userId, string name)
+    {
+        var entity = await _clubTeams.GetByIdAsync(clubTeamId)
+            ?? throw new InvalidOperationException("Team not found in your club library.");
+
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+        if (!myClubs.Any(c => c.ClubId == entity.ClubId))
+        {
+            _logger.LogWarning("User {UserId} attempted to rename club team {ClubTeamId} outside their clubs", userId, clubTeamId);
+            throw new UnauthorizedAccessException("You do not have access to this team.");
+        }
+
+        await _teamRename.RenameClubTeamAsync(clubTeamId, name, userId);
     }
 
     /// <summary>
@@ -1140,9 +1204,8 @@ public class TeamRegistrationService : ITeamRegistrationService
         entity.LebUserId = userId;
 
         if (nameChanged)
-            // Library is the identity of record: the rename must follow every Teams copy,
-            // WAITLIST twin, and schedule row across all jobs. Owns the ClubTeamName write +
-            // the save (same DbContext scope, so the gradYear/LOP edits above persist with it).
+            // Library row only — no event is touched from here. Owns the ClubTeamName write + the
+            // save (same DbContext scope, so the gradYear/LOP edits above persist with it).
             await _teamRename.RenameClubTeamAsync(clubTeamId, name, userId);
         else
             await _clubTeams.SaveChangesAsync();

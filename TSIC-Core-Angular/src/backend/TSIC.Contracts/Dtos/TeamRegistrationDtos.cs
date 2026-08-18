@@ -153,12 +153,60 @@ public sealed record UpdateClubTeamRequest
 }
 
 /// <summary>
-/// Club rep renames one of their registered teams for THIS EVENT only (the job's Teams row;
-/// the club library and every other event keep their name).
+/// Club rep renames one of their registered teams for THIS EVENT (the job's Teams row). The club
+/// library keeps its own name unless <see cref="AlsoRenameLibrary"/> says otherwise — the rep's
+/// dialog surfaces that as a checkbox, and it is the ONLY way an event door writes the library.
+/// Reps only: a director never sees the checkbox and never reaches a list that isn't theirs.
 /// </summary>
 public sealed record RenameRegisteredTeamRequest
 {
     public required string TeamName { get; init; }
+
+    /// Also write this name to the club-team library entry (future registrations seed from it).
+    /// Other events are never touched either way.
+    public bool AlsoRenameLibrary { get; init; }
+}
+
+public class RenameRegisteredTeamRequestValidator : AbstractValidator<RenameRegisteredTeamRequest>
+{
+    public RenameRegisteredTeamRequestValidator()
+    {
+        // Teams.TeamName is varchar(100); the library row is varchar(80). When the caller asks for
+        // both writes the shorter column governs, or the library half would fail after the event
+        // half had already been written.
+        RuleFor(x => x.TeamName)
+            .NotEmpty().WithMessage("Team name is required")
+            .MaximumLength(100).WithMessage("Team name cannot exceed 100 characters");
+
+        RuleFor(x => x.TeamName)
+            .MaximumLength(80).WithMessage("Team name cannot exceed 80 characters when also updating your team list")
+            .When(x => x.AlsoRenameLibrary);
+    }
+}
+
+/// <summary>
+/// Club rep renames a club-team LIBRARY entry — the pick list they register from next time.
+/// Allowed once the team has event history (name only; grad year and level of play stay locked,
+/// since those carry the squad's identity). <see cref="AlsoRenameInThisJob"/> optionally applies
+/// the same name to this event's copy, which is the typo case.
+/// </summary>
+public sealed record RenameClubTeamRequest
+{
+    public required string ClubTeamName { get; init; }
+
+    /// Also rename this event's registered copy, if the team is registered here.
+    public bool AlsoRenameInThisJob { get; init; }
+}
+
+public class RenameClubTeamRequestValidator : AbstractValidator<RenameClubTeamRequest>
+{
+    public RenameClubTeamRequestValidator()
+    {
+        // Clubs.ClubTeams.ClubTeamName is varchar(80) — tighter than the event copy's 100.
+        RuleFor(x => x.ClubTeamName)
+            .NotEmpty().WithMessage("Team name is required")
+            .MaximumLength(80).WithMessage("Team name cannot exceed 80 characters");
+    }
 }
 
 public sealed record SuggestedTeamNameDto

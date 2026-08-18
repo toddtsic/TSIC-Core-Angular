@@ -357,15 +357,28 @@ interface LibraryGroup {
                               <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
                             </button>
                             @if (openMenuTeamId() === team.clubTeamId) {
+                              @let renameLock = renameLockReason();
                               @let editLock = editLockReason(team);
                               @let archiveLock = archiveLockReason(team, !!registered);
                               @let deleteLock = deleteLockReason(team, !!registered);
                               <div class="lib-menu" role="menu" (click)="$event.stopPropagation()">
+                                <!-- Rename stands apart from Edit details: a name is a label the rep
+                                     must always be able to fix, so it survives event history. Grad year
+                                     and level of play do not — they carry the squad's identity. -->
+                                <button type="button" class="lib-menu-item" role="menuitem"
+                                        [disabled]="!!renameLock"
+                                        (click)="handleMenuRename(team)">
+                                  <i class="bi bi-input-cursor-text lib-menu-icon" aria-hidden="true"></i>
+                                  <span class="lib-menu-label">Rename team</span>
+                                  @if (renameLock) {
+                                    <span class="lib-menu-reason">{{ renameLock }}</span>
+                                  }
+                                </button>
                                 <button type="button" class="lib-menu-item" role="menuitem"
                                         [disabled]="!!editLock"
                                         (click)="handleMenuEdit(team)">
                                   <i class="bi bi-pencil lib-menu-icon" aria-hidden="true"></i>
-                                  <span class="lib-menu-label">Edit team</span>
+                                  <span class="lib-menu-label">Edit details</span>
                                   @if (editLock) {
                                     <span class="lib-menu-reason">{{ editLock }}</span>
                                   }
@@ -2148,6 +2161,9 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
      *  confirm-dialog + paid-total guard, so the money check stays at one chokepoint. */
     readonly unregister = output<number>();
     readonly addNew = output<void>();
+    /** Rename the library entry (name only). Available regardless of event history — see
+     *  renameLockReason. The parent opens the shared name dialog at library origin. */
+    readonly rename = output<ClubTeamDto>();
     readonly edit = output<ClubTeamDto>();
     readonly archive = output<ClubTeamDto>();
     readonly delete = output<ClubTeamDto>();
@@ -2346,6 +2362,19 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
     /** Returns the lock reason for Edit, or null if available. Library edit is pre-registration
      *  housekeeping only (the ⋯ menu shows on unregistered teams); once a team has event history its
      *  identity is fixed — a registered team is renamed for the event from Registered Teams. */
+    /**
+     * Rename has NO event-history lock — only the director's Allow Edit toggle. The library is the
+     * list the rep registers from next season, so a typo they can never fix would either follow them
+     * forever or push them into adding a duplicate entry, which is the fragmentation the library
+     * exists to prevent (Todd's ruling, 2026-08-18). Renaming here reaches no event on its own.
+     */
+    renameLockReason(): string | null {
+        if (!this.canEdit()) return 'Editing is off for this event';
+        return null;
+    }
+
+    /** Details = grad year + level of play (and the name, pre-registration). Those carry the squad's
+     *  identity, so they stay locked once the team has played. Name alone goes through Rename. */
     editLockReason(team: ClubTeamDto): string | null {
         if (!this.canEdit()) return 'Editing is off for this event';
         if (team.bHasBeenScheduled) return 'Has event history';
@@ -2364,6 +2393,11 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
         if (team.bHasBeenScheduled) return 'Use Archive — has event history';
         if (registered) return 'Registered for this event';
         return null;
+    }
+
+    handleMenuRename(team: ClubTeamDto): void {
+        this.closeMenu();
+        if (!this.renameLockReason()) this.rename.emit(team);
     }
 
     handleMenuEdit(team: ClubTeamDto): void {

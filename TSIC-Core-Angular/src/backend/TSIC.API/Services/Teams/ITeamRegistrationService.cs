@@ -82,12 +82,23 @@ public interface ITeamRegistrationService
     Task<ClubTeamDto> UpdateClubTeamAsync(string userId, int clubTeamId, UpdateClubTeamRequest request);
 
     /// <summary>
-    /// Rename one of the caller's registered teams for THIS EVENT only. Ownership = the team belongs
-    /// to the caller's club-rep registration (regId, verified against userId). Writes go through
-    /// ITeamRenameService (ThisJob): this job's Teams row + WAITLIST twin + this job's schedule.
-    /// The club library and every other event are untouched.
+    /// Rename one of the caller's registered teams for THIS EVENT. Ownership = the team belongs to
+    /// the caller's club-rep registration (regId, verified against userId). Writes go through
+    /// ITeamRenameService: this job's Teams row + WAITLIST twin + this job's schedule.
+    /// <paramref name="alsoRenameLibrary"/> additionally writes the club-team library entry — the
+    /// rep's explicit "update my team list too" tick, and the only way an event door touches a
+    /// library. Other events are never affected either way.
     /// </summary>
-    Task RenameRegisteredTeamAsync(Guid teamId, Guid regId, string userId, string newName);
+    Task RenameRegisteredTeamAsync(Guid teamId, Guid regId, string userId, string newName, bool alsoRenameLibrary = false);
+
+    /// <summary>
+    /// Rename a club-team LIBRARY entry the caller reps — the pick list future registrations seed
+    /// from. Permitted even once the team has event history (name only; grad year and level of play
+    /// remain locked via <see cref="UpdateClubTeamAsync"/>). Touches no event unless
+    /// <paramref name="alsoRenameInThisJob"/> is set, which applies the same name to
+    /// <paramref name="jobId"/>'s registered copy if one exists.
+    /// </summary>
+    Task RenameClubTeamNameAsync(string userId, int clubTeamId, Guid jobId, string newName, bool alsoRenameInThisJob = false);
 
     /// <summary>
     /// Delete a ClubTeam from the caller's club library.
