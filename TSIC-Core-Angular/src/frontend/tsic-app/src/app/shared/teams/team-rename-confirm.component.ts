@@ -340,6 +340,12 @@ export class TeamRenameConfirmComponent {
     readonly eventLabel = input(UNNAMED_EVENT);
     /** Is this team registered in the current event? Library origin has no event side without it. */
     readonly registeredHere = input(true);
+    /**
+     * May this event's name be written at all — the director's Allow Edit toggle. Renaming in the
+     * Club Team Library is never gated by it (the list is the rep's own), but the opt-in "use it
+     * for this event too" is an event write and is.
+     */
+    readonly canRenameInEvent = input(true);
 
     readonly confirmed = output<TeamRenameConfirmation>();
     readonly cancelled = output<void>();
@@ -373,7 +379,8 @@ export class TeamRenameConfirmComponent {
     readonly showPropagate = computed(() => {
         if (this.audience() !== 'rep') return false;
         return this.origin() === 'library'
-            ? this.registeredHere() && this.currentName().trim().length > 0
+            // Writing this event's name needs the director's toggle; the library rename above it does not.
+            ? this.canRenameInEvent() && this.registeredHere() && this.currentName().trim().length > 0
             : !!this.libraryName();
     });
 

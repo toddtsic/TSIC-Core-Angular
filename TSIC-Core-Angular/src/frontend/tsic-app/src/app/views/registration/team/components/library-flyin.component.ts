@@ -2365,13 +2365,15 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
      *  housekeeping only (the ⋯ menu shows on unregistered teams); once a team has event history its
      *  identity is fixed — a registered team is renamed for the event from Registered Teams. */
     /**
-     * Rename has NO event-history lock — only the director's Allow Edit toggle. The library is the
-     * list the rep registers from next season, so a typo they can never fix would either follow them
-     * forever or push them into adding a duplicate entry, which is the fragmentation the library
-     * exists to prevent (Todd's ruling, 2026-08-18). Renaming here reaches no event on its own.
+     * Renaming a Club Team Library entry has NO lock at all — not event history, and NOT the
+     * director's Allow Edit toggle. The library is the rep's own cross-event list and renaming in it
+     * is their decision, independent of any one event (Todd's ruling, 2026-08-18); one director
+     * switching Allow Edit off must not lock a rep out of a list that isn't about that event.
+     * A typo they can never fix would otherwise follow them forever or push them into adding a
+     * duplicate entry — the fragmentation the library exists to prevent. The dialog's opt-in
+     * "use it for this event too" IS an event write, and that half still answers to the toggle.
      */
     renameLockReason(): string | null {
-        if (!this.canEdit()) return 'Editing is off for this event';
         return null;
     }
 

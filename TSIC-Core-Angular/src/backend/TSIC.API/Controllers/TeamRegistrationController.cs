@@ -456,6 +456,13 @@ public class TeamRegistrationController : ControllerBase
     /// fragmentation the library exists to prevent (Todd's ruling, 2026-08-18). Grad year and level
     /// of play remain locked after scheduling — see <see cref="UpdateClubTeam"/>.
     /// Renaming here reaches NO event unless the rep ticked "use this name for this event too".
+    ///
+    /// Deliberately NOT gated by the director's BClubRepAllowEdit toggle: the Club Team Library is
+    /// the rep's own cross-event list, and renaming in it is their decision, independent of any one
+    /// event (Todd's ruling, 2026-08-18). One director switching Allow Edit off must not lock a rep
+    /// out of a list that has nothing to do with that director's event. The opt-in half
+    /// (<see cref="RenameClubTeamRequest.AlsoRenameInThisJob"/>) IS an event write, so that half —
+    /// and only that half — still answers to the toggle.
     /// </summary>
     [HttpPut("club-team/{clubTeamId:int}/rename")]
     [ProducesResponseType(200)]
@@ -469,20 +476,23 @@ public class TeamRegistrationController : ControllerBase
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId)) return Unauthorized(new { Message = UserNotAuthenticatedMessage });
 
-        // Same BClubRepAllowEdit gate as every other rep-facing team edit, so the disabled control
-        // and the refused write always agree.
         var jobPath = User.GetJobPath();
         var jobId = string.IsNullOrEmpty(jobPath) ? null : await _jobLookupService.GetJobIdByPathAsync(jobPath);
-        if (jobId is null)
-            return StatusCode(403, new { Message = "Team editing is not available in this session." });
-        var caps = await _capabilities.ResolveAsync(jobId.Value, User.ToCapabilityActor());
-        if (!caps.CanEditTeam)
-            return StatusCode(403, new { Message = "Team editing is not enabled for this event." });
+
+        // Only the event half is gated, and only when they asked for it.
+        if (request.AlsoRenameInThisJob)
+        {
+            if (jobId is null)
+                return StatusCode(403, new { Message = "Team editing is not available in this session." });
+            var caps = await _capabilities.ResolveAsync(jobId.Value, User.ToCapabilityActor());
+            if (!caps.CanEditTeam)
+                return StatusCode(403, new { Message = "Team editing is not enabled for this event." });
+        }
 
         try
         {
             await _teamRegistrationService.RenameClubTeamNameAsync(
-                userId, clubTeamId, jobId.Value, request.ClubTeamName, request.AlsoRenameInThisJob);
+                userId, clubTeamId, jobId, request.ClubTeamName, request.AlsoRenameInThisJob);
             return Ok(new { Success = true });
         }
         catch (UnauthorizedAccessException ex)

@@ -98,7 +98,7 @@ public interface ITeamRegistrationService
     /// <paramref name="alsoRenameInThisJob"/> is set, which applies the same name to
     /// <paramref name="jobId"/>'s registered copy if one exists.
     /// </summary>
-    Task RenameClubTeamNameAsync(string userId, int clubTeamId, Guid jobId, string newName, bool alsoRenameInThisJob = false);
+    Task RenameClubTeamNameAsync(string userId, int clubTeamId, Guid? jobId, string newName, bool alsoRenameInThisJob = false);
 
     /// <summary>
     /// Delete a ClubTeam from the caller's club library.

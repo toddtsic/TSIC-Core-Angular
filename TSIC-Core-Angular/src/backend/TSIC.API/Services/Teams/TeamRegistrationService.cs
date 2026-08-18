@@ -963,7 +963,7 @@ public class TeamRegistrationService : ITeamRegistrationService
     }
 
     public async Task RenameClubTeamNameAsync(
-        string userId, int clubTeamId, Guid jobId, string newName, bool alsoRenameInThisJob = false)
+        string userId, int clubTeamId, Guid? jobId, string newName, bool alsoRenameInThisJob = false)
     {
         var name = newName.Trim();
         if (string.IsNullOrEmpty(name)) throw new InvalidOperationException("Team name is required.");
@@ -975,19 +975,21 @@ public class TeamRegistrationService : ITeamRegistrationService
         // fix would either follow them forever or push them into creating a duplicate entry — the
         // exact fragmentation the library exists to prevent (Todd's ruling, 2026-08-18). Grad year
         // and level of play stay locked once scheduled; those carry the squad's identity, not its label.
+        // No BClubRepAllowEdit gate either — the list is the rep's, independent of any one event;
+        // the controller gates only the opt-in event half below.
         await RenameLibraryEntryAsync(clubTeamId, userId, name);
 
-        if (!alsoRenameInThisJob) return;
+        if (!alsoRenameInThisJob || jobId is null) return;
 
         // This event's copy, only if the team is actually registered here. Same single write the
         // Registered Teams pencil performs — no sweep to any other job.
         var copies = await _teams.GetTrackedTeamsByClubTeamIdAsync(clubTeamId);
-        var here = copies.FirstOrDefault(t => t.JobId == jobId);
+        var here = copies.FirstOrDefault(t => t.JobId == jobId.Value);
         if (here == null) return;
         if (here.TeamName != null && here.TeamName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase)) return;
         if (string.Equals(here.TeamName, name, StringComparison.Ordinal)) return;
 
-        await _teamRename.RenameTeamAsync(here.TeamId, jobId, name, userId);
+        await _teamRename.RenameTeamAsync(here.TeamId, jobId.Value, name, userId);
 
         _logger.LogInformation(
             "Club rep {UserId} renamed club team {ClubTeamId} to '{Name}' and applied it to job {JobId}",

@@ -234,6 +234,7 @@ type PendingRename =
         [newName]="renameSeed(renaming)"
         [libraryName]="renameLibraryName(renaming)"
         [registeredHere]="renameRegisteredHere(renaming)"
+        [canRenameInEvent]="canEditTeam()"
         (confirmed)="confirmRename($event)"
         (cancelled)="pendingRename.set(null)" />
     }
