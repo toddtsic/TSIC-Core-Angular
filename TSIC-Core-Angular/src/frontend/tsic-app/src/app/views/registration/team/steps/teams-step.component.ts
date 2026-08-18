@@ -167,6 +167,7 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
         [clubTeams]="allLibraryTeams()"
         [clubName]="clubName()"
         [canRegister]="canRegisterTeam()"
+        [canEdit]="canEditTeam()"
         [canRemove]="canRemoveTeam()"
         [actionInProgress]="actionInProgress()"
         [ageGroups]="ageGroups()"
@@ -176,6 +177,7 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
         (register)="onFlyinRegister($event)"
         (unregister)="onFlyinUnregister($event)"
         (addNew)="showAddModal.set(true)"
+        (edit)="openEditModal($event)"
         (archive)="askArchiveTeam($event)"
         (delete)="askDeleteTeam($event)"
         (restore)="askRestoreTeam($event)" />
@@ -197,6 +199,17 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
         [ageGroups]="ageGroups()"
         (saved)="onAddAndRegisterSaved()"
         (closed)="showAddAndRegisterModal.set(false)" />
+    }
+
+    <!-- Library edit — pre-registration housekeeping only (name / grad year / LOP on a team with
+         no event history). A registered team is renamed for the event below, never here. -->
+    @if (editingTeam(); as editing) {
+      <app-team-form-modal
+        [clubName]="clubName()"
+        [editingTeam]="editing"
+        [existingTeams]="allLibraryTeams()"
+        (saved)="onTeamEdited()"
+        (closed)="editingTeam.set(null)" />
     }
 
     <!-- Rep's this-event rename (Registered Teams pencil). The dialog owns the name input; the
@@ -653,6 +666,8 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly showAddModal = signal(false);
     /** Combined add+register modal — only used for the empty-empty first-team flow. */
     readonly showAddAndRegisterModal = signal(false);
+    /** When set, the library edit modal is open for this (unscheduled) team. */
+    readonly editingTeam = signal<ClubTeamDto | null>(null);
     /** When set, the this-event rename dialog is open for this registered team. */
     readonly pendingRename = signal<RegisteredTeamDto | null>(null);
     /** When set, the delete-confirm dialog is open for this team. */
@@ -816,10 +831,21 @@ export class TeamTeamsStepComponent implements OnInit {
         this.loadTeamsMetadata();
     }
 
+    /** Open the shared modal in edit mode for a library team (no event history only). */
+    openEditModal(team: ClubTeamDto): void {
+        if (team.bHasBeenScheduled) return;
+        this.editingTeam.set(team);
+    }
+
+    onTeamEdited(): void {
+        this.editingTeam.set(null);
+        this.loadTeamsMetadata();
+    }
+
     // ── This-event rename (Registered Teams pencil) ─────────────────
-    // Library details are closed to reps; the ONLY rename a rep has is this event's copy.
-    // The write goes to the canonical name writer (ThisJob): this job's Teams row + WAITLIST
-    // twin + this job's schedule. The library and every other event keep their name.
+    // A registered team's name is renamed HERE, for this event's copy only — never in the
+    // library. The write goes to the canonical name writer (ThisJob): this job's Teams row +
+    // WAITLIST twin + this job's schedule. The library and every other event keep their name.
 
     onRenameTeam(team: RegisteredTeamDto): void {
         this.pendingRename.set(team);

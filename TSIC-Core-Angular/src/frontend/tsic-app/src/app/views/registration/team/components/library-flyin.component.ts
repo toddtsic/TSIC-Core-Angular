@@ -347,17 +347,18 @@ interface LibraryGroup {
                               <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
                             </button>
                             @if (openMenuTeamId() === team.clubTeamId) {
+                              @let editLock = editLockReason(team);
                               @let archiveLock = archiveLockReason(team, !!registered);
                               @let deleteLock = deleteLockReason(team, !!registered);
                               <div class="lib-menu" role="menu" (click)="$event.stopPropagation()">
-                                <!-- Library details are CLOSED to reps (2026-08-17 ruling): a registered
-                                     team is renamed for the event from Registered Teams; an unregistered
-                                     one is deleted and re-added. Kept as a disabled row so the rep learns
-                                     where the door is instead of hunting for a pencil. -->
-                                <button type="button" class="lib-menu-item" role="menuitem" disabled>
+                                <button type="button" class="lib-menu-item" role="menuitem"
+                                        [disabled]="!!editLock"
+                                        (click)="handleMenuEdit(team)">
                                   <i class="bi bi-pencil lib-menu-icon" aria-hidden="true"></i>
                                   <span class="lib-menu-label">Edit team</span>
-                                  <span class="lib-menu-reason">{{ EDIT_LOCK_REASON }}</span>
+                                  @if (editLock) {
+                                    <span class="lib-menu-reason">{{ editLock }}</span>
+                                  }
                                 </button>
                                 <button type="button" class="lib-menu-item" role="menuitem"
                                         [disabled]="!!archiveLock"
@@ -2104,6 +2105,9 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
     /** Director's per-event delete permission, already folded with the registration-open
      *  door by the parent. Gates the Remove trash can on the Registered strip. */
     readonly canRemove = input(false);
+    /** Director's per-event "Allow Edit" toggle, already folded with the eventConcluded door
+     *  (false on a concluded event regardless of the toggle). Gates the "Edit team" menu item. */
+    readonly canEdit = input(false);
     readonly actionInProgress = input(false);
     readonly ageGroups = input<readonly AgeGroupDto[]>([]);
     /** Dev-only diagnostics toggle — surfaces ClubTeamId in the register expand.
@@ -2120,6 +2124,7 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
      *  confirm-dialog + paid-total guard, so the money check stays at one chokepoint. */
     readonly unregister = output<number>();
     readonly addNew = output<void>();
+    readonly edit = output<ClubTeamDto>();
     readonly archive = output<ClubTeamDto>();
     readonly delete = output<ClubTeamDto>();
     readonly restore = output<ClubTeamDto>();
@@ -2314,9 +2319,14 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
         this.cancelRegister();
     }
 
-    /** Library details are closed to reps — the "Edit team" row is always disabled with this reason.
-     *  The ⋯ menu only appears on unregistered teams (registered ones rename from Registered Teams). */
-    readonly EDIT_LOCK_REASON = 'Locked — delete and re-add to change';
+    /** Returns the lock reason for Edit, or null if available. Library edit is pre-registration
+     *  housekeeping only (the ⋯ menu shows on unregistered teams); once a team has event history its
+     *  identity is fixed — a registered team is renamed for the event from Registered Teams. */
+    editLockReason(team: ClubTeamDto): string | null {
+        if (!this.canEdit()) return 'Editing is off for this event';
+        if (team.bHasBeenScheduled) return 'Has event history';
+        return null;
+    }
 
     /** Returns the lock reason for Archive, or null if available. */
     archiveLockReason(team: ClubTeamDto, registered: boolean): string | null {
@@ -2330,6 +2340,11 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
         if (team.bHasBeenScheduled) return 'Use Archive — has event history';
         if (registered) return 'Registered for this event';
         return null;
+    }
+
+    handleMenuEdit(team: ClubTeamDto): void {
+        this.closeMenu();
+        if (!this.editLockReason(team)) this.edit.emit(team);
     }
 
     handleMenuArchive(team: ClubTeamDto, registered: boolean): void {
