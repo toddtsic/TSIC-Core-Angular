@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { environment } from '@environments/environment';
 import { AuthService } from '@infrastructure/services/auth.service';
+import { skipErrorToast } from '@infrastructure/interceptors/http-error-context';
 import {
     TeamsMetadataResponse,
     RegisterTeamRequest,
@@ -141,7 +142,7 @@ export class TeamRegistrationService {
      */
     renameRegisteredTeam(teamId: string, teamName: string, alsoRenameLibrary = false): Observable<void> {
         const body: RenameRegisteredTeamRequest = { teamName, alsoRenameLibrary };
-        return this.http.put<void>(`${this.apiUrl}/teams/${teamId}/rename`, body);
+        return this.http.put<void>(`${this.apiUrl}/teams/${teamId}/rename`, body, { context: skipErrorToast() });
     }
 
     /**
@@ -151,7 +152,7 @@ export class TeamRegistrationService {
      */
     renameClubTeam(clubTeamId: number, clubTeamName: string, alsoRenameInThisJob = false): Observable<void> {
         const body: RenameClubTeamRequest = { clubTeamName, alsoRenameInThisJob };
-        return this.http.put<void>(`${this.apiUrl}/club-team/${clubTeamId}/rename`, body);
+        return this.http.put<void>(`${this.apiUrl}/club-team/${clubTeamId}/rename`, body, { context: skipErrorToast() });
     }
 
     /**
