@@ -26,7 +26,7 @@
 				<div class="jc-grid">
 					<label class="field-label">Customer
 						@if (referenceData(); as refs) {
-							<select class="field-input" [ngModel]="customerId()" (ngModelChange)="set(customerId, $event)">
+							<select class="field-input" [ngModel]="customerId()" (ngModelChange)="setPlanInput(customerId, $event)">
 								<option value="">— select —</option>
 								@for (c of refs.customers; track c.customerId) {
 									<option [value]="c.customerId">{{ c.name }}</option>
@@ -66,7 +66,7 @@
 						}
 					</label>
 					<label class="field-label">Year
-						<input class="field-input" type="text" [ngModel]="yearTarget()" (ngModelChange)="set(yearTarget, $event)" />
+						<input class="field-input" type="text" [ngModel]="yearTarget()" (ngModelChange)="setPlanInput(yearTarget, $event)" />
 					</label>
 					<label class="field-label">Season
 						<input class="field-input" type="text" [ngModel]="seasonTarget()" (ngModelChange)="set(seasonTarget, $event)" />
@@ -190,7 +190,7 @@
 					<span class="jc-option-label">How much of the league structure to copy</span>
 					<div class="jc-choice-list">
 						<label class="field-check jc-choice">
-							<input type="radio" name="ladtScope" value="none" [ngModel]="ladtScope()" (ngModelChange)="set(ladtScope, $event)" />
+							<input type="radio" name="ladtScope" value="none" [ngModel]="ladtScope()" (ngModelChange)="setPlanInput(ladtScope, $event)" />
 							<span class="jc-choice-body">
 								<span class="jc-choice-title">Nothing — start empty</span>
 								<span class="jc-choice-note">
@@ -200,7 +200,7 @@
 							</span>
 						</label>
 						<label class="field-check jc-choice">
-							<input type="radio" name="ladtScope" value="lad" [ngModel]="ladtScope()" (ngModelChange)="set(ladtScope, $event)" />
+							<input type="radio" name="ladtScope" value="lad" [ngModel]="ladtScope()" (ngModelChange)="setPlanInput(ladtScope, $event)" />
 							<span class="jc-choice-body">
 								<span class="jc-choice-title">Leagues, age groups and pools — no teams</span>
 								<span class="jc-choice-note">
@@ -210,7 +210,7 @@
 							</span>
 						</label>
 						<label class="field-check jc-choice">
-							<input type="radio" name="ladtScope" value="ladt" [ngModel]="ladtScope()" (ngModelChange)="set(ladtScope, $event)" />
+							<input type="radio" name="ladtScope" value="ladt" [ngModel]="ladtScope()" (ngModelChange)="setPlanInput(ladtScope, $event)" />
 							<span class="jc-choice-body">
 								<span class="jc-choice-title">Leagues, age groups and pools — plus your own teams</span>
 								<span class="jc-choice-note">
@@ -236,11 +236,11 @@
 						<span class="jc-option-label">Pools within each age group</span>
 						<div class="field-check-row">
 							<label class="field-check">
-								<input type="radio" name="copyDivisions" [value]="true" [ngModel]="copyDivisions()" (ngModelChange)="set(copyDivisions, $event)" />
+								<input type="radio" name="copyDivisions" [value]="true" [ngModel]="copyDivisions()" (ngModelChange)="setPlanInput(copyDivisions, $event)" />
 								<span>Keep last season's pools</span>
 							</label>
 							<label class="field-check">
-								<input type="radio" name="copyDivisions" [value]="false" [ngModel]="copyDivisions()" (ngModelChange)="set(copyDivisions, $event)" />
+								<input type="radio" name="copyDivisions" [value]="false" [ngModel]="copyDivisions()" (ngModelChange)="setPlanInput(copyDivisions, $event)" />
 								<span>Start fresh</span>
 							</label>
 						</div>
@@ -306,11 +306,11 @@
 					<span class="jc-option-label">Online store</span>
 					<div class="field-check-row">
 						<label class="field-check">
-							<input type="radio" name="store" value="disable" [ngModel]="storeChoice()" (ngModelChange)="set(storeChoice, $event)" />
+							<input type="radio" name="store" value="disable" [ngModel]="storeChoice()" (ngModelChange)="setPlanInput(storeChoice, $event)" />
 							<span>Start turned off</span>
 						</label>
 						<label class="field-check">
-							<input type="radio" name="store" value="keep" [ngModel]="storeChoice()" (ngModelChange)="set(storeChoice, $event)" />
+							<input type="radio" name="store" value="keep" [ngModel]="storeChoice()" (ngModelChange)="setPlanInput(storeChoice, $event)" />
 							<span>Match the source job</span>
 						</label>
 					</div>
@@ -327,7 +327,7 @@
 				<div class="jc-option-group">
 					<span class="jc-option-label">Season roll-forward</span>
 					<label class="field-check">
-						<input type="checkbox" [ngModel]="upAgegroupNamesByOne()" (ngModelChange)="set(upAgegroupNamesByOne, $event)" />
+						<input type="checkbox" [ngModel]="upAgegroupNamesByOne()" (ngModelChange)="setPlanInput(upAgegroupNamesByOne, $event)" />
 						<span>Move everything forward one season</span>
 					</label>
 					<p class="jc-hint">
@@ -347,7 +347,7 @@
 				<div class="jc-option-group">
 					<span class="jc-option-label">Home page banner</span>
 					<label class="field-check">
-						<input type="checkbox" [ngModel]="noParallaxSlide1()" (ngModelChange)="set(noParallaxSlide1, $event)" />
+						<input type="checkbox" [ngModel]="noParallaxSlide1()" (ngModelChange)="setPlanInput(noParallaxSlide1, $event)" />
 						<span>Start on a plain banner</span>
 					</label>
 					<p class="jc-hint">

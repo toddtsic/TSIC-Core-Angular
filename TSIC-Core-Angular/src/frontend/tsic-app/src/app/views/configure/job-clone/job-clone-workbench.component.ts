@@ -60,11 +60,11 @@ const STEP_LABELS: Record<string, string> = {
 
 /**
  * Single-screen clone WORKBENCH (replaces the 7-step wizard): every input visible at
- * once on the left, the server-computed plan rendered live on the right. The plan pane
- * refetches on a debounced stream of form edits; the Clone button is enabled only when
- * the displayed plan matches the current inputs (freshness is a computed over the same
- * request snapshot) — the stale-preview and step-bypass defect classes are structurally
- * impossible here.
+ * once on the left, the server-computed plan rendered on the right. The pane refetches on a
+ * debounced stream of edits to the EIGHT inputs it actually depends on (planInputsKey), not
+ * on every keystroke in the form; the Clone button is disabled only while those are out of
+ * step with the displayed plan. Everything else typed here rides the submit unchanged and
+ * costs no round trip.
  *
  * The owning customer is a first-class input, seeded from the source. Pointing it at a
  * different customer is the new-customer onboarding path (it replaced a separate blank-job
@@ -187,19 +187,17 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	// ── Live plan ──
 	readonly plan = signal<ClonePlanDto | null>(null);
 	readonly planRefreshing = signal(false);
-	/** Request snapshot the displayed plan was computed FROM. */
+	/** planInputsKey snapshot the displayed plan was computed FROM. */
 	private readonly planKey = signal<string | null>(null);
 	private readonly planTrigger$ = new Subject<void>();
 	/**
-	 * SIGNAL, not a plain field — buildCloneRequest reads it, and requestKey is a computed()
-	 * over buildCloneRequest. A plain field flips without notifying the computed, so
-	 * requestKey keeps serving its CACHED value while the freshly-built key reflects the new
-	 * value; planKey === requestKey then never holds and the Clone button stays disabled
-	 * behind a permanent "plan refreshing…" badge. That is exactly what trapped Ann on
-	 * XPO:Florida Girls 2027: the comm seed flipped this to true while every comm signal was
-	 * .set() to the value it already held (signals skip equal writes), so nothing invalidated
-	 * requestKey until she toggled an unrelated checkbox. Any field buildCloneRequest reads
-	 * MUST be a signal.
+	 * Decides whether the comm parameters ride the request as null ("keep source") or as
+	 * strings (empty string CLEARS the field on the new job) — see buildCloneRequest.
+	 *
+	 * Kept a signal rather than a plain field. It no longer feeds the plan freshness key
+	 * (that is planInputsKey now, and comm parameters cannot change a plan), but every other
+	 * field buildCloneRequest reads is a signal and a lone plain field here is a trap waiting
+	 * for the next person who widens the key.
 	 */
 	private readonly commSeeded = signal(false);
 	private typeDefaultsSeeded = false;
@@ -214,9 +212,41 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	/** True only once the author has actually typed in a banner box — see setBannerText. */
 	private readonly bannerTextDirty = signal(false);
 
-	/** Snapshot of the current inputs — recomputes on any form-signal change. */
-	readonly requestKey = computed(() => JSON.stringify(this.buildCloneRequest(null)));
-	readonly planFresh = computed(() => this.planKey() !== null && this.planKey() === this.requestKey());
+	/**
+	 * The ONLY inputs that can change the plan. Deliberately NOT the whole request.
+	 *
+	 * JobClonePlanner reads 13 request fields. Six change the step counts, the team split, or
+	 * the fingerprint (JobClonePlanner.ComputeFingerprint: SourceJobId, TargetCustomerId,
+	 * yearDelta, steps, excluded*). Two more change what the pane RENDERS without changing any
+	 * count, and belong here for that reason alone: NoParallaxSlide1 drives the branding
+	 * preview, and UpAgegroupNamesByOne drives the agegroup newName and bulletin rows. Both are
+	 * discrete toggles, so a refetch per click is fine — it is per-KEYSTROKE refetching this
+	 * exists to stop.
+	 *
+	 * The rest — event dates, job path/name, league renames, the eCheck choice, payment code —
+	 * produce no pane content. They feed warnings and validation that already have a local
+	 * equivalent rendering with no round trip (eventEndInPast()/eventDatesInverted(),
+	 * checkIdentity() on blur), and all of them are re-validated for real by the
+	 * in-transaction re-plan at execute.
+	 *
+	 * Keying on the whole request meant one character of a job name invalidated the plan,
+	 * disabled Clone, and triggered a full walk of the source graph — leagues, agegroups,
+	 * divisions, teams, fees, modifiers, bulletins, reports, menus, navs, admin regs — to
+	 * recompute an answer that could not have changed. Getting this set WRONG is safe: a
+	 * missed input means a stale fingerprint, which the execute-time re-plan turns into a 409
+	 * with the fresh plan. It cannot produce a bad clone.
+	 */
+	readonly planInputsKey = computed(() => JSON.stringify({
+		sourceJobId: this.source()?.jobId ?? '',
+		targetCustomerId: this.customerId(),
+		yearTarget: this.yearTarget(),
+		ladtScope: this.ladtScope(),
+		copyDivisions: this.copyDivisions(),
+		storeChoice: this.storeChoice(),
+		noParallaxSlide1: this.noParallaxSlide1(),
+		upAgegroupNamesByOne: this.upAgegroupNamesByOne(),
+	}));
+	readonly planFresh = computed(() => this.planKey() !== null && this.planKey() === this.planInputsKey());
 
 	// ── Branding preview (banner + header logo) ──
 	// The planner runs the real reset rule, so these are the values the released site will
@@ -288,7 +318,7 @@ export class JobCloneWorkbenchComponent implements OnInit {
 				tap(() => this.planRefreshing.set(true)),
 				switchMap(() => {
 					const req = this.buildCloneRequest(null);
-					const key = JSON.stringify(req);
+					const key = this.planInputsKey();
 					return this.cloneService.previewClone(req).pipe(
 						tap(planDto => this.onPlanArrived(planDto, key)),
 						catchError(err => {
@@ -316,8 +346,20 @@ export class JobCloneWorkbenchComponent implements OnInit {
 	// Form plumbing
 	// ══════════════════════════════════════════════════════════
 
-	/** Template helper: write a form signal and mark the plan stale (debounced refetch). */
+	/**
+	 * Template helper for a field the plan does NOT depend on: write it and stop. No round
+	 * trip, and the Clone button does not go dead while you type. Everything typed goes to the
+	 * server at submit exactly as before — the plan simply has no opinion about it.
+	 */
 	set<T>(sig: WritableSignal<T>, value: T): void {
+		sig.set(value);
+	}
+
+	/**
+	 * Template helper for one of the eight inputs in planInputsKey: write it and refetch the
+	 * plan. Use this ONLY for those — see planInputsKey for why the list is what it is.
+	 */
+	setPlanInput<T>(sig: WritableSignal<T>, value: T): void {
 		sig.set(value);
 		this.requestPlan();
 	}
@@ -415,7 +457,6 @@ export class JobCloneWorkbenchComponent implements OnInit {
 		// One-time seeds from the FIRST plan: comm defaults, advance-flag default,
 		// type-aware scope/store defaults. Each seed changes the request → the stream
 		// refetches → the next plan lands fresh against the seeded inputs.
-		let reseeded = false;
 		if (!this.commSeeded()) {
 			this.commSeeded.set(true);
 			this.regFormFrom.set(planDto.regFormFrom ?? '');
@@ -427,20 +468,17 @@ export class JobCloneWorkbenchComponent implements OnInit {
 			this.payTo.set(planDto.payTo ?? '');
 			this.storeContactEmail.set(planDto.storeContactEmail ?? '');
 			this.upAgegroupNamesByOne.set(planDto.advanceFlagDefault);
-			reseeded = true;
 		}
 		if (!this.bannerTextSeeded && planDto.brandingPreview) {
 			this.bannerTextSeeded = true;
 			this.bannerText1Target.set(planDto.brandingPreview.text1 ?? '');
 			this.bannerText2Target.set(planDto.brandingPreview.text2 ?? '');
-			reseeded = true;
 		}
 		if (!this.typeDefaultsSeeded) {
 			this.typeDefaultsSeeded = true;
 			const scope = JobCloneWorkbenchComponent.ScopeByJobType[planDto.sourceJobTypeId];
 			if (scope) this.ladtScope.set(scope);
 			if (planDto.sourceJobTypeId === 5) this.storeChoice.set('keep'); // Sales Venue lives on its store
-			reseeded = true;
 		}
 
 		// League rename rows: one per source league, seeded with the year-bumped default;
@@ -454,11 +492,17 @@ export class JobCloneWorkbenchComponent implements OnInit {
 		if (rows.length !== this.leagueRenames().length
 			|| rows.some((r, i) => r !== this.leagueRenames()[i])) {
 			this.leagueRenames.set(rows);
-			reseeded = true;
 		}
 
-		this.planKey.set(reseeded ? null : key);
-		if (reseeded) this.requestPlan();
+		// Of the seeds above, ONLY the type-aware one can touch a plan input (ladtScope,
+		// storeChoice). Comm parameters, banner wording and league rename rows cannot. So
+		// compare the key as it stands NOW against the one this plan was computed from and
+		// refetch only on a real difference — a seed that changes nothing the plan depends on
+		// no longer costs a second walk of the source graph, and there is no `reseeded` flag
+		// to keep in step with the seed list.
+		const currentKey = this.planInputsKey();
+		this.planKey.set(currentKey);
+		if (currentKey !== key) this.requestPlan();
 	}
 
 	private bumpYearTokens(s: string): string {
@@ -525,7 +569,7 @@ export class JobCloneWorkbenchComponent implements OnInit {
 					// Data-moved guard: source data changed between plan and submit. Render
 					// the fresh plan (it matches the current inputs) and ask for re-approval.
 					this.plan.set(err.error.freshPlan as ClonePlanDto);
-					this.planKey.set(this.requestKey());
+					this.planKey.set(this.planInputsKey());
 					this.affirmationChecked.set(false);
 					this.error.set('Source data changed since the plan was computed — review the refreshed plan and clone again.');
 					this.toast.show('Plan refreshed — source data moved', 'warning', 5000);
@@ -553,8 +597,10 @@ export class JobCloneWorkbenchComponent implements OnInit {
 			})),
 			expiryAdmin: this.expiryAdmin(),
 			expiryUsers: this.expiryUsers(),
-			// Empty → null → the server falls back to the year-shifted source date. These ride
-			// requestKey, so editing one refetches the plan and re-arms the freshness gate.
+			// Empty → null → the server falls back to the year-shifted source date. These are
+			// deliberately NOT in planInputsKey: the plan reads them only to warn about a past
+			// end date, and eventEndInPast()/eventDatesInverted() already say that locally with
+			// no round trip. Editing them therefore costs nothing and never disables Clone.
 			eventStartDate: this.eventStartDate() || null,
 			eventEndDate: this.eventEndDate() || null,
 			// null before the comm seed = "keep source"; after seeding these are always
