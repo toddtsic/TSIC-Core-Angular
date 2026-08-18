@@ -332,16 +332,17 @@ export class PoolAssignmentComponent {
             this.toast.show('Select a target division first.', 'warning');
             return;
         }
-        const sameAgegroup = this.sourceDiv()?.agegroupId === this.targetDiv()?.agegroupId;
-        if (sameAgegroup && !team.isScheduled) {
-            // Same agegroup, not scheduled → execute immediately
-            this.swappingId.set(team.teamId);
-            this.executeTransferDirect([team.teamId], [], this.sourceDivId()!, this.targetDivId()!, false, team.teamName);
-        } else {
-            // Cross-agegroup or scheduled → show preview
+        // The arrow is a direct action: it commits the move on click, no
+        // select-and-confirm. The one exception is a team with scheduled games —
+        // the server refuses a one-way move of it and demands a counter-team, so
+        // the preview panel is the only way to pair one up.
+        if (team.isScheduled) {
             this.sourceSelected.set(new Set([team.teamId]));
             this.requestPreview('source-to-target');
+            return;
         }
+        this.swappingId.set(team.teamId);
+        this.executeTransferDirect([team.teamId], [], this.sourceDivId()!, this.targetDivId()!, false, team.teamName);
     }
 
     swapToSource(team: PoolTeamDto) {
@@ -349,14 +350,13 @@ export class PoolAssignmentComponent {
             this.toast.show('Select a source division first.', 'warning');
             return;
         }
-        const sameAgegroup = this.sourceDiv()?.agegroupId === this.targetDiv()?.agegroupId;
-        if (sameAgegroup && !team.isScheduled) {
-            this.swappingId.set(team.teamId);
-            this.executeTransferDirect([team.teamId], [], this.targetDivId()!, this.sourceDivId()!, false, team.teamName);
-        } else {
+        if (team.isScheduled) {
             this.targetSelected.set(new Set([team.teamId]));
             this.requestPreview('target-to-source');
+            return;
         }
+        this.swappingId.set(team.teamId);
+        this.executeTransferDirect([team.teamId], [], this.targetDivId()!, this.sourceDivId()!, false, team.teamName);
     }
 
     // ── Batch transfer ──
