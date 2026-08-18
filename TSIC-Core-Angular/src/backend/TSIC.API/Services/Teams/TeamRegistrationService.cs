@@ -874,6 +874,17 @@ public class TeamRegistrationService : ITeamRegistrationService
         // Capture before Remove so we can re-aggregate the rep row afterward.
         var clubRepId = team.ClubrepRegistrationid;
 
+        // Ownership: the team must hang off a ClubRep registration that belongs to the caller.
+        // Team ids are public (the anonymous schedule filter lists every TeamId in an event), so
+        // without this any logged-in account could delete every unpaid registration in an open
+        // event. A team with no rep registration (admin-minted) is not the rep's to remove either.
+        var owner = clubRepId.HasValue ? await _registrations.GetByIdAsync(clubRepId.Value) : null;
+        if (owner == null || owner.UserId != userId || owner.RoleId != Domain.Constants.RoleConstants.ClubRep)
+        {
+            _logger.LogWarning("User {UserId} attempted to unregister team {TeamId} they do not own (rep reg {RegId})", userId, teamId, clubRepId);
+            throw new UnauthorizedAccessException("You do not have access to this team.");
+        }
+
         // Single create-authority gate. CanRemoveTeam = door(eventConcluded AND NOT superseded)
         //   AND toggles (BRegistrationAllowTeam + BClubRepAllowDelete). Post-conclusion roster
         //   restructuring is admin-only (RosterSwapper, within ExpiryAdmin); a club rep is the
