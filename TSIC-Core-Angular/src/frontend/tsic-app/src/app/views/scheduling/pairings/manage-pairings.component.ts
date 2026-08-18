@@ -14,7 +14,6 @@ import { DivisionNavigatorComponent } from '../shared/components/division-naviga
 import { WpwMatrixComponent } from '../shared/components/wpw-matrix/wpw-matrix.component';
 import { DivisionTeamsTableComponent } from '../shared/components/division-teams-table/division-teams-table.component';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
-import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ToastService } from '@shared-ui/toast.service';
 import { TeamRenameConfirmComponent } from '@shared/teams/team-rename-confirm.component';
 import { TeamLibraryNameHintComponent } from '@shared/teams/team-library-name-hint.component';
@@ -42,7 +41,7 @@ const BRACKET_OPTIONS = [
 @Component({
     selector: 'app-manage-pairings',
     standalone: true,
-    imports: [CommonModule, FormsModule, DivisionNavigatorComponent, WpwMatrixComponent, DivisionTeamsTableComponent, TsicDialogComponent, ConfirmDialogComponent, ChecklistBackLinkComponent,
+    imports: [CommonModule, FormsModule, DivisionNavigatorComponent, WpwMatrixComponent, DivisionTeamsTableComponent, TsicDialogComponent, ChecklistBackLinkComponent,
         TeamRenameConfirmComponent, TeamLibraryNameHintComponent],
     templateUrl: './manage-pairings.component.html',
     styleUrl: './manage-pairings.component.scss',
