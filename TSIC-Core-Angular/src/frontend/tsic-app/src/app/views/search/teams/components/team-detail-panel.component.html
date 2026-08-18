@@ -447,16 +447,6 @@
   </div>
 }
 
-<!-- Rename briefing (shared): THIS EVENT ONLY, for every role. -->
-@if (showRenameConfirm() && detail(); as d) {
-  <team-rename-confirm
-    [currentName]="d.teamName"
-    [newName]="editTeamName().trim()"
-    [libraryName]="d.clubTeamName"
-    (confirmed)="confirmRename()"
-    (cancelled)="cancelRename()" />
-}
-
 <!-- Move Team Confirm Dialog -->
 @if (showMoveTeamConfirm()) {
   <confirm-dialog

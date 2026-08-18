@@ -13,7 +13,6 @@ import { CloneTeamDialogComponent } from './clone-team-dialog.component';
 import { JobService } from '../../../../infrastructure/services/job.service';
 import type { TeamDetailDto, UpdateTeamRequest, ClubRegistrationDto, MoveTeamToClubRequest, JobFeeDto } from '../../../../core/api';
 import { RoleIds } from '@infrastructure/constants/roles.constants';
-import { TeamRenameConfirmComponent } from '@shared/teams/team-rename-confirm.component';
 
 const PLAYER_ROLE = RoleIds.Player;
 const CLUBREP_ROLE = RoleIds.ClubRep;
@@ -22,8 +21,7 @@ const JOB_TYPE_TOURNAMENT = 2;
 @Component({
   selector: 'app-team-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, FeeCardComponent, ConfirmDialogComponent, RepriceConfirmComponent, CloneTeamDialogComponent,
-    TeamRenameConfirmComponent],
+  imports: [CommonModule, FormsModule, FeeCardComponent, ConfirmDialogComponent, RepriceConfirmComponent, CloneTeamDialogComponent],
   template: `
     <div class="detail-header d-flex align-items-center justify-content-between">
       <div class="d-flex align-items-center gap-2">
@@ -331,17 +329,6 @@ const JOB_TYPE_TOURNAMENT = 2;
       />
     }
 
-    <!-- Rename briefing (shared): a name change here is THIS EVENT ONLY. -->
-    @if (showRenameConfirm() && team(); as t) {
-      <team-rename-confirm
-        [currentName]="t.teamName ?? ''"
-        [newName]="(form.teamName ?? '').trim()"
-        [libraryName]="t.clubTeamName"
-        (confirmed)="confirmRename()"
-        (cancelled)="cancelRename()"
-      />
-    }
-
   `,
   styles: [`
     :host { display: block; }
@@ -430,12 +417,6 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
   moreOpen = signal(false);
   showChangeClubWarning = signal(false);
   showCloneDialog = signal(false);
-
-  // Rename briefing (shared team-rename-confirm) before the save pipeline runs: a name change here
-  // is THIS EVENT ONLY — the club's library and other events keep their name.
-  showRenameConfirm = signal(false);
-  /** One acknowledgment per save attempt; reset when the team (re)loads. */
-  private renameAcknowledged = false;
 
   editMode = signal<'fee-amount' | 'fee-phase' | 'settings' | null>(null);
   readonly feesAmountLocked = computed(() => this.editMode() === 'fee-phase' || this.editMode() === 'settings');
@@ -561,8 +542,6 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
     this.saveMessage.set(null);
     this.showDropConfirm.set(false);
     this.showChangeClub.set(false);
-    this.renameAcknowledged = false;
-    this.showRenameConfirm.set(false);
     this.editMode.set(null);
 
     this.ladtService.getTeam(this.teamId()).subscribe({
@@ -624,17 +603,9 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
       return;
     }
 
-    // Club-linked name change → the rename briefing before the save/reprice pipeline (this event
-    // only; the dialog explains the library name is untouched). Orphan teams rename silently.
-    // One acknowledgment per save attempt.
-    const renameNeedsConfirm = !this.renameAcknowledged
-      && this.team()?.clubTeamId != null
-      && (this.form.teamName ?? '').trim().length > 0
-      && (this.form.teamName ?? '') !== (this.team()?.teamName ?? '');
-    if (renameNeedsConfirm) {
-      this.showRenameConfirm.set(true);
-      return;
-    }
+    // No rename interstitial: a director is never shown the club's library (Todd's ruling,
+    // 2026-08-18), which left the briefing with no decision and no fact this form didn't already
+    // show. Save runs the rename straight through the normal save/reprice pipeline.
 
     const playerChanged = this.roleChanged('player');
     const clubRepChanged = this.roleChanged('clubRep');
@@ -775,7 +746,6 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
         }
         this.isSaving.set(false);
         this.isError.set(false);
-        this.renameAcknowledged = false;
         this.saveMessage.set(this.savedMessage(results, 'Team saved successfully.'));
         this.captureOriginals();
         this.editMode.set(null);
@@ -820,18 +790,6 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
     this.isSaving.set(false);
   }
 
-  /** Rename acknowledged — re-enter save(), which now falls through to the pipeline. */
-  confirmRename(): void {
-    this.renameAcknowledged = true;
-    this.showRenameConfirm.set(false);
-    this.save();
-  }
-
-  cancelRename(): void {
-    this.showRenameConfirm.set(false);
-  }
-
-  /** Reset = a this-event rename back to the library name, through the normal save + confirm. */
   private savedMessage(results: any[], plain: string): string {
     const who = this.feeReprice.describeReprice(results);
     return who ? `Saved. Repriced ${who}.` : plain;

@@ -9,7 +9,6 @@ import { ClubRepPaymentComponent } from '@shared-ui/components/club-rep-payment/
 import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
 import { DraggableModalDirective } from '@shared-ui/directives/draggable-modal.directive';
 import { LOP_CHOICES, normalizeLop } from '@shared/teams/lop-choices';
-import { TeamRenameConfirmComponent } from '@shared/teams/team-rename-confirm.component';
 import { environment } from '@environments/environment';
 
 type TabType = 'info' | 'accounting';
@@ -25,8 +24,7 @@ function formatPhone(value: string | null | undefined): string | null {
 @Component({
 	selector: 'app-team-detail-panel',
 	standalone: true,
-	imports: [CommonModule, FormsModule, ConfirmDialogComponent, ClubRepPaymentComponent, ResizablePanelDirective, DraggableModalDirective,
-		TeamRenameConfirmComponent],
+	imports: [CommonModule, FormsModule, ConfirmDialogComponent, ClubRepPaymentComponent, ResizablePanelDirective, DraggableModalDirective],
 	templateUrl: './team-detail-panel.component.html',
 	styleUrl: './team-detail-panel.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
@@ -210,35 +208,14 @@ export class TeamDetailPanelComponent {
 
 	// ── Edit ──
 
-	// Rename briefing (shared team-rename-confirm). Any name change on a club-linked team is
-	// confirmed: the admin learns it's THIS EVENT ONLY. There is no library-wide option here for
-	// any role (Todd's ruling, 2026-08-17). Orphan teams rename silently — nothing to explain.
-	showRenameConfirm = signal(false);
-
+	/**
+	 * Save Changes completes the rename outright. The confirm step that used to sit here existed to
+	 * teach the admin that a club-linked rename is THIS EVENT ONLY and that the club's library keeps
+	 * its own name — but a director is no longer shown that library at all (Todd's ruling,
+	 * 2026-08-18), which left a dialog carrying no decision and no fact the form didn't already
+	 * show. An interstitial with nothing in it is just a second click.
+	 */
 	saveTeamInfo(): void {
-		const d = this.detail();
-		if (!d) return;
-
-		const nameChanged = (this.editTeamName() ?? '') !== (d.teamName ?? '');
-		if (nameChanged && this.isClubLinked()) {
-			this.showRenameConfirm.set(true);
-			return;
-		}
-
-		this.doSaveTeamInfo();
-	}
-
-	confirmRename(): void {
-		this.showRenameConfirm.set(false);
-		this.doSaveTeamInfo();
-	}
-
-	cancelRename(): void {
-		this.showRenameConfirm.set(false);
-	}
-
-	/** Reset = a this-event rename back to the library name, through the same confirm. */
-	private doSaveTeamInfo(): void {
 		const d = this.detail();
 		if (!d) return;
 

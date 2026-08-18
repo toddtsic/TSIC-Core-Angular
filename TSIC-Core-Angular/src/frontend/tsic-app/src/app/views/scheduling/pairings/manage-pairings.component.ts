@@ -15,7 +15,6 @@ import { WpwMatrixComponent } from '../shared/components/wpw-matrix/wpw-matrix.c
 import { DivisionTeamsTableComponent } from '../shared/components/division-teams-table/division-teams-table.component';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { ToastService } from '@shared-ui/toast.service';
-import { TeamRenameConfirmComponent } from '@shared/teams/team-rename-confirm.component';
 import type { ScheduleScope } from '../shared/utils/scheduling-helpers';
 import { ChecklistBackLinkComponent } from '../shared/components/checklist-back-link/checklist-back-link.component';
 
@@ -40,8 +39,7 @@ const BRACKET_OPTIONS = [
 @Component({
     selector: 'app-manage-pairings',
     standalone: true,
-    imports: [CommonModule, FormsModule, DivisionNavigatorComponent, WpwMatrixComponent, DivisionTeamsTableComponent, TsicDialogComponent, ChecklistBackLinkComponent,
-        TeamRenameConfirmComponent],
+    imports: [CommonModule, FormsModule, DivisionNavigatorComponent, WpwMatrixComponent, DivisionTeamsTableComponent, TsicDialogComponent, ChecklistBackLinkComponent],
     templateUrl: './manage-pairings.component.html',
     styleUrl: './manage-pairings.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -111,11 +109,7 @@ export class ManagePairingsComponent implements OnInit {
     // ── Division Teams ──
     readonly divisionTeams = signal<DivisionTeamDto[]>([]);
     readonly isSavingTeam = signal(false);
-    readonly editingTeam = signal<{ teamId: string; divRank: number; teamName: string; originalTeamName: string; clubName: string; clubTeamId: number | null; clubTeamName: string | null } | null>(null);
-
-    // Rename briefing (shared team-rename-confirm) before the save fires: a name change here is
-    // THIS EVENT ONLY — the club's library and other events keep their name.
-    readonly showRenameConfirm = signal(false);
+    readonly editingTeam = signal<{ teamId: string; divRank: number; teamName: string; clubName: string } | null>(null);
     readonly rankOptions = computed(() =>
         Array.from({ length: this.divisionTeams().length }, (_, i) => i + 1)
     );
@@ -387,21 +381,16 @@ export class ManagePairingsComponent implements OnInit {
     // ── Division Teams modal ──
 
     openTeamEdit(team: DivisionTeamDto): void {
-        this.showRenameConfirm.set(false);
         this.editingTeam.set({
             teamId: team.teamId,
             divRank: team.divRank,
             teamName: team.teamName ?? '',
-            originalTeamName: team.teamName ?? '',
-            clubName: team.clubName ?? '',
-            clubTeamId: team.clubTeamId ?? null,
-            clubTeamName: team.clubTeamName ?? null
+            clubName: team.clubName ?? ''
         });
     }
 
     cancelTeamEdit(): void {
         this.editingTeam.set(null);
-        this.showRenameConfirm.set(false);
     }
 
     updateTeamField(field: 'teamName' | 'divRank', value: string | number): void {
@@ -410,31 +399,9 @@ export class ManagePairingsComponent implements OnInit {
         this.editingTeam.set({ ...t, [field]: value });
     }
 
+    // Renames straight through: a director is never shown the club's library (Todd's ruling, 2026-08-18),
+    // so the old rename interstitial carried no decision. This edit is THIS EVENT ONLY either way.
     saveTeamEdit(): void {
-        const t = this.editingTeam();
-        if (!t) return;
-
-        // Club-linked name change → the rename briefing first (this event only). Orphans rename silently.
-        if (t.clubTeamId != null && t.teamName.trim().length > 0 && t.teamName !== t.originalTeamName) {
-            this.showRenameConfirm.set(true);
-            return;
-        }
-
-        this.doSaveTeamEdit();
-    }
-
-    confirmRename(): void {
-        this.showRenameConfirm.set(false);
-        this.doSaveTeamEdit();
-    }
-
-    cancelRename(): void {
-        this.showRenameConfirm.set(false);
-    }
-
-    /** Reset = a this-event rename back to the library name, through the same confirm. */
-
-    private doSaveTeamEdit(): void {
         const t = this.editingTeam();
         if (!t) return;
 

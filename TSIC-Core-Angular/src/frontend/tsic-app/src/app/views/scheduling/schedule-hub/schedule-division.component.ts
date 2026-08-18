@@ -25,7 +25,6 @@ import { AutoBuildService } from '../auto-build/services/auto-build.service';
 import { ScheduleQaService } from '../qa-results/services/schedule-qa.service';
 import { TimeslotService } from '../timeslots/services/timeslot.service';
 import { formatTime, teamDes, contrastText, agTeamCount } from '../shared/utils/scheduling-helpers';
-import { TeamRenameConfirmComponent } from '@shared/teams/team-rename-confirm.component';
 import { findTimeClashInRow } from '../shared/utils/conflict-detection';
 import type { ScheduleScope } from '../shared/utils/scheduling-helpers';
 import { DivisionNavigatorComponent } from '../shared/components/division-navigator/division-navigator.component';
@@ -66,7 +65,7 @@ const AUTO_SEED_FROM_PRIOR_ON_INIT = false;
 @Component({
     selector: 'app-schedule-division',
     standalone: true,
-    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, DivisionBuildConfirmModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent, ManageFieldsComponent, ManagePairingsComponent, ManageTimeslotsComponent, PoolAssignmentComponent, BracketSeedsComponent, BracketDevToolsComponent, MasterScheduleComponent, QaResultsComponent, ConfirmDialogComponent, ChecklistBackLinkComponent, TeamRenameConfirmComponent],
+    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, DivisionBuildConfirmModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent, ManageFieldsComponent, ManagePairingsComponent, ManageTimeslotsComponent, PoolAssignmentComponent, BracketSeedsComponent, BracketDevToolsComponent, MasterScheduleComponent, QaResultsComponent, ConfirmDialogComponent, ChecklistBackLinkComponent],
     templateUrl: './schedule-division.component.html',
     styleUrl: './schedule-division.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -355,12 +354,8 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
 
     // ── Teams state ──
     readonly divisionTeams = signal<DivisionTeamDto[]>([]);
-    readonly editingTeam = signal<{ teamId: string; divRank: number; teamName: string; originalTeamName: string; clubName: string; clubTeamId: number | null; clubTeamName: string | null } | null>(null);
+    readonly editingTeam = signal<{ teamId: string; divRank: number; teamName: string; clubName: string } | null>(null);
     readonly isSavingTeam = signal(false);
-
-    // Rename briefing (shared team-rename-confirm) before the save fires: a name change here is
-    // THIS EVENT ONLY — the club's library and other events keep their name.
-    readonly showRenameConfirm = signal(false);
 
     // ── Who Plays Who ──
     readonly whoPlaysWhoMatrix = signal<number[][] | null>(null);
@@ -989,21 +984,16 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
     // ── Team Editing (modal) ──
 
     openTeamEditModal(team: DivisionTeamDto): void {
-        this.showRenameConfirm.set(false);
         this.editingTeam.set({
             teamId: team.teamId,
             divRank: team.divRank,
             teamName: team.teamName ?? '',
-            originalTeamName: team.teamName ?? '',
-            clubName: team.clubName ?? '',
-            clubTeamId: team.clubTeamId ?? null,
-            clubTeamName: team.clubTeamName ?? null
+            clubName: team.clubName ?? ''
         });
     }
 
     closeTeamEditModal(): void {
         this.editingTeam.set(null);
-        this.showRenameConfirm.set(false);
     }
 
     updateEditingRank(rank: number): void {
@@ -1016,31 +1006,9 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
         if (t) this.editingTeam.set({ ...t, teamName: name });
     }
 
+    // Renames straight through: a director is never shown the club's library (Todd's ruling, 2026-08-18),
+    // so the old rename interstitial carried no decision. This edit is THIS EVENT ONLY either way.
     saveTeamEdit(): void {
-        const team = this.editingTeam();
-        if (!team) return;
-
-        // Club-linked name change → the rename briefing first (this event only). Orphans rename silently.
-        if (team.clubTeamId != null && team.teamName.trim().length > 0 && team.teamName !== team.originalTeamName) {
-            this.showRenameConfirm.set(true);
-            return;
-        }
-
-        this.doSaveTeamEdit();
-    }
-
-    confirmRename(): void {
-        this.showRenameConfirm.set(false);
-        this.doSaveTeamEdit();
-    }
-
-    cancelRename(): void {
-        this.showRenameConfirm.set(false);
-    }
-
-    /** Reset = a this-event rename back to the library name, through the same confirm. */
-
-    private doSaveTeamEdit(): void {
         const team = this.editingTeam();
         if (!team) return;
         this.isSavingTeam.set(true);

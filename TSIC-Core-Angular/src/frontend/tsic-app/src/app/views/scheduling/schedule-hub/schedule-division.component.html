@@ -882,13 +882,3 @@
 @if (isMoving()) {
     <div class="busy-overlay" style="cursor: wait;"></div>
 }
-
-<!-- Rename briefing (shared): a name change here is THIS EVENT ONLY. -->
-@if (showRenameConfirm() && editingTeam(); as t) {
-    <team-rename-confirm
-        [currentName]="t.originalTeamName"
-        [newName]="t.teamName.trim()"
-        [libraryName]="t.clubTeamName"
-        (confirmed)="confirmRename()"
-        (cancelled)="cancelRename()" />
-}
