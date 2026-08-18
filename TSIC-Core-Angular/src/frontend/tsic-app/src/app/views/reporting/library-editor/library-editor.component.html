@@ -72,7 +72,7 @@
                 <e-column field="title" headerText="Title" width="240" [validationRules]="{ required: true }"></e-column>
                 <e-column field="iconName" headerText="Icon" width="120"></e-column>
                 <e-column field="groupLabel" headerText="Group" width="160"></e-column>
-                <e-column field="sortOrder" headerText="Sort" width="80" textAlign="Right" format="N0" editType="numericedit" [edit]="{ params: { format: 'N0', decimals: 0, validateDecimalOnType: true } }"></e-column>
+                <e-column field="sortOrder" headerText="Sort" width="110" textAlign="Right" format="N0" editType="numericedit" [edit]="sortEdit"></e-column>
                 <e-column field="active" headerText="Active" width="80" displayAsCheckBox="true" editType="booleanedit" type="boolean"></e-column>
                 <e-column field="kind" headerText="Kind" width="140" editType="dropdownedit" [edit]="kindEdit" [validationRules]="{ required: true }"></e-column>
                 <e-column field="controller" headerText="Controller" width="140" [validationRules]="{ required: true }"></e-column>

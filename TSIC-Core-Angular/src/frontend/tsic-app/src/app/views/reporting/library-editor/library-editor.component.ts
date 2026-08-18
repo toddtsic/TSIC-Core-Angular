@@ -39,11 +39,28 @@ export class LibraryEditorComponent {
 
     readonly toolbar: ToolbarItems[] = ['Add', 'Edit', 'Cancel', 'Update'];
 
+    // The grid's dropdownedit forces the DropDownList's fields to the COLUMN name
+    // ({ text: 'kind', value: 'kind' }), so a primitive string array resolves every
+    // item's text and value to undefined and the list renders "No records found".
+    // The rows must be objects carrying a `kind` property. SpaComponent is a live
+    // Kind (Roster Table / Schedule List / Check-In rows all use it) and was missing.
     readonly kindEdit: IEditCell = {
         params: {
-            dataSource: ['StoredProcedure', 'CrystalReport'],
+            dataSource: [
+                { kind: 'StoredProcedure' },
+                { kind: 'CrystalReport' },
+                { kind: 'SpaComponent' },
+            ],
+            fields: { text: 'kind', value: 'kind' },
             allowFiltering: false,
         },
+    };
+
+    // Spin buttons OFF: the Sort column is narrow, and a NumericTextBox that keeps them
+    // squeezes its own input to zero width — the seeded value is invisible and the cell
+    // cannot be typed into. Sort is typed, not nudged.
+    readonly sortEdit: IEditCell = {
+        params: { format: 'N0', decimals: 0, validateDecimalOnType: true, showSpinButton: false },
     };
 
     readonly grid = viewChild.required<GridComponent>('grid');
