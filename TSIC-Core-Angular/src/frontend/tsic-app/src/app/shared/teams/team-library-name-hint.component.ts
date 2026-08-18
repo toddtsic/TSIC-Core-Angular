@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 
 /**
- * One-line status under a team-name field: says when this event's name differs from the club's
- * library name, and offers the reset. Renders nothing for an orphan team or when the names match,
- * so it can sit unconditionally under every name field that can rename a team (Search Teams, LADT,
- * Pairings, Schedule Hub). The reset itself is a this-event rename back to the library name — the
- * parent handles it through its normal save path.
+ * One-line status under an ADMIN team-name field: shows the club's library name when this event's
+ * name differs from it, and offers to adopt it. Renders nothing for an orphan team or when the names
+ * match, so it can sit unconditionally under every admin name field (Search Teams, LADT, Pairings,
+ * Schedule Hub). Deliberately neutral — legacy data has event names that never matched the library
+ * (about half of all club-linked teams), so it must not claim "renamed for this event". Adopting the
+ * library name is a this-event rename — the parent handles it through its normal save path.
  */
 @Component({
     selector: 'team-library-name-hint',
@@ -15,10 +16,10 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
             <div class="lib-hint" role="note">
                 <i class="bi bi-info-circle" aria-hidden="true"></i>
                 <span>
-                    Renamed for this event — library name is <strong>{{ libraryName() }}</strong>.
+                    Library name: <strong>{{ libraryName() }}</strong>
                 </span>
                 @if (canReset()) {
-                    <button type="button" class="lib-hint-reset" (click)="reset.emit()">Reset</button>
+                    <button type="button" class="lib-hint-reset" (click)="reset.emit()">Use library name</button>
                 }
             </div>
         }

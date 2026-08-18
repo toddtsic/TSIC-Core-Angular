@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, OnInit, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, linkedSignal, output, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
 import type { Observable } from 'rxjs';
 import type { ClubAffectedJob } from '@core/api';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
@@ -8,31 +9,39 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
 export type TeamRenameScope = 'this-event' | 'library';
 
 /**
- * Which scopes this surface may offer. `this-event` = admin surfaces (LADT, Pairings, Schedule Hub,
- * Search Teams for a job admin); `both` = SuperUser in Search Teams; `library` = the club rep's own
- * library modal (the rename IS the library — no this-event option).
+ * Which scopes this surface may offer. `this-event` = every surface but one; `both` = SuperUser in
+ * Search Teams, who may step through to the library-wide rename (affected-events briefing).
  */
-export type TeamRenameScopeChoice = 'this-event' | 'both' | 'library';
+export type TeamRenameScopeChoice = 'this-event' | 'both';
+
+/** Who is reading the briefing — the wording differs (an admin is told about the rep; a rep about their library). */
+export type TeamRenameAudience = 'admin' | 'rep';
+
+/** What `confirmed` carries: the chosen scope and the (trimmed) name — the typed one when `editable`. */
+export interface TeamRenameConfirmation {
+    scope: TeamRenameScope;
+    name: string;
+}
 
 /**
- * THE rename briefing for a team, shared by every surface that can rename one. It exists so a
- * director learns — before the write — that a rename of a club-linked team is THIS EVENT ONLY:
- * the club's library name and every other event keep theirs, and the change can be reset. The
- * library-wide rename (rep's library, SuperUser) shows the affected-events list instead.
+ * THE rename briefing for a team, shared by every surface that can rename one. It exists so whoever
+ * renames a club-linked team learns — before the write — that the rename is THIS EVENT ONLY: the
+ * club's library name and every other event keep theirs, and the change can be reset. The
+ * library-wide rename (SuperUser only) shows the affected-events list instead.
  *
  * Modes are derived, not passed:
  *   - orphan (no `libraryName`)                → plain "Rename X to Y?"
  *   - club-linked, `newName` === `libraryName`  → reset ("back to the library name")
  *   - club-linked, otherwise                    → this-event briefing (+ "library…" for SU)
- *   - `scopeChoice` = 'library'                 → straight to the affected-events step
  *
- * `loadImpact` is invoked lazily, only when the library step is reached — job admins never pay for
- * it (and their endpoint is SuperUser-only anyway).
+ * `editable` — the surface has no name field of its own (the club rep's Registered Teams grid), so
+ * the dialog carries the input; `newName` is then just the seed. `loadImpact` is invoked lazily,
+ * only when the library step is reached — job admins never pay for it.
  */
 @Component({
     selector: 'team-rename-confirm',
     standalone: true,
-    imports: [TsicDialogComponent],
+    imports: [FormsModule, TsicDialogComponent],
     template: `
         <tsic-dialog [open]="true" size="sm" (requestClose)="cancelled.emit()">
             <div class="modal-content">
@@ -42,12 +51,22 @@ export type TeamRenameScopeChoice = 'this-event' | 'both' | 'library';
                 </div>
 
                 <div class="modal-body rename-body">
-                    <!-- X → Y, always -->
-                    <p class="rename-pair">
-                        <span class="rename-old">{{ currentName() }}</span>
-                        <i class="bi bi-arrow-right rename-arrow" aria-hidden="true"></i>
-                        <span class="rename-new">{{ newName() }}</span>
-                    </p>
+                    @if (editable()) {
+                        <div>
+                            <label class="form-label small mb-1" for="team-rename-input">Team name for this event</label>
+                            <input id="team-rename-input" type="text" class="form-control form-control-sm"
+                                   [ngModel]="draft()" (ngModelChange)="draft.set($event)"
+                                   (keydown.enter)="submit()"
+                                   maxlength="100" autocomplete="off" autofocus>
+                        </div>
+                    } @else {
+                        <!-- X → Y, always -->
+                        <p class="rename-pair">
+                            <span class="rename-old">{{ currentName() }}</span>
+                            <i class="bi bi-arrow-right rename-arrow" aria-hidden="true"></i>
+                            <span class="rename-new">{{ effectiveNewName() }}</span>
+                        </p>
+                    }
 
                     @switch (mode()) {
                         @case ('orphan') {
@@ -66,19 +85,28 @@ export type TeamRenameScopeChoice = 'this-event' | 'both' | 'library';
                             <ul class="rename-facts">
                                 <li>
                                     <strong>This event only.</strong> Schedules, brackets, standings and rosters here
-                                    will show <strong>{{ newName() }}</strong>.
+                                    will show <strong>{{ effectiveNewName() || '…' }}</strong>.
                                 </li>
-                                <li>
-                                    <strong>The club's library name stays {{ libraryName() }}.</strong>
-                                    Other events keep it; the club rep still sees it in their library
-                                    (and <em>{{ newName() }}</em> in this event's registered list).
-                                </li>
+                                @if (audience() === 'rep') {
+                                    <li>
+                                        <strong>Your club library keeps {{ libraryName() }}</strong> — other events
+                                        aren't affected.
+                                    </li>
+                                } @else {
+                                    <li>
+                                        <strong>The club's library name stays {{ libraryName() }}.</strong>
+                                        Other events keep it; the club rep still sees it in their library
+                                        (and <em>{{ effectiveNewName() || '…' }}</em> in this event's registered list).
+                                    </li>
+                                }
                                 <li>You can reset to the library name at any time.</li>
                             </ul>
-                            <p class="text-muted small mb-0">
-                                Different team entirely (merged roster, new grad year)? Use
-                                <strong>Rename to New Team</strong> in Search Teams instead.
-                            </p>
+                            @if (audience() === 'admin') {
+                                <p class="text-muted small mb-0">
+                                    Different team entirely (merged roster, new grad year)? Use
+                                    <strong>Rename to New Team</strong> in Search Teams instead.
+                                </p>
+                            }
                         }
                         @case ('library') {
                             @if (impactLoading()) {
@@ -124,10 +152,10 @@ export type TeamRenameScopeChoice = 'this-event' | 'both' | 'library';
 
                     @switch (mode()) {
                         @case ('orphan') {
-                            <button type="button" class="btn btn-primary btn-sm" (click)="confirmed.emit('this-event')">Rename Team</button>
+                            <button type="button" class="btn btn-primary btn-sm" [disabled]="!canSubmit()" (click)="submit()">Rename Team</button>
                         }
                         @case ('reset') {
-                            <button type="button" class="btn btn-primary btn-sm" (click)="confirmed.emit('this-event')">Reset Name</button>
+                            <button type="button" class="btn btn-primary btn-sm" (click)="submit()">Reset Name</button>
                         }
                         @case ('this-event') {
                             @if (scopeChoice() === 'both') {
@@ -135,12 +163,12 @@ export type TeamRenameScopeChoice = 'this-event' | 'both' | 'library';
                                     Rename in library (all events)…
                                 </button>
                             }
-                            <button type="button" class="btn btn-primary btn-sm" (click)="confirmed.emit('this-event')">Rename in This Event</button>
+                            <button type="button" class="btn btn-primary btn-sm" [disabled]="!canSubmit()" (click)="submit()">Rename in This Event</button>
                         }
                         @case ('library') {
                             <button type="button" class="btn btn-warning btn-sm"
                                     [disabled]="impactLoading() || !!impactError()"
-                                    (click)="confirmed.emit('library')">Rename in Library</button>
+                                    (click)="confirmed.emit({ scope: 'library', name: effectiveNewName() })">Rename in Library</button>
                         }
                     }
                 </div>
@@ -173,20 +201,27 @@ export type TeamRenameScopeChoice = 'this-event' | 'both' | 'library';
     `],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class TeamRenameConfirmComponent implements OnInit {
+export class TeamRenameConfirmComponent {
     private readonly destroyRef = inject(DestroyRef);
 
     /** The event copy's current name (what the schedule shows today). */
     readonly currentName = input.required<string>();
+    /** The proposed name — or, when `editable`, the seed for the in-dialog input. */
     readonly newName = input.required<string>();
     /** The club-team library name; null/undefined for an orphan team. */
     readonly libraryName = input<string | null | undefined>(null);
     readonly scopeChoice = input<TeamRenameScopeChoice>('this-event');
+    readonly audience = input<TeamRenameAudience>('admin');
+    /** The dialog owns the name input (surfaces with no name field of their own). */
+    readonly editable = input(false);
     /** Lazily invoked to fetch the affected-events list for the library step. */
     readonly loadImpact = input<(() => Observable<ClubAffectedJob[]>) | null>(null);
 
-    readonly confirmed = output<TeamRenameScope>();
+    readonly confirmed = output<TeamRenameConfirmation>();
     readonly cancelled = output<void>();
+
+    /** In-dialog draft, reseeded only when the `newName` input changes. */
+    readonly draft = linkedSignal({ source: this.newName, computation: (v) => v });
 
     private readonly libraryStep = signal(false);
     readonly affectedJobs = signal<ClubAffectedJob[]>([]);
@@ -194,12 +229,20 @@ export class TeamRenameConfirmComponent implements OnInit {
     readonly impactError = signal<string | null>(null);
     private impactLoaded = false;
 
+    readonly effectiveNewName = computed(() => (this.editable() ? this.draft() : this.newName()).trim());
+
     readonly mode = computed<'orphan' | 'reset' | 'this-event' | 'library'>(() => {
-        if (this.scopeChoice() === 'library' || this.libraryStep()) return 'library';
+        if (this.libraryStep()) return 'library';
         const lib = this.libraryName();
         if (!lib) return 'orphan';
-        if (this.newName().trim() === lib && this.currentName() !== lib) return 'reset';
+        if (this.effectiveNewName() === lib && this.currentName() !== lib) return 'reset';
         return 'this-event';
+    });
+
+    /** Non-empty and actually different — a no-op rename is refused here, not on the server. */
+    readonly canSubmit = computed(() => {
+        const n = this.effectiveNewName();
+        return n.length > 0 && n !== this.currentName().trim();
     });
 
     readonly title = computed(() => {
@@ -211,9 +254,10 @@ export class TeamRenameConfirmComponent implements OnInit {
         }
     });
 
-    ngOnInit(): void {
-        // Library-only surfaces (the rep's modal) land on the impact step immediately.
-        if (this.scopeChoice() === 'library') this.ensureImpact();
+    submit(): void {
+        if (this.mode() === 'library') return;
+        if (this.mode() !== 'reset' && !this.canSubmit()) return;
+        this.confirmed.emit({ scope: 'this-event', name: this.effectiveNewName() });
     }
 
     goToLibrary(): void {

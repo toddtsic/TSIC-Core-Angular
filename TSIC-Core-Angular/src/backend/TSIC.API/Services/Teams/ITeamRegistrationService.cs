@@ -76,17 +76,18 @@ public interface ITeamRegistrationService
     Task<ClubTeamDto> CreateClubTeamAsync(Guid regId, string userId, CreateClubTeamRequest request);
 
     /// <summary>
-    /// Update a ClubTeam in the caller's club library. Once the team has appeared on any schedule,
-    /// grad year and level of play lock (through-time identity); the NAME stays editable and fans out
-    /// to every event copy still mirroring the library, via ITeamRenameService.
+    /// Update a ClubTeam in the caller's club library.
+    /// Refuses if the team has ever appeared on a schedule (protects historical performance).
     /// </summary>
     Task<ClubTeamDto> UpdateClubTeamAsync(string userId, int clubTeamId, UpdateClubTeamRequest request);
 
     /// <summary>
-    /// Events holding a copy of one of the caller's library teams — the affected-events list shown
-    /// before a library rename. Caller must rep the owning club (derived server-side from the row).
+    /// Rename one of the caller's registered teams for THIS EVENT only. Ownership = the team belongs
+    /// to the caller's club-rep registration (regId, verified against userId). Writes go through
+    /// ITeamRenameService (ThisJob): this job's Teams row + WAITLIST twin + this job's schedule.
+    /// The club library and every other event are untouched.
     /// </summary>
-    Task<List<ClubAffectedJob>> GetClubTeamRenameImpactAsync(string userId, int clubTeamId);
+    Task RenameRegisteredTeamAsync(Guid teamId, Guid regId, string userId, string newName);
 
     /// <summary>
     /// Delete a ClubTeam from the caller's club library.

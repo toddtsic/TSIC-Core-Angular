@@ -14,8 +14,8 @@ import {
     ClubTeamDto,
     CheckExistingRegistrationsResponse,
     UpdateClubTeamRequest,
+    RenameRegisteredTeamRequest,
     EmailTestSendResponse,
-    ClubAffectedJob,
 } from '@core/api';
 
 /**
@@ -131,6 +131,15 @@ export class TeamRegistrationService {
      */
     unregisterTeamFromEvent(teamId: string): Observable<void> {
         return this.http.delete<void>(`${this.apiUrl}/unregister-team/${teamId}`);
+    }
+
+    /**
+     * Rename one of the rep's registered teams for THIS EVENT only (the event's Teams row —
+     * the club library and every other event keep their name). Registered Teams grid pencil.
+     */
+    renameRegisteredTeam(teamId: string, teamName: string): Observable<void> {
+        const body: RenameRegisteredTeamRequest = { teamName };
+        return this.http.put<void>(`${this.apiUrl}/teams/${teamId}/rename`, body);
     }
 
     /**
@@ -256,17 +265,11 @@ export class TeamRegistrationService {
     }
 
     /**
-     * Update a ClubTeam in the caller's club library. Once the team has appeared on any schedule,
-     * grad year and level of play are locked (400 if changed); the name stays editable and fans
-     * out to every event copy still mirroring the library.
+     * Update a ClubTeam in the caller's club library.
+     * Rejected by the backend if the team has ever appeared on a schedule.
      */
     updateClubTeam(clubTeamId: number, request: UpdateClubTeamRequest): Observable<ClubTeamDto> {
         return this.http.put<ClubTeamDto>(`${this.apiUrl}/club-team/${clubTeamId}`, request);
-    }
-
-    /** Events holding a copy of one of the caller's library teams — shown before a library rename. */
-    getClubTeamRenameImpact(clubTeamId: number): Observable<ClubAffectedJob[]> {
-        return this.http.get<ClubAffectedJob[]>(`${this.apiUrl}/club-team/${clubTeamId}/rename-impact`);
     }
 
     /**

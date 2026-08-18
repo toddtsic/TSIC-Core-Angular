@@ -587,6 +587,7 @@ export type { RemoveAllPairingsRequest } from './models/RemoveAllPairingsRequest
 export type { RemoveFieldsRequest } from './models/RemoveFieldsRequest';
 export type { RenameCustomerGroupRequest } from './models/RenameCustomerGroupRequest';
 export type { RenameOptionSetRequest } from './models/RenameOptionSetRequest';
+export type { RenameRegisteredTeamRequest } from './models/RenameRegisteredTeamRequest';
 export type { RenameToNewTeamRequest } from './models/RenameToNewTeamRequest';
 export type { RenderedEmailPreview } from './models/RenderedEmailPreview';
 export type { ReorderMenuItemsRequest } from './models/ReorderMenuItemsRequest';

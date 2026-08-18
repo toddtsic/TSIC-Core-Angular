@@ -152,6 +152,15 @@ public sealed record UpdateClubTeamRequest
     public required string ClubTeamLevelOfPlay { get; init; }
 }
 
+/// <summary>
+/// Club rep renames one of their registered teams for THIS EVENT only (the job's Teams row;
+/// the club library and every other event keep their name).
+/// </summary>
+public sealed record RenameRegisteredTeamRequest
+{
+    public required string TeamName { get; init; }
+}
+
 public sealed record SuggestedTeamNameDto
 {
     public required string TeamName { get; init; }

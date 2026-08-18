@@ -457,7 +457,7 @@
     [libraryName]="d.clubTeamName"
     [scopeChoice]="renameScopeChoice()"
     [loadImpact]="loadRenameImpact"
-    (confirmed)="confirmRename($event)"
+    (confirmed)="confirmRename($event.scope)"
     (cancelled)="cancelRename()" />
 }
 

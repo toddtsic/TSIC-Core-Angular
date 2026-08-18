@@ -402,23 +402,39 @@ public class TeamRegistrationController : ControllerBase
     }
 
     /// <summary>
-    /// Events holding a copy of one of the caller's library teams — the affected-events list the
-    /// library edit modal shows before a rename. Rep of the owning club only (403 otherwise).
+    /// Rename one of the caller's registered teams for THIS EVENT only — the Registered Teams grid's
+    /// pencil. The club library and every other event keep their name; renaming there is closed to
+    /// reps (see UpdateClubTeam). Gated by the director's per-event "Allow Edit" toggle.
     /// </summary>
-    [HttpGet("club-team/{clubTeamId:int}/rename-impact")]
-    [ProducesResponseType(typeof(List<ClubAffectedJob>), 200)]
+    [HttpPut("teams/{teamId:guid}/rename")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(400)]
     [ProducesResponseType(401)]
     [ProducesResponseType(403)]
-    public async Task<IActionResult> GetClubTeamRenameImpact(int clubTeamId)
+    public async Task<IActionResult> RenameRegisteredTeam(Guid teamId, [FromBody] RenameRegisteredTeamRequest request)
     {
         if (!IsClubRepRole())
             return StatusCode(403, new { Message = NotClubRepMessage });
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId)) return Unauthorized(new { Message = UserNotAuthenticatedMessage });
+        var regIdClaim = User.FindFirst("regId")?.Value;
+        if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+            return Unauthorized(new { Message = "Registration ID not found in token. Please select a club first." });
+
+        // Same BClubRepAllowEdit gate as the (now closed) library edit: the disabled pencil and the
+        // refused write must agree, and a concluded event removes editing regardless of the toggle.
+        var jobPath = User.GetJobPath();
+        var jobId = string.IsNullOrEmpty(jobPath) ? null : await _jobLookupService.GetJobIdByPathAsync(jobPath);
+        if (jobId is null)
+            return StatusCode(403, new { Message = "Team editing is not available in this session." });
+        var caps = await _capabilities.ResolveAsync(jobId.Value, User.ToCapabilityActor());
+        if (!caps.CanEditTeam)
+            return StatusCode(403, new { Message = "Team editing is not enabled for this event." });
 
         try
         {
-            return Ok(await _teamRegistrationService.GetClubTeamRenameImpactAsync(userId, clubTeamId));
+            await _teamRegistrationService.RenameRegisteredTeamAsync(teamId, regId, userId, request.TeamName);
+            return Ok(new { Success = true });
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -431,47 +447,22 @@ public class TeamRegistrationController : ControllerBase
     }
 
     /// <summary>
-    /// Update a ClubTeam in the caller's club library. Once scheduled anywhere, grad year and level
-    /// of play are locked (400 if changed); the name stays editable and fans out to every event copy.
+    /// Update a ClubTeam in the caller's club library — CLOSED (2026-08-17 ruling): reps do not edit
+    /// library details. A registered team is renamed for the event from Registered Teams
+    /// (<see cref="RenameRegisteredTeam"/>); an unregistered team is deleted and re-added. The service
+    /// method stays for a future re-open; this door refuses unconditionally.
     /// </summary>
     [HttpPut("club-team/{clubTeamId:int}")]
-    [ProducesResponseType(typeof(ClubTeamDto), 200)]
     [ProducesResponseType(400)]
     [ProducesResponseType(401)]
     [ProducesResponseType(403)]
-    public async Task<IActionResult> UpdateClubTeam(int clubTeamId, [FromBody] UpdateClubTeamRequest request)
+    public IActionResult UpdateClubTeam(int clubTeamId, [FromBody] UpdateClubTeamRequest request)
     {
         if (!IsClubRepRole())
             return StatusCode(403, new { Message = NotClubRepMessage });
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId)) return Unauthorized(new { Message = UserNotAuthenticatedMessage });
 
-        // BClubRepAllowEdit gate. Editing a team in the wizard is governed by the director's
-        // per-event "Allow Edit" toggle for the job the rep authenticated under (their jobPath
-        // claim), composed through the one capability authority so the disabled pencil and the
-        // refused write agree. The eventConcluded door is the higher-level gate inside CanEditTeam:
-        // a concluded event removes editing regardless of the toggle (mirrors Add/Delete).
-        var jobPath = User.GetJobPath();
-        var jobId = string.IsNullOrEmpty(jobPath) ? null : await _jobLookupService.GetJobIdByPathAsync(jobPath);
-        if (jobId is null)
-            return StatusCode(403, new { Message = "Team editing is not available in this session." });
-        var caps = await _capabilities.ResolveAsync(jobId.Value, User.ToCapabilityActor());
-        if (!caps.CanEditTeam)
-            return StatusCode(403, new { Message = "Team editing is not enabled for this event." });
-
-        try
-        {
-            var result = await _teamRegistrationService.UpdateClubTeamAsync(userId, clubTeamId, request);
-            return Ok(result);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(403, new { Message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { Message = ex.Message });
-        }
+        _logger.LogWarning("Refused library edit of ClubTeam {ClubTeamId} — rep library editing is closed", clubTeamId);
+        return BadRequest(new { Message = "Library teams can't be edited here. Rename a registered team from Registered Teams, or delete and re-add an unregistered one." });
     }
 
     /// <summary>

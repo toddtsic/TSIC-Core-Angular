@@ -10,6 +10,8 @@ import type { RegisteredTeamDto } from '@core/api';
  *
  * Columns adapt based on input flags. Delete button shown when showRemove=true
  * and the team has paidTotal === 0. Parent handles removal via removeTeam output.
+ * Rename pencil shown when showRename=true (the rep's this-event rename — the club
+ * library is not edited from the wizard); parent handles it via renameTeam output.
  */
 @Component({
     selector: 'app-registered-teams-grid',
@@ -45,6 +47,14 @@ import type { RegisteredTeamDto } from '@core/api';
                   </button>
                 }
                 <span class="fw-semibold">{{ data.teamName }}</span>
+                @if (showRename()) {
+                  <button type="button" class="btn-inline-rename"
+                          [disabled]="actionInProgress()"
+                          (click)="renameTeam.emit(data)"
+                          title="Rename {{ data.teamName }} for this event">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                }
                 <!-- Waitlist marker lives on the team-name cell (frozen, always visible) so the
                      status survives on screens that hide the Age Group column — payment + family
                      payment grids (PL-037). Driven by the backend isWaitlisted flag, not a name parse. -->
@@ -312,6 +322,29 @@ import type { RegisteredTeamDto } from '@core/api';
         &:hover { color: var(--bs-danger); background: rgba(var(--bs-danger-rgb), 0.08); }
         &:disabled { opacity: 0.4; cursor: default; }
       }
+
+      /* Same chrome as the trash can; muted until hovered so a row of pencils
+         doesn't read as a call to action. */
+      .btn-inline-rename {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: transparent;
+        color: var(--brand-text-muted);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        font-size: var(--font-size-xs);
+        flex-shrink: 0;
+        transition: color 0.1s ease, background-color 0.1s ease;
+
+        &:hover { color: var(--bs-primary); background: rgba(var(--bs-primary-rgb), 0.08); }
+        &:disabled { opacity: 0.4; cursor: default; }
+      }
+      .btn-inline-remove:focus-visible,
+      .btn-inline-rename:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -349,6 +382,8 @@ export class RegisteredTeamsGridComponent {
     // button. Null (search ledgers, teams step) keeps the static field-bound render unchanged.
     readonly paymentMethod = input<'CC' | 'Echeck' | 'Check' | null>(null);
     readonly showRemove = input(false);
+    // Rep's this-event rename pencil (teams step only) — driven by the director's Allow Edit toggle.
+    readonly showRename = input(false);
     readonly actionInProgress = input(false);
     readonly frozenTeamCol = input(false);
     readonly teamColWidth = input(160);
@@ -357,6 +392,7 @@ export class RegisteredTeamsGridComponent {
 
     // Events
     readonly removeTeam = output<RegisteredTeamDto>();
+    readonly renameTeam = output<RegisteredTeamDto>();
 
     // Conditional column visibility — surface the unified Fee-Adj column when any team carries a
     // non-zero net adjustment (discount, late fee, or correction — any sign).

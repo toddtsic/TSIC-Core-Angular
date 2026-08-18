@@ -6,19 +6,16 @@ import { TeamRegistrationService } from '@views/registration/team/services/team-
 import { ToastService } from '@shared-ui/toast.service';
 import type { ClubTeamDto } from '@core/api';
 import { LevelOfPlayPickerComponent } from '@views/registration/team/components/level-of-play-picker.component';
-import { TeamRenameConfirmComponent } from '@shared/teams/team-rename-confirm.component';
 
 /**
  * Modal for adding a new ClubTeam to the club library, or editing an existing one
- * (when `editingTeam` is supplied). A team with event history (`bHasBeenScheduled`) is still
- * editable: grad year and level of play lock (they're the team's through-time identity — age
- * group and LOP for an event are chosen at registration), the NAME stays open, and a rename
- * shows the affected-events briefing before it fans out to every event copy.
+ * (when `editingTeam` is supplied). Edit mode is only ever opened for teams whose
+ * `bHasBeenScheduled` is false — the library UI enforces that upstream.
  */
 @Component({
     selector: 'app-team-form-modal',
     standalone: true,
-    imports: [FormsModule, TsicDialogComponent, LevelOfPlayPickerComponent, TeamRenameConfirmComponent],
+    imports: [FormsModule, TsicDialogComponent, LevelOfPlayPickerComponent],
     template: `
     <tsic-dialog [open]="true" size="sm" (requestClose)="closed.emit()">
       <div class="modal-content form-modal">
@@ -101,19 +98,11 @@ import { TeamRenameConfirmComponent } from '@shared/teams/team-rename-confirm.co
               <span class="step-title" id="tf-step-2-title">Team details</span>
             </div>
 
-            @if (identityLocked()) {
-              <div class="wizard-tip identity-lock-tip">
-                <i class="bi bi-lock me-1" aria-hidden="true"></i>This team has event history, so its
-                grad year and level of play are locked — they identify the team over time. Age group and
-                level for a particular event are chosen when you register it.
-              </div>
-            }
-
             <div class="form-row">
               <label for="tf-year" class="field-label">Grad Year</label>
               <select id="tf-year" class="field-select"
                       [ngModel]="gradYear()" (ngModelChange)="gradYear.set($event)"
-                      [disabled]="!step1Done() || identityLocked()"
+                      [disabled]="!step1Done()"
                       [class.is-required]="!gradYear()"
                       [class.is-invalid]="submitted() && !gradYear()">
                 <option value="">Select</option>
@@ -121,12 +110,10 @@ import { TeamRenameConfirmComponent } from '@shared/teams/team-rename-confirm.co
                   <option [value]="yr">{{ yr === 'Adult' ? 'Adult Team' : yr }}</option>
                 }
               </select>
-              @if (!identityLocked()) {
-                <div class="grad-year-tip">
-                  Grad year of the <strong>majority</strong> of your players &mdash;
-                  <em>not</em> an age group. Helps suggest the right age group at registration.
-                </div>
-              }
+              <div class="grad-year-tip">
+                Grad year of the <strong>majority</strong> of your players &mdash;
+                <em>not</em> an age group. Helps suggest the right age group at registration.
+              </div>
               @if (submitted() && !gradYear()) {
                 <div class="field-error">Required</div>
               }
@@ -137,13 +124,11 @@ import { TeamRenameConfirmComponent } from '@shared/teams/team-rename-confirm.co
               <app-level-of-play-picker
                 [fill]="true"
                 labels="full"
-                [disabled]="!step1Done() || identityLocked()"
+                [disabled]="!step1Done()"
                 [invalid]="submitted() && !levelOfPlay()"
                 [selected]="levelOfPlay()"
                 (selectedChange)="levelOfPlay.set($event)" />
-              @if (!identityLocked()) {
-                <div class="wizard-tip">Overall team assessment — rep can adjust per tournament by editing the team.</div>
-              }
+              <div class="wizard-tip">Overall team assessment — rep can adjust per tournament by editing the team.</div>
               @if (submitted() && !levelOfPlay()) {
                 <div class="field-error">Required</div>
               }
@@ -171,18 +156,6 @@ import { TeamRenameConfirmComponent } from '@shared/teams/team-rename-confirm.co
         </div>
       </div>
     </tsic-dialog>
-
-    <!-- Library rename briefing (shared): the affected-events list before the fan-out. -->
-    @if (showRenameConfirm() && editingTeam; as t) {
-      <team-rename-confirm
-        [currentName]="t.clubTeamName"
-        [newName]="teamName().trim()"
-        [libraryName]="t.clubTeamName"
-        scopeChoice="library"
-        [loadImpact]="loadRenameImpact"
-        (confirmed)="confirmRename()"
-        (cancelled)="showRenameConfirm.set(false)" />
-    }
   `,
     styles: [`
       /* ── Hero Banner — matches picker-hero. Doubles as the cdkDragHandle
@@ -244,12 +217,6 @@ import { TeamRenameConfirmComponent } from '@shared/teams/team-rename-confirm.co
       .grad-year-tip strong { color: var(--brand-text); }
       .grad-year-tip em { color: var(--bs-danger); font-style: normal; font-weight: var(--font-weight-semibold); }
 
-      /* Scheduled-team identity lock: grad year + LOP are read-only; the name still edits. */
-      .identity-lock-tip {
-        margin-bottom: var(--space-2);
-        i { color: var(--brand-text-muted); }
-      }
-
       /* LOP pills render via <app-level-of-play-picker [fill]="true" labels="full">,
          which owns its own styles. */
 
@@ -297,17 +264,6 @@ export class TeamFormModalComponent implements OnInit {
     readonly errorMsg = signal<string | null>(null);
 
     readonly isEdit = computed(() => this.editingTeam != null);
-
-    /** Event history → grad year + LOP are read-only (through-time identity); the name still edits. */
-    readonly identityLocked = computed(() => this.editingTeam?.bHasBeenScheduled === true);
-
-    // Library rename briefing (shared team-rename-confirm) — a rename here fans out to every event
-    // copy still mirroring the library, so the rep sees the affected-events list first.
-    readonly showRenameConfirm = signal(false);
-    private renameAcknowledged = false;
-
-    /** Lazily invoked by the dialog: events holding a copy of this library team (rep-scoped endpoint). */
-    readonly loadRenameImpact = () => this.teamReg.getClubTeamRenameImpact(this.editingTeam?.clubTeamId ?? 0);
 
     /** True when the team name contains the club name (case-insensitive). */
     readonly nameContainsClub = computed(() => {
@@ -360,31 +316,16 @@ export class TeamFormModalComponent implements OnInit {
         }
     }
 
-    /** Library rename acknowledged — re-enter save(), which now falls through to the PUT. */
-    confirmRename(): void {
-        this.renameAcknowledged = true;
-        this.showRenameConfirm.set(false);
-        this.save();
-    }
-
     save(): void {
         this.submitted.set(true);
         if (!this.teamName().trim() || !this.gradYear() || !this.levelOfPlay()) return;
         if (this.nameContainsClub()) return;
         if (this.nameIsDuplicate()) return;
 
-        const editing = this.editingTeam;
-
-        // A rename of a team with event history → the affected-events briefing first (once per attempt).
-        if (editing && !this.renameAcknowledged && editing.bHasBeenScheduled
-            && this.teamName().trim() !== editing.clubTeamName) {
-            this.showRenameConfirm.set(true);
-            return;
-        }
-
         this.saving.set(true);
         this.errorMsg.set(null);
 
+        const editing = this.editingTeam;
         if (editing) {
             this.teamReg.updateClubTeam(editing.clubTeamId, {
                 clubTeamName: this.teamName().trim(),
@@ -400,7 +341,6 @@ export class TeamFormModalComponent implements OnInit {
                     },
                     error: (err: unknown) => {
                         this.saving.set(false);
-                        this.renameAcknowledged = false;
                         const httpErr = err as { error?: { message?: string } };
                         this.errorMsg.set(httpErr?.error?.message || 'Failed to update team.');
                     },

@@ -907,6 +907,38 @@ public class TeamRegistrationService : ITeamRegistrationService
         return true;
     }
 
+    public async Task RenameRegisteredTeamAsync(Guid teamId, Guid regId, string userId, string newName)
+    {
+        // Ownership is the rep's registration for this event: the token's regId must be the caller's
+        // own ClubRep registration, and the team must hang off it (that is exactly the set the
+        // Registered Teams grid lists). Anything else is a 403, not a "not found".
+        var reg = await _registrations.GetByIdAsync(regId);
+        if (reg == null || reg.UserId != userId || reg.RoleId != Domain.Constants.RoleConstants.ClubRep)
+            throw new UnauthorizedAccessException("Invalid club rep registration. Please select a club first.");
+
+        var team = await _teams.GetTeamFromTeamId(teamId)
+            ?? throw new InvalidOperationException("Team registration not found");
+        if (team.ClubrepRegistrationid != regId || team.JobId != reg.JobId)
+        {
+            _logger.LogWarning("User {UserId} (reg {RegId}) attempted to rename team {TeamId} they do not own", userId, regId, teamId);
+            throw new UnauthorizedAccessException("You do not have access to this team.");
+        }
+
+        var name = newName.Trim();
+        if (string.IsNullOrEmpty(name)) throw new InvalidOperationException("Team name is required.");
+        if (name.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Team names cannot contain WAITLIST.");
+        if (team.TeamName != null && team.TeamName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Rename the primary team — its WAITLIST twin follows automatically.");
+        if (string.Equals(team.TeamName, name, StringComparison.Ordinal)) return;
+
+        // THIS EVENT ONLY: this job's row + WAITLIST twin + this job's schedule. The club library
+        // and every other event keep their name — the single name writer owns the whole write.
+        await _teamRename.RenameTeamAsync(teamId, team.JobId, name, userId, TeamRenameScope.ThisJob);
+
+        _logger.LogInformation("Club rep {UserId} renamed team {TeamId} to '{Name}' for job {JobId}", userId, teamId, name, team.JobId);
+    }
+
     /// <summary>
     /// Resolve which club a registration is acting for — STRUCTURALLY from the teams it
     /// already has registered (ClubTeamId → ClubId, dominant club wins) rather than by
@@ -1051,19 +1083,6 @@ public class TeamRegistrationService : ITeamRegistrationService
         };
     }
 
-    public async Task<List<ClubAffectedJob>> GetClubTeamRenameImpactAsync(string userId, int clubTeamId)
-    {
-        var entity = await _clubTeams.GetByIdReadOnlyAsync(clubTeamId)
-            ?? throw new InvalidOperationException("Team not found.");
-
-        // Authorization: ClubTeam must belong to a club the caller reps.
-        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
-        if (!myClubs.Any(c => c.ClubId == entity.ClubId))
-            throw new UnauthorizedAccessException("You do not have access to this team.");
-
-        return await _teams.GetJobsWithTeamsForClubTeamAsync(clubTeamId);
-    }
-
     public async Task<ClubTeamDto> UpdateClubTeamAsync(string userId, int clubTeamId, UpdateClubTeamRequest request)
     {
         var entity = await _clubTeams.GetByIdAsync(clubTeamId)
@@ -1074,26 +1093,17 @@ public class TeamRegistrationService : ITeamRegistrationService
         if (!myClubs.Any(c => c.ClubId == entity.ClubId))
             throw new UnauthorizedAccessException("You do not have access to this team.");
 
+        // Lock if ever scheduled.
+        var scheduledIds = await _clubTeams.GetScheduledClubTeamIdsAsync(new[] { clubTeamId });
+        if (scheduledIds.Contains(clubTeamId))
+            throw new InvalidOperationException("This team has appeared on a schedule and can no longer be edited.");
+
         var name = request.ClubTeamName.Trim();
         var gradYear = request.ClubTeamGradYear.Trim();
         var lop = request.ClubTeamLevelOfPlay.Trim();
 
         if (string.IsNullOrEmpty(name)) throw new InvalidOperationException("Team name is required.");
         if (string.IsNullOrEmpty(gradYear)) throw new InvalidOperationException("Grad year is required.");
-
-        // Once the team has appeared on any schedule, grad year and level of play are its through-time
-        // identity and lock (event-level age group / LOP stay free at registration). The NAME stays
-        // editable — the rename fans out to every event copy below, so nothing is stranded.
-        var scheduledIds = await _clubTeams.GetScheduledClubTeamIdsAsync(new[] { clubTeamId });
-        var hasBeenScheduled = scheduledIds.Contains(clubTeamId);
-        if (hasBeenScheduled)
-        {
-            var gradYearChanged = !string.Equals(entity.ClubTeamGradYear, gradYear, StringComparison.OrdinalIgnoreCase);
-            var lopChanged = !string.Equals(entity.ClubTeamLevelOfPlay ?? string.Empty, lop, StringComparison.OrdinalIgnoreCase);
-            if (gradYearChanged || lopChanged)
-                throw new InvalidOperationException(
-                    "This team has appeared on a schedule — its grad year and level of play are locked. Only the name can change.");
-        }
 
         // Name-collision guard: if (name, gradYear) changed, another row in the same club
         // must not already own it — active OR archived. Self-matches are ignored.
@@ -1134,7 +1144,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             ClubTeamName = entity.ClubTeamName,
             ClubTeamGradYear = entity.ClubTeamGradYear,
             ClubTeamLevelOfPlay = entity.ClubTeamLevelOfPlay ?? string.Empty,
-            BHasBeenScheduled = hasBeenScheduled,
+            BHasBeenScheduled = false,
             BArchived = !entity.Active,
         };
     }

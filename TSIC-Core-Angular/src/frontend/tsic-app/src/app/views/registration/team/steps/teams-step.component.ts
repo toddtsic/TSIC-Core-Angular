@@ -9,6 +9,7 @@ import { TeamFormModalComponent } from './team-form-modal.component';
 import { AddAndRegisterTeamModalComponent } from './add-and-register-team-modal.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { LibraryFlyinComponent, type RegisterRequest, type RegisteredInfo } from '../components/library-flyin.component';
+import { TeamRenameConfirmComponent, type TeamRenameConfirmation } from '@shared/teams/team-rename-confirm.component';
 import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto } from '@core/api';
 
 /**
@@ -18,7 +19,7 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
 @Component({
     selector: 'app-trw-teams-step',
     standalone: true,
-    imports: [RegisteredTeamsGridComponent, TeamFormModalComponent, AddAndRegisterTeamModalComponent, ConfirmDialogComponent, LibraryFlyinComponent],
+    imports: [RegisteredTeamsGridComponent, TeamFormModalComponent, AddAndRegisterTeamModalComponent, ConfirmDialogComponent, LibraryFlyinComponent, TeamRenameConfirmComponent],
     template: `
     @if (loading()) {
       <div class="text-center py-4">
@@ -127,11 +128,13 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
               [showRegDate]="false"
               [showLop]="true"
               [showRemove]="canRemoveTeam()"
+              [showRename]="canEditTeam()"
               [actionInProgress]="actionInProgress()"
               [frozenTeamCol]="false"
               [teamColWidth]="120"
               [gridHeight]="'auto'"
-              (removeTeam)="onRemoveTeam($event)" />
+              (removeTeam)="onRemoveTeam($event)"
+              (renameTeam)="onRenameTeam($event)" />
           </div>
 
           <div class="step-card-footer">
@@ -164,7 +167,6 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
         [clubTeams]="allLibraryTeams()"
         [clubName]="clubName()"
         [canRegister]="canRegisterTeam()"
-        [canEdit]="canEditTeam()"
         [canRemove]="canRemoveTeam()"
         [actionInProgress]="actionInProgress()"
         [ageGroups]="ageGroups()"
@@ -174,7 +176,6 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
         (register)="onFlyinRegister($event)"
         (unregister)="onFlyinUnregister($event)"
         (addNew)="showAddModal.set(true)"
-        (edit)="openEditModal($event)"
         (archive)="askArchiveTeam($event)"
         (delete)="askDeleteTeam($event)"
         (restore)="askRestoreTeam($event)" />
@@ -198,13 +199,17 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
         (closed)="showAddAndRegisterModal.set(false)" />
     }
 
-    @if (editingTeam(); as editing) {
-      <app-team-form-modal
-        [clubName]="clubName()"
-        [editingTeam]="editing"
-        [existingTeams]="allLibraryTeams()"
-        (saved)="onTeamEdited()"
-        (closed)="editingTeam.set(null)" />
+    <!-- Rep's this-event rename (Registered Teams pencil). The dialog owns the name input; the
+         briefing tells the rep their library and other events keep the old name. -->
+    @if (pendingRename(); as renaming) {
+      <team-rename-confirm
+        [editable]="true"
+        audience="rep"
+        [currentName]="renaming.teamName"
+        [newName]="renaming.teamName"
+        [libraryName]="libraryNameFor(renaming)"
+        (confirmed)="confirmRename($event)"
+        (cancelled)="pendingRename.set(null)" />
     }
 
 @if (pendingRemove()) {
@@ -648,8 +653,8 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly showAddModal = signal(false);
     /** Combined add+register modal — only used for the empty-empty first-team flow. */
     readonly showAddAndRegisterModal = signal(false);
-    /** When set, the edit modal is open for this team. */
-    readonly editingTeam = signal<ClubTeamDto | null>(null);
+    /** When set, the this-event rename dialog is open for this registered team. */
+    readonly pendingRename = signal<RegisteredTeamDto | null>(null);
     /** When set, the delete-confirm dialog is open for this team. */
     readonly pendingDelete = signal<ClubTeamDto | null>(null);
     /** When set, the archive-confirm dialog is open for this team. */
@@ -692,7 +697,6 @@ export class TeamTeamsStepComponent implements OnInit {
                     // Remove rule (hidden once anything is paid) without a second
                     // source of truth. The guard is still re-applied in onRemoveTeam.
                     teamId: r.teamId,
-                    eventTeamName: r.teamName,
                     paidTotal: r.paidTotal,
                 });
             }
@@ -812,15 +816,40 @@ export class TeamTeamsStepComponent implements OnInit {
         this.loadTeamsMetadata();
     }
 
-    /** Open the shared modal in edit mode for a library team. */
-    openEditModal(team: ClubTeamDto): void {
-        if (team.bHasBeenScheduled) return;
-        this.editingTeam.set(team);
+    // ── This-event rename (Registered Teams pencil) ─────────────────
+    // Library details are closed to reps; the ONLY rename a rep has is this event's copy.
+    // The write goes to the canonical name writer (ThisJob): this job's Teams row + WAITLIST
+    // twin + this job's schedule. The library and every other event keep their name.
+
+    onRenameTeam(team: RegisteredTeamDto): void {
+        this.pendingRename.set(team);
     }
 
-    onTeamEdited(): void {
-        this.editingTeam.set(null);
-        this.loadTeamsMetadata();
+    /** Library name for the briefing — looked up from the library the step already holds. */
+    libraryNameFor(team: RegisteredTeamDto): string | null {
+        if (team.clubTeamId == null) return null;
+        return this._clubTeams().find(c => c.clubTeamId === team.clubTeamId)?.clubTeamName ?? null;
+    }
+
+    confirmRename(c: TeamRenameConfirmation): void {
+        const team = this.pendingRename();
+        if (!team) return;
+        this.pendingRename.set(null);
+        this.actionInProgress.set(true);
+
+        this.teamReg.renameRegisteredTeam(team.teamId, c.name)
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: () => {
+                    this.loadTeamsMetadata(false, () =>
+                        this.toast.show(`${team.teamName} is now ${c.name} in this event.`, 'success', 3000));
+                },
+                error: (err: unknown) => {
+                    this.actionInProgress.set(false);
+                    const httpErr = err as { error?: { message?: string } };
+                    this.toast.show(httpErr?.error?.message || 'Failed to rename team.', 'danger', 5000);
+                },
+            });
     }
 
     askDeleteTeam(team: ClubTeamDto): void {
