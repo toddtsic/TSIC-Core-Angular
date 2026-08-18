@@ -112,8 +112,8 @@ const UNNAMED_EVENT = 'this event';
                                 <p class="name-card-warn">
                                     <i class="bi bi-exclamation-triangle-fill name-card-warn-icon" aria-hidden="true"></i>
                                     <span>
-                                        This replaces <strong>{{ currentName() }}</strong>, the name you chose
-                                        for this event.
+                                        This replaces <strong>{{ currentName() }}</strong>, the name this event
+                                        uses today.
                                     </span>
                                 </p>
                             }
@@ -167,7 +167,10 @@ const UNNAMED_EVENT = 'this event';
                                 @if (propagateReplacesName()) {
                                     <p class="name-card-warn">
                                         <i class="bi bi-exclamation-triangle-fill name-card-warn-icon" aria-hidden="true"></i>
-                                        <span>This replaces <strong>{{ libraryName() }}</strong> in your library.</span>
+                                        <span>
+                                            This replaces <strong>{{ libraryName() }}</strong>, the name your
+                                            Club Team Library uses today.
+                                        </span>
                                     </p>
                                 }
                             }
@@ -388,22 +391,26 @@ export class TeamRenameConfirmComponent {
     readonly propagateIsNoop = computed(() => this.otherName() === this.effectiveNewName());
 
     /**
-     * Default ON when the two names currently agree — the typo case, where they plainly mean both.
-     * Default OFF once they have diverged: that divergence was deliberate, so undoing it has to be
-     * something the rep asks for rather than something the dialog assumes.
+     * ALWAYS OFF to start. This was briefly defaulted on when the two names agreed, on the theory
+     * that agreement meant "no one has deliberately set an event name, so they must mean both".
+     * The data says otherwise: ~49% of club-linked rows already differ, and whole clubs differ
+     * systematically (every event copy prefixed `REV `, every library entry prefixed by grad year)
+     * without anyone ever having edited a thing. Agreement and divergence carry no evidence of
+     * intent either way, so the dialog infers nothing — it shows both names and lets the rep choose.
+     * Ticking writes their Club Team Library, the more consequential of the two writes; that is not
+     * something to pre-select.
      *
-     * `source` is inputs only, never the draft, so the box does not re-tick itself under the rep's
-     * hand while they type — it reseeds when a different team is opened, and stays theirs after.
+     * Still a linkedSignal rather than a plain signal so it resets when a different team is opened.
+     * `source` is inputs only, never the draft, so it cannot re-arm under the rep's hand mid-type.
      */
     readonly propagate = linkedSignal({
         source: () => ({ base: this.baselineName(), other: this.otherName(), show: this.showPropagate() }),
-        computation: (s: { base: string; other: string; show: boolean }) =>
-            s.show && s.other.length > 0 && s.other === s.base,
+        computation: () => false,
     });
 
-    /** Ticking would overwrite a name that was deliberately set — say so before they save. */
+    /** Ticking would overwrite a genuinely different name over there — say so before they save. */
     readonly propagateReplacesName = computed(() =>
-        this.propagate() && this.otherName().length > 0 && this.otherName() !== this.baselineName());
+        this.propagate() && this.otherName().length > 0 && this.otherName() !== this.effectiveNewName());
 
     /** True when the tick will actually be sent (shown, meaningful, and on). */
     readonly propagateEffective = computed(() =>
