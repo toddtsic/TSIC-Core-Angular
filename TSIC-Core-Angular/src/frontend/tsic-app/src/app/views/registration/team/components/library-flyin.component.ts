@@ -17,6 +17,9 @@ export interface RegisteredInfo {
     levelOfPlay: string;
     /** Event registration id — what an unregister acts on (NOT the clubTeamId). */
     teamId: string;
+    /** The name this event's copy carries. Usually the library name; differs after a
+     *  this-event rename (Registered Teams pencil) — the strip shows it in parens. */
+    eventTeamName: string;
     /** Money already collected against this registration. Non-zero hides Remove,
      *  mirroring the teams-step grid; the parent re-checks before acting. */
     paidTotal: number;
@@ -164,6 +167,13 @@ interface LibraryGroup {
                 <li class="reg-strip-item">
                   <span class="reg-strip-seq" aria-hidden="true">{{ i + 1 }}</span>
                   <span class="reg-strip-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
+                  @if (row.info.eventTeamName && row.info.eventTeamName !== row.team.clubTeamName) {
+                    <!-- This event's copy carries a different name (this-event rename). Library
+                         name stays primary — the row IS the library team; the event name rides
+                         alongside so the strip agrees with the Registered Teams grid. -->
+                    <span class="reg-strip-event-name"
+                          [attr.title]="'Registered in this event as ' + row.info.eventTeamName">({{ row.info.eventTeamName }})</span>
+                  }
 
                   <span class="lib-identity">
                     @if (row.info.ageGroupName) {
@@ -891,6 +901,20 @@ interface LibraryGroup {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+      }
+
+      /* This event's name when it differs from the library name — muted, in parens,
+         truncates before the library name does. */
+      .reg-strip-event-name {
+        flex: 0 1 auto;
+        min-width: 0;
+        max-width: 45%;
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: help;
       }
 
       /* Danger tint only on hover — a row of red trash cans would read as an

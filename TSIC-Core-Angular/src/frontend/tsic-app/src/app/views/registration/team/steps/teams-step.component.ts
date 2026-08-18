@@ -712,6 +712,9 @@ export class TeamTeamsStepComponent implements OnInit {
                     // Remove rule (hidden once anything is paid) without a second
                     // source of truth. The guard is still re-applied in onRemoveTeam.
                     teamId: r.teamId,
+                    // This event's name — the strip shows it in parens when a this-event
+                    // rename made it differ from the library name.
+                    eventTeamName: r.teamName,
                     paidTotal: r.paidTotal,
                 });
             }
