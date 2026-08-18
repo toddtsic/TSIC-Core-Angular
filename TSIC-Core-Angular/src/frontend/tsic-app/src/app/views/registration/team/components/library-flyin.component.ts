@@ -107,7 +107,8 @@ interface LibraryGroup {
                eye lands on the list, not the preamble. -->
           <p class="library-carryover-tip">
             <i class="bi bi-info-circle" aria-hidden="true"></i>
-            Library teams carry across every TSIC event — enter a team once, never retype.
+            Your saved list of teams — what you pick from when registering for any event under this
+            club rep account. Enter a team once, never retype it.
           </p>
           <button type="button" class="lib-howto-toggle"
                   [class.is-open]="showHowTo()"
@@ -120,7 +121,8 @@ interface LibraryGroup {
           @if (showHowTo()) {
             <ul class="lib-howto-list">
               <li>Team not in your library? <strong>Add Library Team</strong>, then <strong>Register</strong> it.</li>
-              <li>Name changed? <strong>Add Library Team</strong> with the new name.</li>
+              <li>Name wrong or changed? Open <i class="bi bi-three-dots-vertical" aria-hidden="true"></i> on its row → <strong>Rename team</strong>. Don't add a second entry.</li>
+              <li>Just this event's name? Rename it from the <strong>Registered Teams</strong> list instead — your library keeps its own name.</li>
               <li>No longer used? Open <i class="bi bi-three-dots-vertical" aria-hidden="true"></i> on its row → <strong>Archive</strong>.</li>
             </ul>
           }

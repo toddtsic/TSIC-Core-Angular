@@ -2,40 +2,45 @@ import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, outp
 import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 
-/** Who is reading the briefing — the wording differs (an admin is told about the rep; a rep about their list). */
+/** Who is reading — a rep owns both places a name lives; an admin owns only the event. */
 export type TeamRenameAudience = 'admin' | 'rep';
 
 /**
  * Which name the dialog is editing — set by where it was opened from, NOT by what the team is.
  * 'event'   — the Registered Teams pencil (and every admin door): this event's name.
- * 'library' — the club library: the entry the rep registers from next time.
+ * 'library' — the Club Team Library: the entry the rep registers from.
  */
 export type TeamRenameOrigin = 'event' | 'library';
 
 /** What `confirmed` carries: the trimmed name, and whether the rep asked for the other side too. */
 export interface TeamRenameConfirmation {
     name: string;
-    /** Rep ticked the propagate box. Always false for an admin — they have no second side. */
+    /** Rep ticked the carry-across box. Always false for an admin — they have no second side. */
     alsoPropagate: boolean;
 }
 
+/** Sentinel default for `eventLabel`: generic prose, so no event name is shown as a scope line. */
+const UNNAMED_EVENT = 'this event';
+
 /**
- * THE team-name dialog, shared by every surface that can rename a team. One modal, two origins:
- * a club rep reaches it from the Registered Teams pencil OR from their library, and only the
- * emphasis changes — the field they landed on is the one they edit, the other name is shown as
- * context with a checkbox to carry the change across. Reps see both sides because they own both.
+ * THE team-name dialog, shared by every surface that can rename a team.
  *
- * A director/SuperUser (`audience='admin'`) only ever sees the event side. There is deliberately no
- * library field and no checkbox for them at any origin: an admin must never write a list that isn't
- * theirs (Todd's ruling, 2026-08-17).
+ * It exists to teach one model in a glance: a club-linked team's name lives in TWO places — the
+ * **Club Team Library** (the club rep's saved list of teams, what they choose from when registering
+ * for any event under their club rep account) and **this event's** own copy. The dialog always
+ * renders both as named panels; the one they opened from is accented and editable, the other is
+ * quiet context with a checkbox to carry the change across.
  *
- * NOTHING sweeps. The library seeds FUTURE registrations; it is not a mirror of live events. The
- * only way both sides move is the human ticking the box (Todd's ruling, 2026-08-18).
+ * A director/SuperUser (`audience='admin'`) sees the library panel as read-only context and never
+ * gets the checkbox: an admin must never write a list that isn't theirs (Todd's ruling, 2026-08-17).
+ *
+ * NOTHING sweeps. The Club Team Library seeds FUTURE registrations; it is not a mirror of live
+ * events. The only way both sides move is the human ticking the box (Todd's ruling, 2026-08-18).
  *
  * Event-origin modes are derived, not passed:
- *   - orphan (no `libraryName`)                → plain "Rename X to Y?"
+ *   - orphan (no `libraryName`)                → plain rename, no library panel
  *   - club-linked, `newName` === `libraryName`  → reset ("back to the library name")
- *   - club-linked, otherwise                    → this-event briefing
+ *   - club-linked, otherwise                    → this-event rename
  *
  * `editable` — the surface has no name field of its own (the rep's grid, the library), so the
  * dialog carries the input; `newName` is then just the seed. Admin search panels pass `false`.
@@ -53,107 +58,135 @@ export interface TeamRenameConfirmation {
                 </div>
 
                 <div class="modal-body rename-body">
-                    @if (editable()) {
-                        <div>
-                            <label class="form-label small mb-1" for="team-rename-input">{{ fieldLabel() }}</label>
-                            <input id="team-rename-input" type="text" class="form-control form-control-sm"
+                    <p class="rename-lede">{{ lede() }}</p>
+
+                    <!-- ── This event ─────────────────────────────────────────────── -->
+                    <section class="name-card" [class.is-active]="origin() === 'event'">
+                        <header class="name-card-head">
+                            <span class="name-card-eyebrow">
+                                <i class="bi bi-calendar-event name-card-icon" aria-hidden="true"></i>
+                                This Event
+                            </span>
+                            @if (namedEvent()) {
+                                <span class="name-card-scope">{{ namedEvent() }}</span>
+                            }
+                        </header>
+
+                        @if (origin() === 'event' && editable()) {
+                            <label class="visually-hidden" for="team-rename-input">Team name for this event</label>
+                            <input id="team-rename-input" type="text"
+                                   class="form-control form-control-sm name-card-input"
                                    [ngModel]="draft()" (ngModelChange)="draft.set($event)"
                                    (keydown.enter)="submit()"
                                    [attr.maxlength]="maxLength()" autocomplete="off" autofocus>
-                            <div class="form-text rename-field-hint">{{ fieldHint() }}</div>
-                        </div>
-                    } @else {
-                        <!-- X → Y, always -->
-                        <p class="rename-pair">
-                            <span class="rename-old">{{ currentName() }}</span>
-                            <i class="bi bi-arrow-right rename-arrow" aria-hidden="true"></i>
-                            <span class="rename-new">{{ effectiveNewName() }}</span>
-                        </p>
-                    }
+                        } @else if (origin() === 'event') {
+                            <p class="name-card-pair">
+                                <span class="name-was">{{ currentName() }}</span>
+                                <i class="bi bi-arrow-right name-arrow" aria-hidden="true"></i>
+                                <span class="name-now">{{ effectiveNewName() || '…' }}</span>
+                            </p>
+                        } @else if (registeredHere()) {
+                            <p class="name-card-value">
+                                {{ propagate() ? (effectiveNewName() || '…') : currentName() }}
+                            </p>
+                        } @else {
+                            <p class="name-card-value is-empty">This team isn't registered for this event.</p>
+                        }
 
-                    <!-- The other side: shown as context, changed only if they ask. -->
-                    @if (showPropagate()) {
-                        <div class="rename-other">
-                            <div class="rename-other-head">
-                                <span class="rename-other-label">{{ otherLabel() }}</span>
-                                <span class="rename-other-name">{{ otherName() }}</span>
-                            </div>
-                            <div class="form-check mb-0">
+                        @if (registeredHere()) {
+                            <p class="name-card-note">
+                                What appears on this event's schedules, brackets, standings and rosters.
+                            </p>
+                        }
+
+                        <!-- Carry a library rename across into this event. -->
+                        @if (origin() === 'library' && showPropagate() && !propagateIsNoop()) {
+                            <div class="form-check name-card-check">
                                 <input class="form-check-input" type="checkbox" id="team-rename-propagate"
                                        [ngModel]="propagate()" (ngModelChange)="propagate.set($event)">
-                                <label class="form-check-label small" for="team-rename-propagate">
-                                    {{ propagateLabel() }}
+                                <label class="form-check-label" for="team-rename-propagate">
+                                    Use the new name for this event too
                                 </label>
                             </div>
                             @if (propagateReplacesName()) {
-                                <p class="rename-warn small mb-0">
-                                    <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>
-                                    This replaces <strong>{{ otherName() }}</strong>, which you set on purpose.
+                                <p class="name-card-warn">
+                                    <i class="bi bi-exclamation-triangle-fill name-card-warn-icon" aria-hidden="true"></i>
+                                    <span>
+                                        This replaces <strong>{{ currentName() }}</strong>, the name you chose
+                                        for this event.
+                                    </span>
                                 </p>
                             }
-                        </div>
-                    }
+                        }
+                    </section>
 
-                    @if (origin() === 'library') {
-                        <ul class="rename-facts">
-                            <li>
-                                <strong>Your team list only.</strong> This is the name you'll see when you
-                                register for future events.
-                            </li>
-                            <li>
-                                @if (registeredHere()) {
-                                    <strong>{{ eventLabel() }} keeps {{ currentName() }}</strong>
-                                    unless you tick the box above.
+                    <!-- ── Club Team Library ──────────────────────────────────────── -->
+                    @if (libraryName()) {
+                        <section class="name-card" [class.is-active]="origin() === 'library'">
+                            <header class="name-card-head">
+                                <span class="name-card-eyebrow">
+                                    <i class="bi bi-bookmarks-fill name-card-icon" aria-hidden="true"></i>
+                                    Club Team Library
+                                </span>
+                            </header>
+
+                            @if (origin() === 'library' && editable()) {
+                                <label class="visually-hidden" for="team-rename-input">
+                                    Team name in the Club Team Library
+                                </label>
+                                <input id="team-rename-input" type="text"
+                                       class="form-control form-control-sm name-card-input"
+                                       [ngModel]="draft()" (ngModelChange)="draft.set($event)"
+                                       (keydown.enter)="submit()"
+                                       [attr.maxlength]="maxLength()" autocomplete="off" autofocus>
+                            } @else {
+                                <p class="name-card-value">
+                                    {{ (origin() === 'event' && propagate()) ? (effectiveNewName() || '…') : libraryName() }}
+                                </p>
+                            }
+
+                            <p class="name-card-note">
+                                @if (audience() === 'rep') {
+                                    Your saved list of teams — what you choose from when registering teams for
+                                    any event under this club rep account.
                                 } @else {
-                                    <strong>No event changes.</strong> Events you've already registered for
-                                    keep the names they have.
+                                    The club's own saved list of teams, which their rep chooses from when
+                                    registering for an event. It belongs to the club, not to this event.
                                 }
-                            </li>
-                        </ul>
-                    } @else {
-                        @switch (mode()) {
-                            @case ('orphan') {
-                                <p class="text-muted small mb-0">
-                                    This team isn't linked to a club library — the change is local to this event.
-                                </p>
-                            }
-                            @case ('reset') {
-                                <p class="mb-1">Reset this event's name back to the club's library name.</p>
-                                <p class="text-muted small mb-0">
-                                    Schedules, brackets, standings and rosters in this event will show
-                                    <strong>{{ libraryName() }}</strong> again.
-                                </p>
-                            }
-                            @case ('this-event') {
-                                <ul class="rename-facts">
-                                    <li>
-                                        <strong>This event only.</strong> Schedules, brackets, standings and rosters here
-                                        will show <strong>{{ effectiveNewName() || '…' }}</strong>.
-                                    </li>
-                                    @if (audience() === 'rep') {
-                                        @if (!propagate()) {
-                                            <li>
-                                                <strong>Your team list keeps {{ libraryName() }}</strong> — other events
-                                                aren't affected.
-                                            </li>
-                                        }
-                                    } @else {
-                                        <li>
-                                            <strong>The club's library name stays {{ libraryName() }}.</strong>
-                                            Other events keep it; the club rep still sees it in their library
-                                            (and <em>{{ effectiveNewName() || '…' }}</em> in this event's registered list).
-                                        </li>
-                                    }
-                                    <li>You can reset to the library name at any time.</li>
-                                </ul>
-                                @if (audience() === 'admin') {
-                                    <p class="text-muted small mb-0">
-                                        Different team entirely (merged roster, new grad year)? Use
-                                        <strong>Rename to New Team</strong> in Search Teams instead.
+                            </p>
+
+                            <!-- Carry an event rename back into the library. -->
+                            @if (origin() === 'event' && showPropagate() && !propagateIsNoop()) {
+                                <div class="form-check name-card-check">
+                                    <input class="form-check-input" type="checkbox" id="team-rename-propagate"
+                                           [ngModel]="propagate()" (ngModelChange)="propagate.set($event)">
+                                    <label class="form-check-label" for="team-rename-propagate">
+                                        Rename it in my Club Team Library too
+                                    </label>
+                                </div>
+                                @if (propagateReplacesName()) {
+                                    <p class="name-card-warn">
+                                        <i class="bi bi-exclamation-triangle-fill name-card-warn-icon" aria-hidden="true"></i>
+                                        <span>This replaces <strong>{{ libraryName() }}</strong> in your library.</span>
                                     </p>
                                 }
                             }
-                        }
+                        </section>
+                    }
+
+                    <p class="rename-foot">
+                        <i class="bi bi-info-circle rename-foot-icon" aria-hidden="true"></i>
+                        <span>{{ footNote() }}</span>
+                    </p>
+
+                    @if (audience() === 'admin' && mode() === 'this-event') {
+                        <p class="rename-foot">
+                            <i class="bi bi-signpost-split rename-foot-icon" aria-hidden="true"></i>
+                            <span>
+                                A different team entirely — merged roster, new grad year? Use
+                                <strong>Rename to New Team</strong> in Search Teams instead.
+                            </span>
+                        </p>
                     }
                 </div>
 
@@ -168,55 +201,125 @@ export interface TeamRenameConfirmation {
     styles: [`
         .rename-body { display: flex; flex-direction: column; gap: var(--space-3); }
 
-        .rename-pair {
+        .rename-lede {
+            margin: 0;
+            font-size: var(--font-size-sm);
+            line-height: 1.5;
+            color: var(--brand-text);
+        }
+
+        /* The two named places a team's name can live. The one being edited is accented; the other
+           is quiet context — so the model reads in a glance instead of having to be inferred from
+           whichever button happened to open this dialog. */
+        .name-card {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+            padding: var(--space-3);
+            border: 1px solid var(--brand-border);
+            border-left: 3px solid var(--brand-border);
+            border-radius: var(--radius-md);
+            background: var(--brand-bg-secondary);
+        }
+        .name-card.is-active {
+            border-color: color-mix(in srgb, var(--bs-primary) 35%, var(--brand-border));
+            border-left-color: var(--bs-primary);
+            background: var(--brand-surface);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .name-card-head {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: var(--space-2);
+        }
+        .name-card-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-1);
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-semibold);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--brand-text-muted);
+        }
+        .name-card.is-active .name-card-eyebrow { color: var(--bs-primary); }
+        .name-card-icon { font-size: var(--font-size-sm); }
+        .name-card-scope {
+            font-size: var(--font-size-xs);
+            color: var(--brand-text-muted);
+        }
+
+        .name-card-input { font-weight: var(--font-weight-semibold); }
+        .name-card-input:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+        .name-card-value {
+            margin: 0;
+            font-weight: var(--font-weight-semibold);
+            color: var(--brand-text);
+            overflow-wrap: anywhere;
+        }
+        .name-card-value.is-empty {
+            font-weight: 400;
+            font-style: italic;
+            color: var(--brand-text-muted);
+        }
+
+        .name-card-pair {
             display: flex;
             align-items: center;
             flex-wrap: wrap;
             gap: var(--space-2);
             margin: 0;
             font-weight: var(--font-weight-semibold);
+            overflow-wrap: anywhere;
         }
-        .rename-old { color: var(--brand-text-muted); text-decoration: line-through; }
-        .rename-arrow { color: var(--brand-text-muted); }
-        .rename-new { color: var(--brand-text); }
+        .name-was { color: var(--brand-text-muted); text-decoration: line-through; }
+        .name-arrow { color: var(--brand-text-muted); }
+        .name-now { color: var(--brand-text); }
 
-        .rename-field-hint { color: var(--brand-text-muted); }
-
-        /* The side they did NOT land on — quiet, but present, so the two-name model is visible
-           in one glance instead of having to be inferred from which button they clicked. */
-        .rename-other {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-2);
-            padding: var(--space-3);
-            border: 1px solid var(--brand-border);
-            border-radius: var(--radius-md);
-            background: var(--bs-tertiary-bg);
-        }
-        .rename-other-head {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: baseline;
-            gap: var(--space-2);
-        }
-        .rename-other-label {
-            font-size: var(--font-size-sm);
+        .name-card-note {
+            margin: 0;
+            font-size: var(--font-size-xs);
+            line-height: 1.5;
             color: var(--brand-text-muted);
         }
-        .rename-other-name {
-            font-weight: var(--font-weight-semibold);
+
+        .name-card-check { margin: var(--space-1) 0 0; }
+        .name-card-check .form-check-label {
+            font-size: var(--font-size-sm);
             color: var(--brand-text);
         }
-        .rename-warn { color: var(--bs-warning-text-emphasis); }
-
         .form-check-input:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 
-        .rename-facts {
-            margin: 0;
-            padding-left: var(--space-5);
+        .name-card-warn {
             display: flex;
-            flex-direction: column;
+            align-items: flex-start;
             gap: var(--space-2);
+            margin: 0;
+            font-size: var(--font-size-xs);
+            line-height: 1.5;
+            color: var(--brand-text);
+        }
+        .name-card-warn-icon {
+            margin-top: 0.15em;
+            color: var(--bs-warning);
+        }
+
+        .rename-foot {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-2);
+            margin: 0;
+            font-size: var(--font-size-xs);
+            line-height: 1.5;
+            color: var(--brand-text-muted);
+        }
+        .rename-foot-icon { margin-top: 0.15em; }
+
+        @media (prefers-reduced-motion: reduce) {
+            .name-card { transition: none !important; }
         }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -226,15 +329,15 @@ export class TeamRenameConfirmComponent {
     readonly currentName = input.required<string>();
     /** The proposed name — or, when `editable`, the seed for the in-dialog input. */
     readonly newName = input.required<string>();
-    /** The club-team library name; null/undefined for an orphan team. */
+    /** The Club Team Library entry's name; null/undefined for an orphan team. */
     readonly libraryName = input<string | null | undefined>(null);
     readonly audience = input<TeamRenameAudience>('admin');
     /** The dialog owns the name input (surfaces with no name field of their own). */
     readonly editable = input(false);
-    /** Which side they opened from — decides which name is editable. */
+    /** Which side they opened from — decides which panel is accented and editable. */
     readonly origin = input<TeamRenameOrigin>('event');
-    /** Event display name, for library-origin copy ("…for Summer Classic too"). */
-    readonly eventLabel = input('this event');
+    /** Event display name. Left at the sentinel by surfaces that don't know it. */
+    readonly eventLabel = input(UNNAMED_EVENT);
     /** Is this team registered in the current event? Library origin has no event side without it. */
     readonly registeredHere = input(true);
 
@@ -245,6 +348,12 @@ export class TeamRenameConfirmComponent {
     readonly draft = linkedSignal({ source: this.newName, computation: (v) => v });
 
     readonly effectiveNewName = computed(() => (this.editable() ? this.draft() : this.newName()).trim());
+
+    /** The event's own name, or '' when the surface didn't supply one (admin doors). */
+    readonly namedEvent = computed(() => {
+        const label = this.eventLabel();
+        return label === UNNAMED_EVENT ? '' : label;
+    });
 
     /** Teams.TeamName is varchar(100); Clubs.ClubTeams.ClubTeamName is varchar(80). */
     readonly maxLength = computed(() => (this.origin() === 'library' || this.propagate() ? 80 : 100));
@@ -258,7 +367,7 @@ export class TeamRenameConfirmComponent {
         (this.origin() === 'library' ? this.currentName() : (this.libraryName() ?? '')).trim());
 
     /**
-     * The propagate box exists only for a rep, and only when the other side actually exists: a
+     * The carry-across box exists only for a rep, and only when the other side actually exists: a
      * library entry to write (event origin) or a registered copy to write (library origin).
      */
     readonly showPropagate = computed(() => {
@@ -267,6 +376,9 @@ export class TeamRenameConfirmComponent {
             ? this.registeredHere() && this.currentName().trim().length > 0
             : !!this.libraryName();
     });
+
+    /** The other side already reads as the new name — offering to write it there says nothing. */
+    readonly propagateIsNoop = computed(() => this.otherName() === this.effectiveNewName());
 
     /**
      * Default ON when the two names currently agree — the typo case, where they plainly mean both.
@@ -286,6 +398,10 @@ export class TeamRenameConfirmComponent {
     readonly propagateReplacesName = computed(() =>
         this.propagate() && this.otherName().length > 0 && this.otherName() !== this.baselineName());
 
+    /** True when the tick will actually be sent (shown, meaningful, and on). */
+    readonly propagateEffective = computed(() =>
+        this.showPropagate() && !this.propagateIsNoop() && this.propagate());
+
     readonly mode = computed<'orphan' | 'reset' | 'this-event'>(() => {
         const lib = this.libraryName();
         if (!lib) return 'orphan';
@@ -299,45 +415,61 @@ export class TeamRenameConfirmComponent {
         if (n.length === 0) return false;
         if (n !== this.baselineName()) return true;
         // Name unchanged on this side, but ticking the box still has work to do on the other.
-        return this.propagate() && this.otherName() !== n;
+        return this.propagateEffective();
     });
 
-    readonly fieldLabel = computed(() =>
-        this.origin() === 'library' ? 'Team name in your team list' : 'Team name for this event');
-
-    readonly fieldHint = computed(() =>
-        this.origin() === 'library'
-            ? 'Used when you register this team for future events.'
-            : `Appears on ${this.eventLabel()} schedules, brackets, standings and rosters.`);
-
-    readonly otherLabel = computed(() =>
-        this.origin() === 'library' ? `At ${this.eventLabel()}` : 'In your team list');
-
-    readonly propagateLabel = computed(() =>
-        this.origin() === 'library'
-            ? `Use this name for ${this.eventLabel()} too`
-            : 'Update my team list too');
-
     readonly title = computed(() => {
-        if (this.origin() === 'library') return 'Rename in Your Team List';
+        if (this.origin() === 'library') return 'Rename in Club Team Library';
         switch (this.mode()) {
-            case 'orphan': return 'Rename Team?';
-            case 'reset': return 'Reset to Library Name?';
+            case 'orphan': return 'Rename Team';
+            case 'reset': return 'Reset to Library Name';
             case 'this-event': return 'Rename for This Event';
         }
     });
 
-    readonly confirmLabel = computed(() => {
-        if (this.origin() === 'library') return this.propagate() ? 'Rename in Both' : 'Rename in My List';
-        switch (this.mode()) {
-            case 'orphan': return 'Rename Team';
-            case 'reset': return 'Reset Name';
-            case 'this-event': return this.propagate() ? 'Rename in Both' : 'Rename in This Event';
+    /** One sentence at the top saying which name they are about to change, and where it lives. */
+    readonly lede = computed(() => {
+        if (this.origin() === 'library') {
+            return 'You are renaming this team in your Club Team Library — the list you pick from '
+                + 'when registering teams for an event.';
         }
+        switch (this.mode()) {
+            case 'orphan':
+                return 'This team is not linked to a Club Team Library entry, so the new name applies '
+                    + 'to this event only.';
+            case 'reset':
+                return 'This puts the event back to the name the team carries in the Club Team Library.';
+            default:
+                return this.audience() === 'rep'
+                    ? 'A team\'s name lives in two places. You are changing the one this event uses.'
+                    : 'A team\'s name lives in two places — this event, and the club\'s own library. '
+                        + 'You are changing the one this event uses.';
+        }
+    });
+
+    /** The scope reassurance under both panels — the thing reps most need to be sure of. */
+    readonly footNote = computed(() => {
+        if (this.mode() === 'orphan') {
+            return 'This team has no Club Team Library entry, so nothing outside this event is affected.';
+        }
+        if (this.origin() === 'library') {
+            return this.propagateEffective()
+                ? 'Every other event this team is registered for keeps the name it has now.'
+                : 'No event changes. Every event this team is registered for keeps the name it has now.';
+        }
+        return this.audience() === 'rep'
+            ? 'Every other event this team is registered for keeps the name it has now.'
+            : 'Only this event changes. The club\'s library and every other event keep their own name.';
+    });
+
+    readonly confirmLabel = computed(() => {
+        if (this.propagateEffective()) return 'Rename in Both';
+        if (this.origin() === 'library') return 'Rename in Library';
+        return this.mode() === 'reset' ? 'Reset Name' : 'Rename for This Event';
     });
 
     submit(): void {
         if (!this.canSubmit()) return;
-        this.confirmed.emit({ name: this.effectiveNewName(), alsoPropagate: this.showPropagate() && this.propagate() });
+        this.confirmed.emit({ name: this.effectiveNewName(), alsoPropagate: this.propagateEffective() });
     }
 }

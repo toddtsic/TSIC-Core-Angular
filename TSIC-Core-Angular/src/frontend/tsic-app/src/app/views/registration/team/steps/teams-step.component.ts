@@ -907,8 +907,8 @@ export class TeamTeamsStepComponent implements OnInit {
 
         const oldName = pending.origin === 'event' ? pending.team.teamName : pending.team.clubTeamName;
         const where = pending.origin === 'event'
-            ? (c.alsoPropagate ? 'in this event and your team list' : 'in this event')
-            : (c.alsoPropagate ? 'in your team list and this event' : 'in your team list');
+            ? (c.alsoPropagate ? 'in this event and your Club Team Library' : 'in this event')
+            : (c.alsoPropagate ? 'in your Club Team Library and this event' : 'in your Club Team Library');
 
         call$.pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
