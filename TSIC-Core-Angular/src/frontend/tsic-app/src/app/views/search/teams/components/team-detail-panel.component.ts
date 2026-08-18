@@ -10,7 +10,6 @@ import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.d
 import { DraggableModalDirective } from '@shared-ui/directives/draggable-modal.directive';
 import { LOP_CHOICES, normalizeLop } from '@shared/teams/lop-choices';
 import { TeamRenameConfirmComponent } from '@shared/teams/team-rename-confirm.component';
-import { TeamLibraryNameHintComponent } from '@shared/teams/team-library-name-hint.component';
 import { environment } from '@environments/environment';
 
 type TabType = 'info' | 'accounting';
@@ -27,7 +26,7 @@ function formatPhone(value: string | null | undefined): string | null {
 	selector: 'app-team-detail-panel',
 	standalone: true,
 	imports: [CommonModule, FormsModule, ConfirmDialogComponent, ClubRepPaymentComponent, ResizablePanelDirective, DraggableModalDirective,
-		TeamRenameConfirmComponent, TeamLibraryNameHintComponent],
+		TeamRenameConfirmComponent],
 	templateUrl: './team-detail-panel.component.html',
 	styleUrl: './team-detail-panel.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
@@ -239,13 +238,6 @@ export class TeamDetailPanelComponent {
 	}
 
 	/** Reset = a this-event rename back to the library name, through the same confirm. */
-	resetToLibraryName(): void {
-		const lib = this.detail()?.clubTeamName;
-		if (!lib) return;
-		this.editTeamName.set(lib);
-		this.showRenameConfirm.set(true);
-	}
-
 	private doSaveTeamInfo(): void {
 		const d = this.detail();
 		if (!d) return;

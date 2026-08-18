@@ -16,7 +16,6 @@ import { DivisionTeamsTableComponent } from '../shared/components/division-teams
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { ToastService } from '@shared-ui/toast.service';
 import { TeamRenameConfirmComponent } from '@shared/teams/team-rename-confirm.component';
-import { TeamLibraryNameHintComponent } from '@shared/teams/team-library-name-hint.component';
 import type { ScheduleScope } from '../shared/utils/scheduling-helpers';
 import { ChecklistBackLinkComponent } from '../shared/components/checklist-back-link/checklist-back-link.component';
 
@@ -42,7 +41,7 @@ const BRACKET_OPTIONS = [
     selector: 'app-manage-pairings',
     standalone: true,
     imports: [CommonModule, FormsModule, DivisionNavigatorComponent, WpwMatrixComponent, DivisionTeamsTableComponent, TsicDialogComponent, ChecklistBackLinkComponent,
-        TeamRenameConfirmComponent, TeamLibraryNameHintComponent],
+        TeamRenameConfirmComponent],
     templateUrl: './manage-pairings.component.html',
     styleUrl: './manage-pairings.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -434,12 +433,6 @@ export class ManagePairingsComponent implements OnInit {
     }
 
     /** Reset = a this-event rename back to the library name, through the same confirm. */
-    resetToLibraryName(): void {
-        const t = this.editingTeam();
-        if (!t?.clubTeamName) return;
-        this.editingTeam.set({ ...t, teamName: t.clubTeamName });
-        this.showRenameConfirm.set(true);
-    }
 
     private doSaveTeamEdit(): void {
         const t = this.editingTeam();

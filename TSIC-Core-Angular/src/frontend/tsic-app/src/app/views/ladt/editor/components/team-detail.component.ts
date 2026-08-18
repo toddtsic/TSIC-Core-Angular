@@ -14,7 +14,6 @@ import { JobService } from '../../../../infrastructure/services/job.service';
 import type { TeamDetailDto, UpdateTeamRequest, ClubRegistrationDto, MoveTeamToClubRequest, JobFeeDto } from '../../../../core/api';
 import { RoleIds } from '@infrastructure/constants/roles.constants';
 import { TeamRenameConfirmComponent } from '@shared/teams/team-rename-confirm.component';
-import { TeamLibraryNameHintComponent } from '@shared/teams/team-library-name-hint.component';
 
 const PLAYER_ROLE = RoleIds.Player;
 const CLUBREP_ROLE = RoleIds.ClubRep;
@@ -24,7 +23,7 @@ const JOB_TYPE_TOURNAMENT = 2;
   selector: 'app-team-detail',
   standalone: true,
   imports: [CommonModule, FormsModule, FeeCardComponent, ConfirmDialogComponent, RepriceConfirmComponent, CloneTeamDialogComponent,
-    TeamRenameConfirmComponent, TeamLibraryNameHintComponent],
+    TeamRenameConfirmComponent],
   template: `
     <div class="detail-header d-flex align-items-center justify-content-between">
       <div class="d-flex align-items-center gap-2">
@@ -127,10 +126,6 @@ const JOB_TYPE_TOURNAMENT = 2;
               <label class="fee-label">Team Name</label>
               <input class="form-control form-control-sm" [(ngModel)]="form.teamName" name="teamName"
                      (ngModelChange)="onSettingsChange()">
-              <team-library-name-hint
-                [teamName]="team()?.teamName"
-                [libraryName]="team()?.clubTeamName"
-                (reset)="resetToLibraryName()" />
             </div>
             <div class="form-check form-switch" style="padding-bottom: 4px;">
               <input class="form-check-input" type="checkbox" [(ngModel)]="form.active" name="active" (ngModelChange)="onSettingsChange()">
@@ -837,14 +832,6 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   /** Reset = a this-event rename back to the library name, through the normal save + confirm. */
-  resetToLibraryName(): void {
-    const lib = this.team()?.clubTeamName;
-    if (!lib) return;
-    this.form.teamName = lib;
-    this.onSettingsChange();
-    this.save();
-  }
-
   private savedMessage(results: any[], plain: string): string {
     const who = this.feeReprice.describeReprice(results);
     return who ? `Saved. Repriced ${who}.` : plain;

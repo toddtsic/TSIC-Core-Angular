@@ -26,7 +26,6 @@ import { ScheduleQaService } from '../qa-results/services/schedule-qa.service';
 import { TimeslotService } from '../timeslots/services/timeslot.service';
 import { formatTime, teamDes, contrastText, agTeamCount } from '../shared/utils/scheduling-helpers';
 import { TeamRenameConfirmComponent } from '@shared/teams/team-rename-confirm.component';
-import { TeamLibraryNameHintComponent } from '@shared/teams/team-library-name-hint.component';
 import { findTimeClashInRow } from '../shared/utils/conflict-detection';
 import type { ScheduleScope } from '../shared/utils/scheduling-helpers';
 import { DivisionNavigatorComponent } from '../shared/components/division-navigator/division-navigator.component';
@@ -67,7 +66,7 @@ const AUTO_SEED_FROM_PRIOR_ON_INIT = false;
 @Component({
     selector: 'app-schedule-division',
     standalone: true,
-    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, DivisionBuildConfirmModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent, ManageFieldsComponent, ManagePairingsComponent, ManageTimeslotsComponent, PoolAssignmentComponent, BracketSeedsComponent, BracketDevToolsComponent, MasterScheduleComponent, QaResultsComponent, ConfirmDialogComponent, ChecklistBackLinkComponent, TeamRenameConfirmComponent, TeamLibraryNameHintComponent],
+    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, DivisionBuildConfirmModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent, ManageFieldsComponent, ManagePairingsComponent, ManageTimeslotsComponent, PoolAssignmentComponent, BracketSeedsComponent, BracketDevToolsComponent, MasterScheduleComponent, QaResultsComponent, ConfirmDialogComponent, ChecklistBackLinkComponent, TeamRenameConfirmComponent],
     templateUrl: './schedule-division.component.html',
     styleUrl: './schedule-division.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -1040,12 +1039,6 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
     }
 
     /** Reset = a this-event rename back to the library name, through the same confirm. */
-    resetToLibraryName(): void {
-        const t = this.editingTeam();
-        if (!t?.clubTeamName) return;
-        this.editingTeam.set({ ...t, teamName: t.clubTeamName });
-        this.showRenameConfirm.set(true);
-    }
 
     private doSaveTeamEdit(): void {
         const team = this.editingTeam();

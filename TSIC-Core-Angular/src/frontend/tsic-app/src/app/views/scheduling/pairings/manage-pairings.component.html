@@ -388,10 +388,6 @@
                            class="form-control form-control-sm"
                            [ngModel]="t.teamName"
                            (ngModelChange)="updateTeamField('teamName', $event)">
-                    <team-library-name-hint
-                        [teamName]="t.originalTeamName"
-                        [libraryName]="t.clubTeamName"
-                        (reset)="resetToLibraryName()" />
                 </div>
                 <div class="mb-0">
                     <label class="form-label fw-medium" for="rankSelect">Division Rank</label>

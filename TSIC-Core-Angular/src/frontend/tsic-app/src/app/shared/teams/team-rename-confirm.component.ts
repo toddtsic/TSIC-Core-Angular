@@ -117,8 +117,12 @@ const UNNAMED_EVENT = 'this event';
                         }
                     </section>
 
-                    <!-- ── Club Team Library ──────────────────────────────────────── -->
-                    @if (libraryName()) {
+                    <!-- ── Club Team Library ──────────────────────────────────────────
+                         REPS ONLY. A director is never shown the club's library name — not as a
+                         field, not as a hint, not as read-only context (Todd's ruling, 2026-08-18:
+                         "shouldn't be a concern of director"). Their briefing stands on its own:
+                         only this event changes. -->
+                    @if (libraryName() && audience() === 'rep') {
                         <section class="name-card" [class.is-active]="origin() === 'library'">
                             <header class="name-card-head">
                                 <span class="name-card-eyebrow">
@@ -149,13 +153,8 @@ const UNNAMED_EVENT = 'this event';
                             }
 
                             <p class="name-card-note">
-                                @if (audience() === 'rep') {
-                                    Your saved list of teams — what you choose from when registering teams for
-                                    any event under this club rep account.
-                                } @else {
-                                    The club's own saved list of teams, which their rep chooses from when
-                                    registering for an event. It belongs to the club, not to this event.
-                                }
+                                Your saved list of teams — what you choose from when registering teams for
+                                any event under this club rep account.
                             </p>
 
                             <!-- Carry an event rename back into the library. -->
@@ -407,6 +406,9 @@ export class TeamRenameConfirmComponent {
     });
 
     readonly title = computed(() => {
+        // 'reset' is a rep-facing idea — it names the library. An admin can no longer see that name,
+        // so for them the act is simply a rename of this event, whatever string they happened to type.
+        if (this.audience() === 'admin') return 'Rename for This Event';
         if (this.origin() === 'library') return 'Rename in Club Team Library';
         switch (this.mode()) {
             case 'orphan': return 'Rename Team';
@@ -417,6 +419,11 @@ export class TeamRenameConfirmComponent {
 
     /** One sentence at the top saying which name they are about to change, and where it lives. */
     readonly lede = computed(() => {
+        // An admin is told about THIS EVENT and nothing else — no mention of the club's library,
+        // in any mode. It isn't theirs to know about, let alone act on.
+        if (this.audience() === 'admin') {
+            return 'This changes the team\'s name for this event only.';
+        }
         if (this.origin() === 'library') {
             return 'You are renaming this team in your Club Team Library — the list you pick from '
                 + 'when registering teams for an event.';
@@ -428,15 +435,16 @@ export class TeamRenameConfirmComponent {
             case 'reset':
                 return 'This puts the event back to the name the team carries in the Club Team Library.';
             default:
-                return this.audience() === 'rep'
-                    ? 'A team\'s name lives in two places. You are changing the one this event uses.'
-                    : 'A team\'s name lives in two places — this event, and the club\'s own library. '
-                        + 'You are changing the one this event uses.';
+                return 'A team\'s name lives in two places. You are changing the one this event uses.';
         }
     });
 
     /** The scope reassurance under both panels — the thing reps most need to be sure of. */
     readonly footNote = computed(() => {
+        if (this.audience() === 'admin') {
+            return 'Only this event changes. Every other event this team is registered for keeps '
+                + 'the name it has now.';
+        }
         if (this.mode() === 'orphan') {
             return 'This team has no Club Team Library entry, so nothing outside this event is affected.';
         }
@@ -445,12 +453,11 @@ export class TeamRenameConfirmComponent {
                 ? 'Every other event this team is registered for keeps the name it has now.'
                 : 'No event changes. Every event this team is registered for keeps the name it has now.';
         }
-        return this.audience() === 'rep'
-            ? 'Every other event this team is registered for keeps the name it has now.'
-            : 'Only this event changes. The club\'s library and every other event keep their own name.';
+        return 'Every other event this team is registered for keeps the name it has now.';
     });
 
     readonly confirmLabel = computed(() => {
+        if (this.audience() === 'admin') return 'Rename for This Event';
         if (this.propagateEffective()) return 'Rename in Both';
         if (this.origin() === 'library') return 'Rename in Library';
         return this.mode() === 'reset' ? 'Reset Name' : 'Rename for This Event';

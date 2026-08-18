@@ -793,10 +793,6 @@
                            [ngModel]="team.teamName"
                            (ngModelChange)="updateEditingName($event)"
                            (keydown.enter)="saveTeamEdit()">
-                    <team-library-name-hint
-                        [teamName]="team.originalTeamName"
-                        [libraryName]="team.clubTeamName"
-                        (reset)="resetToLibraryName()" />
                 </div>
             </div>
             <div class="modal-footer">

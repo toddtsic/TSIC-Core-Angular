@@ -85,12 +85,6 @@
                 <label for="teamName">Team Name</label>
                 <input type="text" id="teamName" class="form-control"
                   [ngModel]="editTeamName()" (ngModelChange)="editTeamName.set($event)" name="teamName" />
-                <!-- Says when this event's name differs from the club's library name; Reset routes
-                     through the same rename confirm as any other name change. -->
-                <team-library-name-hint
-                  [teamName]="team.teamName"
-                  [libraryName]="team.clubTeamName"
-                  (reset)="resetToLibraryName()" />
               </div>
               <div class="form-group">
                 <label for="editLop">Level of Play</label>
