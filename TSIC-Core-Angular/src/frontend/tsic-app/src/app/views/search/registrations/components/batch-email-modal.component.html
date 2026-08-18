@@ -254,34 +254,30 @@
         }
       </div>
 
+      <!-- Send confirmation. Rendered through the shared <confirm-dialog> (a native top-layer
+           <dialog>) rather than as a panel in the card: .modal-card is a single 90vh scroll
+           region with a non-sticky footer, so an inline panel could sit out of view at the very
+           moment the Send button disappeared — which reads as "it already sent". A top-layer
+           dialog cannot be scrolled past or clipped.
+           MUST stay INSIDE .modal-card: the overlay's (click)="close()" would otherwise catch
+           the bubbled confirm click and reset the form instead of sending. -->
       @if (showConfirm()) {
-        <div class="confirm-send">
-          <div class="alert alert-warning mb-0 mx-3">
-            <strong>Confirm Batch Email</strong>
-            <p class="mb-1 mt-1">
-              You are about to send an email to <strong>{{ recipientCount() | number }}</strong> recipient(s).
-            </p>
-            @if (requiresInviteLink()) {
-              <p class="mb-1">Each email will include a personalized invite link for the selected event.</p>
-            }
-            <p class="mb-2">Please verify the subject and body are correct. This action cannot be undone.</p>
-            <div class="d-flex gap-2">
-              <button type="button" class="btn btn-sm btn-warning" (click)="confirmSend()">
-                Yes, Send to {{ recipientCount() | number }} Recipient(s)
-              </button>
-              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="dismissConfirm()">
-                Go Back
-              </button>
-            </div>
-          </div>
-        </div>
+        <confirm-dialog
+          title="Confirm Batch Email"
+          [message]="confirmMessage()"
+          [confirmLabel]="confirmSendLabel()"
+          cancelLabel="Go Back"
+          confirmVariant="warning"
+          (confirmed)="confirmSend()"
+          (cancelled)="dismissConfirm()">
+        </confirm-dialog>
       }
 
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" (click)="close()" [disabled]="isSending()">
           @if (sendResult()) { Close } @else { Cancel }
         </button>
-        @if (!sendResult() && !showConfirm()) {
+        @if (!sendResult()) {
           @if (isDev) {
             <button type="button" class="btn btn-outline-warning" (click)="testBatchProcessing()"
               [disabled]="!canSubmit()" title="Dev only: runs the real engine with simulated sends">

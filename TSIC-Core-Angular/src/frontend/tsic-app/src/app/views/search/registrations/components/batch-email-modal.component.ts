@@ -13,6 +13,7 @@ import {
   type EmailTemplate, type JobFlagsForTemplates
 } from '../email-templates';
 import { DraggableModalDirective } from '@shared-ui/directives/draggable-modal.directive';
+import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 
 // Invite tokens are NEVER hand-picked from the palette — they are SEEDED by the "Invite" action,
 // which knows the role and pre-places the correct personalized link + expiry text. Offering them in
@@ -55,7 +56,7 @@ const INVITE_TEMPLATES: Record<InviteMode, { subject: string; body: string }> = 
 @Component({
   selector: 'app-batch-email-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule, DraggableModalDirective, EmailBodyEditorComponent, TestSendButtonComponent],
+  imports: [CommonModule, FormsModule, DraggableModalDirective, EmailBodyEditorComponent, TestSendButtonComponent, ConfirmDialogComponent],
   templateUrl: './batch-email-modal.component.html',
   styleUrl: './batch-email-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -163,6 +164,22 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
     const body = this.bodyTemplate();
     return body.includes('!INVITE_LINK') || body.includes('!CLUBREP_INVITE_LINK');
   });
+
+  /** Body of the send-confirmation dialog. Built here rather than in the template so the
+   *  conditional invite-link sentence stays readable; <confirm-dialog> renders it via [innerHTML]. */
+  readonly confirmMessage = computed(() => {
+    const count = this.recipientCount().toLocaleString();
+    const inviteNote = this.requiresInviteLink()
+      ? '<p>Each email will include a personalized invite link for the selected event.</p>'
+      : '';
+    return `<p>You are about to send an email to <strong>${count}</strong> recipient(s).</p>`
+      + inviteNote
+      + '<p>Please verify the subject and body are correct. This action cannot be undone.</p>';
+  });
+
+  /** The confirm button restates the count: the dialog covers the Send button that named it, so
+   *  it has to be self-contained. */
+  readonly confirmSendLabel = computed(() => `Yes, Send to ${this.recipientCount().toLocaleString()} Recipient(s)`);
 
   /** The link token the active invite mode uses — surfaced in the guidance panel so the admin
    *  keeps the right one in the body. Club reps register teams; players register themselves. */
