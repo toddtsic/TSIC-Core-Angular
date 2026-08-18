@@ -200,20 +200,6 @@ public sealed class TeamSearchService : ITeamSearchService
         };
     }
 
-    public async Task<List<ClubAffectedJob>> GetTeamRenameImpactAsync(
-        Guid teamId, Guid jobId, CancellationToken ct = default)
-    {
-        var team = await _teamRepo.GetByIdReadOnlyAsync(teamId, ct);
-        if (team == null || team.JobId != jobId)
-            throw new InvalidOperationException("Team not found.");
-
-        // Orphan team → rename never leaves this job; nothing to warn about.
-        if (team.ClubTeamId is not int clubTeamId)
-            return [];
-
-        return await _teamRepo.GetJobsWithTeamsForClubTeamAsync(clubTeamId, ct);
-    }
-
     public async Task RenameToNewClubTeamAsync(
         Guid teamId, Guid jobId, string userId, RenameToNewTeamRequest request, CancellationToken ct = default)
     {
@@ -279,7 +265,7 @@ public sealed class TeamSearchService : ITeamSearchService
         // Canonical rename path, job-local by construction: the NEW library row already carries the
         // new name, so only this job's copy needs the TeamName stamp, WAITLIST twin, and schedule
         // recompose. The old library team and every other job referencing it are untouched.
-        await _teamRename.RenameTeamAsync(teamId, jobId, newName, userId, TeamRenameScope.ThisJob, ct);
+        await _teamRename.RenameTeamAsync(teamId, jobId, newName, userId, ct);
 
         _logger.LogInformation(
             "RenameToNewClubTeam: Team {TeamId} in job {JobId} relinked ClubTeam {OldClubTeamId} -> {NewClubTeamId} ('{NewName}') by {UserId}",
@@ -454,7 +440,7 @@ public sealed class TeamSearchService : ITeamSearchService
     }
 
     public async Task EditTeamAsync(
-        Guid teamId, Guid jobId, string userId, bool isSuperUser, EditTeamRequest request, CancellationToken ct = default)
+        Guid teamId, Guid jobId, string userId, EditTeamRequest request, CancellationToken ct = default)
     {
         var team = await _teamRepo.GetTeamFromTeamId(teamId, ct)
             ?? throw new InvalidOperationException("Team not found.");
@@ -469,14 +455,6 @@ public sealed class TeamSearchService : ITeamSearchService
             && !string.Equals(oldTeamName, request.TeamName, StringComparison.Ordinal)
             && !oldTeamName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase);
 
-        // Scope: by default a rename is THIS EVENT ONLY — the director's own Teams row; the club's
-        // library and every other job keep their name. Reaching the library (fan-out to other
-        // customers' schedules) is SuperUser-only — a job admin has no standing there.
-        var scope = request.RenameLibrary ? TeamRenameScope.Library : TeamRenameScope.ThisJob;
-        if (teamNameChanged && scope == TeamRenameScope.Library && team.ClubTeamId != null && !isSuperUser)
-            throw new InvalidOperationException(
-                "Only TSIC support can rename a team in its club's library. Rename it for this event instead.");
-
         if (request.Active.HasValue) team.Active = request.Active.Value;
         if (request.LevelOfPlay != null) team.LevelOfPlay = request.LevelOfPlay;
         if (request.TeamComments != null) team.TeamComments = request.TeamComments;
@@ -486,10 +464,11 @@ public sealed class TeamSearchService : ITeamSearchService
 
         await _teamRepo.SaveChangesAsync(ct);
 
-        // Name change → owned by the service: this job's row + WAITLIST twin + schedule recompose, and
-        // (Library scope) the library row + every other job's mirroring copy.
+        // Name change → owned by the service, THIS EVENT ONLY (Todd's ruling, 2026-08-17): this job's
+        // row + WAITLIST twin + schedule recompose. The club's library and every other job keep their
+        // name — no admin door reaches the library, whatever the caller's role.
         if (teamNameChanged)
-            await _teamRename.RenameTeamAsync(teamId, jobId, request.TeamName!, userId, scope, ct);
+            await _teamRename.RenameTeamAsync(teamId, jobId, request.TeamName!, userId, ct);
 
         // Active is one of the filters on the rep-aggregate sync query — flipping it
         // here without re-aggregating leaves clubRep.OwedTotal counting (or omitting)

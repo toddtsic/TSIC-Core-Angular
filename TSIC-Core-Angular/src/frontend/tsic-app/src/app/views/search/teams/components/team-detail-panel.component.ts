@@ -3,14 +3,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import type { TeamSearchDetailDto, EditTeamRequest, ClubRegistrationDto, SubscriptionDetailDto, RenameToNewTeamRequest } from '@core/api';
 import { TeamSearchService } from '../services/team-search.service';
-import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ClubRepPaymentComponent } from '@shared-ui/components/club-rep-payment/club-rep-payment.component';
 import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
 import { DraggableModalDirective } from '@shared-ui/directives/draggable-modal.directive';
 import { LOP_CHOICES, normalizeLop } from '@shared/teams/lop-choices';
-import { TeamRenameConfirmComponent, type TeamRenameScope, type TeamRenameScopeChoice } from '@shared/teams/team-rename-confirm.component';
+import { TeamRenameConfirmComponent } from '@shared/teams/team-rename-confirm.component';
 import { TeamLibraryNameHintComponent } from '@shared/teams/team-library-name-hint.component';
 import { environment } from '@environments/environment';
 
@@ -41,7 +40,6 @@ export class TeamDetailPanelComponent {
 	changed = output<void>();
 
 	private readonly searchService = inject(TeamSearchService);
-	private readonly auth = inject(AuthService);
 	private readonly toast = inject(ToastService);
 
 	// Accounting is the default/first tab; resets to it each time a new team opens.
@@ -56,8 +54,8 @@ export class TeamDetailPanelComponent {
 	editComments = linkedSignal(() => this.detail()?.teamComments ?? '');
 	isSaving = signal(false);
 
-	/** Club-linked = descends from a club-team library row. An admin rename is THIS EVENT ONLY (the
-	 *  library and other events keep their name); SuperUser may also rename the library itself. */
+	/** Club-linked = descends from a club-team library row. A rename here is THIS EVENT ONLY (the
+	 *  library and other events keep their name) — for every role. */
 	readonly isClubLinked = computed(() => this.detail()?.clubTeamId != null);
 
 	/** Fixed 1–5 Level-of-Play choices (shared). The edit form's LOP select binds to this,
@@ -214,33 +212,26 @@ export class TeamDetailPanelComponent {
 	// ── Edit ──
 
 	// Rename briefing (shared team-rename-confirm). Any name change on a club-linked team is
-	// confirmed: job admins learn it's THIS EVENT ONLY; SuperUser may escalate to the library
-	// (all events) inside the same dialog. Orphan teams get the plain confirm.
+	// confirmed: the admin learns it's THIS EVENT ONLY. There is no library-wide option here for
+	// any role (Todd's ruling, 2026-08-17). Orphan teams rename silently — nothing to explain.
 	showRenameConfirm = signal(false);
-
-	/** SuperUser may rename the library row from here; everyone else renames for this event only. */
-	readonly renameScopeChoice = computed<TeamRenameScopeChoice>(() => this.auth.isSuperuser() ? 'both' : 'this-event');
-
-	/** Lazily invoked by the dialog's library step (SuperUser only — the endpoint is SU-gated). */
-	readonly loadRenameImpact = () => this.searchService.getRenameImpact(this.detail()?.teamId ?? '');
 
 	saveTeamInfo(): void {
 		const d = this.detail();
 		if (!d) return;
 
-		// Orphan teams rename silently (job-local, nothing to explain); club-linked get the briefing.
 		const nameChanged = (this.editTeamName() ?? '') !== (d.teamName ?? '');
 		if (nameChanged && this.isClubLinked()) {
 			this.showRenameConfirm.set(true);
 			return;
 		}
 
-		this.doSaveTeamInfo('this-event');
+		this.doSaveTeamInfo();
 	}
 
-	confirmRename(scope: TeamRenameScope): void {
+	confirmRename(): void {
 		this.showRenameConfirm.set(false);
-		this.doSaveTeamInfo(scope);
+		this.doSaveTeamInfo();
 	}
 
 	cancelRename(): void {
@@ -255,7 +246,7 @@ export class TeamDetailPanelComponent {
 		this.showRenameConfirm.set(true);
 	}
 
-	private doSaveTeamInfo(scope: TeamRenameScope): void {
+	private doSaveTeamInfo(): void {
 		const d = this.detail();
 		if (!d) return;
 
@@ -267,7 +258,6 @@ export class TeamDetailPanelComponent {
 		this.isSaving.set(true);
 		const req: EditTeamRequest = {
 			teamName: this.editTeamName() || undefined,
-			renameLibrary: scope === 'library',
 			active: this.editActive(),
 			levelOfPlay: lopChanged ? (this.editLevelOfPlay() || undefined) : undefined,
 			teamComments: this.editComments() || undefined

@@ -178,14 +178,9 @@ public record ResendInvoicesResponse
 /// </summary>
 public record EditTeamRequest
 {
+    /// <summary>A name change is THIS EVENT ONLY — this job's Teams row; the club's library and every
+    /// other job keep their name.</summary>
     public string? TeamName { get; init; }
-
-    /// <summary>
-    /// False (default): a name change is THIS EVENT ONLY — this job's Teams row; the club's library and
-    /// every other job keep their name. True: also rename the club-team library row and every job's copy
-    /// still mirroring it (SuperUser only; server enforces).
-    /// </summary>
-    public bool RenameLibrary { get; init; }
 
     public bool? Active { get; init; }
     public string? LevelOfPlay { get; init; }

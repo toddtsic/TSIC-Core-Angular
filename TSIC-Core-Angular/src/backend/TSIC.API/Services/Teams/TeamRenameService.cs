@@ -5,8 +5,8 @@ namespace TSIC.API.Services.Teams;
 
 /// <summary>
 /// See <see cref="ITeamRenameService"/>. Mirrors <c>ClubService.AdminRenameClubAsync</c> one level down:
-/// <c>ClubTeams.ClubTeamName</c> is the source, <c>Teams.TeamName</c> + the schedule columns are copies —
-/// except a copy a director has renamed for their event, which the library fan-out leaves alone.
+/// <c>ClubTeams.ClubTeamName</c> is the seed, <c>Teams.TeamName</c> + the schedule columns are the
+/// per-event copies — and a copy renamed for its event is left alone by the library fan-out.
 /// Reads committed state and writes explicitly — no <c>SaveChanges</c> hook.
 /// </summary>
 public sealed class TeamRenameService : ITeamRenameService
@@ -32,26 +32,18 @@ public sealed class TeamRenameService : ITeamRenameService
     }
 
     public async Task RenameTeamAsync(
-        Guid teamId, Guid jobId, string newName, string userId, TeamRenameScope scope, CancellationToken ct = default)
+        Guid teamId, Guid jobId, string newName, string userId, CancellationToken ct = default)
     {
         var team = await _teamRepo.GetTeamFromTeamId(teamId, ct);
         if (team == null) return;
 
-        // Library-owned AND asked to reach the library → fan out via the club-team id.
-        // Otherwise (orphan, or a director's this-event rename) → own row + this job only.
-        if (scope == TeamRenameScope.Library && team.ClubTeamId is int clubTeamId)
-        {
-            var lib = await _clubTeamRepo.GetByIdAsync(clubTeamId, ct);
-            await ApplyLibraryRenameAsync(clubTeamId, lib, newName, userId, ct);
-        }
-        else
-        {
-            var oldName = team.TeamName ?? string.Empty;
-            Stamp(team, newName, userId);
-            await RenameTwinInJobAsync(jobId, oldName, newName, userId, ct);
-            await _scheduleRepo.RecomposeScheduleNamesForJobAsync(jobId, team: (teamId, newName), ct: ct);
-            await _teamRepo.SaveChangesAsync(ct);
-        }
+        // This event only — own row, this job's WAITLIST twin, this job's schedule. There is
+        // deliberately no path from a per-job team id to the library: no admin role gets one.
+        var oldName = team.TeamName ?? string.Empty;
+        Stamp(team, newName, userId);
+        await RenameTwinInJobAsync(jobId, oldName, newName, userId, ct);
+        await _scheduleRepo.RecomposeScheduleNamesForJobAsync(jobId, team: (teamId, newName), ct: ct);
+        await _teamRepo.SaveChangesAsync(ct);
     }
 
     /// <summary>

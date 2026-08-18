@@ -342,7 +342,6 @@ const JOB_TYPE_TOURNAMENT = 2;
         [currentName]="t.teamName ?? ''"
         [newName]="(form.teamName ?? '').trim()"
         [libraryName]="t.clubTeamName"
-        scopeChoice="this-event"
         (confirmed)="confirmRename()"
         (cancelled)="cancelRename()"
       />

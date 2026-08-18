@@ -945,7 +945,7 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         // THIS EVENT ONLY: this job's row + WAITLIST twin + this job's schedule. The club library
         // and every other event keep their name — the single name writer owns the whole write.
-        await _teamRename.RenameTeamAsync(teamId, team.JobId, name, userId, TeamRenameScope.ThisJob);
+        await _teamRename.RenameTeamAsync(teamId, team.JobId, name, userId);
 
         _logger.LogInformation("Club rep {UserId} renamed team {TeamId} to '{Name}' for job {JobId}", userId, teamId, name, team.JobId);
     }

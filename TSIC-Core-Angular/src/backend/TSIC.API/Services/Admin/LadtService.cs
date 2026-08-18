@@ -877,7 +877,7 @@ public sealed class LadtService : ILadtService
 
         // Team rename → the single chokepoint, this job only: TeamName, WAITLIST twin, schedule recompose.
         if (teamNameChanged)
-            await _teamRename.RenameTeamAsync(teamId, jobId, request.TeamName!, userId, TSIC.API.Services.Teams.TeamRenameScope.ThisJob, cancellationToken);
+            await _teamRename.RenameTeamAsync(teamId, jobId, request.TeamName!, userId, cancellationToken);
 
         // Active is one of the filters on the rep-aggregate sync query — flipping it
         // here without re-aggregating leaves clubRep.OwedTotal counting (or omitting)

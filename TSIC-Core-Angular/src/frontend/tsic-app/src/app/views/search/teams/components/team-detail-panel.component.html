@@ -449,15 +449,13 @@
   </div>
 }
 
-<!-- Rename briefing (shared): this-event-only for admins; SuperUser may escalate to the library. -->
+<!-- Rename briefing (shared): THIS EVENT ONLY, for every role. -->
 @if (showRenameConfirm() && detail(); as d) {
   <team-rename-confirm
     [currentName]="d.teamName"
     [newName]="editTeamName().trim()"
     [libraryName]="d.clubTeamName"
-    [scopeChoice]="renameScopeChoice()"
-    [loadImpact]="loadRenameImpact"
-    (confirmed)="confirmRename($event.scope)"
+    (confirmed)="confirmRename()"
     (cancelled)="cancelRename()" />
 }
 

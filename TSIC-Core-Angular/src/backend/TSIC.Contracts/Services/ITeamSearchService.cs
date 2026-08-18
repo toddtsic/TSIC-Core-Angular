@@ -39,18 +39,11 @@ public interface ITeamSearchService
     Task<ClubRepAccountingDto?> GetClubRepAccountingAsync(Guid clubRepRegistrationId, Guid jobId, CancellationToken ct = default);
 
     /// <summary>
-    /// Edit team properties. A TeamName change on a club-linked team fans out to every job holding a
-    /// copy (via ITeamRenameService), so it is SuperUser-only — a job admin renaming from their event
-    /// would silently rewrite other customers' schedules. Orphan-team renames stay job-local and any
-    /// admin may make them.
+    /// Edit team properties. A TeamName change is THIS EVENT ONLY (this job's row + WAITLIST twin +
+    /// schedule recompose via ITeamRenameService); the club's library and every other job keep their
+    /// name. No admin door reaches the library, whatever the caller's role.
     /// </summary>
-    Task EditTeamAsync(Guid teamId, Guid jobId, string userId, bool isSuperUser, EditTeamRequest request, CancellationToken ct = default);
-
-    /// <summary>
-    /// Jobs whose schedules a rename of this team would rewrite — the impact list shown in the
-    /// SuperUser rename confirm. Empty for an orphan team (rename stays in the current job).
-    /// </summary>
-    Task<List<ClubAffectedJob>> GetTeamRenameImpactAsync(Guid teamId, Guid jobId, CancellationToken ct = default);
+    Task EditTeamAsync(Guid teamId, Guid jobId, string userId, EditTeamRequest request, CancellationToken ct = default);
 
     /// <summary>
     /// "Rename" a club-linked team without touching club property: mint a NEW club-library team

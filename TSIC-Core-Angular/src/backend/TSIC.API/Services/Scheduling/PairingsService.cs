@@ -425,7 +425,7 @@ public sealed class PairingsService : IPairingsService
         // schedule. Runs before the division re-resolve below so the seat recompute reads the
         // updated team name.
         if (nameChanged)
-            await _teamRename.RenameTeamAsync(request.TeamId, jobId, request.TeamName!, userId, TSIC.API.Services.Teams.TeamRenameScope.ThisJob, ct);
+            await _teamRename.RenameTeamAsync(request.TeamId, jobId, request.TeamName!, userId, ct);
 
         // Re-resolve T1Id/T2Id/T1Name/T2Name in all schedule records for this division
         await _scheduleRepo.SynchronizeScheduleTeamAssignmentsForDivisionAsync(divId, jobId, ct);
