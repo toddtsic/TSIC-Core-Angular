@@ -175,20 +175,39 @@ const UNNAMED_EVENT = 'this event';
                         <span>{{ footNote() }}</span>
                     </p>
 
+                    @if (errorMessage()) {
+                        <p class="tsic-callout rename-error" role="alert">
+                            <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                            <span>{{ errorMessage() }}</span>
+                        </p>
+                    }
+
                     <!-- The "Rename to New Team" pointer lived here. Removed 2026-08-18 with the
                          button itself (team-detail-panel) — a signpost to something a director can
                          no longer see is worse than no signpost. Restore both together. -->
                 </div>
 
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelled.emit()">Cancel</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                            [disabled]="busy()" (click)="cancelled.emit()">Cancel</button>
                     <button type="button" class="btn btn-primary btn-sm"
-                            [disabled]="!canSubmit()" (click)="submit()">{{ confirmLabel() }}</button>
+                            [disabled]="!canSubmit() || busy()" (click)="submit()">
+                        @if (busy()) { <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> }
+                        {{ confirmLabel() }}</button>
                 </div>
             </div>
         </tsic-dialog>
     `,
     styles: [`
+        .rename-error {
+            display: flex;   /* full-width inside the dialog, not shrink-to-fit */
+            margin: 0;
+            background: var(--bs-danger-bg-subtle);
+            border-color: var(--bs-danger);
+            color: var(--bs-danger-text-emphasis);
+        }
+        .rename-error > i { color: var(--bs-danger); }
+
         .rename-body { display: flex; flex-direction: column; gap: var(--space-3); }
 
         .rename-lede {
@@ -322,6 +341,15 @@ export class TeamRenameConfirmComponent {
      * for this event too" is an event write and is.
      */
     readonly canRenameInEvent = input(true);
+
+    /**
+     * Server-side refusal to show in place. The dialog stays open on failure so the rep can fix
+     * the name they typed instead of retyping it — a toast behind a closed dialog told them
+     * nothing and cost them their work.
+     */
+    readonly errorMessage = input<string | null>(null);
+    /** Call in flight — freeze both buttons so a second click cannot double-submit. */
+    readonly busy = input(false);
 
     readonly confirmed = output<TeamRenameConfirmation>();
     readonly cancelled = output<void>();

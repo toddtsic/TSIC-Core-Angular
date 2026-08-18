@@ -11,6 +11,7 @@ import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/con
 import { LibraryFlyinComponent, type RegisterRequest, type RegisteredInfo } from '../components/library-flyin.component';
 import { TeamRenameConfirmComponent, type TeamRenameConfirmation } from '@shared/teams/team-rename-confirm.component';
 import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto } from '@core/api';
+import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error-utils';
 
 /**
  * Which side of the two-name model the rep opened the dialog from. The dialog shows both names
@@ -235,8 +236,10 @@ type PendingRename =
         [libraryName]="renameLibraryName(renaming)"
         [registeredHere]="renameRegisteredHere(renaming)"
         [canRenameInEvent]="canEditTeam()"
+        [errorMessage]="renameError()"
+        [busy]="actionInProgress()"
         (confirmed)="confirmRename($event)"
-        (cancelled)="pendingRename.set(null)" />
+        (cancelled)="closeRename()" />
     }
 
 @if (pendingRemove()) {
@@ -684,6 +687,8 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly editingTeam = signal<ClubTeamDto | null>(null);
     /** When set, the shared name dialog is open — carrying which side it was opened from. */
     readonly pendingRename = signal<PendingRename | null>(null);
+    /** Server refusal from the last rename attempt — shown inside the dialog, which stays open. */
+    readonly renameError = signal<string | null>(null);
     /** When set, the delete-confirm dialog is open for this team. */
     readonly pendingDelete = signal<ClubTeamDto | null>(null);
     /** When set, the archive-confirm dialog is open for this team. */
@@ -865,12 +870,20 @@ export class TeamTeamsStepComponent implements OnInit {
     // WAITLIST twin + this job's schedule. The library and every other event keep their name.
 
     onRenameTeam(team: RegisteredTeamDto): void {
+        this.renameError.set(null);
         this.pendingRename.set({ origin: 'event', team });
     }
 
     /** Library Rename (kebab). Same dialog, opened on the list side. */
     onRenameClubTeam(team: ClubTeamDto): void {
+        this.renameError.set(null);
         this.pendingRename.set({ origin: 'library', team });
+    }
+
+    /** Close the dialog and drop any refusal it was showing. */
+    closeRename(): void {
+        this.pendingRename.set(null);
+        this.renameError.set(null);
     }
 
     /** This event's copy name — '' at library origin when the team isn't registered here. */
@@ -899,7 +912,10 @@ export class TeamTeamsStepComponent implements OnInit {
     confirmRename(c: TeamRenameConfirmation): void {
         const pending = this.pendingRename();
         if (!pending) return;
-        this.pendingRename.set(null);
+        // The dialog stays open across the call. A refusal — a library-name collision is the
+        // realistic one — comes back into it, so the rep fixes the name they typed instead of
+        // watching it vanish behind a toast. Only success closes it.
+        this.renameError.set(null);
         this.actionInProgress.set(true);
 
         const call$ = pending.origin === 'event'
@@ -914,13 +930,13 @@ export class TeamTeamsStepComponent implements OnInit {
         call$.pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: () => {
+                    this.closeRename();
                     this.loadTeamsMetadata(false, () =>
                         this.toast.show(`${oldName} is now ${c.name} ${where}.`, 'success', 3000));
                 },
                 error: (err: unknown) => {
                     this.actionInProgress.set(false);
-                    const httpErr = err as { error?: { message?: string } };
-                    this.toast.show(httpErr?.error?.message || 'Failed to rename team.', 'danger', 5000);
+                    this.renameError.set(extractHttpErrorMessage(err, 'Failed to rename team.'));
                 },
             });
     }
