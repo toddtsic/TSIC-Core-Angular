@@ -19,7 +19,13 @@ namespace TSIC.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/fees")]
-[Authorize]
+// AdminOnly, matching every sibling over this data (LadtController, PoolAssignmentController,
+// JobConfigController) and the LADT editor's own frontend route guard, which has always
+// restricted these screens to Superuser/Director/SuperDirector. This class previously carried a
+// bare [Authorize] — i.e. the default policy, RequireAuthenticatedUser — which let ANY logged-in
+// user in the job PUT/DELETE fee rows at league, agegroup or team scope and force a retroactive
+// (for ClubRep with no team, job-wide) reprice. The sole consumer is the LADT editor.
+[Authorize(Policy = "AdminOnly")]
 public class FeeController : ControllerBase
 {
     private readonly IFeeRepository _feeRepo;
