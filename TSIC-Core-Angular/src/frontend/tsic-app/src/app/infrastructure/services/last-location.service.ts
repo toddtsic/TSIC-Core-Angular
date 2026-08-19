@@ -8,6 +8,14 @@ import { JobService } from '@infrastructure/services/job.service';
 const LEGACY_KEY = 'last_job_path';
 
 /**
+ * The corporate home. It IS a real job row (`/api/jobs/tsic` returns 200), so it used to be
+ * stored here like any other — but it is the place this service exists to redirect AWAY from,
+ * never a "last event" worth returning to. Storing it made the anonymous landing redirect
+ * /tsic → /tsic forever (see authGuard's redirectAuthenticated arm). Never store it.
+ */
+const HOUSE_JOB_PATH = 'tsic';
+
+/**
  * Remembers the last JOB the user was on, so the anonymous `/tsic` landing can return them
  * to it (authGuard's `redirectAuthenticated` arm).
  *
@@ -33,6 +41,10 @@ export class LastLocationService {
     constructor() {
         try { localStorage.removeItem(LEGACY_KEY); } catch { /* storage unavailable */ }
 
+        // Heal a browser poisoned before the filter below existed. The guard no longer loops on
+        // it, but the value is still wrong — 'tsic' is not an event anyone returns to.
+        if (this.getLastJobPath()?.toLowerCase() === HOUSE_JOB_PATH) this.clearLastJobPath();
+
         // Confirmed job → remember it. jobPath comes off the response, so it carries the
         // backend's own casing rather than whatever the user typed.
         //
@@ -45,6 +57,7 @@ export class LastLocationService {
             .pipe(
                 map(job => job?.jobPath ?? null),
                 filter((jobPath): jobPath is string => !!jobPath),
+                filter(jobPath => jobPath.toLowerCase() !== HOUSE_JOB_PATH),
                 distinctUntilChanged(),
                 takeUntilDestroyed()
             )

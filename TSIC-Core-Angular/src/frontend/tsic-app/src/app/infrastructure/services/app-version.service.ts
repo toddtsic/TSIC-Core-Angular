@@ -104,7 +104,15 @@ export class AppVersionService {
     private async fetchServedStamp(): Promise<string | null> {
         try {
             const url = new URL('version.json', document.baseURI).toString();
-            const res = await fetch(url, { cache: 'no-store', credentials: 'omit' });
+            // Timeout, not optional: without it a request that never settles (captive portal,
+            // half-open socket) leaves `checking` true for the life of the tab, silently
+            // disabling deploy-freshness for that user until they reload by some other means.
+            // An abort lands in the catch below → null → "don't know" → never reloads.
+            const res = await fetch(url, {
+                cache: 'no-store',
+                credentials: 'omit',
+                signal: AbortSignal.timeout(5000),
+            });
             if (!res.ok) return null;
             const type = res.headers.get('content-type') ?? '';
             if (!type.includes('json')) return null;

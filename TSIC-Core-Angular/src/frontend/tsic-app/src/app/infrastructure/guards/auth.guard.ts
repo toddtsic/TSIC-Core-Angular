@@ -111,7 +111,22 @@ export const authGuard: CanActivateFn = (route, state) => {
             // lands on it, its metadata 404s, JobService shows not-found and LastLocationService
             // drops the key. The user sees the 404 once; the next visit is clean.
             const lastJob = last.getLastJobPath();
-            return lastJob ? toJob(lastJob) : true;
+            if (!lastJob) return true;
+
+            // NEVER redirect to the URL we are already on. `/tsic` is itself a
+            // redirectAuthenticated route, so a stored lastJob of 'tsic' made this arm return
+            // /tsic while ON /tsic — an infinite guard-redirect loop that pegs the main thread
+            // and never paints. `onSameUrlNavigation: 'ignore'` does NOT save you: Angular's
+            // skip predicate leads with `!router.navigated`, which stays false for as long as
+            // no navigation has COMPLETED — i.e. exactly the cold start where this bites
+            // (site root → redirectTo /tsic → here). Reproduced 2026-08-19: one localStorage
+            // key in a clean Incognito profile wedges the app at the root, no console error,
+            // no request, curable only by clearing site data.
+            //
+            // Compared against state.url, not against the job segment, so the ONLY case that
+            // stands down is the true self-redirect. `/{job}/login` still bounces to `/{job}`.
+            const target = toJob(lastJob);
+            return router.serializeUrl(target) === state.url ? true : target;
         }
 
         const returnUrl = route.queryParamMap.get('returnUrl');

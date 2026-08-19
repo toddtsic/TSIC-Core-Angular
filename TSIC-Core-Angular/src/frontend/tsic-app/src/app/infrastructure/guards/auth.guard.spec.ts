@@ -208,3 +208,87 @@ describe('unselectedRoleMatch — /tsic marketing landing', () => {
         expect(run()).toBe(true);
     });
 });
+
+/**
+ * The site-root hang. `/tsic` is itself a `redirectAuthenticated` route, so a stored last job
+ * of 'tsic' made this arm redirect /tsic → /tsic without end. `onSameUrlNavigation: 'ignore'`
+ * cannot break it on a cold start: Angular's skip predicate leads with `!router.navigated`,
+ * which stays false for as long as no navigation has COMPLETED. Reproduced 2026-08-19 — one
+ * localStorage key in a clean Incognito profile wedged the app at the site root: blank page,
+ * main thread pegged, no console error, no request. Cost the better part of a day to find.
+ */
+describe('authGuard — redirectAuthenticated never self-redirects', () => {
+    let router: Router;
+    let lastJobPath: string | null;
+
+    const anonymous = {
+        getCurrentUser: () => null,
+        isAuthenticated: () => false,
+        getRefreshToken: () => null,
+        logoutLocal: vi.fn(),
+        markForcedColdStartLogout: vi.fn(),
+        wasForcedColdStartLogout: () => false,
+        clearForcedColdStartLogout: vi.fn(),
+        hasSelectedRole: () => false,
+        refreshAccessToken: vi.fn(),
+    };
+
+    /** A landing/login route carrying redirectAuthenticated. */
+    const landing = (jobPath: string, url: string) => ({
+        route: {
+            paramMap: convertToParamMap({ jobPath }),
+            parent: null,
+            data: { redirectAuthenticated: true },
+            queryParamMap: convertToParamMap({}),
+        } as unknown as ActivatedRouteSnapshot,
+        state: { url } as RouterStateSnapshot,
+    });
+
+    const run = (r: ActivatedRouteSnapshot, s: RouterStateSnapshot) =>
+        TestBed.runInInjectionContext(() => authGuard(r, s));
+
+    beforeEach(() => {
+        lastJobPath = null;
+        TestBed.configureTestingModule({
+            providers: [
+                { provide: AuthService, useValue: anonymous },
+                { provide: LastLocationService, useValue: { getLastJobPath: () => lastJobPath } },
+                { provide: ToastService, useValue: { show: vi.fn() } },
+            ],
+        });
+        router = TestBed.inject(Router);
+        (router as { navigated: boolean }).navigated = true;
+    });
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it('COLD START at the site root with the house job stored → stands down, no loop', () => {
+        pageOpenedBy('navigate');
+        (router as { navigated: boolean }).navigated = false;
+        lastJobPath = 'tsic';
+        const { route, state } = landing('tsic', '/tsic');
+        expect(run(route, state)).toBe(true);
+    });
+
+    it('stored last job IS the page we are on → stands down', () => {
+        lastJobPath = 'tsic';
+        const { route, state } = landing('tsic', '/tsic');
+        expect(run(route, state)).toBe(true);
+    });
+
+    it('stored last job is a DIFFERENT job → still redirects to it', () => {
+        lastJobPath = 'aim-players';
+        const { route, state } = landing('tsic', '/tsic');
+        const result = run(route, state);
+        expect(result).toBeInstanceOf(UrlTree);
+        expect(router.serializeUrl(result as UrlTree)).toBe('/aim-players');
+    });
+
+    it('/{job}/login with that same job stored → unchanged, still bounces to the job landing', () => {
+        lastJobPath = 'aim-players';
+        const { route, state } = landing('aim-players', '/aim-players/login');
+        const result = run(route, state);
+        expect(result).toBeInstanceOf(UrlTree);
+        expect(router.serializeUrl(result as UrlTree)).toBe('/aim-players');
+    });
+});
