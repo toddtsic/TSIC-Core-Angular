@@ -76,6 +76,17 @@ export const AGEGROUP_COLUMNS: LadtColumnDef[] = [
   { field: '_phase', header: 'Payment Phase', type: 'phase', width: '180px' },
   // Limits
   { field: 'maxTeams', header: 'Max Teams', type: 'number', group: 'Limits', width: '95px' },
+  // Roster — AR-006 (Ann): the age group is where self-rostering is actually decided.
+  // Across 51,411 teams, 44,249 are self-rosterable via their AGE GROUP's flag and exactly
+  // ONE is enabled by its own team-level checkbox alone, so this column is the answer to
+  // "can players self-roster here?" in all but a single row. 85px matches the identical
+  // column already on the Team grid — same field, header, and renderer, so the two grids
+  // agree on sight. The flags are OR'd (TeamSelfRosterAvailability), NOT a cascade, which
+  // is what the ⓘ has to say: neither level overrides the other.
+  {
+    field: 'bAllowSelfRostering', header: 'Self Roster', type: 'boolean', group: 'Roster', width: '85px',
+    headerTooltip: 'Players may add themselves to teams in this age group. An individual team can also switch this on by itself — either one is enough, neither overrides the other. Teams still only accept self-rostering while inside their own registration window.',
+  },
   // AM-038 re-open (Ann, 08-01): header needs the ⓘ gloss — "3rd Party" alone
   // meant nothing. 100px = "PARTY" + ⓘ on the wrapped line + the 38px chrome
   // (70px ellipsized at "3RD PA…"). Copy (Todd, 08-02): the flag opts the age
