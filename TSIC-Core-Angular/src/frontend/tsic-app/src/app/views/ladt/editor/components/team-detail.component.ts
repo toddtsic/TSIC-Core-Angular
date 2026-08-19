@@ -301,9 +301,6 @@ const JOB_TYPE_TOURNAMENT = 2;
           <label class="fee-label">Google Calendar Id</label>
           <input class="form-control form-control-sm" [(ngModel)]="form.keywordPairs" name="keywordPairs"
                  placeholder="…@group.calendar.google.com" (ngModelChange)="onSettingsChange()">
-          <div class="tsic-callout tsic-callout--info mt-2">
-            <i class="bi bi-info-circle" aria-hidden="true"></i>Drives the Calendar tab in the TSIC Teams app. Legacy jobs may store scheduling keywords here instead — leave those as they are.
-          </div>
         </div>
 
         <!-- ── Save (sticky footer) ── -->
