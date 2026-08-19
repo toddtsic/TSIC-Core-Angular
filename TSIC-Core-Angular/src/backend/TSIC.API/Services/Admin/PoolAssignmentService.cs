@@ -24,6 +24,7 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
     private readonly IRegistrationRepository _registrationRepo;
     private readonly IAgeGroupRepository _agegroupRepo;
     private readonly IFeeResolutionService _feeService;
+    private readonly IFeeRepository _feeRepo;
 
     public PoolAssignmentService(
         ITeamRepository teamRepo,
@@ -31,7 +32,8 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         IScheduleRepository scheduleRepo,
         IRegistrationRepository registrationRepo,
         IAgeGroupRepository agegroupRepo,
-        IFeeResolutionService feeService)
+        IFeeResolutionService feeService,
+        IFeeRepository feeRepo)
     {
         _teamRepo = teamRepo;
         _divRepo = divRepo;
@@ -39,6 +41,7 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         _registrationRepo = registrationRepo;
         _agegroupRepo = agegroupRepo;
         _feeService = feeService;
+        _feeRepo = feeRepo;
     }
 
     public async Task<List<PoolDivisionOptionDto>> GetDivisionOptionsAsync(Guid jobId, CancellationToken ct = default)
@@ -112,8 +115,12 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
 
             if (agegroupChanges && targetAgegroup != null && job != null)
             {
-                var resolved = await _feeService.ResolveFeeForAgegroupAsync(
-                    job.JobId, RoleConstants.ClubRep, targetAgegroup.AgegroupId, ct);
+                // Team tier included (matched on TeamId alone): the executed move repoints the
+                // team's own fee row onto the target agegroup, so a team with team-level pricing
+                // keeps it. Resolving the agegroup tier only would preview a price the move does
+                // not produce.
+                var resolved = await _feeService.ResolveFeeForTeamAtAgegroupAsync(
+                    job.JobId, RoleConstants.ClubRep, targetAgegroup.AgegroupId, team.TeamId, ct);
                 var deposit = resolved?.EffectiveDeposit ?? 0m;
                 newFeeBase = ResolvedFee.ResolveFullPaymentPhase(resolved)
                     ? (resolved?.FullPrice ?? 0m) : deposit;
@@ -164,8 +171,9 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
 
             if (agegroupChanges && sourceAgegroup != null && job != null)
             {
-                var resolved = await _feeService.ResolveFeeForAgegroupAsync(
-                    job.JobId, RoleConstants.ClubRep, sourceAgegroup.AgegroupId, ct);
+                // Same team-tier inclusion as the source-to-target leg above.
+                var resolved = await _feeService.ResolveFeeForTeamAtAgegroupAsync(
+                    job.JobId, RoleConstants.ClubRep, sourceAgegroup.AgegroupId, team.TeamId, ct);
                 var deposit = resolved?.EffectiveDeposit ?? 0m;
                 newFeeBase = ResolvedFee.ResolveFullPaymentPhase(resolved)
                     ? (resolved?.FullPrice ?? 0m) : deposit;
@@ -293,6 +301,34 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                 sourceOldRanks[t.TeamId] = t.DivRank;
             foreach (var t in targetTeams)
                 targetOldRanks[t.TeamId] = t.DivRank;
+        }
+
+        // Every requested target team must have resolved. The counts were checked above, but
+        // not existence — an id that resolves to nothing would fault the move loop below on
+        // targetOldRanks[...], AFTER the fee-scope flush has committed, leaving rows repointed
+        // to an agegroup the team never reached. Fail here instead, with the other pre-flight
+        // validations, so the flush is only ever reached by a move that can complete.
+        if (request.IsSymmetricalSwap && targetTeams.Count != request.TargetTeamIds.Count)
+            throw new ArgumentException("One or more target teams were not found for this job.");
+
+        // Team-scoped fee rows travel WITH the team. A team-scoped fees.JobFees row is keyed
+        // (JobId, RoleId, TeamId) in meaning but stores AgegroupId too, and the cascade's team
+        // tier matches the (AgegroupId, TeamId) PAIR — so a row left behind on the old agegroup
+        // is invisible and the team silently reverts to the target agegroup's price.
+        //
+        // This runs BEFORE the move loop and is FLUSHED here on purpose: ApplyTeamSwapFeesAsync
+        // below re-resolves the cascade against the DATABASE (AsNoTracking), so an unflushed
+        // repoint would be invisible to it and the team would be stamped the agegroup price.
+        // Nothing else is mutated yet at this point, so this flush commits fee scope only.
+        if (agegroupChanges)
+        {
+            foreach (var team in sourceTeams)
+                await _feeService.RepointTeamScopedFeesAsync(
+                    team.TeamId, targetDivision.AgegroupId, adminUserId, ct);
+            foreach (var team in targetTeams)
+                await _feeService.RepointTeamScopedFeesAsync(
+                    team.TeamId, sourceDivision.AgegroupId, adminUserId, ct);
+            await _feeRepo.SaveChangesAsync(ct);
         }
 
         // Resolve processing rate once for this job (all teams share jobId)

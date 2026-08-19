@@ -868,7 +868,10 @@ public sealed class LadtService : ILadtService
         team.FieldId3 = request.FieldId3;
         if (request.LevelOfPlay != null) team.LevelOfPlay = request.LevelOfPlay;
         team.Requests = request.Requests;
-        team.KeywordPairs = request.KeywordPairs;
+        // Null-skip, unlike the fields above: `keywordPairs` doubles as the team's Google Calendar ID
+        // for the TSIC Teams mobile app (legacy LoginController maps it to `CalendarId`). A caller that
+        // omits the field must not silently destroy it — only an explicit value (incl. "") writes.
+        if (request.KeywordPairs != null) team.KeywordPairs = request.KeywordPairs;
         team.TeamComments = request.TeamComments;
         team.LebUserId = userId;
         team.Modified = DateTime.Now;
@@ -997,6 +1000,12 @@ public sealed class LadtService : ILadtService
 
         // Zero out all player fees for this team
         var playersAffected = await _registrationRepo.ZeroFeesForTeamAsync(teamId, jobId, cancellationToken);
+
+        // Team-scoped fee rows follow the team into Dropped Teams. Leaving them pinned to the
+        // old agegroup orphans them: the cascade's team tier matches the (AgegroupId, TeamId)
+        // pair, so the row goes invisible — and it would NOT come back if the team is later
+        // moved out of Dropped Teams into any agegroup other than its original one.
+        await _feeService.RepointTeamScopedFeesAsync(teamId, droppedAgId, userId, cancellationToken);
 
         // Move team to Dropped Teams and deactivate
         team.AgegroupId = droppedAgId;
@@ -1182,7 +1191,10 @@ public sealed class LadtService : ILadtService
                     JobFeeId = newFeeId,
                     JobId = sf.JobId,
                     RoleId = sf.RoleId,
-                    AgegroupId = sf.AgegroupId,
+                    // The CLONE's agegroup, not the source ROW's. Taking sf.AgegroupId copies the
+                    // source row's scope verbatim, which propagates a stale pin if the source team
+                    // had itself been moved — the clone is born with orphaned pricing.
+                    AgegroupId = clone.AgegroupId,
                     TeamId = clone.TeamId,
                     Deposit = sf.Deposit,
                     BalanceDue = sf.BalanceDue,

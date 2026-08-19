@@ -69,6 +69,14 @@ public sealed class FeeResolutionService : IFeeResolutionService
         return await _feeRepo.GetResolvedFeeForAgegroupAsync(jobId, roleId, agegroupId, ct);
     }
 
+    public async Task<ResolvedFee?> ResolveFeeForTeamAtAgegroupAsync(
+        Guid jobId, string roleId, Guid targetAgegroupId, Guid teamId,
+        CancellationToken ct = default)
+    {
+        return await _feeRepo.GetResolvedFeeForTeamAtAgegroupAsync(
+            jobId, roleId, targetAgegroupId, teamId, ct);
+    }
+
     public async Task<Dictionary<Guid, ResolvedFee>> ResolveFeesByTeamIdsAsync(
         Guid jobId, string roleId, IReadOnlyList<Guid> teamIds,
         CancellationToken ct = default)
@@ -367,6 +375,78 @@ public sealed class FeeResolutionService : IFeeResolutionService
         await ApplyTeamProcessingAndTotalsAsync(
             team, jobId, deposit, balanceDue, ctx, fullPayment, isNew: true,
             rawDeposit: resolved.Deposit ?? 0m, ct);
+    }
+
+    // ── Team-scoped fee rows: scope invariant ───────────────────
+
+    public async Task RepointTeamScopedFeesAsync(
+        Guid teamId, Guid targetAgegroupId, string? userId, CancellationToken ct = default)
+    {
+        var rows = await _feeRepo.GetTrackedByTeamIdAsync(teamId, ct);
+        if (rows.Count == 0) return;
+
+        var now = DateTime.Now;
+
+        // One team can carry a row per role (Player and ClubRep price independently), so the
+        // winner/retire decision is made PER (job, role) — never across roles.
+        foreach (var group in rows.GroupBy(r => (r.JobId, r.RoleId)))
+        {
+            var ordered = group.OrderByDescending(r => r.Modified).ToList();
+            var winner = ordered[0];
+            var atTarget = ordered.FirstOrDefault(r => r.AgegroupId == targetAgegroupId);
+
+            if (atTarget != null && !ReferenceEquals(atTarget, winner))
+            {
+                // A row already occupies the (JobId, RoleId, targetAgegroupId, TeamId) slot that
+                // UX_JobFees_Scope makes unique. Merge the winner's VALUES down into it instead of
+                // repointing the winner onto an occupied slot — that would be a unique violation,
+                // and inside a pool transfer it fails the whole move, not just the fee.
+                atTarget.Deposit = winner.Deposit;
+                atTarget.BalanceDue = winner.BalanceDue;
+                atTarget.BFullPaymentRequired = winner.BFullPaymentRequired;
+                atTarget.Modified = now;
+                atTarget.LebUserId = userId;
+
+                // Modifiers hang off JobFeeId. Re-mint the winner's onto the surviving row rather
+                // than re-pointing the existing rows, so the winner's own copies are free to be
+                // deleted with it below (re-pointing then deleting would take them with it).
+                foreach (var stale in atTarget.FeeModifiers.ToList())
+                    _feeRepo.RemoveModifier(stale);
+                foreach (var m in winner.FeeModifiers)
+                    _feeRepo.AddModifier(new FeeModifiers
+                    {
+                        FeeModifierId = Guid.NewGuid(),
+                        JobFeeId = atTarget.JobFeeId,
+                        ModifierType = m.ModifierType,
+                        Amount = m.Amount,
+                        StartDate = m.StartDate,
+                        EndDate = m.EndDate,
+                        Modified = now,
+                        LebUserId = userId
+                    });
+
+                winner = atTarget;
+            }
+            else if (winner.AgegroupId != targetAgegroupId)
+            {
+                // Target slot is free — repoint in place. Keeping the row id means the row's
+                // modifiers (early bird / late fee) ride along untouched, which is the whole
+                // reason this is an UPDATE and not a delete-and-recreate.
+                winner.AgegroupId = targetAgegroupId;
+                winner.Modified = now;
+                winner.LebUserId = userId;
+            }
+
+            // Retire everything else for this (job, role, team). By construction none of these
+            // sit at the target slot, so a delete can never race the update above inside one
+            // SaveChanges regardless of the order EF picks.
+            foreach (var loser in ordered.Where(r => !ReferenceEquals(r, winner)))
+            {
+                foreach (var m in loser.FeeModifiers.ToList())
+                    _feeRepo.RemoveModifier(m);
+                _feeRepo.Remove(loser);
+            }
+        }
     }
 
     // ── Team Entity: Swap ───────────────────────────────────────

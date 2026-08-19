@@ -63,9 +63,24 @@ public class FeeControllerSaveTests
                 SkippedReasons = new()
             });
 
+        // A team-scoped save now derives its agegroup from the TEAM (the team tier is keyed
+        // (JobId, RoleId, TeamId), so the client's agegroup is not trusted) and normalizes the
+        // team's row scope through IFeeResolutionService first. The team must therefore resolve,
+        // belong to this job, and sit in AgId for the scoped-reprice assertions below to hold.
+        var teams = new Mock<ITeamRepository>();
+        teams.Setup(t => t.GetTeamWithFeeContextAsync(TeamId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((
+                new Teams { TeamId = TeamId, JobId = JobId, AgegroupId = AgId },
+                new Agegroups { AgegroupId = AgId }));
+
+        var feeSvc = new Mock<IFeeResolutionService>();
+        feeSvc.Setup(f => f.RepointTeamScopedFeesAsync(
+                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
         var controller = new FeeController(
             feeRepo.Object, jobLookup.Object, playerSvc.Object, teamSvc.Object,
-            new Mock<IAgeGroupRepository>().Object);
+            new Mock<IAgeGroupRepository>().Object, teams.Object, feeSvc.Object);
         var claims = new[]
         {
             new Claim("regId", RegId.ToString()),

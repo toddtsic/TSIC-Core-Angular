@@ -22,6 +22,19 @@ public interface IFeeRepository
     /// Resolves the effective base fee at the agegroup level (no team override).
     /// Cascades Agegroup → Job.
     /// </summary>
+    /// <summary>
+    /// Resolves the fee a team WOULD price at if it were sitting in <paramref name="targetAgegroupId"/>:
+    /// agegroup and league tiers read from the target, but the team tier matched on TeamId ALONE
+    /// (any agegroup), because a team-scoped row is about to be repointed onto the target by
+    /// <c>RepointTeamScopedFeesAsync</c>. This is the pool-transfer PREVIEW's resolver — without it
+    /// the preview shows the agegroup price while the executed move stamps the team price.
+    /// Where a team carries more than one team-scoped row, newest Modified wins — the same rule
+    /// the repoint applies, so preview and execute cannot disagree.
+    /// </summary>
+    Task<ResolvedFee?> GetResolvedFeeForTeamAtAgegroupAsync(
+        Guid jobId, string roleId, Guid targetAgegroupId, Guid teamId,
+        CancellationToken ct = default);
+
     Task<ResolvedFee?> GetResolvedFeeForAgegroupAsync(
         Guid jobId, string roleId, Guid agegroupId,
         CancellationToken ct = default);
@@ -118,6 +131,15 @@ public interface IFeeRepository
     /// AsNoTracking — intended for read-then-clone flows.
     /// </summary>
     Task<List<JobFees>> GetByTeamIdAsync(Guid teamId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets all team-scoped JobFees rows (TeamId == teamId) with their FeeModifiers, TRACKED.
+    /// The team tier's real key is (JobId, RoleId, TeamId) — a team lives in exactly one
+    /// agegroup — so any caller that REPOINTS or updates a team's rows must match on the team
+    /// alone. Matching the (AgegroupId, TeamId) pair silently misses a row left pinned to an
+    /// agegroup the team has since left, which is how orphaned team pricing arises.
+    /// </summary>
+    Task<List<JobFees>> GetTrackedByTeamIdAsync(Guid teamId, CancellationToken ct = default);
 
     /// <summary>
     /// Gets all agegroup-scoped JobFees rows (AgegroupId == agegroupId AND TeamId IS NULL)

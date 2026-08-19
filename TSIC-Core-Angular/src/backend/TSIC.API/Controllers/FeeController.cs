@@ -27,19 +27,25 @@ public class FeeController : ControllerBase
     private readonly IPlayerRegistrationService _playerRegService;
     private readonly ITeamRegistrationService _teamRegService;
     private readonly IAgeGroupRepository _ageGroups;
+    private readonly ITeamRepository _teams;
+    private readonly IFeeResolutionService _feeService;
 
     public FeeController(
         IFeeRepository feeRepo,
         IJobLookupService jobLookup,
         IPlayerRegistrationService playerRegService,
         ITeamRegistrationService teamRegService,
-        IAgeGroupRepository ageGroups)
+        IAgeGroupRepository ageGroups,
+        ITeamRepository teams,
+        IFeeResolutionService feeService)
     {
         _feeRepo = feeRepo;
         _jobLookup = jobLookup;
         _playerRegService = playerRegService;
         _teamRegService = teamRegService;
         _ageGroups = ageGroups;
+        _teams = teams;
+        _feeService = feeService;
     }
 
     private async Task<Guid> ResolveJobIdAsync()
@@ -159,9 +165,31 @@ public class FeeController : ControllerBase
         if (depositBalanceError != null)
             return BadRequest(new { message = depositBalanceError });
 
+        // A team-scoped save resolves its OWN scope. The team tier is keyed (JobId, RoleId,
+        // TeamId) — a team lives in exactly one agegroup — so the agegroup is derived from the
+        // team rather than taken from the client, and the team's rows are normalized through the
+        // same writer the move uses before the row is looked up. Without this, a save on a team
+        // whose row is still pinned to an agegroup it has left misses that row and mints a
+        // DUPLICATE beside it, leaving two rows for one team and a cascade that picks between
+        // them arbitrarily. Flushed here so the scoped lookup below sees the repoint.
+        var effectiveAgegroupId = request.AgegroupId;
+        if (request.TeamId.HasValue)
+        {
+            var feeContext = await _teams.GetTeamWithFeeContextAsync(request.TeamId.Value, ct);
+            if (feeContext is null)
+                return NotFound(new { message = "Team not found." });
+            if (feeContext.Value.Team.JobId != jobId)
+                return BadRequest(new { message = "Team does not belong to this job." });
+
+            effectiveAgegroupId = feeContext.Value.Team.AgegroupId;
+            await _feeService.RepointTeamScopedFeesAsync(
+                request.TeamId.Value, effectiveAgegroupId.Value, userId, ct);
+            await _feeRepo.SaveChangesAsync(ct);
+        }
+
         // Find existing row for this scope (tracked for update)
         var existing = await _feeRepo.GetTrackedByScopeAsync(
-            jobId, request.RoleId, request.AgegroupId, request.TeamId, request.LeagueId, ct);
+            jobId, request.RoleId, effectiveAgegroupId, request.TeamId, request.LeagueId, ct);
 
         // Phase changes are always retroactive — snapshot the prior value so we can force a
         // reprice on any flip (on/off), even when the caller didn't tick "update all prior".
@@ -185,7 +213,7 @@ public class FeeController : ControllerBase
                 JobFeeId = Guid.NewGuid(),
                 JobId = jobId,
                 RoleId = request.RoleId,
-                AgegroupId = request.AgegroupId,
+                AgegroupId = effectiveAgegroupId,
                 TeamId = request.TeamId,
                 LeagueId = request.LeagueId,
                 Deposit = request.Deposit,
@@ -225,7 +253,7 @@ public class FeeController : ControllerBase
         if ((request.RepriceExisting || phaseChanged)
             && (request.RoleId == RoleConstants.Player || request.RoleId == RoleConstants.ClubRep))
         {
-            repriced = await DispatchRepriceAsync(jobId, userId, request.RoleId, request.AgegroupId, request.TeamId, ct);
+            repriced = await DispatchRepriceAsync(jobId, userId, request.RoleId, effectiveAgegroupId, request.TeamId, ct);
         }
 
         return Ok(new SaveJobFeeResponse { Fee = MapToDto(row), RegistrationsRepriced = repriced });

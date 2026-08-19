@@ -47,6 +47,17 @@ public interface IFeeResolutionService
     /// Resolves the effective base fee at the agegroup level (no team override).
     /// Cascade: Agegroup → Job.
     /// </summary>
+    /// <summary>
+    /// Resolves the fee a team WOULD price at once moved into <paramref name="targetAgegroupId"/> —
+    /// team tier matched on TeamId alone (its row is about to be repointed), agegroup/league tiers
+    /// read from the target. Used by the pool-transfer preview so the number the director approves
+    /// is the number the move produces. See
+    /// <see cref="RepointTeamScopedFeesAsync"/> for the invariant this anticipates.
+    /// </summary>
+    Task<ResolvedFee?> ResolveFeeForTeamAtAgegroupAsync(
+        Guid jobId, string roleId, Guid targetAgegroupId, Guid teamId,
+        CancellationToken ct = default);
+
     Task<ResolvedFee?> ResolveFeeForAgegroupAsync(
         Guid jobId, string roleId, Guid agegroupId,
         CancellationToken ct = default);
@@ -184,6 +195,31 @@ public interface IFeeResolutionService
     /// </summary>
     Task RecomputeRegistrationFinancialsAsync(
         Registrations reg, Guid jobId, CancellationToken ct = default);
+
+    // ── Team-scoped fee rows: scope invariant ───────────────────
+
+    /// <summary>
+    /// Repoints a team's team-scoped <c>fees.JobFees</c> rows onto the agegroup the team now
+    /// lives in. THE invariant: a team-scoped row's AgegroupId always equals its team's, because
+    /// the team tier is really keyed by (JobId, RoleId, TeamId) — a team is in exactly one
+    /// agegroup. Without this, moving a team leaves its pricing pinned to the old agegroup, where
+    /// the cascade's team tier (which matches the (AgegroupId, TeamId) PAIR) can no longer see it,
+    /// and the team silently falls back to the target agegroup's price.
+    ///
+    /// Call this on EVERY write of <c>Teams.AgegroupId</c>, and call it BEFORE any fee
+    /// (re)resolution for the move: resolution reads the database, so an unflushed repoint is
+    /// invisible to it and the stamp would use the agegroup price.
+    ///
+    /// Where a team already has more than one team-scoped row for a role (possible only from
+    /// moves made before this invariant existed — <c>UX_JobFees_Scope</c> is unique on
+    /// (JobId, RoleId, AgegroupId, TeamId), which does NOT constrain the team tier's real key),
+    /// the newest <c>Modified</c> wins as the director's most recent expressed intent and the
+    /// rest are retired, so the cascade can never pick between two prices.
+    ///
+    /// Does NOT persist — the caller saves, as everywhere else in this service.
+    /// </summary>
+    Task RepointTeamScopedFeesAsync(
+        Guid teamId, Guid targetAgegroupId, string? userId, CancellationToken ct = default);
 
     // ── Application (Team entities) ─────────────────────────────
 

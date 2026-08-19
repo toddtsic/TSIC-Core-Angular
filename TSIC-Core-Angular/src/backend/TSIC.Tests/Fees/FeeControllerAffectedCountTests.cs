@@ -61,8 +61,11 @@ public class FeeControllerAffectedCountTests
                 new() { AgegroupId = LeagueAgB, LeagueId = LeagueId, AgegroupName = "U12" },
             });
 
+        // GetAffectedCount reads only — it touches neither the team lookup nor the scope
+        // normalizer, so bare mocks satisfy the constructor.
         var controller = new FeeController(
-            feeRepo.Object, jobLookup.Object, playerSvc.Object, teamSvc.Object, ageGroups.Object);
+            feeRepo.Object, jobLookup.Object, playerSvc.Object, teamSvc.Object, ageGroups.Object,
+            new Mock<ITeamRepository>().Object, new Mock<IFeeResolutionService>().Object);
         var claims = new[]
         {
             new Claim("regId", RegId.ToString()),

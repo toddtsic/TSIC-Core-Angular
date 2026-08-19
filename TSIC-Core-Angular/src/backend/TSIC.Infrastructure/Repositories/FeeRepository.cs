@@ -68,6 +68,60 @@ public class FeeRepository : IFeeRepository
         return new ResolvedFee { FeeConfigured = true, Deposit = deposit, BalanceDue = balanceDue, BFullPaymentRequired = fullPaymentRequired };
     }
 
+    public async Task<ResolvedFee?> GetResolvedFeeForTeamAtAgegroupAsync(
+        Guid jobId, string roleId, Guid targetAgegroupId, Guid teamId,
+        CancellationToken ct = default)
+    {
+        var leagueId = await _context.Agegroups
+            .AsNoTracking()
+            .Where(a => a.AgegroupId == targetAgegroupId)
+            .Select(a => (Guid?)a.LeagueId)
+            .FirstOrDefaultAsync(ct);
+
+        var rows = await _context.JobFees
+            .AsNoTracking()
+            .Where(jf => jf.JobId == jobId
+                && jf.RoleId == roleId
+                && (
+                    // Team level — TeamId ALONE. The row's current AgegroupId is deliberately
+                    // ignored: the move is about to repoint it onto the target agegroup.
+                    jf.TeamId == teamId
+                    // Agegroup level, read from the TARGET
+                    || (jf.AgegroupId == targetAgegroupId && jf.TeamId == null)
+                    // League level (top tier)
+                    || (jf.LeagueId == leagueId && jf.AgegroupId == null && jf.TeamId == null)
+                ))
+            .Select(jf => new
+            {
+                jf.Deposit,
+                jf.BalanceDue,
+                jf.BFullPaymentRequired,
+                jf.Modified,
+                Priority = jf.TeamId != null ? 3
+                         : jf.AgegroupId != null ? 2
+                         : 1
+            })
+            .OrderByDescending(x => x.Priority)
+            // Newest first WITHIN a tier, so a team carrying two team-scoped rows resolves to
+            // the same winner the repoint keeps.
+            .ThenByDescending(x => x.Modified)
+            .ToListAsync(ct);
+
+        if (rows.Count == 0) return ResolvedFee.NotConfigured;
+
+        decimal? deposit = null;
+        decimal? balanceDue = null;
+        bool? fullPaymentRequired = null;
+        foreach (var row in rows)
+        {
+            deposit ??= row.Deposit;
+            balanceDue ??= row.BalanceDue;
+            fullPaymentRequired ??= row.BFullPaymentRequired;
+        }
+
+        return new ResolvedFee { FeeConfigured = true, Deposit = deposit, BalanceDue = balanceDue, BFullPaymentRequired = fullPaymentRequired };
+    }
+
     public async Task<ResolvedFee?> GetResolvedFeeForAgegroupAsync(
         Guid jobId, string roleId, Guid agegroupId,
         CancellationToken ct = default)
@@ -359,6 +413,17 @@ public class FeeRepository : IFeeRepository
     {
         return await _context.JobFees
             .AsNoTracking()
+            .Where(jf => jf.TeamId == teamId)
+            .Include(jf => jf.FeeModifiers)
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<JobFees>> GetTrackedByTeamIdAsync(Guid teamId, CancellationToken ct = default)
+    {
+        // Deliberately NOT AsNoTracking — callers mutate these rows (repoint on an agegroup
+        // move, update-in-place on a fee-card save) and rely on the shared scoped DbContext
+        // to flush them.
+        return await _context.JobFees
             .Where(jf => jf.TeamId == teamId)
             .Include(jf => jf.FeeModifiers)
             .ToListAsync(ct);
