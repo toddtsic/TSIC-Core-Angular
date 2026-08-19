@@ -29,6 +29,13 @@ export interface LadtColumnDef {
    * before putting a tooltip on a fees/modifier/phase column.
    */
   headerTooltip?: string;
+  /**
+   * Let the cell WRAP to as many lines as the value needs instead of ellipsizing at the
+   * column width. For names the director is scanning for (club, team), a truncated value
+   * is unreadable without hovering the row; the row simply gets taller instead. Applies to
+   * the body cell only — headers keep their own tuned wrap rules in ladt-sibling-grid.
+   */
+  wrap?: boolean;
 }
 
 // ── League ──
@@ -109,8 +116,10 @@ export const DIVISION_COLUMNS: LadtColumnDef[] = [
 // ── Team ──
 
 export const TEAM_COLUMNS: LadtColumnDef[] = [
-  { field: 'clubName', header: 'Club', type: 'string', frozen: true, width: '160px' },
-  { field: 'teamName', header: 'Team', type: 'string', frozen: true, width: '160px' },
+  // Club and team names run long and 160px each is the most the frozen region can spend
+  // before the scrollable columns lose the viewport — so they WRAP rather than ellipsize.
+  { field: 'clubName', header: 'Club', type: 'string', frozen: true, width: '160px', wrap: true },
+  { field: 'teamName', header: 'Team', type: 'string', frozen: true, width: '160px', wrap: true },
   // AM-038 nit 3 (Ann): "ACTI VE" / "PLAYE RS" clipped mid-word — widths fit the header word
   { field: 'active', header: 'Active', type: 'boolean', width: '85px' },
   // AM-038 re-open (Ann, 08-01): 90px ellipsized the single-word header ("PLAYE…")
@@ -185,7 +194,7 @@ const DIVISION_COLUMNS_MOBILE: LadtColumnDef[] = [
 const TEAM_COLUMNS_MOBILE: LadtColumnDef[] = [
   // Club is PRIMARY and team SECONDARY, matching the tree's team node — the
   // director is two taps from having seen exactly that pairing.
-  { field: 'clubName', header: 'Team', type: 'identity', secondaryField: 'teamName', width: '210px' },
+  { field: 'clubName', header: 'Team', type: 'identity', secondaryField: 'teamName', width: '210px', wrap: true },
   { field: 'playerCount', header: 'Players', type: 'number', width: '100px' },
 ];
 

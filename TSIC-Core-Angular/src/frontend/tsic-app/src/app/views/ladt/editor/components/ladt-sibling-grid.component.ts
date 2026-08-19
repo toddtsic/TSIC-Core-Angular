@@ -5,6 +5,9 @@ import type { LadtColumnDef } from '../configs/ladt-grid-columns';
 import { countFrozenColumns } from '../configs/ladt-grid-columns';
 import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tooltip.component';
 
+const WRAP_CELL_ATTRS: Record<string, string> = { class: 'wrap-cell' };
+const NO_ATTRS: Record<string, string> = {};
+
 export interface ParentBreadcrumb {
   name: string;
   level: number;
@@ -85,6 +88,7 @@ export interface ParentBreadcrumb {
             <e-column [field]="col.field" [headerText]="col.header"
                       [width]="parseWidth(col.width)"
                       [textAlign]="getTextAlign(col)"
+                      [customAttributes]="cellAttrs(col)"
                       [allowSorting]="true">
               <ng-template #headerTemplate>
                 <span class="hdr-label">{{ col.header }}</span><span (click)="$event.stopPropagation()"><app-info-tooltip trigger="hover" [message]="col.headerTooltip ?? ''" /></span>
@@ -105,6 +109,7 @@ export interface ParentBreadcrumb {
           <e-column [field]="col.field" [headerText]="col.header"
                     [width]="parseWidth(col.width)"
                     [textAlign]="getTextAlign(col)"
+                    [customAttributes]="cellAttrs(col)"
                     [allowSorting]="true">
             <ng-template #template let-data>
               @switch (col.type) {
@@ -383,6 +388,22 @@ export interface ParentBreadcrumb {
       padding: var(--space-1) var(--space-2);
     }
 
+    /* Columns flagged wrap:true in ladt-grid-columns.ts (club / team name) wrap to as many
+       lines as the value needs; the row grows, since ej2 writes [rowHeight] to the <tr> as
+       a height, which a table row treats as a MINIMUM. The theme's .e-grid .e-rowcell sets
+       white-space:nowrap and .e-grid.e-responsive .e-rowcell adds the ellipsis, and both
+       out-specify a bare class selector — hence !important here, the same reason the
+       header block above needs it. break-word only breaks a token that cannot fit a line
+       of its own, so ordinary multi-word names still break at spaces. Scoped to .e-rowcell:
+       ej2 puts customAttributes on the HEADER cell too, and the header's keep-all tuning
+       (see above) must not be disturbed. */
+    :host ::ng-deep .e-grid .e-rowcell.wrap-cell {
+      white-space: normal !important;
+      text-overflow: clip !important;
+      overflow-wrap: break-word;
+      line-height: var(--line-height-tight);
+    }
+
     /* Compact padding on the first (action) cell — Syncfusion's default 12px
        horizontal padding blows the action col out to ~112px regardless of
        the declared [width] value. */
@@ -570,11 +591,12 @@ export interface ParentBreadcrumb {
         min-width: 0;
         line-height: 1.25;
       }
+      /* Wraps rather than ellipsizes — same call as the desktop club/team columns and
+         the tree's .tree-label-group. 210px on a 390px phone truncated most club names. */
       .id-primary,
       .id-secondary {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        white-space: normal;
+        overflow-wrap: break-word;
       }
       .id-primary {
         font-weight: 600;
@@ -686,6 +708,15 @@ export class LadtSiblingGridComponent implements OnChanges {
    * component at all.
    */
   rowHeight = computed(() => this.columns().some(c => c.type === 'identity') ? 48 : 32);
+
+  /**
+   * ej2 stamps these attributes on the column's header AND body cells. Two frozen
+   * singleton objects rather than a fresh literal per change-detection pass, so the
+   * binding stays referentially stable.
+   */
+  cellAttrs(col: LadtColumnDef): Record<string, string> {
+    return col.wrap ? WRAP_CELL_ATTRS : NO_ATTRS;
+  }
 
   // Uniform action column width — fits pencil + ⋮ menu (nav badges moved into menu)
   actionColWidth(): number {
