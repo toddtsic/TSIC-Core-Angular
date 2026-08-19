@@ -18,7 +18,18 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 
 ---
 
-<!-- New items go below this line, newest at the bottom, next id = AR-012 -->
+<!-- New items go below this line, newest at the bottom, next id = AR-013 -->
+
+### AR-012: [Fees / Schema] A job with two leagues cannot hold per-league fees for the same role — `UX_JobFees_Scope` collapses the league tier
+- **Topic**: `fees.JobFees` → league-scoped fee rows (the top tier of the base-fee cascade)
+- **Origin**: found by Claude 08-19 while fixing the team-fee agegroup pin (`b2a81780`…`eb671a6e`). **Not an Ann report** — no user has hit it. Filed so it doesn't evaporate.
+- **What's wrong**: `UX_JobFees_Scope` is UNIQUE on `(JobId, RoleId, AgegroupId, TeamId)`. A league-scoped row has **both** `AgegroupId` and `TeamId` NULL, and SQL Server treats NULLs as **equal** in a unique index — so only one `(JobId, RoleId, NULL, NULL)` row can exist per job per role. `LeagueId` is **not in the index**, so it cannot distinguish them. A job with two leagues therefore cannot carry a league-scoped Player fee for each; the second insert is rejected with a unique-key violation.
+- **Blast radius today: ZERO — verified 08-19.** No `(job, role)` pair holds more than one league-scoped row, and no job that has league-scoped fees has more than one league. The condition has never been reachable in practice because multi-league jobs don't currently set per-league fees.
+- **Why it's low priority**: it **fails loud, not silent** — a director would get a save failure, never a wrong price. Most jobs are single-league.
+- **Fix when we take it**: put `LeagueId` in the key — replace `UX_JobFees_Scope` with UNIQUE `(JobId, RoleId, LeagueId, AgegroupId, TeamId)`. Schema change against a **live prod DB**, so it takes the DB-first drill: hand-written DDL, reviewed, applied by Todd. No code change needed.
+- **Related, deliberately NOT bundled**: the same index also fails to constrain the **team** tier's real key `(JobId, RoleId, TeamId)` — which is what allowed the team-fee duplicate hazard fixed in `eb671a6e`. Same root shape both times: **the index describes storage columns, not what the tiers actually identify.** A redesign of the JobFees scope key would close both; neither is urgent enough to force one.
+- **Severity**: latent schema defect — zero instances, fails loud, no money risk
+- **Status**: 🔵 REVISIT — filed 08-19. **Trigger to un-park**: anyone reports a fee save failing on a multi-league job, or we take a deliberate pass at the `JobFees` scope key.
 
 ### AR-011: [Payments / Add Accounting Record] The Amount field cannot be cleared — a `0` reappears under the caret
 - **Topic**: Payments → registrant/team fly-in → **Add Accounting Record** → AMOUNT field (Credit Card / Check / Correction)
