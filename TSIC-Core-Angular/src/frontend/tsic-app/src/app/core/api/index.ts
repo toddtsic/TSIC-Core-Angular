@@ -90,6 +90,10 @@ export type { ArbSubstitutionVariableDto } from './models/ArbSubstitutionVariabl
 export type { ArbTestSendRequest } from './models/ArbTestSendRequest';
 export type { ArbUpdateCcRequest } from './models/ArbUpdateCcRequest';
 export type { ArbUpdateCcResultDto } from './models/ArbUpdateCcResultDto';
+export type { AslRegionTeamDto } from './models/AslRegionTeamDto';
+export type { AslRostersIndexDto } from './models/AslRostersIndexDto';
+export type { AslTeamMenuItemDto } from './models/AslTeamMenuItemDto';
+export type { AslTeamPlayerDto } from './models/AslTeamPlayerDto';
 export type { AssignFieldsRequest } from './models/AssignFieldsRequest';
 export type { AssignRefsRequest } from './models/AssignRefsRequest';
 export type { AttendanceEventDto } from './models/AttendanceEventDto';

@@ -591,6 +591,21 @@ public interface ITeamRepository
     /// </summary>
     Task<List<PublicRosterPlayerDto>> GetPublicTeamRosterAsync(Guid jobId, Guid teamId, CancellationToken ct = default);
 
+    // ── ASL public roster board ──
+
+    /// <summary>
+    /// Eligible teams for the public ASL roster board. Active, non-WAITLIST/DROPPED, and carrying a
+    /// coaches line in Teams.team_comments — that field doubles as the board's visibility switch, so a
+    /// team with no coaches typed in is intentionally absent. Ordered agegroup → name → level of play.
+    /// Pass regionFilter to restrict to a single region token.
+    /// </summary>
+    Task<List<AslTeamRowDto>> GetAslRosterTeamsAsync(Guid jobId, string? regionFilter, CancellationToken ct = default);
+
+    /// <summary>
+    /// Active players for the given ASL teams in one round trip. Ordered last name, first name.
+    /// </summary>
+    Task<List<AslTeamPlayerRowDto>> GetAslTeamPlayersAsync(Guid jobId, IReadOnlyList<Guid> teamIds, CancellationToken ct = default);
+
     // ── Camp Day/Night Groups admin ──
 
     /// <summary>

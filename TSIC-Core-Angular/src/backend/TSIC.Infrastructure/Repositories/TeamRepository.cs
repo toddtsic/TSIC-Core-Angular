@@ -1921,5 +1921,72 @@ public class TeamRepository : ITeamRepository
             .AsNoTracking()
             .ToListAsync(ct);
     }
-}
 
+    // ── ASL public roster board ──
+
+    public async Task<List<AslTeamRowDto>> GetAslRosterTeamsAsync(
+        Guid jobId, string? regionFilter, CancellationToken ct = default)
+    {
+        var query =
+            from t in _context.Teams
+            join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
+            where t.JobId == jobId
+                  && t.Active == true
+                  && !ag.AgegroupName!.Contains(AgegroupConstants.WaitlistPrefix)
+                  && !ag.AgegroupName!.Contains(AgegroupConstants.DroppedTeams)
+                  // team_comments carries the coaches line AND gates visibility — legacy parity.
+                  && t.TeamComments != null
+                  && t.TeamComments != ""
+            select new { t.TeamId, t.TeamName, t.TeamComments, t.LevelOfPlay, ag.AgegroupName };
+
+        if (!string.IsNullOrWhiteSpace(regionFilter))
+            query = query.Where(x => x.TeamName!.Contains(regionFilter));
+
+        return await query
+            .OrderBy(x => x.AgegroupName)
+            .ThenBy(x => x.TeamName)
+            .ThenBy(x => x.LevelOfPlay)
+            .Select(x => new AslTeamRowDto
+            {
+                TeamId = x.TeamId,
+                TeamName = x.TeamName ?? string.Empty,
+                TeamCoaches = x.TeamComments ?? string.Empty
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<AslTeamPlayerRowDto>> GetAslTeamPlayersAsync(
+        Guid jobId, IReadOnlyList<Guid> teamIds, CancellationToken ct = default)
+    {
+        if (teamIds.Count == 0)
+            return [];
+
+        var ids = teamIds.ToList();
+
+        return await (
+            from r in _context.Registrations
+            join u in _context.AspNetUsers on r.UserId equals u.Id
+            where r.AssignedTeamId != null
+                  && ids.Contains(r.AssignedTeamId.Value)
+                  && r.JobId == jobId
+                  && r.RoleId == RoleConstants.Player
+                  && r.BActive == true
+            orderby u.LastName, u.FirstName
+            select new AslTeamPlayerRowDto
+            {
+                TeamId = r.AssignedTeamId!.Value,
+                Player = new AslTeamPlayerDto
+                {
+                    FirstName = u.FirstName ?? string.Empty,
+                    LastName = u.LastName ?? string.Empty,
+                    Position = r.Position,
+                    School = r.SchoolName,
+                    ClubName = r.ClubTeamName,
+                    UniformNumber = r.UniformNo ?? "#"
+                }
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
+    }
+}

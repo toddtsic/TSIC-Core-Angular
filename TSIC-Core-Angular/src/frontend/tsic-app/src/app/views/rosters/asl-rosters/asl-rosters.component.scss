@@ -1,0 +1,190 @@
+/*
+ * ASL roster board — FIXED BRAND SURFACE, deliberately not palette-responsive.
+ *
+ * American Select screenshots this page straight into social feeds, so its colors are the
+ * program's brand marks (navy / red), not the job's palette. If these become var(--bs-*),
+ * the board re-skins per job and his posted graphics drift between events. Values are the
+ * literal ones from the legacy ASLRosters/Index view — do not "fix" them to design tokens.
+ * Spacing and neutral chrome outside the cards still uses the design-system scale.
+ */
+
+$asl-navy: #002852;
+$asl-red: #bf0a30;
+$asl-grey: #7a7a7a;
+$asl-rule: silver;
+
+// Legacy asked for "Futura PT" / "Montserrat"; neither was ever loaded by the app, so the
+// board has always rendered in the browser's sans fallback. Stack preserved verbatim so the
+// rendering is unchanged, and so it picks them up if the fonts are ever licensed and hosted.
+$asl-display: 'Futura PT', sans-serif;
+$asl-body: 'Montserrat', sans-serif;
+
+.asl-board {
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: var(--space-4);
+}
+
+.asl-page-title {
+	text-align: center;
+	font-weight: bold;
+	font-style: italic;
+	margin-bottom: var(--space-4);
+}
+
+.asl-pickers {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-6);
+	margin-bottom: var(--space-10);
+}
+
+.asl-picker {
+	flex: 1 1 220px;
+	min-width: 0;
+}
+
+.asl-picker-label {
+	display: block;
+	font-weight: bold;
+	font-style: italic;
+	margin-bottom: var(--space-1);
+}
+
+.asl-select {
+	display: block;
+	width: 100%;
+	padding: var(--space-2);
+	font-size: 0.875rem;
+	color: var(--brand-text);
+	background: var(--bs-body-bg, #fff);
+	border: 1px solid var(--neutral-300);
+	border-radius: var(--radius-sm, 4px);
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+.asl-message {
+	text-align: center;
+	padding: var(--space-8) 0;
+	color: var(--brand-text);
+}
+
+.asl-region {
+	margin-top: var(--space-3);
+	text-align: center;
+	font-family: $asl-display;
+	font-size: 30px;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: -1px;
+}
+
+.asl-team-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	margin-top: var(--space-5);
+	margin-bottom: var(--space-3);
+	padding: var(--space-1) var(--space-2);
+	background-color: $asl-navy;
+	color: #fff;
+	font-family: $asl-display;
+	font-size: 22px;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: -1px;
+}
+
+.asl-team-name {
+	flex: 0 0 auto;
+	min-width: 0;
+}
+
+.asl-team-coaches {
+	flex: 1 1 60%;
+	min-width: 0;
+}
+
+.asl-team-coaches-label {
+	font-family: $asl-body;
+	font-weight: 500;
+	text-transform: capitalize;
+	font-style: normal;
+	line-height: 26px;
+}
+
+/*
+ * Legacy chunked players into Bootstrap rows of four and padded the short last row with empty
+ * columns to hold the 25% width. A four-track grid produces the same result with no filler.
+ */
+.asl-players-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: var(--space-1);
+	margin-top: var(--space-1);
+}
+
+.asl-player-box {
+	min-width: 0;
+	text-align: left;
+	padding-bottom: var(--space-2);
+	border-bottom: $asl-rule solid 3px;
+}
+
+.asl-player-uniformnumber-position {
+	margin-top: var(--space-4);
+}
+
+.asl-player-uniformnumber,
+.asl-player-position {
+	display: inline-block;
+	padding: 4px;
+	color: #fff;
+	font-family: $asl-display;
+	font-size: 12px;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0;
+}
+
+.asl-player-uniformnumber {
+	background-color: navy;
+}
+
+.asl-player-position {
+	background-color: $asl-red;
+}
+
+.asl-player-name {
+	margin-top: var(--space-1);
+	font-family: $asl-display;
+	font-size: 22px;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: -1px;
+	overflow-wrap: break-word;
+}
+
+.asl-player-school,
+.asl-player-club {
+	color: $asl-grey;
+	font-family: $asl-body;
+	font-size: 14px;
+	font-weight: 800;
+	letter-spacing: -1px;
+	overflow-wrap: break-word;
+}
+
+@media (max-width: 900px) {
+	.asl-players-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 520px) {
+	.asl-players-grid { grid-template-columns: minmax(0, 1fr); }
+	.asl-team-row { font-size: 18px; }
+	.asl-region { font-size: 24px; }
+}

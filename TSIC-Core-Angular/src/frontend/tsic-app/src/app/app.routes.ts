@@ -688,6 +688,25 @@ export const routes: Routes = [
 			{ path: 'rosters', redirectTo: 'rosters/public', pathMatch: 'full' },
 			{ path: 'club-rosters', redirectTo: 'rosters/club', pathMatch: 'full' },
 			{ path: 'my-roster', redirectTo: 'rosters/view-rosters', pathMatch: 'full' },
+			// Public ASL roster board (anonymous access). American Select links this in from its own
+			// site and the director screenshots it into social feeds, so the legacy MVC path and its
+			// ?region= query param are preserved exactly — those inbound links are not ours to change.
+			{
+				path: 'ASLRosters/Index',
+				data: { publicMode: true },
+				loadComponent: () => import('./views/rosters/asl-rosters/asl-rosters.component').then(m => m.AslRostersComponent),
+				title: 'Rosters'
+			},
+			{
+				path: 'aslrosters/index',
+				redirectTo: 'ASLRosters/Index',
+				pathMatch: 'full'
+			},
+			{
+				path: 'ASLRosters',
+				redirectTo: 'ASLRosters/Index',
+				pathMatch: 'full'
+			},
 			// Post-registration insurance re-entry — URL baked into confirmation email template.
 			// Exact-case path preserved so existing DB-stored email/confirmation links resolve.
 			{

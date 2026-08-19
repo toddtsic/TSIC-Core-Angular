@@ -1,0 +1,63 @@
+<div class="asl-board">
+	<h5 class="asl-page-title">Rosters</h5>
+
+	<div class="asl-pickers">
+		<div class="asl-picker">
+			<label class="asl-picker-label" for="aslRegionSelect">Region</label>
+			<select id="aslRegionSelect" class="asl-select"
+				[value]="selectedRegion()"
+				(change)="onRegionChange($any($event.target).value)">
+				<option value="">--select your REGION--</option>
+				@for (r of regions(); track r) {
+					<option [value]="r">{{ stripPrefix(r) }}</option>
+				}
+			</select>
+		</div>
+
+		@if (selectedRegion()) {
+			<div class="asl-picker">
+				<label class="asl-picker-label" for="aslTeamSelect">Team</label>
+				<select id="aslTeamSelect" class="asl-select"
+					(change)="onTeamChange($any($event.target).value)">
+					<option value="">--select your TEAM--</option>
+					@for (t of regionTeams(); track t.teamId) {
+						<option [value]="t.teamId">{{ stripPrefix(t.teamName) }}</option>
+					}
+				</select>
+			</div>
+		}
+	</div>
+
+	@if (errorMessage()) {
+		<p class="asl-message" role="alert">{{ errorMessage() }}</p>
+	} @else if (isLoading()) {
+		<p class="asl-message">Loading rosters…</p>
+	} @else if (cards().length) {
+		<h2 class="asl-region">{{ regionHeading() }}</h2>
+
+		@for (team of cards(); track team.teamId) {
+			<div class="asl-team-row">
+				<div class="asl-team-name">{{ stripPrefix(team.teamName) }}</div>
+				<div class="asl-team-coaches">
+					COACHES: <span class="asl-team-coaches-label">{{ team.teamCoaches }}</span>
+				</div>
+			</div>
+
+			<div class="asl-players-grid">
+				@for (p of team.listTeamPlayers; track $index) {
+					<div class="asl-player-box">
+						<div class="asl-player-uniformnumber-position">
+							<span class="asl-player-uniformnumber">{{ p.uniformNumber }}</span>
+							@if (p.position) {
+								<span class="asl-player-position">{{ p.position }}</span>
+							}
+						</div>
+						<div class="asl-player-name">{{ p.firstName }} {{ p.lastName }}</div>
+						<div class="asl-player-school">{{ toTitleCase(p.school) }}</div>
+						<div class="asl-player-club">{{ p.clubName }}</div>
+					</div>
+				}
+			</div>
+		}
+	}
+</div>
