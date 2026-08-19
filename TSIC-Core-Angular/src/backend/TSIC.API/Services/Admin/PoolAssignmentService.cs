@@ -24,7 +24,7 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
     private readonly IRegistrationRepository _registrationRepo;
     private readonly IAgeGroupRepository _agegroupRepo;
     private readonly IFeeResolutionService _feeService;
-    private readonly IFeeRepository _feeRepo;
+    private readonly IPaymentStateService _paymentState;
 
     public PoolAssignmentService(
         ITeamRepository teamRepo,
@@ -33,7 +33,7 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         IRegistrationRepository registrationRepo,
         IAgeGroupRepository agegroupRepo,
         IFeeResolutionService feeService,
-        IFeeRepository feeRepo)
+        IPaymentStateService paymentState)
     {
         _teamRepo = teamRepo;
         _divRepo = divRepo;
@@ -41,7 +41,7 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         _registrationRepo = registrationRepo;
         _agegroupRepo = agegroupRepo;
         _feeService = feeService;
-        _feeRepo = feeRepo;
+        _paymentState = paymentState;
     }
 
     public async Task<List<PoolDivisionOptionDto>> GetDivisionOptionsAsync(Guid jobId, CancellationToken ct = default)
@@ -125,7 +125,9 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                 newFeeBase = ResolvedFee.ResolveFullPaymentPhase(resolved)
                     ? (resolved?.FullPrice ?? 0m) : deposit;
                 // Derived through FeeMath — the SAME formula RecalcTotals stamps on execute
-                // (ApplyTeamSwapFeesAsync) — so the director approves the number the move produces.
+                // (ApplyTeamSwapFees) — so the director approves the number the move produces.
+                // Execute resolves through this same ResolveFeeForTeamAtAgegroupAsync, so preview
+                // and stamp now share the resolver too, not just the arithmetic.
                 // The move freezes the team's modifiers, so they carry forward onto the new base;
                 // FeeProcessing carries forward too (execute re-derives it, so proc is the one term
                 // still estimated). Previously this was `newFeeTotal = newFeeBase`, which silently
@@ -316,10 +318,11 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         // tier matches the (AgegroupId, TeamId) PAIR — so a row left behind on the old agegroup
         // is invisible and the team silently reverts to the target agegroup's price.
         //
-        // This runs BEFORE the move loop and is FLUSHED here on purpose: ApplyTeamSwapFeesAsync
-        // below re-resolves the cascade against the DATABASE (AsNoTracking), so an unflushed
-        // repoint would be invisible to it and the team would be stamped the agegroup price.
-        // Nothing else is mutated yet at this point, so this flush commits fee scope only.
+        // Staged TRACKED, deliberately not flushed: it commits with the team move in the single
+        // SaveChanges below, so a fault anywhere in this method can never leave fee rows
+        // repointed to an agegroup the teams did not reach. The fee stamping further down is
+        // written against readers that match the team tier by TeamId ALONE precisely so this
+        // repoint never needs to be committed ahead of the move.
         if (agegroupChanges)
         {
             foreach (var team in sourceTeams)
@@ -328,7 +331,6 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
             foreach (var team in targetTeams)
                 await _feeService.RepointTeamScopedFeesAsync(
                     team.TeamId, sourceDivision.AgegroupId, adminUserId, ct);
-            await _feeRepo.SaveChangesAsync(ct);
         }
 
         // Resolve processing rate once for this job (all teams share jobId)
@@ -363,14 +365,25 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
 
             if (agegroupChanges && targetAgegroup != null)
             {
-                await _feeService.ApplyTeamSwapFeesAsync(
-                    team, team.JobId, targetAgegroup.AgegroupId,
+                // Pre-hydrated applier, NOT ApplyTeamSwapFeesAsync — that one re-resolves the
+                // cascade against the DATABASE, which would force the fee repoint above to be
+                // committed ahead of the move and cost this method its atomicity. Both reads
+                // here match the team tier by TeamId ALONE (ResolveFeeForTeamAtAgegroupAsync
+                // explicitly; PaymentState internally via GetResolvedFeesByTeamIdsAsync), so
+                // each sees the team's own pricing whether or not the repoint has been written.
+                // It is also the SAME resolver the preview above uses, so the number the
+                // director approved and the number stamped here share one code path.
+                var resolved = await _feeService.ResolveFeeForTeamAtAgegroupAsync(
+                    team.JobId, RoleConstants.ClubRep, targetAgegroup.AgegroupId, team.TeamId, ct);
+                var state = await _paymentState.ForTeamAsync(team.TeamId, team.JobId, ct);
+                _feeService.ApplyTeamSwapFees(
+                    team, resolved, state,
                     new TeamFeeApplicationContext
                     {
                         AddProcessingFees = team.Job.BAddProcessingFees,
                         ApplyProcessingFeesToDeposit = team.Job.BApplyProcessingFeesToTeamDeposit ?? false,
                         ProcessingFeePercent = processingRate
-                    }, ct);
+                    });
                 feesRecalculated++;
             }
 
@@ -403,14 +416,18 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
 
                 if (agegroupChanges && sourceAgegroup != null)
                 {
-                    await _feeService.ApplyTeamSwapFeesAsync(
-                        team, team.JobId, sourceAgegroup.AgegroupId,
+                    // Same pre-hydrated, TeamId-alone path as the source-to-target leg above.
+                    var resolved = await _feeService.ResolveFeeForTeamAtAgegroupAsync(
+                        team.JobId, RoleConstants.ClubRep, sourceAgegroup.AgegroupId, team.TeamId, ct);
+                    var state = await _paymentState.ForTeamAsync(team.TeamId, team.JobId, ct);
+                    _feeService.ApplyTeamSwapFees(
+                        team, resolved, state,
                         new TeamFeeApplicationContext
                         {
                             AddProcessingFees = team.Job.BAddProcessingFees,
                             ApplyProcessingFeesToDeposit = team.Job.BApplyProcessingFeesToTeamDeposit ?? false,
                             ProcessingFeePercent = processingRate
-                        }, ct);
+                        });
                     feesRecalculated++;
                 }
 
