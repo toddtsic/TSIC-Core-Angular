@@ -286,6 +286,26 @@ const JOB_TYPE_TOURNAMENT = 2;
           </div>
         </div>
 
+
+        <!-- ── Mobile App ──
+             'keywordPairs' is overloaded in the legacy schema: most jobs hold scheduling keyword
+             pairs ("Team:Class of 2033"), ~157 teams hold a Google Calendar ID. The TSIC Teams
+             mobile app reads the column as the team's calendar (legacy LoginController maps it to
+             'CalendarId') and embeds it in the Calendar tab. Surfaced here so a director can set it
+             AND so Save round-trips the stored value — this payload previously omitted the field
+             while LadtService assigned it unconditionally, nulling it on every save. -->
+        <div class="section-card" [class.section-locked]="settingsLocked()">
+          <div class="section-card-header">
+            <i class="bi bi-google"></i> Mobile App
+          </div>
+          <label class="fee-label">Google Calendar Id</label>
+          <input class="form-control form-control-sm" [(ngModel)]="form.keywordPairs" name="keywordPairs"
+                 placeholder="…@group.calendar.google.com" (ngModelChange)="onSettingsChange()">
+          <div class="tsic-callout tsic-callout--info mt-2">
+            <i class="bi bi-info-circle" aria-hidden="true"></i>Drives the Calendar tab in the TSIC Teams app. Legacy jobs may store scheduling keywords here instead — leave those as they are.
+          </div>
+        </div>
+
         <!-- ── Save (sticky footer) ── -->
         <div class="detail-save-bar" [class.is-dirty]="isDirty()" [class.is-confirming]="repriceDialog() !== null">
           @if (repriceDialog(); as dlg) {
@@ -687,7 +707,10 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
       fieldId3: this.form.fieldId3,
       levelOfPlay: this.form.levelOfPlay,
       requests: this.form.requests,
-      teamComments: this.form.teamComments
+      teamComments: this.form.teamComments,
+      // Round-trip REQUIRED: LadtService assigns KeywordPairs unconditionally, so omitting it here
+      // nulls the team's Google Calendar ID (read by the TSIC Teams mobile app) on every save.
+      keywordPairs: this.form.keywordPairs
     };
 
     const saves: Observable<any>[] = [
