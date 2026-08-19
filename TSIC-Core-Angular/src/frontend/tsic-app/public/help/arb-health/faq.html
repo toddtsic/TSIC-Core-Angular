@@ -1,9 +1,9 @@
-<h3>ARB Health</h3>
+<h3>ARB Subscription Health</h3>
 
 <div class="help-callout help-callout--warning">
   <i class="bi bi-clock-history" aria-hidden="true"></i>
   <div>
-    <strong>Timing is everything on the Expiring Cards tab.</strong>
+    <strong>Timing is everything on the Expiring Cards lookup.</strong>
     <p class="help-callout__body">
       A card flagged as expiring hasn't failed yet — you have a window to get it updated before the next
       automatic charge. Act early in the month, not after the decline.
@@ -22,23 +22,114 @@
 </details>
 
 <details class="faq-item">
-  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What's the difference between the two tabs?</span></summary>
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why is the page empty when I open it?</span></summary>
   <div class="faq-a">
     <p>
-      <strong>Expiring Cards</strong> is preventive — the card expires this month and the next charge will fail if
-      it isn't updated. <strong>Behind in Payment</strong> is corrective — a charge already declined and the
-      family now owes a balance. One is "fix it before," the other "fix it after."
+      By design. Nothing loads until you click a lookup button, so opening the page never fires off work you
+      didn't ask for. Choose <strong>Lookup Behind in Payment</strong> or <strong>Lookup Expiring Cards</strong>
+      to fill the grid.
     </p>
   </div>
 </details>
 
 <details class="faq-item">
-  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What do the email templates do?</span></summary>
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What's the difference between the two lookups?</span></summary>
   <div class="faq-a">
     <p>
-      They're pre-written messages matched to each situation, with the exact steps a family follows to log in and
-      update their card (or pay the balance due). Apply one, and the tokens fill in each family's name, amount
-      owed, and login details automatically.
+      <strong>Expiring Cards</strong> is preventive — the card on file expires this month and the next charge will
+      fail if it isn't updated. <strong>Behind in Payment</strong> is corrective — a charge already declined and
+      the family now owes a balance. One is "fix it before," the other "fix it after."
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What does "Refresh ARB Statuses" actually do?</span></summary>
+  <div class="faq-a">
+    <p>
+      It walks every subscription in the job, asks Authorize.Net for its current status, and stores the answer.
+      That stored status is what the Behind in Payment lookup reads, so a refresh is what makes that list
+      trustworthy. It's read-only at Authorize.Net — it can't charge, change, or cancel anything.
+    </p>
+    <p>
+      Run it at the start of a working session. On a big job it takes a while, since it checks one subscription at
+      a time.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>The refresh says "Checked 120 · updated 4 · 2 failed" — what's a failure?</span></summary>
+  <div class="faq-a">
+    <p>
+      <strong>Checked</strong> is how many subscriptions were looked at, <strong>updated</strong> how many had
+      changed status since last time, and <strong>failed</strong> how many Authorize.Net didn't answer for. A
+      couple of failures is normally a transient hiccup — those subscriptions simply keep their previous stored
+      status and get picked up on the next refresh. A refresh where <em>everything</em> fails points at an
+      Authorize.Net credential problem for the job, not at the families.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What's the difference between "Owes Now" and "Owes Total"?</span></summary>
+  <div class="faq-a">
+    <p>
+      <strong>Owes Total</strong> is everything still outstanding on the registration, including installments that
+      aren't due yet. <strong>Owes Now</strong> is only the part that is past due today by the installment
+      schedule — the amount you can fairly ask a family for right now. The collection templates quote Owes Now via
+      the <code>!OWEDNOW</code> token.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why does "Owes Now" read $0.00 on the Expiring Cards list?</span></summary>
+  <div class="faq-a">
+    <p>
+      Because nothing has failed yet. An expiring card is a warning about the <em>next</em> charge, not a missed
+      one — so there's no past-due amount to show. If that family also has a genuine arrears balance, they'll turn
+      up on the Behind in Payment lookup with a real figure.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>A family I know is behind isn't on the list. Why?</span></summary>
+  <div class="faq-a">
+    <p>Three common reasons, all deliberate:</p>
+    <ul>
+      <li><strong>48-hour grace.</strong> If their scheduled payment date was less than two days ago, they're held
+        back — the charge may still be settling, and nobody wants a dunning email over a payment that's about to
+        post.</li>
+      <li><strong>Canceled subscriptions are skipped.</strong> A canceled plan isn't a billing failure to chase
+        here; handle that balance through the registrant's accounting.</li>
+      <li><strong>Stale status.</strong> Click <strong>Refresh ARB Statuses</strong> and run the lookup again.</li>
+    </ul>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Which email template should I pick?</span></summary>
+  <div class="faq-a">
+    <p>
+      Match it to the Status column. <strong>Active/Suspended Subscriptions</strong> sends them to "Update CC Info",
+      which repairs the card and clears the failed payments in one step — that only works while a subscription
+      still exists. <strong>Expired/Terminated Subscriptions</strong> sends them to "Pay Balance Due" instead,
+      because there's no live plan left to fix.
+    </p>
+    <p>
+      If your selection mixes both kinds, send in two passes — one template per group.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Can I edit a template before sending?</span></summary>
+  <div class="faq-a">
+    <p>
+      Yes — applying a template just pre-fills the subject and body, and both are fully editable. Keep the numbered
+      login steps intact, though: they're the part families actually act on.
     </p>
   </div>
 </details>
@@ -47,30 +138,73 @@
   <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What are the tokens like !PLAYER and !OWEDNOW?</span></summary>
   <div class="faq-a">
     <p>
-      Personalization placeholders. When the email is sent, each token is replaced with that recipient's real
-      value — their player's name, the amount they owe, their login link and username. Insert them from the
-      dialog if you customize the wording, and they'll fill in per family.
+      Personalization placeholders. When the email goes out, each token is replaced with that recipient's real
+      value. Click one to insert it at your cursor. The full set:
+    </p>
+    <ul>
+      <li><code>!PLAYER</code> — the player's name (<code>!PERSON</code> works too, if that's the habit you have
+        from the Search composer)</li>
+      <li><code>!FAMILYUSERNAME</code> — the username the family logs in with</li>
+      <li><code>!JOBLINK</code> — the event name as a clickable link; <code>!JOBNAME</code> for the name alone</li>
+      <li><code>!OWEDNOW</code> — past-due amount; <code>!OWEDTOTAL</code> — full remaining balance</li>
+      <li><code>!FEETOTAL</code> and <code>!PAIDTOTAL</code> — total fees and total paid</li>
+      <li><code>!SUBSCRIPTIONID</code> and <code>!SUBSCRIPTIONSTATUS</code> — the Authorize.Net subscription
+        details</li>
+    </ul>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What does "email a summary to job directors" send?</span></summary>
+  <div class="faq-a">
+    <p>
+      One recap message to the job's directors listing the families that were contacted — not a copy of each
+      individual email, and not a BCC. Leave it on so staff have a record of the outreach; turn it off only for a
+      deliberately quiet send.
     </p>
   </div>
 </details>
 
 <details class="faq-item">
-  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Should I leave "notify directors" on?</span></summary>
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>The one-click "Send Warning to All" — who gets it?</span></summary>
   <div class="faq-a">
     <p>
-      Usually yes — it copies directors so staff have a record of who was contacted about billing issues. Turn it
-      off only if you deliberately want a silent send.
+      Everyone currently listed on the Expiring Cards lookup, plus a summary to directors, using the standard
+      expiration notice. It's all-or-nothing by design — that list is the routine monthly warning. There's no
+      per-recipient selection or custom wording on that side; if you need to say something different, contact the
+      family directly using the links in the Contact column.
     </p>
   </div>
 </details>
 
 <details class="faq-item">
-  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>The one-click "send warnings" — who gets it?</span></summary>
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What happens after I click Send?</span></summary>
   <div class="faq-a">
     <p>
-      Everyone currently listed on the Expiring Cards tab, using the standard expiration notice. It's the fast
-      path for the routine monthly warning; use the select-and-compose flow when you want to pick recipients or
-      change the message.
+      The batch runs in the background and the button stays busy until it's done. You then get a summary —
+      how many sent, how many failed, and the specific addresses that failed. A failed address usually means a bad
+      or blocked email; the E-Mail Troubleshooter page will tell you which.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why is the family username shown on every row?</span></summary>
+  <div class="faq-a">
+    <p>
+      Because "which username do I log in with?" is the question that stalls these fixes. Every template quotes it
+      back to the family automatically, and having it on the row means you can answer a phone call without
+      digging.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Clicking a row selects it — how do I just email or call a parent?</span></summary>
+  <div class="faq-a">
+    <p>
+      Click the email address or phone number itself in the Contact column. Those links open your mail or phone app
+      and deliberately don't toggle the row's checkbox, so your selection stays intact.
     </p>
   </div>
 </details>
@@ -78,7 +212,8 @@
 <div class="help-callout help-callout--tip">
   <i class="bi bi-lightbulb" aria-hidden="true"></i>
   <div>
-    <strong>Tip:</strong> make ARB Health a monthly habit. A quick pass on the Expiring Cards tab near the start
-    of each month prevents most of the declines you'd otherwise be chasing on the Behind-in-Payment tab later.
+    <strong>Tip:</strong> make ARB Health a monthly habit — refresh statuses, run Expiring Cards near the start of
+    the month, then run Behind in Payment. A few minutes there prevents most of the declines you'd otherwise be
+    chasing later.
   </div>
 </div>

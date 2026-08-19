@@ -1,4 +1,4 @@
-<h3>ARB Health</h3>
+<h3>ARB Subscription Health</h3>
 <p>
   ARB Health watches over your event's <strong>Automatic Recurrent Billing</strong> — the families paying by
   installment plan. It surfaces the two things that break those payment plans before they cost you money: cards
@@ -17,27 +17,106 @@
   </div>
 </div>
 
-<h4>The two tabs</h4>
+<div class="help-flow">
+  <span class="badge bg-primary">Refresh statuses</span>
+  <i class="bi bi-arrow-right" aria-hidden="true"></i>
+  <span class="badge bg-primary">Run a lookup</span>
+  <i class="bi bi-arrow-right" aria-hidden="true"></i>
+  <span class="badge bg-primary">Review the list</span>
+  <i class="bi bi-arrow-right" aria-hidden="true"></i>
+  <span class="badge bg-success">Email the families</span>
+</div>
+
+<h4>The page opens empty — that's on purpose</h4>
+<p>
+  Nothing loads until you ask for it. Two buttons run the lookups:
+</p>
 <ul>
-  <li><strong>Expiring Cards</strong> — families whose card on file expires this month. Their next automatic payment will fail unless they update the card first. Catch them <em>before</em> the charge date.</li>
-  <li><strong>Behind in Payment</strong> — families whose automatic payment was already declined and now owe a balance. They need to update their card and clear what's due.</li>
+  <li><strong>Lookup Behind in Payment</strong> — families whose automatic payment was already declined and who
+    now owe a balance. They need to update their card and clear what's due. This reads the subscription statuses
+    already stored for your job, so it comes back quickly.</li>
+  <li><strong>Lookup Expiring Cards</strong> — families whose card on file expires <em>this month</em>. Their next
+    automatic payment will fail unless they update the card first. This one queries Authorize.Net live, so give it
+    a moment.</li>
+</ul>
+<p class="help-muted">
+  Clicking the lookup you're already on re-runs it — that's how you refresh the list after sending emails or
+  after a family fixes their card.
+</p>
+
+<h4>Refresh ARB Statuses</h4>
+<p>
+  The button at the top of the page re-checks <strong>every subscription in the job</strong> against Authorize.Net
+  and writes back the current status (active, suspended, expired, terminated, canceled). It's the one place those
+  stored statuses get synced, and the Behind in Payment lookup is only as accurate as the last refresh.
+</p>
+<ul>
+  <li>Click it <strong>before</strong> your first lookup of the session so you're working from live status.</li>
+  <li>On a large job it can take a while — it checks one subscription at a time. Let it finish.</li>
+  <li>It reports <strong>Checked · updated · failed</strong>. "Updated" means the status changed since last time;
+    "failed" means Authorize.Net didn't answer for that subscription — usually harmless, and the next refresh
+    picks it up.</li>
+  <li>If a lookup was already on screen, the refresh reloads it automatically. If not, it leaves the page neutral
+    — refreshing never runs a lookup for you.</li>
+</ul>
+
+<h4>Reading the list</h4>
+<ul>
+  <li><strong>Registrant</strong> — name, team/assignment, and the <strong>Family Username</strong>. That username
+    is what the family logs in with, and the email templates quote it back to them, so it's the single most useful
+    thing on the row when someone calls confused.</li>
+  <li><strong>Status</strong> — the stored Authorize.Net subscription status. Green = active, amber = suspended,
+    red = anything else (expired, terminated, unknown).</li>
+  <li><strong>Fee Total</strong> and <strong>Paid</strong> — what the registration costs and what's come in so far.</li>
+  <li><strong>Owes Total</strong> — the full remaining balance on the registration.</li>
+  <li><strong>Owes Now</strong> — the part that is <em>past due today</em> based on the installment schedule. This
+    is the number the collection templates quote. It shows red when it's above zero.</li>
+  <li><strong>Next Payment</strong> and <strong>Progress</strong> — when the next installment is scheduled and how
+    far through the plan they are (for example, "3 of 6").</li>
+  <li><strong>Contact</strong> — the player's email plus both parent contacts. Emails and phone numbers are
+    clickable; clicking one opens your mail or phone app without disturbing the row's checkbox.</li>
 </ul>
 
 <h4>Emailing flagged families</h4>
+<p>The two lookups deliberately work differently:</p>
+<ul>
+  <li><strong>Expiring Cards</strong> is one click: <strong>Send Warning to All Registrants &amp; Directors</strong>
+    sends the standard expiration notice to everyone on the list. There's nothing to select and nothing to
+    compose — it's the routine monthly warning.</li>
+  <li><strong>Behind in Payment</strong> is select-and-compose, because collections messages usually need a human
+    touch.</li>
+</ul>
 <ol>
-  <li>On either tab, <strong>select</strong> the registrants you want to contact (or select all).</li>
-  <li>Open the email dialog and <strong>apply a template</strong> — the pre-written copy already includes the exact login-and-fix steps for that situation.</li>
-  <li>Personalization <strong>tokens</strong> (player name, amount owed, login link, username) fill in per family — insert more if you edit the body.</li>
-  <li>Leave <strong>notify directors</strong> on to keep staff copied, then send. A result summary shows how many sent and any that failed.</li>
+  <li><strong>Select</strong> the registrants to contact — click anywhere on a row, or use the header checkbox to
+    take the whole list.</li>
+  <li>Click <strong>Compose Email</strong>, then <strong>apply a template</strong>. Pick the one that matches the
+    subscription status:
+    <ul>
+      <li><em>Active/Suspended Subscriptions</em> — points them at "Update CC Info", which updates the card and
+        clears the failed payments in one step.</li>
+      <li><em>Expired/Terminated Subscriptions</em> — points them at "Pay Balance Due", because there's no live
+        subscription left to repair.</li>
+    </ul>
+  </li>
+  <li>Edit the subject and body freely — the template is a starting point, not a locked form.</li>
+  <li>Insert <strong>tokens</strong> where you want per-family values: <code>!PLAYER</code>, <code>!OWEDNOW</code>,
+    <code>!OWEDTOTAL</code>, <code>!FAMILYUSERNAME</code>, <code>!JOBLINK</code>, and more. Click a token to drop
+    it at your cursor.</li>
+  <li>Leave <strong>"Email a summary to job directors"</strong> checked to send staff a record of who was
+    contacted, then <strong>Send to N recipient(s)</strong>. Sending runs in the background; a summary appears when
+    it finishes, listing any addresses that failed.</li>
 </ol>
-<p>
-  The Expiring Cards tab also offers a <strong>one-click</strong> send that warns everyone on the list with the
-  standard expiration notice.
-</p>
 
 <h4>Common mistakes</h4>
 <ul>
-  <li><strong>Waiting until payments fail.</strong> Work the Expiring Cards tab early in the month — the whole point is to fix the card before the charge bounces.</li>
-  <li><strong>Editing the fix-it steps out of the template.</strong> The numbered login steps are how families actually resolve it; keep them intact.</li>
-  <li><strong>Sending with nothing selected.</strong> Emails go only to the registrants you've checked — confirm your selection before sending.</li>
+  <li><strong>Working a stale list.</strong> Refresh ARB Statuses first — otherwise Behind in Payment reflects
+    whatever the statuses were the last time anyone synced.</li>
+  <li><strong>Waiting until payments fail.</strong> Run Expiring Cards early in the month — the whole point is to
+    fix the card before the charge bounces.</li>
+  <li><strong>Editing the fix-it steps out of the template.</strong> The numbered login steps are how families
+    actually resolve it; keep them intact.</li>
+  <li><strong>Sending with nothing selected.</strong> On Behind in Payment, emails go only to the rows you've
+    checked — the Send button counts them for you, so confirm the count before you click.</li>
+  <li><strong>Picking the wrong template.</strong> Telling a family with a terminated subscription to "update CC
+    info" sends them looking for a menu item they no longer have.</li>
 </ul>
