@@ -343,13 +343,29 @@ public class FeeRepository : IFeeRepository
                 jf.LeagueId,
                 jf.Deposit,
                 jf.BalanceDue,
-                jf.BFullPaymentRequired
+                jf.BFullPaymentRequired,
+                jf.Modified
             })
+            // Newest first, so every FirstOrDefault below is DETERMINISTIC. The agegroup and
+            // league tiers are already single-row by UX_JobFees_Scope, but the team tier is
+            // matched on TeamId alone here (deliberately — see the team lookup below), and
+            // nothing in the database constrains a team to one row per role: the unique index
+            // includes AgegroupId, so two rows for one team at different agegroups are legal to
+            // insert. No code path can currently produce that pair, but "no producer exists" is
+            // a property of today's callers, not a constraint, and this resolver feeds display,
+            // the reprice engines and PaymentState. An unordered FirstOrDefault over a price is
+            // undefined behaviour; newest Modified is the SAME tie-break
+            // FeeResolutionService.RepointTeamScopedFeesAsync applies when it retires extras, so
+            // reader and writer agree by construction rather than by luck.
+            .OrderByDescending(jf => jf.Modified)
             .ToListAsync(ct);
 
         var result = new Dictionary<Guid, ResolvedFee>(teamIds.Count);
         foreach (var ta in teamAgegroups)
         {
+            // TeamId alone, NOT the (AgegroupId, TeamId) pair the charge path uses: a team-scoped
+            // row is the team's price wherever the team sits, and this list is ordered newest-first
+            // so a team carrying more than one row resolves to the same winner the repoint keeps.
             var teamRow = allRows.FirstOrDefault(r => r.TeamId == ta.TeamId);
             var agRow = allRows.FirstOrDefault(r => r.AgegroupId == ta.AgegroupId && r.TeamId == null);
             var leagueId = leagueByAgegroup.TryGetValue(ta.AgegroupId, out var lg) ? (Guid?)lg : null;
