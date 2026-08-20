@@ -18,7 +18,23 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 
 ---
 
-<!-- New items go below this line, newest at the bottom, next id = AR-013 -->
+<!-- New items go below this line, newest at the bottom, next id = AR-014 -->
+
+### AR-013: [Payments / ARB] The "Expired/Terminated (Pay Balance Due)" dunning email sends families to a menu item they cannot see
+- **Topic**: ARB Subscription Health → Behind in Payment → email template **"Expired/Terminated Subscriptions (Pay Balance Due)"**
+- **What the parent sees**: the email instructs them to *"Under 'Player' in the upper right, select 'Pay Balance Due'"* (`arb-health.component.ts:57`). That menu item **is not rendered for them**. They sign in, don't find it, and call the director. This is the collections email — it lands on exactly the families who owe money.
+- **Root cause (verified, Claude 08-20)** — the gate tests the wrong signal:
+  - `AdnSubscriptionId` and `AdnSubscriptionStatus` are **separate columns** on `Registrations`. Expiring or terminating a plan changes the *status*; the **id is never cleared**.
+  - `JobRepository.cs:1117` copies the raw column into the pulse with **no status filter** (`AdnSubscriptionId = reg.AdnSubscriptionId`).
+  - Both "Pay Balance Due" surfaces suppress on **id presence**, not liveness: `client-header-bar.component.ts:139` and `registration-panel.component.ts:225`, each gated `&& !p.myAdnSubscriptionId`.
+  - Net: any registration that *ever* had a subscription is treated as still-drafting forever, so the row is hidden for expired/terminated plans — the precise case the template targets.
+- **The suppression itself is correct and must stay.** Both call sites carry the same comment: an ARB registrant's `OwedTotal` stays > 0 by design while the plan drafts, so a pay nudge would invite a **double payment**. The concept is right; the *condition* is wrong. It uses "has a plan id" as a proxy for "has a live plan" — identical for active plans, opposite for dead ones.
+- **Intent is already documented, and the code contradicts it**: the template's own label says Pay Balance Due, and `public/help/arb-health/faq.html` explains Expired/Terminated go there *"because there's no live plan left to fix."* Help and code disagree; the help is the one that's right.
+- **For Todd**: gate the "Pay Balance Due" row on subscription **status** (live = active/suspended) rather than on `myAdnSubscriptionId` being non-null. Likely wants `MyAdnSubscriptionStatus` (or a derived `MyHasLiveSubscription` bool) added to the pulse DTO alongside the id, then used at both call sites. **Two call sites — fix both**; they are independent copies of the same condition.
+- **Secondary, same templates (stale vs shipped UI)**: all three ARB templates tell parents the amount is *"at the bottom of the screen"* and to *"Click Submit"* (`arb-health.component.ts:42-43, 73-74`). The shipped screen shows **Balance Due at the top** and a button reading **Update Card & Pay Balance**. The same stale wording is duplicated in `views/search/registrations/email-templates.ts:189, 212, 232, 314`.
+- **Open question — needs a real terminated subscription to answer**: does the Update Payment Method screen actually complete for a *terminated* plan at Authorize.net? If it does, the simplest fix is to route **every** ARB family to "Update CC Info" and retire the Pay Balance Due branch of the dunning flow entirely. If it doesn't, the status-based gate above is required. **Do not assume either way** — verify against a terminated sub. Overlaps AR-010's test data (`YJ North Players 2026-2027`).
+- **Severity**: 🔴 Bug — customer-facing, blocks self-service collections for expired/terminated ARB families. **Promotion candidate**: this misfires in Production the first time a director sends the Expired/Terminated template, so consider promoting to `PL-` rather than holding for after-release.
+- **Status**: 🔴 OPEN — filed by Claude 08-20 at Ann's request. Not fixed; no code touched.
 
 ### AR-012: [Fees / Schema] A job with two leagues cannot hold per-league fees for the same role — `UX_JobFees_Scope` collapses the league tier
 - **Topic**: `fees.JobFees` → league-scoped fee rows (the top tier of the base-fee cascade)
