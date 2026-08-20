@@ -441,7 +441,13 @@ export type { MergeCandidateRegistrationDto } from './models/MergeCandidateRegis
 export type { MergeCandidatesResponse } from './models/MergeCandidatesResponse';
 export type { MergeIdentityDto } from './models/MergeIdentityDto';
 export type { MergeUsernameRequest } from './models/MergeUsernameRequest';
+export type { MobileContextDto } from './models/MobileContextDto';
+export type { MobileLoginRequest } from './models/MobileLoginRequest';
+export type { MobileLoginResponse } from './models/MobileLoginResponse';
+export type { MobileOwnershipDto } from './models/MobileOwnershipDto';
+export type { MobileOwnershipTeamDto } from './models/MobileOwnershipTeamDto';
 export type { MobileScorerDto } from './models/MobileScorerDto';
+export type { MobileSelectRegistrationRequest } from './models/MobileSelectRegistrationRequest';
 export type { MonthEndArtifactsInfo } from './models/MonthEndArtifactsInfo';
 export type { MonthEndLedger } from './models/MonthEndLedger';
 export type { MonthEndReconciliationResult } from './models/MonthEndReconciliationResult';

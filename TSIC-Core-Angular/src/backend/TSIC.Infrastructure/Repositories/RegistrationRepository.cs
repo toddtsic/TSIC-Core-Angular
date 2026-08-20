@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.CampGroups;
+using TSIC.Contracts.Dtos.Mobile;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
@@ -3799,4 +3800,165 @@ public class RegistrationRepository : IRegistrationRepository
 
     private static string? NormalizeBlank(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    // ── TSIC-Teams mobile ──
+
+    public async Task<List<MobileContextDto>> GetMobileContextsAsync(
+        string userId,
+        CancellationToken ct = default)
+    {
+        // The optional navigations do the LEFT JOINs. Registrations.AssignedTeam is Teams? and
+        // Jobs.JobDisplayOptions is JobDisplayOptions?, so EF null-propagates both rather than
+        // dropping the row. The role-picker queries inner-join Teams AND JobDisplayOptions,
+        // which silently deletes every registration not yet placed on a team, and every job
+        // with no display-options row.
+        //
+        // One statement covers both roster lanes. The matching COLUMN differs — a Player row is
+        // reached through FamilyUserId, because the parent credential owns the child
+        // registration, while a Staff row is reached through UserId — but AspNetUsers always
+        // hangs off r.UserId, which is the child for Player and the staff member for Staff.
+        // That is exactly the person the picker groups by.
+        return await _context.Registrations
+            .Where(r =>
+                r.BActive == true
+                && r.UserId != null
+                && DateTime.Now < r.Job.ExpiryUsers
+                && (
+                    (r.RoleId == RoleConstants.Player && r.FamilyUserId == userId)
+                    || (r.RoleId == RoleConstants.Staff && r.UserId == userId)
+                ))
+            .OrderBy(r => r.User!.FirstName)
+                .ThenBy(r => r.User!.LastName)
+                .ThenBy(r => r.Job.JobName)
+                .ThenBy(r => r.AssignedTeam!.TeamName)
+            .Select(r => new MobileContextDto
+            {
+                RegId = r.RegistrationId.ToString(),
+                RoleName = r.RoleId == RoleConstants.Player
+                    ? RoleConstants.Names.PlayerName
+                    : RoleConstants.Names.StaffName,
+                JobName = r.Job.JobName ?? string.Empty,
+                JobPath = r.Job.JobPath,
+                // Null when the job has no header logo, instead of a URL ending in
+                // "BannerFiles/" that renders as a broken image on a phone.
+                JobLogo = string.IsNullOrEmpty(r.Job.JobDisplayOptions!.LogoHeader)
+                    ? null
+                    : TsicConstants.BaseUrlStatics + "BannerFiles/" + r.Job.JobDisplayOptions!.LogoHeader,
+                PlayerUserId = r.UserId!,
+                PlayerName = (r.User!.FirstName + " " + r.User!.LastName).Trim(),
+                // Left join: these three are null together when the registration is unplaced.
+                TeamId = r.AssignedTeamId,
+                TeamName = r.AssignedTeam!.TeamName,
+                Agegroup = r.AssignedTeam!.Agegroup.AgegroupName,
+                // Null in bEnableTSICTeams means never configured. Clone reset writes false
+                // explicitly, so null and false are the same answer: not on the app.
+                TeamsAppEnabled = r.Job.BEnableTsicteams == true,
+                IsPlaced = r.AssignedTeamId != null,
+                IsOpenable = r.AssignedTeamId != null && r.Job.BEnableTsicteams == true,
+                // Precedence lives here, in one place: a club that is not on the app will never
+                // open this row, so "placement pending" would promise a future that never comes.
+                UnavailableReason =
+                    r.Job.BEnableTsicteams != true
+                        ? MobileContextUnavailableReason.TeamsAppDisabled
+                        : r.AssignedTeamId == null
+                            ? MobileContextUnavailableReason.NotPlaced
+                            : null
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<MobileOwnershipDto>> GetMobileOwnershipsAsync(
+        string userId,
+        CancellationToken ct = default)
+    {
+        // Admin lane rides ExpiryAdmin, not ExpiryUsers — the AM-004 lane model. Contexts and
+        // ownerships therefore expire on different dates for the same person, by design.
+        return await _context.Registrations
+            .Where(r =>
+                r.UserId == userId
+                && r.BActive == true
+                && DateTime.Now < r.Job.ExpiryAdmin
+                && (r.RoleId == RoleConstants.Director || r.RoleId == RoleConstants.Superuser))
+            .OrderBy(r => r.Job.JobName)
+            .Select(r => new MobileOwnershipDto
+            {
+                RegId = r.RegistrationId.ToString(),
+                RoleName = r.RoleId == RoleConstants.Director
+                    ? RoleConstants.Names.DirectorName
+                    : RoleConstants.Names.SuperuserName,
+                JobName = r.Job.JobName ?? string.Empty,
+                JobPath = r.Job.JobPath,
+                JobLogo = string.IsNullOrEmpty(r.Job.JobDisplayOptions!.LogoHeader)
+                    ? null
+                    : TsicConstants.BaseUrlStatics + "BannerFiles/" + r.Job.JobDisplayOptions!.LogoHeader,
+                // Correlated count over the Teams navigation, resolved in the same statement.
+                // A superuser across 50 jobs must not become 50 round trips, and Task.WhenAll
+                // is not an option here: one scoped DbContext.
+                TeamCount = r.Job.Teams.Count(t => t.Active == true),
+                TeamsAppEnabled = r.Job.BEnableTsicteams == true
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
+    }
+
+    public async Task<bool> HasExpiredMobileRegistrationsAsync(
+        string userId,
+        CancellationToken ct = default)
+    {
+        // Mirror of the two queries above with the expiry comparison inverted, per lane.
+        return await _context.Registrations
+            .AnyAsync(r =>
+                r.BActive == true
+                && (
+                    (
+                        (
+                            (r.RoleId == RoleConstants.Player && r.FamilyUserId == userId)
+                            || (r.RoleId == RoleConstants.Staff && r.UserId == userId)
+                        )
+                        && DateTime.Now >= r.Job.ExpiryUsers
+                    )
+                    || (
+                        (r.RoleId == RoleConstants.Director || r.RoleId == RoleConstants.Superuser)
+                        && r.UserId == userId
+                        && DateTime.Now >= r.Job.ExpiryAdmin
+                    )
+                ), ct);
+    }
+
+    public async Task<List<MobileOwnershipTeamDto>?> GetMobileOwnershipTeamsAsync(
+        string userId,
+        Guid registrationId,
+        CancellationToken ct = default)
+    {
+        // Ownership is re-proved from the registration row on every call. The regId claim in
+        // the bearer token is evidence of identity and nothing else.
+        var jobId = await _context.Registrations
+            .Where(r =>
+                r.RegistrationId == registrationId
+                && r.UserId == userId
+                && r.BActive == true
+                && (r.RoleId == RoleConstants.Director || r.RoleId == RoleConstants.Superuser))
+            .Select(r => (Guid?)r.JobId)
+            .FirstOrDefaultAsync(ct);
+
+        if (jobId == null)
+        {
+            return null;
+        }
+
+        // Ordered by agegroup NAME, never SortAge — that column is unmaintained.
+        return await _context.Teams
+            .Where(t => t.JobId == jobId && t.Active == true)
+            .OrderBy(t => t.Agegroup.AgegroupName)
+                .ThenBy(t => t.TeamName)
+            .Select(t => new MobileOwnershipTeamDto
+            {
+                TeamId = t.TeamId,
+                TeamName = t.TeamName ?? string.Empty,
+                Agegroup = t.Agegroup.AgegroupName ?? string.Empty
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
+    }
 }

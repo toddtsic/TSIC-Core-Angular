@@ -1,5 +1,6 @@
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.CampGroups;
+using TSIC.Contracts.Dtos.Mobile;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
@@ -709,6 +710,41 @@ public interface IRegistrationRepository
         bool updateDayGroup,
         bool updateNightGroup,
         CancellationToken ct = default);
+
+    // ── TSIC-Teams mobile ──
+
+    /// <summary>
+    /// Roster seats for the mobile app — Player (matched via FamilyUserId, so a parent's
+    /// login returns their children's registrations) and Staff (matched via UserId).
+    ///
+    /// Deliberately LEFT JOINs Teams. GetPlayerRegistrationsAsync and
+    /// GetStaffRegistrationsAsync inner-join it, which silently drops every registration
+    /// whose AssignedTeamId is still null — the normal state for weeks after registration
+    /// opens. Mobile reports that row as unplaced instead of making it vanish, so an empty
+    /// response means "no registrations", never "not placed yet".
+    /// </summary>
+    Task<List<MobileContextDto>> GetMobileContextsAsync(string userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Ownership registrations for the mobile app — Director and Superuser, which hold
+    /// authority over a job's teams rather than a seat on one. Team counts resolve in the
+    /// same statement; never fetch them per row.
+    /// </summary>
+    Task<List<MobileOwnershipDto>> GetMobileOwnershipsAsync(string userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// True when this user holds any in-scope registration (Player, Staff, Director,
+    /// Superuser) that is active but whose job has passed its expiry for that role lane.
+    /// Drives the "your season has ended" landing; those rows are never returned.
+    /// </summary>
+    Task<bool> HasExpiredMobileRegistrationsAsync(string userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Active teams in the job owned by the given ownership registration, ordered by
+    /// agegroup then team name. Returns null when the registration does not belong to this
+    /// user, is inactive, or is not an ownership registration — caller maps that to 403/400.
+    /// </summary>
+    Task<List<MobileOwnershipTeamDto>?> GetMobileOwnershipTeamsAsync(string userId, Guid registrationId, CancellationToken ct = default);
 }
 
 public record UsLaxReconciliationCandidateRow
