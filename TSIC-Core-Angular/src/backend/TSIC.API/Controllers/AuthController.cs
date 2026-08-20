@@ -30,6 +30,8 @@ namespace TSIC.API.Controllers
         private readonly IConfiguration _configuration;
         private readonly IRefreshTokenService _refreshTokenService;
         private readonly ITokenService _tokenService;
+        private readonly IAuthCredentialService _credentials;
+        private readonly IRegistrationSelectionService _selection;
         private readonly IUserRepository _userRepository;
         private readonly IJobRepository _jobRepository;
         private readonly IRegistrationRepository _registrationRepository;
@@ -46,6 +48,8 @@ namespace TSIC.API.Controllers
             IConfiguration configuration,
             IRefreshTokenService refreshTokenService,
             ITokenService tokenService,
+            IAuthCredentialService credentials,
+            IRegistrationSelectionService selection,
             IUserRepository userRepository,
             IJobRepository jobRepository,
             IRegistrationRepository registrationRepository,
@@ -61,6 +65,8 @@ namespace TSIC.API.Controllers
             _configuration = configuration;
             _refreshTokenService = refreshTokenService;
             _tokenService = tokenService;
+            _credentials = credentials;
+            _selection = selection;
             _userRepository = userRepository;
             _jobRepository = jobRepository;
             _registrationRepository = registrationRepository;
@@ -102,29 +108,9 @@ namespace TSIC.API.Controllers
                 return Unauthorized(new { Error = "Invalid username or password" });
             }
 
-            // Dev-mode password bypass (Development environment only)
-            bool passwordValid = false;
-            if (_env.IsDevelopment())
-            {
-                var allowBypass = _configuration.GetValue<bool>("DevMode:AllowPasswordBypass");
-                var bypassPassword = _configuration["DevMode:BypassPassword"];
-
-                if (allowBypass && !string.IsNullOrEmpty(bypassPassword) && request.Password == bypassPassword)
-                {
-                    // Bypass password check in dev mode with special password
-                    passwordValid = true;
-                }
-                else
-                {
-                    // Normal password validation
-                    passwordValid = await _userManager.CheckPasswordAsync(user, request.Password);
-                }
-            }
-            else
-            {
-                // Production mode - always validate actual password
-                passwordValid = await _userManager.CheckPasswordAsync(user, request.Password);
-            }
+            // Password validation, including the Development-only bypass, lives in one shared
+            // service. Three inline copies of it used to live in this file.
+            var passwordValid = await _credentials.IsPasswordValidAsync(user, request.Password);
 
             if (!passwordValid)
             {
@@ -161,18 +147,7 @@ namespace TSIC.API.Controllers
             if (user == null)
                 return Unauthorized(new { Error = "Invalid username or password" });
 
-            bool passwordValid;
-            if (_env.IsDevelopment())
-            {
-                var allowBypass = _configuration.GetValue<bool>("DevMode:AllowPasswordBypass");
-                var bypassPassword = _configuration["DevMode:BypassPassword"];
-                passwordValid = (allowBypass && !string.IsNullOrEmpty(bypassPassword) && request.Password == bypassPassword)
-                    || await _userManager.CheckPasswordAsync(user, request.Password);
-            }
-            else
-            {
-                passwordValid = await _userManager.CheckPasswordAsync(user, request.Password);
-            }
+            var passwordValid = await _credentials.IsPasswordValidAsync(user, request.Password);
 
             if (!passwordValid)
                 return Unauthorized(new { Error = "Invalid username or password" });
@@ -262,7 +237,7 @@ namespace TSIC.API.Controllers
             }
 
             var user = await _userManager.FindByNameAsync(request.Username);
-            if (user == null || !await IsPasswordValidAsync(user, request.Password))
+            if (user == null || !await _credentials.IsPasswordValidAsync(user, request.Password))
             {
                 return Unauthorized(new { Error = "Invalid username or password" });
             }
@@ -316,26 +291,6 @@ namespace TSIC.API.Controllers
                 ExpiresIn = expirationMinutes * 60,
                 RequiresTosSignature = requiresTos
             });
-        }
-
-        /// <summary>
-        /// Password check including the Development-only bypass. Extracted for ScorerLogin;
-        /// Login and QuickLogin still carry their own inline copies of this logic and could
-        /// adopt this helper in a separate pass.
-        /// </summary>
-        private async Task<bool> IsPasswordValidAsync(ApplicationUser user, string password)
-        {
-            if (_env.IsDevelopment())
-            {
-                var allowBypass = _configuration.GetValue<bool>("DevMode:AllowPasswordBypass");
-                var bypassPassword = _configuration["DevMode:BypassPassword"];
-                if (allowBypass && !string.IsNullOrEmpty(bypassPassword) && password == bypassPassword)
-                {
-                    return true;
-                }
-            }
-
-            return await _userManager.CheckPasswordAsync(user, password);
         }
 
         /// <summary>
@@ -415,56 +370,33 @@ namespace TSIC.API.Controllers
                 return BadRequest(new { Error = "RegId is required" });
             }
 
-            // Extract username from Phase 1 JWT token
-            var username = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            // sub carries the user ID, not the username — ASP.NET remaps it to NameIdentifier.
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                         ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
 
-            if (string.IsNullOrWhiteSpace(username))
+            if (string.IsNullOrWhiteSpace(userId))
             {
                 return Unauthorized(new { Error = "Invalid token" });
             }
 
-            // Validate user exists
-            var user = await _userManager.FindByIdAsync(username);
+            var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
                 return Unauthorized(new { Error = "Invalid user" });
             }
 
-            // Verify the user has access to this registration.
-            // GUID equality is case-insensitive by definition; storage casing is not stable
-            // (EF projects via SQL CAST which preserves DB casing, while System.Text.Json
-            // serializes new Guids lowercase) so always compare with OrdinalIgnoreCase.
-            var registrations = await _roleLookupService.GetRegistrationsForUserAsync(user.Id);
-            // Analyzer suggestion: prefer collection Find/Exists when underlying concrete lists are used
-            var selectedReg = registrations
-                .SelectMany(r => r.RoleRegistrations)
-                .ToList()
-                .Find(reg => string.Equals(reg.RegId, request.RegId, StringComparison.OrdinalIgnoreCase));
-
-            if (selectedReg == null)
+            // Ownership verification and token minting live in one shared service, called by
+            // this endpoint and by the mobile route. Two copies of this would drift.
+            var result = await _selection.SelectAsync(user, request.RegId);
+            if (!result.Succeeded)
             {
                 return BadRequest(new { Error = "Selected role is not available for this user" });
             }
 
-            // Determine the role name and jobPath from the registration
-            var registrationRole = registrations
-                .ToList()
-                .Find(r => r.RoleRegistrations.Exists(reg => string.Equals(reg.RegId, request.RegId, StringComparison.OrdinalIgnoreCase)));
-
-            var roleName = registrationRole?.RoleName ?? "User";
-            var jobPath = selectedReg.JobPath ?? $"/{roleName.ToLowerInvariant()}/dashboard";
-            var jobLogo = selectedReg.JobLogo; // Get the job logo from selected registration
-
-            // Generate enriched Phase 2 JWT token with regId, jobPath, jobLogo, and role claims.
-            // Reuse the Phase 1 refresh token — no need to generate a second one per login session.
-            var token = _tokenService.GenerateEnrichedJwtToken(user, request.RegId, jobPath, jobLogo, roleName);
-            var expirationMinutes = int.Parse(_configuration["JwtSettings:ExpirationMinutes"] ?? "60");
-
             return Ok(new AuthTokenResponse
             {
-                AccessToken = token,
-                ExpiresIn = expirationMinutes * 60
+                AccessToken = result.AccessToken!,
+                ExpiresIn = result.ExpiresInSeconds
             });
         }
 
