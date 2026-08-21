@@ -1771,6 +1771,7 @@ public class TeamRepository : ITeamRepository
                     DadEmail = family?.DadEmail,
                     DadCellphone = family?.DadCellphone,
                     UniformNumber = r.UniformNo,
+                    Position = r.Position,
                     City = r.User?.City,
                     School = r.SchoolName,
                     UserName = r.User?.UserName,

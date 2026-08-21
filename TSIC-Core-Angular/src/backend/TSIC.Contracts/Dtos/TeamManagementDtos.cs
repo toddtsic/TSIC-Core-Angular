@@ -36,6 +36,14 @@ public record TeamRosterPlayerDto
     public string? DadEmail { get; init; }
     public string? DadCellphone { get; init; }
     public string? UniformNumber { get; init; }
+
+    /// <summary>
+    /// Registrations.position — free text, not a lookup. Sport-dependent and inconsistently
+    /// cased ("midfield", "attack", "LSM", "F/O"), so it is passed through verbatim exactly as
+    /// the roster PDFs do. Player-only by convention: staff rows carry no position.
+    /// </summary>
+    public string? Position { get; init; }
+
     public string? City { get; init; }
     public string? School { get; init; }
     public string? UserName { get; init; }
