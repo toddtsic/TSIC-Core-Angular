@@ -70,6 +70,18 @@ public record MobileContextDto
     /// <summary>Resolved via the team, never Registrations.AssignedAgegroupId. Null when unplaced.</summary>
     public string? Agegroup { get; init; }
 
+    /// <summary>
+    /// The team's Google Calendar id, or null when it has none. Sourced from Teams.KeywordPairs,
+    /// which is DUAL-PURPOSE: most rows hold scheduling keyword pairs ("Team:Class of 2033") and
+    /// only some hold a calendar id, so the column is never surfaced raw — a keyword pair would
+    /// point the client's embed at nonsense.
+    ///
+    /// Normalized to the literal "@" form. The column stores BOTH encodings — 82 rows hold "@"
+    /// and 74 hold "%40" — and a client that has to guess which form it was handed cannot build
+    /// the embed URL: re-encoding a "%40" id yields "%2540" and a dead iframe.
+    /// </summary>
+    public string? CalendarId { get; init; }
+
     /// <summary>Jobs.bEnableTSICTeams. Null in the column is reported as false.</summary>
     public required bool TeamsAppEnabled { get; init; }
 

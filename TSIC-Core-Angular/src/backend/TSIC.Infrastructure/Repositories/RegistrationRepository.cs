@@ -3837,7 +3837,9 @@ public class RegistrationRepository : IRegistrationRepository
                 RoleName = r.RoleId == RoleConstants.Player
                     ? RoleConstants.Names.PlayerName
                     : RoleConstants.Names.StaffName,
-                JobName = r.Job.JobName ?? string.Empty,
+                // MobileJobName is the short form a phone can read on one line; JobName is
+                // "Club:Season" and wraps. Falls back when unset, which is the common case.
+                JobName = r.Job.MobileJobName ?? r.Job.JobName ?? string.Empty,
                 JobPath = r.Job.JobPath,
                 // Null when the job has no header logo, instead of a URL ending in
                 // "BannerFiles/" that renders as a broken image on a phone.
@@ -3850,6 +3852,23 @@ public class RegistrationRepository : IRegistrationRepository
                 TeamId = r.AssignedTeamId,
                 TeamName = r.AssignedTeam!.TeamName,
                 Agegroup = r.AssignedTeam!.Agegroup.AgegroupName,
+                // KeywordPairs is dual-purpose — 933 rows hold scheduling keyword pairs and 156
+                // hold a Google Calendar id. Surfaced ONLY when it is actually a calendar id;
+                // passing it through raw would hand the client "Team:Class of 2033" as an embed
+                // source. The "@"/"%40" pair is the discriminator AND the encoding split: 82 of
+                // the calendar rows store the literal character, 74 store it percent-encoded.
+                // Testing for "@" alone (the obvious filter) silently drops those 74 — including
+                // 4 of the 7 calendar teams in stepsboys-players-2026-2027. Normalize on the way
+                // out so the client has one form to encode, never two to sniff.
+                //
+                // Decode BEFORE testing, deliberately: testing Contains("%40") would compile to a
+                // LIKE whose "%" is a wildcard, so the guard would silently widen to "contains 40"
+                // if EF ever stopped escaping it — and "Team:Class of 2040" is a keyword pair that
+                // will exist. REPLACE-then-test has no wildcard in the pattern at all.
+                CalendarId = r.AssignedTeam!.KeywordPairs != null
+                             && r.AssignedTeam!.KeywordPairs.Replace("%40", "@").Contains("@")
+                    ? r.AssignedTeam!.KeywordPairs.Replace("%40", "@")
+                    : null,
                 // Null in bEnableTSICTeams means never configured. Clone reset writes false
                 // explicitly, so null and false are the same answer: not on the app.
                 TeamsAppEnabled = r.Job.BEnableTsicteams == true,
@@ -3887,7 +3906,9 @@ public class RegistrationRepository : IRegistrationRepository
                 RoleName = r.RoleId == RoleConstants.Director
                     ? RoleConstants.Names.DirectorName
                     : RoleConstants.Names.SuperuserName,
-                JobName = r.Job.JobName ?? string.Empty,
+                // Same fallback as the roster lane — a director must not see the long form
+                // while a parent in the same job sees the short one.
+                JobName = r.Job.MobileJobName ?? r.Job.JobName ?? string.Empty,
                 JobPath = r.Job.JobPath,
                 JobLogo = string.IsNullOrEmpty(r.Job.JobDisplayOptions!.LogoHeader)
                     ? null
