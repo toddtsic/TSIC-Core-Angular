@@ -15,6 +15,7 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 | Item | Why it's on Todd | State |
 |:--|:--|:--|
 | **AR-004** | **🔓 RE-OPENED 08-21 — was blocked on "which report", Ann has now answered it.** Report identified as `MyRosterPdfService` (**not** Packed Roster — that earlier guess was wrong, leave Packed alone). Target is one line: `MyRosterPdfService.cs:95`, `Col("Pos", 30f, …, Wrap:false)`. **Blocked only on a data query** — `SELECT DISTINCT Position` to size against the longest real value (`Long Stick Midfield`, not `Midfield`). | 🔴 OPEN |
+| **AR-018** | **New 08-21 — two lines of code, the rest is data.** Code: append `"ASL:Utah"` + `"ASL:New York Capital Region"` to `AslRegionConstants.Regions`; **don't remove NorCal/SoCal** (2026 + archives resolve through them). Data: clone to 2027, create Utah / NY Capital Region / California teams — **new regions, NOT renames, fresh rosters** (Ann, 08-21). Dropping NorCal/SoCal from 2027 needs no code, just no teams — **but a clone from 2026 copies them, so delete those after cloning.** Region is parsed from the team name; keep the grad year trailing. | 🔴 OPEN |
 | **AR-017** | **New 08-21 — clean evidence, live bug, mechanism NOT pinned.** Red/blue set in the bulletin editor render as plain text; orange + highlight survive. **Discriminator: red/blue are exactly the hexes the legacy pipe converts to `.bl-c-*` classes (`translate-legacy-urls.pipe.ts:27-30`); orange isn't, so it stays inline.** ⇒ inline styles work, the classes don't paint — downstream of the 08-05 sanitizer fix, not it. **Deploy eliminated: images captured on current dev minutes after the re-deploy.** Sanitizer, class hook and specificity all ruled out. Start at devtools on the `$225/clinic` element + the stored `Bulletins.Text`. | 🔴 OPEN |
 | **AR-016** | **New 08-21 — bigger than it first looked.** Player/team detail fly-ins open at the directive default 560px (neither sets `[defaultWidth]`) and the widening handle goes undiscovered. **Ann's confirmed spec is an outcome, not a number: no horizontal scroll on accounting, on whatever device.** Panel width fixes the desktop half only — below 768px the panel is already `100vw`, so if accounting still scrolls there, **the table has to fit, not the panel**. Measure the ledger's minimum width before picking anything; `maxWidth` 1100 may bind. Stored widths win over a new default (double-click resets). **Second time she's raised no-h-scroll (see AR-006) — give it a real answer.** | 🔴 OPEN |
 | **AR-015** | **New 08-21 — two parts, split them.** **A:** bulletin Start/End time already stored (`DateTime?`) and already honored by the filter (`BulletinRepository.cs:28`, `DateTime.Now`); only the editor grid is date-only (`bulletin-editor.component.html:88-89`). Frontend-only fix — **but dates are stored in AZ time, so solve the timezone display or midnight lands on the wrong day.** **B:** time-gating a *Smart* Bulletin doesn't apply (SBs are derived from booleans, not rows) — and **this reopens AR-007 on better ground**: a scheduled window can't be "flipped once and forgotten," which was your entire objection. Needs your call on whether this is the real client need you set as the reopen bar. | 🔴 OPEN |
@@ -37,7 +38,36 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 
 ---
 
-<!-- New items go below this line, newest at the bottom, next id = AR-018 -->
+<!-- New items go below this line, newest at the bottom, next id = AR-019 -->
+
+### AR-018: [ASL Rosters] Carry the roster board forward to 2027, and change the region set (NorCal→Utah, SoCal→New York Capital Region, restore California)
+- **Topic**: public ASL roster board — `teamsportsinfo.com/{jobPath}/aslrosters` (screenshot: `americanselect-mainevent-2026/aslrosters`)
+- **Request (Ann, 08-21)**: 1) bring rosters forward to **2027**; 2) **NorCal → Utah**, **SoCal → New York Capital Region**, and **add back California**.
+- **⚠ This is mostly DATA, not code — and the two halves must land together or the board mislabels itself.**
+
+**1) Forward to 2027 — pure job/data work, no code.**
+- **Nothing in the ASL code carries a year.** Grepped `AslRostersController.cs` and the whole `views/rosters/asl-rosters/` component: **zero occurrences of 2026 or 2027**. The board is `jobPath`-scoped, so it renders whatever job you point it at.
+- ⇒ Create the 2027 Main Event job (clone of `americanselect-mainevent-2026`) with its teams/rosters, and `/{new-jobPath}/aslrosters` works with no deploy.
+
+**2) The region changes — one data half and one code half.**
+- **How regions work**: region is **not a column**. It is parsed out of the team name — every ASL team is `ASL:{Region} {qualifier} {gradYear}` — by `AslRegionConstants.ResolveRegion` (`AslRegionConstants.cs:58-68`), which does a `Contains` scan over an ordered token list, first match wins.
+- **The dropdown lists only regions that actually have teams**: `AslRostersController.cs:45-47` builds it as `teams.Select(ResolveRegion).Distinct()`. The constants list is a **matching vocabulary**, not the menu.
+- **✅ CONFIRMED NOT RENAMES (Ann, 08-21): "they are NOT renames — simply add them new and remove NorCal and SoCal from the 2027 board."** So **Utah** and **New York Capital Region** are **brand-new regions with fresh teams and fresh rosters**. Nothing carries over from NorCal/SoCal; those two simply do not exist on 2027.
+- **DATA half — create teams, don't rename any.** Name the new teams `ASL:Utah …` and `ASL:New York Capital Region …` (plus `ASL:California …`), each ending in the grad year. Until teams exist under those names, nothing appears on the board.
+- **✅ "Remove NorCal/SoCal from the 2027 board" costs NO code and NO deletion of constants — it is purely an absence of teams.** The dropdown is built from teams that exist (`AslRostersController.cs:45-47`), so a region with no 2027 teams simply never appears. Leave the constants alone.
+  - **⚠ BUT if 2027 is created by CLONING the 2026 job, the clone brings the NorCal and SoCal teams with it.** They must be **deleted from the 2027 job after the clone**, or they will show on the 2027 board exactly as before. This is the one step most likely to be missed.
+- **CODE half — add the two new tokens** to `AslRegionConstants.Regions` (`:26-53`). **If you skip this, `ResolveRegion` matches nothing and falls back to the full team name**, so the region label and dropdown entry become e.g. `ASL:Utah Blue 2028` instead of `ASL:Utah`. Renaming without the constant is the failure mode to avoid.
+- **✅ California needs NO code — it is already there.** `"ASL:California"` is the first entry in the list, present since `1383df543`. It is missing from the board only because no 2026 team is named for it. **"Add back California" = create California teams in the 2027 job**, nothing more.
+- **⚠ Do NOT delete `ASL:NorCal` / `ASL:SoCal` from the constants.** They cost nothing to keep, and the 2026 job and any archived ASL job still resolve through them. Removing them would leave every historical NorCal/SoCal team falling back to its full team name.
+- **⚠ Ordering is load-bearing** (stated in the file's own doc comment): first `Contains` match wins, so a token that is a substring of another must come first. Checked for this change — **`ASL:Utah` and `ASL:New York Capital Region` collide with nothing** in the existing list (`New Jersey`, `North East`, `NY Downstate`, `NY Upstate` are all distinct strings). Safe to append. **Re-check this if anyone later adds a shorter token like `ASL:New York`.**
+- **⚠ Keep the grad year LAST in the team name.** `ResolveGradYear` (`:74-78`) takes the **trailing 4 characters**. `ASL:New York Capital Region Blue 2028` is fine; anything appended after the year silently breaks the grad-year grouping.
+- **NET WORK — the whole item, now that it's scoped:**
+  1. **Code (one file, two lines)**: append `"ASL:Utah"` and `"ASL:New York Capital Region"` to `AslRegionConstants.Regions`. Nothing else in code changes. **Do not remove NorCal/SoCal.**
+  2. **Data**: create the 2027 job; create Utah, New York Capital Region and California teams (fresh rosters); **if cloned from 2026, delete the copied NorCal and SoCal teams.**
+  3. **Verify**: open `/{2027-jobPath}/aslrosters` — dropdown shows Utah, New York Capital Region and California; shows **no** NorCal or SoCal; each region label reads as the region alone, not a full team name (that check is what proves step 1 landed).
+  4. **Regression check**: the **2026** board still lists NorCal and SoCal correctly — proves the constants weren't stripped.
+- **Severity**: 🟢 Seasonal rollover + region reconfiguration — small code change, larger data change
+- **Status**: 🔴 OPEN — for Todd. Filed 08-21 at Ann's request.
 
 ### AR-017: [Communications / Bulletins] Red and blue text set in the editor renders as plain body text on the displayed bulletin
 - **Topic**: Communications → Bulletins → RTE text colour → displayed bulletin card. Job: **ODU Lacrosse Camps and Clinics 2026**
