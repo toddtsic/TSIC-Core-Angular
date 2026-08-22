@@ -94,8 +94,8 @@ export class ManageFieldsComponent {
 
     // ── Data Loading ──
 
-    loadData() {
-        this.isLoading.set(true);
+    loadData(showSpinner = true) {
+        if (showSpinner) this.isLoading.set(true);
         this.fieldService.getFieldManagementData().subscribe({
             next: data => {
                 this.availableFields.set(data.availableFields);
@@ -252,7 +252,12 @@ export class ManageFieldsComponent {
         });
     }
 
-    // ── Local state transfer (no reload) ──
+    // ── Local state transfer, then reconcile ──
+    //
+    // The optimistic move keeps the swap instant, but it cannot decide which row is the
+    // event location: that is EventLocationFieldNaming.SelectEventLocation on the server, and
+    // a client-side guess is exactly the divergence that rule exists to prevent. It also
+    // cannot know the new flsId. So every mutation re-reads, without the spinner.
 
     private moveToAssigned(fields: FieldDto[]) {
         const ids = new Set(fields.map(f => f.fieldId));
@@ -270,10 +275,16 @@ export class ManageFieldsComponent {
                 directions: f.directions,
                 latitude: f.latitude,
                 longitude: f.longitude,
+                // Carried so the row does not flicker as a removable playing field in the
+                // moment before the reconcile lands. isEventLocation is deliberately NOT
+                // carried -- only the server decides that one.
+                isPseudoField: f.isPseudoField,
                 fieldPreference: 0,
                 scheduledGameCount: 0,
             } as LeagueSeasonFieldDto))
         ]);
+
+        this.loadData(false);
     }
 
     private moveToAvailable(fields: LeagueSeasonFieldDto[]) {
@@ -291,8 +302,11 @@ export class ManageFieldsComponent {
                 directions: f.directions,
                 latitude: f.latitude,
                 longitude: f.longitude,
+                isPseudoField: f.isPseudoField,
             } as FieldDto))
         ]);
+
+        this.loadData(false);
     }
 
     // ── Detail editor ──
