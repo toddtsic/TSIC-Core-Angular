@@ -12,9 +12,24 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 
 > Maintained at the top so nothing waiting on Todd is buried mid-file. **Delete a row the moment its item closes.** Parked/REVISIT items are not listed here *unless Todd owes a decision on one* (flagged as such below).
 
+> ### ⭐ START HERE — Ann's four priority items (flagged by her, 08-22)
+> **AR-021 · AR-020 · AR-019 · AR-018** — these four are the ones she wants worked. The rest of the table is the standing backlog.
+>
+> | | Item | One line | Why it's urgent |
+> |:--|:--|:--|:--|
+> | 1 | **AR-020** | Team RegSaver sends the **director's home address** to Vertical Insure as the event location | Unauthorized PII to a third party **and** weather payouts adjudicated against the wrong state. Live, with a real counterparty. |
+> | 2 | **AR-021** | **Stay-to-Play admin area was never ported** — no route, no screen, no menu | **Top Threat Tournaments has paid for it and uses it.** A port, not a fix. |
+> | 3 | **AR-019** | TSIC-Teams password reset **404s — no mobile reset endpoint exists** | A mobile user who forgets their password has no self-service route in at all. Cheap fix available. |
+> | 4 | **AR-018** | ASL roster board → 2027 rollover + region changes | Seasonal deadline. Two lines of code; the rest is data. |
+>
+> **AR-020 and AR-021 are both promotion candidates** — neither is really "after release" material.
+
 | Item | Why it's on Todd | State |
 |:--|:--|:--|
 | **AR-004** | **🔓 RE-OPENED 08-21 — was blocked on "which report", Ann has now answered it.** Report identified as `MyRosterPdfService` (**not** Packed Roster — that earlier guess was wrong, leave Packed alone). Target is one line: `MyRosterPdfService.cs:95`, `Col("Pos", 30f, …, Wrap:false)`. **Blocked only on a data query** — `SELECT DISTINCT Position` to size against the longest real value (`Long Stick Midfield`, not `Midfield`). | 🔴 OPEN |
+| **AR-021** | 🚨 **New 08-22 — not a password problem: the STP admin area was never ported.** Legacy had `STPDashboard` / `STPClubReps` / `STPAdminAdd` controllers under `Controllers/STP/Admin/`. The new app has **no STP route, no component, no nav** — only the `StpAdmin` role, which the Administrators screen can still grant, and which the frontend `Roles`/`NAV_SERVED_ROLES` don't even list. **Top Threat Tournaments has PAID for this and uses it.** Confirmed 08-22: credentials are fine — Ann reaches role selection and gets *"No active registrations on this account"*. **It's a port, not a data fix**: clearing that message would land her on nothing. Rebuild the three legacy screens, register `STPAdmin` in the frontend `Roles`/`NAV_SERVED_ROLES`, and provision a live STPAdmin registration on an `ExpiryAdmin`-current job before testing. **Promotion candidate.** | 🔴 OPEN |
+| **AR-020** | 🚨 **New 08-22 — HIGHEST PRIORITY HERE. Do this one first.** Team RegSaver sends the **director's personal `AspNetUsers` address** to Vertical Insure as the event location (`VerticalInsureServiceTeamExtensions.cs:340-355`). **Two live harms: unauthorized PII disclosure to a third party, and weather payouts adjudicated against the wrong state.** Legacy used the field/venue bank — `FieldsLeagueSeason → Field` on LeagueId+Season — and **failed loud** ("At least one field must be attached to event") rather than substituting a person. The current director address was a deliberate workaround for a VI 400, so restore the guard too. Also realign `location` (→ event state) and `type` (→ `"team-registration"`). **Ask whether already-issued policies need re-issuing.** **Promotion candidate — not after-release material.** | 🔴 OPEN |
+| **AR-019** | **New 08-22 — answered: NOT fixed, and user-blocking.** `MobileAuthController` (`api/mobile/auth`) has only login / ownership-teams / select-registration — **no password-reset route exists**, so the app's reset call 404s. Today's mobile commits added none. **But `POST /api/auth/forgot-password` already works and is anonymous**, so the cheap fix is pointing the app at it (no backend code); the fuller fix is a mobile-prefixed endpoint if a deep-link-back-to-app reset is ever wanted. **Note the reset link opens the WEB app** — decide that hand-off deliberately. Client source isn't in this repo; capture the failing URL if it recurs. | 🔴 OPEN |
 | **AR-018** | **New 08-21 — two lines of code, the rest is data.** Code: append `"ASL:Utah"` + `"ASL:New York Capital Region"` to `AslRegionConstants.Regions`; **don't remove NorCal/SoCal** (2026 + archives resolve through them). Data: clone to 2027, create Utah / NY Capital Region / California teams — **new regions, NOT renames, fresh rosters** (Ann, 08-21). Dropping NorCal/SoCal from 2027 needs no code, just no teams — **but a clone from 2026 copies them, so delete those after cloning.** Region is parsed from the team name; keep the grad year trailing. | 🔴 OPEN |
 | **AR-017** | **New 08-21 — clean evidence, live bug, mechanism NOT pinned.** Red/blue set in the bulletin editor render as plain text; orange + highlight survive. **Discriminator: red/blue are exactly the hexes the legacy pipe converts to `.bl-c-*` classes (`translate-legacy-urls.pipe.ts:27-30`); orange isn't, so it stays inline.** ⇒ inline styles work, the classes don't paint — downstream of the 08-05 sanitizer fix, not it. **Deploy eliminated: images captured on current dev minutes after the re-deploy.** Sanitizer, class hook and specificity all ruled out. Start at devtools on the `$225/clinic` element + the stored `Bulletins.Text`. | 🔴 OPEN |
 | **AR-016** | **New 08-21 — bigger than it first looked.** Player/team detail fly-ins open at the directive default 560px (neither sets `[defaultWidth]`) and the widening handle goes undiscovered. **Ann's confirmed spec is an outcome, not a number: no horizontal scroll on accounting, on whatever device.** Panel width fixes the desktop half only — below 768px the panel is already `100vw`, so if accounting still scrolls there, **the table has to fit, not the panel**. Measure the ledger's minimum width before picking anything; `maxWidth` 1100 may bind. Stored widths win over a new default (double-click resets). **Second time she's raised no-h-scroll (see AR-006) — give it a real answer.** | 🔴 OPEN |
@@ -38,7 +53,89 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 
 ---
 
-<!-- New items go below this line, newest at the bottom, next id = AR-019 -->
+<!-- New items go below this line, newest at the bottom, next id = AR-022 -->
+
+### AR-021: 🚨 [Stay-to-Play] STP Admin login doesn't work — the entire STP admin area was never ported. Paid feature, in live use.
+- **Topic**: Stay-to-Play → STP Admin login (`STPAdmin` role)
+- **Report (Ann, 08-22)**: STP Admin login doesn't work — account **`PellucidAdmin`**. **"Stay-to-Play is something Top Threat Tournaments has paid for, so this is a currently used function in the system."**
+  - 🔒 **Credential deliberately NOT recorded here.** Ann supplied the password pattern in chat; it is **not** written into this file because the punchlist is committed to git. Whoever tests should get it from her directly. **If that account's password really is trivially derived from its username, change it** — it is an admin-role account on a paid customer feature.
+- **✅ ROOT CAUSE: this is not a broken password. The STP admin function does not exist in the new app.**
+  - **Legacy had a whole STP admin area** — `reference/.../Controllers/STP/Admin/` contains **`STPDashboardController`**, **`STPClubRepsController`** and **`STPAdminAddController`**, each `[Authorize(Policy = "STPAdmin")]`.
+  - **The new app has none of it**: no STP controller, **no route** (nothing matching stp/stay in `app.routes.ts`), **no component** (no view folder), and no nav entry.
+  - **The role exists but leads nowhere.** `RoleConstants.cs:21` defines `StpAdmin = CE2CB370-5880-4624-A43E-048379C64331`, name `"STPAdmin"` (`:57`), and it **is** counted in `AdminRoleIds` (`:33`). The Administrators screen can **grant** it (`administrators.component.ts:195`, `admin-form-modal.component.ts:241`) — so an admin can hand out a role that opens nothing.
+  - **The frontend doesn't know the role at all.** `roles.constants.ts` `Roles` has no `StpAdmin` entry, and **`NAV_SERVED_ROLES` excludes it** — so even where authentication succeeds, the nav system serves that role no menu.
+- **✅ SYMPTOM CONFIRMED (Ann, 08-22): "it simply said I had no registrations."** She adds she never suspected the password.
+  - **The credentials are accepted.** That message is **"No active registrations on this account"**, rendered by the **role-selection** screen (`role-selection.component.html:106-110`) when `registrations().length === 0` (`role-selection.component.ts:35-40`). So **phase 1 of the two-phase login succeeded** and phase 2 had no role to offer. This is not an authentication failure.
+  - **Why the list is empty**: STPAdmin sits in `AdminRoleIds` (`RoleConstants.cs:33`), so under the AM-004 lane model (`:26-31`) it only counts from a **live** registration — `bActive` true **and** the job unexpired on **`Jobs.ExpiryAdmin`** (admin roles ride the admin expiry, not `ExpiryUsers`). So `PellucidAdmin` either has no STPAdmin registration row, has one that is inactive, or has one on a job whose **admin expiry has passed**.
+- **🔑 BOTH THINGS ARE TRUE, AND THE PORT IS THE REAL WORK.** Granting `PellucidAdmin` a live registration would clear the message and then land her **on nothing** — there is no STP route, screen or menu to reach. **Ann's read is correct: the rebuild is what's needed.** The registration gap is not the bug; it is a **prerequisite for testing the rebuild** once it exists.
+- **For Todd**:
+  1. **This is a feature port, not a bug fix.** Rebuild the three legacy surfaces — **STP Dashboard**, **STP Club Reps**, **STP Admin Add** — plus a nav entry and registration of `STPAdmin` in the frontend `Roles` map and `NAV_SERVED_ROLES` (it is absent from both today, so the role would get no menu even once screens exist).
+  2. **Scope it against the legacy controllers** in `reference/.../Controllers/STP/Admin/` — they are the specification, and all three are `[Authorize(Policy = "STPAdmin")]`.
+  3. **Before testing, provision the account**: `PellucidAdmin` needs a live STPAdmin registration on a job whose **`ExpiryAdmin`** is in the future, or the role picker stays empty regardless of what has been built.
+  4. **Decide the commercial exposure**: Top Threat Tournaments has **paid** for this. If they need it before it can be ported, that is a conversation to have early rather than after they try to use it.
+  4. Note the non-admin side **does** partially exist: `Jobs.BenableStp` → `JobPulse.EnableStayToPlay` (`JobRepository.cs:674`) surfaces a **Stay-to-Play** item in the user menu that routes to `store` (`client-header-bar.component.ts:181-182`). So the customer-facing entry point ships while the admin side behind it does not — confirm what that link actually reaches today.
+- **Severity**: 🔴🔴 **HIGH — a paid, in-use customer feature with no admin surface in the new system.** Not a defect in ported code; an unported area discovered late.
+- **Status**: 🔴 OPEN — for Todd. Filed 08-22. **Promotion candidate — a paying customer's feature being absent is not after-release material.**
+
+### AR-020: 🚨 [RegSaver / Team Insurance] Vertical Insure is sent the DIRECTOR'S PERSONAL ADDRESS as the event location — PII disclosure + wrong weather-payout basis
+- **Topic**: Team RegSaver (Vertical Insure) → team-registration policy → `job_event.address`
+- **Concern (Ann, 08-22)** — *"Major concern from a policy standpoint."* VI writes a policy against the **actual location of the event**, and **a bank of addresses was created for exactly this purpose**. Currently it appears to send a **Director's** address instead. Two harms: **(1)** it discloses personal information to VI that was never authorized for release; **(2)** it is simply wrong — a Director can live in another state, and **VI determines weather-related payouts from the event location**. *"This should be the same as it was previously."*
+- **✅ CONFIRMED IN CODE — Ann is right on both counts.** `VerticalInsureServiceTeamExtensions.cs:340-355` builds the event block as:
+  ```
+  job_event = new VIEventDto {
+      name     = jobName ?? contextName,
+      type     = "Tournament",
+      location = director?.OrgName ?? string.Empty,
+      // "Director runs the event, so the event address is the director's
+      //  address from AspNetUsers. Empty strings here cause VI's team-
+      //  registration endpoint to 400 with 'Invalid zip code'."
+      address  = new VIAddress {
+          city   = director?.City,   state  = director?.State,
+          zip    = director?.PostalCode, street = director?.StreetAddress }}
+  ```
+  The **director's `AspNetUsers` record** — street, city, state, postal code — is transmitted to a third-party insurer as the **event address**. The comment shows this was a **deliberate workaround for a VI 400 ("Invalid zip code")**, not an oversight, which matters: whoever fixes it must also handle the empty case that motivated it.
+- **✅ LEGACY BEHAVIOUR RECOVERED — and it is exactly what Ann described.** `reference/.../IRegistrationService.cs:1022-1032` sourced the event address from the **field/venue bank**, not from any person:
+  ```
+  var eventKeys = await _context.FieldsLeagueSeason
+      .Where(fls => fls.LeagueId == leagueId && fls.Season == regKeys.Season)
+      .Select(fls => new { fls.Field.Address, fls.Field.City, fls.Field.State, fls.Field.Zip })
+      .FirstOrDefaultAsync();
+  ```
+  then `street/city/state/zip = eventKeys.*` (`:1515-1528`). **"The bank of addresses" = the `Fields` table** (`Fields.cs` — Address, City, State, Zip, plus lat/long), joined to the job through **`FieldsLeagueSeason` on LeagueId + Season**.
+- **🔑 AND LEGACY FAILED LOUD RATHER THAN SUBSTITUTING** (`:1037-1040`):
+  > `if (eventKeys == null || String.IsNullOrEmpty(eventKeys.Address)) return "At least one field must be attached to event -- used for event location...";`
+  **That is the answer to the 400 the current comment is working around.** Legacy's contract was *no field ⇒ no policy, tell the user to attach a field* — never *substitute a person's home address*. Restoring the field lookup **without** restoring this guard just moves the failure.
+- **TWO MORE DRIFTS in the same block — fix in the same pass:**
+  | Field | Legacy | Current | Effect |
+  |:--|:--|:--|:--|
+  | `job_event.location` | `eventKeys.State` | `director?.OrgName` | VI's "location" now carries an org name, not a place |
+  | `job_event.type` | `"team-registration"` | `"Tournament"` | product-type string no longer matches what legacy sent VI |
+- **For Todd**:
+  1. Source `job_event.address` from `FieldsLeagueSeason → Field` (LeagueId + Season), matching legacy exactly. **Stop sending any `director.*` address field to VI.**
+  2. Restore the **fail-loud guard** when no field is attached, with a message that tells the director to attach a field. Do **not** fall back to any personal record.
+  3. Realign `location` → event state and `type` → `"team-registration"`.
+  4. **Check the player path too**: `VerticalInsureService.cs:343-375` sends director **email, first/last name, phone, org name** as `Organization`, though `street` there is `string.Empty` (`:352`). Business contact details are defensible where a home address is not — **but confirm that is intended and authorized**, since it is the same disclosure question one product over.
+  5. **Ask whether any already-issued team policies carry a director address**, and whether VI must be notified / policies re-issued. A policy written against the wrong state is a payout dispute waiting to happen, not just a data-quality nit.
+- **Severity**: 🔴🔴 **HIGH — dual harm.** (a) **Personal data disclosed to a third party without authorization**, and (b) **weather payouts adjudicated against the wrong geography**, which can void or misprice a claim a club has paid for. **Promotion candidate — this is not "after release" material; it is live behaviour with a real counterparty.**
+- **Status**: 🔴 OPEN — for Todd. Filed 08-22. Root cause confirmed in code, legacy behaviour recovered, fix fully specified.
+
+### AR-019: [TSIC-Teams / Mobile auth] "Reset my password" from the app login screen 404s — no mobile password-reset endpoint exists
+- **Topic**: TSIC-Teams mobile app → login screen → reset/forgot password
+- **Observation (Ann, 08-22)**: before the recent mobile changes, asking to reset a password from the TSIC-Teams login screen returned a **404**. *"Not sure if this has been fixed yet."*
+- **✅ ANSWER: it has NOT been fixed. The endpoint still does not exist.**
+  - `MobileAuthController` (`Route("api/mobile/auth")`) exposes **exactly three** endpoints: `POST login` (`:57`), `GET ownerships/{regId:guid}/teams` (`:83`), `POST select-registration` (`:115`). **There is no forgot-password or reset-password route under `api/mobile/auth`** — so any such call 404s, which matches the reported symptom precisely.
+  - **The recent mobile work did not add one.** `43e818b88` (login / ownership teams / select-registration) and `70d9a21af` (CalendarId + short job name) between them added no password endpoint. Nothing has changed for this since Ann last saw it.
+- **✅ The capability already exists on the web controller — no new reset logic needs writing.** `POST /api/auth/forgot-password` (`AuthController.cs:526-580`) is **anonymous** (no class-level `[Authorize]` at `:22-24`, none on the method), always returns 200 regardless of match (deliberate — no account enumeration), and sends the reset email.
+- **⚠ THE DESIGN DECISION, not just a wiring job — the reset link points at the WEB app.** `AuthController.cs:562` builds `{FrontendSettings.BaseUrl}/reset-password?…`. So a TSIC-Teams user who requests a reset receives a link that opens the **Angular web frontend in a browser**, resets there, then returns to the app to log in. That is workable but it is a hand-off between two products — **decide it deliberately and make the app's copy set that expectation**, rather than letting a user tap a link and wonder why they've left the app.
+- **Two ways to fix — Todd's call:**
+  1. **Point the app at the existing `POST /api/auth/forgot-password`.** No backend code at all. Cheapest, and the endpoint is already anonymous and safe to call from an unauthenticated screen.
+  2. **Add `POST api/mobile/auth/forgot-password`** wrapping the same service, if the mobile client is meant to stay on its own route prefix (own base path/config, own DTO shape, or so the reset link can eventually deep-link back into the app instead of the web).
+  - Option 2 is the better long-term shape **if** a mobile deep-link reset is ever wanted; option 1 unblocks users today.
+- **⚠ Cannot be verified from this repo — the TSIC-Teams client source is NOT here.** `reference/TSIC-TEAMS-2025` is empty. So the exact URL the app calls is unknown; the 404 is inferred from the route table, which is solid on the server side but doesn't prove which path the client requested. **If it recurs, capture the failing request URL** — that confirms whether the app is calling a mobile route, the web route with a wrong prefix, or something else entirely.
+- **Testing note**: reset emails only send for real in **Production** (sandbox gate). In **Development** the response body carries the reset links, so the flow is testable end-to-end without a mailbox (`:541`, `:576-580`).
+- **Severity**: 🔴 Bug / user-blocking on mobile — a user who forgets their password has no self-service route into TSIC-Teams at all
+- **Status**: 🔴 OPEN — for Todd. Filed 08-22 at Ann's request.
+
 
 ### AR-018: [ASL Rosters] Carry the roster board forward to 2027, and change the region set (NorCal→Utah, SoCal→New York Capital Region, restore California)
 - **Topic**: public ASL roster board — `teamsportsinfo.com/{jobPath}/aslrosters` (screenshot: `americanselect-mainevent-2026/aslrosters`)
