@@ -48,10 +48,8 @@ export class ManageFieldsComponent {
     readonly sortedFilteredAssigned = computed(() =>
         this.sortFields(this.filterAssigned(this.assignedFields(), this.assignedFilter()),
             this.assignedSortCol(), this.assignedSortDir()));
-    // The event-location row is never removable: it holds the address sent to Vertical
-    // Insure, and deleting it silently kills Team RegSaver for the job.
     readonly removableAssignedCount = computed(() =>
-        this.sortedFilteredAssigned().filter(f => !f.scheduledGameCount && !f.isEventLocation).length);
+        this.sortedFilteredAssigned().filter(f => !f.scheduledGameCount).length);
 
     // ── Transfer state ──
     readonly swappingId = signal<string | null>(null);
@@ -158,7 +156,7 @@ export class ManageFieldsComponent {
     selectAllAssigned() {
         this.assignedSelected.set(new Set(
             this.sortedFilteredAssigned()
-                .filter(f => !f.scheduledGameCount && !f.isEventLocation)
+                .filter(f => !f.scheduledGameCount)
                 .map(f => f.fieldId)
         ));
     }

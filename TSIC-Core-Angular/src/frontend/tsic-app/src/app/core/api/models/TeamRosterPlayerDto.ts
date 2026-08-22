@@ -16,7 +16,6 @@ export type TeamRosterPlayerDto = {
     dadEmail?: string | null;
     dadCellphone?: string | null;
     uniformNumber?: string | null;
-    position?: string | null;
     city?: string | null;
     school?: string | null;
     userName?: string | null;

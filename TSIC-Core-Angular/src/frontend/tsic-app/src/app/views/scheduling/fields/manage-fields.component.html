@@ -167,10 +167,7 @@
                         [class.row-selected]="selectedField()?.fieldId === field.fieldId"
                         (click)="selectAssignedFieldForEdit(field)">
                       <td class="col-check frozen frozen-0" (click)="$event.stopPropagation()">
-                        @if (field.isEventLocation) {
-                          <i class="bi bi-shield-lock text-body-secondary"
-                             title="Event location for insurance — cannot be removed"></i>
-                        } @else if (field.scheduledGameCount) {
+                        @if (field.scheduledGameCount) {
                           <span class="badge bg-secondary badge-game-count"
                                 title="{{ field.scheduledGameCount }} game(s) scheduled — remove games first">
                             {{ field.scheduledGameCount }}
@@ -182,7 +179,7 @@
                         }
                       </td>
                       <td class="col-swap frozen frozen-1" (click)="$event.stopPropagation()">
-                        @if (!field.scheduledGameCount && !field.isEventLocation) {
+                        @if (!field.scheduledGameCount) {
                           <button class="btn btn-sm btn-outline-danger swap-btn"
                                   [disabled]="swappingId() === field.fieldId"
                                   (click)="removeField(field)"
@@ -195,22 +192,14 @@
                           </button>
                         }
                       </td>
-                      <td class="col-name frozen frozen-2 text-nowrap">
-                        {{ field.fName }}
-                        @if (field.isEventLocation) {
-                          <span class="badge bg-secondary-subtle text-body-secondary ms-1"
-                                title="The event address sent to Vertical Insure for team RegSaver policies. Not a playing field — it never appears in scheduling.">Event location</span>
-                        }
-                      </td>
+                      <td class="col-name frozen frozen-2 text-nowrap">{{ field.fName }}</td>
                       <td class="col-pref" (click)="$event.stopPropagation()">
-                        @if (!field.isEventLocation) {
-                          <button class="btn btn-sm pref-toggle"
-                                  [ngClass]="preferenceClass(field.fieldPreference)"
-                                  (click)="cyclePreference(field)"
-                                  [title]="preferenceLabel(field.fieldPreference)">
-                            <i class="bi" [ngClass]="preferenceIcon(field.fieldPreference)"></i>
-                          </button>
-                        }
+                        <button class="btn btn-sm pref-toggle"
+                                [ngClass]="preferenceClass(field.fieldPreference)"
+                                (click)="cyclePreference(field)"
+                                [title]="preferenceLabel(field.fieldPreference)">
+                          <i class="bi" [ngClass]="preferenceIcon(field.fieldPreference)"></i>
+                        </button>
                       </td>
                       <td class="text-nowrap">{{ field.city }}</td>
                       <td class="text-nowrap">{{ field.state }}</td>

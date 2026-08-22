@@ -9,8 +9,6 @@ export type MobileOwnershipDto = {
     jobPath: string;
     jobLogo?: string | null;
     teamCount: number;
-    momLabel: string;
-    dadLabel: string;
     teamsAppEnabled: boolean;
 };
 
