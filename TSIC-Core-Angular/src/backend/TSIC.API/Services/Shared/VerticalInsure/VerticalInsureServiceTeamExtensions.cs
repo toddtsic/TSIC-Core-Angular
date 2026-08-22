@@ -93,7 +93,7 @@ public partial class VerticalInsureService
             }
 
             var director = await _registrationRepo.GetDirectorContactForJobAsync(jobId);
-            var products = await BuildTeamProductsAsync(teams, clubRepUser, clubRepReg.ClubName, director, eventLocation, jobOffer.JobName, jobOffer.EventStartDate.Value, jobOffer.EventEndDate);
+            var products = await BuildTeamProductsAsync(teams, regId, clubRepUser, clubRepReg.ClubName, director, eventLocation, jobOffer.JobName, jobOffer.EventStartDate.Value, jobOffer.EventEndDate);
             var teamObj = BuildTeamObject(products);
 
             return new PreSubmitTeamInsuranceDto
@@ -319,6 +319,7 @@ public partial class VerticalInsureService
 
     private async Task<List<VITeamProductDto>> BuildTeamProductsAsync(
         List<RegisteredTeamInfo> teams,
+        Guid clubRepRegId,
         AspNetUsers clubRepUser,
         string? clubRepClubName,
         DirectorContactInfo? director,
@@ -359,6 +360,10 @@ public partial class VerticalInsureService
                     context_name = contextName,
                     context_description = team.TeamName,
                     tsic_clubname = clubRepClubName ?? string.Empty,
+                    // Was never set, so every team policy went out keyed to Guid.Empty and could
+                    // not be traced back to the purchase. Legacy stamped it
+                    // (IRegistrationService.cs:1507).
+                    tsic_registrationid = clubRepRegId,
                     tsic_teamid = team.TeamId
                 },
                 policy_attributes = new VITeamPolicyAttributes
@@ -370,9 +375,12 @@ public partial class VerticalInsureService
                     // fully contactable as the customer, so spending this slot on them would
                     // duplicate the purchaser and leave VI no route to the organizer.
                     // Matches the player payload, which has always sent the director here.
+                    // contextName, not jobName: job names are "Org:Event", and the org is the
+                    // half before the colon. Sending the composite named the organization
+                    // "Top Threat Tournaments:Merry Laxmas North".
                     organization_name = !string.IsNullOrWhiteSpace(director?.OrgName)
                         ? director.OrgName
-                        : jobName ?? contextName,
+                        : contextName,
                     organization_contact_name = $"{director?.FirstName} {director?.LastName}".Trim(),
                     organization_contact_email = director?.Email ?? string.Empty,
                     teams = new List<VITeamDto>
