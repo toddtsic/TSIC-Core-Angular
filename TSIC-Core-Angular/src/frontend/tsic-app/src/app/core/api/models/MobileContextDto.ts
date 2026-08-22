@@ -13,9 +13,6 @@ export type MobileContextDto = {
     teamId?: string | null;
     teamName?: string | null;
     agegroup?: string | null;
-    calendarId?: string | null;
-    momLabel: string;
-    dadLabel: string;
     teamsAppEnabled: boolean;
     isPlaced: boolean;
     isOpenable: boolean;

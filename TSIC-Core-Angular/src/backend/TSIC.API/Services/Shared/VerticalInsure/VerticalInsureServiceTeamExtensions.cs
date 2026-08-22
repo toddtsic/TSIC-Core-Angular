@@ -7,7 +7,6 @@ using System.Text.Json;
 using TSIC.API.Extensions;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.VerticalInsure;
-using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Extensions;
 using TSIC.Domain.Entities;
 using TSIC.Domain.Constants;
@@ -72,25 +71,8 @@ public partial class VerticalInsureService
                 return new PreSubmitTeamInsuranceDto { Available = false, Error = "Club rep user not found." };
             }
 
-            // The event location comes from the field/venue bank — NEVER from a person.
-            // A team policy is written against where the event is PLAYED: sending the
-            // director's own AspNetUsers address disclosed personal data to the carrier and
-            // had weather claims adjudicated against the wrong state (AR-020).
-            var eventAddress = await _fieldRepo.GetEventAddressForJobAsync(jobId);
-            if (eventAddress == null)
-            {
-                // VI requires street/city/state/zip on a team-registration quote, so with no
-                // usable field there is no valid policy to write. Fail closed and name the
-                // cause. Do NOT substitute anyone's address to get past the 400 — that is
-                // exactly the workaround this replaces.
-                return new PreSubmitTeamInsuranceDto
-                {
-                    Available = false,
-                    Error = "Team RegSaver isn't available for this event — its location hasn't been set up yet. Please contact the event director."
-                };
-            }
-
-            var products = await BuildTeamProductsAsync(teams, clubRepUser, clubRepReg.ClubName, eventAddress, jobOffer.JobName, jobOffer.EventStartDate.Value, jobOffer.EventEndDate);
+            var director = await _registrationRepo.GetDirectorContactForJobAsync(jobId);
+            var products = await BuildTeamProductsAsync(teams, clubRepUser, director, jobOffer.JobName, jobOffer.EventStartDate.Value, jobOffer.EventEndDate);
             var teamObj = BuildTeamObject(products);
 
             return new PreSubmitTeamInsuranceDto
@@ -300,8 +282,7 @@ public partial class VerticalInsureService
     private async Task<List<VITeamProductDto>> BuildTeamProductsAsync(
         List<RegisteredTeamInfo> teams,
         AspNetUsers clubRepUser,
-        string? clubName,
-        EventAddressDto eventAddress,
+        DirectorContactInfo? director,
         string? jobName,
         DateTime eventStartDate,
         DateTime? eventEndDate)
@@ -341,12 +322,9 @@ public partial class VerticalInsureService
                 },
                 policy_attributes = new VITeamPolicyAttributes
                 {
-                    // The insured party is the CLUB buying coverage for its own teams —
-                    // not the event's director. `teams` below are this club's teams; the
-                    // event itself is described separately in job_event.
-                    organization_name = clubName ?? string.Empty,
-                    organization_contact_name = $"{clubRepUser.FirstName} {clubRepUser.LastName}".Trim(),
-                    organization_contact_email = clubRepUser.Email ?? string.Empty,
+                    organization_name = director?.OrgName ?? string.Empty,
+                    organization_contact_name = $"{director?.FirstName} {director?.LastName}".Trim(),
+                    organization_contact_email = director?.Email ?? string.Empty,
                     teams = new List<VITeamDto>
                     {
                         new VITeamDto
@@ -362,19 +340,17 @@ public partial class VerticalInsureService
                     job_event = new VIEventDto
                     {
                         name = jobName ?? contextName,
-                        // Legacy sent "team-registration"; "Tournament" was drift.
-                        type = "team-registration",
-                        // Legacy sent the event STATE here, not an org name.
-                        location = eventAddress.State,
-                        // Field/venue bank — every part non-empty by construction, which is
-                        // what the old "Invalid zip code" 400 was really about: legacy guarded
-                        // only on street, so a blank zip still reached VI.
+                        type = "Tournament",
+                        location = director?.OrgName ?? string.Empty,
+                        // Director runs the event, so the event address is the director's
+                        // address from AspNetUsers. Empty strings here cause VI's team-
+                        // registration endpoint to 400 with "Invalid zip code".
                         address = new VIAddress
                         {
-                            city = eventAddress.City,
-                            state = eventAddress.State,
-                            zip = eventAddress.Zip,
-                            street = eventAddress.Street
+                            city = director?.City ?? string.Empty,
+                            state = director?.State ?? string.Empty,
+                            zip = director?.PostalCode ?? string.Empty,
+                            street = director?.StreetAddress ?? string.Empty
                         },
                         // ISO 8601 sortable to match legacy `$"{job.EventStartDate:s}"`.
                         // VI's team-registration product enforces start ≥ 14 days from

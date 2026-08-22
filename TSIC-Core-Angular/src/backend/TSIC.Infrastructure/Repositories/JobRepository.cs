@@ -7,7 +7,6 @@ using TSIC.Domain.Entities;
 using TSIC.Domain.JobRules;
 using TSIC.Domain.UsLax;
 using TSIC.Infrastructure.Data.SqlDbContext;
-using TSIC.Infrastructure.Queries;
 
 namespace TSIC.Infrastructure.Repositories;
 
@@ -667,9 +666,6 @@ public class JobRepository : IJobRepository
                     PublicRostersAvailable = j.BRestrictPublicRosters != true,
                     OfferPlayerRegsaverInsurance = j.BOfferPlayerRegsaverInsurance == true,
                     OfferTeamRegsaverInsurance = j.BOfferTeamRegsaverInsurance == true,
-                    // Needs a field-bank lookup EF cannot fold into this projection —
-                    // placeholder, resolved post-materialization below.
-                    TeamRegsaverAvailable = false,
                     StoreEnabled = j.BEnableStore == true,
                     StoreHasActiveItems = j.BEnableStore == true
                         && _context.Stores.Any(s => s.JobId == j.JobId
@@ -730,8 +726,6 @@ public class JobRepository : IJobRepository
                 j.JobName,
                 j.CustomerId,
                 j.Year,
-                // Join key for the Team RegSaver event-address check in the fold below.
-                j.Season,
                 // Fee configuration rides the OUTER shape, not the pulse: it is an input to the
                 // registration verdicts (a role with no JobFees row can't be priced, so
                 // FeeResolutionService would throw and the card would dead-end), but it is not
@@ -764,16 +758,6 @@ public class JobRepository : IJobRepository
         // shared with the player wizard's team list and the admin readiness readout.
         var teams = await GetTeamAvailabilitySnapshotAsync(row.JobId, now, cancellationToken);
 
-        // Step 3a: Team RegSaver needs a real event address, not just the toggle. VI requires
-        // street/city/state/zip on a team-registration quote and the field bank is the only
-        // source, so a job with the toggle on but no usable venue can be offered nothing.
-        // Surfaces that advertise the offer gate on THIS; the raw toggle stays as the
-        // director's setting. Short-circuits, so jobs with the toggle off cost no query.
-        // Same EventAddressQuery the payload builder uses — one rule, two consumers.
-        var teamRegsaverAvailable = pulse.OfferTeamRegsaverInsurance
-            && !string.IsNullOrWhiteSpace(row.Season)
-            && await EventAddressQuery.ForJob(_context, row.JobId, row.Season).AnyAsync(cancellationToken);
-
         // Step 4: compose the registration verdicts. RegistrationReadiness.Compose owns the
         // composition — toggle AND fees AND the create door (NOT concluded AND NOT superseded),
         // with eventConcluded coming from the SAME JobLifecycle predicate the write authority
@@ -804,7 +788,6 @@ public class JobRepository : IJobRepository
         return pulse with
         {
             EventYear = eventYear,
-            TeamRegsaverAvailable = teamRegsaverAvailable,
             EventConcluded = verdicts.EventConcluded,
             // Pure profile fact — independent of the create door. The bulletin ANDs it
             // with reg-open client-side; folding the door in here would wrongly drop the

@@ -3,7 +3,6 @@ using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
-using TSIC.Infrastructure.Queries;
 
 namespace TSIC.Infrastructure.Repositories;
 
@@ -250,27 +249,5 @@ public class FieldRepository : IFieldRepository
             .Union(fromSchedule)
             .Distinct()
             .ToListAsync(ct);
-    }
-
-    public async Task<EventAddressDto?> GetEventAddressForJobAsync(
-        Guid jobId,
-        CancellationToken ct = default)
-    {
-        // Season is the join key into FieldsLeagueSeason and lives on the job.
-        var season = await _context.Jobs
-            .AsNoTracking()
-            .Where(j => j.JobId == jobId)
-            .Select(j => j.Season)
-            .FirstOrDefaultAsync(ct);
-
-        // Jobs.Season and FieldsLeagueSeason.Season are BOTH nullable. A null on either side
-        // never matches in SQL, so bail explicitly rather than returning an empty join the
-        // caller would misread as "no fields attached".
-        if (string.IsNullOrWhiteSpace(season))
-            return null;
-
-        // The predicate lives in EventAddressQuery so the pulse's "can we advertise
-        // this?" check and this "give me the address" call can never diverge.
-        return await EventAddressQuery.ForJob(_context, jobId, season).FirstOrDefaultAsync(ct);
     }
 }

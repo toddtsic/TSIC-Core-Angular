@@ -134,7 +134,6 @@ public class BulletinsController : ControllerBase
                 PublicRostersAvailable = true,
                 OfferPlayerRegsaverInsurance = true,
                 OfferTeamRegsaverInsurance = true,
-                TeamRegsaverAvailable = true,
                 StoreEnabled = true,
                 StoreHasActiveItems = true,
                 AllowStoreWalkup = true,

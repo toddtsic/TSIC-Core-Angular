@@ -22,7 +22,6 @@ export type JobPulseDto = {
     publicRostersAvailable: boolean;
     offerPlayerRegsaverInsurance: boolean;
     offerTeamRegsaverInsurance: boolean;
-    teamRegsaverAvailable: boolean;
     storeEnabled: boolean;
     storeHasActiveItems: boolean;
     allowStoreWalkup: boolean;
