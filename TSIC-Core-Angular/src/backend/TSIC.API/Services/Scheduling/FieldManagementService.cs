@@ -1,5 +1,6 @@
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Constants;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
 
@@ -54,9 +55,16 @@ public sealed class FieldManagementService : IFieldManagementService
             ? await _scheduleRepo.GetGameCountsByFieldIdsAsync(jobId, assignedFieldIds, ct)
             : new Dictionary<Guid, int>();
 
+        // The event-location row is identified by its DERIVED name, not by an asterisk
+        // prefix -- the prefix only marks a row as a pseudo-field, it does not say WHICH job
+        // the row belongs to, and it cannot tell us the row is missing entirely.
+        var jobPath = await _jobRepo.GetJobPathAsync(jobId, ct);
+        var eventLocationName = EventLocationFieldNaming.NameForJobPath(jobPath);
+
         var enrichedAssigned = assignedRecords.Select(f => f with
         {
-            ScheduledGameCount = gameCounts.GetValueOrDefault(f.FieldId)
+            ScheduledGameCount = gameCounts.GetValueOrDefault(f.FieldId),
+            IsEventLocation = EventLocationFieldNaming.IsEventLocationFor(f.FName, jobPath)
         }).ToList();
 
         return new FieldManagementResponse
@@ -73,7 +81,9 @@ public sealed class FieldManagementService : IFieldManagementService
                 Latitude = f.Latitude,
                 Longitude = f.Longitude
             }).ToList(),
-            AssignedFields = enrichedAssigned
+            AssignedFields = enrichedAssigned,
+            EventLocationFieldName = eventLocationName,
+            HasEventLocation = enrichedAssigned.Any(f => f.IsEventLocation)
         };
     }
 

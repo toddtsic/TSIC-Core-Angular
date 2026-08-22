@@ -48,8 +48,16 @@ export class ManageFieldsComponent {
     readonly sortedFilteredAssigned = computed(() =>
         this.sortFields(this.filterAssigned(this.assignedFields(), this.assignedFilter()),
             this.assignedSortCol(), this.assignedSortDir()));
+    // The event-location row is never removable: it holds the address sent to Vertical
+    // Insure, and deleting it silently stops Team RegSaver working for the job.
     readonly removableAssignedCount = computed(() =>
-        this.sortedFilteredAssigned().filter(f => !f.scheduledGameCount).length);
+        this.sortedFilteredAssigned().filter(f => !f.scheduledGameCount && !f.isEventLocation).length);
+
+    // Name this job's event-location row MUST carry, and whether one is attached. Reported
+    // by the server from the shared naming rule -- a client-side prefix scan could only
+    // describe rows that exist, never tell the director the row is missing.
+    readonly eventLocationFieldName = signal<string | null>(null);
+    readonly hasEventLocation = signal(false);
 
     // ── Transfer state ──
     readonly swappingId = signal<string | null>(null);
@@ -87,6 +95,8 @@ export class ManageFieldsComponent {
             next: data => {
                 this.availableFields.set(data.availableFields);
                 this.assignedFields.set(data.assignedFields);
+                this.eventLocationFieldName.set(data.eventLocationFieldName ?? null);
+                this.hasEventLocation.set(data.hasEventLocation ?? false);
                 this.isLoading.set(false);
             },
             error: err => {
@@ -156,7 +166,7 @@ export class ManageFieldsComponent {
     selectAllAssigned() {
         this.assignedSelected.set(new Set(
             this.sortedFilteredAssigned()
-                .filter(f => !f.scheduledGameCount)
+                .filter(f => !f.scheduledGameCount && !f.isEventLocation)
                 .map(f => f.fieldId)
         ));
     }

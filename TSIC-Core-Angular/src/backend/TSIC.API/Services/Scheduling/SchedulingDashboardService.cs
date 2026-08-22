@@ -1,5 +1,6 @@
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Constants;
 using TSIC.Contracts.Services;
 
 namespace TSIC.API.Services.Scheduling;
@@ -101,7 +102,12 @@ public sealed class SchedulingDashboardService : ISchedulingDashboardService
             TotalDivisions = totalDivisions,
             DivisionsAreThemed = divisionsAreThemed,
             AgegroupsPoolComplete = agegroupsPoolComplete,
-            FieldCount = fields.Count,
+            // Playing fields only. GetLeagueSeasonFieldsAsync now also returns the job's
+            // event-location row (the Vertical Insure address); counting it would make an
+            // event with no real venues look scheduled. This service has no jobPath, so it
+            // filters on the pseudo-field prefix -- adequate for a COUNT, where the only
+            // question is "is this a playable venue", not "which job owns this row".
+            FieldCount = fields.Count(f => !f.FName.StartsWith(EventLocationFieldNaming.Prefix)),
             PoolSizesWithPairings = poolSizesWithPairings.Count,
             TotalDistinctPoolSizes = distinctPoolSizes.Count,
             AgegroupsReady = agegroupsReady,

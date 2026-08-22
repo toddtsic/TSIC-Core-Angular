@@ -7,5 +7,7 @@ import type { LeagueSeasonFieldDto } from './LeagueSeasonFieldDto';
 export type FieldManagementResponse = {
     availableFields: Array<FieldDto>;
     assignedFields: Array<LeagueSeasonFieldDto>;
+    eventLocationFieldName?: string | null;
+    hasEventLocation?: boolean;
 };
 

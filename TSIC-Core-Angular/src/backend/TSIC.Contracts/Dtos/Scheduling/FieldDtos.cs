@@ -34,6 +34,15 @@ public record LeagueSeasonFieldDto
 
     /// <summary>Number of scheduled games on this field. 0 = safe to remove.</summary>
     public int ScheduledGameCount { get; init; }
+
+    /// <summary>
+    /// This row is the job's event-location record, not a playing field: it holds the address
+    /// sent to Vertical Insure for team RegSaver. Set by matching the full name derived in
+    /// EventLocationFieldNaming, never by an asterisk prefix. Kept out of scheduling pickers
+    /// (you cannot play a game on an address) but shown here, because it was previously
+    /// invisible app-wide and could be neither reviewed nor corrected.
+    /// </summary>
+    public bool IsEventLocation { get; init; }
 }
 
 public record FieldManagementResponse
@@ -42,6 +51,19 @@ public record FieldManagementResponse
     public required List<FieldDto> AvailableFields { get; init; }
     /// <summary>Fields assigned to current league-season.</summary>
     public required List<LeagueSeasonFieldDto> AssignedFields { get; init; }
+
+    /// <summary>
+    /// The name this job's event-location field must carry ("*" + jobPath less its year
+    /// suffix). Null only when the jobPath is too short to derive one.
+    /// </summary>
+    public string? EventLocationFieldName { get; init; }
+
+    /// <summary>
+    /// False when no row matching EventLocationFieldName is attached. A prefix scan can only
+    /// describe rows that exist; this is what lets the screen report the row MISSING, which
+    /// is the state that actually breaks Team RegSaver.
+    /// </summary>
+    public bool HasEventLocation { get; init; }
 }
 
 // ── Request DTOs ──

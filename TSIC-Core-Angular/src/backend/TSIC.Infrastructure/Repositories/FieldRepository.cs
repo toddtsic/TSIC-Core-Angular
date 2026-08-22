@@ -54,10 +54,16 @@ public class FieldRepository : IFieldRepository
         string season,
         CancellationToken ct = default)
     {
+        // Pseudo-field rows are NOT excluded here, unlike every other query in this file.
+        // The job's event-location row (see EventLocationFieldNaming) lives among these and
+        // holds the address sent to Vertical Insure; filtering it out made that address
+        // invisible and uneditable everywhere in the app. It stays out of the ASSIGNMENT
+        // picker and the scheduling readiness count -- it is not somewhere games are played --
+        // but this list answers "what venue data does this event have", and it belongs in it.
+        // Which row it is gets decided by the caller, which knows the jobPath.
         return await _context.FieldsLeagueSeason
             .AsNoTracking()
             .Where(fls => fls.LeagueId == leagueId && fls.Season == season)
-            .Where(fls => fls.Field.FName == null || !fls.Field.FName.StartsWith("*"))
             .OrderBy(fls => fls.Field.FName)
             .Select(fls => new LeagueSeasonFieldDto
             {
