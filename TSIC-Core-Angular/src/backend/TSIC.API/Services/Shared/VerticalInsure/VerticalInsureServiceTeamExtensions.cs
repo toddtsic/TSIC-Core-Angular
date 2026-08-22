@@ -375,12 +375,12 @@ public partial class VerticalInsureService
                     // fully contactable as the customer, so spending this slot on them would
                     // duplicate the purchaser and leave VI no route to the organizer.
                     // Matches the player payload, which has always sent the director here.
-                    // contextName, not jobName: job names are "Org:Event", and the org is the
-                    // half before the colon. Sending the composite named the organization
-                    // "Top Threat Tournaments:Merry Laxmas North".
-                    organization_name = !string.IsNullOrWhiteSpace(director?.OrgName)
-                        ? director.OrgName
-                        : contextName,
+                    // contextName, not director.OrgName: OrgName is literally Job.JobName
+                    // (RegistrationRepository.cs:980), so preferring it named the organization
+                    // "Top Threat Tournaments:Merry Laxmas North". Job names are "Org:Event"
+                    // and the organization is the half before the colon -- the same value
+                    // metadata.context_name already carries.
+                    organization_name = contextName,
                     organization_contact_name = $"{director?.FirstName} {director?.LastName}".Trim(),
                     organization_contact_email = director?.Email ?? string.Empty,
                     teams = new List<VITeamDto>
