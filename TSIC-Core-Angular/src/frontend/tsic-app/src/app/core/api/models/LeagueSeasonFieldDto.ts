@@ -16,5 +16,6 @@ export type LeagueSeasonFieldDto = {
     bActive?: boolean | null;
     fieldPreference?: number;
     scheduledGameCount?: number;
+    isEventLocation?: boolean;
 };
 

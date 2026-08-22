@@ -54,10 +54,15 @@ public class FieldRepository : IFieldRepository
         string season,
         CancellationToken ct = default)
     {
+        // System '*' rows are NOT excluded here, unlike every other field query.
+        // The job's event-location record ("*{jobPath}") lives among these and holds the
+        // address sent to Vertical Insure. Excluding it made that address invisible and
+        // uneditable app-wide. It stays out of the ASSIGNMENT picker and the scheduling
+        // readiness count below -- it is not somewhere games can be played -- but this is
+        // the "what venue data does this event have" list, and it belongs in it.
         return await _context.FieldsLeagueSeason
             .AsNoTracking()
             .Where(fls => fls.LeagueId == leagueId && fls.Season == season)
-            .Where(fls => fls.Field.FName == null || !fls.Field.FName.StartsWith("*"))
             .OrderBy(fls => fls.Field.FName)
             .Select(fls => new LeagueSeasonFieldDto
             {
@@ -72,7 +77,8 @@ public class FieldRepository : IFieldRepository
                 Latitude = fls.Field.Latitude,
                 Longitude = fls.Field.Longitude,
                 BActive = fls.BActive,
-                FieldPreference = fls.FieldPreference
+                FieldPreference = fls.FieldPreference,
+                IsEventLocation = fls.Field.FName != null && fls.Field.FName.StartsWith("*")
             })
             .ToListAsync(ct);
     }

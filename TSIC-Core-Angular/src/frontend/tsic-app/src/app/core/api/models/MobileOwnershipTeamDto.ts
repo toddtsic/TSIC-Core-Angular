@@ -6,5 +6,6 @@ export type MobileOwnershipTeamDto = {
     teamId: string;
     teamName: string;
     agegroup: string;
+    calendarId?: string | null;
 };
 

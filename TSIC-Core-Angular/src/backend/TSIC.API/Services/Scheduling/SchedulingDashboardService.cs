@@ -101,7 +101,10 @@ public sealed class SchedulingDashboardService : ISchedulingDashboardService
             TotalDivisions = totalDivisions,
             DivisionsAreThemed = divisionsAreThemed,
             AgegroupsPoolComplete = agegroupsPoolComplete,
-            FieldCount = fields.Count,
+            // Playing fields only. GetLeagueSeasonFieldsAsync now also returns the job's
+            // event-location row (the Vertical Insure address) so Manage Fields can show
+            // it; counting it here would make an event with no real venues look scheduled.
+            FieldCount = fields.Count(f => !f.IsEventLocation),
             PoolSizesWithPairings = poolSizesWithPairings.Count,
             TotalDistinctPoolSizes = distinctPoolSizes.Count,
             AgegroupsReady = agegroupsReady,

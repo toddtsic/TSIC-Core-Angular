@@ -34,6 +34,16 @@ public record LeagueSeasonFieldDto
 
     /// <summary>Number of scheduled games on this field. 0 = safe to remove.</summary>
     public int ScheduledGameCount { get; init; }
+
+    /// <summary>
+    /// This is the job's event-location record (name prefixed '*'), not a playing field.
+    /// Legacy creates one per job as "*{jobPath minus the trailing -YYYY}" and reads the
+    /// event address for Vertical Insure from it -- its own error calls it the "insurance
+    /// field". It is deliberately kept OUT of scheduling pickers (you cannot play a game on
+    /// an address) but belongs in this list: it was previously invisible everywhere in the
+    /// app, so an address we transmit to an insurer could be neither reviewed nor corrected.
+    /// </summary>
+    public bool IsEventLocation { get; init; }
 }
 
 public record FieldManagementResponse
