@@ -329,7 +329,6 @@ public partial class VerticalInsureService
     {
         var products = new List<VITeamProductDto>();
         var contextName = (jobName ?? string.Empty).Split(':')[0];
-        var clubRepContactName = $"{clubRepUser.FirstName} {clubRepUser.LastName}".Trim();
 
         foreach (var team in teams)
         {
@@ -351,7 +350,7 @@ public partial class VerticalInsureService
                     state = clubRepUser.State ?? string.Empty,
                     postal_code = clubRepUser.PostalCode ?? string.Empty,
                     phone = clubRepUser.Cellphone ?? string.Empty,
-                    street = string.Empty
+                    street = clubRepUser.StreetAddress ?? string.Empty
                 },
                 metadata = new VITeamMetadataDto
                 {
@@ -359,22 +358,23 @@ public partial class VerticalInsureService
                     context_event = jobName ?? contextName,
                     context_name = contextName,
                     context_description = team.TeamName,
+                    tsic_clubname = clubRepClubName ?? string.Empty,
                     tsic_teamid = team.TeamId
                 },
                 policy_attributes = new VITeamPolicyAttributes
                 {
-                    // The insured organization is the CLUB buying the policy for its teams,
-                    // and its contact is the club rep -- not the event organizer, who is already
-                    // described by the event block below. Legacy read the same three off the
-                    // club rep's registration (IRegistrationService.cs:1512).
-                    //
-                    // organization_name is required by VI, so a rep with no club name on their
-                    // registration falls back to the director's org rather than sending "".
-                    organization_name = !string.IsNullOrWhiteSpace(clubRepClubName)
-                        ? clubRepClubName
-                        : director?.OrgName ?? string.Empty,
-                    organization_contact_name = clubRepContactName,
-                    organization_contact_email = clubRepUser.Email ?? string.Empty,
+                    // Two parties, two places. The PURCHASER is the club rep and rides in
+                    // customer above. The EVENT is described here: its address off the field
+                    // row, and its organization -- the director who runs it, whom Vertical
+                    // Insure has to be able to reach on a cancellation. The club rep is already
+                    // fully contactable as the customer, so spending this slot on them would
+                    // duplicate the purchaser and leave VI no route to the organizer.
+                    // Matches the player payload, which has always sent the director here.
+                    organization_name = !string.IsNullOrWhiteSpace(director?.OrgName)
+                        ? director.OrgName
+                        : jobName ?? contextName,
+                    organization_contact_name = $"{director?.FirstName} {director?.LastName}".Trim(),
+                    organization_contact_email = director?.Email ?? string.Empty,
                     teams = new List<VITeamDto>
                     {
                         new VITeamDto

@@ -213,6 +213,11 @@ public record VITeamMetadataDto
     public string context_event { get; set; } = string.Empty;
     public string context_name { get; set; } = string.Empty;
     public string context_description { get; set; } = string.Empty;
+
+    /// <summary>The purchasing club. VI's team schema has no field for it -- the only
+    /// organization slot carries the event organizer -- so it rides in metadata rather than
+    /// being dropped.</summary>
+    public string tsic_clubname { get; set; } = string.Empty;
     public Guid tsic_registrationid { get; set; }
     public Guid tsic_teamid { get; set; }
 }
