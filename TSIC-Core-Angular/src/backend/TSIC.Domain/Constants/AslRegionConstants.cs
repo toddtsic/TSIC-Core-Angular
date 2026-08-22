@@ -39,6 +39,7 @@ public static class AslRegionConstants
         "ASL:Massachusetts",
         "ASL:Midwest",
         "ASL:New Jersey",
+        "ASL:New York Capital Region",
         "ASL:North Carolina",
         "ASL:North East",
         "ASL:NY Downstate",
@@ -48,7 +49,8 @@ public static class AslRegionConstants
         "ASL:Pennsylvania",
         "ASL:Six Nations",
         "ASL:Tennessee",
-        "ASL:Texas"
+        "ASL:Texas",
+        "ASL:Utah"
     ];
 
     /// <summary>
