@@ -116,8 +116,17 @@ public record VITeamObjectResponse
 public record VITeamPolicyAttributes
 {
     public string organization_name { get; set; } = string.Empty;
+
+    // VI names these org_contact_*, not organization_contact_* (see
+    // TeamRegistrationPolicyAttributes in vertical-insure-1.0.yml). Both are nullable, so the
+    // misnamed properties never failed a quote -- VI just dropped them, and every team policy
+    // we have written carries no organization contact at all.
+    [JsonPropertyName("org_contact_name")]
     public string organization_contact_name { get; set; } = string.Empty;
+
+    [JsonPropertyName("org_contact_email")]
     public string organization_contact_email { get; set; } = string.Empty;
+
     public List<VITeamDto> teams { get; set; } = new();
     [JsonPropertyName("event")]
     public VIEventDto job_event { get; set; } = new();

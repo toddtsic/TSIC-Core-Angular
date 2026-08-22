@@ -93,7 +93,7 @@ public partial class VerticalInsureService
             }
 
             var director = await _registrationRepo.GetDirectorContactForJobAsync(jobId);
-            var products = await BuildTeamProductsAsync(teams, clubRepUser, director, eventLocation, jobOffer.JobName, jobOffer.EventStartDate.Value, jobOffer.EventEndDate);
+            var products = await BuildTeamProductsAsync(teams, clubRepUser, clubRepReg.ClubName, director, eventLocation, jobOffer.JobName, jobOffer.EventStartDate.Value, jobOffer.EventEndDate);
             var teamObj = BuildTeamObject(products);
 
             return new PreSubmitTeamInsuranceDto
@@ -320,6 +320,7 @@ public partial class VerticalInsureService
     private async Task<List<VITeamProductDto>> BuildTeamProductsAsync(
         List<RegisteredTeamInfo> teams,
         AspNetUsers clubRepUser,
+        string? clubRepClubName,
         DirectorContactInfo? director,
         EventLocationCandidateDto eventLocation,
         string? jobName,
@@ -328,6 +329,7 @@ public partial class VerticalInsureService
     {
         var products = new List<VITeamProductDto>();
         var contextName = (jobName ?? string.Empty).Split(':')[0];
+        var clubRepContactName = $"{clubRepUser.FirstName} {clubRepUser.LastName}".Trim();
 
         foreach (var team in teams)
         {
@@ -361,9 +363,18 @@ public partial class VerticalInsureService
                 },
                 policy_attributes = new VITeamPolicyAttributes
                 {
-                    organization_name = director?.OrgName ?? string.Empty,
-                    organization_contact_name = $"{director?.FirstName} {director?.LastName}".Trim(),
-                    organization_contact_email = director?.Email ?? string.Empty,
+                    // The insured organization is the CLUB buying the policy for its teams,
+                    // and its contact is the club rep -- not the event organizer, who is already
+                    // described by the event block below. Legacy read the same three off the
+                    // club rep's registration (IRegistrationService.cs:1512).
+                    //
+                    // organization_name is required by VI, so a rep with no club name on their
+                    // registration falls back to the director's org rather than sending "".
+                    organization_name = !string.IsNullOrWhiteSpace(clubRepClubName)
+                        ? clubRepClubName
+                        : director?.OrgName ?? string.Empty,
+                    organization_contact_name = clubRepContactName,
+                    organization_contact_email = clubRepUser.Email ?? string.Empty,
                     teams = new List<VITeamDto>
                     {
                         new VITeamDto
