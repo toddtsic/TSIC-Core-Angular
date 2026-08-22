@@ -126,7 +126,10 @@ export class ClientHeaderBarComponent {
             if ((pulse.myClubRepTeamCount ?? 0) > 0) {
                 items.push({ icon: 'bi-people', label: 'Club Rosters', route: 'rosters/club' });
             }
-            if (pulse.offerTeamRegsaverInsurance && pulse.myClubRepHasTeamWithoutRegsaver) {
+            // teamRegsaverAvailable, not the raw toggle: VI cannot quote without an event
+            // address and the only source is the field bank, so a job with the toggle on
+            // but no usable venue would advertise a link to an offer that returns nothing.
+            if (pulse.teamRegsaverAvailable && pulse.myClubRepHasTeamWithoutRegsaver) {
                 items.push({ icon: 'bi-shield-check', label: 'Buy Team Regsaver', route: 'ClubRepVIUpdate' });
             }
         } else if (role === Roles.Family || role === Roles.Player) {

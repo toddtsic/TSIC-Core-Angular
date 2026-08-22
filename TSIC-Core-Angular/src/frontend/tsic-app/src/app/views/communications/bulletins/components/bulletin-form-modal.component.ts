@@ -692,6 +692,7 @@ export class BulletinFormModalComponent implements OnInit {
             publicRostersAvailable: partial.publicRostersAvailable ?? true,
             offerPlayerRegsaverInsurance: partial.offerPlayerRegsaverInsurance ?? true,
             offerTeamRegsaverInsurance: partial.offerTeamRegsaverInsurance ?? true,
+            teamRegsaverAvailable: partial.teamRegsaverAvailable ?? true,
             storeEnabled: partial.storeEnabled ?? true,
             storeHasActiveItems: partial.storeHasActiveItems ?? true,
             allowStoreWalkup: partial.allowStoreWalkup ?? true,

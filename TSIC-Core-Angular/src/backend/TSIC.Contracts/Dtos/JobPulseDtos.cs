@@ -66,6 +66,12 @@ public record JobPulseDto
     public required bool PublicRostersAvailable { get; init; }
     public required bool OfferPlayerRegsaverInsurance { get; init; }
     public required bool OfferTeamRegsaverInsurance { get; init; }
+    /// <summary>The director's toggle AND a usable event address on file. Vertical Insure
+    /// requires street/city/state/zip on a team-registration quote and the only source is the
+    /// field bank, so the toggle alone cannot promise an offer. Buy-surfaces gate on THIS;
+    /// OfferTeamRegsaverInsurance above stays the raw setting for the config screens.
+    /// Same split as StoreEnabled / StoreHasActiveItems below.</summary>
+    public required bool TeamRegsaverAvailable { get; init; }
     public required bool StoreEnabled { get; init; }
     public required bool StoreHasActiveItems { get; init; }
     public required bool AllowStoreWalkup { get; init; }

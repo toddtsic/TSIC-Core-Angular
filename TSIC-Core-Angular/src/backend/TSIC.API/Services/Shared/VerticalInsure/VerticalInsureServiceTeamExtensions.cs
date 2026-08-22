@@ -86,7 +86,7 @@ public partial class VerticalInsureService
                 return new PreSubmitTeamInsuranceDto
                 {
                     Available = false,
-                    Error = "Team RegSaver needs the event location. Attach a field with a complete street, city, state and zip to this event."
+                    Error = "Team RegSaver isn't available for this event — its location hasn't been set up yet. Please contact the event director."
                 };
             }
 

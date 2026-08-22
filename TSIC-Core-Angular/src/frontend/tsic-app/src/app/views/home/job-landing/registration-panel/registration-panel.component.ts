@@ -276,7 +276,9 @@ export class RegistrationPanelComponent {
 					label: 'Pay Balance Due',
 					routerLink: `${base}/registration/team`, queryParams: { step: 'payment' } });
 			}
-			if (this.competitive() && allowed.has('team-insurance') && p.offerTeamRegsaverInsurance && p.myClubRepHasTeamWithoutRegsaver === true) {
+			// teamRegsaverAvailable, not the raw toggle — see JobPulseDto. No event address
+			// on file means VI cannot quote, so the CTA would dead-end.
+			if (this.competitive() && allowed.has('team-insurance') && p.teamRegsaverAvailable && p.myClubRepHasTeamWithoutRegsaver === true) {
 				items.push({ key: 'team-insurance', icon: 'bi-shield-check', label: 'Add Team RegSaver',
 					sublabel: 'Forgot it at checkout?', routerLink: `${base}/ClubRepVIUpdate` });
 			}
