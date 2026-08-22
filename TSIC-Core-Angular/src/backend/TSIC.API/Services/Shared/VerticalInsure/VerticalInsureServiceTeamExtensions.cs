@@ -329,7 +329,16 @@ public partial class VerticalInsureService
         DateTime? eventEndDate)
     {
         var products = new List<VITeamProductDto>();
-        var contextName = (jobName ?? string.Empty).Split(':')[0];
+
+        // Job names are "Org:Event". Split once and the two halves land in the two places VI
+        // asks for them -- organization_name and event.name -- instead of the composite going
+        // into both. A name with no colon is all event, and the organization repeats it.
+        var fullName = jobName ?? string.Empty;
+        var colonIndex = fullName.IndexOf(':');
+        var contextName = (colonIndex >= 0 ? fullName[..colonIndex] : fullName).Trim();
+        var eventName = (colonIndex >= 0 ? fullName[(colonIndex + 1)..] : fullName).Trim();
+        if (eventName.Length == 0) eventName = contextName;
+        if (contextName.Length == 0) contextName = eventName;
 
         foreach (var team in teams)
         {
@@ -397,7 +406,7 @@ public partial class VerticalInsureService
                     },
                     job_event = new VIEventDto
                     {
-                        name = jobName ?? contextName,
+                        name = eventName,
                         type = "Tournament",
                         // Legacy sent the event STATE here, not an organization name
                         // (IRegistrationService.cs:1512).
