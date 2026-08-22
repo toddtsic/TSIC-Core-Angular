@@ -358,7 +358,7 @@ public class TimeslotRepository : ITimeslotRepository
                 fls => fls.FieldId,
                 f => f.FieldId,
                 (fls, f) => new { f.FieldId, f.FName })
-            .Where(x => x.FName == null || !x.FName.StartsWith('*'))
+            .Where(x => x.FName == null || !x.FName.StartsWith(EventLocationFieldNaming.Prefix))
             .Select(x => x.FieldId)
             .ToListAsync(ct);
     }
@@ -409,7 +409,7 @@ public class TimeslotRepository : ITimeslotRepository
                 fls => fls.FieldId,
                 f => f.FieldId,
                 (fls, f) => new { f.FieldId, f.FName })
-            .Where(x => x.FName == null || !x.FName.StartsWith('*'))
+            .Where(x => x.FName == null || !x.FName.StartsWith(EventLocationFieldNaming.Prefix))
             .OrderBy(x => x.FName)
             .Select(x => new EventFieldSummaryDto
             {

@@ -86,7 +86,13 @@
                           }
                         </button>
                       </td>
-                      <td class="col-name frozen frozen-2 text-nowrap">{{ field.fName }}</td>
+                      <td class="col-name frozen frozen-2 text-nowrap">
+                        {{ field.fName }}
+                        @if (field.isPseudoField) {
+                          <span class="badge bg-warning-subtle text-body-secondary ms-1"
+                                title="An address row, not a playing field. Assign one to give this event an insurance location.">Address</span>
+                        }
+                      </td>
                       <td class="text-nowrap">{{ field.city }}</td>
                       <td class="text-nowrap">{{ field.state }}</td>
                     </tr>
@@ -139,10 +145,18 @@
             <div class="alert alert-warning d-flex align-items-start gap-2 mb-2 py-2 px-3" role="alert">
               <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
               <div class="small">
-                <strong>No event location on file.</strong>
-                Team RegSaver insurance needs this event's street address, which lives in a
-                field named <code>{{ eventLocationFieldName() }}</code>. Until it exists, an
-                insurance quote for this event cannot be created.
+                @if (eventLocationUnassigned()) {
+                  <strong>Event location not assigned.</strong>
+                  Team RegSaver insurance reads this event's street address from an address row
+                  attached to the season. One is available but none is attached — assign it from
+                  Available Fields. Until then, an insurance quote for this event cannot be
+                  created.
+                } @else {
+                  <strong>No event location on file.</strong>
+                  Team RegSaver insurance needs this event's street address, which lives in an
+                  address row named <code>{{ eventLocationFieldName() }}</code>. No address row is
+                  attached or available, so an insurance quote for this event cannot be created.
+                }
               </div>
             </div>
           }
@@ -178,9 +192,9 @@
                         [class.row-selected]="selectedField()?.fieldId === field.fieldId"
                         (click)="selectAssignedFieldForEdit(field)">
                       <td class="col-check frozen frozen-0" (click)="$event.stopPropagation()">
-                        @if (field.isEventLocation) {
+                        @if (field.isPseudoField) {
                           <i class="bi bi-shield-lock text-body-secondary"
-                             title="Event location for insurance — cannot be removed"></i>
+                             title="Address row — not a playing field, cannot be bulk-removed"></i>
                         } @else if (field.scheduledGameCount) {
                           <span class="badge bg-secondary badge-game-count"
                                 title="{{ field.scheduledGameCount }} game(s) scheduled — remove games first">
@@ -193,7 +207,7 @@
                         }
                       </td>
                       <td class="col-swap frozen frozen-1" (click)="$event.stopPropagation()">
-                        @if (!field.scheduledGameCount && !field.isEventLocation) {
+                        @if (!field.scheduledGameCount && !field.isPseudoField) {
                           <button class="btn btn-sm btn-outline-danger swap-btn"
                                   [disabled]="swappingId() === field.fieldId"
                                   (click)="removeField(field)"
@@ -209,12 +223,15 @@
                       <td class="col-name frozen frozen-2 text-nowrap">
                         {{ field.fName }}
                         @if (field.isEventLocation) {
+                          <span class="badge bg-success-subtle text-body-secondary ms-1"
+                                title="The address sent to Vertical Insure for team RegSaver policies. Not a playing field — it never appears in scheduling.">Event location</span>
+                        } @else if (field.isPseudoField) {
                           <span class="badge bg-secondary-subtle text-body-secondary ms-1"
-                                title="The event address sent to Vertical Insure for team RegSaver policies. Not a playing field — it never appears in scheduling.">Event location</span>
+                                title="An attached address row, but not the one insurance reads.">Address</span>
                         }
                       </td>
                       <td class="col-pref" (click)="$event.stopPropagation()">
-                        @if (!field.isEventLocation) {
+                        @if (!field.isPseudoField) {
                           <button class="btn btn-sm pref-toggle"
                                   [ngClass]="preferenceClass(field.fieldPreference)"
                                   (click)="cyclePreference(field)"

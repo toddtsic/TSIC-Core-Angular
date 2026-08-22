@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
@@ -18,11 +19,43 @@ public class FieldRepository : IFieldRepository
         _context = context;
     }
 
+    public async Task<List<EventLocationCandidateDto>> GetEventLocationCandidatesAsync(
+        Guid jobId,
+        CancellationToken ct = default)
+    {
+        // Job -> its leagues -> the fields attached for the job's own season. Legacy walked the
+        // same path (IRegistrationService.cs:1397) but matched a single hard-derived name; this
+        // returns every pseudo-field row and lets EventLocationFieldNaming choose, so one rule
+        // serves both the director's readiness badge and the Vertical Insure payload.
+        return await (from j in _context.Jobs
+                      join jl in _context.JobLeagues on j.JobId equals jl.JobId
+                      join fls in _context.FieldsLeagueSeason on jl.LeagueId equals fls.LeagueId
+                      join f in _context.Fields on fls.FieldId equals f.FieldId
+                      where j.JobId == jobId
+                         && fls.Season == j.Season
+                         && f.FName != null
+                         && f.FName.StartsWith(EventLocationFieldNaming.Prefix)
+                      orderby f.FName
+                      select new EventLocationCandidateDto
+                      {
+                          FieldId = f.FieldId,
+                          FName = f.FName!,
+                          Address = f.Address,
+                          City = f.City,
+                          State = f.State,
+                          Zip = f.Zip
+                      })
+            .AsNoTracking()
+            .Distinct()
+            .ToListAsync(ct);
+    }
+
     public async Task<List<Fields>> GetAvailableFieldsAsync(
         Guid leagueId,
         string season,
         List<Guid> directorJobIds,
         bool isSuperUser,
+        string? eventLocationFieldName = null,
         CancellationToken ct = default)
     {
         // IDs of fields already assigned to this league-season
@@ -34,14 +67,21 @@ public class FieldRepository : IFieldRepository
         var query = _context.Fields
             .AsNoTracking()
             .Where(f => !assignedFieldIds.Contains(f.FieldId))
-            .Where(f => f.FName == null || !f.FName.StartsWith("*")) // Exclude system fields
+            // Pseudo-fields (the "*" event-location rows -- see EventLocationFieldNaming) are
+            // NOT excluded here. Available Fields is the whole reusable field bank, and these
+            // rows are addresses: a customer runs several events out of one address, so the row
+            // already attached to one of their jobs is worth seeing when setting up the next.
             .Where(f => f.FName == null || !EF.Functions.Like(f.FName, "[0-9]%-%")); // Exclude numbered fields (e.g. "1-Field A")
 
         if (!isSuperUser)
         {
             // Director: only fields historically used by any of their jobs
             var directorFieldIds = await GetDirectorFieldIdsAsync(directorJobIds, ct);
-            query = query.Where(f => directorFieldIds.Contains(f.FieldId));
+            // Exempt this job's event-location row by DERIVED NAME: if it exists but was never
+            // attached anywhere, historical use is empty for it and the filter would hide the one
+            // row the director has to attach to make the event insurable.
+            query = query.Where(f => directorFieldIds.Contains(f.FieldId)
+                                  || (eventLocationFieldName != null && f.FName == eventLocationFieldName));
         }
 
         return await query

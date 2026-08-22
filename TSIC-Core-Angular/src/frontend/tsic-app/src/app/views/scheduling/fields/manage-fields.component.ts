@@ -51,13 +51,18 @@ export class ManageFieldsComponent {
     // The event-location row is never removable: it holds the address sent to Vertical
     // Insure, and deleting it silently stops Team RegSaver working for the job.
     readonly removableAssignedCount = computed(() =>
-        this.sortedFilteredAssigned().filter(f => !f.scheduledGameCount && !f.isEventLocation).length);
+        this.sortedFilteredAssigned().filter(f => !f.scheduledGameCount && !f.isPseudoField).length);
 
     // Name this job's event-location row MUST carry, and whether one is attached. Reported
     // by the server from the shared naming rule -- a client-side prefix scan could only
     // describe rows that exist, never tell the director the row is missing.
     readonly eventLocationFieldName = signal<string | null>(null);
     readonly hasEventLocation = signal(false);
+
+    /// An address row exists in the bank but none is attached to this league-season -- the
+    /// director just has to assign one, a very different fix from creating a row.
+    readonly eventLocationUnassigned = computed(() =>
+        this.availableFields().some(f => f.isPseudoField));
 
     // ── Transfer state ──
     readonly swappingId = signal<string | null>(null);
@@ -166,7 +171,7 @@ export class ManageFieldsComponent {
     selectAllAssigned() {
         this.assignedSelected.set(new Set(
             this.sortedFilteredAssigned()
-                .filter(f => !f.scheduledGameCount && !f.isEventLocation)
+                .filter(f => !f.scheduledGameCount && !f.isPseudoField)
                 .map(f => f.fieldId)
         ));
     }

@@ -28,6 +28,7 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
     private readonly IFamilyRepository _familyRepo;
     private readonly ITeamRepository _teamRepo;
     private readonly IUserRepository _userRepo;
+    private readonly IFieldRepository _fieldRepo;
     private readonly IHostEnvironment _env;
     private readonly ILogger<VerticalInsureService> _logger;
     private readonly ITeamLookupService _teamLookupService;
@@ -41,6 +42,7 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
         IFamilyRepository familyRepo,
         ITeamRepository teamRepo,
         IUserRepository userRepo,
+        IFieldRepository fieldRepo,
         IHostEnvironment env,
         ILogger<VerticalInsureService> logger,
         ITeamLookupService teamLookupService,
@@ -54,6 +56,7 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
         _familyRepo = familyRepo;
         _teamRepo = teamRepo;
         _userRepo = userRepo;
+        _fieldRepo = fieldRepo;
         _env = env;
         _logger = logger;
         _teamLookupService = teamLookupService;

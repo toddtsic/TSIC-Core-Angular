@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using TSIC.API.Extensions;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Dtos.VerticalInsure;
 using TSIC.Contracts.Extensions;
 using TSIC.Domain.Entities;
@@ -71,8 +72,28 @@ public partial class VerticalInsureService
                 return new PreSubmitTeamInsuranceDto { Available = false, Error = "Club rep user not found." };
             }
 
+            // The event address comes from the event's own field data, never from whoever
+            // happens to be director -- an AspNetUsers home or office address on a weather
+            // policy misprices the risk and can void a payout. Legacy read the same rows
+            // (IRegistrationService.cs:1397) and refused the offer without them; so do we.
+            // Fail CLOSED: no offer beats a quote that 400s on an empty address.
+            var eventLocation = await ResolveEventLocationAsync(jobId);
+            if (eventLocation is null || !eventLocation.HasCompleteAddress)
+            {
+                _logger.LogWarning(
+                    "[VerticalInsure] Team offer suppressed for job {JobId}: no attached field "
+                    + "carries a complete event address (candidate: {Candidate}).",
+                    jobId, eventLocation?.FName ?? "none");
+                return new PreSubmitTeamInsuranceDto
+                {
+                    Available = false,
+                    Error = "This event does not yet have a location on file. Team insurance "
+                          + "cannot be offered until the event organizer adds one."
+                };
+            }
+
             var director = await _registrationRepo.GetDirectorContactForJobAsync(jobId);
-            var products = await BuildTeamProductsAsync(teams, clubRepUser, director, jobOffer.JobName, jobOffer.EventStartDate.Value, jobOffer.EventEndDate);
+            var products = await BuildTeamProductsAsync(teams, clubRepUser, director, eventLocation, jobOffer.JobName, jobOffer.EventStartDate.Value, jobOffer.EventEndDate);
             var teamObj = BuildTeamObject(products);
 
             return new PreSubmitTeamInsuranceDto
@@ -279,10 +300,28 @@ public partial class VerticalInsureService
         };
     }
 
+    /// <summary>
+    /// The one field row whose address represents this event, or null when the event has no
+    /// location on file.
+    ///
+    /// This is THE resolver. Manage Fields calls EventLocationFieldNaming.SelectEventLocation
+    /// with the same inputs to decide which row it badges as the event location, so what a
+    /// director is told is insurable and what actually reaches Vertical Insure cannot drift.
+    /// Change the rule in EventLocationFieldNaming and both move together.
+    /// </summary>
+    private async Task<EventLocationCandidateDto?> ResolveEventLocationAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        var jobPath = await _jobRepo.GetJobPathAsync(jobId, ct);
+        var candidates = await _fieldRepo.GetEventLocationCandidatesAsync(jobId, ct);
+        return EventLocationFieldNaming.SelectEventLocation(candidates, c => c.FName, jobPath);
+    }
+
     private async Task<List<VITeamProductDto>> BuildTeamProductsAsync(
         List<RegisteredTeamInfo> teams,
         AspNetUsers clubRepUser,
         DirectorContactInfo? director,
+        EventLocationCandidateDto eventLocation,
         string? jobName,
         DateTime eventStartDate,
         DateTime? eventEndDate)
@@ -341,16 +380,18 @@ public partial class VerticalInsureService
                     {
                         name = jobName ?? contextName,
                         type = "Tournament",
-                        location = director?.OrgName ?? string.Empty,
-                        // Director runs the event, so the event address is the director's
-                        // address from AspNetUsers. Empty strings here cause VI's team-
-                        // registration endpoint to 400 with "Invalid zip code".
+                        // Legacy sent the event STATE here, not an organization name
+                        // (IRegistrationService.cs:1512).
+                        location = eventLocation.State ?? string.Empty,
+                        // The event's own address, off the attached field row. Every part is
+                        // non-empty -- the caller refuses the offer otherwise, because empty
+                        // strings make VI's team-registration endpoint 400 on "Invalid zip code".
                         address = new VIAddress
                         {
-                            city = director?.City ?? string.Empty,
-                            state = director?.State ?? string.Empty,
-                            zip = director?.PostalCode ?? string.Empty,
-                            street = director?.StreetAddress ?? string.Empty
+                            city = eventLocation.City ?? string.Empty,
+                            state = eventLocation.State ?? string.Empty,
+                            zip = eventLocation.Zip ?? string.Empty,
+                            street = eventLocation.Address ?? string.Empty
                         },
                         // ISO 8601 sortable to match legacy `$"{job.EventStartDate:s}"`.
                         // VI's team-registration product enforces start ≥ 14 days from

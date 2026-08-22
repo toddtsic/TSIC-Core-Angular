@@ -4,6 +4,8 @@
 /* eslint-disable */
 export type FieldDto = {
     fieldId: string;
+    isPseudoField?: boolean;
+    isEventLocation?: boolean;
     fName: string;
     address?: string | null;
     city?: string | null;

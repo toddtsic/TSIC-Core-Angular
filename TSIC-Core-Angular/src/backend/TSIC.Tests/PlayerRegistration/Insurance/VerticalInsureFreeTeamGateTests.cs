@@ -80,6 +80,9 @@ public class VerticalInsureFreeTeamGateTests
             familyRepo.Object,
             new Mock<ITeamRepository>().Object,
             new Mock<IUserRepository>().Object,
+            // These tests exercise the PLAYER offer path, which never resolves an event
+            // location -- an unconfigured mock is correct, not an oversight.
+            new Mock<IFieldRepository>().Object,
             env.Object,
             new Mock<ILogger<VerticalInsureService>>().Object,
             teamLookup.Object,

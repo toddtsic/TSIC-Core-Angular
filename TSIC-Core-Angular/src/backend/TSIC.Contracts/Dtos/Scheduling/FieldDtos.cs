@@ -5,6 +5,13 @@ namespace TSIC.Contracts.Dtos.Scheduling;
 public record FieldDto
 {
     public required Guid FieldId { get; init; }
+    /// <summary>An address row, not a playable venue (name starts with "*"). Assigning one is
+    /// how a director gives the event an insurance location.</summary>
+    public bool IsPseudoField { get; init; }
+
+    /// <summary>This row carries the name derived from this job's own jobPath -- the row the
+    /// event would ideally use. Any attached pseudo-field will serve; this one wins ties.</summary>
+    public bool IsEventLocation { get; init; }
     public required string FName { get; init; }
     public string? Address { get; init; }
     public string? City { get; init; }
@@ -36,11 +43,18 @@ public record LeagueSeasonFieldDto
     public int ScheduledGameCount { get; init; }
 
     /// <summary>
-    /// This row is the job's event-location record, not a playing field: it holds the address
-    /// sent to Vertical Insure for team RegSaver. Set by matching the full name derived in
-    /// EventLocationFieldNaming, never by an asterisk prefix. Kept out of scheduling pickers
-    /// (you cannot play a game on an address) but shown here, because it was previously
+    /// An address row, not a playing field: the name starts with "*". Kept out of every
+    /// scheduling surface -- pickers, timeslot creation, the readiness count -- because you
+    /// cannot play a game on an address. Shown in Manage Fields, because it was previously
     /// invisible app-wide and could be neither reviewed nor corrected.
+    /// </summary>
+    public bool IsPseudoField { get; init; }
+
+    /// <summary>
+    /// THE row whose address goes on the Vertical Insure team RegSaver payload. Exactly one
+    /// attached row carries this, chosen by EventLocationFieldNaming.SelectEventLocation --
+    /// the same call the payload builder makes, so the badge cannot promise what the quote
+    /// will not deliver.
     /// </summary>
     public bool IsEventLocation { get; init; }
 }
@@ -109,4 +123,25 @@ public record UpdateFieldPreferenceRequest
 {
     /// <summary>0 = Normal, 1 = Preferred, 2 = Avoid</summary>
     public required int FieldPreference { get; init; }
+}
+
+/// <summary>
+/// One attached pseudo-field row that could serve as the event's insurance location.
+/// The caller picks among these with EventLocationFieldNaming.SelectEventLocation.
+/// </summary>
+public record EventLocationCandidateDto
+{
+    public required Guid FieldId { get; init; }
+    public required string FName { get; init; }
+    public string? Address { get; init; }
+    public string? City { get; init; }
+    public string? State { get; init; }
+    public string? Zip { get; init; }
+
+    /// <summary>Vertical Insure rejects the quote unless all four parts are present.</summary>
+    public bool HasCompleteAddress =>
+        !string.IsNullOrWhiteSpace(Address)
+        && !string.IsNullOrWhiteSpace(City)
+        && !string.IsNullOrWhiteSpace(State)
+        && !string.IsNullOrWhiteSpace(Zip);
 }

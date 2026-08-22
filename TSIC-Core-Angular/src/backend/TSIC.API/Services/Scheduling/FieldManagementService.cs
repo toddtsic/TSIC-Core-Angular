@@ -44,8 +44,14 @@ public sealed class FieldManagementService : IFieldManagementService
             ? []
             : await _jobRepo.GetCustomerJobIdsAsync(jobId, ct);
 
+        // The event-location row is identified by its DERIVED name, not by an asterisk
+        // prefix -- the prefix only marks a row as a pseudo-field, it does not say WHICH job
+        // the row belongs to, and it cannot tell us the row is missing entirely.
+        var jobPath = await _jobRepo.GetJobPathAsync(jobId, ct);
+        var eventLocationName = EventLocationFieldNaming.NameForJobPath(jobPath);
+
         var availableFields = await _fieldRepo.GetAvailableFieldsAsync(
-            leagueId, season, directorJobIds, isSuperUser, ct);
+            leagueId, season, directorJobIds, isSuperUser, eventLocationName, ct);
 
         var assignedRecords = await _fieldRepo.GetLeagueSeasonFieldsAsync(leagueId, season, ct);
 
@@ -55,16 +61,16 @@ public sealed class FieldManagementService : IFieldManagementService
             ? await _scheduleRepo.GetGameCountsByFieldIdsAsync(jobId, assignedFieldIds, ct)
             : new Dictionary<Guid, int>();
 
-        // The event-location row is identified by its DERIVED name, not by an asterisk
-        // prefix -- the prefix only marks a row as a pseudo-field, it does not say WHICH job
-        // the row belongs to, and it cannot tell us the row is missing entirely.
-        var jobPath = await _jobRepo.GetJobPathAsync(jobId, ct);
-        var eventLocationName = EventLocationFieldNaming.NameForJobPath(jobPath);
+        // One call decides which attached row is the event location, and the Vertical Insure
+        // payload builder makes the identical call. A director must never see a green badge on a
+        // row the quote will not actually read.
+        var chosen = EventLocationFieldNaming.SelectEventLocation(assignedRecords, f => f.FName, jobPath);
 
         var enrichedAssigned = assignedRecords.Select(f => f with
         {
             ScheduledGameCount = gameCounts.GetValueOrDefault(f.FieldId),
-            IsEventLocation = EventLocationFieldNaming.IsEventLocationFor(f.FName, jobPath)
+            IsPseudoField = EventLocationFieldNaming.IsPseudoField(f.FName),
+            IsEventLocation = chosen is not null && f.FieldId == chosen.FieldId
         }).ToList();
 
         return new FieldManagementResponse
@@ -79,11 +85,13 @@ public sealed class FieldManagementService : IFieldManagementService
                 Zip = f.Zip,
                 Directions = f.Directions,
                 Latitude = f.Latitude,
-                Longitude = f.Longitude
+                Longitude = f.Longitude,
+                IsPseudoField = EventLocationFieldNaming.IsPseudoField(f.FName),
+                IsEventLocation = EventLocationFieldNaming.IsEventLocationFor(f.FName, jobPath)
             }).ToList(),
             AssignedFields = enrichedAssigned,
             EventLocationFieldName = eventLocationName,
-            HasEventLocation = enrichedAssigned.Any(f => f.IsEventLocation)
+            HasEventLocation = chosen is not null
         };
     }
 

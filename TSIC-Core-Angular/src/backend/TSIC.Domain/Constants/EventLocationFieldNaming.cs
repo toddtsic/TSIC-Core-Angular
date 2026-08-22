@@ -42,14 +42,49 @@ public static class EventLocationFieldNaming
     }
 
     /// <summary>
-    /// True when this field name is the event-location row for this job. Compared on the full
-    /// derived name, not just the prefix, so it stays correct if a job ever carries more than
-    /// one pseudo-field.
+    /// True when this field name carries the pseudo-field prefix -- an address row, not a
+    /// place a game can be played. Every scheduling query filters on exactly this.
+    /// </summary>
+    public static bool IsPseudoField(string? fieldName) =>
+        fieldName?.TrimStart().StartsWith(Prefix, StringComparison.Ordinal) == true;
+
+    /// <summary>
+    /// True when this field name is the row derived from this job's own jobPath.
     /// </summary>
     public static bool IsEventLocationFor(string? fieldName, string? jobPath)
     {
         var expected = NameForJobPath(jobPath);
         return expected is not null
             && string.Equals(fieldName?.Trim(), expected, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Picks the ONE attached pseudo-field whose address represents this event.
+    ///
+    /// The job's own derived name wins when it is present. Otherwise any attached pseudo-field
+    /// will do, taken first by name for a stable answer: these rows hold a customer's standing
+    /// address, and the same address recurs across their events (three Top Threat jobs share
+    /// 15245 Bell Park Dr). Requiring the derived name would leave an event uninsurable purely
+    /// because nobody created a row under the right string, when the correct address was
+    /// already attached to it.
+    ///
+    /// Both the readiness flag shown to a director and the address put on the Vertical Insure
+    /// payload MUST come from this one method. If they ever diverge, the UI reports an event as
+    /// insurable while the quote fails on an empty address -- worse than failing visibly.
+    /// </summary>
+    public static T? SelectEventLocation<T>(
+        IEnumerable<T>? candidates,
+        Func<T, string?> nameOf,
+        string? jobPath) where T : class
+    {
+        if (candidates is null) return null;
+
+        var pseudoRows = candidates
+            .Where(c => IsPseudoField(nameOf(c)))
+            .OrderBy(c => nameOf(c), StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return pseudoRows.FirstOrDefault(c => IsEventLocationFor(nameOf(c), jobPath))
+            ?? pseudoRows.FirstOrDefault();
     }
 }

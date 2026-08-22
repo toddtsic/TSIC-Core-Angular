@@ -598,10 +598,25 @@ public sealed class TimeslotService : ITimeslotService
     {
         var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
 
-        // Determine field IDs (single or all assigned)
+        // Every field id is checked against the assigned, schedulable set -- never taken on
+        // the caller's word. That set already excludes the event-location pseudo-row (see
+        // EventLocationFieldNaming): it is an address, not somewhere a game can be played, so
+        // it must never acquire timeslots. It also rejects a field belonging to another event.
+        var schedulableFieldIds = await _tsRepo.GetAssignedFieldIdsAsync(leagueId, season, ct);
+
+        if (request.FieldId.HasValue && !schedulableFieldIds.Contains(request.FieldId.Value))
+        {
+            _logger.LogWarning(
+                "Rejected timeslot creation for field {FieldId}: not an assigned, schedulable "
+                + "field for this league-season (agegroup {AgId}).",
+                request.FieldId.Value, request.AgegroupId);
+            throw new InvalidOperationException(
+                "That field cannot be scheduled for this event.");
+        }
+
         var fieldIds = request.FieldId.HasValue
-            ? [request.FieldId.Value]
-            : await _tsRepo.GetAssignedFieldIdsAsync(leagueId, season, ct);
+            ? new List<Guid> { request.FieldId.Value }
+            : schedulableFieldIds;
 
         if (fieldIds.Count == 0)
         {
@@ -694,7 +709,14 @@ public sealed class TimeslotService : ITimeslotService
     public async Task<SaveTimeslotSetupResponse> SaveTimeslotSetupAsync(
         Guid jobId, string userId, SaveTimeslotSetupRequest request, CancellationToken ct = default)
     {
-        var (_, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
+        var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
+
+        // The client picks fields from a list that already excludes the event-location
+        // pseudo-row, but the request is still the client's word. Intersect with the assigned,
+        // schedulable set so a stale or crafted payload cannot put timeslots on an address row
+        // (see EventLocationFieldNaming) or on another event's field.
+        var schedulableFieldIds = (await _tsRepo.GetAssignedFieldIdsAsync(leagueId, season, ct))
+            .ToHashSet();
 
         // Rows are per division; the caller works at agegroup level. One resolve for every day,
         // not one per day — sequential awaits on a shared scoped DbContext, never WhenAll.
@@ -711,10 +733,19 @@ public sealed class TimeslotService : ITimeslotService
             deleted += await _tsRepo.DeleteFieldTimeslotsByFilterAsync(
                 request.AgegroupId, season, year, dow: day.Dow, ct: ct);
 
-            if (day.FieldIds.Count == 0 || divIds.Count == 0) continue;
+            var dayFieldIds = day.FieldIds.Where(schedulableFieldIds.Contains).ToList();
+            if (dayFieldIds.Count < day.FieldIds.Count)
+            {
+                _logger.LogWarning(
+                    "Dropped {Count} unschedulable field id(s) from timeslot setup for agegroup "
+                    + "{AgId}, {Dow}.",
+                    day.FieldIds.Count - dayFieldIds.Count, request.AgegroupId, day.Dow);
+            }
+
+            if (dayFieldIds.Count == 0 || divIds.Count == 0) continue;
 
             var rows = new List<TimeslotsLeagueSeasonFields>();
-            foreach (var fieldId in day.FieldIds)
+            foreach (var fieldId in dayFieldIds)
             {
                 foreach (var divId in divIds)
                 {

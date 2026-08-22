@@ -10,16 +10,28 @@ namespace TSIC.Contracts.Repositories;
 public interface IFieldRepository
 {
     /// <summary>
-    /// Get fields available for assignment (not assigned to this league-season).
-    /// SuperUser: all non-system fields not assigned to this league-season.
-    /// Director: fields historically used by any of their jobs, not assigned to this league-season.
-    /// System fields (name starts with '*') are always excluded.
+    /// Every pseudo-field row attached to this job's league-season -- the candidates for the
+    /// event address sent to Vertical Insure. Returns them all; which one counts is decided by
+    /// EventLocationFieldNaming.SelectEventLocation, never here, so the readiness flag and the
+    /// VI payload cannot pick differently.
+    /// </summary>
+    Task<List<EventLocationCandidateDto>> GetEventLocationCandidatesAsync(
+        Guid jobId,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Fields available for assignment (not already assigned to this league-season).
+    /// SuperUser: all of them. Director: those historically used by any of their jobs, plus
+    /// this job's own event-location row by name even when it has no history.
+    /// Pseudo-fields ("*" rows) are NOT excluded -- they are addresses, and a customer reuses
+    /// one address across their events, so they belong in the reusable bank.
     /// </summary>
     Task<List<Fields>> GetAvailableFieldsAsync(
         Guid leagueId,
         string season,
         List<Guid> directorJobIds,
         bool isSuperUser,
+        string? eventLocationFieldName = null,
         CancellationToken ct = default);
 
     /// <summary>
