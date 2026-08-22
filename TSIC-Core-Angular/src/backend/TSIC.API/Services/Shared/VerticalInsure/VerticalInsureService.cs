@@ -34,6 +34,7 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
     private readonly IHttpClientFactory? _httpClientFactory;
     private readonly IOptions<VerticalInsureSettings> _options;
     private readonly IJobPaymentFeaturesService _paymentFeatures;
+    private readonly IFieldRepository _fieldRepo;
 
     public VerticalInsureService(
         IJobRepository jobRepo,
@@ -46,9 +47,11 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
         ITeamLookupService teamLookupService,
         IOptions<VerticalInsureSettings> options,
         IJobPaymentFeaturesService paymentFeatures,
+        IFieldRepository fieldRepo,
         IHttpClientFactory? httpClientFactory = null)
     {
         _paymentFeatures = paymentFeatures;
+        _fieldRepo = fieldRepo;
         _jobRepo = jobRepo;
         _registrationRepo = registrationRepo;
         _familyRepo = familyRepo;

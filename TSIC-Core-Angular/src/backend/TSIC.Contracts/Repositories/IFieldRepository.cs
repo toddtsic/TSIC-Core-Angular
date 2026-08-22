@@ -122,4 +122,19 @@ public interface IFieldRepository
     /// Persist all changes to the database.
     /// </summary>
     Task<int> SaveChangesAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// The event location for a job, from the field/venue bank — the source a third-party
+    /// insurer's policy is written against. Mirrors legacy: league via JobLeagues on JobId,
+    /// fields via FieldsLeagueSeason on LeagueId + the job's Season.
+    ///
+    /// Returns null when no usable address exists. Callers MUST treat null as "cannot build
+    /// a policy" and suppress the offer — NEVER substitute a person's address. Sending a
+    /// director's own address here disclosed personal data to the carrier and had weather
+    /// claims adjudicated against the wrong state (AR-020).
+    ///
+    /// Legacy guarded only on a non-empty street, so rows with a blank zip still reached
+    /// Vertical Insure and 400'd with "Invalid zip code". All four parts are required here.
+    /// </summary>
+    Task<EventAddressDto?> GetEventAddressForJobAsync(Guid jobId, CancellationToken ct = default);
 }

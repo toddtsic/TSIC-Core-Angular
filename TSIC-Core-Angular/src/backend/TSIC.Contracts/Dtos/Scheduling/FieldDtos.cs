@@ -88,3 +88,18 @@ public record UpdateFieldPreferenceRequest
     /// <summary>0 = Normal, 1 = Preferred, 2 = Avoid</summary>
     public required int FieldPreference { get; init; }
 }
+
+/// <summary>
+/// The event's physical location, sourced from the field/venue bank — the address a
+/// third-party insurer writes a policy against. Every part is non-empty by construction:
+/// the query that produces it rejects rows with any blank component, because Vertical
+/// Insure requires street/city/state/zip on a team-registration quote and 400s otherwise.
+/// Never populated from a person's record — see GetEventAddressForJobAsync.
+/// </summary>
+public record EventAddressDto
+{
+    public required string Street { get; init; }
+    public required string City { get; init; }
+    public required string State { get; init; }
+    public required string Zip { get; init; }
+}

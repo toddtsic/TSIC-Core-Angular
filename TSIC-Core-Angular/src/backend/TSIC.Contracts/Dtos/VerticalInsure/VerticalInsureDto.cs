@@ -116,7 +116,12 @@ public record VITeamObjectResponse
 public record VITeamPolicyAttributes
 {
     public string organization_name { get; set; } = string.Empty;
+    // VI names these org_contact_*. Without the mapping they serialize as
+    // organization_contact_* — unrecognised optional properties that VI silently
+    // discards, so no contact has ever reached the carrier on a team policy.
+    [JsonPropertyName("org_contact_name")]
     public string organization_contact_name { get; set; } = string.Empty;
+    [JsonPropertyName("org_contact_email")]
     public string organization_contact_email { get; set; } = string.Empty;
     public List<VITeamDto> teams { get; set; } = new();
     [JsonPropertyName("event")]

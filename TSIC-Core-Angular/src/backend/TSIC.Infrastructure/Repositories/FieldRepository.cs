@@ -250,4 +250,52 @@ public class FieldRepository : IFieldRepository
             .Distinct()
             .ToListAsync(ct);
     }
+
+    public async Task<EventAddressDto?> GetEventAddressForJobAsync(
+        Guid jobId,
+        CancellationToken ct = default)
+    {
+        // Season is the join key into FieldsLeagueSeason and lives on the job.
+        var season = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.Season)
+            .FirstOrDefaultAsync(ct);
+
+        // Jobs.Season and FieldsLeagueSeason.Season are BOTH nullable. A null on either side
+        // never matches in SQL, so bail explicitly rather than returning an empty join the
+        // caller would misread as "no fields attached".
+        if (string.IsNullOrWhiteSpace(season))
+            return null;
+
+        // Deliberately NOT filtered on JobLeagues.BIsPrimary or FieldsLeagueSeason.BActive:
+        // legacy filtered on neither, both are unverified in live data, and either one going
+        // unset would silently strip the insurance offer from a job that sells it today.
+        // System '*' fields are excluded, matching every sibling query in this repository.
+        //
+        // OrderBy(FName) only makes an inherently arbitrary pick reproducible — a multi-venue
+        // tournament has no single "event address", so we take the first complete one by name
+        // instead of whatever order the server happened to return (legacy's behaviour).
+        return await (from jl in _context.JobLeagues.AsNoTracking()
+                      join fls in _context.FieldsLeagueSeason.AsNoTracking()
+                          on jl.LeagueId equals fls.LeagueId
+                      where jl.JobId == jobId
+                         && fls.Season == season
+                         && (fls.Field.FName == null || !fls.Field.FName.StartsWith("*"))
+                         // All four parts, not just street. Legacy checked street alone, so a
+                         // row with a blank zip reached Vertical Insure and 400'd there.
+                         && fls.Field.Address != null && fls.Field.Address.Trim() != ""
+                         && fls.Field.City != null && fls.Field.City.Trim() != ""
+                         && fls.Field.State != null && fls.Field.State.Trim() != ""
+                         && fls.Field.Zip != null && fls.Field.Zip.Trim() != ""
+                      orderby fls.Field.FName
+                      select new EventAddressDto
+                      {
+                          Street = fls.Field.Address!.Trim(),
+                          City = fls.Field.City!.Trim(),
+                          State = fls.Field.State!.Trim(),
+                          Zip = fls.Field.Zip!.Trim()
+                      })
+            .FirstOrDefaultAsync(ct);
+    }
 }

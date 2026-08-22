@@ -85,6 +85,7 @@ public class VerticalInsureFreeTeamGateTests
             teamLookup.Object,
             Options.Create(new VerticalInsureSettings()),
             paymentFeatures.Object,
+            new Mock<IFieldRepository>().Object,
             httpClientFactory: null);
     }
 
