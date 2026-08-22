@@ -3869,6 +3869,12 @@ public class RegistrationRepository : IRegistrationRepository
                              && r.AssignedTeam!.KeywordPairs.Replace("%40", "@").Contains("@")
                     ? r.AssignedTeam!.KeywordPairs.Replace("%40", "@")
                     : null,
+                // Job-level wording for the roster's two parent/guardian slots. IsNullOrEmpty, not
+                // "??": the job-config form posts "" for a cleared input and assigns it straight
+                // through, so null-only coalescing would ship a blank label the day a director
+                // clears the field. No such row exists yet — this keeps it that way.
+                MomLabel = string.IsNullOrEmpty(r.Job.MomLabel) ? "Mom" : r.Job.MomLabel,
+                DadLabel = string.IsNullOrEmpty(r.Job.DadLabel) ? "Dad" : r.Job.DadLabel,
                 // Null in bEnableTSICTeams means never configured. Clone reset writes false
                 // explicitly, so null and false are the same answer: not on the app.
                 TeamsAppEnabled = r.Job.BEnableTsicteams == true,
@@ -3917,6 +3923,11 @@ public class RegistrationRepository : IRegistrationRepository
                 // A superuser across 50 jobs must not become 50 round trips, and Task.WhenAll
                 // is not an option here: one scoped DbContext.
                 TeamCount = r.Job.Teams.Count(t => t.Active == true),
+                // Same job property and same empty-string handling as the roster lane — see the
+                // note in GetMobileContextsAsync. Kept identical deliberately: a director and a
+                // parent looking at the same job must see the same wording.
+                MomLabel = string.IsNullOrEmpty(r.Job.MomLabel) ? "Mom" : r.Job.MomLabel,
+                DadLabel = string.IsNullOrEmpty(r.Job.DadLabel) ? "Dad" : r.Job.DadLabel,
                 TeamsAppEnabled = r.Job.BEnableTsicteams == true
             })
             .AsNoTracking()
@@ -3977,7 +3988,16 @@ public class RegistrationRepository : IRegistrationRepository
             {
                 TeamId = t.TeamId,
                 TeamName = t.TeamName ?? string.Empty,
-                Agegroup = t.Agegroup.AgegroupName ?? string.Empty
+                Agegroup = t.Agegroup.AgegroupName ?? string.Empty,
+                // Identical resolution to GetMobileContextsAsync — decode "%40" BEFORE testing for
+                // "@", because roughly half the stored ids are percent-encoded and because a
+                // Contains("%40") compiles to a LIKE whose "%" is a wildcard. Kept in step with
+                // that site deliberately: a director and a parent must resolve the same team to
+                // the same calendar.
+                CalendarId = t.KeywordPairs != null
+                             && t.KeywordPairs.Replace("%40", "@").Contains("@")
+                    ? t.KeywordPairs.Replace("%40", "@")
+                    : null
             })
             .AsNoTracking()
             .ToListAsync(ct);

@@ -82,6 +82,26 @@ public record MobileContextDto
     /// </summary>
     public string? CalendarId { get; init; }
 
+    /// <summary>
+    /// What this JOB calls the two parent/guardian slots — Jobs.MomLabel, defaulted to "Mom".
+    /// A job property, not a player one: it belongs here beside JobName rather than repeated on
+    /// every row of the roster payload. 885 of 1096 jobs override the pair to "Parent 1"/"Parent 2"
+    /// and 10 to "Emergency Contact 1"/"Emergency Contact 2", so the literal words "Mom"/"Dad" are
+    /// wrong far more often than right — and BOTH Teams-enabled jobs override them.
+    ///
+    /// Per context rather than per login, because a family holding seats in several jobs gets each
+    /// job's own wording. This labels the roster's Mom/Dad fields for display; it does not rename
+    /// them, and those field names are unchanged.
+    ///
+    /// Resolved server-side — never null, never blank — so the client implements no fallback.
+    /// Empty string counts as unset: the job-config form posts "" for a cleared input and assigns
+    /// it unconditionally, so a director who clears the field would otherwise blank the label.
+    /// </summary>
+    public required string MomLabel { get; init; }
+
+    /// <summary>Jobs.DadLabel, defaulted to "Dad". See MomLabel — the pair always moves together.</summary>
+    public required string DadLabel { get; init; }
+
     /// <summary>Jobs.bEnableTSICTeams. Null in the column is reported as false.</summary>
     public required bool TeamsAppEnabled { get; init; }
 
@@ -117,6 +137,17 @@ public record MobileOwnershipDto
     /// <summary>Active teams in this job. Fetch the list via ownerships/{regId}/teams.</summary>
     public required int TeamCount { get; init; }
 
+    /// <summary>
+    /// Jobs.MomLabel, defaulted to "Mom" — same job property, same resolution as the roster lane.
+    /// Carried here too because this is the only job-scoped payload a Director or Superuser gets,
+    /// and they open the same team rosters; without it the admin side would hardcode "Mom"/"Dad"
+    /// while a parent in the same job sees "Parent 1"/"Parent 2".
+    /// </summary>
+    public required string MomLabel { get; init; }
+
+    /// <summary>Jobs.DadLabel, defaulted to "Dad". See MomLabel.</summary>
+    public required string DadLabel { get; init; }
+
     /// <summary>Jobs.bEnableTSICTeams. Null in the column is reported as false.</summary>
     public required bool TeamsAppEnabled { get; init; }
 }
@@ -127,6 +158,17 @@ public record MobileOwnershipTeamDto
     public required Guid TeamId { get; init; }
     public required string TeamName { get; init; }
     public required string Agegroup { get; init; }
+
+    /// <summary>
+    /// The team's Google Calendar id, or null when it has none — the ownership-lane counterpart
+    /// of MobileContextDto.CalendarId, resolved identically (see the note on that member and on
+    /// the projection in GetMobileContextsAsync).
+    ///
+    /// It belongs here rather than on MobileOwnershipDto because a calendar is a TEAM property
+    /// and an ownership spans the whole job: a director of one job holds many teams, each with
+    /// its own calendar or none.
+    /// </summary>
+    public string? CalendarId { get; init; }
 }
 
 /// <summary>
