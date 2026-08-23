@@ -54,6 +54,23 @@ public class DeviceSyncTests
         return (teamA.TeamId, teamB.TeamId);
     }
 
+    /// <summary>
+    /// Device_Jobs is the TSIC-Events broadcast pool -- its only two readers are the Events
+    /// send paths, so a row in it means "blast this phone the Events push". device/sync is the
+    /// authenticated TSIC-Teams path and its tokens belong to the tsic-teams Firebase project,
+    /// which the Events credential rejects with SenderIdMismatch. Filing here therefore did not
+    /// widen reach, it padded the pool with tokens that could never be delivered to.
+    ///
+    /// TSIC-Teams devices are reached through Device_Teams. The anonymous register endpoint is
+    /// what fills Device_Jobs, and that endpoint is the TSIC-Events app.
+    /// </summary>
+    private static async Task NoEventsPoolRow(
+        Infrastructure.Data.SqlDbContext.SqlDbContext ctx, string deviceId)
+    {
+        (await ctx.DeviceJobs.AsNoTracking().CountAsync(x => x.DeviceId == deviceId))
+            .Should().Be(0, "sync is TSIC-Teams and must never write the TSIC-Events pool");
+    }
+
     [Fact(DisplayName = "Sync files the device against every registration, not just one")]
     public async Task Sync_CoversAllRegistrations()
     {
@@ -67,7 +84,7 @@ public class DeviceSyncTests
         result.Registrations.Should().Be(2);
 
         var device = await ctx.Devices.AsNoTracking().SingleAsync(d => d.Token == Token);
-        (await ctx.DeviceJobs.AsNoTracking().CountAsync(x => x.DeviceId == device.Id)).Should().Be(2);
+        await NoEventsPoolRow(ctx, device.Id);
         (await ctx.DeviceRegistrationIds.AsNoTracking().CountAsync(x => x.DeviceId == device.Id)).Should().Be(2);
 
         var teams = await ctx.DeviceTeams.AsNoTracking()
@@ -90,7 +107,7 @@ public class DeviceSyncTests
 
         var device = await ctx.Devices.AsNoTracking().SingleAsync(d => d.Token == Token);
         (await ctx.DeviceTeams.AsNoTracking().CountAsync(x => x.DeviceId == device.Id)).Should().Be(2);
-        (await ctx.DeviceJobs.AsNoTracking().CountAsync(x => x.DeviceId == device.Id)).Should().Be(2);
+        await NoEventsPoolRow(ctx, device.Id);
         (await ctx.Devices.AsNoTracking().CountAsync()).Should().Be(1);
     }
 
