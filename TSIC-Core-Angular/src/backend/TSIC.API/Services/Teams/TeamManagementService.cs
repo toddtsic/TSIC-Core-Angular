@@ -75,11 +75,22 @@ public sealed class TeamManagementService : ITeamManagementService
         return await _teamDocsRepo.GetTeamPushesAsync(teamId, jobId, ct);
     }
 
-    public async Task<TeamPushDto> SendPushAsync(
-        Guid teamId, string userId, SendTeamPushRequest request, CancellationToken ct = default)
+    public async Task<TeamPushDto?> SendPushAsync(
+        Guid teamId,
+        string userId,
+        Guid? callerJobId,
+        bool callerIsSuperuser,
+        SendTeamPushRequest request,
+        CancellationToken ct = default)
     {
         var detail = await _teamRepo.GetTeamDetailAsync(teamId, ct);
         var jobId = detail?.JobId ?? Guid.Empty;
+
+        // Job scope. teamId arrives off the route, so without this a director of one event
+        // could push to any team in any other event -- an unrecallable blast to a club they
+        // have no relationship with. Superuser is exempt, matching cross-job ops elsewhere.
+        if (!callerIsSuperuser && (callerJobId == null || jobId == Guid.Empty || callerJobId != jobId))
+            return null;
 
         // Get device tokens for this team (or all job devices if AddAllTeams)
         var displayInfo = await _pushRepo.GetJobDisplayInfoAsync(jobId, ct);
