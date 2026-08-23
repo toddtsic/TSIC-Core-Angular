@@ -438,8 +438,8 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
   - **Verification**: `dotnet build` green; frontend `tsc --noEmit` clean. **Tests not run — Todd runs them.**
   - **Ann verifies**: a family with a **cancelled plan and a balance** now sees "Pay Balance Due" and can pay · a family **mid-plan** still does not see it · a family with **no plan** sees exactly what they saw before.
   - **⚠ Before deploy**: confirm `AdnSweepService` is current for live jobs. A stalled sweep is the only way this misfires — a live plan whose status went stale would read dead and invite a hand payment on top of an automatic draft. The old id gate could not go stale; this one can.
-- **Severity**: 🔴 Bug — customer-facing, blocks self-service collections for expired/terminated ARB families. **Promotion candidate**: this misfires in Production the first time a director sends the Expired/Terminated template, so **PROMOTED to `PL-065`** (Payment-Test-Punchlist) rather than held for after-release.
-- **Status**: ✅ BUILT 08-23 — awaiting deploy + Ann verify. Filed by Claude 08-20 at Ann's request.
+- **Severity**: 🔴 Bug — customer-facing, blocks self-service collections for expired/terminated ARB families. *(Severity describes the defect, not its state — this one is **BUILT**; see the status line.)* Promotion to the `PL-` queue is moot: built 08-23, ships with the next deploy.
+- **Status**: ✅ BUILT 08-23 (`3383b431`, pushed) — **awaiting deploy + Ann verify. No code work left.** Filed by Claude 08-20 at Ann's request.
 
 ### AR-012: [Fees / Schema] A job with two leagues cannot hold per-league fees for the same role — `UX_JobFees_Scope` collapses the league tier
 - **Topic**: `fees.JobFees` → league-scoped fee rows (the top tier of the base-fee cascade)
