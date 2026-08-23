@@ -78,6 +78,42 @@ public class DeviceRepository : IDeviceRepository
         return true;
     }
 
+    public async Task<bool> AddDeviceTeamIfNotExistsAsync(
+        string deviceId, Guid teamId, Guid? registrationId, CancellationToken ct = default)
+    {
+        var exists = await _context.DeviceTeams
+            .AnyAsync(dt => dt.DeviceId == deviceId && dt.TeamId == teamId, ct);
+        if (exists) return false;
+
+        _context.DeviceTeams.Add(new DeviceTeams
+        {
+            Id = Guid.NewGuid(),
+            DeviceId = deviceId,
+            TeamId = teamId,
+            RegistrationId = registrationId,
+            Modified = DateTime.Now
+        });
+        return true;
+    }
+
+    public async Task<bool> AddDeviceRegistrationIdIfNotExistsAsync(
+        string deviceId, Guid registrationId, CancellationToken ct = default)
+    {
+        var exists = await _context.DeviceRegistrationIds
+            .AnyAsync(dr => dr.DeviceId == deviceId && dr.RegistrationId == registrationId, ct);
+        if (exists) return false;
+
+        _context.DeviceRegistrationIds.Add(new DeviceRegistrationIds
+        {
+            Id = Guid.NewGuid(),
+            DeviceId = deviceId,
+            RegistrationId = registrationId,
+            Active = true,
+            Modified = DateTime.Now
+        });
+        return true;
+    }
+
     public async Task<List<Guid>> GetSubscribedTeamIdsAsync(string deviceToken, Guid jobId, CancellationToken ct = default)
     {
         return await _context.DeviceTeams.AsNoTracking()

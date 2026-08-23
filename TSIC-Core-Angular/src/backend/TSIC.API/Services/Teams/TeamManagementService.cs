@@ -11,17 +11,20 @@ public sealed class TeamManagementService : ITeamManagementService
     private readonly ITeamRepository _teamRepo;
     private readonly ITeamDocsRepository _teamDocsRepo;
     private readonly IPushNotificationRepository _pushRepo;
+    private readonly IDeviceRepository _deviceRepo;
     private readonly IFirebasePushService _firebasePush;
 
     public TeamManagementService(
         ITeamRepository teamRepo,
         ITeamDocsRepository teamDocsRepo,
         IPushNotificationRepository pushRepo,
+        IDeviceRepository deviceRepo,
         IFirebasePushService firebasePush)
     {
         _teamRepo = teamRepo;
         _teamDocsRepo = teamDocsRepo;
         _pushRepo = pushRepo;
+        _deviceRepo = deviceRepo;
         _firebasePush = firebasePush;
     }
 
@@ -94,10 +97,19 @@ public sealed class TeamManagementService : ITeamManagementService
         if (!callerIsSuperuser && (callerJobId == null || jobId == Guid.Empty || callerJobId != jobId))
             return null;
 
-        // Get device tokens for this team (or all job devices if AddAllTeams)
         var displayInfo = await _pushRepo.GetJobDisplayInfoAsync(jobId, ct);
-        var deviceTokens = await _pushRepo.GetDeviceTokensForJobAsync(jobId, ct);
-        // TODO: filter to team-specific devices when AddAllTeams is false
+
+        // AddAllTeams is the switch the product spec names: true is the job, false is this
+        // team. Until this branch existed, false still sent club-wide while the audit row
+        // below recorded it as team-scoped -- the record claimed a reach it did not have.
+        //
+        // The branch is HERE, at the call site, deliberately. GetDeviceTokensForJobAsync is
+        // shared with the website push screen (PushNotificationService.SendPushToAllAsync);
+        // narrowing it inside the repository would silently shrink the website audience with
+        // no error anywhere.
+        var deviceTokens = request.AddAllTeams
+            ? await _pushRepo.GetDeviceTokensForJobAsync(jobId, ct)
+            : await _deviceRepo.GetTokensSubscribedToTeamsAsync(teamId, null, ct);
 
         var title = displayInfo?.JobName ?? "Team Notification";
         var sentCount = await _firebasePush.SendToDevicesAsync(deviceTokens, title, request.PushText, ct: ct);

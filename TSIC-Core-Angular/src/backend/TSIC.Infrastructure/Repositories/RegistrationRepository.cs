@@ -3803,6 +3803,34 @@ public class RegistrationRepository : IRegistrationRepository
 
     // ── TSIC-Teams mobile ──
 
+    public async Task<List<DeviceSyncTargetDto>> GetDeviceSyncTargetsAsync(
+        string userId,
+        CancellationToken ct = default)
+    {
+        // Predicate mirrors GetMobileContextsAsync exactly -- a device must be filed against
+        // the same registrations the login screen offers, or a parent gets alerts for a job
+        // they can no longer sign into. See the note there on why Player is reached through
+        // FamilyUserId and Staff through UserId.
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r =>
+                r.BActive == true
+                && r.UserId != null
+                && DateTime.Now < r.Job.ExpiryUsers
+                && (
+                    (r.RoleId == RoleConstants.Player && r.FamilyUserId == userId)
+                    || (r.RoleId == RoleConstants.Staff && r.UserId == userId)
+                ))
+            .Select(r => new DeviceSyncTargetDto
+            {
+                RegistrationId = r.RegistrationId,
+                JobId = r.JobId,
+                // Left join: null while the registration is unplaced. Job row still lands.
+                TeamId = r.AssignedTeamId
+            })
+            .ToListAsync(ct);
+    }
+
     public async Task<List<MobileContextDto>> GetMobileContextsAsync(
         string userId,
         CancellationToken ct = default)

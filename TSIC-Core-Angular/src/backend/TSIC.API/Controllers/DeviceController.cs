@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Services;
@@ -17,6 +19,30 @@ public class DeviceController : ControllerBase
     public DeviceController(IDeviceManagementService deviceService)
     {
         _deviceService = deviceService;
+    }
+
+    /// <summary>
+    /// Files this device against every job, team and registration the caller holds.
+    ///
+    /// The only authenticated action on this controller -- the rest are anonymous, with the
+    /// device token as identity. Here the bearer IS the point: job and team are derived from
+    /// it and are deliberately absent from the request body, because an endpoint that
+    /// accepted them would let any authenticated user subscribe their phone to any team.
+    ///
+    /// Idempotent; the client calls it on every launch and every token event.
+    /// </summary>
+    [Authorize]
+    [HttpPost("sync")]
+    [ProducesResponseType(typeof(SyncDeviceResponse), 200)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> Sync(
+        [FromBody] SyncDeviceRequest request, CancellationToken ct)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        var result = await _deviceService.SyncDeviceAsync(userId, request, ct);
+        return Ok(result);
     }
 
     /// <summary>

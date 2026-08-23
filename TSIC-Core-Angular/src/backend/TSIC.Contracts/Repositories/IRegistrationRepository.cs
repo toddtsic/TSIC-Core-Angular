@@ -726,6 +726,13 @@ public interface IRegistrationRepository
     Task<List<MobileContextDto>> GetMobileContextsAsync(string userId, CancellationToken ct = default);
 
     /// <summary>
+    /// Active registrations for a user reduced to (registration, job, team) -- the keys a
+    /// device is filed against. Same predicate as GetMobileContextsAsync; separate
+    /// projection because that DTO carries no JobId.
+    /// </summary>
+    Task<List<DeviceSyncTargetDto>> GetDeviceSyncTargetsAsync(string userId, CancellationToken ct = default);
+
+    /// <summary>
     /// Ownership registrations for the mobile app — Director and Superuser, which hold
     /// authority over a job's teams rather than a seat on one. Team counts resolve in the
     /// same statement; never fetch them per row.

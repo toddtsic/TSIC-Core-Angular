@@ -20,7 +20,7 @@ public class TeamLinksTests
         var teamDocsRepo = new TeamDocsRepository(ctx);
         var pushRepo = new PushNotificationRepository(ctx);
         var firebasePush = new Mock<IFirebasePushService>();
-        var svc = new TeamManagementService(teamRepo, teamDocsRepo, pushRepo, firebasePush.Object);
+        var svc = new TeamManagementService(teamRepo, teamDocsRepo, pushRepo, new DeviceRepository(ctx), firebasePush.Object);
         return (svc, builder, ctx);
     }
 

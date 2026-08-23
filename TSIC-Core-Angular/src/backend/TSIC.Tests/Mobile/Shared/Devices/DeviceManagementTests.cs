@@ -15,7 +15,7 @@ public class DeviceManagementTests
         var ctx = DbContextFactory.Create();
         var builder = new MobileDataBuilder(ctx);
         var deviceRepo = new DeviceRepository(ctx);
-        var svc = new DeviceManagementService(deviceRepo);
+        var svc = new DeviceManagementService(deviceRepo, new RegistrationRepository(ctx));
         return (svc, builder, ctx);
     }
 
