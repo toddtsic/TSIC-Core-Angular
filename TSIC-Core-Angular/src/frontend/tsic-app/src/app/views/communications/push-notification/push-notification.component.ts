@@ -1,8 +1,13 @@
 import { Component, ChangeDetectionStrategy, inject, signal, computed, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Observable, map } from 'rxjs';
 import { GridAllModule, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
 import { PushNotificationService } from './services/push-notification.service';
-import type { PushNotificationHistoryDto, PushNotificationReadinessDto } from '../../../core/api';
+import type {
+  PushNotificationHistoryDto,
+  PushNotificationReadinessDto,
+  TeamLinkTeamOptionDto
+} from '../../../core/api';
 
 /** A single unmet delivery condition, rendered as an alert above the send form. */
 export interface PushReadinessWarning {
@@ -35,6 +40,15 @@ export class PushNotificationComponent implements OnInit {
   readiness = signal<PushNotificationReadinessDto | null>(null);
   pushText = signal('');
   history = signal<PushNotificationHistoryDto[]>([]);
+
+  /** Teams in this job. Empty until loaded, and empty is a legitimate state. */
+  teams = signal<TeamLinkTeamOptionDto[]>([]);
+
+  /** '' means the whole job. A team id narrows the send to that team's subscribers. */
+  selectedTeamId = signal<string>('');
+
+  selectedTeamName = computed(() =>
+    this.teams().find(t => t.teamId === this.selectedTeamId())?.display ?? '');
 
   // Computed
   /**
@@ -120,12 +134,21 @@ export class PushNotificationComponent implements OnInit {
   ngOnInit(): void {
     this.loadReadiness();
     this.loadHistory();
+    this.loadTeams();
   }
 
   private loadReadiness(): void {
     this.pushService.getReadiness().subscribe({
       next: (data) => this.readiness.set(data),
       error: () => { /* Readiness is advisory — a failure must not block the screen */ }
+    });
+  }
+
+  private loadTeams(): void {
+    this.pushService.availableTeams().subscribe({
+      next: (data) => this.teams.set(data),
+      // No team list just means no narrowing; the job-wide send still works.
+      error: () => { /* non-fatal */ }
     });
   }
 
@@ -151,16 +174,29 @@ export class PushNotificationComponent implements OnInit {
     this.errorMessage.set(null);
     this.successMessage.set(null);
 
-    this.pushService.sendPush(text).subscribe({
-      next: (response) => {
-        this.successMessage.set(response.message);
+    const teamId = this.selectedTeamId();
+
+    // Two endpoints, one button. A team-scoped send goes to the team-management endpoint,
+    // which stamps the team onto the audit row so the history grid can tell the two apart.
+    // Both responses carry deviceCount; narrowing to it here keeps the subscribe monomorphic.
+    const send$: Observable<number> = teamId
+      ? this.pushService.sendTeamPush(teamId, text).pipe(map(r => r.deviceCount))
+      : this.pushService.sendPush(text).pipe(map(r => r.deviceCount));
+
+    send$.subscribe({
+      next: (count: number) => {
+        const who = teamId ? this.selectedTeamName() : 'everyone in this event';
+        this.successMessage.set(`Sent to ${who} — delivered to ${count} device(s).`);
         this.pushText.set('');
         this.isSending.set(false);
         this.loadReadiness();
         this.loadHistory();
       },
-      error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to send push notification.');
+      // The team endpoint answers a cross-job attempt with ProblemDetails (detail), the
+      // job-wide one with a plain message. Read both so neither failure shows as generic.
+      error: (err: { error?: { detail?: string; message?: string } }) => {
+        this.errorMessage.set(
+          err.error?.detail || err.error?.message || 'Failed to send push notification.');
         this.isSending.set(false);
       }
     });

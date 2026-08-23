@@ -93,7 +93,9 @@ public class PushNotificationRepository : IPushNotificationRepository
                 SentBy = p.LebUser.FirstName + " " + p.LebUser.LastName,
                 SentWhen = p.Modified,
                 PushText = p.PushText,
-                DeviceCount = p.DeviceCount
+                DeviceCount = p.DeviceCount,
+                TeamId = p.TeamId,
+                TeamName = p.TeamId == null ? null : p.Team!.TeamName
             })
             .ToListAsync(ct);
     }

@@ -6,7 +6,9 @@ import type {
   PushNotificationDeviceCountDto,
   PushNotificationReadinessDto,
   PushNotificationHistoryDto,
-  SendPushNotificationResponse
+  SendPushNotificationResponse,
+  TeamLinkTeamOptionDto,
+  TeamPushDto
 } from '../../../../core/api';
 
 @Injectable({
@@ -24,8 +26,25 @@ export class PushNotificationService {
     return this.http.get<PushNotificationDeviceCountDto>(`${this.apiUrl}/device-count`);
   }
 
+  /** Teams in this job, for the audience selector. */
+  availableTeams(): Observable<TeamLinkTeamOptionDto[]> {
+    return this.http.get<TeamLinkTeamOptionDto[]>(`${this.apiUrl}/available-teams`);
+  }
+
+  /** Everyone this job's mobile app reaches. */
   sendPush(pushText: string): Observable<SendPushNotificationResponse> {
     return this.http.post<SendPushNotificationResponse>(`${this.apiUrl}/send`, { pushText });
+  }
+
+  /**
+   * Just this team's subscribers. Deliberately the team-management endpoint rather than a
+   * second copy on this controller — that one already owns the cross-job guard and stamps the
+   * team onto the audit row, and two send paths would be two places to drift.
+   */
+  sendTeamPush(teamId: string, pushText: string): Observable<TeamPushDto> {
+    return this.http.post<TeamPushDto>(
+      `${environment.apiUrl}/teams/${teamId}/pushes`,
+      { pushText, addAllTeams: false });
   }
 
   getHistory(): Observable<PushNotificationHistoryDto[]> {

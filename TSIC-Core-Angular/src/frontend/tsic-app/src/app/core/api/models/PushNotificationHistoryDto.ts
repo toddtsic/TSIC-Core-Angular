@@ -8,5 +8,7 @@ export type PushNotificationHistoryDto = {
     sentWhen: string;
     pushText: string;
     deviceCount: number;
+    teamId?: string | null;
+    teamName?: string | null;
 };
 

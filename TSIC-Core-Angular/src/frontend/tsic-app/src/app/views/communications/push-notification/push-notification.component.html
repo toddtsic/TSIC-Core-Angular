@@ -52,6 +52,30 @@
   <!-- Send form -->
   <div class="card send-card">
     <div class="card-body">
+      <!-- Audience. Defaults to everyone; picking a team narrows it to that team's
+           subscribers. The whole-job option stays first so the common case is one click. -->
+      @if (teams().length > 0) {
+        <label for="pushAudience" class="form-label fw-medium">Send To</label>
+        <select
+          id="pushAudience"
+          class="form-select mb-3"
+          [ngModel]="selectedTeamId()"
+          (ngModelChange)="selectedTeamId.set($event)"
+          [disabled]="isSending()">
+          <option value="">Everyone in this event ({{ deviceCount() }} device(s))</option>
+          @for (t of teams(); track t.teamId) {
+            <option [value]="t.teamId">{{ t.display }}</option>
+          }
+        </select>
+
+        @if (selectedTeamId()) {
+          <div class="alert alert-info d-flex align-items-start gap-2 py-2">
+            <i class="bi bi-people"></i>
+            <span>Only devices following <strong>{{ selectedTeamName() }}</strong> will receive this.</span>
+          </div>
+        }
+      }
+
       <label for="pushText" class="form-label fw-medium">Push Text</label>
       <textarea
         id="pushText"
@@ -106,6 +130,17 @@
           <e-columns>
             <e-column field="sentBy" headerText="Sent By" width="150"></e-column>
             <e-column field="sentWhen" headerText="Sent When" width="170" type="date" format="MM/dd/yyyy HH:mm"></e-column>
+            <!-- Without this, a team-scoped send and an everyone send are indistinguishable
+                 rows — the ambiguity that let the original AddAllTeams bug go unnoticed. -->
+            <e-column field="teamName" headerText="Sent To" width="160">
+              <ng-template #template let-row>
+                @if (row.teamName) {
+                  <span>{{ row.teamName }}</span>
+                } @else {
+                  <span class="text-body-secondary fst-italic">Everyone</span>
+                }
+              </ng-template>
+            </e-column>
             <e-column field="deviceCount" headerText="Devices" width="90" textAlign="Center"></e-column>
             <e-column field="pushText" headerText="Push Text"></e-column>
           </e-columns>

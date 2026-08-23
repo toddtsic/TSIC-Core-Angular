@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Dtos.PushNotification;
+using TSIC.Contracts.Dtos.TeamLink;
 using TSIC.Contracts.Services;
 
 namespace TSIC.API.Controllers;
@@ -19,13 +20,16 @@ public class PushNotificationController : ControllerBase
 {
     private readonly IPushNotificationService _service;
     private readonly IJobLookupService _jobLookupService;
+    private readonly ITeamLinkService _teamLinkService;
 
     public PushNotificationController(
         IPushNotificationService service,
-        IJobLookupService jobLookupService)
+        IJobLookupService jobLookupService,
+        ITeamLinkService teamLinkService)
     {
         _service = service;
         _jobLookupService = jobLookupService;
+        _teamLinkService = teamLinkService;
     }
 
     /// <summary>
@@ -64,6 +68,25 @@ public class PushNotificationController : ControllerBase
         return Ok(await _service.GetReadinessAsync(jobId.Value, ct));
     }
 
+
+    /// <summary>
+    /// Teams in the current job, for the screen's audience selector. Choosing one narrows the
+    /// send to that team's subscribers via POST api/teams/{teamId}/pushes; the default is the
+    /// whole job. Delegates to the team-link service rather than repeating the query — same
+    /// job-scoped "active teams" list, one definition.
+    /// </summary>
+    [HttpGet("available-teams")]
+    [ProducesResponseType(typeof(List<TeamLinkTeamOptionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<List<TeamLinkTeamOptionDto>>> GetAvailableTeams(
+        CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Registration context required." });
+
+        return Ok(await _teamLinkService.GetAvailableTeamsAsync(jobId.Value, ct));
+    }
 
     /// <summary>
     /// Send a push notification to ALL mobile devices registered for the current job.

@@ -26,6 +26,16 @@ public record PushNotificationHistoryDto
     public required DateTime SentWhen { get; init; }
     public required string PushText { get; init; }
     public required int DeviceCount { get; init; }
+
+    /// <summary>Team this went to, or null for a job-wide send.</summary>
+    public Guid? TeamId { get; init; }
+
+    /// <summary>
+    /// Team name for display, or null for a job-wide send. Without this the grid shows a
+    /// team-scoped send and an everyone send as identical rows — the same ambiguity that let
+    /// the original AddAllTeams bug survive unnoticed.
+    /// </summary>
+    public string? TeamName { get; init; }
 }
 
 /// <summary>
