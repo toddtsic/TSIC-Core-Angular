@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>PushProbe</AssemblyName>
+    <RootNamespace>PushProbe</RootNamespace>
+    <!--
+      Deliberately outside the solution and outside TSIC-Core-Angular/Directory.Packages.props,
+      so `dotnet build TSIC-Core-Angular.sln` never picks this up and central package management
+      does not apply. Keep the FirebaseAdmin version in step with the API's when it moves.
+    -->
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FirebaseAdmin" Version="3.5.0" />
+  </ItemGroup>
+
+</Project>
