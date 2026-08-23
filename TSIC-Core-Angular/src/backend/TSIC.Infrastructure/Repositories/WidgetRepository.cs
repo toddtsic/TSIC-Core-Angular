@@ -442,22 +442,17 @@ public class WidgetRepository : IWidgetRepository
                 return explicit_;
         }
 
-        // Fallback: earliest-registered active admin
-        var adminRoleIds = new[]
-        {
-            RoleConstants.Superuser,
-            RoleConstants.SuperDirector,
-            RoleConstants.Director,
-            RoleConstants.ApiAuthorized,
-            RoleConstants.RefAssignor,
-            RoleConstants.StoreAdmin,
-            RoleConstants.StpAdmin,
-        };
-
+        // Fallback: earliest-registered active DIRECTOR.
+        // Director ONLY (Todd ruling 2026-08-23). This value is served anonymously via
+        // public/{jobPath}/event-contact, so it must name someone who actually speaks for
+        // the event. The pool was previously all seven admin roles, which published TSIC
+        // Superuser addresses on live customer events and left vendor export logins
+        // (ApiAuthorized, StpAdmin) eligible to appear as the public contact.
+        // No eligible Director => no contact; the widget renders nothing.
         return await _context.Registrations
             .AsNoTracking()
             .Where(r => r.JobId == jobId
-                      && adminRoleIds.Contains(r.RoleId)
+                      && r.RoleId == RoleConstants.Director
                       && r.BActive == true)
             .OrderBy(r => r.RegistrationTs)
             .Select(r => new EventContactDto
