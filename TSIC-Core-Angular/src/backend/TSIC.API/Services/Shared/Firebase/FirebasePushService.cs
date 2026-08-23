@@ -87,23 +87,36 @@ public class FirebasePushService : IFirebasePushService
             return 0;
         }
 
-        // Batch in chunks of 499 to stay under Firebase's 500-message limit per SendEachAsync call
+        // Batch in chunks of 499 to stay under Firebase's 500-message limit per SendEachAsync call.
+        // SendEachAsync does not throw when individual messages fail — it reports them on the
+        // BatchResponse. Count what FCM accepted, not what we handed it: the caller writes this
+        // number to the push audit row, and attempted-as-delivered made a rejected send read as
+        // a successful one.
         var totalSent = 0;
         foreach (var chunk in Chunk(messages, MaxBatchSize))
         {
             var response = await _messaging.SendEachAsync(chunk, ct);
-            totalSent += chunk.Count;
+            totalSent += response.SuccessCount;
 
             if (response.FailureCount > 0)
             {
+                // Error codes, not just a count. SenderIdMismatch here means the token belongs
+                // to a different Firebase project than the credential in use — the one failure
+                // that is a routing mistake rather than a dead device.
+                var codes = string.Join(", ", response.Responses
+                    .Where(r => !r.IsSuccess)
+                    .GroupBy(r => (r.Exception as FirebaseMessagingException)?.MessagingErrorCode?.ToString() ?? "Unknown")
+                    .Select(g => $"{g.Key}={g.Count()}"));
+
                 _logger.LogWarning(
-                    "Firebase batch: {Success} succeeded, {Failed} failed out of {Total}",
-                    response.SuccessCount, response.FailureCount, chunk.Count);
+                    "Firebase batch: {Success} succeeded, {Failed} failed out of {Total} [{Codes}]",
+                    response.SuccessCount, response.FailureCount, chunk.Count, codes);
             }
         }
 
-        _logger.LogInformation("Push notification sent to {Count} devices", totalSent);
-        return deviceTokens.Count;
+        _logger.LogInformation(
+            "Push notification delivered to {Delivered} of {Attempted} devices", totalSent, deviceTokens.Count);
+        return totalSent;
     }
 
     private static IEnumerable<List<T>> Chunk<T>(List<T> source, int size)
