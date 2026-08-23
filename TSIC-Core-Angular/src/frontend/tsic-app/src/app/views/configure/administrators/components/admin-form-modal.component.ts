@@ -85,10 +85,10 @@ export interface AdminFormResult {
                                                 <span class="fw-semibold">{{ user.displayName }}</span>
                                                 <small class="text-body-secondary ms-2">({{ user.userName }})</small>
                                                 <span
-                                                    [class]="user.accountType === 'Admin'
-                                                        ? 'badge ms-auto bg-primary-subtle text-primary-emphasis'
-                                                        : 'badge ms-auto bg-warning-subtle text-warning-emphasis'">
-                                                    {{ user.accountType === 'Admin' ? 'Admin account' : 'Pending adult' }}
+                                                    [class]="user.accountType === 'PendingAdult'
+                                                        ? 'badge ms-auto bg-warning-subtle text-warning-emphasis'
+                                                        : 'badge ms-auto bg-primary-subtle text-primary-emphasis'">
+                                                    {{ accountTypeLabel(user.accountType) }}
                                                 </span>
                                             </li>
                                         }
@@ -270,6 +270,19 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
     readonly editAdmin = signal<AdministratorDto | null>(null);
 
     readonly isValid = signal(false);
+
+    /**
+     * Search-result badge text. 'NoRegistrations' is a known account with an empty
+     * registration footprint — it must NOT read as "Pending adult", which would imply a
+     * pending coach row exists (and gets consumed) when there is none.
+     */
+    accountTypeLabel(accountType: string | null | undefined): string {
+        switch (accountType) {
+            case 'Admin': return 'Admin account';
+            case 'PendingAdult': return 'Pending adult';
+            default: return 'No registrations';
+        }
+    }
 
     ngOnInit() {
         const admin = this.admin();

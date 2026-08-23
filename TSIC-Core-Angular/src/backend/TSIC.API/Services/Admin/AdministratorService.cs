@@ -120,6 +120,8 @@ public sealed class AdministratorService : IAdministratorService
         //     roster-swapper approval, player history, …) do not disqualify. → new admin
         //     registration on this job; the pending row is DELETED in the same stroke (it
         //     leaves the coach-approval queue; a Staff team hat is left untouched).
+        //  3. No registrations at all — a known account with an empty footprint (2026-08-23).
+        //     → new registration, same as shape 1.
         if (await _adminRepo.IsFamilyCredentialHolderAsync(user.Id, cancellationToken))
             throw new ArgumentException(
                 $"'{request.UserName}' is a family login — family credentials are shared within the household " +
@@ -144,7 +146,11 @@ public sealed class AdministratorService : IAdministratorService
 
         Registrations? pendingToDelete = null;
 
-        if (isLanePure)
+        // Third shape: no registration footprint at all — nothing to be impure about and
+        // nothing on this job to collide with. Takes the same mint-a-new-row path as a
+        // lane-pure account (Todd 2026-08-23 — returning admins whose history has aged out).
+        // The duplicate guards below are vacuously satisfied on an empty set.
+        if (isLanePure || allRegistrations.Count == 0)
         {
             // Lane-pure account: pin with a new registration on this job.
             // An inactive admin reg on this job still blocks; reactivate via the grid instead

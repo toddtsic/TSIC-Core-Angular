@@ -200,6 +200,10 @@ public class UserRepository : IUserRepository
             .Select(u => new
             {
                 User = u,
+                // Third shape: an account with NO registration footprint at all. Nothing to be
+                // impure about and nothing on this job to collide with, so it is offered
+                // directly (Todd 2026-08-23 — returning admins whose history has aged out).
+                HasAnyRegs = _context.Registrations.Any(r => r.UserId == u.Id),
                 // Lane purity needs ≥1 live reg (All() over an empty set is vacuously true).
                 HasLiveRegs = _context.Registrations.Any(r => r.UserId == u.Id
                     && r.BActive == true
@@ -232,7 +236,8 @@ public class UserRepository : IUserRepository
                     && r.RoleId == requestedRoleId)
             })
             .Where(x => (x.HasLiveRegs && x.IsLanePure && !x.HasBlockingRegOnThisJob)
-                || (x.ActiveUaCount == 1 && !x.HasRequestedRoleOnThisJob))
+                || (x.ActiveUaCount == 1 && !x.HasRequestedRoleOnThisJob)
+                || !x.HasAnyRegs)
             .OrderBy(x => x.User.LastName)
             .ThenBy(x => x.User.FirstName)
             .Take(maxResults)
@@ -242,7 +247,9 @@ public class UserRepository : IUserRepository
                 UserName = x.User.UserName!,
                 FirstName = x.User.FirstName,
                 LastName = x.User.LastName,
-                AccountType = x.HasLiveRegs && x.IsLanePure ? "Admin" : "PendingAdult"
+                AccountType = x.HasLiveRegs && x.IsLanePure
+                    ? "Admin"
+                    : x.HasAnyRegs ? "PendingAdult" : "NoRegistrations"
             })
             .ToListAsync(cancellationToken);
     }
