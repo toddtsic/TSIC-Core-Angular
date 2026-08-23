@@ -178,9 +178,11 @@ export class ClientHeaderBarComponent {
             if (pulse.storeEnabled && pulse.storeHasActiveItems) {
                 items.push({ icon: 'bi-cart', label: 'Store', route: 'store' });
             }
-            if (pulse.enableStayToPlay) {
-                items.push({ icon: 'bi-building-check', label: 'Stay-to-Play', route: 'store' });
-            }
+            // No Stay-to-Play item here. There was one, gated on pulse.enableStayToPlay and
+            // routed to 'store' — but STP is a data transfer to a housing vendor, not a
+            // storefront: the flag opens a vendor login, and there has never been a
+            // player-facing Stay-to-Play screen for the link to reach. It sent players to
+            // the store. Removed 2026-08-23.
         }
 
         // Rank the single most-important "next action". A balance due is the

@@ -130,6 +130,26 @@
       </div>
     </div>
 
+    <div class="form-section">
+      <h6 class="section-title"><i class="bi bi-buildings me-2"></i>Stay-to-Play</h6>
+      <div class="toggle-row" [class.is-on]="benableStp()" [class.is-off]="!benableStp()">
+        <label class="toggle-control">
+          <input type="checkbox"
+            [ngModel]="benableStp()"
+            (ngModelChange)="onStpChange($event)" />
+          <span class="field-label">Share club rep details with a Stay-to-Play housing vendor</span>
+        </label>
+        <span class="toggle-tip">
+          @if (benableStp()) {
+            Your Stay-to-Play vendor has a login to this event and can see and export
+            every club rep's contact details and team counts.
+          } @else {
+            No vendor login exists for this event. Nothing is shared.
+          }
+        </span>
+      </div>
+    </div>
+
     @if (svc.isSuperUser()) {
       <div class="form-section form-section--super">
         <h6 class="section-title">
@@ -178,4 +198,15 @@
     confirmVariant="warning"
     (confirmed)="confirmRosterConsent()"
     (cancelled)="cancelRosterConsent()" />
+}
+
+@if (pendingStpConsent()) {
+  <confirm-dialog
+    title="Share club rep data with a third party?"
+    [message]="stpConsentMessage()"
+    confirmLabel="I understand — share with the vendor"
+    cancelLabel="Cancel — leave off"
+    confirmVariant="warning"
+    (confirmed)="confirmStpConsent()"
+    (cancelled)="cancelStpConsent()" />
 }

@@ -363,6 +363,11 @@ public class JobConfigService : IJobConfigService
         // BShowTeamNameOnlyInSchedules lives on the Scheduling tab (it drives schedule rendering).
         job.BAllowRosterViewAdult = req.BAllowRosterViewAdult;
         job.BAllowRosterViewPlayer = req.BAllowRosterViewPlayer;
+        // Stay-to-Play third-party data-sharing consent. Admin-editable, NOT SuperUser-gated:
+        // handing club-rep data to a housing vendor is the director's call to make, and the
+        // consent dialog on the Teams tab pins it on them. (Was a SuperUser-only checkbox on
+        // the Mobile/Store tab, where no director could ever see it.)
+        job.BenableStp = req.BenableStp;
         job.AdultRegConfirmationEmail = req.AdultRegConfirmationEmail;
         job.AdultRegConfirmationOnScreen = req.AdultRegConfirmationOnScreen;
 
@@ -516,7 +521,6 @@ public class JobConfigService : IJobConfigService
             job.MobileJobName = req.MobileJobName;
             if (req.BEnableStore.HasValue) job.BEnableStore = req.BEnableStore.Value;
             if (req.BAllowStoreWalkup.HasValue) job.BAllowStoreWalkup = req.BAllowStoreWalkup.Value;
-            if (req.BenableStp.HasValue) job.BenableStp = req.BenableStp.Value;
             job.StoreContactEmail = req.StoreContactEmail;
             job.StoreRefundPolicy = req.StoreRefundPolicy;
             job.StorePickupDetails = req.StorePickupDetails;
@@ -820,6 +824,7 @@ public class JobConfigService : IJobConfigService
         BTeamPushDirectors = job.BTeamPushDirectors,
         BAllowRosterViewAdult = job.BAllowRosterViewAdult,
         BAllowRosterViewPlayer = job.BAllowRosterViewPlayer,
+        BenableStp = job.BenableStp == true,
         AdultRegConfirmationEmail = job.AdultRegConfirmationEmail,
         AdultRegConfirmationOnScreen = job.AdultRegConfirmationOnScreen,
         // SuperUser-only
@@ -903,7 +908,6 @@ public class JobConfigService : IJobConfigService
         MobileJobName = isSuperUser ? job.MobileJobName : null,
         BEnableStore = isSuperUser ? job.BEnableStore : null,
         BAllowStoreWalkup = isSuperUser ? job.BAllowStoreWalkup : null,
-        BenableStp = isSuperUser ? job.BenableStp : null,
         StoreContactEmail = isSuperUser ? job.StoreContactEmail : null,
         StoreRefundPolicy = isSuperUser ? job.StoreRefundPolicy : null,
         StorePickupDetails = isSuperUser ? job.StorePickupDetails : null,

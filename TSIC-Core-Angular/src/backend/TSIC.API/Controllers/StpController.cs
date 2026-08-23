@@ -42,6 +42,17 @@ public class StpController : ControllerBase
             return BadRequest(new { message = "Registration context required." });
 
         var clubReps = await _service.GetClubRepsAsync(jobId.Value, ct);
+
+        // Null = the director has not consented to share this event's data (BEnableSTP off).
+        // The message is deliberately neutral and says nothing about who decided or why:
+        // an STPAdmin here is a third-party housing vendor holding a JWT minted before the
+        // flag was flipped, and telling them a director switched them off hands them a
+        // person to pressure over a data-sharing decision that is not theirs. The director's
+        // own screen reads the flag off the job pulse and explains it properly.
+        if (clubReps is null)
+            return StatusCode(StatusCodes.Status403Forbidden,
+                new { message = "Stay-to-Play is not enabled for this event." });
+
         return Ok(clubReps);
     }
 }

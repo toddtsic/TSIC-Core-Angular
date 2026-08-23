@@ -46,7 +46,7 @@ export function buildJobVisibilityContext(
 
     if (jobMetadata?.bEnableStore) flags.add('storeEnabled');
     if (jobMetadata?.adnArb) flags.add('adnArb');
-    if (pulse?.enableStayToPlay) flags.add('mobileEnabled');
+    if (pulse?.enableStayToPlay) flags.add('stayToPlayEnabled');
     if (jobMetadata?.jobTypeId === 1 || jobMetadata?.jobTypeId === 4 || jobMetadata?.jobTypeId === 6) {
         flags.add('playerSiteOnly');
     }

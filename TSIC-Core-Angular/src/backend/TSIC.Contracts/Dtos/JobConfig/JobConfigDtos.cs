@@ -292,6 +292,15 @@ public record JobConfigTeamsDto
     public required bool BAllowRosterViewAdult { get; init; }
     public required bool BAllowRosterViewPlayer { get; init; }
 
+    /// <summary>
+    /// Stay-to-Play: the director's consent to hand this event's club-rep contact data
+    /// and team counts to a third-party housing vendor. Gates the STPAdmin role offer at
+    /// login, the /api/stp surface, and the STPAdmin nav item. Director-editable — moved
+    /// off the SuperUser-only Mobile/Store tab (2026-08-23): the decision is the director's,
+    /// so the field must sit where a director can reach it.
+    /// </summary>
+    public required bool BenableStp { get; init; }
+
     // Club-rep/team-registration confirmation (TeamRegistrationService renders these).
     // Also the ?? fallback source for the coach/referee/recruiter confirmation pairs.
     public required string? AdultRegConfirmationEmail { get; init; }
@@ -314,6 +323,9 @@ public record UpdateJobConfigTeamsRequest
     public required bool? BTeamPushDirectors { get; init; }
     public required bool BAllowRosterViewAdult { get; init; }
     public required bool BAllowRosterViewPlayer { get; init; }
+
+    /// <summary>Stay-to-Play third-party data-sharing consent. See <see cref="JobConfigTeamsDto.BenableStp"/>.</summary>
+    public required bool BenableStp { get; init; }
 
     public required string? AdultRegConfirmationEmail { get; init; }
     public required string? AdultRegConfirmationOnScreen { get; init; }
@@ -462,7 +474,6 @@ public record JobConfigMobileStoreDto
     // SuperUser-only — Store
     public bool? BEnableStore { get; init; }
     public bool? BAllowStoreWalkup { get; init; }
-    public bool? BenableStp { get; init; }
     public string? StoreContactEmail { get; init; }
     public string? StoreRefundPolicy { get; init; }
     public string? StorePickupDetails { get; init; }
@@ -485,7 +496,6 @@ public record UpdateJobConfigMobileStoreRequest
     public string? MobileJobName { get; init; }
     public bool? BEnableStore { get; init; }
     public bool? BAllowStoreWalkup { get; init; }
-    public bool? BenableStp { get; init; }
     public string? StoreContactEmail { get; init; }
     public string? StoreRefundPolicy { get; init; }
     public string? StorePickupDetails { get; init; }

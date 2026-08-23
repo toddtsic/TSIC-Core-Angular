@@ -15,6 +15,41 @@
         </p>
     </div>
 
+    @if (stpDisabled()) {
+        <!-- Two audiences, one condition. The director gets the reason and the way to fix
+             it; the vendor gets neither, because the flag is the director's decision about
+             the vendor and is not the vendor's to interrogate. -->
+        @if (isVendor()) {
+            <section class="result-panel result-panel--empty">
+                <i class="bi bi-info-circle result-panel__icon" aria-hidden="true"></i>
+                <div class="result-panel__body">
+                    <h4 class="result-panel__title">Not available</h4>
+                    <p class="result-panel__desc">
+                        Stay-to-Play is not enabled for this event. Contact the event
+                        organizer if you believe this is a mistake.
+                    </p>
+                </div>
+            </section>
+        } @else {
+            <section class="result-panel result-panel--empty">
+                <i class="bi bi-shield-check result-panel__icon" aria-hidden="true"></i>
+                <div class="result-panel__body">
+                    <h4 class="result-panel__title">Stay-to-Play is turned off</h4>
+                    <p class="result-panel__desc">
+                        No club rep data is being shared with a housing vendor for this
+                        event, and no vendor login exists. There is nothing to show here
+                        until you turn it on.
+                    </p>
+                    <p class="result-panel__desc">
+                        To enable it, go to <strong>Configure &rsaquo; Job Settings &rsaquo;
+                        Teams/ClubReps</strong> and switch on <strong>Stay-to-Play</strong>.
+                        You will be asked to confirm the third-party disclosure first.
+                    </p>
+                </div>
+            </section>
+        }
+    } @else {
+
     @if (errorMessage()) {
         <section class="result-panel result-panel--danger" role="alert">
             <i class="bi bi-exclamation-triangle-fill result-panel__icon" aria-hidden="true"></i>
@@ -63,5 +98,7 @@
                 <e-column field="registeredOn" headerText="Registered" width="120" type="date" format="yyyy-MM-dd"></e-column>
             </e-columns>
         </ejs-grid>
+    }
+
     }
 </div>

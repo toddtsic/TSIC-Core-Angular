@@ -484,6 +484,13 @@ public class RegistrationRepository : IRegistrationRepository
         // Stay-to-Play vendor logins: same ExpiryUsers door as the other narrow admin
         // pickers (StoreAdmin, RefAssignor, ApiAuthorized). A housing vendor's access
         // should never outlive the event season.
+        //
+        // BEnableSTP is the second door, and it is the director's: the flag is their
+        // consent to hand club-rep data to a housing vendor. Off => the role is never
+        // offered at login, so the vendor never mints a JWT for this event. Silently —
+        // a vendor told "the director switched you off" has a name to lean on, and the
+        // director's data-sharing decision is not the vendor's to see. StpService
+        // re-checks the flag because a JWT minted while it was on outlives the flip.
         return await (
             from r in _context.Registrations
             join role in _context.AspNetRoles on r.RoleId equals role.Id
@@ -494,6 +501,7 @@ public class RegistrationRepository : IRegistrationRepository
                 && (r.BActive == true)
                 && DateTime.Now < j.ExpiryUsers
                 && r.RoleId == RoleConstants.StpAdmin
+                && j.BenableStp == true
             orderby j.JobName
             select new RegistrationDto
             {

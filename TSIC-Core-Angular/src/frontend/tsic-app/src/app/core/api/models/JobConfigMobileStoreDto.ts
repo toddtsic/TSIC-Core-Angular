@@ -13,7 +13,6 @@ export type JobConfigMobileStoreDto = {
     mobileJobName?: string | null;
     bEnableStore?: boolean | null;
     bAllowStoreWalkup?: boolean | null;
-    benableStp?: boolean | null;
     storeContactEmail?: string | null;
     storeRefundPolicy?: string | null;
     storePickupDetails?: string | null;

@@ -15,7 +15,7 @@ public record NavItemVisibilityRules
     /// <summary>
     /// Job-level feature flags that must ALL be active for this item to render.
     /// Flag names are derived from Jobs entity properties (e.g. storeEnabled, adnArb,
-    /// mobileEnabled, teamEligibilityByAge, playerSiteOnly).
+    /// stayToPlayEnabled, teamEligibilityByAge, playerSiteOnly).
     /// </summary>
     public List<string>? RequiresFlags { get; init; }
     /// <summary>

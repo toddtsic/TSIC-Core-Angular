@@ -118,12 +118,12 @@ function New-AdminItem {
 # Flag names are derived in NavRepository.GetJobNavContextAsync from Jobs entity columns:
 #   storeEnabled           <- BEnableStore
 #   adnArb                 <- AdnArb
-#   mobileEnabled          <- BenableStp
+#   stayToPlayEnabled      <- BenableStp
 #   teamEligibilityByAge   <- CoreRegformPlayer (2nd pipe == 'BYAGERANGE')
 #   playerSiteOnly         <- JobTypeId IN (1,4,6)
 $rulesTournamentLeague   = '{"jobTypes":["Tournament Scheduling","League Scheduling"]}'
 $rulesStoreEnabled       = '{"requiresFlags":["storeEnabled"]}'
-$rulesMobileEnabled      = '{"requiresFlags":["mobileEnabled"]}'
+$rulesStayToPlay         = '{"requiresFlags":["stayToPlayEnabled"]}'
 $rulesTeamEligByAge      = '{"requiresFlags":["teamEligibilityByAge"]}'
 $rulesAdnArb             = '{"requiresFlags":["adnArb"]}'
 $rulesLacrosse           = '{"sports":["Lacrosse"]}'
@@ -133,7 +133,7 @@ $rulesCampSales          = '{"jobTypes":["Camp Registration","Sales Venue"]}'
 # Section-level rules keyed by Controller name. These override any value inferred
 # from per-item aggregation and land on the L1 section parent. Use this when the
 # section is gated as a whole but individual items carry additional per-item rules
-# (e.g. Scheduling is Tournament/League only, while Mobile Scorers adds mobileEnabled).
+# (e.g. Scheduling is Tournament/League only).
 # NB: Store + ARB are NOT here — they render as standalone top-level leaves
 # (see -Standalone in the manifest) and carry their gate rule inline on the leaf,
 # so the L1 section-rule mechanism does not apply to them.
@@ -187,6 +187,13 @@ $adminManifest = @(
     (New-AdminItem 'Teams & Rosters' 'diagram-3' 3 'Uniform Upload'        'upload'           'tools/uniform-upload' 5 1 1 1)
     (New-AdminItem 'Teams & Rosters' 'diagram-3' 3 'Camp Day/Night Groups' 'sun'              'tools/camp-groups'    6 1 1 1 $rulesCampSales)
     (New-AdminItem 'Teams & Rosters' 'diagram-3' 3 'Check-In'              'clipboard-check'  'tools/checkin'        7 1 1 1 '{"jobTypes":["Tournament Scheduling","League Scheduling","Camp Registration"]}' 'NEW')
+    # Stay-to-Play Club Reps: the SAME screen the STPAdmin vendor login is served, listed
+    # here so the admin who authorised the sharing can see exactly what the vendor sees.
+    # The vendor reaches it from their own one-item role menu (Emit-RoleMenu 'StpAdmin').
+    # stayToPlayEnabled hides the leaf while BEnableSTP is off — nothing is being shared,
+    # so there is nothing to review; the switch itself lives on Configure > Job Settings >
+    # Teams/ClubReps, which is where a director turns it on.
+    (New-AdminItem 'Teams & Rosters' 'diagram-3' 3 'Stay-to-Play Club Reps' 'buildings'       'stp/club-reps'        8 1 1 1 $rulesStayToPlay)
 
     # -- 4. Scheduling — ONE front door (2026-08-04) -----------------------
     # The Scheduling Checklist (shell index route) is the single entry point:
@@ -208,7 +215,8 @@ $adminManifest = @(
     (New-AdminItem 'Communications' 'megaphone' 6 'Email Log'             'envelope-open'        'communications/email-log'         2 1 1 1)
     (New-AdminItem 'Communications' 'megaphone' 6 'E-Mail Troubleshooter' 'envelope-exclamation' 'tools/email-troubleshooter'       3 1 1 1 $null 'NEW')
     # Push Notification: UNGATED and Director+SuperUser only (e05b2e4a / 03985797).
-    # Was $rulesMobileEnabled, which derives solely from Jobs.BEnableSTP — Stay-To-Play,
+    # Was $rulesStayToPlay (then misnamed $rulesMobileEnabled), which derives solely from
+    # Jobs.BEnableSTP — Stay-To-Play,
     # unrelated to mobile — and hid the screen on 197 of the 204 jobs with registered
     # devices. The screen now reports its own unmet delivery conditions instead.
     # SD=0: push is an unrecallable blast to every device on the event, so it stays with

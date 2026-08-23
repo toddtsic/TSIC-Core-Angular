@@ -14,7 +14,7 @@ namespace TSIC.Infrastructure.Services;
 /// Flag derivation (from Jobs entity):
 ///   BEnableStore      -> storeEnabled
 ///   AdnArb            -> adnArb
-///   BenableStp        -> mobileEnabled
+///   BenableStp        -> stayToPlayEnabled
 ///   CoreRegformPlayer -> teamEligibilityByAge (when 2nd pipe == 'BYAGERANGE')
 ///   JobTypeId in (1,4,6) -> playerSiteOnly
 ///   customer has any ApiAuthorized registration -> hasThirdPartyHistory
@@ -66,7 +66,11 @@ public class VisibilityRulesEvaluator : IVisibilityRulesEvaluator
 
         if (raw.BEnableStore == true) flags.Add("storeEnabled");
         if (raw.AdnArb == true) flags.Add("adnArb");
-        if (raw.BenableStp == true) flags.Add("mobileEnabled");
+        // Named for what it actually is. It was "mobileEnabled" until 2026-08-23, which was
+        // simply wrong — BEnableSTP is Stay-to-Play and has never had anything to do with
+        // mobile. The mislabel hid the Push Notification screen on 197 of 204 jobs that had
+        // registered devices (see scripts/ungate-push-notification-nav.sql).
+        if (raw.BenableStp == true) flags.Add("stayToPlayEnabled");
         if (raw.HasThirdPartyHistory) flags.Add("hasThirdPartyHistory");
 
         if (!string.IsNullOrEmpty(raw.CoreRegformPlayer))

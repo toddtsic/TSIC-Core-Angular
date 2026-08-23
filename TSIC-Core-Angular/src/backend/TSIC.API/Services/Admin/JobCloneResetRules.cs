@@ -97,6 +97,11 @@ public static class JobCloneResetRules
         job.BScheduleAllowPublicAccess = false;    // no public schedule until real
         job.BAllowRosterViewPlayer = false;        // roster exposure off
         job.BAllowRosterViewAdult = false;
+        // Stay-to-Play is third-party data sharing, so it resets for the same reason the
+        // roster flags do: consent is given for ONE event, and a clone is a new event whose
+        // vendor arrangement may not exist yet. Copying it forward would silently re-open a
+        // housing vendor's login on a season the director never agreed to share.
+        job.BenableStp = false;
         job.BRestrictPublicRosters = true;         // forced restrictive
         job.BSignalRschedule = false;              // DEAD property — zero out
         // ClubRep edit/delete/add forced ON (lifecycle reset — source may be locked down
@@ -219,7 +224,7 @@ public static class JobCloneResetRules
         // Everything else — behavior/config flags (BTeamPushDirectors, processing/donation/
         // insurance/waitlist/refund-window/credit flags, reg tokens, BRestrictPlayerTeamsToAgerange,
         // BShowTeamNameOnlyInSchedules, BBannerIsCustom, BReseedTournament,
-        // BDisallowCcplayerConfirmations, BenableStp), branding, metadata JSON, billing
+        // BDisallowCcplayerConfirmations), branding, metadata JSON, billing
         // config, labels — COPIES via the copier. That is the philosophy.
         return job;
     }

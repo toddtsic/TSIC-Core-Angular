@@ -30,7 +30,8 @@ export class MobileStoreTabComponent implements OnInit {
   mobileJobName = linkedSignal(() => this.svc.mobileStore()?.mobileJobName ?? null);
   bEnableStore = linkedSignal(() => this.svc.mobileStore()?.bEnableStore ?? null);
   bAllowStoreWalkup = linkedSignal(() => this.svc.mobileStore()?.bAllowStoreWalkup ?? null);
-  benableStp = linkedSignal(() => this.svc.mobileStore()?.benableStp ?? null);
+  // benableStp (Stay-to-Play) moved to the Teams/ClubReps tab 2026-08-23 — it is a
+  // director decision and this whole tab is superUserOnly, so no director could see it.
   storeContactEmail = linkedSignal(() => this.svc.mobileStore()?.storeContactEmail ?? null);
   storeRefundPolicy = linkedSignal(() => this.svc.mobileStore()?.storeRefundPolicy ?? null);
   storePickupDetails = linkedSignal(() => this.svc.mobileStore()?.storePickupDetails ?? null);
@@ -53,7 +54,7 @@ export class MobileStoreTabComponent implements OnInit {
       req.mobileJobName = m.mobileJobName ?? null;
       req.bEnableStore = m.bEnableStore ?? null;
       req.bAllowStoreWalkup = m.bAllowStoreWalkup ?? null;
-      req.benableStp = m.benableStp ?? null;
+
       req.storeContactEmail = m.storeContactEmail ?? null;
       req.storeRefundPolicy = m.storeRefundPolicy ?? null;
       req.storePickupDetails = m.storePickupDetails ?? null;
@@ -94,7 +95,7 @@ export class MobileStoreTabComponent implements OnInit {
       req.mobileJobName = this.mobileJobName();
       req.bEnableStore = this.bEnableStore();
       req.bAllowStoreWalkup = this.bAllowStoreWalkup();
-      req.benableStp = this.benableStp();
+
       req.storeContactEmail = this.storeContactEmail();
       req.storeRefundPolicy = this.storeRefundPolicy();
       req.storePickupDetails = this.storePickupDetails();

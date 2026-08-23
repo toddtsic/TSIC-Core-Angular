@@ -3,6 +3,9 @@ import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { GridAllModule, GridComponent, ToolbarItems } from '@syncfusion/ej2-angular-grids';
 import { environment } from '@environments/environment';
+import { JobPulseService } from '@infrastructure/services/job-pulse.service';
+import { AuthService } from '@infrastructure/services/auth.service';
+import { Roles } from '@infrastructure/constants/roles.constants';
 import type { StpClubRepDto } from '@core/api';
 
 /**
@@ -24,7 +27,25 @@ import type { StpClubRepDto } from '@core/api';
 })
 export class StpClubRepsComponent {
     private readonly http = inject(HttpClient);
+    private readonly pulseService = inject(JobPulseService);
+    private readonly auth = inject(AuthService);
     private readonly endpoint = `${environment.apiUrl}/stp/club-reps`;
+
+    // BEnableSTP off = the director has not consented to share this event's data. An admin
+    // can still land here (their nav leaf is gated on the flag, but a bookmark or a
+    // mid-session flip both get past that), and the API answers 403 either way — so
+    // without this the screen would tell a director they lack permission to their own data.
+    // Read off the pulse rather than the 403 body: the same 403 covers a genuine role
+    // failure, and guessing which one from a message string is not a distinction to bet on.
+    readonly stpDisabled = computed(() => this.pulseService.pulse()?.enableStayToPlay === false);
+
+    // Vendors get told nothing about why. The flag is the director's data-sharing decision,
+    // and an STPAdmin is the third party it concerns — handing them "the director switched
+    // you off" gives them someone to lean on to reverse it.
+    readonly isVendor = computed(() => {
+        const user = this.auth.currentUser();
+        return user?.role === Roles.StpAdmin || !!user?.roles?.includes(Roles.StpAdmin);
+    });
 
     readonly isLoading = signal(false);
     readonly errorMessage = signal('');

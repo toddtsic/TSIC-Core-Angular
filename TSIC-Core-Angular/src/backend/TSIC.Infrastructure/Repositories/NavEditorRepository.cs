@@ -280,7 +280,7 @@ public class NavEditorRepository : INavEditorRepository
         {
             "storeEnabled",
             "adnArb",
-            "mobileEnabled",
+            "stayToPlayEnabled",
             "teamEligibilityByAge",
             "playerSiteOnly",
             "hasThirdPartyHistory"
