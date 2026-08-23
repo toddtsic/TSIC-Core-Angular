@@ -83,6 +83,73 @@
     white-space: nowrap;
   }
 
+  // ── Sortable headings (AR-023) ──
+  // The heading is a real <button> so it is keyboard-reachable and announces itself; the
+  // <th> keeps aria-sort. Inactive carets stay in the DOM at low opacity rather than being
+  // swapped in on hover, so the header row never reflows by a few px when the sort changes.
+  .sort-th {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    width: 100%;
+    padding: 0;
+    background: none;
+    border: none;
+    font: inherit;
+    color: inherit;
+    text-transform: inherit;
+    letter-spacing: inherit;
+    cursor: pointer;
+
+    i {
+      font-size: 0.85em;
+      color: var(--text-muted);
+      opacity: 0.4;
+      transition: opacity 0.15s ease, color 0.15s ease;
+    }
+
+    i.active {
+      color: var(--bs-primary);
+      opacity: 1;
+    }
+
+    &:hover {
+      color: var(--brand-text);
+
+      i { opacity: 0.8; }
+    }
+
+    &:focus-visible {
+      outline: none;
+      box-shadow: var(--shadow-focus);
+      border-radius: var(--radius-sm);
+    }
+  }
+
+  // Right-aligned headings put the caret on the outside of the label.
+  .col-due .sort-th,
+  .col-paid .sort-th {
+    justify-content: flex-end;
+  }
+
+  // The date is its own sortable column now. `width: 1%` + nowrap collapses it to its
+  // content, so the Transaction cell keeps every pixel the date is not using.
+  .col-date {
+    width: 1%;
+    white-space: nowrap;
+  }
+
+  .txn-date {
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  // The date lives inline in the Transaction cell ONLY where the Date column is hidden
+  // (below 768px). Rendered in both places, shown in exactly one.
+  .txn-date-inline {
+    display: none;
+  }
+
   .col-due,
   .col-paid {
     width: 1%;
@@ -567,6 +634,21 @@
 
   .form-row {
     flex-direction: column;
+  }
+
+  // AR-023 + AR-016: the Date column is an incompressible nowrap cell, and below 768px the
+  // fly-in is already full-viewport with `overflow-x: hidden` on the body — an over-wide
+  // table CLIPS here rather than scrolling, which loses the actions column outright. So the
+  // column folds back into the Transaction cell exactly where it came from. Sorting by date
+  // still works from the header, which stays visible.
+  .ledger-table {
+    .col-date {
+      display: none;
+    }
+
+    .txn-date-inline {
+      display: inline;
+    }
   }
 }
 

@@ -6,6 +6,11 @@ import { DraggableModalDirective } from '../../directives/draggable-modal.direct
 
 type PaymentType = 'cc' | 'check' | 'correction' | 'refund';
 
+/** Sortable ledger columns. `team` is the first cell (it leads with the team/owner line) and
+ *  stays the default, so the ledger opens exactly as it does today. */
+export type LedgerSortColumn = 'team' | 'date' | 'due' | 'paid';
+export type LedgerSortDir = 'asc' | 'desc';
+
 /** Emitted when user confirms a CC charge. Parent handles the API call. */
 export interface CcChargeEvent {
 	creditCard: CreditCardInfo;
@@ -156,27 +161,95 @@ export class AccountingLedgerComponent {
 		return (this.ownerTeamLabel(r) ?? this.teamNameFor(r) ?? '').toLowerCase();
 	}
 
-	/** Order rows by involved team. Stable + numeric-aware (so "U9" precedes "U10"); equal
-	 *  team keys keep their incoming order (chronological / by AId). */
-	private byTeam(records: AccountingRecordDto[]): AccountingRecordDto[] {
-		return [...records].sort((a, b) =>
-			this.teamSortKey(a).localeCompare(this.teamSortKey(b), undefined, { numeric: true }));
+	// ── Column sorting (AR-023) ──
+	// ONE sort key at a time, the model every grid user already has. Team is simply the
+	// column that happens to be the default, so clicking any other heading dissolves the
+	// team grouping and clicking Transaction brings it back. The rejected alternative —
+	// team always primary, chosen column secondary — keeps the grouping but turns "sort by
+	// date" into N chronological runs a director has to scan, which defeats the ask.
+	// Ties keep incoming order (Array.sort is stable), so team/asc reproduces today's
+	// rendering byte for byte and nothing moves until a heading is clicked.
+
+	/** First click on a heading uses the direction a person actually wants: newest money and
+	 *  biggest amounts first, but teams A→Z. */
+	private static readonly SORT_DEFAULT_DIR: Record<LedgerSortColumn, LedgerSortDir> = {
+		team: 'asc', date: 'desc', due: 'desc', paid: 'desc'
+	};
+
+	sortColumn = signal<LedgerSortColumn>('team');
+	sortDir = signal<LedgerSortDir>('asc');
+
+	/** Click a heading: same column flips direction, a new column adopts its natural default. */
+	toggleSort(col: LedgerSortColumn): void {
+		if (this.sortColumn() === col) {
+			this.sortDir.set(this.sortDir() === 'asc' ? 'desc' : 'asc');
+			return;
+		}
+		this.sortColumn.set(col);
+		this.sortDir.set(AccountingLedgerComponent.SORT_DEFAULT_DIR[col]);
 	}
 
-	/** Active records, grouped by involved team */
+	/** `aria-sort` for a heading — 'none' unless it is the active column. */
+	ariaSort(col: LedgerSortColumn): 'ascending' | 'descending' | 'none' {
+		if (this.sortColumn() !== col) return 'none';
+		return this.sortDir() === 'asc' ? 'ascending' : 'descending';
+	}
+
+	/** Caret class for a heading; the inactive carets stay in the DOM (dimmed by CSS) so the
+	 *  headings do not reflow by a few px on every click. */
+	sortIcon(col: LedgerSortColumn): string {
+		if (this.sortColumn() !== col) return 'bi-arrow-down-up';
+		return this.sortDir() === 'asc' ? 'bi-sort-down-alt' : 'bi-sort-down';
+	}
+
+	/** Epoch for a record's date. Unparseable/absent dates sort last in both directions. */
+	private dateValue(r: AccountingRecordDto): number {
+		const t = r.date ? Date.parse(r.date) : NaN;
+		return Number.isNaN(t) ? Number.NEGATIVE_INFINITY : t;
+	}
+
+	/** Comparator for the active column, in ascending terms; direction is applied by the caller. */
+	private compareBy(col: LedgerSortColumn, a: AccountingRecordDto, b: AccountingRecordDto): number {
+		switch (col) {
+			case 'date': return this.dateValue(a) - this.dateValue(b);
+			// A null amount renders blank and orders as zero — it is an absent charge, not an
+			// unknown one. (Distinct from the AR-011 `?? 0` on the amount INPUT; nothing here
+			// writes a value back.)
+			case 'due': return (a.dueAmount ?? 0) - (b.dueAmount ?? 0);
+			case 'paid': return (a.paidAmount ?? 0) - (b.paidAmount ?? 0);
+			default: return this.teamSortKey(a).localeCompare(this.teamSortKey(b), undefined, { numeric: true });
+		}
+	}
+
+	/** Apply the active sort to one bucket. Buckets are sorted INDEPENDENTLY — see the
+	 *  activeRecords/otherRecords comment for why they never merge. */
+	private sortRecords(records: AccountingRecordDto[]): AccountingRecordDto[] {
+		const col = this.sortColumn();
+		const dir = this.sortDir() === 'asc' ? 1 : -1;
+		return [...records].sort((a, b) => this.compareBy(col, a, b) * dir);
+	}
+
+	/** Live-money records, in the active sort order.
+	 *
+	 *  The active / waitlist-dropped split SURVIVES sorting (AR-023 decision): the two buckets
+	 *  are sorted independently and never merge. Flattening them would let a dropped or
+	 *  waitlisted registration's charges sit between two live transactions with only a row
+	 *  colour to tell them apart — a director reading a balance would have to re-derive which
+	 *  rows count. Consequence to expect: sorting by date yields two chronological runs
+	 *  separated by the divider, not one. */
 	activeRecords = computed(() => {
 		const other = this.otherGroupKeys();
 		const base = other.size === 0
 			? this.records()
 			: this.records().filter(r => { const k = this.recordKey(r); return !k || !other.has(k); });
-		return this.byTeam(base);
+		return this.sortRecords(base);
 	});
 
-	/** Records belonging to excluded groups, grouped by involved team */
+	/** Waitlisted / dropped / inactive records, sorted independently of the active bucket. */
 	otherRecords = computed(() => {
 		const other = this.otherGroupKeys();
 		if (other.size === 0) return [];
-		return this.byTeam(this.records().filter(r => { const k = this.recordKey(r); return k != null && other.has(k); }));
+		return this.sortRecords(this.records().filter(r => { const k = this.recordKey(r); return k != null && other.has(k); }));
 	});
 
 	// ── Outputs (callback pattern — parent handles API calls) ──

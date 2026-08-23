@@ -31,9 +31,26 @@
     <table class="ledger-table">
       <thead>
         <tr>
-          <th>Transaction</th>
-          <th class="col-due">Due</th>
-          <th class="col-paid">Paid</th>
+          <th class="col-date" [attr.aria-sort]="ariaSort('date')">
+            <button type="button" class="sort-th" (click)="toggleSort('date')" title="Sort by date">
+              Date <i class="bi" [class]="sortIcon('date')" [class.active]="sortColumn() === 'date'"></i>
+            </button>
+          </th>
+          <th [attr.aria-sort]="ariaSort('team')">
+            <button type="button" class="sort-th" (click)="toggleSort('team')" title="Sort by team">
+              Transaction <i class="bi" [class]="sortIcon('team')" [class.active]="sortColumn() === 'team'"></i>
+            </button>
+          </th>
+          <th class="col-due" [attr.aria-sort]="ariaSort('due')">
+            <button type="button" class="sort-th" (click)="toggleSort('due')" title="Sort by amount due">
+              Due <i class="bi" [class]="sortIcon('due')" [class.active]="sortColumn() === 'due'"></i>
+            </button>
+          </th>
+          <th class="col-paid" [attr.aria-sort]="ariaSort('paid')">
+            <button type="button" class="sort-th" (click)="toggleSort('paid')" title="Sort by amount paid">
+              Paid <i class="bi" [class]="sortIcon('paid')" [class.active]="sortColumn() === 'paid'"></i>
+            </button>
+          </th>
           <th class="col-actions"></th>
         </tr>
       </thead>
@@ -45,7 +62,7 @@
       @if (otherRecords().length > 0) {
         <tbody>
           <tr class="section-separator">
-            <td colspan="4"><em>{{ otherBucketLabel() }}</em></td>
+            <td colspan="5"><em>{{ otherBucketLabel() }}</em></td>
           </tr>
           @for (record of otherRecords(); track record.aId) {
             <ng-container *ngTemplateOutlet="txnRow; context: { $implicit: record }"></ng-container>
@@ -60,10 +77,11 @@
   <!-- Shared row template to avoid duplication -->
   <ng-template #txnRow let-record>
     <tr class="txn-row">
+      <td class="col-date txn-date">{{ record.date | date:'M/d/yy' }}</td>
       <td>
         @if (teamNameFor(record); as owner) { <div class="txn-owner">{{ owner }}</div> }
         @if (ownerTeamLabel(record); as team) { <div class="txn-team"><i class="bi bi-person me-1"></i>{{ team }}</div> }
-        <div class="txn-primary">{{ record.date | date:'M/d/yy' }} · {{ record.paymentMethod }}@if (record.adnCc4) { <span class="cc4">****{{ record.adnCc4 }}</span>}</div>
+        <div class="txn-primary"><span class="txn-date-inline">{{ record.date | date:'M/d/yy' }} · </span>{{ record.paymentMethod }}@if (record.adnCc4) { <span class="cc4">****{{ record.adnCc4 }}</span>}</div>
         @if (displayComment(record); as cmt) { <div class="txn-comment">{{ cmt }}</div> }
       </td>
       <td class="text-end amount">{{ record.dueAmount | currency }}</td>
