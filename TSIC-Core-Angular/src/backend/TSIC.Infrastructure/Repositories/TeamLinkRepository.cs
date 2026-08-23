@@ -69,7 +69,14 @@ public class TeamLinkRepository : ITeamLinkRepository
             select new TeamLinkTeamOptionDto
             {
                 TeamId = t.TeamId,
-                Display = (ag.AgegroupName ?? "") + " - " + (t.TeamName ?? "")
+                // A team displays as {ClubName}:{TeamName} wherever it has a club rep - the
+                // same expression the standings board uses. Without the club, a tournament
+                // list shows "2027 A - 2027 Blue" three times over and a director picking one
+                // to push to is guessing.
+                Display = (ag.AgegroupName ?? "") + " - "
+                    + (t.ClubrepRegistration != null && t.ClubrepRegistration.ClubName != null
+                        ? t.ClubrepRegistration.ClubName + ":" + (t.TeamName ?? string.Empty)
+                        : (t.TeamName ?? string.Empty))
             }
         ).ToListAsync(ct);
     }
