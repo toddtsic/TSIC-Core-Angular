@@ -16,6 +16,8 @@ public class PushNotificationService : IPushNotificationService
     private readonly IFirebasePushService _firebasePushService;
     private readonly ILogger<PushNotificationService> _logger;
     private readonly string _staticsBaseUrl;
+    private readonly bool _teamsSenderConfigured;
+
 
     public PushNotificationService(
         IPushNotificationRepository repo,
@@ -28,12 +30,37 @@ public class PushNotificationService : IPushNotificationService
         _logger = logger;
         _staticsBaseUrl = configuration.GetValue<string>("TsicSettings:StaticsBaseUrl")
                           ?? "https://statics.teamsportsinfo.com";
+
+        // A TSIC-Teams broadcast needs its own Firebase project — TSIC-Teams tokens are
+        // minted by a different sender and the Events credential cannot deliver to them.
+        // Legacy ran both apps side by side; this stack currently wires only Events.
+        var teamsCredentialPath = configuration.GetValue<string>("Firebase:TeamsCredentialFilePath");
+        _teamsSenderConfigured = !string.IsNullOrWhiteSpace(teamsCredentialPath);
+
     }
 
     public async Task<int> GetDeviceCountForJobAsync(Guid jobId, CancellationToken ct = default)
     {
         return await _repo.GetDeviceCountForJobAsync(jobId, ct);
     }
+
+    public async Task<PushNotificationReadinessDto> GetReadinessAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        var flags = await _repo.GetJobPushFlagsAsync(jobId, ct);
+        var eventsDevices = await _repo.GetDeviceCountForJobAsync(jobId, ct);
+        var teamsDevices = await _repo.GetTeamsDeviceCountForJobAsync(jobId, ct);
+
+        return new PushNotificationReadinessDto
+        {
+            EventsEnabled = flags?.EventsEnabled ?? false,
+            TeamsEnabled = flags?.TeamsEnabled ?? false,
+            EventsDeviceCount = eventsDevices,
+            TeamsDeviceCount = teamsDevices,
+            TeamsSenderConfigured = _teamsSenderConfigured
+        };
+    }
+
 
     public async Task<int> SendPushToAllAsync(
         Guid jobId, string userId, string pushText, CancellationToken ct = default)

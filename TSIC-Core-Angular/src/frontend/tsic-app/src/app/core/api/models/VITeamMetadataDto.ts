@@ -7,6 +7,7 @@ export type VITeamMetadataDto = {
     context_event?: string;
     context_name?: string;
     context_description?: string;
+    tsic_clubname?: string;
     tsic_registrationid?: string;
     tsic_teamid?: string;
 };

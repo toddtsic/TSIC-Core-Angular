@@ -36,3 +36,31 @@ public record SendPushNotificationResponse
     public required int DeviceCount { get; init; }
     public required string Message { get; init; }
 }
+
+/// <summary>
+/// Delivery readiness for the current job. The Push Notification screen is always
+/// reachable; this is what it uses to warn when a send would not actually land.
+///
+/// Two independent audiences, each with its own device pool and its own Firebase
+/// project: TSIC-Events (tournament) and TSIC-Teams (player site).
+/// </summary>
+public record PushNotificationReadinessDto
+{
+    /// <summary>Job is visible in the TSIC-Events app (Jobs.bSuspendPublic is not set).</summary>
+    public required bool EventsEnabled { get; init; }
+
+    /// <summary>Job has the TSIC-Teams app turned on (Jobs.bEnableTSICTeams).</summary>
+    public required bool TeamsEnabled { get; init; }
+
+    /// <summary>Devices registered against the job — the TSIC-Events broadcast pool.</summary>
+    public required int EventsDeviceCount { get; init; }
+
+    /// <summary>Devices subscribed to a team in the job — the TSIC-Teams broadcast pool.</summary>
+    public required int TeamsDeviceCount { get; init; }
+
+    /// <summary>
+    /// A Firebase sender for TSIC-Teams is configured. When false, TSIC-Teams tokens
+    /// cannot be delivered to at all — the Events credential rejects them.
+    /// </summary>
+    public required bool TeamsSenderConfigured { get; init; }
+}

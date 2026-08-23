@@ -47,6 +47,25 @@ public class PushNotificationController : ControllerBase
     }
 
     /// <summary>
+    /// Delivery readiness for the current job. The screen is always reachable — this is
+    /// what it uses to warn when a send would not land (app disabled, no devices in the
+    /// pool, or no sender configured for that app).
+    /// </summary>
+    [HttpGet("readiness")]
+    [ProducesResponseType(typeof(PushNotificationReadinessDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<PushNotificationReadinessDto>> GetReadiness(
+        CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Registration context required." });
+
+        return Ok(await _service.GetReadinessAsync(jobId.Value, ct));
+    }
+
+
+    /// <summary>
     /// Send a push notification to ALL mobile devices registered for the current job.
     /// </summary>
     [HttpPost("send")]

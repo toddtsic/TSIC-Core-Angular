@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
 import type {
   PushNotificationDeviceCountDto,
+  PushNotificationReadinessDto,
   PushNotificationHistoryDto,
   SendPushNotificationResponse
 } from '../../../../core/api';
@@ -14,6 +15,10 @@ import type {
 export class PushNotificationService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = `${environment.apiUrl}/push-notifications`;
+
+  getReadiness(): Observable<PushNotificationReadinessDto> {
+    return this.http.get<PushNotificationReadinessDto>(`${this.apiUrl}/readiness`);
+  }
 
   getDeviceCount(): Observable<PushNotificationDeviceCountDto> {
     return this.http.get<PushNotificationDeviceCountDto>(`${this.apiUrl}/device-count`);

@@ -13,6 +13,14 @@ public interface IPushNotificationService
     Task<int> GetDeviceCountForJobAsync(Guid jobId, CancellationToken ct = default);
 
     /// <summary>
+    /// Delivery readiness for the job: which mobile apps are enabled, how many devices
+    /// sit in each pool, and whether a sender exists for each. The screen is always
+    /// reachable, so this is what it warns from.
+    /// </summary>
+    Task<PushNotificationReadinessDto> GetReadinessAsync(Guid jobId, CancellationToken ct = default);
+
+
+    /// <summary>
     /// Send a push notification to ALL mobile devices registered for the job,
     /// then record the broadcast in the audit trail.
     /// Returns the number of devices targeted.

@@ -6,8 +6,8 @@ import type { VIEventDto } from './VIEventDto';
 import type { VITeamDto } from './VITeamDto';
 export type VITeamPolicyAttributes = {
     organization_name?: string;
-    organization_contact_name?: string;
-    organization_contact_email?: string;
+    org_contact_name?: string;
+    org_contact_email?: string;
     teams?: Array<VITeamDto>;
     event?: VIEventDto;
 };

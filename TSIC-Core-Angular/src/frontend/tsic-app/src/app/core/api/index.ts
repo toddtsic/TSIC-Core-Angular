@@ -534,6 +534,7 @@ export type { PublicRosterPlayerDto } from './models/PublicRosterPlayerDto';
 export type { PublicRosterTreeDto } from './models/PublicRosterTreeDto';
 export type { PushNotificationDeviceCountDto } from './models/PushNotificationDeviceCountDto';
 export type { PushNotificationHistoryDto } from './models/PushNotificationHistoryDto';
+export type { PushNotificationReadinessDto } from './models/PushNotificationReadinessDto';
 export type { QaBackToBack } from './models/QaBackToBack';
 export type { QaBracketGame } from './models/QaBracketGame';
 export type { QaDoubleBooking } from './models/QaDoubleBooking';

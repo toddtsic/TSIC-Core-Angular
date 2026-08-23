@@ -37,6 +37,34 @@ public class PushNotificationRepository : IPushNotificationRepository
             .ToListAsync(ct);
     }
 
+    public async Task<int> GetTeamsDeviceCountForJobAsync(Guid jobId, CancellationToken ct = default)
+    {
+        // TSIC-Teams reaches devices through their team subscriptions, not the job
+        // registration — mirrors the legacy PushNotificationTo_TSICTEAMS all-teams query.
+        return await _context.DeviceTeams
+            .AsNoTracking()
+            .Where(dt => dt.Team.JobId == jobId)
+            .Select(dt => dt.DeviceId)
+            .Distinct()
+            .CountAsync(ct);
+    }
+
+    public async Task<(bool EventsEnabled, bool TeamsEnabled)?> GetJobPushFlagsAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        var flags = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new { j.BSuspendPublic, j.BEnableTsicteams })
+            .FirstOrDefaultAsync(ct);
+
+        if (flags == null) return null;
+
+        // bSuspendPublic is inverted: set = hidden from the TSIC-Events app.
+        return (flags.BSuspendPublic != true, flags.BEnableTsicteams == true);
+    }
+
+
     public async Task<List<PushNotificationHistoryDto>> GetNotificationHistoryAsync(
         Guid jobId, CancellationToken ct = default)
     {

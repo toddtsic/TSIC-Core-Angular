@@ -20,6 +20,20 @@ public interface IPushNotificationRepository
     Task<List<string>> GetDeviceTokensForJobAsync(Guid jobId, CancellationToken ct = default);
 
     /// <summary>
+    /// Count of devices subscribed to a team in this job — the TSIC-Teams broadcast pool.
+    /// Distinct from the job-level pool: a device that registered for the job but never
+    /// picked a team is absent here.
+    /// </summary>
+    Task<int> GetTeamsDeviceCountForJobAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// The two job flags that decide which mobile app, if either, this job feeds.
+    /// Returns null if the job does not exist.
+    /// </summary>
+    Task<(bool EventsEnabled, bool TeamsEnabled)?> GetJobPushFlagsAsync(Guid jobId, CancellationToken ct = default);
+
+
+    /// <summary>
     /// History of "push to all" broadcasts for a job, newest first.
     /// </summary>
     Task<List<PushNotificationHistoryDto>> GetNotificationHistoryAsync(Guid jobId, CancellationToken ct = default);

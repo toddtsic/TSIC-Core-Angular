@@ -1,11 +1,23 @@
 <div class="push-notification-page">
   <div class="page-header">
-    <h2 class="page-title"><i class="bi bi-phone-vibrate page-title-icon"></i> Push Notification to All Mobile Users</h2>
+    <h2 class="page-title"><i class="bi bi-phone-vibrate page-title-icon"></i> Push Notification to TSIC-Events Users</h2>
   </div>
 
   <div class="device-badge-wrapper">
-    <span class="device-badge">{{ deviceCount() }} Devices Currently Available</span>
+    <span class="device-badge">{{ deviceCount() }} TSIC-Events Device(s) Registered</span>
   </div>
+
+  <!-- Delivery readiness — this screen is always reachable, so every condition that
+       would stop a send from landing is stated here rather than hiding the menu item. -->
+  @for (w of warnings(); track w.text) {
+    <div class="alert d-flex align-items-start gap-2"
+         [class.alert-danger]="w.level === 'danger'"
+         [class.alert-warning]="w.level === 'warning'">
+      <i [class]="'bi ' + w.icon"></i>
+      <span>{{ w.text }}</span>
+    </div>
+  }
+
 
   <div class="info-alert">
     <i class="bi bi-info-circle"></i>
