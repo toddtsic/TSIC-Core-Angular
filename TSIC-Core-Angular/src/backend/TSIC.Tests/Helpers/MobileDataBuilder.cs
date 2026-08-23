@@ -90,6 +90,10 @@ public class MobileDataBuilder
             JobId = Guid.NewGuid(),
             JobName = name,
             JobPath = jobPath,
+            // Tournament, matching what these fixtures have always called themselves. Left at
+            // the default 0 the job resolved to "feeds no mobile app" and every push test in
+            // this suite would have had no audience at all.
+            JobTypeId = JobConstants.JobTypeTournament,
             SportId = sportId ?? DefaultSportId,
             BScheduleAllowPublicAccess = publicAccess,
             BSuspendPublic = suspended,

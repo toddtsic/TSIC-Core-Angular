@@ -1,11 +1,20 @@
 <div class="push-notification-page">
   <div class="page-header">
-    <h2 class="page-title"><i class="bi bi-phone-vibrate page-title-icon"></i> Push Notification to TSIC-Events Users</h2>
+    <h2 class="page-title">
+      <i class="bi bi-phone-vibrate page-title-icon"></i>
+      @if (hasAudience()) {
+        Push Notification to {{ audienceLabel() }} Users
+      } @else {
+        Push Notification
+      }
+    </h2>
   </div>
 
-  <div class="device-badge-wrapper">
-    <span class="device-badge">{{ deviceCount() }} TSIC-Events Device(s) Registered</span>
-  </div>
+  @if (hasAudience()) {
+    <div class="device-badge-wrapper">
+      <span class="device-badge">{{ deviceCount() }} {{ audienceLabel() }} Device(s) Registered</span>
+    </div>
+  }
 
   <!-- Delivery readiness — this screen is always reachable, so every condition that
        would stop a send from landing is stated here rather than hiding the menu item. -->

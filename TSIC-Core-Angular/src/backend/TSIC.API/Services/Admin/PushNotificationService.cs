@@ -3,12 +3,17 @@ using TSIC.Contracts.Dtos.PushNotification;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
+using TSIC.Domain.JobRules;
 
 namespace TSIC.API.Services.Admin;
 
 /// <summary>
-/// Orchestrates sending push notifications to all mobile devices for a job.
-/// Delegates to IFirebasePushService for FCM delivery and IPushNotificationRepository for data access.
+/// Orchestrates sending push notifications to every mobile device for a job.
+///
+/// A job feeds exactly one app. <see cref="PushAudienceResolver"/> decides which, and that
+/// single decision picks BOTH the device pool and the Firebase sender — they can never be
+/// chosen separately, because a pool sent through the other project's credential reaches
+/// nobody.
 /// </summary>
 public class PushNotificationService : IPushNotificationService
 {
@@ -16,8 +21,6 @@ public class PushNotificationService : IPushNotificationService
     private readonly IFirebasePushService _firebasePushService;
     private readonly ILogger<PushNotificationService> _logger;
     private readonly string _staticsBaseUrl;
-    private readonly bool _teamsSenderConfigured;
-
 
     public PushNotificationService(
         IPushNotificationRepository repo,
@@ -30,56 +33,53 @@ public class PushNotificationService : IPushNotificationService
         _logger = logger;
         _staticsBaseUrl = configuration.GetValue<string>("TsicSettings:StaticsBaseUrl")
                           ?? "https://statics.teamsportsinfo.com";
-
-        // A TSIC-Teams broadcast needs its own Firebase project — TSIC-Teams tokens are
-        // minted by a different sender and the Events credential cannot deliver to them.
-        // Legacy ran both apps side by side; this stack currently wires only Events.
-        var teamsCredentialPath = configuration.GetValue<string>("Firebase:TeamsCredentialFilePath");
-        _teamsSenderConfigured = !string.IsNullOrWhiteSpace(teamsCredentialPath);
-
     }
 
     public async Task<int> GetDeviceCountForJobAsync(Guid jobId, CancellationToken ct = default)
     {
-        return await _repo.GetDeviceCountForJobAsync(jobId, ct);
+        var (audience, _) = await ResolveAudienceAsync(jobId, ct);
+        return await CountPoolAsync(audience, jobId, ct);
     }
 
     public async Task<PushNotificationReadinessDto> GetReadinessAsync(
         Guid jobId, CancellationToken ct = default)
     {
-        var flags = await _repo.GetJobPushFlagsAsync(jobId, ct);
-        var eventsDevices = await _repo.GetDeviceCountForJobAsync(jobId, ct);
-        var teamsDevices = await _repo.GetTeamsDeviceCountForJobAsync(jobId, ct);
+        var (audience, flags) = await ResolveAudienceAsync(jobId, ct);
 
         return new PushNotificationReadinessDto
         {
+            Audience = audience.ToString(),
+            DeviceCount = await CountPoolAsync(audience, jobId, ct),
+            SenderConfigured = _firebasePushService.IsConfiguredFor(audience),
+            JobTypeId = flags?.JobTypeId ?? 0,
             EventsEnabled = flags?.EventsEnabled ?? false,
-            TeamsEnabled = flags?.TeamsEnabled ?? false,
-            EventsDeviceCount = eventsDevices,
-            TeamsDeviceCount = teamsDevices,
-            TeamsSenderConfigured = _teamsSenderConfigured
+            TeamsEnabled = flags?.TeamsEnabled ?? false
         };
     }
-
 
     public async Task<int> SendPushToAllAsync(
         Guid jobId, string userId, string pushText, CancellationToken ct = default)
     {
-        // 1. Get job display info for the notification payload
+        var (audience, _) = await ResolveAudienceAsync(jobId, ct);
+
+        // A job feeding neither app has no pool to fall back to. Refuse rather than quietly
+        // recording an audit row for a broadcast that went nowhere.
+        if (audience == PushAudience.None)
+            throw new InvalidOperationException(
+                "This job feeds no mobile app, so a push has no audience. Showcase jobs run "
+                + "neither app; other non-scheduling jobs need TSIC-Teams enabled first.");
+
         var jobInfo = await _repo.GetJobDisplayInfoAsync(jobId, ct);
         var jobName = jobInfo?.JobName ?? "TSIC";
         var jobLogoUrl = jobInfo?.LogoHeader != null
             ? $"{_staticsBaseUrl}/BannerFiles/{jobInfo.Value.LogoHeader}"
             : null;
 
-        // 2. Get all device tokens for the job
-        var tokens = await _repo.GetDeviceTokensForJobAsync(jobId, ct);
+        var tokens = await GetPoolAsync(audience, jobId, ct);
 
-        // 3. Send via Firebase
         var deviceCount = await _firebasePushService.SendToDevicesAsync(
-            tokens, jobName, pushText, jobLogoUrl, ct: ct);
+            audience, tokens, jobName, pushText, jobLogoUrl, ct: ct);
 
-        // 4. Record the broadcast in the audit trail
         var record = new JobPushNotificationsToAll
         {
             Id = Guid.NewGuid(),
@@ -94,8 +94,9 @@ public class PushNotificationService : IPushNotificationService
         await _repo.SaveChangesAsync(ct);
 
         _logger.LogInformation(
-            "Push notification sent to {DeviceCount} devices for job {JobId} by user {UserId}",
-            deviceCount, jobId, userId);
+            "Push notification delivered to {DeviceCount} of {Attempted} {Audience} devices "
+            + "for job {JobId} by user {UserId}",
+            deviceCount, tokens.Count, audience, jobId, userId);
 
         return deviceCount;
     }
@@ -105,4 +106,29 @@ public class PushNotificationService : IPushNotificationService
     {
         return await _repo.GetNotificationHistoryAsync(jobId, ct);
     }
+
+    private async Task<(PushAudience Audience, (int JobTypeId, bool EventsEnabled, bool TeamsEnabled)? Flags)>
+        ResolveAudienceAsync(Guid jobId, CancellationToken ct)
+    {
+        var flags = await _repo.GetJobPushFlagsAsync(jobId, ct);
+        if (flags == null) return (PushAudience.None, null);
+
+        return (PushAudienceResolver.Resolve(flags.Value.JobTypeId, flags.Value.TeamsEnabled), flags);
+    }
+
+    private async Task<int> CountPoolAsync(PushAudience audience, Guid jobId, CancellationToken ct) =>
+        audience switch
+        {
+            PushAudience.Events => await _repo.GetDeviceCountForJobAsync(jobId, ct),
+            PushAudience.Teams => await _repo.GetTeamsDeviceCountForJobAsync(jobId, ct),
+            _ => 0
+        };
+
+    private async Task<List<string>> GetPoolAsync(PushAudience audience, Guid jobId, CancellationToken ct) =>
+        audience switch
+        {
+            PushAudience.Events => await _repo.GetDeviceTokensForJobAsync(jobId, ct),
+            PushAudience.Teams => await _repo.GetTeamsDeviceTokensForJobAsync(jobId, ct),
+            _ => []
+        };
 }

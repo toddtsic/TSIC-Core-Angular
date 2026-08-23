@@ -1,45 +1,66 @@
 using FirebaseAdmin;
 using FirebaseAdmin.Messaging;
 using Google.Apis.Auth.OAuth2;
+using TSIC.Domain.JobRules;
 
 namespace TSIC.API.Services.Shared.Firebase;
 
 /// <summary>
-/// Firebase Cloud Messaging service using the TSIC Events project credentials.
-/// Registered as a singleton — FirebaseApp is thread-safe and should be initialized once.
-/// Credential file path is read from appsettings "Firebase:CredentialFilePath".
+/// Firebase Cloud Messaging service. Registered as a singleton — FirebaseApp is thread-safe
+/// and must be initialized once.
+///
+/// TWO senders, because there are two apps and two Firebase projects: TSIC-Events
+/// (<c>tsic-events</c>) and TSIC-Teams (<c>tsic-teams</c>). Registration tokens are scoped to
+/// the project that minted them, so the Events credential cannot deliver to a Teams token and
+/// vice versa — FCM answers SenderIdMismatch and the push reaches nobody. Legacy ran the same
+/// pair, the default app plus a named "TSICTEAMS" one; this is that arrangement rebuilt.
 /// </summary>
 public class FirebasePushService : IFirebasePushService
 {
     private const int MaxBatchSize = 499;
-    private readonly FirebaseMessaging _messaging;
+    private const string TeamsAppName = "TSICTEAMS";
+
+    private readonly FirebaseMessaging _eventsMessaging;
+    private readonly FirebaseMessaging? _teamsMessaging;
     private readonly ILogger<FirebasePushService> _logger;
 
     public FirebasePushService(IConfiguration configuration, ILogger<FirebasePushService> logger)
     {
         _logger = logger;
 
-        var credentialPath = configuration["Firebase:CredentialFilePath"]
+        var eventsPath = configuration["Firebase:CredentialFilePath"]
             ?? throw new InvalidOperationException("Firebase:CredentialFilePath is not configured in appsettings.");
 
-        // GoogleCredential.FromFile is marked obsolete by Google.Apis.Auth in favor of
-        // the new CredentialFactory API. FirebaseAdmin.AppOptions.Credential still types
-        // as GoogleCredential, and FirebaseAdmin internally calls the same FromFile path,
-        // so the actual migration is a follow-up tied to FirebaseAdmin's API. Suppress
-        // the warning until then.
-#pragma warning disable CS0618
-        var app = FirebaseApp.Create(new AppOptions
-        {
-            Credential = GoogleCredential
-                .FromFile(credentialPath)
-                .CreateScoped("https://www.googleapis.com/auth/firebase.messaging")
-        });
-#pragma warning restore CS0618
+        _eventsMessaging = FirebaseMessaging.GetMessaging(
+            FirebaseApp.DefaultInstance ?? FirebaseApp.Create(new AppOptions { Credential = Load(eventsPath) }));
 
-        _messaging = FirebaseMessaging.GetMessaging(app);
+        // The Teams sender is optional at startup on purpose: a box without the TSIC-Teams
+        // credential must still boot and still serve every TSIC-Events job. Sends to the
+        // Teams audience throw instead, which is loud at the one place it matters.
+        var teamsPath = configuration["Firebase:TeamsCredentialFilePath"];
+        if (!string.IsNullOrWhiteSpace(teamsPath) && File.Exists(Resolve(teamsPath)))
+        {
+            var teamsApp = FirebaseApp.GetInstance(TeamsAppName)
+                ?? FirebaseApp.Create(new AppOptions { Credential = Load(teamsPath) }, TeamsAppName);
+            _teamsMessaging = FirebaseMessaging.GetMessaging(teamsApp);
+        }
+        else
+        {
+            _logger.LogWarning(
+                "Firebase:TeamsCredentialFilePath is {State} — TSIC-Teams pushes will fail",
+                string.IsNullOrWhiteSpace(teamsPath) ? "not configured" : $"missing on disk ({teamsPath})");
+        }
     }
 
+    public bool IsConfiguredFor(PushAudience audience) => audience switch
+    {
+        PushAudience.Events => true,
+        PushAudience.Teams => _teamsMessaging != null,
+        _ => false
+    };
+
     public async Task<int> SendToDevicesAsync(
+        PushAudience audience,
         IReadOnlyList<string> deviceTokens,
         string title,
         string body,
@@ -47,9 +68,11 @@ public class FirebasePushService : IFirebasePushService
         IReadOnlyDictionary<string, string>? data = null,
         CancellationToken ct = default)
     {
+        var messaging = MessagingFor(audience);
+
         if (deviceTokens.Count == 0)
         {
-            _logger.LogInformation("No device tokens to send to — skipping push");
+            _logger.LogInformation("No {Audience} device tokens to send to — skipping push", audience);
             return 0;
         }
 
@@ -83,7 +106,7 @@ public class FirebasePushService : IFirebasePushService
 
         if (messages.Count == 0)
         {
-            _logger.LogWarning("All device tokens were empty — skipping push");
+            _logger.LogWarning("All {Audience} device tokens were empty — skipping push", audience);
             return 0;
         }
 
@@ -95,29 +118,57 @@ public class FirebasePushService : IFirebasePushService
         var totalSent = 0;
         foreach (var chunk in Chunk(messages, MaxBatchSize))
         {
-            var response = await _messaging.SendEachAsync(chunk, ct);
+            var response = await messaging.SendEachAsync(chunk, ct);
             totalSent += response.SuccessCount;
 
             if (response.FailureCount > 0)
             {
                 // Error codes, not just a count. SenderIdMismatch here means the token belongs
-                // to a different Firebase project than the credential in use — the one failure
-                // that is a routing mistake rather than a dead device.
+                // to a different Firebase project than the credential in use — i.e. the audience
+                // was resolved wrong, which is a routing bug and not a dead device.
                 var codes = string.Join(", ", response.Responses
                     .Where(r => !r.IsSuccess)
                     .GroupBy(r => (r.Exception as FirebaseMessagingException)?.MessagingErrorCode?.ToString() ?? "Unknown")
                     .Select(g => $"{g.Key}={g.Count()}"));
 
                 _logger.LogWarning(
-                    "Firebase batch: {Success} succeeded, {Failed} failed out of {Total} [{Codes}]",
-                    response.SuccessCount, response.FailureCount, chunk.Count, codes);
+                    "Firebase {Audience} batch: {Success} succeeded, {Failed} failed out of {Total} [{Codes}]",
+                    audience, response.SuccessCount, response.FailureCount, chunk.Count, codes);
             }
         }
 
         _logger.LogInformation(
-            "Push notification delivered to {Delivered} of {Attempted} devices", totalSent, deviceTokens.Count);
+            "Push notification delivered to {Delivered} of {Attempted} {Audience} devices",
+            totalSent, deviceTokens.Count, audience);
         return totalSent;
     }
+
+    private FirebaseMessaging MessagingFor(PushAudience audience) => audience switch
+    {
+        PushAudience.Events => _eventsMessaging,
+        PushAudience.Teams => _teamsMessaging
+            ?? throw new InvalidOperationException(
+                "No TSIC-Teams Firebase sender is configured (Firebase:TeamsCredentialFilePath). "
+                + "TSIC-Teams tokens cannot be delivered to through the TSIC-Events credential."),
+        _ => throw new InvalidOperationException(
+            $"Cannot send a push to audience '{audience}' — this job feeds no mobile app.")
+    };
+
+    private static string Resolve(string relativeOrAbsolute) =>
+        Path.IsPathRooted(relativeOrAbsolute)
+            ? relativeOrAbsolute
+            : Path.Combine(AppContext.BaseDirectory, relativeOrAbsolute);
+
+    // GoogleCredential.FromFile is marked obsolete by Google.Apis.Auth in favor of the new
+    // CredentialFactory API. FirebaseAdmin.AppOptions.Credential still types as GoogleCredential,
+    // and FirebaseAdmin internally calls the same FromFile path, so the actual migration is a
+    // follow-up tied to FirebaseAdmin's API. Suppress the warning until then.
+#pragma warning disable CS0618
+    private static GoogleCredential Load(string path) =>
+        GoogleCredential
+            .FromFile(Resolve(path))
+            .CreateScoped("https://www.googleapis.com/auth/firebase.messaging");
+#pragma warning restore CS0618
 
     private static IEnumerable<List<T>> Chunk<T>(List<T> source, int size)
     {

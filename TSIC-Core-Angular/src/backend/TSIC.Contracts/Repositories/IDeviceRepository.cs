@@ -1,4 +1,5 @@
 using TSIC.Domain.Entities;
+using TSIC.Domain.JobRules;
 
 namespace TSIC.Contracts.Repositories;
 
@@ -48,10 +49,15 @@ public interface IDeviceRepository
     Task<List<Guid>> GetSubscribedTeamIdsAsync(string deviceToken, Guid jobId, CancellationToken ct = default);
 
     /// <summary>
-    /// Distinct active-device tokens subscribed to either of a game's two teams.
-    /// Used for game-result push notifications.
+    /// Distinct active-device tokens subscribed to either of a game's two teams, narrowed to
+    /// one app's devices. Used for game-result and team-scoped push notifications.
+    ///
+    /// Device_Teams holds both apps' subscriptions: TSIC-Events favourite-team rows have a null
+    /// RegistrationId, TSIC-Teams app rows carry one. Sending the unfiltered union through
+    /// either credential means half the batch comes back SenderIdMismatch, so the audience is
+    /// required rather than optional.
     /// </summary>
-    Task<List<string>> GetTokensSubscribedToTeamsAsync(Guid? t1Id, Guid? t2Id, CancellationToken ct = default);
+    Task<List<string>> GetTokensSubscribedToTeamsAsync(PushAudience audience, Guid? t1Id, Guid? t2Id, CancellationToken ct = default);
     Task SwapDeviceTokensAsync(string oldToken, string newToken, CancellationToken ct = default);
     Task<Devices?> GetDeviceByTokenAsync(string deviceToken, CancellationToken ct = default);
 }

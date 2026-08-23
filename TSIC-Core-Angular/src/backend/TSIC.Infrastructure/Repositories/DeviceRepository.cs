@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
+using TSIC.Domain.JobRules;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.Infrastructure.Repositories;
@@ -121,11 +122,24 @@ public class DeviceRepository : IDeviceRepository
             .Select(dt => dt.TeamId).Distinct().ToListAsync(ct);
     }
 
-    public async Task<List<string>> GetTokensSubscribedToTeamsAsync(Guid? t1Id, Guid? t2Id, CancellationToken ct = default)
+    public async Task<List<string>> GetTokensSubscribedToTeamsAsync(
+        PushAudience audience, Guid? t1Id, Guid? t2Id, CancellationToken ct = default)
     {
-        return await _context.DeviceTeams.AsNoTracking()
+        // RegistrationId is the app discriminator on this table: TSIC-Teams writes it at login,
+        // the TSIC-Events favourite-team toggle leaves it null. Anything but Events or Teams has
+        // no pool at all - a job that feeds neither app must not resolve to "everyone".
+        var query = _context.DeviceTeams.AsNoTracking()
             .Where(dt => (t1Id != null && dt.TeamId == t1Id) || (t2Id != null && dt.TeamId == t2Id))
-            .Where(dt => dt.Device.Active && dt.Device.Token != "")
+            .Where(dt => dt.Device.Active && dt.Device.Token != "");
+
+        query = audience switch
+        {
+            PushAudience.Events => query.Where(dt => dt.RegistrationId == null),
+            PushAudience.Teams => query.Where(dt => dt.RegistrationId != null),
+            _ => query.Where(_ => false)
+        };
+
+        return await query
             .Select(dt => dt.Device.Token)
             .Distinct()
             .ToListAsync(ct);

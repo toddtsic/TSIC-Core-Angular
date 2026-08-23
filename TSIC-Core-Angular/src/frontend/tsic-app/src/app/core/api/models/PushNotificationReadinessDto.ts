@@ -3,10 +3,11 @@
 /* tslint:disable */
 /* eslint-disable */
 export type PushNotificationReadinessDto = {
+    audience: string;
+    deviceCount: number;
+    senderConfigured: boolean;
+    jobTypeId: number;
     eventsEnabled: boolean;
     teamsEnabled: boolean;
-    eventsDeviceCount: number;
-    teamsDeviceCount: number;
-    teamsSenderConfigured: boolean;
 };
 

@@ -3,6 +3,7 @@ using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
+using TSIC.Domain.JobRules;
 
 namespace TSIC.API.Services.Teams;
 
@@ -97,22 +98,39 @@ public sealed class TeamManagementService : ITeamManagementService
         if (!callerIsSuperuser && (callerJobId == null || jobId == Guid.Empty || callerJobId != jobId))
             return null;
 
+        // Which app this job feeds decides both the pool and the sender. One app, never both:
+        // Device_Teams mixes TSIC-Events favourites (null RegistrationId) with TSIC-Teams app
+        // rows (RegistrationId set), and sending that union through either project's credential
+        // means half the batch comes back SenderIdMismatch.
+        var flags = await _pushRepo.GetJobPushFlagsAsync(jobId, ct);
+        var audience = flags == null
+            ? PushAudience.None
+            : PushAudienceResolver.Resolve(flags.Value.JobTypeId, flags.Value.TeamsEnabled);
+
+        if (audience == PushAudience.None)
+            throw new InvalidOperationException(
+                "This job feeds no mobile app, so a push has no audience. Showcase jobs run "
+                + "neither app; other non-scheduling jobs need TSIC-Teams enabled first.");
+
         var displayInfo = await _pushRepo.GetJobDisplayInfoAsync(jobId, ct);
 
         // AddAllTeams is the switch the product spec names: true is the job, false is this
         // team. Until this branch existed, false still sent club-wide while the audit row
         // below recorded it as team-scoped -- the record claimed a reach it did not have.
         //
-        // The branch is HERE, at the call site, deliberately. GetDeviceTokensForJobAsync is
-        // shared with the website push screen (PushNotificationService.SendPushToAllAsync);
-        // narrowing it inside the repository would silently shrink the website audience with
-        // no error anywhere.
+        // The branch is HERE, at the call site, deliberately. The job-wide pools are shared
+        // with the website push screen (PushNotificationService.SendPushToAllAsync); narrowing
+        // them inside the repository would silently shrink the website audience with no error
+        // anywhere.
         var deviceTokens = request.AddAllTeams
-            ? await _pushRepo.GetDeviceTokensForJobAsync(jobId, ct)
-            : await _deviceRepo.GetTokensSubscribedToTeamsAsync(teamId, null, ct);
+            ? audience == PushAudience.Teams
+                ? await _pushRepo.GetTeamsDeviceTokensForJobAsync(jobId, ct)
+                : await _pushRepo.GetDeviceTokensForJobAsync(jobId, ct)
+            : await _deviceRepo.GetTokensSubscribedToTeamsAsync(audience, teamId, null, ct);
 
         var title = displayInfo?.JobName ?? "Team Notification";
-        var sentCount = await _firebasePush.SendToDevicesAsync(deviceTokens, title, request.PushText, ct: ct);
+        var sentCount = await _firebasePush.SendToDevicesAsync(
+            audience, deviceTokens, title, request.PushText, ct: ct);
 
         // Record in audit trail
         var record = new JobPushNotificationsToAll

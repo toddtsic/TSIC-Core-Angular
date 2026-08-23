@@ -5,6 +5,7 @@ using TSIC.API.Services.Shared.Firebase;
 using TSIC.API.Services.Teams;
 using TSIC.Contracts.Dtos;
 using TSIC.Domain.Entities;
+using TSIC.Domain.JobRules;
 using TSIC.Infrastructure.Repositories;
 using TSIC.Tests.Helpers;
 
@@ -36,12 +37,13 @@ public class TeamPushScopeTests
         var firebase = new Mock<IFirebasePushService>();
         firebase
             .Setup(f => f.SendToDevicesAsync(
+                It.IsAny<PushAudience>(),
                 It.IsAny<IReadOnlyList<string>>(), It.IsAny<string>(), It.IsAny<string>(),
                 It.IsAny<string?>(), It.IsAny<IReadOnlyDictionary<string, string>?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<IReadOnlyList<string>, string, string, string?, IReadOnlyDictionary<string, string>?, CancellationToken>(
-                (tokens, _, _, _, _, _) => sent.AddRange(tokens))
-            .ReturnsAsync((IReadOnlyList<string> tokens, string _, string _, string? _,
+            .Callback<PushAudience, IReadOnlyList<string>, string, string, string?, IReadOnlyDictionary<string, string>?, CancellationToken>(
+                (_, tokens, _, _, _, _, _) => sent.AddRange(tokens))
+            .ReturnsAsync((PushAudience _, IReadOnlyList<string> tokens, string _, string _, string? _,
                 IReadOnlyDictionary<string, string>? _, CancellationToken _) => tokens.Count);
 
         return new Harness

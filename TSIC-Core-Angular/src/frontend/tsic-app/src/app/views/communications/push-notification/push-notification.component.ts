@@ -11,6 +11,9 @@ export interface PushReadinessWarning {
   text: string;
 }
 
+/** reference.JobTypes — showcase runs neither mobile app, so it gets its own explanation. */
+const SHOWCASE_JOB_TYPE = 6;
+
 @Component({
   selector: 'app-push-notification',
   standalone: true,
@@ -34,9 +37,26 @@ export class PushNotificationComponent implements OnInit {
   history = signal<PushNotificationHistoryDto[]>([]);
 
   // Computed
-  /** The pool this screen actually sends to: devices registered against the job (TSIC-Events). */
-  deviceCount = computed(() => this.readiness()?.eventsDeviceCount ?? 0);
-  canSend = computed(() => this.pushText().trim().length > 0 && !this.isSending());
+  /**
+   * The one app this job feeds. A job is never both: TSIC-Events and TSIC-Teams are separate
+   * Firebase projects, and a token minted by one is rejected by the other. The backend resolves
+   * it from job type plus the TSIC-Teams switch; this screen only reports the result.
+   */
+  audience = computed(() => this.readiness()?.audience ?? 'None');
+  audienceLabel = computed(() => {
+    switch (this.audience()) {
+      case 'Events': return 'TSIC-Events';
+      case 'Teams': return 'TSIC-Teams';
+      default: return 'No mobile app';
+    }
+  });
+
+  /** Devices in the resolved audience's pool — who a send would actually reach. */
+  deviceCount = computed(() => this.readiness()?.deviceCount ?? 0);
+
+  hasAudience = computed(() => this.audience() !== 'None');
+  canSend = computed(() =>
+    this.pushText().trim().length > 0 && !this.isSending() && this.hasAudience());
 
   /**
    * Unmet delivery conditions. The screen is deliberately always reachable — the nav
@@ -50,51 +70,44 @@ export class PushNotificationComponent implements OnInit {
 
     const list: PushReadinessWarning[] = [];
 
-    if (!r.eventsEnabled && !r.teamsEnabled) {
+    // No audience at all — nothing else matters, so this is the only thing said.
+    if (r.audience === 'None') {
       list.push({
         level: 'danger',
         icon: 'bi-x-octagon-fill',
-        text: 'Neither mobile app is enabled for this event. Turn on TSIC-Events Enabled or ' +
-              'Enable TSIC Teams under Job Settings → Mobile/Store before sending.'
+        text: r.jobTypeId === SHOWCASE_JOB_TYPE
+          ? 'Showcase events run neither mobile app, so there is nobody to push to.'
+          : 'This event feeds no mobile app. Turn on Enable TSIC Teams under ' +
+            'Job Settings → Mobile/Store to give it an audience.'
+      });
+      return list;
+    }
+
+    if (!r.senderConfigured) {
+      list.push({
+        level: 'danger',
+        icon: 'bi-key-fill',
+        text: `No Firebase sender is configured for ${this.audienceLabel()}, so a send would ` +
+              'fail. The other app\'s credential cannot deliver to these devices.'
       });
     }
 
-    if (r.eventsEnabled && r.eventsDeviceCount === 0) {
+    if (r.deviceCount === 0) {
       list.push({
         level: 'warning',
         icon: 'bi-phone-slash',
-        text: 'TSIC-Events is enabled but no devices have registered for this event yet. ' +
+        text: `No ${this.audienceLabel()} devices have registered for this event yet. ` +
               'A send will reach nobody.'
       });
     }
 
-    if (!r.eventsEnabled && r.eventsDeviceCount > 0) {
+    // Registered devices outlive the switch that hid the event from the app.
+    if (r.audience === 'Events' && !r.eventsEnabled && r.deviceCount > 0) {
       list.push({
         level: 'warning',
         icon: 'bi-eye-slash',
-        text: `This event is hidden from the TSIC-Events app, but ${r.eventsDeviceCount} ` +
+        text: `This event is hidden from the TSIC-Events app, but ${r.deviceCount} ` +
               'device(s) are still registered from before it was hidden. They will receive this push.'
-      });
-    }
-
-    // TSIC-Teams is a separate audience with a separate device pool and a separate
-    // Firebase project. This screen sends only to the TSIC-Events pool.
-    if (r.teamsEnabled) {
-      list.push({
-        level: r.eventsEnabled ? 'warning' : 'danger',
-        icon: 'bi-people-fill',
-        text: `TSIC Teams is enabled for this event (${r.teamsDeviceCount} device(s) subscribed ` +
-              'to a team), but this screen broadcasts to the TSIC-Events pool only. ' +
-              'TSIC-Teams users will not receive it.'
-      });
-    }
-
-    if (r.teamsEnabled && !r.teamsSenderConfigured) {
-      list.push({
-        level: 'warning',
-        icon: 'bi-key-fill',
-        text: 'No Firebase sender is configured for TSIC-Teams, so TSIC-Teams devices cannot ' +
-              'be reached from this server at all.'
       });
     }
 

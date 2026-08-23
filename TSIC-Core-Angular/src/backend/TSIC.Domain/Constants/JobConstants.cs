@@ -23,4 +23,7 @@ public static class JobConstants
 
     /// <summary>Sales / retail event — no team registration.</summary>
     public const int JobTypeSales = 5;
+
+    /// <summary>Showcase registration. Runs no mobile app — see <c>PushAudienceResolver</c>.</summary>
+    public const int JobTypeShowcase = 6;
 }

@@ -1,5 +1,6 @@
 using TSIC.API.Extensions;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.JobRules;
 
 namespace TSIC.API.Services.Shared.Firebase;
 
@@ -55,7 +56,24 @@ public sealed class GameResultPushService : IGameResultPushService
             var keys = await _scheduleRepo.GetGamePushKeysAsync(gid, ct);
             if (keys?.T1Score == null || keys.T2Score == null) return;
 
-            var tokens = await _deviceRepo.GetTokensSubscribedToTeamsAsync(keys.T1Id, keys.T2Id, ct);
+            // Which app this job feeds picks both the pool and the sender. In practice a job
+            // with games is tournament or league, so this resolves to Events - but resolving
+            // rather than assuming is what keeps a club job's scores from being sent through
+            // the wrong project's credential.
+            var flags = await _pushRepo.GetJobPushFlagsAsync(keys.JobId, ct);
+            var audience = flags == null
+                ? PushAudience.None
+                : PushAudienceResolver.Resolve(flags.Value.JobTypeId, flags.Value.TeamsEnabled);
+
+            if (audience == PushAudience.None)
+            {
+                _logger.LogInformation(
+                    "Game-result push for gid {Gid} skipped - job {JobId} feeds no mobile app",
+                    gid, keys.JobId);
+                return;
+            }
+
+            var tokens = await _deviceRepo.GetTokensSubscribedToTeamsAsync(audience, keys.T1Id, keys.T2Id, ct);
             if (tokens.Count == 0) return;
 
             var jobInfo = await _pushRepo.GetJobDisplayInfoAsync(keys.JobId, ct);
@@ -86,7 +104,7 @@ public sealed class GameResultPushService : IGameResultPushService
                 { "jobLogoUrl", jobLogoUrl ?? "" }
             };
 
-            await _firebase.SendToDevicesAsync(tokens, jobName, body, jobLogoUrl, data, ct);
+            await _firebase.SendToDevicesAsync(audience, tokens, jobName, body, jobLogoUrl, data, ct);
         }
         catch (Exception ex)
         {

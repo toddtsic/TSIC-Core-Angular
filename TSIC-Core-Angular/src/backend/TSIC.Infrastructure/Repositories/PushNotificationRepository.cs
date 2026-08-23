@@ -39,29 +39,44 @@ public class PushNotificationRepository : IPushNotificationRepository
 
     public async Task<int> GetTeamsDeviceCountForJobAsync(Guid jobId, CancellationToken ct = default)
     {
-        // TSIC-Teams reaches devices through their team subscriptions, not the job
-        // registration — mirrors the legacy PushNotificationTo_TSICTEAMS all-teams query.
+        // TSIC-Teams reaches devices through their team subscriptions, not the job registration.
+        //
+        // RegistrationId is what separates the two apps in this one table. The TSIC-Teams app
+        // subscribes a device at login and always carries the registration; the TSIC-Events
+        // favourite-team toggle never does. Counting the whole table reported the Events
+        // favourites as Teams devices - 167k rows against 4k real ones, job-wide.
         return await _context.DeviceTeams
             .AsNoTracking()
-            .Where(dt => dt.Team.JobId == jobId)
+            .Where(dt => dt.Team.JobId == jobId && dt.RegistrationId != null)
             .Select(dt => dt.DeviceId)
             .Distinct()
             .CountAsync(ct);
     }
 
-    public async Task<(bool EventsEnabled, bool TeamsEnabled)?> GetJobPushFlagsAsync(
+    public async Task<List<string>> GetTeamsDeviceTokensForJobAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.DeviceTeams
+            .AsNoTracking()
+            .Where(dt => dt.Team.JobId == jobId && dt.RegistrationId != null)
+            .Where(dt => dt.Device.Active && dt.Device.Token != "")
+            .Select(dt => dt.Device.Token)
+            .Distinct()
+            .ToListAsync(ct);
+    }
+
+    public async Task<(int JobTypeId, bool EventsEnabled, bool TeamsEnabled)?> GetJobPushFlagsAsync(
         Guid jobId, CancellationToken ct = default)
     {
         var flags = await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => new { j.BSuspendPublic, j.BEnableTsicteams })
+            .Select(j => new { j.JobTypeId, j.BSuspendPublic, j.BEnableTsicteams })
             .FirstOrDefaultAsync(ct);
 
         if (flags == null) return null;
 
         // bSuspendPublic is inverted: set = hidden from the TSIC-Events app.
-        return (flags.BSuspendPublic != true, flags.BEnableTsicteams == true);
+        return (flags.JobTypeId, flags.BSuspendPublic != true, flags.BEnableTsicteams == true);
     }
 
 
