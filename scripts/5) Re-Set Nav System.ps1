@@ -206,7 +206,14 @@ $adminManifest = @(
     (New-AdminItem 'Communications' 'megaphone' 6 'Bulletins'             'megaphone'            'communications/bulletins'         1 1 1 1)
     (New-AdminItem 'Communications' 'megaphone' 6 'Email Log'             'envelope-open'        'communications/email-log'         2 1 1 1)
     (New-AdminItem 'Communications' 'megaphone' 6 'E-Mail Troubleshooter' 'envelope-exclamation' 'tools/email-troubleshooter'       3 1 1 1 $null 'NEW')
-    (New-AdminItem 'Communications' 'megaphone' 6 'Push Notification'     'bell'                 'communications/push-notification' 4 1 1 1 $rulesMobileEnabled)
+    # Push Notification: UNGATED and Director+SuperUser only (e05b2e4a / 03985797).
+    # Was $rulesMobileEnabled, which derives solely from Jobs.BEnableSTP — Stay-To-Play,
+    # unrelated to mobile — and hid the screen on 197 of the 204 jobs with registered
+    # devices. The screen now reports its own unmet delivery conditions instead.
+    # SD=0: push is an unrecallable blast to every device on the event, so it stays with
+    # the event's own director (API matches: PushNotificationController is on
+    # "CanSendPushNotifications", not "AdminOnly").
+    (New-AdminItem 'Communications' 'megaphone' 6 'Push Notification'     'bell'                 'communications/push-notification' 4 1 0 1)
     # Team Links: D/SD gated to player-site jobs; the SU row is UNGATED so a
     # SuperUser can manage links on any job type (legacy tournaments stored
     # job-wide links with TeamId NULL). Two rows, same route — the per-role
@@ -298,7 +305,13 @@ $adminManifest = @(
     (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Widget Editor'     'grid'        'configure/widget-editor'   4 0 0 1)
     (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Job Clone'         'copy'        'configure/job-clone'       5 0 0 1)
     (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Admin Expiry'      'calendar-x'  'tools/admin-expiry'        6 0 0 1)
-    (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Profile Migration' 'arrow-right' 'tools/profile-migration'   7 0 0 1)
+    # DEPRECATED 2026-08-16 (de694102) — post-go-live lockdown. The Profile Migration
+    # dashboard bulk-rewrote PlayerProfileMetadataJson across every job carrying a profile
+    # type. Its API endpoints and its Angular route are commented out, and the existing nav
+    # row was set Active = 0 in the live database. Leaving this line here would resurrect
+    # the menu item (Active = 1) on the next re-seed, pointing at a route that no longer
+    # exists. Do not re-enable without restoring the route and the endpoints.
+    # (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Profile Migration' 'arrow-right' 'tools/profile-migration'   7 0 0 1)
     (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Change Password'   'key'         'tools/change-password'     8 0 0 1)
 )
 
@@ -430,7 +443,9 @@ $retiredReportingLinks = @(
 # step 14 would stamp it back over the new manifest value — silently reverting
 # the change. Add a pair whenever a seeded rule changes for some role(s).
 $retiredSeedRules = @(
-    @{ Role = 'SuperUser'; Route = 'communications/team-links' }   # SU ungated (was playerSiteOnly)
+    @{ Role = 'SuperUser'; Route = 'communications/team-links' }             # SU ungated (was playerSiteOnly)
+    @{ Role = 'Director';  Route = 'communications/push-notification' }     # ungated (was mobileEnabled)
+    @{ Role = 'SuperUser'; Route = 'communications/push-notification' }     # ungated (was mobileEnabled)
 )
 $visRetiredClause = ''
 if ($retiredSeedRules.Count -gt 0) {
