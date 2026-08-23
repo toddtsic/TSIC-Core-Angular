@@ -219,10 +219,10 @@ export class RegistrationPanelComponent {
 		if (registered && isPF) {
 			// Nudge only — no amount, matching the club-rep row: the pulse aggregate can
 			// drift from what the payment page recomputes, and the figure belongs on the
-			// destination. Suppressed entirely for an ARB registrant: their balance is
+			// destination. Suppressed for a LIVE ARB registrant: their balance is
 			// auto-drafted on a schedule, so myRegistrationOwedTotal stays > 0 by design
 			// and a "pay" nudge would invite a double payment.
-			if (allowed.has('pay-balance') && (p.myRegistrationOwedTotal ?? 0) > 0 && !p.myAdnSubscriptionId) {
+			if (allowed.has('pay-balance') && (p.myRegistrationOwedTotal ?? 0) > 0 && !p.myHasLiveArbSubscription) {
 				items.push({ key: 'player-balance', icon: 'bi-cash-stack', variant: 'alert',
 					label: 'Pay Balance Due',
 					routerLink: `${base}/registration/player`, queryParams: { step: 'payment' } });

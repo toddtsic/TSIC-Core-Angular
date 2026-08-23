@@ -185,6 +185,15 @@ public record JobPulseDto
     /// </summary>
     public string? MyAdnSubscriptionId { get; init; }
 
+    /// <summary>
+    /// True when this registration is on an ARB plan that can STILL draft the card.
+    /// Gates the "Pay Balance Due" nudge: suppress it only while payments are actually
+    /// coming out. MyAdnSubscriptionId cannot do that job — a canceled or terminated plan
+    /// leaves its id behind, so an id-only gate hid the nudge from the one cohort that owes
+    /// money and is being dunned for it (AR-013). False for a registrant with no plan at all.
+    /// </summary>
+    public bool? MyHasLiveArbSubscription { get; init; }
+
     // ClubRep context. Null when user is not a ClubRep in this job.
     public int? MyClubRepTeamCount { get; init; }
     public decimal? MyClubRepTotalOwed { get; init; }
@@ -231,6 +240,9 @@ public record JobPulseUserContext
     public decimal? RegistrationOwedTotal { get; init; }
     public bool? HasPurchasedPlayerRegsaver { get; init; }
     public string? AdnSubscriptionId { get; init; }
+
+    /// <summary>ARB plan that can still draft the card — see JobPulseDto.MyHasLiveArbSubscription.</summary>
+    public bool? HasLiveArbSubscription { get; init; }
 
     // ClubRep
     public int? ClubRepTeamCount { get; init; }

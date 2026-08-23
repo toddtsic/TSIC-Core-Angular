@@ -1856,21 +1856,13 @@ public class PaymentService : IPaymentService
     }
 
     /// <summary>
-    /// Authorize.Net subscription statuses that can no longer draft the card. Anything else —
-    /// "active", "suspended", or a null status alongside a real subscription id — must be treated
-    /// as live: a suspended subscription resumes on its own once the card clears.
-    /// </summary>
-    private static readonly string[] DeadArbStatuses = ["canceled", "terminated", "expired"];
-
-    /// <summary>
     /// True when this registration's balance is already financed by a subscription that can still
     /// bill the card. ARB enrollment records NO money — PaidTotal stays 0 and OwedTotal stays at the
     /// full balance for the life of the plan — so fee math alone cannot tell a financed registration
     /// apart from an unpaid one. The subscription is the only marker.
     /// </summary>
     private static bool HasLiveArbSubscription(Registrations r) =>
-        !string.IsNullOrWhiteSpace(r.AdnSubscriptionId)
-        && !DeadArbStatuses.Contains(r.AdnSubscriptionStatus ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+        ArbSubscriptionStatus.IsLive(r.AdnSubscriptionId, r.AdnSubscriptionStatus);
 
     /// <summary>
     /// Single write-side intercept for the "already financed" invariant, applied to EVERY charge path

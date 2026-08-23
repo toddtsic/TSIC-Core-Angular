@@ -46,6 +46,7 @@ export type JobPulseDto = {
     myRegistrationOwedTotal?: number | null;
     myHasPurchasedPlayerRegsaver?: boolean | null;
     myAdnSubscriptionId?: string | null;
+    myHasLiveArbSubscription?: boolean | null;
     myClubRepTeamCount?: number | null;
     myClubRepTotalOwed?: number | null;
     myClubRepNonArbOwed?: number | null;

@@ -1092,6 +1092,7 @@ public class JobRepository : IJobRepository
                 r.OwedTotal,
                 r.RegsaverPolicyId,
                 r.AdnSubscriptionId,
+                r.AdnSubscriptionStatus,
                 // One nav hop (Registrations.AssignedTeam → Teams.Agegroup) so the header bar can
                 // suppress "View Roster" for a holding-bucket team instead of offering a link that
                 // MyRosterService will only deny.
@@ -1115,6 +1116,9 @@ public class JobRepository : IJobRepository
             RegistrationOwedTotal = reg.OwedTotal,
             HasPurchasedPlayerRegsaver = reg.RegsaverPolicyId != null,
             AdnSubscriptionId = reg.AdnSubscriptionId,
+            // Liveness, not id-presence: a canceled/terminated plan stops drafting but leaves its
+            // id behind, so an id-only gate hides "Pay Balance Due" from exactly the families who owe.
+            HasLiveArbSubscription = ArbSubscriptionStatus.IsLive(reg.AdnSubscriptionId, reg.AdnSubscriptionStatus),
             FirstName = nameInfo?.FirstName,
             LastName = nameInfo?.LastName
         };

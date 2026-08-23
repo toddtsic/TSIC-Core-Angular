@@ -132,9 +132,9 @@ export class SmartBulletinsComponent {
 			(allowed.has('register-player') && isPlayerRegistrationEffectivelyOpen(p)) ||  // self-roster-update
 			(registered && isPlayerOrFamily && (
 				allowed.has('my-registration') ||
-				// ARB registrants are auto-drafted — the panel suppresses their pay-balance
+				// Live-ARB registrants are auto-drafted — the panel suppresses their pay-balance
 				// row, so the mount gate must too or the panel can mount with nothing in it.
-				(allowed.has('pay-balance') && (p.myRegistrationOwedTotal ?? 0) > 0 && !p.myAdnSubscriptionId) ||
+				(allowed.has('pay-balance') && (p.myRegistrationOwedTotal ?? 0) > 0 && !p.myHasLiveArbSubscription) ||
 				(allowed.has('player-insurance') && p.offerPlayerRegsaverInsurance && p.myHasPurchasedPlayerRegsaver !== true))) ||
 			(!pub && (p.myClubRepTeamCount ?? 0) > 0 && (
 				allowed.has('my-teams') ||

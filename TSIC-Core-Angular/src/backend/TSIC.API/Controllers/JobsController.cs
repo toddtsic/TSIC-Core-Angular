@@ -310,6 +310,7 @@ public class JobsController : ControllerBase
                         MyRegistrationOwedTotal = ctx.RegistrationOwedTotal,
                         MyHasPurchasedPlayerRegsaver = ctx.HasPurchasedPlayerRegsaver,
                         MyAdnSubscriptionId = ctx.AdnSubscriptionId,
+                        MyHasLiveArbSubscription = ctx.HasLiveArbSubscription,
                         MyClubRepTeamCount = ctx.ClubRepTeamCount,
                         MyClubRepTotalOwed = ctx.ClubRepTotalOwed,
                         MyClubRepNonArbOwed = ctx.ClubRepNonArbOwed,
