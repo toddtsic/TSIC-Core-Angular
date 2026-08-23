@@ -21,6 +21,10 @@ import { AfterViewInit, Directive, ElementRef, OnDestroy, Renderer2, inject, inp
  * Opening width is `defaultWidth` px, or — when `[defaultWidthPct]` is set — that
  * fraction of the viewport, clamped to min/max either way. A stored width always
  * wins over both, so a new default only reaches users who never dragged the panel.
+ * To force an existing default change onto everyone once, VERSION the storageKey
+ * (`fooWidth` -> `fooWidth-v2`): every user falls through to the new default a single
+ * time and their later drags persist normally. Clearing keys on startup would stomp a
+ * deliberate choice; a new key does not.
  *
  * Pointer capture routes move/up back to the handle — no document listeners, no
  * effect(); width is applied imperatively.
