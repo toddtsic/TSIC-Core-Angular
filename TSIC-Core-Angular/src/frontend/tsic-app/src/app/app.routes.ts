@@ -497,12 +497,13 @@ export const routes: Routes = [
 				]
 			},
 			// Stay-to-Play — the single screen an STPAdmin vendor login is served.
-			// Directors and above see it too (legacy's STPAdmin policy admitted them);
-			// the backend CanViewStpClubReps policy is the matching role floor.
+			// The event's own Director sees it too, to review what the vendor can see.
+			// NOT SuperDirector (Todd 2026-08-23): the sharing decision is the director's,
+			// so the review screen stays with them. Backend CanViewStpClubReps matches.
 			{
 				path: 'stp/club-reps',
 				canActivate: [authGuard],
-				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector, Roles.StpAdmin] },
+				data: { roles: [Roles.Superuser, Roles.Director, Roles.StpAdmin] },
 				loadComponent: () => import('./views/stp/club-reps/stp-club-reps.component').then(m => m.StpClubRepsComponent)
 			},
 			// Reporting

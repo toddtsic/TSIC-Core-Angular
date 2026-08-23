@@ -12,11 +12,16 @@
     (1) VENDOR MENU.  The StpAdmin role gets its one-item menu (stp/club-reps). This is the
         only screen an STPAdmin login is ever served.
 
-    (2) ADMIN MENU.  Director / SuperDirector / Superuser get the SAME screen under
-        Teams & Rosters, so the admin who authorised the sharing can see exactly what the
-        vendor sees. Gated {"requiresFlags":["stayToPlayEnabled"]} — the leaf is hidden
-        while Jobs.BEnableSTP is off, because nothing is being shared and there is nothing
-        to review. The switch itself is on Configure > Job Settings > Teams/ClubReps.
+    (2) ADMIN MENU.  Director / Superuser get the SAME screen under Teams & Rosters, so
+        the admin who authorised the sharing can see exactly what the vendor sees. Gated
+        {"requiresFlags":["stayToPlayEnabled"]} — the leaf is hidden while Jobs.BEnableSTP
+        is off, because nothing is being shared and there is nothing to review. The switch
+        itself is on Configure > Job Settings > Teams/ClubReps.
+
+        NOT SuperDirector (Todd 2026-08-23): sharing club-rep data with a vendor is the
+        event's own director's call, so the review screen stays with them. Same split as
+        Push Notification. The API policy CanViewStpClubReps matches, so hiding the row is
+        not the only barrier.
 
     (3) FLAG RENAME.  VisibilityRulesEvaluator used to derive the flag name "mobileEnabled"
         from Jobs.BEnableSTP. That was simply wrong — BEnableSTP is Stay-To-Play and has
@@ -35,7 +40,7 @@ SET NOCOUNT ON;
 SET XACT_ABORT ON;
 
 DECLARE @Director      NVARCHAR(450) = 'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06';
-DECLARE @SuperDirector NVARCHAR(450) = '7B9EB503-53C9-44FA-94A0-17760C512440';
+
 DECLARE @SuperUser     NVARCHAR(450) = 'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9';
 DECLARE @StpAdmin      NVARCHAR(450) = 'CE2CB370-5880-4624-A43E-048379C64331';
 DECLARE @Rule          NVARCHAR(MAX) = N'{"requiresFlags":["stayToPlayEnabled"]}';
@@ -77,12 +82,12 @@ END
 ELSE PRINT 'StpAdmin: Stay-to-Play Club Reps already present - skipped';
 
 -- ---------------------------------------------------------------------------
--- (2) Admin menu — Director / SuperDirector / Superuser, under Teams & Rosters
+-- (2) Admin menu — Director / Superuser, under Teams & Rosters. NOT SuperDirector.
 --     Parent is matched by TEXT because the section parent carries no RouterLink.
 -- ---------------------------------------------------------------------------
 DECLARE @roleId NVARCHAR(450), @parentId INT, @sort INT;
 DECLARE roles CURSOR LOCAL FAST_FORWARD FOR
-    SELECT @Director UNION ALL SELECT @SuperDirector UNION ALL SELECT @SuperUser;
+    SELECT @Director UNION ALL SELECT @SuperUser;
 
 OPEN roles;
 FETCH NEXT FROM roles INTO @roleId;
@@ -129,7 +134,8 @@ PRINT CONCAT('Renamed mobileEnabled -> stayToPlayEnabled on ', @@ROWCOUNT, ' row
 COMMIT TRANSACTION;
 
 -- ---------------------------------------------------------------------------
--- AFTER: expect 4 rows — StpAdmin (no rule) + 3 admin roles (stayToPlayEnabled).
+-- AFTER: expect 3 rows — StpAdmin (no rule) + Director and Superuser
+--        (stayToPlayEnabled). No SuperDirector row.
 -- ---------------------------------------------------------------------------
 SELECT ni.NavItemId, n.RoleId, ni.Active, ni.SortOrder, ni.[Text], ni.RouterLink, ni.VisibilityRules
 FROM   nav.NavItem ni

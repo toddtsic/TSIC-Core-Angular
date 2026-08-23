@@ -637,11 +637,16 @@ builder.Services.AddAuthorization(options =>
     // the AdminOnly surface. Directors are included because legacy's "STPAdmin" policy
     // admitted them (Superuser, Director, STPAdmin) and the event's own director has every
     // reason to see who is travelling; SuperDirector follows the other policies here.
+    // Stay-to-Play club reps. SuperDirector is deliberately ABSENT (Todd 2026-08-23):
+    // sharing club-rep contact data with a housing vendor is the event's own director's
+    // decision, so the screen that reviews what was shared stays with them. Same split as
+    // CanSendPushNotifications. Superuser keeps it for support; StpAdmin is the vendor,
+    // whose access is additionally gated on Jobs.BEnableSTP at the role picker and again
+    // in StpService.
     options.AddPolicy("CanViewStpClubReps", policy =>
         policy.RequireClaim(System.Security.Claims.ClaimTypes.Role,
             RoleConstants.Names.SuperuserName,
             RoleConstants.Names.DirectorName,
-            RoleConstants.Names.SuperDirectorName,
             RoleConstants.Names.StpAdminName));
 
     // Roles that may enter game scores: admin roles + event-day Scorer.

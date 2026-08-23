@@ -193,7 +193,10 @@ $adminManifest = @(
     # stayToPlayEnabled hides the leaf while BEnableSTP is off — nothing is being shared,
     # so there is nothing to review; the switch itself lives on Configure > Job Settings >
     # Teams/ClubReps, which is where a director turns it on.
-    (New-AdminItem 'Teams & Rosters' 'diagram-3' 3 'Stay-to-Play Club Reps' 'buildings'       'stp/club-reps'        8 1 1 1 $rulesStayToPlay)
+    # SD=0 (Todd 2026-08-23): sharing club-rep data with a vendor is the event's own
+    # director's call, so the review screen sits with them — same split as Push
+    # Notification. SuperUser keeps it for support.
+    (New-AdminItem 'Teams & Rosters' 'diagram-3' 3 'Stay-to-Play Club Reps' 'buildings'       'stp/club-reps'        8 1 0 1 $rulesStayToPlay)
 
     # -- 4. Scheduling — ONE front door (2026-08-04) -----------------------
     # The Scheduling Checklist (shell index route) is the single entry point:

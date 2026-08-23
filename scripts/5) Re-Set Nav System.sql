@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-08-23 11:15:23 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-08-23 11:25:03 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -144,7 +144,7 @@ INSERT INTO #AdminManifest VALUES (N'Teams & Rosters', N'diagram-3', 3, N'Coach 
 INSERT INTO #AdminManifest VALUES (N'Teams & Rosters', N'diagram-3', 3, N'Uniform Upload', N'upload', N'tools/uniform-upload', 5, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Teams & Rosters', N'diagram-3', 3, N'Camp Day/Night Groups', N'sun', N'tools/camp-groups', 6, 1, 1, 1, N'{"jobTypes":["Camp Registration","Sales Venue"]}', NULL);
 INSERT INTO #AdminManifest VALUES (N'Teams & Rosters', N'diagram-3', 3, N'Check-In', N'clipboard-check', N'tools/checkin', 7, 1, 1, 1, N'{"jobTypes":["Tournament Scheduling","League Scheduling","Camp Registration"]}', N'NEW');
-INSERT INTO #AdminManifest VALUES (N'Teams & Rosters', N'diagram-3', 3, N'Stay-to-Play Club Reps', N'buildings', N'stp/club-reps', 8, 1, 1, 1, N'{"requiresFlags":["stayToPlayEnabled"]}', NULL);
+INSERT INTO #AdminManifest VALUES (N'Teams & Rosters', N'diagram-3', 3, N'Stay-to-Play Club Reps', N'buildings', N'stp/club-reps', 8, 1, 0, 1, N'{"requiresFlags":["stayToPlayEnabled"]}', NULL);
 INSERT INTO #AdminManifest VALUES (N'Officials', N'person-check', 5, N'Referee Assignment', N'clipboard-check', N'scheduling/referee-assignment', 1, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Officials', N'person-check', 5, N'Referee Calendar', N'calendar-week', N'scheduling/referee-calendar', 2, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 6, N'Bulletins', N'megaphone', N'communications/bulletins', 1, 1, 1, 1, NULL, NULL);
