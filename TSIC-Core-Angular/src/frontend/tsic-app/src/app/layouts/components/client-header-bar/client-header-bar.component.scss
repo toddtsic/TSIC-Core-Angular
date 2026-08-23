@@ -421,6 +421,65 @@
     }
 }
 
+// Switch Role — labelled sibling of .theme-toggle-btn (AR-025).
+// Same surface treatment as the icon buttons beside it so the cluster reads as one
+// family; a pill rather than a circle because it carries a word. Desktop-only by
+// virtue of its container, so it needs no breakpoint of its own.
+.switch-role-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 36px;
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-full);
+    background: rgba(var(--bs-primary-rgb), 0.06);
+    border: 1px solid rgba(var(--bs-primary-rgb), 0.15);
+    color: var(--bs-body-color);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+
+    .bi {
+        font-size: var(--font-size-base);
+        line-height: 1;
+    }
+
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.12);
+        border-color: rgba(var(--bs-primary-rgb), 0.3);
+        color: var(--bs-primary);
+    }
+
+    &:active {
+        background: rgba(var(--bs-primary-rgb), 0.18);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        transition: none;
+    }
+
+    // The label is the point of this control, but between 768px and ~992px the header
+    // cluster is tight. Drop to the icon alone rather than letting the word push the
+    // user menu off the edge — the tooltip and aria-label still carry the meaning.
+    @media (max-width: 991.98px) {
+        padding: 0;
+        justify-content: center;
+        width: 36px;
+
+        span {
+            display: none;
+        }
+    }
+}
+
 // Desktop user-menu dropdown
 .user-menu-wrapper {
     position: relative;

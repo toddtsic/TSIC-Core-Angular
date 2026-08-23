@@ -255,6 +255,19 @@
                 <!-- Context-sensitive help — single "?" for the current route -->
                 <app-help-launcher />
 
+                <!-- Switch Role — the same action as the user-menu entry below, surfaced because
+                     nobody found it in the dropdown (AR-025). Deliberately DESKTOP-ONLY: it lives
+                     inside this `d-none d-md-flex` cluster, so it never renders on mobile, where
+                     the strip has no room and the hamburger menu already carries Switch Role.
+                     Gated on regId to match the menu entry exactly. -->
+                @if (user()?.regId) {
+                <button type="button" class="switch-role-btn" (click)="switchRole()"
+                    aria-label="Switch Role" title="Switch to another role or registration">
+                    <i class="bi bi-people-fill" aria-hidden="true"></i>
+                    <span>Switch Role</span>
+                </button>
+                }
+
                 <!-- User dropdown menu (signed in) / direct Login button (signed out) -->
                 <div class="user-menu-wrapper">
                     @if (user()) {
