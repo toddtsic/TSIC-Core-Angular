@@ -640,6 +640,14 @@ builder.Services.AddAuthorization(options =>
             RoleConstants.Names.SuperDirectorName,
             RoleConstants.Names.ScorerName));
 
+    // Mobile push broadcast. Director + Superuser only -- deliberately NARROWER than
+    // AdminOnly: SuperDirector is excluded. A push is an unrecallable blast to every
+    // registered device on the event, so it stays with the event's own director.
+    options.AddPolicy("CanSendPushNotifications", policy =>
+        policy.RequireClaim(System.Security.Claims.ClaimTypes.Role,
+            RoleConstants.Names.SuperuserName,
+            RoleConstants.Names.DirectorName));
+
     options.AddPolicy("RefAdmin", policy =>
         policy.RequireClaim(System.Security.Claims.ClaimTypes.Role,
             RoleConstants.Names.SuperuserName,

@@ -14,7 +14,7 @@ namespace TSIC.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/push-notifications")]
-[Authorize(Policy = "AdminOnly")]
+[Authorize(Policy = "CanSendPushNotifications")]
 public class PushNotificationController : ControllerBase
 {
     private readonly IPushNotificationService _service;
