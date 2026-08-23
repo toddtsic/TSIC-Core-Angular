@@ -1,4 +1,5 @@
 import { AfterViewInit, Directive, ElementRef, OnDestroy, Renderer2, inject, input } from '@angular/core';
+import type { PanelWidthKey } from '../../infrastructure/shared/local-storage.model';
 
 /**
  * appResizablePanel — makes ANY fly-in / slide-out panel width-resizable via a
@@ -7,7 +8,7 @@ import { AfterViewInit, Directive, ElementRef, OnDestroy, Renderer2, inject, inp
  * is created and wired by the directive, so consumers add zero markup.
  *
  * Usage:
- *   <div class="detail-panel" appResizablePanel [storageKey]="'regDetailPanelWidth'"></div>
+ *   <div class="detail-panel" appResizablePanel storageKey="regDetailPanelWidth-v2"></div>
  *   <aside class="filters-panel" appResizablePanel storageKey="regFiltersWidth" panelSide="left"></aside>
  *
  *  - `panelSide="right"` (default): panel anchored to the right → handle on the
@@ -41,7 +42,9 @@ export class ResizablePanelDirective implements AfterViewInit, OnDestroy {
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly renderer = inject(Renderer2);
 
-    storageKey = input.required<string>();
+    // PanelWidthKey, not string: every panel key is registered in local-storage.model.ts, so an
+    // unregistered literal is a build error rather than a silently orphaned localStorage entry.
+    storageKey = input.required<PanelWidthKey>();
     panelSide = input<'left' | 'right'>('right');
     defaultWidth = input<number>(560);
     /** Opening width as a fraction of the viewport (0-1). Wins over `defaultWidth` when set. */

@@ -55,3 +55,34 @@ export interface LocalStorageSchema {
     [LocalStorageKey.AutoScheduleConfig]: string; // JSON-serialized AutoScheduleConfig
     [LocalStorageKey.ScheduleFilters]: string; // JSON-serialized ScheduleFiltersStoreV1
 }
+
+/**
+ * Fly-in / slide-out panel widths persisted by `appResizablePanel`.
+ *
+ * Deliberately a literal union rather than `LocalStorageKey` members: the directive takes its
+ * key as a template attribute, and a union narrows a static string at compile time without
+ * every host component having to import the enum. Adding a panel means adding its key HERE —
+ * an unregistered string is a build error, which is the guarantee the enum exists to give.
+ *
+ * Known exclusion, same as the dynamic-key services noted above: these are NOT swept by
+ * `LocalStorageService.clear()`, which iterates `LocalStorageKey`. Panel widths are disposable
+ * per-device UI state, so that is acceptable — but it is a decision, not an oversight.
+ *
+ * `-v2` on the two detail panels (2026-08-23, AR-016): those panels gained a percentage-based
+ * opening width, and a stored width beats any default. Every existing user — Ann included, who
+ * asked for the change — would otherwise have kept the old 560px forever. Bumping the key drops
+ * everyone onto the new default exactly once; later drags persist normally. Same technique as
+ * `LastJobPath` above.
+ */
+export type PanelWidthKey =
+    | 'regDetailPanelWidth-v2'
+    | 'teamDetailPanelWidth-v2'
+    | 'clubRostersPanelWidth'
+    | 'ladtPanelWidth'
+    | 'ladtTreeWidth'
+    | 'regFiltersWidth'
+    | 'teamFiltersWidth'
+    | 'helpPanelWidth'
+    | 'libraryPanelWidth'
+    | 'scoreEntryPanelWidth'
+    | 'teamResultsPanelWidth';
