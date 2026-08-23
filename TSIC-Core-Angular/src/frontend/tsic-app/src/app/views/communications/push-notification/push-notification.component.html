@@ -55,18 +55,20 @@
       <!-- Audience. Defaults to everyone; picking a team narrows it to that team's
            subscribers. The whole-job option stays first so the common case is one click. -->
       @if (teams().length > 0) {
-        <label for="pushAudience" class="form-label fw-medium">Send To</label>
-        <select
-          id="pushAudience"
-          class="form-select mb-3"
-          [ngModel]="selectedTeamId()"
-          (ngModelChange)="selectedTeamId.set($event)"
-          [disabled]="isSending()">
-          <option value="">Everyone in this event ({{ deviceCount() }} device(s))</option>
-          @for (t of teams(); track t.teamId) {
-            <option [value]="t.teamId">{{ t.display }}</option>
-          }
-        </select>
+        <label class="form-label fw-medium" id="push-audience-label">Send To</label>
+        <ejs-dropdownlist
+          class="mb-3"
+          [dataSource]="audienceOptions()"
+          [fields]="audienceFields"
+          [value]="selectedTeamId()"
+          [allowFiltering]="true"
+          [filterBarPlaceholder]="'Type a club or team name...'"
+          [popupHeight]="'400px'"
+          [enabled]="!isSending()"
+          [htmlAttributes]="{ 'aria-labelledby': 'push-audience-label' }"
+          (filtering)="onAudienceFiltering($event)"
+          (change)="onAudienceChange($event)">
+        </ejs-dropdownlist>
 
         @if (selectedTeamId()) {
           <div class="alert alert-info d-flex align-items-start gap-2 py-2">

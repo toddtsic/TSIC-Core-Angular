@@ -1,6 +1,13 @@
 import { Component, ChangeDetectionStrategy, inject, signal, computed, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Observable, map } from 'rxjs';
+import {
+  DropDownListModule,
+  FilteringEventArgs,
+  ChangeEventArgs,
+  FieldSettingsModel
+} from '@syncfusion/ej2-angular-dropdowns';
+import { Query } from '@syncfusion/ej2-data';
 import { GridAllModule, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
 import { PushNotificationService } from './services/push-notification.service';
 import type {
@@ -22,7 +29,7 @@ const SHOWCASE_JOB_TYPE = 6;
 @Component({
   selector: 'app-push-notification',
   standalone: true,
-  imports: [FormsModule, GridAllModule],
+  imports: [FormsModule, GridAllModule, DropDownListModule],
   templateUrl: './push-notification.component.html',
   styleUrl: './push-notification.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -49,6 +56,18 @@ export class PushNotificationComponent implements OnInit {
 
   selectedTeamName = computed(() =>
     this.teams().find(t => t.teamId === this.selectedTeamId())?.display ?? '');
+
+  /**
+   * Dropdown rows: the whole-event option first, then every team. Filtering runs over this
+   * same list, so typing a club name narrows 500+ teams to the handful that matter — the
+   * reason this is a filtering dropdownlist and not a native select.
+   */
+  audienceOptions = computed(() => [
+    { teamId: '', display: `Everyone in this event (${this.deviceCount()} device(s))` },
+    ...this.teams()
+  ]);
+
+  readonly audienceFields: FieldSettingsModel = { text: 'display', value: 'teamId' };
 
   // Computed
   /**
@@ -164,6 +183,17 @@ export class PushNotificationComponent implements OnInit {
         this.isLoading.set(false);
       }
     });
+  }
+
+  /** Substring match over the visible label, so "Coppermine" or "2027 Blue" both find it. */
+  onAudienceFiltering(e: FilteringEventArgs): void {
+    const text = (e.text ?? '').trim();
+    const query = text ? new Query().where('display', 'contains', text, true) : new Query();
+    e.updateData(this.audienceOptions(), query);
+  }
+
+  onAudienceChange(e: ChangeEventArgs): void {
+    this.selectedTeamId.set((e.value as string) ?? '');
   }
 
   sendPush(): void {
