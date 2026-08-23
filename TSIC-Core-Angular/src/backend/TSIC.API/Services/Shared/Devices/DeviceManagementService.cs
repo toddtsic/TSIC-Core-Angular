@@ -39,10 +39,16 @@ public sealed class DeviceManagementService : IDeviceManagementService
 
         // Sequential by necessity -- these share one scoped DbContext, so Task.WhenAll here
         // would throw on concurrent access.
+        // Deliberately NOT writing Device_Jobs here. That table has exactly two readers, both
+        // the TSIC-Events broadcast pool, so a row in it means "send this phone the Events
+        // push". Sync is the authenticated TSIC-Teams path, and its tokens belong to the
+        // tsic-teams Firebase project -- filing them here put them in the Events blast list,
+        // where the Events credential answers SenderIdMismatch and the push reaches nobody.
+        // TSIC-Teams devices are reached through Device_Teams. The anonymous register endpoint
+        // is what fills Device_Jobs, and that is the TSIC-Events app.
         var jobs = 0; var teams = 0; var regs = 0;
         foreach (var t in targets)
         {
-            await _deviceRepo.AddDeviceJobIfNotExistsAsync(device.Id, t.JobId, ct);
             jobs++;
 
             if (t.TeamId is { } teamId
