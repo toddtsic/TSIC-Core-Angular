@@ -42,6 +42,22 @@ public interface IPushNotificationRepository
         Guid jobId, PushAudience audience, CancellationToken ct = default);
 
     /// <summary>
+    /// Of the given team ids, those actually belonging to the job. The job scope is a security
+    /// boundary: team ids arrive in a request body, so a caller could otherwise name teams in
+    /// an event they have no relationship with.
+    /// </summary>
+    Task<List<Guid>> GetOwnedTeamIdsAsync(
+        Guid jobId, IReadOnlyList<Guid> teamIds, CancellationToken ct = default);
+
+    /// <summary>
+    /// Device tokens for the named teams, each paired with the team it came from, scoped to
+    /// <paramref name="jobId"/> and filtered to <paramref name="audience"/>. The caller dedupes
+    /// the tokens to send once and groups by team to attribute the audit rows.
+    /// </summary>
+    Task<List<(Guid TeamId, string Token)>> GetTeamTokensAsync(
+        Guid jobId, PushAudience audience, IReadOnlyList<Guid> teamIds, CancellationToken ct = default);
+
+    /// <summary>
     /// What decides which mobile app, if either, this job feeds: its job type plus the
     /// TSIC-Teams switch. Feed both to <c>PushAudienceResolver</c>. EventsEnabled reports
     /// whether the job is visible in the TSIC-Events app; it does not select the app.

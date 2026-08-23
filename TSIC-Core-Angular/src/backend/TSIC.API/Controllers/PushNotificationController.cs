@@ -117,6 +117,43 @@ public class PushNotificationController : ControllerBase
     }
 
     /// <summary>
+    /// Send a push to a chosen set of teams in the current job. One audit row per team, and a
+    /// device following more than one of them receives a single notification.
+    ///
+    /// Separate from the single-team endpoint on TeamManagementController deliberately: that
+    /// one takes its team off the route and guards it there, whereas these ids arrive in the
+    /// body and are validated against the caller's job inside the service.
+    /// </summary>
+    [HttpPost("send-teams")]
+    [ProducesResponseType(typeof(SendTeamsPushResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<SendTeamsPushResponse>> SendTeamsPushNotification(
+        [FromBody] SendTeamsPushRequest request,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.PushText))
+            return BadRequest(new { message = "Push text is required." });
+
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Registration context required." });
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized();
+
+        try
+        {
+            return Ok(await _service.SendPushToTeamsAsync(
+                jobId.Value, userId, request.PushText, request.TeamIds, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Empty or cross-job selection, over the cap, or a job that feeds no app. All are
+            // caller mistakes with an actionable message, not server faults.
+            return BadRequest(new { message = ex.Message });
+        }
+    }    /// <summary>
     /// Get the history of all push notifications sent for the current job.
     /// </summary>
     [HttpGet("history")]

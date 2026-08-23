@@ -22,6 +22,9 @@ public class PushNotificationService : IPushNotificationService
     private readonly ILogger<PushNotificationService> _logger;
     private readonly string _staticsBaseUrl;
 
+    /// <summary>Upper bound on a multi-team selection; see SendPushToTeamsAsync.</summary>
+    private const int MaxTeamsPerSend = 50;
+
     public PushNotificationService(
         IPushNotificationRepository repo,
         IFirebasePushService firebasePushService,
@@ -111,7 +114,98 @@ public class PushNotificationService : IPushNotificationService
         return await _repo.GetTeamOptionsWithDeviceCountsAsync(jobId, audience, ct);
     }
 
-    public async Task<List<PushNotificationHistoryDto>> GetNotificationHistoryAsync(
+    public async Task<SendTeamsPushResponse> SendPushToTeamsAsync(
+        Guid jobId, string userId, string pushText, IReadOnlyList<Guid> teamIds,
+        CancellationToken ct = default)
+    {
+        if (teamIds.Count == 0)
+            throw new InvalidOperationException(
+                "Select at least one team, or send to the whole event.");
+
+        // Each team is its own Firebase batch (see below), so an unbounded selection is an
+        // unbounded number of round trips inside one request. Past this, the event-wide send
+        // is the right tool and is a single batch.
+        if (teamIds.Count > MaxTeamsPerSend)
+            throw new InvalidOperationException(
+                $"Select at most {MaxTeamsPerSend} teams at a time, or send to the whole event.");
+
+        var (audience, _) = await ResolveAudienceAsync(jobId, ct);
+
+        if (audience == PushAudience.None)
+            throw new InvalidOperationException(
+                "This job feeds no mobile app, so a push has no audience. Showcase jobs run "
+                + "neither app; other non-scheduling jobs need TSIC-Teams enabled first.");
+
+        var ownedSet = (await _repo.GetOwnedTeamIdsAsync(jobId, teamIds, ct)).ToHashSet();
+        var owned = teamIds.Where(ownedSet.Contains).ToList();
+
+        if (owned.Count == 0)
+            throw new InvalidOperationException(
+                "None of the selected teams belong to this event.");
+
+        var rows = await _repo.GetTeamTokensAsync(jobId, audience, owned, ct);
+        var byTeam = rows
+            .GroupBy(r => r.TeamId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Token).ToList());
+
+        var jobInfo = await _repo.GetJobDisplayInfoAsync(jobId, ct);
+        var jobName = jobInfo?.JobName ?? "TSIC";
+        var jobLogoUrl = jobInfo?.LogoHeader != null
+            ? $"{_staticsBaseUrl}/BannerFiles/{jobInfo.Value.LogoHeader}"
+            : null;
+
+        // One batch per team, over token slices that are mutually exclusive.
+        //
+        // A parent following two of the selected teams must receive ONE notification, not one
+        // per child -- so the first team to claim a token owns it. Slicing this way also keeps
+        // every audit row a real delivered count: send the deduped union as a single batch and
+        // Firebase hands back one total that cannot be attributed to any team, which is how a
+        // per-team row ends up claiming a reach it never had.
+        var claimed = new HashSet<string>(StringComparer.Ordinal);
+        var totalDelivered = 0;
+
+        foreach (var teamId in owned)
+        {
+            var slice = byTeam.TryGetValue(teamId, out var tokens)
+                ? tokens.Where(claimed.Add).ToList()
+                : [];
+
+            var delivered = slice.Count == 0
+                ? 0
+                : await _firebasePushService.SendToDevicesAsync(
+                    audience, slice, jobName, pushText, jobLogoUrl, ct: ct);
+
+            totalDelivered += delivered;
+
+            // A team with nobody following it still gets a row. The director chose it, and
+            // "nobody on this team has the app" is the answer the history grid is asked for.
+            _repo.AddNotificationRecord(new JobPushNotificationsToAll
+            {
+                Id = Guid.NewGuid(),
+                JobId = jobId,
+                TeamId = teamId,
+                LebUserId = userId,
+                PushText = pushText,
+                Modified = DateTime.Now,
+                DeviceCount = delivered
+            });
+        }
+
+        await _repo.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Push notification delivered to {Delivered} {Audience} devices across {Teams} team(s) "
+            + "for job {JobId} by user {UserId}",
+            totalDelivered, audience, owned.Count, jobId, userId);
+
+        return new SendTeamsPushResponse
+        {
+            DeviceCount = totalDelivered,
+            TeamCount = owned.Count,
+            Message = $"Push notification sent to {owned.Count} team(s), "
+                + $"{totalDelivered} device(s)."
+        };
+    }    public async Task<List<PushNotificationHistoryDto>> GetNotificationHistoryAsync(
         Guid jobId, CancellationToken ct = default)
     {
         return await _repo.GetNotificationHistoryAsync(jobId, ct);

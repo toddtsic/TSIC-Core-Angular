@@ -96,3 +96,31 @@ public record PushNotificationReadinessDto
     /// <summary>Job has the TSIC-Teams app turned on (Jobs.bEnableTSICTeams).</summary>
     public required bool TeamsEnabled { get; init; }
 }
+
+/// <summary>
+/// Request to send one push to a chosen set of teams. An empty <see cref="TeamIds"/> is not
+/// "everyone" — the job-wide send has its own endpoint, and treating empty as everyone would
+/// turn a cleared selection into an accidental blast to the whole event.
+/// </summary>
+public record SendTeamsPushRequest
+{
+    public required string PushText { get; init; }
+    public required List<Guid> TeamIds { get; init; }
+}
+
+/// <summary>
+/// Result of a multi-team send.
+/// </summary>
+public record SendTeamsPushResponse
+{
+    /// <summary>
+    /// Devices the push was DELIVERED to, deduped. A parent following two of the selected
+    /// teams is one device here and receives one notification.
+    /// </summary>
+    public required int DeviceCount { get; init; }
+
+    /// <summary>Teams targeted — the number of audit rows this send wrote.</summary>
+    public required int TeamCount { get; init; }
+
+    public required string Message { get; init; }
+}

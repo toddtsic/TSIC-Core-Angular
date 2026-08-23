@@ -112,6 +112,53 @@ public class PushNotificationRepository : IPushNotificationRepository
         ).ToListAsync(ct);
     }
 
+    public async Task<List<(Guid TeamId, string Token)>> GetTeamTokensAsync(
+        Guid jobId, PushAudience audience, IReadOnlyList<Guid> teamIds, CancellationToken ct = default)
+    {
+        if (teamIds.Count == 0) return [];
+
+        // jobId is the security boundary, not a convenience filter. teamIds arrive in the
+        // request body, so without it a director could name any team in any other event and
+        // send an unrecallable push to a club they have no relationship with.
+        var q = _context.DeviceTeams.AsNoTracking()
+            .Where(dt => dt.Team.JobId == jobId
+                && teamIds.Contains(dt.TeamId)
+                && dt.Device.Active
+                && dt.Device.Token != "");
+
+        q = audience switch
+        {
+            PushAudience.Events => q.Where(dt => dt.RegistrationId == null),
+            PushAudience.Teams => q.Where(dt => dt.RegistrationId != null),
+            _ => q.Where(_ => false)
+        };
+
+        // Carrying the team alongside the token is the whole point: the send needs the DEDUPED
+        // union (a parent following two selected teams must not get the push twice), while the
+        // audit needs to attribute per team. One query answers both.
+        var rows = await q
+            .Select(dt => new { dt.TeamId, dt.Device.Token })
+            .Distinct()
+            .ToListAsync(ct);
+
+        return rows.Select(r => (r.TeamId, r.Token)).ToList();
+    }
+
+    public async Task<List<Guid>> GetOwnedTeamIdsAsync(
+        Guid jobId, IReadOnlyList<Guid> teamIds, CancellationToken ct = default)
+    {
+        if (teamIds.Count == 0) return [];
+
+        // Ownership is checked separately from the token query rather than inferred from it.
+        // A team with no subscribers returns no token rows, and treating "no rows" as "not
+        // yours" would silently drop it from the audit -- which is precisely the team a
+        // director most needs to see recorded at zero.
+        return await _context.Teams.AsNoTracking()
+            .Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId))
+            .Select(t => t.TeamId)
+            .ToListAsync(ct);
+    }
+
     public async Task<(int JobTypeId, bool EventsEnabled, bool TeamsEnabled)?> GetJobPushFlagsAsync(
         Guid jobId, CancellationToken ct = default)
     {

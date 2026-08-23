@@ -28,6 +28,14 @@ public interface IPushNotificationService
     Task<int> SendPushToAllAsync(Guid jobId, string userId, string pushText, CancellationToken ct = default);
 
     /// <summary>
+    /// Send one push to a chosen set of teams in the job, writing one audit row per team.
+    /// Team ids are validated against the job. Returns the deduped delivered count.
+    /// </summary>
+    Task<SendTeamsPushResponse> SendPushToTeamsAsync(
+        Guid jobId, string userId, string pushText, IReadOnlyList<Guid> teamIds,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Teams in the job for the audience selector, each with the number of devices a push to
     /// it would reach. Counts are taken against the job's resolved audience.
     /// </summary>
