@@ -16,8 +16,14 @@ import { AfterViewInit, Directive, ElementRef, OnDestroy, Renderer2, inject, inp
  *    edge; dragging right widens it.
  *
  * Width persists per-panel under `storageKey` in localStorage. Double-click the
- * handle to reset to `defaultWidth`. Pointer capture routes move/up back to the
- * handle — no document listeners, no effect(); width is applied imperatively.
+ * handle to reset to the default.
+ *
+ * Opening width is `defaultWidth` px, or — when `[defaultWidthPct]` is set — that
+ * fraction of the viewport, clamped to min/max either way. A stored width always
+ * wins over both, so a new default only reaches users who never dragged the panel.
+ *
+ * Pointer capture routes move/up back to the handle — no document listeners, no
+ * effect(); width is applied imperatively.
  *
  * The handle styling lives in styles/_flyin.scss (`.resize-handle`), and a global
  * `@media (max-width: 767.98px) { [appResizablePanel] { width: 100vw !important } }`
@@ -34,6 +40,8 @@ export class ResizablePanelDirective implements AfterViewInit, OnDestroy {
     storageKey = input.required<string>();
     panelSide = input<'left' | 'right'>('right');
     defaultWidth = input<number>(560);
+    /** Opening width as a fraction of the viewport (0-1). Wins over `defaultWidth` when set. */
+    defaultWidthPct = input<number | null>(null);
     minWidth = input<number>(480);
     maxWidth = input<number>(1100);
 
@@ -97,7 +105,7 @@ export class ResizablePanelDirective implements AfterViewInit, OnDestroy {
     }
 
     private resetWidth(): void {
-        this.width = this.defaultWidth();
+        this.width = this.resolveDefaultWidth();
         this.applyWidth();
         try { localStorage.removeItem(this.storageKey()); } catch { /* ignore */ }
     }
@@ -111,6 +119,15 @@ export class ResizablePanelDirective implements AfterViewInit, OnDestroy {
             const raw = Number(localStorage.getItem(this.storageKey()));
             if (raw && !Number.isNaN(raw)) return this.clampWidth(raw);
         } catch { /* localStorage unavailable — fall through to default */ }
+        return this.resolveDefaultWidth();
+    }
+
+    // A percentage default is resolved against the viewport at init and then clamped,
+    // so minWidth/maxWidth stay the outer contract — a fraction can never open the
+    // panel narrower than the floor or wider than the cap.
+    private resolveDefaultWidth(): number {
+        const pct = this.defaultWidthPct();
+        if (pct !== null && pct > 0) return this.clampWidth(Math.round(window.innerWidth * pct));
         return this.defaultWidth();
     }
 

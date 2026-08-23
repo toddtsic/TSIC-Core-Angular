@@ -85,10 +85,35 @@
   background: transparent;
   transition: background-color 0.15s ease;
 
+  // Persistent grip. The 6px bar alone is invisible until hovered, so nobody
+  // discovers the panel is resizable — AR-016: directors dragged nothing and
+  // read the accounting table at its opening width. The pill is always painted,
+  // centred vertically where a thumb naturally lands, and brightens on hover.
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 4px;
+    height: 44px;
+    border-radius: var(--radius-full);
+    background: var(--bs-border-color);
+    box-shadow: var(--shadow-sm);
+    transition: background-color 0.15s ease, height 0.15s ease;
+  }
+
+  // Dimmed via color-mix, not opacity — opacity on the handle would also fade the
+  // ::after grip, which is the one part that must get MORE visible on hover.
   &:hover,
   .resizing > & {
+    background: color-mix(in srgb, var(--bs-primary) 35%, transparent);
+  }
+
+  &:hover::after,
+  .resizing > &::after {
     background: var(--bs-primary);
-    opacity: 0.35;
+    height: 72px;
   }
 }
 
@@ -100,7 +125,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .resize-handle {
+  .resize-handle,
+  .resize-handle::after {
     transition: none;
   }
 }
@@ -110,6 +136,12 @@
 @media (max-width: 767.98px) {
   [appResizablePanel] {
     width: 100vw !important;
+  }
+
+  // The panel is already full-bleed here, so there is nothing to drag to — the
+  // now-visible grip would be an affordance that does nothing. Hide it.
+  .resize-handle {
+    display: none;
   }
 }
 

@@ -2,7 +2,7 @@
   <div class="detail-backdrop" (click)="close()"></div>
 }
 
-<div class="detail-panel" [class.open]="isOpen()" appResizablePanel storageKey="teamDetailPanelWidth" panelSide="right">
+<div class="detail-panel" [class.open]="isOpen()" appResizablePanel storageKey="teamDetailPanelWidth" panelSide="right" [defaultWidthPct]="0.62" [maxWidth]="1400">
   @if (detail(); as team) {
     <div class="panel-header">
       <div class="header-top-row">
