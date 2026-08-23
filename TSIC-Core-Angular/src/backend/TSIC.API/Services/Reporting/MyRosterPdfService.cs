@@ -88,16 +88,31 @@ public sealed class MyRosterPdfService : IMyRosterPdfService
 
     private sealed record Col(string Header, float Width, PdfTextAlignment Align, bool Wrap, Func<MyRosterPlayerDto, string> Cell);
 
+    // Widths are proportional weights, normalized against the content width at :37-38.
+    // They sum to 734 against a 734.4pt content area, so today they read ~1:1 in points —
+    // but the normalization means raising one column shrinks every other, so a bump is
+    // paid for here rather than taken silently from the whole table.
+    //
+    // Pos was 30f (24pt usable after CellPadX) and clipped every value wider than that:
+    // in Helvetica 8, "midfield" measures 27.6pt and printed as "midfiel", "defense"
+    // 28.5pt as "defens" (AR-004). The widest value actually in the data is "unknown"
+    // at 32.0pt, so Pos is 40f — 34pt usable — and the 10f comes from Contact 2, which
+    // wraps and so absorbs it by growing taller rather than by clipping.
+    //
+    // Pos also wraps now. `position` is free text: alongside the real positions it holds
+    // "still figuring it out" (21 chars), "not yet determined", "not sure yet". Sizing to
+    // those would cost 20pt of table width for ~45 rows; wrapping costs nothing on the
+    // ~590k normal rows and stops the outliers losing characters.
     private static IReadOnlyList<Col> BuildColumns() => new[]
     {
         new Col("#",         26f,  PdfTextAlignment.Center, false, p => CleanUniform(p.UniformNo)),
         new Col("Player",    120f, PdfTextAlignment.Left,   true,  NameCell),
-        new Col("Pos",       30f,  PdfTextAlignment.Center, false, p => (p.Position ?? "").Trim()),
+        new Col("Pos",       40f,  PdfTextAlignment.Center, true,  p => (p.Position ?? "").Trim()),
         new Col("Grad",      34f,  PdfTextAlignment.Center, false, p => p.GradYear?.ToString(CultureInfo.InvariantCulture) ?? ""),
         new Col("Email",     138f, PdfTextAlignment.Left,   true,  p => (p.Email ?? "").Trim()),
         new Col("Phone",     72f,  PdfTextAlignment.Left,   false, p => FormatPhone(p.Cellphone)),
         new Col("Contact 1", 157f, PdfTextAlignment.Left,   true,  p => ContactCell(p.MomFirstName, p.MomLastName, p.MomCellphone, p.MomEmail)),
-        new Col("Contact 2", 157f, PdfTextAlignment.Left,   true,  p => ContactCell(p.DadFirstName, p.DadLastName, p.DadCellphone, p.DadEmail)),
+        new Col("Contact 2", 147f, PdfTextAlignment.Left,   true,  p => ContactCell(p.DadFirstName, p.DadLastName, p.DadCellphone, p.DadEmail)),
     };
 
     // ── Drawing ──
