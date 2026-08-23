@@ -20,7 +20,7 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 > | 1 | **AR-020** 🟡 FIXED 08-22 | Team RegSaver sends the **director's home address** to Vertical Insure as the event location | Unauthorized PII to a third party **and** weather payouts adjudicated against the wrong state. Live, with a real counterparty. |
 > | 2 | **AR-021** 🟡 BUILT 08-23 | **Stay-to-Play admin area was never ported** — no route, no screen, no menu | **Top Threat Tournaments has paid for it and uses it.** Screen built; needs the nav re-seed + a registration for `PellucidAdmin`. |
 > | 3 | **AR-019** ✅ FIXED 08-22 | TSIC-Teams password reset 404d — **client-side legacy URL, not a missing endpoint** | Fixed in the TSIC-TEAMS rewrite (Todd, publishing 08-22). No backend work. |
-> | 4 | **AR-018** | ASL roster board → 2027 rollover + region changes | Seasonal deadline. Two lines of code; the rest is data. |
+> | 4 | **AR-018** 🟢 CODE DONE 08-23 | ASL roster board → 2027 rollover + region changes | **Nothing left to build.** Code shipped `e4c73dc2`; 2027 jobs already exist. **Ball is with ASL** — see the ANSWER FOR ANN in the AR-018 entry. |
 >
 > **AR-020 and AR-021 are both promotion candidates** — neither is really "after release" material.
 
@@ -283,6 +283,31 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 ### AR-018: [ASL Rosters] Carry the roster board forward to 2027, and change the region set (NorCal→Utah, SoCal→New York Capital Region, restore California)
 - **Topic**: public ASL roster board — `teamsportsinfo.com/{jobPath}/aslrosters` (screenshot: `americanselect-mainevent-2026/aslrosters`)
 - **Request (Ann, 08-21)**: 1) bring rosters forward to **2027**; 2) **NorCal → Utah**, **SoCal → New York Capital Region**, and **add back California**.
+
+---
+
+### 📣 ANSWER FOR ANN — AR-018 (08-23)
+
+**Short version: our side is done. The 2027 sites already exist, the region change is already in the code, and the only thing standing between you and a working 2027 board is the teams themselves.**
+
+**1. The region change is built.** Utah and New York Capital Region are now recognised regions, and California was always there. This goes out with the next deploy — nothing for you to do.
+
+**2. The 2027 sites already exist.** They were built back on 08-13. You have `americanselect-utah-2027`, `americanselect-nycapitalregion-2027` and `americanselect-california-2027`, and **there is no NorCal or SoCal 2027 site at all** — so "remove NorCal and SoCal from 2027" is already how it is. **Please do not clone the 2026 site to make 2027** — it already exists, and cloning it would drag NorCal and SoCal back in.
+
+**3. What's left is roster data, and it's ASL's to enter.** The 2027 Main Event site currently has **8 teams — all Connecticut**. The 2026 site has **135**. Until the rest of the 2027 teams are created, the board will only show Connecticut, because the region dropdown is built from whatever teams actually exist. That's Chelsea's/ASL's data entry, not a code change on our end.
+
+**4. ⚠ One thing that will silently break it — please pass this on verbatim.** The board works out a team's region **by reading its name**, so the name has to match exactly. **Use spaces, not a hyphen:**
+
+  - ✅ `ASL:New York Capital Region Blue 2029`
+  - ❌ `ASL:New York-Capital Region Blue 2029`  ← the *site* is named this way, the teams must not be
+  - ✅ `ASL:Utah Black 2029` · ✅ `ASL:California Grey 2030`
+
+  Keep the `ASL:` prefix, and keep the **grad year last**. If a team name doesn't match a known region, it doesn't disappear — it shows up on the board with its **whole team name** where the region should be, which is exactly the mess we're fixing.
+
+**5. A bonus you'll see on 2026.** The two Utah teams already on the **2026** board (`ASL:Utah Black 2028`, `ASL:Utah Grey 2028`) have been showing their full team names instead of "ASL:Utah". That's fixed by the same change. **After the next deploy, check the 2026 board first** — if those two now read "ASL:Utah", the change is live and 2027 will behave the same way as teams get added.
+
+---
+
 - **⚠ This is mostly DATA, not code — and the two halves must land together or the board mislabels itself.**
 
 **1) Forward to 2027 — pure job/data work, no code.**
