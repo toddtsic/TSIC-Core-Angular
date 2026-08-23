@@ -305,13 +305,11 @@ $adminManifest = @(
     (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Widget Editor'     'grid'        'configure/widget-editor'   4 0 0 1)
     (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Job Clone'         'copy'        'configure/job-clone'       5 0 0 1)
     (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Admin Expiry'      'calendar-x'  'tools/admin-expiry'        6 0 0 1)
-    # DEPRECATED 2026-08-16 (de694102) — post-go-live lockdown. The Profile Migration
-    # dashboard bulk-rewrote PlayerProfileMetadataJson across every job carrying a profile
-    # type. Its API endpoints and its Angular route are commented out, and the existing nav
-    # row was set Active = 0 in the live database. Leaving this line here would resurrect
-    # the menu item (Active = 1) on the next re-seed, pointing at a route that no longer
-    # exists. Do not re-enable without restoring the route and the endpoints.
-    # (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Profile Migration' 'arrow-right' 'tools/profile-migration'   7 0 0 1)
+    # Profile Migration: REMOVED 2026-08-23. NEVER RE-ADD.
+    # The tool bulk-rewrote PlayerProfileMetadataJson across every job carrying a profile
+    # type. Running it against live data is destructive. Deprecated post-go-live in
+    # de694102 (route and API endpoints commented out, nav row set Active = 0); the seed
+    # line is now gone so a re-seed cannot resurrect it.
     (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Change Password'   'key'         'tools/change-password'     8 0 0 1)
 )
 
