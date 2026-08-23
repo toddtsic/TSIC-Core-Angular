@@ -52,32 +52,44 @@
   <!-- Send form -->
   <div class="card send-card">
     <div class="card-body">
-      <!-- Audience. Defaults to everyone; picking a team narrows it to that team's
-           subscribers. The whole-job option stays first so the common case is one click. -->
+      <!-- Audience. Leaving it empty sends to everyone, so the common case is no clicks at
+           all; ticking teams narrows it to their subscribers. -->
       @if (teams().length > 0) {
         <label class="form-label fw-medium" id="push-audience-label">Send To</label>
-        <ejs-dropdownlist
+        <ejs-multiselect
           class="mb-3"
           [dataSource]="audienceOptions()"
           [fields]="audienceFields"
-          [value]="selectedTeamId()"
+          [value]="selectedTeamIds()"
+          [mode]="'CheckBox'"
           [allowFiltering]="true"
+          [showDropDownIcon]="true"
+          [closePopupOnSelect]="false"
+          [changeOnBlur]="false"
           [filterBarPlaceholder]="'Type a club or team name...'"
           [popupHeight]="'400px'"
           [enabled]="!isSending()"
+          placeholder="Everyone in this event"
           [htmlAttributes]="{ 'aria-labelledby': 'push-audience-label' }"
           (filtering)="onAudienceFiltering($event)"
-          (change)="onAudienceChange($event)">
-        </ejs-dropdownlist>
+          (change)="onAudienceChange($event.value)">
+        </ejs-multiselect>
 
-        @if (selectedTeamId()) {
+        @if (selectedTeamIds().length > 0) {
           <div class="alert alert-info d-flex align-items-start gap-2 py-2">
             <i class="bi bi-people"></i>
-            <span>Only devices following <strong>{{ selectedTeamName() }}</strong> will receive this.</span>
+            <span>
+              @if (selectedTeamIds().length === 1) {
+                Only devices following <strong>{{ selectedTeamNames()[0] }}</strong> will receive this.
+              } @else {
+                Only devices following these <strong>{{ selectedTeamIds().length }}</strong> teams
+                will receive this &mdash; up to {{ selectedDeviceCeiling() }} device(s). A device
+                following more than one of them gets a single push.
+              }
+            </span>
           </div>
         }
       }
-
       <label for="pushText" class="form-label fw-medium">Push Text</label>
       <textarea
         id="pushText"

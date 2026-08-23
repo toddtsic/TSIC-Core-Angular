@@ -671,6 +671,8 @@ export type { SendConfirmationEmailRequest } from './models/SendConfirmationEmai
 export type { SendPushNotificationRequest } from './models/SendPushNotificationRequest';
 export type { SendPushNotificationResponse } from './models/SendPushNotificationResponse';
 export type { SendTeamPushRequest } from './models/SendTeamPushRequest';
+export type { SendTeamsPushRequest } from './models/SendTeamsPushRequest';
+export type { SendTeamsPushResponse } from './models/SendTeamsPushResponse';
 export type { SetActiveRequest } from './models/SetActiveRequest';
 export type { SetEmailOptOutRequest } from './models/SetEmailOptOutRequest';
 export type { SetWizardContextRequest } from './models/SetWizardContextRequest';

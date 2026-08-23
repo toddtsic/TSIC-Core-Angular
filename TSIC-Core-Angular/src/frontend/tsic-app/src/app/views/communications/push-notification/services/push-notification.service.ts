@@ -8,7 +8,7 @@ import type {
   PushNotificationHistoryDto,
   SendPushNotificationResponse,
   PushTeamOptionDto,
-  TeamPushDto
+  SendTeamsPushResponse
 } from '../../../../core/api';
 
 @Injectable({
@@ -37,14 +37,15 @@ export class PushNotificationService {
   }
 
   /**
-   * Just this team's subscribers. Deliberately the team-management endpoint rather than a
-   * second copy on this controller — that one already owns the cross-job guard and stamps the
-   * team onto the audit row, and two send paths would be two places to drift.
+   * One push to a chosen set of teams. A device following more than one of them receives a
+   * single notification; the backend writes one audit row per team.
+   *
+   * Its own endpoint rather than a loop over the single-team one: N requests would be N audit
+   * transactions and would buzz a parent's phone once per child's team.
    */
-  sendTeamPush(teamId: string, pushText: string): Observable<TeamPushDto> {
-    return this.http.post<TeamPushDto>(
-      `${environment.apiUrl}/teams/${teamId}/pushes`,
-      { pushText, addAllTeams: false });
+  sendTeamsPush(teamIds: string[], pushText: string): Observable<SendTeamsPushResponse> {
+    return this.http.post<SendTeamsPushResponse>(
+      `${this.apiUrl}/send-teams`, { pushText, teamIds });
   }
 
   getHistory(): Observable<PushNotificationHistoryDto[]> {

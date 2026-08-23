@@ -2,9 +2,9 @@ import { Component, ChangeDetectionStrategy, inject, signal, computed, OnInit } 
 import { FormsModule } from '@angular/forms';
 import { Observable, map } from 'rxjs';
 import {
-  DropDownListModule,
+  MultiSelectModule,
+  CheckBoxSelectionService,
   FilteringEventArgs,
-  ChangeEventArgs,
   FieldSettingsModel
 } from '@syncfusion/ej2-angular-dropdowns';
 import { Query } from '@syncfusion/ej2-data';
@@ -29,7 +29,10 @@ const SHOWCASE_JOB_TYPE = 6;
 @Component({
   selector: 'app-push-notification',
   standalone: true,
-  imports: [FormsModule, GridAllModule, DropDownListModule],
+  imports: [FormsModule, GridAllModule, MultiSelectModule],
+  // CheckBox mode is a separate ej2 module feature; without this provider the tick boxes
+  // never render and the control silently degrades to plain multi-select.
+  providers: [CheckBoxSelectionService],
   templateUrl: './push-notification.component.html',
   styleUrl: './push-notification.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -51,28 +54,41 @@ export class PushNotificationComponent implements OnInit {
   /** Teams in this job. Empty until loaded, and empty is a legitimate state. */
   teams = signal<PushTeamOptionDto[]>([]);
 
-  /** '' means the whole job. A team id narrows the send to that team's subscribers. */
-  selectedTeamId = signal<string>('');
+  /**
+   * Teams this send is narrowed to. EMPTY MEANS EVERYONE — the event-wide send is what an
+   * untouched selector does, which is the common case and stays one click.
+   */
+  selectedTeamIds = signal<string[]>([]);
 
-  selectedTeamName = computed(() =>
-    this.teams().find(t => t.teamId === this.selectedTeamId())?.display ?? '');
+  /** Names of the selected teams, in the order the list shows them. */
+  selectedTeamNames = computed(() => {
+    const picked = new Set(this.selectedTeamIds());
+    return this.teams().filter(t => picked.has(t.teamId)).map(t => t.display);
+  });
 
   /**
-   * Dropdown rows: the whole-event option first, then every team. Filtering runs over this
-   * same list, so typing a club name narrows 500+ teams to the handful that matter — the
-   * reason this is a filtering dropdownlist and not a native select.
-   *
-   * Each row carries its subscriber count, so a team nobody has installed the app for reads
-   * as (0 device(s)) before the send rather than after it.
+   * Upper bound on the reach of the current selection. It is a SUM, not a distinct count: a
+   * parent following two selected teams is counted twice here but receives one push, so the
+   * label says "up to" rather than stating a reach the send will not match.
    */
-  audienceOptions = computed(() => [
-    { teamId: '', display: `Everyone in this event (${this.deviceCount()} device(s))` },
-    ...this.teams().map(t => ({
-      teamId: t.teamId,
-      display: `${t.display} (${t.deviceCount} device(s))`
-    }))
-  ]);
+  selectedDeviceCeiling = computed(() => {
+    const picked = new Set(this.selectedTeamIds());
+    return this.teams()
+      .filter(t => picked.has(t.teamId))
+      .reduce((sum, t) => sum + t.deviceCount, 0);
+  });
 
+  /**
+   * Dropdown rows, one per team, each carrying its subscriber count. Filtering runs over this
+   * same list, so typing a club name narrows 500+ teams to the handful that matter — the
+   * reason this is a filtering multiselect and not a native select.
+   *
+   * A team nobody has the app for reads as (0 device(s)) BEFORE the send rather than after.
+   */
+  audienceOptions = computed(() => this.teams().map(t => ({
+    teamId: t.teamId,
+    display: `${t.display} (${t.deviceCount} device(s))`
+  })));
   readonly audienceFields: FieldSettingsModel = { text: 'display', value: 'teamId' };
 
   // Computed
@@ -198,8 +214,9 @@ export class PushNotificationComponent implements OnInit {
     e.updateData(this.audienceOptions(), query);
   }
 
-  onAudienceChange(e: ChangeEventArgs): void {
-    this.selectedTeamId.set((e.value as string) ?? '');
+  onAudienceChange(value: unknown): void {
+    // ej2 hands back null when the last tick is cleared, which is the "everyone" state.
+    this.selectedTeamIds.set(Array.isArray(value) ? (value as string[]) : []);
   }
 
   sendPush(): void {
@@ -210,19 +227,24 @@ export class PushNotificationComponent implements OnInit {
     this.errorMessage.set(null);
     this.successMessage.set(null);
 
-    const teamId = this.selectedTeamId();
+    const teamIds = this.selectedTeamIds();
 
-    // Two endpoints, one button. A team-scoped send goes to the team-management endpoint,
-    // which stamps the team onto the audit row so the history grid can tell the two apart.
-    // Both responses carry deviceCount; narrowing to it here keeps the subscribe monomorphic.
-    const send$: Observable<number> = teamId
-      ? this.pushService.sendTeamPush(teamId, text).pipe(map(r => r.deviceCount))
-      : this.pushService.sendPush(text).pipe(map(r => r.deviceCount));
+    // Two endpoints, one button. A narrowed send goes to send-teams, which stamps each team
+    // onto its own audit row and dedupes across them so a parent following two selected teams
+    // gets ONE notification. Both responses carry deviceCount; widening to a common shape here
+    // keeps the subscribe monomorphic.
+    const send$: Observable<{ deviceCount: number; teamCount: number }> = teamIds.length
+      ? this.pushService.sendTeamsPush(teamIds, text)
+      : this.pushService.sendPush(text).pipe(map(r => ({ deviceCount: r.deviceCount, teamCount: 0 })));
 
     send$.subscribe({
-      next: (count: number) => {
-        const who = teamId ? this.selectedTeamName() : 'everyone in this event';
-        this.successMessage.set(`Sent to ${who} — delivered to ${count} device(s).`);
+      next: (res) => {
+        const who = res.teamCount === 0
+          ? 'everyone in this event'
+          : res.teamCount === 1
+            ? this.selectedTeamNames()[0]
+            : `${res.teamCount} teams`;
+        this.successMessage.set(`Sent to ${who} - delivered to ${res.deviceCount} device(s).`);
         this.pushText.set('');
         this.isSending.set(false);
         this.loadReadiness();
