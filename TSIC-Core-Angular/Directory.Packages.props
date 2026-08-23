@@ -82,5 +82,11 @@
          band (GHSA-cvvh-rhrc-wg4q, -g8r8-53c2-pm3f, -8q5v-6pqq-x66h, -mmjf-rqrv-855v,
          -23rf-6693-g89p) plus the earlier GHSA-37gx-xxp4-5rgx + GHSA-w3x6-4m5h-cxqf. -->
     <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.10" />
+
+    <!-- Transitive pin (arrives via BoldReports.Net.Core, which references SSH.NET for report
+         delivery over SCP/SFTP - a path this app never invokes). 2025.0.0 carries
+         GHSA-q939-rpr3-3284 / CVE-2026-48798: path traversal in ScpClient.Download recursive
+         mode. Fixed in 2026.0.0. -->
+    <PackageVersion Include="SSH.NET" Version="2026.0.0" />
   </ItemGroup>
 </Project>
