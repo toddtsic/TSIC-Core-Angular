@@ -61,9 +61,11 @@ public sealed class TeamManagementService : ITeamManagementService
         };
     }
 
-    public async Task<bool> DeleteLinkAsync(Guid docId, CancellationToken ct = default)
+    public async Task<bool> DeleteLinkAsync(Guid docId, Guid teamId, CancellationToken ct = default)
     {
-        var deleted = await _teamDocsRepo.DeleteTeamLinkAsync(docId, ct);
+        var detail = await _teamRepo.GetTeamDetailAsync(teamId, ct);
+        var jobId = detail?.JobId ?? Guid.Empty;
+        var deleted = await _teamDocsRepo.DeleteTeamLinkAsync(docId, teamId, jobId, ct);
         if (deleted) await _teamDocsRepo.SaveChangesAsync(ct);
         return deleted;
     }

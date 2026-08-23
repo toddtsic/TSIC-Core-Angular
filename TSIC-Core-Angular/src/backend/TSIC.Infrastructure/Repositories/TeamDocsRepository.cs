@@ -52,10 +52,16 @@ public class TeamDocsRepository : ITeamDocsRepository
         return doc;
     }
 
-    public async Task<bool> DeleteTeamLinkAsync(Guid docId, CancellationToken ct = default)
+    public async Task<bool> DeleteTeamLinkAsync(Guid docId, Guid teamId, Guid jobId, CancellationToken ct = default)
     {
         var doc = await _context.TeamDocs.FindAsync([docId], ct);
-        if (doc == null) return false;
+
+        // Mirrors GetTeamLinksAsync ownership exactly: the team own doc, or a job-level
+        // doc (TeamId null) in the team job. Without this, docId alone deletes any
+        // team link -- the route teamId was bound and never used.
+        var owned = doc != null
+            && (doc.TeamId == teamId || (doc.TeamId == null && doc.JobId == jobId));
+        if (!owned) return false;
         _context.TeamDocs.Remove(doc);
         return true;
     }

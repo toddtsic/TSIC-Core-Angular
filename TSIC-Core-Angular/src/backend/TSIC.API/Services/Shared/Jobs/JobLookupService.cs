@@ -6,15 +6,18 @@ public class JobLookupService : IJobLookupService
 {
     private readonly IJobRepository _jobRepo;
     private readonly IRegistrationRepository _registrationRepo;
+    private readonly ITeamRepository _teamRepo;
     private readonly ILogger<JobLookupService> _logger;
 
     public JobLookupService(
         IJobRepository jobRepo,
         IRegistrationRepository registrationRepo,
+        ITeamRepository teamRepo,
         ILogger<JobLookupService> logger)
     {
         _jobRepo = jobRepo;
         _registrationRepo = registrationRepo;
+        _teamRepo = teamRepo;
         _logger = logger;
     }
 
@@ -27,6 +30,11 @@ public class JobLookupService : IJobLookupService
     {
         var registration = await _registrationRepo.GetByIdAsync(registrationId);
         return registration?.JobId;
+    }
+
+    public async Task<Guid?> GetJobIdByTeamAsync(Guid teamId, CancellationToken ct = default)
+    {
+        return await _teamRepo.GetTeamJobIdAsync(teamId, ct);
     }
 
     public async Task<bool> IsPlayerRegistrationActiveAsync(Guid jobId)

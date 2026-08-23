@@ -29,12 +29,41 @@ public class TeamManagementController : ControllerBase
         _jobLookupService = jobLookupService;
     }
 
+    /// <summary>
+    /// Rejects a teamId belonging to another job. Explicit and per-action by design --
+    /// nothing in the API scopes by job ambiently (JobPathMatchRequirement is wired into
+    /// no policy and abstains on routes without a jobPath segment), so every action that
+    /// takes teamId off the route must say so itself. Superuser exempt, matching
+    /// JobConfigController and JobVisibilityController.
+    /// </summary>
+    private async Task<ActionResult?> DenyIfCrossJob(Guid teamId, CancellationToken ct)
+    {
+        if (User.IsInRole(RoleConstants.Names.SuperuserName)) return null;
+
+        var callerJobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        var teamJobId = await _jobLookupService.GetJobIdByTeamAsync(teamId, ct);
+
+        // Fail closed: unresolvable caller job (phase-1 token, no regId) or unknown team.
+        if (callerJobId == null || teamJobId == null || callerJobId.Value != teamJobId.Value)
+            return StatusCode(StatusCodes.Status403Forbidden, new ProblemDetails
+            {
+                Status = StatusCodes.Status403Forbidden,
+                Type = "TeamJobMismatch",
+                Title = "Team Access Denied",
+                Detail = "This team belongs to a different event than the one you are logged into."
+            });
+
+        return null;
+    }
+
     // ── Roster ──
 
     [HttpGet("roster")]
     [ProducesResponseType(typeof(TeamRosterDetailDto), 200)]
     public async Task<IActionResult> GetRoster(Guid teamId, CancellationToken ct)
     {
+        if (await DenyIfCrossJob(teamId, ct) is { } d) return d;
+
         var roster = await _teamService.GetRosterAsync(teamId, ct);
         return Ok(roster);
     }
@@ -45,6 +74,8 @@ public class TeamManagementController : ControllerBase
     [ProducesResponseType(typeof(List<TeamLinkDto>), 200)]
     public async Task<IActionResult> GetLinks(Guid teamId, CancellationToken ct)
     {
+        if (await DenyIfCrossJob(teamId, ct) is { } d) return d;
+
         var links = await _teamService.GetLinksAsync(teamId, ct);
         return Ok(links);
     }
@@ -55,6 +86,8 @@ public class TeamManagementController : ControllerBase
     public async Task<IActionResult> AddLink(
         Guid teamId, [FromBody] AddTeamLinkRequest request, CancellationToken ct)
     {
+        if (await DenyIfCrossJob(teamId, ct) is { } d) return d;
+
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
         var link = await _teamService.AddLinkAsync(teamId, userId, request, ct);
         return CreatedAtAction(nameof(GetLinks), new { teamId }, link);
@@ -65,7 +98,9 @@ public class TeamManagementController : ControllerBase
     [ProducesResponseType(404)]
     public async Task<IActionResult> DeleteLink(Guid teamId, Guid docId, CancellationToken ct)
     {
-        var deleted = await _teamService.DeleteLinkAsync(docId, ct);
+        if (await DenyIfCrossJob(teamId, ct) is { } d) return d;
+
+        var deleted = await _teamService.DeleteLinkAsync(docId, teamId, ct);
         return deleted ? Ok() : NotFound();
     }
 
@@ -75,6 +110,8 @@ public class TeamManagementController : ControllerBase
     [ProducesResponseType(typeof(List<TeamPushDto>), 200)]
     public async Task<IActionResult> GetPushes(Guid teamId, CancellationToken ct)
     {
+        if (await DenyIfCrossJob(teamId, ct) is { } d) return d;
+
         var pushes = await _teamService.GetPushesAsync(teamId, ct);
         return Ok(pushes);
     }
@@ -92,6 +129,11 @@ public class TeamManagementController : ControllerBase
     public async Task<IActionResult> SendPush(
         Guid teamId, [FromBody] SendTeamPushRequest request, CancellationToken ct)
     {
+        // Redundant with the service-level check below, deliberately. The controller guard
+        // keeps this action uniform with the other five; the service keeps the invariant at
+        // the write chokepoint for any future caller that bypasses this controller.
+        if (await DenyIfCrossJob(teamId, ct) is { } d) return d;
+
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
         var callerJobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         var isSuperuser = User.IsInRole(RoleConstants.Names.SuperuserName);

@@ -2,7 +2,10 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TSIC.Contracts.Dtos;
+using TSIC.API.Extensions;
+using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Constants;
 
 namespace TSIC.API.Controllers;
 
@@ -16,10 +19,38 @@ namespace TSIC.API.Controllers;
 public class TeamChatController : ControllerBase
 {
     private readonly IChatRepository _chatRepo;
+    private readonly IJobLookupService _jobLookupService;
 
-    public TeamChatController(IChatRepository chatRepo)
+    public TeamChatController(IChatRepository chatRepo, IJobLookupService jobLookupService)
     {
         _chatRepo = chatRepo;
+        _jobLookupService = jobLookupService;
+    }
+
+    /// <summary>
+    /// Rejects a teamId belonging to another job. Explicit per-action -- nothing scopes by
+    /// job ambiently in this API. Superuser exempt.
+    ///
+    /// NOTE: this closes CROSS-JOB reads only. It does NOT stop a user reading another
+    /// team's chat inside their own job -- that needs a membership rule and is not fixed here.
+    /// </summary>
+    private async Task<ActionResult?> DenyIfCrossJob(Guid teamId, CancellationToken ct)
+    {
+        if (User.IsInRole(RoleConstants.Names.SuperuserName)) return null;
+
+        var callerJobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        var teamJobId = await _jobLookupService.GetJobIdByTeamAsync(teamId, ct);
+
+        if (callerJobId == null || teamJobId == null || callerJobId.Value != teamJobId.Value)
+            return StatusCode(StatusCodes.Status403Forbidden, new ProblemDetails
+            {
+                Status = StatusCodes.Status403Forbidden,
+                Type = "TeamJobMismatch",
+                Title = "Team Access Denied",
+                Detail = "This team belongs to a different event than the one you are logged into."
+            });
+
+        return null;
     }
 
     /// <summary>
@@ -30,6 +61,8 @@ public class TeamChatController : ControllerBase
     public async Task<IActionResult> GetMessages(
         Guid teamId, [FromBody] GetChatMessagesRequest request, CancellationToken ct)
     {
+        if (await DenyIfCrossJob(teamId, ct) is { } d) return d;
+
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
         var skip = (request.PageNumber - 1) * request.RowsPerPage;
         var take = request.RowsPerPage;
