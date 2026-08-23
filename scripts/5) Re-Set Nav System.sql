@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-08-23 10:41:38 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-08-23 10:54:31 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -54,6 +54,7 @@ DECLARE @SuperUser NVARCHAR(450) = 'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9';
 DECLARE @RefAssignor NVARCHAR(450) = '122075A3-2C42-4092-97F1-9673DF5B6A2C';
 DECLARE @StoreAdmin NVARCHAR(450) = '5B9B7055-4530-4E46-B403-1019FD8B8418';
 DECLARE @ApiAuthorized NVARCHAR(450) = '114C0272-57CD-4308-B653-79A43C547B63';
+DECLARE @StpAdmin NVARCHAR(450) = 'CE2CB370-5880-4624-A43E-048379C64331';
 
 -- -- 3. Preserve reporting items + visibility rules ----------------------
 DECLARE @cnt INT;
@@ -107,7 +108,8 @@ INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES (@SuperUser
 INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES (@RefAssignor, NULL, 1, GETDATE());
 INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES (@StoreAdmin, NULL, 1, GETDATE());
 INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES (@ApiAuthorized, NULL, 1, GETDATE());
-PRINT 'Inserted 6 Nav records';
+INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES (@StpAdmin, NULL, 1, GETDATE());
+PRINT 'Inserted 7 Nav records';
 
 -- -- 6. Admin manifest (Director / SuperDirector / SuperUser) -----------
 IF OBJECT_ID('tempdb..#AdminManifest') IS NOT NULL DROP TABLE #AdminManifest;
@@ -314,6 +316,12 @@ PRINT 'StoreAdmin: Store Admin';
 SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @ApiAuthorized AND JobId IS NULL;
 INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, NULL, 1, 1, N'Authorized Rosters and Schedule Export', N'file-earmark-arrow-down', N'reporting/ThirdPartyRosterExport', GETDATE());
 PRINT 'ApiAuthorized: Authorized Rosters and Schedule Export';
+
+-- -- 10. StpAdmin -------------------------------------------------------
+-- STPAdmin: Stay-to-Play Club Reps
+SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @StpAdmin AND JobId IS NULL;
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, NULL, 1, 1, N'Stay-to-Play Club Reps', N'buildings', N'stp/club-reps', GETDATE());
+PRINT 'STPAdmin: Stay-to-Play Club Reps';
 
 -- -- 13. Restore preserved reporting items ------------------------------
 SELECT @cnt = COUNT(*) FROM #ReportingItems;

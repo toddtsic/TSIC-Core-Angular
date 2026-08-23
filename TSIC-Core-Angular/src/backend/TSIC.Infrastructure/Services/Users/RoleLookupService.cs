@@ -87,6 +87,15 @@ public class RoleLookupService : IRoleLookupService
             model.Add(new RegistrationRoleDto { RoleName = "ApiAuthorized", RoleRegistrations = lApiAuthorizedRoles });
         }
 
+        // Stay-to-Play vendor logins. Same rule as ApiAuthorized above: this string is the
+        // DB role name, not a display label — SelectRegistration mints the JWT role claim
+        // from it and the role-menu lookup matches it against AspNetRoles.Name.
+        var lStpAdminRoles = await _registrationRepo.GetStpAdminRegistrationsAsync(userId);
+        if (lStpAdminRoles.Count > 0)
+        {
+            model.Add(new RegistrationRoleDto { RoleName = "STPAdmin", RoleRegistrations = lStpAdminRoles });
+        }
+
         return model;
     }
 }

@@ -1,0 +1,67 @@
+<div class="stp-page">
+    <div class="page-header">
+        <h2 class="page-title">
+            <i class="bi bi-buildings page-title-icon"></i>
+            Stay-to-Play Club Reps
+        </h2>
+        <p class="page-subtitle">
+            @if (jobName()) {
+                Club reps registered for <strong>{{ jobName() }}</strong>, largest travelling
+                clubs first. <strong>{{ totalActiveTeams() }}</strong> active teams in total.
+            } @else {
+                Club reps registered for this event, largest travelling clubs first.
+            }
+            Use <strong>Excel Export</strong> to take the list away.
+        </p>
+    </div>
+
+    @if (errorMessage()) {
+        <section class="result-panel result-panel--danger" role="alert">
+            <i class="bi bi-exclamation-triangle-fill result-panel__icon" aria-hidden="true"></i>
+            <div class="result-panel__body">
+                <h4 class="result-panel__title">Could not complete</h4>
+                <p class="result-panel__desc">{{ errorMessage() }}</p>
+            </div>
+        </section>
+    }
+
+    @if (isLoading()) {
+        <div class="text-center py-4">
+            <span class="spinner-border spinner-border-sm text-primary me-2"></span>
+            <span class="text-muted">Loading...</span>
+        </div>
+    } @else if (!rows().length && !errorMessage()) {
+        <section class="result-panel result-panel--empty">
+            <i class="bi bi-info-circle result-panel__icon" aria-hidden="true"></i>
+            <div class="result-panel__body">
+                <h4 class="result-panel__title">No club reps yet</h4>
+                <p class="result-panel__desc">
+                    No club has registered a rep for this event. Reps appear here as clubs sign up.
+                </p>
+            </div>
+        </section>
+    } @else {
+        <ejs-grid width="100%" #grid
+            [dataSource]="rows()"
+            cssClass="tsic-grid-tight"
+            [allowExcelExport]="true"
+            [allowSorting]="true"
+            [allowTextWrap]="true"
+            [toolbar]="toolbar"
+            (toolbarClick)="onToolbarClick($event)">
+            <e-columns>
+                <e-column field="registrationId" headerText="Id" [isPrimaryKey]="true" [visible]="false"></e-column>
+                <e-column field="clubName" headerText="Club" width="200" clipMode="EllipsisWithTooltip"></e-column>
+                <e-column field="zipCode" headerText="Zip" width="90"></e-column>
+                <e-column field="activeTeamCount" headerText="Active" width="90" textAlign="Right" format="N0"></e-column>
+                <e-column field="waitlistedTeamCount" headerText="Waitlisted" width="105" textAlign="Right" format="N0"></e-column>
+                <e-column field="droppedTeamCount" headerText="Dropped" width="100" textAlign="Right" format="N0"></e-column>
+                <e-column field="firstName" headerText="First" width="120" clipMode="EllipsisWithTooltip"></e-column>
+                <e-column field="lastName" headerText="Last" width="130" clipMode="EllipsisWithTooltip"></e-column>
+                <e-column field="email" headerText="Email" width="220" clipMode="EllipsisWithTooltip"></e-column>
+                <e-column field="cellphone" headerText="Cell" width="120"></e-column>
+                <e-column field="registeredOn" headerText="Registered" width="120" type="date" format="yyyy-MM-dd"></e-column>
+            </e-columns>
+        </ejs-grid>
+    }
+</div>

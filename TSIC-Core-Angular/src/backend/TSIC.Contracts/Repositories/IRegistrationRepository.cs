@@ -4,6 +4,7 @@ using TSIC.Contracts.Dtos.Mobile;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
+using TSIC.Contracts.Dtos.Stp;
 using TSIC.Contracts.Dtos.ThirdPartyAccess;
 using TSIC.Contracts.Dtos.UsLax;
 using TSIC.Domain.Entities;
@@ -149,6 +150,17 @@ public interface IRegistrationRepository
     /// Get ApiAuthorized (third-party export) role registrations for a user
     /// </summary>
     Task<List<RegistrationDto>> GetApiAuthorizedRegistrationsAsync(string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get STPAdmin (Stay-to-Play vendor) role registrations for a user
+    /// </summary>
+    Task<List<RegistrationDto>> GetStpAdminRegistrationsAsync(string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Every active club rep on one job with their team counts, for the Stay-to-Play
+    /// club rep screen. Ordered the way the legacy grid was: biggest travelling clubs first.
+    /// </summary>
+    Task<List<StpClubRepDto>> GetStpClubRepsForJobAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// The active Scorer registration this user holds for ONE job, or null. Unlike the

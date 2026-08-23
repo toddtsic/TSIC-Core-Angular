@@ -701,6 +701,7 @@ export type { StoreSizeDto } from './models/StoreSizeDto';
 export type { StoreSkuDto } from './models/StoreSkuDto';
 export type { StoreWalkUpRegisterRequest } from './models/StoreWalkUpRegisterRequest';
 export type { StoreWalkUpRegisterResponse } from './models/StoreWalkUpRegisterResponse';
+export type { StpClubRepDto } from './models/StpClubRepDto';
 export type { Stream } from './models/Stream';
 export type { StringSegment } from './models/StringSegment';
 export type { SubmitByCheckRejectionDto } from './models/SubmitByCheckRejectionDto';
@@ -716,6 +717,8 @@ export type { SuppressionRemoveResultDto } from './models/SuppressionRemoveResul
 export type { SwapDeviceTokenRequest } from './models/SwapDeviceTokenRequest';
 export type { SwapperPlayerDto } from './models/SwapperPlayerDto';
 export type { SwapperPoolOptionDto } from './models/SwapperPoolOptionDto';
+export type { SyncDeviceRequest } from './models/SyncDeviceRequest';
+export type { SyncDeviceResponse } from './models/SyncDeviceResponse';
 export type { TeamArbTrialPaymentRequestDto } from './models/TeamArbTrialPaymentRequestDto';
 export type { TeamArbTrialPaymentResponseDto } from './models/TeamArbTrialPaymentResponseDto';
 export type { TeamArbTrialResultDto } from './models/TeamArbTrialResultDto';

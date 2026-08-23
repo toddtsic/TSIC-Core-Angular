@@ -58,6 +58,7 @@ $roleGuids = [ordered]@{
     RefAssignor     = '122075A3-2C42-4092-97F1-9673DF5B6A2C'
     StoreAdmin      = '5B9B7055-4530-4E46-B403-1019FD8B8418'
     ApiAuthorized   = '114C0272-57CD-4308-B653-79A43C547B63'
+    StpAdmin        = 'CE2CB370-5880-4624-A43E-048379C64331'
 }
 
 # -- Admin manifest ------------------------------------------------------
@@ -344,6 +345,14 @@ $storeAdminMenu = @(
 # the reporting.JobReports row + agegroup release flags — the menu is just the door.
 $apiAuthorizedMenu = @(
     (New-Leaf 1 'Authorized Rosters and Schedule Export' 'file-earmark-arrow-down' 'reporting/ThirdPartyRosterExport')
+)
+
+# Stay-to-Play housing vendor logins. ONE top-level leaf, and unlike ApiAuthorized this
+# one IS a screen: the grid shows the club reps and its own Excel toolbar button does the
+# transfer. Legacy's batch-email half is not ported (Todd 2026-08-23 — Stay-to-Play is a
+# data transfer to a third party, not a mailing service we run for them).
+$stpAdminMenu = @(
+    (New-Leaf 1 'Stay-to-Play Club Reps' 'buildings' 'stp/club-reps')
 )
 
 # -- Emit T-SQL ----------------------------------------------------------
@@ -743,6 +752,9 @@ Emit-RoleMenu $sql 'StoreAdmin' $storeAdminMenu 'StoreAdmin: Store Admin'
 
 [void]$sql.AppendLine("-- -- 9. ApiAuthorized ---------------------------------------------------")
 Emit-RoleMenu $sql 'ApiAuthorized' $apiAuthorizedMenu 'ApiAuthorized: Authorized Rosters and Schedule Export'
+
+[void]$sql.AppendLine("-- -- 10. StpAdmin -------------------------------------------------------")
+Emit-RoleMenu $sql 'StpAdmin' $stpAdminMenu 'STPAdmin: Stay-to-Play Club Reps'
 
 # 13. Restore reporting items
 [void]$sql.AppendLine("-- -- 13. Restore preserved reporting items ------------------------------")

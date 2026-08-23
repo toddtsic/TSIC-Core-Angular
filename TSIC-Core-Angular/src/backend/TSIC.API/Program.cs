@@ -395,6 +395,7 @@ builder.Services.AddScoped<IGameBoardsPdfService, GameBoardsPdfService>();
 builder.Services.AddScoped<IShowcaseScheduleReportService, ShowcaseScheduleReportService>();
 builder.Services.AddScoped<IClubRosterPdfService, ClubRosterPdfService>();
 builder.Services.AddScoped<IThirdPartyRosterExportService, ThirdPartyRosterExportService>();
+builder.Services.AddScoped<IStpService, TSIC.API.Services.Stp.StpService>();
 builder.Services.AddHttpClient("CrystalReports");
 // Email (Amazon SES only)
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
@@ -630,6 +631,18 @@ builder.Services.AddAuthorization(options =>
             RoleConstants.Names.DirectorName,
             RoleConstants.Names.SuperDirectorName,
             RoleConstants.Names.ApiAuthorizedName));
+
+    // Stay-to-Play club rep screen. NARROW, like CanRunThirdPartyExport above — applied to
+    // the STP endpoints ONLY. STPAdmin is a third-party housing vendor and must never gain
+    // the AdminOnly surface. Directors are included because legacy's "STPAdmin" policy
+    // admitted them (Superuser, Director, STPAdmin) and the event's own director has every
+    // reason to see who is travelling; SuperDirector follows the other policies here.
+    options.AddPolicy("CanViewStpClubReps", policy =>
+        policy.RequireClaim(System.Security.Claims.ClaimTypes.Role,
+            RoleConstants.Names.SuperuserName,
+            RoleConstants.Names.DirectorName,
+            RoleConstants.Names.SuperDirectorName,
+            RoleConstants.Names.StpAdminName));
 
     // Roles that may enter game scores: admin roles + event-day Scorer.
     // Capability-named (like CanCrossCustomerJobs); same name as the legacy CanScore policy.

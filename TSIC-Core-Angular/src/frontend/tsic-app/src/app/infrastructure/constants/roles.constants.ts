@@ -12,7 +12,9 @@ export const Roles = {
     UnassignedAdult: 'Unassigned Adult',
     ClubRep: 'Club Rep',
     /** Vendor export logins (Authorized Rosters and Schedule Export) — nav-served, NOT an admin. */
-    ApiAuthorized: 'ApiAuthorized'
+    ApiAuthorized: 'ApiAuthorized',
+    /** Stay-to-Play housing vendor logins — nav-served, NOT an admin. */
+    StpAdmin: 'STPAdmin'
 } as const;
 
 /**
@@ -22,7 +24,7 @@ export const Roles = {
  */
 export const NAV_SERVED_ROLES: ReadonlySet<string> = new Set([
     Roles.Superuser, Roles.Director, Roles.SuperDirector,
-    Roles.RefAssignor, Roles.StoreAdmin, Roles.ApiAuthorized
+    Roles.RefAssignor, Roles.StoreAdmin, Roles.ApiAuthorized, Roles.StpAdmin
 ]);
 
 /**
@@ -32,7 +34,8 @@ export const NAV_SERVED_ROLES: ReadonlySet<string> = new Set([
  * never in the wire value.
  */
 const ROLE_DISPLAY_OVERRIDES: Readonly<Record<string, string>> = {
-    [Roles.ApiAuthorized]: '3rd Party Access'
+    [Roles.ApiAuthorized]: '3rd Party Access',
+    [Roles.StpAdmin]: 'Stay-to-Play'
 };
 
 /** Friendly label for a role name; falls back to the wire value. */

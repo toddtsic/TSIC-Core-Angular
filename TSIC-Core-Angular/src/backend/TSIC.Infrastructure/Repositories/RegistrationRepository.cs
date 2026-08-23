@@ -8,6 +8,7 @@ using TSIC.Contracts.Dtos.Mobile;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
+using TSIC.Contracts.Dtos.Stp;
 using TSIC.Contracts.Dtos.ThirdPartyAccess;
 using TSIC.Contracts.Dtos.UsLax;
 using TSIC.Contracts.Extensions;
@@ -474,6 +475,81 @@ public class RegistrationRepository : IRegistrationRepository
                 JobPath = j.JobPath
             }
         ).AsNoTracking().ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<RegistrationDto>> GetStpAdminRegistrationsAsync(
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        // Stay-to-Play vendor logins: same ExpiryUsers door as the other narrow admin
+        // pickers (StoreAdmin, RefAssignor, ApiAuthorized). A housing vendor's access
+        // should never outlive the event season.
+        return await (
+            from r in _context.Registrations
+            join role in _context.AspNetRoles on r.RoleId equals role.Id
+            join j in _context.Jobs on r.JobId equals j.JobId
+            join jdo in _context.JobDisplayOptions on j.JobId equals jdo.JobId
+            where
+                (r.UserId == userId)
+                && (r.BActive == true)
+                && DateTime.Now < j.ExpiryUsers
+                && r.RoleId == RoleConstants.StpAdmin
+            orderby j.JobName
+            select new RegistrationDto
+            {
+                RegId = r.RegistrationId.ToString(),
+                DisplayText = j.JobName ?? string.Empty,
+                JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                JobPath = j.JobPath
+            }
+        ).AsNoTracking().ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<StpClubRepDto>> GetStpClubRepsForJobAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // Ports legacy STPClubRepsController.GetClubReps. Team counts hang off
+        // Teams.ClubrepRegistrationid and are bucketed by agegroup name — EF cannot
+        // translate AgegroupConstants.IsSystemBucket, so the Contains checks are spelled
+        // out here against the same constants (see that type's remarks).
+        return await (
+            from r in _context.Registrations
+            join j in _context.Jobs on r.JobId equals j.JobId
+            where
+                r.JobId == jobId
+                && r.BActive == true
+                && r.RoleId == RoleConstants.ClubRep
+            select new StpClubRepDto
+            {
+                RegistrationId = r.RegistrationId,
+                ClubName = r.ClubName ?? string.Empty,
+                FirstName = r.User != null ? r.User.FirstName ?? string.Empty : string.Empty,
+                LastName = r.User != null ? r.User.LastName ?? string.Empty : string.Empty,
+                Email = r.User != null ? r.User.Email ?? string.Empty : string.Empty,
+                Cellphone = r.User != null ? r.User.Cellphone ?? string.Empty : string.Empty,
+                ZipCode = r.User != null ? r.User.PostalCode ?? string.Empty : string.Empty,
+                ActiveTeamCount = _context.Teams.Count(t =>
+                    t.ClubrepRegistrationid == r.RegistrationId
+                    && t.Active == true
+                    && !t.Agegroup.AgegroupName.Contains(AgegroupConstants.WaitlistPrefix)
+                    && !t.Agegroup.AgegroupName.Contains(AgegroupConstants.DroppedTeams)),
+                WaitlistedTeamCount = _context.Teams.Count(t =>
+                    t.ClubrepRegistrationid == r.RegistrationId
+                    && t.Agegroup.AgegroupName.Contains(AgegroupConstants.WaitlistPrefix)),
+                DroppedTeamCount = _context.Teams.Count(t =>
+                    t.ClubrepRegistrationid == r.RegistrationId
+                    && t.Agegroup.AgegroupName.Contains(AgegroupConstants.DroppedTeams)),
+                RegisteredOn = r.RegistrationTs,
+                JobName = j.JobName ?? string.Empty
+            }
+        )
+        .OrderByDescending(x => x.ActiveTeamCount)
+        .ThenByDescending(x => x.WaitlistedTeamCount)
+        .ThenByDescending(x => x.DroppedTeamCount)
+        .ThenBy(x => x.ClubName)
+        .AsNoTracking()
+        .ToListAsync(cancellationToken);
     }
 
     // ── "3rd Party Data Access" console (SU + SuperDirector vendor-login management) ──
