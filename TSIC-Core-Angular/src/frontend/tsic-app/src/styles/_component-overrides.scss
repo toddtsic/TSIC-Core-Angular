@@ -261,14 +261,19 @@
     margin-bottom: var(--space-1);
   }
 
+  // Deliberately NO `color` on strong/em (AR-017). A rule matching the emphasis
+  // tag directly beats a colour INHERITED from its wrapper — whichever way the
+  // wrapper got it, an inline `style` or a .bl-c-* class. Authors colour the
+  // wrapping <span> and bold the text inside it, so a blanket colour here
+  // silently discarded every coloured bold run in the corpus. Uncoloured
+  // emphasis still inherits --brand-text from .bulletin-body itself, so nothing
+  // that renders correctly today moves.
   strong {
     font-weight: var(--font-weight-semibold);
-    color: var(--brand-text);
   }
 
   em {
     font-style: italic;
-    color: var(--brand-text);
   }
 
   a {
