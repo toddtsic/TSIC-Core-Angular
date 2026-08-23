@@ -28,6 +28,12 @@ public interface IPushNotificationService
     Task<int> SendPushToAllAsync(Guid jobId, string userId, string pushText, CancellationToken ct = default);
 
     /// <summary>
+    /// Teams in the job for the audience selector, each with the number of devices a push to
+    /// it would reach. Counts are taken against the job's resolved audience.
+    /// </summary>
+    Task<List<PushTeamOptionDto>> GetTeamOptionsAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
     /// Audit trail of all push notifications sent for a job, newest first.
     /// </summary>
     Task<List<PushNotificationHistoryDto>> GetNotificationHistoryAsync(Guid jobId, CancellationToken ct = default);

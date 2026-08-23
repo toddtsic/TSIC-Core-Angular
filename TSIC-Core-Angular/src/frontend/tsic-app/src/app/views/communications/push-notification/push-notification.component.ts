@@ -13,7 +13,7 @@ import { PushNotificationService } from './services/push-notification.service';
 import type {
   PushNotificationHistoryDto,
   PushNotificationReadinessDto,
-  TeamLinkTeamOptionDto
+  PushTeamOptionDto
 } from '../../../core/api';
 
 /** A single unmet delivery condition, rendered as an alert above the send form. */
@@ -49,7 +49,7 @@ export class PushNotificationComponent implements OnInit {
   history = signal<PushNotificationHistoryDto[]>([]);
 
   /** Teams in this job. Empty until loaded, and empty is a legitimate state. */
-  teams = signal<TeamLinkTeamOptionDto[]>([]);
+  teams = signal<PushTeamOptionDto[]>([]);
 
   /** '' means the whole job. A team id narrows the send to that team's subscribers. */
   selectedTeamId = signal<string>('');
@@ -61,10 +61,16 @@ export class PushNotificationComponent implements OnInit {
    * Dropdown rows: the whole-event option first, then every team. Filtering runs over this
    * same list, so typing a club name narrows 500+ teams to the handful that matter — the
    * reason this is a filtering dropdownlist and not a native select.
+   *
+   * Each row carries its subscriber count, so a team nobody has installed the app for reads
+   * as (0 device(s)) before the send rather than after it.
    */
   audienceOptions = computed(() => [
     { teamId: '', display: `Everyone in this event (${this.deviceCount()} device(s))` },
-    ...this.teams()
+    ...this.teams().map(t => ({
+      teamId: t.teamId,
+      display: `${t.display} (${t.deviceCount} device(s))`
+    }))
   ]);
 
   readonly audienceFields: FieldSettingsModel = { text: 'display', value: 'teamId' };

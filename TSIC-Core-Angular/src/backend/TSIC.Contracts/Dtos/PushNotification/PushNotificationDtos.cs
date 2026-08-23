@@ -17,6 +17,21 @@ public record PushNotificationDeviceCountDto
 }
 
 /// <summary>
+/// One team in the audience selector, with how many devices a push to it would actually reach.
+///
+/// The count is audience-specific: for a TSIC-Teams job it counts app subscriptions
+/// (Device_Teams rows carrying a RegistrationId), for a TSIC-Events job it counts favourites
+/// (rows without one). Teams with zero are still listed — "this team has nobody following it"
+/// is information a director needs, and hiding the row only makes it look missing.
+/// </summary>
+public record PushTeamOptionDto
+{
+    public required Guid TeamId { get; init; }
+    public required string Display { get; init; }
+    public required int DeviceCount { get; init; }
+}
+
+/// <summary>
 /// Audit trail row for a previously sent push notification.
 /// </summary>
 public record PushNotificationHistoryDto

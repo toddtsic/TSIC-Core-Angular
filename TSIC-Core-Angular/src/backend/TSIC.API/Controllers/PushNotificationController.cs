@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Dtos.PushNotification;
-using TSIC.Contracts.Dtos.TeamLink;
 using TSIC.Contracts.Services;
 
 namespace TSIC.API.Controllers;
@@ -20,16 +19,13 @@ public class PushNotificationController : ControllerBase
 {
     private readonly IPushNotificationService _service;
     private readonly IJobLookupService _jobLookupService;
-    private readonly ITeamLinkService _teamLinkService;
 
     public PushNotificationController(
         IPushNotificationService service,
-        IJobLookupService jobLookupService,
-        ITeamLinkService teamLinkService)
+        IJobLookupService jobLookupService)
     {
         _service = service;
         _jobLookupService = jobLookupService;
-        _teamLinkService = teamLinkService;
     }
 
     /// <summary>
@@ -70,22 +66,24 @@ public class PushNotificationController : ControllerBase
 
 
     /// <summary>
-    /// Teams in the current job, for the screen's audience selector. Choosing one narrows the
-    /// send to that team's subscribers via POST api/teams/{teamId}/pushes; the default is the
-    /// whole job. Delegates to the team-link service rather than repeating the query — same
-    /// job-scoped "active teams" list, one definition.
+    /// Teams in the current job for the audience selector, each with the number of devices a
+    /// push to it would reach. Choosing one narrows the send to that team's subscribers via
+    /// POST api/teams/{teamId}/pushes; the default is the whole job.
+    ///
+    /// Its own query rather than the team-link list, because the count is audience-specific —
+    /// the same table holds both apps' subscriptions and only RegistrationId tells them apart.
     /// </summary>
     [HttpGet("available-teams")]
-    [ProducesResponseType(typeof(List<TeamLinkTeamOptionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(List<PushTeamOptionDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<List<TeamLinkTeamOptionDto>>> GetAvailableTeams(
+    public async Task<ActionResult<List<PushTeamOptionDto>>> GetAvailableTeams(
         CancellationToken ct)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null)
             return BadRequest(new { message = "Registration context required." });
 
-        return Ok(await _teamLinkService.GetAvailableTeamsAsync(jobId.Value, ct));
+        return Ok(await _service.GetTeamOptionsAsync(jobId.Value, ct));
     }
 
     /// <summary>

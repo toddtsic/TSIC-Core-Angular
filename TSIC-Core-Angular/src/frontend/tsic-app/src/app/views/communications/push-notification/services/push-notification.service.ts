@@ -7,7 +7,7 @@ import type {
   PushNotificationReadinessDto,
   PushNotificationHistoryDto,
   SendPushNotificationResponse,
-  TeamLinkTeamOptionDto,
+  PushTeamOptionDto,
   TeamPushDto
 } from '../../../../core/api';
 
@@ -27,8 +27,8 @@ export class PushNotificationService {
   }
 
   /** Teams in this job, for the audience selector. */
-  availableTeams(): Observable<TeamLinkTeamOptionDto[]> {
-    return this.http.get<TeamLinkTeamOptionDto[]>(`${this.apiUrl}/available-teams`);
+  availableTeams(): Observable<PushTeamOptionDto[]> {
+    return this.http.get<PushTeamOptionDto[]>(`${this.apiUrl}/available-teams`);
   }
 
   /** Everyone this job's mobile app reaches. */

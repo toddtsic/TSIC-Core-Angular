@@ -1,6 +1,7 @@
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.PushNotification;
 using TSIC.Domain.Entities;
+using TSIC.Domain.JobRules;
 
 namespace TSIC.Contracts.Repositories;
 
@@ -31,6 +32,14 @@ public interface IPushNotificationRepository
     /// active devices. The TSIC-Teams broadcast pool.
     /// </summary>
     Task<List<string>> GetTeamsDeviceTokensForJobAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Teams in the job for the audience selector, each with the number of devices a push to
+    /// it would reach. Counts follow <paramref name="audience"/>, because the two apps' rows
+    /// live in the same table and are told apart by RegistrationId.
+    /// </summary>
+    Task<List<PushTeamOptionDto>> GetTeamOptionsWithDeviceCountsAsync(
+        Guid jobId, PushAudience audience, CancellationToken ct = default);
 
     /// <summary>
     /// What decides which mobile app, if either, this job feeds: its job type plus the

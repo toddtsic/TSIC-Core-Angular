@@ -101,6 +101,16 @@ public class PushNotificationService : IPushNotificationService
         return deviceCount;
     }
 
+    public async Task<List<PushTeamOptionDto>> GetTeamOptionsAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        // The audience decides which app's subscriptions to count, so it is resolved here
+        // rather than left to the caller — a count taken against the wrong app would promise
+        // a reach the send cannot deliver.
+        var (audience, _) = await ResolveAudienceAsync(jobId, ct);
+        return await _repo.GetTeamOptionsWithDeviceCountsAsync(jobId, audience, ct);
+    }
+
     public async Task<List<PushNotificationHistoryDto>> GetNotificationHistoryAsync(
         Guid jobId, CancellationToken ct = default)
     {
