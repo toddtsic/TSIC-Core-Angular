@@ -39,3 +39,19 @@ export function normalizeLop(value: string | null | undefined): string {
     if (!leadingInt) return '';
     return LOP_CHOICES.some(c => c.value === leadingInt[1]) ? leadingInt[1] : '';
 }
+
+/**
+ * LOP for DISPLAY — strip a numbered value's trailing modifier, pass anything else through
+ * unchanged: '5 (strongest)' → '5', 'Recreational' → 'Recreational'.
+ *
+ * Distinct from `normalizeLop`, and the difference is the point: this one never hides a value.
+ * `normalizeLop` answers "which pill is selected?" and returns '' for off-scale junk so a control
+ * forces a real pick; `formatLop` answers "what does this row read as?", where blanking a legacy
+ * value would silently lose data the user can see in the database. Read-only surfaces want this
+ * one; editors want the other.
+ */
+export function formatLop(value: string | null | undefined): string {
+    if (!value) return '';
+    const match = value.match(/^\s*(\d+)/);
+    return match ? match[1] : value;
+}

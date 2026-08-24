@@ -3,6 +3,7 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import { GridRowNumbersDirective } from '@shared-ui/directives/grid-row-numbers.directive';
 import type { RegisteredTeamDto } from '@core/api';
+import { formatLop } from '@shared/teams/lop-choices';
 
 /**
  * Reusable registered-teams summary grid.
@@ -526,15 +527,10 @@ export class RegisteredTeamsGridComponent {
     }
 
     /**
-     * LOP display: strip parenthetical/textual modifier from a numbered value.
-     * "5 (strongest)" → "5"; "Recreational" → "Recreational" (passthrough).
-     * Full string is preserved on the cell as a tooltip via [attr.title].
+     * LOP display — the shared rule. Full string is preserved on the cell as a tooltip via
+     * [attr.title], so the compact digit never costs the reader the original value.
      */
-    formatLop(lop: string | null | undefined): string {
-        if (!lop) return '';
-        const match = lop.match(/^\s*(\d+)/);
-        return match ? match[1] : lop;
-    }
+    readonly formatLop = formatLop;
 
     // Aggregates
     readonly sumFee = computed(() => this.teams().reduce((s, t) => s + t.deposit + t.balanceDue, 0));

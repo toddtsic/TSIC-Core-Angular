@@ -5,5 +5,6 @@
 export type RenameRegisteredTeamRequest = {
     teamName: string;
     alsoRenameLibrary?: boolean;
+    levelOfPlay?: string | null;
 };
 

@@ -140,8 +140,11 @@ export class TeamRegistrationService {
      * Teams grid pencil. Other events never change. `alsoRenameLibrary` additionally writes the
      * rep's own club-team library entry — their explicit tick, never implied.
      */
-    renameRegisteredTeam(teamId: string, teamName: string, alsoRenameLibrary = false): Observable<void> {
-        const body: RenameRegisteredTeamRequest = { teamName, alsoRenameLibrary };
+    renameRegisteredTeam(
+        teamId: string, teamName: string, alsoRenameLibrary = false,
+        levelOfPlay: string | null = null,
+    ): Observable<void> {
+        const body: RenameRegisteredTeamRequest = { teamName, alsoRenameLibrary, levelOfPlay };
         return this.http.put<void>(`${this.apiUrl}/teams/${teamId}/rename`, body, { context: skipErrorToast() });
     }
 

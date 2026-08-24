@@ -1,8 +1,8 @@
 import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, HostListener, OnChanges, OnDestroy, SimpleChanges, computed, input, output, signal, viewChild } from '@angular/core';
 import type { AgeGroupDto, ClubTeamDto, RegisteredTeamDto } from '@core/api';
 import { environment } from '@environments/environment';
-import { normalizeLop } from '@shared/teams/lop-choices';
-import { LevelOfPlayPickerComponent } from './level-of-play-picker.component';
+import { formatLop, normalizeLop } from '@shared/teams/lop-choices';
+import { LevelOfPlayPickerComponent } from '@shared/teams/level-of-play-picker.component';
 import { EventAgeGroupPickerComponent } from './event-age-group-picker.component';
 import { isTeamOfferedAtEvent, resolveOldestOfferedGradYear, resolveRecommendedAgeGroupId } from './event-age-group.util';
 import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
@@ -2536,15 +2536,8 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
         return this.enteredTeams().get(clubTeamId);
     }
 
-    /**
-     * LOP display: strip parenthetical/textual modifier from a numbered value.
-     * "5 (strongest)" → "5"; "Recreational" → "Recreational" (passthrough).
-     */
-    formatLop(lop: string | null | undefined): string {
-        if (!lop) return '';
-        const match = lop.match(/^\s*(\d+)/);
-        return match ? match[1] : lop;
-    }
+    /** LOP display — the shared rule, so this surface can never drift from the grid's. */
+    readonly formatLop = formatLop;
 
     onClose(): void {
         this.closed.emit();

@@ -919,7 +919,8 @@ public class TeamRegistrationService : ITeamRegistrationService
     }
 
     public async Task RenameRegisteredTeamAsync(
-        Guid teamId, Guid regId, string userId, string newName, bool alsoRenameLibrary = false)
+        Guid teamId, Guid regId, string userId, string newName, bool alsoRenameLibrary = false,
+        string? levelOfPlay = null)
     {
         // Ownership is the rep's registration for this event: the token's regId must be the caller's
         // own ClubRep registration, and the team must hang off it (that is exactly the set the
@@ -944,7 +945,12 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("Rename the primary team — its WAITLIST twin follows automatically.");
 
         var eventNameChanged = !string.Equals(team.TeamName, name, StringComparison.Ordinal);
-        if (!eventNameChanged && !alsoRenameLibrary) return;
+        // AR-030: the LOP-only edit is the NORMAL case from the dialog (rep fixes the level, leaves
+        // the name alone). Without it in this guard the method would return here and report success
+        // having written nothing.
+        var lopChanged = levelOfPlay != null
+            && !string.Equals(team.LevelOfPlay, levelOfPlay, StringComparison.Ordinal);
+        if (!eventNameChanged && !alsoRenameLibrary && !lopChanged) return;
 
         // The library half FIRST when both were asked for: it is the half that can refuse (identity
         // collision), and a refusal must leave nothing written. Reversing this order would rename the
@@ -957,9 +963,21 @@ public class TeamRegistrationService : ITeamRegistrationService
         if (eventNameChanged)
             await _teamRename.RenameTeamAsync(teamId, team.JobId, name, userId);
 
+        // LOP (AR-030) — a plain column write on THIS job's row. Deliberately NOT through
+        // ITeamRenameService: that chokepoint exists to carry a name onto the WAITLIST twin and the
+        // schedule, and LOP appears on neither. The twin's level is not written for the same reason
+        // it is not displayed — the twin is a placeholder, not a squad. Never reaches ClubTeams.
+        if (lopChanged)
+        {
+            team.LevelOfPlay = levelOfPlay;
+            team.LebUserId = userId;
+            team.Modified = DateTime.Now;
+            await _teams.SaveChangesAsync();
+        }
+
         _logger.LogInformation(
-            "Club rep {UserId} renamed team {TeamId} to '{Name}' for job {JobId} (library too: {AlsoLibrary})",
-            userId, teamId, name, team.JobId, alsoRenameLibrary);
+            "Club rep {UserId} renamed team {TeamId} to '{Name}' for job {JobId} (library too: {AlsoLibrary}, LOP: {Lop})",
+            userId, teamId, name, team.JobId, alsoRenameLibrary, lopChanged ? levelOfPlay : "unchanged");
     }
 
     public async Task RenameClubTeamNameAsync(

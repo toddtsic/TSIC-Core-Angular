@@ -236,6 +236,8 @@ type PendingRename =
         [libraryName]="renameLibraryName(renaming)"
         [registeredHere]="renameRegisteredHere(renaming)"
         [canRenameInEvent]="canEditTeam()"
+        [showLevelOfPlay]="renaming.origin === 'event'"
+        [levelOfPlay]="renameLevelOfPlay(renaming)"
         [errorMessage]="renameError()"
         [busy]="actionInProgress()"
         (confirmed)="confirmRename($event)"
@@ -897,6 +899,15 @@ export class TeamTeamsStepComponent implements OnInit {
         return p.origin === 'event' ? p.team.teamName : p.team.clubTeamName;
     }
 
+    /**
+     * This event's stored LOP for the dialog (AR-030) — the registered row's, never the library's.
+     * Null at library origin: the dialog doesn't offer the field there, and handing it the club
+     * level would seed an event control from the wrong side.
+     */
+    renameLevelOfPlay(p: PendingRename): string | null {
+        return p.origin === 'event' ? (p.team.levelOfPlay ?? null) : null;
+    }
+
     /** Library name — looked up from the library the step already holds; null for an orphan. */
     renameLibraryName(p: PendingRename): string | null {
         if (p.origin === 'library') return p.team.clubTeamName;
@@ -918,8 +929,10 @@ export class TeamTeamsStepComponent implements OnInit {
         this.renameError.set(null);
         this.actionInProgress.set(true);
 
+        // LOP rides the event call only (AR-030, THIS EVENT ONLY). The library call has no LOP
+        // parameter by design — its level is locked once the team has been scheduled.
         const call$ = pending.origin === 'event'
-            ? this.teamReg.renameRegisteredTeam(pending.team.teamId, c.name, c.alsoPropagate)
+            ? this.teamReg.renameRegisteredTeam(pending.team.teamId, c.name, c.alsoPropagate, c.levelOfPlay)
             : this.teamReg.renameClubTeam(pending.team.clubTeamId, c.name, c.alsoPropagate);
 
         const oldName = pending.origin === 'event' ? pending.team.teamName : pending.team.clubTeamName;
@@ -927,12 +940,20 @@ export class TeamTeamsStepComponent implements OnInit {
             ? (c.alsoPropagate ? 'in this event and your Club Team Library' : 'in this event')
             : (c.alsoPropagate ? 'in your Club Team Library and this event' : 'in your Club Team Library');
 
+        // AR-030: an LOP-only edit leaves the name alone, and "X is now X in this event." reads as a
+        // no-op the rep will not trust. Report what actually moved.
+        const nameChanged = oldName !== c.name;
+        const message = nameChanged
+            ? `${oldName} is now ${c.name} ${where}.`
+                + (c.levelOfPlay ? ` Level of play set to ${c.levelOfPlay} for this event.` : '')
+            : `${oldName}: level of play set to ${c.levelOfPlay} for this event.`;
+
         call$.pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: () => {
                     this.closeRename();
                     this.loadTeamsMetadata(false, () =>
-                        this.toast.show(`${oldName} is now ${c.name} ${where}.`, 'success', 3000));
+                        this.toast.show(message, 'success', 3000));
                 },
                 error: (err: unknown) => {
                     this.actionInProgress.set(false);

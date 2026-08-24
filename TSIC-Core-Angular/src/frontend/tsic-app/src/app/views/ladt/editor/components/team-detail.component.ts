@@ -10,6 +10,7 @@ import { FeeCardComponent, modifierDateError, type AncestorPhase, type ModifierF
 import { ConfirmDialogComponent } from '../../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { RepriceConfirmComponent } from './reprice-confirm.component';
 import { CloneTeamDialogComponent } from './clone-team-dialog.component';
+import { LOP_CHOICES } from '@shared/teams/lop-choices';
 import { JobService } from '../../../../infrastructure/services/job.service';
 import type { TeamDetailDto, UpdateTeamRequest, ClubRegistrationDto, MoveTeamToClubRequest, JobFeeDto } from '../../../../core/api';
 import { RoleIds } from '@infrastructure/constants/roles.constants';
@@ -257,13 +258,14 @@ const JOB_TYPE_TOURNAMENT = 2;
             </div>
             <div style="min-width: 120px;">
               <label class="fee-label">Level of Play</label>
+              <!-- Options come from LOP_CHOICES, not a hand-kept list: this select and the pill
+                   picker are the same vocabulary, and a fifth copy is how '5 (strongest)' ends up
+                   reading differently on two screens. -->
               <select class="form-select form-select-sm" [(ngModel)]="form.levelOfPlay" name="levelOfPlay" (ngModelChange)="onSettingsChange()">
                 <option [ngValue]="null">—</option>
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5">5 (strongest)</option>
+                @for (c of lopChoices; track c.value) {
+                  <option [value]="c.value">{{ c.label }}</option>
+                }
               </select>
             </div>
           </div>
@@ -376,6 +378,8 @@ const JOB_TYPE_TOURNAMENT = 2;
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
+  /** The one LOP vocabulary — shared with the pill picker and the rename dialog. */
+  readonly lopChoices = LOP_CHOICES;
   readonly teamId = input.required<string>();
   /** Phase resolved from the tiers above this team (agegroup → league → job), per role — drives
    *  the fee cards' "Currently: … — set at X level" line under the "Use age group setting" radio. */

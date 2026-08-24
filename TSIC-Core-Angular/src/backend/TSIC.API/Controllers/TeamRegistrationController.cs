@@ -406,6 +406,9 @@ public class TeamRegistrationController : ControllerBase
     /// pencil. Other events never change. The caller's own club library changes only if they ticked
     /// "update my team list too" (<see cref="RenameRegisteredTeamRequest.AlsoRenameLibrary"/>);
     /// a rep may write their own list from here, a director has no such door at all.
+    /// Also sets this event's Level of Play (AR-030) when
+    /// <see cref="RenameRegisteredTeamRequest.LevelOfPlay"/> is supplied — THIS EVENT ONLY, never
+    /// the club library. The route keeps its /rename name: same row, same pencil, same permission.
     /// Gated by the director's per-event "Allow Edit" toggle.
     /// </summary>
     [HttpPut("teams/{teamId:guid}/rename")]
@@ -436,7 +439,7 @@ public class TeamRegistrationController : ControllerBase
         try
         {
             await _teamRegistrationService.RenameRegisteredTeamAsync(
-                teamId, regId, userId, request.TeamName, request.AlsoRenameLibrary);
+                teamId, regId, userId, request.TeamName, request.AlsoRenameLibrary, request.LevelOfPlay);
             return Ok(new { Success = true });
         }
         catch (UnauthorizedAccessException ex)

@@ -5,7 +5,7 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
 import type { ClubTeamDto } from '@core/api';
-import { LevelOfPlayPickerComponent } from '@views/registration/team/components/level-of-play-picker.component';
+import { LevelOfPlayPickerComponent } from '@shared/teams/level-of-play-picker.component';
 
 /**
  * Modal for adding a new ClubTeam to the club library, or editing an existing one

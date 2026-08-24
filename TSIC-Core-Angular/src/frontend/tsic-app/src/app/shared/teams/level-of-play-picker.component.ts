@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, input, model } from '@angular/core';
-import { LOP_CHOICES } from '@shared/teams/lop-choices';
+import { LOP_CHOICES } from './lop-choices';
 
 /**
  * Level-of-Play picker — the canonical fixed 1–5 pill row, sourced from

@@ -165,6 +165,12 @@ public sealed record RenameRegisteredTeamRequest
     /// Also write this name to the club-team library entry (future registrations seed from it).
     /// Other events are never touched either way.
     public bool AlsoRenameLibrary { get; init; }
+
+    /// This event's Level of Play — canonical '1'..'5' (AR-030). NULL means "leave it alone", which
+    /// is what every caller predating this field sends. THIS EVENT ONLY: unlike the name, LOP never
+    /// reaches the club library, whatever <see cref="AlsoRenameLibrary"/> says — the library's
+    /// ClubTeamLevelOfPlay seeds future registrations and is already locked once a team is scheduled.
+    public string? LevelOfPlay { get; init; }
 }
 
 public class RenameRegisteredTeamRequestValidator : AbstractValidator<RenameRegisteredTeamRequest>
@@ -181,6 +187,15 @@ public class RenameRegisteredTeamRequestValidator : AbstractValidator<RenameRegi
         RuleFor(x => x.TeamName)
             .MaximumLength(80).WithMessage("Team name cannot exceed 80 characters when also updating your team list")
             .When(x => x.AlsoRenameLibrary);
+
+        // LOP is the fixed 1–5 scale, NOT a job's freeform List_Lops (which historically held junk
+        // like "10 players" / "competitive"). NULL is "unchanged" and skips the rule entirely, so
+        // pre-AR-030 callers are unaffected; an explicit value must be on-scale or we would write
+        // new junk into a column the whole point of this scale is to keep clean.
+        RuleFor(x => x.LevelOfPlay)
+            .Must(v => v is "1" or "2" or "3" or "4" or "5")
+            .WithMessage("Level of play must be 1 through 5")
+            .When(x => x.LevelOfPlay is not null);
     }
 }
 

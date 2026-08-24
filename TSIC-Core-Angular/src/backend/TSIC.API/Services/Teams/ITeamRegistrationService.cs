@@ -88,8 +88,12 @@ public interface ITeamRegistrationService
     /// <paramref name="alsoRenameLibrary"/> additionally writes the club-team library entry — the
     /// rep's explicit "update my team list too" tick, and the only way an event door touches a
     /// library. Other events are never affected either way.
+    /// <paramref name="levelOfPlay"/> (AR-030) sets this event's Teams.LevelOfPlay — a plain column
+    /// write, NOT routed through ITeamRenameService (LOP has no WAITLIST twin and no schedule to
+    /// carry). NULL leaves it untouched. It never reaches the club library, even when
+    /// <paramref name="alsoRenameLibrary"/> is set: THIS EVENT ONLY, by ruling.
     /// </summary>
-    Task RenameRegisteredTeamAsync(Guid teamId, Guid regId, string userId, string newName, bool alsoRenameLibrary = false);
+    Task RenameRegisteredTeamAsync(Guid teamId, Guid regId, string userId, string newName, bool alsoRenameLibrary = false, string? levelOfPlay = null);
 
     /// <summary>
     /// Rename a club-team LIBRARY entry the caller reps — the pick list future registrations seed

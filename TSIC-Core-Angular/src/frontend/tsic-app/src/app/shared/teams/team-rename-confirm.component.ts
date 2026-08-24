@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
+import { LevelOfPlayPickerComponent } from '@shared/teams/level-of-play-picker.component';
+import { normalizeLop } from '@shared/teams/lop-choices';
 
 /** Who is reading — a rep owns both places a name lives; an admin owns only the event. */
 export type TeamRenameAudience = 'admin' | 'rep';
@@ -17,6 +19,12 @@ export interface TeamRenameConfirmation {
     name: string;
     /** Rep ticked the carry-across box. Always false for an admin — they have no second side. */
     alsoPropagate: boolean;
+    /**
+     * This event's Level of Play, '1'..'5' — AR-030. **NULL means "unchanged"**, which is what every
+     * surface that doesn't offer the field emits. Deliberately NOT covered by `alsoPropagate`: LOP is
+     * THIS EVENT ONLY (Todd, 2026-08-24), and the club library's level is locked once scheduled.
+     */
+    levelOfPlay: string | null;
 }
 
 /** Sentinel default for `eventLabel`: generic prose, so no event name is shown as a scope line. */
@@ -48,7 +56,7 @@ const UNNAMED_EVENT = 'this event';
 @Component({
     selector: 'team-rename-confirm',
     standalone: true,
-    imports: [FormsModule, TsicDialogComponent],
+    imports: [FormsModule, TsicDialogComponent, LevelOfPlayPickerComponent],
     template: `
         <tsic-dialog [open]="true" size="sm" (requestClose)="cancelled.emit()">
             <div class="modal-content">
@@ -103,6 +111,22 @@ const UNNAMED_EVENT = 'this event';
                             <p class="name-card-note">
                                 What appears on this event's schedules, brackets, standings and rosters.
                             </p>
+                        }
+
+                        <!-- Level of Play (AR-030). Inside the EVENT card on purpose: it is this
+                             event's value and it is not offered to the library, so putting it
+                             anywhere else would re-open a scope question that is already settled. -->
+                        @if (showLevelOfPlay() && registeredHere()) {
+                            <div class="lop-field">
+                                <span class="lop-field-label">Level of Play</span>
+                                <app-level-of-play-picker
+                                    [fill]="true"
+                                    [selected]="lopDraft()"
+                                    (selectedChange)="lopDraft.set($event)" />
+                                <p class="name-card-note">
+                                    This event only — your Club Team Library keeps the level it has now.
+                                </p>
+                            </div>
                         }
 
                         <!-- Carry a library rename across into this event. -->
@@ -209,6 +233,24 @@ const UNNAMED_EVENT = 'this event';
         .rename-error > i { color: var(--bs-danger); }
 
         .rename-body { display: flex; flex-direction: column; gap: var(--space-3); }
+
+        /* Level of Play (AR-030) — a labelled sub-block of the event card, separated by a rule so
+           it reads as a second field rather than more prose about the name. */
+        .lop-field {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+            padding-top: var(--space-2);
+            border-top: 1px solid var(--brand-border);
+        }
+
+        .lop-field-label {
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-semibold);
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            color: var(--brand-text-muted);
+        }
 
         .rename-lede {
             margin: 0;
@@ -351,11 +393,40 @@ export class TeamRenameConfirmComponent {
     /** Call in flight — freeze both buttons so a second click cannot double-submit. */
     readonly busy = input(false);
 
+    /**
+     * Offer this event's Level of Play alongside the name (AR-030). OFF by default: only the
+     * Registered Teams pencil passes it. Event origin only — the library never edits LOP here.
+     */
+    readonly showLevelOfPlay = input(false);
+    /** The team's stored LOP. Freeform legacy values are tolerated and coerced by `normalizeLop`. */
+    readonly levelOfPlay = input<string | null>(null);
+
     readonly confirmed = output<TeamRenameConfirmation>();
     readonly cancelled = output<void>();
 
     /** In-dialog draft, reseeded only when the `newName` input changes. */
     readonly draft = linkedSignal({ source: this.newName, computation: (v) => v });
+
+    /**
+     * LOP draft. Seeded through `normalizeLop`, so a legacy off-scale value ('competitive',
+     * '10 players') shows as NO pill selected rather than silently presenting junk as a valid
+     * choice — the rep then has to make a real pick, which is how the column gets cleaned.
+     */
+    readonly lopDraft = linkedSignal({
+        source: this.levelOfPlay,
+        computation: (v) => normalizeLop(v),
+    });
+
+    /** The stored level, on-scale — what "changed" is measured against. */
+    readonly lopBaseline = computed(() => normalizeLop(this.levelOfPlay()));
+
+    /**
+     * A real LOP edit. Blank draft is never a change: the picker has no clear affordance, so ''
+     * only ever means "the stored value was off-scale and they haven't picked yet" — writing that
+     * back would erase a level nobody asked to erase.
+     */
+    readonly lopChanged = computed(() =>
+        this.showLevelOfPlay() && this.lopDraft().length > 0 && this.lopDraft() !== this.lopBaseline());
 
     readonly effectiveNewName = computed(() => (this.editable() ? this.draft() : this.newName()).trim());
 
@@ -430,10 +501,15 @@ export class TeamRenameConfirmComponent {
         if (n.length === 0) return false;
         if (n !== this.baselineName()) return true;
         // Name unchanged on this side, but ticking the box still has work to do on the other.
-        return this.propagateEffective();
+        // LOP too (AR-030) — changing only the level is the ordinary use of this dialog now, and
+        // leaving it out of this gate would grey out Save for exactly that case.
+        return this.propagateEffective() || this.lopChanged();
     });
 
     readonly title = computed(() => {
+        // With the LOP field on, the dialog does more than rename, so a "Rename…" title would be a
+        // lie for the commonest use of it. 'reset' still wins — it names a specific act.
+        if (this.showLevelOfPlay() && this.mode() !== 'reset') return 'Edit Team for This Event';
         // 'reset' is a rep-facing idea — it names the library. An admin can no longer see that name,
         // so for them the act is simply a rename of this event, whatever string they happened to type.
         if (this.audience() === 'admin') return 'Rename for This Event';
@@ -485,6 +561,11 @@ export class TeamRenameConfirmComponent {
     });
 
     readonly confirmLabel = computed(() => {
+        // Name untouched and only the level moved — the commonest AR-030 edit. Naming the act keeps
+        // the button honest; a "Rename…" button that renames nothing is how a rep loses trust in it.
+        const nameChanged = this.effectiveNewName() !== this.baselineName();
+        if (this.lopChanged() && !nameChanged && !this.propagateEffective()) return 'Save Level of Play';
+        if (this.lopChanged() && nameChanged) return 'Save Changes';
         if (this.audience() === 'admin') return 'Rename for This Event';
         if (this.propagateEffective()) return 'Rename in Both';
         if (this.origin() === 'library') return 'Rename in Library';
@@ -493,6 +574,12 @@ export class TeamRenameConfirmComponent {
 
     submit(): void {
         if (!this.canSubmit()) return;
-        this.confirmed.emit({ name: this.effectiveNewName(), alsoPropagate: this.propagateEffective() });
+        this.confirmed.emit({
+            name: this.effectiveNewName(),
+            alsoPropagate: this.propagateEffective(),
+            // NULL, not the current value, when nothing changed — the server reads null as
+            // "leave it alone", so an unchanged level never becomes a write.
+            levelOfPlay: this.lopChanged() ? this.lopDraft() : null,
+        });
     }
 }

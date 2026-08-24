@@ -5,7 +5,7 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
 import type { AgeGroupDto } from '@core/api';
-import { LevelOfPlayPickerComponent } from '@views/registration/team/components/level-of-play-picker.component';
+import { LevelOfPlayPickerComponent } from '@shared/teams/level-of-play-picker.component';
 import { EventAgeGroupPickerComponent } from '@views/registration/team/components/event-age-group-picker.component';
 import { resolveRecommendedAgeGroupId } from '@views/registration/team/components/event-age-group.util';
 
