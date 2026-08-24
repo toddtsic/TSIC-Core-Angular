@@ -255,6 +255,38 @@
     }
   }
 
+  /* Compact menu mockup — for a menu illustration sitting INSIDE an accordion answer,
+     where full-size rows read as FAQ headings at a glance (Ann, 08-24). Constrained like
+     .help-form-preview so it reads as an inset illustration, not page structure.
+     The full-size .help-menu-list is unchanged — pages using it as a primary element
+     (role-selection, schedule-hub, job-clone, …) are untouched. */
+  .help-menu-list--compact {
+    gap: var(--space-1);
+    max-width: 360px;
+
+    .help-menu-row {
+      gap: var(--space-2);
+      padding: var(--space-1) var(--space-3);
+
+      > i {
+        font-size: 1rem;
+      }
+
+      .help-menu-row__title {
+        font-size: var(--font-size-sm, 0.875rem);
+        font-weight: var(--font-weight-medium, 500);
+      }
+
+      .help-menu-row__sub {
+        font-size: var(--font-size-xs, 0.75rem);
+      }
+
+      .badge {
+        font-size: 0.7rem;
+      }
+    }
+  }
+
   /* ── Form-field mockup (e.g. the login screen) ──────────────────────────── */
   .help-form-preview {
     max-width: 340px;
