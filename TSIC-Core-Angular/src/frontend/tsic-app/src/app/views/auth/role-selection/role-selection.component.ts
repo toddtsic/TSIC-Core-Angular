@@ -106,30 +106,53 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
   }
 
   @ViewChildren(DropDownListComponent) readonly dropdowns!: QueryList<DropDownListComponent>;
-  private _openedOnce = false;
+  private _primedOnce = false;
 
   ngAfterViewInit(): void {
-    this.tryOpenFirstDropdown();
-    this.dropdowns.changes.subscribe(() => this.tryOpenFirstDropdown());
+    this.tryPrimeLastDropdown();
+    this.dropdowns.changes.subscribe(() => this.tryPrimeLastDropdown());
   }
 
-  private tryOpenFirstDropdown(): void {
-    if (this._openedOnce) return;
-    // Skip auto-open on mobile — Syncfusion opens a full-screen overlay on touch devices
+  /**
+   * Land the user on the typeahead they are most likely to use, so they can start
+   * typing without hunting for a control first.
+   *
+   * Two behaviours, because opening and focusing are not the same thing:
+   *
+   * - **One group** → `showPopup()`. The SuperUser/director "one giant list" case.
+   *   There is nothing else on the page for the popup to cover, so showing the list
+   *   immediately is pure help.
+   * - **More than one group** (e.g. SuperDirector + Director) → `focusIn()` only.
+   *   The caret lands in the LAST section — the lower-privileged one, which is the
+   *   more common target — and typing filters from there. Focus alone leaves the
+   *   other sections visible, which is what `showPopup()` got wrong here: an
+   *   auto-opened popup covered the rest of the page before the user had seen it,
+   *   and that is why multi-group auto-open was removed in `21023d1b`. Focusing
+   *   restores the intent of `dd408b4e` without reintroducing that problem.
+   *
+   * Cards mode is never primed — those entries are already on screen. Mobile is
+   * skipped entirely: Syncfusion opens a full-screen overlay on touch devices, and
+   * focus alone would summon the on-screen keyboard over the page.
+   */
+  private tryPrimeLastDropdown(): void {
+    if (this._primedOnce) return;
     if (window.innerWidth < 768) return;
-    // Auto-open ONLY when the page holds exactly one role group in typeahead
-    // mode (the SuperUser/director "one giant list" case — land and start
-    // typing). With multiple groups, an auto-opened popup covers the other
-    // sections before the user has seen what's on the page, so we leave it
-    // closed and let them orient first. Cards mode never auto-opens — the
-    // entries are already visible.
-    const groups = this.registrations();
-    if (groups.length !== 1 || !this.useTypeaheadMode()) return;
+    if (!this.useTypeaheadMode()) return;
+
     const last = this.dropdowns?.last;
-    if (last) {
-      this._openedOnce = true;
-      setTimeout(() => { try { last.showPopup(); } catch { /* no-op */ } }, 0);
-    }
+    if (!last) return;
+
+    const single = this.registrations().length === 1;
+    this._primedOnce = true;
+    setTimeout(() => {
+      try {
+        if (single) {
+          last.showPopup();
+        } else {
+          last.focusIn();
+        }
+      } catch { /* no-op */ }
+    }, 0);
   }
 
   public onFiltering(e: FilteringEventArgs, roleGroup: any): void {
