@@ -15,6 +15,14 @@
     The proc had no definition in source control; this file banks it. Body below is the
     live definition as of 2026-08-23 with the one-line change applied, converted
     CREATE -> CREATE OR ALTER.
+
+    AR-029 (2026-08-24): removed a stray `select convert(varchar, @thisYear)` that sat
+    between the sheet-name marker and the data. It emitted an unnamed single-column
+    result set, which the Excel exporter took as the sheet's column definition — so the
+    real column names were discarded and the report exported with NO headings. The
+    remaining `insert into @listAllowedYears select convert(varchar, @thisYear)` is the
+    legitimate use of @thisYear and is untouched. Applied live (staging + prod, one
+    shared DB) by Todd on 2026-08-24.
 */
 
 /*
@@ -36,7 +44,6 @@ select @qaTest = 'RawData'
 select 'QA Test: ' + @qaTest
 
 declare @thisYear int = datepart(year, getdate())
-select convert(varchar, @thisYear)
 declare @listAllowedYears table (jobYear varchar(max))
 insert into @listAllowedYears select convert(varchar, @thisYear)
 insert into @listAllowedYears select convert(varchar, @thisYear + 1)
