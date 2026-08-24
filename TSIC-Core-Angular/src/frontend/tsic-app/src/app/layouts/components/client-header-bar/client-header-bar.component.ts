@@ -148,8 +148,13 @@ export class ClientHeaderBarComponent {
             if (pulse.offerPlayerRegsaverInsurance && pulse.myHasPurchasedPlayerRegsaver === false) {
                 items.push({ icon: 'bi-shield-check', label: 'Buy Regsaver', route: 'PlayerVIUpdate' });
             }
-            // ARB-only: non-null subscription id = stored card that can fail and needs self-service update.
-            if (pulse.myAdnSubscriptionId && user.regId) {
+            // ARB-only. Gate on LIVENESS, not id-presence: adnSubscriptionId is never cleared when a
+            // plan ends, so an id-gate offered this to every family whose plan had finished or been
+            // cancelled — and on a dead plan the ADN subscription update can only fail, while the
+            // screen still charges any balance due. Suspended plans (a declined draft, which is the
+            // case this screen exists for) read LIVE and keep the row, along with the catch-up charge
+            // that comes with it. Dead-plan families who owe are routed to Pay Balance Due instead.
+            if (pulse.myHasLiveArbSubscription && user.regId) {
                 items.push({ icon: 'bi-credit-card', label: 'Update CC Info', route: `arb/update-cc/${user.regId}` });
             }
             // Player-only self-service: check whether our email reaches them, and unblock it.

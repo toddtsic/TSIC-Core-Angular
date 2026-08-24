@@ -17,7 +17,7 @@
         </div>
     }
 
-    <!-- Success result -->
+    <!-- Result -->
     @if (result()) {
         <div class="card result-card">
             <div class="card-body text-center">
@@ -27,12 +27,31 @@
                     <p class="text-muted">{{ result()!.message }}</p>
                     @if (result()!.balanceCharged) {
                         <p>
-                            <strong>{{ result()!.amountCharged | number:'1.2-2' }}</strong> charged.
+                            <strong>${{ result()!.amountCharged | number:'1.2-2' }}</strong> charged.
                             @if (result()!.transactionId) {
                                 <br><small class="text-muted">Transaction: {{ result()!.transactionId }}</small>
                             }
                         </p>
                     }
+                } @else if (result()!.balanceCharged) {
+                    <!-- The balance charge runs independently of the subscription update (the charge is
+                         gated only on BalanceDue > 0), so this branch is a REAL payment that settled.
+                         It must never render as a failure: a family told "Update Failed" after being
+                         charged goes on to pay a second time through Pay Balance Due. -->
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+                    <h3 class="mt-3">Payment Received</h3>
+                    <p>
+                        <strong>${{ result()!.amountCharged | number:'1.2-2' }}</strong> charged. No further payment is needed today.
+                        @if (result()!.transactionId) {
+                            <br><small class="text-muted">Transaction: {{ result()!.transactionId }}</small>
+                        }
+                    </p>
+                    <div class="alert alert-warning text-start mt-3">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        We could not store this card for your future automatic payments. If your payment
+                        plan is still running, please try the update again in a few minutes or contact your
+                        event director — either way, the payment above has already gone through.
+                    </div>
                 } @else {
                     <i class="bi bi-x-circle-fill text-danger" style="font-size: 3rem;"></i>
                     <h3 class="mt-3">Update Failed</h3>
