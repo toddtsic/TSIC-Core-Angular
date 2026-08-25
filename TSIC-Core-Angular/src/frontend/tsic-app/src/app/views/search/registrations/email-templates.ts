@@ -187,8 +187,8 @@ export const EMAIL_TEMPLATE_CATEGORIES: EmailTemplateCategory[] = [
           '<li>Login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME</li>' +
           '<li>Select your Player\'s role</li>' +
           '<li>Open the avatar menu in the upper right and select \'Update CC Info\'</li>' +
-          '<li>Enter your credit card information and you will see the amount due at the bottom of the screen.</li>' +
-          '<li>Click Submit to make the payment and reactivate your future automatic payments.</li>' +
+          '<li>Your <b>Balance Due</b> is shown near the top of the page. Enter your credit card information below it.</li>' +
+          '<li>Click <b>Update Card &amp; Pay Balance</b> to make the payment and reactivate your future automatic payments.</li>' +
           '</ol>',
         availability: {
           requiresJobFlags: ['adnArb'],
@@ -230,7 +230,7 @@ export const EMAIL_TEMPLATE_CATEGORIES: EmailTemplateCategory[] = [
           '<li>Login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME</li>' +
           '<li>Select your Player\'s role</li>' +
           '<li>Open the avatar menu in the upper right and select \'Update CC Info\'</li>' +
-          '<li>Enter your credit card information and submit.</li>' +
+          '<li>Enter your credit card information, then click <b>Update Card &amp; Pay Balance</b>.</li>' +
           '</ol>',
         availability: {
           // Gated by mode: only offered when the grid is showing lookup results from

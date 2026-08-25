@@ -38,9 +38,9 @@ const TEMPLATES: Record<string, EmailTemplate[]> = {
                 '<ol>' +
                 '<li>Login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME</li>' +
                 '<li>Select your Player\'s role</li>' +
-                '<li>Under \'Player\' in the upper right, select \'Update CC Info (will also pay for failed auto-payments)\'</li>' +
-                '<li>Enter your credit card information and you will see the amount due at the bottom of the screen.</li>' +
-                '<li>Click Submit to make the payment and reactivate your future automatic payments.</li>' +
+                '<li>Under \'Player\' in the upper right, select <b>Update CC Info</b> — this also pays the auto-payment that failed</li>' +
+                '<li>Your <b>Balance Due</b> is shown near the top of the page. Enter your credit card information below it.</li>' +
+                '<li>Click <b>Update Card &amp; Pay Balance</b> to make the payment and reactivate your future automatic payments.</li>' +
                 '</ol>'
         },
         {
@@ -69,9 +69,9 @@ const TEMPLATES: Record<string, EmailTemplate[]> = {
                 '<ol>' +
                 '<li>Login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME</li>' +
                 '<li>Select your Player\'s role</li>' +
-                '<li>Under \'Player\' in the upper right, select \'Update CC Info (will also pay for failed auto-payments)\'</li>' +
-                '<li>Enter your credit card information and you will see the amount due at the bottom of the screen</li>' +
-                '<li>Click Submit to make the payment and reactivate your future automatic payments</li>' +
+                '<li>Under \'Player\' in the upper right, select <b>Update CC Info</b> — this also pays any auto-payment that has failed</li>' +
+                '<li>Your <b>Balance Due</b> is shown near the top of the page. Enter your credit card information below it.</li>' +
+                '<li>Click <b>Update Card &amp; Pay Balance</b> to save the new card and keep your automatic payments running.</li>' +
                 '</ol>'
         }
     ]
