@@ -1,0 +1,115 @@
+-- ============================================================================
+-- Seed: Financial Health widget (DIRECTOR ONLY)
+-- Created: 2026-08-25
+--
+-- Registers the Financial Health panel in the widget system and creates the
+-- dashboard category it lives in.
+--
+-- DELIBERATELY DOES **NOT** SEED widgets.WidgetDefault.
+-- WidgetDefault rows are what auto-attach a widget to every job of a given
+-- JobType. This panel is still being designed and must appear ONLY on jobs
+-- chosen by hand — that control is the entire reason it was moved out of the
+-- Smart Bulletins band, which renders unconditionally. Attaching is STEP 3
+-- below, one job at a time.
+--
+-- Idempotent — safe to run multiple times.
+-- Read-only verification at the end; run that FIRST if you want to look before
+-- you write.
+-- ============================================================================
+
+SET NOCOUNT ON;
+
+-- ── BEFORE: what exists today ───────────────────────────────────────────────
+PRINT '--- BEFORE ---';
+SELECT CategoryId, Name, Workspace, DefaultOrder FROM widgets.WidgetCategory ORDER BY Workspace, DefaultOrder;
+SELECT WidgetId, Name, ComponentKey, WidgetType, CategoryId FROM widgets.Widget WHERE ComponentKey = 'financial-health';
+
+-- ── STEP 1: category ────────────────────────────────────────────────────────
+-- Existing categories are 1 = Public Content (public) and 3 = Dashboard Charts
+-- (dashboard). This panel is 'content', not a chart tile, so it needs a content
+-- category on the dashboard workspace. DefaultOrder 0 puts it above the charts.
+IF NOT EXISTS (SELECT 1 FROM widgets.WidgetCategory WHERE Name = N'Financial')
+BEGIN
+    INSERT INTO widgets.WidgetCategory (Name, Workspace, Icon, DefaultOrder)
+    VALUES (N'Financial', N'dashboard', N'bi-heart-pulse', 0);
+    PRINT 'Inserted WidgetCategory: Financial';
+END
+ELSE
+    PRINT 'WidgetCategory: Financial already exists - skipped';
+
+DECLARE @categoryId INT = (SELECT CategoryId FROM widgets.WidgetCategory WHERE Name = N'Financial');
+
+-- ── STEP 2: widget catalog row ──────────────────────────────────────────────
+-- ComponentKey MUST match the WIDGET_MANIFEST key in widget-registry.ts
+-- ('financial-health'); that string is how the dashboard resolves the Angular
+-- component for NgComponentOutlet. A typo here renders nothing, silently.
+IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'financial-health')
+BEGIN
+    INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
+    VALUES (
+        N'Financial Health',
+        N'content',
+        N'financial-health',
+        @categoryId,
+        N'DIRECTOR ONLY - expiring cards, subscription drift, and balances owed',
+        N'{"displayStyle":"panel"}'
+    );
+    PRINT 'Inserted Widget: Financial Health';
+END
+ELSE
+    PRINT 'Widget: Financial Health already exists - skipped';
+
+DECLARE @widgetId INT = (SELECT WidgetId FROM widgets.Widget WHERE ComponentKey = 'financial-health');
+
+-- ── STEP 3: attach to ONE job ───────────────────────────────────────────────
+-- This is the rollout control. Nothing renders until a JobWidget row exists.
+-- Set @jobPath, uncomment, run. Repeat per job as you widen.
+--
+-- RoleId = Director (FF4D1C27-F6DA-4745-98CC-D7E8121A5D06). GetJobWidgetsAsync
+-- filters `jw.RoleId == null || jw.RoleId == roleId`, so a NULL here would show
+-- the panel to EVERY role on the dashboard. Never leave it null for this widget.
+-- SuperDirector/Superuser need their own rows if they should see it too:
+--   SuperDirector 7B9EB503-53C9-44FA-94A0-17760C512440
+--   Superuser     CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9
+
+/*
+DECLARE @jobPath NVARCHAR(200) = N'<<< PUT THE JOBPATH HERE >>>';
+DECLARE @jobId   UNIQUEIDENTIFIER = (SELECT JobId FROM dbo.Jobs WHERE JobPath = @jobPath);
+DECLARE @roleId  NVARCHAR(450) = 'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06';  -- Director
+
+IF @jobId IS NULL
+    PRINT 'NO SUCH JOB - nothing attached';
+ELSE IF EXISTS (SELECT 1 FROM widgets.JobWidget
+                WHERE JobId = @jobId AND WidgetId = @widgetId AND RoleId = @roleId)
+    PRINT 'Already attached to that job - skipped';
+ELSE
+BEGIN
+    INSERT INTO widgets.JobWidget (JobId, WidgetId, RoleId, CategoryId, DisplayOrder, IsEnabled, Config)
+    VALUES (@jobId, @widgetId, @roleId, @categoryId, 0, 1, NULL);
+    PRINT CONCAT('Attached Financial Health to ', @jobPath);
+END
+*/
+
+-- ── AFTER: verification ─────────────────────────────────────────────────────
+PRINT '--- AFTER ---';
+SELECT c.CategoryId, c.Name, c.Workspace, c.DefaultOrder
+FROM widgets.WidgetCategory c WHERE c.Name = N'Financial';
+
+SELECT w.WidgetId, w.Name, w.ComponentKey, w.WidgetType, w.CategoryId, w.DefaultConfig
+FROM widgets.Widget w WHERE w.ComponentKey = 'financial-health';
+
+-- Should be EMPTY until you run step 3. Any row here is a job that will show it.
+SELECT j.JobPath, j.JobName, jw.RoleId, jw.IsEnabled, jw.DisplayOrder
+FROM widgets.JobWidget jw
+JOIN widgets.Widget w ON w.WidgetId = jw.WidgetId
+JOIN dbo.Jobs j       ON j.JobId    = jw.JobId
+WHERE w.ComponentKey = 'financial-health'
+ORDER BY j.JobName;
+
+-- Confirms nothing auto-attaches to new jobs. Should be EMPTY, permanently.
+SELECT wd.WidgetDefaultId, wd.JobTypeId, wd.RoleId
+FROM widgets.WidgetDefault wd
+JOIN widgets.Widget w ON w.WidgetId = wd.WidgetId
+WHERE w.ComponentKey = 'financial-health';
+
+SET NOCOUNT OFF;
