@@ -152,7 +152,7 @@
             <i class="bi bi-check-circle-fill result-panel__icon" aria-hidden="true"></i>
             <div class="result-panel__body">
                 <h4 class="result-panel__title">
-                    {{ r.dryRun ? 'Dry run complete — nothing was written or sent' : 'Sweep complete' }}
+                    {{ r.dryRun ? 'Dry run complete — nothing written, no family emailed' : 'Sweep complete' }}
                 </h4>
                 <div class="result-stats">
                     <div class="result-stat">
@@ -241,7 +241,7 @@
         @if (r.digestHtml) {
             <section class="preview-panel">
                 <h4 class="preview-panel__title">
-                    {{ r.dryRun ? 'Digest — as it would be mailed to support' : 'Digest (mailed)' }}
+                    {{ r.dryRun ? 'Digest — mailed to support with a [DRY RUN] subject' : 'Digest (mailed)' }}
                 </h4>
                 <div class="email-render" [innerHTML]="trust(r.digestHtml)"></div>
             </section>
@@ -262,7 +262,7 @@
         <section class="result-panel result-panel--success" role="status">
             <i class="bi bi-credit-card-2-front-fill result-panel__icon" aria-hidden="true"></i>
             <div class="result-panel__body">
-                <h4 class="result-panel__title">Expiring-card dry run complete — nothing was sent</h4>
+                <h4 class="result-panel__title">Expiring-card dry run complete — no family was emailed</h4>
                 <div class="result-stats">
                     <div class="result-stat">
                         <span class="result-stat__value">{{ x.found }}</span>
@@ -313,7 +313,7 @@
 
         @if (x.summaryHtml) {
             <section class="preview-panel">
-                <h4 class="preview-panel__title">Summary — as it would be mailed to support</h4>
+                <h4 class="preview-panel__title">Summary — mailed to support with a [DRY RUN] subject</h4>
                 <div class="email-render" [innerHTML]="trust(x.summaryHtml)"></div>
             </section>
         }
@@ -329,7 +329,7 @@
         </h4>
         <p class="audit-note">
             @if (dry) {
-                Written to <code>email_log</code> with a <code>[DRY RUN]</code> subject prefix. Nothing was sent.
+                Written to <code>email_log</code> with a <code>[DRY RUN]</code> subject prefix. No family was emailed.
             } @else {
                 Written to <code>email_log</code>. These messages were sent.
             }

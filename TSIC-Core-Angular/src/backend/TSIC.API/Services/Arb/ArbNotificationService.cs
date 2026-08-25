@@ -420,8 +420,13 @@ public sealed class ArbNotificationService : IArbNotificationService
         {
             var sb = new System.Text.StringBuilder();
             sb.Append($"<h3 style='margin-bottom:4px;'>ARB Expiring Cards — {DateTime.Now:dddd, dd MMMM yyyy HH:mm}</h3>");
+            if (_dryRun)
+            {
+                sb.Append("<p style='font-size:12px;font-weight:bold;color:#0b5;margin:8px 0 2px 0;'>"
+                    + "DRY RUN — no family was emailed. This summary is the only message that left the box.</p>");
+            }
             sb.Append($"<p style='font-size:10px;'>Jobs checked: {jobCount} · Cards expiring this month: {result.Found} · "
-                + $"Families emailed: {result.Emailed} · NOT emailed: {result.Skipped}</p>");
+                + $"Families {(_dryRun ? "that would be emailed" : "emailed")}: {result.Emailed} · NOT emailed: {result.Skipped}</p>");
 
             if (result.Skips.Count > 0)
             {
@@ -436,17 +441,18 @@ public sealed class ArbNotificationService : IArbNotificationService
 
             var html = sb.ToString();
 
-            // On a dry run the summary is handed back to the screen instead of mailed. It previously
-            // passed sendInDevelopment:true — the one message on this path that DID transmit off
-            // Production — and leaving that in would break the rule the dry run exists to keep:
-            // off Production, nothing leaves the box.
-            if (_dryRun) return html;
-
+            // The summary mails on a dry run too, to support only. The rule the dry run keeps is that
+            // nothing reaches a FAMILY off Production — not that nothing leaves the box. Suppressing
+            // this left the whole delivery path untested: SES, the transport hop, and how a mail client
+            // renders the HTML are only exercised by actually sending, and the transport is where the
+            // digest was being corrupted. Subject carries the DRY RUN marker so it can never be mistaken
+            // for the 4am one.
             await _email.SendAsync(new EmailMessageDto
             {
                 FromName = "",
                 ToAddresses = [TsicConstants.SupportEmail],
-                Subject = $"ARB Expiring Cards {DateTime.Now:dddd, dd MMMM yyyy} — {result.Emailed} emailed"
+                Subject = (_dryRun ? "[DRY RUN] " : "")
+                    + $"ARB Expiring Cards {DateTime.Now:dddd, dd MMMM yyyy} — {result.Emailed} {(_dryRun ? "would be emailed" : "emailed")}"
                     + (result.Skipped > 0 ? $", {result.Skipped} NOT" : ""),
                 HtmlBody = html
             }, sendInDevelopment: true, cancellationToken: ct);

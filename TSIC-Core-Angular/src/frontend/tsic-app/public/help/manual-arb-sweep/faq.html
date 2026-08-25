@@ -23,12 +23,22 @@
 </details>
 
 <details class="faq-item">
-  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>I ran a dry run and no email arrived. Is it broken?</span></summary>
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Does a dry run send anything at all?</span></summary>
   <div class="faq-a">
     <p>
-      No &mdash; that is the whole point. Nothing is transmitted off production, including the digest and the
-      expiring-card summary. Everything that <em>would</em> have been sent is on the screen instead: expand any
-      row under &ldquo;Family emails&rdquo; to read the exact message, and scroll down for the digest.
+      One message, to support only: the digest, subject-prefixed <code>[DRY RUN]</code>. <strong>No family
+      is ever written to</strong> &mdash; that is the line a dry run keeps, and it is about who receives
+      mail, not about whether any mail leaves the box.
+    </p>
+    <p>
+      The digest is sent rather than only shown because sending is the only way to test the delivery path:
+      the mail service, the transport hop, and how a mail client renders the HTML. That transport is where
+      the digest was being corrupted &mdash; rows arriving with tags broken mid-word &mdash; and no
+      on-screen preview could have caught it.
+    </p>
+    <p>
+      Everything meant for families is on screen instead: expand any row under &ldquo;Family emails&rdquo;
+      to read the exact message that would have gone out.
     </p>
   </div>
 </details>

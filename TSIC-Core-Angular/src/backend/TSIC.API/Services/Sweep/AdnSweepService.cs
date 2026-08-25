@@ -413,7 +413,11 @@ public sealed class AdnSweepService : IAdnSweepService
         // It used to be the last statement inside the try, so any throw upstream skipped it entirely and
         // the only signal was the 5am email not arriving. Silence is not a report.
         var html = BuildDigestHtml(arbRows, settledRows, ecRows, orphanRows, watchdogRows, untrackedRows, notifyResult, counts, errorMessage);
-        if (sendDigest && !_dryRun)
+        // The digest mails on a dry run too, to support only. What the dry run must never do is reach a
+        // FAMILY; the support digest is how the delivery path itself gets tested — SES, the transport
+        // hop, and how a mail client renders the HTML. Suppressing it meant the transport was the one
+        // part no test could reach, which is exactly where the digest was being corrupted.
+        if (sendDigest)
         {
             try
             {
@@ -1744,7 +1748,10 @@ public sealed class AdnSweepService : IAdnSweepService
             ToAddresses = [TsicConstants.SupportEmail],
             // The verdict rides the subject — this is read on a phone, and a failed sweep must be
             // distinguishable from a quiet one without opening the mail.
-            Subject = $"AdnSweep AI {DateTime.Now:dddd, dd MMMM yyyy HH:mm}"
+            // The marker rides the subject, not just the body: two digests can land the same day and
+            // the 4am one is the only one that means anything about the ledger.
+            Subject = (_dryRun ? "[DRY RUN] " : "")
+                + $"AdnSweep AI {DateTime.Now:dddd, dd MMMM yyyy HH:mm}"
                 + (errorMessage != null ? " — SWEEP FAILED" : errored > 0 ? $" — {errored} ERRORED" : ""),
             HtmlBody = html
         }, sendInDevelopment: true, cancellationToken: ct);
