@@ -32,8 +32,12 @@ export class ManualArbSweepComponent {
     readonly isExpiringRunning = signal(false);
     readonly expiringError = signal('');
 
-    /** Which rendered email body is expanded. Index into the combined list; null = all collapsed. */
-    readonly openEmail = signal<number | null>(null);
+    /**
+     * Which rendered email body is expanded. Keyed "<list>:<index>", not a bare index — the sweep and
+     * the expiring-card pass render their own lists, and a shared index would open a row in both.
+     * null = all collapsed.
+     */
+    readonly openEmail = signal<string | null>(null);
 
     constructor() {
         this.http.get<AdnSweepModeDto>(`${this.base}/mode`).subscribe({
@@ -85,8 +89,8 @@ export class ManualArbSweepComponent {
         });
     }
 
-    toggleEmail(i: number): void {
-        this.openEmail.set(this.openEmail() === i ? null : i);
+    toggleEmail(key: string): void {
+        this.openEmail.set(this.openEmail() === key ? null : key);
     }
 
     /**

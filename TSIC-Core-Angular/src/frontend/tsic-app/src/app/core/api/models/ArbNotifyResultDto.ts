@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { ArbAuditRowDto } from './ArbAuditRowDto';
 import type { ArbNotifySkipDto } from './ArbNotifySkipDto';
 import type { ArbRenderedEmailDto } from './ArbRenderedEmailDto';
 export type ArbNotifyResultDto = {
@@ -11,6 +12,7 @@ export type ArbNotifyResultDto = {
     skips: Array<ArbNotifySkipDto>;
     dryRun?: boolean;
     rendered?: Array<ArbRenderedEmailDto>;
+    auditRows?: Array<ArbAuditRowDto>;
     summaryHtml?: string | null;
 };
 

@@ -110,11 +110,14 @@ public sealed class ArbNotificationService : IArbNotificationService
     private sealed class AuditBucket
     {
         public required Guid JobId { get; init; }
+        public required string JobName { get; init; }
         public required string Subject { get; init; }
         /// <summary>The TEMPLATE, tokens unreplaced — see <see cref="FlushAuditAsync"/>.</summary>
         public required string BodyTemplate { get; init; }
         public string? SendFrom { get; set; }
         public List<string> Recipients { get; } = [];
+        /// <summary>Registrations covered. Not Recipients.Count — an account can carry both parents.</summary>
+        public int Families { get; set; }
     }
 
     /// <summary>
@@ -133,10 +136,21 @@ public sealed class ArbNotificationService : IArbNotificationService
     /// GetSentToAddressesAsync matches "%;addr;%" against it, so the player panel and the family's own
     /// sent-mail list resolve exactly as they do for a per-family row.
     /// </summary>
-    private async Task FlushAuditAsync(IEnumerable<AuditBucket> buckets, CancellationToken ct)
+    private async Task<List<ArbAuditRowDto>> FlushAuditAsync(
+        IEnumerable<AuditBucket> buckets, CancellationToken ct)
     {
+        var written = new List<ArbAuditRowDto>();
+
         foreach (var b in buckets.Where(b => b.Recipients.Count > 0))
         {
+            written.Add(new ArbAuditRowDto
+            {
+                JobName = b.JobName,
+                Subject = b.Subject,
+                Families = b.Families,
+                Recipients = b.Recipients.Count
+            });
+
             try
             {
                 await _emailLogs.LogAsync(new EmailLogs
@@ -162,15 +176,24 @@ public sealed class ArbNotificationService : IArbNotificationService
                     b.JobId, b.Subject);
             }
         }
+
+        return written;
     }
 
     /// <summary>Find or start the bucket for this job + email type.</summary>
     private static AuditBucket Bucket(
-        Dictionary<(Guid, string), AuditBucket> buckets, Guid jobId, string subject, string template)
+        Dictionary<(Guid, string), AuditBucket> buckets,
+        Guid jobId, string jobName, string subject, string template)
     {
         if (!buckets.TryGetValue((jobId, subject), out var b))
         {
-            b = new AuditBucket { JobId = jobId, Subject = subject, BodyTemplate = template };
+            b = new AuditBucket
+            {
+                JobId = jobId,
+                JobName = jobName,
+                Subject = subject,
+                BodyTemplate = template
+            };
             buckets[(jobId, subject)] = b;
         }
         return b;
@@ -251,9 +274,10 @@ public sealed class ArbNotificationService : IArbNotificationService
 
                 // Alive and dead are separate email types, so a job with both kinds of failure this
                 // morning audits as two rows — which is correct: they are two different messages.
-                var bucket = Bucket(buckets, reg.JobId, subject, template);
+                var bucket = Bucket(buckets, reg.JobId, reg.JobName, subject, template);
                 bucket.SendFrom ??= director?.Email;
                 bucket.Recipients.AddRange(recipients);
+                bucket.Families++;
                 emailed++;
             }
             catch (Exception ex)
@@ -266,7 +290,7 @@ public sealed class ArbNotificationService : IArbNotificationService
             }
         }
 
-        await FlushAuditAsync(buckets.Values, ct);
+        var auditRows = await FlushAuditAsync(buckets.Values, ct);
 
         return new ArbNotifyResultDto
         {
@@ -275,7 +299,8 @@ public sealed class ArbNotificationService : IArbNotificationService
             Skipped = skips.Count,
             Skips = skips,
             DryRun = _dryRun,
-            Rendered = rendered
+            Rendered = rendered,
+            AuditRows = auditRows
         };
     }
 
@@ -349,9 +374,10 @@ public sealed class ArbNotificationService : IArbNotificationService
                     rendered.Add(await SendOrRenderAsync(
                         who, reg.JobName, recipients, SubjectExpiringCard, body, director, ct));
 
-                    var bucket = Bucket(buckets, jobId, SubjectExpiringCard, BodyExpiringCard);
+                    var bucket = Bucket(buckets, jobId, reg.JobName, SubjectExpiringCard, BodyExpiringCard);
                     bucket.SendFrom ??= director?.Email;
                     bucket.Recipients.AddRange(recipients);
+                    bucket.Families++;
                     emailed++;
                 }
                 catch (Exception ex)
@@ -362,7 +388,7 @@ public sealed class ArbNotificationService : IArbNotificationService
             }
         }
 
-        await FlushAuditAsync(buckets.Values, ct);
+        var auditRows = await FlushAuditAsync(buckets.Values, ct);
 
         var result = new ArbNotifyResultDto
         {
@@ -371,7 +397,8 @@ public sealed class ArbNotificationService : IArbNotificationService
             Skipped = skips.Count,
             Skips = skips,
             DryRun = _dryRun,
-            Rendered = rendered
+            Rendered = rendered,
+            AuditRows = auditRows
         };
 
         return result with { SummaryHtml = await SendExpiringSummaryAsync(result, jobIds.Count, ct) };

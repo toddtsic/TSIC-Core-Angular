@@ -194,6 +194,15 @@
                         <span class="result-stat__label">Errored</span>
                     </div>
                 </div>
+                @if (r.dryRun && (r.settledNotFetched ?? 0) > 0) {
+                    <p class="result-panel__desc">
+                        <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+                        <strong>{{ r.settledNotFetched }}</strong> settled draft(s) were counted but not
+                        looked up in detail. A settled draft sends no email, and each lookup costs two
+                        Authorize.Net round-trips — so a dry run resolves only the failures. A live run
+                        fetches and books every one.
+                    </p>
+                }
             </div>
         </section>
 
@@ -217,39 +226,16 @@
                 <h4 class="preview-panel__title">
                     Family emails ({{ r.renderedEmails?.length }}) — exactly as they would send
                 </h4>
-                <ul class="email-list">
-                    @for (e of r.renderedEmails; track $index) {
-                        <li class="email-item">
-                            <button type="button" class="email-item__head" (click)="toggleEmail($index)"
-                                    [attr.aria-expanded]="openEmail() === $index">
-                                <i class="bi" [class.bi-chevron-right]="openEmail() !== $index"
-                                   [class.bi-chevron-down]="openEmail() === $index" aria-hidden="true"></i>
-                                <span class="email-item__who">{{ e.registrant }}</span>
-                                <span class="email-item__job">{{ e.jobName }}</span>
-                                <span class="email-item__subject">{{ e.subject }}</span>
-                            </button>
-                            @if (openEmail() === $index) {
-                                <div class="email-item__body">
-                                    <dl class="email-meta">
-                                        <dt>To</dt><dd>{{ recipients(e) }}</dd>
-                                        <dt>Reply-To</dt>
-                                        <dd>
-                                            @if (e.replyToAddress) {
-                                                {{ e.replyToName }} &lt;{{ e.replyToAddress }}&gt;
-                                            } @else {
-                                                <span class="email-meta__warn">
-                                                    none — a reply would land on TSIC support, not the club
-                                                </span>
-                                            }
-                                        </dd>
-                                    </dl>
-                                    <div class="email-render" [innerHTML]="trust(e.htmlBody)"></div>
-                                </div>
-                            }
-                        </li>
-                    }
-                </ul>
+                <ng-container
+                    *ngTemplateOutlet="emailList; context: { $implicit: r.renderedEmails, listId: 'sweep' }">
+                </ng-container>
             </section>
+        }
+
+        @if (r.auditRows?.length) {
+            <ng-container
+                *ngTemplateOutlet="auditTable; context: { $implicit: r.auditRows, dry: r.dryRun }">
+            </ng-container>
         }
 
         @if (r.digestHtml) {
@@ -308,6 +294,23 @@
             </section>
         }
 
+        @if (x.rendered?.length) {
+            <section class="preview-panel">
+                <h4 class="preview-panel__title">
+                    Family emails ({{ x.rendered?.length }}) — exactly as they would send
+                </h4>
+                <ng-container
+                    *ngTemplateOutlet="emailList; context: { $implicit: x.rendered, listId: 'expiring' }">
+                </ng-container>
+            </section>
+        }
+
+        @if (x.auditRows?.length) {
+            <ng-container
+                *ngTemplateOutlet="auditTable; context: { $implicit: x.auditRows, dry: x.dryRun }">
+            </ng-container>
+        }
+
         @if (x.summaryHtml) {
             <section class="preview-panel">
                 <h4 class="preview-panel__title">Summary — as it would be mailed to support</h4>
@@ -316,3 +319,80 @@
         }
     }
 </div>
+
+<!-- Where the email_log rows landed. This screen is cross-job but the Email Log is scoped to ONE job,
+     so without this table the rows written here are invisible from the screen that wrote them. -->
+<ng-template #auditTable let-rows let-dry="dry">
+    <section class="preview-panel">
+        <h4 class="preview-panel__title">
+            Email log entries ({{ rows.length }}) — one per job, per email type
+        </h4>
+        <p class="audit-note">
+            @if (dry) {
+                Written to <code>email_log</code> with a <code>[DRY RUN]</code> subject prefix. Nothing was sent.
+            } @else {
+                Written to <code>email_log</code>. These messages were sent.
+            }
+            The Email Log screen shows one job at a time, so use this list to know which jobs to open.
+        </p>
+        <div class="audit-table-wrap">
+            <table class="audit-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Job</th>
+                        <th scope="col">Email type</th>
+                        <th scope="col" class="audit-table__num">Families</th>
+                        <th scope="col" class="audit-table__num">Addresses</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (a of rows; track $index) {
+                        <tr>
+                            <td>{{ a.jobName }}</td>
+                            <td>{{ a.subject }}</td>
+                            <td class="audit-table__num">{{ a.families }}</td>
+                            <td class="audit-table__num">{{ a.recipients }}</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+</ng-template>
+
+<!-- One list markup for both passes, so the sweep's preview and the expiring-card preview cannot
+     drift apart. listId keys the open row: a bare index would expand the same position in both. -->
+<ng-template #emailList let-emails let-listId="listId">
+    <ul class="email-list">
+        @for (e of emails; track $index) {
+            <li class="email-item">
+                <button type="button" class="email-item__head" (click)="toggleEmail(listId + ':' + $index)"
+                        [attr.aria-expanded]="openEmail() === listId + ':' + $index">
+                    <i class="bi" [class.bi-chevron-right]="openEmail() !== listId + ':' + $index"
+                       [class.bi-chevron-down]="openEmail() === listId + ':' + $index" aria-hidden="true"></i>
+                    <span class="email-item__who">{{ e.registrant }}</span>
+                    <span class="email-item__job">{{ e.jobName }}</span>
+                    <span class="email-item__subject">{{ e.subject }}</span>
+                </button>
+                @if (openEmail() === listId + ':' + $index) {
+                    <div class="email-item__body">
+                        <dl class="email-meta">
+                            <dt>To</dt><dd>{{ recipients(e) }}</dd>
+                            <dt>Reply-To</dt>
+                            <dd>
+                                @if (e.replyToAddress) {
+                                    {{ e.replyToName }} &lt;{{ e.replyToAddress }}&gt;
+                                } @else {
+                                    <span class="email-meta__warn">
+                                        none — a reply would land on TSIC support, not the club
+                                    </span>
+                                }
+                            </dd>
+                        </dl>
+                        <div class="email-render" [innerHTML]="trust(e.htmlBody)"></div>
+                    </div>
+                }
+            </li>
+        }
+    </ul>
+</ng-template>

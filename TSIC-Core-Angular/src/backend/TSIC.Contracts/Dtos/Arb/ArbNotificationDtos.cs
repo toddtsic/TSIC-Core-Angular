@@ -51,6 +51,24 @@ public record ArbRenderedEmailDto
     public required string HtmlBody { get; init; }
 }
 
+/// <summary>
+/// One emailLogs row as written: a job, an email type, and how many it covered.
+///
+/// Exists because the Email Log screen is scoped to ONE job, while this pass spans every job in the
+/// estate — so from an X-Job screen the rows it writes are invisible without switching into each job
+/// in turn. This table is the index: it says which jobs to look in, and what to expect to find there.
+/// </summary>
+public record ArbAuditRowDto
+{
+    public required string JobName { get; init; }
+    /// <summary>The email type. This is the emailLogs Subject, minus any dry-run prefix.</summary>
+    public required string Subject { get; init; }
+    /// <summary>Registrations covered — families, not addresses.</summary>
+    public required int Families { get; init; }
+    /// <summary>Addresses on the row. Higher than Families when an account carries both parents.</summary>
+    public required int Recipients { get; init; }
+}
+
 /// <summary>Paired counts for the digest: what was found, what was emailed, what was not.</summary>
 public record ArbNotifyResultDto
 {
@@ -67,6 +85,12 @@ public record ArbNotifyResultDto
 
     /// <summary>Populated on a dry run only; empty on a live run.</summary>
     public List<ArbRenderedEmailDto> Rendered { get; init; } = [];
+
+    /// <summary>
+    /// The emailLogs rows this pass wrote, one per job per email type. Populated on live and dry runs
+    /// alike — on a live run it is the receipt, on a dry run it is where to go looking.
+    /// </summary>
+    public List<ArbAuditRowDto> AuditRows { get; init; } = [];
 
     /// <summary>
     /// The expiring-card pass summary. Rendered and returned on a dry run instead of mailed to

@@ -133,6 +133,23 @@ public sealed record AdnSweepResult
     public List<ArbNotifySkipDto> NotEmailed { get; init; } = [];
 
     /// <summary>
+    /// The emailLogs rows this pass wrote, one per job per email type.
+    ///
+    /// The sweep spans every job; the Email Log screen shows ONE job. So the rows written here are not
+    /// visible from the cross-job screen that triggered them without switching into each job in turn.
+    /// This is the index that makes them findable.
+    /// </summary>
+    public List<ArbAuditRowDto> AuditRows { get; init; } = [];
+
+    /// <summary>
+    /// Dry run only: settled ARB drafts counted in the batches but deliberately not fetched in full.
+    /// Each fetch costs two synchronous Authorize.Net round-trips and a settled draft produces no family
+    /// email, so a dry run resolves only the failures. Surfaced so the run never reads as though it had
+    /// examined them. Always 0 on a live run, which fetches and books every one.
+    /// </summary>
+    public int SettledNotFetched { get; init; }
+
+    /// <summary>
     /// The sweep completed AND every transaction in it was processed. This is the gate the month-end
     /// close hangs on: the sweep is what books the closing month's final ARB/eCheck rows into the
     /// accounting tables, so if it did not fully succeed, the QuickBooks export built from those tables

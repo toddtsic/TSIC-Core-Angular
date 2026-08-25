@@ -182,7 +182,29 @@ public sealed class AdnSweepService : IAdnSweepService
             // 2) Process ARB transactions (legacy parity). On a dry run this still resolves each
             // transaction in full — detail fetch, invoice → registration, installment math — and only
             // the two writes inside are skipped, so the rows feeding step 8 are the real ones.
-            foreach (var tx in allTxs.Where(IsArbCandidate))
+            //
+            // BUT a dry run resolves only the drafts that FAILED. Every candidate costs two synchronous
+            // Authorize.Net round-trips (GetSubscriptionStatus + GetTransactionDetails), and on the
+            // production master account — which carries every live ARB job — a normal day is mostly
+            // SUCCESSFUL installments. Fetching all of them serialised took the interactive run into
+            // minutes and read as a hung page, for rows a dry run does nothing with: a settled draft
+            // produces no family email, which is the only thing being exercised here. The failed ones,
+            // typically a handful, are still resolved in full. Live runs are untouched — there every
+            // settled row must be fetched and booked.
+            var arbCandidates = allTxs.Where(IsArbCandidate).ToList();
+            if (_dryRun)
+            {
+                var settled = arbCandidates
+                    .Where(t => string.Equals(t.transactionStatus, "settledSuccessfully", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                counts.SettledNotFetched = settled.Count;
+                arbCandidates = arbCandidates.Except(settled).ToList();
+                _logger.LogInformation(
+                    "Dry run: resolving {Failed} failed ARB draft(s); {Settled} settled draft(s) counted but not fetched",
+                    arbCandidates.Count, settled.Count);
+            }
+
+            foreach (var tx in arbCandidates)
             {
                 ct.ThrowIfCancellationRequested();
                 try
@@ -417,6 +439,8 @@ public sealed class AdnSweepService : IAdnSweepService
             DryRun = _dryRun,
             RenderedEmails = notifyResult.Rendered,
             NotEmailed = notifyResult.Skips,
+            AuditRows = notifyResult.AuditRows,
+            SettledNotFetched = counts.SettledNotFetched,
         };
     }
 
@@ -1672,6 +1696,12 @@ public sealed class AdnSweepService : IAdnSweepService
         public int EcheckReturnsProcessed;
         public int OrphansFound;
         public int Errored;
+
+        /// <summary>
+        /// Dry run only: settled ARB drafts seen in the batches but deliberately NOT fetched in full.
+        /// Reported so the run never looks like it examined them.
+        /// </summary>
+        public int SettledNotFetched;
     }
 
     private sealed record ArbDigestRow
