@@ -1,0 +1,232 @@
+// ============================================================
+//  Financial Health — the DIRECTOR-ONLY card, first in the band.
+//
+//  Every other card in this band is a faithful preview of what the
+//  public sees. This one is not, so it deliberately breaks the visual
+//  family: an INVERTED surface (dark on a light theme, light on a dark
+//  one) with an amber "private" accent, so it can never be mistaken for
+//  something families are looking at.
+//
+//  Inversion is derived from --brand-text / --brand-surface, so it flips
+//  with the palette instead of hardcoding a dark colour.
+//  NEVER backdrop-filter (banned project-wide).
+// ============================================================
+
+:host {
+	display: block;
+}
+
+.fh {
+	max-width: 960px;
+	margin: var(--space-4) auto 0;
+	padding: 0 var(--space-3);
+
+	// The inverted ground and the text that sits on it. Declared once here so
+	// every child reads the same pair.
+	--fh-ground: color-mix(in srgb, var(--brand-text) 94%, var(--brand-surface));
+	--fh-on-ground: var(--brand-surface);
+	--fh-on-ground-muted: color-mix(in srgb, var(--brand-surface) 68%, var(--brand-text));
+	--fh-private: var(--bs-warning);
+	--fh-hairline: color-mix(in srgb, var(--brand-surface) 18%, transparent);
+}
+
+.fh__inner {
+	overflow: hidden;
+	border: 1px solid var(--brand-border);
+	border-left: 4px solid var(--fh-private);
+	border-radius: var(--radius-lg);
+	background: var(--fh-ground);
+	color: var(--fh-on-ground);
+	box-shadow: var(--shadow-md);
+}
+
+// ── Private ribbon ───────────────────────────────────────────
+.fh__ribbon {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2) var(--space-3);
+	padding: var(--space-2) var(--space-5);
+	background: color-mix(in srgb, var(--fh-private) 20%, transparent);
+	border-bottom: 1px solid var(--fh-hairline);
+}
+
+.fh__lock {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--fh-private);
+}
+
+.fh__ribbon-note {
+	font-size: var(--font-size-sm);
+	color: var(--fh-on-ground-muted);
+}
+
+// Pushed right; wraps under on narrow screens rather than truncating the note.
+.fh__who {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	max-width: 100%;
+	margin-left: auto;
+	padding: 2px var(--space-2);
+	border: 1px solid var(--fh-hairline);
+	border-radius: var(--radius-pill, 999px);
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-semibold);
+	color: var(--fh-on-ground);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+// ── Heading ──────────────────────────────────────────────────
+.fh__head {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-4);
+	padding: var(--space-5) var(--space-5) var(--space-4);
+}
+
+.fh__icon {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 48px;
+	height: 48px;
+	border-radius: var(--radius-md);
+	background: color-mix(in srgb, var(--fh-private) 22%, transparent);
+	color: var(--fh-private);
+	font-size: 1.5rem;
+}
+
+.fh__head-text {
+	min-width: 0;
+}
+
+.fh__title {
+	margin: 0;
+	font-size: var(--font-size-lg, 1.125rem);
+	font-weight: var(--font-weight-bold);
+	line-height: 1.2;
+	color: var(--fh-on-ground);
+}
+
+.fh__sub {
+	margin: var(--space-1) 0 0;
+	font-size: var(--font-size-sm);
+	line-height: 1.5;
+	color: var(--fh-on-ground-muted);
+}
+
+// ── Metrics ──────────────────────────────────────────────────
+.fh__metrics {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: var(--space-3);
+	margin: 0;
+	padding: 0 var(--space-5) var(--space-4);
+	list-style: none;
+}
+
+.fh__metric {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	grid-template-areas:
+		'icon  value'
+		'label label'
+		'tone  tone';
+	align-items: center;
+	gap: var(--space-1) var(--space-2);
+	padding: var(--space-3);
+	border: 1px solid var(--fh-hairline);
+	border-radius: var(--radius-md);
+	background: color-mix(in srgb, var(--brand-surface) 8%, transparent);
+}
+
+.fh__metric-icon {
+	grid-area: icon;
+	color: var(--fh-on-ground-muted);
+	font-size: 1rem;
+}
+
+.fh__metric-value {
+	grid-area: value;
+	justify-self: start;
+	font-size: 1.75rem;
+	font-weight: var(--font-weight-bold);
+	line-height: 1;
+	color: var(--fh-on-ground);
+}
+
+.fh__metric-label {
+	grid-area: label;
+	font-size: var(--font-size-sm);
+	line-height: 1.35;
+	color: var(--fh-on-ground-muted);
+}
+
+// Tone is carried by a dot AND this text label — never colour alone.
+.fh__metric-tone {
+	grid-area: tone;
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-semibold);
+	color: var(--fh-tone, var(--fh-on-ground-muted));
+}
+
+.fh__dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--fh-tone, var(--fh-on-ground-muted));
+}
+
+.fh__metric[data-tone='attention'] { --fh-tone: var(--bs-danger); }
+.fh__metric[data-tone='watch']     { --fh-tone: var(--bs-warning); }
+.fh__metric[data-tone='clear']     { --fh-tone: var(--bs-success); }
+
+// ── Footnote ─────────────────────────────────────────────────
+.fh__foot {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-2);
+	margin: 0;
+	padding: var(--space-3) var(--space-5) var(--space-5);
+	border-top: 1px solid var(--fh-hairline);
+	font-size: var(--font-size-sm);
+	line-height: 1.5;
+	color: var(--fh-on-ground-muted);
+
+	i {
+		margin-top: 2px;
+		color: var(--fh-private);
+	}
+}
+
+// ── Narrow screens ───────────────────────────────────────────
+@media (max-width: 767.98px) {
+	.fh__metrics {
+		grid-template-columns: 1fr;
+	}
+
+	.fh__who {
+		margin-left: 0;
+	}
+
+	.fh__head,
+	.fh__metrics,
+	.fh__foot,
+	.fh__ribbon {
+		padding-left: var(--space-4);
+		padding-right: var(--space-4);
+	}
+}

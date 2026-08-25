@@ -1,0 +1,51 @@
+<section class="fh" aria-labelledby="fh-title">
+	<div class="fh__inner">
+
+		<!-- Private ribbon — the whole point of the treatment. Reads before the content does. -->
+		<div class="fh__ribbon">
+			<span class="fh__lock">
+				<i class="bi bi-lock-fill" aria-hidden="true"></i>
+				Director only
+			</span>
+			<span class="fh__ribbon-note">Not visible to families or team staff</span>
+			@if (directorName()) {
+				<span class="fh__who" [title]="directorName()">
+					<i class="bi bi-person-badge" aria-hidden="true"></i>
+					{{ directorName() }}
+				</span>
+			}
+		</div>
+
+		<div class="fh__head">
+			<span class="fh__icon" aria-hidden="true"><i class="bi bi-heart-pulse"></i></span>
+			<div class="fh__head-text">
+				<h3 class="fh__title" id="fh-title">Financial Health</h3>
+				<p class="fh__sub">
+					A standing read on anything that can quietly put your money picture out of step —
+					expiring cards, recurring plans that have drifted, and balances left behind.
+				</p>
+			</div>
+		</div>
+
+		<ul class="fh__metrics">
+			@for (m of metrics; track m.key) {
+				<li class="fh__metric" [attr.data-tone]="m.tone">
+					<span class="fh__metric-icon" aria-hidden="true"><i class="bi {{ m.icon }}"></i></span>
+					<span class="fh__metric-value">{{ m.value }}</span>
+					<span class="fh__metric-label">{{ m.label }}</span>
+					<span class="fh__metric-tone">
+						<span class="fh__dot" aria-hidden="true"></span>
+						{{ m.toneLabel }}
+					</span>
+				</li>
+			}
+		</ul>
+
+		<p class="fh__foot">
+			<i class="bi bi-info-circle" aria-hidden="true"></i>
+			<span><strong>Placeholder content.</strong> Figures are illustrative — this panel is not yet
+			wired to live data. Checks are scheduled to run on the 1st and 15th of each month.</span>
+		</p>
+
+	</div>
+</section>
