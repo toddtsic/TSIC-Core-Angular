@@ -42,6 +42,24 @@
 		<app-client-banner></app-client-banner>
 
 
+		<!-- ══════════════════════════════════════════════════
+		     ADMIN — the way in to the widget dashboard. There is
+		     no nav entry for it (nav.NavItem has no dashboard row),
+		     so without this a director cannot reach their own
+		     dashboard without knowing the URL. Admin roles only;
+		     the public never sees this.
+		     ══════════════════════════════════════════════════ -->
+		@if (showDashboardLink()) {
+			<div class="jl-adminbar">
+				<a class="jl-adminbar__link" [routerLink]="dashboardLink()">
+					<i class="bi bi-speedometer2" aria-hidden="true"></i>
+					<span>Dashboard</span>
+					<i class="bi bi-arrow-right jl-adminbar__go" aria-hidden="true"></i>
+				</a>
+			</div>
+		}
+
+
 		<!-- CONCLUDED notice now lives in the Smart Bulletins band's Event Status
 		     bulletin (so it shows on the admin dashboard too, not just here). -->
 

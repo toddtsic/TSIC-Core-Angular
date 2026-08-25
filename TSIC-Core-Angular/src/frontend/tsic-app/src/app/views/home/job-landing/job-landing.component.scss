@@ -567,3 +567,61 @@ app-action-hub + .jl-bulletins {
 		transition: none;
 	}
 }
+
+// ════════════════════════════════════════════════════════════
+//  ADMIN BAR — the only way in to the widget dashboard (no nav
+//  row exists for it). Admin-only, so it is deliberately quiet:
+//  a director's page should not be dominated by staff chrome.
+// ════════════════════════════════════════════════════════════
+.jl-adminbar {
+	display: flex;
+	justify-content: flex-end;
+	max-width: 960px;
+	margin: var(--space-3) auto 0;
+	padding: 0 var(--space-3);
+}
+
+.jl-adminbar__link {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-2) var(--space-4);
+	border: 1px solid var(--brand-border);
+	border-radius: var(--radius-pill, 999px);
+	background: var(--brand-surface);
+	color: var(--brand-text);
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-semibold);
+	text-decoration: none;
+	box-shadow: var(--shadow-sm);
+	transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+
+	i {
+		color: var(--bs-primary);
+	}
+
+	&:hover {
+		border-color: var(--bs-primary);
+		box-shadow: var(--shadow-md);
+		transform: translateY(-1px);
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+.jl-adminbar__go {
+	font-size: 0.875em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.jl-adminbar__link {
+		transition: none !important;
+
+		&:hover {
+			transform: none;
+		}
+	}
+}

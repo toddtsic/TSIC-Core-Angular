@@ -13,6 +13,7 @@ import { ActivatedRoute, ActivatedRouteSnapshot, Router } from '@angular/router'
 import { JobService } from '@infrastructure/services/job.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { AuthService } from '@infrastructure/services/auth.service';
+import { RouterLink } from '@angular/router';
 import { ClientBannerComponent } from '@widgets/layout/client-banner/client-banner.component';
 import { BulletinsComponent } from '@widgets/communications/bulletins.component';
 import { derivePhase, EventPhase } from '@shared/landing/landing-phase';
@@ -20,7 +21,7 @@ import { derivePhase, EventPhase } from '@shared/landing/landing-phase';
 @Component({
 	selector: 'app-job-landing',
 	standalone: true,
-	imports: [ClientBannerComponent, BulletinsComponent],
+	imports: [ClientBannerComponent, BulletinsComponent, RouterLink],
 	templateUrl: './job-landing.component.html',
 	styleUrl: './job-landing.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
@@ -60,6 +61,24 @@ export class JobLandingComponent implements OnDestroy {
 		}
 		return '';
 	});
+
+	/**
+	 * Admin-only link to the widget dashboard.
+	 *
+	 * The dashboard route guards on exactly these three roles, so `isAdmin()` is the
+	 * same authority rather than a second opinion. Shown because there is currently
+	 * NO other way in: `nav.NavItem` carries no dashboard row, so a director who
+	 * doesn't know the URL cannot reach their own dashboard at all.
+	 */
+	readonly showDashboardLink = computed(() => this.auth.isAdmin() && !!this.activeJobPath());
+
+	/**
+	 * Built as an absolute segment array that INCLUDES the jobPath, not a relative
+	 * link. The landing renders at BOTH `/:jobPath` and `/:jobPath/home`, so a
+	 * relative `dashboard` would resolve to `/:jobPath/home/dashboard` on the alias
+	 * route and 404. Naming jobPath explicitly is correct from either.
+	 */
+	readonly dashboardLink = computed(() => ['/', this.activeJobPath(), 'dashboard']);
 
 	// The event's lifecycle phase, derived from FACTS via the shared resolver (same
 	// pulse → same phase everywhere). Used here for the status line + concluded/
