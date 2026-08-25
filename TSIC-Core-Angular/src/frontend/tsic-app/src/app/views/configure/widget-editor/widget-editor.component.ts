@@ -69,8 +69,12 @@ export class WidgetEditorComponent implements HasUnsavedChanges {
 	private readonly route = inject(ActivatedRoute);
 	private readonly auth = inject(AuthService);
 
-	/** Guards the one-shot job preselect on the overrides tab. */
+	/** Guards the one-shot preselect on each tab that does one. */
 	private _overridePreselectTried = false;
+	private _matrixPreselectTried = false;
+
+	/** Resolved once per visit: the job named by the URL. undefined = not looked up, null = no such job. */
+	private _currentJob: JobRefDto | null | undefined = undefined;
 
 	// ── Reference data ──
 	readonly jobTypes = signal<JobTypeRefDto[]>([]);
@@ -980,12 +984,8 @@ export class WidgetEditorComponent implements HasUnsavedChanges {
 		this.activeTab.set('overrides');
 		if (this.overrideSelectedJobId() || this._overridePreselectTried) return;
 
-		const jobPath = this.resolveActiveJobPath();
-		if (!jobPath) return;
-
 		this._overridePreselectTried = true;
-		this.editorService.getJobByPath(jobPath).subscribe(job => {
-			if (!job) return;
+		this.withCurrentJob(job => {
 			this.overrideSelectedJobTypeId.set(job.jobTypeId);
 			this.editorService.getJobsByJobType(job.jobTypeId).subscribe({
 				next: jobs => {
@@ -995,6 +995,48 @@ export class WidgetEditorComponent implements HasUnsavedChanges {
 				},
 				error: err => this.handleError('Failed to load jobs', err),
 			});
+		});
+	}
+
+	/**
+	 * Open the Default Matrix on the job type of the job the admin is standing in.
+	 *
+	 * The matrix is per-job-type, so there is no single job to select — but the job type
+	 * is knowable from the URL, and picking it by hand was the same needless step the
+	 * overrides tab used to impose. Same one-shot rule: an existing selection is left
+	 * alone so unsaved matrix edits survive a tab switch.
+	 */
+	openMatrixTab(): void {
+		this.activeTab.set('matrix');
+		if (this.selectedJobTypeId() || this._matrixPreselectTried) return;
+
+		this._matrixPreselectTried = true;
+		this.withCurrentJob(job => {
+			this.selectedJobTypeId.set(job.jobTypeId);
+			this.loadMatrix(job.jobTypeId);
+		});
+	}
+
+	/**
+	 * Resolve the job named by the URL once and hand it to the caller. Cached because both
+	 * preselecting tabs want it and the answer cannot change without a navigation; `null`
+	 * records a jobPath that did not resolve, so a stale path is not re-queried per tab.
+	 */
+	private withCurrentJob(fn: (job: JobRefDto) => void): void {
+		if (this._currentJob !== undefined) {
+			if (this._currentJob) fn(this._currentJob);
+			return;
+		}
+
+		const jobPath = this.resolveActiveJobPath();
+		if (!jobPath) {
+			this._currentJob = null;
+			return;
+		}
+
+		this.editorService.getJobByPath(jobPath).subscribe(job => {
+			this._currentJob = job;
+			if (job) fn(job);
 		});
 	}
 
