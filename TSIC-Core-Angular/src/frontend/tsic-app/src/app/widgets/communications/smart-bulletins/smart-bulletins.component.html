@@ -11,13 +11,6 @@
 
 		<div id="sb-panels" class="sb__panels">
 
-			<!-- Financial Health — DIRECTOR ONLY, and FIRST in the band. The only card in
-			     here that is NOT part of the public preview, so it carries its own private
-			     treatment (inverted surface + lock ribbon + the director's own name). -->
-			@if (showFinancialHealth()) {
-				<app-financial-health />
-			}
-
 			<!-- Event Status — the lifecycle headline for the non-action phases (planned /
 			     preview / concluded). Self-hides in the action phases, where Game-Day leads.
 			     In the CONCLUDED phase it is the whole story: it carries the final-standings

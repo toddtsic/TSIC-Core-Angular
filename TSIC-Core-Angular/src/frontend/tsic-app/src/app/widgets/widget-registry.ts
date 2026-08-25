@@ -8,6 +8,7 @@ import { TeamTrendWidgetComponent } from '@widgets/registration/team-trend-widge
 import { AgegroupDistributionWidgetComponent } from '@widgets/registration/agegroup-distribution-widget/agegroup-distribution-widget.component';
 import { YearOverYearWidgetComponent } from '@widgets/scheduling/year-over-year-widget/year-over-year-widget.component';
 import { JobPulseWidgetComponent } from '@widgets/registration/job-pulse-widget/job-pulse-widget.component';
+import { FinancialHealthComponent } from '@widgets/financial/financial-health/financial-health.component';
 import { Workspaces, type WorkspaceKey } from '@widgets/workspace.constants';
 
 // ════════════════════════════════════════════════════════════
@@ -82,6 +83,16 @@ export const WIDGET_MANIFEST: Record<string, WidgetManifestEntry> = {
 		workspace:    Workspaces.Public,
 		description:  'Smart registration availability cards',
 		displayStyle: 'pulse',
+	},
+
+	'financial-health': {
+		component:    FinancialHealthComponent,
+		label:        'Financial Health',
+		icon:         'bi-heart-pulse',
+		widgetType:   'content',
+		workspace:    Workspaces.Dashboard,
+		description:  'DIRECTOR ONLY — expiring cards, plan drift, and balances owed',
+		displayStyle: 'panel',
 	},
 
 	// ── Chart-tile widgets (have Angular components) ──

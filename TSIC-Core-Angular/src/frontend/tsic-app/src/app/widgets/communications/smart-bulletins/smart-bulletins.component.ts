@@ -11,8 +11,6 @@ import { GameDayPanelComponent } from '@views/home/job-landing/game-day-panel/ga
 import { InlineGameClockComponent } from '@views/scheduling/view-schedule/components/inline-game-clock.component';
 import { EventStatusComponent } from './event-status.component';
 import { UsLaxInfoComponent } from './uslax-info.component';
-import { FinancialHealthComponent } from './financial-health.component';
-import { environment } from '@environments/environment';
 
 /**
  * Smart Bulletins band — the self-assembling, always-current "bulletins" the
@@ -34,7 +32,7 @@ import { environment } from '@environments/environment';
 @Component({
 	selector: 'app-smart-bulletins',
 	standalone: true,
-	imports: [RouterLink, RegistrationPanelComponent, GameDayPanelComponent, InlineGameClockComponent, EventStatusComponent, UsLaxInfoComponent, FinancialHealthComponent],
+	imports: [RouterLink, RegistrationPanelComponent, GameDayPanelComponent, InlineGameClockComponent, EventStatusComponent, UsLaxInfoComponent],
 	templateUrl: './smart-bulletins.component.html',
 	styleUrl: './smart-bulletins.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -176,30 +174,7 @@ export class SmartBulletinsComponent {
 		return phase === 'planned' || phase === 'preview' || phase === 'concluded';
 	});
 
-	/**
-	 * Financial Health — DIRECTOR ONLY, and NOT IN PRODUCTION yet.
-	 *
-	 * Two gates, deliberately separate:
-	 *
-	 * 1. `envName !== 'production'` — the panel is still being designed, so it shows on
-	 *    development and staging only. **It must be `envName`, NOT `production`**: the
-	 *    `production: true` flag is set in the STAGING environment file as well (it drives
-	 *    build optimisation, not identity), so `!environment.production` would hide this
-	 *    from staging too. Same idiom as `arb-health.component.ts:93`.
-	 * 2. `isAdmin()` — Director + SuperDirector + Superuser, the same event-runner set the
-	 *    dashboard itself is scoped to.
-	 *
-	 * Note gate 2 is the INVERSE of what publicView does with the same predicate:
-	 * publicView uses isAdmin() to STRIP personalisation so the band stays a faithful
-	 * preview of the public page, whereas this card is deliberately not part of that
-	 * preview at all — which is why it carries its own unmistakable private treatment
-	 * rather than blending in with the cards around it.
-	 */
-	protected readonly showFinancialHealth = computed(() =>
-		environment.envName !== 'production' && this.auth.isAdmin());
-
 	/** The band self-hides when no smart section has content. */
 	protected readonly hasContent = computed(() =>
-		this.showFinancialHealth() || this.showEventStatus() || this.showRegistration()
-		|| this.showGameDay() || this.showStore() || this.showUsLax());
+		this.showEventStatus() || this.showRegistration() || this.showGameDay() || this.showStore() || this.showUsLax());
 }
