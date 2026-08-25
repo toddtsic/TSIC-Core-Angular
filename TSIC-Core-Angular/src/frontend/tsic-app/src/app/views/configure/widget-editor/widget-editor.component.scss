@@ -451,16 +451,17 @@
 }
 
 .assign-chip {
+	position: relative;
 	display: inline-flex;
 	align-items: center;
 	padding: var(--space-1) var(--space-3);
-	border-radius: 999px;
-	border: 1px solid var(--bs-border-color);
-	background: transparent;
-	color: var(--bs-secondary-color);
+	border-radius: var(--radius-pill, 999px);
+	border: 1px solid var(--brand-border);
+	background: var(--brand-surface);
+	color: var(--brand-text);
 	font-size: var(--font-size-sm);
 	cursor: pointer;
-	transition: all 0.12s ease;
+	transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 	user-select: none;
 
 	&:hover {
@@ -468,10 +469,28 @@
 		color: var(--bs-primary);
 	}
 
+	// The checkbox was `d-none` (display:none), which removes it from the tab
+	// order — these chips were unreachable by keyboard. Hidden visually but
+	// still focusable, with the ring drawn on the chip itself.
+	.wf-chip-input {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	&:focus-within {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+		border-color: var(--bs-primary);
+	}
+
 	&.active {
 		background: var(--bs-primary);
 		border-color: var(--bs-primary);
-		color: #fff;
+		color: var(--brand-surface);
+		font-weight: var(--font-weight-semibold);
 	}
 }
 
@@ -483,39 +502,6 @@
 	border-radius: var(--radius-sm);
 }
 
-// ── Config fieldset (modal) ──
-
-.config-fieldset {
-	border: 1px solid var(--bs-border-color);
-	border-radius: var(--radius-md);
-	padding: var(--space-3);
-	background: rgba(var(--bs-secondary-rgb), 0.03);
-
-	legend {
-		float: none;
-		width: auto;
-		font-size: var(--font-size-sm);
-		font-weight: 600;
-		padding: 0;
-	}
-
-	.form-label-sm {
-		font-size: 0.75rem;
-		color: var(--bs-secondary-color);
-	}
-}
-
-.assign-legend {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	cursor: pointer;
-	transition: color 0.15s ease;
-
-	&:hover {
-		color: var(--bs-primary);
-	}
-}
 
 // ── Job Override indicators ──
 
@@ -625,4 +611,251 @@
 	white-space: pre;
 	overflow-x: auto;
 	color: var(--brand-text);
+}
+
+// ════════════════════════════════════════════════════════════
+//  WIDGET FORM (Edit/Add Widget dialog)
+//
+//  The old dialog was a flat run of form rows with two hairline
+//  fieldsets at 3% opacity — nothing told the eye where one
+//  concern ended and the next began. Every region is now a CARD
+//  with a titled header band: icon tile, title, and a caption
+//  saying what the region actually does.
+//
+//  Depth comes from background + border + shadow. NEVER
+//  backdrop-filter (banned project-wide).
+// ════════════════════════════════════════════════════════════
+
+.wf-body {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+}
+
+.wf-section {
+	--wf-accent: var(--bs-primary);
+
+	border: 1px solid var(--brand-border);
+	border-radius: var(--radius-md);
+	background: var(--brand-surface);
+	box-shadow: var(--shadow-sm);
+	overflow: hidden;
+}
+
+// The header band is what actually separates the regions — a tinted
+// strip with its own bottom rule, so the boundary reads even when the
+// body below is full of white inputs.
+.wf-section__head {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-3);
+	width: 100%;
+	margin: 0;
+	padding: var(--space-3) var(--space-4);
+	background: color-mix(in srgb, var(--wf-accent) 7%, var(--brand-surface));
+	border-bottom: 1px solid color-mix(in srgb, var(--wf-accent) 22%, var(--brand-border));
+	text-align: left;
+}
+
+.wf-section__icon {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 30px;
+	border-radius: var(--radius-sm);
+	background: color-mix(in srgb, var(--wf-accent) 16%, var(--brand-surface));
+	color: var(--wf-accent);
+	font-size: 0.95rem;
+}
+
+.wf-section__titles {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+.wf-section__title {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	margin: 0;
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.02em;
+	color: var(--brand-text);
+}
+
+.wf-section__opt {
+	font-size: 0.7rem;
+	font-weight: var(--font-weight-semibold);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--brand-text-muted);
+}
+
+.wf-section__caption {
+	font-size: var(--font-size-sm);
+	line-height: 1.4;
+	color: var(--brand-text-muted);
+}
+
+.wf-count {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 20px;
+	padding: 0 var(--space-1);
+	border-radius: var(--radius-pill, 999px);
+	background: var(--wf-accent);
+	color: var(--brand-surface);
+	font-size: 0.7rem;
+	font-weight: var(--font-weight-bold);
+}
+
+// Collapsible header — a real button, so it is keyboard-reachable and
+// carries a focus ring. The old version was a <legend> with a click
+// handler: no focus, no role, no keyboard.
+.wf-section__head--toggle {
+	border-top: 0;
+	border-left: 0;
+	border-right: 0;
+	cursor: pointer;
+	transition: background 0.15s ease;
+
+	&:hover {
+		background: color-mix(in srgb, var(--wf-accent) 12%, var(--brand-surface));
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+.wf-section__chev {
+	flex: 0 0 auto;
+	align-self: center;
+	font-size: 0.75rem;
+	color: var(--brand-text-muted);
+}
+
+// Role Assignments reaches EVERY job of a type. It gets the warn hue so
+// the one destructive-by-reach region does not look like the other two.
+.wf-section--reach {
+	--wf-accent: var(--bs-warning);
+}
+
+.wf-section__body {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+	padding: var(--space-4);
+}
+
+.wf-field {
+	display: flex;
+	flex-direction: column;
+
+	.form-label {
+		margin-bottom: var(--space-1);
+		font-size: var(--font-size-sm);
+		font-weight: var(--font-weight-semibold);
+		color: var(--brand-text);
+	}
+
+	.form-text {
+		margin-top: var(--space-1);
+		font-size: 0.78rem;
+		color: var(--brand-text-muted);
+	}
+}
+
+.wf-grid-2 {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: var(--space-3);
+}
+
+@media (max-width: 575.98px) {
+	.wf-grid-2 {
+		grid-template-columns: 1fr;
+	}
+}
+
+// One note treatment replaces four ad-hoc alert-* boxes that each
+// carried their own inline font-size.
+.wf-note {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-2);
+	margin-top: var(--space-2);
+	padding: var(--space-2) var(--space-3);
+	border: 1px solid var(--brand-border);
+	border-left: 3px solid var(--brand-text-muted);
+	border-radius: var(--radius-sm);
+	background: color-mix(in srgb, var(--brand-text) 4%, var(--brand-surface));
+	font-size: 0.8rem;
+	line-height: 1.45;
+	color: var(--brand-text);
+
+	i {
+		margin-top: 2px;
+		color: var(--brand-text-muted);
+	}
+
+	code {
+		font-size: 0.95em;
+	}
+}
+
+.wf-note--warn {
+	border-left-color: var(--bs-warning);
+	background: color-mix(in srgb, var(--bs-warning) 8%, var(--brand-surface));
+
+	i {
+		color: var(--bs-warning);
+	}
+}
+
+.wf-note--info {
+	border-left-color: var(--bs-info);
+	background: color-mix(in srgb, var(--bs-info) 8%, var(--brand-surface));
+
+	i {
+		color: var(--bs-info);
+	}
+}
+
+// Chip rows read as a unit instead of a loose label above loose pills.
+.wf-chipgroup {
+	padding: var(--space-3);
+	border: 1px solid var(--brand-border);
+	border-radius: var(--radius-sm);
+	background: color-mix(in srgb, var(--brand-text) 3%, var(--brand-surface));
+}
+
+.wf-chipgroup__label {
+	display: block;
+	margin-bottom: var(--space-2);
+	font-size: 0.7rem;
+	font-weight: var(--font-weight-bold);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--brand-text-muted);
+}
+
+.wf-chipgroup__chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.wf-section__head--toggle {
+		transition: none !important;
+	}
 }

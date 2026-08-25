@@ -552,67 +552,89 @@
 				<h5 class="modal-title">{{ editingWidget() ? 'Edit Widget' : 'Add Widget' }}</h5>
 				<button type="button" class="btn-close" (click)="closeWidgetModal()" aria-label="Close"></button>
 			</div>
-			<div class="modal-body">
-				<div class="mb-3">
-					<label class="form-label">Name</label>
-					<input type="text" class="form-control form-control-sm" autofocus
-						[value]="formName()" (input)="formName.set(asInputValue($event))" />
-				</div>
-				<div class="mb-3">
-					<label class="form-label">Widget Type</label>
-					<select class="form-select form-select-sm"
-						[value]="formWidgetType()" (change)="formWidgetType.set(asSelectValue($event))">
-						<option value="" disabled>Select type...</option>
-						@for (t of widgetTypes; track t) {
-							<option [value]="t" [selected]="formWidgetType() === t">{{ t }}</option>
-						}
-					</select>
-				</div>
-				<div class="mb-3">
-					<label class="form-label">Component Key</label>
-					<select class="form-select form-select-sm"
-						[value]="useCustomKey() ? '__custom__' : formComponentKey()"
-						(change)="onComponentKeySelect(asSelectValue($event))">
-						<option value="" disabled>Select from manifest...</option>
-						@for (key of manifestKeys; track key) {
-							<option [value]="key" [selected]="!useCustomKey() && formComponentKey() === key">{{ key }}</option>
-						}
-						<option value="__custom__" [selected]="useCustomKey()">Other (custom key)...</option>
-					</select>
-					@if (useCustomKey()) {
-						<input type="text" class="form-control form-control-sm mt-2"
-							placeholder="Enter custom component key..."
-							[value]="formComponentKey()" (input)="formComponentKey.set(asInputValue($event))" />
-						<div class="alert alert-warning d-flex align-items-start gap-2 mt-2 mb-0 py-2 px-3" style="font-size: 0.8rem;">
-							<i class="bi bi-exclamation-triangle-fill mt-1"></i>
-							<span>Custom keys require a matching entry in
-							<code>widget-registry.ts</code> to render on the dashboard.</span>
+			<div class="modal-body wf-body">
+
+				<!-- ── REGION 1: Definition ─────────────────────────────── -->
+				<section class="wf-section">
+					<header class="wf-section__head">
+						<span class="wf-section__icon" aria-hidden="true"><i class="bi bi-box"></i></span>
+						<span class="wf-section__titles">
+							<h6 class="wf-section__title">Definition</h6>
+							<span class="wf-section__caption">What this widget is, and where it lives.</span>
+						</span>
+					</header>
+					<div class="wf-section__body">
+						<div class="wf-field">
+							<label class="form-label">Name</label>
+							<input type="text" class="form-control form-control-sm" autofocus
+								[value]="formName()" (input)="formName.set(asInputValue($event))" />
 						</div>
-					}
-					<div class="form-text">Select a manifest entry to auto-fill the form, or choose "Other" for a custom key.</div>
-				</div>
-				<div class="mb-3">
-					<label class="form-label">Category</label>
-					<select class="form-select form-select-sm"
-						[value]="formCategoryId()" (change)="formCategoryId.set(+asSelectValue($event))">
-						<option [value]="0" disabled>Select category...</option>
-						@for (c of categories(); track c.categoryId) {
-							<option [value]="c.categoryId" [selected]="formCategoryId() === c.categoryId">{{ c.name }} ({{ c.workspace }})</option>
-						}
-					</select>
-				</div>
-				<div class="mb-3">
-					<label class="form-label">Description <span class="text-body-secondary">(optional)</span></label>
-					<textarea class="form-control form-control-sm" rows="2"
-						[value]="formDescription()" (input)="formDescription.set(asInputValue($event))"></textarea>
-				</div>
-				<!-- Dashboard Config (structured fields → serialized as JSON) -->
-				<fieldset class="config-fieldset mb-3">
-					<legend class="form-label mb-2">Dashboard Config <span class="text-body-secondary">(optional)</span></legend>
-					<div class="row g-2">
+						<div class="wf-grid-2">
+							<div class="wf-field">
+								<label class="form-label">Widget Type</label>
+								<select class="form-select form-select-sm"
+									[value]="formWidgetType()" (change)="formWidgetType.set(asSelectValue($event))">
+									<option value="" disabled>Select type...</option>
+									@for (t of widgetTypes; track t) {
+										<option [value]="t" [selected]="formWidgetType() === t">{{ t }}</option>
+									}
+								</select>
+							</div>
+							<div class="wf-field">
+								<label class="form-label">Category</label>
+								<select class="form-select form-select-sm"
+									[value]="formCategoryId()" (change)="formCategoryId.set(+asSelectValue($event))">
+									<option [value]="0" disabled>Select category...</option>
+									@for (c of categories(); track c.categoryId) {
+										<option [value]="c.categoryId" [selected]="formCategoryId() === c.categoryId">{{ c.name }} ({{ c.workspace }})</option>
+									}
+								</select>
+							</div>
+						</div>
+						<div class="wf-field">
+							<label class="form-label">Component Key</label>
+							<select class="form-select form-select-sm"
+								[value]="useCustomKey() ? '__custom__' : formComponentKey()"
+								(change)="onComponentKeySelect(asSelectValue($event))">
+								<option value="" disabled>Select from manifest...</option>
+								@for (key of manifestKeys; track key) {
+									<option [value]="key" [selected]="!useCustomKey() && formComponentKey() === key">{{ key }}</option>
+								}
+								<option value="__custom__" [selected]="useCustomKey()">Other (custom key)...</option>
+							</select>
+							@if (useCustomKey()) {
+								<input type="text" class="form-control form-control-sm mt-2"
+									placeholder="Enter custom component key..."
+									[value]="formComponentKey()" (input)="formComponentKey.set(asInputValue($event))" />
+								<div class="wf-note wf-note--warn">
+									<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+									<span>Custom keys require a matching entry in
+									<code>widget-registry.ts</code> to render on the dashboard.</span>
+								</div>
+							}
+							<div class="form-text">Select a manifest entry to auto-fill the form, or choose "Other" for a custom key.</div>
+						</div>
+						<div class="wf-field">
+							<label class="form-label">Description <span class="text-body-secondary">(optional)</span></label>
+							<textarea class="form-control form-control-sm" rows="2"
+								[value]="formDescription()" (input)="formDescription.set(asInputValue($event))"></textarea>
+						</div>
+					</div>
+				</section>
+
+				<!-- ── REGION 2: Appearance ─────────────────────────────── -->
+				<section class="wf-section">
+					<header class="wf-section__head">
+						<span class="wf-section__icon" aria-hidden="true"><i class="bi bi-palette"></i></span>
+						<span class="wf-section__titles">
+							<h6 class="wf-section__title">Appearance <span class="wf-section__opt">optional</span></h6>
+							<span class="wf-section__caption">Visual variant and icon for this tile.</span>
+						</span>
+					</header>
+					<div class="wf-section__body">
 						@if (displayStyleOptions[formWidgetType()]; as styles) {
-							<div class="col-12">
-								<label class="form-label form-label-sm mb-1">Display Style</label>
+							<div class="wf-field">
+								<label class="form-label">Display Style</label>
 								<select class="form-select form-select-sm"
 									[value]="formDisplayStyle()" (change)="formDisplayStyle.set(asSelectValue($event))">
 									<option value="">Default ({{ styles[0] }})</option>
@@ -623,8 +645,8 @@
 								<div class="form-text">Visual variant within this tile type.</div>
 							</div>
 						}
-						<div class="col-12">
-							<label class="form-label form-label-sm mb-1">Icon</label>
+						<div class="wf-field">
+							<label class="form-label">Icon</label>
 							<div class="input-group input-group-sm">
 								<span class="input-group-text font-monospace">bi-</span>
 								<input type="text" class="form-control form-control-sm"
@@ -639,103 +661,112 @@
 							</div>
 						</div>
 					</div>
-				</fieldset>
+				</section>
 
-				<!-- Role Assignments (embedded) -->
-				<fieldset class="config-fieldset mb-0">
-					<legend class="form-label mb-0 assign-legend"
+				<!-- ── REGION 3: Role Assignments — collapsible, and the one
+				     region that can reach every job. Caption says so. ───── -->
+				<section class="wf-section wf-section--reach">
+					<button type="button" class="wf-section__head wf-section__head--toggle"
+						[attr.aria-expanded]="assignSectionExpanded()"
 						(click)="assignSectionExpanded.set(!assignSectionExpanded())">
-						<span>
-							<i class="bi bi-person-check me-1"></i>Role Assignments
-							@if (assignmentCount() > 0) {
-								<span class="badge bg-primary-subtle text-primary-emphasis ms-2"
-									style="font-size: 0.7rem;">{{ assignmentCount() }}</span>
-							}
+						<span class="wf-section__icon" aria-hidden="true"><i class="bi bi-person-check"></i></span>
+						<span class="wf-section__titles">
+							<h6 class="wf-section__title">
+								Role Assignments
+								@if (assignmentCount() > 0) {
+									<span class="wf-count">{{ assignmentCount() }}</span>
+								}
+							</h6>
+							<span class="wf-section__caption">
+								Adds this widget to <strong>every job</strong> of the selected types — not one job.
+								To place it on a single job, use the Job Overrides tab.
+							</span>
 						</span>
-						<i class="bi" [ngClass]="assignSectionExpanded() ? 'bi-chevron-up' : 'bi-chevron-down'"
-							style="font-size: 0.75rem;"></i>
-					</legend>
+						<i class="bi wf-section__chev"
+							[ngClass]="assignSectionExpanded() ? 'bi-chevron-up' : 'bi-chevron-down'"
+							aria-hidden="true"></i>
+					</button>
 
 					@if (assignSectionExpanded()) {
-						@if (isLoadingAssignments()) {
-							<div class="text-center py-3">
-								<div class="spinner-border spinner-border-sm text-primary" role="status">
-									<span class="visually-hidden">Loading assignments...</span>
+						<div class="wf-section__body">
+							@if (isLoadingAssignments()) {
+								<div class="text-center py-3">
+									<div class="spinner-border spinner-border-sm text-primary" role="status">
+										<span class="visually-hidden">Loading assignments...</span>
+									</div>
 								</div>
-							</div>
-						} @else {
-							@if (!editingWidget() && assignmentCount() === 0) {
-								<div class="alert alert-info d-flex align-items-start gap-2 mt-2 mb-3 py-2 px-3"
-									style="font-size: 0.8rem;">
-									<i class="bi bi-info-circle-fill mt-1"></i>
-									@if (isPublicCategory()) {
-										<span>Select job types — this public widget will show to every user on those job types.</span>
-									} @else {
-										<span>Select job types and roles so this widget appears on dashboards.</span>
-									}
-								</div>
-							}
+							} @else {
+								@if (!editingWidget() && assignmentCount() === 0) {
+									<div class="wf-note wf-note--info">
+										<i class="bi bi-info-circle-fill" aria-hidden="true"></i>
+										@if (isPublicCategory()) {
+											<span>Select job types — this public widget will show to every user on those job types.</span>
+										} @else {
+											<span>Select job types and roles so this widget appears on dashboards.</span>
+										}
+									</div>
+								}
 
-							<div class="mt-2 mb-3">
-								<label class="form-label fw-semibold mb-2">Job Types</label>
-								<div class="d-flex flex-wrap gap-2">
-									<label class="assign-chip" [class.active]="allJobTypesSelected()">
-										<input type="checkbox" class="d-none"
-											[checked]="allJobTypesSelected()"
-											(change)="toggleAllJobTypes()" />
-										Select All
-									</label>
-									@for (jt of jobTypes(); track jt.jobTypeId) {
-										<label class="assign-chip"
-											[class.active]="assignSelectedJobTypes().has(jt.jobTypeId)">
-											<input type="checkbox" class="d-none"
-												[checked]="assignSelectedJobTypes().has(jt.jobTypeId)"
-												(change)="toggleAssignJobType(jt.jobTypeId)" />
-											{{ jt.jobTypeName }}
+								<div class="wf-chipgroup">
+									<span class="wf-chipgroup__label">Job Types</span>
+									<div class="wf-chipgroup__chips">
+										<label class="assign-chip" [class.active]="allJobTypesSelected()">
+											<input type="checkbox" class="wf-chip-input"
+												[checked]="allJobTypesSelected()"
+												(change)="toggleAllJobTypes()" />
+											Select All
 										</label>
-									}
-								</div>
-							</div>
-
-							@if (!isPublicCategory()) {
-								<div class="mb-2">
-									<label class="form-label fw-semibold mb-2">Roles</label>
-									<div class="d-flex flex-wrap gap-2">
-										@for (role of roles(); track role.roleId) {
+										@for (jt of jobTypes(); track jt.jobTypeId) {
 											<label class="assign-chip"
-												[class.active]="assignSelectedRoles().has(role.roleId)">
-												<input type="checkbox" class="d-none"
-													[checked]="assignSelectedRoles().has(role.roleId)"
-													(change)="toggleAssignRole(role.roleId)" />
-												{{ role.roleName }}
+												[class.active]="assignSelectedJobTypes().has(jt.jobTypeId)">
+												<input type="checkbox" class="wf-chip-input"
+													[checked]="assignSelectedJobTypes().has(jt.jobTypeId)"
+													(change)="toggleAssignJobType(jt.jobTypeId)" />
+												{{ jt.jobTypeName }}
 											</label>
 										}
 									</div>
 								</div>
-							} @else {
-								<div class="alert alert-secondary d-flex align-items-start gap-2 mb-2 py-2 px-3"
-									style="font-size: 0.8rem;">
-									<i class="bi bi-globe mt-1"></i>
-									<span>Public widgets apply to every role. Role selection is disabled.</span>
-								</div>
-							}
 
-							@if (assignmentCount() > 0) {
-								<div class="assign-summary">
-									<i class="bi bi-info-circle me-1"></i>
-									@if (isPublicCategory()) {
-										{{ assignmentCount() }} assignment{{ assignmentCount() !== 1 ? 's' : '' }}
-										({{ assignSelectedJobTypes().size }} job type{{ assignSelectedJobTypes().size !== 1 ? 's' : '' }})
-									} @else {
-										{{ assignmentCount() }} assignment{{ assignmentCount() !== 1 ? 's' : '' }}
-										({{ assignSelectedRoles().size }} role{{ assignSelectedRoles().size !== 1 ? 's' : '' }}
-										&times; {{ assignSelectedJobTypes().size }} job type{{ assignSelectedJobTypes().size !== 1 ? 's' : '' }})
-									}
-								</div>
+								@if (!isPublicCategory()) {
+									<div class="wf-chipgroup">
+										<span class="wf-chipgroup__label">Roles</span>
+										<div class="wf-chipgroup__chips">
+											@for (role of roles(); track role.roleId) {
+												<label class="assign-chip"
+													[class.active]="assignSelectedRoles().has(role.roleId)">
+													<input type="checkbox" class="wf-chip-input"
+														[checked]="assignSelectedRoles().has(role.roleId)"
+														(change)="toggleAssignRole(role.roleId)" />
+													{{ role.roleName }}
+												</label>
+											}
+										</div>
+									</div>
+								} @else {
+									<div class="wf-note">
+										<i class="bi bi-globe" aria-hidden="true"></i>
+										<span>Public widgets apply to every role. Role selection is disabled.</span>
+									</div>
+								}
+
+								@if (assignmentCount() > 0) {
+									<div class="assign-summary">
+										<i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+										@if (isPublicCategory()) {
+											{{ assignmentCount() }} assignment{{ assignmentCount() !== 1 ? 's' : '' }}
+											({{ assignSelectedJobTypes().size }} job type{{ assignSelectedJobTypes().size !== 1 ? 's' : '' }})
+										} @else {
+											{{ assignmentCount() }} assignment{{ assignmentCount() !== 1 ? 's' : '' }}
+											({{ assignSelectedRoles().size }} role{{ assignSelectedRoles().size !== 1 ? 's' : '' }}
+											&times; {{ assignSelectedJobTypes().size }} job type{{ assignSelectedJobTypes().size !== 1 ? 's' : '' }})
+										}
+									</div>
+								}
 							}
-						}
+						</div>
 					}
-				</fieldset>
+				</section>
 			</div>
 			<div class="modal-footer">
 				<button type="button" class="btn btn-outline-secondary btn-sm" (click)="closeWidgetModal()">Cancel</button>
