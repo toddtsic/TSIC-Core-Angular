@@ -137,7 +137,7 @@ public class TeamManagementController : ControllerBase
 
     /// <summary>
     /// Files a link on a team. Player, Staff, Director, Superuser (Todd 2026-08-25) -- the
-    /// class-level [Authorize] alone let a Family account in, and let anyone in the job post
+    /// class-level [Authorize] alone admitted every role in the job, and let any of them post
     /// a job-wide link. Reach is the separate DenyIfOutsideReach check below.
     /// </summary>
     [HttpPost("links")]

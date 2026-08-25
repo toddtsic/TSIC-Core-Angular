@@ -675,7 +675,12 @@ builder.Services.AddAuthorization(options =>
     //
     // Deliberately NOT the same as CanSendPushNotifications, which still guards the website
     // push screen (PushNotificationController) and stays Director+Superuser. Roles Todd did
-    // not name are absent by decision, not oversight: Family, SuperDirector, Club Rep, Scorer.
+    // not name are absent by decision, not oversight: SuperDirector, Club Rep, Scorer.
+    //
+    // Player covers the parent case: registrations are per PLAYER, and RoleLookupService
+    // builds a household's login options from GetPlayerRegistrationsAsync labelled "Player".
+    // Family is a login, never a registration -- no Family role claim is ever minted, so
+    // there is nothing here for it to admit.
     options.AddPolicy("CanAuthorTeamContent", policy =>
         policy.RequireClaim(System.Security.Claims.ClaimTypes.Role,
             RoleConstants.Names.SuperuserName,
