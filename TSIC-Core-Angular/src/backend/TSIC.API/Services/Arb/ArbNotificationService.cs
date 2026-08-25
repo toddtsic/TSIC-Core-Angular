@@ -1,3 +1,4 @@
+using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Email;
 using TSIC.Contracts.Dtos.Arb;
 using TSIC.Contracts.Repositories;
@@ -34,17 +35,30 @@ public sealed class ArbNotificationService : IArbNotificationService
     /// <summary>Subject for the expiring-card notice. Stable: emailLogs is queried on it.</summary>
     public const string SubjectExpiringCard = "TeamSportsInfo.com Credit Card Expiring This Month";
 
+    /// <summary>Prefix on the emailLogs subject of a message that was rendered but never transmitted.</summary>
+    public const string DryRunSubjectPrefix = "[DRY RUN] ";
+
     private readonly IArbSubscriptionRepository _arbRepo;
     private readonly IArbDefensiveService _defensive;
     private readonly IEmailService _email;
     private readonly IEmailLogRepository _emailLogs;
     private readonly ILogger<ArbNotificationService> _logger;
 
+    /// <summary>
+    /// Whether this host renders instead of sends. Derived from the environment IN THE CONSTRUCTOR and
+    /// deliberately NOT a parameter: a caller-supplied flag is a flag a caller can get wrong, and the
+    /// way to get it wrong on Production is to mail nobody while reporting that thousands were mailed.
+    /// There is nothing to pass, so there is nothing to pass incorrectly. Production always sends;
+    /// every other environment never does.
+    /// </summary>
+    private readonly bool _dryRun;
+
     public ArbNotificationService(
         IArbSubscriptionRepository arbRepo,
         IArbDefensiveService defensive,
         IEmailService email,
         IEmailLogRepository emailLogs,
+        IHostEnvironment env,
         ILogger<ArbNotificationService> logger)
     {
         _arbRepo = arbRepo;
@@ -52,6 +66,114 @@ public sealed class ArbNotificationService : IArbNotificationService
         _email = email;
         _emailLogs = emailLogs;
         _logger = logger;
+        _dryRun = env.IsSandbox();
+    }
+
+    /// <summary>
+    /// One family's message: transmitted on Production, rendered only on a dry run. Deliberately does
+    /// NOT write to emailLogs — the audit is one row per job per email type, batched and flushed by
+    /// <see cref="FlushAuditAsync"/> once the whole pass is done. Both notices route through here so the
+    /// two paths cannot drift: what a dry run shows on screen is what a live run puts on the wire.
+    /// </summary>
+    private async Task<ArbRenderedEmailDto> SendOrRenderAsync(
+        string registrant, string jobName, List<string> recipients,
+        string subject, string body, ArbDirectorProjection? director, CancellationToken ct)
+    {
+        if (!_dryRun)
+        {
+            await _email.SendAsync(new EmailMessageDto
+            {
+                FromName = director?.Name ?? jobName,
+                ReplyToName = director?.Name,
+                ReplyToAddress = director?.Email,
+                ToAddresses = recipients,
+                Subject = subject,
+                HtmlBody = body
+            }, cancellationToken: ct);
+        }
+
+        return new ArbRenderedEmailDto
+        {
+            Registrant = registrant,
+            JobName = jobName,
+            ToAddresses = recipients,
+            Subject = subject,
+            ReplyToName = director?.Name,
+            ReplyToAddress = director?.Email,
+            HtmlBody = body
+        };
+    }
+
+    /// <summary>
+    /// One accumulating emailLogs row: a job, an email type, and everyone who got that type today.
+    /// </summary>
+    private sealed class AuditBucket
+    {
+        public required Guid JobId { get; init; }
+        public required string Subject { get; init; }
+        /// <summary>The TEMPLATE, tokens unreplaced — see <see cref="FlushAuditAsync"/>.</summary>
+        public required string BodyTemplate { get; init; }
+        public string? SendFrom { get; set; }
+        public List<string> Recipients { get; } = [];
+    }
+
+    /// <summary>
+    /// Writes ONE emailLogs row per job per email type, matching how a Search Registrations batch email
+    /// audits itself (<c>EmailBatchService.CreateAuditRowAsync</c>): Count is the recipient tally, SendTo
+    /// is the ';'-joined address list, and Msg holds the BODY TEMPLATE rather than any one family's
+    /// rendered copy.
+    ///
+    /// Storing the template is the deliberate part. Every family's rendered body differs — their player,
+    /// their username, their balance — so no single row could hold "the" body, and picking one family's
+    /// copy to stand for the rest would be worse than storing none. The template is what the batch
+    /// actually was. Per-family rendered text is not lost: on a dry run every message comes back on
+    /// ArbNotifyResultDto.Rendered for review.
+    ///
+    /// The ';'-joined SendTo is what makes a batched row still answer "was this family written to?" —
+    /// GetSentToAddressesAsync matches "%;addr;%" against it, so the player panel and the family's own
+    /// sent-mail list resolve exactly as they do for a per-family row.
+    /// </summary>
+    private async Task FlushAuditAsync(IEnumerable<AuditBucket> buckets, CancellationToken ct)
+    {
+        foreach (var b in buckets.Where(b => b.Recipients.Count > 0))
+        {
+            try
+            {
+                await _emailLogs.LogAsync(new EmailLogs
+                {
+                    JobId = b.JobId,
+                    Count = b.Recipients.Count,
+                    // A dry-run row is marked so nobody reading the log screen, the player panel, or the
+                    // family's own sent-mail list mistakes rendered-only mail for mail that actually went.
+                    Subject = _dryRun ? DryRunSubjectPrefix + b.Subject : b.Subject,
+                    Msg = b.BodyTemplate,
+                    SendFrom = b.SendFrom ?? TsicConstants.SupportEmail,
+                    SendTo = string.Join(";", b.Recipients),
+                    // System actor, matching the accounting rows the same sweep writes.
+                    SenderUserId = TsicConstants.SuperUserId,
+                    SendTs = DateTime.Now
+                }, ct);
+            }
+            catch (Exception ex)
+            {
+                // The families got their email. Losing the audit row is bad, but failing the pass over it
+                // would be worse — and on a live run there is no way to un-send what already went.
+                _logger.LogError(ex, "ARB notification audit write failed for job {JobId} / {Subject}",
+                    b.JobId, b.Subject);
+            }
+        }
+    }
+
+    /// <summary>Find or start the bucket for this job + email type.</summary>
+    private static AuditBucket Bucket(
+        Dictionary<(Guid, string), AuditBucket> buckets, Guid jobId, string subject, string template)
+    {
+        if (!buckets.TryGetValue((jobId, subject), out var b))
+        {
+            b = new AuditBucket { JobId = jobId, Subject = subject, BodyTemplate = template };
+            buckets[(jobId, subject)] = b;
+        }
+        return b;
     }
 
     public async Task<ArbNotifyResultDto> NotifyFailedDraftsAsync(
@@ -60,6 +182,8 @@ public sealed class ArbNotificationService : IArbNotificationService
         if (failures.Count == 0) return ArbNotifyResultDto.Empty;
 
         var skips = new List<ArbNotifySkipDto>();
+        var rendered = new List<ArbRenderedEmailDto>();
+        var buckets = new Dictionary<(Guid, string), AuditBucket>();
         var emailed = 0;
 
         // One estate-wide projection read for the whole morning's failures. jobIdFilter is null on
@@ -117,21 +241,19 @@ public sealed class ArbNotificationService : IArbNotificationService
 
                 var alive = PlanIsAlive(failure.SubscriptionStatus);
                 var subject = alive ? SubjectPlanAlive : SubjectPlanDead;
-                var body = ReplaceTokens(alive ? BodyPlanAlive : BodyPlanDead, reg, failure);
+                var template = alive ? BodyPlanAlive : BodyPlanDead;
+                var body = ReplaceTokens(template, reg, failure);
 
                 directors.TryGetValue(reg.JobId, out var director);
 
-                await _email.SendAsync(new EmailMessageDto
-                {
-                    FromName = director?.Name ?? reg.JobName,
-                    ReplyToName = director?.Name,
-                    ReplyToAddress = director?.Email,
-                    ToAddresses = recipients,
-                    Subject = subject,
-                    HtmlBody = body
-                }, cancellationToken: ct);
+                rendered.Add(await SendOrRenderAsync(
+                    who, reg.JobName, recipients, subject, body, director, ct));
 
-                await LogSendAsync(reg, director?.Email, subject, body, recipients, ct);
+                // Alive and dead are separate email types, so a job with both kinds of failure this
+                // morning audits as two rows — which is correct: they are two different messages.
+                var bucket = Bucket(buckets, reg.JobId, subject, template);
+                bucket.SendFrom ??= director?.Email;
+                bucket.Recipients.AddRange(recipients);
                 emailed++;
             }
             catch (Exception ex)
@@ -144,18 +266,24 @@ public sealed class ArbNotificationService : IArbNotificationService
             }
         }
 
+        await FlushAuditAsync(buckets.Values, ct);
+
         return new ArbNotifyResultDto
         {
             Found = failures.Count,
             Emailed = emailed,
             Skipped = skips.Count,
-            Skips = skips
+            Skips = skips,
+            DryRun = _dryRun,
+            Rendered = rendered
         };
     }
 
     public async Task<ArbNotifyResultDto> NotifyExpiringCardsAsync(CancellationToken ct = default)
     {
         var skips = new List<ArbNotifySkipDto>();
+        var rendered = new List<ArbRenderedEmailDto>();
+        var buckets = new Dictionary<(Guid, string), AuditBucket>();
         var found = 0;
         var emailed = 0;
 
@@ -218,17 +346,12 @@ public sealed class ArbNotificationService : IArbNotificationService
 
                     var body = ReplaceFlaggedTokens(BodyExpiringCard, reg);
 
-                    await _email.SendAsync(new EmailMessageDto
-                    {
-                        FromName = director?.Name ?? reg.JobName,
-                        ReplyToName = director?.Name,
-                        ReplyToAddress = director?.Email,
-                        ToAddresses = recipients,
-                        Subject = SubjectExpiringCard,
-                        HtmlBody = body
-                    }, cancellationToken: ct);
+                    rendered.Add(await SendOrRenderAsync(
+                        who, reg.JobName, recipients, SubjectExpiringCard, body, director, ct));
 
-                    await LogSendRawAsync(jobId, director?.Email, SubjectExpiringCard, body, recipients, ct);
+                    var bucket = Bucket(buckets, jobId, SubjectExpiringCard, BodyExpiringCard);
+                    bucket.SendFrom ??= director?.Email;
+                    bucket.Recipients.AddRange(recipients);
                     emailed++;
                 }
                 catch (Exception ex)
@@ -239,23 +362,26 @@ public sealed class ArbNotificationService : IArbNotificationService
             }
         }
 
+        await FlushAuditAsync(buckets.Values, ct);
+
         var result = new ArbNotifyResultDto
         {
             Found = found,
             Emailed = emailed,
             Skipped = skips.Count,
-            Skips = skips
+            Skips = skips,
+            DryRun = _dryRun,
+            Rendered = rendered
         };
 
-        await SendExpiringSummaryAsync(result, jobIds.Count, ct);
-        return result;
+        return result with { SummaryHtml = await SendExpiringSummaryAsync(result, jobIds.Count, ct) };
     }
 
     /// <summary>
     /// Paired counts to support, the same shape the sweep digest reports: how many cards expire this
     /// month, how many families were reached, and by name the ones that need a person.
     /// </summary>
-    private async Task SendExpiringSummaryAsync(ArbNotifyResultDto result, int jobCount, CancellationToken ct)
+    private async Task<string?> SendExpiringSummaryAsync(ArbNotifyResultDto result, int jobCount, CancellationToken ct)
     {
         try
         {
@@ -275,51 +401,30 @@ public sealed class ArbNotificationService : IArbNotificationService
                 sb.Append("</ul>");
             }
 
+            var html = sb.ToString();
+
+            // On a dry run the summary is handed back to the screen instead of mailed. It previously
+            // passed sendInDevelopment:true — the one message on this path that DID transmit off
+            // Production — and leaving that in would break the rule the dry run exists to keep:
+            // off Production, nothing leaves the box.
+            if (_dryRun) return html;
+
             await _email.SendAsync(new EmailMessageDto
             {
                 FromName = "",
                 ToAddresses = [TsicConstants.SupportEmail],
                 Subject = $"ARB Expiring Cards {DateTime.Now:dddd, dd MMMM yyyy} — {result.Emailed} emailed"
                     + (result.Skipped > 0 ? $", {result.Skipped} NOT" : ""),
-                HtmlBody = sb.ToString()
+                HtmlBody = html
             }, sendInDevelopment: true, cancellationToken: ct);
+
+            return html;
         }
         catch (Exception ex)
         {
             // The families were already emailed; losing the summary must not undo or re-run that.
             _logger.LogError(ex, "ARB expiring-card summary send failed");
-        }
-    }
-
-    private Task LogSendAsync(
-        ArbRegistrationProjection reg, string? sendFrom, string subject, string body,
-        List<string> recipients, CancellationToken ct)
-        => LogSendRawAsync(reg.JobId, sendFrom, subject, body, recipients, ct);
-
-    private async Task LogSendRawAsync(
-        Guid jobId, string? sendFrom, string subject, string body,
-        List<string> recipients, CancellationToken ct)
-    {
-        try
-        {
-            await _emailLogs.LogAsync(new EmailLogs
-            {
-                JobId = jobId,
-                Count = recipients.Count,
-                Subject = subject,
-                Msg = body,
-                SendFrom = sendFrom ?? TsicConstants.SupportEmail,
-                SendTo = string.Join(";", recipients),
-                // System actor, matching the accounting rows the same sweep writes.
-                SenderUserId = TsicConstants.SuperUserId,
-                SendTs = DateTime.Now
-            }, ct);
-        }
-        catch (Exception ex)
-        {
-            // The family got their email. Losing the audit row is bad, but pretending the send
-            // failed would be worse — it would put them in the digest as unnotified.
-            _logger.LogError(ex, "ARB notification sent but emailLogs write failed for job {JobId}", jobId);
+            return null;
         }
     }
 

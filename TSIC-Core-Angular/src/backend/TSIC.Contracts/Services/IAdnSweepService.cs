@@ -1,3 +1,5 @@
+using TSIC.Contracts.Dtos.Arb;
+
 namespace TSIC.Contracts.Services;
 
 /// <summary>
@@ -105,6 +107,30 @@ public sealed record AdnSweepResult
     /// via <c>sendDigest: false</c> and intends to mail it itself.
     /// </summary>
     public string? DigestHtml { get; init; }
+
+    /// <summary>
+    /// True when this host reports instead of acts: real production batches were read and every failed
+    /// draft resolved, but nothing was written, settled, or sent. Always false on Production, always
+    /// true everywhere else — the mode follows the environment and cannot be requested.
+    ///
+    /// A dry run's <see cref="Checked"/> and <see cref="FailedDraftsFound"/> are real; its
+    /// <see cref="ArbImported"/> counts transactions RESOLVED, not booked; and <see cref="EcheckSettled"/>,
+    /// <see cref="EcheckReturnsProcessed"/> and <see cref="OrphansFound"/> are always 0 because those
+    /// steps do not run.
+    /// </summary>
+    public bool DryRun { get; init; }
+
+    /// <summary>
+    /// Every family email the run produced, exactly as it would go out. Populated on a dry run only —
+    /// on a live run these went to families and there is nothing to review here.
+    /// </summary>
+    public List<ArbRenderedEmailDto> RenderedEmails { get; init; } = [];
+
+    /// <summary>
+    /// Failed drafts the notifier deliberately did not write to, with the reason. Populated on both
+    /// live and dry runs: these are the families a human still has to contact.
+    /// </summary>
+    public List<ArbNotifySkipDto> NotEmailed { get; init; } = [];
 
     /// <summary>
     /// The sweep completed AND every transaction in it was processed. This is the gate the month-end

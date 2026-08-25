@@ -18,6 +18,10 @@ public interface IAdnApiService
     // NEVER pair with a charging/mutating call off-Production.
     Task<AdnCredentialsViewModel> GetJobAdnProductionCredentials_FromJobId(Guid jobId);
 
+    // Customer-level twin of the above, same restriction. Used by the sweep's dry run to read real
+    // settled batches from the TSIC master account off Production.
+    Task<AdnCredentialsViewModel> GetJobAdnProductionCredentials_FromCustomerId(Guid customerId);
+
     getTransactionDetailsResponse ADN_GetTransactionDetails(
         AuthorizeNet.Environment env,
         string adnLoginId,

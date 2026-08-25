@@ -46,6 +46,22 @@ public sealed class AdnSweepService : IAdnSweepService
     private readonly AdnSweepOptions _options;
     private readonly ILogger<AdnSweepService> _logger;
 
+    /// <summary>
+    /// Off Production this sweep REPORTS instead of acting: it reads the real production settled
+    /// batches, resolves every failed ARB draft exactly as the live pass would, renders the digest and
+    /// each family email, and writes nothing, settles nothing, sends nothing.
+    ///
+    /// Derived from the environment in the CONSTRUCTOR, and deliberately not a parameter. A dry-run
+    /// flag a caller passes is a flag a caller can pass wrongly, and the way to be wrong on Production
+    /// is catastrophic and silent: the sweep would import no money, book no settlements, and still
+    /// report Succeeded with IsTrustworthy true, so the month-end close would build QuickBooks files
+    /// from a ledger missing a day. There is nothing to pass, so there is nothing to pass incorrectly.
+    ///
+    /// Nothing is lost by this. Before it existed, an off-Production run resolved ADN to SANDBOX,
+    /// found no production batches, and did nothing at all — just without showing you anything.
+    /// </summary>
+    private readonly bool _dryRun;
+
     public AdnSweepService(
         IEcheckSettlementRepository settleRepo,
         IRegistrationAccountingRepository accountingRepo,
@@ -56,10 +72,12 @@ public sealed class AdnSweepService : IAdnSweepService
         IRegistrationFeeAdjustmentService feeAdj,
         IEmailService email,
         IArbNotificationService arbNotify,
+        IHostEnvironment env,
         IOptions<TsicSettings> tsicSettings,
         IOptions<AdnSweepOptions> options,
         ILogger<AdnSweepService> logger)
     {
+        _dryRun = env.IsSandbox();
         _settleRepo = settleRepo;
         _accountingRepo = accountingRepo;
         _regRepo = regRepo;
@@ -125,7 +143,10 @@ public sealed class AdnSweepService : IAdnSweepService
     {
         if (daysPrior <= 0) daysPrior = _options.DaysPriorWindow;
 
-        var log = await _settleRepo.StartSweepLogAsync(triggeredBy, ct);
+        // echeck.SweepLog's CHECK constraint permits only "Scheduled" and "Manual", so a dry run has no
+        // honest value to write and must not invent a third one. It is not a sweep of record: nothing
+        // it observes is booked, so a row claiming a pass ran would misreport the ledger's coverage.
+        var log = _dryRun ? null : await _settleRepo.StartSweepLogAsync(triggeredBy, ct);
         var counts = new Counts();
         string? errorMessage = null;
         var arbRows = new List<ArbDigestRow>();
@@ -137,11 +158,20 @@ public sealed class AdnSweepService : IAdnSweepService
 
         try
         {
-            // The scheduled sweep is hard-gated to a Production host (AdnSweepBackgroundService),
-            // so the env-bound resolvers return the production account where it actually runs. A
-            // manual off-Production trigger harmlessly hits sandbox and finds no prod batches.
-            var creds = await _adn.GetJobAdnCredentials_FromCustomerId(_tsicSettings.DefaultCustomerId);
-            var env = _adn.GetADNEnvironment();
+            // The scheduled sweep is hard-gated to a Production host (AdnSweepBackgroundService), so the
+            // env-bound resolvers return the production account where it actually runs.
+            //
+            // A DRY RUN forces the production account instead. Without it the resolvers hand back
+            // SANDBOX, the batch list comes back empty, and the run reports a clean morning having
+            // examined nothing — which is exactly the failure this whole feature exists to stop being
+            // indistinguishable from a real one. Safe because a dry run only READS: the two writes on
+            // the failed-draft path are skipped below, steps 3-7 do not run, and nothing is sent. Same
+            // read-only exception the month-end reconciliation pull already takes
+            // (AdnReconciliationService, "Hardcoded PRODUCTION").
+            var creds = _dryRun
+                ? await _adn.GetJobAdnProductionCredentials_FromCustomerId(_tsicSettings.DefaultCustomerId)
+                : await _adn.GetJobAdnCredentials_FromCustomerId(_tsicSettings.DefaultCustomerId);
+            var env = _dryRun ? AuthorizeNet.Environment.PRODUCTION : _adn.GetADNEnvironment();
 
             // 1) Walk batches, accumulate flat tx list. A batch-list error is NOT an empty day — it used
             // to return [] and sail on, producing a digest of zeros that reads exactly like a quiet
@@ -149,7 +179,9 @@ public sealed class AdnSweepService : IAdnSweepService
             var allTxs = FetchBatchTransactions(env, creds.AdnLoginId!, creds.AdnTransactionKey!, daysPrior);
             counts.Checked = allTxs.Count;
 
-            // 2) Process ARB transactions (legacy parity).
+            // 2) Process ARB transactions (legacy parity). On a dry run this still resolves each
+            // transaction in full — detail fetch, invoice → registration, installment math — and only
+            // the two writes inside are skipped, so the rows feeding step 8 are the real ones.
             foreach (var tx in allTxs.Where(IsArbCandidate))
             {
                 ct.ThrowIfCancellationRequested();
@@ -169,6 +201,13 @@ public sealed class AdnSweepService : IAdnSweepService
                 }
             }
 
+            // Steps 3-7 are eCheck settlement, return reversal, orphan detection, the stale-draft
+            // watchdog and the integrity net. Every one of them either writes money or exists to catch
+            // an eCheck problem, and none of them feeds the failed-draft notification a dry run is here
+            // to exercise. Skipping them outright is safer than teaching five more code paths a
+            // don't-write mode: code that never runs cannot write.
+            if (!_dryRun)
+            {
             // 3) Process eCheck Pending → Settled transitions.
             // Walk batch txs that settled successfully and match against our pending Settlement
             // rows. No per-tx API call is needed — presence in a settled batch is the proof of
@@ -286,6 +325,7 @@ public sealed class AdnSweepService : IAdnSweepService
                 _logger.LogError(ex, "Untracked-eCheck integrity query failed");
                 counts.Errored++;
             }
+            } // end steps 3-7 (live runs only)
         }
         catch (Exception ex)
         {
@@ -340,7 +380,7 @@ public sealed class AdnSweepService : IAdnSweepService
         // It used to be the last statement inside the try, so any throw upstream skipped it entirely and
         // the only signal was the 5am email not arriving. Silence is not a report.
         var html = BuildDigestHtml(arbRows, settledRows, ecRows, orphanRows, watchdogRows, untrackedRows, notifyResult, counts, errorMessage);
-        if (sendDigest)
+        if (sendDigest && !_dryRun)
         {
             try
             {
@@ -353,8 +393,12 @@ public sealed class AdnSweepService : IAdnSweepService
             }
         }
 
-        await _settleRepo.CompleteSweepLogAsync(
-            log, counts.Checked, counts.EcheckSettled, counts.EcheckReturnsProcessed, counts.Errored, errorMessage, ct);
+        // No log row was opened on a dry run, so there is none to complete.
+        if (log != null)
+        {
+            await _settleRepo.CompleteSweepLogAsync(
+                log, counts.Checked, counts.EcheckSettled, counts.EcheckReturnsProcessed, counts.Errored, errorMessage, ct);
+        }
 
         return new AdnSweepResult
         {
@@ -370,6 +414,9 @@ public sealed class AdnSweepService : IAdnSweepService
             Succeeded = errorMessage == null,
             ErrorMessage = errorMessage,
             DigestHtml = html,
+            DryRun = _dryRun,
+            RenderedEmails = notifyResult.Rendered,
+            NotEmailed = notifyResult.Skips,
         };
     }
 
@@ -475,14 +522,25 @@ public sealed class AdnSweepService : IAdnSweepService
         transactionSummaryType tx, Registrations reg, AuthorizeNet.Environment env, AdnCredentialsViewModel creds, CancellationToken ct)
     {
         // Sync ADN-known subscription status to registration record (only on Ok response).
+        //
+        // The status ADN just reported, which the digest row and the alive-vs-dead email choice read.
+        // Held in a LOCAL rather than written onto `reg` when this is a dry run: GetByAdnSubscriptionIdAsync
+        // returns a TRACKED entity, and EmailLogRepository.LogAsync commits the shared scoped DbContext —
+        // so assigning it here and then writing a [DRY RUN] audit row downstream would flush this status
+        // change to the database. A dry run would quietly write.
+        var effectiveSubStatus = reg.AdnSubscriptionStatus;
         var subStatusResp = _adn.GetSubscriptionStatus(env, creds.AdnLoginId!, creds.AdnTransactionKey!, reg.AdnSubscriptionId!);
         if (subStatusResp?.messages?.resultCode == messageTypeEnum.Ok)
         {
             var liveSubStatus = subStatusResp.status.ToString();
             if (!string.IsNullOrEmpty(liveSubStatus) && reg.AdnSubscriptionStatus != liveSubStatus)
             {
-                await _arbRepo.UpdateSubscriptionStatusAsync(reg.RegistrationId, liveSubStatus, ct);
-                reg.AdnSubscriptionStatus = liveSubStatus;
+                effectiveSubStatus = liveSubStatus;
+                if (!_dryRun)
+                {
+                    await _arbRepo.UpdateSubscriptionStatusAsync(reg.RegistrationId, liveSubStatus, ct);
+                    reg.AdnSubscriptionStatus = liveSubStatus;
+                }
             }
         }
         else
@@ -553,7 +611,15 @@ public sealed class AdnSweepService : IAdnSweepService
             LebUserId = SystemUserId
         };
 
-        if (tx.transactionStatus == "settledSuccessfully")
+        // A dry run books nothing. It still built raRow above, because building it is what proves the
+        // tender resolution and the amount are right; it simply never reaches the database. Note this
+        // covers the SETTLED branch too — a dry run walks successful drafts as well, to keep the digest
+        // counts honest, and must not book their money.
+        if (_dryRun)
+        {
+            // fall through to the digest row
+        }
+        else if (tx.transactionStatus == "settledSuccessfully")
         {
             // eCheck ARB draft: pair the RA with a Settlement row born "Settled" (the money books
             // below). An ACH draft can still be returned days later; ProcessEcheckReturnAsync
@@ -604,7 +670,7 @@ public sealed class AdnSweepService : IAdnSweepService
             JobName = reg.Job?.JobName ?? reg.Job?.DisplayName ?? "",
             TransId = tx.transId,
             SubscriptionId = tx.subscription.id.ToString(),
-            SubscriptionStatus = reg.AdnSubscriptionStatus,
+            SubscriptionStatus = effectiveSubStatus,
             SettleAmount = settleAmount,
             TransactionStatus = tx.transactionStatus,
             OwedNow = owedNow,
@@ -622,15 +688,24 @@ public sealed class AdnSweepService : IAdnSweepService
     {
         // Sync ADN-known subscription status onto the team row (no separate ARB repo
         // method for teams — direct mutation on the tracked entity).
+        //
+        // Same dry-run rule as the player path above, and here it matters more because the mutation IS
+        // the persistence: the entity is tracked, so these three assignments become an UPDATE at the
+        // next SaveChanges on the scoped context — which the [DRY RUN] emailLogs write would trigger.
+        var effectiveSubStatus = team.AdnSubscriptionStatus;
         var subStatusResp = _adn.GetSubscriptionStatus(env, creds.AdnLoginId!, creds.AdnTransactionKey!, team.AdnSubscriptionId!);
         if (subStatusResp?.messages?.resultCode == messageTypeEnum.Ok)
         {
             var liveSubStatus = subStatusResp.status.ToString();
             if (!string.IsNullOrEmpty(liveSubStatus) && team.AdnSubscriptionStatus != liveSubStatus)
             {
-                team.AdnSubscriptionStatus = liveSubStatus;
-                team.Modified = DateTime.Now;
-                team.LebUserId = SystemUserId;
+                effectiveSubStatus = liveSubStatus;
+                if (!_dryRun)
+                {
+                    team.AdnSubscriptionStatus = liveSubStatus;
+                    team.Modified = DateTime.Now;
+                    team.LebUserId = SystemUserId;
+                }
             }
         }
         else
@@ -708,7 +783,12 @@ public sealed class AdnSweepService : IAdnSweepService
             LebUserId = SystemUserId
         };
 
-        if (tx.transactionStatus == "settledSuccessfully")
+        // Dry run books nothing — same rule as the registration path.
+        if (_dryRun)
+        {
+            // fall through to the digest row
+        }
+        else if (tx.transactionStatus == "settledSuccessfully")
         {
             // eCheck team-ARB draft: pair the RA with a Settlement row born "Settled", exactly
             // like the registration-ARB path — without it, an NSF on a team installment hits
@@ -765,7 +845,7 @@ public sealed class AdnSweepService : IAdnSweepService
             JobName = team.Job?.JobName ?? team.Job?.DisplayName ?? "",
             TransId = tx.transId,
             SubscriptionId = tx.subscription.id.ToString(),
-            SubscriptionStatus = team.AdnSubscriptionStatus,
+            SubscriptionStatus = effectiveSubStatus,
             SettleAmount = settleAmount,
             TransactionStatus = tx.transactionStatus,
             OwedNow = owedNow,

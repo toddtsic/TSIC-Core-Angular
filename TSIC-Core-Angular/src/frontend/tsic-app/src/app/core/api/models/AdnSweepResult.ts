@@ -2,6 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { ArbNotifySkipDto } from './ArbNotifySkipDto';
+import type { ArbRenderedEmailDto } from './ArbRenderedEmailDto';
 export type AdnSweepResult = {
     checked: number;
     arbImported: number;
@@ -15,6 +17,9 @@ export type AdnSweepResult = {
     succeeded: boolean;
     errorMessage?: string | null;
     digestHtml?: string | null;
+    dryRun?: boolean;
+    renderedEmails?: Array<ArbRenderedEmailDto>;
+    notEmailed?: Array<ArbNotifySkipDto>;
     isTrustworthy?: boolean;
 };
 

@@ -198,3 +198,185 @@
 @media (prefers-reduced-motion: reduce) {
     .action-panel { transition: none; }
 }
+
+/* ----- Mode banner ---------------------------------------------------- */
+/* Which mode this host runs in, stated before the click. Deliberately loud:
+   the difference between the two is real mail to thousands of families.
+   Colour is never the only signal — each variant carries its own icon and its
+   own wording, so the distinction survives a monochrome screen. */
+
+.mode-banner {
+    display: flex;
+    gap: var(--space-4);
+    align-items: flex-start;
+    padding: var(--space-4) var(--space-5);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--brand-border);
+    margin-bottom: var(--space-5);
+
+    &__icon {
+        font-size: var(--font-size-2xl);
+        line-height: 1;
+        flex-shrink: 0;
+    }
+
+    &__title {
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-bold);
+        margin: 0 0 var(--space-1);
+    }
+
+    &__desc {
+        font-size: var(--font-size-sm);
+        color: var(--brand-text);
+        margin: 0;
+    }
+
+    code {
+        font-size: var(--font-size-xs);
+        padding: 0 var(--space-1);
+        border-radius: var(--radius-sm);
+        background: var(--brand-surface-2);
+    }
+
+    &--dry {
+        background: color-mix(in srgb, var(--bs-info) 10%, var(--brand-surface));
+        border-color: color-mix(in srgb, var(--bs-info) 40%, var(--brand-border));
+        .mode-banner__icon,
+        .mode-banner__title { color: color-mix(in srgb, var(--bs-info) 80%, var(--brand-text)); }
+    }
+
+    &--live {
+        background: color-mix(in srgb, var(--bs-danger) 12%, var(--brand-surface));
+        border-color: color-mix(in srgb, var(--bs-danger) 45%, var(--brand-border));
+        .mode-banner__icon,
+        .mode-banner__title { color: color-mix(in srgb, var(--bs-danger) 80%, var(--brand-text)); }
+    }
+
+    &--unknown {
+        background: color-mix(in srgb, var(--bs-warning) 12%, var(--brand-surface));
+        border-color: color-mix(in srgb, var(--bs-warning) 45%, var(--brand-border));
+        .mode-banner__icon,
+        .mode-banner__title { color: color-mix(in srgb, var(--bs-warning) 80%, var(--brand-text)); }
+    }
+}
+
+/* ----- Skip list (families needing a person) -------------------------- */
+
+.skip-list {
+    margin: var(--space-2) 0 0;
+    padding-left: var(--space-5);
+    font-size: var(--font-size-sm);
+    color: var(--brand-text);
+
+    li + li { margin-top: var(--space-1); }
+}
+
+/* ----- Rendered email / digest preview -------------------------------- */
+
+.preview-panel {
+    margin-top: var(--space-5);
+    padding: var(--space-4) var(--space-5);
+    border: 1px solid var(--brand-border);
+    border-radius: var(--radius-lg);
+    background: var(--brand-surface);
+
+    &__title {
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-bold);
+        color: var(--brand-text);
+        margin: 0 0 var(--space-3);
+    }
+}
+
+.email-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.email-item {
+    border: 1px solid var(--brand-border);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-2);
+    overflow: hidden;
+
+    &__head {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        width: 100%;
+        padding: var(--space-3) var(--space-4);
+        background: var(--brand-surface-2);
+        border: 0;
+        text-align: left;
+        cursor: pointer;
+        color: var(--brand-text);
+        font-size: var(--font-size-sm);
+
+        &:hover { background: color-mix(in srgb, var(--bs-primary) 8%, var(--brand-surface-2)); }
+
+        &:focus-visible {
+            outline: none;
+            box-shadow: var(--shadow-focus);
+        }
+    }
+
+    &__who { font-weight: var(--font-weight-bold); }
+
+    &__job {
+        color: var(--brand-text-muted);
+        font-size: var(--font-size-xs);
+    }
+
+    &__subject {
+        margin-left: auto;
+        color: var(--brand-text-muted);
+        font-size: var(--font-size-xs);
+    }
+
+    &__body {
+        padding: var(--space-4);
+        border-top: 1px solid var(--brand-border);
+    }
+}
+
+.email-meta {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-1) var(--space-4);
+    margin: 0 0 var(--space-4);
+    font-size: var(--font-size-sm);
+
+    dt {
+        font-weight: var(--font-weight-bold);
+        color: var(--brand-text-muted);
+    }
+
+    dd {
+        margin: 0;
+        color: var(--brand-text);
+        overflow-wrap: anywhere;
+    }
+
+    &__warn { color: var(--bs-warning); }
+}
+
+/* The email/digest bodies carry their own inline styling, as they must to survive
+   a mail client. Contained and scrollable so a wide digest table cannot push the
+   page sideways; the colour is set on the CONTAINER only, so the body's own tag
+   rules keep winning inside it. */
+.email-render {
+    padding: var(--space-4);
+    border: 1px solid var(--brand-border);
+    border-radius: var(--radius-md);
+    background: var(--brand-surface-2);
+    color: var(--brand-text);
+    overflow-x: auto;
+
+    :where(table) { max-width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .email-item__head { transition: none; }
+}

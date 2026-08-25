@@ -69,6 +69,23 @@ public class AdnApiService : IAdnApiService
         return creds;
     }
 
+    // PRODUCTION creds regardless of host environment — bypasses the sandbox gate. Customer-level
+    // twin of GetJobAdnProductionCredentials_FromJobId, and carries the same restriction: READ-ONLY
+    // production lookups only, never paired with a charging/mutating call off-Production. Added for
+    // the sweep's dry run, which must read real settled batches to be worth running at all — the
+    // same read-only exception the month-end reconciliation pull already takes.
+    public async Task<AdnCredentialsViewModel> GetJobAdnProductionCredentials_FromCustomerId(Guid customerId)
+    {
+        var creds = await _customerRepo.GetAdnCredentialsAsync(customerId);
+
+        if (creds == null || string.IsNullOrWhiteSpace(creds.AdnLoginId) || string.IsNullOrWhiteSpace(creds.AdnTransactionKey))
+        {
+            _logger.LogError("Production Authorize.Net credentials missing for Customer {CustomerId}.", customerId);
+            throw new InvalidOperationException($"Authorize.Net production credentials not configured for Customer {customerId}.");
+        }
+        return creds;
+    }
+
     public async Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromCustomerId(Guid customerId)
     {
         if (_env.IsSandbox())

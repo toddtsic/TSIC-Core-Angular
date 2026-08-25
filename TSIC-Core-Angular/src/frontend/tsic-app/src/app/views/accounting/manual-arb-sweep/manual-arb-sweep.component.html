@@ -10,12 +10,58 @@
                 charges, stamps eCheck settlement confirmations (status only &mdash; eCheck money
                 books at submit), and reverses eCheck returns. Also runs the stale-draft watchdog,
                 <strong>flags orphan charges</strong> &mdash; money settled at Authorize.Net with no
-                local accounting row &mdash; and reports untracked eCheck payments (review only;
-                never auto-booked). Mirrors the nightly background sweep but runs on demand;
+                local accounting row &mdash; reports untracked eCheck payments (review only; never
+                auto-booked), and <strong>emails the family behind every recurring draft that
+                failed</strong>. Mirrors the nightly background sweep but runs on demand;
                 refuses to start if a sweep is already running.
             </p>
         </div>
     </div>
+
+    <!-- Mode banner. What this host will do, stated before the click rather than reported after. -->
+    @if (mode(); as m) {
+        @if (m.dryRun) {
+            <section class="mode-banner mode-banner--dry" role="status">
+                <i class="bi bi-eyeglasses mode-banner__icon" aria-hidden="true"></i>
+                <div>
+                    <h3 class="mode-banner__title">Dry run &mdash; nothing leaves this box</h3>
+                    <p class="mode-banner__desc">
+                        This host is <strong>{{ m.environmentName }}</strong> on
+                        <strong>{{ m.machineName }}</strong>. The sweep reads the
+                        <strong>real production</strong> Authorize.Net batches and resolves every failed
+                        draft exactly as the 4&nbsp;AM pass would, then <strong>writes nothing, settles
+                        nothing and sends nothing</strong>. Family emails are rendered below instead of
+                        transmitted, and audited to <code>email_log</code> under a
+                        <code>[DRY RUN]</code> subject. Only Production sends.
+                    </p>
+                </div>
+            </section>
+        } @else {
+            <section class="mode-banner mode-banner--live" role="alert">
+                <i class="bi bi-exclamation-octagon-fill mode-banner__icon" aria-hidden="true"></i>
+                <div>
+                    <h3 class="mode-banner__title">LIVE &mdash; this books money and emails families</h3>
+                    <p class="mode-banner__desc">
+                        This host is <strong>{{ m.environmentName }}</strong> on
+                        <strong>{{ m.machineName }}</strong>. Running the sweep here books ARB charges,
+                        settles eCheck payments, reverses returns, <strong>emails every family whose
+                        recurring draft failed</strong>, and mails the digest. There is no undo.
+                    </p>
+                </div>
+            </section>
+        }
+    } @else {
+        <section class="mode-banner mode-banner--unknown" role="alert">
+            <i class="bi bi-question-octagon-fill mode-banner__icon" aria-hidden="true"></i>
+            <div>
+                <h3 class="mode-banner__title">Mode could not be determined</h3>
+                <p class="mode-banner__desc">
+                    The host did not answer which mode it runs in. Do not run the sweep until you know
+                    &mdash; on Production it sends real mail to families.
+                </p>
+            </div>
+        </section>
+    }
 
     <section class="action-panel" [class.is-running]="isRunning()">
         <div class="action-panel__icon" aria-hidden="true">
@@ -42,18 +88,54 @@
         <div class="action-panel__cta">
             <button
                 type="button"
-                class="btn btn-primary btn-lg"
+                class="btn btn-lg"
+                [class.btn-primary]="isDryRun()"
+                [class.btn-danger]="!isDryRun()"
                 [disabled]="isRunning()"
                 (click)="run()">
                 @if (isRunning()) {
                     <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                     Running&hellip;
                 } @else {
-                    <i class="bi bi-play-fill me-1"></i>Run sweep
+                    <i class="bi bi-play-fill me-1"></i>{{ isDryRun() ? 'Dry run sweep' : 'Run sweep (LIVE)' }}
                 }
             </button>
         </div>
     </section>
+
+    <!-- Expiring-card pass. Unattended on the 2nd and the 15th; no hand trigger exists on Production. -->
+    @if (isDryRun()) {
+        <section class="action-panel" [class.is-running]="isExpiringRunning()">
+            <div class="action-panel__icon" aria-hidden="true">
+                <i class="bi bi-credit-card-2-front"></i>
+            </div>
+            <div class="action-panel__body">
+                <h3 class="action-panel__title">Dry run expiring-card pass</h3>
+                <p class="action-panel__desc">
+                    The pass that fires unattended on the <strong>2nd and the 15th</strong>: every job
+                    holding a live subscription is asked Authorize.Net for cards expiring this month, and
+                    those families are emailed ahead of the failure. It reads the
+                    <strong>real production</strong> account, so this shows the actual families in scope.
+                    <strong>Dev only</strong> &mdash; on Production it stays on the timer, with no button
+                    that could send it twice or on the wrong day.
+                </p>
+            </div>
+            <div class="action-panel__cta">
+                <button
+                    type="button"
+                    class="btn btn-primary btn-lg"
+                    [disabled]="isExpiringRunning()"
+                    (click)="runExpiring()">
+                    @if (isExpiringRunning()) {
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Running&hellip;
+                    } @else {
+                        <i class="bi bi-play-fill me-1"></i>Dry run expiring cards
+                    }
+                </button>
+            </div>
+        </section>
+    }
 
     @if (errorMessage()) {
         <section class="result-panel result-panel--danger" role="alert">
@@ -69,7 +151,9 @@
         <section class="result-panel result-panel--success" role="status">
             <i class="bi bi-check-circle-fill result-panel__icon" aria-hidden="true"></i>
             <div class="result-panel__body">
-                <h4 class="result-panel__title">Sweep complete</h4>
+                <h4 class="result-panel__title">
+                    {{ r.dryRun ? 'Dry run complete — nothing was written or sent' : 'Sweep complete' }}
+                </h4>
                 <div class="result-stats">
                     <div class="result-stat">
                         <span class="result-stat__value">{{ r.checked }}</span>
@@ -77,19 +161,33 @@
                     </div>
                     <div class="result-stat result-stat--success">
                         <span class="result-stat__value">{{ r.arbImported }}</span>
-                        <span class="result-stat__label">ARB Imported</span>
+                        <span class="result-stat__label">{{ r.dryRun ? 'ARB Resolved' : 'ARB Imported' }}</span>
+                    </div>
+                    @if (!r.dryRun) {
+                        <div class="result-stat result-stat--success">
+                            <span class="result-stat__value">{{ r.echeckSettled }}</span>
+                            <span class="result-stat__label">eCheck Settled</span>
+                        </div>
+                        <div class="result-stat result-stat--warning">
+                            <span class="result-stat__value">{{ r.echeckReturnsProcessed }}</span>
+                            <span class="result-stat__label">eCheck Returns</span>
+                        </div>
+                        <div class="result-stat" [class.result-stat--danger]="(r.orphansFound ?? 0) > 0">
+                            <span class="result-stat__value">{{ r.orphansFound }}</span>
+                            <span class="result-stat__label">Orphans Found</span>
+                        </div>
+                    }
+                    <div class="result-stat" [class.result-stat--danger]="(r.failedDraftsFound ?? 0) > 0">
+                        <span class="result-stat__value">{{ r.failedDraftsFound ?? 0 }}</span>
+                        <span class="result-stat__label">Failed Drafts</span>
                     </div>
                     <div class="result-stat result-stat--success">
-                        <span class="result-stat__value">{{ r.echeckSettled }}</span>
-                        <span class="result-stat__label">eCheck Settled</span>
+                        <span class="result-stat__value">{{ r.failedDraftsEmailed ?? 0 }}</span>
+                        <span class="result-stat__label">{{ r.dryRun ? 'Would Email' : 'Emailed' }}</span>
                     </div>
-                    <div class="result-stat result-stat--warning">
-                        <span class="result-stat__value">{{ r.echeckReturnsProcessed }}</span>
-                        <span class="result-stat__label">eCheck Returns</span>
-                    </div>
-                    <div class="result-stat" [class.result-stat--danger]="r.orphansFound > 0">
-                        <span class="result-stat__value">{{ r.orphansFound }}</span>
-                        <span class="result-stat__label">Orphans Found</span>
+                    <div class="result-stat" [class.result-stat--danger]="(r.failedDraftsNotEmailed ?? 0) > 0">
+                        <span class="result-stat__value">{{ r.failedDraftsNotEmailed ?? 0 }}</span>
+                        <span class="result-stat__label">NOT Emailed</span>
                     </div>
                     <div class="result-stat result-stat--danger">
                         <span class="result-stat__value">{{ r.errored }}</span>
@@ -98,5 +196,123 @@
                 </div>
             </div>
         </section>
+
+        <!-- The families a person still has to reach. Shown on live runs too. -->
+        @if (r.notEmailed?.length) {
+            <section class="result-panel result-panel--danger" role="alert">
+                <i class="bi bi-person-exclamation result-panel__icon" aria-hidden="true"></i>
+                <div class="result-panel__body">
+                    <h4 class="result-panel__title">NOT emailed — contact these by hand</h4>
+                    <ul class="skip-list">
+                        @for (s of r.notEmailed; track $index) {
+                            <li><strong>{{ s.jobName }}</strong> &middot; {{ s.registrant }} &mdash; {{ s.reason }}</li>
+                        }
+                    </ul>
+                </div>
+            </section>
+        }
+
+        @if (r.dryRun && r.renderedEmails?.length) {
+            <section class="preview-panel">
+                <h4 class="preview-panel__title">
+                    Family emails ({{ r.renderedEmails?.length }}) — exactly as they would send
+                </h4>
+                <ul class="email-list">
+                    @for (e of r.renderedEmails; track $index) {
+                        <li class="email-item">
+                            <button type="button" class="email-item__head" (click)="toggleEmail($index)"
+                                    [attr.aria-expanded]="openEmail() === $index">
+                                <i class="bi" [class.bi-chevron-right]="openEmail() !== $index"
+                                   [class.bi-chevron-down]="openEmail() === $index" aria-hidden="true"></i>
+                                <span class="email-item__who">{{ e.registrant }}</span>
+                                <span class="email-item__job">{{ e.jobName }}</span>
+                                <span class="email-item__subject">{{ e.subject }}</span>
+                            </button>
+                            @if (openEmail() === $index) {
+                                <div class="email-item__body">
+                                    <dl class="email-meta">
+                                        <dt>To</dt><dd>{{ recipients(e) }}</dd>
+                                        <dt>Reply-To</dt>
+                                        <dd>
+                                            @if (e.replyToAddress) {
+                                                {{ e.replyToName }} &lt;{{ e.replyToAddress }}&gt;
+                                            } @else {
+                                                <span class="email-meta__warn">
+                                                    none — a reply would land on TSIC support, not the club
+                                                </span>
+                                            }
+                                        </dd>
+                                    </dl>
+                                    <div class="email-render" [innerHTML]="trust(e.htmlBody)"></div>
+                                </div>
+                            }
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+
+        @if (r.digestHtml) {
+            <section class="preview-panel">
+                <h4 class="preview-panel__title">
+                    {{ r.dryRun ? 'Digest — as it would be mailed to support' : 'Digest (mailed)' }}
+                </h4>
+                <div class="email-render" [innerHTML]="trust(r.digestHtml)"></div>
+            </section>
+        }
+    }
+
+    @if (expiringError()) {
+        <section class="result-panel result-panel--danger" role="alert">
+            <i class="bi bi-exclamation-triangle-fill result-panel__icon" aria-hidden="true"></i>
+            <div class="result-panel__body">
+                <h4 class="result-panel__title">Expiring-card pass failed</h4>
+                <p class="result-panel__desc">{{ expiringError() }}</p>
+            </div>
+        </section>
+    }
+
+    @if (expiring(); as x) {
+        <section class="result-panel result-panel--success" role="status">
+            <i class="bi bi-credit-card-2-front-fill result-panel__icon" aria-hidden="true"></i>
+            <div class="result-panel__body">
+                <h4 class="result-panel__title">Expiring-card dry run complete — nothing was sent</h4>
+                <div class="result-stats">
+                    <div class="result-stat">
+                        <span class="result-stat__value">{{ x.found }}</span>
+                        <span class="result-stat__label">Cards Expiring</span>
+                    </div>
+                    <div class="result-stat result-stat--success">
+                        <span class="result-stat__value">{{ x.emailed }}</span>
+                        <span class="result-stat__label">Would Email</span>
+                    </div>
+                    <div class="result-stat" [class.result-stat--danger]="x.skipped > 0">
+                        <span class="result-stat__value">{{ x.skipped }}</span>
+                        <span class="result-stat__label">NOT Emailed</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        @if (x.skips?.length) {
+            <section class="result-panel result-panel--danger" role="alert">
+                <i class="bi bi-person-exclamation result-panel__icon" aria-hidden="true"></i>
+                <div class="result-panel__body">
+                    <h4 class="result-panel__title">NOT emailed — contact these by hand</h4>
+                    <ul class="skip-list">
+                        @for (s of x.skips; track $index) {
+                            <li><strong>{{ s.jobName }}</strong> &middot; {{ s.registrant }} &mdash; {{ s.reason }}</li>
+                        }
+                    </ul>
+                </div>
+            </section>
+        }
+
+        @if (x.summaryHtml) {
+            <section class="preview-panel">
+                <h4 class="preview-panel__title">Summary — as it would be mailed to support</h4>
+                <div class="email-render" [innerHTML]="trust(x.summaryHtml)"></div>
+            </section>
+        }
     }
 </div>

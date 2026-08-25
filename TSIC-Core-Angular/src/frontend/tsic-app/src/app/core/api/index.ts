@@ -31,6 +31,7 @@ export type { AdminResendConfirmationResultDto } from './models/AdminResendConfi
 export type { AdminResetPasswordRequest } from './models/AdminResetPasswordRequest';
 export type { AdminTeamLinkDto } from './models/AdminTeamLinkDto';
 export type { AdnImportResult } from './models/AdnImportResult';
+export type { AdnSweepModeDto } from './models/AdnSweepModeDto';
 export type { AdnSweepResult } from './models/AdnSweepResult';
 export type { AdultCoachProfileOptionDto } from './models/AdultCoachProfileOptionDto';
 export type { AdultConfirmationResponse } from './models/AdultConfirmationResponse';
@@ -83,7 +84,10 @@ export type { ApplyTeamDiscountResponseDto } from './models/ApplyTeamDiscountRes
 export type { ApproveTeamRequestDto } from './models/ApproveTeamRequestDto';
 export type { ArbFlaggedRegistrantDto } from './models/ArbFlaggedRegistrantDto';
 export type { ArbFlagType } from './models/ArbFlagType';
+export type { ArbNotifyResultDto } from './models/ArbNotifyResultDto';
+export type { ArbNotifySkipDto } from './models/ArbNotifySkipDto';
 export type { ArbRefreshStatusesResultDto } from './models/ArbRefreshStatusesResultDto';
+export type { ArbRenderedEmailDto } from './models/ArbRenderedEmailDto';
 export type { ArbSendEmailsRequest } from './models/ArbSendEmailsRequest';
 export type { ArbSubscriptionInfoDto } from './models/ArbSubscriptionInfoDto';
 export type { ArbSubstitutionVariableDto } from './models/ArbSubstitutionVariableDto';

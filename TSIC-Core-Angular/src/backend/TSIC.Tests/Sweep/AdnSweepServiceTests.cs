@@ -1,5 +1,6 @@
 using AuthorizeNet.Api.Contracts.V1;
 using FluentAssertions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -51,6 +52,21 @@ public class AdnSweepServiceTests
     private readonly TsicSettings _tsicSettings = new() { DefaultCustomerId = TsicCustomerId };
     private readonly AdnSweepOptions _options = new() { Enabled = true, DaysPriorWindow = 2 };
 
+    /// <summary>
+    /// Production, so these tests exercise the LIVE sweep — the one that books money. The service reads
+    /// the environment to decide whether it acts or only reports, so an environment left at the default
+    /// would silently turn every assertion below into a dry run: no RA rows, no status sync, no
+    /// settlements, and tests that pass because nothing happened.
+    /// </summary>
+    private readonly Mock<IHostEnvironment> _env = BuildEnv(Environments.Production);
+
+    private static Mock<IHostEnvironment> BuildEnv(string environmentName)
+    {
+        var env = new Mock<IHostEnvironment>();
+        env.SetupGet(e => e.EnvironmentName).Returns(environmentName);
+        return env;
+    }
+
     public AdnSweepServiceTests()
     {
         // Step 8 (failed-draft notification) runs on every pass. Without this the mock returns null
@@ -72,6 +88,7 @@ public class AdnSweepServiceTests
         _feeAdj.Object,
         _email.Object,
         _arbNotify.Object,
+        _env.Object,
         Options.Create(_tsicSettings),
         Options.Create(_options),
         _logger.Object);

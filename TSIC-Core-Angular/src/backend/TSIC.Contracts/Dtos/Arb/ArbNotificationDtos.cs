@@ -31,6 +31,26 @@ public record ArbNotifySkipDto
     public required string Reason { get; init; }
 }
 
+/// <summary>
+/// One email exactly as it WOULD have been sent, captured on a dry run instead of transmitted.
+///
+/// This is the whole point of the dry run: the guards, the projection and the token substitution
+/// are the parts that can be wrong, and they are invisible in a count. Populated only off
+/// Production — on a live run the emails go to families and there is nothing to inspect.
+/// </summary>
+public record ArbRenderedEmailDto
+{
+    public required string Registrant { get; init; }
+    public required string JobName { get; init; }
+    /// <summary>Recipients the sendable-address filter actually resolved, in send order.</summary>
+    public required List<string> ToAddresses { get; init; }
+    public required string Subject { get; init; }
+    /// <summary>The director the family's reply would reach. Null means the reply lands on TSIC support.</summary>
+    public required string? ReplyToName { get; init; }
+    public required string? ReplyToAddress { get; init; }
+    public required string HtmlBody { get; init; }
+}
+
 /// <summary>Paired counts for the digest: what was found, what was emailed, what was not.</summary>
 public record ArbNotifyResultDto
 {
@@ -38,6 +58,22 @@ public record ArbNotifyResultDto
     public required int Emailed { get; init; }
     public required int Skipped { get; init; }
     public required List<ArbNotifySkipDto> Skips { get; init; }
+
+    /// <summary>
+    /// True when nothing was transmitted. <see cref="Emailed"/> then counts messages that WOULD have
+    /// been sent, and <see cref="Rendered"/> holds them. Never true on Production.
+    /// </summary>
+    public bool DryRun { get; init; }
+
+    /// <summary>Populated on a dry run only; empty on a live run.</summary>
+    public List<ArbRenderedEmailDto> Rendered { get; init; } = [];
+
+    /// <summary>
+    /// The expiring-card pass summary. Rendered and returned on a dry run instead of mailed to
+    /// support; on a live run it is mailed AND returned. Null on the failed-draft path, which
+    /// reports through the sweep digest rather than a summary of its own.
+    /// </summary>
+    public string? SummaryHtml { get; init; }
 
     public static ArbNotifyResultDto Empty => new()
     {
