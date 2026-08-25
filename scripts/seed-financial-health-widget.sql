@@ -63,7 +63,15 @@ DECLARE @widgetId INT = (SELECT WidgetId FROM widgets.Widget WHERE ComponentKey 
 
 -- ── STEP 3: attach to ONE job ───────────────────────────────────────────────
 -- This is the rollout control. Nothing renders until a JobWidget row exists.
--- Set @jobPath, uncomment, run. Repeat per job as you widen.
+-- Pre-set to jobId EE511CAA-37FE-49D1-A2B7-1B9660F75F4F (STEPS Lacrosse: Girls Elite
+-- Players 2026-2027 - 408 registrations, 371 ACTIVE ARB subscriptions). Uncomment
+-- and run. Repeat per job as you widen.
+--
+-- !! THIS ROW IS NOT ENVIRONMENT-SCOPED. Prod and Staging share ONE database, so it
+-- !! is live for production the moment it is inserted. While the panel shows
+-- !! placeholder figures the ONLY thing keeping invented money numbers away from that
+-- !! job's real director is the envName guard in financial-health.component.ts.
+-- !! Do not delete that guard until the panel shows real data.
 --
 -- RoleId = Director (FF4D1C27-F6DA-4745-98CC-D7E8121A5D06). GetJobWidgetsAsync
 -- filters `jw.RoleId == null || jw.RoleId == roleId`, so a NULL here would show
@@ -73,8 +81,8 @@ DECLARE @widgetId INT = (SELECT WidgetId FROM widgets.Widget WHERE ComponentKey 
 --   Superuser     CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9
 
 /*
-DECLARE @jobPath NVARCHAR(200) = N'<<< PUT THE JOBPATH HERE >>>';
-DECLARE @jobId   UNIQUEIDENTIFIER = (SELECT JobId FROM dbo.Jobs WHERE JobPath = @jobPath);
+DECLARE @jobId   UNIQUEIDENTIFIER = 'EE511CAA-37FE-49D1-A2B7-1B9660F75F4F';  -- stepsgirls-players-2026-2027
+DECLARE @jobPath NVARCHAR(200) = (SELECT JobPath FROM Jobs.Jobs WHERE JobId = @jobId);
 DECLARE @roleId  NVARCHAR(450) = 'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06';  -- Director
 
 IF @jobId IS NULL
@@ -102,7 +110,7 @@ FROM widgets.Widget w WHERE w.ComponentKey = 'financial-health';
 SELECT j.JobPath, j.JobName, jw.RoleId, jw.IsEnabled, jw.DisplayOrder
 FROM widgets.JobWidget jw
 JOIN widgets.Widget w ON w.WidgetId = jw.WidgetId
-JOIN dbo.Jobs j       ON j.JobId    = jw.JobId
+JOIN Jobs.Jobs j       ON j.JobId    = jw.JobId
 WHERE w.ComponentKey = 'financial-health'
 ORDER BY j.JobName;
 

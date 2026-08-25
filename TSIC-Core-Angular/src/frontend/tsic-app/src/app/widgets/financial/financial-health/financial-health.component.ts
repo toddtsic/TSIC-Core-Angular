@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { AuthService } from '@infrastructure/services/auth.service';
+import { environment } from '@environments/environment';
 
 /** One placeholder figure. LAYER 1 — shape only; the real numbers arrive from the sweep cache. */
 interface DemoMetric {
@@ -44,6 +45,22 @@ interface DemoMetric {
 })
 export class FinancialHealthComponent {
 	private readonly auth = inject(AuthService);
+
+	/**
+	 * SECOND, INDEPENDENT GUARD — the JobWidget row is NOT one.
+	 *
+	 * Production and Staging run against the SAME database, so a widgets.JobWidget
+	 * row is live for prod the moment it is inserted; it controls WHICH JOB, never
+	 * which environment. While the content is placeholder, invented money figures
+	 * must not be reachable in a production build at all.
+	 *
+	 * Must be `envName`, NOT `production` — the `production: true` flag is set in the
+	 * STAGING overlay too (it drives build optimisation, not identity), so the obvious
+	 * version would also hide this from staging. Same idiom as arb-health.component.ts:93.
+	 *
+	 * DELETE THIS when the panel shows real data; the JobWidget row is the permanent control.
+	 */
+	protected readonly visible = environment.envName !== 'production';
 
 	/**
 	 * Name for the "private to you" line. The client auth model carries only `username`
