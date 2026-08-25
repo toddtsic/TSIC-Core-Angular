@@ -65,7 +65,7 @@ DECLARE @widgetId INT = (SELECT WidgetId FROM widgets.Widget WHERE ComponentKey 
 -- This is the rollout control. Nothing renders until a JobWidget row exists.
 -- Pre-set to jobId EE511CAA-37FE-49D1-A2B7-1B9660F75F4F (STEPS Lacrosse: Girls Elite
 -- Players 2026-2027 - 408 registrations, 371 ACTIVE ARB subscriptions). Uncomment
--- and run. Repeat per job as you widen.
+-- Runs as-is. Repeat per job as you widen (change @jobId). Idempotent.
 --
 -- !! THIS ROW IS NOT ENVIRONMENT-SCOPED IF RUN AGAINST THE REAL PROD DB. Run locally
 -- !! (TSIC-SEDONA\SS2016) it is dev-only — that instance is a restored COPY of a prod
@@ -87,7 +87,6 @@ DECLARE @widgetId INT = (SELECT WidgetId FROM widgets.Widget WHERE ComponentKey 
 -- as Superuser without impersonating a Director. TIGHTEN TO DIRECTOR-ONLY once it
 -- carries real numbers — delete the SuperDirector and Superuser rows then.
 
-/*
 DECLARE @jobId   UNIQUEIDENTIFIER = 'EE511CAA-37FE-49D1-A2B7-1B9660F75F4F';  -- stepsgirls-players-2026-2027
 DECLARE @jobPath NVARCHAR(200) = (SELECT JobPath FROM Jobs.Jobs WHERE JobId = @jobId);
 
@@ -111,7 +110,6 @@ BEGIN
 
     PRINT CONCAT('Attached Financial Health to ', @jobPath, ' for ', @@ROWCOUNT, ' role(s)');
 END
-*/
 -- ── AFTER: verification ─────────────────────────────────────────────────────
 PRINT '--- AFTER ---';
 SELECT c.CategoryId, c.Name, c.Workspace, c.DefaultOrder
