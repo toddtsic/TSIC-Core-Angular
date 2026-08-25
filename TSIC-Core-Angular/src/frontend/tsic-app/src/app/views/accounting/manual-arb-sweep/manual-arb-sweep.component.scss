@@ -31,6 +31,12 @@
     &.is-running {
         box-shadow: var(--shadow-lg);
     }
+
+    /* Two panels stack only off Production, where the expiring-card pass gets its own.
+       Matches the mode banner's bottom margin so the three read as one rhythm. */
+    + .action-panel {
+        margin-top: var(--space-5);
+    }
 }
 
 .action-panel__icon {
