@@ -32,6 +32,9 @@ public interface IWidgetEditorRepository
 
     // ── Per-job overrides ──
     Task<List<JobRefDto>> GetJobsByJobTypeAsync(int jobTypeId, CancellationToken ct = default);
+
+    /// <summary>Resolve one job by its URL path segment (for preselecting the admin's current job).</summary>
+    Task<JobRefDto?> GetJobRefByPathAsync(string jobPath, CancellationToken ct = default);
     Task<List<JobWidgetEntryDto>> GetJobWidgetsByJobAsync(Guid jobId, CancellationToken ct = default);
     Task<List<JobWidget>> GetJobWidgetEntitiesAsync(Guid jobId, CancellationToken ct = default);
     void RemoveJobWidgets(List<JobWidget> jobWidgets);

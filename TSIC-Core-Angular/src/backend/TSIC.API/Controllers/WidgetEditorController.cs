@@ -200,6 +200,19 @@ public class WidgetEditorController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Resolve the job the admin is currently standing in, so the Job Overrides tab can
+    /// preselect it rather than making them re-pick a job they are already inside.
+    /// </summary>
+    [HttpGet("job-by-path/{jobPath}")]
+    public async Task<ActionResult<JobRefDto>> GetJobByPath(
+        string jobPath,
+        CancellationToken ct)
+    {
+        var result = await _editorService.GetJobRefByPathAsync(jobPath, ct);
+        return result is null ? NotFound() : Ok(result);
+    }
+
     [HttpGet("job-overrides/{jobId:guid}")]
     public async Task<ActionResult<JobOverridesResponse>> GetJobOverrides(
         Guid jobId,

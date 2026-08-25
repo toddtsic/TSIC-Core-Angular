@@ -172,6 +172,9 @@ public sealed class WidgetEditorService : IWidgetEditorService
     public Task<List<JobRefDto>> GetJobsByJobTypeAsync(int jobTypeId, CancellationToken ct = default)
         => _repo.GetJobsByJobTypeAsync(jobTypeId, ct);
 
+    public Task<JobRefDto?> GetJobRefByPathAsync(string jobPath, CancellationToken ct = default)
+        => _repo.GetJobRefByPathAsync(jobPath, ct);
+
     public async Task<JobOverridesResponse> GetJobOverridesAsync(Guid jobId, CancellationToken ct = default)
     {
         // 1. Resolve job type (sequential — DbContext not thread-safe)

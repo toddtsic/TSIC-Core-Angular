@@ -449,7 +449,10 @@
 			<span class="legend-item"><span class="legend-swatch override-enabled"></span> Override (enabled)</span>
 			<span class="legend-item"><span class="legend-swatch override-disabled"></span> Override (disabled)</span>
 			<span class="legend-item"><span class="legend-swatch override-addition"></span> Job-specific addition</span>
-			<span class="legend-item hint">Right-click to revert</span>
+			<span class="legend-item hint">
+				Tick a box to add or disable · use the
+				<i class="bi bi-x-circle" aria-hidden="true"></i> at the end of a row to undo it
+			</span>
 		</div>
 	}
 
@@ -480,6 +483,7 @@
 									@for (role of roles(); track role.roleId) {
 										<th [title]="role.roleName">{{ abbreviateRole(role.roleName) }}</th>
 									}
+									<th class="col-rowaction"><span class="visually-hidden">Undo row</span></th>
 								</tr>
 							</thead>
 							<tbody cdkDropList [cdkDropListData]="cat"
@@ -511,6 +515,16 @@
 													[title]="widget.name + ' → ' + role.roleName + (isAdditionEntry(widget.widgetId, role.roleId) ? ' (addition — right-click to remove)' : isOverrideEntry(widget.widgetId, role.roleId) ? ' (overridden — right-click to revert)' : ' (inherited)')" />
 											</td>
 										}
+										<td class="col-rowaction">
+											@if (rowOverrideCount(widget.widgetId) > 0) {
+												<button type="button" class="row-undo-btn"
+													(click)="revertWidgetRow(widget.widgetId)"
+													[title]="rowRevertLabel(widget.widgetId)"
+													[attr.aria-label]="rowRevertLabel(widget.widgetId) + ': ' + widget.name">
+													<i class="bi bi-x-circle" aria-hidden="true"></i>
+												</button>
+											}
+										</td>
 										<ng-template cdkDragPreview>
 											<div class="drag-preview-row">
 												<i class="bi bi-grip-vertical me-2"></i>

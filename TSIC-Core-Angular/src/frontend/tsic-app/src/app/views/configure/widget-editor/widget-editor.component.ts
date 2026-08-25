@@ -1057,6 +1057,58 @@ export class WidgetEditorComponent implements HasUnsavedChanges {
 		this.overrideEntries.set(entries);
 	}
 
+	/**
+	 * How many role cells in this widget's row differ from what the job would inherit.
+	 * Drives the row's "Remove from this job" affordance — right-click on an individual
+	 * cell was previously the ONLY way to undo an override, discoverable solely through
+	 * a hint in the legend.
+	 */
+	rowOverrideCount(widgetId: number): number {
+		return this.overrideEntries().filter(e => e.widgetId === widgetId && e.isOverridden).length;
+	}
+
+	/**
+	 * True when every override on this row is a job-specific addition (nothing inherited
+	 * behind it). Mirrors isAdditionEntry, but compares roleId directly: public widgets
+	 * store RoleId = null, which isAdditionEntry's `string` parameter cannot carry.
+	 */
+	isRowAdditionOnly(widgetId: number): boolean {
+		const originals = this.overrideOriginalEntries();
+		const overridden = this.overrideEntries().filter(e => e.widgetId === widgetId && e.isOverridden);
+		if (overridden.length === 0) return false;
+		return overridden.every(e => {
+			if (!e.isEnabled) return false; // an override that DISABLES is not an addition
+			const original = originals.find(o => o.widgetId === widgetId && o.roleId === e.roleId);
+			return !original || original.isOverridden;
+		});
+	}
+
+	/** Label the row button honestly: additions are removed, inherited overrides are reverted. */
+	rowRevertLabel(widgetId: number): string {
+		return this.isRowAdditionOnly(widgetId)
+			? 'Remove from this job'
+			: 'Revert to inherited';
+	}
+
+	/**
+	 * Undo every override on one widget's row in a single click — additions are dropped
+	 * entirely, overridden inherited entries return to their inherited state. Same outcome
+	 * as right-clicking each cell in turn.
+	 */
+	revertWidgetRow(widgetId: number): void {
+		const originals = this.overrideOriginalEntries();
+		const entries = this.overrideEntries()
+			.map(e => {
+				if (e.widgetId !== widgetId || !e.isOverridden) return e;
+				const original = originals.find(
+					o => o.widgetId === widgetId && o.roleId === e.roleId && !o.isOverridden);
+				return original ? { ...original } : null;
+			})
+			.filter((e): e is JobWidgetEntryDto => e !== null);
+
+		this.overrideEntries.set(entries);
+	}
+
 	resetOverrides(): void {
 		this.overrideEntries.set([...this.overrideOriginalEntries()]);
 	}

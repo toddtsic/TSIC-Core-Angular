@@ -104,6 +104,8 @@ public class WidgetEditorRepository : IWidgetEditorRepository
                 DefaultConfig = w.DefaultConfig,
                 CategoryName = w.Category.Name,
                 Workspace = w.Category.Workspace,
+                AttachedJobCount = w.JobWidget.Select(jw => jw.JobId).Distinct().Count(),
+                DefaultJobTypeCount = w.WidgetDefault.Select(wd => wd.JobTypeId).Distinct().Count(),
             })
             .ToListAsync(ct);
     }
@@ -130,6 +132,8 @@ public class WidgetEditorRepository : IWidgetEditorRepository
                 DefaultConfig = w.DefaultConfig,
                 CategoryName = w.Category.Name,
                 Workspace = w.Category.Workspace,
+                AttachedJobCount = w.JobWidget.Select(jw => jw.JobId).Distinct().Count(),
+                DefaultJobTypeCount = w.WidgetDefault.Select(wd => wd.JobTypeId).Distinct().Count(),
             })
             .FirstOrDefaultAsync(ct);
     }
@@ -284,8 +288,28 @@ public class WidgetEditorRepository : IWidgetEditorRepository
                 JobId = j.JobId,
                 JobName = j.JobName ?? j.JobPath,
                 JobPath = j.JobPath,
+                JobTypeId = j.JobTypeId,
             })
             .ToListAsync(ct);
+    }
+
+    /// <summary>
+    /// Resolve one job by its URL path segment, so the editor can preselect the job the
+    /// admin is already standing in instead of making them pick it out of a list.
+    /// </summary>
+    public async Task<JobRefDto?> GetJobRefByPathAsync(string jobPath, CancellationToken ct = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobPath == jobPath)
+            .Select(j => new JobRefDto
+            {
+                JobId = j.JobId,
+                JobName = j.JobName ?? j.JobPath,
+                JobPath = j.JobPath,
+                JobTypeId = j.JobTypeId,
+            })
+            .FirstOrDefaultAsync(ct);
     }
 
     public async Task<List<JobWidgetEntryDto>> GetJobWidgetsByJobAsync(Guid jobId, CancellationToken ct = default)

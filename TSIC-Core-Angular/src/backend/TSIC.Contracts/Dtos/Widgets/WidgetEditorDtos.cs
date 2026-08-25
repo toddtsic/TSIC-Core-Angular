@@ -52,6 +52,12 @@ public record WidgetDefinitionDto
     public string? DefaultConfig { get; init; }
     public required string CategoryName { get; init; }
     public required string Workspace { get; init; }
+
+    /// <summary>Distinct jobs this widget is attached to via widgets.JobWidget.</summary>
+    public required int AttachedJobCount { get; init; }
+
+    /// <summary>Distinct job types that auto-attach this widget via widgets.WidgetDefault.</summary>
+    public required int DefaultJobTypeCount { get; init; }
 }
 
 /// <summary>
@@ -161,6 +167,7 @@ public record JobRefDto
     public required Guid JobId { get; init; }
     public required string JobName { get; init; }
     public required string JobPath { get; init; }
+    public required int JobTypeId { get; init; }
 }
 
 /// <summary>

@@ -621,6 +621,51 @@
 	}
 }
 
+// ── Row-level undo (Job Overrides matrix) ──
+//
+// Right-click on a single cell used to be the ONLY way to undo an override, and the
+// only thing advertising it was an italic hint in the legend. This is the visible
+// path: one button per row, present only when that row actually differs from what
+// the job inherits. Per-cell right-click still works for precision.
+
+.col-rowaction {
+	width: 44px;
+	text-align: center;
+}
+
+.row-undo-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	padding: 0;
+	border: 1px solid transparent;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--bs-secondary-color);
+	font-size: 0.9rem;
+	cursor: pointer;
+	transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+
+	&:hover {
+		border-color: var(--bs-danger);
+		background: color-mix(in srgb, var(--bs-danger) 10%, var(--brand-surface));
+		color: var(--bs-danger);
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.row-undo-btn {
+		transition: none !important;
+	}
+}
+
 // ── Export SQL dialog ──
 
 .export-sql-container {
