@@ -737,6 +737,11 @@ export class WidgetEditorComponent implements HasUnsavedChanges {
 		return WIDGET_MANIFEST[key]?.icon || 'bi-puzzle';
 	}
 
+	/** Human-readable widget name for a component key — the key itself is a last resort */
+	getManifestLabel(key: string): string {
+		return WIDGET_MANIFEST[key]?.label || key;
+	}
+
 
 	// ═══════════════════════════════════
 	// Export SQL

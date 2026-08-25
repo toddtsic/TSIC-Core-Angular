@@ -264,23 +264,30 @@
 		</button>
 	</div>
 
-	<!-- Uncovered manifest entries — routes without widget definitions -->
+	<!-- Widgets that exist in code but have no definition here yet.
+	     Uses the AM-064 tsic-callout — the ONE informational-note treatment. -->
 	@if (uncoveredKeys().length > 0) {
-		<div class="uncovered-panel mb-3">
-			<div class="uncovered-header">
-				<i class="bi bi-exclamation-diamond me-2"></i>
-				{{ uncoveredKeys().length }} manifest entr{{ uncoveredKeys().length === 1 ? 'y' : 'ies' }}
-				without widget definitions
-			</div>
-			<div class="uncovered-grid">
-				@for (key of uncoveredKeys(); track key) {
-					<button class="uncovered-item" (click)="createFromManifest(key)" type="button"
-						[title]="'Create widget definition for ' + key">
-						<i class="bi" [ngClass]="getManifestIcon(key)"></i>
-						<span class="uncovered-key">{{ key }}</span>
-						<i class="bi bi-plus-circle"></i>
-					</button>
-				}
+		<div class="tsic-callout tsic-callout--warning tsic-callout--block mb-3">
+			<i class="bi bi-exclamation-diamond" aria-hidden="true"></i>
+			<div class="uncovered-body">
+				<span class="uncovered-lead">
+					@if (uncoveredKeys().length === 1) {
+						This widget is built in code but has no definition here, so it cannot be added to any job. Set it up to make it available:
+					} @else {
+						{{ uncoveredKeys().length }} widgets are built in code but have no definition here, so they cannot be added to any job. Set them up to make them available:
+					}
+				</span>
+				<div class="uncovered-grid">
+					@for (key of uncoveredKeys(); track key) {
+						<button class="uncovered-item" (click)="createFromManifest(key)" type="button"
+							[title]="'Set up ' + getManifestLabel(key)">
+							<i class="bi" [ngClass]="getManifestIcon(key)" aria-hidden="true"></i>
+							<span class="uncovered-name">{{ getManifestLabel(key) }}</span>
+							<code class="uncovered-key">{{ key }}</code>
+							<i class="bi bi-plus-circle uncovered-add" aria-hidden="true"></i>
+						</button>
+					}
+				</div>
 			</div>
 		</div>
 	}
@@ -596,9 +603,9 @@
 							<select class="form-select form-select-sm"
 								[value]="useCustomKey() ? '__custom__' : formComponentKey()"
 								(change)="onComponentKeySelect(asSelectValue($event))">
-								<option value="" disabled>Select from manifest...</option>
+								<option value="" disabled>Choose which widget this is...</option>
 								@for (key of manifestKeys; track key) {
-									<option [value]="key" [selected]="!useCustomKey() && formComponentKey() === key">{{ key }}</option>
+									<option [value]="key" [selected]="!useCustomKey() && formComponentKey() === key">{{ getManifestLabel(key) }} — {{ key }}</option>
 								}
 								<option value="__custom__" [selected]="useCustomKey()">Other (custom key)...</option>
 							</select>
@@ -608,11 +615,12 @@
 									[value]="formComponentKey()" (input)="formComponentKey.set(asInputValue($event))" />
 								<div class="wf-note wf-note--warn">
 									<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
-									<span>Custom keys require a matching entry in
-									<code>widget-registry.ts</code> to render on the dashboard.</span>
+									<span>A custom key only renders if a developer has built a matching widget in
+									<code>widget-registry.ts</code>. Without one, this widget saves fine and shows
+									as a blank space on every job you add it to.</span>
 								</div>
 							}
-							<div class="form-text">Select a manifest entry to auto-fill the form, or choose "Other" for a custom key.</div>
+							<div class="form-text">The list holds every widget that has been built. Picking one fills in the rest of this form.</div>
 						</div>
 						<div class="wf-field">
 							<label class="form-label">Description <span class="text-body-secondary">(optional)</span></label>

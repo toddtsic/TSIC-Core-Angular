@@ -279,20 +279,22 @@
 	letter-spacing: 0.03em;
 }
 
-// ── Uncovered manifest panel ──
+// ── "Not set up yet" callout ──
+//
+// The box itself is the shared .tsic-callout--warning (AM-064, styles/_callouts.scss)
+// — the one informational-note treatment site-wide. Only the contents are local.
+// Previously a bespoke dashed panel, which was a second dialect for the same job.
 
-.uncovered-panel {
-	border: 1px dashed var(--bs-warning);
-	border-radius: var(--space-2);
-	padding: var(--space-3);
-	background: color-mix(in srgb, var(--bs-warning) 5%, transparent);
+.uncovered-body {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	min-width: 0;
 }
 
-.uncovered-header {
-	font-size: 0.85rem;
+.uncovered-lead {
 	font-weight: 600;
-	color: var(--bs-warning-text-emphasis);
-	margin-bottom: var(--space-2);
+	line-height: 1.45;
 }
 
 .uncovered-grid {
@@ -302,24 +304,50 @@
 }
 
 .uncovered-item {
-	display: flex;
+	display: inline-flex;
 	align-items: center;
-	gap: var(--space-1);
-	padding: var(--space-1) var(--space-2);
-	border: 1px solid var(--bs-border-color);
-	border-radius: var(--space-1);
-	background: var(--bs-body-bg);
-	font-size: 0.8rem;
-	font-family: var(--bs-font-monospace);
+	gap: var(--space-2);
+	padding: var(--space-1) var(--space-3);
+	border: 1px solid var(--bs-warning);
+	border-radius: var(--radius-md);
+	background: var(--brand-surface);
+	font-size: var(--font-size-sm);
+	font-weight: 600;
+	color: var(--brand-text);
 	cursor: pointer;
-	transition: border-color 0.15s;
+	transition: border-color 0.15s ease, background 0.15s ease;
 
 	&:hover {
 		border-color: var(--bs-primary);
+		background: color-mix(in srgb, var(--bs-primary) 6%, var(--brand-surface));
 	}
 
-	.uncovered-key {
-		color: var(--brand-text);
+	// The old chip had no focus treatment at all.
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+// The label leads; the component key is the secondary, technical identifier.
+.uncovered-name {
+	white-space: nowrap;
+}
+
+.uncovered-key {
+	font-family: var(--bs-font-monospace);
+	font-size: 0.78rem;
+	font-weight: 400;
+	color: var(--brand-text-muted);
+}
+
+.uncovered-add {
+	color: var(--bs-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.uncovered-item {
+		transition: none !important;
 	}
 }
 
