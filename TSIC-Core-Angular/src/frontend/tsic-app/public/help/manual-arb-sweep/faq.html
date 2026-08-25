@@ -1,0 +1,202 @@
+<h3>Manual ARB Sweep &mdash; FAQ</h3>
+
+<div class="help-callout help-callout--info">
+  <i class="bi bi-eyeglasses" aria-hidden="true"></i>
+  <div>
+    <strong>A dry run proves what the sweep would <em>do</em>. It cannot prove the emails are well written.</strong>
+    <p class="help-callout__body">
+      Wrong wording renders perfectly. Read the message bodies as a parent would, not just the counts.
+    </p>
+  </div>
+</div>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why does my button say &ldquo;Dry run&rdquo;? Where is the switch to make it send?</span></summary>
+  <div class="faq-a">
+    <p>
+      There isn't one, by design. The mode follows the server: production sends, every other server renders.
+      A switch would be one more thing that can be left in the wrong position, and the wrong position on
+      production is severe &mdash; a whole morning's payments not booked, while the run still reports success.
+      Making it impossible to ask for is safer than making it easy to get right.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>I ran a dry run and no email arrived. Is it broken?</span></summary>
+  <div class="faq-a">
+    <p>
+      No &mdash; that is the whole point. Nothing is transmitted off production, including the digest and the
+      expiring-card summary. Everything that <em>would</em> have been sent is on the screen instead: expand any
+      row under &ldquo;Family emails&rdquo; to read the exact message, and scroll down for the digest.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Then is a dry run looking at fake data?</span></summary>
+  <div class="faq-a">
+    <p>
+      No. It reads the <strong>real production</strong> Authorize.Net batches &mdash; the same transactions the
+      4&nbsp;AM pass would see &mdash; and resolves each one against real registrations, real families and real
+      balances. It is a read-only look at live data. Only the writing and the sending are withheld.
+    </p>
+    <p class="help-muted">
+      This matters because the alternative was worse than useless: before, an off-production run quietly
+      queried the Authorize.Net <em>test</em> account, found nothing, and reported a clean morning &mdash;
+      indistinguishable from a real clean morning, and from a broken sweep.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What are the <code>[DRY RUN]</code> rows in the Email Log?</span></summary>
+  <div class="faq-a">
+    <p>
+      A dry run still records what it <em>would</em> have sent, so you can review it in the Email Log the same
+      way you review any other batch. Those rows are prefixed <code>[DRY RUN]</code> precisely so nobody
+      &mdash; you, a director, or a parent looking at their own sent-mail list &mdash; ever mistakes a rendered
+      message for one that actually went out.
+    </p>
+    <p>
+      They only exist on non-production servers, and that database is a restored copy, so they disappear at the
+      next refresh from production.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why is there one log entry per job instead of one per family?</span></summary>
+  <div class="faq-a">
+    <p>
+      Same as any batch email sent from Search Registrations: one entry per job, per message type, listing every
+      recipient with a count. A morning where one job had both a live-plan failure and a dead-plan failure
+      produces two entries for that job, because those are two different messages.
+    </p>
+    <p>
+      Looking up a single family still works exactly as before &mdash; their address is matched inside the
+      recipient list, so the family's record and their own sent-mail view both find it.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>The log entry shows <code>!PLAYER</code> and <code>!OWEDNOW</code> instead of real names. Is that a bug?</span></summary>
+  <div class="faq-a">
+    <p>
+      No. A batch entry stores the message <strong>template</strong>, not any one family's copy &mdash; the same
+      as every other batch email in the system. Each family's actual email is personalised with their player,
+      their username and their balance, so no single stored copy could represent the batch, and picking one
+      family's to stand in for everyone else's would be misleading.
+    </p>
+    <p>
+      To read the finished, personalised messages, use the dry run on this screen &mdash; it shows every one of
+      them in full.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why are eCheck Settled, eCheck Returns and Orphans missing from a dry-run result?</span></summary>
+  <div class="faq-a">
+    <p>
+      Because those steps genuinely do not run. They exist to move or reverse money, and none of them affects
+      the failed-draft notices this screen is for. Skipping them entirely is safer than teaching each one a
+      &ldquo;don't write&rdquo; mode &mdash; code that never runs cannot write by mistake.
+    </p>
+    <p>
+      They are hidden rather than shown as zeros, because a zero next to &ldquo;eCheck Returns&rdquo; reads as
+      &ldquo;nothing bounced last night&rdquo;, and on a dry run that would be a claim nobody checked.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>One of the emails says Reply-To &ldquo;none&rdquo;. What does that mean?</span></summary>
+  <div class="faq-a">
+    <p>
+      No director with an email address could be found for that job, so a family replying to the notice would
+      reach TSIC support instead of their own club. Worth fixing at the source &mdash; give that job an active
+      director with a valid address &mdash; because the family is replying about their own money.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>If I run the sweep twice, do families get emailed twice?</span></summary>
+  <div class="faq-a">
+    <p>
+      No. A transaction that has already been imported is recognised and skipped before it ever reaches the
+      notification step, so a second run the same morning writes to nobody. The dry run inherits the same
+      behaviour.
+    </p>
+    <p class="help-muted">
+      A family whose card fails again on the <em>next</em> installment is a new failed transaction, and does get
+      a new notice. That is intended &mdash; it is a new failure.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Some families are listed as NOT emailed. Why weren't they just sent something?</span></summary>
+  <div class="faq-a">
+    <p>
+      Because the email would not have worked. The four reasons: no sendable address on the account; no family
+      username, so the sign-in instructions would be blank; the registrant has opted out of email; or the send
+      itself failed. A notice telling someone to sign in as <em>nothing</em> produces a support call, not a
+      payment.
+    </p>
+    <p>
+      They are named on screen and in the digest so a person can pick them up by phone. That list is the real
+      output of the run.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why can't I trigger the expiring-card pass on production?</span></summary>
+  <div class="faq-a">
+    <p>
+      It writes to thousands of families across every job with a live subscription, and it is scheduled on the
+      2nd and the 15th exactly so that sending it is not a decision anyone makes. A button on production would
+      add only one capability: sending it a second time, or on the wrong day, with no way to take it back.
+    </p>
+    <p>
+      Use the dry run here to see who is in scope and what they would receive. The pass itself stays on its
+      timer.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>How many days prior should I use?</span></summary>
+  <div class="faq-a">
+    <p>
+      <strong>1</strong> unless you have a reason. That matches what runs nightly. Widen it to review a window
+      you think was missed, or after an outage. Nothing is double-counted &mdash; already-processed transactions
+      are skipped &mdash; so a bigger number costs time, not accuracy.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>It says &ldquo;Sweep already running&rdquo;.</span></summary>
+  <div class="faq-a">
+    <p>
+      Only one pass may run at a time, and a second request is refused rather than queued &mdash; two passes at
+      once could each decide the same transaction was unbooked and book it twice. Wait for the first to finish
+      and run again.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>The banner says the mode could not be determined.</span></summary>
+  <div class="faq-a">
+    <p>
+      The server did not answer when asked which mode it runs in. Do not click until you know &mdash; on
+      production that button sends real mail to real families. Reload the page; if it persists, the API is
+      likely down or unreachable, which is worth resolving before running a reconciliation pass anyway.
+    </p>
+  </div>
+</details>

@@ -454,7 +454,7 @@ export const routes: Routes = [
 					{
 						path: 'manual-arb-sweep',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser] },
+						data: { roles: [Roles.Superuser], helpKey: 'manual-arb-sweep' },
 						loadComponent: () => import('./views/accounting/manual-arb-sweep/manual-arb-sweep.component').then(m => m.ManualArbSweepComponent)
 					},
 					{

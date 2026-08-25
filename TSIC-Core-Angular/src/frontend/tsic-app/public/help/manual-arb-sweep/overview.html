@@ -1,0 +1,149 @@
+<h3>Manual ARB Sweep</h3>
+<p>
+  Every morning at 4&nbsp;AM a background pass reads Authorize.Net's settled batches and reconciles them
+  against our books. This screen runs that same pass on demand. It is the only manual entry point to it,
+  and it is SuperUser&#8209;only.
+</p>
+
+<div class="help-callout help-callout--warning">
+  <i class="bi bi-shield-exclamation" aria-hidden="true"></i>
+  <div>
+    <strong>What this button does depends entirely on which server you are on.</strong>
+    <p class="help-callout__body">
+      On production it books money and emails families. Anywhere else it only looks and reports. You do not
+      choose &mdash; the server does, and the banner at the top of the page tells you which one you are
+      looking at before you click.
+    </p>
+  </div>
+</div>
+
+<h4>The seven things the sweep does</h4>
+<ul>
+  <li><strong>Imports recurring (ARB) charges</strong> &mdash; each installment that drafted overnight is booked
+    against the registration, and the subscription's status is re-synced from Authorize.Net.</li>
+  <li><strong>Stamps eCheck settlements</strong> &mdash; status only. eCheck money books when it is submitted;
+    this records that the draft actually entered the banking network.</li>
+  <li><strong>Reverses eCheck returns</strong> &mdash; an NSF or closed account comes back days later, and the
+    booked payment is backed out.</li>
+  <li><strong>Flags orphan charges</strong> &mdash; money that settled at Authorize.Net with no matching
+    accounting row here. Reported for a human, never auto-booked. Expect zero.</li>
+  <li><strong>Runs the stale-draft watchdog</strong> &mdash; a draft that went silent instead of settling or
+    returning. This is the only detector for one that died before it ever reached the bank.</li>
+  <li><strong>Reports untracked eCheck payments</strong> &mdash; review only. Expect zero.</li>
+  <li><strong>Emails the family behind every recurring draft that failed.</strong> This is the newest step and
+    the reason the dry run exists.</li>
+</ul>
+
+<h4>The failed-draft notice</h4>
+<p>
+  When a family's installment is declined, Authorize.Net keeps retrying, so the subscription stays
+  <em>active</em> &mdash; which meant these failures never showed up in the old warning lists. Nobody was told.
+  Now the family gets an email the same morning, telling them which payment failed, what is owed, and the exact
+  steps to fix it.
+</p>
+<p>
+  Which message they get depends on whether their plan is still alive:
+</p>
+<div class="help-card-grid">
+  <div class="help-card">
+    <strong>Plan still alive</strong>
+    <p class="help-muted">
+      &ldquo;Update Your Payment Information&rdquo; &mdash; update the card and clear the balance in one step,
+      which also restarts their future automatic payments.
+    </p>
+  </div>
+  <div class="help-card">
+    <strong>Plan already ended</strong>
+    <p class="help-muted">
+      &ldquo;Pay Balance Due&rdquo; &mdash; there is no live plan left to repair, so they are sent straight to
+      paying what they owe.
+    </p>
+  </div>
+</div>
+<p class="help-muted">
+  Some families cannot be written to &mdash; no address on file, no username to give them, or they have opted
+  out of email. Those are never guessed at: they are listed by name, on screen and in the digest, for someone
+  to phone.
+</p>
+
+<h4>Live vs. dry run</h4>
+<p>
+  The mode follows the server and cannot be switched. That is deliberate: a checkbox's only real ability is to
+  be in the wrong state, and the wrong state here is a morning of payments silently not booked.
+</p>
+<div class="help-card-grid">
+  <div class="help-card help-card--success">
+    <strong><i class="bi bi-eyeglasses" aria-hidden="true"></i> Dry run &mdash; every server except production</strong>
+    <p class="help-muted">
+      Reads the <em>real</em> production Authorize.Net batches and works out exactly what the 4&nbsp;AM pass
+      would do &mdash; then does none of it. Nothing is booked, nothing is settled, no email is sent. Instead
+      the digest and every would-be family email are shown on screen for you to read.
+    </p>
+  </div>
+  <div class="help-card">
+    <strong><i class="bi bi-exclamation-octagon-fill" aria-hidden="true"></i> Live &mdash; production only</strong>
+    <p class="help-muted">
+      The real pass. Books charges, settles and reverses eChecks, emails families, mails the digest to support.
+      There is no undo. The banner is red and the button says <strong>Run sweep (LIVE)</strong>.
+    </p>
+  </div>
+</div>
+
+<h4>Reading a dry-run result</h4>
+<div class="help-flow">
+  <span class="badge bg-primary">Counts</span>
+  <i class="bi bi-arrow-right" aria-hidden="true"></i>
+  <span class="badge bg-primary">Who was missed</span>
+  <i class="bi bi-arrow-right" aria-hidden="true"></i>
+  <span class="badge bg-primary">The emails</span>
+  <i class="bi bi-arrow-right" aria-hidden="true"></i>
+  <span class="badge bg-success">The digest</span>
+</div>
+<ul>
+  <li><strong>Checked</strong> &mdash; transactions in the batches for the window you asked for.</li>
+  <li><strong>ARB Resolved</strong> &mdash; recurring transactions worked out in full. On a live run this label
+    reads <strong>ARB Imported</strong>, because there it also books them.</li>
+  <li><strong>Failed Drafts / Would Email / NOT Emailed</strong> &mdash; the three that matter. Found minus
+    emailed is the number of families a person still has to contact by hand.</li>
+  <li><strong>eCheck Settled, eCheck Returns, Orphans</strong> &mdash; hidden on a dry run. Those steps do not
+    run at all, so showing zeros would only invite you to read them as good news.</li>
+</ul>
+<p>
+  Below the counts: the by-name list of families nobody could reach, then every rendered email &mdash; click one
+  to expand it and see the recipients, the Reply-To director and the full message as the family would receive
+  it &mdash; and finally the digest as support would get it.
+</p>
+
+<h4>The expiring-card pass</h4>
+<p>
+  A second, separate job runs unattended on the <strong>2nd and the 15th</strong> of each month. It asks
+  Authorize.Net which cards expire this month across every job holding a live subscription, and writes to those
+  families <em>before</em> the payment fails. It has its own summary to support.
+</p>
+<p>
+  On a dry-run server you get a button for it. On production you do not, and that is on purpose: it mails
+  thousands of people, it is scheduled precisely so nobody has to decide to send it, and a manual trigger would
+  only be a way to send it twice or on the wrong day.
+</p>
+<p class="help-muted">
+  Not the 1st &mdash; that morning belongs to the month-end close alone.
+</p>
+
+<h4>Days prior</h4>
+<p>
+  How far back to ask Authorize.Net for settled batches. <strong>1 day</strong> matches the nightly cadence and
+  is the right answer almost always. Raise it to catch up after an outage, or to look at a window you think was
+  missed. Already-processed transactions are recognised and skipped, so a wider window costs time, not
+  correctness.
+</p>
+
+<div class="help-callout">
+  <i class="bi bi-info-circle-fill" aria-hidden="true"></i>
+  <div>
+    <strong>Only one sweep runs at a time.</strong>
+    <p class="help-callout__body">
+      If a pass is already in flight the request is refused rather than queued, and you will see
+      &ldquo;Sweep already running&rdquo;. Wait and try again.
+    </p>
+  </div>
+</div>
