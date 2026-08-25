@@ -422,18 +422,40 @@
 			</select>
 		</div>
 
-		<!-- Job selector (cascading) -->
+		<!-- Job selector (cascading), with a filter — a job type can hold hundreds -->
 		@if (overrideSelectedJobTypeId()) {
-			<div class="d-flex align-items-center gap-2">
-				<label for="overrideJobSelect" class="form-label mb-0 fw-semibold">Job:</label>
-				<select id="overrideJobSelect" class="form-select form-select-sm" style="width: auto; min-width: 200px;"
+			<div class="d-flex align-items-center gap-2 job-picker">
+				<label for="overrideJobFilter" class="form-label mb-0 fw-semibold">Job:</label>
+
+				<div class="job-search">
+					<i class="bi bi-search job-search__icon" aria-hidden="true"></i>
+					<input id="overrideJobFilter" type="search" class="form-control form-control-sm job-search__input"
+						placeholder="Filter jobs..."
+						autocomplete="off"
+						[value]="overrideJobFilter()"
+						(input)="overrideJobFilter.set(asInputValue($event))" />
+					@if (overrideJobFilter()) {
+						<button type="button" class="job-search__clear" (click)="overrideJobFilter.set('')"
+							title="Clear filter" aria-label="Clear job filter">
+							<i class="bi bi-x-lg" aria-hidden="true"></i>
+						</button>
+					}
+				</div>
+
+				<select id="overrideJobSelect" class="form-select form-select-sm job-select"
 					[value]="overrideSelectedJobId()"
 					(change)="onOverrideJobChange($event)">
 					<option value="" disabled>Select a job...</option>
-					@for (job of overrideJobs(); track job.jobId) {
+					@for (job of filteredOverrideJobs(); track job.jobId) {
 						<option [value]="job.jobId">{{ job.jobName }}</option>
 					}
 				</select>
+
+				@if (overrideJobFilter()) {
+					<span class="job-count">
+						{{ filteredOverrideJobs().length }} of {{ overrideJobs().length }}
+					</span>
+				}
 			</div>
 		}
 

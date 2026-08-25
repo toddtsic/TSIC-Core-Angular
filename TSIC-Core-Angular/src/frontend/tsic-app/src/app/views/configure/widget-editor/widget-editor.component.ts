@@ -143,6 +143,31 @@ export class WidgetEditorComponent implements HasUnsavedChanges {
 	readonly overrideSelectedJobTypeId = signal<number>(0);
 	readonly overrideJobs = signal<JobRefDto[]>([]);
 	readonly overrideSelectedJobId = signal<string>('');
+
+	/**
+	 * Free-text filter over the job picker. A single job type can hold hundreds of jobs
+	 * (348 under Club Sport Registration alone), which is more than a <select> can be
+	 * scrolled through usefully.
+	 */
+	readonly overrideJobFilter = signal('');
+
+	/**
+	 * The filtered option list. The currently-selected job is always kept in the list even
+	 * when it does not match — dropping it would leave the <select> displaying nothing
+	 * while a job is in fact loaded below.
+	 */
+	readonly filteredOverrideJobs = computed(() => {
+		const term = this.overrideJobFilter().trim().toLowerCase();
+		const jobs = this.overrideJobs();
+		if (!term) return jobs;
+
+		const selected = this.overrideSelectedJobId();
+		return jobs.filter(j =>
+			j.jobId === selected ||
+			j.jobName.toLowerCase().includes(term) ||
+			j.jobPath.toLowerCase().includes(term));
+	});
+
 	readonly overrideEntries = signal<JobWidgetEntryDto[]>([]);
 	readonly overrideOriginalEntries = signal<JobWidgetEntryDto[]>([]);
 	readonly isOverrideLoading = signal(false);
@@ -988,6 +1013,7 @@ export class WidgetEditorComponent implements HasUnsavedChanges {
 		const jobTypeId = +(event.target as HTMLSelectElement).value;
 		this.overrideSelectedJobTypeId.set(jobTypeId);
 		this.overrideSelectedJobId.set('');
+		this.overrideJobFilter.set(''); // a filter from the previous job type is meaningless here
 		this.overrideEntries.set([]);
 		this.overrideOriginalEntries.set([]);
 		if (jobTypeId > 0) {

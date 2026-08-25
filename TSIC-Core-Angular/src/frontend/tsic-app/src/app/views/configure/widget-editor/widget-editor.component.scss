@@ -621,6 +621,80 @@
 	}
 }
 
+// ── Job picker (Job Overrides) ──
+//
+// One job type can hold hundreds of jobs — 348 under Club Sport Registration — so the
+// bare <select> was unusable. Filter narrows the option list; the select still owns
+// selection, so keyboard and screen-reader behaviour is unchanged.
+
+.job-picker {
+	flex-wrap: wrap;
+}
+
+.job-search {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+}
+
+.job-search__icon {
+	position: absolute;
+	left: var(--space-2);
+	font-size: 0.8rem;
+	color: var(--brand-text-muted);
+	pointer-events: none;
+}
+
+.job-search__input {
+	width: 190px;
+	padding-left: calc(var(--space-2) + 1.1rem);
+	padding-right: 1.6rem;
+
+	// Chrome draws its own clear affordance on type=search; we supply a themed one.
+	&::-webkit-search-cancel-button {
+		display: none;
+	}
+}
+
+.job-search__clear {
+	position: absolute;
+	right: var(--space-1);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	padding: 0;
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--brand-text-muted);
+	font-size: 0.7rem;
+	cursor: pointer;
+
+	&:hover {
+		color: var(--brand-text);
+		background: color-mix(in srgb, var(--brand-text) 8%, transparent);
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+.job-select {
+	width: auto;
+	min-width: 200px;
+	max-width: 420px;
+}
+
+.job-count {
+	font-size: 0.78rem;
+	color: var(--brand-text-muted);
+	white-space: nowrap;
+}
+
 // ── "In Use" column (Widget Definitions) ──
 //
 // The catalog previously gave no way to tell a widget live on twenty jobs from one

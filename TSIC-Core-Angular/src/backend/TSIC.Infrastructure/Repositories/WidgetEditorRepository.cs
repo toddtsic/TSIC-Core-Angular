@@ -279,10 +279,17 @@ public class WidgetEditorRepository : IWidgetEditorRepository
 
     public async Task<List<JobRefDto>> GetJobsByJobTypeAsync(int jobTypeId, CancellationToken ct = default)
     {
+        // Live jobs first, then alphabetical WITHIN each group. Ordering by ExpiryAdmin alone
+        // looked random to a human: hundreds of jobs share the same expiry date, and SQL returns
+        // ties in whatever order it likes. Captured once so the comparison is a parameter, not
+        // a per-row GETDATE().
+        var now = DateTime.Now;
+
         return await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobTypeId == jobTypeId)
-            .OrderByDescending(j => j.ExpiryAdmin)
+            .OrderByDescending(j => j.ExpiryAdmin >= now)
+            .ThenBy(j => j.JobName ?? j.JobPath)
             .Select(j => new JobRefDto
             {
                 JobId = j.JobId,
