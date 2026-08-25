@@ -7,7 +7,6 @@ import { PlayerTrendWidgetComponent } from '@widgets/registration/player-trend-w
 import { TeamTrendWidgetComponent } from '@widgets/registration/team-trend-widget/team-trend-widget.component';
 import { AgegroupDistributionWidgetComponent } from '@widgets/registration/agegroup-distribution-widget/agegroup-distribution-widget.component';
 import { YearOverYearWidgetComponent } from '@widgets/scheduling/year-over-year-widget/year-over-year-widget.component';
-import { JobPulseWidgetComponent } from '@widgets/registration/job-pulse-widget/job-pulse-widget.component';
 import { FinancialHealthComponent } from '@widgets/financial/financial-health/financial-health.component';
 import { Workspaces, type WorkspaceKey } from '@widgets/workspace.constants';
 
@@ -75,16 +74,6 @@ export const WIDGET_MANIFEST: Record<string, WidgetManifestEntry> = {
 		description:  'Contact name and email for event inquiries',
 		displayStyle: 'block',
 	},
-	'job-pulse': {
-		component:    JobPulseWidgetComponent,
-		label:        'Job Pulse',
-		icon:         'bi-activity',
-		widgetType:   'content',
-		workspace:    Workspaces.Public,
-		description:  'Smart registration availability cards',
-		displayStyle: 'pulse',
-	},
-
 	'financial-health': {
 		component:    FinancialHealthComponent,
 		label:        'Financial Health',
