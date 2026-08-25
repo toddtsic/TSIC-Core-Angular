@@ -141,13 +141,6 @@ public sealed record AdnSweepResult
     /// </summary>
     public List<ArbAuditRowDto> AuditRows { get; init; } = [];
 
-    /// <summary>
-    /// Dry run only: settled ARB drafts counted in the batches but deliberately not fetched in full.
-    /// Each fetch costs two synchronous Authorize.Net round-trips and a settled draft produces no family
-    /// email, so a dry run resolves only the failures. Surfaced so the run never reads as though it had
-    /// examined them. Always 0 on a live run, which fetches and books every one.
-    /// </summary>
-    public int SettledNotFetched { get; init; }
 
     /// <summary>
     /// The sweep completed AND every transaction in it was processed. This is the gate the month-end

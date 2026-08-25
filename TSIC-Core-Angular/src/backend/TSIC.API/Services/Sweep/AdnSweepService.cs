@@ -190,32 +190,17 @@ public sealed class AdnSweepService : IAdnSweepService
             var allTxs = FetchBatchTransactions(env, creds.AdnLoginId!, creds.AdnTransactionKey!, daysPrior);
             counts.Checked = allTxs.Count;
 
-            // 2) Process ARB transactions (legacy parity). On a dry run this still resolves each
-            // transaction in full — detail fetch, invoice → registration, installment math — and only
-            // the two writes inside are skipped, so the rows feeding step 8 are the real ones.
+            // 2) Process ARB transactions (legacy parity). A dry run resolves EVERY candidate exactly as
+            // the live pass does — detail fetch, invoice → registration, installment math, tender
+            // resolution, the RA row built in full — and only the writes are skipped.
             //
-            // BUT a dry run resolves only the drafts that FAILED. Every candidate costs two synchronous
-            // Authorize.Net round-trips (GetSubscriptionStatus + GetTransactionDetails), and on the
-            // production master account — which carries every live ARB job — a normal day is mostly
-            // SUCCESSFUL installments. Fetching all of them serialised took the interactive run into
-            // minutes and read as a hung page, for rows a dry run does nothing with: a settled draft
-            // produces no family email, which is the only thing being exercised here. The failed ones,
-            // typically a handful, are still resolved in full. Live runs are untouched — there every
-            // settled row must be fetched and booked.
-            var arbCandidates = allTxs.Where(IsArbCandidate).ToList();
-            if (_dryRun)
-            {
-                var settled = arbCandidates
-                    .Where(t => string.Equals(t.transactionStatus, "settledSuccessfully", StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-                counts.SettledNotFetched = settled.Count;
-                arbCandidates = arbCandidates.Except(settled).ToList();
-                _logger.LogInformation(
-                    "Dry run: resolving {Failed} failed ARB draft(s); {Settled} settled draft(s) counted but not fetched",
-                    arbCandidates.Count, settled.Count);
-            }
-
-            foreach (var tx in arbCandidates)
+            // It briefly resolved only the FAILED drafts, to cut Authorize.Net round-trips. That was
+            // wrong twice over. It gutted the rehearsal: the settled drafts are the ones that book money,
+            // so the money path went unexercised while the run still reported a clean result. And it made
+            // ARB Activity a line-for-line copy of Failed ARB Drafts, so a normal morning read as one
+            // where every draft failed. The premise was wrong too — the 4am production pass resolves all
+            // of them and mails the digest inside a minute.
+            foreach (var tx in allTxs.Where(IsArbCandidate))
             {
                 ct.ThrowIfCancellationRequested();
                 try
@@ -455,7 +440,6 @@ public sealed class AdnSweepService : IAdnSweepService
             RenderedEmails = notifyResult.Rendered,
             NotEmailed = notifyResult.Skips,
             AuditRows = notifyResult.AuditRows,
-            SettledNotFetched = counts.SettledNotFetched,
         };
     }
 
@@ -1434,9 +1418,9 @@ public sealed class AdnSweepService : IAdnSweepService
             sb.Append("<p style='font-size:12px;font-weight:bold;color:#0b5;margin:8px 0 2px 0;'>"
                 + "DRY RUN — nothing was written, settled, or sent.</p>");
             sb.Append("<p style='font-size:10px;margin:0 0 8px 0;'>Real production Authorize.Net batches were read and "
-                + "every FAILED recurring draft was resolved in full. Settled drafts were counted but not fetched, and "
-                + "steps 3-7 (eCheck settlement, returns, watchdog, integrity net, orphans) did not run at all. "
-                + "Sections below say so rather than reporting zero.</p>");
+                + "every recurring draft resolved in full, exactly as the 4am pass does — only the writes and the family "
+                + "sends were withheld. Steps 3-7 (eCheck settlement, returns, watchdog, integrity net, orphans) did not "
+                + "run at all; those sections say so rather than reporting zero.</p>");
         }
 
         // Lead with the failure. A digest of zeros reads like a quiet morning; only this says otherwise.
@@ -1460,7 +1444,7 @@ public sealed class AdnSweepService : IAdnSweepService
         if (_dryRun)
         {
             sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, "
-                + $"ARB resolved: {counts.ArbImported} (failed drafts only; {counts.SettledNotFetched} settled draft(s) counted but not fetched), "
+                + $"ARB resolved: {counts.ArbImported}, "
                 + $"Failed drafts: {notifyResult.Found} (would email {notifyResult.Emailed}, NOT emailed {notifyResult.Skipped}), "
                 + $"Errored: {counts.Errored}. eCheck settled / returns / watchdog / untracked / orphans: not run.</p>");
         }
@@ -1545,15 +1529,9 @@ public sealed class AdnSweepService : IAdnSweepService
         }
 
         // ── ARB Activity table ────────────────────────────────────────
-        // On a dry run this list holds ONLY the failures — the settled drafts were never fetched, so they
-        // never became rows. Left unlabelled it is indistinguishable from a morning where every single
-        // draft failed, and it duplicates the Failed ARB Drafts table above line for line.
+        // Every ARB transaction in the window, dry run included — the settled ones are the bulk of a
+        // normal morning and the reason this table means anything.
         sb.Append("<h4 style='margin-bottom:2px;'>ARB Activity</h4>");
-        if (_dryRun)
-        {
-            sb.Append($"<p style='font-size:9px;'>(dry run — the {counts.SettledNotFetched} settled draft(s) in these batches were "
-                + "counted but not fetched, so only the failures above appear here. A live run fetches and books every one.)</p>");
-        }
         if (arbRows.Count == 0)
         {
             sb.Append("<p style='font-size:9px;'>(no ARB transactions imported this run)</p>");
@@ -1772,7 +1750,6 @@ public sealed class AdnSweepService : IAdnSweepService
         /// Dry run only: settled ARB drafts seen in the batches but deliberately NOT fetched in full.
         /// Reported so the run never looks like it examined them.
         /// </summary>
-        public int SettledNotFetched;
     }
 
     private sealed record ArbDigestRow

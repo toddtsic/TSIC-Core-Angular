@@ -194,13 +194,11 @@
                         <span class="result-stat__label">Errored</span>
                     </div>
                 </div>
-                @if (r.dryRun && (r.settledNotFetched ?? 0) > 0) {
+                @if (r.dryRun) {
                     <p class="result-panel__desc">
                         <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
-                        <strong>{{ r.settledNotFetched }}</strong> settled draft(s) were counted but not
-                        looked up in detail. A settled draft sends no email, and each lookup costs two
-                        Authorize.Net round-trips — so a dry run resolves only the failures. A live run
-                        fetches and books every one.
+                        Every recurring draft was resolved in full, exactly as the 4am pass does — only
+                        the writes and the family emails were withheld.
                     </p>
                 }
             </div>
@@ -238,14 +236,13 @@
             </ng-container>
         }
 
-        @if (r.digestHtml) {
-            <section class="preview-panel">
-                <h4 class="preview-panel__title">
-                    {{ r.dryRun ? 'Digest — mailed to support with a [DRY RUN] subject' : 'Digest (mailed)' }}
-                </h4>
-                <div class="email-render" [innerHTML]="trust(r.digestHtml)"></div>
-            </section>
-        }
+        <!-- The digest is not previewed here. It is mailed to support on every run, dry included, and a
+             copy rendered in this panel proves nothing about the message that actually arrives — the
+             transport is where it was being corrupted. Read it in the inbox. -->
+        <p class="digest-note">
+            <i class="bi bi-envelope" aria-hidden="true"></i>
+            Digest mailed to support{{ r.dryRun ? ' with a [DRY RUN] subject' : '' }}. Read it there.
+        </p>
     }
 
     @if (expiringError()) {
@@ -311,12 +308,10 @@
             </ng-container>
         }
 
-        @if (x.summaryHtml) {
-            <section class="preview-panel">
-                <h4 class="preview-panel__title">Summary — mailed to support with a [DRY RUN] subject</h4>
-                <div class="email-render" [innerHTML]="trust(x.summaryHtml)"></div>
-            </section>
-        }
+        <p class="digest-note">
+            <i class="bi bi-envelope" aria-hidden="true"></i>
+            Summary mailed to support{{ x.dryRun ? ' with a [DRY RUN] subject' : '' }}. Read it there.
+        </p>
     }
 </div>
 

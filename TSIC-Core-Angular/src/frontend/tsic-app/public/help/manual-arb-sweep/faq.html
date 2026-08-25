@@ -133,9 +133,13 @@
       On this screen they are omitted; in the dry-run digest they appear but say
       <em>&ldquo;not run on a dry run&rdquo;</em>. Neither shows a zero or a green tick, because a zero next
       to &ldquo;eCheck Returns&rdquo; reads as &ldquo;nothing bounced last night&rdquo; &mdash; and on a dry run
-      that would be a claim nobody checked. The same goes for ARB Activity: a dry run fetches only the failed
-      drafts, so that table names the settled count it did not look at rather than letting the failures stand
-      in for the whole morning.
+      that would be a claim nobody checked.
+    </p>
+    <p class="help-muted">
+      ARB Activity is different &mdash; it is fully populated on a dry run, all of it, because a dry run
+      resolves every recurring draft exactly as the 4&nbsp;AM pass does. It briefly resolved only the failures
+      to save time; that made the run useless as a rehearsal, since the settled drafts are the ones that book
+      money.
     </p>
   </div>
 </details>
