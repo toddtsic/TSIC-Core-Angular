@@ -61,43 +61,57 @@ ELSE
 
 DECLARE @widgetId INT = (SELECT WidgetId FROM widgets.Widget WHERE ComponentKey = 'financial-health');
 
--- ── STEP 3: attach to ONE job ───────────────────────────────────────────────
+-- ── STEP 3: attach to ONE job, for the THREE admin roles ────────────────────
 -- This is the rollout control. Nothing renders until a JobWidget row exists.
 -- Pre-set to jobId EE511CAA-37FE-49D1-A2B7-1B9660F75F4F (STEPS Lacrosse: Girls Elite
 -- Players 2026-2027 - 408 registrations, 371 ACTIVE ARB subscriptions). Uncomment
 -- and run. Repeat per job as you widen.
 --
--- !! THIS ROW IS NOT ENVIRONMENT-SCOPED. Prod and Staging share ONE database, so it
--- !! is live for production the moment it is inserted. While the panel shows
--- !! placeholder figures the ONLY thing keeping invented money numbers away from that
--- !! job's real director is the envName guard in financial-health.component.ts.
--- !! Do not delete that guard until the panel shows real data.
+-- !! THIS ROW IS NOT ENVIRONMENT-SCOPED IF RUN AGAINST THE REAL PROD DB. Run locally
+-- !! (TSIC-SEDONA\SS2016) it is dev-only — that instance is a restored COPY of a prod
+-- !! backup. Going live in production is a SEPARATE, deliberate run on that box. While
+-- !! the panel shows placeholder figures, the envName guard in
+-- !! financial-health.component.ts is what keeps invented money numbers out of a
+-- !! production build. Do not delete that guard until the panel shows real data.
+-- !!
+-- !! NOTE: the next __Restore-DevDb-From-Prod.ps1 WIPES these rows. Re-run this script.
 --
--- RoleId = Director (FF4D1C27-F6DA-4745-98CC-D7E8121A5D06). GetJobWidgetsAsync
--- filters `jw.RoleId == null || jw.RoleId == roleId`, so a NULL here would show
--- the panel to EVERY role on the dashboard. Never leave it null for this widget.
--- SuperDirector/Superuser need their own rows if they should see it too:
---   SuperDirector 7B9EB503-53C9-44FA-94A0-17760C512440
---   Superuser     CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9
+-- ONE ROW PER ROLE. GetJobWidgetsAsync filters `jw.RoleId == null || jw.RoleId == roleId`
+-- against the CALLER's own role (resolved from their JWT role name by
+-- WidgetDashboardService.RoleNameToIdMap), so a role with no row simply does not see the
+-- panel. NEVER set RoleId = NULL here: null matches EVERY role on the dashboard, which
+-- makes the panel's audience depend on who happens to have dashboard access rather than
+-- on an explicit rule.
+--
+-- Todd 2026-08-25: all three admin roles during development, so the panel can be opened
+-- as Superuser without impersonating a Director. TIGHTEN TO DIRECTOR-ONLY once it
+-- carries real numbers — delete the SuperDirector and Superuser rows then.
 
 /*
 DECLARE @jobId   UNIQUEIDENTIFIER = 'EE511CAA-37FE-49D1-A2B7-1B9660F75F4F';  -- stepsgirls-players-2026-2027
 DECLARE @jobPath NVARCHAR(200) = (SELECT JobPath FROM Jobs.Jobs WHERE JobId = @jobId);
-DECLARE @roleId  NVARCHAR(450) = 'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06';  -- Director
 
 IF @jobId IS NULL
     PRINT 'NO SUCH JOB - nothing attached';
-ELSE IF EXISTS (SELECT 1 FROM widgets.JobWidget
-                WHERE JobId = @jobId AND WidgetId = @widgetId AND RoleId = @roleId)
-    PRINT 'Already attached to that job - skipped';
 ELSE
 BEGIN
     INSERT INTO widgets.JobWidget (JobId, WidgetId, RoleId, CategoryId, DisplayOrder, IsEnabled, Config)
-    VALUES (@jobId, @widgetId, @roleId, @categoryId, 0, 1, NULL);
-    PRINT CONCAT('Attached Financial Health to ', @jobPath);
+    SELECT @jobId, @widgetId, r.RoleId, @categoryId, 0, 1, NULL
+    FROM (VALUES
+            ('FF4D1C27-F6DA-4745-98CC-D7E8121A5D06'),   -- Director
+            ('7B9EB503-53C9-44FA-94A0-17760C512440'),   -- SuperDirector
+            ('CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9')    -- Superuser
+         ) AS r(RoleId)
+    WHERE NOT EXISTS (
+        SELECT 1 FROM widgets.JobWidget jw
+        WHERE jw.JobId    = @jobId
+          AND jw.WidgetId = @widgetId
+          AND jw.RoleId   = r.RoleId
+    );
+
+    PRINT CONCAT('Attached Financial Health to ', @jobPath, ' for ', @@ROWCOUNT, ' role(s)');
 END
 */
-
 -- ── AFTER: verification ─────────────────────────────────────────────────────
 PRINT '--- AFTER ---';
 SELECT c.CategoryId, c.Name, c.Workspace, c.DefaultOrder
@@ -107,7 +121,13 @@ SELECT w.WidgetId, w.Name, w.ComponentKey, w.WidgetType, w.CategoryId, w.Default
 FROM widgets.Widget w WHERE w.ComponentKey = 'financial-health';
 
 -- Should be EMPTY until you run step 3. Any row here is a job that will show it.
-SELECT j.JobPath, j.JobName, jw.RoleId, jw.IsEnabled, jw.DisplayOrder
+SELECT j.JobPath, j.JobName, jw.IsEnabled, jw.DisplayOrder,
+       CASE
+            WHEN jw.RoleId IS NULL THEN '!! NULL = EVERY ROLE !!'
+            WHEN jw.RoleId = 'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06' THEN 'Director'
+            WHEN jw.RoleId = '7B9EB503-53C9-44FA-94A0-17760C512440' THEN 'SuperDirector'
+            WHEN jw.RoleId = 'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9' THEN 'Superuser'
+            ELSE jw.RoleId END AS RoleName
 FROM widgets.JobWidget jw
 JOIN widgets.Widget w ON w.WidgetId = jw.WidgetId
 JOIN Jobs.Jobs j       ON j.JobId    = jw.JobId
