@@ -269,8 +269,12 @@ public sealed class ArbNotificationService : IArbNotificationService
 
                 directors.TryGetValue(reg.JobId, out var director);
 
-                rendered.Add(await SendOrRenderAsync(
-                    who, reg.JobName, recipients, subject, body, director, ct));
+                var sent = await SendOrRenderAsync(
+                    who, reg.JobName, recipients, subject, body, director, ct);
+                // Retained for review on a dry run ONLY. On a live run this went to the family, there is
+                // nothing to review, and keeping it would return every family's name, address and balance
+                // in the manual-run HTTP response.
+                if (_dryRun) rendered.Add(sent);
 
                 // Alive and dead are separate email types, so a job with both kinds of failure this
                 // morning audits as two rows — which is correct: they are two different messages.
@@ -371,8 +375,10 @@ public sealed class ArbNotificationService : IArbNotificationService
 
                     var body = ReplaceFlaggedTokens(BodyExpiringCard, reg);
 
-                    rendered.Add(await SendOrRenderAsync(
-                        who, reg.JobName, recipients, SubjectExpiringCard, body, director, ct));
+                    var sent = await SendOrRenderAsync(
+                        who, reg.JobName, recipients, SubjectExpiringCard, body, director, ct);
+                    // Dry run only — same reason as the failed-draft path.
+                    if (_dryRun) rendered.Add(sent);
 
                     var bucket = Bucket(buckets, jobId, reg.JobName, SubjectExpiringCard, BodyExpiringCard);
                     bucket.SendFrom ??= director?.Email;
@@ -531,9 +537,9 @@ public sealed class ArbNotificationService : IArbNotificationService
         "<ol>" +
         "<li>Login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME</li>" +
         "<li>Select your Player's role</li>" +
-        "<li>Under 'Player' in the upper right, select 'Update CC Info (will also pay for failed auto-payments)'</li>" +
-        "<li>Enter your credit card information and you will see the amount due at the bottom of the screen.</li>" +
-        "<li>Click Submit to make the payment and reactivate your future automatic payments.</li>" +
+        "<li>Under 'Player' in the upper right, select <b>Update CC Info</b> — this also pays the auto-payment that failed</li>" +
+        "<li>Your <b>Balance Due</b> is shown near the top of the page. Enter your credit card information below it.</li>" +
+        "<li>Click <b>Update Card &amp; Pay Balance</b> to make the payment and reactivate your future automatic payments.</li>" +
         "</ol>";
 
     private const string BodyPlanDead =
@@ -554,8 +560,8 @@ public sealed class ArbNotificationService : IArbNotificationService
         "<ol>" +
         "<li>Login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME</li>" +
         "<li>Select your Player's role</li>" +
-        "<li>Under 'Player' in the upper right, select 'Update CC Info (will also pay for failed auto-payments)'</li>" +
-        "<li>Enter your credit card information and you will see the amount due at the bottom of the screen</li>" +
-        "<li>Click Submit to make the payment and reactivate your future automatic payments</li>" +
+        "<li>Under 'Player' in the upper right, select <b>Update CC Info</b> — this also pays any auto-payment that has failed</li>" +
+        "<li>Your <b>Balance Due</b> is shown near the top of the page. Enter your credit card information below it.</li>" +
+        "<li>Click <b>Update Card &amp; Pay Balance</b> to save the new card and keep your automatic payments running.</li>" +
         "</ol>";
 }

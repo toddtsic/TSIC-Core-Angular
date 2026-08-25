@@ -120,8 +120,12 @@
       &ldquo;don't write&rdquo; mode &mdash; code that never runs cannot write by mistake.
     </p>
     <p>
-      They are hidden rather than shown as zeros, because a zero next to &ldquo;eCheck Returns&rdquo; reads as
-      &ldquo;nothing bounced last night&rdquo;, and on a dry run that would be a claim nobody checked.
+      On this screen they are omitted; in the dry-run digest they appear but say
+      <em>&ldquo;not run on a dry run&rdquo;</em>. Neither shows a zero or a green tick, because a zero next
+      to &ldquo;eCheck Returns&rdquo; reads as &ldquo;nothing bounced last night&rdquo; &mdash; and on a dry run
+      that would be a claim nobody checked. The same goes for ARB Activity: a dry run fetches only the failed
+      drafts, so that table names the settled count it did not look at rather than letting the failures stand
+      in for the whole morning.
     </p>
   </div>
 </details>

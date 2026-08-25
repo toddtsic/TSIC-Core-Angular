@@ -29,6 +29,17 @@ public sealed class AdnSweepService : IAdnSweepService
     private static readonly Guid EcheckPaymentMethodId = Guid.Parse("2EECA575-A268-E111-9D56-F04DA202060D");
     // "Failed E-Check Payment" — used for NSF reversal RA rows.
     private static readonly Guid FailedEcheckPaymentMethodId = Guid.Parse("2FECA575-A268-E111-9D56-F04DA202060D");
+
+    /// <summary>
+    /// What the eCheck / watchdog / orphan sections say on a dry run, in place of their all-clears.
+    /// Those steps do not run at all off Production, so their row lists are empty by construction —
+    /// and "(none — every settled charge has a matching accounting row ✓)" then asserts a clean result
+    /// for a check nobody performed. A report that cannot tell "nothing wrong" from "nothing looked at"
+    /// is the exact defect this feature exists to fix; it must not commit it itself.
+    /// </summary>
+    private const string DryRunNotRun =
+        "<p style='font-size:9px;color:#888;'>(not run on a dry run — this step moves or reverses money, "
+        + "so it is skipped entirely. Nothing here was examined.)</p>";
     // Stamp system-written rows with TSICSuperUser (FK to dbo.AspNetUsers). Legacy
     // wrote _appSettings.TSICParams.SuperUserId here for the same reason.
     private const string SystemUserId = TsicConstants.SuperUserId;
@@ -1412,6 +1423,18 @@ public sealed class AdnSweepService : IAdnSweepService
         var sb = new StringBuilder();
         sb.Append($"<h3 style='margin-bottom:4px;'>ADN Sweep ({envType}, TSIC) — {DateTime.Now:dddd, dd MMMM yyyy HH:mm}</h3>");
 
+        // A dry run's ONLY output is this report — it writes nothing and sends nothing. So the report
+        // has to be exact about what it did and did not do. Say it before any number is read.
+        if (_dryRun)
+        {
+            sb.Append("<p style='font-size:12px;font-weight:bold;color:#0b5;margin:8px 0 2px 0;'>"
+                + "DRY RUN — nothing was written, settled, or sent.</p>");
+            sb.Append("<p style='font-size:10px;margin:0 0 8px 0;'>Real production Authorize.Net batches were read and "
+                + "every FAILED recurring draft was resolved in full. Settled drafts were counted but not fetched, and "
+                + "steps 3-7 (eCheck settlement, returns, watchdog, integrity net, orphans) did not run at all. "
+                + "Sections below say so rather than reporting zero.</p>");
+        }
+
         // Lead with the failure. A digest of zeros reads like a quiet morning; only this says otherwise.
         if (errorMessage != null)
         {
@@ -1427,7 +1450,20 @@ public sealed class AdnSweepService : IAdnSweepService
                 + $"&#9888; {counts.Errored} transaction(s) errored — the pass completed, but those are not booked.</p>");
         }
 
-        sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, ARB imported: {counts.ArbImported}, eCheck settled: {counts.EcheckSettled}, eCheck returns: {counts.EcheckReturnsProcessed}, Orphans: {counts.OrphansFound}, Watchdog: {watchdogRows.Count}, Untracked eCheck: {untrackedRows.Count}, Failed drafts: {notifyResult.Found} (emailed {notifyResult.Emailed}, not emailed {notifyResult.Skipped}), Errored: {counts.Errored}</p>");
+        // "imported" is a claim about the database. On a dry run nothing was imported, and the eCheck /
+        // orphan counters are structurally zero because their steps never ran — printing them as 0 next
+        // to real numbers reads as "nothing to report", which is a different statement from "not checked".
+        if (_dryRun)
+        {
+            sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, "
+                + $"ARB resolved: {counts.ArbImported} (failed drafts only; {counts.SettledNotFetched} settled draft(s) counted but not fetched), "
+                + $"Failed drafts: {notifyResult.Found} (would email {notifyResult.Emailed}, NOT emailed {notifyResult.Skipped}), "
+                + $"Errored: {counts.Errored}. eCheck settled / returns / watchdog / untracked / orphans: not run.</p>");
+        }
+        else
+        {
+            sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, ARB imported: {counts.ArbImported}, eCheck settled: {counts.EcheckSettled}, eCheck returns: {counts.EcheckReturnsProcessed}, Orphans: {counts.OrphansFound}, Watchdog: {watchdogRows.Count}, Untracked eCheck: {untrackedRows.Count}, Failed drafts: {notifyResult.Found} (emailed {notifyResult.Emailed}, not emailed {notifyResult.Skipped}), Errored: {counts.Errored}</p>");
+        }
 
         // ── Failed ARB drafts ─────────────────────────────────────────
         // The section this digest was missing for six years. A declined card leaves the subscription
@@ -1467,7 +1503,7 @@ public sealed class AdnSweepService : IAdnSweepService
                   .Append($"<td>{r.PaymentXofY}</td>")
                   .Append($"<td>{r.Registrant}</td>")
                   .Append($"<td>{r.RegistrantAssignment}</td>")
-                  .Append("</tr>");
+                  .Append("</tr>\n");
             }
             sb.Append("</table>");
         }
@@ -1505,7 +1541,15 @@ public sealed class AdnSweepService : IAdnSweepService
         }
 
         // ── ARB Activity table ────────────────────────────────────────
+        // On a dry run this list holds ONLY the failures — the settled drafts were never fetched, so they
+        // never became rows. Left unlabelled it is indistinguishable from a morning where every single
+        // draft failed, and it duplicates the Failed ARB Drafts table above line for line.
         sb.Append("<h4 style='margin-bottom:2px;'>ARB Activity</h4>");
+        if (_dryRun)
+        {
+            sb.Append($"<p style='font-size:9px;'>(dry run — the {counts.SettledNotFetched} settled draft(s) in these batches were "
+                + "counted but not fetched, so only the failures above appear here. A live run fetches and books every one.)</p>");
+        }
         if (arbRows.Count == 0)
         {
             sb.Append("<p style='font-size:9px;'>(no ARB transactions imported this run)</p>");
@@ -1530,14 +1574,18 @@ public sealed class AdnSweepService : IAdnSweepService
                   .Append($"<td>{(r.NextInstallment.HasValue ? r.NextInstallment.Value.ToString("d") : "")}</td>")
                   .Append($"<td>{r.Registrant}</td>")
                   .Append($"<td>{r.RegistrantAssignment}</td>")
-                  .Append("</tr>");
+                  .Append("</tr>\n");
             }
             sb.Append("</table>");
         }
 
         // ── eCheck Settled table ──────────────────────────────────────
         sb.Append("<h4 style='margin-bottom:2px;margin-top:14px;'>eCheck Settled (Pending → Settled)</h4>");
-        if (settledRows.Count == 0)
+        if (_dryRun)
+        {
+            sb.Append(DryRunNotRun);
+        }
+        else if (settledRows.Count == 0)
         {
             sb.Append("<p style='font-size:9px;'>(no eCheck settlements transitioned this run)</p>");
         }
@@ -1557,14 +1605,18 @@ public sealed class AdnSweepService : IAdnSweepService
                   .Append($"<td>{r.Registrant}</td>")
                   .Append($"<td>{r.SubmittedAt:g}</td>")
                   .Append($"<td>{r.SettledAt:g}</td>")
-                  .Append("</tr>");
+                  .Append("</tr>\n");
             }
             sb.Append("</table>");
         }
 
         // ── eCheck Returns table ──────────────────────────────────────
         sb.Append("<h4 style='margin-bottom:2px;margin-top:14px;'>eCheck Returns</h4>");
-        if (ecRows.Count == 0)
+        if (_dryRun)
+        {
+            sb.Append(DryRunNotRun);
+        }
+        else if (ecRows.Count == 0)
         {
             sb.Append("<p style='font-size:9px;'>(no eCheck returns this run)</p>");
         }
@@ -1584,14 +1636,18 @@ public sealed class AdnSweepService : IAdnSweepService
                   .Append($"<td>{r.Reason}</td>")
                   .Append($"<td>{r.AmountReversed:C}</td>")
                   .Append($"<td>{r.Registrant}</td>")
-                  .Append("</tr>");
+                  .Append("</tr>\n");
             }
             sb.Append("</table>");
         }
 
         // ── Watchdog table (stale Pending drafts) ─────────────────────
         sb.Append("<h4 style='margin-bottom:2px;margin-top:14px;'>eCheck Watchdog (Pending beyond threshold)</h4>");
-        if (watchdogRows.Count == 0)
+        if (_dryRun)
+        {
+            sb.Append(DryRunNotRun);
+        }
+        else if (watchdogRows.Count == 0)
         {
             sb.Append("<p style='font-size:9px;'>(no stale pending drafts — every draft settled or resolved on time ✓)</p>");
         }
@@ -1611,14 +1667,18 @@ public sealed class AdnSweepService : IAdnSweepService
                   .Append($"<td>{r.Registrant}</td>")
                   .Append($"<td>{r.SubmittedAt:g}</td>")
                   .Append($"<td>{r.Outcome}</td>")
-                  .Append("</tr>");
+                  .Append("</tr>\n");
             }
             sb.Append("</table>");
         }
 
         // ── Untracked eCheck payments (integrity net) ─────────────────
         sb.Append("<h4 style='margin-bottom:2px;margin-top:14px;'>Untracked eCheck Payments (no Settlement return-watcher)</h4>");
-        if (untrackedRows.Count == 0)
+        if (_dryRun)
+        {
+            sb.Append(DryRunNotRun);
+        }
+        else if (untrackedRows.Count == 0)
         {
             sb.Append("<p style='font-size:9px;'>(none — every booked eCheck is registered for return-watching ✓)</p>");
         }
@@ -1636,14 +1696,18 @@ public sealed class AdnSweepService : IAdnSweepService
                   .Append($"<td>{r.AdnTransactionId}</td>")
                   .Append($"<td>{r.Payamt:C}</td>")
                   .Append($"<td>{r.Createdate:g}</td>")
-                  .Append("</tr>");
+                  .Append("</tr>\n");
             }
             sb.Append("</table>");
         }
 
         // ── Orphan ADN Charges table (report-only) ────────────────────
         sb.Append("<h4 style='margin-bottom:2px;margin-top:14px;'>Orphan ADN Charges (settled at ADN, not booked locally)</h4>");
-        if (orphanRows.Count == 0)
+        if (_dryRun)
+        {
+            sb.Append(DryRunNotRun);
+        }
+        else if (orphanRows.Count == 0)
         {
             sb.Append("<p style='font-size:9px;'>(none — every settled charge has a matching accounting row ✓)</p>");
         }
@@ -1664,7 +1728,7 @@ public sealed class AdnSweepService : IAdnSweepService
                   .Append($"<td>{r.SubmittedAt:g}</td>")
                   .Append($"<td>{r.Registrant}</td>")
                   .Append($"<td>{r.Note}</td>")
-                  .Append("</tr>");
+                  .Append("</tr>\n");
             }
             sb.Append("</table>");
         }
