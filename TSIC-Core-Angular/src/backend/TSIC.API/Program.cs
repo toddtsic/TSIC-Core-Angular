@@ -321,6 +321,7 @@ builder.Services.AddScoped<IJobRegistrationCapabilities, JobRegistrationCapabili
 builder.Services.AddScoped<IJobPaymentFeaturesService, JobPaymentFeaturesService>();
 // ARB Defensive
 builder.Services.AddScoped<IArbDefensiveService, ArbDefensiveService>();
+builder.Services.AddScoped<IArbNotificationService, TSIC.API.Services.Arb.ArbNotificationService>();
 // Customer Configure
 builder.Services.AddScoped<ICustomerConfigureService, CustomerConfigureService>();
 // Mobile Scorers

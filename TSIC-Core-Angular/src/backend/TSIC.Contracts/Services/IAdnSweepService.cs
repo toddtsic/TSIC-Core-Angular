@@ -79,6 +79,17 @@ public sealed record AdnSweepResult
     public required int Errored { get; init; }
 
     /// <summary>
+    /// Recurring drafts that did not settle this pass, and how many of those families were emailed
+    /// automatically. Deliberately NOT folded into <see cref="Errored"/>: a failed draft is a
+    /// customer-payment problem, not a sweep problem, and must never move
+    /// <see cref="IsTrustworthy"/> or stop the month-end close from building the IIF files.
+    /// FailedDraftsFound minus FailedDraftsEmailed is the number a human still has to contact.
+    /// </summary>
+    public int FailedDraftsFound { get; init; }
+    public int FailedDraftsEmailed { get; init; }
+    public int FailedDraftsNotEmailed { get; init; }
+
+    /// <summary>
     /// False when the pass could not complete: an exception was thrown, OR Authorize.Net answered the
     /// batch-list request with an error. The latter is the dangerous one — it used to collapse into an
     /// empty transaction list, making a broken sweep indistinguishable from a morning with nothing to

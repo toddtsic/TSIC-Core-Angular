@@ -122,8 +122,17 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             env, creds.AdnLoginId!, creds.AdnTransactionKey!,
             ARBGetSubscriptionListSearchTypeEnum.cardExpiringThisMonth);
 
-        if (response?.messages?.resultCode != messageTypeEnum.Ok
-            || response.subscriptionDetails == null)
+        // Same rule as the ARB Health expiring-card query: an ADN error is not "no cards expiring".
+        // This used to answer a director's lookup with a clean empty grid whenever the call failed.
+        if (response?.messages?.resultCode != messageTypeEnum.Ok)
+        {
+            var detail = response?.messages?.message?.FirstOrDefault();
+            throw new InvalidOperationException(
+                $"ARBGetSubscriptionList (cardExpiringThisMonth) failed for job {jobId}: "
+                + $"{detail?.code} {detail?.text}".Trim());
+        }
+
+        if (response.subscriptionDetails == null)
         {
             return EmptySearchResponse();
         }

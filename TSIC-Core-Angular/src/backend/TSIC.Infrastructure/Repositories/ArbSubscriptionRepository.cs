@@ -181,6 +181,58 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
             .ToListAsync(ct);
     }
 
+    public async Task<List<ArbDirectorProjection>> GetDefaultDirectorsForJobsAsync(
+        List<Guid> jobIds, CancellationToken ct = default)
+    {
+        // Pull every candidate, then pick in memory: the "primary contact, else earliest" rule is a
+        // per-group ordering, and the set is tiny (a handful of directors per job).
+        var candidates = await _context.Registrations
+            .AsNoTracking()
+            .Where(r =>
+                jobIds.Contains(r.JobId)
+                && r.Role!.Name == "Director"
+                && r.BActive == true)
+            .Select(r => new
+            {
+                r.JobId,
+                r.RegistrationAi,
+                IsPrimary = r.Job!.PrimaryContactRegistrationId == r.RegistrationId,
+                Name = $"{r.User!.FirstName} {r.User.LastName}",
+                Email = r.User.Email ?? string.Empty
+            })
+            .ToListAsync(ct);
+
+        return candidates
+            // Drop the unusable BEFORE the pick, so a starred primary contact with no email address
+            // hands off to the next director rather than leaving the job with no sender at all.
+            .Where(c => !string.IsNullOrWhiteSpace(c.Email))
+            .GroupBy(c => c.JobId)
+            .Select(g => g
+                .OrderByDescending(c => c.IsPrimary)
+                .ThenBy(c => c.RegistrationAi)
+                .First())
+            .Select(c => new ArbDirectorProjection
+            {
+                JobId = c.JobId,
+                Name = c.Name,
+                Email = c.Email
+            })
+            .ToList();
+    }
+
+    public async Task<List<Guid>> GetJobIdsWithLiveSubscriptionsAsync(CancellationToken ct = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r =>
+                r.AdnSubscriptionId != null
+                && r.AdnSubscriptionId != ""
+                && (r.AdnSubscriptionStatus == "active" || r.AdnSubscriptionStatus == "suspended"))
+            .Select(r => r.JobId)
+            .Distinct()
+            .ToListAsync(ct);
+    }
+
     public async Task<(string Email, string DisplayName)?> GetSenderInfoAsync(
         string userId, CancellationToken ct = default)
     {

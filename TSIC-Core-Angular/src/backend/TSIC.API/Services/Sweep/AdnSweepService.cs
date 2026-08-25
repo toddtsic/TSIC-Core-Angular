@@ -7,6 +7,7 @@ using TSIC.API.Services.Payments;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.Contracts.Configuration;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.Arb;
 using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -40,6 +41,7 @@ public sealed class AdnSweepService : IAdnSweepService
     private readonly IAdnApiService _adn;
     private readonly IRegistrationFeeAdjustmentService _feeAdj;
     private readonly IEmailService _email;
+    private readonly IArbNotificationService _arbNotify;
     private readonly TsicSettings _tsicSettings;
     private readonly AdnSweepOptions _options;
     private readonly ILogger<AdnSweepService> _logger;
@@ -53,6 +55,7 @@ public sealed class AdnSweepService : IAdnSweepService
         IAdnApiService adn,
         IRegistrationFeeAdjustmentService feeAdj,
         IEmailService email,
+        IArbNotificationService arbNotify,
         IOptions<TsicSettings> tsicSettings,
         IOptions<AdnSweepOptions> options,
         ILogger<AdnSweepService> logger)
@@ -65,6 +68,7 @@ public sealed class AdnSweepService : IAdnSweepService
         _adn = adn;
         _feeAdj = feeAdj;
         _email = email;
+        _arbNotify = arbNotify;
         _tsicSettings = tsicSettings.Value;
         _options = options.Value;
         _logger = logger;
@@ -291,10 +295,51 @@ public sealed class AdnSweepService : IAdnSweepService
             errorMessage = ex.Flatten();
         }
 
+        // 8) Notify the families behind failed ARB drafts.
+        //
+        // DELIBERATELY LAST, and deliberately outside the try above. Every step before this one is
+        // proven, money-bearing code whose outcome feeds counts.Errored -> AdnSweepResult.IsTrustworthy
+        // -> whether the 1st-of-month close is allowed to build the QuickBooks IIF files. If a bounced
+        // email could increment Errored, one unreachable family would silently stop month-end close.
+        // So this step scores itself separately and can never touch the sweep's verdict.
+        //
+        // Exactly-once falls out of the import guard: ImportArbTransactionAsync returns null for a
+        // transaction already in RegistrationAccounting, so an already-imported failure never reaches
+        // arbRows and cannot be emailed twice. A manual re-run the same morning re-mails nobody.
+        // Team ARB-Trial rows are excluded by the RegistrationId null check: no registration behind
+        // them, so no family to write to.
+        var notifyResult = ArbNotifyResultDto.Empty;
+        try
+        {
+            var failedDrafts = arbRows
+                .Where(r => r.RegistrationId.HasValue
+                    && !string.Equals(r.TransactionStatus, "settledSuccessfully", StringComparison.OrdinalIgnoreCase))
+                .Select(r => new ArbFailedDraftDto
+                {
+                    RegistrationId = r.RegistrationId!.Value,
+                    InvoiceNumber = r.InvoiceNumber,
+                    TransId = r.TransId,
+                    TransactionStatus = r.TransactionStatus,
+                    OwedNow = r.OwedNow,
+                    SubscriptionStatus = r.SubscriptionStatus,
+                    Registrant = r.Registrant,
+                    JobName = r.JobName
+                })
+                .ToList();
+
+            notifyResult = await _arbNotify.NotifyFailedDraftsAsync(failedDrafts, ct);
+        }
+        catch (Exception ex)
+        {
+            // Same contract as the digest send below: a notification failure is reported, never
+            // allowed to mask or change the sweep's own outcome.
+            _logger.LogError(ex, "ARB failed-draft notification step failed");
+        }
+
         // The digest is built and sent OUTSIDE the try — a failed sweep must still mail, and must say so.
         // It used to be the last statement inside the try, so any throw upstream skipped it entirely and
         // the only signal was the 5am email not arriving. Silence is not a report.
-        var html = BuildDigestHtml(arbRows, settledRows, ecRows, orphanRows, watchdogRows, untrackedRows, counts, errorMessage);
+        var html = BuildDigestHtml(arbRows, settledRows, ecRows, orphanRows, watchdogRows, untrackedRows, notifyResult, counts, errorMessage);
         if (sendDigest)
         {
             try
@@ -318,6 +363,9 @@ public sealed class AdnSweepService : IAdnSweepService
             EcheckSettled = counts.EcheckSettled,
             EcheckReturnsProcessed = counts.EcheckReturnsProcessed,
             OrphansFound = counts.OrphansFound,
+            FailedDraftsFound = notifyResult.Found,
+            FailedDraftsEmailed = notifyResult.Emailed,
+            FailedDraftsNotEmailed = notifyResult.Skipped,
             Errored = counts.Errored,
             Succeeded = errorMessage == null,
             ErrorMessage = errorMessage,
@@ -563,7 +611,9 @@ public sealed class AdnSweepService : IAdnSweepService
             PaymentXofY = paymentXofY,
             NextInstallment = nextInstallment,
             Registrant = RegistrantDisplay(reg),
-            RegistrantAssignment = reg.Assignment
+            RegistrantAssignment = reg.Assignment,
+            RegistrationId = reg.RegistrationId,
+            InvoiceNumber = tx.invoiceNumber
         };
     }
 
@@ -722,7 +772,10 @@ public sealed class AdnSweepService : IAdnSweepService
             PaymentXofY = paymentXofY,
             NextInstallment = nextInstallment,
             Registrant = registrant,
-            RegistrantAssignment = assignment
+            RegistrantAssignment = assignment,
+            // Team ARB-Trial: no registration, so no family to notify.
+            RegistrationId = null,
+            InvoiceNumber = tx.invoiceNumber
         };
     }
 
@@ -1243,6 +1296,7 @@ public sealed class AdnSweepService : IAdnSweepService
         List<OrphanDigestRow> orphanRows,
         List<WatchdogDigestRow> watchdogRows,
         List<UntrackedEcheckRaDto> untrackedRows,
+        ArbNotifyResultDto notifyResult,
         Counts counts,
         string? errorMessage)
     {
@@ -1269,7 +1323,63 @@ public sealed class AdnSweepService : IAdnSweepService
                 + $"&#9888; {counts.Errored} transaction(s) errored — the pass completed, but those are not booked.</p>");
         }
 
-        sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, ARB imported: {counts.ArbImported}, eCheck settled: {counts.EcheckSettled}, eCheck returns: {counts.EcheckReturnsProcessed}, Orphans: {counts.OrphansFound}, Watchdog: {watchdogRows.Count}, Untracked eCheck: {untrackedRows.Count}, Errored: {counts.Errored}</p>");
+        sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, ARB imported: {counts.ArbImported}, eCheck settled: {counts.EcheckSettled}, eCheck returns: {counts.EcheckReturnsProcessed}, Orphans: {counts.OrphansFound}, Watchdog: {watchdogRows.Count}, Untracked eCheck: {untrackedRows.Count}, Failed drafts: {notifyResult.Found} (emailed {notifyResult.Emailed}, not emailed {notifyResult.Skipped}), Errored: {counts.Errored}</p>");
+
+        // ── Failed ARB drafts ─────────────────────────────────────────
+        // The section this digest was missing for six years. A declined card leaves the subscription
+        // ACTIVE at ADN (it retries), so these registrations never appeared in the subscription-status
+        // warnings below — 67 of 81 failing registrations were invisible by construction. Paired counts:
+        // "found" without "emailed" is the number that still needs a human.
+        var failedRows = arbRows
+            .Where(r => !string.Equals(r.TransactionStatus, "settledSuccessfully", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        sb.Append("<h4 style='margin-bottom:2px;margin-top:14px;'>Failed ARB Drafts</h4>");
+        if (failedRows.Count == 0)
+        {
+            sb.Append("<p style='font-size:9px;'>(none — every recurring draft settled ✓)</p>");
+        }
+        else
+        {
+            sb.Append($"<p style='font-size:10px;color:#b00;font-weight:bold;'>&#9888; {failedRows.Count} recurring draft(s) did not settle. "
+                + $"{notifyResult.Emailed} famil(ies) emailed automatically, {notifyResult.Skipped} NOT emailed.</p>");
+            var teamFailures = failedRows.Count(r => r.RegistrationId == null);
+            if (teamFailures > 0)
+            {
+                sb.Append($"<p style='font-size:9px;'>({teamFailures} of these are team ARB-Trial drafts, which have no family behind them and are not counted in the email totals.)</p>");
+            }
+            sb.Append("<table style='border-style:solid;border-collapse:separate;border-spacing:10px;font-size:9px;'>");
+            sb.Append("<tr><th>#</th><th>Job</th><th>Status</th><th>TransId</th><th>SubId</th><th>SubStatus</th><th>OwedNow</th><th>PaymentXofY</th><th>Registrant</th><th>Assignment</th></tr>");
+            for (int i = 0; i < failedRows.Count; i++)
+            {
+                var r = failedRows[i];
+                sb.Append("<tr>")
+                  .Append($"<td>{i + 1}</td>")
+                  .Append($"<td>{r.JobName}</td>")
+                  .Append($"<td><b>{r.TransactionStatus}</b></td>")
+                  .Append($"<td>{r.TransId}</td>")
+                  .Append($"<td>{r.SubscriptionId}</td>")
+                  .Append($"<td>{r.SubscriptionStatus}</td>")
+                  .Append($"<td>{r.OwedNow:C}</td>")
+                  .Append($"<td>{r.PaymentXofY}</td>")
+                  .Append($"<td>{r.Registrant}</td>")
+                  .Append($"<td>{r.RegistrantAssignment}</td>")
+                  .Append("</tr>");
+            }
+            sb.Append("</table>");
+        }
+
+        // Families the notifier deliberately did not write to. These are the ones needing a person:
+        // no reachable address, or no family username to put in the login instructions.
+        if (notifyResult.Skips.Count > 0)
+        {
+            sb.Append("<p style='font-size:10px;color:#b00;font-weight:bold;margin-top:8px;'>&#9888; NOT emailed — contact these by hand:</p>");
+            sb.Append("<ul style='font-size:9px;margin-top:0;'>");
+            foreach (var s in notifyResult.Skips)
+            {
+                sb.Append($"<li>{s.JobName} · {s.Registrant} — {s.Reason}</li>");
+            }
+            sb.Append("</ul>");
+        }
 
         // ── ARB subscription warnings ─────────────────────────────────
         // A suspended/canceled/terminated subscription stops drafting on its own — pure absence
@@ -1496,6 +1606,9 @@ public sealed class AdnSweepService : IAdnSweepService
         public required string PaymentXofY { get; init; }
         public required DateTime? NextInstallment { get; init; }
         public required string? Registrant { get; init; }
+        /// <summary>Null for team ARB-Trial drafts, which have no registration behind them.</summary>
+        public required Guid? RegistrationId { get; init; }
+        public required string InvoiceNumber { get; init; }
         public required string? RegistrantAssignment { get; init; }
     }
 

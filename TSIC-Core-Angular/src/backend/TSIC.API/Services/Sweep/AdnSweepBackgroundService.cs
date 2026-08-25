@@ -137,6 +137,27 @@ public sealed class AdnSweepBackgroundService : BackgroundService
         {
             _logger.LogError(ex, "Sweep tick threw; will retry on next 24h tick");
         }
+
+        // On the 2nd and the 15th, follow the sweep with the expiring-card pass. NOT the 1st: that
+        // morning belongs entirely to the month-end close, and a second unattended send behind the
+        // close's IsTrustworthy gate would be invisible whenever the gate held. Deliberately AFTER the
+        // sweep, and in its own try, for the same reason step 8 is last inside the sweep -- proven
+        // money code is scored before any of this runs, and nothing here can change its verdict.
+        if (DateTime.Now.Day is 2 or 15)
+        {
+            try
+            {
+                var notify = scope.ServiceProvider.GetRequiredService<IArbNotificationService>();
+                var expiring = await notify.NotifyExpiringCardsAsync(ct);
+                _logger.LogInformation(
+                    "Expiring-card pass finished: found={Found} emailed={Emailed} notEmailed={NotEmailed}",
+                    expiring.Found, expiring.Emailed, expiring.Skipped);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Expiring-card pass threw; sweep results are unaffected");
+            }
+        }
     }
 #endif
 }

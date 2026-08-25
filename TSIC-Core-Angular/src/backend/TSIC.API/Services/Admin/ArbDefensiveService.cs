@@ -63,9 +63,18 @@ public class ArbDefensiveService : IArbDefensiveService
             env, creds.AdnLoginId!, creds.AdnTransactionKey!,
             ARBGetSubscriptionListSearchTypeEnum.cardExpiringThisMonth);
 
-        if (response?.messages?.resultCode != messageTypeEnum.Ok
-            || response.subscriptionDetails == null)
-            return [];
+        // An ADN error is NOT a month with no expiring cards. Collapsing both into an empty list is
+        // what let a broken call read as a clean all-clear; the automated 2nd/15th send would then
+        // mail nobody and report success. Ok-with-no-details IS genuinely empty and returns [].
+        if (response?.messages?.resultCode != messageTypeEnum.Ok)
+        {
+            var detail = response?.messages?.message?.FirstOrDefault();
+            throw new InvalidOperationException(
+                $"ARBGetSubscriptionList (cardExpiringThisMonth) failed for job {jobId}: "
+                + $"{detail?.code} {detail?.text}".Trim());
+        }
+
+        if (response.subscriptionDetails == null) return [];
 
         var invoices = response.subscriptionDetails
             .Where(s => !string.IsNullOrEmpty(s.invoice))

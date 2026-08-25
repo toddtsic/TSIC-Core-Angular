@@ -469,9 +469,15 @@ public class AdnApiService : IAdnApiService
             controller.Execute();
             return controller.GetApiResponse();
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            // Was "catch { return null; }". Null is also how a caller reads "no subscriptions", so a
+            // total API failure was indistinguishable from a clean month — and GetExpiringCardFlagsAsync
+            // turned both into an empty list. That silence is unacceptable now an unattended job sends
+            // off this list: nobody would notice it emailing zero families forever. Same reasoning as
+            // the sweep's batch-list fetch, which throws rather than return an empty day.
+            _logger.LogError(ex, "ARBGetSubscriptionList failed for searchType {SearchType}", searchType);
+            throw;
         }
     }
 
