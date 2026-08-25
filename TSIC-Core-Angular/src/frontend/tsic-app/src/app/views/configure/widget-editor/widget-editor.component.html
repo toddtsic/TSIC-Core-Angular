@@ -436,6 +436,7 @@
 					[filterBarPlaceholder]="'Type to search ' + overrideJobs().length + ' jobs...'"
 					[popupHeight]="'400px'"
 					[isDeviceFullScreen]="false"
+					(filtering)="onJobFiltering($event)"
 					[htmlAttributes]="{ 'aria-labelledby': 'wf-job-label' }"
 					(change)="onOverrideJobSelected($event)">
 				</ejs-dropdownlist>

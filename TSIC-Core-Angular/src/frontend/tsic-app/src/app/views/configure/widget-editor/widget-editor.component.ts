@@ -1,7 +1,7 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, isDevMode } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
-import { DropDownListModule, type FieldSettingsModel, type ChangeEventArgs } from '@syncfusion/ej2-angular-dropdowns';
+import { DropDownListModule, type FieldSettingsModel, type ChangeEventArgs, type FilteringEventArgs } from '@syncfusion/ej2-angular-dropdowns';
 import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { WidgetEditorService } from './services/widget-editor.service';
@@ -1050,6 +1050,31 @@ export class WidgetEditorComponent implements HasUnsavedChanges {
 		} else {
 			this.overrideJobs.set([]);
 		}
+	}
+
+	/**
+	 * Filter the job popup. ej2's default filterType is 'StartsWith', which is useless for
+	 * these names: every job reads "Club:Programme Season", so "elite players" — the part a
+	 * human actually remembers — never starts anything.
+	 *
+	 * Matches on every whitespace-separated token independently, against name and path, so
+	 * "steps girls elite" finds "STEPS Lacrosse:Girls Elite Players 2026-2027" without the
+	 * words having to be adjacent or in that order.
+	 */
+	onJobFiltering(e: FilteringEventArgs): void {
+		const tokens = (e.text ?? '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+		const jobs = this.overrideJobs();
+
+		if (tokens.length === 0) {
+			e.updateData(jobs as unknown as { [key: string]: Object }[]);
+			return;
+		}
+
+		const matches = jobs.filter(j => {
+			const haystack = `${j.jobName} ${j.jobPath}`.toLowerCase();
+			return tokens.every(t => haystack.includes(t));
+		});
+		e.updateData(matches as unknown as { [key: string]: Object }[]);
 	}
 
 	/** ej2 emits the selected job's id as itemData/value; ignore the programmatic seed. */
