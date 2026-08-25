@@ -667,6 +667,22 @@ builder.Services.AddAuthorization(options =>
             RoleConstants.Names.SuperuserName,
             RoleConstants.Names.DirectorName));
 
+    // Team-authoring floor for the TSIC-Teams app: who may compose a link or an alert AT ALL.
+    // Todd ruling 2026-08-25, widening the previous Director+Superuser rule. This is only the
+    // ROLE floor -- reach is a second, independent check in TeamManagementController:
+    // Player and Staff are confined to the team on their own registration and may not set
+    // addAllTeams; Director and Superuser reach any team in the job.
+    //
+    // Deliberately NOT the same as CanSendPushNotifications, which still guards the website
+    // push screen (PushNotificationController) and stays Director+Superuser. Roles Todd did
+    // not name are absent by decision, not oversight: Family, SuperDirector, Club Rep, Scorer.
+    options.AddPolicy("CanAuthorTeamContent", policy =>
+        policy.RequireClaim(System.Security.Claims.ClaimTypes.Role,
+            RoleConstants.Names.SuperuserName,
+            RoleConstants.Names.DirectorName,
+            RoleConstants.Names.StaffName,
+            RoleConstants.Names.PlayerName));
+
     options.AddPolicy("RefAdmin", policy =>
         policy.RequireClaim(System.Security.Claims.ClaimTypes.Role,
             RoleConstants.Names.SuperuserName,

@@ -104,7 +104,7 @@ public class TeamPushScopeTests
         var h = CreateHarness();
         var (jobId, teamA, _) = await Fixture(h.B, h.Ctx);
 
-        var result = await h.Svc.SendPushAsync(teamA, "director-1", jobId, false, Push(false));
+        var result = await h.Svc.SendPushAsync(teamA, "director-1", jobId, false, callerHasJobWideReach: true, callerTeamId: null, Push(false));
 
         result.Should().NotBeNull();
         h.Sent.Should().BeEquivalentTo(new[] { "phone-team-a" },
@@ -118,7 +118,7 @@ public class TeamPushScopeTests
         var h = CreateHarness();
         var (jobId, teamA, _) = await Fixture(h.B, h.Ctx);
 
-        var result = await h.Svc.SendPushAsync(teamA, "director-1", jobId, false, Push(true));
+        var result = await h.Svc.SendPushAsync(teamA, "director-1", jobId, false, callerHasJobWideReach: true, callerTeamId: null, Push(true));
 
         result.Should().NotBeNull();
         h.Sent.Should().BeEquivalentTo(
@@ -132,7 +132,7 @@ public class TeamPushScopeTests
         var h = CreateHarness();
         var (jobId, _, teamB) = await Fixture(h.B, h.Ctx);
 
-        await h.Svc.SendPushAsync(teamB, "director-1", jobId, false, Push(false));
+        await h.Svc.SendPushAsync(teamB, "director-1", jobId, false, callerHasJobWideReach: true, callerTeamId: null, Push(false));
 
         h.Sent.Should().NotContain("phone-job-only",
             "registered to the job is not the same as subscribed to the team");
@@ -145,7 +145,7 @@ public class TeamPushScopeTests
         var h = CreateHarness();
         var (_, teamA, _) = await Fixture(h.B, h.Ctx);
 
-        var result = await h.Svc.SendPushAsync(teamA, "director-1", Guid.NewGuid(), false, Push(true));
+        var result = await h.Svc.SendPushAsync(teamA, "director-1", Guid.NewGuid(), false, callerHasJobWideReach: true, callerTeamId: null, Push(true));
 
         result.Should().BeNull();
         h.Sent.Should().BeEmpty();

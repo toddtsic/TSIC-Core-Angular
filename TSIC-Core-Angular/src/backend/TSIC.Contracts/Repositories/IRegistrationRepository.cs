@@ -229,6 +229,14 @@ public interface IRegistrationRepository
     Task<Registrations?> GetByIdAsync(Guid registrationId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Team on a registration, but only while the registration is live (bActive). Null when the
+    /// registration is missing, inactive, or unrostered. This is the "own team" predicate the
+    /// team-authoring routes gate on, and it deliberately matches GetTeamRosterMobileAsync exactly:
+    /// AssignedTeamId + bActive is what makes someone a member of a team for BOTH staff and players.
+    /// </summary>
+    Task<Guid?> GetActiveAssignedTeamIdAsync(Guid registrationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get tracked registration by ADN ARB subscription ID. Used by the daily sweep
     /// to resolve subscription transactions back to the registration that owns them.
     /// </summary>

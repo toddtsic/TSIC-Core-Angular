@@ -104,7 +104,7 @@ public class TeamLinksTests
         var doc = b.AddJobDoc(job.JobId, "To Delete", "https://example.com/delete");
         await b.SaveAsync();
 
-        var deleted = await svc.DeleteLinkAsync(doc.DocId, team.TeamId);
+        var deleted = await svc.DeleteLinkAsync(doc.DocId, team.TeamId, allowJobLevel: true);
 
         deleted.Should().BeTrue("a job-level doc is visible to every team in that job");
         var remaining = await ctx.TeamDocs.AsNoTracking().Where(d => d.DocId == doc.DocId).CountAsync();
@@ -117,7 +117,7 @@ public class TeamLinksTests
         var (svc, b, _) = CreateService();
         await b.SaveAsync();
 
-        var deleted = await svc.DeleteLinkAsync(Guid.NewGuid(), Guid.NewGuid());
+        var deleted = await svc.DeleteLinkAsync(Guid.NewGuid(), Guid.NewGuid(), allowJobLevel: true);
 
         deleted.Should().BeFalse();
     }
@@ -145,7 +145,7 @@ public class TeamLinksTests
         var victimDocId = await ctx.TeamDocs.Where(d => d.TeamId == victim.TeamId)
             .Select(d => d.DocId).FirstAsync();
 
-        var deleted = await svc.DeleteLinkAsync(victimDocId, attacker.TeamId);
+        var deleted = await svc.DeleteLinkAsync(victimDocId, attacker.TeamId, allowJobLevel: true);
 
         deleted.Should().BeFalse("docId must be tied to the team on the route");
         var remaining = await ctx.TeamDocs.AsNoTracking()
@@ -168,7 +168,7 @@ public class TeamLinksTests
         var teamB = b.AddTeam(divB.DivId, agegroupId: agB.AgegroupId, jobId: jobB.JobId);
         await b.SaveAsync();
 
-        var deleted = await svc.DeleteLinkAsync(docA.DocId, teamB.TeamId);
+        var deleted = await svc.DeleteLinkAsync(docA.DocId, teamB.TeamId, allowJobLevel: true);
 
         deleted.Should().BeFalse("a team cannot reach another job's doc");
         var remaining = await ctx.TeamDocs.AsNoTracking()

@@ -1222,6 +1222,18 @@ public class RegistrationRepository : IRegistrationRepository
         return await _context.Registrations.FindAsync(registrationId);
     }
 
+    public async Task<Guid?> GetActiveAssignedTeamIdAsync(
+        Guid registrationId, CancellationToken cancellationToken = default)
+    {
+        // Fails closed by shape: a missing row, an inactive one, or one with no team all come
+        // back null, and every caller treats null as "no reach".
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.RegistrationId == registrationId && r.BActive == true)
+            .Select(r => r.AssignedTeamId)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<(Guid JobId, string? UserId)?> GetRegistrationJobAndUserAsync(
         Guid registrationId, CancellationToken cancellationToken = default)
     {

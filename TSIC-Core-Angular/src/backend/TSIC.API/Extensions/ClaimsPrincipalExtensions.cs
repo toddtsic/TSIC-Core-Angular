@@ -30,6 +30,24 @@ public static class ClaimsPrincipalExtensions
     }
 
     /// <summary>
+    /// Team the caller is rostered on, derived from the immutable regId claim -- never from the
+    /// route. Used to confine Player and Staff to their own team on the team-authoring routes.
+    /// </summary>
+    public static async Task<Guid?> GetTeamIdFromRegistrationAsync(
+        this ClaimsPrincipal user,
+        IJobLookupService jobLookupService,
+        CancellationToken ct = default)
+    {
+        var regId = user.GetRegistrationId();
+        if (regId == null)
+        {
+            return null;
+        }
+
+        return await jobLookupService.GetTeamIdByRegistrationAsync(regId.Value, ct);
+    }
+
+    /// <summary>
     /// Extracts the RegistrationId (regId) from JWT claims.
     /// </summary>
     /// <param name="user">The ClaimsPrincipal</param>

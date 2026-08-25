@@ -37,6 +37,11 @@ public class JobLookupService : IJobLookupService
         return await _teamRepo.GetTeamJobIdAsync(teamId, ct);
     }
 
+    public async Task<Guid?> GetTeamIdByRegistrationAsync(Guid registrationId, CancellationToken ct = default)
+    {
+        return await _registrationRepo.GetActiveAssignedTeamIdAsync(registrationId, ct);
+    }
+
     public async Task<bool> IsPlayerRegistrationActiveAsync(Guid jobId)
     {
         var status = await _jobRepo.GetRegistrationStatusAsync(jobId);

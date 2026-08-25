@@ -52,15 +52,22 @@ public class TeamDocsRepository : ITeamDocsRepository
         return doc;
     }
 
-    public async Task<bool> DeleteTeamLinkAsync(Guid docId, Guid teamId, Guid jobId, CancellationToken ct = default)
+    public async Task<bool> DeleteTeamLinkAsync(
+        Guid docId, Guid teamId, Guid jobId, bool allowJobLevel, CancellationToken ct = default)
     {
         var doc = await _context.TeamDocs.FindAsync([docId], ct);
+        if (doc == null) return false;
 
         // Mirrors GetTeamLinksAsync ownership exactly: the team own doc, or a job-level
         // doc (TeamId null) in the team job. Without this, docId alone deletes any
         // team link -- the route teamId was bound and never used.
-        var owned = doc != null
-            && (doc.TeamId == teamId || (doc.TeamId == null && doc.JobId == jobId));
+        //
+        // allowJobLevel splits that second clause off for callers confined to one team
+        // (Player, Staff). A job-level row is visible on their team but is not THEIR row --
+        // letting them delete it would hand a single player a job-wide destructive reach,
+        // which the routed teamId cannot catch because a job-level row has TeamId null.
+        var owned = doc.TeamId == teamId
+            || (allowJobLevel && doc.TeamId == null && doc.JobId == jobId);
         if (!owned) return false;
         _context.TeamDocs.Remove(doc);
         return true;

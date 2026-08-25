@@ -65,11 +65,12 @@ public sealed class TeamManagementService : ITeamManagementService
         };
     }
 
-    public async Task<bool> DeleteLinkAsync(Guid docId, Guid teamId, CancellationToken ct = default)
+    public async Task<bool> DeleteLinkAsync(
+        Guid docId, Guid teamId, bool allowJobLevel, CancellationToken ct = default)
     {
         var detail = await _teamRepo.GetTeamDetailAsync(teamId, ct);
         var jobId = detail?.JobId ?? Guid.Empty;
-        var deleted = await _teamDocsRepo.DeleteTeamLinkAsync(docId, teamId, jobId, ct);
+        var deleted = await _teamDocsRepo.DeleteTeamLinkAsync(docId, teamId, jobId, allowJobLevel, ct);
         if (deleted) await _teamDocsRepo.SaveChangesAsync(ct);
         return deleted;
     }
@@ -86,6 +87,8 @@ public sealed class TeamManagementService : ITeamManagementService
         string userId,
         Guid? callerJobId,
         bool callerIsSuperuser,
+        bool callerHasJobWideReach,
+        Guid? callerTeamId,
         SendTeamPushRequest request,
         CancellationToken ct = default)
     {
@@ -96,6 +99,14 @@ public sealed class TeamManagementService : ITeamManagementService
         // could push to any team in any other event -- an unrecallable blast to a club they
         // have no relationship with. Superuser is exempt, matching cross-job ops elsewhere.
         if (!callerIsSuperuser && (callerJobId == null || jobId == Guid.Empty || callerJobId != jobId))
+            return null;
+
+        // Team scope, for the roles Todd opened this to on 2026-08-25 (Player, Staff). The
+        // controller checks this too; it lives HERE as well because a push is unrecallable
+        // and this is the write chokepoint -- the invariant must not depend on one caller.
+        // Fails closed: an unresolvable or unrostered caller gets no reach at all.
+        if (!callerHasJobWideReach
+            && (request.AddAllTeams || callerTeamId == null || callerTeamId != teamId))
             return null;
 
         // Which app this job feeds decides both the pool and the sender. One app, never both:
