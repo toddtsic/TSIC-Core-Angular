@@ -1,14 +1,19 @@
 // ============================================================
 //  Financial Health — the DIRECTOR-ONLY card, first in the band.
 //
-//  Every other card in this band is a faithful preview of what the
-//  public sees. This one is not, so it deliberately breaks the visual
-//  family: an INVERTED surface (dark on a light theme, light on a dark
-//  one) with an amber "private" accent, so it can never be mistaken for
-//  something families are looking at.
+//  Every other card here previews what the public sees. This one never
+//  does, so it reads differently — but softly. The whole palette is
+//  ONE amber tint mixed into the theme's own --brand-surface, so light
+//  gives a pale cream and dark gives a muted warm-dark from the SAME
+//  rule. No second palette, no @media colour block to keep in sync.
 //
-//  Inversion is derived from --brand-text / --brand-surface, so it flips
-//  with the palette instead of hardcoding a dark colour.
+//  Amber (--brand-warn) is identical in both themes, unlike
+//  --brand-primary which becomes slate in dark — so the private accent
+//  stays the same hue wherever it renders.
+//
+//  Colour never carries meaning alone: the accent is on borders, icons
+//  and dots, and all TEXT stays --brand-text/--brand-text-muted so it
+//  inherits the theme's guaranteed contrast.
 //  NEVER backdrop-filter (banned project-wide).
 // ============================================================
 
@@ -21,23 +26,20 @@
 	margin: var(--space-4) auto 0;
 	padding: 0 var(--space-3);
 
-	// The inverted ground and the text that sits on it. Declared once here so
-	// every child reads the same pair.
-	--fh-ground: color-mix(in srgb, var(--brand-text) 94%, var(--brand-surface));
-	--fh-on-ground: var(--brand-surface);
-	--fh-on-ground-muted: color-mix(in srgb, var(--brand-surface) 68%, var(--brand-text));
-	--fh-private: var(--bs-warning);
-	--fh-hairline: color-mix(in srgb, var(--brand-surface) 18%, transparent);
+	--fh-accent: var(--bs-warning);
+	--fh-ground: color-mix(in srgb, var(--fh-accent) 7%, var(--brand-surface));
+	--fh-ground-strong: color-mix(in srgb, var(--fh-accent) 15%, var(--brand-surface));
+	--fh-hairline: color-mix(in srgb, var(--fh-accent) 25%, var(--brand-border));
 }
 
 .fh__inner {
 	overflow: hidden;
-	border: 1px solid var(--brand-border);
-	border-left: 4px solid var(--fh-private);
+	border: 1px solid var(--fh-hairline);
+	border-left: 4px solid var(--fh-accent);
 	border-radius: var(--radius-lg);
 	background: var(--fh-ground);
-	color: var(--fh-on-ground);
-	box-shadow: var(--shadow-md);
+	color: var(--brand-text);
+	box-shadow: var(--shadow-sm, var(--shadow-md));
 }
 
 // ── Private ribbon ───────────────────────────────────────────
@@ -47,10 +49,13 @@
 	align-items: center;
 	gap: var(--space-2) var(--space-3);
 	padding: var(--space-2) var(--space-5);
-	background: color-mix(in srgb, var(--fh-private) 20%, transparent);
+	background: var(--fh-ground-strong);
 	border-bottom: 1px solid var(--fh-hairline);
 }
 
+// Tinted pill, not a solid amber one: solid amber cannot carry readable
+// text in BOTH themes (--brand-text flips), and a fixed ink would be a
+// hardcoded colour. Tint + themed text keeps contrast inherited.
 .fh__lock {
 	display: inline-flex;
 	align-items: center;
@@ -59,15 +64,18 @@
 	font-weight: var(--font-weight-bold);
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
-	color: var(--fh-private);
+	color: var(--brand-text);
+
+	i {
+		color: var(--fh-accent);
+	}
 }
 
 .fh__ribbon-note {
 	font-size: var(--font-size-sm);
-	color: var(--fh-on-ground-muted);
+	color: var(--brand-text-muted);
 }
 
-// Pushed right; wraps under on narrow screens rather than truncating the note.
 .fh__who {
 	display: inline-flex;
 	align-items: center;
@@ -77,12 +85,17 @@
 	padding: 2px var(--space-2);
 	border: 1px solid var(--fh-hairline);
 	border-radius: var(--radius-pill, 999px);
+	background: var(--brand-surface);
 	font-size: var(--font-size-sm);
 	font-weight: var(--font-weight-semibold);
-	color: var(--fh-on-ground);
+	color: var(--brand-text);
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+
+	i {
+		color: var(--fh-accent);
+	}
 }
 
 // ── Heading ──────────────────────────────────────────────────
@@ -101,8 +114,8 @@
 	width: 48px;
 	height: 48px;
 	border-radius: var(--radius-md);
-	background: color-mix(in srgb, var(--fh-private) 22%, transparent);
-	color: var(--fh-private);
+	background: color-mix(in srgb, var(--fh-accent) 18%, var(--brand-surface));
+	color: var(--fh-accent);
 	font-size: 1.5rem;
 }
 
@@ -115,14 +128,14 @@
 	font-size: var(--font-size-lg, 1.125rem);
 	font-weight: var(--font-weight-bold);
 	line-height: 1.2;
-	color: var(--fh-on-ground);
+	color: var(--brand-text);
 }
 
 .fh__sub {
 	margin: var(--space-1) 0 0;
 	font-size: var(--font-size-sm);
 	line-height: 1.5;
-	color: var(--fh-on-ground-muted);
+	color: var(--brand-text-muted);
 }
 
 // ── Metrics ──────────────────────────────────────────────────
@@ -135,6 +148,8 @@
 	list-style: none;
 }
 
+// Tiles sit on the plain surface so they read as raised out of the tint,
+// rather than stacking a second wash on top of it.
 .fh__metric {
 	display: grid;
 	grid-template-columns: auto 1fr;
@@ -145,14 +160,14 @@
 	align-items: center;
 	gap: var(--space-1) var(--space-2);
 	padding: var(--space-3);
-	border: 1px solid var(--fh-hairline);
+	border: 1px solid var(--brand-border);
 	border-radius: var(--radius-md);
-	background: color-mix(in srgb, var(--brand-surface) 8%, transparent);
+	background: var(--brand-surface);
 }
 
 .fh__metric-icon {
 	grid-area: icon;
-	color: var(--fh-on-ground-muted);
+	color: var(--brand-text-muted);
 	font-size: 1rem;
 }
 
@@ -162,14 +177,14 @@
 	font-size: 1.75rem;
 	font-weight: var(--font-weight-bold);
 	line-height: 1;
-	color: var(--fh-on-ground);
+	color: var(--brand-text);
 }
 
 .fh__metric-label {
 	grid-area: label;
 	font-size: var(--font-size-sm);
 	line-height: 1.35;
-	color: var(--fh-on-ground-muted);
+	color: var(--brand-text-muted);
 }
 
 // Tone is carried by a dot AND this text label — never colour alone.
@@ -180,14 +195,14 @@
 	gap: var(--space-1);
 	font-size: var(--font-size-sm);
 	font-weight: var(--font-weight-semibold);
-	color: var(--fh-tone, var(--fh-on-ground-muted));
+	color: var(--brand-text-muted);
 }
 
 .fh__dot {
 	width: 8px;
 	height: 8px;
 	border-radius: 50%;
-	background: var(--fh-tone, var(--fh-on-ground-muted));
+	background: var(--fh-tone, var(--brand-text-muted));
 }
 
 .fh__metric[data-tone='attention'] { --fh-tone: var(--bs-danger); }
@@ -204,11 +219,11 @@
 	border-top: 1px solid var(--fh-hairline);
 	font-size: var(--font-size-sm);
 	line-height: 1.5;
-	color: var(--fh-on-ground-muted);
+	color: var(--brand-text-muted);
 
 	i {
 		margin-top: 2px;
-		color: var(--fh-private);
+		color: var(--fh-accent);
 	}
 }
 
