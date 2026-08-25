@@ -13,6 +13,7 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ClientBannerComponent } from '@widgets/layout/client-banner/client-banner.component';
 import { BulletinsComponent } from '@widgets/communications/bulletins.component';
+import { AdminNavPillComponent } from '@shared-ui/components/admin-nav-pill.component';
 import { MenuStateService } from '../../../layouts/services/menu-state.service';
 import type { AvailableWidgetDto, SaveUserWidgetsRequest, WidgetCategoryGroupDto, WidgetDashboardResponse, WidgetItemDto } from '@core/api';
 
@@ -38,7 +39,7 @@ interface CustomizeRow {
 @Component({
 	selector: 'app-widget-dashboard',
 	standalone: true,
-	imports: [NgComponentOutlet, TsicDialogComponent, ConfirmDialogComponent, ClientBannerComponent, BulletinsComponent],
+	imports: [NgComponentOutlet, TsicDialogComponent, ConfirmDialogComponent, ClientBannerComponent, BulletinsComponent, AdminNavPillComponent],
 	templateUrl: './widget-dashboard.component.html',
 	styleUrl: './widget-dashboard.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
@@ -67,6 +68,16 @@ export class WidgetDashboardComponent {
 		}
 		return '';
 	});
+
+	/**
+	 * Reciprocal of the landing page's Dashboard pill — same component, same
+	 * placement, opposite direction. Segment array names the jobPath rather than
+	 * relying on a relative link; see AdminNavPillComponent.
+	 *
+	 * No role gate needed here: the /dashboard route already guards on Superuser /
+	 * Director / SuperDirector, so anyone rendering this component is an admin.
+	 */
+	readonly homeLink = computed(() => ['/', this.activeJobPath()]);
 
 	// ── Dashboard computed signals ──
 

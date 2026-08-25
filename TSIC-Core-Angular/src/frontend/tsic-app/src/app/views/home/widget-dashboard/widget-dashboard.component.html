@@ -1,5 +1,10 @@
 <div class="dashboard-container">
 
+    <!-- ═══════ Back to the public landing — reciprocal of the Dashboard pill
+         there. Sits above the loading/error branches so it is present whatever
+         the dashboard body is doing, including when a widget fails to load. ═══════ -->
+    <app-admin-nav-pill icon="bi-house" label="Home" [link]="homeLink()" />
+
     <!-- ═══════ LOADING / ERROR ═══════ -->
     @if (isLoading()) {
         <div class="dashboard-loading">

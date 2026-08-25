@@ -50,13 +50,7 @@
 		     the public never sees this.
 		     ══════════════════════════════════════════════════ -->
 		@if (showDashboardLink()) {
-			<div class="jl-adminbar">
-				<a class="jl-adminbar__link" [routerLink]="dashboardLink()">
-					<i class="bi bi-speedometer2" aria-hidden="true"></i>
-					<span>Dashboard</span>
-					<i class="bi bi-arrow-right jl-adminbar__go" aria-hidden="true"></i>
-				</a>
-			</div>
+			<app-admin-nav-pill icon="bi-speedometer2" label="Dashboard" [link]="dashboardLink()" />
 		}
 
 

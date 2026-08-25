@@ -13,7 +13,7 @@ import { ActivatedRoute, ActivatedRouteSnapshot, Router } from '@angular/router'
 import { JobService } from '@infrastructure/services/job.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { AuthService } from '@infrastructure/services/auth.service';
-import { RouterLink } from '@angular/router';
+import { AdminNavPillComponent } from '@shared-ui/components/admin-nav-pill.component';
 import { ClientBannerComponent } from '@widgets/layout/client-banner/client-banner.component';
 import { BulletinsComponent } from '@widgets/communications/bulletins.component';
 import { derivePhase, EventPhase } from '@shared/landing/landing-phase';
@@ -21,7 +21,7 @@ import { derivePhase, EventPhase } from '@shared/landing/landing-phase';
 @Component({
 	selector: 'app-job-landing',
 	standalone: true,
-	imports: [ClientBannerComponent, BulletinsComponent, RouterLink],
+	imports: [ClientBannerComponent, BulletinsComponent, AdminNavPillComponent],
 	templateUrl: './job-landing.component.html',
 	styleUrl: './job-landing.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
