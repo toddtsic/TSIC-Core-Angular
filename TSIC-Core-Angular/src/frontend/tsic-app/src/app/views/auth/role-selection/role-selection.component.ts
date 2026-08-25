@@ -109,49 +109,55 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
   private _primedOnce = false;
 
   ngAfterViewInit(): void {
-    this.tryPrimeLastDropdown();
-    this.dropdowns.changes.subscribe(() => this.tryPrimeLastDropdown());
+    this.tryPrimeDirectorDropdown();
+    this.dropdowns.changes.subscribe(() => this.tryPrimeDirectorDropdown());
   }
 
   /**
-   * Land the user on the typeahead they are most likely to use, so they can start
-   * typing without hunting for a control first.
+   * Land the user in the Director typeahead with the list already open and the
+   * filter box focused, so login → type → Enter needs no mouse.
    *
-   * Two behaviours, because opening and focusing are not the same thing:
+   * **Target**: the `Director` group if the account has one, else the LAST group.
+   * `last` alone is wrong for accounts that also hold Player/Staff rows — those
+   * groups sort *after* Director (see `RoleLookupService`), so the priming landed
+   * on a Player list. In typeahead mode every group renders exactly one
+   * `ejs-dropdownlist`, so group index and `QueryList` index line up.
    *
-   * - **One group** → `showPopup()`. The SuperUser/director "one giant list" case.
-   *   There is nothing else on the page for the popup to cover, so showing the list
-   *   immediately is pure help.
-   * - **More than one group** (e.g. SuperDirector + Director) → `focusIn()` only.
-   *   The caret lands in the LAST section — the lower-privileged one, which is the
-   *   more common target — and typing filters from there. Focus alone leaves the
-   *   other sections visible, which is what `showPopup()` got wrong here: an
-   *   auto-opened popup covered the rest of the page before the user had seen it,
-   *   and that is why multi-group auto-open was removed in `21023d1b`. Focusing
-   *   restores the intent of `dd408b4e` without reintroducing that problem.
+   * **Action**: `focusIn()` then `showPopup()` — the same pair, in the same order,
+   * that ej2's own `dropDownClick` runs. Opening is what produces a typing field
+   * at all: the filter input lives *inside* the popup, and ej2's popup `open`
+   * handler calls `filterInput.focus()`. `focusIn()` on its own (`eea6f5aa`) only
+   * highlights the closed control's border — which is why it read as "not working".
+   *
+   * This re-opens the popup for multi-group accounts, reversing `21023d1b`. Todd
+   * asked for it explicitly on 2026-08-25, knowing the popup covers the sections
+   * below it until dismissed.
    *
    * Cards mode is never primed — those entries are already on screen. Mobile is
-   * skipped entirely: Syncfusion opens a full-screen overlay on touch devices, and
-   * focus alone would summon the on-screen keyboard over the page.
+   * skipped entirely: Syncfusion opens a full-screen overlay on touch devices.
    */
-  private tryPrimeLastDropdown(): void {
+  private tryPrimeDirectorDropdown(): void {
     if (this._primedOnce) return;
     if (window.innerWidth < 768) return;
     if (!this.useTypeaheadMode()) return;
 
-    const last = this.dropdowns?.last;
-    if (!last) return;
+    const ddls = this.dropdowns?.toArray() ?? [];
+    if (ddls.length === 0) return;
 
-    const single = this.registrations().length === 1;
+    const directorIndex = this.registrations().findIndex(g => g.roleName === 'Director');
+    const index = directorIndex >= 0 && directorIndex < ddls.length ? directorIndex : ddls.length - 1;
+    const target = ddls[index];
+
     this._primedOnce = true;
     setTimeout(() => {
       try {
-        if (single) {
-          last.showPopup();
-        } else {
-          last.focusIn();
-        }
-      } catch { /* no-op */ }
+        target.focusIn();
+        target.showPopup();
+      } catch (err) {
+        // Never silent: a swallowed failure here is indistinguishable from "the
+        // feature was never wired up", and that cost a round trip already.
+        console.warn('[role-selection] typeahead priming failed', err);
+      }
     }, 0);
   }
 
