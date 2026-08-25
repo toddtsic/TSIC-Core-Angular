@@ -1,6 +1,7 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, isDevMode } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
+import { DropDownListModule, type FieldSettingsModel, type ChangeEventArgs } from '@syncfusion/ej2-angular-dropdowns';
 import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { WidgetEditorService } from './services/widget-editor.service';
@@ -58,7 +59,7 @@ const WORKSPACE_LABELS: Record<string, string> = {
 @Component({
 	selector: 'app-widget-editor',
 	standalone: true,
-	imports: [CommonModule, DragDropModule, TsicDialogComponent, ConfirmDialogComponent],
+	imports: [CommonModule, DragDropModule, DropDownListModule, TsicDialogComponent, ConfirmDialogComponent],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './widget-editor.component.html',
 	styleUrl: './widget-editor.component.scss',
@@ -149,28 +150,12 @@ export class WidgetEditorComponent implements HasUnsavedChanges {
 	readonly overrideSelectedJobId = signal<string>('');
 
 	/**
-	 * Free-text filter over the job picker. A single job type can hold hundreds of jobs
-	 * (348 under Club Sport Registration alone), which is more than a <select> can be
-	 * scrolled through usefully.
+	 * Field map for the job dropdown. One job type can hold hundreds of jobs (348 under
+	 * Club Sport Registration), so the picker is a filterable ejs-dropdownlist rather than
+	 * a <select>. A first attempt paired a <select> with a filter box beside it; typing
+	 * only changed a count and left the list closed, which is not a search.
 	 */
-	readonly overrideJobFilter = signal('');
-
-	/**
-	 * The filtered option list. The currently-selected job is always kept in the list even
-	 * when it does not match — dropping it would leave the <select> displaying nothing
-	 * while a job is in fact loaded below.
-	 */
-	readonly filteredOverrideJobs = computed(() => {
-		const term = this.overrideJobFilter().trim().toLowerCase();
-		const jobs = this.overrideJobs();
-		if (!term) return jobs;
-
-		const selected = this.overrideSelectedJobId();
-		return jobs.filter(j =>
-			j.jobId === selected ||
-			j.jobName.toLowerCase().includes(term) ||
-			j.jobPath.toLowerCase().includes(term));
-	});
+	readonly jobFields: FieldSettingsModel = { text: 'jobName', value: 'jobId' };
 
 	readonly overrideEntries = signal<JobWidgetEntryDto[]>([]);
 	readonly overrideOriginalEntries = signal<JobWidgetEntryDto[]>([]);
@@ -1055,7 +1040,6 @@ export class WidgetEditorComponent implements HasUnsavedChanges {
 		const jobTypeId = +(event.target as HTMLSelectElement).value;
 		this.overrideSelectedJobTypeId.set(jobTypeId);
 		this.overrideSelectedJobId.set('');
-		this.overrideJobFilter.set(''); // a filter from the previous job type is meaningless here
 		this.overrideEntries.set([]);
 		this.overrideOriginalEntries.set([]);
 		if (jobTypeId > 0) {
@@ -1068,12 +1052,12 @@ export class WidgetEditorComponent implements HasUnsavedChanges {
 		}
 	}
 
-	onOverrideJobChange(event: Event): void {
-		const jobId = (event.target as HTMLSelectElement).value;
+	/** ej2 emits the selected job's id as itemData/value; ignore the programmatic seed. */
+	onOverrideJobSelected(args: ChangeEventArgs): void {
+		const jobId = (args.value as string) ?? '';
+		if (!jobId || jobId === this.overrideSelectedJobId()) return;
 		this.overrideSelectedJobId.set(jobId);
-		if (jobId) {
-			this.loadJobOverrides(jobId);
-		}
+		this.loadJobOverrides(jobId);
 	}
 
 	private loadJobOverrides(jobId: string): void {
