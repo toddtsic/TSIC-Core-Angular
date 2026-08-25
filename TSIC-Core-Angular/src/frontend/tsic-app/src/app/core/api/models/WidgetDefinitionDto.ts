@@ -12,5 +12,7 @@ export type WidgetDefinitionDto = {
     defaultConfig?: string | null;
     categoryName: string;
     workspace: string;
+    attachedJobCount: number;
+    defaultJobTypeCount: number;
 };
 

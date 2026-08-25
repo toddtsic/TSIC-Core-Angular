@@ -115,6 +115,8 @@
     "view-rosters/faq",
     "view-rosters/overview",
     "view-schedule/faq",
-    "view-schedule/overview"
+    "view-schedule/overview",
+    "widget-editor/faq",
+    "widget-editor/overview"
   ]
 }

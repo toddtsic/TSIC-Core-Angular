@@ -1,6 +1,8 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, isDevMode } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
+import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
+import { AuthService } from '@infrastructure/services/auth.service';
 import { WidgetEditorService } from './services/widget-editor.service';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
@@ -64,6 +66,11 @@ const WORKSPACE_LABELS: Record<string, string> = {
 export class WidgetEditorComponent implements HasUnsavedChanges {
 	private readonly editorService = inject(WidgetEditorService);
 	private readonly toast = inject(ToastService);
+	private readonly route = inject(ActivatedRoute);
+	private readonly auth = inject(AuthService);
+
+	/** Guards the one-shot job preselect on the overrides tab. */
+	private _overridePreselectTried = false;
 
 	// ── Reference data ──
 	readonly jobTypes = signal<JobTypeRefDto[]>([]);
@@ -286,9 +293,13 @@ export class WidgetEditorComponent implements HasUnsavedChanges {
 		const col = this.defSortColumn();
 		const dir = this.defSortDirection();
 		return this.widgets().slice().sort((a, b) => {
-			const va = String(a[col] ?? '').toLowerCase();
-			const vb = String(b[col] ?? '').toLowerCase();
-			const cmp = va.localeCompare(vb);
+			const ra = a[col];
+			const rb = b[col];
+			// Numeric columns (the usage counts) must compare numerically — stringifying
+			// them sorts 10 before 3.
+			const cmp = typeof ra === 'number' && typeof rb === 'number'
+				? ra - rb
+				: String(ra ?? '').toLowerCase().localeCompare(String(rb ?? '').toLowerCase());
 			return dir === 'asc' ? cmp : -cmp;
 		});
 	});
@@ -929,6 +940,49 @@ export class WidgetEditorComponent implements HasUnsavedChanges {
 	// ═══════════════════════════════════
 	// Job Overrides
 	// ═══════════════════════════════════
+
+	/**
+	 * Open Job Overrides pointed at the job the admin is already standing in.
+	 *
+	 * Previously this tab always started empty and made you re-pick your own job out of
+	 * two cascading dropdowns — Job Type, then Job — even though the URL you arrived on
+	 * names the job. Both selects stay live so you can still cross to another job.
+	 *
+	 * Runs once per visit; if a selection already exists it is left alone so switching
+	 * tabs never discards unsaved override edits.
+	 */
+	openOverridesTab(): void {
+		this.activeTab.set('overrides');
+		if (this.overrideSelectedJobId() || this._overridePreselectTried) return;
+
+		const jobPath = this.resolveActiveJobPath();
+		if (!jobPath) return;
+
+		this._overridePreselectTried = true;
+		this.editorService.getJobByPath(jobPath).subscribe(job => {
+			if (!job) return;
+			this.overrideSelectedJobTypeId.set(job.jobTypeId);
+			this.editorService.getJobsByJobType(job.jobTypeId).subscribe({
+				next: jobs => {
+					this.overrideJobs.set(jobs);
+					this.overrideSelectedJobId.set(job.jobId);
+					this.loadJobOverrides(job.jobId);
+				},
+				error: err => this.handleError('Failed to load jobs', err),
+			});
+		});
+	}
+
+	/** jobPath from the route (`/:jobPath/configure/widget-editor`), falling back to the token. */
+	private resolveActiveJobPath(): string {
+		let r: ActivatedRouteSnapshot | null = this.route.snapshot;
+		while (r) {
+			const jp = r.paramMap.get('jobPath');
+			if (jp) return jp;
+			r = r.parent;
+		}
+		return this.auth.currentUser()?.jobPath ?? '';
+	}
 
 	onOverrideJobTypeChange(event: Event): void {
 		const jobTypeId = +(event.target as HTMLSelectElement).value;

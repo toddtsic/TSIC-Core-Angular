@@ -190,7 +190,7 @@ export const routes: Routes = [
 						path: 'widget-editor',
 						canActivate: [authGuard],
 						canDeactivate: [unsavedChangesGuard],
-						data: { roles: [Roles.Superuser] },
+						data: { roles: [Roles.Superuser], helpKey: 'widget-editor' },
 						loadComponent: () => import('./views/configure/widget-editor/widget-editor.component').then(m => m.WidgetEditorComponent)
 					},
 					{

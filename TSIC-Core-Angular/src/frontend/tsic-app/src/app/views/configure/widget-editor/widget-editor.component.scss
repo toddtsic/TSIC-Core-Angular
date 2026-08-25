@@ -621,6 +621,73 @@
 	}
 }
 
+// ── "In Use" column (Widget Definitions) ──
+//
+// The catalog previously gave no way to tell a widget live on twenty jobs from one
+// attached to nothing — every row looked identical. These two counts come straight
+// from widgets.JobWidget and widgets.WidgetDefault.
+
+.col-inuse {
+	white-space: nowrap;
+}
+
+.usage-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	padding: 2px var(--space-2);
+	border: 1px solid transparent;
+	border-radius: var(--radius-pill, 999px);
+	font-size: 0.75rem;
+	font-weight: 600;
+	line-height: 1.5;
+
+	+ .usage-pill {
+		margin-left: var(--space-1);
+	}
+
+	> i {
+		font-size: 0.7rem;
+	}
+}
+
+// Attached to real jobs — the actionable one, so it is a button into Job Overrides.
+.usage-pill--jobs {
+	border-color: var(--bs-success);
+	background: var(--bs-success-bg-subtle);
+	color: var(--bs-success-text-emphasis);
+	cursor: pointer;
+	transition: background 0.15s ease;
+
+	&:hover {
+		background: color-mix(in srgb, var(--bs-success) 22%, var(--brand-surface));
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+// Auto-attach rule from the Default Matrix — informational, not a place to click.
+.usage-pill--auto {
+	border-color: var(--bs-info);
+	background: var(--bs-info-bg-subtle);
+	color: var(--bs-info-text-emphasis);
+}
+
+.usage-none {
+	font-size: 0.78rem;
+	font-style: italic;
+	color: var(--brand-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.usage-pill--jobs {
+		transition: none !important;
+	}
+}
+
 // ── Row-level undo (Job Overrides matrix) ──
 //
 // Right-click on a single cell used to be the ONLY way to undo an override, and the

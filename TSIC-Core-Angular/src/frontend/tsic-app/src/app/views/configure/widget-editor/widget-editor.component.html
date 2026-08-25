@@ -18,7 +18,7 @@
 	<button class="editor-tab" [class.active]="activeTab() === 'definitions'" (click)="activeTab.set('definitions')">
 		<i class="bi bi-puzzle me-1"></i>Widget Definitions
 	</button>
-	<button class="editor-tab" [class.active]="activeTab() === 'overrides'" (click)="activeTab.set('overrides')">
+	<button class="editor-tab" [class.active]="activeTab() === 'overrides'" (click)="openOverridesTab()">
 		<i class="bi bi-sliders me-1"></i>Job Overrides
 	</button>
 	<button class="editor-tab" [class.active]="activeTab() === 'matrix'" (click)="activeTab.set('matrix')">
@@ -334,6 +334,13 @@
 								<i class="bi sort-icon" [ngClass]="defSortDirection() === 'asc' ? 'bi-caret-up-fill' : 'bi-caret-down-fill'"></i>
 							}
 						</th>
+						<th class="sortable-header" (click)="toggleDefSort('attachedJobCount')"
+							title="Jobs this widget is attached to, and job types that auto-attach it">
+							In Use
+							@if (defSortColumn() === 'attachedJobCount') {
+								<i class="bi sort-icon" [ngClass]="defSortDirection() === 'asc' ? 'bi-caret-up-fill' : 'bi-caret-down-fill'"></i>
+							}
+						</th>
 						<th class="sortable-header" (click)="toggleDefSort('defaultConfig')">
 							Config
 							@if (defSortColumn() === 'defaultConfig') {
@@ -354,6 +361,26 @@
 							<td>{{ w.categoryName }}</td>
 							<td>
 								<span class="badge bg-secondary-subtle text-secondary-emphasis">{{ w.workspace }}</span>
+							</td>
+							<td class="col-inuse">
+								@if (w.attachedJobCount > 0) {
+									<button type="button" class="usage-pill usage-pill--jobs"
+										(click)="openOverridesTab()"
+										[title]="'Attached to ' + w.attachedJobCount + ' job' + (w.attachedJobCount === 1 ? '' : 's') + ' — open Job Overrides'">
+										<i class="bi bi-briefcase-fill" aria-hidden="true"></i>
+										{{ w.attachedJobCount }} job{{ w.attachedJobCount === 1 ? '' : 's' }}
+									</button>
+								}
+								@if (w.defaultJobTypeCount > 0) {
+									<span class="usage-pill usage-pill--auto"
+										[title]="'Auto-attaches on ' + w.defaultJobTypeCount + ' job type' + (w.defaultJobTypeCount === 1 ? '' : 's') + ' via the Default Matrix'">
+										<i class="bi bi-magic" aria-hidden="true"></i>
+										auto · {{ w.defaultJobTypeCount }}
+									</span>
+								}
+								@if (w.attachedJobCount === 0 && w.defaultJobTypeCount === 0) {
+									<span class="usage-none">Not in use</span>
+								}
 							</td>
 							<td class="text-body-secondary font-monospace" style="font-size: 0.75rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
 								[title]="w.defaultConfig || '(none)'">

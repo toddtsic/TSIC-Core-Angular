@@ -1,0 +1,152 @@
+<h3>Widget Editor</h3>
+
+<div class="help-callout help-callout--info">
+  <i class="bi bi-signpost-split" aria-hidden="true"></i>
+  <div>
+    <strong>One event, or every event?</strong>
+    <p class="help-callout__body">
+      That's the question behind almost everything on this screen. <strong>Job Overrides</strong> changes one event.
+      <strong>Default Matrix</strong> and <strong>Role Assignments</strong> change every event of a job type.
+    </p>
+  </div>
+</div>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>How do I tell whether a widget is switched on for the event I'm in?</span></summary>
+  <div class="faq-a">
+    <p>
+      The <strong>In Use</strong> column on Widget Definitions tells you how many events have it, but not
+      <em>which</em> ones. For a definite answer about the event you're in, click the green job count — or open
+      <strong>Job Overrides</strong>, which starts on your current event — and look at that widget's row.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>How do I remove a widget from one event?</span></summary>
+  <div class="faq-a">
+    <p>
+      In <strong>Job Overrides</strong>, use the <i class="bi bi-x-circle" aria-hidden="true"></i> at the end of that
+      widget's row, then <strong>Save Overrides</strong>. You can also right-click an individual checkbox to undo
+      just that one role.
+    </p>
+    <p>
+      Unticking a box is <em>not</em> the same thing. That records "switched off for this event" and keeps the row.
+      Both hide the widget; the row button leaves things cleaner.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>I added one widget and the rest of the Dashboard changed. Why?</span></summary>
+  <div class="faq-a">
+    <p>
+      An event with no widgets assigned shows a standard Dashboard — banner and bulletins. The moment it has even one
+      assignment, it switches to showing <strong>exactly what's assigned</strong>, and the standard layout stops
+      applying.
+    </p>
+    <p>
+      If you want the old panels back alongside your new widget, assign them explicitly too.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What does "Not in use" mean? Is it broken?</span></summary>
+  <div class="faq-a">
+    <p>
+      No. It means the widget is defined but no event and no automatic rule uses it, so nobody currently sees it.
+      That's normal for something just built and not yet rolled out.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>There's a warning about a widget not being set up. What is it telling me?</span></summary>
+  <div class="faq-a">
+    <p>
+      A developer has built that widget, but it has no definition here — so it can't be added to any event yet.
+      Click it to create the definition, which opens the Add Widget form already filled in.
+    </p>
+    <p>
+      Don't treat it as a to-do list. If you're not sure a widget is wanted, leave it. Setting up something that was
+      replaced by a newer panel just puts a duplicate on the page.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why can't I delete a widget?</span></summary>
+  <div class="faq-a">
+    <p>
+      Because something still uses it. Clear its assignments first — the automatic rules in <strong>Default
+      Matrix</strong> and any per-event entries in <strong>Job Overrides</strong> — then delete it.
+    </p>
+    <p>
+      The <strong>In Use</strong> column shows you what's holding it.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What is the Component Key, and what happens if I invent one?</span></summary>
+  <div class="faq-a">
+    <p>
+      It's the link between this definition and the code a developer wrote. Pick from the list and it's guaranteed to
+      match.
+    </p>
+    <p>
+      If you type a custom key with no matching code, the widget <strong>saves without complaint and then renders as
+      blank space</strong> on every event you add it to. There's no error — just an empty gap. Only use a custom key
+      when a developer has told you the name to use.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What's the difference between Role Assignments and Job Overrides?</span></summary>
+  <div class="faq-a">
+    <p>
+      <strong>Role Assignments</strong> (inside the Add/Edit Widget dialog) creates automatic rules. Tick a job type
+      there and every event of that type gets the widget — existing and future.
+    </p>
+    <p>
+      <strong>Job Overrides</strong> changes one event only. If you meant "just this one tournament," that's the tab
+      you want.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Can a Director change their own widgets?</span></summary>
+  <div class="faq-a">
+    <p>
+      They can show, hide, and reorder widgets on their own Dashboard through <strong>customize</strong> — that's
+      personal to their login and doesn't affect anyone else.
+    </p>
+    <p>
+      They cannot add or remove widgets from the event. This screen is SuperUser only.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What does the drag handle do?</span></summary>
+  <div class="faq-a">
+    <p>
+      It sets the order widgets appear in on the Dashboard, within their category. Drag a row up or down, then
+      <strong>Save Overrides</strong>.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Does any of this affect the public event page?</span></summary>
+  <div class="faq-a">
+    <p>
+      Not currently. Widgets in the <strong>public</strong> workspace can be defined and assigned, but the public page
+      shows its banner and bulletins from a fixed layout rather than from these settings. Switching a public widget
+      off here will not change what visitors see.
+    </p>
+  </div>
+</details>

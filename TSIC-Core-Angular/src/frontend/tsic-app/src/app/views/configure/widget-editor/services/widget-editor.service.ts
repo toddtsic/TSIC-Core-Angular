@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable, map, of, catchError } from 'rxjs';
 import { environment } from '@environments/environment';
 import type {
 	JobTypeRefDto,
@@ -79,6 +79,16 @@ export class WidgetEditorService {
 
 	getJobsByJobType(jobTypeId: number): Observable<JobRefDto[]> {
 		return this.http.get<JobRefDto[]>(`${this.apiUrl}/jobs-by-type/${jobTypeId}`);
+	}
+
+	/**
+	 * Resolve the job the admin is currently standing in, so the overrides tab can
+	 * preselect it. Returns null on 404 — an admin can reach this page from a jobPath
+	 * that no longer resolves, and that should silently fall back to manual selection.
+	 */
+	getJobByPath(jobPath: string): Observable<JobRefDto | null> {
+		return this.http.get<JobRefDto>(`${this.apiUrl}/job-by-path/${encodeURIComponent(jobPath)}`)
+			.pipe(catchError(() => of(null)));
 	}
 
 	getJobOverrides(jobId: string): Observable<JobOverridesResponse> {

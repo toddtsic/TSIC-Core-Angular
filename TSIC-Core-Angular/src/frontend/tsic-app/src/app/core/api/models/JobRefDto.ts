@@ -6,5 +6,6 @@ export type JobRefDto = {
     jobId: string;
     jobName: string;
     jobPath: string;
+    jobTypeId: number;
 };
 

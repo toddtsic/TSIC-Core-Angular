@@ -1,0 +1,85 @@
+<h3>Widget Editor</h3>
+<p>
+  Widgets are the panels and tiles that make up a Dashboard. This screen is where you decide which widgets exist,
+  which kinds of events get them automatically, and which individual events get something different.
+</p>
+
+<div class="help-callout help-callout--info">
+  <i class="bi bi-layers" aria-hidden="true"></i>
+  <div>
+    <strong>A widget needs two things to appear.</strong>
+    <p class="help-callout__body">
+      A developer has to <strong>build</strong> it, and you have to <strong>set it up</strong> here. Building it
+      alone does nothing — it stays invisible until it has a definition on this screen and is assigned to an event.
+    </p>
+  </div>
+</div>
+
+<h4>The three tabs</h4>
+<ul>
+  <li>
+    <strong>Widget Definitions</strong> — the catalog of every widget that exists, with its name, category, and where
+    it's currently deployed. Add, edit, and delete widgets here.
+  </li>
+  <li>
+    <strong>Job Overrides</strong> — what one specific event gets. Add a widget to just this event, or switch off one
+    it would otherwise inherit.
+  </li>
+  <li>
+    <strong>Default Matrix</strong> — the automatic rules. Anything ticked here is given to <strong>every</strong>
+    event of that type, for the roles you choose.
+  </li>
+</ul>
+
+<h4>Reading the "In Use" column</h4>
+<p>The Definitions tab tells you where each widget has actually landed:</p>
+<ul>
+  <li><strong>3 jobs</strong> — attached to three specific events. Click it to open Job Overrides.</li>
+  <li><strong>auto · 7</strong> — an automatic rule gives it to seven job types, no per-event setup needed.</li>
+  <li><strong>Not in use</strong> — defined, but nobody sees it. Usually means it's built and waiting.</li>
+</ul>
+
+<h4>Turning a widget on for one event</h4>
+<ol>
+  <li>Open <strong>Job Overrides</strong>. It opens on the event you're currently in.</li>
+  <li>Expand the workspace and find the widget's row.</li>
+  <li>Tick the box under each <strong>role</strong> that should see it.</li>
+  <li><strong>Save Overrides</strong>.</li>
+</ol>
+
+<h4>Turning it back off</h4>
+<p>
+  Use the <i class="bi bi-x-circle" aria-hidden="true"></i> at the end of the widget's row, then save. The button
+  tells you which it will do:
+</p>
+<ul>
+  <li><strong>Remove from this job</strong> — you added it here, so it goes away cleanly.</li>
+  <li><strong>Revert to inherited</strong> — an automatic rule supplies it, so the row returns to that rule.</li>
+</ul>
+<p>The row button only appears when the row actually differs from what the event would inherit.</p>
+
+<div class="help-callout help-callout--warning">
+  <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+  <div>
+    <strong>Role Assignments in the widget dialog reach every event.</strong>
+    <p class="help-callout__body">
+      The Role Assignments section inside Add/Edit Widget writes automatic rules — it applies to <strong>every event
+      of the job types you tick</strong>, not the one you're looking at. To change a single event, use Job Overrides.
+    </p>
+  </div>
+</div>
+
+<h4>Colours in the override matrix</h4>
+<ul>
+  <li><strong>Inherited</strong> — comes from an automatic rule; you haven't touched it.</li>
+  <li><strong>Override (enabled)</strong> — you switched on something this event wouldn't normally get.</li>
+  <li><strong>Override (disabled)</strong> — you switched off something it would normally get.</li>
+  <li><strong>Job-specific addition</strong> — added for this event only, with no rule behind it.</li>
+</ul>
+
+<h4>Good to know</h4>
+<ul>
+  <li>This screen is <strong>SuperUser only</strong>. Directors can arrange their own Dashboard, but cannot add or remove widgets.</li>
+  <li>Attaching the first widget to an event <strong>replaces its default Dashboard layout</strong> — see the FAQ.</li>
+  <li>Changes are held until you <strong>Save</strong>; leaving with unsaved edits will warn you first.</li>
+</ul>
