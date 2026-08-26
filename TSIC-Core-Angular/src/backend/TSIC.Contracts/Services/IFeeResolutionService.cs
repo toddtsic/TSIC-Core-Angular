@@ -137,6 +137,42 @@ public interface IFeeResolutionService
         CancellationToken ct = default);
 
     /// <summary>
+    /// Would moving <paramref name="reg"/> onto the target team strand its Authorize.Net recurring
+    /// billing plan? Returns null when the move is safe, otherwise the figures a caller needs to
+    /// explain the refusal. READ-ONLY — mutates nothing, persists nothing.
+    /// <para>
+    /// An ARB plan drafts one FIXED amount per occurrence, decided when the plan was minted. A swap
+    /// re-prices the registration (<see cref="ApplySwapFeesAsync"/>) but there is no
+    /// <c>ARBUpdateSubscription</c> anywhere in this stack — the plan cannot follow. The two then
+    /// disagree permanently: the drafts under-collect against a dearer team, or over-collect against
+    /// a cheaper one with nothing to detect it.
+    /// </para>
+    /// <para>
+    /// Worse, the arrears figure the family is shown assumes the plan still finances the fee —
+    /// <c>AdnSweepService.ComputeInstallmentMath</c> computes
+    /// <c>FeeTotal - PaidTotal - (amountPerOccurrence * remaining)</c>. Break that assumption and the
+    /// error is exactly <c>amountPerOccurrence * remaining</c>, in the family's email AND on the
+    /// CC-update page it links to.
+    /// </para>
+    /// <para>
+    /// Two conditions, both required:
+    /// </para>
+    /// <list type="number">
+    /// <item>The plan has occurrences STILL TO DRAFT. Keyed on schedule position, never on
+    /// <c>AdnSubscriptionStatus</c> — that column is a local mirror that can read "active" long after
+    /// the last draft. A finished plan is provably safe: at <c>remaining = 0</c> the formula above
+    /// collapses to <c>FeeTotal - PaidTotal</c>, an ordinary balance or credit.</item>
+    /// <item>The move actually changes the money — compared on the resulting <c>FeeTotal</c>, NOT on
+    /// the target team's sticker price. Payment phase is a per-scope override (team → agegroup →
+    /// league) and processing re-derives off the new base, so two teams at the SAME advertised price
+    /// can still land the registration on different totals.</item>
+    /// </list>
+    /// </summary>
+    Task<ArbPlanConflict?> DetectArbPlanConflictAsync(
+        Registrations reg, Guid jobId, Guid targetAgegroupId, Guid targetTeamId,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Pre-hydrated variant of <see cref="ApplySwapFeesAsync"/> for the whole-job reprice
     /// engines: the caller batch-resolves the fee cascade (<see cref="ResolveFeesByTeamIdsAsync"/>)
     /// and PaymentStates (<c>IPaymentStateService.ForRegistrationsAsync</c>) up front — a handful
@@ -303,6 +339,33 @@ public record FeeApplicationContext
     /// reg. Narrow by design — it only ever PRESERVES an existing full stamp, never forces full.
     /// </summary>
     public bool PreserveFullPaymentStamp { get; init; }
+}
+
+/// <summary>
+/// Why a move would strand a registrant's Authorize.Net recurring-billing plan — the output of
+/// <see cref="IFeeResolutionService.DetectArbPlanConflictAsync"/>. Every field is a figure the
+/// director needs to act: where the plan stands, what it drafts, and what the move does to the bill.
+/// A non-null instance IS the refusal; there is no severity to weigh.
+/// </summary>
+public sealed record ArbPlanConflict
+{
+    /// <summary>Occurrences already drafted (scheduled on or before today).</summary>
+    public required int OccurrencesToDate { get; init; }
+
+    /// <summary>Occurrences in the whole plan.</summary>
+    public required int TotalOccurrences { get; init; }
+
+    /// <summary>Occurrences still to draft. Always &gt; 0 — a finished plan is not a conflict.</summary>
+    public required int OccurrencesRemaining { get; init; }
+
+    /// <summary>The fixed per-draft amount. This is what the plan keeps taking, right or wrong.</summary>
+    public required decimal AmountPerOccurrence { get; init; }
+
+    /// <summary>The registration's FeeTotal as it stands today.</summary>
+    public required decimal CurrentFeeTotal { get; init; }
+
+    /// <summary>The FeeTotal the move would stamp — from a dry run of the real applier, not an estimate.</summary>
+    public required decimal NewFeeTotal { get; init; }
 }
 
 /// <summary>

@@ -336,9 +336,27 @@ export class RosterSwapperComponent {
             targetPoolId
         }).subscribe({
             next: result => {
-                this.toast.show(playerName ? `${playerName} swapped. ${result.message}` : result.message, 'success', 3000);
-                this.justMovedIds.set(new Set(regIds));
-                this.queueScrollToMoved(regIds, targetPoolId);
+                // A transfer can succeed for SOME of the selection: a registrant on an active
+                // recurring-billing plan is refused when the target team prices differently,
+                // because the plan cannot follow them. So drive everything below off what the
+                // server says actually moved — never off regIds, which is only what was asked.
+                const moved = result.movedRegistrationIds ?? [];
+                const blocked = result.blocked ?? [];
+
+                if (moved.length > 0) {
+                    this.toast.show(playerName ? `${playerName} swapped. ${result.message}` : result.message, 'success', 3000);
+                }
+
+                // One alert per refusal, each naming its player. 'danger' resolves to timeout 0 in
+                // ToastService, so these stack and stay until the director dismisses each one — a
+                // refusal that auto-scrolls away is a refusal nobody acted on. Uncapped on purpose:
+                // ten blocked players means ten alerts, which is the honest picture.
+                for (const b of blocked) {
+                    this.toast.show(b.reason, 'danger', undefined, `${b.playerName} — not moved`);
+                }
+
+                this.justMovedIds.set(new Set(moved));
+                this.queueScrollToMoved(moved, targetPoolId);
                 this.swappingId.set(null);
                 this.isBatchSwapping.set(false);
                 this.sourceSelected.set(new Set());

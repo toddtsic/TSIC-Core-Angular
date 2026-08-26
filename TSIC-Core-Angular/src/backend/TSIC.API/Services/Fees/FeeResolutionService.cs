@@ -304,6 +304,80 @@ public sealed class FeeResolutionService : IFeeResolutionService
         StampRegistrationProcessingAndTotals(reg, state);
     }
 
+    // ── Player Registration: ARB plan guard ─────────────────────
+
+    public async Task<ArbPlanConflict?> DetectArbPlanConflictAsync(
+        Registrations reg, Guid jobId, Guid targetAgegroupId, Guid targetTeamId,
+        CancellationToken ct = default)
+    {
+        // No local plan mirror = no plan to strand. All four fields are written together by
+        // PaymentService.ApplyArbSuccessToRegistration, so a partial set means no usable schedule.
+        if (reg.AdnSubscriptionStartDate is not { } startDate
+            || reg.AdnSubscriptionIntervalLength is not { } intervalMonths
+            || reg.AdnSubscriptionBillingOccurences is not { } totalOccurrences
+            || reg.AdnSubscriptionAmountPerOccurence is not { } amountPerOccurrence
+            || totalOccurrences <= 0
+            || intervalMonths <= 0)
+            return null;
+
+        // Schedule POSITION, not AdnSubscriptionStatus. Same walk as
+        // ArbDefensiveService.GetOccurrencesAsOfNow / AdnSweepService.ComputeInstallmentMath —
+        // the figures below have to agree with what the sweep emails the family.
+        var occurrencesToDate = 0;
+        for (var i = 0; i < totalOccurrences; i++)
+        {
+            if (startDate.AddMonths(i * intervalMonths).Date > DateTime.Now.Date) break;
+            occurrencesToDate++;
+        }
+
+        var remaining = totalOccurrences - occurrencesToDate;
+        if (remaining <= 0) return null;   // Plan finished — the money is done, a reprice is just a balance.
+
+        // Dry run the REAL applier against a detached copy. Re-deriving the phase/proc arithmetic
+        // here would put a second body of it in the codebase, and the swap would eventually stamp
+        // something this guard did not predict. The copy is never added to the change tracker, so
+        // nothing here can reach SaveChanges.
+        var resolved = await ResolveFeeAsync(jobId, RoleConstants.Player, targetAgegroupId, targetTeamId, ct);
+        var state = await _paymentState.ForRegistrationAsync(reg.RegistrationId, jobId, ct);
+
+        var probe = CloneFeeFields(reg);
+        ApplySwapFees(probe, resolved, state, new FeeApplicationContext());
+
+        // Half a cent: the totals are already rounded to cents, so this only absorbs representation
+        // noise — never a real price difference, the smallest of which is a whole cent.
+        if (Math.Abs(probe.FeeTotal - reg.FeeTotal) < 0.005m) return null;
+
+        return new ArbPlanConflict
+        {
+            OccurrencesToDate = occurrencesToDate,
+            TotalOccurrences = totalOccurrences,
+            OccurrencesRemaining = remaining,
+            AmountPerOccurrence = amountPerOccurrence,
+            CurrentFeeTotal = reg.FeeTotal,
+            NewFeeTotal = probe.FeeTotal
+        };
+    }
+
+    /// <summary>
+    /// A DETACHED registration carrying only what the swap applier reads and writes, for a
+    /// what-if that must not touch the caller's tracked entity. Deliberately not a full copy:
+    /// anything the applier does not read has no business here, and a navigation property would
+    /// risk EF discovering the graph.
+    /// </summary>
+    private static Registrations CloneFeeFields(Registrations reg) => new()
+    {
+        RegistrationId = reg.RegistrationId,
+        FeeBase = reg.FeeBase,
+        FeeDiscount = reg.FeeDiscount,
+        FeeDiscountMp = reg.FeeDiscountMp,
+        FeeDonation = reg.FeeDonation,
+        FeeLatefee = reg.FeeLatefee,
+        FeeProcessing = reg.FeeProcessing,
+        FeeTotal = reg.FeeTotal,
+        PaidTotal = reg.PaidTotal,
+        OwedTotal = reg.OwedTotal
+    };
+
     /// <summary>
     /// Phase decision + FeeBase stamp for a player swap/reprice. Phase is decided from BOTH the
     /// config cascade AND the registrant's own payments:
