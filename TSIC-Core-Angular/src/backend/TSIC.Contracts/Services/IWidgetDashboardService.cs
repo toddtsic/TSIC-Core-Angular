@@ -23,6 +23,21 @@ public interface IWidgetDashboardService
         CancellationToken ct = default);
 
     /// <summary>
+    /// True when this job + role has at least one DASHBOARD-workspace widget after the
+    /// platform defaults and the per-job overrides are merged — i.e. whether the dashboard
+    /// would render anything at all. Gates the doors INTO the dashboard, so it must stay
+    /// cheap: it counts rows, it does not assemble the dashboard.
+    ///
+    /// Counts merge layers 1+2 ONLY (WidgetDefault, JobWidget). Layer 3 is the per-user
+    /// UserWidget hide list, and folding it in would let an admin who hid every widget
+    /// lock themselves out of the Customize dialog that is the only way to unhide.
+    /// </summary>
+    Task<bool> HasDashboardWidgetsAsync(
+        Guid jobId,
+        string roleName,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Get live aggregate metrics (registrations, financials, scheduling) for the dashboard hero.
     /// </summary>
     Task<DashboardMetricsDto> GetMetricsAsync(

@@ -66,11 +66,22 @@ export class JobLandingComponent implements OnDestroy {
 	 * Admin-only link to the widget dashboard.
 	 *
 	 * The dashboard route guards on exactly these three roles, so `isAdmin()` is the
-	 * same authority rather than a second opinion. Shown because there is currently
-	 * NO other way in: `nav.NavItem` carries no dashboard row, so a director who
-	 * doesn't know the URL cannot reach their own dashboard at all.
+	 * same authority rather than a second opinion.
+	 *
+	 * The third clause is the one that matters: the pulse reports whether this job+role
+	 * has any dashboard widget at all, so a job whose dashboard would render empty shows
+	 * no pill. `=== true` on purpose — the flag is null while the pulse is in flight and
+	 * null for a non-admin, and neither is "yes".
+	 *
+	 * This pill DUPLICATES the user-menu entry (client-header-bar, added 8649ee45), which
+	 * is a deliberate second door, not an oversight: the same dropdown swallowed Switch
+	 * Role until AR-025 pulled it out to the top strip. Both doors gate on the same pulse
+	 * flag so they can never disagree about whether a dashboard exists.
 	 */
-	readonly showDashboardLink = computed(() => this.auth.isAdmin() && !!this.activeJobPath());
+	readonly showDashboardLink = computed(() =>
+		this.auth.isAdmin()
+		&& !!this.activeJobPath()
+		&& this.pulse()?.myHasDashboardWidgets === true);
 
 	/**
 	 * Built as an absolute segment array that INCLUDES the jobPath, not a relative

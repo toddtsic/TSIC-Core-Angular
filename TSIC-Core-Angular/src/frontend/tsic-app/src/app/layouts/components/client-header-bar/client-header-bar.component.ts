@@ -40,6 +40,19 @@ export class ClientHeaderBarComponent {
 
     readonly isAdmin = this.auth.isAdmin;
 
+    /**
+     * Gates the Dashboard + Customize Dashboard menu entries — the dropdown door into
+     * /dashboard. Being an admin is necessary but not sufficient: the pulse reports
+     * whether this job+role has any dashboard widget at all, so a job whose dashboard
+     * would render empty offers no way in rather than a blank page.
+     *
+     * `=== true` on purpose. The flag is null while the pulse is still in flight, null
+     * for a non-admin, and null when the JWT is not scoped to this job — none of those
+     * is "yes", and treating a loading pulse as yes is what would flash a dead link.
+     */
+    readonly showDashboardEntries = computed(() =>
+        this.isAdmin() && this.pulse()?.myHasDashboardWidgets === true);
+
     // Job-related signals
     jobLogoPath = computed(() => {
         const job = this.jobService.currentJob();

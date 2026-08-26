@@ -17,6 +17,7 @@ using TSIC.API.Services.Shared.Jobs;
 using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.API.Services.Auth;
 using TSIC.API.Services.Shared.UsLax;
+using TSIC.Domain.Constants;
 
 namespace TSIC.API.Controllers;
 
@@ -28,6 +29,16 @@ public class JobsController : ControllerBase
     private const string JobNameToken = "!JOBNAME";
     private const string UslaxDateToken = "!USLAXVALIDTHROUGHDATE";
 
+    // The three roles the client's /dashboard route guards on. Kept in step with that
+    // route's `data.roles` — the pulse's MyHasDashboardWidgets is only meaningful for
+    // a role that can actually open the page.
+    private static readonly HashSet<string> AdminRoleNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        RoleConstants.Names.SuperuserName,
+        RoleConstants.Names.DirectorName,
+        RoleConstants.Names.SuperDirectorName
+    };
+
     private readonly ILogger<JobsController> _logger;
     private readonly IJobLookupService _jobLookupService;
     private readonly ITeamLookupService _teamLookupService;
@@ -37,6 +48,7 @@ public class JobsController : ControllerBase
     private readonly IUserRepository _userRepository;
     private readonly IPlayerRegistrationMetadataService _metadataService;
     private readonly IFeeResolutionService _feeService;
+    private readonly IWidgetDashboardService _widgetDashboardService;
 
     public JobsController(
         ILogger<JobsController> logger,
@@ -47,7 +59,8 @@ public class JobsController : ControllerBase
         IJobRepository jobRepository,
         IUserRepository userRepository,
         IPlayerRegistrationMetadataService metadataService,
-        IFeeResolutionService feeService)
+        IFeeResolutionService feeService,
+        IWidgetDashboardService widgetDashboardService)
     {
         _logger = logger;
         _jobLookupService = jobLookupService;
@@ -58,6 +71,7 @@ public class JobsController : ControllerBase
         _userRepository = userRepository;
         _metadataService = metadataService;
         _feeService = feeService;
+        _widgetDashboardService = widgetDashboardService;
     }
 
     [AllowAnonymous]
@@ -318,6 +332,22 @@ public class JobsController : ControllerBase
                         MyFirstName = ctx.FirstName ?? pulse.MyFirstName,
                         MyLastName = ctx.LastName ?? pulse.MyLastName
                     };
+
+                    // Does this admin's dashboard have anything in it? Gates both doors into
+                    // /dashboard on the client. Restricted to the three roles that route
+                    // guards on, so a family's pulse never pays for the two widget queries.
+                    if (AdminRoleNames.Contains(role))
+                    {
+                        var jobId = await _jobLookupService.GetJobIdByPathAsync(jobPath);
+                        if (jobId.HasValue)
+                        {
+                            pulse = pulse with
+                            {
+                                MyHasDashboardWidgets =
+                                    await _widgetDashboardService.HasDashboardWidgetsAsync(jobId.Value, role, ct)
+                            };
+                        }
+                    }
                 }
             }
         }
