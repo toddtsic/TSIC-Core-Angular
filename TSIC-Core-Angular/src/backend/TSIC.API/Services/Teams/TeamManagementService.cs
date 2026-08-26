@@ -47,10 +47,17 @@ public sealed class TeamManagementService : ITeamManagementService
         var detail = await _teamRepo.GetTeamDetailAsync(teamId, ct);
         var jobId = detail?.JobId ?? Guid.Empty;
 
+        // TeamId is the ONLY all-teams discriminator: null means the whole job, set means that
+        // one team. JobId is written on every row regardless.
+        //
+        // It used to be null on team-scoped rows, which made them invisible to the director:
+        // the admin screen's list is `where td.JobId == jobId`, so a link filed from the phone
+        // on one team appeared in the app and nowhere the director could review or remove it.
+        // Harmless while only directors could author; not once Player and Staff can (4c29c382).
+        // Matches TeamLinkService.ReplaceGroupAsync, which already stamps JobId on every row.
         Guid? docTeamId = request.AddAllTeams ? null : teamId;
-        Guid? docJobId = request.AddAllTeams ? jobId : null;
 
-        var doc = await _teamDocsRepo.AddTeamLinkAsync(docTeamId, docJobId, userId, request.Label, request.DocUrl, ct);
+        var doc = await _teamDocsRepo.AddTeamLinkAsync(docTeamId, jobId, userId, request.Label, request.DocUrl, ct);
         await _teamDocsRepo.SaveChangesAsync(ct);
 
         return new TeamLinkDto
