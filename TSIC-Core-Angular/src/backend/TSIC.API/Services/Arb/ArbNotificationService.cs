@@ -9,29 +9,24 @@ using TSIC.Domain.Entities;
 namespace TSIC.API.Services.Arb;
 
 /// <summary>
-/// Emails the families behind ARB drafts that failed, from the daily sweep.
+/// Unattended family-facing ARB mail: the expiring-card notice, on the 2nd and the 15th.
 ///
-/// Until this existed the sweep imported every declined draft correctly and told nobody. The digest's
-/// alert list filters on subscription status != active, and ADN keeps a subscription active while it
-/// retries a declined card, so the great majority of failures were invisible there by construction.
+/// It used to carry a second job — mailing every family behind a failed draft, from the 4 AM sweep.
+/// That was removed on 2026-08-26. A dunning notice now goes only when a director sends it from the
+/// ARB Health screen; the sweep reports failed drafts in its digest and contacts nobody. What remains
+/// here is the pre-emptive notice, which fires BEFORE a card fails and asks for nothing owed.
 ///
 /// WHY THE TEXT IS FIXED HERE and not shared with the ARB Health screen: that screen's copy is a
 /// DRAFT a director edits before sending, which is its whole purpose. This copy is an unattended
 /// contract. One shared source would let a director's wording change silently alter what goes to
-/// thousands of families at 4 AM. The wording below is deliberately IDENTICAL to the screen's
-/// defaults in arb-health.component.ts — separately owned, not separately worded.
+/// thousands of families. The wording below is deliberately IDENTICAL to the screen's defaults in
+/// arb-health.component.ts — separately owned, not separately worded.
 ///
 /// If you change the menu label in the step list below, change it in arb-health.component.ts too.
 /// That step list is the line that rots: it names a menu item the family has to find.
 /// </summary>
 public sealed class ArbNotificationService : IArbNotificationService
 {
-    /// <summary>Subject for a failure on a plan that is still alive. Stable: emailLogs is queried on it.</summary>
-    public const string SubjectPlanAlive = "Action Required: Update Your Payment Information";
-
-    /// <summary>Subject for a failure on a plan that has already ended. Stable: emailLogs is queried on it.</summary>
-    public const string SubjectPlanDead = "Action Required: Pay Balance Due";
-
     /// <summary>Subject for the expiring-card notice. Stable: emailLogs is queried on it.</summary>
     public const string SubjectExpiringCard = "TeamSportsInfo.com Credit Card Expiring This Month";
 
@@ -212,115 +207,6 @@ public sealed class ArbNotificationService : IArbNotificationService
             buckets[(jobId, subject)] = b;
         }
         return b;
-    }
-
-    public async Task<ArbNotifyResultDto> NotifyFailedDraftsAsync(
-        IReadOnlyList<ArbFailedDraftDto> failures, CancellationToken ct = default)
-    {
-        if (failures.Count == 0) return ArbNotifyResultDto.Empty;
-
-        var skips = new List<ArbNotifySkipDto>();
-        var rendered = new List<ArbRenderedEmailDto>();
-        var buckets = new Dictionary<(Guid, string), AuditBucket>();
-        var emailed = 0;
-
-        // One estate-wide projection read for the whole morning's failures. jobIdFilter is null on
-        // purpose: the sweep spans every job, and the registration carries its own job identity.
-        var invoices = failures.Select(f => f.InvoiceNumber).Distinct().ToList();
-        var projections = (await _arbRepo.GetRegistrationsByInvoiceNumbersAsync(invoices, null, ct))
-            .GroupBy(p => p.RegistrationId)
-            .ToDictionary(g => g.Key, g => g.First());
-
-        // The From ADDRESS is forced to the SES-verified identity at the send chokepoint, so the
-        // director rides Reply-To. Without one, a family's reply about their own payment lands in
-        // TSIC support's inbox instead of their club's.
-        var jobIds = projections.Values.Select(p => p.JobId).Distinct().ToList();
-        var directors = (await _arbRepo.GetDefaultDirectorsForJobsAsync(jobIds, ct))
-            .GroupBy(d => d.JobId)
-            .ToDictionary(g => g.Key, g => g.First());
-
-        foreach (var failure in failures)
-        {
-            ct.ThrowIfCancellationRequested();
-
-            var who = failure.Registrant ?? failure.RegistrationId.ToString();
-            try
-            {
-                if (!projections.TryGetValue(failure.RegistrationId, out var reg))
-                {
-                    skips.Add(Skip(who, failure.JobName, "no ARB projection for this registration"));
-                    continue;
-                }
-
-                if (reg.BemailOptOut)
-                {
-                    skips.Add(Skip(who, reg.JobName, "registrant has opted out of email"));
-                    continue;
-                }
-
-                // Unresolved-token guard. The login line is the entire point of this email; sending
-                // it with a blank username produces a support call, not a payment. Skip and name
-                // them in the digest so a human picks it up. Adult/self registrations legitimately
-                // have no family user and land here.
-                if (string.IsNullOrWhiteSpace(reg.FamilyUsername))
-                {
-                    skips.Add(Skip(who, reg.JobName, "no family username on file - cannot give login instructions"));
-                    continue;
-                }
-
-                // Same candidate set as the director-clicked path in ArbDefensiveService.
-                var recipients = BatchEmailRecipientFilter.BuildSendableSet(
-                    new[] { reg.MomEmail, reg.DadEmail, reg.RegistrantEmail });
-                if (recipients.Count == 0)
-                {
-                    skips.Add(Skip(who, reg.JobName, "no sendable email address on the account"));
-                    continue;
-                }
-
-                var alive = PlanIsAlive(failure.SubscriptionStatus);
-                var subject = alive ? SubjectPlanAlive : SubjectPlanDead;
-                var template = alive ? BodyPlanAlive : BodyPlanDead;
-                var body = ReplaceTokens(template, reg, failure);
-
-                directors.TryGetValue(reg.JobId, out var director);
-
-                var sent = await SendOrRenderAsync(
-                    who, reg.JobName, recipients, subject, body, director, ct);
-                // Retained for review on a dry run ONLY. On a live run this went to the family, there is
-                // nothing to review, and keeping it would return every family's name, address and balance
-                // in the manual-run HTTP response.
-                if (_dryRun) rendered.Add(sent);
-
-                // Alive and dead are separate email types, so a job with both kinds of failure this
-                // morning audits as two rows — which is correct: they are two different messages.
-                var bucket = Bucket(buckets, reg.JobId, reg.JobName, subject, template);
-                bucket.SendFrom ??= director?.Email;
-                bucket.Recipients.AddRange(recipients);
-                bucket.Families++;
-                emailed++;
-            }
-            catch (Exception ex)
-            {
-                // Per-registration containment: one bad address must not cost the other families
-                // their notice, and must not surface as a sweep error.
-                _logger.LogError(ex, "ARB failure notification failed for registration {RegId} (tx {TxId})",
-                    failure.RegistrationId, failure.TransId);
-                skips.Add(Skip(who, failure.JobName, $"send failed: {ex.Message}"));
-            }
-        }
-
-        var auditRows = await FlushAuditAsync(buckets.Values, ct);
-
-        return new ArbNotifyResultDto
-        {
-            Found = failures.Count,
-            Emailed = emailed,
-            Skipped = skips.Count,
-            Skips = skips,
-            DryRun = _dryRun,
-            Rendered = rendered,
-            AuditRows = auditRows
-        };
     }
 
     public async Task<ArbNotifyResultDto> NotifyExpiringCardsAsync(CancellationToken ct = default)
@@ -530,46 +416,11 @@ public sealed class ArbNotificationService : IArbNotificationService
         }
     }
 
-    /// <summary>
-    /// Blank or unknown counts as ALIVE. The sweep only sees a failure because a draft was attempted,
-    /// and a terminated subscription cannot attempt one — so the live-plan instructions are the safe
-    /// default. Sending a live-plan family to "Pay Balance Due" would strand their remaining
-    /// installments; the reverse is the AR-013 shape.
-    /// </summary>
-    private static bool PlanIsAlive(string? status) =>
-        string.IsNullOrWhiteSpace(status)
-        || status.Equals("active", StringComparison.OrdinalIgnoreCase)
-        || status.Equals("suspended", StringComparison.OrdinalIgnoreCase);
-
     private static ArbNotifySkipDto Skip(string who, string jobName, string reason) =>
         new() { Registrant = who, JobName = jobName, Reason = reason };
 
-    private static string ReplaceTokens(
-        string template, ArbRegistrationProjection reg, ArbFailedDraftDto failure)
-    {
-        var natural = $"{reg.FirstName} {reg.LastName}".Trim();
-        var display = string.IsNullOrWhiteSpace(natural) ? reg.RegistrantName : natural;
-        var person = $"<strong>{System.Net.WebUtility.HtmlEncode(display)}</strong>";
-        var jobName = System.Net.WebUtility.HtmlEncode(reg.JobName ?? string.Empty);
-
-        return template
-            .Replace("!PLAYER", person)
-            .Replace("!PERSON", person)
-            .Replace("!SUBSCRIPTIONID", $"<strong>{reg.SubscriptionId}</strong>")
-            .Replace("!SUBSCRIPTIONSTATUS", $"<strong>{reg.SubscriptionStatus}</strong>")
-            .Replace("!FEETOTAL", $"<strong>{reg.FeeTotal:C}</strong>")
-            .Replace("!PAIDTOTAL", $"<strong>{reg.PaidTotal:C}</strong>")
-            // The sweep's own ComputeInstallmentMath figure, carried across so the family's email and
-            // the morning digest never quote two different numbers for the same registration.
-            .Replace("!OWEDNOW", $"<strong>{failure.OwedNow:C}</strong>")
-            .Replace("!OWEDTOTAL", $"<strong>{reg.OwedTotal:C}</strong>")
-            .Replace("!FAMILYUSERNAME", $"<strong>{System.Net.WebUtility.HtmlEncode(reg.FamilyUsername ?? string.Empty)}</strong>")
-            .Replace("!JOBLINK", $"<a href='https://www.teamsportsinfo.com/{reg.JobPath}' target='_blank'>{jobName}</a>")
-            .Replace("!JOBNAME", $"<strong>{jobName}</strong>");
-    }
-
     /// <summary>
-    /// Same token set, filled from the flagged-registrant DTO the ARB Health query produces. The
+    /// Fills the template from the flagged-registrant DTO the ARB Health query produces. The
     /// expiring-card path has no failed transaction behind it, so !OWEDNOW comes from the DTO's own
     /// CurrentlyOwes (zero on this flag type by construction) rather than from a draft.
     /// </summary>
@@ -597,30 +448,6 @@ public sealed class ArbNotificationService : IArbNotificationService
     // ── Fixed text ────────────────────────────────────────────────────
     // Word-for-word the ARB Health screen's defaults. See the class summary for why it is a separate
     // copy rather than a shared one.
-
-    private const string BodyPlanAlive =
-        "<p>One or more of your automatic payments for !JOBNAME for !PLAYER was declined.</p>" +
-        "<p>You can contact your credit card issuer to determine the reason if you need to.</p>" +
-        "<p>Then you can update your credit card information and process the current balance due (!OWEDNOW) all in one step.</p>" +
-        "<p>To fix this, visit !JOBLINK, then:</p>" +
-        "<ol>" +
-        "<li>Login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME</li>" +
-        "<li>Select your Player's role</li>" +
-        "<li>Under 'Player' in the upper right, select <b>Update CC Info</b> — this also pays the auto-payment that failed</li>" +
-        "<li>Your <b>Balance Due</b> is shown near the top of the page. Enter your credit card information below it.</li>" +
-        "<li>Click <b>Update Card &amp; Pay Balance</b> to make the payment and reactivate your future automatic payments.</li>" +
-        "</ol>";
-
-    private const string BodyPlanDead =
-        "<p>One or more of your automatic payments for !JOBNAME for !PLAYER was declined.</p>" +
-        "<p>You can contact your credit card issuer to determine the reason if you need to.</p>" +
-        "<p>Then you can update your credit card information and process the current balance due (!OWEDNOW) all in one step.</p>" +
-        "<p>To fix this, visit !JOBLINK, then:</p>" +
-        "<ol>" +
-        "<li>Login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME</li>" +
-        "<li>Select your Player's role</li>" +
-        "<li>Under 'Player' in the upper right, select 'Pay Balance Due'</li>" +
-        "</ol>";
 
     private const string BodyExpiringCard =
         "<h2>Credit Card Expiration Notice</h2>" +
