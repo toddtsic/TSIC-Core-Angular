@@ -3,6 +3,7 @@ using TSIC.Contracts.Dtos.CheckIn;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
+using TSIC.Domain.Uploads;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.Infrastructure.Repositories;
@@ -60,6 +61,21 @@ public class CheckinRepository : ICheckinRepository
 
     public async Task<List<PlayerCheckinRowDto>> GetPlayerRosterByTeamAsync(Guid teamId, CancellationToken ct = default)
     {
+        // EVENT GATE (AR-038). Med-form files are keyed by PERSON, so Registrations.bUploadedMedForm
+        // can read true on a registration whose own event never collected one — 48 rows across 10
+        // unrelated customers do today. The View action goes through MedFormController and is gated,
+        // but this indicator was not, so it announced "a medical record exists for this child" to
+        // directors who never asked for one. Same predicate as the controller, resolved once per
+        // call, then AND'd into every row. Sequential await, not WhenAll — shared scoped DbContext.
+        var metadataJson = await (
+            from t in _context.Teams
+            join j in _context.Jobs on t.JobId equals j.JobId
+            where t.TeamId == teamId
+            select j.PlayerProfileMetadataJson)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(ct);
+        var collectsMedForm = UploadedDocumentPolicy.CollectsMedForm(metadataJson);
+
         return await (
             from r in _context.Registrations
             join u in _context.AspNetUsers on r.UserId equals u.Id
@@ -93,7 +109,7 @@ public class CheckinRepository : ICheckinRepository
                 DadEmail = r.FamilyUser != null ? r.FamilyUser.DadEmail : null,
                 OwedTotal = r.OwedTotal,
                 PaidTotal = r.PaidTotal,
-                HasMedForm = r.BUploadedMedForm ?? false,
+                HasMedForm = collectsMedForm && (r.BUploadedMedForm ?? false),
                 CheckedInTs = r.PlayerCheckInsRegistration != null
                     ? r.PlayerCheckInsRegistration.CheckedInTs
                     : (DateTime?)null,
