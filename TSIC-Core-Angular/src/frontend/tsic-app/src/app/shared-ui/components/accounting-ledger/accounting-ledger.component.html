@@ -242,9 +242,9 @@
                        [ngModel]="amount()" (ngModelChange)="setAmount($event)"
                        [min]="0.01" [max]="rec.paidAmount ?? 0" step="1" />
               </div>
-              @if (amount() <= 0 || amount() > (rec.paidAmount ?? 0)) {
+              @if (amountValue() <= 0 || amountValue() > (rec.paidAmount ?? 0)) {
                 <div class="text-danger small mt-1">
-                  @if (amount() <= 0) { Amount must be greater than $0.00 }
+                  @if (amountValue() <= 0) { Amount must be greater than $0.00 }
                   @else { Cannot exceed {{ rec.paidAmount | currency }} }
                 </div>
               }
@@ -264,12 +264,12 @@
               <div class="cc-confirm">
                 <strong><i class="bi bi-exclamation-triangle-fill text-danger me-1"></i> Confirm CC Refund</strong>
                 <p class="cc-confirm-detail">
-                  Refunding <strong>{{ amount() | currency }}</strong> to card ending in <strong>{{ rec.adnCc4 ?? '—' }}</strong>.
+                  Refunding <strong>{{ amountValue() | currency }}</strong> to card ending in <strong>{{ rec.adnCc4 ?? '—' }}</strong>.
                 </p>
                 <p class="cc-confirm-warning">This processes immediately via Authorize.Net and cannot be undone.</p>
                 <div class="cc-confirm-actions">
                   <button type="button" class="btn btn-sm btn-danger" (click)="confirmRefund()">
-                    Yes, Refund {{ amount() | currency }}
+                    Yes, Refund {{ amountValue() | currency }}
                   </button>
                   <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closePaymentModal()">
                     Cancel
@@ -411,10 +411,14 @@
         <!-- Check Fields -->
         @if (paymentType() === 'check') {
           <div class="form-group">
-            <label for="ledger-check-no" class="form-label">Check Number</label>
+            <label for="ledger-check-no" class="form-label">
+              Check Number <span class="required-mark" aria-hidden="true">*</span>
+            </label>
             <input type="text" id="ledger-check-no" class="form-control form-control-sm"
               [ngModel]="checkNo()" (ngModelChange)="checkNo.set($event)"
+              required aria-required="true"
               placeholder="Enter check number" />
+            <div class="form-text"><small>Required - a check record cannot be saved without it.</small></div>
           </div>
         }
 
@@ -429,29 +433,38 @@
                      every other type stays non-negative. -->
                 <input type="number" id="ledger-amount" class="form-control form-control-sm"
                   [ngModel]="amount()" (ngModelChange)="setAmount($event)" step="1"
+                  placeholder="Enter amount"
                   [min]="paymentType() === 'correction' && allowNegativeCorrection() ? null : 0"
                   [max]="paymentType() === 'cc' ? null : checkBalanceDue()" />
               </div>
               <div class="owed-badge" [class.text-danger]="checkBalanceDue() > 0" [class.text-success]="checkBalanceDue() <= 0">
                 Balance Due: <strong>{{ paymentType() === 'cc' ? (modalOwed() | currency) : (checkBalanceDue() | currency) }}</strong>
+                <!-- AR-042: the balance is OFFERED, not written into the field on open. Same
+                     shape as the correction solver's "Use" button below. -->
+                @if (fullBalanceForType() > 0 && amount() !== fullBalanceForType()) {
+                  <button type="button" class="btn btn-sm btn-outline-primary use-balance-btn"
+                    (click)="applyFullBalance()">
+                    Use {{ fullBalanceForType() | currency }}
+                  </button>
+                }
                 @if (paymentType() === 'check' && totalFeeReduction() > 0) {
                   <div class="fee-note text-success"><small>{{ totalFeeReduction() | currency }} processing fees removed</small></div>
                 }
                 <!-- Live signed impact of the ENTERED correction amount — the check note above is
                      full-balance; a correction can be any amount in either direction, so this one
                      tracks the field: |amount| + its proc-fee effect. -->
-                @if (paymentType() === 'correction' && amount() !== 0 && !correctionNegativeBlocked()) {
-                  <div class="fee-note" [class.text-success]="amount() > 0" [class.text-danger]="amount() < 0">
+                @if (paymentType() === 'correction' && amountValue() !== 0 && !correctionNegativeBlocked()) {
+                  <div class="fee-note" [class.text-success]="amountValue() > 0" [class.text-danger]="amountValue() < 0">
                     <small>
-                      @if (amount() > 0) {
+                      @if (amountValue() > 0) {
                         Reduces amount owed by <strong>{{ correctionOwedEffect() | currency }}</strong>
                         @if (correctionProcEffect() > 0) {
-                          ({{ amount() | currency }} + {{ correctionProcEffect() | currency }} processing fee removed)
+                          ({{ amountValue() | currency }} + {{ correctionProcEffect() | currency }} processing fee removed)
                         }
                       } @else {
                         Increases amount owed by <strong>{{ correctionOwedEffect() | currency }}</strong>
                         @if (correctionProcEffect() > 0) {
-                          ({{ -amount() | currency }} + {{ correctionProcEffect() | currency }} processing fee restored)
+                          ({{ -amountValue() | currency }} + {{ correctionProcEffect() | currency }} processing fee restored)
                         }
                       }
                     </small>
@@ -536,7 +549,7 @@
         </div>
 
         <!-- Club allocation preview for check/correction -->
-        @if (paymentType() !== 'cc' && clubBreakdown()?.length && amount() > 0) {
+        @if (paymentType() !== 'cc' && clubBreakdown()?.length && amountValue() > 0) {
           <div class="club-breakdown">
             <h6 class="breakdown-title">Allocation Preview</h6>
             <p class="breakdown-note">Distributed starting with highest balance:</p>
@@ -572,12 +585,12 @@
           <div class="cc-confirm">
             <strong>Confirm Credit Card Charge</strong>
             <p class="cc-confirm-detail">
-              Charging <strong>{{ amount() | currency }}</strong> to card ending in <strong>{{ ccLast4() }}</strong>.
+              Charging <strong>{{ amountValue() | currency }}</strong> to card ending in <strong>{{ ccLast4() }}</strong>.
             </p>
             <p class="cc-confirm-warning">Processes immediately via Authorize.Net.</p>
             <div class="cc-confirm-actions">
               <button type="button" class="btn btn-sm btn-danger" (click)="confirmCcCharge()">
-                Yes, Charge {{ amount() | currency }}
+                Yes, Charge {{ amountValue() | currency }}
               </button>
               <button type="button" class="btn btn-sm btn-outline-secondary" (click)="dismissCcConfirm()">
                 Go Back
@@ -593,7 +606,7 @@
           <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closePaymentModal()">Cancel</button>
           @if (paymentType() === 'refund') {
             <button type="button" class="btn btn-sm btn-danger" (click)="submitPayment()" [disabled]="!canSubmitPayment()">
-              <i class="bi bi-arrow-counterclockwise me-1"></i> Refund {{ amount() | currency }}
+              <i class="bi bi-arrow-counterclockwise me-1"></i> Refund {{ amountValue() | currency }}
             </button>
           } @else {
             <button type="button" class="btn btn-sm btn-primary" (click)="submitPayment()" [disabled]="!canSubmitPayment()">

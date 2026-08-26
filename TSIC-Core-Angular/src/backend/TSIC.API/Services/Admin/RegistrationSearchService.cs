@@ -563,7 +563,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             Dueamt = request.DueAmount,
             Payamt = request.PaidAmount,
             Comment = request.Comment,
-            CheckNo = request.CheckNo,
+            CheckNo = request.CheckNo?.Trim(),
             PromoCode = request.PromoCode,
             Active = true,
             Createdate = DateTime.Now,
@@ -755,6 +755,16 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
 
         if (isCheck && request.Amount <= 0)
             return new RegistrationCheckOrCorrectionResponse { Success = false, Error = "A check payment must be > $0.00." };
+
+        // AR-042 - a check record must carry a check number. The ledger modal opens on the
+        // Check tab, and before this guard the tab needed no typing at all, so a stray
+        // click posted money and activated the registration. The number is the one field
+        // only a real check can supply. Deliberately NOT enforced on the DTO: Corrections
+        // share this request type and legitimately have no check. Trimmed - whitespace is
+        // not a check number, and the UI would otherwise pass a blank string straight through.
+        if (isCheck && string.IsNullOrWhiteSpace(request.CheckNo))
+            return new RegistrationCheckOrCorrectionResponse { Success = false, Error = "A check number is required to record a check payment." };
+
         // Corrections are SIGNED: positive forgives (lowers owed), negative claws back
         // (raises owed — reinstate a charge, undo an over-credit). Negatives have NO
         // floor by ruling: a correction may charge beyond the fee structure, so owed
@@ -828,7 +838,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             PaymentMethodId = paymentMethodId,
             Dueamt = 0,
             Payamt = request.Amount,
-            CheckNo = request.CheckNo,
+            CheckNo = request.CheckNo?.Trim(),
             Comment = request.Comment,
             Active = true,
             Createdate = DateTime.Now,
@@ -913,8 +923,18 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         if (record.Registration == null || record.Registration.JobId != jobId)
             throw new InvalidOperationException("Accounting record does not belong to this job.");
 
+        // AR-042 - the same invariant as the create path, at the OTHER door that writes this
+        // column: a check record that HAS a number may not be edited down to a blank one.
+        // Scoped to clearing an existing value on purpose - corrections are edited here too
+        // and carry no check number, and the handful of pre-guard check rows that were saved
+        // blank must stay editable for their comments.
+        if (record.PaymentMethodId == CheckMethodId
+            && !string.IsNullOrWhiteSpace(record.CheckNo)
+            && string.IsNullOrWhiteSpace(request.CheckNo))
+            throw new InvalidOperationException("A check record must keep a check number.");
+
         record.Comment = request.Comment;
-        record.CheckNo = request.CheckNo;
+        record.CheckNo = request.CheckNo?.Trim();
         record.Modified = DateTime.Now;
         record.LebUserId = userId;
 

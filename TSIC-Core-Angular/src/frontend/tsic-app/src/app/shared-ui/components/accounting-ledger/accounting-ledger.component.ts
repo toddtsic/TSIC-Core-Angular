@@ -290,7 +290,13 @@ export class AccountingLedgerComponent {
 	// ── Refund mode state ──
 	refundRecord = signal<AccountingRecordDto | null>(null);
 	showRefundConfirm = signal(false);
-	amount = signal<number>(0);
+	/** Entered amount. NULL = nothing typed yet. The entry form no longer pre-fills the
+	 *  balance, so a freshly opened modal is never submittable (AR-042). */
+	amount = signal<number | null>(null);
+
+	/** The entered amount as a number, 0 when blank - for derivation and display only.
+	 *  Submit gates read amount() directly so a blank field can never pass as a zero. */
+	amountValue = computed(() => this.amount() ?? 0);
 	comment = signal('');
 	checkNo = signal('');
 	showCcConfirm = signal(false);
@@ -401,7 +407,7 @@ export class AccountingLedgerComponent {
 	 *  inline error and disables Submit. Corrections are intentional ± adjustments
 	 *  and are excluded from this guard. */
 	checkExceedsBalance = computed(() =>
-		this.paymentType() === 'check' && this.amount() > this.checkBalanceDue()
+		this.paymentType() === 'check' && this.amountValue() > this.checkBalanceDue()
 	);
 
 	/** Correction bounds — corrections are SIGNED. Positive (forgive) can't exceed the
@@ -410,13 +416,13 @@ export class AccountingLedgerComponent {
 	 *  the fee structure, so no lower cap applies. */
 	correctionExceedsBounds = computed(() => {
 		if (this.paymentType() !== 'correction') return false;
-		return this.amount() > this.checkBalanceDue();
+		return this.amountValue() > this.checkBalanceDue();
 	});
 
 	/** Negative correction typed where it can't land on one known target (club scope).
 	 *  Mirrors the server guard; drives the inline error and disables Submit. */
 	correctionNegativeBlocked = computed(() =>
-		this.paymentType() === 'correction' && this.amount() < 0 && !this.allowNegativeCorrection()
+		this.paymentType() === 'correction' && this.amountValue() < 0 && !this.allowNegativeCorrection()
 	);
 
 	/** AR-032 — Correction is locked when the record would land on a registration whose ARB plan
@@ -446,13 +452,13 @@ export class AccountingLedgerComponent {
 	 *  figure is canonical (same formula, capped at the FeeProcessingTarget). */
 	correctionProcEffect = computed(() => {
 		if (this.paymentType() !== 'correction') return 0;
-		return Math.round(Math.abs(this.amount()) * this.derivedProcRate() * 100) / 100;
+		return Math.round(Math.abs(this.amountValue()) * this.derivedProcRate() * 100) / 100;
 	});
 
 	/** Total effect of the entered correction on the amount owed (magnitude):
 	 *  |amount| + its proc effect. The single line that answers "what will this do?". */
 	correctionOwedEffect = computed(() =>
-		Math.abs(this.amount()) + this.correctionProcEffect()
+		Math.abs(this.amountValue()) + this.correctionProcEffect()
 	);
 
 	// ── Net-adjustment solver (correction form) ──
@@ -480,6 +486,19 @@ export class AccountingLedgerComponent {
 	applyNetAdjust(): void {
 		const a = this.netCorrectionAmount();
 		if (a != null) this.amount.set(a);
+	}
+
+	/** The full outstanding figure for the ACTIVE tab: CC charges gross owed, check and
+	 *  correction use the balance with processing fees removed. Offered as a one-click
+	 *  fill (AR-042) instead of being written into the field on open. */
+	fullBalanceForType = computed(() =>
+		this.paymentType() === 'cc' ? this.modalOwed() : this.checkBalanceDue()
+	);
+
+	/** Same convenience the pre-fill used to give, as a deliberate act. Mirrors
+	 *  applyNetAdjust(): the component computes the figure, the human chooses it. */
+	applyFullBalance(): void {
+		this.amount.set(this.fullBalanceForType());
 	}
 
 	/** Add-record entry point. With more than one target, ask which registration first; otherwise
@@ -516,14 +535,22 @@ export class AccountingLedgerComponent {
 		this.pickingTarget.set(true);
 	}
 
-	/** Seed the form defaults once a target is settled (or none is needed). */
+	/** Seed the form defaults once a target is settled (or none is needed). AR-042: the
+	 *  amount is deliberately left BLANK. Pre-filling it with the balance made the modal
+	 *  submittable the instant it opened - Check is the default tab and its only gates were
+	 *  amt > 0 && amt <= balance, both satisfied by the pre-fill, so two clicks and zero
+	 *  keystrokes posted a full-balance payment and activated the registration. The figure
+	 *  is still one click away via applyFullBalance(). */
 	private beginNormalEntry(): void {
 		this.paymentType.set('check');
-		this.amount.set(this.checkBalanceDue());
+		this.amount.set(null);
 	}
 
 	/** Clear all entry fields (called before either the picker or the form is shown). */
 	private clearPaymentForm(): void {
+		// Amount belongs here too: it is an entry field, and leaving it out let the previous
+		// entry's figure survive into the target picker (AR-042).
+		this.amount.set(null);
 		this.netAdjust.set(null);
 		this.comment.set('');
 		this.checkNo.set('');
@@ -565,17 +592,20 @@ export class AccountingLedgerComponent {
 		this.selectedAddTarget.set(null);
 	}
 
-	/** Restrict amount to 2 decimal places */
-	setAmount(value: number): void {
-		this.amount.set(Math.round((value ?? 0) * 100) / 100);
+	/** Restrict amount to 2 decimal places. A cleared field stays NULL rather than
+	 *  collapsing to 0, so "nothing entered" never reads as "zero dollars". */
+	setAmount(value: number | null): void {
+		this.amount.set(value == null ? null : Math.round(value * 100) / 100);
 	}
 
 	selectPaymentType(type: PaymentType): void {
 		// The Correction button is disabled when locked; this is the second door on the same rule.
 		if (type === 'correction' && this.correctionLocked()) return;
 		this.paymentType.set(type);
-		// CC charges full owed; check/correction uses adjusted balance (minus processing fees)
-		this.amount.set(type === 'cc' ? this.modalOwed() : this.checkBalanceDue());
+		// AR-042: clear rather than re-seed. Seeding here re-armed the form on every tab
+		// click, which would have left the same one-click post open to anyone who picked
+		// the Check tab deliberately. The per-type figure is offered by applyFullBalance().
+		this.amount.set(null);
 	}
 
 	submitPayment(): void {
@@ -614,6 +644,8 @@ export class AccountingLedgerComponent {
 	canSubmitPayment(): boolean {
 		const type = this.paymentType();
 		const amt = this.amount();
+		// AR-042: a blank field is not a zero. Nothing submits until a human types a figure.
+		if (amt == null) return false;
 
 		if (type === 'cc') {
 			return amt > 0 && amt <= this.modalOwed()
@@ -621,7 +653,11 @@ export class AccountingLedgerComponent {
 				&& !!this.ccFirstName() && !!this.ccLastName();
 		}
 		if (type === 'check') {
-			return amt > 0 && amt <= this.checkBalanceDue();
+			// AR-042: the check number is required. Trimmed - a space is not a number. It is
+			// the only field that distinguishes this tab from the others on a form that
+			// otherwise needs no typing, so it doubles as the tab's mode indicator.
+			// NOT required for Corrections, which legitimately have no check.
+			return amt > 0 && amt <= this.checkBalanceDue() && !!this.checkNo().trim();
 		}
 		if (type === 'refund') {
 			const maxRefund = this.refundRecord()?.paidAmount ?? 0;
@@ -661,7 +697,8 @@ export class AccountingLedgerComponent {
 
 	private executePaymentSubmit(): void {
 		const type = this.paymentType();
-		const amt = this.amount();
+		// Non-null by canSubmitPayment(), which is the only door to this method.
+		const amt = this.amountValue();
 
 		if (type === 'refund') {
 			const record = this.refundRecord();
@@ -692,7 +729,7 @@ export class AccountingLedgerComponent {
 		} else {
 			this.checkSubmitted.emit({
 				amount: amt,
-				checkNo: this.checkNo() || null,
+				checkNo: this.checkNo().trim() || null,
 				comment: this.comment() || null,
 				paymentType: type === 'check' ? 'Check' : 'Correction'
 			});
