@@ -429,14 +429,21 @@ public sealed class ArbNotificationService : IArbNotificationService
             AuditRows = auditRows
         };
 
-        return result with { SummaryHtml = await SendExpiringSummaryAsync(result, jobIds.Count, ct) };
+        // No ct. See SendExpiringSummaryAsync.
+        return result with { SummaryHtml = await SendExpiringSummaryAsync(result, jobIds.Count) };
     }
 
     /// <summary>
     /// Paired counts to support, the same shape the sweep digest reports: how many cards expire this
     /// month, how many families were reached, and by name the ones that need a person.
+    ///
+    /// TAKES NO CancellationToken, for the same reason as AdnSweepService.SendDigestAsync — and here
+    /// it matters more. This runs LAST, after families have already been mailed. If an abort could
+    /// cancel this send, the families would have their notices and support would have no record that
+    /// the pass ran at all, including the by-name list of the ones who could NOT be reached. That
+    /// list is the only place those families surface.
     /// </summary>
-    private async Task<string?> SendExpiringSummaryAsync(ArbNotifyResultDto result, int jobCount, CancellationToken ct)
+    private async Task<string?> SendExpiringSummaryAsync(ArbNotifyResultDto result, int jobCount)
     {
         try
         {
@@ -477,7 +484,7 @@ public sealed class ArbNotificationService : IArbNotificationService
                     + $"ARB Expiring Cards {DateTime.Now:dddd, dd MMMM yyyy} — {result.Emailed} {(_dryRun ? "would be emailed" : "emailed")}"
                     + (result.Skipped > 0 ? $", {result.Skipped} NOT" : ""),
                 HtmlBody = html
-            }, sendInDevelopment: true, cancellationToken: ct);
+            }, sendInDevelopment: true, cancellationToken: CancellationToken.None);
 
             if (accepted)
             {

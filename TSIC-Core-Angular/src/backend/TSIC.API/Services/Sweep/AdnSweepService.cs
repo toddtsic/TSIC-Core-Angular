@@ -448,7 +448,8 @@ public sealed class AdnSweepService : IAdnSweepService
         {
             try
             {
-                await SendDigestAsync(html, errorMessage, counts.Errored, ct);
+                // No ct. See SendDigestAsync.
+                await SendDigestAsync(html, errorMessage, counts.Errored);
             }
             catch (Exception ex)
             {
@@ -1762,7 +1763,25 @@ public sealed class AdnSweepService : IAdnSweepService
         return sb.ToString();
     }
 
-    private async Task SendDigestAsync(string html, string? errorMessage, int errored, CancellationToken ct)
+    /// <summary>
+    /// TAKES NO CancellationToken, deliberately, and must not be given one.
+    ///
+    /// The digest is the report ABOUT the run, which is why it is built and sent outside the try — a
+    /// failed sweep must still mail, and must say so. A cancellation token defeats exactly that: the
+    /// caller's token is the request's, a dry run forces production ADN and makes two synchronous
+    /// round trips per transaction so it is slow, and any abort — the browser, IIS, an admin
+    /// navigating away — cancels it. SendRawEmailAsync then throws instantly, the wrapper logs
+    /// "digest send failed", and the one artifact that would have explained the run is the thing the
+    /// failure destroyed. Silence is not a report.
+    ///
+    /// The parameter is removed rather than ignored, on the same reasoning as <see cref="_dryRun"/>
+    /// not being a parameter: there is nothing to pass, so there is nothing to pass wrongly. Matches
+    /// PaymentService's receipt send, which takes CancellationToken.None for the same reason.
+    ///
+    /// Safe on shutdown too — the SES call is a single short round trip, and a sweep that ran during
+    /// a recycle is precisely the one whose digest you want.
+    /// </summary>
+    private async Task SendDigestAsync(string html, string? errorMessage, int errored)
     {
         // Instrumented deliberately. The digest send used to report nothing at all on success and only a
         // warning on failure, so "no email arrived" was indistinguishable from "no email was attempted",
@@ -1784,7 +1803,7 @@ public sealed class AdnSweepService : IAdnSweepService
                 + $"AdnSweep AI {DateTime.Now:dddd, dd MMMM yyyy HH:mm}"
                 + (errorMessage != null ? " — SWEEP FAILED" : errored > 0 ? $" — {errored} ERRORED" : ""),
             HtmlBody = html
-        }, sendInDevelopment: true, cancellationToken: ct);
+        }, sendInDevelopment: true, cancellationToken: CancellationToken.None);
 
         if (accepted)
         {
