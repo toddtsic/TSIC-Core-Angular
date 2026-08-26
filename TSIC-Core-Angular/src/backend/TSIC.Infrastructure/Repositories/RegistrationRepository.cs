@@ -1234,16 +1234,19 @@ public class RegistrationRepository : IRegistrationRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<(Guid JobId, string? UserId)?> GetRegistrationJobAndUserAsync(
+    public async Task<(Guid JobId, string? UserId, string? JobPlayerProfileMetadataJson)?> GetRegistrationJobAndUserAsync(
         Guid registrationId, CancellationToken cancellationToken = default)
     {
+        // Projects the owning job's profile metadata alongside the ids: the med-form gate needs to know
+        // whether THIS event collects a medical form at all, and pulling it here keeps the whole
+        // authorization decision on a single keyed read.
         var row = await _context.Registrations
             .AsNoTracking()
             .Where(r => r.RegistrationId == registrationId)
-            .Select(r => new { r.JobId, r.UserId })
+            .Select(r => new { r.JobId, r.UserId, r.Job.PlayerProfileMetadataJson })
             .FirstOrDefaultAsync(cancellationToken);
 
-        return row is null ? null : (row.JobId, row.UserId);
+        return row is null ? null : (row.JobId, row.UserId, row.PlayerProfileMetadataJson);
     }
 
     public async Task<Registrations?> GetByAdnSubscriptionIdAsync(string adnSubscriptionId, CancellationToken cancellationToken = default)

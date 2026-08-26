@@ -10,6 +10,7 @@ using TSIC.API.Services.Shared.Utilities;
 using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Teams;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Uploads;
 using TSIC.Domain.UsLax;
 
 namespace TSIC.API.Services.Players;
@@ -36,6 +37,11 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         public List<TSIC.Domain.Entities.Teams> Teams { get; init; } = new();
         public string RegistrationMode { get; init; } = "PP";
         public string? MetadataJson { get; init; }
+        /// <summary>True iff THIS event's player profile collects a medical form. Med-form files
+        /// are keyed by person, not by event, so disk existence alone says nothing about whether
+        /// this event ever asked for one - stamping off it flagged registrations in events that
+        /// never collected med forms.</summary>
+        public bool CollectsMedForm { get; init; }
         public Dictionary<string, string> NameToProperty { get; init; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, System.Reflection.PropertyInfo> WritableProps { get; init; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, List<Registrations>> ExistingByPlayer { get; init; } = new();
@@ -211,6 +217,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             Teams = teams,
             RegistrationMode = registrationMode,
             MetadataJson = metadataJson,
+            CollectsMedForm = UploadedDocumentPolicy.CollectsMedForm(metadataJson),
             NameToProperty = nameToProperty,
             WritableProps = writableProps,
             ExistingByPlayer = existingByPlayer,
@@ -493,7 +500,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             };
             FormValueMapper.ApplyFormValues(newReg, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
             ctx.TouchedRegs.Add(newReg);
-            newReg.BUploadedMedForm = _medForms.Exists(playerId);
+            newReg.BUploadedMedForm = ctx.CollectsMedForm && _medForms.Exists(playerId);
             await ApplyInitialFeesAsync(newReg, team.JobId, team.AgegroupId, team.TeamId);
             _registrations.Add(newReg);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "New registration created (existing paid kept).", true);
@@ -531,7 +538,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         };
         FormValueMapper.ApplyFormValues(reg, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
         ctx.TouchedRegs.Add(reg);
-        reg.BUploadedMedForm = _medForms.Exists(playerId);
+        reg.BUploadedMedForm = ctx.CollectsMedForm && _medForms.Exists(playerId);
         await ApplyInitialFeesAsync(reg, team.JobId, team.AgegroupId, team.TeamId);
         _registrations.Add(reg);
         AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration created.", true);

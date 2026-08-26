@@ -342,12 +342,15 @@ public interface IRegistrationRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Lightweight (JobId, UserId) lookup for a single registration. Used to authorize med-form
-    /// access: the registration's JobId is checked against the caller's job before the person's
-    /// file is resolved and streamed. Returns null when the registration does not exist.
-    /// AsNoTracking.
+    /// Lightweight lookup for a single registration. Used to authorize med-form access: the
+    /// registration's JobId is checked against the caller's job, and the OWNING job's player-profile
+    /// metadata is returned so <c>UploadedDocumentPolicy</c> can refuse an event that never collected
+    /// a medical form. The metadata blob (~24 KB) rides along on this one query rather than costing a
+    /// second round trip, and is parsed by the shared Domain policy so the authorization gate cannot
+    /// drift from the rule the registration form itself uses.
+    /// Returns null when the registration does not exist. AsNoTracking.
     /// </summary>
-    Task<(Guid JobId, string? UserId)?> GetRegistrationJobAndUserAsync(
+    Task<(Guid JobId, string? UserId, string? JobPlayerProfileMetadataJson)?> GetRegistrationJobAndUserAsync(
         Guid registrationId,
         CancellationToken cancellationToken = default);
 

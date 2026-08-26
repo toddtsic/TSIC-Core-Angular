@@ -6,6 +6,7 @@ using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Constants;
+using TSIC.Domain.Uploads;
 
 namespace TSIC.API.Controllers;
 
@@ -14,6 +15,11 @@ namespace TSIC.API.Controllers;
 /// by the player's identity userId — global to the person, persistent across
 /// jobs. Mirrors legacy MedForms\{userId}.pdf storage convention so existing
 /// uploaded files keep working without migration.
+///
+/// That person-global keying is why the registration-keyed endpoints below enforce an EVENT
+/// GATE as well as a job check: a file uploaded for one event is on disk for every event the
+/// person registers in, so an event whose profile never collected a medical form must not be
+/// able to probe for or stream one. See UploadedDocumentPolicy.
 /// </summary>
 [ApiController]
 [Authorize]
@@ -196,6 +202,9 @@ public class MedFormController : ControllerBase
     /// job check IS the fix for the prior any-admin/any-file IDOR). A missing registration and a
     /// wrong-job registration are indistinguishable (both unauthorized), so nothing leaks whether a
     /// registration exists in another job.
+    /// On top of that, the registration's OWN job must actually collect medical forms
+    /// (UploadedDocumentPolicy) — a check that binds Superuser too, since it is a property of
+    /// the event rather than of the caller.
     /// </summary>
     private async Task<(bool Authorized, string? PlayerUserId)> ResolveRegistrationAccessAsync(
         Guid registrationId, CancellationToken ct)
@@ -211,6 +220,15 @@ public class MedFormController : ControllerBase
 
         var reg = await _registrations.GetRegistrationJobAndUserAsync(registrationId, ct);
         if (reg is null) return (false, null);
+
+        // EVENT GATE. Applies to Superuser too - collecting med forms is a property of the JOB, not
+        // of the caller's role. Files are keyed by person, not by event, so a form uploaded for one
+        // event sits on disk for every event that person later registers in. Without this the control
+        // renders off disk-existence alone and a director who never asked for a medical form is handed
+        // one belonging to an unrelated customer. Refuse before the file is ever resolved, and return
+        // the same unauthorized shape as a wrong-job hit so nothing distinguishes the two.
+        if (!UploadedDocumentPolicy.CollectsMedForm(reg.Value.JobPlayerProfileMetadataJson))
+            return (false, null);
 
         if (isSuperuser)
             return (true, reg.Value.UserId);

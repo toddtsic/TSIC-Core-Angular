@@ -28,12 +28,20 @@ public class PlayerMedFormStampTests
     private static readonly string TestFamilyUserId = "family-user-test";
     private static readonly string TestPlayerId = "player-test-1";
 
+    /// <summary>A player profile that DOES collect a medical form - the UM camp shape.</summary>
+    private const string CollectsMedFormJson =
+        """{"fields":[{"name":"bUploadedMedForm","dbColumn":"BUploadedMedForm"}]}""";
+
+    /// <summary>A profile that collects something else. No med-form field anywhere.</summary>
+    private const string NoMedFormJson =
+        """{"fields":[{"name":"schoolGrade","dbColumn":"SchoolGrade"}]}""";
+
     private static (
         PlayerRegistrationService svc,
         Mock<IRegistrationRepository> regRepo,
         Mock<ITeamRepository> teamRepo,
         Mock<IMedFormService> medForms)
-        CreateService()
+        CreateService(string? metadataJson = CollectsMedFormJson)
     {
         var logger = new Mock<ILogger<PlayerRegistrationService>>();
         var feeService = new Mock<IFeeResolutionService>();
@@ -58,7 +66,7 @@ public class PlayerMedFormStampTests
             .Setup(j => j.GetPreSubmitMetadataAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JobPreSubmitMetadata
             {
-                PlayerProfileMetadataJson = null,
+                PlayerProfileMetadataJson = metadataJson,
                 JsonOptions = null,
                 CoreRegformPlayer = "PP10",
             });
@@ -172,5 +180,27 @@ public class PlayerMedFormStampTests
 
         captured.Should().NotBeNull();
         captured!.BUploadedMedForm.Should().BeFalse("no file on disk → flag is false");
+    }
+
+    [Fact(DisplayName = "PreSubmit: event does not collect med forms -> flag stays false even with a file on disk")]
+    public async Task PreSubmit_JobDoesNotCollectMedForm_StampsFalse()
+    {
+        var (svc, regRepo, teamRepo, medForms) = CreateService(NoMedFormJson);
+        var team = SetupTeamWithRoom(teamRepo, regRepo);
+
+        // A file IS on disk - uploaded for some other event, since storage is keyed by person.
+        medForms.Setup(m => m.Exists(TestPlayerId)).Returns(true);
+
+        Registrations? captured = null;
+        regRepo.Setup(r => r.Add(It.IsAny<Registrations>()))
+            .Callback<Registrations>(reg => captured = reg);
+
+        await svc.PreSubmitAsync(TestJobId, TestFamilyUserId, MakeRequest(team.TeamId), TestFamilyUserId);
+
+        captured.Should().NotBeNull();
+        captured!.BUploadedMedForm.Should().BeFalse(
+            "an event that never asked for a medical form must not claim one from another event");
+        medForms.Verify(m => m.Exists(It.IsAny<string>()), Times.Never,
+            "the profile gate short-circuits before the filesystem is touched");
     }
 }
