@@ -37,6 +37,13 @@ public sealed class AdnSweepService : IAdnSweepService
     /// for a check nobody performed. A report that cannot tell "nothing wrong" from "nothing looked at"
     /// is the exact defect this feature exists to fix; it must not commit it itself.
     /// </summary>
+    /// <summary>
+    /// Where a DRY RUN digest goes. Not support@ — that address is a Vade Secure-fronted forwarder that
+    /// quarantines silently (see SendDigestAsync). Testing the sweep must not also be a test of a spam
+    /// gateway's scoring. Production is untouched and still mails support@.
+    /// </summary>
+    private const string DryRunDigestRecipient = "toddtsic@gmail.com";
+
     private const string DryRunNotRun =
         "<p style='font-size:9px;color:#888;'>(not run on a dry run — this step moves or reverses money, "
         + "so it is skipped entirely. Nothing here was examined.)</p>";
@@ -1864,23 +1871,40 @@ public sealed class AdnSweepService : IAdnSweepService
         // warning on failure, so "no email arrived" was indistinguishable from "no email was attempted",
         // from "SES refused it", and from "it sent and the mail path ate it". Three of those need
         // different fixes. Seq now separates them.
+        // support@teamsportsinfo.com is NOT a mailbox. It is
+        //     SES -> Vade Secure -> Netsol -> Sieve forward -> toddtsic@gmail.com,
+        // and Vade quarantines silently: SES reports 200 OK with a MessageId and zero bounces while
+        // the mail never lands. This burned a day on 2026-05-10 and again on 2026-08-25.
+        //
+        // A DRY RUN therefore goes direct to the person running it, bypassing the gateway entirely.
+        // Nobody is testing Vade's scoring rules; they are testing the sweep, and a report that may or
+        // may not be quarantined is not a report. PRODUCTION IS UNCHANGED -- the 4am digest still goes
+        // to support@, which is where the estate expects it and where it has always worked.
+        var recipient = _dryRun ? DryRunDigestRecipient : TsicConstants.SupportEmail;
+
         _logger.LogInformation(
             "ADN sweep digest: sending to {Recipient} (dryRun={DryRun}, bytes={Bytes})",
-            TsicConstants.SupportEmail, _dryRun, html.Length);
+            recipient, _dryRun, html.Length);
 
         var accepted = await _email.SendAsync(new EmailMessageDto
         {
             FromName = "",
-            ToAddresses = [TsicConstants.SupportEmail],
-            // The verdict rides the subject — this is read on a phone, and a failed sweep must be
-            // distinguishable from a quiet one without opening the mail.
-            // The marker rides the subject, not just the body: two digests can land the same day and
-            // the 4am one is the only one that means anything about the ledger.
-            Subject = (_dryRun ? "[DRY RUN] " : "")
+            ToAddresses = [recipient],
+            // The verdict rides the subject -- this is read on a phone, and a failed sweep must be
+            // distinguishable from a quiet one without opening the mail. The marker rides the subject
+            // too: two digests can land the same day and the 4am one is the only one that means
+            // anything about the ledger.
+            //
+            // NO BRACKET PREFIX AND NO EM-DASH, deliberately. Both are textbook spam tells and both
+            // are named in reference_email_routing.md as the top-ranked reason Vade silently dropped
+            // this exact digest before. Legacy's subject that always got through was a plain
+            // "ArbSweep {date}". Keep this shape plain: no [brackets], no U+2014, ASCII hyphen only.
+            Subject = (_dryRun ? "DRY RUN " : "")
                 + $"AdnSweep AI {DateTime.Now:dddd, dd MMMM yyyy HH:mm}"
-                + (errorMessage != null ? " — SWEEP FAILED" : errored > 0 ? $" — {errored} ERRORED" : ""),
+                + (errorMessage != null ? " - SWEEP FAILED" : errored > 0 ? $" - {errored} ERRORED" : ""),
             HtmlBody = html,
-            // multipart/alternative. See BuildDigestText — HTML-only was getting quarantined.
+            // multipart/alternative. HTML-only is itself a filter signal, and leaves nothing to show
+            // when a gateway strips HTML. See BuildDigestText.
             TextBody = text
         }, sendInDevelopment: true, cancellationToken: CancellationToken.None);
 

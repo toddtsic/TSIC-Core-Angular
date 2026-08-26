@@ -82,8 +82,16 @@ public sealed class EmailService : IEmailService
                 // The SES message id is the only handle that ties our send to a bounce, a complaint, or a
                 // support ticket about a mail that never arrived. It was being discarded.
                 _logger.LogInformation(
-                    "SES accepted: messageId={MessageId} to={Recipients} subject={Subject}",
-                    response.MessageId, string.Join(",", message.To.Select(t => t.ToString())), messageDto.Subject);
+                    // TWO ids, and they answer different questions. messageId is SES's — use it for AWS
+                    // event-publishing logs and SES support tickets. mimeMessageId is the RFC 5322
+                    // Message-ID header — paste it into Gmail as `rfc822msgid:<id>` and the search
+                    // bypasses EVERY filter, label, folder, Spam and Trash. An empty result there is the
+                    // only proof Gmail never received the message, which is exactly the question that
+                    // cost a day on 2026-05-10 and again on 2026-08-25 when mail vanished between a
+                    // clean SES accept and the inbox. Logging only SES's id left that unanswerable.
+                    "SES accepted: messageId={MessageId} mimeMessageId={MimeMessageId} to={Recipients} subject={Subject}",
+                    response.MessageId, message.MessageId,
+                    string.Join(",", message.To.Select(t => t.ToString())), messageDto.Subject);
             }
             else
             {
