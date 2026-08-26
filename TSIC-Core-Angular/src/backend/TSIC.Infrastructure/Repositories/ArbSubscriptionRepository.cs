@@ -46,7 +46,7 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
                 RegistrantName = $"{r.User!.LastName}, {r.User.FirstName}",
                 FirstName = r.User.FirstName,
                 LastName = r.User.LastName,
-                Assignment = r.Assignment,
+                TeamName = r.AssignedTeam != null ? r.AssignedTeam.TeamName : null,
                 FamilyUsername = r.FamilyUser != null && r.FamilyUser.FamilyUser != null
                     ? r.FamilyUser.FamilyUser.UserName : null,
                 Role = r.Role!.Name,
@@ -114,7 +114,7 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
                 RegistrantName = $"{r.User!.LastName}, {r.User.FirstName}",
                 FirstName = r.User.FirstName,
                 LastName = r.User.LastName,
-                Assignment = r.Assignment,
+                TeamName = r.AssignedTeam != null ? r.AssignedTeam.TeamName : null,
                 FamilyUsername = r.FamilyUser != null && r.FamilyUser.FamilyUser != null
                     ? r.FamilyUser.FamilyUser.UserName : null,
                 Role = r.Role!.Name,

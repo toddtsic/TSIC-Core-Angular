@@ -14,6 +14,11 @@ public record ArbFlaggedRegistrantDto
     /// <summary>First/Last carried separately so the !PLAYER token renders natural order. See ArbRegistrationProjection.</summary>
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
+    /// <summary>
+    /// The team the registrant is CURRENTLY on - resolved live from AssignedTeamId, never the
+    /// stale Registrations.assignment display snapshot (AR-039). Kept under the wire name
+    /// "assignment" so the generated frontend model is unchanged; the grid column reads "Team".
+    /// </summary>
     public string? Assignment { get; init; }
     public string? FamilyUsername { get; init; }
     public string? Role { get; init; }

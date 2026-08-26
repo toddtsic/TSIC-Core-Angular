@@ -680,7 +680,7 @@ public class ArbDefensiveService : IArbDefensiveService
             RegistrantName = reg.RegistrantName,
             FirstName = reg.FirstName,
             LastName = reg.LastName,
-            Assignment = reg.Assignment,
+            Assignment = reg.TeamName,
             FamilyUsername = reg.FamilyUsername,
             Role = reg.Role,
             RegistrantEmail = reg.RegistrantEmail,

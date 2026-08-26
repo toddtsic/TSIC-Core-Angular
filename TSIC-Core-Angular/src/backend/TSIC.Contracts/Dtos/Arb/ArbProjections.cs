@@ -22,7 +22,13 @@ public record ArbRegistrationProjection
     /// </summary>
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
-    public string? Assignment { get; init; }
+    /// <summary>
+    /// The team this registration is CURRENTLY assigned to, resolved live through AssignedTeamId.
+    /// Deliberately NOT Registrations.assignment: that column is a denormalised "Player: team"
+    /// display snapshot written by only some of the move paths, so it shows the team the player was
+    /// on when the subscription was created rather than the team they are on now (AR-039).
+    /// </summary>
+    public string? TeamName { get; init; }
     public string? FamilyUsername { get; init; }
     public string? Role { get; init; }
     public string? RegistrantEmail { get; init; }

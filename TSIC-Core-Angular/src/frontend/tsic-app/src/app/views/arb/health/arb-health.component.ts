@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { EmailBodyEditorComponent } from '@shared-ui/components/email-body-editor/email-body-editor.component';
 import { TestSendButtonComponent, type TestSendOptions } from '@shared-ui/components/test-send-button/test-send-button.component';
+import { GridAllModule, GridComponent, type ToolbarItems, type SelectionSettingsModel, type RowSelectEventArgs, type RowDeselectEventArgs } from '@syncfusion/ej2-angular-grids';
 import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { environment } from '@environments/environment';
@@ -80,7 +81,7 @@ const TEMPLATES: Record<string, EmailTemplate[]> = {
 @Component({
     selector: 'app-arb-health',
     standalone: true,
-    imports: [DecimalPipe, DatePipe, FormsModule, TsicDialogComponent, EmailBodyEditorComponent, TestSendButtonComponent],
+    imports: [DecimalPipe, DatePipe, FormsModule, GridAllModule, TsicDialogComponent, EmailBodyEditorComponent, TestSendButtonComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './arb-health.component.html',
     styleUrl: './arb-health.component.scss'
@@ -111,13 +112,17 @@ export class ArbHealthComponent {
     readonly isRefreshing = signal(false);
     readonly refreshResult = signal<ArbRefreshStatusesResultDto | null>(null);
 
-    // Selection
+    // Selection. The grid owns the checkboxes; the authoritative recipient set is accumulated
+    // here from (de)selection deltas, so it survives a re-sort and the header select-all alike.
+    // checkboxOnly means clicking a mailto/tel link in the contact card can never toggle a row -
+    // which is what the old hand-rolled table needed a stopPropagation on every link for.
     readonly selectedIds = signal<Set<string>>(new Set());
-    readonly allSelected = computed(() => {
-        const list = this.registrants();
-        const sel = this.selectedIds();
-        return list.length > 0 && list.every(r => sel.has(r.registrationId));
-    });
+    // persistSelection + the hidden registrationId primary key keep the ticks attached to the
+    // ROW rather than to its position, so a re-sort cannot leave selectedIds holding families
+    // whose checkboxes the grid has quietly cleared.
+    readonly selectionSettings: SelectionSettingsModel = { type: 'Multiple', checkboxOnly: true, persistSelection: true };
+    readonly toolbar: ToolbarItems[] = ['ExcelExport'];
+    private readonly grid = viewChild<GridComponent>('grid');
 
     // Email dialog
     readonly showEmailDialog = signal(false);
@@ -127,6 +132,16 @@ export class ArbHealthComponent {
     readonly substitutionVars = signal<ArbSubstitutionVariableDto[]>([]);
     readonly isSending = signal(false);
     readonly sendResult = signal<{ sent: number; failed: number; failedAddresses: string[] } | null>(null);
+
+    // A send failure is reported INSIDE the composer, not on the page behind it: the dialog
+    // stays open so the director's typed message survives, and a page-level alert they cannot
+    // see is no way to tell them the send did not happen.
+    readonly sendError = signal<string | null>(null);
+
+    // Expiring Cards has no selection to clear, so its one-click blast is latched instead:
+    // once it has gone out for the loaded list, re-running the lookup is the only way to arm
+    // it again. Without this, a second click sends the same warning to the same families.
+    readonly warningsSent = signal(false);
 
     readonly selectedCount = computed(() => this.selectedIds().size);
 
@@ -163,7 +178,8 @@ export class ArbHealthComponent {
                 // but ONLY a lookup the director already ran. Refresh alone must not
                 // trigger the first lookup.
                 if (this.loadedTab() !== null) {
-                    this.selectedIds.set(new Set());
+                    this.clearSelection();
+                    this.warningsSent.set(false);
                     this.loadTab(this.activeTab());
                 }
             },
@@ -178,9 +194,11 @@ export class ArbHealthComponent {
      *  lookup re-runs it (fresh query). */
     runLookup(type: number): void {
         this.activeTab.set(type);
-        this.selectedIds.set(new Set());
+        this.clearSelection();
         this.showEmailDialog.set(false);
         this.sendResult.set(null);
+        this.sendError.set(null);
+        this.warningsSent.set(false);
         this.loadTab(type);
     }
 
@@ -207,27 +225,43 @@ export class ArbHealthComponent {
         });
     }
 
-    toggleSelect(registrationId: string): void {
-        const set = new Set(this.selectedIds());
-        if (set.has(registrationId)) {
-            set.delete(registrationId);
-        } else {
-            set.add(registrationId);
-        }
-        this.selectedIds.set(set);
+    onRowSelected(args: RowSelectEventArgs): void {
+        this.applySelectionDelta(args?.data, true);
     }
 
-    toggleSelectAll(): void {
-        if (this.allSelected()) {
-            this.selectedIds.set(new Set());
-        } else {
-            const set = new Set(this.registrants().map(r => r.registrationId));
-            this.selectedIds.set(set);
-        }
+    onRowDeselected(args: RowDeselectEventArgs): void {
+        this.applySelectionDelta(args?.data, false);
     }
 
-    isSelected(registrationId: string): boolean {
-        return this.selectedIds().has(registrationId);
+    // Header select-all and single-row clicks both arrive here; the event carries an array in
+    // the first case and a single record in the second.
+    private applySelectionDelta(data: unknown, add: boolean): void {
+        const rows = (Array.isArray(data) ? data : data ? [data] : []) as ArbFlaggedRegistrantDto[];
+        if (rows.length === 0) return;
+        const next = new Set(this.selectedIds());
+        for (const r of rows) {
+            if (!r?.registrationId) continue;
+            if (add) next.add(r.registrationId); else next.delete(r.registrationId);
+        }
+        this.selectedIds.set(next);
+    }
+
+    private clearSelection(): void {
+        this.selectedIds.set(new Set());
+        this.grid()?.clearRowSelection();
+    }
+
+    onToolbarClick(args: { item?: { id?: string } }): void {
+        if (args.item?.id?.includes('excelexport')) {
+            // includeHiddenColumn carries the per-address contact columns into the sheet as
+            // plain text; on screen those same values are the link card (PL-056).
+            this.grid()?.excelExport({
+                includeHiddenColumn: true,
+                fileName: this.activeTab() === FLAG_TYPE.ExpiringCard
+                    ? 'arb-expiring-cards.xlsx'
+                    : 'arb-behind-in-payment.xlsx'
+            });
+        }
     }
 
     openEmailDialog(): void {
@@ -235,6 +269,7 @@ export class ArbHealthComponent {
         this.emailBody.set('');
         this.notifyDirectors.set(true);
         this.sendResult.set(null);
+        this.sendError.set(null);
         this.showEmailDialog.set(true);
     }
 
@@ -292,12 +327,18 @@ export class ArbHealthComponent {
         this.notifyDirectors.set(value);
     }
 
+    // AR-039 part 4. This is dunning email to families who owe money, so a completed send must
+    // leave nothing armed behind it: the composer closes and the picks are dropped, and the
+    // outcome is reported on the page. It used to do the opposite - success left the dialog open
+    // with the same recipients still ticked and Send live again, while FAILURE was the case that
+    // closed it and threw away the typed message.
     sendEmails(): void {
         const ids = Array.from(this.selectedIds());
-        if (ids.length === 0) return;
+        if (ids.length === 0 || this.isSending()) return;
 
         this.isSending.set(true);
         this.sendResult.set(null);
+        this.sendError.set(null);
 
         // jobId + senderUserId are derived server-side from JWT claims
         const request: ArbSendEmailsRequest = {
@@ -318,19 +359,22 @@ export class ArbHealthComponent {
                     failedAddresses: status.failedAddresses ?? []
                 });
                 this.isSending.set(false);
+                this.showEmailDialog.set(false);
+                this.clearSelection();
             },
             error: err => {
-                this.errorMessage.set(err?.error?.message || 'Failed to send emails.');
+                this.sendError.set(err?.error?.message || 'Failed to send emails.');
                 this.isSending.set(false);
-                this.showEmailDialog.set(false);
             }
         });
     }
 
-    /** One-click send for Expiring Cards tab (like legacy) */
+    /** One-click send for Expiring Cards tab (like legacy). Same duplicate-send hazard as the
+     *  composer (AR-039 part 4), minus a selection to clear: the latch is what stops a second
+     *  click re-warning every family on the loaded list. */
     sendExpiringCardWarnings(): void {
         const allIds = this.registrants().map(r => r.registrationId);
-        if (allIds.length === 0) return;
+        if (allIds.length === 0 || this.isSending() || this.warningsSent()) return;
 
         this.isSending.set(true);
         this.sendResult.set(null);
@@ -354,6 +398,7 @@ export class ArbHealthComponent {
                     failedAddresses: status.failedAddresses ?? []
                 });
                 this.isSending.set(false);
+                this.warningsSent.set(true);
             },
             error: err => {
                 this.errorMessage.set(err?.error?.message || 'Failed to send warning emails.');
