@@ -174,12 +174,25 @@ public sealed class EmailTroubleshooterService : IEmailTroubleshooterService
         }
     }
 
+    /// <summary>
+    /// Multipart — HTML *and* text — on purpose. It was text-only, which made the probe unrepresentative
+    /// of every message this system actually sends: the sweep digest, registration confirmations and the
+    /// ARB family notices are all HtmlBody. Plain text is the shape a spam filter or mail gateway is
+    /// least likely to hold, so a text-only probe could report "nothing wrong on the sending side" while
+    /// the HTML mail the customer is complaining about was being quarantined. A diagnostic that clears a
+    /// path it did not test is worse than no diagnostic.
+    ///
+    /// Setting both makes BodyBuilder emit multipart/alternative, which is also what well-formed real
+    /// mail looks like — so this exercises the same branch the digest does, not a simpler one.
+    /// </summary>
     private static EmailMessageDto BuildTestMessage(string toAddress) => new()
     {
         FromName = "TEAMSPORTSINFO.COM",
         ToAddresses = new List<string> { toAddress },
         Subject = "TSIC Email Test",
-        TextBody = "This is an automated email delivery test from TEAMSPORTSINFO.COM. No action is needed - please disregard."
+        TextBody = "This is an automated email delivery test from TEAMSPORTSINFO.COM. No action is needed - please disregard.",
+        HtmlBody = "<p>This is an automated email delivery test from <strong>TEAMSPORTSINFO.COM</strong>.</p>"
+            + "<p>No action is needed - please disregard.</p>"
     };
 
     private static IEnumerable<string> Normalize(IReadOnlyList<string> emails) =>
