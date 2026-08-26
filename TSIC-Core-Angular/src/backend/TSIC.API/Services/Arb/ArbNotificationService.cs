@@ -470,6 +470,30 @@ public sealed class ArbNotificationService : IArbNotificationService
 
             var html = sb.ToString();
 
+            // Plain-text half, so the message is multipart/alternative rather than text/html only.
+            // support@ routes through a mail security gateway and HTML-only mail was being quarantined
+            // after SES accepted it — see AdnSweepService.BuildDigestText. The skip list is the part
+            // that must survive: those families are the ones a human has to contact by hand.
+            var textSb = new System.Text.StringBuilder();
+            textSb.AppendLine($"ARB Expiring Cards - {DateTime.Now:dddd, dd MMMM yyyy HH:mm}");
+            textSb.AppendLine();
+            if (_dryRun) { textSb.AppendLine("DRY RUN - no family was emailed."); textSb.AppendLine(); }
+            textSb.AppendLine($"Jobs checked:              {jobCount}");
+            textSb.AppendLine($"Cards expiring this month: {result.Found}");
+            textSb.AppendLine($"Families {(_dryRun ? "that would be emailed" : "emailed"),-17} {result.Emailed}");
+            textSb.AppendLine($"NOT emailed:               {result.Skipped}");
+            if (result.Skips.Count > 0)
+            {
+                textSb.AppendLine();
+                textSb.AppendLine("NOT emailed - contact these by hand:");
+                foreach (var s in result.Skips)
+                {
+                    textSb.AppendLine($"  - {s.JobName} / {s.Registrant} - {s.Reason}");
+                }
+            }
+            textSb.AppendLine();
+            textSb.AppendLine("Full detail is in the HTML version of this message.");
+
             // The summary mails on a dry run too, to support only. The rule the dry run keeps is that
             // nothing reaches a FAMILY off Production — not that nothing leaves the box. Suppressing
             // this left the whole delivery path untested: SES, the transport hop, and how a mail client
@@ -483,7 +507,8 @@ public sealed class ArbNotificationService : IArbNotificationService
                 Subject = (_dryRun ? "[DRY RUN] " : "")
                     + $"ARB Expiring Cards {DateTime.Now:dddd, dd MMMM yyyy} — {result.Emailed} {(_dryRun ? "would be emailed" : "emailed")}"
                     + (result.Skipped > 0 ? $", {result.Skipped} NOT" : ""),
-                HtmlBody = html
+                HtmlBody = html,
+                TextBody = textSb.ToString()
             }, sendInDevelopment: true, cancellationToken: CancellationToken.None);
 
             if (accepted)

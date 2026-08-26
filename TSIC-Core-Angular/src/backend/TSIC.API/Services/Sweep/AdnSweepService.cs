@@ -449,7 +449,11 @@ public sealed class AdnSweepService : IAdnSweepService
             try
             {
                 // No ct. See SendDigestAsync.
-                await SendDigestAsync(html, errorMessage, counts.Errored);
+                await SendDigestAsync(
+                    html,
+                    BuildDigestText(notifyResult, counts, watchdogRows.Count, untrackedRows.Count, errorMessage),
+                    errorMessage,
+                    counts.Errored);
             }
             catch (Exception ex)
             {
@@ -1781,7 +1785,80 @@ public sealed class AdnSweepService : IAdnSweepService
     /// Safe on shutdown too — the SES call is a single short round trip, and a sweep that ran during
     /// a recycle is precisely the one whose digest you want.
     /// </summary>
-    private async Task SendDigestAsync(string html, string? errorMessage, int errored)
+    /// <summary>
+    /// The plain-text half of the digest's multipart/alternative body.
+    ///
+    /// The digest was text/html with NO text alternative, which is both a spam signal in its own right
+    /// and leaves nothing to show when a gateway strips HTML. support@teamsportsinfo.com routes through
+    /// a mail security gateway (fwd.oxsus-vadesecure.net) before it reaches a mailbox: on 2026-08-25 SES
+    /// ACCEPTED three digests with message ids and none was delivered, while a 120-byte plain-text test
+    /// to the same address one minute apart landed. Every real message this system sends is HTML, so
+    /// this is not only about the digest — but the digest is where it was caught.
+    ///
+    /// Deliberately the counts only, not a text rendering of the tables. The verdict is what has to
+    /// survive; the detail is what the HTML part is for.
+    /// </summary>
+    private string BuildDigestText(
+        ArbNotifyResultDto notifyResult, Counts counts, int watchdogCount, int untrackedCount, string? errorMessage)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"ADN Sweep ({(_dryRun ? "DRY RUN" : "LIVE")}) - {DateTime.Now:dddd, dd MMMM yyyy HH:mm}");
+        sb.AppendLine();
+
+        if (_dryRun)
+        {
+            sb.AppendLine("DRY RUN - nothing was written, settled, or sent.");
+            sb.AppendLine();
+        }
+
+        // Lead with the failure, same rule as the HTML part.
+        if (errorMessage != null)
+        {
+            sb.AppendLine($"SWEEP FAILED: {errorMessage}");
+            sb.AppendLine();
+        }
+        else if (counts.Errored > 0)
+        {
+            sb.AppendLine($"WARNING: {counts.Errored} transaction(s) errored - the pass completed, but those are not booked.");
+            sb.AppendLine();
+        }
+
+        sb.AppendLine($"Checked:              {counts.Checked}");
+        sb.AppendLine($"ARB {(_dryRun ? "resolved" : "imported"),-17} {counts.ArbImported}");
+        if (!_dryRun)
+        {
+            sb.AppendLine($"eCheck settled:       {counts.EcheckSettled}");
+            sb.AppendLine($"eCheck returns:       {counts.EcheckReturnsProcessed}");
+            sb.AppendLine($"Watchdog:             {watchdogCount}");
+        }
+        sb.AppendLine($"Orphans:              {counts.OrphansFound}");
+        sb.AppendLine($"Untracked eCheck:     {untrackedCount}");
+        sb.AppendLine($"Failed drafts:        {notifyResult.Found} "
+            + $"({(_dryRun ? "would email" : "emailed")} {notifyResult.Emailed}, NOT emailed {notifyResult.Skipped})");
+        sb.AppendLine($"Errored:              {counts.Errored}");
+        if (_dryRun)
+        {
+            sb.AppendLine();
+            sb.AppendLine("eCheck settled / returns / watchdog: not run on a dry run.");
+        }
+
+        // The one list that always needs a human, so it must survive an HTML strip.
+        if (notifyResult.Skips.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("NOT emailed - contact these by hand:");
+            foreach (var s in notifyResult.Skips)
+            {
+                sb.AppendLine($"  - {s.JobName} / {s.Registrant} - {s.Reason}");
+            }
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("Full detail is in the HTML version of this message.");
+        return sb.ToString();
+    }
+
+    private async Task SendDigestAsync(string html, string text, string? errorMessage, int errored)
     {
         // Instrumented deliberately. The digest send used to report nothing at all on success and only a
         // warning on failure, so "no email arrived" was indistinguishable from "no email was attempted",
@@ -1802,7 +1879,9 @@ public sealed class AdnSweepService : IAdnSweepService
             Subject = (_dryRun ? "[DRY RUN] " : "")
                 + $"AdnSweep AI {DateTime.Now:dddd, dd MMMM yyyy HH:mm}"
                 + (errorMessage != null ? " — SWEEP FAILED" : errored > 0 ? $" — {errored} ERRORED" : ""),
-            HtmlBody = html
+            HtmlBody = html,
+            // multipart/alternative. See BuildDigestText — HTML-only was getting quarantined.
+            TextBody = text
         }, sendInDevelopment: true, cancellationToken: CancellationToken.None);
 
         if (accepted)
