@@ -624,6 +624,7 @@ export type { RoleSelectionRequest } from './models/RoleSelectionRequest';
 export type { RosterTableColumnDto } from './models/RosterTableColumnDto';
 export type { RosterTableFieldDto } from './models/RosterTableFieldDto';
 export type { RosterTableRequestDto } from './models/RosterTableRequestDto';
+export type { RosterTransferBlockedDto } from './models/RosterTransferBlockedDto';
 export type { RosterTransferFeePreviewDto } from './models/RosterTransferFeePreviewDto';
 export type { RosterTransferPreviewRequest } from './models/RosterTransferPreviewRequest';
 export type { RosterTransferRequest } from './models/RosterTransferRequest';

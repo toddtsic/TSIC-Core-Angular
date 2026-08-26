@@ -145,11 +145,19 @@ public class MedFormController : ControllerBase
     [ProducesResponseType(404)]
     public async Task<IActionResult> DownloadByRegistration(Guid registrationId, CancellationToken ct)
     {
-        var (authorized, playerUserId) = await ResolveRegistrationAccessAsync(registrationId, ct);
-        if (!authorized)
+        var (access, playerUserId) = await ResolveRegistrationAccessAsync(registrationId, ct);
+        if (access == RegistrationAccess.Forbidden)
         {
             LogAccess("download(reg)", registrationId.ToString(), denied: true);
             return Forbid();
+        }
+        if (access == RegistrationAccess.NotCollected)
+        {
+            // The event collects no med form, so as far as this event is concerned there is nothing
+            // here — 404, not 403. Still audited as a denial: the UI never offers View on such a
+            // job, so a GET that reaches this line is a hand-made probe, not normal traffic.
+            LogAccess("download(reg)", registrationId.ToString(), denied: true);
+            return NotFound();
         }
         if (string.IsNullOrWhiteSpace(playerUserId)) return NotFound();
 
@@ -171,8 +179,14 @@ public class MedFormController : ControllerBase
     [ProducesResponseType(404)]
     public async Task<IActionResult> HeadByRegistration(Guid registrationId, CancellationToken ct)
     {
-        var (authorized, playerUserId) = await ResolveRegistrationAccessAsync(registrationId, ct);
-        if (!authorized) return Forbid();
+        var (access, playerUserId) = await ResolveRegistrationAccessAsync(registrationId, ct);
+        // NotCollected is the ORDINARY answer here — only 11 of ~1096 jobs collect a med form, so
+        // this probe fires and comes back empty on virtually every player detail panel opened.
+        // That is "no file for this event" (404), not "you are forbidden" (403): a 403 made the
+        // normal case an error, which is what surfaced a permission toast to admins on the Details
+        // tab. Forbidden stays 403 and is reserved for the caller actually being out of bounds.
+        if (access == RegistrationAccess.Forbidden) return Forbid();
+        if (access == RegistrationAccess.NotCollected) return NotFound();
         if (string.IsNullOrWhiteSpace(playerUserId)) return NotFound();
         return _medForms.Exists(playerUserId) ? NoContent() : NotFound();
     }
@@ -204,9 +218,12 @@ public class MedFormController : ControllerBase
     /// registration exists in another job.
     /// On top of that, the registration's OWN job must actually collect medical forms
     /// (UploadedDocumentPolicy) — a check that binds Superuser too, since it is a property of
-    /// the event rather than of the caller.
+    /// the event rather than of the caller. That one is reported separately as
+    /// <see cref="RegistrationAccess.NotCollected"/> so callers can answer it as "nothing here"
+    /// rather than "you are forbidden"; it refuses just as hard, but it is the ordinary state of
+    /// nearly every job and must not read as an authorization failure of the caller.
     /// </summary>
-    private async Task<(bool Authorized, string? PlayerUserId)> ResolveRegistrationAccessAsync(
+    private async Task<(RegistrationAccess Access, string? PlayerUserId)> ResolveRegistrationAccessAsync(
         Guid registrationId, CancellationToken ct)
     {
         // The role claim carries the role NAME (TokenService writes ClaimTypes.Role = roleName),
@@ -216,10 +233,10 @@ public class MedFormController : ControllerBase
         var isDirector = string.Equals(role, RoleConstants.Names.DirectorName, StringComparison.OrdinalIgnoreCase)
                       || string.Equals(role, RoleConstants.Names.SuperDirectorName, StringComparison.OrdinalIgnoreCase);
 
-        if (!isSuperuser && !isDirector) return (false, null);
+        if (!isSuperuser && !isDirector) return (RegistrationAccess.Forbidden, null);
 
         var reg = await _registrations.GetRegistrationJobAndUserAsync(registrationId, ct);
-        if (reg is null) return (false, null);
+        if (reg is null) return (RegistrationAccess.Forbidden, null);
 
         // EVENT GATE. Applies to Superuser too - collecting med forms is a property of the JOB, not
         // of the caller's role. Files are keyed by person, not by event, so a form uploaded for one
@@ -228,16 +245,34 @@ public class MedFormController : ControllerBase
         // one belonging to an unrelated customer. Refuse before the file is ever resolved, and return
         // the same unauthorized shape as a wrong-job hit so nothing distinguishes the two.
         if (!UploadedDocumentPolicy.CollectsMedForm(reg.Value.JobPlayerProfileMetadataJson))
-            return (false, null);
+            return (RegistrationAccess.NotCollected, null);
 
         if (isSuperuser)
-            return (true, reg.Value.UserId);
+            return (RegistrationAccess.Allowed, reg.Value.UserId);
 
         var callerJobId = await User.GetJobIdFromRegistrationAsync(_jobLookup);
         if (callerJobId is null || callerJobId.Value != reg.Value.JobId)
-            return (false, null);
+            return (RegistrationAccess.Forbidden, null);
 
-        return (true, reg.Value.UserId);
+        return (RegistrationAccess.Allowed, reg.Value.UserId);
+    }
+
+    /// <summary>
+    /// Outcome of the admin registration-keyed access check. Only <see cref="Allowed"/> permits a
+    /// file to be resolved; the other two both refuse, and differ solely in what they tell the
+    /// caller. <see cref="NotCollected"/> is deliberately NOT folded into <see cref="Forbidden"/>:
+    /// it is a property of the EVENT (nearly every job), not a judgement about the caller.
+    /// </summary>
+    private enum RegistrationAccess
+    {
+        /// <summary>Caller is out of bounds — wrong role, wrong job, or no such registration.</summary>
+        Forbidden,
+
+        /// <summary>The registration's own event never collected a med form, so none exists for it.</summary>
+        NotCollected,
+
+        /// <summary>Caller may see this registration's med form, if one is on disk.</summary>
+        Allowed,
     }
 
     private void LogAccess(string action, string playerUserId, bool denied, string? error = null)

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RegistrationSearchService } from '../../../views/search/registrations/services/registration-search.service';
 import { RegisteredTeamsGridComponent } from '../../../views/registration/team/components/registered-teams-grid.component';
 import { ToastService } from '@shared-ui/toast.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 import {
   AccountingLedgerComponent,
   CcChargeEvent,
@@ -77,6 +78,10 @@ export class FamilyPaymentComponent {
 
   private readonly searchService = inject(RegistrationSearchService);
   private readonly toast = inject(ToastService);
+  private readonly auth = inject(AuthService);
+
+  /** AR-032 — only a Superuser may correct a registration on a live ARB plan. */
+  readonly isSuperuser = this.auth.isSuperuser;
 
   data = signal<FamilyAccountingDto | null>(null);
   isLoading = signal(false);
@@ -159,12 +164,15 @@ export class FamilyPaymentComponent {
     if (this.scope() !== 'person') return [];
     const person = this.activePerson();
     if (!person) return [];
+    const arbLive = this.arbLiveRegIds();
     return person.events.map(e => ({
       key: e.teamId,
       label: this.eventLabels().get(e.teamId) ?? `Registered ${this.shortDate(e.registrationTs)}`,
       owed: e.owedTotal,
       checkOwed: e.ckOwedTotal,
-      paid: e.paidTotal
+      paid: e.paidTotal,
+      // AR-032 - the picked event decides, so a plan on one event never locks corrections on another.
+      arbLive: arbLive.has(e.teamId)
     }));
   });
 
@@ -261,6 +269,24 @@ export class FamilyPaymentComponent {
   // reload (the stored snapshots refresh, so a stale live read must not outlive them).
   private liveSubs = signal<ReadonlyMap<string, SubscriptionDetailDto>>(new Map());
   private liveRegIds = signal<ReadonlySet<string>>(new Set());
+
+  /** AR-032 — registrations whose ARB plan can still DRAFT THE CARD, so a Correction against
+   *  them is Superuser-only. Per registration, not per family: one sibling (or one event of one
+   *  sibling) can be on a plan while the next is not, and ARB mints one subscription per
+   *  REGISTRATION. Prefers the live Authorize.Net read where one has been fetched, else the
+   *  stored snapshot; both carry the same server-side rule (SubscriptionDetailDto.isLive).
+   *  NOT liveRegIds() above, which means "we have already read this plan live from ADN" - a
+   *  fetch-state flag whose name is one word away from this one. */
+  private arbLiveRegIds = computed<ReadonlySet<string>>(() => {
+    const subs = this.data()?.subscriptions ?? [];
+    const live = this.liveSubs();
+    const ids = new Set<string>();
+    for (const s of subs) {
+      const sub = live.get(s.registrationId) ?? s.subscription;
+      if (sub?.isLive) ids.add(s.registrationId);
+    }
+    return ids;
+  });
   loadingSubRegIds = signal<ReadonlySet<string>>(new Set());
   cancellingSubRegId = signal<string | null>(null);
   confirmCancelRegId = signal<string | null>(null);

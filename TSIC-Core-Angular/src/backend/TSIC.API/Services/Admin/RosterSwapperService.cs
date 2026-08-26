@@ -225,6 +225,11 @@ public sealed class RosterSwapperService : IRosterSwapperService
         int staffDeleted = 0;
         int feesRecalculated = 0;
 
+        // Who actually moved, and who was deliberately left behind. Reported per registrant rather
+        // than as counts: the UI highlights exactly the movers and raises one alert per refusal.
+        var movedIds = new List<Guid>();
+        var blocked = new List<RosterTransferBlockedDto>();
+
         // FLOW 2: Unassigned Adult → Team (staff creation)
         if (isSourceUnassigned && !isTargetUnassigned)
         {
@@ -312,7 +317,11 @@ public sealed class RosterSwapperService : IRosterSwapperService
                 StaffCreated = staffCreated,
                 StaffDeleted = 0,
                 FeesRecalculated = 0,
-                Message = $"{staffCreated} staff registration(s) created."
+                Message = $"{staffCreated} staff registration(s) created.",
+                // Staff creation mints rows; it never moves a paying registrant, so the ARB guard
+                // cannot fire here. Empty, not absent — the client always has a list to iterate.
+                MovedRegistrationIds = new List<Guid>(),
+                Blocked = new List<RosterTransferBlockedDto>()
             };
         }
 
@@ -347,7 +356,11 @@ public sealed class RosterSwapperService : IRosterSwapperService
                 StaffCreated = 0,
                 StaffDeleted = staffDeleted,
                 FeesRecalculated = 0,
-                Message = $"{staffDeleted} staff registration(s) removed."
+                Message = $"{staffDeleted} staff registration(s) removed.",
+                // Staff removal deletes rows; no paying registrant moves, so the ARB guard cannot
+                // fire here. Empty, not absent — the client always has a list to iterate.
+                MovedRegistrationIds = new List<Guid>(),
+                Blocked = new List<RosterTransferBlockedDto>()
             };
         }
 
@@ -370,6 +383,36 @@ public sealed class RosterSwapperService : IRosterSwapperService
             foreach (var reg in registrations)
             {
                 var roleName = reg.Role?.Name ?? "";
+
+                // ARB plan guard — BEFORE the first mutation below, deliberately.
+                //
+                // A player mid-plan is the case: having paid past the deposit forces the full-payment
+                // phase in StampSwapFeeBase, so FeeBase snaps to the NEW team's price and any rate
+                // difference at all opens a gap. The Authorize.Net subscription cannot follow — this
+                // stack has no ARBUpdateSubscription, only create/get/cancel — so it would keep
+                // drafting the old amount forever against the new bill.
+                //
+                // Skip, never throw: the other selections are independent moves and there is no
+                // reason to punish them. The blocked registrant stays put in the source panel, which
+                // is the durable half of the report; the reason text is the other half.
+                if (roleName != RoleConstants.Names.StaffName)
+                {
+                    var conflict = await _feeService.DetectArbPlanConflictAsync(
+                        reg, targetTeam.JobId, targetTeam.AgegroupId, targetTeam.TeamId, ct);
+
+                    if (conflict != null)
+                    {
+                        var who = GetPlayerName(reg);
+                        blocked.Add(new RosterTransferBlockedDto
+                        {
+                            RegistrationId = reg.RegistrationId,
+                            PlayerName = who,
+                            Reason = BuildArbBlockReason(who, targetTeam.TeamName, conflict)
+                        });
+                        continue;
+                    }
+                }
+
                 var oldTeamId = reg.AssignedTeamId ?? Guid.Empty;
 
                 // Update team assignment
@@ -397,6 +440,8 @@ public sealed class RosterSwapperService : IRosterSwapperService
                     playersTransferred++;
                     feesRecalculated++;
                 }
+
+                movedIds.Add(reg.RegistrationId);
 
                 // Device sync: update DeviceTeams for old team → new team
                 if (oldTeamId != Guid.Empty)
@@ -429,13 +474,22 @@ public sealed class RosterSwapperService : IRosterSwapperService
             if (playersTransferred > 0) parts.Add($"{playersTransferred} transferred");
             if (feesRecalculated > 0) parts.Add($"{feesRecalculated} fees recalculated");
 
+            // A summary only — the WHY of each refusal rides in Blocked, one alert per registrant.
+            // Counting alone here also keeps the empty-parts case ("." on its own) from reaching the
+            // director when every selected registrant was blocked.
+            var summary = parts.Count > 0 ? string.Join(", ", parts) + "." : "No players were moved.";
+            if (blocked.Count > 0)
+                summary += $" {blocked.Count} not moved — see the alert{(blocked.Count == 1 ? "" : "s")}.";
+
             return new RosterTransferResultDto
             {
                 PlayersTransferred = playersTransferred,
                 StaffCreated = 0,
                 StaffDeleted = 0,
                 FeesRecalculated = feesRecalculated,
-                Message = string.Join(", ", parts) + "."
+                Message = summary,
+                MovedRegistrationIds = movedIds,
+                Blocked = blocked
             };
         }
     }
@@ -531,5 +585,29 @@ public sealed class RosterSwapperService : IRosterSwapperService
         if (reg.User != null)
             return $"{reg.User.LastName ?? ""}, {reg.User.FirstName ?? ""}".Trim().TrimEnd(',').Trim();
         return "Unknown";
+    }
+
+    /// <summary>
+    /// The director-facing reason one registrant was not moved. Composed here, in ONE place,
+    /// because it must say the same thing wherever it surfaces and because every figure in it is
+    /// live money the client has no business re-deriving.
+    /// <para>
+    /// Written to answer the three questions a director actually has, in order: why is this
+    /// refused, what exactly is the mismatch, and what do I do now. It renders through
+    /// <c>{{ t.message }}</c> interpolation, so it is flowing prose — newlines and markup would
+    /// collapse into a run-on line.
+    /// </para>
+    /// </summary>
+    private static string BuildArbBlockReason(string playerName, string? targetTeamName, ArbPlanConflict c)
+    {
+        var team = string.IsNullOrWhiteSpace(targetTeamName) ? "this team" : targetTeamName;
+        var draft = c.OccurrencesRemaining == 1 ? "draft" : "drafts";
+
+        return $"{playerName} is on an active payment plan — {c.OccurrencesToDate} of "
+             + $"{c.TotalOccurrences} payments taken, {c.OccurrencesRemaining} {draft} still to come at "
+             + $"{c.AmountPerOccurrence:C} each. Moving to {team} changes this registration from "
+             + $"{c.CurrentFeeTotal:C} to {c.NewFeeTotal:C}, but the payment plan would keep drafting "
+             + $"{c.AmountPerOccurrence:C} against the old amount and the balance would never settle. "
+             + $"Cancel the payment plan first, then move {playerName}.";
     }
 }

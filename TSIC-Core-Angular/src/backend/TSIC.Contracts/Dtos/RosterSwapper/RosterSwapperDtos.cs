@@ -93,6 +93,37 @@ public record RosterTransferResultDto
     public required int StaffDeleted { get; init; }
     public required int FeesRecalculated { get; init; }
     public required string Message { get; init; }
+
+    /// <summary>
+    /// The registrations that ACTUALLY moved. Never assume this equals the requested id list — a
+    /// registrant whose recurring-billing plan the move would break is skipped (see <see cref="Blocked"/>).
+    /// The UI keys its "just moved" highlight and scroll off THIS list, never off the request:
+    /// highlighting a player who stayed put is a lie the roster panel tells until the next reload.
+    /// </summary>
+    public required List<Guid> MovedRegistrationIds { get; init; }
+
+    /// <summary>
+    /// Registrants deliberately NOT moved, each with a director-readable reason. Same
+    /// skip-with-reason shape as <c>ArbNotifyResultDto.Skips</c>: serve everyone the operation
+    /// can, then report precisely who it could not serve and why.
+    /// </summary>
+    public required List<RosterTransferBlockedDto> Blocked { get; init; }
+}
+
+/// <summary>
+/// One registrant the transfer refused to move, and a reason the director can act on.
+/// <para>
+/// The reason is composed SERVER-SIDE and passed through verbatim. It carries live money figures
+/// (plan position, per-draft amount, both fee totals) that only fee + plan resolution has in hand,
+/// and it must read identically wherever it surfaces — so the client formats nothing and
+/// re-derives nothing.
+/// </para>
+/// </summary>
+public record RosterTransferBlockedDto
+{
+    public required Guid RegistrationId { get; init; }
+    public required string PlayerName { get; init; }
+    public required string Reason { get; init; }
 }
 
 /// <summary>

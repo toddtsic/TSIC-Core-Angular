@@ -236,6 +236,58 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
         return new WidgetDashboardResponse { Workspaces = workspaces };
     }
 
+    /// <summary>
+    /// Does this job + role have any DASHBOARD-workspace widget at all?
+    ///
+    /// Deliberately re-walks layers 1+2 rather than calling GetDashboardAsync: this answers
+    /// whether to OFFER the dashboard, and it rides the job pulse, so it must not pay for
+    /// the full assembly (categories, ordering, per-user layer) to return one bool.
+    ///
+    /// The layer-1+2 merge below is the same shape as steps 4–6 of GetDashboardAsync and must
+    /// stay in step with it: a default is live unless a job override disables it, and a job
+    /// override with no matching default is a pure addition. Layer 3 (UserWidget) is excluded
+    /// ON PURPOSE — see the interface remarks.
+    /// </summary>
+    public async Task<bool> HasDashboardWidgetsAsync(
+        Guid jobId, string roleName, CancellationToken ct = default)
+    {
+        if (!RoleNameToIdMap.TryGetValue(roleName, out var roleId))
+        {
+            _logger.LogWarning("Dashboard widget probe: unknown role name '{RoleName}'", roleName);
+            return false;
+        }
+
+        var jobTypeId = await _widgetRepo.GetJobTypeIdAsync(jobId, ct);
+        if (jobTypeId is null)
+            return false;
+
+        // Sequential — the two repo calls share one scoped DbContext.
+        var defaults = await _widgetRepo.GetDefaultsAsync(jobTypeId.Value, roleId, ct);
+        var jobWidgets = await _widgetRepo.GetJobWidgetsAsync(jobId, roleId, ct);
+
+        var overridesByWidgetId = jobWidgets.ToDictionary(jw => jw.WidgetId);
+
+        foreach (var def in defaults)
+        {
+            if (overridesByWidgetId.TryGetValue(def.WidgetId, out var ov))
+            {
+                // An override REPLACES the default outright — including its workspace, which
+                // the editor can move. Test the override, never the default it shadowed.
+                overridesByWidgetId.Remove(def.WidgetId);
+                if (ov.IsEnabled && ov.Workspace == WidgetWorkspaces.Dashboard)
+                    return true;
+            }
+            else if (def.Workspace == WidgetWorkspaces.Dashboard)
+            {
+                return true;
+            }
+        }
+
+        // Whatever is left is a per-job addition with no platform default behind it.
+        return overridesByWidgetId.Values
+            .Any(add => add.IsEnabled && add.Workspace == WidgetWorkspaces.Dashboard);
+    }
+
     public async Task<DashboardMetricsDto> GetMetricsAsync(
         Guid jobId, CancellationToken ct = default)
     {

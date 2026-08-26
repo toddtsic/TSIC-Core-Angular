@@ -87,7 +87,7 @@ export class AdultWizardV2Component implements OnInit {
             case 'waivers':      return this.state.hasAcceptedAllWaivers();
             case 'review':       return !this.state.preSubmitting();
             case 'payment':      return this.state.paymentSuccess();
-            case 'confirmation': return false; // Own Finish button
+            case 'confirmation': return false; // Own "Return Home" button
             default:             return false;
         }
     });
@@ -202,7 +202,7 @@ export class AdultWizardV2Component implements OnInit {
         this.next();
     }
 
-    /** Confirmation step "Finish" button. */
+    /** Confirmation step "Return Home" button. */
     onFinishConfirmation(): void {
         this.router.navigateByUrl(`/${this.jobPath}`);
     }

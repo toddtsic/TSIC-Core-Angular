@@ -213,6 +213,23 @@ public record JobPulseDto
     // Display name of the regId owner (Player / ClubRep / Staff / etc). Used for header initials.
     public string? MyFirstName { get; init; }
     public string? MyLastName { get; init; }
+
+    /// <summary>
+    /// True when this job + role actually has a widget dashboard to show — at least one
+    /// DASHBOARD-workspace widget survives the WidgetDefault → JobWidget merge. Gates BOTH
+    /// doors into it (the user-menu entry and the landing-page pill) so neither offers a
+    /// page that would render empty.
+    ///
+    /// Populated ONLY for Superuser / Director / SuperDirector, because the /dashboard route
+    /// guards on exactly those three; every other role leaves it null and pays nothing for a
+    /// flag it would never read. Null therefore means "not an admin, or not scoped to this
+    /// job" — the client treats null as false, which is the correct reading of both.
+    ///
+    /// Rides the pulse rather than its own endpoint because the pulse is already fetched on
+    /// every route by the client layout, and both gated surfaces already consume it. An
+    /// endpoint of its own would have cost the header bar a request per page load.
+    /// </summary>
+    public bool? MyHasDashboardWidgets { get; init; }
 }
 
 /// <summary>

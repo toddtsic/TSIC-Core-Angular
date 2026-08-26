@@ -37,6 +37,15 @@ export class WizardActionBarComponent {
     /** When true, Continue is disabled and shows a spinner — an async step transition is in flight. */
     readonly busy = input(false);
     readonly continueLabel = input('Continue');
+    /**
+     * What the forward button DOES, which decides its icon and how a screen reader announces it.
+     * 'proceed' (default) = another step follows: chevron, "Proceed: <label>".
+     * 'done' = terminal step, the registration is already complete and the button only navigates
+     * home: house icon, "<label>" alone. AR-035 — a forward chevron on a confirmation screen
+     * implies there is something left to do, which is the whole complaint. Every non-terminal
+     * step keeps today's behaviour by default.
+     */
+    readonly continueIntent = input<'proceed' | 'done'>('proceed');
     readonly showContinue = input(true);
     readonly detailsBadgeLabel = input<string | null>(null);
     readonly detailsBadgeClass = input<string>('badge-danger');
@@ -52,6 +61,14 @@ export class WizardActionBarComponent {
     readonly showBadge = computed(() => !!this.detailsBadgeLabel());
 
     // Computed: strip "Proceed to " prefix from continue label for mobile view
+    /** Forward-button icon: a chevron while steps remain, a house on the terminal step. */
+    readonly continueIcon = computed(() =>
+        this.continueIntent() === 'done' ? 'bi-house' : 'bi-chevron-right');
+
+    /** Screen-reader label. "Proceed:" would repeat the false implication on a terminal step. */
+    readonly continueAriaLabel = computed(() =>
+        this.continueIntent() === 'done' ? this.continueLabel() : 'Proceed: ' + this.continueLabel());
+
     readonly continueLabelShort = computed(() => {
         const label = this.continueLabel();
         return label.replace(/^Proceed to\s+/i, '');

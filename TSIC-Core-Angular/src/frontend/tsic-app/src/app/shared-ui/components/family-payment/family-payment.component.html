@@ -85,6 +85,7 @@
     [otherBucketLabel]="'Inactive'"
     [allowAdd]="canAddRecord()"
     [addTargets]="addTargets()"
+    [canCorrectLivePlan]="isSuperuser()"
     (addTargetSelected)="onAddTargetSelected($event)"
     (refundSubmitted)="onRefundSubmitted($event)"
     (ccChargeSubmitted)="onCcCharge($event)"

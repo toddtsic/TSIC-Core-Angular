@@ -71,9 +71,6 @@
 					<label class="field-label">Season
 						<input class="field-input" type="text" [ngModel]="seasonTarget()" (ngModelChange)="set(seasonTarget, $event)" />
 					</label>
-					<label class="field-label">Display name
-						<input class="field-input" type="text" [ngModel]="displayName()" (ngModelChange)="set(displayName, $event)" />
-					</label>
 				</div>
 
 				@if (leagueRenames().length > 0) {
@@ -146,8 +143,15 @@
 
 			<section class="jc-panel">
 				<h3>Communications</h3>
-				<p class="jc-hint">Pre-filled from the source job. Emptying a field clears it on the new job.</p>
+				<p class="jc-hint">Pre-filled from the source job. Emptying a field clears it on the new job.
+					Display name is the From name on outbound email, and is required.</p>
 				<div class="jc-grid">
+					<!-- AR-036: Display name lives HERE, not with Year/Season, because it is the From
+					     display name on every email this job sends (DisplayName ?? JobName). It sat in
+					     the identity group while governing what families see in their inbox. -->
+					<label class="field-label">Display name
+						<input class="field-input" type="text" [ngModel]="displayName()" (ngModelChange)="set(displayName, $event)" />
+					</label>
 					<label class="field-label">Reg-form From
 						<input class="field-input" type="text" [ngModel]="regFormFrom()" (ngModelChange)="set(regFormFrom, $event)" />
 					</label>

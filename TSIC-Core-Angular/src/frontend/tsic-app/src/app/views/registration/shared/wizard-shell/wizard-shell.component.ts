@@ -53,6 +53,22 @@ export class WizardShellComponent {
     readonly busyMessage = input('Working…');
     /** Label for the Continue button. */
     readonly continueLabel = input('Continue');
+    /**
+     * What the forward button DOES — 'proceed' (another step follows) or 'done' (terminal step;
+     * the registration is already complete and the button only navigates home). Drives the icon
+     * and the screen-reader phrasing on BOTH forward buttons: this shell renders its own in the
+     * header AND passes through to app-wizard-action-bar. AR-035 — a chevron on a confirmation
+     * screen implies work remains. Defaults to today's behaviour for every other step.
+     */
+    readonly continueIntent = input<'proceed' | 'done'>('proceed');
+
+    /** Header forward-button icon: chevron while steps remain, house on the terminal step. */
+    readonly continueIcon = computed(() =>
+        this.continueIntent() === 'done' ? 'bi-house' : 'bi-chevron-right');
+
+    /** "Proceed:" would repeat the false implication on a terminal step. */
+    readonly continueAriaLabel = computed(() =>
+        this.continueIntent() === 'done' ? this.continueLabel() : 'Proceed: ' + this.continueLabel());
     /** Whether to show the Continue button at all. */
     readonly showContinue = input(true);
     /** Whether to show the Back button at all. */

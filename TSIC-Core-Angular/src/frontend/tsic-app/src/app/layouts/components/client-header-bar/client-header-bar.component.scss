@@ -816,3 +816,54 @@
         }
     }
 }
+
+// AR-033 — SuperUser-only copy control beside the job-name pill. Deliberately a sibling
+// of the pill, not a child: the pill is a navigation target, and a copy nested inside it
+// would fire goHome() on the way out.
+.job-name-copy {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+    color: var(--bs-secondary-color);
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.08);
+        color: var(--brand-primary);
+        border-color: rgba(var(--bs-primary-rgb), 0.35);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus, 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25));
+    }
+
+    .bi {
+        font-size: 0.9rem;
+        line-height: 1;
+    }
+
+    // Icon shape carries the state too (check / triangle) — never colour alone.
+    .is-copied { color: var(--bs-success); }
+    .is-failed { color: var(--bs-danger); }
+
+    &--mobile {
+        width: 26px;
+        height: 26px;
+        margin-right: var(--space-1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .job-name-copy {
+        transition: none !important;
+    }
+}

@@ -1,6 +1,6 @@
 import { Component, inject, signal, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { DecimalPipe } from '@angular/common';
+import { CurrencyPipe } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { ArbDefensiveService } from './health/services/arb-defensive.service';
 import type { ArbSubscriptionInfoDto, ArbUpdateCcRequest, ArbUpdateCcResultDto } from '@core/api';
@@ -8,7 +8,7 @@ import type { ArbSubscriptionInfoDto, ArbUpdateCcRequest, ArbUpdateCcResultDto }
 @Component({
     selector: 'app-arb-update-cc',
     standalone: true,
-    imports: [FormsModule, DecimalPipe],
+    imports: [FormsModule, CurrencyPipe],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './arb-update-cc.component.html',
     styleUrl: './arb-update-cc.component.scss'
@@ -125,8 +125,10 @@ export class ArbUpdateCcComponent implements OnInit {
             lastName: this.lastName(),
             address: this.address(),
             zip: this.zip(),
-            email: this.email(),
-            balanceDue: subInfo.balanceDue
+            email: this.email()
+            // No amount is sent. The server re-derives the balance from the registration and
+            // charges that; a figure posted from here would be a charge amount under client
+            // control. subInfo.balanceDue is for DISPLAY only.
         };
 
         this.arbService.updateCreditCard(request).subscribe({

@@ -740,7 +740,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     }
 
     public async Task<RegistrationCheckOrCorrectionResponse> RecordCheckOrCorrectionAsync(
-        Guid jobId, string userId, RegistrationCheckOrCorrectionRequest request, CancellationToken ct = default)
+        Guid jobId, string userId, string callerRole, RegistrationCheckOrCorrectionRequest request, CancellationToken ct = default)
     {
         // Validate registration belongs to job
         var regJobId = await _registrationRepo.GetRegistrationJobIdAsync(request.RegistrationId, ct);
@@ -762,10 +762,44 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         if (isCorrection && request.Amount == 0)
             return new RegistrationCheckOrCorrectionResponse { Success = false, Error = "A correction amount cannot be $0.00." };
 
+        // Loaded once here and shared by the guards below — it carries the balances AND the stored
+        // ARB snapshot columns, so the AR-032 check below costs no extra query.
+        var regForValidation = await _registrationRepo.GetByIdAsync(request.RegistrationId, ct);
+
+        // AR-032 — a CORRECTION against a LIVE ARB plan is Superuser-only.
+        // A correction writes a local RegistrationAccounting row and nothing else: it never calls
+        // Authorize.Net and never touches ARBUpdateSubscription. Directors were entering them
+        // believing the plan would follow, so TSIC's ledger moved while ADN kept drafting the
+        // ORIGINAL schedule and the family kept being charged the old amount — a silent divergence
+        // made by the role that believed it was doing the opposite.
+        //
+        // Liveness is the ONE rule (ArbSubscriptionStatus.IsLive), anchored on the subscription id,
+        // NOT a job-level "is this an ARB site" test: the many registrants on an ARB-capable job who
+        // hold no plan, and anyone whose plan is canceled/terminated/expired, are untouched and may
+        // still be corrected.
+        //
+        // Check is deliberately NOT gated — Ann asked for Corrections only, and a check is real
+        // money arriving rather than a belief about the plan.
+        //
+        // THIS is the control. The ledger disables the tab and says why, but the UI is not a gate:
+        // a replayed or hand-made request lands here.
+        if (isCorrection
+            && regForValidation != null
+            && ArbSubscriptionStatus.IsLive(regForValidation.AdnSubscriptionId, regForValidation.AdnSubscriptionStatus)
+            && !string.Equals(callerRole, RoleConstants.Names.SuperuserName, StringComparison.OrdinalIgnoreCase))
+        {
+            return new RegistrationCheckOrCorrectionResponse
+            {
+                Success = false,
+                Error = "This registration is on a live Authorize.Net payment plan. A correction changes "
+                      + "the TSIC ledger only — it does not change what the plan will draft — so it is "
+                      + "restricted to TSIC support. Contact TSIC to change a plan."
+            };
+        }
+
         // Overpayment guard — a positive check/correction cannot exceed what is owed.
         // Positive-only: a negative correction lowers PaidTotal, so no upper cap applies
         // (and comparing a negative amount against a negative OwedTotal is meaningless).
-        var regForValidation = await _registrationRepo.GetByIdAsync(request.RegistrationId, ct);
         if (regForValidation != null && request.Amount > 0 && request.Amount > regForValidation.OwedTotal)
             return new RegistrationCheckOrCorrectionResponse { Success = false, Error = $"Amount ${request.Amount:F2} exceeds the balance owed of ${regForValidation.OwedTotal:F2}." };
 

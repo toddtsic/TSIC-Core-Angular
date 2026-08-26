@@ -47,13 +47,30 @@
                 </button>
                 }
 
-                <!-- Desktop Job Name — click navigates to role landing page -->
+                <!-- Desktop Job Name — click navigates to role landing page.
+                     AR-033: SuperUser also gets a copy button BESIDE the pill. The pill itself is
+                     a navigation target, so dragging to select its text sends you home instead of
+                     selecting. The button is a SIBLING, not a child, and stops propagation — a
+                     copy click must never navigate. -->
                 @if (jobName()) {
-                <div class="job-name-display-desktop d-none d-md-block ms-3"
-                    role="button" tabindex="0"
-                    (click)="goHome()" (keydown.enter)="goHome()"
-                    title="Go to home page">
-                    <span class="job-name-text">{{ jobName() }}</span>
+                <div class="d-none d-md-flex align-items-center gap-1 ms-3">
+                    <div class="job-name-display-desktop"
+                        role="button" tabindex="0"
+                        (click)="goHome()" (keydown.enter)="goHome()"
+                        title="Go to home page">
+                        <span class="job-name-text">{{ jobName() }}</span>
+                    </div>
+                    @if (isSuperuser()) {
+                    <button type="button" class="job-name-copy" (click)="copyJobName($event)"
+                        aria-label="Copy event name" [title]="jobNameCopyTitle()">
+                        <i class="bi"
+                            [class.bi-clipboard]="jobNameCopyState() === null"
+                            [class.bi-check-lg]="jobNameCopyState() === 'copied'"
+                            [class.bi-exclamation-triangle]="jobNameCopyState() === 'failed'"
+                            [class.is-copied]="jobNameCopyState() === 'copied'"
+                            [class.is-failed]="jobNameCopyState() === 'failed'"></i>
+                    </button>
+                    }
                 </div>
                 }
             </div>
@@ -69,6 +86,19 @@
                 <span class="mobile-jn-line2">{{ jobNameLines()[1] }}</span>
                 }
             </span>
+            <!-- AR-033: copies jobName(), never the two rendered lines. -->
+            @if (isSuperuser()) {
+            <button type="button" class="job-name-copy job-name-copy--mobile d-md-none"
+                (click)="copyJobName($event)"
+                aria-label="Copy event name" [title]="jobNameCopyTitle()">
+                <i class="bi"
+                    [class.bi-clipboard]="jobNameCopyState() === null"
+                    [class.bi-check-lg]="jobNameCopyState() === 'copied'"
+                    [class.bi-exclamation-triangle]="jobNameCopyState() === 'failed'"
+                    [class.is-copied]="jobNameCopyState() === 'copied'"
+                    [class.is-failed]="jobNameCopyState() === 'failed'"></i>
+            </button>
+            }
             }
         </div>
 
@@ -179,7 +209,8 @@
                         </button>
                         }
 
-                        @if (isAdmin()) {
+                        <!-- Admin AND the job actually has dashboard widgets — see showDashboardEntries. -->
+                        @if (showDashboardEntries()) {
                         <button type="button" class="user-menu-item" role="menuitem"
                             (click)="viewDashboard()">
                             <i class="bi bi-speedometer2"></i>
@@ -367,7 +398,8 @@
                         </button>
                         }
 
-                        @if (isAdmin()) {
+                        <!-- Admin AND the job actually has dashboard widgets — see showDashboardEntries. -->
+                        @if (showDashboardEntries()) {
                         <button type="button" class="user-menu-item" role="menuitem"
                             (click)="viewDashboard()">
                             <i class="bi bi-speedometer2"></i>

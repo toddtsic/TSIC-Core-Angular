@@ -9,7 +9,7 @@ import { RichTextPipe } from '@infrastructure/pipes/rich-text.pipe';
 
 /**
  * Confirmation step — displays the server-rendered confirmation HTML,
- * allows resending the confirmation email, and shows a "Finish" button.
+ * allows resending the confirmation email, and shows a "Return Home" button.
  */
 @Component({
     selector: 'app-prw-confirmation-step',

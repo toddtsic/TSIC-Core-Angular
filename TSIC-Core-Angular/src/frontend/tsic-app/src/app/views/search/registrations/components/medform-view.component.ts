@@ -84,8 +84,9 @@ export class MedFormViewComponent implements OnInit {
     readonly errorMessage = signal<string | null>(null);
 
     ngOnInit(): void {
-        // 404 is the expected "no file" state (and 403 shouldn't happen for an in-job director) —
-        // suppress the global toast either way; the control simply stays hidden.
+        // 404 is the expected "no file" state — including the job-collects-no-med-form case, which
+        // is nearly every job. 403 means the caller is genuinely out of bounds. Suppress the global
+        // toast either way; the control simply stays hidden.
         this.http.head(this.baseUrl(), { observe: 'response', context: skipErrorToast() }).subscribe({
             next: () => this.hasFile.set(true),
             error: () => this.hasFile.set(false),

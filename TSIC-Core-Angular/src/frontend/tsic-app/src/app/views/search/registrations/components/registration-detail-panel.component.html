@@ -560,6 +560,8 @@
               [paidTotal]="reg.paidTotal"
               [owedTotal]="reg.owedTotal"
               [procRate]="reg.ccProcRate"
+              [arbLive]="arbPlanIsLive()"
+              [canCorrectLivePlan]="isSuperuser()"
               (refundSubmitted)="onRefundSubmitted($event)"
               (ccChargeSubmitted)="onCcCharge($event)"
               (checkSubmitted)="onCheckSubmitted($event)">

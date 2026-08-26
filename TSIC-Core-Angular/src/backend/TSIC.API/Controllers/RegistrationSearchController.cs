@@ -363,9 +363,14 @@ public class RegistrationSearchController : ControllerBase
 
         var sanitized = request with { RegistrationId = registrationId };
 
+        // AdminOnly admits Director, SuperDirector and Superuser alike, and a Correction against a
+        // live ARB plan is Superuser-only (AR-032) — so the role travels to the service, which owns
+        // the rule. Same shape as SetActive / DeleteRegistration below.
+        var callerRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+
         try
         {
-            var result = await _searchService.RecordCheckOrCorrectionAsync(jobId!.Value, userId!, sanitized, ct);
+            var result = await _searchService.RecordCheckOrCorrectionAsync(jobId!.Value, userId!, callerRole, sanitized, ct);
             return Ok(result);
         }
         catch (InvalidOperationException ex)

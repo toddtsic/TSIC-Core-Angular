@@ -40,6 +40,19 @@ export class ClientHeaderBarComponent {
 
     readonly isAdmin = this.auth.isAdmin;
 
+    /**
+     * Gates the Dashboard + Customize Dashboard menu entries — the dropdown door into
+     * /dashboard. Being an admin is necessary but not sufficient: the pulse reports
+     * whether this job+role has any dashboard widget at all, so a job whose dashboard
+     * would render empty offers no way in rather than a blank page.
+     *
+     * `=== true` on purpose. The flag is null while the pulse is still in flight, null
+     * for a non-admin, and null when the JWT is not scoped to this job — none of those
+     * is "yes", and treating a loading pulse as yes is what would flash a dead link.
+     */
+    readonly showDashboardEntries = computed(() =>
+        this.isAdmin() && this.pulse()?.myHasDashboardWidgets === true);
+
     // Job-related signals
     jobLogoPath = computed(() => {
         const job = this.jobService.currentJob();
@@ -58,6 +71,30 @@ export class ClientHeaderBarComponent {
         if (idx === -1) return [name];
         return [name.substring(0, idx).trim(), name.substring(idx + 1).trim()];
     });
+
+    /**
+     * AR-033 copy control — gated on the ACTIVE role being Superuser, and NOTHING else.
+     *
+     * Deliberately NOT `auth.isSuperuser`: that one also reads true when Superuser merely
+     * appears in the `roles` array, so it would light the button for someone acting as a
+     * Director the moment the server starts issuing multiple role claims (the decode at
+     * auth.service.ts already handles an array claim). Todd's ruling: role = SuperUser only.
+     */
+    readonly isSuperuser = computed(() => this.auth.currentUser()?.role === Roles.Superuser);
+
+    /** Transient outcome of the job-name copy: null | 'copied' | 'failed'. A copy button
+     *  that silently does nothing is worse than no button, so failure is SHOWN. */
+    readonly jobNameCopyState = signal<'copied' | 'failed' | null>(null);
+
+    readonly jobNameCopyTitle = computed(() => {
+        switch (this.jobNameCopyState()) {
+            case 'copied': return 'Copied!';
+            case 'failed': return 'Copy blocked — the clipboard needs a secure (https) page';
+            default: return 'Copy event name';
+        }
+    });
+
+    private copyResetTimer?: ReturnType<typeof setTimeout>;
 
     // Single computed `user` derived from AuthService; derive UI values from it.
     user = computed(() => this.auth.currentUser());
@@ -244,6 +281,8 @@ export class ClientHeaderBarComponent {
             });
         });
 
+        this.destroyRef.onDestroy(() => clearTimeout(this.copyResetTimer));
+
         // Close all menus when requested (e.g. after role selection navigates away)
         toObservable(this.menuState.closeAllMenusRequested).pipe(
             filter(requested => requested),
@@ -331,6 +370,33 @@ export class ClientHeaderBarComponent {
     goHome() {
         const jobPath = this.jobService.currentJob()?.jobPath || 'tsic';
         this.router.navigate([`/${jobPath}`]);
+    }
+
+    /**
+     * AR-033: copy the full `Customer:Job` string (SuperUser only; Ann pastes it into email).
+     *
+     * Reads jobName() — NOT the rendered text. Mobile splits the name across two lines via
+     * jobNameLines(), so a text-based copy comes back broken in half on a phone.
+     */
+    async copyJobName(event: Event): Promise<void> {
+        // The job-name pill sits right beside this button and navigates home on click.
+        event.stopPropagation();
+        const value = this.jobName();
+        if (!value) return;
+        try {
+            // navigator.clipboard is UNDEFINED outside a secure context (plain http), which
+            // throws rather than rejecting — hence try/catch, not a .catch() on the promise.
+            await navigator.clipboard.writeText(value);
+            this.setCopyState('copied');
+        } catch {
+            this.setCopyState('failed');
+        }
+    }
+
+    private setCopyState(state: 'copied' | 'failed'): void {
+        clearTimeout(this.copyResetTimer);
+        this.jobNameCopyState.set(state);
+        this.copyResetTimer = setTimeout(() => this.jobNameCopyState.set(null), 2000);
     }
 
     /** Admin-only: go to the widget dashboard (charts/metrics). Admins land on the

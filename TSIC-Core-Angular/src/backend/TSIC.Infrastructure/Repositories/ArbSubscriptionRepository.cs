@@ -10,6 +10,13 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
 {
     private static readonly Guid CreditCardPaymentMethodId =
         Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
+    /// <summary>
+    /// Marker the sweep stamps into Registration_Accounting.paymeth for every ARB draft it books
+    /// (AdnSweepService.ImportRegistrationArbTransactionAsync). Paired with payamt = 0 it identifies
+    /// a draft that did NOT settle: a settled installment always books a non-zero payamt, so the two
+    /// together separate declined drafts from successful ones without parsing the comment string.
+    /// </summary>
+    private const string ArbDraftPaymethMarker = "on subscriptionId:";
 
     private readonly SqlDbContext _context;
 
@@ -58,7 +65,20 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
                 JobName = r.Job!.JobName ?? r.Job.DisplayName ?? "",
                 JobPath = r.Job.JobPath ?? "",
                 JobId = r.JobId,
-                BemailOptOut = r.BemailOptOut
+                BemailOptOut = r.BemailOptOut,
+                LastFailedDraftDate = _context.RegistrationAccounting
+                    .Where(ra => ra.RegistrationId == r.RegistrationId
+                        && ra.Active == true
+                        && ra.AdnTransactionId != null
+                        && (ra.Payamt ?? 0m) == 0m
+                        && ra.Paymeth != null && ra.Paymeth.Contains(ArbDraftPaymethMarker))
+                    .Max(ra => (DateTime?)ra.Createdate),
+                LastArbDraftDate = _context.RegistrationAccounting
+                    .Where(ra => ra.RegistrationId == r.RegistrationId
+                        && ra.Active == true
+                        && ra.AdnTransactionId != null
+                        && ra.Paymeth != null && ra.Paymeth.Contains(ArbDraftPaymethMarker))
+                    .Max(ra => (DateTime?)ra.Createdate),
             })
             .ToListAsync(ct);
     }
@@ -113,7 +133,20 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
                 JobName = r.Job!.JobName ?? r.Job.DisplayName ?? "",
                 JobPath = r.Job.JobPath ?? "",
                 JobId = r.JobId,
-                BemailOptOut = r.BemailOptOut
+                BemailOptOut = r.BemailOptOut,
+                LastFailedDraftDate = _context.RegistrationAccounting
+                    .Where(ra => ra.RegistrationId == r.RegistrationId
+                        && ra.Active == true
+                        && ra.AdnTransactionId != null
+                        && (ra.Payamt ?? 0m) == 0m
+                        && ra.Paymeth != null && ra.Paymeth.Contains(ArbDraftPaymethMarker))
+                    .Max(ra => (DateTime?)ra.Createdate),
+                LastArbDraftDate = _context.RegistrationAccounting
+                    .Where(ra => ra.RegistrationId == r.RegistrationId
+                        && ra.Active == true
+                        && ra.AdnTransactionId != null
+                        && ra.Paymeth != null && ra.Paymeth.Contains(ArbDraftPaymethMarker))
+                    .Max(ra => (DateTime?)ra.Createdate),
             })
             .ToListAsync(ct);
     }
@@ -143,7 +176,20 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
                         ra.RegistrationId == registrationId
                         && ra.AdnInvoiceNo != null)
                     .Select(ra => ra.AdnInvoiceNo)
-                    .FirstOrDefault()
+                    .FirstOrDefault(),
+                LastFailedDraftDate = _context.RegistrationAccounting
+                    .Where(ra => ra.RegistrationId == registrationId
+                        && ra.Active == true
+                        && ra.AdnTransactionId != null
+                        && (ra.Payamt ?? 0m) == 0m
+                        && ra.Paymeth != null && ra.Paymeth.Contains(ArbDraftPaymethMarker))
+                    .Max(ra => (DateTime?)ra.Createdate),
+                LastArbDraftDate = _context.RegistrationAccounting
+                    .Where(ra => ra.RegistrationId == registrationId
+                        && ra.Active == true
+                        && ra.AdnTransactionId != null
+                        && ra.Paymeth != null && ra.Paymeth.Contains(ArbDraftPaymethMarker))
+                    .Max(ra => (DateTime?)ra.Createdate)
             })
             .FirstOrDefaultAsync(ct);
 
