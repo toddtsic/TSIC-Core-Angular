@@ -748,7 +748,11 @@ public sealed class AdnSweepService : IAdnSweepService
             await _accountingRepo.SaveChangesAsync(ct);
         }
 
-        var (owedNow, paymentXofY, nextInstallment) = ComputeInstallmentMath(reg);
+        // The sweep is holding the transaction that just failed, so it knows without a lookup.
+        var (owedNow, paymentXofY, nextInstallment) = ComputeInstallmentMath(
+            reg,
+            currentDraftFailed: !string.Equals(
+                tx.transactionStatus, "settledSuccessfully", StringComparison.OrdinalIgnoreCase));
 
         return new ArbDigestRow
         {
@@ -1421,7 +1425,20 @@ public sealed class AdnSweepService : IAdnSweepService
         return (owedNow, paymentXofY, nextInstallment);
     }
 
-    private (decimal OwedNow, string PaymentXofY, DateTime? NextInstallment) ComputeInstallmentMath(Registrations reg)
+    /// <summary>
+    /// Installment position and arrears for a registration ARB plan.
+    /// </summary>
+    /// <param name="currentDraftFailed">
+    /// True when the caller is looking at a draft for the CURRENT installment that did not settle.
+    /// The first-installment suppression below assumes the opening payment may still be settling and
+    /// PaidTotal simply has not caught up; a known decline says otherwise. Without this, a family
+    /// whose FIRST installment declined was emailed - and shown - $0.00 owed, permanently.
+    /// Mirrors ArbDefensiveService.CalculateOwedNow, which applies the same override to its
+    /// 48-hour grace. The two must agree: this figure is the number in the family email, that one is
+    /// the number on the page the email links to.
+    /// </param>
+    private (decimal OwedNow, string PaymentXofY, DateTime? NextInstallment) ComputeInstallmentMath(
+        Registrations reg, bool currentDraftFailed = false)
     {
         if (reg.AdnSubscriptionStartDate == null
             || reg.AdnSubscriptionIntervalLength == null
@@ -1442,7 +1459,7 @@ public sealed class AdnSweepService : IAdnSweepService
         var sumAllArbFees = amt * totalOcc;
         var sumAllArbFeesAsOfNow = amt * occAsOfNow;
         var sumAllNonArbFees = reg.FeeTotal - sumAllArbFees;
-        var owedNow = (occAsOfNow <= 1)
+        var owedNow = (occAsOfNow <= 1 && !currentDraftFailed)
             ? 0m
             : sumAllArbFeesAsOfNow + sumAllNonArbFees - reg.PaidTotal;
 

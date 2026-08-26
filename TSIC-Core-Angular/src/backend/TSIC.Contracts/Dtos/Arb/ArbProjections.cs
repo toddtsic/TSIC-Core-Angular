@@ -41,6 +41,24 @@ public record ArbRegistrationProjection
 
     /// <summary>Unsubscribe flag — the engine suppresses opted-out registrants uniformly.</summary>
     public bool BemailOptOut { get; init; }
+
+    /// <summary>
+    /// Createdate of the most recent NON-SETTLING ARB draft booked for this registration. The sweep
+    /// writes one row per declined / generalError transaction (payamt 0, ARB paymeth, registration
+    /// totals untouched), so this is durable evidence that a scheduled installment is KNOWN to have
+    /// failed - not merely still in flight. It is what lets the balance math overrule its own
+    /// 48-hour grace window. See ArbDefensiveService.CalculateOwedNow.
+    /// </summary>
+    public DateTime? LastFailedDraftDate { get; init; }
+
+    /// <summary>
+    /// Createdate of the most recent ARB draft booked for this registration of ANY outcome,
+    /// settled or not. Where LastFailedDraftDate says "we know it failed", this says the weaker but
+    /// sufficient "we know how it turned out" - which is all the 48-hour grace needs to stand down.
+    /// The grace exists solely to cover the window where an installment may still be settling at ADN
+    /// and PaidTotal has not caught up; once the draft is booked either way, that window is closed.
+    /// </summary>
+    public DateTime? LastArbDraftDate { get; init; }
 }
 
 /// <summary>
@@ -61,6 +79,24 @@ public record ArbRegistrationDetail
     public decimal FeeTotal { get; init; }
     public decimal PaidTotal { get; init; }
     public string? FirstInvoiceNumber { get; init; }
+
+    /// <summary>
+    /// Createdate of the most recent NON-SETTLING ARB draft booked for this registration. The sweep
+    /// writes one row per declined / generalError transaction (payamt 0, ARB paymeth, registration
+    /// totals untouched), so this is durable evidence that a scheduled installment is KNOWN to have
+    /// failed - not merely still in flight. It is what lets the balance math overrule its own
+    /// 48-hour grace window. See ArbDefensiveService.CalculateOwedNow.
+    /// </summary>
+    public DateTime? LastFailedDraftDate { get; init; }
+
+    /// <summary>
+    /// Createdate of the most recent ARB draft booked for this registration of ANY outcome,
+    /// settled or not. Where LastFailedDraftDate says "we know it failed", this says the weaker but
+    /// sufficient "we know how it turned out" - which is all the 48-hour grace needs to stand down.
+    /// The grace exists solely to cover the window where an installment may still be settling at ADN
+    /// and PaidTotal has not caught up; once the draft is booked either way, that window is closed.
+    /// </summary>
+    public DateTime? LastArbDraftDate { get; init; }
 }
 
 /// <summary>

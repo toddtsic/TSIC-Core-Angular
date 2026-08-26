@@ -125,8 +125,10 @@ export class ArbUpdateCcComponent implements OnInit {
             lastName: this.lastName(),
             address: this.address(),
             zip: this.zip(),
-            email: this.email(),
-            balanceDue: subInfo.balanceDue
+            email: this.email()
+            // No amount is sent. The server re-derives the balance from the registration and
+            // charges that; a figure posted from here would be a charge amount under client
+            // control. subInfo.balanceDue is for DISPLAY only.
         };
 
         this.arbService.updateCreditCard(request).subscribe({

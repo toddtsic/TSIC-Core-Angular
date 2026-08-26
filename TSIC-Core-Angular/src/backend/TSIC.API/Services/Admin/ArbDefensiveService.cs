@@ -108,34 +108,10 @@ public class ArbDefensiveService : IArbDefensiveService
             if (string.Equals(reg.SubscriptionStatus, "canceled", StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            var occurrences = GetOccurrencesAsOfNow(
-                reg.BillingOccurrences.Value,
-                reg.SubscriptionStartDate.Value,
-                reg.IntervalLength.Value);
-
-            var owes = CalculateFeesOwed(reg, occurrences);
-            if (owes <= 0) continue;
-
-            // 48-hour grace: skip if most recent scheduled payment was < 48 hrs ago
-            if (occurrences > 0)
-            {
-                var mostRecentPayment = reg.SubscriptionStartDate.Value
-                    .AddMonths(reg.IntervalLength.Value * (occurrences - 1));
-                if (Math.Abs((DateTime.Now - mostRecentPayment).TotalHours) < GraceHours)
-                    continue;
-            }
-
-            // Expired (or otherwise dead) subscription that still owes → owes everything.
-            // Unknown/blank status keeps the schedule-math figure rather than inflating it.
-            var finalOwes = owes;
-            if (!string.IsNullOrWhiteSpace(reg.SubscriptionStatus)
-                && !string.Equals(reg.SubscriptionStatus, "active", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(reg.SubscriptionStatus, "terminated", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(reg.SubscriptionStatus, "suspended", StringComparison.OrdinalIgnoreCase))
-            {
-                finalOwes = reg.FeeTotal - reg.PaidTotal;
-            }
-
+            // ONE balance rule, shared with the family-facing CC-update page. The dead-subscription
+            // override and the 48-hour grace both live inside CalculateOwedNow now; they used to be
+            // open-coded here and separately re-implemented there, and the two copies drifted.
+            var finalOwes = CalculateOwedNow(ArbBalanceInputs.From(reg));
             if (finalOwes <= 0) continue;
 
             result.Add(MapToDto(reg, ArbFlagType.BehindInPayment, finalOwes));
@@ -368,34 +344,7 @@ public class ArbDefensiveService : IArbDefensiveService
         if (detail == null || string.IsNullOrEmpty(detail.SubscriptionId))
             return null;
 
-        var balanceDue = 0m;
-        if (detail.SubscriptionStartDate != null
-            && detail.BillingOccurrences != null
-            && detail.IntervalLength != null
-            && detail.AmountPerOccurrence != null)
-        {
-            var occurrences = GetOccurrencesAsOfNow(
-                detail.BillingOccurrences.Value,
-                detail.SubscriptionStartDate.Value,
-                detail.IntervalLength.Value);
-
-            var sumArbFeesAsOfNow = detail.AmountPerOccurrence.Value * occurrences;
-            var sumAllArbFees = detail.AmountPerOccurrence.Value * detail.BillingOccurrences.Value;
-            var nonArbFees = detail.FeeTotal - sumAllArbFees;
-
-            balanceDue = occurrences <= 1 ? 0 :
-                Math.Max(0, (sumArbFeesAsOfNow + nonArbFees) - detail.PaidTotal);
-
-            // 48-hour grace deduction
-            if (occurrences > 0)
-            {
-                var mostRecent = detail.SubscriptionStartDate.Value
-                    .AddMonths(detail.IntervalLength.Value * (occurrences - 1));
-                if (Math.Abs((DateTime.Now - mostRecent).TotalHours) < GraceHours)
-                    balanceDue -= detail.AmountPerOccurrence.Value;
-            }
-            balanceDue = Math.Max(0, balanceDue);
-        }
+        var balanceDue = CalculateOwedNow(ArbBalanceInputs.From(detail));
 
         return new ArbSubscriptionInfoDto
         {
@@ -482,12 +431,20 @@ public class ArbDefensiveService : IArbDefensiveService
             ? "Subscription credit card updated successfully."
             : $"Subscription update failed: {updateResponse?.messages?.message?.FirstOrDefault()?.text}";
 
-        // 3. Charge balance if > 0
         var balanceCharged = false;
         decimal amountCharged = 0;
         string? transactionId = null;
 
-        if (request.BalanceDue > 0)
+        // 3. Charge the balance the SERVER computes - never the one the browser sent.
+        //
+        // ArbUpdateCcRequest no longer carries an amount. It used to, and this method charged that
+        // number verbatim: a self-service, family-reachable endpoint took a dollar figure from the
+        // client and ran it through the card. That was masked while the page always rendered $0.00;
+        // now that it renders a real arrears figure the amount has to be re-derived here, from the
+        // same rule the page displayed, against the registration the server just loaded.
+        var balanceDue = CalculateOwedNow(ArbBalanceInputs.From(detail));
+
+        if (balanceDue > 0)
         {
             var chargeExpiry = $"{request.ExpirationMonth}/{request.ExpirationYear}";
             var chargeResult = _adnApi.ADN_Charge_Result(new AdnChargeRequest
@@ -504,7 +461,7 @@ public class ArbDefensiveService : IArbDefensiveService
                 Zip = request.Zip,
                 Email = request.Email,
                 Phone = string.Empty,
-                Amount = request.BalanceDue,
+                Amount = balanceDue,
                 InvoiceNumber = detail.FirstInvoiceNumber ?? string.Empty,
                 Description = "Autocharge of previously failed ARB transactions"
             });
@@ -512,7 +469,7 @@ public class ArbDefensiveService : IArbDefensiveService
             if (chargeResult.Success)
             {
                 balanceCharged = true;
-                amountCharged = request.BalanceDue;
+                amountCharged = balanceDue;
                 transactionId = chargeResult.TransactionId;
 
                 await _accountingRepo.RecordPaymentAndRecomputeAsync(new RegistrationAccounting
@@ -524,8 +481,8 @@ public class ArbDefensiveService : IArbDefensiveService
                     AdnTransactionId = transactionId,
                     RegistrationId = request.RegistrationId,
                     Createdate = DateTime.Now,
-                    Dueamt = request.BalanceDue,
-                    Payamt = request.BalanceDue,
+                    Dueamt = balanceDue,
+                    Payamt = balanceDue,
                     PaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D"),
                     Comment = "Autocharge of previously failed ARB transactions",
                     Paymeth = "Autocharge of previously failed ARB transactions",
@@ -533,7 +490,7 @@ public class ArbDefensiveService : IArbDefensiveService
                     Modified = DateTime.Now
                 }, userId, ct);
 
-                message += $" Card charged {request.BalanceDue:C} for failed ARB payments.";
+                message += $" Card charged {balanceDue:C} for failed ARB payments.";
             }
             else
             {
@@ -566,16 +523,121 @@ public class ArbDefensiveService : IArbDefensiveService
         return count;
     }
 
-    private static decimal CalculateFeesOwed(ArbRegistrationProjection reg, int occurrences)
+    /// <summary>
+    /// Inputs the ARB balance rule needs, lifted off either projection so the rule itself has ONE
+    /// body. The director-facing flag list reads <see cref="ArbRegistrationProjection"/>; the
+    /// family-facing CC-update page reads <see cref="ArbRegistrationDetail"/>. Before this record
+    /// each surface carried its own transcription of the arithmetic, and they drifted.
+    /// </summary>
+    private readonly record struct ArbBalanceInputs(
+        string? SubscriptionStatus,
+        DateTime? StartDate,
+        int? IntervalMonths,
+        int? BillingOccurrences,
+        decimal? AmountPerOccurrence,
+        decimal FeeTotal,
+        decimal PaidTotal,
+        DateTime? LastFailedDraftDate,
+        DateTime? LastArbDraftDate)
     {
-        if (occurrences <= 1) return 0;
+        public static ArbBalanceInputs From(ArbRegistrationProjection r) => new(
+            r.SubscriptionStatus, r.SubscriptionStartDate, r.IntervalLength, r.BillingOccurrences,
+            r.AmountPerOccurrence, r.FeeTotal, r.PaidTotal, r.LastFailedDraftDate, r.LastArbDraftDate);
 
-        var sumArbFeesAsOfNow = (reg.AmountPerOccurrence ?? 0) * occurrences;
-        var sumAllArbFees = (reg.AmountPerOccurrence ?? 0) * (reg.BillingOccurrences ?? 0);
-        var nonArbFees = reg.FeeTotal - sumAllArbFees;
+        public static ArbBalanceInputs From(ArbRegistrationDetail d) => new(
+            d.SubscriptionStatus, d.SubscriptionStartDate, d.IntervalLength, d.BillingOccurrences,
+            d.AmountPerOccurrence, d.FeeTotal, d.PaidTotal, d.LastFailedDraftDate, d.LastArbDraftDate);
+    }
 
-        var owed = sumArbFeesAsOfNow + nonArbFees - reg.PaidTotal;
-        return owed > 0 ? owed : 0;
+    /// <summary>
+    /// What this subscriber owes RIGHT NOW. Single source of truth for every surface that quotes the
+    /// figure to a human: the director-facing Behind-In-Payment list, and the family-facing
+    /// self-service CC-update page (which also charges it).
+    /// </summary>
+    /// <remarks>
+    /// Rules, in the order they apply:
+    ///
+    /// 1. A DEAD subscription owes everything left, not merely the installments due to date. Todd,
+    ///    2026-08-26: updating the card on a dead plan pays the entire remaining balance. "Dead" is
+    ///    the predicate this file already used for the flag list - a known status that is not
+    ///    active / terminated / suspended (in practice: expired, canceled). A BLANK status is not
+    ///    evidence of death and keeps schedule math rather than inflating the ask.
+    ///
+    /// 2. Otherwise schedule math: installments due to date, plus any non-ARB fees, less paid.
+    ///
+    /// 3. The 48-hour grace, and the matching first-installment suppression, apply ONLY while the
+    ///    outcome is unknown. Both exist for one reason: an installment whose date has arrived may
+    ///    still be settling at ADN and PaidTotal will not show it yet, so quoting it as arrears would
+    ///    double-bill. That is a proxy for "we do not know yet". A booked failed draft for that same
+    ///    installment IS knowing, and overrules the proxy.
+    ///
+    ///    Without this override the two windows overlapped almost exactly: ADN drafts on the due
+    ///    date, the card declines, the sweep emails the family the arrears figure hours later - and
+    ///    the page that email sends them to deducted the very installment that had just failed,
+    ///    quoting $0.00 and charging nothing until the grace aged out about a day and a half later.
+    ///    Reg F802868B / sub 73796805, 2026-08-26: sweep said $875.00, page said $0.00, same morning.
+    /// </remarks>
+    private static decimal CalculateOwedNow(ArbBalanceInputs input)
+    {
+        // Dead plan: everything still outstanding, regardless of where the schedule sits.
+        if (IsDeadSubscription(input.SubscriptionStatus))
+            return Math.Max(0, input.FeeTotal - input.PaidTotal);
+
+        if (input.StartDate == null
+            || input.IntervalMonths == null
+            || input.BillingOccurrences == null
+            || input.AmountPerOccurrence == null)
+            return 0;
+
+        var amount = input.AmountPerOccurrence.Value;
+        var occurrences = GetOccurrencesAsOfNow(
+            input.BillingOccurrences.Value, input.StartDate.Value, input.IntervalMonths.Value);
+
+        if (occurrences <= 0) return 0;
+
+        // The installment most recently scheduled - the one the grace covers, and the one a booked
+        // failure must belong to before it counts as knowledge about THIS installment. An older
+        // failed draft that has since been made good must not hold the grace open forever.
+        var mostRecent = input.StartDate.Value
+            .AddMonths(input.IntervalMonths.Value * (occurrences - 1));
+        var knownFailed = input.LastFailedDraftDate != null
+            && input.LastFailedDraftDate.Value.Date >= mostRecent.Date;
+
+        // Weaker signal, same principle: ANY booked draft for this installment - settled or not -
+        // means its outcome is known and already reflected in PaidTotal, so the grace has nothing
+        // left to protect. Without this the grace still over-deducted in the mirror-image case: a
+        // family carrying an older arrears whose NEXT installment then settled normally read $0.00
+        // for 48 hours after every successful draft, because the grace subtracted an installment
+        // the ledger had already credited.
+        var knownOutcome = input.LastArbDraftDate != null
+            && input.LastArbDraftDate.Value.Date >= mostRecent.Date;
+
+        // First installment still inside its settle window: nothing is behind yet - unless it failed.
+        if (occurrences <= 1 && !knownFailed) return 0;
+
+        var sumArbFeesAsOfNow = amount * occurrences;
+        var sumAllArbFees = amount * input.BillingOccurrences.Value;
+        var nonArbFees = input.FeeTotal - sumAllArbFees;
+
+        var owed = sumArbFeesAsOfNow + nonArbFees - input.PaidTotal;
+
+        var withinGrace = Math.Abs((DateTime.Now - mostRecent).TotalHours) < GraceHours;
+        if (withinGrace && !knownOutcome)
+            owed -= amount;
+
+        return Math.Max(0, owed);
+    }
+
+    /// <summary>
+    /// A subscription ADN reports as neither live nor merely paused. Blank is unknown, not dead.
+    /// Its own predicate so the flag list and the CC-update page cannot classify a status differently.
+    /// </summary>
+    private static bool IsDeadSubscription(string? status)
+    {
+        if (string.IsNullOrWhiteSpace(status)) return false;
+        return !string.Equals(status, "active", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(status, "terminated", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(status, "suspended", StringComparison.OrdinalIgnoreCase);
     }
 
     private static DateTime? CalculateNextPaymentDate(DateTime startDate, int intervalMonths, int totalOccurrences)

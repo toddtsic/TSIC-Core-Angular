@@ -22,7 +22,6 @@ export type AdnSweepResult = {
     renderedEmails?: Array<ArbRenderedEmailDto>;
     notEmailed?: Array<ArbNotifySkipDto>;
     auditRows?: Array<ArbAuditRowDto>;
-    settledNotFetched?: number;
     isTrustworthy?: boolean;
 };
 

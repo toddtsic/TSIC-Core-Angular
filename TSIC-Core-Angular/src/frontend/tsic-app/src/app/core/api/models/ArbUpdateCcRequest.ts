@@ -14,6 +14,5 @@ export type ArbUpdateCcRequest = {
     address: string;
     zip: string;
     email: string;
-    balanceDue: number;
 };
 

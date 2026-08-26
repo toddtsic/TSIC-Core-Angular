@@ -26,7 +26,11 @@ public record ArbUpdateCcRequest
     public required string Address { get; init; }
     public required string Zip { get; init; }
     public required string Email { get; init; }
-    public required decimal BalanceDue { get; init; }
+
+    // NO amount field, deliberately. This request comes from a family-reachable, self-service page,
+    // and the server charges a card off the back of it. The amount used to travel in this body and
+    // was charged verbatim; ArbDefensiveService re-derives it from the registration instead.
+    // Do not add it back.
 }
 
 public record ArbUpdateCcResultDto
