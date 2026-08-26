@@ -162,4 +162,13 @@ public record SubscriptionDetailDto
     public required decimal TotalAmount { get; init; }
     public required DateTime StartDate { get; init; }
     public required string IntervalLabel { get; init; }
+
+    /// <summary>
+    /// True when this plan can still draft the card — the ONE liveness rule
+    /// (<see cref="TSIC.Domain.Constants.ArbSubscriptionStatus"/>), computed here so every
+    /// consumer reads the same answer and no surface re-derives "active or suspended" for
+    /// itself. Drives the Correction lock in the accounting ledger (AR-032). Get-only: it
+    /// costs no construction site, and no caller can set it out of step with Status.
+    /// </summary>
+    public bool IsLive => TSIC.Domain.Constants.ArbSubscriptionStatus.IsLive(SubscriptionId, Status);
 }

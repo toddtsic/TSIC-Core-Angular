@@ -60,6 +60,9 @@ export interface LedgerAddTarget {
 	owed: number;       // CC-side owed (gross)
 	checkOwed: number;  // check/correction owed (processing fees removed)
 	paid: number;       // amount already paid (bounds a negative correction)
+	/** True when THIS registration is on a live Authorize.Net plan (AR-032). Per-target, not
+	 *  per-scope: in the family ledger one sibling can be on a plan while another is not. */
+	arbLive?: boolean;
 }
 
 
@@ -120,6 +123,15 @@ export class AccountingLedgerComponent {
 	 *  teams and a negative has no sensible auto-attribution — the server rejects it too; this
 	 *  input just keeps the admin from composing a request that would bounce. */
 	allowNegativeCorrection = input<boolean>(true);
+
+	/** Scope-level ARB liveness, for callers with no add-target list (the single-registration
+	 *  detail panel). Ignored once a target is picked — the target's own flag wins. */
+	arbLive = input<boolean>(false);
+
+	/** Whether the signed-in role may still enter a Correction against a LIVE plan. Superuser
+	 *  only (AR-032) — Director and SuperDirector are locked out. The lock is a courtesy that
+	 *  explains itself; the real control is the server-side gate in RecordCheckOrCorrectionAsync. */
+	canCorrectLivePlan = input<boolean>(false);
 
 	/** Job CC processing rate as a MULTIPLIER (e.g. 0.035; 0 = proc disabled), from the
 	 *  host's DTO (`ccProcRate`). Authoritative source for the correction impact note and
@@ -407,6 +419,15 @@ export class AccountingLedgerComponent {
 		this.paymentType() === 'correction' && this.amount() < 0 && !this.allowNegativeCorrection()
 	);
 
+	/** AR-032 — Correction is locked when the record would land on a registration whose ARB plan
+	 *  is still live and the caller is not a Superuser. A correction writes the TSIC ledger ONLY;
+	 *  Authorize.Net keeps drafting the original schedule, so a director "correcting" a live plan
+	 *  silently diverges the two. Reads the picked target's flag when there is one (the family
+	 *  ledger records against a chosen sibling), else the scope-level input. */
+	correctionLocked = computed(() =>
+		!this.canCorrectLivePlan() && (this.selectedAddTarget()?.arbLive ?? this.arbLive())
+	);
+
 	/** Effective CC proc rate: the host-supplied authoritative rate when given (exact
 	 *  everywhere, including settled balances), else derived from balances the modal
 	 *  already holds — the full-balance fee credit over the check balance (≈ principal
@@ -550,6 +571,8 @@ export class AccountingLedgerComponent {
 	}
 
 	selectPaymentType(type: PaymentType): void {
+		// The Correction button is disabled when locked; this is the second door on the same rule.
+		if (type === 'correction' && this.correctionLocked()) return;
 		this.paymentType.set(type);
 		// CC charges full owed; check/correction uses adjusted balance (minus processing fees)
 		this.amount.set(type === 'cc' ? this.modalOwed() : this.checkBalanceDue());
@@ -607,6 +630,7 @@ export class AccountingLedgerComponent {
 		if (type === 'correction') {
 			// Signed: positive forgives (capped at balance due), negative claws back
 			// (no floor; needs a single known target — blocked at club scope).
+			if (this.correctionLocked()) return false;
 			if (amt === 0) return false;
 			if (amt < 0) return this.allowNegativeCorrection();
 			return amt <= this.checkBalanceDue();

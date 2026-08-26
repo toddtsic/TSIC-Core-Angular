@@ -56,7 +56,13 @@ public interface IRegistrationSearchService
     Task<RefundResponse> ProcessRefundAsync(Guid jobId, string userId, RefundRequest request, CancellationToken ct = default);
     Task<List<PaymentMethodOptionDto>> GetPaymentMethodOptionsAsync(CancellationToken ct = default);
     Task<RegistrationCcChargeResponse> ChargeCcAsync(Guid jobId, string userId, RegistrationCcChargeRequest request, CancellationToken ct = default);
-    Task<RegistrationCheckOrCorrectionResponse> RecordCheckOrCorrectionAsync(Guid jobId, string userId, RegistrationCheckOrCorrectionRequest request, CancellationToken ct = default);
+    /// <summary>
+    /// Records a Check or a Correction against a registration. <paramref name="callerRole"/> is
+    /// load-bearing, not audit trim: a Correction moves TSIC's ledger only and never touches the
+    /// Authorize.Net plan, so on a registration whose ARB subscription is still live it is
+    /// Superuser-only (AR-032). Same shape as DeleteRegistrationAsync / SetActiveAsync.
+    /// </summary>
+    Task<RegistrationCheckOrCorrectionResponse> RecordCheckOrCorrectionAsync(Guid jobId, string userId, string callerRole, RegistrationCheckOrCorrectionRequest request, CancellationToken ct = default);
     Task EditAccountingRecordAsync(Guid jobId, string userId, int aId, EditAccountingRecordRequest request, CancellationToken ct = default);
     Task<SubscriptionDetailDto?> GetSubscriptionDetailAsync(Guid jobId, Guid registrationId, CancellationToken ct = default);
     Task CancelSubscriptionAsync(Guid jobId, string userId, Guid registrationId, CancellationToken ct = default);

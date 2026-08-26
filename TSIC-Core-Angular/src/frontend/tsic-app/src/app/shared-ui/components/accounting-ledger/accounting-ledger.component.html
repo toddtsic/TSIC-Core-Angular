@@ -302,10 +302,28 @@
           <button type="button" class="type-btn" [class.active]="paymentType() === 'check'" (click)="selectPaymentType('check')">
             <i class="bi bi-bank me-1"></i> Check
           </button>
-          <button type="button" class="type-btn" [class.active]="paymentType() === 'correction'" (click)="selectPaymentType('correction')">
+          <!-- AR-032: locked against a LIVE Authorize.Net plan for everyone but a Superuser. Disabled
+               rather than hidden on purpose — the item exists because directors BELIEVE a correction
+               updates the subscription, and a missing button teaches them nothing. -->
+          <button type="button" class="type-btn" [class.active]="paymentType() === 'correction'"
+            [disabled]="correctionLocked()"
+            [attr.aria-describedby]="correctionLocked() ? 'ledger-correction-lock' : null"
+            (click)="selectPaymentType('correction')">
             <i class="bi bi-pencil-square me-1"></i> Correction
           </button>
         </div>
+
+        @if (correctionLocked()) {
+          <p class="correction-lock-note" id="ledger-correction-lock">
+            <i class="bi bi-info-circle-fill" aria-hidden="true"></i>
+            <span>
+              <strong>Correction is unavailable</strong> — this registration is on a live Authorize.Net
+              payment plan. A correction changes the TSIC ledger only; it does <strong>not</strong> change
+              what the plan will draft, so the family would keep being charged the original amount.
+              Contact TSIC to change a plan.
+            </span>
+          </p>
+        }
 
         <!-- CC Fields -->
         @if (paymentType() === 'cc') {

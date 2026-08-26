@@ -933,6 +933,14 @@ export class RegistrationDetailPanelComponent implements OnChanges {
     if (paid < 0 || paid > total || Math.abs(paid * per - paidTotal) > 0.005) return null;
     return { paid, total };
   });
+  // AR-032 — true when this registration's ARB plan can still DRAFT THE CARD, which makes a
+  // Correction Superuser-only: a correction moves the TSIC ledger and nothing else, so on a live
+  // plan the two silently diverge. Reads the one server-side rule (SubscriptionDetailDto.isLive)
+  // off the card already on screen — the stored snapshot everywhere, the live Authorize.Net record
+  // in Production. NOT subscriptionIsLive() below, which means "a live READ succeeded" — a
+  // fetch-state flag with a confusingly close name.
+  readonly arbPlanIsLive = computed(() => this.subscription()?.isLive === true);
+
   // True only once a LIVE Authorize.Net read has succeeded (Production). While false, the card
   // is showing the stored snapshot — which is display-only, so destructive actions stay hidden.
   subscriptionIsLive = linkedSignal({ source: () => this.detail(), computation: () => false });

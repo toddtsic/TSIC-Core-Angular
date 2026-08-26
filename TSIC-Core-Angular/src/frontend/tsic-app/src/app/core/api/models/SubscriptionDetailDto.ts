@@ -10,5 +10,6 @@ export type SubscriptionDetailDto = {
     totalAmount: number;
     startDate: string;
     intervalLabel: string;
+    isLive?: boolean;
 };
 

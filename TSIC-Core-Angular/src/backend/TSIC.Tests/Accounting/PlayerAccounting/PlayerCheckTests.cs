@@ -10,6 +10,7 @@ using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 using TSIC.Infrastructure.Repositories;
 using TSIC.Tests.Helpers;
 
@@ -34,6 +35,10 @@ namespace TSIC.Tests.Accounting.PlayerAccounting;
 public class PlayerCheckTests
 {
     private const string UserId = "test-admin";
+
+    // These are accounting-math tests, not authorization tests. Superuser keeps them exercising
+    // the arithmetic rather than the AR-032 live-ARB correction gate, which no fixture here sets up.
+    private const string CallerRole = RoleConstants.Names.SuperuserName;
 
     private static async Task<(RegistrationSearchService svc, AccountingDataBuilder builder,
         TSIC.Infrastructure.Data.SqlDbContext.SqlDbContext ctx, Guid jobId)>
@@ -107,7 +112,7 @@ public class PlayerCheckTests
         var reg = b.AddPlayerRegistration(jobId, feeBase: 100m, feeProcessing: 0m);
         await b.SaveAsync();
 
-        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
+        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId, CallerRole,
             new RegistrationCheckOrCorrectionRequest
             {
                 RegistrationId = reg.RegistrationId,
@@ -153,7 +158,7 @@ public class PlayerCheckTests
         var reg = b.AddPlayerRegistration(jobId, feeBase: 100m, feeProcessing: 3.50m);
         await b.SaveAsync();
 
-        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
+        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId, CallerRole,
             new RegistrationCheckOrCorrectionRequest
             {
                 RegistrationId = reg.RegistrationId,
@@ -193,7 +198,7 @@ public class PlayerCheckTests
         var reg = b.AddPlayerRegistration(jobId, feeBase: 100m, feeProcessing: 3.50m);
         await b.SaveAsync();
 
-        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
+        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId, CallerRole,
             new RegistrationCheckOrCorrectionRequest
             {
                 RegistrationId = reg.RegistrationId,
@@ -240,7 +245,7 @@ public class PlayerCheckTests
         var reg = b.AddPlayerRegistration(jobId, feeBase: 100m, feeProcessing: 0m);
         await b.SaveAsync();
 
-        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
+        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId, CallerRole,
             new RegistrationCheckOrCorrectionRequest
             {
                 RegistrationId = reg.RegistrationId,
@@ -287,7 +292,7 @@ public class PlayerCheckTests
         var reg = b.AddPlayerRegistration(jobId, feeBase: 100m, feeProcessing: 3.50m);
         await b.SaveAsync();
 
-        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
+        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId, CallerRole,
             new RegistrationCheckOrCorrectionRequest
             {
                 RegistrationId = reg.RegistrationId,
@@ -325,7 +330,7 @@ public class PlayerCheckTests
         var reg = b.AddPlayerRegistration(jobId);
         await b.SaveAsync();
 
-        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
+        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId, CallerRole,
             new RegistrationCheckOrCorrectionRequest
             {
                 RegistrationId = reg.RegistrationId,
@@ -352,7 +357,7 @@ public class PlayerCheckTests
         var reg = b.AddPlayerRegistration(jobId, feeBase: 100m, feeProcessing: 0m);
         await b.SaveAsync();
 
-        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
+        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId, CallerRole,
             new RegistrationCheckOrCorrectionRequest
             {
                 RegistrationId = reg.RegistrationId,
@@ -381,7 +386,7 @@ public class PlayerCheckTests
         var reg = b.AddPlayerRegistration(jobId, feeBase: 100m, feeProcessing: 0m);
         await b.SaveAsync();
 
-        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
+        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId, CallerRole,
             new RegistrationCheckOrCorrectionRequest
             {
                 RegistrationId = reg.RegistrationId,
@@ -410,7 +415,7 @@ public class PlayerCheckTests
         var reg = b.AddPlayerRegistration(jobId);
         await b.SaveAsync();
 
-        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
+        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId, CallerRole,
             new RegistrationCheckOrCorrectionRequest
             {
                 RegistrationId = reg.RegistrationId,
@@ -446,7 +451,7 @@ public class PlayerCheckTests
         var reg = b.AddPlayerRegistration(jobId, feeBase: 100m, feeProcessing: 0m);
         await b.SaveAsync();
 
-        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
+        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId, CallerRole,
             new RegistrationCheckOrCorrectionRequest
             {
                 RegistrationId = reg.RegistrationId,
@@ -480,7 +485,7 @@ public class PlayerCheckTests
         var reg = b.AddPlayerRegistration(jobId, feeBase: 100m, feeProcessing: 3.50m);
         await b.SaveAsync();
 
-        var forgive = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
+        var forgive = await svc.RecordCheckOrCorrectionAsync(jobId, UserId, CallerRole,
             new RegistrationCheckOrCorrectionRequest
             { RegistrationId = reg.RegistrationId, Amount = 50m, PaymentType = "Correction" });
         forgive.Success.Should().BeTrue();
@@ -488,7 +493,7 @@ public class PlayerCheckTests
         var midpoint = await ctx.Registrations.FindAsync(reg.RegistrationId);
         midpoint!.FeeProcessing.Should().Be(1.75m, "reduced by $50 × 3.5% on the way down");
 
-        var clawBack = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
+        var clawBack = await svc.RecordCheckOrCorrectionAsync(jobId, UserId, CallerRole,
             new RegistrationCheckOrCorrectionRequest
             { RegistrationId = reg.RegistrationId, Amount = -50m, PaymentType = "Correction" });
         clawBack.Success.Should().BeTrue();
@@ -518,7 +523,7 @@ public class PlayerCheckTests
         var reg = b.AddPlayerRegistration(jobId, feeBase: 100m, feeProcessing: 3.50m);
         await b.SaveAsync();
 
-        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
+        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId, CallerRole,
             new RegistrationCheckOrCorrectionRequest
             { RegistrationId = reg.RegistrationId, Amount = -50m, PaymentType = "Correction" });
 
