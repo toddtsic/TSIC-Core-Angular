@@ -1,181 +1,213 @@
-<div class="update-cc-page">
-    <!-- Loading -->
+<div class="ucc">
+
+    <!-- ══ Loading ═════════════════════════════════════════════════════════════ -->
     @if (isLoadingInfo()) {
-        <div class="text-center py-5">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <p class="text-muted mt-2">Loading subscription information...</p>
+        <div class="ucc-loading" role="status">
+            <span class="ucc-spinner" aria-hidden="true"></span>
+            <p>Loading your payment plan…</p>
         </div>
     }
 
-    <!-- Load error -->
+    <!-- ══ Load error ══════════════════════════════════════════════════════════ -->
     @if (loadError()) {
-        <div class="alert alert-danger">
-            <i class="bi bi-exclamation-circle me-1"></i>
-            {{ loadError() }}
+        <div class="ucc-panel ucc-state ucc-state--bad" role="alert">
+            <i class="bi bi-exclamation-octagon-fill" aria-hidden="true"></i>
+            <h1 class="ucc-state-title">We could not open this page</h1>
+            <p class="ucc-state-text">{{ loadError() }}</p>
         </div>
     }
 
-    <!-- Result -->
+    <!-- ══ Result ══════════════════════════════════════════════════════════════ -->
     @if (result()) {
-        <div class="card result-card">
-            <div class="card-body text-center">
-                @if (result()!.subscriptionUpdated) {
-                    <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
-                    <h3 class="mt-3">Credit Card Updated</h3>
-                    <p class="text-muted">{{ result()!.message }}</p>
-                    @if (result()!.balanceCharged) {
-                        <p>
-                            <strong>${{ result()!.amountCharged | number:'1.2-2' }}</strong> charged.
-                            @if (result()!.transactionId) {
-                                <br><small class="text-muted">Transaction: {{ result()!.transactionId }}</small>
-                            }
-                        </p>
-                    }
-                } @else if (result()!.balanceCharged) {
-                    <!-- The balance charge runs independently of the subscription update (the charge is
-                         gated only on BalanceDue > 0), so this branch is a REAL payment that settled.
-                         It must never render as a failure: a family told "Update Failed" after being
-                         charged goes on to pay a second time through Pay Balance Due. -->
-                    <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
-                    <h3 class="mt-3">Payment Received</h3>
-                    <p>
-                        <strong>${{ result()!.amountCharged | number:'1.2-2' }}</strong> charged. No further payment is needed today.
-                        @if (result()!.transactionId) {
-                            <br><small class="text-muted">Transaction: {{ result()!.transactionId }}</small>
-                        }
-                    </p>
-                    <div class="alert alert-warning text-start mt-3">
-                        <i class="bi bi-exclamation-triangle me-1"></i>
-                        We could not store this card for your future automatic payments. If your payment
-                        plan is still running, please try the update again in a few minutes or contact your
-                        event director — either way, the payment above has already gone through.
-                    </div>
-                } @else {
-                    <i class="bi bi-x-circle-fill text-danger" style="font-size: 3rem;"></i>
-                    <h3 class="mt-3">Update Failed</h3>
-                    <p class="text-muted">{{ result()!.message }}</p>
-                }
-            </div>
-        </div>
-    }
+        <div class="ucc-panel ucc-state"
+             [class.ucc-state--good]="result()!.subscriptionUpdated || result()!.balanceCharged"
+             [class.ucc-state--bad]="!result()!.subscriptionUpdated && !result()!.balanceCharged"
+             role="status"
+             aria-live="polite">
 
-    <!-- Form -->
-    @if (info() && !result()) {
-        <div class="card">
-            <div class="card-header">
-                <h4 class="mb-0">Update Payment Method</h4>
-            </div>
-            <div class="card-body">
-                <!-- Subscription summary -->
-                <div class="alert alert-info mb-4">
-                    <div class="row">
-                        <div class="col-sm-6">
-                            <strong>{{ info()!.registrantName }}</strong>
-                            <div class="text-muted">{{ info()!.jobName }}</div>
-                        </div>
-                        <div class="col-sm-3">
-                            <small class="text-muted">Subscription</small>
-                            <div>{{ info()!.subscriptionId }}</div>
-                        </div>
-                        <div class="col-sm-3">
-                            <small class="text-muted">Balance Due</small>
-                            <div class="fw-bold">{{ info()!.balanceDue | number:'1.2-2' }}</div>
-                        </div>
-                    </div>
+            @if (result()!.subscriptionUpdated) {
+                <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+                <h1 class="ucc-state-title">Credit Card Updated</h1>
+                <p class="ucc-state-text">{{ result()!.message }}</p>
+
+                @if (result()!.balanceCharged) {
+                    <p class="ucc-state-amount">
+                        {{ result()!.amountCharged | currency:'USD' }} charged
+                    </p>
+                    @if (result()!.transactionId) {
+                        <p class="ucc-state-ref">Transaction {{ result()!.transactionId }}</p>
+                    }
+                }
+
+            } @else if (result()!.balanceCharged) {
+                <!-- The balance charge runs independently of the subscription update (the charge is
+                     gated only on the balance being > 0), so this branch is a REAL payment that
+                     settled. It must never render as a failure: a family told "Update Failed" after
+                     being charged goes on to pay a second time through Pay Balance Due. -->
+                <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+                <h1 class="ucc-state-title">Payment Received</h1>
+                <p class="ucc-state-amount">
+                    {{ result()!.amountCharged | currency:'USD' }} charged
+                </p>
+                <p class="ucc-state-text">No further payment is needed today.</p>
+                @if (result()!.transactionId) {
+                    <p class="ucc-state-ref">Transaction {{ result()!.transactionId }}</p>
+                }
+
+                <div class="tsic-callout tsic-callout--warning tsic-callout--block ucc-state-note">
+                    <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                    <span>
+                        We could not store this card for your future automatic payments. If your
+                        payment plan is still running, please try the update again in a few minutes
+                        or contact your event director — either way, the payment above has already
+                        gone through.
+                    </span>
                 </div>
 
-                <!-- Submit error -->
-                @if (submitError()) {
-                    <div class="alert alert-danger">
-                        <i class="bi bi-exclamation-circle me-1"></i>
-                        {{ submitError() }}
-                    </div>
-                }
+            } @else {
+                <i class="bi bi-x-circle-fill" aria-hidden="true"></i>
+                <h1 class="ucc-state-title">Update Failed</h1>
+                <p class="ucc-state-text">{{ result()!.message }}</p>
+                <p class="ucc-state-reassure">Your card has not been charged.</p>
+            }
+        </div>
+    }
 
-                <form (ngSubmit)="submit()">
-                    <h5 class="mb-3">Cardholder Information</h5>
-                    <div class="row mb-3">
-                        <div class="col-sm-6">
-                            <label for="firstName" class="form-label">First Name</label>
-                            <input id="firstName" type="text" class="form-control"
-                                   [ngModel]="firstName()"
-                                   (ngModelChange)="onFieldChange('firstName', $event)"
-                                   name="firstName" required>
-                        </div>
-                        <div class="col-sm-6">
-                            <label for="lastName" class="form-label">Last Name</label>
-                            <input id="lastName" type="text" class="form-control"
-                                   [ngModel]="lastName()"
-                                   (ngModelChange)="onFieldChange('lastName', $event)"
-                                   name="lastName" required>
-                        </div>
+    <!-- ══ Form ════════════════════════════════════════════════════════════════ -->
+    @if (info() && !result()) {
+
+        <header class="ucc-header">
+            <h1 class="ucc-title">
+                <i class="bi bi-credit-card-2-front-fill" aria-hidden="true"></i>
+                Update Payment Method
+            </h1>
+            <p class="ucc-subtitle">
+                Enter the card you would like to use from now on. Everything below stays on this
+                secure page.
+            </p>
+        </header>
+
+        <!-- Identity + what this visit costs. The amount is the reason they are here, so it is the
+             largest thing on the page — not a figure tucked into the corner of a tint box. -->
+        <section class="ucc-panel ucc-summary" aria-label="Payment plan">
+            <div class="ucc-who">
+                <p class="ucc-name">{{ info()!.registrantName }}</p>
+                <p class="ucc-event">{{ info()!.jobName }}</p>
+                <p class="ucc-ref">
+                    Subscription <span class="ucc-ref-value">{{ info()!.subscriptionId }}</span>
+                </p>
+            </div>
+
+            <div class="ucc-balance" [class.ucc-balance--zero]="info()!.balanceDue <= 0">
+                <span class="ucc-balance-label">
+                    {{ info()!.balanceDue > 0 ? 'Due today' : 'Nothing due today' }}
+                </span>
+                <span class="ucc-balance-amount">
+                    {{ info()!.balanceDue | currency:'USD' }}
+                </span>
+            </div>
+        </section>
+
+        @if (submitError()) {
+            <div class="ucc-alert ucc-alert--bad" role="alert">
+                <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+                <span>{{ submitError() }}</span>
+            </div>
+        }
+
+        <form class="ucc-form" (ngSubmit)="submit()" novalidate>
+
+            <fieldset class="ucc-panel ucc-section">
+                <legend class="ucc-section-title">Cardholder</legend>
+
+                <div class="ucc-grid">
+                    <div class="ucc-field">
+                        <label for="firstName">First name</label>
+                        <input id="firstName" name="firstName" type="text" required
+                               autocomplete="cc-given-name"
+                               [ngModel]="firstName()"
+                               (ngModelChange)="onFieldChange('firstName', $event)">
                     </div>
 
-                    <div class="row mb-3">
-                        <div class="col-sm-8">
-                            <label for="address" class="form-label">Billing Address</label>
-                            <input id="address" type="text" class="form-control"
-                                   [ngModel]="address()"
-                                   (ngModelChange)="onFieldChange('address', $event)"
-                                   name="address" required>
-                        </div>
-                        <div class="col-sm-4">
-                            <label for="zip" class="form-label">ZIP Code</label>
-                            <input id="zip" type="text" class="form-control"
-                                   [ngModel]="zip()"
-                                   (ngModelChange)="onFieldChange('zip', $event)"
-                                   name="zip" required maxlength="10">
-                        </div>
+                    <div class="ucc-field">
+                        <label for="lastName">Last name</label>
+                        <input id="lastName" name="lastName" type="text" required
+                               autocomplete="cc-family-name"
+                               [ngModel]="lastName()"
+                               (ngModelChange)="onFieldChange('lastName', $event)">
                     </div>
 
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Email</label>
-                        <input id="email" type="email" class="form-control"
+                    <div class="ucc-field ucc-field--wide">
+                        <label for="address">Billing address</label>
+                        <input id="address" name="address" type="text" required
+                               autocomplete="billing street-address"
+                               [ngModel]="address()"
+                               (ngModelChange)="onFieldChange('address', $event)">
+                    </div>
+
+                    <div class="ucc-field ucc-field--narrow">
+                        <label for="zip">ZIP code</label>
+                        <input id="zip" name="zip" type="text" required maxlength="10"
+                               inputmode="numeric" autocomplete="billing postal-code"
+                               [ngModel]="zip()"
+                               (ngModelChange)="onFieldChange('zip', $event)">
+                    </div>
+
+                    <div class="ucc-field ucc-field--span">
+                        <label for="email">Email</label>
+                        <input id="email" name="email" type="email" required
+                               autocomplete="email"
                                [ngModel]="email()"
-                               (ngModelChange)="onFieldChange('email', $event)"
-                               name="email" required>
+                               (ngModelChange)="onFieldChange('email', $event)">
+                        <p class="ucc-help">Where your receipt goes.</p>
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset class="ucc-panel ucc-section">
+                <legend class="ucc-section-title">Card</legend>
+
+                <div class="ucc-grid">
+                    <div class="ucc-field ucc-field--span">
+                        <label for="cardNumber">Card number</label>
+                        <input id="cardNumber" name="cardNumber" type="text" required
+                               maxlength="19" inputmode="numeric" autocomplete="cc-number"
+                               placeholder="•••• •••• •••• ••••"
+                               class="ucc-input-mono"
+                               [ngModel]="cardNumber()"
+                               (ngModelChange)="onFieldChange('cardNumber', $event)">
                     </div>
 
-                    <h5 class="mt-4 mb-3">Card Details</h5>
-                    <div class="row mb-3">
-                        <div class="col-sm-6">
-                            <label for="cardNumber" class="form-label">Card Number</label>
-                            <input id="cardNumber" type="text" class="form-control"
-                                   [ngModel]="cardNumber()"
-                                   (ngModelChange)="onFieldChange('cardNumber', $event)"
-                                   name="cardNumber" required
-                                   maxlength="19" placeholder="XXXX XXXX XXXX XXXX"
-                                   autocomplete="cc-number">
-                        </div>
-                        <div class="col-sm-2">
-                            <label for="cardCode" class="form-label">CVV</label>
-                            <input id="cardCode" type="text" class="form-control"
+                    <div class="ucc-card-meta">
+                        <div class="ucc-field">
+                            <label for="cardCode">CVV</label>
+                            <input id="cardCode" name="cardCode" type="text" required
+                                   maxlength="4" inputmode="numeric" autocomplete="cc-csc"
+                                   placeholder="•••"
+                                   class="ucc-input-mono"
                                    [ngModel]="cardCode()"
-                                   (ngModelChange)="onFieldChange('cardCode', $event)"
-                                   name="cardCode" required
-                                   maxlength="4" placeholder="CVV"
-                                   autocomplete="cc-csc">
+                                   (ngModelChange)="onFieldChange('cardCode', $event)">
                         </div>
-                        <div class="col-sm-2">
-                            <label for="expMonth" class="form-label">Month</label>
-                            <select id="expMonth" class="form-select"
+
+                        <div class="ucc-field">
+                            <label for="expMonth">Month</label>
+                            <select id="expMonth" name="expMonth" required
+                                    autocomplete="cc-exp-month"
                                     [ngModel]="expirationMonth()"
-                                    (ngModelChange)="onFieldChange('expirationMonth', $event)"
-                                    name="expMonth" required>
+                                    (ngModelChange)="onFieldChange('expirationMonth', $event)">
                                 <option value="">MM</option>
                                 @for (m of months; track m) {
                                     <option [value]="m">{{ m }}</option>
                                 }
                             </select>
                         </div>
-                        <div class="col-sm-2">
-                            <label for="expYear" class="form-label">Year</label>
-                            <select id="expYear" class="form-select"
+
+                        <div class="ucc-field">
+                            <label for="expYear">Year</label>
+                            <select id="expYear" name="expYear" required
+                                    autocomplete="cc-exp-year"
                                     [ngModel]="expirationYear()"
-                                    (ngModelChange)="onFieldChange('expirationYear', $event)"
-                                    name="expYear" required>
+                                    (ngModelChange)="onFieldChange('expirationYear', $event)">
                                 <option value="">YYYY</option>
                                 @for (y of years; track y) {
                                     <option [value]="y">{{ y }}</option>
@@ -183,22 +215,43 @@
                             </select>
                         </div>
                     </div>
+                </div>
+            </fieldset>
 
-                    <div class="mt-4">
-                        <button type="submit"
-                                class="btn btn-primary btn-lg"
-                                [disabled]="!canSubmit()">
-                            @if (isSubmitting()) {
-                                <span class="spinner-border spinner-border-sm me-1"></span>
-                                Processing...
-                            } @else {
-                                <i class="bi bi-credit-card me-1"></i>
-                                Update Card &amp; Pay Balance
-                            }
-                        </button>
-                    </div>
-                </form>
+            <!-- What the button is about to do, stated before it is pressed. A card form that does
+                 not name the amount it is about to take is the thing people distrust. -->
+            <div class="ucc-actions">
+                <p class="ucc-charge-note">
+                    @if (info()!.balanceDue > 0) {
+                        <i class="bi bi-shield-lock-fill" aria-hidden="true"></i>
+                        <span>
+                            Your card will be charged
+                            <strong>{{ info()!.balanceDue | currency:'USD' }}</strong> today, and
+                            saved for the automatic payments still to come on this plan.
+                        </span>
+                    } @else {
+                        <i class="bi bi-shield-lock-fill" aria-hidden="true"></i>
+                        <span>
+                            Nothing is due today. Your card will be saved for the automatic payments
+                            still to come on this plan.
+                        </span>
+                    }
+                </p>
+
+                <button type="submit" class="ucc-submit" [disabled]="!canSubmit()">
+                    @if (isSubmitting()) {
+                        <span class="ucc-spinner ucc-spinner--sm" aria-hidden="true"></span>
+                        Processing…
+                    } @else {
+                        <i class="bi bi-credit-card" aria-hidden="true"></i>
+                        @if (info()!.balanceDue > 0) {
+                            Update card &amp; pay {{ info()!.balanceDue | currency:'USD' }}
+                        } @else {
+                            Update card
+                        }
+                    }
+                </button>
             </div>
-        </div>
+        </form>
     }
 </div>
