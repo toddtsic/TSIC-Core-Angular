@@ -12,8 +12,10 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 
 > Maintained at the top so nothing waiting on Todd is buried mid-file. **Delete a row the moment its item closes.** Parked/REVISIT items are not listed here *unless Todd owes a decision on one* (flagged as such below).
 
-> ### 🚨 AR-038 — CODE FIXED 08-25 (`1fd88b69`). One half still open: has anything actually been OPENED?
-> **The exposure is closed.** A med form is now gated on whether the event's own registration profile collects one (`UploadedDocumentPolicy`), enforced server-side on both `by-registration` routes and binding Superuser too. **Only 11 of 1096 jobs collect med forms and all 11 are ONE customer (UM camps 2021-2026)** — so the gate closes 100% of cross-customer visibility. Storage stays per-player **by ruling** (Todd, 08-25): the parent owns the document and re-uploads per event.
+> ### 🚨 AR-038 — ✅ FIX VERIFIED BY ANN 08-26. One half still open: has anything actually been OPENED?
+> **The exposure is closed — and now measured, not just reasoned about.** A med form is gated on whether the event's own registration profile collects one (`UploadedDocumentPolicy`), enforced server-side on both `by-registration` routes and binding Superuser too. Storage stays per-player **by ruling** (Todd, 08-25): the parent owns the document and re-uploads per event.
+> **✅ VERIFIED PASSING (Ann, 08-26)** on Clara Scheets / All American Aim, and confirmed against the dev DB the same day: **11 of 1,095 jobs collect med forms, all ONE customer**; of the **28,212** registrations held by the **3,131** players who own a form, **23,610 (84%) sat on non-collecting jobs and are now refused**; **customers able to reach a given player's form drops 52 → 1.** Clara alone: **21 registrations across 7 customers, exactly 1 on a collecting job.**
+> **↳ Ann also asked about a *"You do not have permission to access this resource"* toast she saw once on 08-26 and could not reproduce. ✅ ANSWERED — not a defect, and it will not appear on other sites.** Opening a fly-in **cannot** raise it: the existence probe carries `skipErrorToast()` and has since the component was written (`1bee809e2`), so a blocked event shows nothing and says nothing. The only med-form path that can toast is **clicking View** (`medform-view.component.ts:98`, not suppressed) — and since both routes share one authorization check, the button can only be shown-then-denied **across a backend restart** (probe answers under the old code, click lands on the new). Transient, cleared by a refresh. ⚠ The text is the app's **generic** 403 (`auth.interceptor.ts:50-53`) used by every endpoint, so it cannot be traced to med forms with certainty — dev's `logs.AppLog` is empty.
 > **STILL OPEN and time-sensitive — `LogAccess` review.** Every read is logged, allowed or denied. **Check whether any cross-customer form was ever actually opened.** That is what separates a latent exposure from a live incident, and it drives what has to be disclosed to whom. **Nothing in the code fix answers this.**
 
 > ### ⭐ START HERE — Ann's four priority items (flagged by her, 08-22)
@@ -271,7 +273,20 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
   - **Left deliberately undone, needs its own ruling**: upload/delete still do not refresh `bUploadedMedForm` on existing rows, so it keeps drifting both ways. Also the **27 stale `1` rows** in non-collecting jobs — harmless now (the gate ignores the flag) but a data-only cleanup if wanted.
   - Tests: `dotnet test --filter "FullyQualifiedName~PlayerMedFormStampTests"` (3; the 2 originals mocked `PlayerProfileMetadataJson = null` and needed a collecting profile).
 - **Severity**: 🔴🔴 **CRITICAL — cross-customer disclosure of minors' medical data.** No exploit needed: any admin authorised on any job the player has ever registered for can open it in two clicks.
-- **Status**: 🟢 **CODE FIXED + PUSHED 08-25** (`1fd88b69`) — cross-customer visibility closed. **⚠ NOT fully closed as an item: the `LogAccess` review (opened vs merely openable) is still outstanding and is the half that decides disclosure.** Filed 08-25 from Ann's observation on `stepseliteaim-players-2026-2027` (Louisa DeSmedt; form uploaded under `um-summercamps-2026`).
+- **✅ FIX VERIFIED (Ann, 08-26)** — she re-checked **Clara Scheets on All American Aim** and the control is gone. Re-measured against the dev DB the same day, so the closure is quantified rather than argued:
+  | Measure | Value |
+  |:--|--:|
+  | Jobs collecting a med form (of 1,095) | **11 — all ONE customer** |
+  | Players holding a form | 3,131 |
+  | Their registrations, total | 28,212 |
+  | …on a **non-collecting** job → **now refused** | **23,610 (84%)** |
+  | **Customers able to reach a given player's form** | **52 → 1** |
+  | Clara Scheets specifically | **21 regs / 7 customers → 1 collecting job** |
+- **↳ Ann's follow-up: a *"You do not have permission to access this resource"* toast seen once on 08-26, not reproducible. ✅ ANSWERED — not a defect, and it will not surface on other sites.**
+  - **Opening a fly-in cannot raise it.** The existence probe passes `skipErrorToast()` and has since the component was first written (`1bee809e2`, `medform-view.component.ts:86-92`) — on a blocked event the control simply stays hidden, silently. That is why she cannot reproduce it.
+  - **The only med-form path that can toast is clicking View** (`:98` — the GET is *not* toast-suppressed, unlike the probe). Because both routes share one `ResolveRegistrationAccessAsync`, they cannot disagree; the button can only be shown-then-denied **across a backend restart** — probe answers under the old code, click lands on the new. Transient, cleared by a refresh, which matches her account exactly.
+  - ⚠ **Cannot be attributed with certainty**: that string is the app's **generic** 403 (`auth.interceptor.ts:50-53`), fired for every endpoint, and dev's `logs.AppLog` is empty — so there is no trail proving it came from med forms at all. Recorded as reasoning, not as a confirmed med-form denial.
+- **Status**: 🟢 **CODE FIXED + PUSHED 08-25** (`1fd88b69`), **✅ FIX VERIFIED BY ANN 08-26.** **⚠ STILL NOT CLOSED as an item: the `LogAccess` review (opened vs merely openable) is outstanding and is the half that decides disclosure.** Filed 08-25 from Ann's observation on `stepseliteaim-players-2026-2027` (Louisa DeSmedt; form uploaded under `um-summercamps-2026`).
 
 ### AR-037: [ARB / X-Job] SuperUser option to email ALL expiring credit cards ACROSS jobs, not one job at a time
 - **Topic**: ARB Subscription Health → **Expiring Cards** → a cross-job SuperUser send
