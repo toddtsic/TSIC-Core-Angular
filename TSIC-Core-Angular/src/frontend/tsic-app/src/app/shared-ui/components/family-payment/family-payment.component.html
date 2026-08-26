@@ -111,23 +111,30 @@
         <div class="text-muted"><span class="spinner-border spinner-border-sm me-1"></span> Loading...</div>
       } @else {
         <div class="sub-grid">
-          <div class="sub-field">
+          <div class="sub-field sub-field--wide">
             <span class="sub-label">Subscription ID</span>
             <span class="sub-value">{{ card.sub.subscriptionId }}</span>
           </div>
-          <div class="sub-field">
+          <div class="sub-field sub-field--wide">
             <span class="sub-label">Start Date</span>
             <span class="sub-value">{{ card.sub.startDate | date:'M/d/yy' }}</span>
           </div>
-          <div class="sub-field">
+          <div class="sub-field sub-field--third">
+            <span class="sub-label">Plan Total</span>
+            <span class="sub-value" [attr.aria-describedby]="'arb-plan-note-' + card.regId">{{ card.sub.totalAmount | currency }}</span>
+          </div>
+          <div class="sub-field sub-field--third">
             <span class="sub-label">Amount</span>
             <span class="sub-value">{{ card.sub.perOccurrenceAmount | currency }} / {{ card.sub.intervalLabel }}</span>
           </div>
-          <div class="sub-field">
+          <div class="sub-field sub-field--third">
             <span class="sub-label">Occurrences</span>
             <span class="sub-value">{{ card.sub.totalOccurrences }}</span>
           </div>
         </div>
+        <p class="sub-plan-note" [attr.id]="'arb-plan-note-' + card.regId">
+          <i class="bi bi-info-circle me-1" aria-hidden="true"></i>Plan Total is what the subscription drafts &mdash; money paid up front at registration is not part of the plan, so this is not the family's balance.
+        </p>
         @if (!isProdEnv) {
           <p class="sub-stored-note">
             <i class="bi bi-clock-history me-1" aria-hidden="true"></i>Stored record — live Authorize.Net status is shown in Production.
