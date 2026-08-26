@@ -36,21 +36,28 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
                     return throwError(() => error);
                 }
 
-                // Handle 403 Forbidden errors
+                // Handle 403 Forbidden errors.
+                // SKIP_GLOBAL_ERROR_TOAST applies here too. A 403 is exactly the case the opt-out
+                // exists for on probe-style requests (a HEAD that asks "is there a file?" answers
+                // "you may not see one" with a 403, which is not an error the user did anything
+                // about). Skipping this check made every skipErrorToast() caller silently
+                // un-opted-out for the one status they most needed it on.
                 if (error.status === 403) {
-                    const errorType = error.error?.type;
+                    if (!request.context.get(SKIP_GLOBAL_ERROR_TOAST)) {
+                        const errorType = error.error?.type;
 
-                    // Check for specific JobPathMismatch error
-                    if (errorType === 'JobPathMismatch') {
-                        const message = error.error?.detail ||
-                            `Access denied: You're logged into '${error.error?.extensions?.tokenJobPath}' but tried to access '${error.error?.extensions?.routeJobPath}'.`;
-                        toastService.show(message, 'danger', 7000);
-                    } else {
-                        // Generic 403 error - try detail then title
-                        const message = error.error?.detail ||
-                            error.error?.title ||
-                            'You do not have permission to access this resource.';
-                        toastService.show(message, 'danger', 5000);
+                        // Check for specific JobPathMismatch error
+                        if (errorType === 'JobPathMismatch') {
+                            const message = error.error?.detail ||
+                                `Access denied: You're logged into '${error.error?.extensions?.tokenJobPath}' but tried to access '${error.error?.extensions?.routeJobPath}'.`;
+                            toastService.show(message, 'danger', 7000);
+                        } else {
+                            // Generic 403 error - try detail then title
+                            const message = error.error?.detail ||
+                                error.error?.title ||
+                                'You do not have permission to access this resource.';
+                            toastService.show(message, 'danger', 5000);
+                        }
                     }
                     return throwError(() => error);
                 }
@@ -88,17 +95,19 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
                                 return next(clonedRequest).pipe(
                                     catchError((retryError: HttpErrorResponse) => {
                                         if (retryError.status === 403) {
-                                            const errorType = retryError.error?.type;
+                                            if (!request.context.get(SKIP_GLOBAL_ERROR_TOAST)) {
+                                                const errorType = retryError.error?.type;
 
-                                            if (errorType === 'JobPathMismatch') {
-                                                const msg = retryError.error?.detail ||
-                                                    `Access denied: You're logged into '${retryError.error?.extensions?.tokenJobPath}' but tried to access '${retryError.error?.extensions?.routeJobPath}'.`;
-                                                toastService.show(msg, 'danger', 7000);
-                                            } else {
-                                                const msg = retryError.error?.detail ||
-                                                    retryError.error?.title ||
-                                                    'You do not have permission to access this resource.';
-                                                toastService.show(msg, 'danger', 5000);
+                                                if (errorType === 'JobPathMismatch') {
+                                                    const msg = retryError.error?.detail ||
+                                                        `Access denied: You're logged into '${retryError.error?.extensions?.tokenJobPath}' but tried to access '${retryError.error?.extensions?.routeJobPath}'.`;
+                                                    toastService.show(msg, 'danger', 7000);
+                                                } else {
+                                                    const msg = retryError.error?.detail ||
+                                                        retryError.error?.title ||
+                                                        'You do not have permission to access this resource.';
+                                                    toastService.show(msg, 'danger', 5000);
+                                                }
                                             }
                                         } else if (!request.context.get(SKIP_GLOBAL_ERROR_TOAST)) {
                                             if (retryError.status >= 500) {
