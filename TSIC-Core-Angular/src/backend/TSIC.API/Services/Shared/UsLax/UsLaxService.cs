@@ -273,7 +273,13 @@ public class UsLaxService : IUsLaxService
             FirstName = el.TryGetProperty("firstname", out var fn) ? fn.GetString() : null,
             LastName = el.TryGetProperty("lastname", out var ln) ? ln.GetString() : null,
             Email = el.TryGetProperty("email", out var em) ? em.GetString() : null,
-            AgeVerified = el.TryGetProperty("age_verified", out var av) ? av.GetString() : null,
+            // age_verified is the one field whose shape we have seen the vendor treat loosely
+            // ("Approved", not a boolean). GetString() THROWS on a non-string JsonValueKind, which
+            // would fail the whole batch parse rather than one field, so read it defensively and
+            // let a boolean or number come through as its text.
+            AgeVerified = el.TryGetProperty("age_verified", out var av) && av.ValueKind != JsonValueKind.Null
+                ? (av.ValueKind == JsonValueKind.String ? av.GetString() : av.ToString())
+                : null,
             Involvement = ExtractInvolvement(el)
         };
     }

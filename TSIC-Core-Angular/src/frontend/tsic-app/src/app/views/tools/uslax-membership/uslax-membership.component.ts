@@ -439,10 +439,17 @@ export class UsLaxMembershipComponent implements OnInit {
 		return inv.filter((x): x is string => typeof x === 'string');
 	}
 
+	/// Shows USA Lacrosse's own answer verbatim. It is a vocabulary, not a boolean — the one
+	/// value confirmed from a live capture is "Approved" (UsLaxServiceBatchTests), and Pending,
+	/// Denied and Not Required are all plausible and undocumented. This previously rendered Yes
+	/// only for the literal "true", which USA Lacrosse never sends, so every verified player read
+	/// as a confident "No" on a compliance column. An unfamiliar word invites a question; a wrong
+	/// No does not. Keep this a pass-through: the email token !USLAXAGEVERIFIED and the grid's
+	/// sort both use the raw value, and all three agree only while this does too.
 	ageVerifiedDisplay(row: UsLaxReconciliationRowDto): string {
 		const v = row.ageVerified;
 		if (v == null) return '';
-		return v.toString().toLowerCase() === 'true' ? 'Yes' : 'No';
+		return v.toString().trim();
 	}
 
 	onGridToolbarClick(args: { item?: { id?: string } }, grid: GridComponent): void {
