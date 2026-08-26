@@ -5,7 +5,7 @@ import { forkJoin } from 'rxjs';
 import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto, ClubAffectedJob } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ClubService } from '@infrastructure/services/club.service';
-import { RoleIds, displayRoleName } from '@infrastructure/constants/roles.constants';
+import { displayRoleName } from '@infrastructure/constants/roles.constants';
 import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { AccountingLedgerComponent, CcChargeEvent, CheckOrCorrectionEvent, RefundEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
@@ -130,10 +130,6 @@ function isWaiverField(key: string, label: string, inputType: string): boolean {
 export class RegistrationDetailPanelComponent implements OnChanges {
   detail = input<RegistrationDetailDto | null>(null);
   isOpen = input<boolean>(false);
-
-  // Role-filter context from the parent search — mirrors batch-email-modal.
-  // Used to gate the Club Rep delete: only available when the search is constrained to Club Rep only.
-  activeRoleIds = input<string[]>([]);
 
   closed = output<void>();
   saved = output<void>();
@@ -311,23 +307,25 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   /** True when this registration's role is Club Rep (by role name, not the active-team flag). */
   isClubRepRole = computed(() => this.detail()?.roleName === 'Club Rep');
 
-  /** True when the active search is constrained to exactly the plain Club Rep role. Deliberately does
-   *  NOT accept the "ACTIVE, NOT WAITLISTED" sentinel: that filter returns only reps who own an active
-   *  team, and a club rep is deletable only with zero teams (see canDelete) — so exposing the delete
-   *  control there would surface a control that can never fire. Matched on the stable role GUID. */
-  clubRepOnlySearch = computed(() => {
-    const ids = this.activeRoleIds();
-    return ids.length === 1 && ids[0].toLowerCase() === RoleIds.ClubRep.toLowerCase();
-  });
-
   /**
-   * Whether the delete control is shown at all. For a Club Rep it only surfaces for a Superuser
-   * whose search is scoped to Club Rep only; all other roles keep the existing always-shown control.
+   * Whether the delete control is shown at all. For a Club Rep that is Superuser-only; all other
+   * roles keep the existing always-shown control.
+   *
+   * AR-034 — this ALSO used to require the active search to be filtered to Club Rep alone, so the
+   * SAME rep showed a delete button or not depending on how you navigated to them, with nothing on
+   * screen explaining it. Worse, it hid in exactly the case where the delete WORKS: a clean duplicate
+   * rep with no teams and no accounting (canDelete true) got no button at all, while reps carrying
+   * teams and payments got a greyed one.
+   *
+   * The old rule was aiming at something real — not surfacing a control that can never fire on the
+   * "ACTIVE, NOT WAITLISTED" filter, whose reps all own a team. But that is a property of the ROW, and
+   * canDelete already answers it from the row, with showDeleteBlockedReason() naming the blocker.
+   * Visibility must never key on the search again.
    */
   showDeleteControl = computed(() => {
     const d = this.detail();
     if (!d) return false;
-    if (this.isClubRepRole()) return this.auth.isSuperuser() && this.clubRepOnlySearch();
+    if (this.isClubRepRole()) return this.auth.isSuperuser();
     return true;
   });
 
