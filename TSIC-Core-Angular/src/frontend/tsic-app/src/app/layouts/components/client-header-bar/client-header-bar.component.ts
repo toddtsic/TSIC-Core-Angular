@@ -72,8 +72,15 @@ export class ClientHeaderBarComponent {
         return [name.substring(0, idx).trim(), name.substring(idx + 1).trim()];
     });
 
-    /** SuperUser-only header affordances (AR-033 copy control). */
-    readonly isSuperuser = this.auth.isSuperuser;
+    /**
+     * AR-033 copy control — gated on the ACTIVE role being Superuser, and NOTHING else.
+     *
+     * Deliberately NOT `auth.isSuperuser`: that one also reads true when Superuser merely
+     * appears in the `roles` array, so it would light the button for someone acting as a
+     * Director the moment the server starts issuing multiple role claims (the decode at
+     * auth.service.ts already handles an array claim). Todd's ruling: role = SuperUser only.
+     */
+    readonly isSuperuser = computed(() => this.auth.currentUser()?.role === Roles.Superuser);
 
     /** Transient outcome of the job-name copy: null | 'copied' | 'failed'. A copy button
      *  that silently does nothing is worse than no button, so failure is SHOWN. */
