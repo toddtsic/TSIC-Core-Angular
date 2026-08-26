@@ -143,6 +143,14 @@ public sealed class AdnSweepBackgroundService : BackgroundService
         // close's IsTrustworthy gate would be invisible whenever the gate held. Deliberately AFTER the
         // sweep, and in its own try, for the same reason step 8 is last inside the sweep -- proven
         // money code is scored before any of this runs, and nothing here can change its verdict.
+        //
+        // TWICE A MONTH IS DELIBERATE, and there is deliberately no dedupe between the two dates.
+        // Todd's ruling, 2026-08-25. ARBGetSubscriptionList(cardExpiringThisMonth) matches on the card
+        // CURRENTLY attached to the subscription, so a family who updated theirs after the 2nd drops
+        // out of the 15th's result set on its own. The second pass therefore reaches only the families
+        // who did nothing -- a follow-up to a non-responder, not a duplicate. Suppressing it by
+        // matching emailLogs would withhold the reminder from exactly the people who still need it.
+        // Do not "fix" this by adding dedupe or by dropping one of the dates.
         if (DateTime.Now.Day is 2 or 15)
         {
             try

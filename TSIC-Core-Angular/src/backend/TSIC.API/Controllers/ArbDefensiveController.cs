@@ -16,17 +16,20 @@ public class ArbDefensiveController : ControllerBase
     private readonly IJobLookupService _jobLookupService;
     private readonly IEmailBatchJobRegistry _batchJobs;
     private readonly IHostEnvironment _env;
+    private readonly ILogger<ArbDefensiveController> _logger;
 
     public ArbDefensiveController(
         IArbDefensiveService service,
         IJobLookupService jobLookupService,
         IEmailBatchJobRegistry batchJobs,
-        IHostEnvironment env)
+        IHostEnvironment env,
+        ILogger<ArbDefensiveController> logger)
     {
         _service = service;
         _jobLookupService = jobLookupService;
         _batchJobs = batchJobs;
         _env = env;
+        _logger = logger;
     }
 
     /// <summary>
@@ -41,8 +44,21 @@ public class ArbDefensiveController : ControllerBase
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null) return Unauthorized();
 
-        var result = await _service.GetFlaggedSubscriptionsAsync(jobId.Value, type, ct);
-        return Ok(result);
+        try
+        {
+            var result = await _service.GetFlaggedSubscriptionsAsync(jobId.Value, type, ct);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // GetExpiringCardFlagsAsync throws on an Authorize.Net error DELIBERATELY — returning an
+            // empty list there is the bug it replaced, because "ADN did not answer" then read to the
+            // director as "no cards expiring this month". That distinction has to survive the trip to
+            // the screen: 502 + the reason, not a bare 500 the UI renders as a generic failure. Narrow
+            // to InvalidOperationException so unrelated faults still surface as real 500s.
+            _logger.LogError(ex, "Flagged-subscription lookup failed: job={JobId} type={Type}", jobId, type);
+            return StatusCode(StatusCodes.Status502BadGateway, new { message = ex.Message });
+        }
     }
 
     /// <summary>
