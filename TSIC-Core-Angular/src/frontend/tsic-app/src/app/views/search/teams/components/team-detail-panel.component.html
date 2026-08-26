@@ -280,23 +280,30 @@
                 <div class="text-muted"><span class="spinner-border spinner-border-sm me-1"></span> Loading...</div>
               } @else if (subscription(); as sub) {
                 <div class="sub-grid">
-                  <div class="sub-field">
+                  <div class="sub-field sub-field--wide">
                     <span class="sub-label">Subscription ID</span>
                     <span class="sub-value">{{ sub.subscriptionId }}</span>
                   </div>
-                  <div class="sub-field">
+                  <div class="sub-field sub-field--wide">
                     <span class="sub-label">Start Date</span>
                     <span class="sub-value">{{ sub.startDate | date:'M/d/yy' }}</span>
                   </div>
-                  <div class="sub-field">
+                  <div class="sub-field sub-field--third">
+                    <span class="sub-label">Plan Total</span>
+                    <span class="sub-value" aria-describedby="arb-plan-note-team">{{ sub.totalAmount | currency }}</span>
+                  </div>
+                  <div class="sub-field sub-field--third">
                     <span class="sub-label">Amount</span>
                     <span class="sub-value">{{ sub.perOccurrenceAmount | currency }} / {{ sub.intervalLabel }}</span>
                   </div>
-                  <div class="sub-field">
+                  <div class="sub-field sub-field--third">
                     <span class="sub-label">Occurrences</span>
                     <span class="sub-value">{{ sub.totalOccurrences }}</span>
                   </div>
                 </div>
+                <p class="sub-plan-note" id="arb-plan-note-team">
+                  <i class="bi bi-info-circle me-1" aria-hidden="true"></i>Plan Total is what the subscription drafts &mdash; money paid up front at registration is not part of the plan, so this is not the family's balance.
+                </p>
                 @if (!isProdEnv) {
                   <p class="sub-stored-note">
                     <i class="bi bi-clock-history me-1" aria-hidden="true"></i>Stored record — check live Authorize.Net status to enable Cancel.

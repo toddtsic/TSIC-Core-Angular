@@ -25,7 +25,7 @@
         </div>
     </div>
 
-    <!-- Explicit lookups — NOTHING loads on page open. Behind in Payment is a stored-status
+    <!-- Explicit lookups - NOTHING loads on page open. Behind in Payment is a stored-status
          DB read; Expiring Cards queries LIVE production Authorize.Net, so it must only ever
          run on a deliberate click (PL-055 rework). Re-clicking the active lookup re-runs it. -->
     <div class="lookup-actions d-flex flex-wrap gap-2 mb-3">
@@ -53,7 +53,9 @@
         </div>
     }
 
-    <!-- Send result (shown inline for one-click sends) -->
+    <!-- Send result. Shown on the page whenever the composer is closed - which, after a
+         successful send, is always: the dialog closes itself so the same batch cannot be
+         sent twice (AR-039 part 4). -->
     @if (sendResult() && !showEmailDialog()) {
         <div class="alert mb-3"
              [class.alert-success]="sendResult()!.failed === 0"
@@ -78,15 +80,17 @@
         </div>
     }
 
-    <!-- Action bar — always visible when data loaded -->
+    <!-- Action bar - always visible when data loaded -->
     @if (!isLoading() && registrants().length > 0) {
-        <div class="action-bar d-flex align-items-center gap-3 mb-3">
+        <div class="action-bar d-flex align-items-center flex-wrap gap-3 mb-3">
             <span class="badge bg-primary">{{ registrants().length }} flagged</span>
 
             @if (activeTab() === FLAG_TYPE.ExpiringCard) {
-                <!-- Expiring Cards: one-click send to ALL (like legacy) -->
+                <!-- Expiring Cards: one-click send to ALL (like legacy). Locked after a
+                     successful send so the same blast cannot go out twice - re-running the
+                     lookup is the deliberate act that unlocks it (AR-039 part 4). -->
                 <button class="btn btn-sm btn-primary"
-                        [disabled]="isSending()"
+                        [disabled]="isSending() || warningsSent()"
                         (click)="sendExpiringCardWarnings()">
                     @if (isSending()) {
                         <span class="spinner-border spinner-border-sm me-1"></span>
@@ -96,6 +100,11 @@
                         Send Warning to All Registrants &amp; Directors
                     }
                 </button>
+                @if (warningsSent()) {
+                    <small class="text-body-secondary">
+                        <i class="bi bi-check2 me-1"></i>Sent for this lookup. Re-run the lookup to send again.
+                    </small>
+                }
             }
 
             @if (activeTab() === FLAG_TYPE.BehindInPayment) {
@@ -113,137 +122,147 @@
         </div>
     }
 
-    <!-- Data table -->
+    <!-- Data grid. Was a hand-rolled table, so neither sorting nor export existed to switch on
+         (AR-039 part 2). The contact columns are hidden rather than absent: on screen the
+         collections contact card (PL-056) is the readable form, while the Excel export carries
+         every address and number as its own plain-text column. -->
     @if (!isLoading() && registrants().length > 0) {
-        <div class="table-responsive">
-            <table class="table table-sm table-hover align-middle">
-                <thead>
-                    <tr>
-                        @if (activeTab() === FLAG_TYPE.BehindInPayment) {
-                            <th class="check-col">
-                                <input type="checkbox"
-                                       class="form-check-input"
-                                       [checked]="allSelected()"
-                                       (change)="toggleSelectAll()">
-                            </th>
+        <ejs-grid #grid
+            width="100%"
+            cssClass="tsic-grid-tight"
+            [dataSource]="registrants()"
+            [allowSorting]="true"
+            [allowResizing]="true"
+            [allowTextWrap]="true"
+            [allowExcelExport]="true"
+            [selectionSettings]="selectionSettings"
+            [toolbar]="toolbar"
+            (toolbarClick)="onToolbarClick($event)"
+            (rowSelected)="onRowSelected($event)"
+            (rowDeselected)="onRowDeselected($event)">
+            <e-columns>
+                <e-column type="checkbox"
+                          headerText=""
+                          width="45"
+                          [allowSorting]="false"
+                          [allowResizing]="false"
+                          [visible]="activeTab() === FLAG_TYPE.BehindInPayment"></e-column>
+
+                <e-column field="registrantName" headerText="Registrant" width="210" clipMode="EllipsisWithTooltip">
+                    <ng-template #template let-data>
+                        <div class="fw-medium">{{ data.registrantName }}</div>
+                        @if (data.familyUsername) {
+                            <small class="text-muted d-block">
+                                <i class="bi bi-person-badge me-1"></i>Family Username:
+                                <span class="text-primary fw-semibold">{{ data.familyUsername }}</span>
+                            </small>
                         }
-                        <th>Registrant</th>
-                        <th>Subscription</th>
-                        <th>Status</th>
-                        <th class="text-end">Fee Total</th>
-                        <th class="text-end">Paid</th>
-                        <th class="text-end">Owes Total</th>
-                        <th class="text-end pe-4">Owes Now</th>
-                        <th class="ps-4">Next Payment</th>
-                        <th>Progress</th>
-                        <th>Contact</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @for (r of registrants(); track r.registrationId) {
-                        <tr [class.table-warning]="isSelected(r.registrationId)"
-                            (click)="activeTab() === FLAG_TYPE.BehindInPayment ? toggleSelect(r.registrationId) : null"
-                            [style.cursor]="activeTab() === FLAG_TYPE.BehindInPayment ? 'pointer' : 'default'">
-                            @if (activeTab() === FLAG_TYPE.BehindInPayment) {
-                                <td class="check-col" (click)="$event.stopPropagation()">
-                                    <input type="checkbox"
-                                           class="form-check-input"
-                                           [checked]="isSelected(r.registrationId)"
-                                           (change)="toggleSelect(r.registrationId)">
-                                </td>
+                    </ng-template>
+                </e-column>
+
+                <!-- Live team, resolved from AssignedTeamId. Never the Registrations.assignment
+                     display snapshot, which showed the team the player was on when the
+                     subscription was created (AR-039 part 1). -->
+                <e-column field="assignment" headerText="Team" width="170" clipMode="EllipsisWithTooltip"></e-column>
+
+                <e-column field="subscriptionId" headerText="Subscription" width="130">
+                    <ng-template #template let-data>
+                        <code class="small">{{ data.subscriptionId }}</code>
+                    </ng-template>
+                </e-column>
+
+                <e-column field="subscriptionStatus" headerText="Status" width="115">
+                    <ng-template #template let-data>
+                        <span class="badge"
+                              [class.bg-success]="data.subscriptionStatus === 'active'"
+                              [class.bg-warning]="data.subscriptionStatus === 'suspended'"
+                              [class.bg-danger]="data.subscriptionStatus !== 'active' && data.subscriptionStatus !== 'suspended'">
+                            {{ data.subscriptionStatus }}
+                        </span>
+                    </ng-template>
+                </e-column>
+
+                <e-column field="feeTotal" headerText="Fee Total" width="115" textAlign="Right" format="N2"></e-column>
+                <e-column field="paidTotal" headerText="Paid" width="105" textAlign="Right" format="N2"></e-column>
+                <e-column field="owedTotal" headerText="Owes Total" width="120" textAlign="Right" format="N2"></e-column>
+
+                <e-column field="currentlyOwes" headerText="Owes Now" width="120" textAlign="Right" format="N2">
+                    <ng-template #template let-data>
+                        <span class="fw-semibold" [class.text-danger]="(data.currentlyOwes ?? 0) > 0">
+                            {{ data.currentlyOwes | number:'1.2-2' }}
+                        </span>
+                    </ng-template>
+                </e-column>
+
+                <e-column field="nextPaymentDate" headerText="Next Payment" width="130">
+                    <ng-template #template let-data>
+                        @if (data.nextPaymentDate) {
+                            {{ data.nextPaymentDate | date:'shortDate' }}
+                        } @else {
+                            <span class="text-muted">&mdash;</span>
+                        }
+                    </ng-template>
+                </e-column>
+
+                <e-column field="paymentProgress" headerText="Progress" width="115"></e-column>
+
+                <!-- Contact card - the collections workflow: reach the family from the row (PL-056).
+                     Selection is checkbox-only, so clicking a mailto/tel link cannot toggle the row. -->
+                <e-column headerText="Contact" width="270" [allowSorting]="false">
+                    <ng-template #template let-data>
+                        <div class="arb-contact">
+                            @if (data.registrantEmail) {
+                                <small class="d-block text-muted">Player:</small>
+                                <small class="d-block">
+                                    <a [href]="'mailto:' + data.registrantEmail">{{ data.registrantEmail }}</a>
+                                </small>
                             }
-                            <td>
-                                <div class="fw-medium">{{ r.registrantName }}</div>
-                                @if (r.assignment) {
-                                    <small class="text-muted d-block">{{ r.assignment }}</small>
-                                }
-                                @if (r.familyUsername) {
-                                    <small class="text-muted d-block">
-                                        <i class="bi bi-person-badge me-1"></i>Family Username: <span class="text-primary fw-semibold">{{ r.familyUsername }}</span>
-                                    </small>
-                                }
-                            </td>
-                            <td>
-                                <code class="small">{{ r.subscriptionId }}</code>
-                            </td>
-                            <td>
-                                <span class="badge"
-                                      [class.bg-success]="r.subscriptionStatus === 'active'"
-                                      [class.bg-warning]="r.subscriptionStatus === 'suspended'"
-                                      [class.bg-danger]="r.subscriptionStatus !== 'active' && r.subscriptionStatus !== 'suspended'">
-                                    {{ r.subscriptionStatus }}
-                                </span>
-                            </td>
-                            <td class="text-end">{{ r.feeTotal | number:'1.2-2' }}</td>
-                            <td class="text-end">{{ r.paidTotal | number:'1.2-2' }}</td>
-                            <td class="text-end">{{ r.owedTotal | number:'1.2-2' }}</td>
-                            <td class="text-end pe-4 fw-semibold"
-                                [class.text-danger]="(r.currentlyOwes ?? 0) > 0">
-                                {{ r.currentlyOwes | number:'1.2-2' }}
-                            </td>
-                            <td class="ps-4">
-                                @if (r.nextPaymentDate) {
-                                    {{ r.nextPaymentDate | date:'shortDate' }}
-                                } @else {
-                                    <span class="text-muted">&mdash;</span>
-                                }
-                            </td>
-                            <td>
-                                @if (r.paymentProgress) {
-                                    <small>{{ r.paymentProgress }}</small>
-                                }
-                            </td>
-                            <!-- Contact card — the collections workflow: reach the family from
-                                 the row. Links stopPropagation so clicking an email/phone doesn't
-                                 toggle the row's selection checkbox (PL-056). -->
-                            <td>
-                                <div class="contact-info">
-                                    @if (r.registrantEmail) {
-                                        <small class="d-block text-muted">Player:</small>
-                                        <small class="d-block">
-                                            <a [href]="'mailto:' + r.registrantEmail" (click)="$event.stopPropagation()">{{ r.registrantEmail }}</a>
-                                        </small>
+                            @if (data.momName) {
+                                <div class="arb-contact__party">
+                                    <small class="d-block text-muted">Contact 1: {{ data.momName }}</small>
+                                    @if (data.momEmail) {
+                                        <small class="d-block"><a [href]="'mailto:' + data.momEmail">{{ data.momEmail }}</a></small>
                                     }
-                                    @if (r.momName) {
-                                        <div class="parent-contact">
-                                            <small class="d-block text-muted">Contact 1: {{ r.momName }}</small>
-                                            @if (r.momEmail) {
-                                                <small class="d-block">
-                                                    <a [href]="'mailto:' + r.momEmail" (click)="$event.stopPropagation()">{{ r.momEmail }}</a>
-                                                </small>
-                                            }
-                                            @if (r.momPhone) {
-                                                <small class="d-block">
-                                                    <a [href]="'tel:' + r.momPhone" (click)="$event.stopPropagation()">{{ r.momPhone }}</a>
-                                                </small>
-                                            }
-                                        </div>
-                                    }
-                                    @if (r.dadName) {
-                                        <div class="parent-contact">
-                                            <small class="d-block text-muted">Contact 2: {{ r.dadName }}</small>
-                                            @if (r.dadEmail) {
-                                                <small class="d-block">
-                                                    <a [href]="'mailto:' + r.dadEmail" (click)="$event.stopPropagation()">{{ r.dadEmail }}</a>
-                                                </small>
-                                            }
-                                            @if (r.dadPhone) {
-                                                <small class="d-block">
-                                                    <a [href]="'tel:' + r.dadPhone" (click)="$event.stopPropagation()">{{ r.dadPhone }}</a>
-                                                </small>
-                                            }
-                                        </div>
+                                    @if (data.momPhone) {
+                                        <small class="d-block"><a [href]="'tel:' + data.momPhone">{{ data.momPhone }}</a></small>
                                     }
                                 </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+                            }
+                            @if (data.dadName) {
+                                <div class="arb-contact__party">
+                                    <small class="d-block text-muted">Contact 2: {{ data.dadName }}</small>
+                                    @if (data.dadEmail) {
+                                        <small class="d-block"><a [href]="'mailto:' + data.dadEmail">{{ data.dadEmail }}</a></small>
+                                    }
+                                    @if (data.dadPhone) {
+                                        <small class="d-block"><a [href]="'tel:' + data.dadPhone">{{ data.dadPhone }}</a></small>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </ng-template>
+                </e-column>
+
+                <!-- Export-only columns: the contact card above is links on screen, so the
+                     spreadsheet gets the same information as plain text that can be sorted and
+                     filtered. Hidden here, pulled in by includeHiddenColumn on export. -->
+                <e-column field="familyUsername" headerText="Family Username" width="160" [visible]="false"></e-column>
+                <e-column field="registrantEmail" headerText="Player Email" width="200" [visible]="false"></e-column>
+                <e-column field="momName" headerText="Contact 1" width="160" [visible]="false"></e-column>
+                <e-column field="momEmail" headerText="Contact 1 Email" width="200" [visible]="false"></e-column>
+                <e-column field="momPhone" headerText="Contact 1 Phone" width="130" [visible]="false"></e-column>
+                <e-column field="dadName" headerText="Contact 2" width="160" [visible]="false"></e-column>
+                <e-column field="dadEmail" headerText="Contact 2 Email" width="200" [visible]="false"></e-column>
+                <e-column field="dadPhone" headerText="Contact 2 Phone" width="130" [visible]="false"></e-column>
+
+                <!-- Hidden primary key. Anchors persistSelection so a sort cannot detach the
+                     checkboxes from the families they were ticked for. -->
+                <e-column field="registrationId" headerText="Registration Id" [isPrimaryKey]="true" [visible]="false"></e-column>
+            </e-columns>
+        </ejs-grid>
     }
 
-    <!-- Initial state — no lookup run yet -->
+    <!-- Initial state - no lookup run yet -->
     @if (!isLoading() && loadedTab() === null && !errorMessage()) {
         <div class="text-center py-5">
             <i class="bi bi-search text-body-secondary" style="font-size: 2rem;"></i>
@@ -251,7 +270,7 @@
         </div>
     }
 
-    <!-- Empty state — lookup ran, nothing flagged -->
+    <!-- Empty state - lookup ran, nothing flagged -->
     @if (!isLoading() && loadedTab() !== null && registrants().length === 0 && !errorMessage()) {
         <div class="text-center py-5">
             <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
@@ -267,25 +286,17 @@
         <div class="modal-header">
             <h5 class="modal-title">
                 <i class="bi bi-envelope me-2"></i>
-                Compose Defensive Email
+                Compose Email
             </h5>
             <button type="button" class="btn-close" (click)="closeEmailDialog()"></button>
         </div>
         <div class="modal-body">
-            <!-- Send result inside modal -->
-            @if (sendResult()) {
-                <div class="alert mb-3"
-                     [class.alert-success]="sendResult()!.failed === 0"
-                     [class.alert-warning]="sendResult()!.failed > 0">
-                    <strong>{{ sendResult()!.sent }}</strong> emails sent.
-                    @if (sendResult()!.failed > 0) {
-                        <strong>{{ sendResult()!.failed }}</strong> failed.
-                        @if (sendResult()!.failedAddresses.length > 0) {
-                            <div class="mt-1">
-                                <small>Failed: {{ sendResult()!.failedAddresses.join(', ') }}</small>
-                            </div>
-                        }
-                    }
+            <!-- Failures keep the composer open: the director's typed message is in it, and
+                 closing on error discards their work at the moment they need to retry. -->
+            @if (sendError()) {
+                <div class="alert alert-danger mb-3">
+                    <i class="bi bi-exclamation-circle me-1"></i>
+                    {{ sendError() }}
                 </div>
             }
 

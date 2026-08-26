@@ -522,6 +522,25 @@
   font-weight: var(--font-weight-medium);
 }
 
+.required-mark {
+  color: var(--bs-danger);
+  font-weight: var(--font-weight-semibold);
+}
+
+// AR-042: offers the balance instead of pre-filling it. Mirrors the correction
+// solver's "Use" button so the two read as one affordance.
+.use-balance-btn {
+  margin-left: var(--space-2);
+  padding: 0 var(--space-2);
+  font-size: var(--font-size-sm);
+  vertical-align: baseline;
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+}
+
 .correction-hints {
   margin: 0;
   padding-left: var(--space-4);

@@ -1,0 +1,87 @@
+/**
+ * ARB Subscription card — shared by the THREE surfaces that render SubscriptionDetailDto:
+ * the registration detail panel, the team detail panel, and app-family-payment.
+ *
+ * Usage: @use '<relative>/arb-subscription-card' as *;
+ *
+ * These rules were triplicated across those three components and had already drifted
+ * (only the team panel carried a wrap rule on .sub-value), so a long subscription id
+ * overflowed in the other two. One copy now, and the AR-040 six-column change is made
+ * once instead of three times.
+ */
+
+// Six columns, so row 1 stays two-across (span 3) while row 2 is three-across (span 2).
+// A span-3 track in a 6-col grid is exactly a track in the 1fr 1fr grid this replaced
+// (3 cols + 2 internal gaps == 1 col of a 2-col grid), so row 1 is PIXEL-IDENTICAL.
+//
+// minmax(0, 1fr) is the grid-blowout guard: a bare 1fr floors each track at min-content,
+// and a 20-character subscription id then pushes the card wider than its fly-in. Note this
+// is NOT the "minmax is not a cap" trap — that bites on a fixed max (minmax(0, 17rem)),
+// not on 1fr.
+.sub-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-4);
+}
+
+.sub-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+
+  // Row 1 — two across.
+  &--wide { grid-column: span 3; }
+
+  // Row 2 — three across.
+  &--third { grid-column: span 2; }
+}
+
+.sub-label {
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  font-weight: var(--font-weight-medium);
+}
+
+.sub-value {
+  font-size: var(--font-size-sm);
+  color: var(--bs-body-color);
+  // Was team-panel-only. `anywhere` (not break-word) because it also lowers the
+  // min-content contribution, which is half of the blowout guard above.
+  overflow-wrap: anywhere;
+}
+
+// Muted note shown when the card is rendering the stored snapshot (not a live ADN read).
+.sub-stored-note {
+  margin: var(--space-3) 0 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+// AR-040 qualifier. Plan Total is perOccurrence x occurrences — what the SUBSCRIPTION
+// drafts, which is not the registration's balance: measured on dev, 2,249 of 14,981
+// subscriptions differ from fee_total by more than $1, the worst by $4,680. This card
+// renders directly beneath the Fee/Paid/Owed ledger block, so the qualifier is not
+// decoration — it is the thing that stops a fourth money figure being read as a fifth
+// ledger line. Icon + text, never colour alone.
+.sub-plan-note {
+  margin: var(--space-3) 0 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+// The fly-in is far narrower than the viewport, so the three-across row is the first
+// thing to overflow. Collapse to a single column rather than let the panel scroll
+// sideways — horizontal scroll here has been reported twice already (AR-006, AR-016).
+@media (max-width: 767.98px) {
+  .sub-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sub-field--wide,
+  .sub-field--third {
+    grid-column: auto;
+  }
+}

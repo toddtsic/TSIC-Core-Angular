@@ -1,3 +1,4 @@
+@use '../../../../shared-ui/styles/arb-subscription-card' as *;
 // Team Detail Panel Styles
 // Harmonized with registration-detail-panel
 
@@ -375,37 +376,7 @@
   }
 }
 
-.sub-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-3) var(--space-4);
-}
-
-.sub-field {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.sub-label {
-  font-size: var(--font-size-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  font-weight: var(--font-weight-medium);
-}
-
-.sub-value {
-  font-size: var(--font-size-sm);
-  color: var(--bs-body-color);
-  word-break: break-word;
-}
-
-.sub-stored-note {
-  margin: var(--space-3) 0 0 0;
-  font-size: var(--font-size-xs);
-  color: var(--text-muted);
-}
+// Subscription card rules live in the shared partial @use'd at the top of this file.
 
 // ═══════════════════════════════════════════
 // EDIT FORMS

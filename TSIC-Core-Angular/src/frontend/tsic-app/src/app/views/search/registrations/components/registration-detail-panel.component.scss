@@ -1,3 +1,4 @@
+@use '../../../../shared-ui/styles/arb-subscription-card' as *;
 // Registration Detail Panel Styles
 // Uses CSS variables only (NO hardcoded colors/spacing)
 
@@ -607,38 +608,8 @@
   }
 }
 
-// Subscription grid (inside .accounting-zone card)
-.sub-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-3) var(--space-4);
-}
-
-.sub-field {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.sub-label {
-  font-size: var(--font-size-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  font-weight: var(--font-weight-medium);
-}
-
-.sub-value {
-  font-size: var(--font-size-sm);
-  color: var(--bs-body-color);
-}
-
-// Muted note shown when the ARB card is rendering the stored snapshot (not a live ADN read).
-.sub-stored-note {
-  margin: var(--space-3) 0 0 0;
-  font-size: var(--font-size-xs);
-  color: var(--text-muted);
-}
+// Subscription card rules (.sub-grid / .sub-field / .sub-label / .sub-value /
+// .sub-stored-note / .sub-plan-note) live in the shared partial @use'd at the top.
 
 // Recurring-billing (ARB) marker on the Role header row — flush right, so it reads as a
 // registrant-status flag alongside Active. Full width lets margin-left:auto push it to the edge.
