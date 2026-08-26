@@ -33,11 +33,11 @@
       <button type="button" class="wz-nav-btn wz-continue"
         [disabled]="!canContinue() || busy()"
         (click)="continue.emit()"
-        [attr.aria-label]="'Proceed: ' + continueLabel()">
+        [attr.aria-label]="continueAriaLabel()">
         @if (busy()) {
         <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
         }
-        {{ continueLabel() }} @if (!busy()) { <i class="bi bi-chevron-right"></i> }
+        {{ continueLabel() }} @if (!busy()) { <i [class]="'bi ' + continueIcon()"></i> }
       </button>
       } @else {
       <span class="wz-nav-spacer"></span>
@@ -64,6 +64,7 @@
         [busy]="busy()"
         [showContinue]="showContinue()"
         [continueLabel]="continueLabel()"
+        [continueIntent]="continueIntent()"
         [detailsBadgeLabel]="detailsBadgeLabel()"
         [detailsBadgeClass]="detailsBadgeClass()"
         (back)="back.emit()"

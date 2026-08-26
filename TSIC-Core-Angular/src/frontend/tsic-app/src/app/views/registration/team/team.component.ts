@@ -52,6 +52,7 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
       [showBack]="showBack()"
       [showActionBarOnFirstStep]="hasWizardSession()"
       [continueLabel]="continueLabel()"
+      [continueIntent]="continueIntent()"
       [detailsBadgeLabel]="detailsBadge()"
       [detailsBadgeClass]="detailsBadgeClass()"
       (back)="back()"
@@ -264,7 +265,7 @@ export class TeamWizardV2Component implements OnInit {
     });
 
     // Review is the terminal step — there is nothing to go "Back" to once a registration
-    // is complete. Hide Back here so the action bar shows only the single "Finish" button,
+    // is complete. Hide Back here so the action bar shows only the single "Return Home" button,
     // mirroring the player confirmation step.
     readonly showBack = computed(() => this.currentStepId() !== 'review');
 
@@ -273,10 +274,15 @@ export class TeamWizardV2Component implements OnInit {
             case 'teams': return 'Proceed to Payment';
             case 'waivers': return 'Continue';
             case 'payment': return 'Proceed to Review';
-            case 'review': return 'Finish';
+            // AR-035 — review is terminal here; the button only navigates home.
+            case 'review': return 'Return Home';
             default: return 'Continue';
         }
     });
+
+    /** AR-035 — swaps the forward chevron for a house and drops "Proceed:" from the aria label. */
+    readonly continueIntent = computed<'proceed' | 'done'>(() =>
+        this.currentStepId() === 'review' ? 'done' : 'proceed');
 
     readonly detailsBadge = computed<string | null>(() => {
         switch (this.currentStepId()) {

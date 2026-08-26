@@ -63,6 +63,7 @@ import { isPlayerRegistrationEffectivelyOpen } from '@shared/landing/landing-pha
         [showBack]="showBack()"
         [showContinue]="showContinue()"
         [continueLabel]="continueLabel()"
+        [continueIntent]="continueIntent()"
         (back)="back()"
         (continue)="next()"
         (goToStep)="goToStep($event)">
@@ -240,13 +241,18 @@ export class PlayerWizardV2Component implements OnInit {
     });
 
     readonly continueLabel = computed(() => {
-        if (this.currentStepId() === 'confirmation') return 'Finish';
+        // AR-035 — confirmation is terminal and next() only navigates home from here.
+        if (this.currentStepId() === 'confirmation') return 'Return Home';
         if (this.currentStepId() === 'review') {
             const count = this.newRegistrationCount();
             if (count > 0) return count === 1 ? 'Submit Registration' : 'Submit Registrations';
         }
         return 'Continue';
     });
+
+    /** AR-035 — swaps the forward chevron for a house and drops "Proceed:" from the aria label. */
+    readonly continueIntent = computed<'proceed' | 'done'>(() =>
+        this.currentStepId() === 'confirmation' ? 'done' : 'proceed');
 
     private newRegistrationCount(): number {
         return this.state.familyPlayers.familyPlayers()
@@ -318,7 +324,7 @@ export class PlayerWizardV2Component implements OnInit {
     }
 
     async next(): Promise<void> {
-        // Confirmation step: Finish navigates to job home
+        // Confirmation step: "Return Home" navigates to job home
         if (this.currentStepId() === 'confirmation') {
             this.finish();
             return;

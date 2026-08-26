@@ -18,7 +18,7 @@
         <!-- Forward Button (right) -->
         @if (showContinue()) {
         <button type="button" class="btn btn-forward" (click)="continue.emit()" [disabled]="!canContinue() || busy()"
-            [attr.aria-label]="'Proceed: ' + continueLabel()">
+            [attr.aria-label]="continueAriaLabel()">
             @if (busy()) {
             <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
             }
@@ -27,7 +27,7 @@
             <!-- Mobile label (short version without "Proceed to ") -->
             <span class="continue-label-short d-sm-none">{{ continueLabelShort() }}</span>
             @if (!busy()) {
-            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+            <i [class]="'bi ' + continueIcon()" aria-hidden="true"></i>
             }
         </button>
         }

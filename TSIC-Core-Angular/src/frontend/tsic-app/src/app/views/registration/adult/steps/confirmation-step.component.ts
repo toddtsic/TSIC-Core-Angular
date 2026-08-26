@@ -70,8 +70,11 @@ import { RichTextPipe } from '@infrastructure/pipes/rich-text.pipe';
                         </button>
                     }
 
+                    <!-- AR-035: the registration is already complete here; this button only
+                         navigates to the job home page (see onFinishConfirmation). "Finish" plus a
+                         forward arrow named an act that had already happened. -->
                     <button class="btn btn-primary" (click)="finished.emit()">
-                        Finish <i class="bi bi-arrow-right ms-1"></i>
+                        <i class="bi bi-house me-1"></i> Return Home
                     </button>
                 </div>
             </div>
