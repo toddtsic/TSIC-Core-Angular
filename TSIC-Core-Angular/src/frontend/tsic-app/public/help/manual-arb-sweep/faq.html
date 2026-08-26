@@ -122,18 +122,19 @@
 </details>
 
 <details class="faq-item">
-  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why are eCheck Settled, eCheck Returns and Orphans missing from a dry-run result?</span></summary>
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Which steps does a dry run skip?</span></summary>
   <div class="faq-a">
     <p>
-      Because those steps genuinely do not run. They exist to move or reverse money, and none of them affects
-      the failed-draft notices this screen is for. Skipping them entirely is safer than teaching each one a
-      &ldquo;don't write&rdquo; mode &mdash; code that never runs cannot write by mistake.
+      Exactly three, and only because they move money: the eCheck settlement stamp, the return reversal,
+      and the stale-draft watchdog, which can settle or reverse a draft that went silent. Their digest
+      sections say <em>&ldquo;not run on a dry run&rdquo;</em> rather than showing a zero or a green tick,
+      because a zero next to &ldquo;eCheck Returns&rdquo; reads as &ldquo;nothing bounced last night&rdquo;
+      &mdash; on a dry run that would be a claim nobody checked.
     </p>
     <p>
-      On this screen they are omitted; in the dry-run digest they appear but say
-      <em>&ldquo;not run on a dry run&rdquo;</em>. Neither shows a zero or a green tick, because a zero next
-      to &ldquo;eCheck Returns&rdquo; reads as &ldquo;nothing bounced last night&rdquo; &mdash; and on a dry run
-      that would be a claim nobody checked.
+      <strong>Orphan detection and the eCheck integrity net do run.</strong> Both are report-only &mdash; a
+      query and a list &mdash; so there was never a reason to withhold them, and their counts on a dry run
+      are as real as on the 4&nbsp;AM pass.
     </p>
     <p class="help-muted">
       ARB Activity is different &mdash; it is fully populated on a dry run, all of it, because a dry run

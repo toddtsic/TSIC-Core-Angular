@@ -219,11 +219,15 @@ public sealed class AdnSweepService : IAdnSweepService
                 }
             }
 
-            // Steps 3-7 are eCheck settlement, return reversal, orphan detection, the stale-draft
-            // watchdog and the integrity net. Every one of them either writes money or exists to catch
-            // an eCheck problem, and none of them feeds the failed-draft notification a dry run is here
-            // to exercise. Skipping them outright is safer than teaching five more code paths a
-            // don't-write mode: code that never runs cannot write.
+            // Steps 3, 4 and 6 write: a settlement stamp, a payment reversal, and a watchdog that can
+            // settle or reverse a silent draft. A dry run skips those three outright rather than teaching
+            // three more money paths a don't-write mode — step 2's version of that already produced one
+            // subtle bug (a tracked entity flushed by an unrelated SaveChanges), and these are the paths
+            // that move real money.
+            //
+            // Steps 5 and 7 are NOT skipped. Both are report-only — orphan detection is a query plus a
+            // list, the integrity net is a single repository read — so there was never a reason to
+            // withhold them, and skipping them cost the dry run two genuine findings it could report.
             if (!_dryRun)
             {
             // 3) Process eCheck Pending → Settled transitions.
@@ -286,6 +290,7 @@ public sealed class AdnSweepService : IAdnSweepService
                     counts.Errored++;
                 }
             }
+            } // end steps 3-4 (live runs only)
 
             // 5) Detect orphan charges: one-time txs that settled at ADN but have no local
             // RegistrationAccounting row (the rare "charged the card, app pool died before the
@@ -311,6 +316,8 @@ public sealed class AdnSweepService : IAdnSweepService
                 }
             }
 
+            if (!_dryRun)
+            {
             // 6) Stale-Pending watchdog: drafts that went silent. Healthy drafts settle in 1–2
             // business days; a Settlement still Pending past the threshold gets its status
             // queried at ADN directly and is settled, reversed, or flagged. This is the only
@@ -331,6 +338,7 @@ public sealed class AdnSweepService : IAdnSweepService
                     counts.Errored++;
                 }
             }
+            } // end step 6 (live runs only)
 
             // 7) Integrity net: booked eCheck money with no Settlement return-watcher. The atomic
             // mint makes this unreachable going forward; expected count every run is 0. REPORT-ONLY.
@@ -343,7 +351,6 @@ public sealed class AdnSweepService : IAdnSweepService
                 _logger.LogError(ex, "Untracked-eCheck integrity query failed");
                 counts.Errored++;
             }
-            } // end steps 3-7 (live runs only)
         }
         catch (Exception ex)
         {
@@ -1419,8 +1426,9 @@ public sealed class AdnSweepService : IAdnSweepService
                 + "DRY RUN — nothing was written, settled, or sent.</p>");
             sb.Append("<p style='font-size:10px;margin:0 0 8px 0;'>Real production Authorize.Net batches were read and "
                 + "every recurring draft resolved in full, exactly as the 4am pass does — only the writes and the family "
-                + "sends were withheld. Steps 3-7 (eCheck settlement, returns, watchdog, integrity net, orphans) did not "
-                + "run at all; those sections say so rather than reporting zero.</p>");
+                + "sends were withheld. Orphan detection and the eCheck integrity net ran too; both are report-only. "
+                + "The three steps that move money — eCheck settlement, return reversal, the stale-draft watchdog — did "
+                + "not run, and their sections say so rather than reporting zero.</p>");
         }
 
         // Lead with the failure. A digest of zeros reads like a quiet morning; only this says otherwise.
@@ -1444,9 +1452,10 @@ public sealed class AdnSweepService : IAdnSweepService
         if (_dryRun)
         {
             sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, "
-                + $"ARB resolved: {counts.ArbImported}, "
+                + $"ARB resolved: {counts.ArbImported}, Orphans: {counts.OrphansFound}, "
+                + $"Untracked eCheck: {untrackedRows.Count}, "
                 + $"Failed drafts: {notifyResult.Found} (would email {notifyResult.Emailed}, NOT emailed {notifyResult.Skipped}), "
-                + $"Errored: {counts.Errored}. eCheck settled / returns / watchdog / untracked / orphans: not run.</p>");
+                + $"Errored: {counts.Errored}. eCheck settled / returns / watchdog: not run.</p>");
         }
         else
         {
@@ -1656,11 +1665,7 @@ public sealed class AdnSweepService : IAdnSweepService
 
         // ── Untracked eCheck payments (integrity net) ─────────────────
         sb.Append("<h4 style='margin-bottom:2px;margin-top:14px;'>Untracked eCheck Payments (no Settlement return-watcher)</h4>");
-        if (_dryRun)
-        {
-            sb.Append(DryRunNotRun);
-        }
-        else if (untrackedRows.Count == 0)
+        if (untrackedRows.Count == 0)
         {
             sb.Append("<p style='font-size:9px;'>(none — every booked eCheck is registered for return-watching ✓)</p>");
         }
@@ -1685,11 +1690,7 @@ public sealed class AdnSweepService : IAdnSweepService
 
         // ── Orphan ADN Charges table (report-only) ────────────────────
         sb.Append("<h4 style='margin-bottom:2px;margin-top:14px;'>Orphan ADN Charges (settled at ADN, not booked locally)</h4>");
-        if (_dryRun)
-        {
-            sb.Append(DryRunNotRun);
-        }
-        else if (orphanRows.Count == 0)
+        if (orphanRows.Count == 0)
         {
             sb.Append("<p style='font-size:9px;'>(none — every settled charge has a matching accounting row ✓)</p>");
         }
