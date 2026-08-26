@@ -50,9 +50,18 @@ public sealed class EmailService : IEmailService
 
         if (_env.IsSandbox() && !sendInDevelopment)
         {
-            _logger.LogInformation("Sandbox environment (non-Phoenix) and sendInDevelopment flag false; skipping SES transmission.");
+            _logger.LogInformation(
+                "Sandbox environment (non-Phoenix) and sendInDevelopment flag false; skipping SES transmission to {Recipients}. Subject: {Subject}",
+                string.Join(",", messageDto.ToAddresses ?? []), messageDto.Subject);
             return true;
         }
+
+        // Both short-circuits above return TRUE — the caller cannot tell "sent" from "deliberately not
+        // sent", which is why a missing email has no trace anywhere. Log the attempt itself so the Seq
+        // trail always contains the moment SES was actually reached.
+        _logger.LogInformation(
+            "SES send attempt: to={Recipients} subject={Subject} sandbox={Sandbox} sendInDevelopment={SendInDev}",
+            string.Join(",", messageDto.ToAddresses ?? []), messageDto.Subject, _env.IsSandbox(), sendInDevelopment);
 
         try
         {
@@ -68,7 +77,15 @@ public sealed class EmailService : IEmailService
             };
             var response = await _ses.SendRawEmailAsync(request, cancellationToken);
             var ok = response.HttpStatusCode == HttpStatusCode.OK;
-            if (!ok)
+            if (ok)
+            {
+                // The SES message id is the only handle that ties our send to a bounce, a complaint, or a
+                // support ticket about a mail that never arrived. It was being discarded.
+                _logger.LogInformation(
+                    "SES accepted: messageId={MessageId} to={Recipients} subject={Subject}",
+                    response.MessageId, string.Join(",", message.To.Select(t => t.ToString())), messageDto.Subject);
+            }
+            else
             {
                 _logger.LogWarning("SES send failed: {StatusCode} for recipients {Recipients}", response.HttpStatusCode, string.Join(",", message.To.Select(t => t.ToString())));
             }
@@ -76,7 +93,11 @@ public sealed class EmailService : IEmailService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Exception sending email via SES");
+            // Was "Exception sending email via SES" with no subject, no recipient and no From — which is
+            // most of what you need to tell a credential problem from a rejected sender from a throttle.
+            _logger.LogError(ex,
+                "Exception sending email via SES: to={Recipients} subject={Subject} from={From}",
+                string.Join(",", messageDto.ToAddresses ?? []), messageDto.Subject, TsicConstants.SupportEmail);
             return false;
         }
     }

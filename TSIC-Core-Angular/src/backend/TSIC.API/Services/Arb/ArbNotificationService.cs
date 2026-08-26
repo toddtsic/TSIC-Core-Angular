@@ -81,7 +81,7 @@ public sealed class ArbNotificationService : IArbNotificationService
     {
         if (!_dryRun)
         {
-            await _email.SendAsync(new EmailMessageDto
+            var accepted = await _email.SendAsync(new EmailMessageDto
             {
                 FromName = director?.Name ?? jobName,
                 ReplyToName = director?.Name,
@@ -90,6 +90,21 @@ public sealed class ArbNotificationService : IArbNotificationService
                 Subject = subject,
                 HtmlBody = body
             }, cancellationToken: ct);
+
+            // This is a family being told their payment failed. A send that quietly returned false left
+            // no trace anywhere — the audit row still recorded them as a recipient.
+            if (!accepted)
+            {
+                _logger.LogError(
+                    "ARB family email NOT accepted: {Registrant} ({Job}) to={Recipients} subject={Subject}",
+                    registrant, jobName, string.Join(",", recipients), subject);
+            }
+        }
+        else
+        {
+            _logger.LogInformation(
+                "ARB family email RENDERED ONLY (dry run): {Registrant} ({Job}) to={Recipients}",
+                registrant, jobName, string.Join(",", recipients));
         }
 
         return new ArbRenderedEmailDto
@@ -319,6 +334,13 @@ public sealed class ArbNotificationService : IArbNotificationService
         // Per-job, not estate-wide: the expiring-card list comes from ADN, which is queried with the
         // job's own credentials. Only jobs still holding a live subscription are asked.
         var jobIds = await _arbRepo.GetJobIdsWithLiveSubscriptionsAsync(ct);
+
+        // This pass runs unattended on the 2nd and the 15th with no manual trigger on production, so
+        // the log is the only place its scope is ever visible.
+        _logger.LogInformation(
+            "ARB expiring-card pass START: jobsWithLiveSubscriptions={JobCount} dryRun={DryRun}",
+            jobIds.Count, _dryRun);
+
         var directors = (await _arbRepo.GetDefaultDirectorsForJobsAsync(jobIds, ct))
             .GroupBy(d => d.JobId)
             .ToDictionary(g => g.Key, g => g.First());
@@ -447,7 +469,7 @@ public sealed class ArbNotificationService : IArbNotificationService
             // renders the HTML are only exercised by actually sending, and the transport is where the
             // digest was being corrupted. Subject carries the DRY RUN marker so it can never be mistaken
             // for the 4am one.
-            await _email.SendAsync(new EmailMessageDto
+            var accepted = await _email.SendAsync(new EmailMessageDto
             {
                 FromName = "",
                 ToAddresses = [TsicConstants.SupportEmail],
@@ -456,6 +478,15 @@ public sealed class ArbNotificationService : IArbNotificationService
                     + (result.Skipped > 0 ? $", {result.Skipped} NOT" : ""),
                 HtmlBody = html
             }, sendInDevelopment: true, cancellationToken: ct);
+
+            if (accepted)
+            {
+                _logger.LogInformation("ARB expiring-card summary: accepted by the mail service (dryRun={DryRun})", _dryRun);
+            }
+            else
+            {
+                _logger.LogError("ARB expiring-card summary: NOT accepted by the mail service (dryRun={DryRun})", _dryRun);
+            }
 
             return html;
         }

@@ -154,6 +154,13 @@ public sealed class AdnSweepService : IAdnSweepService
     {
         if (daysPrior <= 0) daysPrior = _options.DaysPriorWindow;
 
+        // Step-boundary logging. Until this existed the only evidence a run had happened at all was the
+        // digest arriving — so a run that finished and mailed nothing was indistinguishable from a run
+        // that never started, which is exactly the hole that cost a staging afternoon.
+        _logger.LogInformation(
+            "ADN sweep START: triggeredBy={TriggeredBy} daysPrior={DaysPrior} dryRun={DryRun} sendDigest={SendDigest}",
+            triggeredBy, daysPrior, _dryRun, sendDigest);
+
         // echeck.SweepLog's CHECK constraint permits only "Scheduled" and "Manual", so a dry run has no
         // honest value to write and must not invent a third one. It is not a sweep of record: nothing
         // it observes is booked, so a row claiming a pass ran would misreport the ledger's coverage.
@@ -190,6 +197,14 @@ public sealed class AdnSweepService : IAdnSweepService
             var allTxs = FetchBatchTransactions(env, creds.AdnLoginId!, creds.AdnTransactionKey!, daysPrior);
             counts.Checked = allTxs.Count;
 
+            _logger.LogInformation(
+                "ADN sweep step 1 (batches): checked={Checked} arbCandidates={Arb} orphanCandidates={Orphans} returns={Returns} env={Env}",
+                allTxs.Count,
+                allTxs.Count(IsArbCandidate),
+                allTxs.Count(IsOrphanCandidate),
+                allTxs.Count(t => t.transactionStatus == "returnedItem"),
+                env);
+
             // 2) Process ARB transactions (legacy parity). A dry run resolves EVERY candidate exactly as
             // the live pass does — detail fetch, invoice → registration, installment math, tender
             // resolution, the RA row built in full — and only the writes are skipped.
@@ -218,6 +233,12 @@ public sealed class AdnSweepService : IAdnSweepService
                     counts.Errored++;
                 }
             }
+
+            _logger.LogInformation(
+                "ADN sweep step 2 (ARB): imported={Imported} failedDrafts={Failed} errored={Errored}",
+                counts.ArbImported,
+                arbRows.Count(r => !string.Equals(r.TransactionStatus, "settledSuccessfully", StringComparison.OrdinalIgnoreCase)),
+                counts.Errored);
 
             // Steps 3, 4 and 6 write: a settlement stamp, a payment reversal, and a watchdog that can
             // settle or reverse a silent draft. A dry run skips those three outright rather than teaching
@@ -290,6 +311,9 @@ public sealed class AdnSweepService : IAdnSweepService
                     counts.Errored++;
                 }
             }
+            _logger.LogInformation(
+                "ADN sweep steps 3-4 (eCheck): settled={Settled} returnsProcessed={Returns}",
+                counts.EcheckSettled, counts.EcheckReturnsProcessed);
             } // end steps 3-4 (live runs only)
 
             // 5) Detect orphan charges: one-time txs that settled at ADN but have no local
@@ -316,6 +340,8 @@ public sealed class AdnSweepService : IAdnSweepService
                 }
             }
 
+            _logger.LogInformation("ADN sweep step 5 (orphans): found={Orphans}", counts.OrphansFound);
+
             if (!_dryRun)
             {
             // 6) Stale-Pending watchdog: drafts that went silent. Healthy drafts settle in 1–2
@@ -338,6 +364,7 @@ public sealed class AdnSweepService : IAdnSweepService
                     counts.Errored++;
                 }
             }
+            _logger.LogInformation("ADN sweep step 6 (watchdog): staleHandled={Stale}", watchdogRows.Count);
             } // end step 6 (live runs only)
 
             // 7) Integrity net: booked eCheck money with no Settlement return-watcher. The atomic
@@ -345,6 +372,7 @@ public sealed class AdnSweepService : IAdnSweepService
             try
             {
                 untrackedRows = await _settleRepo.GetUntrackedEcheckAccountingAsync(EcheckPaymentMethodId, ct);
+                _logger.LogInformation("ADN sweep step 7 (integrity net): untracked={Untracked}", untrackedRows.Count);
             }
             catch (Exception ex)
             {
@@ -392,7 +420,14 @@ public sealed class AdnSweepService : IAdnSweepService
                 })
                 .ToList();
 
+            _logger.LogInformation("ADN sweep step 8 (family notify): failedDrafts={Failed} dryRun={DryRun}",
+                failedDrafts.Count, _dryRun);
+
             notifyResult = await _arbNotify.NotifyFailedDraftsAsync(failedDrafts, ct);
+
+            _logger.LogInformation(
+                "ADN sweep step 8 complete: found={Found} emailed={Emailed} notEmailed={NotEmailed}",
+                notifyResult.Found, notifyResult.Emailed, notifyResult.Found - notifyResult.Emailed);
         }
         catch (Exception ex)
         {
@@ -421,6 +456,14 @@ public sealed class AdnSweepService : IAdnSweepService
                 _logger.LogError(ex, "ADN sweep digest send failed");
             }
         }
+        else
+        {
+            _logger.LogInformation("ADN sweep digest: not requested by the caller (sendDigest=false)");
+        }
+
+        _logger.LogInformation(
+            "ADN sweep END: dryRun={DryRun} checked={Checked} arbImported={Arb} errored={Errored} succeeded={Succeeded}",
+            _dryRun, counts.Checked, counts.ArbImported, counts.Errored, errorMessage == null);
 
         // No log row was opened on a dry run, so there is none to complete.
         if (log != null)
@@ -1721,7 +1764,15 @@ public sealed class AdnSweepService : IAdnSweepService
 
     private async Task SendDigestAsync(string html, string? errorMessage, int errored, CancellationToken ct)
     {
-        await _email.SendAsync(new EmailMessageDto
+        // Instrumented deliberately. The digest send used to report nothing at all on success and only a
+        // warning on failure, so "no email arrived" was indistinguishable from "no email was attempted",
+        // from "SES refused it", and from "it sent and the mail path ate it". Three of those need
+        // different fixes. Seq now separates them.
+        _logger.LogInformation(
+            "ADN sweep digest: sending to {Recipient} (dryRun={DryRun}, bytes={Bytes})",
+            TsicConstants.SupportEmail, _dryRun, html.Length);
+
+        var accepted = await _email.SendAsync(new EmailMessageDto
         {
             FromName = "",
             ToAddresses = [TsicConstants.SupportEmail],
@@ -1734,6 +1785,19 @@ public sealed class AdnSweepService : IAdnSweepService
                 + (errorMessage != null ? " — SWEEP FAILED" : errored > 0 ? $" — {errored} ERRORED" : ""),
             HtmlBody = html
         }, sendInDevelopment: true, cancellationToken: ct);
+
+        if (accepted)
+        {
+            _logger.LogInformation("ADN sweep digest: accepted by the mail service (dryRun={DryRun})", _dryRun);
+        }
+        else
+        {
+            // SendAsync swallows its own exception and returns false. Without this the only trace was a
+            // warning inside EmailService that says nothing about which message it belonged to.
+            _logger.LogError(
+                "ADN sweep digest: NOT accepted by the mail service — no digest was delivered (dryRun={DryRun})",
+                _dryRun);
+        }
     }
 
     // ── Internal types ────────────────────────────────────────────────
