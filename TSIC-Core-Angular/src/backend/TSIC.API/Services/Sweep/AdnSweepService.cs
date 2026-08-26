@@ -1533,7 +1533,12 @@ public sealed class AdnSweepService : IAdnSweepService
         else
         {
             sb.Append($"<p style='font-size:10px;color:#b00;font-weight:bold;'>&#9888; {failedRows.Count} recurring draft(s) did not settle. "
-                + $"{notifyResult.Emailed} famil(ies) emailed automatically, {notifyResult.Skipped} NOT emailed.</p>");
+                // Tense follows the run. This read "26 famil(ies) emailed automatically" on a dry run,
+                // which emailed nobody — a report claiming an action it did not take, in the one
+                // section a human acts on. The counts line above already said "would email"; these two
+                // disagreeing is worse than either being wrong alone.
+                + $"{notifyResult.Emailed} famil(ies) {(_dryRun ? "WOULD BE emailed" : "emailed")} automatically, "
+                + $"{notifyResult.Skipped} NOT emailed.</p>");
             var teamFailures = failedRows.Count(r => r.RegistrationId == null);
             if (teamFailures > 0)
             {
