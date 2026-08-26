@@ -1876,20 +1876,28 @@ public sealed class AdnSweepService : IAdnSweepService
         // and Vade quarantines silently: SES reports 200 OK with a MessageId and zero bounces while
         // the mail never lands. This burned a day on 2026-05-10 and again on 2026-08-25.
         //
-        // A DRY RUN therefore goes direct to the person running it, bypassing the gateway entirely.
-        // Nobody is testing Vade's scoring rules; they are testing the sweep, and a report that may or
-        // may not be quarantined is not a report. PRODUCTION IS UNCHANGED -- the 4am digest still goes
-        // to support@, which is where the estate expects it and where it has always worked.
-        var recipient = _dryRun ? DryRunDigestRecipient : TsicConstants.SupportEmail;
+        // A DRY RUN therefore goes to BOTH: direct to the person running it, AND to support@.
+        //
+        // Both, not either. Direct delivery means the tester always gets their report regardless of
+        // Vade's mood -- nobody testing the sweep should be testing a spam gateway's scoring at the
+        // same time. But sending ONLY direct would silently remove the ability to prove the subject
+        // fix worked, and support@ is the address PRODUCTION uses: if the two copies stop agreeing
+        // -- gmail arrives, support@ does not -- that divergence IS the Vade signal, on a dry run,
+        // months before it could matter at 4am.
+        //
+        // PRODUCTION IS UNCHANGED: support@ only, which is where the estate expects it.
+        string[] recipients = _dryRun
+            ? [DryRunDigestRecipient, TsicConstants.SupportEmail]
+            : [TsicConstants.SupportEmail];
 
         _logger.LogInformation(
-            "ADN sweep digest: sending to {Recipient} (dryRun={DryRun}, bytes={Bytes})",
-            recipient, _dryRun, html.Length);
+            "ADN sweep digest: sending to {Recipients} (dryRun={DryRun}, bytes={Bytes})",
+            string.Join(",", recipients), _dryRun, html.Length);
 
         var accepted = await _email.SendAsync(new EmailMessageDto
         {
             FromName = "",
-            ToAddresses = [recipient],
+            ToAddresses = [.. recipients],
             // The verdict rides the subject -- this is read on a phone, and a failed sweep must be
             // distinguishable from a quiet one without opening the mail. The marker rides the subject
             // too: two digests can land the same day and the 4am one is the only one that means
