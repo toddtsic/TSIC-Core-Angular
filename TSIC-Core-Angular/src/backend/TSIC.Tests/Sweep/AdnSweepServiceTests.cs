@@ -47,7 +47,6 @@ public class AdnSweepServiceTests
     private readonly Mock<IAdnApiService> _adn = new();
     private readonly Mock<IRegistrationFeeAdjustmentService> _feeAdj = new();
     private readonly Mock<IEmailService> _email = new();
-    private readonly Mock<IArbNotificationService> _arbNotify = new();
     private readonly Mock<ILogger<AdnSweepService>> _logger = new();
     private readonly TsicSettings _tsicSettings = new() { DefaultCustomerId = TsicCustomerId };
     private readonly AdnSweepOptions _options = new() { Enabled = true, DaysPriorWindow = 2 };
@@ -67,17 +66,6 @@ public class AdnSweepServiceTests
         return env;
     }
 
-    public AdnSweepServiceTests()
-    {
-        // Step 8 (failed-draft notification) runs on every pass. Without this the mock returns null
-        // and the digest builder dereferences it; the sweep behaviour under test is unchanged either
-        // way, since notification results never feed counts.Errored or IsTrustworthy.
-        _arbNotify
-            .Setup(n => n.NotifyFailedDraftsAsync(
-                It.IsAny<IReadOnlyList<ArbFailedDraftDto>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ArbNotifyResultDto.Empty);
-    }
-
     private AdnSweepService BuildSut() => new(
         _settleRepo.Object,
         _accountingRepo.Object,
@@ -87,7 +75,6 @@ public class AdnSweepServiceTests
         _adn.Object,
         _feeAdj.Object,
         _email.Object,
-        _arbNotify.Object,
         _env.Object,
         Options.Create(_tsicSettings),
         Options.Create(_options),
