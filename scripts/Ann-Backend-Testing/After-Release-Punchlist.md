@@ -12,6 +12,11 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 
 > Maintained at the top so nothing waiting on Todd is buried mid-file. **Delete a row the moment its item closes.** Parked/REVISIT items are not listed here *unless Todd owes a decision on one* (flagged as such below).
 
+> ### 🚨 AR-038 — DO THIS FIRST (new 08-25). Cross-customer disclosure of minors' medical data.
+> A player's med form is stored **one file per player** with no job dimension (`MedFormService.GetFilePath(playerUserId)`), and the panel shows wherever that **file exists** — never checking the registration's own `bUploadedMedForm` flag, which is already accurate. So **any admin on any job the player has ever registered for can open it.** Ann found a UM camp form openable from a STEPS Elite AIM registration.
+> **Measured on dev: 3,131 players hold a form; 2,316 of them are registered under 2+ DIFFERENT customers; worst case spans 37.**
+> **Access is logged (`LogAccess`) — check early whether any cross-customer form has actually been opened.** That decides whether this is a latent exposure or a live incident.
+
 > ### ⭐ START HERE — Ann's four priority items (flagged by her, 08-22)
 > **AR-021 · AR-020 · AR-019 · AR-018** — these four are the ones she wants worked. The rest of the table is the standing backlog.
 >
@@ -68,7 +73,30 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 
 ---
 
-<!-- New items go below this line, newest at the bottom, next id = AR-038 -->
+<!-- New items go below this line, newest at the bottom, next id = AR-039 -->
+
+### AR-038: 🚨🚨 [Privacy / Med Forms] A player's medical form is visible on EVERY registration they hold — across jobs AND across unrelated customers
+- **Topic**: Search Registrations → registrant fly-in → **"Medical form on file" / View** (`MedFormController`, `MedFormService`)
+- **Observation (Ann, 08-25)**: on **STEPS Elite AIM:Girls Elite Players 2026-2027** she opened **Louisa DeSmedt** and found *"Medical form on file"* with a working **View** button — a form the family uploaded for **UM:Maryland Lacrosse Camps Summer 2026**, a different customer entirely. Her question: *"Will this form display on any registration this player has? It should NOT!"*
+- **✅ ANSWER: YES — every registration, on every job, for every customer. Confirmed in code and quantified in data.**
+  - **The file is stored ONE PER PLAYER, with no job or registration dimension at all.** `MedFormService.cs` keys everything on `GetFilePath(playerUserId)` — `Exists(playerUserId)`, `ReadAsync(playerUserId)`, `UploadAsync(playerUserId, …)`. Nothing in the path or the lookup carries a job.
+  - **Visibility is driven by FILE EXISTENCE, not by the registration.** `medform-view.component.ts` HEADs `/files/medform/by-registration/{registrationId}`; the controller resolves that registration to its `playerUserId` and then answers `_medForms.Exists(playerUserId)` (`MedFormController.cs:162-172`). **So the panel appears wherever the player has a file — regardless of which registration is on screen.**
+  - **That is why Ann sees it despite the data saying otherwise**: `Jobs.Registrations.bUploadedMedForm` is **per registration** and reads **0 on the STEPS registration** and **1 on the UM one** — and **the flag is never consulted for display**. The system already records where the form was actually uploaded, and ignores it.
+  - **The authorization check is the wrong check.** `ResolveRegistrationAccessAsync` confirms the caller may see **that registration** — correct as far as it goes — and then hands back a file that belongs to a **different job and a different customer**. Nothing verifies the form relates to the job the admin is standing in.
+- **📊 SCALE (dev, measured 08-25) — this is not an edge case:**
+  - **3,131 players hold a medical form.**
+  - **2,316 of them are registered under 2 or more DIFFERENT CUSTOMERS** — so their medical document is reachable by admins at unrelated organisations.
+  - 2,462 are visible across 2+ jobs.
+  - **Worst case: one player's form is exposed across 37 different customers.**
+- **⚠ TREAT THIS AS A DATA-PROTECTION MATTER, NOT A UI BUG.** It is medical information about minors, disclosed across customer boundaries, with no consent path — the family gave it to one camp. **This ranks above every other open item on this list.**
+- **For Todd — the decision is what a med form IS, and that has to be settled before the fix:**
+  1. **Per-registration document** (what `bUploadedMedForm` already implies): store and serve it keyed by job/registration. Correct and unambiguous; means a family re-uploads per event, which may be exactly right for medical currency.
+  2. **Per-player document, scoped at read** (cheapest correct-ish): keep one file, but only serve it where **that registration's own `bUploadedMedForm` is set** — the flag exists and is already accurate. **⚠ Weaker: it is a display gate over a shared file, so any future caller that forgets the flag re-opens the hole.**
+  3. **Per-player by design** — if a family genuinely uploads once and it should follow the player, then **cross-CUSTOMER visibility still needs an explicit boundary**, and arguably consent. *"It follows the player"* does not justify a different company's Director reading it.
+  - **Recommend 1 or 2 now, and 3 only as a deliberate product decision with consent language.**
+- **✅ ONE PIECE OF GOOD NEWS — access appears to be auditable.** The controller calls `LogAccess("download(reg)", …)` / `LogAccess("download", …)` on every read, allowed or denied. **So it should be possible to establish whether any cross-customer form has actually been opened** rather than merely being openable. **Do that early** — it changes whether this is a latent exposure or a live incident, and that distinction drives what has to be disclosed to whom.
+- **Severity**: 🔴🔴 **CRITICAL — cross-customer disclosure of minors' medical data.** No exploit needed: any admin authorised on any job the player has ever registered for can open it in two clicks.
+- **Status**: 🔴 OPEN — for Todd, **ahead of everything else on this list.** Filed 08-25 from Ann's observation on `stepseliteaim-players-2026-2027` (Louisa DeSmedt; form uploaded under `um-summercamps-2026`).
 
 ### AR-037: [ARB / X-Job] SuperUser option to email ALL expiring credit cards ACROSS jobs, not one job at a time
 - **Topic**: ARB Subscription Health → **Expiring Cards** → a cross-job SuperUser send
