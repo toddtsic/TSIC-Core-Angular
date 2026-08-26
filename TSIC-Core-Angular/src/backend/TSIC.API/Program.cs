@@ -957,9 +957,19 @@ builder.Host.UseSerilog();
                     ?? "(default chain)";
     var awsAccessKey = cfg["AWS:AccessKey"] ?? Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID");
     var awsSecretKey = cfg["AWS:SecretKey"] ?? Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY");
+    // emailingEnabled is the one switch that makes SendAsync return TRUE without transmitting, so its
+    // absence here left "mail disabled" indistinguishable from "mail sent" at boot as well as at send.
+    // credSource says which cascade actually supplied the keys: AWS_ACCESS_KEY_ID on the app pool binds
+    // to the SDK default chain, NOT to AWS:AccessKey (that would need AWS__AccessKey), so "sdk-chain"
+    // is the expected, correct answer off a developer box — not a warning sign.
+    var emailingEnabled = cfg["EmailSettings:EmailingEnabled"] ?? "(unset → true)";
+    var credSource = !string.IsNullOrWhiteSpace(cfg["AWS:AccessKey"]) ? "config(AWS:AccessKey)"
+                   : !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID")) ? "sdk-chain(AWS_ACCESS_KEY_ID)"
+                   : "(none found — SDK will search profile/IMDS)";
     bootLog.Information(
-        "[STARTUP-CONFIG] ses: region={Region} fromDefault={From} accessKeyFp={KeyFp} secretKeyFp={SecretFp} sendGate={Gate}",
-        awsRegion, TsicConstants.SupportEmail, Fp4(awsAccessKey), Fp4(awsSecretKey), isLive ? "LIVE" : "sandbox");
+        "[STARTUP-CONFIG] ses: region={Region} fromDefault={From} accessKeyFp={KeyFp} secretKeyFp={SecretFp} sendGate={Gate} emailingEnabled={EmailingEnabled} credSource={CredSource}",
+        awsRegion, TsicConstants.SupportEmail, Fp4(awsAccessKey), Fp4(awsSecretKey), isLive ? "LIVE" : "sandbox",
+        emailingEnabled, credSource);
 
     var viBase = cfg["VerticalInsure:BaseUrl"]
                   ?? Environment.GetEnvironmentVariable("VI_BASE_URL")
