@@ -72,6 +72,23 @@ export class ClientHeaderBarComponent {
         return [name.substring(0, idx).trim(), name.substring(idx + 1).trim()];
     });
 
+    /** SuperUser-only header affordances (AR-033 copy control). */
+    readonly isSuperuser = this.auth.isSuperuser;
+
+    /** Transient outcome of the job-name copy: null | 'copied' | 'failed'. A copy button
+     *  that silently does nothing is worse than no button, so failure is SHOWN. */
+    readonly jobNameCopyState = signal<'copied' | 'failed' | null>(null);
+
+    readonly jobNameCopyTitle = computed(() => {
+        switch (this.jobNameCopyState()) {
+            case 'copied': return 'Copied!';
+            case 'failed': return 'Copy blocked — the clipboard needs a secure (https) page';
+            default: return 'Copy event name';
+        }
+    });
+
+    private copyResetTimer?: ReturnType<typeof setTimeout>;
+
     // Single computed `user` derived from AuthService; derive UI values from it.
     user = computed(() => this.auth.currentUser());
 
@@ -257,6 +274,8 @@ export class ClientHeaderBarComponent {
             });
         });
 
+        this.destroyRef.onDestroy(() => clearTimeout(this.copyResetTimer));
+
         // Close all menus when requested (e.g. after role selection navigates away)
         toObservable(this.menuState.closeAllMenusRequested).pipe(
             filter(requested => requested),
@@ -344,6 +363,33 @@ export class ClientHeaderBarComponent {
     goHome() {
         const jobPath = this.jobService.currentJob()?.jobPath || 'tsic';
         this.router.navigate([`/${jobPath}`]);
+    }
+
+    /**
+     * AR-033: copy the full `Customer:Job` string (SuperUser only; Ann pastes it into email).
+     *
+     * Reads jobName() — NOT the rendered text. Mobile splits the name across two lines via
+     * jobNameLines(), so a text-based copy comes back broken in half on a phone.
+     */
+    async copyJobName(event: Event): Promise<void> {
+        // The job-name pill sits right beside this button and navigates home on click.
+        event.stopPropagation();
+        const value = this.jobName();
+        if (!value) return;
+        try {
+            // navigator.clipboard is UNDEFINED outside a secure context (plain http), which
+            // throws rather than rejecting — hence try/catch, not a .catch() on the promise.
+            await navigator.clipboard.writeText(value);
+            this.setCopyState('copied');
+        } catch {
+            this.setCopyState('failed');
+        }
+    }
+
+    private setCopyState(state: 'copied' | 'failed'): void {
+        clearTimeout(this.copyResetTimer);
+        this.jobNameCopyState.set(state);
+        this.copyResetTimer = setTimeout(() => this.jobNameCopyState.set(null), 2000);
     }
 
     /** Admin-only: go to the widget dashboard (charts/metrics). Admins land on the
