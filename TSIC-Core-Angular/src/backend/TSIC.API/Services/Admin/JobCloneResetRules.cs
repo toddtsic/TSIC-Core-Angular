@@ -65,7 +65,10 @@ public static class JobCloneResetRules
         job.JobDescription = req.JobNameTarget;
         job.Year = req.YearTarget;
         job.Season = req.SeasonTarget;
-        job.DisplayName = req.DisplayName;
+        // AR-036 — null keeps the source, matching the communications block below. DisplayName is
+        // the From display name on outbound mail, and an unguarded assignment let a null request
+        // blank it. Empty string still clears, same contract as the eight fields at :74-81.
+        job.DisplayName = req.DisplayName ?? source.DisplayName;
         job.ExpiryAdmin = req.ExpiryAdmin;
         job.ExpiryUsers = req.ExpiryUsers;
 

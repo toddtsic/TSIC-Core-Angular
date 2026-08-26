@@ -432,7 +432,13 @@ export class JobCloneWorkbenchComponent implements OnInit {
 		this.jobNameTarget.set(bumpedName !== (source.jobName ?? '') ? bumpedName : `${source.jobName ?? ''} (Copy)`);
 		this.yearTarget.set(targetYear);
 		this.seasonTarget.set(source.season ?? '');
-		this.displayName.set(this.jobNameTarget());
+		// AR-036 — carry the SOURCE's Display name forward. This used to seed the new job name,
+		// so every clone silently replaced it with the Customer:Job string and, because DisplayName
+		// is the From display name on outbound mail (DisplayName ?? JobName), changed the sender name
+		// on every email the new job sends. Nobody sees that until they read their inbox.
+		// Fallback to the new job name when the source has none: the field is required to submit
+		// (see canSubmit), so seeding blank would block the operator on a field they never chose.
+		this.displayName.set(source.displayName?.trim() || this.jobNameTarget());
 
 		// Expiry advances the SOURCE's doors by a year — the same +1 as every other token
 		// on this screen. Seeding from "today + 1 year" made the new season's doors close on
