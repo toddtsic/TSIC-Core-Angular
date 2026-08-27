@@ -217,6 +217,16 @@ public sealed class ArbNotificationService : IArbNotificationService
         var found = 0;
         var emailed = 0;
 
+        // Every registrant this pass touched, named, with what happened to them. The summary used to
+        // report four integers and nothing else: "5 would be emailed" told support the pass ran and
+        // nothing about WHO — no job, no registrant, no subscription. On the unattended 2nd/15th run
+        // that is the only record there will ever be, so the counts alone were unusable.
+        //
+        // Deliberately a PRIVATE type, not a member of ArbNotifyResultDto: this is the shape of a
+        // support email, not of an API response, and putting it on the contract would push a
+        // regenerated model into the frontend for a table nothing on screen reads.
+        var rows = new List<ExpiringRow>();
+
         // Per-job, not estate-wide: the expiring-card list comes from ADN, which is queried with the
         // job's own credentials. Only jobs still holding a live subscription are asked.
         var jobIds = await _arbRepo.GetJobIdsWithLiveSubscriptionsAsync(ct);
@@ -246,6 +256,14 @@ public sealed class ArbNotificationService : IArbNotificationService
                 // skip so the summary shows a job was NOT checked rather than silently reporting zero.
                 _logger.LogError(ex, "Expiring-card lookup failed for job {JobId}", jobId);
                 skips.Add(Skip("(whole job)", jobId.ToString(), $"expiring-card lookup failed: {ex.Message}"));
+                rows.Add(new ExpiringRow
+                {
+                    JobName = $"(job {jobId})",
+                    Registrant = "(whole job NOT checked)",
+                    SubscriptionId = "",
+                    Outcome = $"LOOKUP FAILED: {ex.Message}",
+                    Recipients = []
+                });
                 continue;
             }
 
@@ -262,6 +280,7 @@ public sealed class ArbNotificationService : IArbNotificationService
                     if (reg.BemailOptOut)
                     {
                         skips.Add(Skip(who, reg.JobName, "registrant has opted out of email"));
+                        rows.Add(Row(reg, "NOT emailed - opted out", []));
                         continue;
                     }
 
@@ -270,6 +289,7 @@ public sealed class ArbNotificationService : IArbNotificationService
                     if (string.IsNullOrWhiteSpace(reg.FamilyUsername))
                     {
                         skips.Add(Skip(who, reg.JobName, "no family username on file - cannot give login instructions"));
+                        rows.Add(Row(reg, "NOT emailed - no family username", []));
                         continue;
                     }
 
@@ -278,6 +298,7 @@ public sealed class ArbNotificationService : IArbNotificationService
                     if (recipients.Count == 0)
                     {
                         skips.Add(Skip(who, reg.JobName, "no sendable email address on the account"));
+                        rows.Add(Row(reg, "NOT emailed - no sendable address", []));
                         continue;
                     }
 
@@ -293,11 +314,13 @@ public sealed class ArbNotificationService : IArbNotificationService
                     bucket.Recipients.AddRange(recipients);
                     bucket.Families++;
                     emailed++;
+                    rows.Add(Row(reg, _dryRun ? "WOULD be emailed" : "emailed", recipients));
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Expiring-card notification failed for registration {RegId}", reg.RegistrationId);
                     skips.Add(Skip(who, reg.JobName, $"send failed: {ex.Message}"));
+                    rows.Add(Row(reg, $"NOT emailed - send failed: {ex.Message}", []));
                 }
             }
         }
@@ -316,8 +339,42 @@ public sealed class ArbNotificationService : IArbNotificationService
         };
 
         // No ct. See SendExpiringSummaryAsync.
-        return result with { SummaryHtml = await SendExpiringSummaryAsync(result, jobIds.Count) };
+        return result with { SummaryHtml = await SendExpiringSummaryAsync(result, rows, jobIds.Count) };
     }
+
+    /// <summary>
+    /// One expiring-card registrant as the SUPPORT SUMMARY reports them — who, which job, which
+    /// subscription, and what the pass actually did about them. Private on purpose: see the comment
+    /// at the declaration of the list in NotifyExpiringCardsAsync.
+    /// </summary>
+    private sealed record ExpiringRow
+    {
+        public required string JobName { get; init; }
+        public required string Registrant { get; init; }
+        public string? Team { get; init; }
+        public required string SubscriptionId { get; init; }
+        public string? SubscriptionStatus { get; init; }
+        public DateTime? NextPayment { get; init; }
+        public decimal OwedTotal { get; init; }
+        /// <summary>What happened: emailed / WOULD be emailed / NOT emailed + the reason.</summary>
+        public required string Outcome { get; init; }
+        /// <summary>Addresses actually used. Empty on every NOT-emailed outcome.</summary>
+        public required List<string> Recipients { get; init; }
+    }
+
+    private static ExpiringRow Row(ArbFlaggedRegistrantDto reg, string outcome, List<string> recipients) =>
+        new()
+        {
+            JobName = reg.JobName,
+            Registrant = reg.RegistrantName,
+            Team = reg.Assignment,
+            SubscriptionId = reg.SubscriptionId,
+            SubscriptionStatus = reg.SubscriptionStatus,
+            NextPayment = reg.NextPaymentDate,
+            OwedTotal = reg.OwedTotal,
+            Outcome = outcome,
+            Recipients = recipients
+        };
 
     /// <summary>
     /// Paired counts to support, the same shape the sweep digest reports: how many cards expire this
@@ -329,7 +386,8 @@ public sealed class ArbNotificationService : IArbNotificationService
     /// the pass ran at all, including the by-name list of the ones who could NOT be reached. That
     /// list is the only place those families surface.
     /// </summary>
-    private async Task<string?> SendExpiringSummaryAsync(ArbNotifyResultDto result, int jobCount)
+    private async Task<string?> SendExpiringSummaryAsync(
+        ArbNotifyResultDto result, List<ExpiringRow> rows, int jobCount)
     {
         try
         {
@@ -352,6 +410,40 @@ public sealed class ArbNotificationService : IArbNotificationService
                     sb.Append($"<li>{s.JobName} · {s.Registrant} — {s.Reason}</li>");
                 }
                 sb.Append("</ul>");
+            }
+
+            // The registrants themselves. Counts say a pass happened; this says who it happened to,
+            // and it is the ONLY record of that for the unattended 2nd/15th run.
+            sb.Append("<h4 style='margin-bottom:2px;margin-top:14px;'>Cards Expiring This Month</h4>");
+            if (rows.Count == 0)
+            {
+                sb.Append("<p style='font-size:9px;'>(none — no card on a live subscription expires this month ✓)</p>");
+            }
+            else
+            {
+                sb.Append("<table style='border-style:solid;border-collapse:separate;border-spacing:10px;font-size:9px;'>");
+                sb.Append("<tr><th>#</th><th>Job</th><th>Registrant</th><th>Team</th><th>SubId</th>"
+                    + "<th>SubStatus</th><th>NextPayment</th><th>OwedTotal</th><th>Outcome</th><th>Sent to</th></tr>");
+                for (int i = 0; i < rows.Count; i++)
+                {
+                    var r = rows[i];
+                    var notSent = r.Recipients.Count == 0;
+                    sb.Append("<tr>")
+                      .Append($"<td>{i + 1}</td>")
+                      .Append($"<td>{r.JobName}</td>")
+                      .Append($"<td>{r.Registrant}</td>")
+                      .Append($"<td>{r.Team}</td>")
+                      .Append($"<td>{r.SubscriptionId}</td>")
+                      .Append($"<td>{r.SubscriptionStatus}</td>")
+                      .Append($"<td>{(r.NextPayment.HasValue ? r.NextPayment.Value.ToString("d") : "")}</td>")
+                      .Append($"<td>{r.OwedTotal:C}</td>")
+                      .Append(notSent
+                          ? $"<td style='color:#b00;font-weight:bold;'>{r.Outcome}</td>"
+                          : $"<td>{r.Outcome}</td>")
+                      .Append($"<td>{string.Join("; ", r.Recipients)}</td>")
+                      .Append("</tr>\n");
+                }
+                sb.Append("</table>");
             }
 
             var html = sb.ToString();
@@ -377,6 +469,20 @@ public sealed class ArbNotificationService : IArbNotificationService
                     textSb.AppendLine($"  - {s.JobName} / {s.Registrant} - {s.Reason}");
                 }
             }
+            // The registrants survive an HTML strip too. If the gateway ever mangles the HTML half,
+            // this is what is left, and a list of names is worth more than four integers.
+            if (rows.Count > 0)
+            {
+                textSb.AppendLine();
+                textSb.AppendLine("Cards expiring this month:");
+                foreach (var r in rows)
+                {
+                    textSb.AppendLine($"  - {r.JobName} / {r.Registrant} / sub {r.SubscriptionId} "
+                        + $"/ owed {r.OwedTotal:C} - {r.Outcome}"
+                        + (r.Recipients.Count > 0 ? $" -> {string.Join("; ", r.Recipients)}" : ""));
+                }
+            }
+
             textSb.AppendLine();
             textSb.AppendLine("Full detail is in the HTML version of this message.");
 
@@ -390,8 +496,13 @@ public sealed class ArbNotificationService : IArbNotificationService
             {
                 FromName = "",
                 ToAddresses = [TsicConstants.SupportEmail],
-                Subject = (_dryRun ? "[DRY RUN] " : "")
-                    + $"ARB Expiring Cards {DateTime.Now:dddd, dd MMMM yyyy} — {result.Emailed} {(_dryRun ? "would be emailed" : "emailed")}"
+                // NO `[bracket]` prefix and NO em-dash. support@ is a Vade Secure-fronted forwarder
+                // that quarantines silently -- SES answers 200 OK with a MessageId and the mail never
+                // lands. `[DRY RUN] ... —` is the exact subject shape that vanished on 2026-08-25 and
+                // cost an evening; the sweep digest was stripped to plain ASCII in 6e12300b and this
+                // path was missed. Keep it plain: marker word, no punctuation that reads as marketing.
+                Subject = (_dryRun ? "DRY RUN " : "")
+                    + $"ARB Expiring Cards {DateTime.Now:dddd, dd MMMM yyyy} - {result.Emailed} {(_dryRun ? "would be emailed" : "emailed")}"
                     + (result.Skipped > 0 ? $", {result.Skipped} NOT" : ""),
                 HtmlBody = html,
                 TextBody = textSb.ToString()
