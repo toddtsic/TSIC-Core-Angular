@@ -309,7 +309,18 @@ public sealed class ArbNotificationService : IArbNotificationService
             }
         }
 
-        var auditRows = await FlushAuditAsync(buckets.Values, ct);
+        // ══ FAMILY EMAIL DISABLED 2026-08-27 (Todd) ═════════════════════════════════════════════
+        // The per-job emailLogs write for failed drafts. Paired with the commented-out
+        // NotifyFailedDraftsAsync call in AdnSweepService step 8 — with that call disabled this
+        // method never executes, so this is belt-and-braces: re-enabling the family email must be a
+        // deliberate decision at BOTH sites, and an email that goes out unlogged is worse than one
+        // that does not go out. Search "FAMILY EMAIL DISABLED" for every site.
+        // NOTE: the identical FlushAuditAsync call in NotifyExpiringCardsAsync (the 2nd/15th pass)
+        // is deliberately UNTOUCHED — that pass still mails and still audits.
+        // TO RE-ENABLE: restore the commented line, delete the empty-list line under it.
+        // var auditRows = await FlushAuditAsync(buckets.Values, ct);
+        var auditRows = new List<ArbAuditRowDto>();
+        // ════════════════════════════════════════════════════════════════════════════════════════
 
         return new ArbNotifyResultDto
         {

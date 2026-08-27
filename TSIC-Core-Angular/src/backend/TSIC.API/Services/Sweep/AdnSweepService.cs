@@ -430,10 +430,22 @@ public sealed class AdnSweepService : IAdnSweepService
             _logger.LogInformation("ADN sweep step 8 (family notify): failedDrafts={Failed} dryRun={DryRun}",
                 failedDrafts.Count, _dryRun);
 
-            notifyResult = await _arbNotify.NotifyFailedDraftsAsync(failedDrafts, ct);
+            // ══ FAMILY EMAIL DISABLED 2026-08-27 (Todd) ═════════════════════════════════════════
+            // The sweep still FINDS and REPORTS every failed draft; it no longer writes to the
+            // family, and writes no per-job emailLogs row. The machinery below is intact and
+            // untouched — this is a switch, not a removal.
+            //
+            // TO RE-ENABLE: uncomment the NotifyFailedDraftsAsync line, delete the Found-only line
+            // under it, and uncomment the emailLogs write in ArbNotificationService (marked with
+            // the same banner). Then reword the digest labelling in BuildDigestHtml /
+            // BuildDigestText, also marked. Four sites, all searchable on "FAMILY EMAIL DISABLED".
+            //
+            // notifyResult = await _arbNotify.NotifyFailedDraftsAsync(failedDrafts, ct);
+            notifyResult = ArbNotifyResultDto.Empty with { Found = failedDrafts.Count };
+            // ════════════════════════════════════════════════════════════════════════════════════
 
             _logger.LogInformation(
-                "ADN sweep step 8 complete: found={Found} emailed={Emailed} notEmailed={NotEmailed}",
+                "ADN sweep step 8 complete: found={Found} emailed={Emailed} notEmailed={NotEmailed} (family email DISABLED)",
                 notifyResult.Found, notifyResult.Emailed, notifyResult.Found - notifyResult.Emailed);
         }
         catch (Exception ex)
@@ -1526,12 +1538,13 @@ public sealed class AdnSweepService : IAdnSweepService
             sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, "
                 + $"ARB resolved: {counts.ArbImported}, Orphans: {counts.OrphansFound}, "
                 + $"Untracked eCheck: {untrackedRows.Count}, "
-                + $"Failed drafts: {notifyResult.Found} (would email {notifyResult.Emailed}, NOT emailed {notifyResult.Skipped}), "
+                // FAMILY EMAIL DISABLED 2026-08-27 — original: (would email {Emailed}, NOT emailed {Skipped})
+                + $"Failed drafts: {notifyResult.Found} (no family emailed), "
                 + $"Errored: {counts.Errored}. eCheck settled / returns / watchdog: not run.</p>");
         }
         else
         {
-            sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, ARB imported: {counts.ArbImported}, eCheck settled: {counts.EcheckSettled}, eCheck returns: {counts.EcheckReturnsProcessed}, Orphans: {counts.OrphansFound}, Watchdog: {watchdogRows.Count}, Untracked eCheck: {untrackedRows.Count}, Failed drafts: {notifyResult.Found} (emailed {notifyResult.Emailed}, not emailed {notifyResult.Skipped}), Errored: {counts.Errored}</p>");
+            sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, ARB imported: {counts.ArbImported}, eCheck settled: {counts.EcheckSettled}, eCheck returns: {counts.EcheckReturnsProcessed}, Orphans: {counts.OrphansFound}, Watchdog: {watchdogRows.Count}, Untracked eCheck: {untrackedRows.Count}, Failed drafts: {notifyResult.Found} (no family emailed), Errored: {counts.Errored}</p>");
         }
 
         // ── Failed ARB drafts ─────────────────────────────────────────
@@ -1549,13 +1562,19 @@ public sealed class AdnSweepService : IAdnSweepService
         }
         else
         {
+            // ══ FAMILY EMAIL DISABLED 2026-08-27 (Todd) ═════════════════════════════════════════
+            // TO RE-ENABLE: delete the two Appends below and uncomment the original pair under them.
+            // (Tense follows the run: the original read "26 famil(ies) emailed automatically" on a
+            // dry run, which emailed nobody — a report claiming an action it did not take, in the
+            // one section a human acts on. Keep the _dryRun ternary if you restore it.)
             sb.Append($"<p style='font-size:10px;color:#b00;font-weight:bold;'>&#9888; {failedRows.Count} recurring draft(s) did not settle. "
-                // Tense follows the run. This read "26 famil(ies) emailed automatically" on a dry run,
-                // which emailed nobody — a report claiming an action it did not take, in the one
-                // section a human acts on. The counts line above already said "would email"; these two
-                // disagreeing is worse than either being wrong alone.
-                + $"{notifyResult.Emailed} famil(ies) {(_dryRun ? "WOULD BE emailed" : "emailed")} automatically, "
-                + $"{notifyResult.Skipped} NOT emailed.</p>");
+                + "No family was emailed — this notification is currently turned OFF.</p>");
+            sb.Append("<p style='font-size:9px;margin-top:0;'>Automatic emails to these families are disabled, "
+                + "not removed, and can be switched back on. Until then each family below needs a person: "
+                + "contact them, or send from the job's ARB Health screen.</p>");
+            // + $"{notifyResult.Emailed} famil(ies) {(_dryRun ? "WOULD BE emailed" : "emailed")} automatically, "
+            // + $"{notifyResult.Skipped} NOT emailed.</p>");
+            // ════════════════════════════════════════════════════════════════════════════════════
             var teamFailures = failedRows.Count(r => r.RegistrationId == null);
             if (teamFailures > 0)
             {
@@ -1862,8 +1881,10 @@ public sealed class AdnSweepService : IAdnSweepService
         }
         sb.AppendLine($"Orphans:              {counts.OrphansFound}");
         sb.AppendLine($"Untracked eCheck:     {untrackedCount}");
-        sb.AppendLine($"Failed drafts:        {notifyResult.Found} "
-            + $"({(_dryRun ? "would email" : "emailed")} {notifyResult.Emailed}, NOT emailed {notifyResult.Skipped})");
+        // FAMILY EMAIL DISABLED 2026-08-27 — TO RE-ENABLE, restore the commented line below.
+        sb.AppendLine($"Failed drafts:        {notifyResult.Found} (family email OFF - nobody contacted)");
+        // sb.AppendLine($"Failed drafts:        {notifyResult.Found} "
+        //     + $"({(_dryRun ? "would email" : "emailed")} {notifyResult.Emailed}, NOT emailed {notifyResult.Skipped})");
         sb.AppendLine($"Errored:              {counts.Errored}");
         if (_dryRun)
         {

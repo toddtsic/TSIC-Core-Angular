@@ -11,8 +11,10 @@
                 books at submit), and reverses eCheck returns. Also runs the stale-draft watchdog,
                 <strong>flags orphan charges</strong> &mdash; money settled at Authorize.Net with no
                 local accounting row &mdash; reports untracked eCheck payments (review only; never
-                auto-booked), and <strong>emails the family behind every recurring draft that
-                failed</strong>. Mirrors the nightly background sweep but runs on demand;
+                auto-booked), and <strong>reports every recurring draft that failed</strong>.
+                Automatic emails to those families are currently <strong>turned off</strong> &mdash;
+                disabled, not removed, and able to be switched back on.
+                Mirrors the nightly background sweep but runs on demand;
                 refuses to start if a sweep is already running.
             </p>
         </div>
@@ -30,9 +32,10 @@
                         <strong>{{ m.machineName }}</strong>. The sweep reads the
                         <strong>real production</strong> Authorize.Net batches and resolves every failed
                         draft exactly as the 4&nbsp;AM pass would, then <strong>writes nothing, settles
-                        nothing and sends nothing</strong>. Family emails are rendered below instead of
-                        transmitted, and audited to <code>email_log</code> under a
-                        <code>[DRY RUN]</code> subject. Only Production sends.
+                        nothing and sends nothing</strong>. Failed-draft family emails are
+                        <strong>switched off everywhere</strong>, Production included &mdash; nothing is
+                        rendered, sent or written to <code>email_log</code> for them. They can be turned
+                        back on later. The expiring-card pass is unaffected.
                     </p>
                 </div>
             </section>
@@ -40,12 +43,13 @@
             <section class="mode-banner mode-banner--live" role="alert">
                 <i class="bi bi-exclamation-octagon-fill mode-banner__icon" aria-hidden="true"></i>
                 <div>
-                    <h3 class="mode-banner__title">LIVE &mdash; this books money and emails families</h3>
+                    <h3 class="mode-banner__title">LIVE &mdash; this books money</h3>
                     <p class="mode-banner__desc">
                         This host is <strong>{{ m.environmentName }}</strong> on
                         <strong>{{ m.machineName }}</strong>. Running the sweep here books ARB charges,
-                        settles eCheck payments, reverses returns, <strong>emails every family whose
-                        recurring draft failed</strong>, and mails the digest. There is no undo.
+                        settles eCheck payments, reverses returns, and mails the digest. There is no undo.
+                        <strong>No family is emailed about a failed draft</strong> &mdash; that
+                        notification is currently off, and could be switched back on in future.
                     </p>
                 </div>
             </section>
@@ -181,6 +185,10 @@
                         <span class="result-stat__value">{{ r.failedDraftsFound ?? 0 }}</span>
                         <span class="result-stat__label">Failed Drafts</span>
                     </div>
+                    <!-- FAMILY EMAIL DISABLED 2026-08-27 (Todd). The two counts below would both
+                         read 0 against a non-zero Failed Drafts, which reads as "nothing to do"
+                         rather than "nobody was told". Replaced by an explicit OFF tile.
+                         TO RE-ENABLE: delete the OFF tile, restore the two commented tiles.
                     <div class="result-stat result-stat--success">
                         <span class="result-stat__value">{{ r.failedDraftsEmailed ?? 0 }}</span>
                         <span class="result-stat__label">{{ r.dryRun ? 'Would Email' : 'Emailed' }}</span>
@@ -188,6 +196,11 @@
                     <div class="result-stat" [class.result-stat--danger]="(r.failedDraftsNotEmailed ?? 0) > 0">
                         <span class="result-stat__value">{{ r.failedDraftsNotEmailed ?? 0 }}</span>
                         <span class="result-stat__label">NOT Emailed</span>
+                    </div>
+                    -->
+                    <div class="result-stat result-stat--warning">
+                        <span class="result-stat__value">OFF</span>
+                        <span class="result-stat__label">Family Email</span>
                     </div>
                     <div class="result-stat result-stat--danger">
                         <span class="result-stat__value">{{ r.errored }}</span>
@@ -198,7 +211,8 @@
                     <p class="result-panel__desc">
                         <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
                         Every recurring draft was resolved in full, exactly as the 4am pass does — only
-                        the writes and the family emails were withheld.
+                        the writes were withheld. Failed-draft family emails are off in every
+                        environment, so there is nothing to preview; they can be switched back on.
                     </p>
                 }
             </div>
