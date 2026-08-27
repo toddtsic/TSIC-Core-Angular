@@ -44,6 +44,22 @@ public sealed class AdnSweepService : IAdnSweepService
     /// </summary>
     private const string DryRunDigestRecipient = "toddtsic@gmail.com";
 
+    /// <summary>
+    /// Who the PRODUCTION digest goes to as of 2026-08-27. Was support@ alone, from the first sweep
+    /// commit until today; support@ stopped delivering and these are the people who read it anyway.
+    ///
+    /// support@ is deliberately NOT in this list. Every digest is sent FROM support@ (the SES verified
+    /// identity, forced in EmailService.NormalizeFromHeader), so mailing support@ meant the address
+    /// mailing itself — arriving at its own gateway from an outside IP. Taking it off the To line is
+    /// what this change tests.
+    /// </summary>
+    private static readonly string[] ProductionDigestRecipients =
+    [
+        "toddtsic@gmail.com",
+        "anntsic@gmail.com",
+        "chelseatsic@gmail.com"
+    ];
+
     private const string DryRunNotRun =
         "<p style='font-size:9px;color:#888;'>(not run on a dry run — this step moves or reverses money, "
         + "so it is skipped entirely. Nothing here was examined.)</p>";
@@ -1928,10 +1944,17 @@ public sealed class AdnSweepService : IAdnSweepService
         // -- gmail arrives, support@ does not -- that divergence IS the Vade signal, on a dry run,
         // months before it could matter at 4am.
         //
-        // PRODUCTION IS UNCHANGED: support@ only, which is where the estate expects it.
+        // 2026-08-27: PRODUCTION NO LONGER MAILS support@. It mails the three people who read it.
+        // On this date support@ stopped delivering anything sent from our SES: the 04:00 digest, a
+        // 09:08 manual sweep digest and a live E-Mail Troubleshooter test all returned an SES 200 with
+        // a MessageId and never landed, while the SAME box sending to toddtsic@gmail.com in the same
+        // minute arrived, and Ann's ordinary Gmail message to support@ was forwarded through in 18
+        // seconds. So the mailbox, the Sieve forward and Vade are all up; what does not survive is our
+        // SES mail to that address specifically.
+        // Revert to [TsicConstants.SupportEmail] once Netsol/Vade explain and fix it.
         string[] recipients = _dryRun
             ? [DryRunDigestRecipient, TsicConstants.SupportEmail]
-            : [TsicConstants.SupportEmail];
+            : ProductionDigestRecipients;
 
         _logger.LogInformation(
             "ADN sweep digest: sending to {Recipients} (dryRun={DryRun}, bytes={Bytes})",
