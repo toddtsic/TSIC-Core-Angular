@@ -81,16 +81,15 @@ public sealed record AdnSweepResult
     public required int Errored { get; init; }
 
     /// <summary>
-    /// Recurring drafts that did not settle this pass. Deliberately NOT folded into
-    /// <see cref="Errored"/>: a failed draft is a customer-payment problem, not a sweep problem, and
-    /// must never move <see cref="IsTrustworthy"/> or stop the month-end close from building the IIF
-    /// files.
-    ///
-    /// The sweep does not contact the families behind these — it reports them and stops. So this
-    /// count is, in full, the number a human still has to reach. Team ARB-Trial drafts are included;
-    /// the digest table marks them, as they have no family behind them at all.
+    /// Recurring drafts that did not settle this pass, and how many of those families were emailed
+    /// automatically. Deliberately NOT folded into <see cref="Errored"/>: a failed draft is a
+    /// customer-payment problem, not a sweep problem, and must never move
+    /// <see cref="IsTrustworthy"/> or stop the month-end close from building the IIF files.
+    /// FailedDraftsFound minus FailedDraftsEmailed is the number a human still has to contact.
     /// </summary>
     public int FailedDraftsFound { get; init; }
+    public int FailedDraftsEmailed { get; init; }
+    public int FailedDraftsNotEmailed { get; init; }
 
     /// <summary>
     /// False when the pass could not complete: an exception was thrown, OR Authorize.Net answered the
@@ -121,9 +120,27 @@ public sealed record AdnSweepResult
     /// </summary>
     public bool DryRun { get; init; }
 
-    // No RenderedEmails / NotEmailed / AuditRows here. The sweep sends no family mail and writes no
-    // emailLogs row, so there is nothing to preview, nothing to skip, and nothing to index. The
-    // expiring-card pass still reports all three — through its OWN result, on its own endpoint.
+    /// <summary>
+    /// Every family email the run produced, exactly as it would go out. Populated on a dry run only —
+    /// on a live run these went to families and there is nothing to review here.
+    /// </summary>
+    public List<ArbRenderedEmailDto> RenderedEmails { get; init; } = [];
+
+    /// <summary>
+    /// Failed drafts the notifier deliberately did not write to, with the reason. Populated on both
+    /// live and dry runs: these are the families a human still has to contact.
+    /// </summary>
+    public List<ArbNotifySkipDto> NotEmailed { get; init; } = [];
+
+    /// <summary>
+    /// The emailLogs rows this pass wrote, one per job per email type.
+    ///
+    /// The sweep spans every job; the Email Log screen shows ONE job. So the rows written here are not
+    /// visible from the cross-job screen that triggered them without switching into each job in turn.
+    /// This is the index that makes them findable.
+    /// </summary>
+    public List<ArbAuditRowDto> AuditRows { get; init; } = [];
+
 
     /// <summary>
     /// The sweep completed AND every transaction in it was processed. This is the gate the month-end

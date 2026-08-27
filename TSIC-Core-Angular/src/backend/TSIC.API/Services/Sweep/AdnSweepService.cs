@@ -59,14 +59,15 @@ public sealed class AdnSweepService : IAdnSweepService
     private readonly IAdnApiService _adn;
     private readonly IRegistrationFeeAdjustmentService _feeAdj;
     private readonly IEmailService _email;
+    private readonly IArbNotificationService _arbNotify;
     private readonly TsicSettings _tsicSettings;
     private readonly AdnSweepOptions _options;
     private readonly ILogger<AdnSweepService> _logger;
 
     /// <summary>
     /// Off Production this sweep REPORTS instead of acting: it reads the real production settled
-    /// batches, resolves every failed ARB draft exactly as the live pass would, renders the digest, and
-    /// writes nothing, settles nothing, sends nothing.
+    /// batches, resolves every failed ARB draft exactly as the live pass would, renders the digest and
+    /// each family email, and writes nothing, settles nothing, sends nothing.
     ///
     /// Derived from the environment in the CONSTRUCTOR, and deliberately not a parameter. A dry-run
     /// flag a caller passes is a flag a caller can pass wrongly, and the way to be wrong on Production
@@ -88,6 +89,7 @@ public sealed class AdnSweepService : IAdnSweepService
         IAdnApiService adn,
         IRegistrationFeeAdjustmentService feeAdj,
         IEmailService email,
+        IArbNotificationService arbNotify,
         IHostEnvironment env,
         IOptions<TsicSettings> tsicSettings,
         IOptions<AdnSweepOptions> options,
@@ -102,6 +104,7 @@ public sealed class AdnSweepService : IAdnSweepService
         _adn = adn;
         _feeAdj = feeAdj;
         _email = email;
+        _arbNotify = arbNotify;
         _tsicSettings = tsicSettings.Value;
         _options = options.Value;
         _logger = logger;
@@ -392,31 +395,58 @@ public sealed class AdnSweepService : IAdnSweepService
             errorMessage = ex.Flatten();
         }
 
-        // Recurring drafts that did not settle this pass. REPORT ONLY — the sweep does not write to the
-        // families behind them.
+        // 8) Notify the families behind failed ARB drafts.
         //
-        // It used to. Step 8 mailed every failed-draft family at 4 AM and wrote a per-job emailLogs row
-        // ("Action Required: Update Your Payment Information"). Removed 2026-08-26 on Todd's call: an
-        // unattended overnight dunning notice is the wrong instrument. Authorize.Net retries a declined
-        // card on its own, so a family whose payment recovers the next day would have been written to
-        // anyway, and the money conversation belongs to the club — a director sends it deliberately from
-        // the ARB Health screen, which is untouched.
+        // DELIBERATELY LAST, and deliberately outside the try above. Every step before this one is
+        // proven, money-bearing code whose outcome feeds counts.Errored -> AdnSweepResult.IsTrustworthy
+        // -> whether the 1st-of-month close is allowed to build the QuickBooks IIF files. If a bounced
+        // email could increment Errored, one unreachable family would silently stop month-end close.
+        // So this step scores itself separately and can never touch the sweep's verdict.
         //
-        // What replaced it is the digest below: every failure is still named there, by job, status and
-        // registrant, which is the list a human works. Counting stays out of counts.Errored for the
-        // original reason — a failed draft is a customer-payment problem, not a sweep problem, and must
-        // never move IsTrustworthy or stop the 1st-of-month close building the QuickBooks IIF files.
-        var failedDraftCount = arbRows.Count(r =>
-            !string.Equals(r.TransactionStatus, "settledSuccessfully", StringComparison.OrdinalIgnoreCase));
+        // Exactly-once falls out of the import guard: ImportArbTransactionAsync returns null for a
+        // transaction already in RegistrationAccounting, so an already-imported failure never reaches
+        // arbRows and cannot be emailed twice. A manual re-run the same morning re-mails nobody.
+        // Team ARB-Trial rows are excluded by the RegistrationId null check: no registration behind
+        // them, so no family to write to.
+        var notifyResult = ArbNotifyResultDto.Empty;
+        try
+        {
+            var failedDrafts = arbRows
+                .Where(r => r.RegistrationId.HasValue
+                    && !string.Equals(r.TransactionStatus, "settledSuccessfully", StringComparison.OrdinalIgnoreCase))
+                .Select(r => new ArbFailedDraftDto
+                {
+                    RegistrationId = r.RegistrationId!.Value,
+                    InvoiceNumber = r.InvoiceNumber,
+                    TransId = r.TransId,
+                    TransactionStatus = r.TransactionStatus,
+                    OwedNow = r.OwedNow,
+                    SubscriptionStatus = r.SubscriptionStatus,
+                    Registrant = r.Registrant,
+                    JobName = r.JobName
+                })
+                .ToList();
 
-        _logger.LogInformation(
-            "ADN sweep failed drafts: {Failed} (report only — no family email, no emailLogs row)",
-            failedDraftCount);
+            _logger.LogInformation("ADN sweep step 8 (family notify): failedDrafts={Failed} dryRun={DryRun}",
+                failedDrafts.Count, _dryRun);
+
+            notifyResult = await _arbNotify.NotifyFailedDraftsAsync(failedDrafts, ct);
+
+            _logger.LogInformation(
+                "ADN sweep step 8 complete: found={Found} emailed={Emailed} notEmailed={NotEmailed}",
+                notifyResult.Found, notifyResult.Emailed, notifyResult.Found - notifyResult.Emailed);
+        }
+        catch (Exception ex)
+        {
+            // Same contract as the digest send below: a notification failure is reported, never
+            // allowed to mask or change the sweep's own outcome.
+            _logger.LogError(ex, "ARB failed-draft notification step failed");
+        }
 
         // The digest is built and sent OUTSIDE the try — a failed sweep must still mail, and must say so.
         // It used to be the last statement inside the try, so any throw upstream skipped it entirely and
         // the only signal was the 5am email not arriving. Silence is not a report.
-        var html = BuildDigestHtml(arbRows, settledRows, ecRows, orphanRows, watchdogRows, untrackedRows, counts, errorMessage);
+        var html = BuildDigestHtml(arbRows, settledRows, ecRows, orphanRows, watchdogRows, untrackedRows, notifyResult, counts, errorMessage);
         // The digest mails on a dry run too, to support only. What the dry run must never do is reach a
         // FAMILY; the support digest is how the delivery path itself gets tested — SES, the transport
         // hop, and how a mail client renders the HTML. Suppressing it meant the transport was the one
@@ -428,7 +458,7 @@ public sealed class AdnSweepService : IAdnSweepService
                 // No ct. See SendDigestAsync.
                 await SendDigestAsync(
                     html,
-                    BuildDigestText(failedDraftCount, counts, watchdogRows.Count, untrackedRows.Count, errorMessage),
+                    BuildDigestText(notifyResult, counts, watchdogRows.Count, untrackedRows.Count, errorMessage),
                     errorMessage,
                     counts.Errored);
             }
@@ -461,12 +491,17 @@ public sealed class AdnSweepService : IAdnSweepService
             EcheckSettled = counts.EcheckSettled,
             EcheckReturnsProcessed = counts.EcheckReturnsProcessed,
             OrphansFound = counts.OrphansFound,
-            FailedDraftsFound = failedDraftCount,
+            FailedDraftsFound = notifyResult.Found,
+            FailedDraftsEmailed = notifyResult.Emailed,
+            FailedDraftsNotEmailed = notifyResult.Skipped,
             Errored = counts.Errored,
             Succeeded = errorMessage == null,
             ErrorMessage = errorMessage,
             DigestHtml = html,
             DryRun = _dryRun,
+            RenderedEmails = notifyResult.Rendered,
+            NotEmailed = notifyResult.Skips,
+            AuditRows = notifyResult.AuditRows,
         };
     }
 
@@ -1443,6 +1478,7 @@ public sealed class AdnSweepService : IAdnSweepService
         List<OrphanDigestRow> orphanRows,
         List<WatchdogDigestRow> watchdogRows,
         List<UntrackedEcheckRaDto> untrackedRows,
+        ArbNotifyResultDto notifyResult,
         Counts counts,
         string? errorMessage)
     {
@@ -1461,8 +1497,8 @@ public sealed class AdnSweepService : IAdnSweepService
             sb.Append("<p style='font-size:12px;font-weight:bold;color:#0b5;margin:8px 0 2px 0;'>"
                 + "DRY RUN — nothing was written, settled, or sent.</p>");
             sb.Append("<p style='font-size:10px;margin:0 0 8px 0;'>Real production Authorize.Net batches were read and "
-                + "every recurring draft resolved in full, exactly as the 4am pass does — only the writes "
-                + "were withheld. Orphan detection and the eCheck integrity net ran too; both are report-only. "
+                + "every recurring draft resolved in full, exactly as the 4am pass does — only the writes and the family "
+                + "sends were withheld. Orphan detection and the eCheck integrity net ran too; both are report-only. "
                 + "The three steps that move money — eCheck settlement, return reversal, the stale-draft watchdog — did "
                 + "not run, and their sections say so rather than reporting zero.</p>");
         }
@@ -1482,13 +1518,6 @@ public sealed class AdnSweepService : IAdnSweepService
                 + $"&#9888; {counts.Errored} transaction(s) errored — the pass completed, but those are not booked.</p>");
         }
 
-        // The section this digest was missing for six years. A declined card leaves the subscription
-        // ACTIVE at ADN (it retries), so these registrations never appear in the subscription-status
-        // warnings below — 67 of 81 failing registrations were invisible by construction.
-        var failedRows = arbRows
-            .Where(r => !string.Equals(r.TransactionStatus, "settledSuccessfully", StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
         // "imported" is a claim about the database. On a dry run nothing was imported, and the eCheck /
         // orphan counters are structurally zero because their steps never ran — printing them as 0 next
         // to real numbers reads as "nothing to report", which is a different statement from "not checked".
@@ -1497,15 +1526,22 @@ public sealed class AdnSweepService : IAdnSweepService
             sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, "
                 + $"ARB resolved: {counts.ArbImported}, Orphans: {counts.OrphansFound}, "
                 + $"Untracked eCheck: {untrackedRows.Count}, "
-                + $"Failed drafts: {failedRows.Count}, "
+                + $"Failed drafts: {notifyResult.Found} (would email {notifyResult.Emailed}, NOT emailed {notifyResult.Skipped}), "
                 + $"Errored: {counts.Errored}. eCheck settled / returns / watchdog: not run.</p>");
         }
         else
         {
-            sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, ARB imported: {counts.ArbImported}, eCheck settled: {counts.EcheckSettled}, eCheck returns: {counts.EcheckReturnsProcessed}, Orphans: {counts.OrphansFound}, Watchdog: {watchdogRows.Count}, Untracked eCheck: {untrackedRows.Count}, Failed drafts: {failedRows.Count}, Errored: {counts.Errored}</p>");
+            sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, ARB imported: {counts.ArbImported}, eCheck settled: {counts.EcheckSettled}, eCheck returns: {counts.EcheckReturnsProcessed}, Orphans: {counts.OrphansFound}, Watchdog: {watchdogRows.Count}, Untracked eCheck: {untrackedRows.Count}, Failed drafts: {notifyResult.Found} (emailed {notifyResult.Emailed}, not emailed {notifyResult.Skipped}), Errored: {counts.Errored}</p>");
         }
 
         // ── Failed ARB drafts ─────────────────────────────────────────
+        // The section this digest was missing for six years. A declined card leaves the subscription
+        // ACTIVE at ADN (it retries), so these registrations never appeared in the subscription-status
+        // warnings below — 67 of 81 failing registrations were invisible by construction. Paired counts:
+        // "found" without "emailed" is the number that still needs a human.
+        var failedRows = arbRows
+            .Where(r => !string.Equals(r.TransactionStatus, "settledSuccessfully", StringComparison.OrdinalIgnoreCase))
+            .ToList();
         sb.Append("<h4 style='margin-bottom:2px;margin-top:14px;'>Failed ARB Drafts</h4>");
         if (failedRows.Count == 0)
         {
@@ -1513,16 +1549,17 @@ public sealed class AdnSweepService : IAdnSweepService
         }
         else
         {
-            // No count of families emailed, because none are. The sweep does not write to families;
-            // this table IS the action list, and every row on it needs a person. Say that plainly —
-            // the line that used to sit here ("N famil(ies) emailed automatically") was the reason a
-            // reader could skim the section and assume it had been handled.
             sb.Append($"<p style='font-size:10px;color:#b00;font-weight:bold;'>&#9888; {failedRows.Count} recurring draft(s) did not settle. "
-                + "No family was emailed — contact each of these, or send from the job's ARB Health screen.</p>");
+                // Tense follows the run. This read "26 famil(ies) emailed automatically" on a dry run,
+                // which emailed nobody — a report claiming an action it did not take, in the one
+                // section a human acts on. The counts line above already said "would email"; these two
+                // disagreeing is worse than either being wrong alone.
+                + $"{notifyResult.Emailed} famil(ies) {(_dryRun ? "WOULD BE emailed" : "emailed")} automatically, "
+                + $"{notifyResult.Skipped} NOT emailed.</p>");
             var teamFailures = failedRows.Count(r => r.RegistrationId == null);
             if (teamFailures > 0)
             {
-                sb.Append($"<p style='font-size:9px;'>({teamFailures} of these are team ARB-Trial drafts, which have no family behind them.)</p>");
+                sb.Append($"<p style='font-size:9px;'>({teamFailures} of these are team ARB-Trial drafts, which have no family behind them and are not counted in the email totals.)</p>");
             }
             sb.Append("<table style='border-style:solid;border-collapse:separate;border-spacing:10px;font-size:9px;'>");
             sb.Append("<tr><th>#</th><th>Job</th><th>Status</th><th>TransId</th><th>SubId</th><th>SubStatus</th><th>OwedNow</th><th>PaymentXofY</th><th>Registrant</th><th>Assignment</th></tr>");
@@ -1543,6 +1580,19 @@ public sealed class AdnSweepService : IAdnSweepService
                   .Append("</tr>\n");
             }
             sb.Append("</table>");
+        }
+
+        // Families the notifier deliberately did not write to. These are the ones needing a person:
+        // no reachable address, or no family username to put in the login instructions.
+        if (notifyResult.Skips.Count > 0)
+        {
+            sb.Append("<p style='font-size:10px;color:#b00;font-weight:bold;margin-top:8px;'>&#9888; NOT emailed — contact these by hand:</p>");
+            sb.Append("<ul style='font-size:9px;margin-top:0;'>");
+            foreach (var s in notifyResult.Skips)
+            {
+                sb.Append($"<li>{s.JobName} · {s.Registrant} — {s.Reason}</li>");
+            }
+            sb.Append("</ul>");
         }
 
         // ── ARB subscription warnings ─────────────────────────────────
@@ -1778,7 +1828,7 @@ public sealed class AdnSweepService : IAdnSweepService
     /// survive; the detail is what the HTML part is for.
     /// </summary>
     private string BuildDigestText(
-        int failedDraftCount, Counts counts, int watchdogCount, int untrackedCount, string? errorMessage)
+        ArbNotifyResultDto notifyResult, Counts counts, int watchdogCount, int untrackedCount, string? errorMessage)
     {
         var sb = new StringBuilder();
         sb.AppendLine($"ADN Sweep ({(_dryRun ? "DRY RUN" : "LIVE")}) - {DateTime.Now:dddd, dd MMMM yyyy HH:mm}");
@@ -1812,7 +1862,8 @@ public sealed class AdnSweepService : IAdnSweepService
         }
         sb.AppendLine($"Orphans:              {counts.OrphansFound}");
         sb.AppendLine($"Untracked eCheck:     {untrackedCount}");
-        sb.AppendLine($"Failed drafts:        {failedDraftCount} (no family emailed - all need a person)");
+        sb.AppendLine($"Failed drafts:        {notifyResult.Found} "
+            + $"({(_dryRun ? "would email" : "emailed")} {notifyResult.Emailed}, NOT emailed {notifyResult.Skipped})");
         sb.AppendLine($"Errored:              {counts.Errored}");
         if (_dryRun)
         {
@@ -1820,13 +1871,15 @@ public sealed class AdnSweepService : IAdnSweepService
             sb.AppendLine("eCheck settled / returns / watchdog: not run on a dry run.");
         }
 
-        // The list that always needs a human, so the fact must survive an HTML strip. Every failed
-        // draft is on it now, not just the ones a notifier could not reach.
-        if (failedDraftCount > 0)
+        // The one list that always needs a human, so it must survive an HTML strip.
+        if (notifyResult.Skips.Count > 0)
         {
             sb.AppendLine();
-            sb.AppendLine("No family was emailed. The Failed ARB Drafts table names all "
-                + $"{failedDraftCount} - contact each by hand, or send from the job's ARB Health screen.");
+            sb.AppendLine("NOT emailed - contact these by hand:");
+            foreach (var s in notifyResult.Skips)
+            {
+                sb.AppendLine($"  - {s.JobName} / {s.Registrant} - {s.Reason}");
+            }
         }
 
         sb.AppendLine();
