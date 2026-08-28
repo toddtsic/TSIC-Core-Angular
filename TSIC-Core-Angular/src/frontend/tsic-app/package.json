@@ -5,7 +5,7 @@
     "ng": "ng",
     "prestart": "node scripts/gen-help-manifest.mjs",
     "start": "ng serve --configuration development",
-    "prebuild": "node scripts/gen-help-manifest.mjs",
+    "prebuild": "node scripts/gen-help-manifest.mjs && npm run verify:no-effect && npm run verify:mobile && npm run verify:help",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
