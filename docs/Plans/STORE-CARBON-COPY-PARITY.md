@@ -213,7 +213,7 @@ photo requires SQL — strictly worse than legacy. Ship the write pathways in Ph
 | ID | Recommendation | Status |
 |---|---|---|
 | R-01 | ~~Sales tax multiplier vs percent~~ — **MOOT. There is no sales tax in the fee model.** All 654 `StoreCartBatchSkus` rows carry `SalesTax = 0`, and the remittance export has no tax line. The two tracked figures are the CC processing fee and TSIC's percent of sales. | CLOSED |
-| R-02 | Remove the Sales Tax field from the job config screen so the unused `/100` path cannot be armed by a typo. | OPEN |
+| R-02 | ~~Remove the Sales Tax field from config~~ — **WITHDRAWN.** Tax is a future obligation, not dead weight; the field stays, correctly bounded and labelled. Superseded by R-13/R-14. | CLOSED |
 | R-03 | Decide whether `Enable STP` belongs on the new store tab | OPEN |
 | R-04 | Add a Sort Order control to the items editor | OPEN |
 | R-05 | Post-creation price editing — **RESOLVED: locked, per legacy.** Name/price/comments are read-only on edit; the modal now edits Active + SortOrder, which is all `UpdateItem` writes. | CLOSED |
@@ -222,6 +222,8 @@ photo requires SQL — strictly worse than legacy. Ship the write pathways in Ph
 | R-08 | Keep legacy `UnSold` as its own column alongside In Cart | OPEN |
 | R-09 | Preserve legacy's alphabetical size ordering | OPEN |
 | R-12 | Config screen labels **both** `Sales Tax (%)` and `TSIC Rate (%)`, but the two columns use OPPOSITE conventions: `storeTSICRate` is a multiplier (0.10 = 10%, default in the export proc) while `ProcessingFeePercent` is a percent (3.5, divided by 100 in the proc). Relabel `TSIC Rate` as a decimal rate. | OPEN |
+| R-13 | Sales tax conventions settled in code: `SalesTaxMath.ToTaxMultiplier` (percent-form, clamped 0-12) is the single conversion point, and `SalesTaxMath.TaxableBase` names what tax applies to. Deliberate documented divergence — legacy's multiplier arithmetic is unreachable code (654/654 rows at zero) and would charge 100x. | IMPL |
+| R-14 | `scripts/14-store-sales-tax-audit-columns.sql` — PROPOSED, NOT APPLIED. Adds `StoreCartBatchSkus.SalesTaxRate` (a tax figure must name its own rate to be auditable) and `StoreItems.Taxable` (apparel is exempt or capped in PA/NJ/MN/VT/NY/MA). Zero backfill risk while every row is at zero. | OPEN |
 | R-10 | Do **NOT** replicate B-29 (`hide.bs.modal` fires the POST, so Cancel and × also create the item). It is a legacy defect, not a feature; our modal submits only from the Create button. | OPEN |
 | R-11 | ~~itemBufferSize~~ — **WITHDRAWN**, see A-33. | CLOSED |
 

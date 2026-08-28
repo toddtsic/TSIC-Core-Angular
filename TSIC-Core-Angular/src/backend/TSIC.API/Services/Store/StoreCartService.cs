@@ -441,7 +441,15 @@ public sealed class StoreCartService : IStoreCartService
         // paths all used GetPerJobCCProcessingFee; Jobs.StoreTsicrate is TSIC commission
         // bookkeeping and is never a customer-facing rate.
         lineItem.FeeProcessing = Math.Round(subtotal * ProcessingRateMath.ToCcMultiplier(config.ProcessingFeePercent), 2, MidpointRounding.AwayFromZero);
-        lineItem.SalesTax = Math.Round(subtotal * config.StoreSalesTax / 100m, 2, MidpointRounding.AwayFromZero);
+
+        // Sales tax: rate resolved through SalesTaxMath (clamped, percent -> multiplier), applied
+        // to an explicitly named taxable base rather than to `subtotal` by coincidence. The base
+        // excludes the CC convenience fee today; states that tax service charges change that rule
+        // in SalesTaxMath.TaxableBase and nowhere else. Tax is NOT part of FeeProduct, so it never
+        // enters the TSIC commission base in adn.MonthyQBPExport_Automated_Merch.
+        var taxableBase = SalesTaxMath.TaxableBase(subtotal, lineItem.FeeProcessing);
+        lineItem.SalesTax = Math.Round(
+            taxableBase * SalesTaxMath.ToTaxMultiplier(config.StoreSalesTax), 2, MidpointRounding.AwayFromZero);
         // LEGACY SEMANTICS (authoritative): FeeProduct is the merchandise subtotal and FeeTotal
         // is the line GRAND total (product + processing + tax) - matching all 476 historical
         // rows. FeeTotal is NOT fees-only; never add the subtotal to it again downstream.

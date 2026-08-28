@@ -39,6 +39,20 @@ public static class FeeConstants
     /// </summary>
     public const decimal NewJobEcprocessingFeePercent = 1.5m;
 
+    /// <summary>
+    /// Minimum store sales-tax rate stored as percentage. Zero — no tax is the norm; every job
+    /// currently sits here and no store sale has ever carried tax.
+    /// </summary>
+    public const decimal MinSalesTaxPercent = 0m;
+
+    /// <summary>
+    /// Maximum store sales-tax rate stored as percentage (12 = 12%). Safety ceiling, matching
+    /// legacy's input bound. The highest US combined state+local rate is ~11.5%, so 12 leaves
+    /// headroom while making a multiplier-form entry (0.0875) clamp to a harmless near-zero
+    /// rather than a percent-form entry (8.75) being read as 875%.
+    /// </summary>
+    public const decimal MaxSalesTaxPercent = 12.0m;
+
     // Modifier types stored in fees.FeeModifiers.ModifierType
     public const string ModifierEarlyBird = "EarlyBird";
     public const string ModifierLateFee = "LateFee";
