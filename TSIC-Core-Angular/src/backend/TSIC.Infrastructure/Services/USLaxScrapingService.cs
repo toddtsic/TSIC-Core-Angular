@@ -191,7 +191,10 @@ public sealed class USLaxScrapingService : IUSLaxScrapingService
         var link = cell.SelectSingleNode(".//span[contains(@class, 'uscl-team-cell__body')]//a")
                    ?? cell.SelectSingleNode(".//a");
 
-        return link?.InnerText?.Trim() ?? cell.InnerText?.Trim() ?? string.Empty;
+        // Decode entities -- the site writes "&" as "&amp;" and "'" as "&#039;", and the
+        // raw form degrades the fuzzy match against our registered team names.
+        var raw = link?.InnerText ?? cell.InnerText ?? string.Empty;
+        return WebUtility.HtmlDecode(raw).Trim();
     }
 
     private static string CellText(HtmlNodeCollection cells, int col) =>
