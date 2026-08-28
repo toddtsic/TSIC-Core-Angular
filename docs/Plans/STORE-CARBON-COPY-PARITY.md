@@ -50,11 +50,11 @@ CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
 
 | # | Legacy pathway | Status |
 |---|---|---|
-| A-01 | `Index` — catalog render, active items only | GAP — see A-36 |
+| A-01 | `Index` — catalog render, active items only | IMPL |
 | A-02 | Catalog order: `SortOrder`, **0 sorts LAST (→10000)**, then `StoreItemName` | IMPL |
 | A-03 | Per-item image carousel. **Ours renders `imageUrls[0]` only** — no carousel, no prev/next, additional images unreachable | GAP |
 | A-04 | Per-item tabs: Pickup · Return Policy · Contact | GAP |
-| A-05 | `listSoldOutOrInactiveSkus` surfaced per item | GAP — see A-36 |
+| A-05 | `listSoldOutOrInactiveSkus` surfaced per item | IMPL |
 | A-33 | ~~Per-item `itemBufferSize` reserve~~ — **CLOSED, not a gap**: legacy declares `private static readonly int itemBufferSize = 0` (`IStoreService.cs:73`). A dead constant that subtracts nothing. | CLOSED |
 | A-34 | Availability forced to **0** when the SKU OR its parent item is inactive (`IStoreService.cs:1376`) | IMPL |
 | A-35 | **ADN invoice number `{CustomerAi}_{JobAi}_{batchId}_M`** (`IStoreService.CreateAdnInvoiceNumber`). The `_M` suffix is how `adn.MonthyQBPExport_Automated_Merch` finds merch transactions (`charindex('_M', [Invoice Number]) > 0`). Ours built `STORE-{id}`, which never matched — every new-store sale was absent from the monthly remittance export. | IMPL |
@@ -73,7 +73,7 @@ CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
 | A-18 | Availability re-check → auto-trim + `bCartHasBeenAutoUpdated` banner | GAP |
 | A-19 | Quantity-adjustment audit row on auto-trim | GAP |
 | A-20 | ADN charge, batch settle and StoreCartBatchAccounting row all written | IMPL |
-| A-21 | Duplicate-submit protection. Ours guards on an existing accounting record; **the empty-cart guard itself is MISSING — see A-39** | GAP |
+| A-21 | Empty-cart + already-processed guards both present | IMPL |
 | A-22 | Confirmation shows Order #, Total Paid, Transaction ID, Invoice #. **Payment method is not shown** | IMPL — minor gap |
 | A-23 | Confirmation: inline PDF receipt iframe | GAP |
 | A-24 | Walk-up confirmation variant (different copy, no receipt buttons). **One confirmation view only; no walk-up variant** | GAP |
@@ -85,11 +85,11 @@ CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
 | A-30 | Invoices auto-selects row 0 on databound | GAP |
 | A-31 | `WalkUpRegister` — mini-registration form + state list | IMPL — form fields not yet compared |
 | A-32 | `StoreTwoClick/Login` — family login into store | IMPL — flow not yet compared |
-| A-36 | **Catalog hides items whose SKUs are all sold out.** Legacy renders the item and names the unavailable variants in `listSoldOutOrInactiveSkus`; it deliberately does NOT filter SKUs on Active (the filter is commented out in `GetListActiveJobStoreItems`) and requires only that the item have >=1 SKU of any state. Ours filters `active && activeSkuCount > 0` and builds the size/colour pickers from active SKUs only, so a sold-out product vanishes instead of showing as sold out | GAP |
+| A-36 | Sold-out items stay visible; unbuyable variants are named (`SoldOutOrInactiveSkuLabels`), listing gate is `active && skuCount > 0` as legacy | IMPL |
 | A-37 | Quantity cap: legacy offers a fixed 1-5 dropdown per add; ours clamps to availableCount (fallback 99) | GAP |
 | A-38 | Add-to-cart availability basis: legacy checks `GetSkuAvailableCountBySoldAndBuffer` (sold only, NOT in-cart) and relies on the checkout auto-trim; ours deducts in-cart too, refusing earlier. Ours is stricter | DIVERGE |
-| A-39 | **No empty-cart guard on checkout POST.** Legacy has one explicitly ("Fix #1") returning "Your cart is empty or has already been processed". Without it an empty batch yields totalPaid = 0 and an ADN charge is attempted for $0 | GAP |
-| A-40 | Legacy re-checks `PaidTotal != FeeTotal` on the batch IMMEDIATELY before charging ("Fix #6", race-condition catch). Ours checks for an accounting record earlier in the method | GAP |
+| A-39 | Empty-cart guard on checkout POST (legacy "Fix #1") | IMPL |
+| A-40 | Unpaid-lines re-check immediately before charging (legacy "Fix #6") | IMPL |
 
 ## B · Catalog configuration
 

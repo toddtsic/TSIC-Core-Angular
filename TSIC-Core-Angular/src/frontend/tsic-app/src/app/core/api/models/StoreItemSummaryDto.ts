@@ -13,5 +13,6 @@ export type StoreItemSummaryDto = {
     activeSkuCount: number;
     imageUrls: Array<string>;
     singleSkuId?: number | null;
+    soldOutOrInactiveSkuLabels: Array<string>;
 };
 

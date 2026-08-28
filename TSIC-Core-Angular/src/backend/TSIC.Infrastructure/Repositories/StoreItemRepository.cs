@@ -23,7 +23,7 @@ public class StoreItemRepository : IStoreItemRepository
     public async Task<List<StoreItemSummaryDto>> GetItemSummariesAsync(
         int storeId, CancellationToken cancellationToken = default)
     {
-        return await _context.StoreItems
+        var rows = await _context.StoreItems
             .Where(i => i.StoreId == storeId)
             // LEGACY storefront order (IStoreService:360):
             //   .OrderBy(item => (item.sortOrder == 0) ? 10000 : item.sortOrder)
@@ -32,27 +32,60 @@ public class StoreItemRepository : IStoreItemRepository
             // put every newly created item at the head of the catalog.
             .OrderBy(i => i.SortOrder == 0 ? 10000 : i.SortOrder)
             .ThenBy(i => i.StoreItemName)
-            .Select(i => new StoreItemSummaryDto
-            {
-                StoreItemId = i.StoreItemId,
-                StoreId = i.StoreId,
-                StoreItemName = i.StoreItemName,
-                StoreItemPrice = i.StoreItemPrice,
-                Active = i.Active,
-                SortOrder = i.SortOrder,
-                SkuCount = i.StoreItemSkus.Count,
-                ActiveSkuCount = i.StoreItemSkus.Count(s => s.Active),
-                ImageUrls = i.StoreItemImage
+            .Select(i => new SummaryRow(
+                i.StoreItemId,
+                i.StoreId,
+                i.StoreItemName,
+                i.StoreItemPrice,
+                i.Active,
+                i.SortOrder,
+                i.StoreItemSkus.Count,
+                i.StoreItemSkus.Count(s => s.Active),
+                i.StoreItemImage
                     .OrderBy(img => img.DisplayOrder)
                     .Select(img => img.ImageUrl)
                     .ToList(),
-                SingleSkuId = i.StoreItemSkus.Count(s => s.Active) == 1
+                i.StoreItemSkus.Count(s => s.Active) == 1
                     ? i.StoreItemSkus.First(s => s.Active).StoreSkuId
-                    : (int?)null
-            })
+                    : (int?)null,
+                // Unbuyable variants: inactive, or availability exhausted. Legacy's availability
+                // basis here is sold-only - in-cart units are NOT deducted.
+                i.StoreItemSkus
+                    .Where(s => !s.Active
+                        || s.MaxCanSell - s.StoreCartBatchSkus
+                            .Where(cbs => cbs.StoreCartBatch.StoreCartBatchAccounting.Any())
+                            .Sum(cbs => cbs.Quantity - cbs.Restocked) < 1)
+                    .Select(s => new UnbuyableSku(
+                        s.StoreSize != null ? s.StoreSize.StoreSizeName : null,
+                        s.StoreColor != null ? s.StoreColor.StoreColorName : null))
+                    .ToList()))
             .AsNoTracking()
             .ToListAsync(cancellationToken);
+
+        return rows.Select(r => new StoreItemSummaryDto
+        {
+            StoreItemId = r.StoreItemId,
+            StoreId = r.StoreId,
+            StoreItemName = r.StoreItemName,
+            StoreItemPrice = r.StoreItemPrice,
+            Active = r.Active,
+            SortOrder = r.SortOrder,
+            SkuCount = r.SkuCount,
+            ActiveSkuCount = r.ActiveSkuCount,
+            ImageUrls = r.ImageUrls,
+            SingleSkuId = r.SingleSkuId,
+            SoldOutOrInactiveSkuLabels = r.Unbuyable
+                .Select(u => BuildSkuLabel(r.StoreItemName, u.SizeName, u.ColorName))
+                .ToList()
+        }).ToList();
     }
+
+    private sealed record UnbuyableSku(string? SizeName, string? ColorName);
+
+    private sealed record SummaryRow(
+        int StoreItemId, int StoreId, string StoreItemName, decimal StoreItemPrice,
+        bool Active, int SortOrder, int SkuCount, int ActiveSkuCount,
+        List<string> ImageUrls, int? SingleSkuId, List<UnbuyableSku> Unbuyable);
 
     public async Task<StoreItemDto?> GetItemWithSkusAsync(
         int storeItemId, int storeId, CancellationToken cancellationToken = default)

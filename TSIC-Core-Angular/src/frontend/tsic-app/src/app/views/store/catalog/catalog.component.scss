@@ -203,6 +203,16 @@
 	color: var(--bs-secondary-color);
 }
 
+// Variants a shopper cannot buy. Legacy names them rather than hiding the product, so this line
+// has to read as information, not as an error — muted, with an icon so it is not colour-only.
+.item-soldout {
+	display: block;
+	margin-top: var(--space-1);
+	font-size: var(--font-size-xs);
+	color: var(--bs-secondary-color);
+	font-style: italic;
+}
+
 .expand-chevron {
 	flex-shrink: 0;
 	color: var(--bs-secondary-color);

@@ -65,6 +65,15 @@
 							<span class="item-price">{{ formatCurrency(item.storeItemPrice) }}</span>
 							<span class="item-variants">{{ item.activeSkuCount }} option{{ item.activeSkuCount !== 1 ? 's' : '' }}</span>
 						</span>
+						<!-- Legacy listSoldOutOrInactiveSkus: name what cannot be bought rather
+							 than hiding the product. -->
+						@if (item.soldOutOrInactiveSkuLabels.length) {
+							<span class="item-soldout">
+								<i class="bi bi-slash-circle me-1" aria-hidden="true"></i>
+								Sold out:
+								{{ item.soldOutOrInactiveSkuLabels.join(', ') }}
+							</span>
+						}
 					</div>
 					@if (item.singleSkuId) {
 						<button class="btn-quick-add"

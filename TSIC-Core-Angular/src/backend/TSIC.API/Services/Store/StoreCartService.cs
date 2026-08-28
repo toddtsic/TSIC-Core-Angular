@@ -265,6 +265,22 @@ public sealed class StoreCartService : IStoreCartService
             ?? throw new InvalidOperationException("Job store config not found.");
 
         var lineItems = await _cartRepo.GetBatchLineItemEntitiesAsync(batch.StoreCartBatchId);
+
+        // LEGACY "Fix #1" (StoreFamilyController.Checkout POST): guard the empty cart. Without it
+        // an empty batch yields totalPaid = 0 and we would attempt a $0 charge at Authorize.Net.
+        if (lineItems.Count == 0)
+            throw new InvalidOperationException(
+                "Your cart is empty or has already been processed. "
+                + "Please return to the store to add items.");
+
+        // LEGACY "Fix #6": re-check that the batch still has UNPAID lines immediately before
+        // charging. BatchHasPaymentAsync above looks for an accounting row; this looks at the
+        // lines themselves, which is what a concurrent checkout settles first. Two tabs, two
+        // submits: the second lands here rather than double-charging.
+        if (lineItems.All(li => li.PaidTotal == li.FeeTotal))
+            throw new InvalidOperationException(
+                "Your order has already been processed. Please check your email for confirmation.");
+
         decimal totalPaid = 0m;
 
         foreach (var lineItem in lineItems)

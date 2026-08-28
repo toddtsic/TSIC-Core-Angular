@@ -73,6 +73,19 @@ public record StoreItemSummaryDto
     /// Set when ActiveSkuCount == 1, enabling quick-add without expanding the picker.
     /// </summary>
     public int? SingleSkuId { get; init; }
+
+    /// <summary>
+    /// Legacy `listSoldOutOrInactiveSkus` — the SKU labels a shopper cannot buy, either because
+    /// availability has reached zero or because the SKU is inactive.
+    ///
+    /// <para>
+    /// Legacy shows the item regardless and NAMES these variants, rather than hiding the product.
+    /// Availability here is `MaxCanSell - Sold` on the legacy basis: in-cart units are NOT
+    /// deducted (see GetSkuAvailableCountBySoldAndBuffer), so another family holding the last one
+    /// in an unpaid cart does not make it read as sold out.
+    /// </para>
+    /// </summary>
+    public required List<string> SoldOutOrInactiveSkuLabels { get; init; }
 }
 
 /// <summary>
