@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos.Store;
 using TSIC.Contracts.Repositories;
+using TSIC.Contracts.Store;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
@@ -75,7 +76,7 @@ public class StoreItemRepository : IStoreItemRepository
             ImageUrls = r.ImageUrls,
             SingleSkuId = r.SingleSkuId,
             SoldOutOrInactiveSkuLabels = r.Unbuyable
-                .Select(u => BuildSkuLabel(r.StoreItemName, u.SizeName, u.ColorName))
+                .Select(u => StoreSkuLabel.Build(r.StoreItemName, u.SizeName, u.ColorName))
                 .ToList()
         }).ToList();
     }
@@ -267,15 +268,8 @@ public class StoreItemRepository : IStoreItemRepository
         PickedUpCount = r.PickedUp,
         UnSoldCount = r.MaxCanSell - r.Sold,
         AvailableCount = r.MaxCanSell - r.Sold - r.InCart,
-        SkuLabel = BuildSkuLabel(r.ItemName, r.SizeName, r.ColorName)
+        SkuLabel = StoreSkuLabel.Build(r.ItemName, r.SizeName, r.ColorName)
     };
-
-    /// <summary>
-    /// Legacy SkuLabel: "Item:Size:Color", collapsing "::" and trimming stray colons so a SKU
-    /// missing a dimension reads "Item:Large" rather than "Item:Large:".
-    /// </summary>
-    private static string BuildSkuLabel(string itemName, string? sizeName, string? colorName) =>
-        $"{itemName}:{sizeName}:{colorName}".Replace("::", ":").Trim(':');
 
     public async Task<StoreItemSkus?> GetSkuByIdAsync(
         int storeSkuId, CancellationToken cancellationToken = default)
@@ -287,6 +281,22 @@ public class StoreItemRepository : IStoreItemRepository
         return await _context.StoreItemSkus
             .Include(s => s.StoreItem)
             .FirstOrDefaultAsync(s => s.StoreSkuId == storeSkuId, cancellationToken);
+    }
+
+    public async Task<Dictionary<int, int>> GetEffectiveMaxCanSellAsync(
+        List<int> storeSkuIds, CancellationToken cancellationToken = default)
+    {
+        if (storeSkuIds.Count == 0) return [];
+
+        return await _context.StoreItemSkus
+            .AsNoTracking()
+            .Where(s => storeSkuIds.Contains(s.StoreSkuId))
+            .Select(s => new
+            {
+                s.StoreSkuId,
+                MaxCanSell = s.Active && s.StoreItem.Active ? s.MaxCanSell : 0
+            })
+            .ToDictionaryAsync(s => s.StoreSkuId, s => s.MaxCanSell, cancellationToken);
     }
 
     public async Task<int> GetSoldCountAsync(

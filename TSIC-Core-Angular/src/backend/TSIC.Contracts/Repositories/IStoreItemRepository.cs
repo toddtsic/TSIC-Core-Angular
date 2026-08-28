@@ -62,6 +62,18 @@ public interface IStoreItemRepository
     Task<StoreItemSkus?> GetSkuByIdAsync(int storeSkuId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// How many of each SKU may be sold AT ALL, in one query.
+    /// </summary>
+    /// <remarks>
+    /// Legacy <c>StoreItemSkuMaxCanSell</c>: <c>(sku.Active AND item.Active) ? MaxCanSell : 0</c>.
+    /// Deactivating the parent ITEM takes every one of its SKUs off the shelf, so a raw
+    /// <c>MaxCanSell</c> read is not the ceiling — it is the ceiling only while both flags hold.
+    /// SKU ids with no row are absent from the dictionary; treat a miss as zero.
+    /// </remarks>
+    Task<Dictionary<int, int>> GetEffectiveMaxCanSellAsync(
+        List<int> storeSkuIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Count sold items for a specific SKU.
     /// Sold = Active line items in batches that have accounting records (paid).
     /// </summary>

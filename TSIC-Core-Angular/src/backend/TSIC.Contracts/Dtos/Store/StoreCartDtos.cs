@@ -113,3 +113,34 @@ public record StoreCheckoutResultDto
     public string? Message { get; init; }
     public string? ErrorCode { get; init; }
 }
+
+// ── Checkout availability re-check (legacy GetAllSkusAvailableStatus) ──
+
+/// <summary>
+/// One line the checkout re-check reduced or removed.
+/// </summary>
+public record StoreCartTrimAdjustmentDto
+{
+    public required int StoreSkuId { get; init; }
+    public required string SkuLabel { get; init; }
+    public required int FromQuantity { get; init; }
+    /// <summary>Zero when the line was removed outright.</summary>
+    public required int ToQuantity { get; init; }
+}
+
+/// <summary>
+/// The cart as it stands after the checkout page re-checks availability.
+/// </summary>
+/// <remarks>
+/// Legacy trims the cart to what is actually still in stock when the shopper ENTERS checkout
+/// (StoreFamilyController.Checkout GET) and again on submit, then redirects with
+/// <c>bCartHasBeenAutoUpdated=true</c> so the banner shows before any money moves. This DTO is
+/// that redirect flag, plus what actually changed — legacy's banner said only "your cart has
+/// been updated" and left the shopper to find the difference themselves.
+/// </remarks>
+public record StoreCheckoutPrepareDto
+{
+    public required StoreCartBatchDto Cart { get; init; }
+    public required bool WasAutoUpdated { get; init; }
+    public required List<StoreCartTrimAdjustmentDto> Adjustments { get; init; }
+}

@@ -681,6 +681,25 @@ public class StoreController : ControllerBase
         return Ok(availability);
     }
 
+    /// <summary>
+    /// Loads the cart for the checkout page. NOT a plain read — it trims any line whose stock has
+    /// gone since it was added, which is why it is a POST.
+    /// </summary>
+    [HttpPost("checkout/prepare")]
+    [ProducesResponseType(typeof(StoreCheckoutPrepareDto), 200)]
+    public async Task<IActionResult> PrepareCheckout()
+    {
+        var (jobId, userId) = await ResolveContext();
+        try
+        {
+            return Ok(await _cartService.PrepareCheckoutAsync(jobId, userId, userId));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("checkout")]
     [ProducesResponseType(typeof(StoreCheckoutResultDto), 200)]
     public async Task<IActionResult> Checkout([FromBody] StoreCheckoutRequest request)
@@ -853,6 +872,15 @@ public class StoreController : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    [HttpGet("analytics/quantity-adjustments")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(List<StoreQuantityAdjustmentDto>), 200)]
+    public async Task<IActionResult> GetQuantityAdjustments(CancellationToken ct)
+    {
+        var (jobId, _) = await ResolveContext();
+        return Ok(await _adminService.GetQuantityAdjustmentsAsync(jobId, ct));
     }
 
     // ═══════════════════════════════════════════

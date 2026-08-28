@@ -179,3 +179,37 @@ public record StoreRefundResponse
     public int RestockedCount { get; init; }
     public string? TransactionId { get; init; }
 }
+
+// ═══════════════════════════════════════════
+//  QUANTITY ADJUSTMENTS
+//  Legacy StoreCartQuantityAdjustments/Index — the audit trail of every checkout auto-trim.
+// ═══════════════════════════════════════════
+
+/// <summary>
+/// One recorded auto-trim: a shopper's cart line reduced or emptied at checkout because the
+/// stock had gone since they added it.
+/// </summary>
+public record StoreQuantityAdjustmentDto
+{
+    public required int StoreCartBatchSkuQuantityAdjustmentsId { get; init; }
+
+    /// <summary>How many units were taken away — legacy's AdjQty, <c>From − To</c>.</summary>
+    public required int AdjQuantity { get; init; }
+
+    public required string SkuLabel { get; init; }
+    public required int FromQuantity { get; init; }
+    public required int ToQuantity { get; init; }
+
+    public required string FamilyUserName { get; init; }
+    public string? ParentFirstName { get; init; }
+    public string? ParentLastName { get; init; }
+
+    /// <summary>
+    /// The FAMILY LOGIN's email, not <c>Families.Mom_Email</c>. Legacy called this field
+    /// <c>MomEmail</c> while reading <c>StoreCart.FamilyUser.Email</c>; the name was wrong, the
+    /// column it read was the useful one, and this is the address that actually reaches them.
+    /// </summary>
+    public required string Email { get; init; }
+
+    public required DateTime WhenChanged { get; init; }
+}

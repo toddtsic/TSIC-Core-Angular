@@ -58,9 +58,14 @@ public interface IStoreAnalyticsRepository
     void AddRestock(StoreCartBatchSkuRestocks restock);
 
     /// <summary>
-    /// Log a quantity adjustment entry.
+    /// Every checkout auto-trim recorded for a job, newest first (legacy
+    /// StoreCartQuantityAdjustments). The WRITE side lives on
+    /// <see cref="IStoreCartRepository.AddQuantityAdjustment"/>, next to the cart mutation
+    /// that causes it.
     /// </summary>
-    void AddQuantityAdjustment(StoreCartBatchSkuQuantityAdjustments adjustment);
+    Task<List<StoreQuantityAdjustmentDto>> GetQuantityAdjustmentsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
 
     // ── Pickup ──
 

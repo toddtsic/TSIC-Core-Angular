@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos.Store;
 using TSIC.Contracts.Repositories;
+using TSIC.Contracts.Store;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
@@ -155,54 +156,6 @@ public class StoreCartRepository : IStoreCartRepository
             .SumAsync(cbs => cbs.Quantity, cancellationToken);
     }
 
-    public async Task<List<int>> ValidateBatchAvailabilityAsync(
-        int storeCartBatchId, CancellationToken cancellationToken = default)
-    {
-        // Get all active line items in this batch with their SKU's MaxCanSell
-        var lineItems = await _context.StoreCartBatchSkus
-            .Where(cbs => cbs.StoreCartBatchId == storeCartBatchId && cbs.Active)
-            .Select(cbs => new
-            {
-                cbs.StoreSkuId,
-                cbs.Quantity,
-                cbs.StoreSku.MaxCanSell
-            })
-            .AsNoTracking()
-            .ToListAsync(cancellationToken);
-
-        var overCommitted = new List<int>();
-
-        foreach (var skuGroup in lineItems.GroupBy(li => li.StoreSkuId))
-        {
-            var skuId = skuGroup.Key;
-            var maxCanSell = skuGroup.First().MaxCanSell;
-
-            // Count sold across ALL batches (not just this one)
-            var soldCount = await _context.StoreCartBatchSkus
-                .Where(cbs => cbs.StoreSkuId == skuId
-                    && cbs.Active
-                    && cbs.StoreCartBatch.StoreCartBatchAccounting.Any())
-                .SumAsync(cbs => cbs.Quantity, cancellationToken);
-
-            // Count in all OTHER unpaid carts (exclude current batch)
-            var otherCartCount = await _context.StoreCartBatchSkus
-                .Where(cbs => cbs.StoreSkuId == skuId
-                    && cbs.Active
-                    && cbs.StoreCartBatchId != storeCartBatchId
-                    && !cbs.StoreCartBatch.StoreCartBatchAccounting.Any())
-                .SumAsync(cbs => cbs.Quantity, cancellationToken);
-
-            var requestedQty = skuGroup.Sum(li => li.Quantity);
-
-            if (soldCount + otherCartCount + requestedQty > maxCanSell)
-            {
-                overCommitted.Add(skuId);
-            }
-        }
-
-        return overCommitted;
-    }
-
     public async Task<Dictionary<int, int>> GetSoldCountsForSkusAsync(
         List<int> storeSkuIds, CancellationToken cancellationToken = default)
     {
@@ -258,6 +211,31 @@ public class StoreCartRepository : IStoreCartRepository
                 LastName = u.LastName ?? ""
             }
         ).AsNoTracking().ToListAsync(cancellationToken);
+    }
+
+    public void AddQuantityAdjustment(StoreCartBatchSkuQuantityAdjustments adjustment)
+    {
+        _context.StoreCartBatchSkuQuantityAdjustments.Add(adjustment);
+    }
+
+    public async Task<Dictionary<int, string>> GetSkuLabelsAsync(
+        List<int> storeSkuIds, CancellationToken cancellationToken = default)
+    {
+        var rows = await _context.StoreItemSkus
+            .AsNoTracking()
+            .Where(s => storeSkuIds.Contains(s.StoreSkuId))
+            .Select(s => new
+            {
+                s.StoreSkuId,
+                ItemName = s.StoreItem.StoreItemName,
+                SizeName = s.StoreSize != null ? s.StoreSize.StoreSizeName : null,
+                ColorName = s.StoreColor != null ? s.StoreColor.StoreColorName : null
+            })
+            .ToListAsync(cancellationToken);
+
+        return rows.ToDictionary(
+            r => r.StoreSkuId,
+            r => StoreSkuLabel.Build(r.ItemName, r.SizeName, r.ColorName));
     }
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

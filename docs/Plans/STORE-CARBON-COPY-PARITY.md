@@ -72,8 +72,8 @@ StoreSalesWalkup, StoreTwoClick, CheckoutConfirmation, WalkUp, and the Labels/Cr
 | A-15 | `RemoveCartSku` | IMPL |
 | A-16 | Empty-cart guard on Checkout navigation | IMPL |
 | A-17 | `Checkout` GET — CC form, fee breakdown, total due | IMPL |
-| A-18 | Availability re-check → auto-trim + `bCartHasBeenAutoUpdated` banner | GAP |
-| A-19 | Quantity-adjustment audit row on auto-trim | GAP |
+| A-18 | Availability re-check → auto-trim + `bCartHasBeenAutoUpdated` banner | BUILT — see D-8 |
+| A-19 | Quantity-adjustment audit row on auto-trim | BUILT — see D-8 |
 | A-20 | ADN charge, batch settle and StoreCartBatchAccounting row all written | IMPL |
 | A-21 | Empty-cart + already-processed guards both present | IMPL |
 | A-22 | Confirmation shows Order #, Total Paid, Transaction ID, Invoice #. **Payment method is not shown** | IMPL — minor gap |
@@ -89,7 +89,7 @@ StoreSalesWalkup, StoreTwoClick, CheckoutConfirmation, WalkUp, and the Labels/Cr
 | A-32 | `StoreTwoClick/Login` — family login into store | IMPL — flow not yet compared |
 | A-36 | Sold-out items stay visible; unbuyable variants are named (`SoldOutOrInactiveSkuLabels`), listing gate is `active && skuCount > 0` as legacy | IMPL |
 | A-37 | Quantity cap: legacy offers a fixed 1-5 dropdown per add; ours clamps to availableCount (fallback 99) | GAP |
-| A-38 | Add-to-cart availability basis: legacy checks `GetSkuAvailableCountBySoldAndBuffer` (sold only, NOT in-cart) and relies on the checkout auto-trim; ours deducts in-cart too, refusing earlier. Ours is stricter | DIVERGE |
+| A-38 | Add-to-cart availability basis: legacy checks `GetSkuAvailableCountBySoldAndBuffer` (sold only, NOT in-cart) and relies on the checkout auto-trim; ours deducts in-cart too, refusing earlier. Ours is stricter. **The auto-trim legacy leans on now exists (D-8)**, so this is a deliberate belt-and-braces, not a missing safety net | DIVERGE |
 | A-39 | Empty-cart guard on checkout POST (legacy "Fix #1") | IMPL |
 | A-40 | Unpaid-lines re-check immediately before charging (legacy "Fix #6") | IMPL |
 
@@ -154,8 +154,8 @@ StoreSalesWalkup, StoreTwoClick, CheckoutConfirmation, WalkUp, and the Labels/Cr
 | C-13 | `StoreSalesWalkup/Index` — same grid, walk-ups only. Ours is a toggle on the one grid | IMPL |
 | C-14 | `StoreRefunded/Index` grid | IMPL — column set not yet compared |
 | C-15 | `StoreRestocked/Index` grid, `frozenColumns=4` | IMPL — column set not yet compared |
-| C-16 | `StoreCartQuantityAdjustments/Index` grid | GAP |
-| C-17 | Adjustments columns incl. Mom first/last/email, WhenChanged | GAP |
+| C-16 | `StoreCartQuantityAdjustments/Index` grid | BUILT — Sales tab → Quantity Adjustments |
+| C-17 | Adjustments columns incl. parent first/last/email, WhenChanged | BUILT — legacy order, two corrections in D-8 |
 
 ## D · Dashboard
 
@@ -416,6 +416,62 @@ Three deliberate divergences, all recorded on the DTOs:
 One improvement over legacy: the email write goes through `UserManager.SetEmailAsync`, which also
 rewrites `NormalizedEmail`. Legacy assigned the raw column and left the normalized copy stale —
 which is what forgot-password looks accounts up by.
+
+**D-8 — The checkout auto-trim (A-18/A-19), and the grid that reads it (C-16/C-17). Checkout
+dead-ended the shopper where legacy quietly fixed the cart.**
+
+Legacy re-checks availability twice — when the shopper ENTERS checkout and again on submit —
+trims any line whose stock has gone, logs each change to
+`stores.StoreCartBatchSkuQuantityAdjustments`, and redirects with `bCartHasBeenAutoUpdated=true`
+so the banner shows before any money moves. None of that existed here. Ours threw:
+
+```
+"Items no longer available: SKU IDs 412, 419"
+```
+
+— internal ids, no trimmed cart, no way forward except guessing which line to delete.
+
+Now `StoreCartService.TrimBatchToAvailabilityAsync` owns the rule, called from a new
+`POST /store/checkout/prepare` (the checkout page's load) and again inside `CheckoutAsync`. The
+checkout page names what changed; legacy's banner said only "Your Cart Has Been Updated" and left
+the shopper to spot the difference.
+
+**The availability basis is legacy's and it is a deliberate choice, not an oversight.**
+`MaxCanSell − Sold`, with legacy's buffer of 0. Units in OTHER people's unpaid carts are **not**
+deducted — legacy has a `GetSkuAvailableCountBySoldAndCartAndBuffer` variant and pointedly does
+not use it here. Only money takes stock off the shelf; whoever pays first gets it. Reserving
+stock for unpaid carts would starve real buyers, and the abandoned-cart campaign exists precisely
+because carts sit unpaid for 6 to 48 hours.
+
+`IStoreCartRepository.ValidateBatchAvailabilityAsync` was **removed**, not left beside the new
+code. It counted other unpaid carts against `MaxCanSell` and was the source of the throw. A
+second availability opinion sitting next to the first is how the next person reintroduces the
+bug; the interface now carries a note saying so.
+
+Stock also respects legacy's `StoreItemSkuMaxCanSell`: `(sku.Active AND item.Active) ?
+MaxCanSell : 0`, via a new batched `GetEffectiveMaxCanSellAsync`. Deactivating a parent item
+empties it from every open cart at checkout, which a raw `MaxCanSell` read would not do.
+
+The audit row is stamped with the **superuser** id, as legacy did — the trim is a system action
+taken against the shopper's cart, not something the shopper did. Audit rows, reduced quantities
+and removals all go in ONE `SaveChanges`, so there is never a trimmed cart with no record of why.
+
+Two corrections in the admin grid (C-16/C-17), both on the read side:
+
+1. The SKU label went through an unconditional `':'` concat, which in SQL nulls the WHOLE label
+   for a SKU with no size or colour. It now uses the shared `StoreSkuLabel`.
+2. Legacy's column was named `MomEmail` but read `StoreCart.FamilyUser.Email` — the family
+   LOGIN's address, not `Families.Mom_Email`. The name was wrong and the column it read was the
+   useful one; the DTO now says `Email` and says why.
+
+Also DRY: four separate implementations of "Item:Size:Color" existed across three repositories,
+in three different styles. They are now one `StoreSkuLabel.Build`.
+
+**Note the data.** `stores.StoreCartBatchSkuQuantityAdjustments` holds exactly **one row**
+across the whole database (`StoreCartId 109`, 5 → 0, 2026-05-08). The grid will be empty on most
+jobs, and that is the correct reading — it is an exception log, not a report. Legacy's sibling
+`LogRestock` is worth knowing about while you are here: it builds a `StoreCartBatchSkuRestocks`
+row and never `Add`s it before saving, so legacy's restock logging has always been a no-op.
 
 ## Open recommendations
 

@@ -32,6 +32,14 @@ public sealed class StoreAdminService : IStoreAdminService
         return await _analyticsRepo.GetSalesPivotAsync(store.StoreId);
     }
 
+    /// <summary>
+    /// Job-scoped, not store-scoped: legacy's query filters on <c>StoreCart.Store.JobId</c>, and a
+    /// job has exactly one store, so there is no store lookup to do first.
+    /// </summary>
+    public Task<List<StoreQuantityAdjustmentDto>> GetQuantityAdjustmentsAsync(
+        Guid jobId, CancellationToken ct = default)
+        => _analyticsRepo.GetQuantityAdjustmentsAsync(jobId, ct);
+
     public async Task<List<StoreSalesByItemDto>> GetSalesByItemAsync(Guid jobId)
     {
         var store = await GetStoreOrThrow(jobId);

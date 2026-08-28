@@ -5,6 +5,7 @@ using TSIC.Contracts.Dtos.Store;
 using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 
 namespace TSIC.API.Services.Store;
@@ -237,6 +238,145 @@ public sealed class StoreCartService : IStoreCartService
         }).ToList();
     }
 
+    /// <summary>
+    /// Legacy <c>StoreFamilyController.Checkout</c> (GET): re-check availability the moment the
+    /// shopper reaches checkout, trim whatever is no longer in stock, and say so.
+    /// </summary>
+    public async Task<StoreCheckoutPrepareDto> PrepareCheckoutAsync(
+        Guid jobId, string familyUserId, string userId)
+    {
+        var store = await _storeRepo.GetByJobIdAsync(jobId);
+        var cart = store == null ? null : await _cartRepo.GetCartAsync(store.StoreId, familyUserId);
+        var batch = cart == null ? null : await _cartRepo.GetCurrentBatchAsync(cart.StoreCartId);
+
+        if (cart == null || batch == null)
+            return new StoreCheckoutPrepareDto
+            {
+                Cart = EmptyCart(),
+                WasAutoUpdated = false,
+                Adjustments = []
+            };
+
+        var config = await _storeRepo.GetJobStoreConfigAsync(jobId)
+            ?? throw new InvalidOperationException("Job store config not found.");
+
+        var adjustments = await TrimBatchToAvailabilityAsync(
+            cart.StoreCartId, batch.StoreCartBatchId, config, userId);
+
+        var dto = (await BuildCartBatchDto(batch.StoreCartBatchId))
+            with { JobUsesAmex = await _paymentFeatures.UsesAmexAsync(jobId) };
+
+        return new StoreCheckoutPrepareDto
+        {
+            Cart = dto,
+            WasAutoUpdated = adjustments.Count > 0,
+            Adjustments = adjustments
+        };
+    }
+
+    /// <summary>
+    /// Reduce every line in the batch to what is still buyable, recording each change.
+    /// Port of legacy <c>IStoreService.GetAllSkusAvailableStatus</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The availability basis is <c>MaxCanSell − Sold</c> — legacy's
+    /// <c>GetSkuAvailableCountBySoldAndBuffer</c>, with its buffer of 0. Units sitting in OTHER
+    /// people's unpaid carts are deliberately NOT deducted: legacy has a
+    /// <c>...BySoldAndCartAndBuffer</c> variant and pointedly does not use it here. Only money
+    /// takes stock off the shelf, so whoever pays first gets it. Reserving stock for unpaid carts
+    /// would starve real buyers — the abandoned-cart campaign exists precisely because carts sit
+    /// unpaid for 6 to 48 hours.
+    /// </para>
+    /// <para>
+    /// <c>approvedBySku</c> is legacy's <c>batchSkuStats</c>: two lines of the same SKU in one
+    /// cart (different DirectTo players) must not each claim the same last unit.
+    /// </para>
+    /// <para>
+    /// The audit row is stamped with the SUPERUSER id, as legacy did. The trim is a system
+    /// action taken against the shopper's cart, not something the shopper did.
+    /// </para>
+    /// </remarks>
+    private async Task<List<StoreCartTrimAdjustmentDto>> TrimBatchToAvailabilityAsync(
+        int storeCartId, int storeCartBatchId, JobStoreConfig config, string userId)
+    {
+        var lineItems = await _cartRepo.GetBatchLineItemEntitiesAsync(storeCartBatchId);
+        if (lineItems.Count == 0) return [];
+
+        var skuIds = lineItems.Select(li => li.StoreSkuId).Distinct().ToList();
+        var maxCanSell = await _itemRepo.GetEffectiveMaxCanSellAsync(skuIds);
+        var soldCounts = await _cartRepo.GetSoldCountsForSkusAsync(skuIds);
+
+        var approvedBySku = new Dictionary<int, int>();
+        var adjustments = new List<StoreCartTrimAdjustmentDto>();
+        var removed = new List<StoreCartBatchSkus>();
+
+        foreach (var line in lineItems)
+        {
+            var available =
+                maxCanSell.GetValueOrDefault(line.StoreSkuId, 0)
+                - soldCounts.GetValueOrDefault(line.StoreSkuId, 0)
+                - approvedBySku.GetValueOrDefault(line.StoreSkuId, 0);
+
+            if (available >= line.Quantity)
+            {
+                approvedBySku[line.StoreSkuId] =
+                    approvedBySku.GetValueOrDefault(line.StoreSkuId, 0) + line.Quantity;
+                continue;
+            }
+
+            var toQuantity = available > 0 ? available : 0;
+
+            _cartRepo.AddQuantityAdjustment(new StoreCartBatchSkuQuantityAdjustments
+            {
+                StoreCartId = storeCartId,
+                StoreSkuId = line.StoreSkuId,
+                FromQuantity = line.Quantity,
+                ToQuantity = toQuantity,
+                Modified = DateTime.Now,
+                LebUserId = TsicConstants.SuperUserId
+            });
+
+            adjustments.Add(new StoreCartTrimAdjustmentDto
+            {
+                StoreSkuId = line.StoreSkuId,
+                SkuLabel = string.Empty, // filled in below, once per distinct sku
+                FromQuantity = line.Quantity,
+                ToQuantity = toQuantity
+            });
+
+            if (toQuantity > 0)
+            {
+                line.Quantity = toQuantity;
+                line.Modified = DateTime.Now;
+                line.LebUserId = userId;
+                RecalculateLineItemFees(line, config);
+                approvedBySku[line.StoreSkuId] =
+                    approvedBySku.GetValueOrDefault(line.StoreSkuId, 0) + toQuantity;
+            }
+            else
+            {
+                removed.Add(line);
+            }
+        }
+
+        if (adjustments.Count == 0) return [];
+
+        foreach (var line in removed)
+            _cartRepo.RemoveLineItem(line);
+
+        // One SaveChanges for the audit rows, the reduced quantities and the removals together —
+        // same scoped context, so one transaction. Never a trimmed cart with no record of why.
+        await _cartRepo.SaveChangesAsync();
+
+        var labels = await _cartRepo.GetSkuLabelsAsync(
+            adjustments.Select(a => a.StoreSkuId).Distinct().ToList());
+
+        return adjustments
+            .Select(a => a with { SkuLabel = labels.GetValueOrDefault(a.StoreSkuId, "this item") })
+            .ToList();
+    }
+
     public async Task<StoreCheckoutResultDto> CheckoutAsync(
         Guid jobId, string familyUserId, string userId, StoreCheckoutRequest request)
     {
@@ -254,15 +394,30 @@ public sealed class StoreCartService : IStoreCartService
         if (alreadyPaid)
             throw new InvalidOperationException("This batch has already been paid.");
 
-        // Validate availability of all items
-        var overCommitted = await _cartRepo.ValidateBatchAvailabilityAsync(batch.StoreCartBatchId);
-        if (overCommitted.Count > 0)
-            throw new InvalidOperationException(
-                $"Items no longer available: SKU IDs {string.Join(", ", overCommitted)}");
-
-        // Get fee rates and recalculate all line items
         var config = await _storeRepo.GetJobStoreConfigAsync(jobId)
             ?? throw new InvalidOperationException("Job store config not found.");
+
+        // Availability, re-checked at the last possible moment. This used to throw
+        //   "Items no longer available: SKU IDs 412, 419"
+        // which dead-ends the shopper with internal ids and no way forward. Legacy TRIMS instead
+        // (StoreFamilyController.Checkout POST → redirect with bCartHasBeenAutoUpdated=true):
+        // the cart is reduced to what is really in stock and the shopper is sent back to review
+        // it. Nothing is charged on this pass either way — see the ErrorCode below.
+        var trimmed = await TrimBatchToAvailabilityAsync(
+            cart.StoreCartId, batch.StoreCartBatchId, config, userId);
+
+        if (trimmed.Count > 0)
+        {
+            return new StoreCheckoutResultDto
+            {
+                Success = false,
+                StoreCartBatchId = batch.StoreCartBatchId,
+                TotalPaid = 0m,
+                Message = "Some items sold out while your cart was open, so your cart has been "
+                    + "updated. Please review it before paying.",
+                ErrorCode = "CART_AUTO_UPDATED"
+            };
+        }
 
         var lineItems = await _cartRepo.GetBatchLineItemEntitiesAsync(batch.StoreCartBatchId);
 

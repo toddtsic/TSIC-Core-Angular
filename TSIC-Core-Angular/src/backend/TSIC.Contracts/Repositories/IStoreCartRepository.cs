@@ -94,11 +94,12 @@ public interface IStoreCartRepository
     /// </summary>
     Task<int> GetInCartCountForSkuAsync(int storeSkuId, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Validate availability of all SKUs in a batch before checkout.
-    /// Returns list of SKU IDs that are over-committed (sold + inCart > MaxCanSell).
-    /// </summary>
-    Task<List<int>> ValidateBatchAvailabilityAsync(int storeCartBatchId, CancellationToken cancellationToken = default);
+    // ValidateBatchAvailabilityAsync was REMOVED. It answered "which SKUs are over-committed"
+    // counting sold + every OTHER unpaid cart against MaxCanSell, and checkout threw on any hit.
+    // Both halves were wrong: legacy's checkout basis is sold-only (units in someone else's
+    // unpaid cart are not gone — first to pay wins), and legacy trims the cart rather than
+    // refusing it. StoreCartService.TrimBatchToAvailabilityAsync now owns both rules. Do not
+    // reintroduce a second availability opinion here.
 
     /// <summary>
     /// Get all active line items in a batch (tracked for checkout updates).
@@ -124,6 +125,17 @@ public interface IStoreCartRepository
     /// Returns registrationId + first/last name for each active registration.
     /// </summary>
     Task<List<StoreFamilyPlayerDto>> GetFamilyPlayersForJobAsync(string familyUserId, Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Record one checkout auto-trim: the SKU, and the quantity before and after. Read back by
+    /// <see cref="IStoreAnalyticsRepository.GetQuantityAdjustmentsAsync"/>.
+    /// </summary>
+    void AddQuantityAdjustment(StoreCartBatchSkuQuantityAdjustments adjustment);
+
+    /// <summary>
+    /// SKU display labels (item : size : colour) for the given SKU ids.
+    /// </summary>
+    Task<Dictionary<int, string>> GetSkuLabelsAsync(List<int> storeSkuIds, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Persist all pending changes.

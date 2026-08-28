@@ -1,0 +1,46 @@
+@use './store-shared' as *;
+
+.adjustments-search {
+	width: 240px;
+	max-width: 40vw;
+}
+
+.num {
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.cell-mono {
+	font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+	font-size: var(--font-size-sm);
+}
+
+// The count taken away. A line cut back to zero is a different kind of bad news from one merely
+// reduced, so it reads differently — shape and wording, never colour alone.
+.adj-badge {
+	display: inline-block;
+	min-width: 2.5rem;
+	padding: 2px 8px;
+	border-radius: var(--radius-sm);
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	background: color-mix(in srgb, var(--bs-warning) 16%, transparent);
+	color: color-mix(in srgb, var(--bs-warning) 70%, var(--brand-text));
+	border: 1px solid color-mix(in srgb, var(--bs-warning) 30%, transparent);
+
+	&.is-removed {
+		background: color-mix(in srgb, var(--bs-danger) 12%, transparent);
+		color: var(--bs-danger);
+		border-color: color-mix(in srgb, var(--bs-danger) 28%, transparent);
+	}
+}
+
+td a {
+	color: var(--bs-primary);
+	text-decoration: none;
+
+	&:hover,
+	&:focus-visible {
+		text-decoration: underline;
+	}
+}

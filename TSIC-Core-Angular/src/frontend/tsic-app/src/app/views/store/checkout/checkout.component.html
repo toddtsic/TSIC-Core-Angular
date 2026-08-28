@@ -63,6 +63,34 @@
 			</div>
 		}
 
+		<!--
+			Cart trimmed on the way in. Legacy showed a bare "Your Cart Has Been Updated"
+			warning; naming the lines saves the shopper from comparing the page against memory.
+		-->
+		@if (trimmedLines().length > 0) {
+			<div class="alert alert-warning" role="alert">
+				<h6 class="alert-heading">
+					<i class="bi bi-exclamation-triangle-fill me-2"></i>Your cart has been updated
+				</h6>
+				<p class="mb-2">
+					These items sold out while your cart was open. Nothing has been charged —
+					please review the order below before paying.
+				</p>
+				<ul class="mb-0">
+					@for (line of trimmedLines(); track line.storeSkuId) {
+						<li>
+							<strong>{{ line.skuLabel }}</strong>
+							@if (line.toQuantity > 0) {
+								— reduced from {{ line.fromQuantity }} to {{ line.toQuantity }}
+							} @else {
+								— removed ({{ line.fromQuantity }} no longer available)
+							}
+						</li>
+					}
+				</ul>
+			</div>
+		}
+
 		@if (!isLoading() && lineItems().length > 0) {
 			<!-- ── Order Summary ── -->
 			<div class="section-card">

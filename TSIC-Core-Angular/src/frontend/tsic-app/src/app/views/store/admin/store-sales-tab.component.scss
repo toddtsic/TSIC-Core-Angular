@@ -95,3 +95,48 @@
 	color: var(--bs-secondary-color);
 	margin-bottom: var(--space-3);
 }
+
+// ── Sales / Adjustments view picker ──
+// Legacy's "Sales Tables" menu group as a segmented control. Same shape as the campaigns tab's
+// audience picker, so the two admin screens with sub-views look like siblings.
+
+.sales-view-picker {
+	display: inline-flex;
+	gap: var(--space-1);
+	padding: var(--space-1);
+	margin-bottom: var(--space-4);
+	background: color-mix(in srgb, var(--bs-primary) 5%, transparent);
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--radius-full);
+}
+
+.sales-view-btn {
+	appearance: none;
+	border: none;
+	background: transparent;
+	color: var(--bs-secondary-color);
+	font-size: var(--font-size-sm);
+	font-weight: 600;
+	padding: var(--space-2) var(--space-4);
+	border-radius: var(--radius-full);
+	transition: background-color 0.15s ease, color 0.15s ease;
+
+	&:hover:not(.active) {
+		color: var(--brand-text);
+		background: color-mix(in srgb, var(--bs-primary) 10%, transparent);
+	}
+
+	&.active {
+		background: var(--bs-primary);
+		color: var(--bs-white, #fff);
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sales-view-btn { transition: none !important; }
+}

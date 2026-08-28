@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { StoreService } from '../../../infrastructure/services/store.service';
 import { ToastService } from '../../../shared-ui/toast.service';
 import { TsicDialogComponent } from '../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
+import { StoreAdjustmentsTabComponent } from './store-adjustments-tab.component';
 import type {
 	StoreSaleLineDto,
 	StoreSwapOptionDto,
@@ -20,7 +21,7 @@ import type {
 @Component({
 	selector: 'app-store-sales-tab',
 	standalone: true,
-	imports: [CommonModule, FormsModule, TsicDialogComponent],
+	imports: [CommonModule, FormsModule, TsicDialogComponent, StoreAdjustmentsTabComponent],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './store-sales-tab.component.html',
 	styleUrl: './store-sales-tab.component.scss',
@@ -33,6 +34,12 @@ export class StoreSalesTabComponent {
 	readonly isSaving = signal(false);
 	readonly errorMessage = signal<string | null>(null);
 	readonly lines = signal<StoreSaleLineDto[]>([]);
+
+	/**
+	 * Which of legacy's "Sales Tables" screens is on show. Refunds are a row command here rather
+	 * than a third screen, so the group is these two.
+	 */
+	readonly view = signal<'sales' | 'adjustments'>('sales');
 
 	/** Legacy's StoreSalesWalkup screen, as a filter. */
 	readonly walkUpOnly = signal(false);

@@ -10,6 +10,13 @@ public interface IStoreAdminService
     // ── Analytics ──
 
     Task<List<StoreSalesPivotDto>> GetSalesPivotAsync(Guid jobId);
+
+    /// <summary>
+    /// Every checkout auto-trim recorded for the job, newest first (legacy
+    /// StoreCartQuantityAdjustments/Index).
+    /// </summary>
+    Task<List<StoreQuantityAdjustmentDto>> GetQuantityAdjustmentsAsync(
+        Guid jobId, CancellationToken ct = default);
     Task<List<StoreSalesByItemDto>> GetSalesByItemAsync(Guid jobId);
     Task<List<StorePaymentDetailDto>> GetPaymentDetailsAsync(Guid jobId, bool walkUpOnly);
     Task<List<StoreFamilyPurchaseDto>> GetFamilyPurchasesAsync(Guid jobId);

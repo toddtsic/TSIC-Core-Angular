@@ -46,6 +46,8 @@ import type {
 	StoreCampaignSetupDto,
 	StoreCampaignSendRequest,
 	StoreCampaignSendResponse,
+	StoreCheckoutPrepareDto,
+	StoreQuantityAdjustmentDto,
 	StoreAdminRosterRowDto,
 	StoreAdminAddRequest,
 	StoreAdminUpdateRequest,
@@ -358,6 +360,17 @@ export class StoreService {
 		return this.http.get<SkuAvailabilityDto[]>(`${this.base}/skus/availability?skuIds=${ids}`);
 	}
 
+	/**
+	 * Loads the cart for the checkout page. A POST, not a GET, because it also trims any line
+	 * whose stock has gone since it was added — legacy's Checkout GET did the same before
+	 * rendering. The trimmed cart replaces the cached one so the page and the badge agree.
+	 */
+	prepareCheckout(): Observable<StoreCheckoutPrepareDto> {
+		return this.http.post<StoreCheckoutPrepareDto>(`${this.base}/checkout/prepare`, {}).pipe(
+			tap(result => this.cart.set(result.cart))
+		);
+	}
+
 	checkout(request: StoreCheckoutRequest): Observable<StoreCheckoutResultDto> {
 		return this.http.post<StoreCheckoutResultDto>(`${this.base}/checkout`, request).pipe(
 			tap(result => {
@@ -395,6 +408,12 @@ export class StoreService {
 
 	getSalesPivot(): Observable<StoreSalesPivotDto[]> {
 		return this.http.get<StoreSalesPivotDto[]>(`${this.base}/analytics/sales-pivot`);
+	}
+
+	/** Every checkout auto-trim recorded for this job, newest first. */
+	getQuantityAdjustments(): Observable<StoreQuantityAdjustmentDto[]> {
+		return this.http.get<StoreQuantityAdjustmentDto[]>(
+			`${this.base}/analytics/quantity-adjustments`);
 	}
 
 	getSalesByItem(): Observable<StoreSalesByItemDto[]> {

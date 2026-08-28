@@ -1,0 +1,90 @@
+<div class="tab-toolbar">
+	<div class="tab-toolbar-meta">
+		<span class="meta-count">{{ visibleRows().length }}</span>
+		<span>{{ visibleRows().length === 1 ? 'adjustment' : 'adjustments' }}</span>
+		<span class="meta-divider" aria-hidden="true"></span>
+		<span class="meta-count">{{ totalUnitsLost() }}</span>
+		<span>{{ totalUnitsLost() === 1 ? 'unit not filled' : 'units not filled' }}</span>
+	</div>
+	<div class="tab-toolbar-actions">
+		<input
+			type="search"
+			class="form-control form-control-sm adjustments-search"
+			placeholder="Filter by item, buyer, email..."
+			[ngModel]="search()"
+			(ngModelChange)="search.set($event)"
+			aria-label="Filter adjustments" />
+		<button class="btn btn-outline-secondary btn-sm" (click)="load()" [disabled]="isLoading()">
+			<i class="bi bi-arrow-clockwise me-1"></i>Refresh
+		</button>
+	</div>
+</div>
+
+@if (errorMessage(); as message) {
+	<div class="alert alert-danger d-flex align-items-center" role="alert">
+		<i class="bi bi-exclamation-triangle-fill me-2"></i>
+		{{ message }}
+	</div>
+}
+
+@if (isLoading()) {
+	<div class="text-center py-5">
+		<div class="spinner-border text-primary" role="status">
+			<span class="visually-hidden">Loading...</span>
+		</div>
+		<p class="mt-2 text-body-secondary">Loading adjustments...</p>
+	</div>
+} @else if (visibleRows().length === 0) {
+	<div class="empty-state">
+		<span class="empty-state-icon"><i class="bi bi-clipboard-check"></i></span>
+		<div class="empty-state-title">
+			{{ rows().length === 0 ? 'No carts have been trimmed' : 'Nothing matches that filter' }}
+		</div>
+		<p class="empty-state-desc">
+			A row appears here when a shopper reaches checkout and an item they added has sold out
+			in the meantime. Their cart is reduced automatically and the change is logged, so an
+			empty list is good news.
+		</p>
+	</div>
+} @else {
+	<div class="store-table-wrap">
+		<table class="store-table">
+			<thead>
+				<tr>
+					<th scope="col" class="text-end">Adj Qty</th>
+					<th scope="col">SKU</th>
+					<th scope="col" class="text-end">From</th>
+					<th scope="col" class="text-end">To</th>
+					<th scope="col">Login</th>
+					<th scope="col">Parent</th>
+					<th scope="col">Email</th>
+					<th scope="col">When</th>
+				</tr>
+			</thead>
+			<tbody>
+				@for (row of visibleRows(); track row.storeCartBatchSkuQuantityAdjustmentsId) {
+					<tr>
+						<td class="text-end num">
+							<span class="adj-badge" [class.is-removed]="row.toQuantity === 0">
+								&minus;{{ row.adjQuantity }}
+							</span>
+						</td>
+						<td>{{ row.skuLabel }}</td>
+						<td class="text-end num">{{ row.fromQuantity }}</td>
+						<td class="text-end num">{{ row.toQuantity }}</td>
+						<td class="cell-mono">{{ row.familyUserName }}</td>
+						<td>{{ parentName(row) || '—' }}</td>
+						<td>
+							@if (row.email) {
+								<a [href]="'mailto:' + row.email">{{ row.email }}</a>
+							} @else {
+								<span class="text-body-secondary">&mdash;</span>
+							}
+						</td>
+						<td class="num">{{ row.whenChanged | date: 'MM/dd/yyyy h:mm a' }}</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	</div>
+}

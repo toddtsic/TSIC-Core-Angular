@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos.Store;
 using TSIC.Contracts.Repositories;
+using TSIC.Contracts.Store;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
@@ -97,13 +98,7 @@ public class StoreAnalyticsRepository : IStoreAnalyticsRepository
             .Select(r => new StoreSalesPivotDto
             {
                 ItemName = r.ItemName,
-                // Legacy concatenated the three parts with ':' unconditionally. In SQL that makes
-                // the WHOLE label NULL for a sku with no colour or size, which the pivot would
-                // then render as a blank row header. Joining the non-blank parts is the same
-                // string for every sku that has both — which is all of them today — and degrades
-                // to "Item:Size" instead of nothing when one is missing.
-                SkuLabel = string.Join(":", new[] { r.ItemName, r.SizeName, r.ColorName }
-                    .Where(p => !string.IsNullOrWhiteSpace(p))),
+                SkuLabel = StoreSkuLabel.Build(r.ItemName, r.SizeName, r.ColorName),
                 Month = r.Month,
                 Year = r.Year,
                 UnitsSold = r.UnitsSold,
@@ -350,9 +345,51 @@ public class StoreAnalyticsRepository : IStoreAnalyticsRepository
         _context.StoreCartBatchSkuRestocks.Add(restock);
     }
 
-    public void AddQuantityAdjustment(StoreCartBatchSkuQuantityAdjustments adjustment)
+    /// <summary>
+    /// Legacy StoreCartQuantityAdjustmentsController.GetListReportData, with two corrections.
+    /// The SKU label goes through <see cref="StoreSkuLabel"/> instead of an unconditional ':'
+    /// concat, which in SQL nulls the whole label when a SKU has no size or colour. And the
+    /// parent name comes from <c>Families</c> as legacy's did, while the address is the family
+    /// LOGIN's — legacy named that column MomEmail but read <c>FamilyUser.Email</c>.
+    /// </summary>
+    public async Task<List<StoreQuantityAdjustmentDto>> GetQuantityAdjustmentsAsync(
+        Guid jobId, CancellationToken cancellationToken = default)
     {
-        _context.StoreCartBatchSkuQuantityAdjustments.Add(adjustment);
+        var rows = await _context.StoreCartBatchSkuQuantityAdjustments
+            .AsNoTracking()
+            .Where(qa => qa.StoreCart.Store.JobId == jobId)
+            .OrderByDescending(qa => qa.Modified)
+            .Select(qa => new
+            {
+                qa.StoreCartBatchSkuQuantityAdjustmentsId,
+                qa.FromQuantity,
+                qa.ToQuantity,
+                qa.Modified,
+                FamilyUserName = qa.StoreCart.FamilyUser.UserName,
+                Email = qa.StoreCart.FamilyUser.Email,
+                ParentFirstName = qa.StoreCart.FamilyUser.FamiliesFamilyUser != null
+                    ? qa.StoreCart.FamilyUser.FamiliesFamilyUser.MomFirstName : null,
+                ParentLastName = qa.StoreCart.FamilyUser.FamiliesFamilyUser != null
+                    ? qa.StoreCart.FamilyUser.FamiliesFamilyUser.MomLastName : null,
+                ItemName = qa.StoreSku.StoreItem.StoreItemName,
+                SizeName = qa.StoreSku.StoreSize != null ? qa.StoreSku.StoreSize.StoreSizeName : null,
+                ColorName = qa.StoreSku.StoreColor != null ? qa.StoreSku.StoreColor.StoreColorName : null
+            })
+            .ToListAsync(cancellationToken);
+
+        return rows.Select(r => new StoreQuantityAdjustmentDto
+        {
+            StoreCartBatchSkuQuantityAdjustmentsId = r.StoreCartBatchSkuQuantityAdjustmentsId,
+            AdjQuantity = r.FromQuantity - r.ToQuantity,
+            SkuLabel = StoreSkuLabel.Build(r.ItemName, r.SizeName, r.ColorName),
+            FromQuantity = r.FromQuantity,
+            ToQuantity = r.ToQuantity,
+            FamilyUserName = r.FamilyUserName ?? "",
+            ParentFirstName = r.ParentFirstName,
+            ParentLastName = r.ParentLastName,
+            Email = r.Email ?? "",
+            WhenChanged = r.Modified
+        }).ToList();
     }
 
     // ── Pickup ──
@@ -458,7 +495,7 @@ public class StoreAnalyticsRepository : IStoreAnalyticsRepository
         Active = r.Active,
         FamilyUserName = r.FamilyUserName,
         ItemName = r.ItemName,
-        SkuLabel = $"{r.ItemName}:{r.SizeName}:{r.ColorName}".Replace("::", ":").Trim(':'),
+        SkuLabel = StoreSkuLabel.Build(r.ItemName, r.SizeName, r.ColorName),
         // Units still with the customer, matching legacy's SkuQuantity.
         Quantity = r.Quantity - r.Restocked,
         UnitPrice = r.UnitPrice,

@@ -6,7 +6,7 @@ import { StoreService } from '../../../infrastructure/services/store.service';
 import { ToastService } from '../../../shared-ui/toast.service';
 import { CreditCardFormComponent } from '@views/registration/shared/components/credit-card-form.component';
 import { sanitizeExpiry, sanitizePhone } from '@views/registration/shared/services/credit-card-utils';
-import type { StoreCheckoutResultDto } from '@core/api';
+import type { StoreCheckoutResultDto, StoreCartTrimAdjustmentDto } from '@core/api';
 import type { CreditCardFormValue } from '@views/registration/shared/types/wizard.types';
 
 @Component({
@@ -57,9 +57,20 @@ export class StoreCheckoutComponent {
 		return this.ccPaymentMethodId() !== '' && this.lineItems().length > 0 && this.ccValid();
 	});
 
+	/**
+	 * Lines the server trimmed on the way in — a SKU sold out while this cart sat open. Legacy
+	 * showed a bare "Your Cart Has Been Updated" warning and left the shopper to work out what
+	 * changed; this names the items.
+	 */
+	readonly trimmedLines = signal<StoreCartTrimAdjustmentDto[]>([]);
+
 	constructor() {
-		this.store.loadCart().subscribe({
-			next: () => {
+		// prepareCheckout, not loadCart: entering checkout re-checks availability and reduces
+		// anything no longer in stock, which is what legacy's Checkout GET did before rendering.
+		// Doing it here means the shopper always reviews a cart that can actually be filled.
+		this.store.prepareCheckout().subscribe({
+			next: prepared => {
+				this.trimmedLines.set(prepared.adjustments);
 				this.store.getPaymentMethods().subscribe({
 					next: methods => {
 						const cc = methods.find(m => m.paymentMethod.toLowerCase().includes('credit'));
@@ -114,10 +125,28 @@ export class StoreCheckoutComponent {
 					this.confirmation.set(result);
 					this.isSubmitting.set(false);
 					this.toast.show('Order placed successfully!', 'success');
-				} else {
-					this.errorMessage.set(result.message || 'Payment failed. Please try again.');
-					this.isSubmitting.set(false);
+					return;
 				}
+
+				// Someone else bought the last one between loading this page and pressing pay.
+				// Nothing was charged; the server has already trimmed the cart. Re-read it so the
+				// totals on screen are the ones they would actually be paying.
+				if (result.errorCode === 'CART_AUTO_UPDATED') {
+					this.store.prepareCheckout().subscribe({
+						next: prepared => {
+							this.trimmedLines.set(prepared.adjustments);
+							this.isSubmitting.set(false);
+						},
+						error: () => {
+							this.errorMessage.set(result.message ?? 'Your cart has been updated.');
+							this.isSubmitting.set(false);
+						},
+					});
+					return;
+				}
+
+				this.errorMessage.set(result.message || 'Payment failed. Please try again.');
+				this.isSubmitting.set(false);
 			},
 			error: err => {
 				this.errorMessage.set(err?.error?.message || 'Checkout failed. Please try again.');

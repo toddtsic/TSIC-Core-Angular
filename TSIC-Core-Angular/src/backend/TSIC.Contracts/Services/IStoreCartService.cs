@@ -42,6 +42,13 @@ public interface IStoreCartService
     /// <summary>
     /// Validate cart, recalculate totals, record payment, mark items paid.
     /// </summary>
+    /// <summary>
+    /// Load the cart for the checkout page, first trimming any line whose stock has gone since it
+    /// was added (legacy StoreFamilyController.Checkout GET). Returns what changed so the page can
+    /// say so before the shopper pays.
+    /// </summary>
+    Task<StoreCheckoutPrepareDto> PrepareCheckoutAsync(Guid jobId, string familyUserId, string userId);
+
     Task<StoreCheckoutResultDto> CheckoutAsync(Guid jobId, string familyUserId, string userId,
         StoreCheckoutRequest request);
 }
