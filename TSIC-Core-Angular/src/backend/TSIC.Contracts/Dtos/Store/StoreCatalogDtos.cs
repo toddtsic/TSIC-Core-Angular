@@ -73,6 +73,19 @@ public record StoreItemSummaryDto
     /// Set when ActiveSkuCount == 1, enabling quick-add without expanding the picker.
     /// </summary>
     public int? SingleSkuId { get; init; }
+
+    /// <summary>
+    /// Legacy `listSoldOutOrInactiveSkus` — the SKU labels a shopper cannot buy, either because
+    /// availability has reached zero or because the SKU is inactive.
+    ///
+    /// <para>
+    /// Legacy shows the item regardless and NAMES these variants, rather than hiding the product.
+    /// Availability here is `MaxCanSell - Sold` on the legacy basis: in-cart units are NOT
+    /// deducted (see GetSkuAvailableCountBySoldAndBuffer), so another family holding the last one
+    /// in an unpaid cart does not make it read as sold out.
+    /// </para>
+    /// </summary>
+    public required List<string> SoldOutOrInactiveSkuLabels { get; init; }
 }
 
 /// <summary>
@@ -93,19 +106,31 @@ public record StoreItemDto
 }
 
 /// <summary>
-/// Create a new store item with optional size/color matrix.
-/// If both ColorIds and SizeIds are provided, SKUs are generated as the cross-product.
-/// If one list is empty, SKUs are generated per the other dimension.
-/// If both are empty, a single default SKU is created.
+/// Create a new store item. Mirrors legacy CreateNewStoreItemDto
+/// (StoreItemsController.CreateNewStoreItem).
+///
+/// Sizes and colours arrive as free text, semicolon-delimited, and are resolved by NAME against
+/// the GLOBAL StoreSizes / StoreColors tables — those are a shared dictionary with no store or
+/// job scoping. A name that does not exist yet is created.
+///
+/// SKU matrix: both dimensions → cross-product; one dimension → SKUs on that dimension only;
+/// neither → a single default SKU with both null.
+///
+/// There is deliberately no MaxCanSell here — legacy has no stock field at creation; stock is
+/// set afterwards on the Skus screen. StoreItemComments is accepted because legacy's DTO carries
+/// it, but the create modal does not collect it, so in practice it arrives null.
 /// </summary>
 public record CreateStoreItemRequest
 {
     public required string StoreItemName { get; init; }
     public string? StoreItemComments { get; init; }
     public required decimal StoreItemPrice { get; init; }
-    public required List<int> ColorIds { get; init; }
-    public required List<int> SizeIds { get; init; }
-    public required int MaxCanSell { get; init; }
+
+    /// <summary>Semicolon-delimited size names, e.g. "Adult Small;Adult Medium;Adult Large".</summary>
+    public string? ItemSizes { get; init; }
+
+    /// <summary>Semicolon-delimited colour names, e.g. "White;GrayS".</summary>
+    public string? ItemColors { get; init; }
 }
 
 public record UpdateStoreItemRequest
@@ -115,6 +140,49 @@ public record UpdateStoreItemRequest
     public required decimal StoreItemPrice { get; init; }
     public required bool Active { get; init; }
     public required int SortOrder { get; init; }
+}
+
+// ── Images ──
+
+/// <summary>Id + name of one store item, for surfaces that only need to label a row.</summary>
+public record StoreItemKeyDto
+{
+    public required int StoreItemId { get; init; }
+    public required string StoreItemName { get; init; }
+}
+
+/// <summary>
+/// One row of the legacy store-images grid (StoreImagesController.Index /
+/// IStoreService.GetJobItemsPictures): one image file belonging to one item.
+///
+/// <para>
+/// Legacy lists EVERY item in the job. An item with no file on disk still gets a row, carrying
+/// the missing-image.jpg placeholder — that is how a director sees at a glance which products
+/// have no photo. Those rows have <see cref="IsPlaceholder"/> true and cannot be deleted.
+/// </para>
+/// </summary>
+public record StoreItemImageDto
+{
+    public required int StoreItemId { get; init; }
+    public required string StoreItemName { get; init; }
+
+    /// <summary>
+    /// The trailing number in the legacy filename {storeId}-{storeItemId}-{instance}.jpg.
+    /// Instances are contiguous from 1 and are renumbered when one is deleted, so this is a
+    /// position, not a stable id. Zero on a placeholder row.
+    /// </summary>
+    public required int Instance { get; init; }
+
+    public required string FileName { get; init; }
+
+    /// <summary>
+    /// Absolute statics URL, with a cache-busting query so a replaced image is picked up
+    /// immediately rather than served from the browser cache (legacy AddCacheBuster).
+    /// </summary>
+    public required string ImageUrl { get; init; }
+
+    /// <summary>True for the missing-image.jpg stand-in shown when an item has no photo.</summary>
+    public required bool IsPlaceholder { get; init; }
 }
 
 // ── SKUs ──
@@ -135,6 +203,24 @@ public record StoreSkuDto
     public required int SoldCount { get; init; }
     public required int InCartCount { get; init; }
     public required int AvailableCount { get; init; }
+
+    /// <summary>
+    /// Legacy `SkuLabel` — "Item:Size:Color", with "::" collapsed and stray colons trimmed when a
+    /// dimension is null. Built server-side so every surface shows the same string.
+    /// </summary>
+    public required string SkuLabel { get; init; }
+
+    /// <summary>
+    /// Legacy `PickedUp` (CartBatchSkuItemsSignedFor): paid units on a batch with a
+    /// SignedForDate, net of restocks. What has physically left the table.
+    /// </summary>
+    public required int PickedUpCount { get; init; }
+
+    /// <summary>
+    /// Legacy `UnSold` = MaxCanSell − Sold. Deliberately does NOT deduct in-cart units, so it is
+    /// stock-on-hand for a director, not the shopper-facing availability figure.
+    /// </summary>
+    public required int UnSoldCount { get; init; }
 }
 
 public record UpdateStoreSkuRequest

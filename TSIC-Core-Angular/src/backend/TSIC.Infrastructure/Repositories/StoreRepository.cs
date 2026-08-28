@@ -38,7 +38,9 @@ public class StoreRepository : IStoreRepository
             .Select(j => new JobStoreConfig
             {
                 StoreSalesTax = j.StoreSalesTax,
-                ProcessingFeePercent = j.ProcessingFeePercent
+                ProcessingFeePercent = j.ProcessingFeePercent,
+                CustomerAi = j.Customer.CustomerAi,
+                JobAi = j.JobAi
             })
             .AsNoTracking()
             .FirstOrDefaultAsync(cancellationToken);
@@ -63,6 +65,12 @@ public class StoreRepository : IStoreRepository
     {
         return await _context.StoreColors
             .FirstOrDefaultAsync(c => c.StoreColorId == storeColorId, cancellationToken);
+    }
+
+    public async Task<StoreColors?> GetColorByNameAsync(string storeColorName, CancellationToken cancellationToken = default)
+    {
+        return await _context.StoreColors
+            .FirstOrDefaultAsync(c => c.StoreColorName == storeColorName, cancellationToken);
     }
 
     public void AddColor(StoreColors color)
@@ -96,6 +104,12 @@ public class StoreRepository : IStoreRepository
     {
         return await _context.StoreSizes
             .FirstOrDefaultAsync(s => s.StoreSizeId == storeSizeId, cancellationToken);
+    }
+
+    public async Task<StoreSizes?> GetSizeByNameAsync(string storeSizeName, CancellationToken cancellationToken = default)
+    {
+        return await _context.StoreSizes
+            .FirstOrDefaultAsync(s => s.StoreSizeName == storeSizeName, cancellationToken);
     }
 
     public void AddSize(StoreSizes size)

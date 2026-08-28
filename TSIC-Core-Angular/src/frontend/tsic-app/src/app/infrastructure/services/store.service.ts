@@ -1,6 +1,6 @@
 import { inject, Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, tap } from 'rxjs';
+import { Observable, tap, timer, switchMap, takeWhile, last } from 'rxjs';
 import { environment } from '@environments/environment';
 import type {
 	StoreDto,
@@ -35,6 +35,18 @@ import type {
 	StoreWalkUpRegisterRequest,
 	StoreWalkUpRegisterResponse,
 	StoreFamilyPlayerDto,
+	StoreItemImageDto,
+	StoreSaleLineDto,
+	StoreSwapOptionDto,
+	StoreSwapRequest,
+	StoreRefundRequest,
+	StoreRefundResponse,
+	StoreBatchSettledStatusDto,
+	StoreCampaignKind,
+	StoreCampaignSetupDto,
+	StoreCampaignSendRequest,
+	StoreCampaignSendResponse,
+	EmailBatchJobStatus,
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -81,6 +93,153 @@ export class StoreService {
 
 	updateSku(storeSkuId: number, request: UpdateStoreSkuRequest): Observable<StoreSkuDto> {
 		return this.http.put<StoreSkuDto>(`${this.base}/skus/${storeSkuId}`, request);
+	}
+
+	/** Delete one SKU. Refused server-side if it appears in any cart or purchase. */
+	deleteSku(storeSkuId: number): Observable<void> {
+		return this.http.delete<void>(`${this.base}/skus/${storeSkuId}`);
+	}
+
+	/** Delete an item and all of its SKUs. Refused if any SKU has been sold or is in a cart. */
+	deleteItem(storeItemId: number): Observable<void> {
+		return this.http.delete<void>(`${this.base}/items/${storeItemId}`);
+	}
+
+	// ── Sales operations ──
+
+	/**
+	 * Every purchased line. `walkUpOnly` is legacy's separate walk-up sales screen — the same
+	 * grid narrowed to counter sales.
+	 */
+	getSaleLines(walkUpOnly = false): Observable<StoreSaleLineDto[]> {
+		return this.http.get<StoreSaleLineDto[]>(
+			`${this.base}/sales/lines?walkUpOnly=${walkUpOnly}`,
+		);
+	}
+
+	/** Variants this line could be exchanged for — same item, active, in stock. */
+	getSwapOptions(storeCartBatchSkuId: number): Observable<StoreSwapOptionDto[]> {
+		return this.http.get<StoreSwapOptionDto[]>(
+			`${this.base}/sales/lines/${storeCartBatchSkuId}/swap-options`,
+		);
+	}
+
+	/**
+	 * Whether the purchase's card charge has settled. Ask BEFORE opening the refund dialog: an
+	 * unsettled charge can only be voided in full, so offering an amount box would mislead.
+	 */
+	getBatchSettledStatus(storeCartBatchId: number): Observable<StoreBatchSettledStatusDto> {
+		return this.http.get<StoreBatchSettledStatusDto>(
+			`${this.base}/sales/batches/${storeCartBatchId}/settled-status`,
+		);
+	}
+
+	swapCartSku(request: StoreSwapRequest): Observable<void> {
+		return this.http.post<void>(`${this.base}/sales/swap`, request);
+	}
+
+	/**
+	 * Refund a line or void the whole purchase. Resolves with `success: false` for a gateway
+	 * refusal — that is an answer to show the director, not an error to swallow.
+	 */
+	refundSale(request: StoreRefundRequest): Observable<StoreRefundResponse> {
+		return this.http.post<StoreRefundResponse>(`${this.base}/sales/refund`, request);
+	}
+
+	// ── Email campaigns ──
+	// Legacy's three store email screens. One endpoint family, `kind` selects the audience.
+
+	/**
+	 * Opens a campaign: audience size, seeded subject/body, token palette, and — for abandoned
+	 * carts — the cart grid and its age window.
+	 */
+	getCampaignSetup(
+		kind: StoreCampaignKind,
+		minAgeHours?: number,
+		maxAgeHours?: number,
+	): Observable<StoreCampaignSetupDto> {
+		const params = new URLSearchParams();
+		if (minAgeHours != null) params.set('minAgeHours', String(minAgeHours));
+		if (maxAgeHours != null) params.set('maxAgeHours', String(maxAgeHours));
+		const query = params.toString();
+		return this.http.get<StoreCampaignSetupDto>(
+			`${this.base}/campaigns/${kind}${query ? `?${query}` : ''}`,
+		);
+	}
+
+	startCampaign(
+		kind: StoreCampaignKind,
+		request: StoreCampaignSendRequest,
+	): Observable<StoreCampaignSendResponse> {
+		return this.http.post<StoreCampaignSendResponse>(
+			`${this.base}/campaigns/${kind}/send`,
+			request,
+		);
+	}
+
+	getCampaignStatus(batchJobId: string): Observable<EmailBatchJobStatus> {
+		return this.http.get<EmailBatchJobStatus>(`${this.base}/campaigns/status/${batchJobId}`);
+	}
+
+	/**
+	 * Fires the campaign and polls until the background batch drains, emitting the final summary.
+	 * Same shape as the roster and registration-search blasts — sends are never synchronous.
+	 */
+	sendCampaignAndAwait(
+		kind: StoreCampaignKind,
+		request: StoreCampaignSendRequest,
+	): Observable<EmailBatchJobStatus> {
+		return this.startCampaign(kind, request).pipe(
+			switchMap(handle =>
+				timer(0, 1000).pipe(
+					switchMap(() => this.getCampaignStatus(handle.batchJobId)),
+					takeWhile(s => !s.done, true),
+					last(),
+				),
+			),
+		);
+	}
+
+	// ── Images ──
+	// Files on the statics share are the source of truth, as in legacy; the server re-syncs its
+	// index on every call, so a fresh GET after any mutation is always authoritative.
+
+	/**
+	 * Every image in the job's store. Items with no photo come back as one placeholder row
+	 * (`isPlaceholder`), which is how the grid shows what still needs a picture.
+	 */
+	getStoreImages(): Observable<StoreItemImageDto[]> {
+		return this.http.get<StoreItemImageDto[]>(`${this.base}/images`);
+	}
+
+	getItemImages(storeItemId: number): Observable<StoreItemImageDto[]> {
+		return this.http.get<StoreItemImageDto[]>(`${this.base}/items/${storeItemId}/images`);
+	}
+
+	/** Add a photo. Server caps an item at 10, matching legacy. */
+	addItemImage(storeItemId: number, file: File): Observable<StoreItemImageDto> {
+		const form = new FormData();
+		form.append('file', file, file.name);
+		return this.http.post<StoreItemImageDto>(`${this.base}/items/${storeItemId}/images`, form);
+	}
+
+	/** Replace one photo in place, keeping its position in the item's image order. */
+	replaceItemImage(
+		storeItemId: number,
+		instance: number,
+		file: File,
+	): Observable<StoreItemImageDto> {
+		const form = new FormData();
+		form.append('file', file, file.name);
+		return this.http.put<StoreItemImageDto>(
+			`${this.base}/items/${storeItemId}/images/${instance}`,
+			form,
+		);
+	}
+
+	/** Delete a photo. Remaining photos are renumbered server-side, so re-fetch after this. */
+	deleteItemImage(storeItemId: number, instance: number): Observable<void> {
+		return this.http.delete<void>(`${this.base}/items/${storeItemId}/images/${instance}`);
 	}
 
 	// ── Colors ──

@@ -13,3 +13,31 @@ export interface HelpContent {
 export interface HelpManifest {
   readonly keys: readonly string[];
 }
+
+/** One indexed help page, as emitted by scripts/gen-help-manifest.mjs into public/help/search-index.json. */
+export interface HelpSearchDoc {
+  readonly key: string;
+  readonly component: string;
+  readonly topic: string;
+  readonly title: string;
+  /** Section headings plus every FAQ question — the highest-signal text on the page. */
+  readonly headings: readonly string[];
+  readonly text: string;
+}
+
+export interface HelpSearchIndex {
+  readonly docs: readonly HelpSearchDoc[];
+}
+
+/** A scored match, ready to render: the page, where it matched, and a marked-up excerpt. */
+export interface HelpSearchHit {
+  readonly key: string;
+  readonly component: string;
+  readonly topic: string;
+  readonly title: string;
+  /** The heading (often an FAQ question) that matched, when one did — else null. */
+  readonly heading: string | null;
+  /** Escaped excerpt with matched terms wrapped in <mark>. Safe for [innerHTML]. */
+  readonly snippet: string;
+  readonly score: number;
+}

@@ -64,7 +64,10 @@ export class StoreCatalogComponent {
 		this.isLoading.set(true);
 		this.store.getItems().subscribe({
 			next: items => {
-				this.items.set(items.filter(i => i.active && i.activeSkuCount > 0));
+				// LEGACY (GetListActiveJobStoreItems): an ACTIVE item with at least one SKU of any
+				// state is listed. A product whose variants are all sold out or deactivated still
+				// appears, with those variants named — it is not hidden from the store.
+				this.items.set(items.filter(i => i.active && i.skuCount > 0));
 				this.isLoading.set(false);
 			},
 			error: err => {

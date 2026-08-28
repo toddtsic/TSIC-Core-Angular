@@ -121,7 +121,7 @@ public sealed class StoreReceiptService : IStoreReceiptService
 				variant,
 				item.Quantity.ToString(),
 				$"${item.UnitPrice:N2}",
-				$"${item.FeeProcessing + item.FeeProduct:N2}",
+				$"${item.FeeProcessing:N2}",
 				$"${item.SalesTax:N2}",
 				$"${item.LineTotal:N2}"
 			);
@@ -182,7 +182,7 @@ public sealed class StoreReceiptService : IStoreReceiptService
 
 		// ── Totals footer ──
 		var subtotal = lineItems.Sum(li => li.UnitPrice * li.Quantity);
-		var totalFees = lineItems.Sum(li => li.FeeProcessing + li.FeeProduct);
+		var totalFees = lineItems.Sum(li => li.FeeProcessing); // FeeProduct IS the subtotal, not a fee
 		var totalTax = lineItems.Sum(li => li.SalesTax);
 
 		float footerY = gridResult.Bounds.Bottom + 20;

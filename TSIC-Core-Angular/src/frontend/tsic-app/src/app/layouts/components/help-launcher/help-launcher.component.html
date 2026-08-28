@@ -27,13 +27,24 @@
 
     <div class="panel-header">
       <div class="header-top-row">
+        <!--
+          Two lines, not one: the overline never changes, so the manual stays the fixed frame while
+          the topic beneath it moves. Without it, jumping to another page swapped the only title on
+          screen and there was nothing left saying where you were.
+        -->
         <h3 class="panel-title">
           <i class="bi bi-life-preserver" aria-hidden="true"></i>
-          <span>{{ pageLabel() || 'Help' }}</span>
+          <span class="panel-title-stack">
+            <span class="panel-overline">Help manual</span>
+            <span class="panel-topic">{{
+              searching() ? 'Search results' : showManual() ? 'All topics' : pageTitle()
+            }}</span>
+          </span>
         </h3>
 
-        <!-- Tab strip: Help + FAQ + Pro Tips, one topic each. Shown only when more than one tab is available. -->
-        @if (visibleTabs().length > 1) {
+        <!-- Tab strip: Help + FAQ + Pro Tips, one topic each. Shown only when more than one tab is
+             available, and hidden while a result list is showing — tabs belong to a page. -->
+        @if (!showManual() && visibleTabs().length > 1) {
           <div class="help-tabs header-wrap-full" role="tablist" aria-label="Help sections">
             @for (tab of visibleTabs(); track tab.topic) {
               <button
@@ -50,7 +61,7 @@
         }
 
         <div class="header-actions">
-          @if (canEdit() && !editing()) {
+          @if (canEdit() && !editing() && !showManual()) {
             <button
               type="button"
               class="help-icon-btn"
@@ -65,10 +76,132 @@
           </button>
         </div>
       </div>
+
+      <!--
+        Search the whole manual. Inside the drawer, never a second icon in the header: the "?"
+        answers "explain THIS screen", this answers "which screen does that?" — one drawer, both
+        jobs. DESKTOP-ONLY via d-none d-md-flex, matching the rest of the header chrome; the mobile
+        drawer is unchanged.
+      -->
+      @if (!editing()) {
+        <div class="help-search-field d-none d-md-flex">
+          <i class="bi bi-search" aria-hidden="true"></i>
+          <input
+            #searchInput
+            type="search"
+            class="help-search-input"
+            placeholder="Search all help…"
+            autocomplete="off"
+            spellcheck="false"
+            role="combobox"
+            aria-controls="help-search-results"
+            [attr.aria-expanded]="searching() && results().length > 0"
+            [value]="query()"
+            (input)="onQuery($any($event.target).value)"
+            (keydown)="onSearchKeydown($event)" />
+          @if (query()) {
+            <button
+              type="button"
+              class="help-search-clear"
+              (click)="clearQuery()"
+              aria-label="Clear search">
+              <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </button>
+          }
+
+          <!--
+            The way into the manual from ANY page. Browsing and searching are one surface, so the
+            control for it lives on the search row rather than appearing only where a page happens
+            to have no help of its own.
+          -->
+          <button
+            type="button"
+            class="help-all-topics"
+            [class.active]="browsing()"
+            [attr.aria-pressed]="browsing()"
+            (click)="showAllTopics()"
+            title="Browse every help topic">
+            <i class="bi bi-list-ul" aria-hidden="true"></i>
+            <span>All topics</span>
+          </button>
+        </div>
+      }
+
+      <!-- A searched-to page is a detour; this is the way back to where the user actually is. -->
+      @if (!showManual() && isSearchedTo() && hasPageHelp()) {
+        <button type="button" class="help-back-link d-none d-md-inline-flex" (click)="backToPage()">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i>
+          <span>Back to help for this page</span>
+        </button>
+      }
     </div>
 
     <div class="panel-body">
-      @if (loading()) {
+      @if (showManual()) {
+        <!--
+          One surface at two zoom levels: the whole manual, or the manual narrowed by a query. The
+          same branch serves a page that has no help and a page that does, so the drawer never
+          behaves like two different screens.
+        -->
+        @if (indexLoading()) {
+          <div class="help-state" aria-live="polite">
+            <div class="spinner-border" role="status">
+              <span class="visually-hidden">Loading…</span>
+            </div>
+          </div>
+        } @else if (!searching()) {
+          <div class="help-browse">
+            @if (allTopics().length) {
+              <p class="help-browse-lead">All help topics</p>
+              @for (topic of allTopics(); track topic.component) {
+                <button
+                  type="button"
+                  class="help-browse-item"
+                  (click)="openPage(topic.component, topic.topic)">
+                  <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+                  <span>{{ topic.title }}</span>
+                </button>
+              }
+            } @else {
+              <p class="help-browse-lead">Search above to find any page in the manual.</p>
+            }
+          </div>
+        } @else {
+        <div id="help-search-results" role="listbox" class="help-results">
+          @if (results().length === 0) {
+            <div class="help-state help-state-empty" aria-live="polite">
+              <i class="bi bi-search" aria-hidden="true"></i>
+              <p class="help-empty-title">Nothing found</p>
+              <p class="help-empty-sub">
+                No help page mentions “{{ query() }}”. Try a different word — the manual uses the
+                names shown on the screens themselves.
+              </p>
+            </div>
+          } @else {
+            @for (hit of results(); track hit.key; let i = $index) {
+              <button
+                type="button"
+                class="help-result"
+                role="option"
+                [class.active]="i === searchActiveIndex()"
+                [attr.aria-selected]="i === searchActiveIndex()"
+                (mouseenter)="searchActiveIndex.set(i)"
+                (click)="chooseResult(hit)">
+                <span class="result-head">
+                  <span class="result-title">{{ hit.title }}</span>
+                  <span class="result-topic">{{ topicLabel(hit.topic) }}</span>
+                </span>
+                @if (hit.heading) {
+                  <span class="result-heading">{{ hit.heading }}</span>
+                }
+                <!-- Escaped in help-search.ranking; the only tags are <mark>. Safe without a bypass. -->
+                <span class="result-snippet" [innerHTML]="hit.snippet"></span>
+              </button>
+            }
+          }
+        </div>
+        }
+      } @else if (loading()) {
         <div class="help-state" aria-live="polite">
           <div class="spinner-border" role="status">
             <span class="visually-hidden">Loading…</span>

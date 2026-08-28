@@ -49,6 +49,16 @@ public interface IStoreCatalogService
     /// </summary>
     Task<StoreSkuDto> UpdateSkuAsync(string userId, int storeSkuId, UpdateStoreSkuRequest request);
 
+    /// <summary>
+    /// Delete a single SKU. Refused when the SKU appears in any cart or purchase.
+    /// </summary>
+    Task DeleteSkuAsync(Guid jobId, int storeSkuId);
+
+    /// <summary>
+    /// Delete an item and all of its SKUs. Refused when any SKU has been sold or is in a cart.
+    /// </summary>
+    Task DeleteItemAsync(Guid jobId, int storeItemId);
+
     // ── Colors ──
 
     Task<List<StoreColorDto>> GetColorsAsync();

@@ -67,6 +67,23 @@ export class ReportingService {
     }
 
     /**
+     * True when a 200 carries an error payload rather than a document.
+     *
+     * The report proxy answers 200 with `text/plain` when the reporting service refuses, and the
+     * Crystal host answers 200 with `text/html` (the Angular app's index.html) whenever that site
+     * is stopped — which is the expected steady state while Crystal is being retired. Neither is a
+     * document, and downloading either hands the user a file that will not open.
+     *
+     * The definition lives here so every report surface can share it. Only the store's Labels
+     * buttons consult it today; the other surfaces still save the proxy's self-describing
+     * `TSIC-Export-Error.txt`, which is readable but not as clear as a message on screen.
+     */
+    isErrorPayload(response: HttpResponse<Blob>): boolean {
+        const contentType = (response.headers.get('Content-Type') ?? '').toLowerCase();
+        return contentType.includes('text/plain') || contentType.includes('text/html');
+    }
+
+    /**
      * Hands the blob to the browser as a download — every type, including PDF.
      * Earlier this method opened PDFs inline via target="_blank", but rapid
      * repeat clicks tripped Chrome's popup blocker (first click had a user

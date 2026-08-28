@@ -30,6 +30,14 @@ public class FileStorageOptions
     public required string HeadshotsPath { get; init; }
 
     /// <summary>
+    /// Physical path to the store item images directory served by statics.teamsportsinfo.com at
+    /// /Store-Sku-Images/. Files follow the legacy convention {storeId}-{storeItemId}-{instance}.jpg,
+    /// which the existing files on statics already use — so the new writer drops into the same
+    /// folder with the same names and nothing needs migrating.
+    /// </summary>
+    public required string StoreImagesPath { get; init; }
+
+    /// <summary>
     /// Where the ADN month-end close artifacts (bundle.zip + ledger.json + meta.json) are persisted so
     /// the sprocs run once per pull, not once per wizard step. A relative value is resolved against the
     /// app's ContentRoot; unset defaults to <c>{ContentRoot}/App_Data/AdnMonthEnd</c>. This location is

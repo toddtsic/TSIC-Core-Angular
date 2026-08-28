@@ -14,5 +14,8 @@ export type StoreSkuDto = {
     soldCount: number;
     inCartCount: number;
     availableCount: number;
+    skuLabel: string;
+    pickedUpCount: number;
+    unSoldCount: number;
 };
 

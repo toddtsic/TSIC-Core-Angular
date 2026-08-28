@@ -27,6 +27,13 @@ public interface IStoreItemRepository
     Task<StoreItems?> GetItemByIdAsync(int storeItemId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Find an item by name within a store. Legacy creates items get-or-create by
+    /// StoreId + StoreItemName (StoreItemsController.GetOrCreateStoreItemAsync), so a
+    /// second create with an existing name adds SKUs rather than a duplicate item.
+    /// </summary>
+    Task<StoreItems?> GetItemByNameAsync(int storeId, string storeItemName, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Add a new item.
     /// </summary>
     void AddItem(StoreItems item);
@@ -65,4 +72,44 @@ public interface IStoreItemRepository
     /// InCart = Active line items in batches that have NO accounting records.
     /// </summary>
     Task<int> GetInCartCountAsync(int storeSkuId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// All SKUs belonging to an item, tracked, for deletion.
+    /// </summary>
+    Task<List<StoreItemSkus>> GetSkusForItemAsync(int storeItemId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// True when any cart line — paid or unpaid — references this SKU. A referenced SKU cannot be
+    /// deleted: the row is part of a purchase record.
+    /// </summary>
+    Task<bool> IsSkuReferencedAsync(int storeSkuId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// True when any cart line references any SKU of this item.
+    /// </summary>
+    Task<bool> IsItemReferencedAsync(int storeItemId, CancellationToken cancellationToken = default);
+
+    void RemoveSku(StoreItemSkus sku);
+
+    void RemoveSkus(IEnumerable<StoreItemSkus> skus);
+
+    void RemoveItem(StoreItems item);
+
+    // ── Images ──
+
+    /// <summary>
+    /// Id + name for every item in a store. The images surface is job-wide and lists every item,
+    /// including ones with no photo, so it needs the full roster of items rather than a page of
+    /// them (legacy IStoreService.GetJobItemsPictures).
+    /// </summary>
+    Task<List<StoreItemKeyDto>> GetItemKeysForStoreAsync(int storeId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Tracked StoreItemImage rows for these items, so the index can be re-synced from disk.
+    /// </summary>
+    Task<List<StoreItemImage>> GetImageRowsForItemsAsync(IEnumerable<int> storeItemIds, CancellationToken cancellationToken = default);
+
+    void AddImageRows(IEnumerable<StoreItemImage> images);
+
+    void RemoveImageRows(IEnumerable<StoreItemImage> images);
 }

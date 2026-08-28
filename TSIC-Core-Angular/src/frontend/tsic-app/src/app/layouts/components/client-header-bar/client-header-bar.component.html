@@ -283,8 +283,11 @@
                     }
                 </button>
 
-                <!-- Context-sensitive help — single "?" for the current route -->
-                <app-help-launcher />
+                <!-- The single help affordance: this page's help, plus search across the whole
+                     manual, in one drawer. alwaysShow because the desktop drawer carries search,
+                     so it always has something to offer even where the route has no help of its
+                     own. The mobile instance above stays gated — no search there. -->
+                <app-help-launcher [alwaysShow]="true" />
 
                 <!-- Switch Role — the same action as the user-menu entry below, surfaced because
                      nobody found it in the dropdown (AR-025). Deliberately DESKTOP-ONLY: it lives

@@ -1,0 +1,110 @@
+@use './store-shared' as *;
+
+// ── Toolbar ──
+
+.tab-toolbar-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-3);
+}
+
+.sales-search {
+	width: 240px;
+	max-width: 40vw;
+}
+
+.meta-divider {
+	width: 1px;
+	height: 0.9em;
+	background: var(--bs-border-color);
+	display: inline-block;
+	align-self: center;
+}
+
+.meta-money {
+	font-weight: 700;
+	color: var(--brand-text);
+	font-variant-numeric: tabular-nums;
+}
+
+.meta-refunded {
+	color: var(--bs-danger);
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+// ── Columns ──
+
+.col-team { min-width: 140px; }
+.col-date { white-space: nowrap; }
+.col-actions { white-space: nowrap; width: 1%; }
+
+.num {
+	font-variant-numeric: tabular-nums;
+}
+
+// ── Cell typography ──
+
+.sale-sku {
+	font-weight: 600;
+	color: var(--brand-text);
+	line-height: 1.25;
+}
+
+.sale-name {
+	font-weight: 600;
+	color: var(--brand-text);
+	line-height: 1.25;
+}
+
+.sale-sub {
+	font-size: var(--font-size-sm);
+	color: var(--bs-secondary-color);
+	line-height: 1.3;
+}
+
+.sale-sub-dim {
+	color: var(--bs-secondary-color);
+	opacity: 0.75;
+}
+
+.amount-refunded {
+	color: var(--bs-danger);
+	font-weight: 600;
+}
+
+.badge-walkup {
+	display: inline-flex;
+	align-items: center;
+	margin-left: var(--space-2);
+	font-size: var(--font-size-xs);
+	font-weight: 600;
+	padding: 0 var(--space-2);
+	border-radius: var(--radius-full);
+	color: var(--bs-primary);
+	background: color-mix(in srgb, var(--bs-primary) 12%, transparent);
+	border: 1px solid color-mix(in srgb, var(--bs-primary) 28%, transparent);
+}
+
+// A fully reversed line stays in the grid — the sale happened. Dimmed via color-mix on the text,
+// never opacity, which would create a stacking context over the row's action buttons.
+.row-reversed {
+	.sale-sku,
+	.sale-name {
+		color: color-mix(in srgb, var(--brand-text) 55%, transparent);
+		text-decoration: line-through;
+	}
+}
+
+.row-actions {
+	display: flex;
+	gap: var(--space-2);
+}
+
+// ── Dialogs ──
+
+.dialog-lede {
+	font-size: var(--font-size-sm);
+	color: var(--bs-secondary-color);
+	margin-bottom: var(--space-3);
+}

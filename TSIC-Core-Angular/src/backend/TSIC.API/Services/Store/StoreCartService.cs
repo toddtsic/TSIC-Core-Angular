@@ -61,7 +61,11 @@ public sealed class StoreCartService : IStoreCartService
         // Validate SKU exists and is active
         var sku = await _itemRepo.GetSkuByIdAsync(request.StoreSkuId)
             ?? throw new InvalidOperationException("SKU not found.");
-        if (!sku.Active)
+        // LEGACY (IStoreService.StoreItemSkuMaxCanSell): stock is
+        //   (s.Active && s.StoreItem.Active) ? s.MaxCanSell : 0
+        // Deactivating the ITEM must zero every SKU under it. Guarding on sku.Active alone let a
+        // stale page or a direct POST keep transacting against a withdrawn item.
+        if (!sku.Active || !sku.StoreItem.Active)
             throw new InvalidOperationException("SKU is not available.");
 
         // Check availability
@@ -139,6 +143,10 @@ public sealed class StoreCartService : IStoreCartService
         // Validate availability for the new quantity
         var sku = await _itemRepo.GetSkuByIdAsync(lineItem.StoreSkuId)
             ?? throw new InvalidOperationException("SKU not found.");
+
+        // Same legacy rule as AddToCartAsync: an inactive SKU *or* inactive parent item = no stock.
+        if (!sku.Active || !sku.StoreItem.Active)
+            throw new InvalidOperationException("SKU is not available.");
 
         var soldCount = await _cartRepo.GetSoldCountForSkuAsync(lineItem.StoreSkuId);
         var inCartCount = await _cartRepo.GetInCartCountForSkuAsync(lineItem.StoreSkuId);
@@ -257,12 +265,28 @@ public sealed class StoreCartService : IStoreCartService
             ?? throw new InvalidOperationException("Job store config not found.");
 
         var lineItems = await _cartRepo.GetBatchLineItemEntitiesAsync(batch.StoreCartBatchId);
+
+        // LEGACY "Fix #1" (StoreFamilyController.Checkout POST): guard the empty cart. Without it
+        // an empty batch yields totalPaid = 0 and we would attempt a $0 charge at Authorize.Net.
+        if (lineItems.Count == 0)
+            throw new InvalidOperationException(
+                "Your cart is empty or has already been processed. "
+                + "Please return to the store to add items.");
+
+        // LEGACY "Fix #6": re-check that the batch still has UNPAID lines immediately before
+        // charging. BatchHasPaymentAsync above looks for an accounting row; this looks at the
+        // lines themselves, which is what a concurrent checkout settles first. Two tabs, two
+        // submits: the second lands here rather than double-charging.
+        if (lineItems.All(li => li.PaidTotal == li.FeeTotal))
+            throw new InvalidOperationException(
+                "Your order has already been processed. Please check your email for confirmation.");
+
         decimal totalPaid = 0m;
 
         foreach (var lineItem in lineItems)
         {
             RecalculateLineItemFees(lineItem, config);
-            var lineTotal = lineItem.UnitPrice * lineItem.Quantity + lineItem.FeeTotal;
+            var lineTotal = lineItem.FeeTotal; // FeeTotal already includes the merchandise subtotal
             lineItem.PaidTotal = lineTotal;
             lineItem.Modified = DateTime.Now;
             lineItem.LebUserId = userId;
@@ -293,7 +317,15 @@ public sealed class StoreCartService : IStoreCartService
             }
 
             var env = _adnApiService.GetADNEnvironment();
-            adnInvoiceNo = $"STORE-{batch.StoreCartBatchId}";
+            // LEGACY FORMAT — LOAD-BEARING FOR TSIC REVENUE (IStoreService.CreateAdnInvoiceNumber):
+            //   {CustomerAi}_{JobAi}_{batchId}_M      "_M" denotes merch, added 12/14/2025
+            // adn.MonthyQBPExport_Automated_Merch selects merch transactions with
+            //   charindex('_M', [Txs].[Invoice Number]) > 0
+            // and bills the customer coalesce(storeTSICRate, 0.10) x SUM(FeeProduct) off them.
+            // The previous "STORE-{id}" form never matched, so every sale settled at ADN, charged
+            // the family correctly, and was silently absent from the monthly remittance export.
+            // Do not change this shape without changing that procedure.
+            adnInvoiceNo = $"{config.CustomerAi}_{config.JobAi}_{batch.StoreCartBatchId}_M";
 
             var chargeResult = _adnApiService.ADN_Charge_Result(new AdnChargeRequest
             {
@@ -417,25 +449,19 @@ public sealed class StoreCartService : IStoreCartService
         return raw;
     }
 
+    /// <summary>
+    /// Delegates to <see cref="StoreLineFeeMath.Recalculate"/> — the single resolver shared with
+    /// the walk-up sale and the admin SKU swap, so no path can price a line differently.
+    /// </summary>
     private static void RecalculateLineItemFees(StoreCartBatchSkus lineItem, JobStoreConfig config)
-    {
-        var subtotal = lineItem.UnitPrice * lineItem.Quantity;
-        // CC processing fee comes from the job's Payment settings (ProcessingFeePercent,
-        // clamped by ProcessingRateMath) — same source as registration fees. Legacy store
-        // paths all used GetPerJobCCProcessingFee; Jobs.StoreTsicrate is TSIC commission
-        // bookkeeping and is never a customer-facing rate.
-        lineItem.FeeProcessing = Math.Round(subtotal * ProcessingRateMath.ToCcMultiplier(config.ProcessingFeePercent), 2, MidpointRounding.AwayFromZero);
-        lineItem.SalesTax = Math.Round(subtotal * config.StoreSalesTax / 100m, 2, MidpointRounding.AwayFromZero);
-        lineItem.FeeProduct = 0m; // No product fee in current implementation
-        lineItem.FeeTotal = lineItem.FeeProcessing + lineItem.SalesTax + lineItem.FeeProduct;
-    }
+        => StoreLineFeeMath.Recalculate(lineItem, config);
 
     private async Task<StoreCartBatchDto> BuildCartBatchDto(int storeCartBatchId)
     {
         var lineItems = await _cartRepo.GetBatchLineItemsAsync(storeCartBatchId);
 
         var subtotal = lineItems.Sum(li => li.UnitPrice * li.Quantity);
-        var totalFees = lineItems.Sum(li => li.FeeProcessing + li.FeeProduct);
+        var totalFees = lineItems.Sum(li => li.FeeProcessing); // FeeProduct IS the subtotal, not a fee
         var totalTax = lineItems.Sum(li => li.SalesTax);
         var grandTotal = subtotal + totalFees + totalTax;
 

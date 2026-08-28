@@ -23,6 +23,10 @@ public class StoreController : ControllerBase
     private readonly IStoreReceiptService _receiptService;
     private readonly IRegistrationAccountingRepository _accountingRepo;
     private readonly IStoreCartRepository _cartRepo;
+    private readonly IStoreImageService _imageService;
+    private readonly IStoreSalesOpsService _salesOpsService;
+    private readonly IStoreCampaignService _campaignService;
+    private readonly IEmailBatchJobRegistry _batchJobs;
 
     public StoreController(
         IStoreCatalogService catalogService,
@@ -32,7 +36,11 @@ public class StoreController : ControllerBase
         IStoreWalkUpService walkUpService,
         IStoreReceiptService receiptService,
         IRegistrationAccountingRepository accountingRepo,
-        IStoreCartRepository cartRepo)
+        IStoreCartRepository cartRepo,
+        IStoreImageService imageService,
+        IStoreSalesOpsService salesOpsService,
+        IStoreCampaignService campaignService,
+        IEmailBatchJobRegistry batchJobs)
     {
         _catalogService = catalogService;
         _cartService = cartService;
@@ -42,6 +50,10 @@ public class StoreController : ControllerBase
         _receiptService = receiptService;
         _accountingRepo = accountingRepo;
         _cartRepo = cartRepo;
+        _imageService = imageService;
+        _salesOpsService = salesOpsService;
+        _campaignService = campaignService;
+        _batchJobs = batchJobs;
     }
 
     // ═══════════════════════════════════════════
@@ -131,6 +143,327 @@ public class StoreController : ControllerBase
         {
             var sku = await _catalogService.UpdateSkuAsync(userId, storeSkuId, request);
             return Ok(sku);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Legacy StoreSkusController.UpdateSku, action "remove" — delete one SKU.
+    /// </summary>
+    [HttpDelete("skus/{storeSkuId:int}")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(204)]
+    public async Task<IActionResult> DeleteSku(int storeSkuId)
+    {
+        var (jobId, _) = await ResolveContext();
+        try
+        {
+            await _catalogService.DeleteSkuAsync(jobId, storeSkuId);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Legacy StoreSkusController.UpdateSku, action "batch" — delete every SKU of the item, then
+    /// the item itself.
+    /// </summary>
+    [HttpDelete("items/{storeItemId:int}")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(204)]
+    public async Task<IActionResult> DeleteItem(int storeItemId)
+    {
+        var (jobId, _) = await ResolveContext();
+        try
+        {
+            await _catalogService.DeleteItemAsync(jobId, storeItemId);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    //  SALES OPERATIONS — Admin
+    //  Legacy StoreSales/Index + StoreSalesWalkup/Index and their row commands.
+    // ═══════════════════════════════════════════
+
+    /// <summary>
+    /// Every purchased line in the store. <paramref name="walkUpOnly"/> is legacy's separate
+    /// StoreSalesWalkup screen — same grid, counter sales only.
+    /// </summary>
+    [HttpGet("sales/lines")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(List<StoreSaleLineDto>), 200)]
+    public async Task<IActionResult> GetSaleLines([FromQuery] bool walkUpOnly, CancellationToken ct)
+    {
+        var (jobId, _) = await ResolveContext();
+        try
+        {
+            return Ok(await _salesOpsService.GetSaleLinesAsync(jobId, walkUpOnly, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>Variants this line could be exchanged for — same item, active, in stock.</summary>
+    [HttpGet("sales/lines/{storeCartBatchSkuId:int}/swap-options")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(List<StoreSwapOptionDto>), 200)]
+    public async Task<IActionResult> GetSwapOptions(int storeCartBatchSkuId, CancellationToken ct)
+    {
+        var (jobId, _) = await ResolveContext();
+        try
+        {
+            return Ok(await _salesOpsService.GetSwapOptionsAsync(jobId, storeCartBatchSkuId, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Whether the purchase's card charge has settled. The admin UI asks BEFORE opening the refund
+    /// dialog, because an unsettled charge can only be voided in full.
+    /// </summary>
+    [HttpGet("sales/batches/{storeCartBatchId:int}/settled-status")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(StoreBatchSettledStatusDto), 200)]
+    public async Task<IActionResult> GetBatchSettledStatus(int storeCartBatchId, CancellationToken ct)
+    {
+        var (jobId, _) = await ResolveContext();
+        try
+        {
+            return Ok(await _salesOpsService.GetBatchSettledStatusAsync(jobId, storeCartBatchId, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>Exchange units of a line for a different size or colour of the same item.</summary>
+    [HttpPost("sales/swap")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(204)]
+    public async Task<IActionResult> SwapCartSku(
+        [FromBody] StoreSwapRequest request, CancellationToken ct)
+    {
+        var (jobId, userId) = await ResolveContext();
+        try
+        {
+            await _salesOpsService.SwapCartSkuAsync(jobId, userId, request, ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Refund a line or void the whole purchase. Returns 200 with Success=false for a gateway
+    /// refusal — a declined refund is an answer the director needs to read, not a 500.
+    /// </summary>
+    [HttpPost("sales/refund")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(StoreRefundResponse), 200)]
+    public async Task<IActionResult> RefundSale(
+        [FromBody] StoreRefundRequest request, CancellationToken ct)
+    {
+        var (jobId, userId) = await ResolveContext();
+        try
+        {
+            return Ok(await _salesOpsService.RefundAsync(jobId, userId, request, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    //  EMAIL CAMPAIGNS — Admin
+    //  Legacy StoreEmailAbandondedCarts / StoreEmailFamiliesThatNeverUsed /
+    //  StoreEmailFamiliesThatOrdered — three near-identical controllers, one code path here.
+    // ═══════════════════════════════════════════
+
+    /// <summary>
+    /// Opens a campaign: audience size, the seeded subject/body, the token palette, and — for
+    /// <c>abandonedCarts</c> — the selectable cart grid and its age window.
+    /// </summary>
+    [HttpGet("campaigns/{kind}")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(StoreCampaignSetupDto), 200)]
+    public async Task<IActionResult> GetCampaignSetup(
+        StoreCampaignKind kind,
+        [FromQuery] int? minAgeHours,
+        [FromQuery] int? maxAgeHours,
+        CancellationToken ct)
+    {
+        var (jobId, _) = await ResolveContext();
+        try
+        {
+            return Ok(await _campaignService.GetSetupAsync(jobId, kind, minAgeHours, maxAgeHours, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Queues the campaign and returns immediately. Poll <c>campaigns/status/{batchJobId}</c> for
+    /// progress; the sender receives a completion receipt when the batch drains.
+    /// </summary>
+    [HttpPost("campaigns/{kind}/send")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(StoreCampaignSendResponse), 200)]
+    public async Task<IActionResult> SendCampaign(
+        StoreCampaignKind kind,
+        [FromBody] StoreCampaignSendRequest request,
+        CancellationToken ct)
+    {
+        var (jobId, userId) = await ResolveContext();
+        try
+        {
+            return Ok(await _campaignService.SendAsync(jobId, userId, kind, request, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>Progress + final summary for a queued campaign.</summary>
+    [HttpGet("campaigns/status/{batchJobId:guid}")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(EmailBatchJobStatus), 200)]
+    public ActionResult<EmailBatchJobStatus> GetCampaignStatus(Guid batchJobId)
+    {
+        var status = _batchJobs.Get(batchJobId);
+        return status == null ? NotFound() : Ok(status);
+    }
+
+    // ═══════════════════════════════════════════
+    //  IMAGES — Admin
+    //  Legacy StoreImagesController. Files on the statics share are the source of truth;
+    //  stores.StoreItemImage is a read index the service re-syncs on every call.
+    // ═══════════════════════════════════════════
+
+    /// <summary>
+    /// Every image in the job's store, one row per file, with a placeholder row for each item
+    /// that has no photo (legacy IStoreService.GetJobItemsPictures).
+    /// </summary>
+    [HttpGet("images")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(List<StoreItemImageDto>), 200)]
+    public async Task<IActionResult> GetStoreImages(CancellationToken ct)
+    {
+        var (jobId, userId) = await ResolveContext();
+        try
+        {
+            return Ok(await _imageService.GetStoreImagesAsync(jobId, userId, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("items/{storeItemId:int}/images")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(List<StoreItemImageDto>), 200)]
+    public async Task<IActionResult> GetItemImages(int storeItemId, CancellationToken ct)
+    {
+        var (jobId, userId) = await ResolveContext();
+        try
+        {
+            return Ok(await _imageService.GetItemImagesAsync(jobId, storeItemId, userId, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Add a photo. Capped at 10 per item, matching legacy MAX_IMAGES_PER_ITEM.
+    /// </summary>
+    [HttpPost("items/{storeItemId:int}/images")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(StoreItemImageDto), 200)]
+    public async Task<IActionResult> AddItemImage(
+        int storeItemId, IFormFile file, CancellationToken ct)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "No file was uploaded." });
+
+        var (jobId, userId) = await ResolveContext();
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var dto = await _imageService.AddItemImageAsync(
+                jobId, storeItemId, stream, file.FileName, userId, ct);
+            return Ok(dto);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Replace one photo in place, keeping its position in the item's image order.
+    /// </summary>
+    [HttpPut("items/{storeItemId:int}/images/{instance:int}")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(StoreItemImageDto), 200)]
+    public async Task<IActionResult> ReplaceItemImage(
+        int storeItemId, int instance, IFormFile file, CancellationToken ct)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "No file was uploaded." });
+
+        var (jobId, userId) = await ResolveContext();
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var dto = await _imageService.ReplaceItemImageAsync(
+                jobId, storeItemId, instance, stream, file.FileName, userId, ct);
+            return Ok(dto);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Delete a photo. Remaining photos are renumbered so instances stay contiguous from 1.
+    /// </summary>
+    [HttpDelete("items/{storeItemId:int}/images/{instance:int}")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(204)]
+    public async Task<IActionResult> DeleteItemImage(
+        int storeItemId, int instance, CancellationToken ct)
+    {
+        var (jobId, userId) = await ResolveContext();
+        try
+        {
+            await _imageService.DeleteItemImageAsync(jobId, storeItemId, instance, userId, ct);
+            return NoContent();
         }
         catch (InvalidOperationException ex)
         {

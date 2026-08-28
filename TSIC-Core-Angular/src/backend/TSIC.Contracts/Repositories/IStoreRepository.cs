@@ -15,6 +15,16 @@ public record JobStoreConfig
     /// ProcessingRateMath.ToCcMultiplier — never divide by 100 directly.
     /// </summary>
     public required decimal? ProcessingFeePercent { get; init; }
+
+    /// <summary>
+    /// Customers.CustomerAi — first segment of the ADN invoice number.
+    /// </summary>
+    public required int CustomerAi { get; init; }
+
+    /// <summary>
+    /// Jobs.JobAi — second segment of the ADN invoice number.
+    /// </summary>
+    public required int JobAi { get; init; }
 }
 
 /// <summary>
@@ -57,6 +67,12 @@ public interface IStoreRepository
     Task<StoreColors?> GetColorByIdAsync(int storeColorId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Find a colour by name. StoreColors is a GLOBAL dictionary - no store or job scoping -
+    /// matching legacy ProcessColorsAsync, which reuses any existing name across all customers.
+    /// </summary>
+    Task<StoreColors?> GetColorByNameAsync(string storeColorName, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Add a new color.
     /// </summary>
     void AddColor(StoreColors color);
@@ -82,6 +98,11 @@ public interface IStoreRepository
     /// Get a single size by ID (tracked for updates).
     /// </summary>
     Task<StoreSizes?> GetSizeByIdAsync(int storeSizeId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Find a size by name. StoreSizes is a GLOBAL dictionary - see GetColorByNameAsync.
+    /// </summary>
+    Task<StoreSizes?> GetSizeByNameAsync(string storeSizeName, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Add a new size.

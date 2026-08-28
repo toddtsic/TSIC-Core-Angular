@@ -6,6 +6,10 @@ import { ToastService } from '../../../shared-ui/toast.service';
 import { TsicDialogComponent } from '../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { ConfirmDialogComponent } from '../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { StoreAnalyticsTabComponent } from './store-analytics-tab.component';
+import { StoreImagesTabComponent } from './store-images-tab.component';
+import { StoreSalesTabComponent } from './store-sales-tab.component';
+import { StoreCampaignsTabComponent } from './store-campaigns-tab.component';
+import { StoreDashboardTabComponent } from './store-dashboard-tab.component';
 import type {
 	StoreItemSummaryDto,
 	StoreItemDto,
@@ -17,12 +21,22 @@ import type {
 	UpdateStoreSkuRequest,
 } from '@core/api';
 
-type TabKey = 'items' | 'colors' | 'sizes' | 'analytics';
+type TabKey = 'items' | 'images' | 'sales' | 'campaigns' | 'dashboard' | 'colors' | 'sizes' | 'analytics';
 
 @Component({
 	selector: 'app-store-admin',
 	standalone: true,
-	imports: [CommonModule, FormsModule, TsicDialogComponent, ConfirmDialogComponent, StoreAnalyticsTabComponent],
+	imports: [
+		CommonModule,
+		FormsModule,
+		TsicDialogComponent,
+		ConfirmDialogComponent,
+		StoreAnalyticsTabComponent,
+		StoreImagesTabComponent,
+		StoreSalesTabComponent,
+		StoreCampaignsTabComponent,
+		StoreDashboardTabComponent,
+	],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './store-admin.component.html',
 	styleUrl: './store-admin.component.scss',
@@ -50,9 +64,16 @@ export class StoreAdminComponent {
 	readonly formItemName = signal('');
 	readonly formItemPrice = signal(0);
 	readonly formItemComments = signal('');
-	readonly formMaxCanSell = signal(100);
-	readonly formSelectedColorIds = signal<number[]>([]);
-	readonly formSelectedSizeIds = signal<number[]>([]);
+	// Legacy (Views/StoreItems/Index.cshtml) collects sizes and colours as free text,
+	// semicolon-delimited, and resolves them BY NAME against the global StoreSizes /
+	// StoreColors dictionary server-side, creating any name that does not exist yet.
+	// There is no MaxCanSell at creation - stock is set afterwards on the SKUs screen.
+	readonly formItemSizes = signal('');
+	readonly formItemColors = signal('');
+	// Edit writes Active + SortOrder ONLY (legacy StoreItemsController.UpdateItem). Name, price
+	// and comments are displayed read-only so the form cannot promise a write the server discards.
+	readonly formItemActive = signal(true);
+	readonly formItemSortOrder = signal(0);
 
 	// ── SKU expansion ──
 	readonly expandedItemId = signal<number | null>(null);
@@ -77,10 +98,35 @@ export class StoreAdminComponent {
 
 	// ── Delete confirmation ──
 	readonly showDeleteConfirm = signal(false);
-	readonly deleteTarget = signal<{ type: 'color' | 'size'; id: number; name: string } | null>(null);
+	readonly deleteTarget =
+		signal<{ type: 'color' | 'size' | 'item' | 'sku'; id: number; name: string } | null>(null);
 
 	// ── Computed ──
 	readonly isEditingItem = computed(() => this.editingItem() !== null);
+
+	/**
+	 * The API returns items in STOREFRONT order (SortOrder, 0 last, then name). Legacy's admin
+	 * grid is sorted alphabetically by Item instead, so the manager list re-sorts by name.
+	 */
+	readonly sortedItems = computed(() =>
+		[...this.items()].sort((a, b) => a.storeItemName.localeCompare(b.storeItemName)));
+
+	/** Mirrors the server-side split: ';' delimited, empties removed, each name trimmed. */
+	private static parseNames(raw: string): string[] {
+		return raw.split(';').map(n => n.trim()).filter(n => n.length > 0);
+	}
+
+	readonly parsedSizeNames = computed(() => StoreAdminComponent.parseNames(this.formItemSizes()));
+	readonly parsedColorNames = computed(() => StoreAdminComponent.parseNames(this.formItemColors()));
+
+	/** SKU count the server will generate: cross-product, or one dimension, or a single default SKU. */
+	readonly projectedSkuCount = computed(() =>
+		(this.parsedSizeNames().length || 1) * (this.parsedColorNames().length || 1));
+
+	/** Legacy submit gate: `if (itemName && itemPrice)` - a zero price is falsy and blocks. */
+	readonly canSaveItem = computed(() =>
+		this.formItemName().trim().length > 0
+		&& (this.isEditingItem() || this.formItemPrice() > 0));
 
 	constructor() {
 		this.loadAll();
@@ -135,9 +181,8 @@ export class StoreAdminComponent {
 		this.formItemName.set('');
 		this.formItemPrice.set(0);
 		this.formItemComments.set('');
-		this.formMaxCanSell.set(100);
-		this.formSelectedColorIds.set([]);
-		this.formSelectedSizeIds.set([]);
+		this.formItemSizes.set('');
+		this.formItemColors.set('');
 		this.showItemModal.set(true);
 	}
 
@@ -146,6 +191,8 @@ export class StoreAdminComponent {
 		this.formItemName.set(item.storeItemName);
 		this.formItemPrice.set(item.storeItemPrice);
 		this.formItemComments.set('');
+		this.formItemActive.set(item.active);
+		this.formItemSortOrder.set(item.sortOrder);
 
 		// Load full detail before showing modal to prevent saving stale/empty comments
 		this.store.getItemDetail(item.storeItemId).subscribe({
@@ -159,35 +206,18 @@ export class StoreAdminComponent {
 		});
 	}
 
-	toggleColorSelection(colorId: number): void {
-		const current = this.formSelectedColorIds();
-		if (current.includes(colorId)) {
-			this.formSelectedColorIds.set(current.filter(id => id !== colorId));
-		} else {
-			this.formSelectedColorIds.set([...current, colorId]);
-		}
-	}
-
-	toggleSizeSelection(sizeId: number): void {
-		const current = this.formSelectedSizeIds();
-		if (current.includes(sizeId)) {
-			this.formSelectedSizeIds.set(current.filter(id => id !== sizeId));
-		} else {
-			this.formSelectedSizeIds.set([...current, sizeId]);
-		}
-	}
-
 	saveItem(): void {
-		if (!this.formItemName().trim()) return;
+		if (!this.canSaveItem()) return;
 		this.isSaving.set(true);
 
 		if (this.editingItem()) {
+			// Only active + sortOrder are honoured server-side; the rest round-trip unchanged.
 			const request: UpdateStoreItemRequest = {
 				storeItemName: this.formItemName().trim(),
 				storeItemPrice: this.formItemPrice(),
 				storeItemComments: this.formItemComments().trim() || null,
-				active: this.editingItem()!.active,
-				sortOrder: this.editingItem()!.sortOrder,
+				active: this.formItemActive(),
+				sortOrder: this.formItemSortOrder(),
 			};
 			this.store.updateItem(this.editingItem()!.storeItemId, request).subscribe({
 				next: () => {
@@ -206,13 +236,14 @@ export class StoreAdminComponent {
 				storeItemName: this.formItemName().trim(),
 				storeItemPrice: this.formItemPrice(),
 				storeItemComments: this.formItemComments().trim() || null,
-				colorIds: this.formSelectedColorIds(),
-				sizeIds: this.formSelectedSizeIds(),
-				maxCanSell: this.formMaxCanSell(),
+				itemSizes: this.formItemSizes().trim() || null,
+				itemColors: this.formItemColors().trim() || null,
 			};
 			this.store.createItem(request).subscribe({
 				next: () => {
-					this.toast.show('Item created with SKU matrix', 'success');
+					// SKUs are created at MaxCanSell = 0 (legacy CreateSku), so the item is not
+					// sellable until stock is set per SKU. Say so, or it looks silently broken.
+					this.toast.show('Item created - now set stock per SKU', 'success');
 					this.showItemModal.set(false);
 					this.isSaving.set(false);
 					this.refreshItems();
@@ -419,28 +450,78 @@ export class StoreAdminComponent {
 	//  DELETE CONFIRMATION
 	// ═══════════════════════════════════════
 
+	/**
+	 * Legacy StoreSkusController.UpdateSku, action "batch": deleting an item removes all of its
+	 * SKUs first, then the item. The server does that in one call.
+	 */
+	confirmDeleteItem(item: StoreItemSummaryDto): void {
+		this.deleteTarget.set({ type: 'item', id: item.storeItemId, name: item.storeItemName });
+		this.showDeleteConfirm.set(true);
+	}
+
+	/** Legacy action "remove": delete a single SKU. */
+	confirmDeleteSku(sku: StoreSkuDto): void {
+		this.deleteTarget.set({ type: 'sku', id: sku.storeSkuId, name: sku.skuLabel });
+		this.showDeleteConfirm.set(true);
+	}
+
+	readonly deleteTargetLabel = computed(() => {
+		switch (this.deleteTarget()?.type) {
+			case 'color': return 'Color';
+			case 'size': return 'Size';
+			case 'item': return 'Item';
+			case 'sku': return 'SKU';
+			default: return '';
+		}
+	});
+
+	/**
+	 * Deleting an item takes every SKU with it, so the warning has to say so — the confirm text
+	 * is the last point at which that is recoverable information.
+	 */
+	readonly deleteTargetWarning = computed(() =>
+		this.deleteTarget()?.type === 'item'
+			? ' Every SKU under it is deleted too.'
+			: '');
+
 	onDeleteConfirmed(): void {
 		const target = this.deleteTarget();
 		if (!target) return;
 
 		this.isSaving.set(true);
-		const delete$ = target.type === 'color'
-			? this.store.deleteColor(target.id)
-			: this.store.deleteSize(target.id);
+		const delete$ =
+			target.type === 'color' ? this.store.deleteColor(target.id)
+			: target.type === 'size' ? this.store.deleteSize(target.id)
+			: target.type === 'item' ? this.store.deleteItem(target.id)
+			: this.store.deleteSku(target.id);
 
 		delete$.subscribe({
 			next: () => {
-				if (target.type === 'color') {
-					this.colors.update(list => list.filter(c => c.storeColorId !== target.id));
-				} else {
-					this.sizes.update(list => list.filter(s => s.storeSizeId !== target.id));
+				switch (target.type) {
+					case 'color':
+						this.colors.update(list => list.filter(c => c.storeColorId !== target.id));
+						break;
+					case 'size':
+						this.sizes.update(list => list.filter(s => s.storeSizeId !== target.id));
+						break;
+					case 'item':
+						this.items.update(list => list.filter(i => i.storeItemId !== target.id));
+						if (this.expandedItemId() === target.id) {
+							this.expandedItemId.set(null);
+						}
+						break;
+					case 'sku':
+						this.expandedSkus.update(list => list.filter(s => s.storeSkuId !== target.id));
+						// SKU counts on the parent row are now stale.
+						this.refreshItems();
+						break;
 				}
-				this.toast.show(`${target.type === 'color' ? 'Color' : 'Size'} deleted`, 'success');
+				this.toast.show(`${this.deleteTargetLabel()} deleted`, 'success');
 				this.showDeleteConfirm.set(false);
 				this.isSaving.set(false);
 			},
 			error: err => {
-				this.toast.show(err?.error?.message || 'Cannot delete — in use by SKUs', 'danger');
+				this.toast.show(err?.error?.message || 'Cannot delete — in use', 'danger');
 				this.showDeleteConfirm.set(false);
 				this.isSaving.set(false);
 			}

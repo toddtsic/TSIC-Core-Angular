@@ -72,7 +72,7 @@ public class StoreCartRepository : IStoreCartRepository
                 FeeProcessing = cbs.FeeProcessing,
                 SalesTax = cbs.SalesTax,
                 FeeTotal = cbs.FeeTotal,
-                LineTotal = cbs.UnitPrice * cbs.Quantity + cbs.FeeTotal,
+                LineTotal = cbs.FeeTotal, // FeeTotal is the line grand total (legacy semantics)
                 DirectToRegId = cbs.DirectToRegId,
                 DirectToPlayerName = cbs.DirectToReg != null && cbs.DirectToReg.User != null
                     ? cbs.DirectToReg.User.FirstName + " " + cbs.DirectToReg.User.LastName

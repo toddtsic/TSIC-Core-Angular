@@ -13,11 +13,23 @@
 	<button class="editor-tab" [class.active]="activeTab() === 'items'" (click)="activeTab.set('items')">
 		<i class="bi bi-box-seam me-1"></i>Items
 	</button>
+	<button class="editor-tab" [class.active]="activeTab() === 'images'" (click)="activeTab.set('images')">
+		<i class="bi bi-image me-1"></i>Photos
+	</button>
+	<button class="editor-tab" [class.active]="activeTab() === 'sales'" (click)="activeTab.set('sales')">
+		<i class="bi bi-receipt me-1"></i>Sales
+	</button>
+	<button class="editor-tab" [class.active]="activeTab() === 'campaigns'" (click)="activeTab.set('campaigns')">
+		<i class="bi bi-envelope me-1"></i>Email
+	</button>
 	<button class="editor-tab" [class.active]="activeTab() === 'colors'" (click)="activeTab.set('colors')">
 		<i class="bi bi-palette me-1"></i>Colors
 	</button>
 	<button class="editor-tab" [class.active]="activeTab() === 'sizes'" (click)="activeTab.set('sizes')">
 		<i class="bi bi-rulers me-1"></i>Sizes
+	</button>
+	<button class="editor-tab" [class.active]="activeTab() === 'dashboard'" (click)="activeTab.set('dashboard')">
+		<i class="bi bi-speedometer2 me-1"></i>Dashboard
 	</button>
 	<button class="editor-tab" [class.active]="activeTab() === 'analytics'" (click)="activeTab.set('analytics')">
 		<i class="bi bi-graph-up me-1"></i>Analytics
@@ -82,7 +94,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					@for (item of items(); track item.storeItemId) {
+					@for (item of sortedItems(); track item.storeItemId) {
 						<tr class="item-row"
 							[class.is-inactive]="!item.active"
 							[class.is-expanded]="expandedItemId() === item.storeItemId">
@@ -147,6 +159,11 @@
 											title="Edit item" aria-label="Edit item">
 										<i class="bi bi-pencil"></i>
 									</button>
+									<button class="action-btn action-btn-danger" (click)="confirmDeleteItem(item)"
+										title="Delete item and all its SKUs"
+										[attr.aria-label]="'Delete ' + item.storeItemName">
+										<i class="bi bi-trash"></i>
+									</button>
 								</div>
 							</td>
 						</tr>
@@ -182,7 +199,9 @@
 													<tr>
 														<th>Variant</th>
 														<th class="text-center">Max</th>
-														<th class="text-center">Sold</th>
+														<th class="text-center" title="Paid units collected - batch signed for">Picked Up</th>
+														<th class="text-center" title="Paid units, net of restocks">Sold</th>
+														<th class="text-center" title="Max Can Sell minus Sold - stock on hand, ignores carts">Unsold</th>
 														<th class="text-center">In Cart</th>
 														<th class="text-center">Available</th>
 														<th class="text-center">Active</th>
@@ -210,7 +229,9 @@
 																</span>
 															</td>
 															<td class="text-center">{{ sku.maxCanSell }}</td>
+															<td class="text-center">{{ sku.pickedUpCount }}</td>
 															<td class="text-center">{{ sku.soldCount }}</td>
+															<td class="text-center">{{ sku.unSoldCount }}</td>
 															<td class="text-center">{{ sku.inCartCount }}</td>
 															<td class="text-center">
 																<span class="stock-cell"
@@ -236,6 +257,11 @@
 																			title="Edit SKU" aria-label="Edit SKU">
 																		<i class="bi bi-pencil"></i>
 																	</button>
+																			<button class="action-btn action-btn-danger"
+																				(click)="confirmDeleteSku(sku)"
+																				title="Delete SKU" [attr.aria-label]="'Delete ' + sku.skuLabel">
+																				<i class="bi bi-trash"></i>
+																			</button>
 																</div>
 															</td>
 														</tr>
@@ -360,6 +386,34 @@
 }
 
 <!-- ══════════════════════════════════════ -->
+<!-- TAB 5: PHOTOS                          -->
+<!-- ══════════════════════════════════════ -->
+@if (!isLoading() && activeTab() === 'images') {
+	<app-store-images-tab />
+}
+
+<!-- ══════════════════════════════════════ -->
+<!-- TAB 6: SALES OPERATIONS                -->
+<!-- ══════════════════════════════════════ -->
+@if (!isLoading() && activeTab() === 'sales') {
+	<app-store-sales-tab />
+}
+
+<!-- ══════════════════════════════════════ -->
+<!-- TAB 7: EMAIL CAMPAIGNS                 -->
+<!-- ══════════════════════════════════════ -->
+@if (!isLoading() && activeTab() === 'campaigns') {
+	<app-store-campaigns-tab />
+}
+
+<!-- ══════════════════════════════════════ -->
+<!-- TAB 8: DASHBOARD                       -->
+<!-- ══════════════════════════════════════ -->
+@if (!isLoading() && activeTab() === 'dashboard') {
+	<app-store-dashboard-tab />
+}
+
+<!-- ══════════════════════════════════════ -->
 <!-- MODALS                                -->
 <!-- ══════════════════════════════════════ -->
 
@@ -375,79 +429,82 @@
 				<div class="mb-3">
 					<label class="form-label fw-medium">Item Name</label>
 					<input type="text" class="form-control" [ngModel]="formItemName()"
-						   (ngModelChange)="formItemName.set($event)" placeholder="e.g. Tournament T-Shirt">
+						   (ngModelChange)="formItemName.set($event)" placeholder="e.g. Tournament T-Shirt"
+						   [readonly]="isEditingItem()">
 				</div>
-				<div class="row mb-3">
-					<div class="col-md-6">
-						<label class="form-label fw-medium">Price</label>
-						<div class="input-group">
-							<span class="input-group-text">$</span>
-							<input type="number" class="form-control" [ngModel]="formItemPrice()"
-								   (ngModelChange)="formItemPrice.set($event)" min="0" step="1">
+				<div class="mb-3">
+					<label class="form-label fw-medium">Item Price</label>
+					<div class="input-group">
+						<span class="input-group-text">$</span>
+						<input type="number" class="form-control" [ngModel]="formItemPrice()"
+							   (ngModelChange)="formItemPrice.set($event)" min="1" max="200" step="0.01"
+							   [readonly]="isEditingItem()">
+					</div>
+				</div>
+
+				@if (isEditingItem()) {
+					<div class="row mb-3">
+						<div class="col-md-6">
+							<label class="form-label fw-medium" for="itemSortOrder">Sort Order</label>
+							<input type="number" id="itemSortOrder" class="form-control"
+								   [ngModel]="formItemSortOrder()"
+								   (ngModelChange)="formItemSortOrder.set($event)" min="0" step="1">
+							<div class="form-text">0 places the item <strong>last</strong> on the storefront.</div>
+						</div>
+						<div class="col-md-6">
+							<label class="form-label fw-medium d-block">Active</label>
+							<div class="form-check form-switch mt-2">
+								<input class="form-check-input" type="checkbox" id="itemActive"
+									   [ngModel]="formItemActive()"
+									   (ngModelChange)="formItemActive.set($event)">
+								<label class="form-check-label" for="itemActive">
+									{{ formItemActive() ? 'Visible in the store' : 'Hidden from the store' }}
+								</label>
+							</div>
 						</div>
 					</div>
-					@if (!isEditingItem()) {
-						<div class="col-md-6">
-							<label class="form-label fw-medium">Max Can Sell (per SKU)</label>
-							<input type="number" class="form-control" [ngModel]="formMaxCanSell()"
-								   (ngModelChange)="formMaxCanSell.set($event)" min="1">
-						</div>
-					}
-				</div>
+				}
 				<div class="mb-3">
 					<label class="form-label fw-medium">Comments</label>
 					<textarea class="form-control" rows="2" [ngModel]="formItemComments()"
 							  (ngModelChange)="formItemComments.set($event)"
-							  placeholder="Optional description or notes"></textarea>
+							  placeholder="Optional description or notes"
+							  [readonly]="isEditingItem()"></textarea>
+					@if (isEditingItem()) {
+						<div class="form-text">
+							Name, price and comments are set at creation and cannot be changed here.
+						</div>
+					}
 				</div>
 
-				<!-- Color/Size selection (only for new items) -->
+				<!-- Sizes/Colors: free text, semicolon-delimited, resolved BY NAME server-side
+					 against the global size/colour dictionary. Names that do not exist are created. -->
 				@if (!isEditingItem()) {
-					<div class="row">
-						<div class="col-md-6 mb-3">
-							<label class="form-label fw-medium">Colors</label>
-							@if (colors().length === 0) {
-								<p class="text-body-secondary small">No colors defined. Go to Colors tab first.</p>
-							} @else {
-								<div class="d-flex flex-wrap gap-2">
-									@for (color of colors(); track color.storeColorId) {
-										<button class="variant-chip"
-												[class.selected]="formSelectedColorIds().includes(color.storeColorId)"
-												(click)="toggleColorSelection(color.storeColorId)">
-											{{ color.storeColorName }}
-										</button>
-									}
-								</div>
-							}
-						</div>
-						<div class="col-md-6 mb-3">
-							<label class="form-label fw-medium">Sizes</label>
-							@if (sizes().length === 0) {
-								<p class="text-body-secondary small">No sizes defined. Go to Sizes tab first.</p>
-							} @else {
-								<div class="d-flex flex-wrap gap-2">
-									@for (size of sizes(); track size.storeSizeId) {
-										<button class="variant-chip"
-												[class.selected]="formSelectedSizeIds().includes(size.storeSizeId)"
-												(click)="toggleSizeSelection(size.storeSizeId)">
-											{{ size.storeSizeName }}
-										</button>
-									}
-								</div>
-							}
-						</div>
+					<div class="mb-3">
+						<label class="form-label fw-medium" for="itemSizes">Item Sizes</label>
+						<input type="text" id="itemSizes" class="form-control" [ngModel]="formItemSizes()"
+							   (ngModelChange)="formItemSizes.set($event)"
+							   placeholder="semi-colon delimited, e.g. Adult Small;Adult Medium;Adult Large">
+					</div>
+					<div class="mb-3">
+						<label class="form-label fw-medium" for="itemColors">Item Colors</label>
+						<input type="text" id="itemColors" class="form-control" [ngModel]="formItemColors()"
+							   (ngModelChange)="formItemColors.set($event)"
+							   placeholder="semi-colon delimited, e.g. White;Gray;Navy">
 					</div>
 					<div class="alert alert-info small mb-0">
 						<i class="bi bi-info-circle me-1"></i>
-						SKU matrix is auto-generated: {{ formSelectedColorIds().length || 1 }} color(s)
-						&times; {{ formSelectedSizeIds().length || 1 }} size(s)
-						= {{ (formSelectedColorIds().length || 1) * (formSelectedSizeIds().length || 1) }} SKU(s)
+						{{ parsedSizeNames().length || 'no' }} size(s) &times;
+						{{ parsedColorNames().length || 'no' }} color(s)
+						= {{ projectedSkuCount() }} SKU(s).
+						Each is created with <strong>zero stock</strong> &mdash; set Max Can Sell per SKU
+						before the item can sell.
 					</div>
 				}
 			</div>
 			<div class="modal-footer">
 				<button class="btn btn-outline-secondary" (click)="showItemModal.set(false)">Cancel</button>
-				<button class="btn btn-primary" [disabled]="isSaving() || !formItemName().trim()" (click)="saveItem()">
+				<button class="btn btn-primary" [disabled]="isSaving() || !canSaveItem()" (click)="saveItem()">
 					{{ isSaving() ? 'Saving...' : (isEditingItem() ? 'Update' : 'Create') }}
 				</button>
 			</div>
@@ -538,8 +595,8 @@
 <!-- Delete Confirmation -->
 @if (showDeleteConfirm()) {
 	<confirm-dialog
-		[title]="'Delete ' + (deleteTarget()?.type === 'color' ? 'Color' : 'Size') + '?'"
-		[message]="'Are you sure you want to delete &quot;' + deleteTarget()?.name + '&quot;? This cannot be undone.'"
+		[title]="'Delete ' + deleteTargetLabel() + '?'"
+		[message]="'Are you sure you want to delete &quot;' + deleteTarget()?.name + '&quot;?' + deleteTargetWarning() + ' This cannot be undone.'"
 		confirmLabel="Delete"
 		cancelLabel="Cancel"
 		confirmVariant="danger"

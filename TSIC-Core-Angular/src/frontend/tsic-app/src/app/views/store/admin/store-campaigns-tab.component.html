@@ -1,0 +1,246 @@
+<!-- ══════════════════════════════════════ -->
+<!-- AUDIENCE SELECTOR                      -->
+<!-- Legacy's three separate store-admin menu items. -->
+<!-- ══════════════════════════════════════ -->
+<div class="audience-picker" role="group" aria-label="Campaign audience">
+	<button type="button" class="audience-btn"
+		[class.active]="kind() === ABANDONED_CARTS"
+		[disabled]="isSending()"
+		(click)="selectKind(ABANDONED_CARTS)">
+		<i class="bi bi-cart-x me-1"></i>Abandoned Carts
+	</button>
+	<button type="button" class="audience-btn"
+		[class.active]="kind() === NEVER_ORDERED"
+		[disabled]="isSending()"
+		(click)="selectKind(NEVER_ORDERED)">
+		<i class="bi bi-person-dash me-1"></i>Never Ordered
+	</button>
+	<button type="button" class="audience-btn"
+		[class.active]="kind() === HAVE_ORDERED"
+		[disabled]="isSending()"
+		(click)="selectKind(HAVE_ORDERED)">
+		<i class="bi bi-bag-check me-1"></i>Have Ordered
+	</button>
+</div>
+
+@if (errorMessage(); as message) {
+	<div class="alert alert-danger" role="alert">
+		<i class="bi bi-exclamation-triangle-fill me-2"></i>{{ message }}
+	</div>
+}
+
+@if (isLoading()) {
+	<div class="text-center py-5">
+		<div class="spinner-border text-primary" role="status">
+			<span class="visually-hidden">Loading...</span>
+		</div>
+		<p class="mt-2 text-body-secondary">Loading campaign...</p>
+	</div>
+} @else if (setup(); as data) {
+
+	<!-- ══════════════════════════════════════ -->
+	<!-- ABANDONED CARTS: age window + grid     -->
+	<!-- ══════════════════════════════════════ -->
+	@if (isAbandoned()) {
+		<div class="tab-toolbar">
+			<div class="age-window">
+				<label class="age-label" for="min-age">Carts abandoned between</label>
+				<select id="min-age" class="form-select form-select-sm age-select"
+					[value]="data.minAgeHours" [disabled]="isSending()"
+					(change)="onMinAgeChange($any($event.target).value)">
+					@for (option of data.minAgeHourOptions; track option) {
+						<option [value]="option">{{ option }}</option>
+					}
+				</select>
+				<span class="age-label">and</span>
+				<select id="max-age" class="form-select form-select-sm age-select"
+					[value]="data.maxAgeHours" [disabled]="isSending()"
+					(change)="onMaxAgeChange($any($event.target).value)">
+					@for (option of data.maxAgeHourOptions; track option) {
+						<option [value]="option">{{ option }}</option>
+					}
+				</select>
+				<span class="age-label">hours ago</span>
+			</div>
+
+			<div class="tab-toolbar-meta">
+				<span class="meta-count">{{ selectedBatchIds().size }}</span>
+				<span>of</span>
+				<span class="meta-count">{{ carts().length }}</span>
+				<span>carts selected</span>
+			</div>
+		</div>
+
+		@if (carts().length === 0) {
+			<div class="empty-state">
+				<span class="empty-state-icon"><i class="bi bi-cart-check"></i></span>
+				<div class="empty-state-title">No abandoned carts in this window</div>
+				<p class="empty-state-desc">
+					Widen the hours above, or check back later. Carts whose every item has sold out
+					are left off this list — there is nothing left to invite the family back for.
+				</p>
+			</div>
+		} @else {
+			<div class="table-responsive store-table-wrap">
+				<table class="table align-middle store-table">
+					<thead>
+						<tr>
+							<th class="col-check">
+								<input type="checkbox" class="form-check-input"
+									[checked]="allSelected()"
+									[disabled]="isSending()"
+									(change)="toggleAll()"
+									aria-label="Select all carts" />
+							</th>
+							<th class="col-expand"></th>
+							<th>Cart Date</th>
+							<th>Family</th>
+							<th class="col-items">Items</th>
+						</tr>
+					</thead>
+					<tbody>
+						@for (cart of carts(); track trackCart($index, cart)) {
+							<tr [class.row-selected]="isSelected(cart.batchId)">
+								<td class="col-check">
+									<input type="checkbox" class="form-check-input"
+										[checked]="isSelected(cart.batchId)"
+										[disabled]="isSending()"
+										(change)="toggleCart(cart.batchId)"
+										[attr.aria-label]="'Include ' + cart.familyUserName" />
+								</td>
+								<td class="col-expand">
+									<button type="button" class="expand-btn"
+										[class.open]="expandedBatchId() === cart.batchId"
+										(click)="toggleExpanded(cart.batchId)"
+										[attr.aria-expanded]="expandedBatchId() === cart.batchId"
+										[attr.aria-label]="'Show items for ' + cart.familyUserName">
+										<i class="bi bi-chevron-right"></i>
+									</button>
+								</td>
+								<td class="col-date">{{ cart.batchDate | date: 'MM/dd/yyyy h:mm a' }}</td>
+								<td class="cart-family">{{ cart.familyUserName }}</td>
+								<td class="col-items">
+									<span class="items-count">{{ cart.skus.length }}</span>
+								</td>
+							</tr>
+
+							<!-- Legacy's detailTemplate: the SKU lines behind the cart. -->
+							@if (expandedBatchId() === cart.batchId) {
+								<tr class="detail-row">
+									<td colspan="5">
+										<ul class="detail-list">
+											@for (sku of cart.skus; track sku) {
+												<li>{{ sku }}</li>
+											}
+										</ul>
+									</td>
+								</tr>
+							}
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+	} @else {
+		<!-- ══════════════════════════════════════ -->
+		<!-- FIXED AUDIENCES: just a headcount      -->
+		<!-- ══════════════════════════════════════ -->
+		<div class="tab-toolbar">
+			<div class="tab-toolbar-meta">
+				<span class="meta-count">{{ data.recipientCount }}</span>
+				<span>{{ audienceLabel() }}</span>
+			</div>
+		</div>
+	}
+
+	<!-- ══════════════════════════════════════ -->
+	<!-- COMPOSE                                -->
+	<!-- ══════════════════════════════════════ -->
+	@if (recipientCount() > 0 || isAbandoned()) {
+		<div class="compose-card">
+			<div class="compose-header">
+				<i class="bi bi-envelope me-2"></i>Compose
+			</div>
+
+			<div class="compose-body">
+				<div class="field-row">
+					<label class="field-label" for="campaign-subject">Subject</label>
+					<input id="campaign-subject" type="text" class="form-control"
+						[ngModel]="subject()" (ngModelChange)="subject.set($event)"
+						[disabled]="isSending()"
+						placeholder="Subject line" />
+				</div>
+
+				<div class="field-row">
+					<span class="field-label">Insert</span>
+					<div class="token-chips">
+						@for (token of tokens(); track token.token) {
+							<button type="button" class="token-chip"
+								[disabled]="isSending()"
+								[title]="token.label"
+								(click)="insertToken(token.token)">
+								{{ token.token }}
+							</button>
+						}
+					</div>
+				</div>
+
+				<div class="field-row field-row-block">
+					<label class="field-label">Message</label>
+					<app-email-body-editor
+						[(body)]="body"
+						[disabled]="isSending()"
+						[height]="320"
+						placeholder="Write your message…" />
+				</div>
+			</div>
+
+			<div class="compose-footer">
+				<div class="send-summary">
+					@if (recipientCount() > 0) {
+						This will email <strong>{{ recipientCount() }}</strong> {{ audienceLabel() }}.
+						Anyone who has unsubscribed is skipped automatically.
+					} @else {
+						Select at least one cart to send.
+					}
+				</div>
+				<button type="button" class="btn btn-primary"
+					[disabled]="!canSend()"
+					(click)="send()">
+					@if (isSending()) {
+						<span class="spinner-border spinner-border-sm me-1"></span>Sending…
+					} @else {
+						<i class="bi bi-send me-1"></i>Send Email
+					}
+				</button>
+			</div>
+		</div>
+	}
+
+	@if (lastResult(); as result) {
+		<div class="result-card" [class.has-failures]="result.failedAddresses.length > 0">
+			<div class="result-header">
+				<i class="bi bi-check2-circle me-2"></i>Last send
+			</div>
+			<dl class="result-grid">
+				<dt>Recipients</dt><dd>{{ result.totalRecipients }}</dd>
+				<dt>Sent</dt><dd>{{ result.sent }}</dd>
+				<dt>Failed</dt><dd>{{ result.failed }}</dd>
+				<dt>Opted out</dt><dd>{{ result.optedOut }}</dd>
+			</dl>
+			@if (result.failedAddresses.length > 0) {
+				<div class="failed-block">
+					<span class="failed-label">Not delivered</span>
+					<div class="failed-list">
+						@for (address of result.failedAddresses; track address) {
+							<span class="failed-chip">{{ address }}</span>
+						}
+					</div>
+				</div>
+			}
+			<p class="result-note">
+				A copy of this summary was emailed to you and to the job's always-copy list.
+			</p>
+		</div>
+	}
+}

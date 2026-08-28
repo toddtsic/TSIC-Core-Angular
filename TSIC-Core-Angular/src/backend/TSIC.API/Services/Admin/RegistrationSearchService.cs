@@ -38,6 +38,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     private readonly IDeviceRepository _deviceRepo;
     private readonly ITeamRepository _teamRepo;
     private readonly IAdnApiService _adnApi;
+    private readonly IAdnReversalService _adnReversal;
     private readonly IArbSubscriptionRepository _arbRepo;
     private readonly ITextSubstitutionService _textSubstitution;
     private readonly IEmailBatchService _emailBatch;
@@ -68,6 +69,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         IDeviceRepository deviceRepo,
         ITeamRepository teamRepo,
         IAdnApiService adnApi,
+        IAdnReversalService adnReversal,
         IArbSubscriptionRepository arbRepo,
         ITextSubstitutionService textSubstitution,
         IEmailBatchService emailBatch,
@@ -89,6 +91,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         _deviceRepo = deviceRepo;
         _teamRepo = teamRepo;
         _adnApi = adnApi;
+        _adnReversal = adnReversal;
         _arbRepo = arbRepo;
         _textSubstitution = textSubstitution;
         _emailBatch = emailBatch;
@@ -604,92 +607,54 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         if (original.Registration == null || original.Registration.JobId != jobId)
             return new RefundResponse { Success = false, Message = "Accounting record does not belong to this job." };
 
-        // Validate it's a CC payment with transaction ID
-        if (string.IsNullOrWhiteSpace(original.AdnTransactionId))
-            return new RefundResponse { Success = false, Message = "No Authorize.Net transaction ID — cannot refund." };
-
-        // Validate refund amount
+        // Missing-transaction and amount validation are enforced by IAdnReversalService, so the
+        // rules cannot say one thing here and another on the team or store path.
         var originalPay = original.Payamt ?? 0;
-        if (request.RefundAmount <= 0 || request.RefundAmount > originalPay)
-            return new RefundResponse { Success = false, Message = $"Refund amount must be between $0.01 and ${originalPay:F2}." };
 
         try
         {
-            // Get ADN credentials from job's customer
-            var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId);
-            var env = _adnApi.GetADNEnvironment();
-
-            // Check original transaction status to determine void vs refund
-            var txDetails = _adnApi.ADN_GetTransactionDetails(env, creds.AdnLoginId!, creds.AdnTransactionKey!, original.AdnTransactionId);
-
-            if (txDetails?.messages?.resultCode != messageTypeEnum.Ok)
-                return new RefundResponse { Success = false, Message = "Could not look up original transaction details." };
-
-            var txStatus = txDetails.transaction?.transactionStatus;
-            string refundTransId;
-            decimal reversedAmount;
-
-            if (txStatus == "capturedPendingSettlement")
+            // Void-vs-refund, amount validation, and gateway wording all live in
+            // IAdnReversalService — the same call the team and store refund paths make.
+            var reversal = await _adnReversal.ReverseAsync(new AdnReversalRequest
             {
-                // VOID the transaction (full amount — ADN voids are always full)
-                var voidResult = _adnApi.ADN_Void_Result(new AdnVoidRequest
-                {
-                    Env = env,
-                    LoginId = creds.AdnLoginId ?? "",
-                    TransactionKey = creds.AdnTransactionKey ?? "",
-                    TransactionId = original.AdnTransactionId
-                });
+                JobId = jobId,
+                AdnTransactionId = original.AdnTransactionId,
+                OriginalPaidAmount = originalPay,
+                RequestedAmount = request.RefundAmount,
+                CardLast4 = original.AdnCc4,
+                CardExpiry = original.AdnCcexpDate,
+                InvoiceNumber = original.AdnInvoiceNo
+            }, ct);
 
-                if (!voidResult.Success)
-                    return new RefundResponse { Success = false, Message = $"CC Void failed: {voidResult.MessageForUser}" };
+            if (!reversal.Success)
+                return new RefundResponse { Success = false, Message = reversal.Message };
 
-                refundTransId = voidResult.TransactionId ?? "";
-                reversedAmount = original.Payamt ?? 0; // void reverses full original amount
-
+            // Book the reversal. ReversedAmount, NOT request.RefundAmount — a void reverses the
+            // full original charge even when a partial refund was asked for.
+            if (reversal.Kind == AdnReversalKind.Void)
+            {
                 // Mark original record as voided. Write the void fact into Comment — the field
                 // the accounting tab actually renders. (Paymeth is NOT shown: the display prefers
                 // the AccountingPaymentMethods lookup name, so anything appended to Paymeth is
                 // invisible.) Make it unmistakably a VOID, not a refund, so admin can tell at a glance.
-                var voidNote = $"VOIDED {DateTime.Now:g} — CC was not yet settled at "
-                    + $"Authorize.Net, so the original ${reversedAmount:F2} charge was VOIDED (not refunded). "
-                    + $"ADN void tx {refundTransId}."
-                    + (string.IsNullOrWhiteSpace(request.Reason) ? "" : $" Reason: {request.Reason}");
-                original.Comment = string.IsNullOrWhiteSpace(original.Comment)
-                    ? voidNote
-                    : $"{original.Comment} | {voidNote}";
+                original.Comment = IAdnReversalService.AppendNote(
+                    original.Comment,
+                    IAdnReversalService.BuildVoidNote(
+                        reversal.ReversedAmount, reversal.TransactionId ?? "", request.Reason));
                 original.Payamt = 0;
             }
-            else if (txStatus == "settledSuccessfully")
+            else
             {
-                // REFUND the transaction (partial or full)
-                var adnResult = _adnApi.ADN_Refund_Result(new AdnRefundRequest
-                {
-                    Env = env,
-                    LoginId = creds.AdnLoginId ?? "",
-                    TransactionKey = creds.AdnTransactionKey ?? "",
-                    CardNumberLast4 = original.AdnCc4 ?? "0000",
-                    Expiry = original.AdnCcexpDate ?? "XXXX",
-                    TransactionId = original.AdnTransactionId,
-                    Amount = request.RefundAmount,
-                    InvoiceNumber = original.AdnInvoiceNo ?? ""
-                });
-
-                if (!adnResult.Success)
-                    return new RefundResponse { Success = false, Message = $"CC Refund failed: {adnResult.MessageForUser}" };
-
-                refundTransId = adnResult.TransactionId ?? "";
-                reversedAmount = request.RefundAmount;
-
                 // Create negative accounting record for the refund
                 _accountingRepo.Add(new RegistrationAccounting
                 {
                     RegistrationId = original.RegistrationId,
                     PaymentMethodId = CcCreditMethodId,
                     Paymeth = "Credit Card Refund",
-                    Payamt = -request.RefundAmount,
+                    Payamt = -reversal.ReversedAmount,
                     Dueamt = 0,
                     Comment = request.Reason ?? "Refund processed",
-                    AdnTransactionId = refundTransId,
+                    AdnTransactionId = reversal.TransactionId,
                     AdnCc4 = original.AdnCc4,
                     AdnCcexpDate = original.AdnCcexpDate,
                     AdnInvoiceNo = original.AdnInvoiceNo,
@@ -699,32 +664,25 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
                     LebUserId = userId
                 });
             }
-            else
-            {
-                return new RefundResponse { Success = false, Message = $"Transaction status '{txStatus}' does not support refund/void." };
-            }
 
             // Update registration financials
             var reg = original.Registration;
-            reg.PaidTotal -= reversedAmount;
+            reg.PaidTotal -= reversal.ReversedAmount;
             reg.RecalcTotals();
             reg.Modified = DateTime.Now;
             reg.LebUserId = userId;
 
             await _accountingRepo.SaveChangesAsync(ct);
 
-            var action = txStatus == "capturedPendingSettlement" ? "voided" : "refunded";
             _logger.LogInformation("Refund/{Action} processed: AId={AId}, Amount={Amount}, TransId={TransId}",
-                action, request.AccountingRecordId, reversedAmount, refundTransId);
+                reversal.Kind, request.AccountingRecordId, reversal.ReversedAmount, reversal.TransactionId);
 
             return new RefundResponse
             {
                 Success = true,
-                Message = txStatus == "capturedPendingSettlement"
-                    ? $"Transaction voided successfully (${reversedAmount:F2})."
-                    : "Refund processed successfully.",
-                TransactionId = refundTransId,
-                RefundedAmount = reversedAmount
+                Message = reversal.Message,
+                TransactionId = reversal.TransactionId,
+                RefundedAmount = reversal.ReversedAmount
             };
         }
         catch (Exception ex)

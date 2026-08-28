@@ -6,8 +6,7 @@ export type CreateStoreItemRequest = {
     storeItemName: string;
     storeItemComments?: string | null;
     storeItemPrice: number;
-    colorIds: Array<number>;
-    sizeIds: Array<number>;
-    maxCanSell: number;
+    itemSizes?: string | null;
+    itemColors?: string | null;
 };
 
