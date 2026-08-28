@@ -25,7 +25,12 @@ public class StoreItemRepository : IStoreItemRepository
     {
         return await _context.StoreItems
             .Where(i => i.StoreId == storeId)
-            .OrderBy(i => i.SortOrder)
+            // LEGACY storefront order (IStoreService:360):
+            //   .OrderBy(item => (item.sortOrder == 0) ? 10000 : item.sortOrder)
+            //   .ThenBy(item => item.storeItemName)
+            // SortOrder 0 means "unranked" and sorts LAST, not first. Plain OrderBy(SortOrder)
+            // put every newly created item at the head of the catalog.
+            .OrderBy(i => i.SortOrder == 0 ? 10000 : i.SortOrder)
             .ThenBy(i => i.StoreItemName)
             .Select(i => new StoreItemSummaryDto
             {
@@ -166,7 +171,12 @@ public class StoreItemRepository : IStoreItemRepository
     public async Task<StoreItemSkus?> GetSkuByIdAsync(
         int storeSkuId, CancellationToken cancellationToken = default)
     {
+        // StoreItem is included because availability depends on the PARENT item's Active flag,
+        // not just the SKU's - legacy StoreItemSkuMaxCanSell returns
+        //   (s.Active && s.StoreItem.Active) ? s.MaxCanSell : 0
+        // so deactivating an item zeroes the stock of every SKU under it.
         return await _context.StoreItemSkus
+            .Include(s => s.StoreItem)
             .FirstOrDefaultAsync(s => s.StoreSkuId == storeSkuId, cancellationToken);
     }
 

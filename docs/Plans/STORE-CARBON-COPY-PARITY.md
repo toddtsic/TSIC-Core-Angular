@@ -51,12 +51,12 @@ CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
 | # | Legacy pathway | Status |
 |---|---|---|
 | A-01 | `Index` — catalog render, active items only | UNVER |
-| A-02 | Catalog order: `SortOrder`, **0 sorts LAST (→10000)**, then `StoreItemName` | GAP |
+| A-02 | Catalog order: `SortOrder`, **0 sorts LAST (→10000)**, then `StoreItemName` | IMPL |
 | A-03 | Per-item image carousel, multiple images, Fade, prev/next templates | UNVER |
 | A-04 | Per-item tabs: Pickup · Return Policy · Contact | GAP |
 | A-05 | `listSoldOutOrInactiveSkus` surfaced per item | UNVER |
-| A-33 | Availability = `MaxCanSell − sold − itemBufferSize`; a per-item **buffer** we do not implement (`IStoreService.cs:1308-1321`) | GAP |
-| A-34 | Availability forced to **0** when the SKU OR its parent item is inactive (`IStoreService.cs:1376`) | UNVER |
+| A-33 | ~~Per-item `itemBufferSize` reserve~~ — **CLOSED, not a gap**: legacy declares `private static readonly int itemBufferSize = 0` (`IStoreService.cs:73`). A dead constant that subtracts nothing. | CLOSED |
+| A-34 | Availability forced to **0** when the SKU OR its parent item is inactive (`IStoreService.cs:1376`) | IMPL |
 | A-06 | DirectTo recipient select (family players) | UNVER |
 | A-07 | Size select, Colour select, Quantity | UNVER |
 | A-08 | Cart badge with item count | UNVER |
@@ -90,9 +90,9 @@ CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
 | # | Legacy pathway | Status |
 |---|---|---|
 | B-01 | `StoreItems/Index` grid — Active · Item · SortOrder | WALKED |
-| B-02 | Item grid sorted alphabetically by Item (not SortOrder) | GAP |
+| B-02 | Item grid sorted alphabetically by Item (not SortOrder) | IMPL |
 | B-03 | `UpdateItem` writes **SortOrder + Active ONLY** | IMPL |
-| B-04 | SortOrder editable in the grid dialog | GAP |
+| B-04 | SortOrder editable in the grid dialog | IMPL |
 | B-05 | `CreateNewStoreItem` modal — **4 fields**: name, price (min 1 / max 200 / c2), sizes, colours | IMPL |
 | B-06 | Sizes/colours split on `;`, `RemoveEmptyEntries`, then `.Trim()` | IMPL |
 | B-07 | SKU matrix size × colour on create, skipping existing combos; SIZE outer / COLOUR inner | IMPL |
@@ -103,7 +103,7 @@ CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
 | B-31 | No sizes and no colours → `CreateDefaultSkuAsync`, one null/null SKU | DONE (already correct) |
 | B-32 | New SKUs born `Active = true, MaxCanSell = 0`; no MaxCanSell field at creation | IMPL |
 | B-33 | `Item Comments` is commented out of the modal; JS sends `null` | DIVERGE (approved) — the DTO already carries `StoreItemComments`, so the field is KEPT on create rather than hidden. Ruling: "if comment is in model/dto already then preserve". |
-| B-34 | New items born `SortOrder = 0` → sort **last** on the storefront (see A-02) | GAP |
+| B-34 | New items born `SortOrder = 0` → sort **last** on the storefront (see A-02) | IMPL |
 | B-35 | Client validation is `if (itemName && itemPrice)` — sizes/colours **not** enforced despite the placeholder | IMPL |
 | B-09 | `StoreSkus/Index` grouped by item, collapsible, "N skus" caption | WALKED |
 | B-10 | SKU columns: Active · Sku · PickedUp · Sold · UnSold · MaxCanSell · Price | WALKED |
@@ -215,13 +215,13 @@ photo requires SQL — strictly worse than legacy. Ship the write pathways in Ph
 | R-02 | Relabel + range-guard the tax field so `6` cannot be entered meaning 6% | OPEN |
 | R-03 | Decide whether `Enable STP` belongs on the new store tab | OPEN |
 | R-04 | Add a Sort Order control to the items editor | OPEN |
-| R-05 | Decide whether post-creation price editing stays (legacy forbids it) | OPEN |
+| R-05 | Post-creation price editing — **RESOLVED: locked, per legacy.** Name/price/comments are read-only on edit; the modal now edits Active + SortOrder, which is all `UpdateItem` writes. | CLOSED |
 | R-06 | Sort the items list by SortOrder, or offer both | OPEN |
 | R-07 | Add `PickedUp` to the SKU panel | OPEN |
 | R-08 | Keep legacy `UnSold` as its own column alongside In Cart | OPEN |
 | R-09 | Preserve legacy's alphabetical size ordering | OPEN |
 | R-10 | Do **NOT** replicate B-29 (`hide.bs.modal` fires the POST, so Cancel and × also create the item). It is a legacy defect, not a feature; our modal submits only from the Create button. | OPEN |
-| R-11 | `itemBufferSize` (A-33) — confirm whether the reserve-stock buffer is still wanted before wiring availability | OPEN |
+| R-11 | ~~itemBufferSize~~ — **WITHDRAWN**, see A-33. | CLOSED |
 
 ## Evidence worth keeping
 

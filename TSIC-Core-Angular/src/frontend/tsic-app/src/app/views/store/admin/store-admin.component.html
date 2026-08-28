@@ -82,7 +82,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					@for (item of items(); track item.storeItemId) {
+					@for (item of sortedItems(); track item.storeItemId) {
 						<tr class="item-row"
 							[class.is-inactive]="!item.active"
 							[class.is-expanded]="expandedItemId() === item.storeItemId">
@@ -375,21 +375,52 @@
 				<div class="mb-3">
 					<label class="form-label fw-medium">Item Name</label>
 					<input type="text" class="form-control" [ngModel]="formItemName()"
-						   (ngModelChange)="formItemName.set($event)" placeholder="e.g. Tournament T-Shirt">
+						   (ngModelChange)="formItemName.set($event)" placeholder="e.g. Tournament T-Shirt"
+						   [readonly]="isEditingItem()">
 				</div>
 				<div class="mb-3">
 					<label class="form-label fw-medium">Item Price</label>
 					<div class="input-group">
 						<span class="input-group-text">$</span>
 						<input type="number" class="form-control" [ngModel]="formItemPrice()"
-							   (ngModelChange)="formItemPrice.set($event)" min="1" max="200" step="0.01">
+							   (ngModelChange)="formItemPrice.set($event)" min="1" max="200" step="0.01"
+							   [readonly]="isEditingItem()">
 					</div>
 				</div>
+
+				@if (isEditingItem()) {
+					<div class="row mb-3">
+						<div class="col-md-6">
+							<label class="form-label fw-medium" for="itemSortOrder">Sort Order</label>
+							<input type="number" id="itemSortOrder" class="form-control"
+								   [ngModel]="formItemSortOrder()"
+								   (ngModelChange)="formItemSortOrder.set($event)" min="0" step="1">
+							<div class="form-text">0 places the item <strong>last</strong> on the storefront.</div>
+						</div>
+						<div class="col-md-6">
+							<label class="form-label fw-medium d-block">Active</label>
+							<div class="form-check form-switch mt-2">
+								<input class="form-check-input" type="checkbox" id="itemActive"
+									   [ngModel]="formItemActive()"
+									   (ngModelChange)="formItemActive.set($event)">
+								<label class="form-check-label" for="itemActive">
+									{{ formItemActive() ? 'Visible in the store' : 'Hidden from the store' }}
+								</label>
+							</div>
+						</div>
+					</div>
+				}
 				<div class="mb-3">
 					<label class="form-label fw-medium">Comments</label>
 					<textarea class="form-control" rows="2" [ngModel]="formItemComments()"
 							  (ngModelChange)="formItemComments.set($event)"
-							  placeholder="Optional description or notes"></textarea>
+							  placeholder="Optional description or notes"
+							  [readonly]="isEditingItem()"></textarea>
+					@if (isEditingItem()) {
+						<div class="form-text">
+							Name, price and comments are set at creation and cannot be changed here.
+						</div>
+					}
 				</div>
 
 				<!-- Sizes/Colors: free text, semicolon-delimited, resolved BY NAME server-side

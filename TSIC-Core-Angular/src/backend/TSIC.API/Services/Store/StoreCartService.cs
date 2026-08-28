@@ -61,7 +61,11 @@ public sealed class StoreCartService : IStoreCartService
         // Validate SKU exists and is active
         var sku = await _itemRepo.GetSkuByIdAsync(request.StoreSkuId)
             ?? throw new InvalidOperationException("SKU not found.");
-        if (!sku.Active)
+        // LEGACY (IStoreService.StoreItemSkuMaxCanSell): stock is
+        //   (s.Active && s.StoreItem.Active) ? s.MaxCanSell : 0
+        // Deactivating the ITEM must zero every SKU under it. Guarding on sku.Active alone let a
+        // stale page or a direct POST keep transacting against a withdrawn item.
+        if (!sku.Active || !sku.StoreItem.Active)
             throw new InvalidOperationException("SKU is not available.");
 
         // Check availability
@@ -139,6 +143,10 @@ public sealed class StoreCartService : IStoreCartService
         // Validate availability for the new quantity
         var sku = await _itemRepo.GetSkuByIdAsync(lineItem.StoreSkuId)
             ?? throw new InvalidOperationException("SKU not found.");
+
+        // Same legacy rule as AddToCartAsync: an inactive SKU *or* inactive parent item = no stock.
+        if (!sku.Active || !sku.StoreItem.Active)
+            throw new InvalidOperationException("SKU is not available.");
 
         var soldCount = await _cartRepo.GetSoldCountForSkuAsync(lineItem.StoreSkuId);
         var inCartCount = await _cartRepo.GetInCartCountForSkuAsync(lineItem.StoreSkuId);

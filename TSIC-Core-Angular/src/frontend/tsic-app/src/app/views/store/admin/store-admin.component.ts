@@ -56,6 +56,10 @@ export class StoreAdminComponent {
 	// There is no MaxCanSell at creation - stock is set afterwards on the SKUs screen.
 	readonly formItemSizes = signal('');
 	readonly formItemColors = signal('');
+	// Edit writes Active + SortOrder ONLY (legacy StoreItemsController.UpdateItem). Name, price
+	// and comments are displayed read-only so the form cannot promise a write the server discards.
+	readonly formItemActive = signal(true);
+	readonly formItemSortOrder = signal(0);
 
 	// ── SKU expansion ──
 	readonly expandedItemId = signal<number | null>(null);
@@ -84,6 +88,13 @@ export class StoreAdminComponent {
 
 	// ── Computed ──
 	readonly isEditingItem = computed(() => this.editingItem() !== null);
+
+	/**
+	 * The API returns items in STOREFRONT order (SortOrder, 0 last, then name). Legacy's admin
+	 * grid is sorted alphabetically by Item instead, so the manager list re-sorts by name.
+	 */
+	readonly sortedItems = computed(() =>
+		[...this.items()].sort((a, b) => a.storeItemName.localeCompare(b.storeItemName)));
 
 	/** Mirrors the server-side split: ';' delimited, empties removed, each name trimmed. */
 	private static parseNames(raw: string): string[] {
@@ -165,6 +176,8 @@ export class StoreAdminComponent {
 		this.formItemName.set(item.storeItemName);
 		this.formItemPrice.set(item.storeItemPrice);
 		this.formItemComments.set('');
+		this.formItemActive.set(item.active);
+		this.formItemSortOrder.set(item.sortOrder);
 
 		// Load full detail before showing modal to prevent saving stale/empty comments
 		this.store.getItemDetail(item.storeItemId).subscribe({
@@ -183,12 +196,13 @@ export class StoreAdminComponent {
 		this.isSaving.set(true);
 
 		if (this.editingItem()) {
+			// Only active + sortOrder are honoured server-side; the rest round-trip unchanged.
 			const request: UpdateStoreItemRequest = {
 				storeItemName: this.formItemName().trim(),
 				storeItemPrice: this.formItemPrice(),
 				storeItemComments: this.formItemComments().trim() || null,
-				active: this.editingItem()!.active,
-				sortOrder: this.editingItem()!.sortOrder,
+				active: this.formItemActive(),
+				sortOrder: this.formItemSortOrder(),
 			};
 			this.store.updateItem(this.editingItem()!.storeItemId, request).subscribe({
 				next: () => {
