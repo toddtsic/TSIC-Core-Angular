@@ -41,8 +41,8 @@ Mechanically enumerated from legacy source: **StoreItems, StoreSkus, StoreImages
 StoreRefunded, StoreRestocked, StoreCartQuantityAdjustments, StoreAdminAdd, ShoppingCart,
 Invoices, StoreFamily/Index (partial), Checkout (partial).**
 
-Since inventoried and ported in full: **StoreDashboard** (three pivots — D-01…D-04, plus its one
-dead action) and **the three StoreEmail\* screens** (E-01…E-05).
+Since inventoried and ported in full: **StoreDashboard** (**four** pivot widgets — D-01…D-05,
+plus its one dead method D-06d) and **the three StoreEmail\* screens** (E-01…E-05).
 
 **The inventory is COMPLETE as of 2026-08-28.** The five screens that were carrying placeholder
 rows have all been enumerated: CheckoutConfirmation (A-23, A-24), WalkUp (A-31), StoreTwoClick
