@@ -118,6 +118,31 @@
 							</div>
 						} @else if (expandedState(); as s) {
 
+							<!--
+								Legacy showed a per-item EJ2 carousel of every uploaded image. The
+								collapsed row carries only a 44px thumb, so the open item shows the
+								product properly — with a thumbnail strip when there is more than
+								one image, which is the whole of what the carousel did.
+							-->
+							@if (item.imageUrls.length) {
+								<div class="gallery">
+									<img [src]="item.imageUrls[galleryIndex()] ?? item.imageUrls[0]"
+										 [alt]="item.storeItemName" class="gallery-main">
+									@if (item.imageUrls.length > 1) {
+										<div class="gallery-strip">
+											@for (url of item.imageUrls; track url; let i = $index) {
+												<button type="button" class="gallery-thumb"
+														[class.selected]="galleryIndex() === i"
+														(click)="galleryIndex.set(i)"
+														[attr.aria-label]="'View image ' + (i + 1)">
+													<img [src]="url" [alt]="item.storeItemName + ' image ' + (i + 1)">
+												</button>
+											}
+										</div>
+									}
+								</div>
+							}
+
 							<!-- Already in cart reminder -->
 							@if (cartItemsForExpanded.length > 0) {
 								<div class="in-cart-summary">

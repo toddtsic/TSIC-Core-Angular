@@ -51,6 +51,13 @@ export class StoreCatalogComponent {
 	readonly familyPlayers = this.store.familyPlayers;
 
 	// Expanded item state — one item at a time
+	/**
+	 * Which image the open item is showing. Legacy gave every item an EJ2 carousel;
+	 * no store item in the database has ever had more than one image, so this is a
+	 * thumbnail strip rather than a carousel — same capability, no widget.
+	 */
+	readonly galleryIndex = signal(0);
+
 	readonly expandedId = signal<number | null>(null);
 	readonly expandedState = signal<ExpandedItemState | null>(null);
 	readonly isExpandLoading = signal(false);
@@ -95,6 +102,7 @@ export class StoreCatalogComponent {
 		}
 
 		// Expand: fetch full detail with SKUs
+		this.galleryIndex.set(0);
 		this.expandedId.set(summary.storeItemId);
 		this.expandedState.set(null);
 		this.isExpandLoading.set(true);
