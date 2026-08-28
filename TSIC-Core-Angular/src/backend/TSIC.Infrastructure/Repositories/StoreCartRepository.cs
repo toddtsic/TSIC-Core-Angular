@@ -76,7 +76,7 @@ public class StoreCartRepository : IStoreCartRepository
                 LineTotal = cbs.FeeTotal, // FeeTotal is the line grand total (legacy semantics)
                 DirectToRegId = cbs.DirectToRegId,
                 DirectToPlayerName = cbs.DirectToReg != null && cbs.DirectToReg.User != null
-                    ? cbs.DirectToReg.User.FirstName.Trim() + " " + cbs.DirectToReg.User.LastName.Trim()
+                    ? cbs.DirectToReg.User.FirstName!.Trim() + " " + cbs.DirectToReg.User.LastName!.Trim()
                     : null,
                 Active = cbs.Active
             })
@@ -184,9 +184,9 @@ public class StoreCartRepository : IStoreCartRepository
             .AsNoTracking()
             .Where(s => s.StoreCartBatchId == storeCartBatchId
                 && s.DirectToReg != null
-                && s.DirectToReg!.User.Email != null
+                && s.DirectToReg!.User!.Email != null
                 && s.DirectToReg!.User.Email != "")
-            .Select(s => s.DirectToReg!.User.Email!)
+            .Select(s => s.DirectToReg!.User!.Email!)
             .Distinct()
             .ToListAsync(cancellationToken);
 

@@ -540,14 +540,14 @@ public class RegistrationRepository : IRegistrationRepository
                 ActiveTeamCount = _context.Teams.Count(t =>
                     t.ClubrepRegistrationid == r.RegistrationId
                     && t.Active == true
-                    && !t.Agegroup.AgegroupName.Contains(AgegroupConstants.WaitlistPrefix)
+                    && !t.Agegroup.AgegroupName!.Contains(AgegroupConstants.WaitlistPrefix)
                     && !t.Agegroup.AgegroupName.Contains(AgegroupConstants.DroppedTeams)),
                 WaitlistedTeamCount = _context.Teams.Count(t =>
                     t.ClubrepRegistrationid == r.RegistrationId
-                    && t.Agegroup.AgegroupName.Contains(AgegroupConstants.WaitlistPrefix)),
+                    && t.Agegroup.AgegroupName!.Contains(AgegroupConstants.WaitlistPrefix)),
                 DroppedTeamCount = _context.Teams.Count(t =>
                     t.ClubrepRegistrationid == r.RegistrationId
-                    && t.Agegroup.AgegroupName.Contains(AgegroupConstants.DroppedTeams)),
+                    && t.Agegroup.AgegroupName!.Contains(AgegroupConstants.DroppedTeams)),
                 RegisteredOn = r.RegistrationTs,
                 JobName = j.JobName ?? string.Empty
             }

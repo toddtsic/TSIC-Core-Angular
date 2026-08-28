@@ -357,7 +357,7 @@ public class StoreAnalyticsRepository : IStoreAnalyticsRepository
                 PurchaseDate = cbs.CreateDate,
                 FamilyUserName = familyUser.UserName ?? "",
                 DirectToPlayerName = cbs.DirectToReg != null
-                    ? cbs.DirectToReg!.User!.FirstName.Trim() + " " + cbs.DirectToReg!.User!.LastName.Trim()
+                    ? cbs.DirectToReg!.User!.FirstName!.Trim() + " " + cbs.DirectToReg!.User!.LastName!.Trim()
                     : null,
                 ModifiedDate = rs.Modified,
                 ModifiedBy = user.UserName ?? ""
