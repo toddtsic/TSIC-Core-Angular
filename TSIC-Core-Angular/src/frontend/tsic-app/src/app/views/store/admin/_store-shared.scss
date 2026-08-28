@@ -257,3 +257,238 @@
 @media (prefers-reduced-motion: reduce) {
 	.store-table tbody tr { transition: none !important; }
 }
+
+// ══════════════════════════════════════════════════════════════════
+//  MODAL FORM PRIMITIVES  (.sf-*)
+// ══════════════════════════════════════════════════════════════════
+// Every store-admin modal was Bootstrap defaults — .form-control, .form-check,
+// .mb-3 — which read flat and gave a readonly input the same affordance as an
+// editable one. One owned set, token-driven, used by all of them.
+//
+// The dialog CHROME (.modal-header/.modal-footer) stays with tsic-dialog: it is
+// shared app-wide and not ours to restyle from here.
+
+.sf-form {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+}
+
+.sf-row {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: var(--space-4);
+
+	@media (max-width: 34rem) {
+		grid-template-columns: 1fr;
+	}
+}
+
+.sf-field {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	min-width: 0;
+}
+
+.sf-label {
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-semibold);
+	color: var(--brand-text);
+}
+
+.sf-input {
+	width: 100%;
+	min-height: 42px;
+	padding: var(--space-2) var(--space-3);
+	font-family: inherit;
+	font-size: var(--font-size-base);
+	color: var(--brand-text);
+	background: color-mix(in srgb, var(--brand-text) 4%, var(--input-bg));
+	border: 1px solid var(--input-border);
+	border-radius: var(--radius-md);
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+	appearance: none;
+
+	&::placeholder {
+		color: var(--brand-text-muted);
+		opacity: 0.75;
+	}
+
+	&:hover:not(:disabled) {
+		border-color: color-mix(in srgb, var(--bs-primary) 40%, var(--input-border));
+	}
+
+	&:focus,
+	&:focus-visible {
+		outline: none;
+		border-color: var(--bs-primary);
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+textarea.sf-input {
+	min-height: 72px;
+	resize: vertical;
+}
+
+// Currency prefix, drawn as part of the control rather than as a sibling box.
+.sf-prefixed {
+	position: relative;
+	display: block;
+
+	.sf-prefix {
+		position: absolute;
+		top: 50%;
+		left: var(--space-3);
+		transform: translateY(-50%);
+		pointer-events: none;
+		font-weight: var(--font-weight-semibold);
+		color: var(--brand-text-muted);
+	}
+
+	.sf-input {
+		padding-left: var(--space-8);
+	}
+}
+
+.sf-hint {
+	font-size: var(--font-size-xs);
+	color: var(--brand-text-muted);
+}
+
+.sf-note {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-2);
+	padding: var(--space-3);
+	border: 1px solid color-mix(in srgb, var(--bs-primary) 25%, transparent);
+	border-radius: var(--radius-md);
+	background: color-mix(in srgb, var(--bs-primary) 6%, transparent);
+	font-size: var(--font-size-sm);
+	color: var(--brand-text);
+
+	i {
+		flex: 0 0 auto;
+		margin-top: 0.15em;
+		color: var(--bs-primary);
+	}
+}
+
+.sf-warn {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-2);
+	padding: var(--space-3);
+	border-radius: var(--radius-md);
+	font-size: var(--font-size-sm);
+	color: var(--brand-text);
+	border: 1px solid transparent;
+	border-color: color-mix(in srgb, var(--brand-warn) 40%, transparent);
+	background: color-mix(in srgb, var(--brand-warn) 10%, transparent);
+
+	i {
+		color: var(--brand-warn);
+	}
+}
+
+// ── Read-only summary ──
+// A value the modal cannot change is shown as a VALUE, not as a dead input. A
+// greyed-out field still reads as "type here" and invites a click that does nothing.
+.sf-readout {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+	padding: var(--space-3) var(--space-4);
+	border: 1px solid var(--brand-border);
+	border-radius: var(--radius-md);
+	background: var(--brand-bg-secondary);
+}
+
+.sf-readout-row {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-3);
+}
+
+.sf-readout-label {
+	flex: 0 0 6.5rem;
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-bold);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--brand-text-muted);
+}
+
+.sf-readout-value {
+	min-width: 0;
+	font-size: var(--font-size-base);
+	color: var(--brand-text);
+	white-space: pre-line;
+
+	&.is-empty {
+		color: var(--brand-text-muted);
+		font-style: italic;
+	}
+}
+
+// ── Switch ──
+.sf-switch {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	min-height: 42px;
+	cursor: pointer;
+
+	input {
+		flex: 0 0 auto;
+		width: 42px;
+		height: 24px;
+		margin: 0;
+		appearance: none;
+		cursor: pointer;
+		border-radius: var(--radius-full);
+		background: var(--brand-border);
+		position: relative;
+		transition: background-color 0.15s ease;
+
+		&::after {
+			content: '';
+			position: absolute;
+			top: 3px;
+			left: 3px;
+			width: 18px;
+			height: 18px;
+			border-radius: var(--radius-full);
+			background: var(--neutral-0, #fff);
+			box-shadow: var(--shadow-xs);
+			transition: transform 0.15s ease;
+		}
+
+		&:checked {
+			background: var(--bs-primary);
+
+			&::after {
+				transform: translateX(18px);
+			}
+		}
+
+		&:focus-visible {
+			outline: none;
+			box-shadow: var(--shadow-focus);
+		}
+	}
+}
+
+.sf-switch-text {
+	font-size: var(--font-size-sm);
+	color: var(--brand-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sf-input,
+	.sf-switch input,
+	.sf-switch input::after {
+		transition: none;
+	}
+}

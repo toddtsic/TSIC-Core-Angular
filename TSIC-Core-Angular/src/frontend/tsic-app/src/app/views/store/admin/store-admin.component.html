@@ -469,80 +469,99 @@
 				<h5 class="modal-title">{{ isEditingItem() ? 'Edit Item' : 'New Item' }}</h5>
 				<button type="button" class="btn-close" (click)="showItemModal.set(false)" aria-label="Close"></button>
 			</div>
-			<div class="modal-body">
-				<div class="mb-3">
-					<label class="form-label fw-medium">Item Name</label>
-					<input type="text" class="form-control" [ngModel]="formItemName()"
-						   (ngModelChange)="formItemName.set($event)" placeholder="e.g. Tournament T-Shirt"
-						   [readonly]="isEditingItem()">
-				</div>
-				<div class="mb-3">
-					<label class="form-label fw-medium">Item Price</label>
-					<div class="input-group">
-						<span class="input-group-text">$</span>
-						<input type="number" class="form-control" [ngModel]="formItemPrice()"
-							   (ngModelChange)="formItemPrice.set($event)" min="1" max="200" step="0.01"
-							   [readonly]="isEditingItem()">
-					</div>
-				</div>
-
+			<div class="modal-body sf-form">
 				@if (isEditingItem()) {
-					<div class="row mb-3">
-						<div class="col-md-6">
-							<label class="form-label fw-medium" for="itemSortOrder">Sort Order</label>
-							<input type="number" id="itemSortOrder" class="form-control"
-								   [ngModel]="formItemSortOrder()"
-								   (ngModelChange)="formItemSortOrder.set($event)" min="0" step="1">
-							<div class="form-text">0 places the item <strong>last</strong> on the storefront.</div>
+					<!--
+						Editing changes exactly two things. Name, price and comments were rendered
+						as [readonly] inputs above them: a dead field still reads as "type here",
+						so the modal opened on three controls that ignore the click and buried the
+						two that work. They are values here, and they are stated as values.
+					-->
+					<div class="sf-field">
+						<label class="sf-label" for="itemSortOrder">Sort Order</label>
+						<input type="number" id="itemSortOrder" class="sf-input"
+							   [ngModel]="formItemSortOrder()"
+							   (ngModelChange)="formItemSortOrder.set($event)" min="0" step="1">
+						<span class="sf-hint">0 places the item <strong>last</strong> on the storefront.</span>
+					</div>
+
+					<div class="sf-field">
+						<span class="sf-label">Active</span>
+						<label class="sf-switch">
+							<input type="checkbox" [ngModel]="formItemActive()"
+								   (ngModelChange)="formItemActive.set($event)">
+							<span class="sf-switch-text">
+								{{ formItemActive() ? 'Visible in the store' : 'Hidden from the store' }}
+							</span>
+						</label>
+					</div>
+
+					<div class="sf-readout">
+						<div class="sf-readout-row">
+							<span class="sf-readout-label">Item</span>
+							<span class="sf-readout-value">{{ formItemName() }}</span>
 						</div>
-						<div class="col-md-6">
-							<label class="form-label fw-medium d-block">Active</label>
-							<div class="form-check form-switch mt-2">
-								<input class="form-check-input" type="checkbox" id="itemActive"
-									   [ngModel]="formItemActive()"
-									   (ngModelChange)="formItemActive.set($event)">
-								<label class="form-check-label" for="itemActive">
-									{{ formItemActive() ? 'Visible in the store' : 'Hidden from the store' }}
-								</label>
-							</div>
+						<div class="sf-readout-row">
+							<span class="sf-readout-label">Price</span>
+							<span class="sf-readout-value">{{ formatCurrency(formItemPrice()) }}</span>
+						</div>
+						<div class="sf-readout-row">
+							<span class="sf-readout-label">Comments</span>
+							<span class="sf-readout-value" [class.is-empty]="!formItemComments()">
+								{{ formItemComments() || 'None' }}
+							</span>
+						</div>
+						<span class="sf-hint">Set at creation; not editable here.</span>
+					</div>
+				} @else {
+					<div class="sf-field">
+						<label class="sf-label" for="itemName">Item Name</label>
+						<input type="text" id="itemName" class="sf-input" [ngModel]="formItemName()"
+							   (ngModelChange)="formItemName.set($event)"
+							   placeholder="e.g. Tournament T-Shirt">
+					</div>
+
+					<div class="sf-field">
+						<label class="sf-label" for="itemPrice">Item Price</label>
+						<div class="sf-prefixed">
+							<span class="sf-prefix" aria-hidden="true">$</span>
+							<input type="number" id="itemPrice" class="sf-input" [ngModel]="formItemPrice()"
+								   (ngModelChange)="formItemPrice.set($event)" min="1" max="200" step="0.01">
 						</div>
 					</div>
-				}
-				<div class="mb-3">
-					<label class="form-label fw-medium">Comments</label>
-					<textarea class="form-control" rows="2" [ngModel]="formItemComments()"
-							  (ngModelChange)="formItemComments.set($event)"
-							  placeholder="Optional description or notes"
-							  [readonly]="isEditingItem()"></textarea>
-					@if (isEditingItem()) {
-						<div class="form-text">
-							Name, price and comments are set at creation and cannot be changed here.
-						</div>
-					}
-				</div>
 
-				<!-- Sizes/Colors: free text, semicolon-delimited, resolved BY NAME server-side
-					 against the global size/colour dictionary. Names that do not exist are created. -->
-				@if (!isEditingItem()) {
-					<div class="mb-3">
-						<label class="form-label fw-medium" for="itemSizes">Item Sizes</label>
-						<input type="text" id="itemSizes" class="form-control" [ngModel]="formItemSizes()"
+					<div class="sf-field">
+						<label class="sf-label" for="itemComments">Comments</label>
+						<textarea id="itemComments" class="sf-input" rows="2" [ngModel]="formItemComments()"
+								  (ngModelChange)="formItemComments.set($event)"
+								  placeholder="Optional description or notes"></textarea>
+					</div>
+
+					<!-- Sizes/Colors: free text, semicolon-delimited, resolved BY NAME server-side
+						 against the global size/colour dictionary. Names that do not exist are created. -->
+					<div class="sf-field">
+						<label class="sf-label" for="itemSizes">Item Sizes</label>
+						<input type="text" id="itemSizes" class="sf-input" [ngModel]="formItemSizes()"
 							   (ngModelChange)="formItemSizes.set($event)"
 							   placeholder="semi-colon delimited, e.g. Adult Small;Adult Medium;Adult Large">
 					</div>
-					<div class="mb-3">
-						<label class="form-label fw-medium" for="itemColors">Item Colors</label>
-						<input type="text" id="itemColors" class="form-control" [ngModel]="formItemColors()"
+
+					<div class="sf-field">
+						<label class="sf-label" for="itemColors">Item Colors</label>
+						<input type="text" id="itemColors" class="sf-input" [ngModel]="formItemColors()"
 							   (ngModelChange)="formItemColors.set($event)"
 							   placeholder="semi-colon delimited, e.g. White;Gray;Navy">
 					</div>
-					<div class="alert alert-info small mb-0">
-						<i class="bi bi-info-circle me-1"></i>
-						{{ parsedSizeNames().length || 'no' }} size(s) &times;
-						{{ parsedColorNames().length || 'no' }} color(s)
-						= {{ projectedSkuCount() }} SKU(s).
-						Each is created with <strong>zero stock</strong> &mdash; set Max Can Sell per SKU
-						before the item can sell.
+
+					<div class="sf-note">
+						<i class="bi bi-info-circle" aria-hidden="true"></i>
+						<span>
+							{{ parsedSizeNames().length || 'no' }} size(s) &times;
+							{{ parsedColorNames().length || 'no' }} color(s)
+							= {{ projectedSkuCount() }} SKU(s).
+							Each is created with <strong>zero stock</strong> &mdash; set Max Can Sell per
+							SKU before the item can sell.
+						</span>
 					</div>
 				}
 			</div>
@@ -564,16 +583,22 @@
 				<h5 class="modal-title">Edit SKU: {{ skuLabel(editingSku()!) }}</h5>
 				<button type="button" class="btn-close" (click)="showSkuModal.set(false)" aria-label="Close"></button>
 			</div>
-			<div class="modal-body">
-				<div class="mb-3">
-					<label class="form-label fw-medium">Max Can Sell</label>
-					<input type="number" class="form-control" [ngModel]="formSkuMaxCanSell()"
+			<div class="modal-body sf-form">
+				<div class="sf-field">
+					<label class="sf-label" for="skuMaxCanSell">Max Can Sell</label>
+					<input type="number" id="skuMaxCanSell" class="sf-input" [ngModel]="formSkuMaxCanSell()"
 						   (ngModelChange)="formSkuMaxCanSell.set($event)" min="0">
+					<span class="sf-hint">The ceiling for this variant. 0 takes it off the shelf.</span>
 				</div>
-				<div class="form-check">
-					<input class="form-check-input" type="checkbox" id="skuActive"
-						   [ngModel]="formSkuActive()" (ngModelChange)="formSkuActive.set($event)">
-					<label class="form-check-label" for="skuActive">Active</label>
+				<div class="sf-field">
+					<span class="sf-label">Active</span>
+					<label class="sf-switch">
+						<input type="checkbox" [ngModel]="formSkuActive()"
+							   (ngModelChange)="formSkuActive.set($event)">
+						<span class="sf-switch-text">
+							{{ formSkuActive() ? 'Offered on the storefront' : 'Withdrawn from the storefront' }}
+						</span>
+					</label>
 				</div>
 			</div>
 			<div class="modal-footer">
@@ -594,11 +619,18 @@
 				<h5 class="modal-title">{{ editingColor() ? 'Edit Color' : 'New Color' }}</h5>
 				<button type="button" class="btn-close" (click)="showColorModal.set(false)" aria-label="Close"></button>
 			</div>
-			<div class="modal-body">
-				<div class="mb-3">
-					<label class="form-label fw-medium">Color Name</label>
-					<input type="text" class="form-control" [ngModel]="formColorName()"
+			<div class="modal-body sf-form">
+				<div class="sf-field">
+					<label class="sf-label" for="colorName">Color Name</label>
+					<input type="text" id="colorName" class="sf-input" [ngModel]="formColorName()"
 						   (ngModelChange)="formColorName.set($event)" placeholder="e.g. Navy Blue">
+				</div>
+				<!-- stores.StoreColors has no JobId: one list, every store in the system. Legacy is
+				     the same. A rename here is a rename everywhere, so say so before the save. -->
+				<div class="sf-warn">
+					<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+					<span>Colors are shared by <strong>every store on TeamSportsInfo</strong>, not just this
+					event. Renaming one renames it for all of them.</span>
 				</div>
 			</div>
 			<div class="modal-footer">
@@ -619,11 +651,17 @@
 				<h5 class="modal-title">{{ editingSize() ? 'Edit Size' : 'New Size' }}</h5>
 				<button type="button" class="btn-close" (click)="showSizeModal.set(false)" aria-label="Close"></button>
 			</div>
-			<div class="modal-body">
-				<div class="mb-3">
-					<label class="form-label fw-medium">Size Name</label>
-					<input type="text" class="form-control" [ngModel]="formSizeName()"
+			<div class="modal-body sf-form">
+				<div class="sf-field">
+					<label class="sf-label" for="sizeName">Size Name</label>
+					<input type="text" id="sizeName" class="sf-input" [ngModel]="formSizeName()"
 						   (ngModelChange)="formSizeName.set($event)" placeholder="e.g. Medium">
+				</div>
+				<!-- stores.StoreSizes has no JobId either — same global list, same hazard. -->
+				<div class="sf-warn">
+					<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+					<span>Sizes are shared by <strong>every store on TeamSportsInfo</strong>, not just this
+					event. Renaming one renames it for all of them.</span>
 				</div>
 			</div>
 			<div class="modal-footer">
