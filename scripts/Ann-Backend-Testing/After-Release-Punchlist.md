@@ -8,7 +8,7 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 
 ---
 
-## 🔺 OPEN FOR TODD — as of 2026-08-21
+## 🔺 OPEN FOR TODD — as of 2026-08-28
 
 > Maintained at the top so nothing waiting on Todd is buried mid-file. **Delete a row the moment its item closes.** Parked/REVISIT items are not listed here *unless Todd owes a decision on one* (flagged as such below).
 
@@ -75,6 +75,8 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 | **AR-012** | **DECISION, not work.** Ann (08-21): *"I don't think we've ever had more than one league per job"* — a stronger claim than the banked data (which only checked jobs holding league-scoped fees). If no job has ever had 2+ leagues, this is **unreachable** and should close as Won't Fix rather than stay parked. One query settles it: `SELECT JobId, COUNT(*) FROM Leagues GROUP BY JobId HAVING COUNT(*) > 1`. She has seen it and is not asking for a fix. | 🔵 close-out call |
 | **AR-011** | **🔓 UN-PARKED 08-21 — your own trigger condition fired.** Ann reproduced the Amount field putting a `0` back under the caret, *after* the AR-009 backdrop fix. Code confirmed unchanged (`accounting-ledger.component.ts:477`, the `?? 0`). Two inputs share `setAmount` (`:224`, `:395`) — fix once, verify both. Still no wrong-amount path, so it's friction, not risk. | 🔴 OPEN |
 | **AR-013** | **Filed 08-20 — after Todd's 08-19 closure sweep, so he has very likely never seen it.** Dunning email sends expired/terminated ARB families to a "Pay Balance Due" menu item that is suppressed for them. Root cause verified; fix is a status-vs-id gate at two call sites. **No longer blocked on a decision** — the "just route everyone to Update CC" shortcut can't be validated (no terminated subscription exists to test, Ann 08-21), so build the status gate. **Promotion candidate** — misfires in Production the first time a director sends that template. ✅ **VERIFIED PASSING (Ann, 08-24) — CLOSED, both directions** (dead plan shows the row; live plan behind in payments still does not). Update CC follow-up split out to **AR-027**. **Both deferred halves resolved 08-26: stale template copy ✅ FIXED 08-25 in `3969edbc` (sweep text alignment); club-rep half → **AR-043** (latent, unreachable).** Nothing outstanding. | ✅ VERIFIED |
+| **AR-050** | **New 08-28 — the screen cannot be used at all.** Tools → US Lacrosse National Rankings: the **National Rankings Agegroups** dropdown is empty, so **Find Matches** can never enable. It's fed by a live scrape of usclublax.com pinned to **`yr=2025`** (`USLaxScrapingService.cs:24`) while Ann is on a **2026** event — but the failure is swallowed at all three layers (`:88-92` → `component.ts:250` → no empty state), so a year mismatch, a 403, and no egress all look identical. **⚠ Read the dev-box log FIRST** (`:85` count vs `:90` exception) — bumping the year blind is a coin flip. Recommended fix drops `yr` from the selector entirely and reads the year back off the href (already parsed at `:76-79`), retiring the annual chore. **Also for Ann:** the scraper is **Girls-only by construction** (`:71`, `v=20`) — boys events get this same silent empty dropdown forever, on a screen titled plain "National Rankings". |
+| **AR-051** | **New 08-28 — Ann's question is ANSWERED, this is the leftover.** Tournament Parking Analysis **works fine on Fall events** — verified on Fall Showcase 2025 (475/475 rows pass, clean 2 complexes × 2 days). Fall *2026* shows nothing because **all 15 Fall 2026 jobs have zero schedule rows**, and the screen says so properly. **What needs you:** the field *complex* is guessed by cutting `fName` at the first hyphen (`TournamentParkingRepository.cs:33-35`, `:51-53`). `ALEX-PARK-01` → **`ALEX`** (cosmetic; hits **Top Threat Fall Draw**, whose 2026 edition is unscheduled today) and `Fowler Park 05` → its own complex, so **The SAT Georgia 2026 reports 12 complexes instead of 2 and understates per-lot parking load** — the point of the screen. **Legacy did the same first-hyphen cut**, so case 1 is parity, not a regression; the hyphenless case differs (legacy over-merged to a blank name, we over-split). Real fix = join `schedule.fieldID` → `[reference].[Fields]` instead of parsing a string. Also two lines: suppress the `0 / 0 / 0 × 0` KPI cards that render above the empty state. |
 
 **~~Also outstanding~~ — ANSWERED (Todd, 08-21): "dev was deployed."** So Ann's 08-21 verifies of AR-003/AR-006/AR-008 were against current code and stand, and AR-017 is a live bug rather than a stale bundle. Keep flagging any future "fixed" item she cannot see.
 
@@ -472,7 +474,73 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 - **Severity**: ⚪ None — the requested behaviour already ships
 - **Status**: ⛔ **NO ACTION — Todd, 08-26.** Filed and closed the same day. Last of Ann's TSIC-Teams items for 08-26.
 
-<!-- New items go below this line, newest at the bottom, next id = AR-050 -->
+<!-- New items go below this line, newest at the bottom, next id = AR-052 -->
+
+### AR-050: [USA Lacrosse National Rankings] The "National Rankings Agegroups" dropdown is empty — the scraper is pinned to `yr=2025`, and it fails silently so you can't tell why
+- **Topic**: Tools → **US Lacrosse National Rankings** (`uslax-rankings`) → the two-dropdown selector row
+- **Observation (Ann, 08-28)**: on **Lax For The Cure:Fall Showcase 2026**, the **right** dropdown works — it offers `2029 (60 Teams)`. The **left** one, **National Rankings Agegroups**, stays on *"Select ranking age group…"* with nothing to pick, so **Find Matches never enables**. *"How do I get the National Rankings Agegroups to then Find Matches?"*
+
+**✅ ANSWER: you can't, and it isn't something you're missing — the left dropdown is fed by a live scrape of usclublax.com, and that scrape is currently returning zero rows.** The two dropdowns have completely different sources, which is why one works and one doesn't:
+- **Right** — your event's age groups, read from our own database (`GET /uslax-rankings/registered-age-groups` → `AgeGroupRepository`). Always works.
+- **Left** — scraped off `usclublax.com/rankings` **at page load, every time** (`GET /uslax-rankings/age-groups` → `USLaxScrapingService.GetAvailableAgeGroupsAsync`). Nothing is cached or stored. **No rows scraped = empty dropdown = Find Matches disabled forever.** The button is correctly disabled (`uslax-rankings.component.html:73` requires both selections); it is the fuel that's missing, not the button.
+
+**🔴 DEFECT 1 — the year is hardcoded to 2025, and Ann is working a 2026 event.**
+- `USLaxScrapingService.cs:24` — `private const string DefaultYear = "2025";`
+- The link selector (`:57-58`) demands **both** `v=20` **and** `yr=2025` be present in a link's href. If usclublax has rolled its rankings to `yr=2026`, **no link matches**, `nodes is null`, and `:60-61` returns an empty list. Empty dropdown, exactly as Ann sees it.
+- **This is inherited, and the original author left a warning that got dropped in the port.** Legacy carries the identical constant *with* his note: `private const string YearName = "yr=2025"; //this is for 2025, need to up in subsequent years` (`reference/TSIC-Unify-2024/TSIC-Unify-Services/USLaxScrapingService.cs:24`). The new service is otherwise a faithful port — same URLs, same XPath shape, same Girls filter — but **the comment did not come across**, so the annual-maintenance reminder went with it. There is **no config key** for the year either: grepped every `appsettings*.json`, nothing. It is a recompile to change.
+
+**⚠️ NOT PROVEN, and say so plainly**: I could **not** confirm what `yr=` values usclublax publishes today — a fetch from this box returned **HTTP 403**. So "the site rolled to 2026" is the *leading* hypothesis, not a verified fact. A 403 against our server would produce the **exact same empty dropdown**. Which is the real problem:
+
+**🔴 DEFECT 2 — the failure is swallowed at all three layers, so nobody can tell these apart.**
+| Layer | Line | What it does on failure |
+|:--|:--|:--|
+| Backend | `USLaxScrapingService.cs:88-92` | `catch (Exception) → return []` |
+| Frontend service | `uslax-rankings.component.ts:250` | `error: () => this.scrapedAgeGroups.set([])` |
+| Template | `uslax-rankings.component.html:59-60` | no empty state — just the placeholder `<option>` |
+- **Year mismatch · site down · 403 bot-block · site restructured its HTML · dev box has no outbound internet** — **all five render identically**: a dropdown with one placeholder and no message. The component even *has* a red `errorMessage()` alert banner (`:36-38`); this path never populates it.
+- **This is what makes it a punchlist item instead of a one-line year bump.** Bumping 2025→2026 blind is a coin flip: if the cause is the 403 or egress, the year change ships and the screen stays just as dead, with the same silence.
+
+**🎯 For Todd — in this order:**
+1. **Diagnose before changing anything.** Hit `GET /api/uslax-rankings/age-groups` on the dev box and read the log. `:85` logs `"Scraped {Count} Girls age groups from usclublax.com"`; `:90` logs the exception. **Count 0 with no exception ⇒ the links are there but the year/XPath doesn't match** (Defect 1 confirmed). **Exception logged ⇒ we never got the page** (fetch blocked/refused — note my own fetch got 403, so a bot-block is live for at least some clients, and the dev box's egress is its own variable).
+2. **Stop pinning the year — don't just bump it.** Recommend **dropping `yr` from the selector entirely**: take every *Girls* link and read the year back out of the href. The code **already parses it** (`:76-79`) and packs it into the `v|alpha|yr` value the dropdown hands to the scrape call, so downstream needs nothing — the year is only ever used *from the parsed href*. That makes the list self-updating when usclublax rolls, and retires the annual chore that just bit us. (`v=20` should stay pinned — that's Girls Overall, not a year.)
+3. **Surface the failure.** An empty scrape should say something, and should distinguish *"the site returned no age groups"* from *"we couldn't reach the site."* The alert banner is already built and already styled — it just needs to be fed.
+
+**🔸 Also worth a ruling, Ann — this screen is Girls-only, permanently.** The scraper hard-filters on `text.Contains("Girls")` (`:71`) and pins `v=20` (Girls Overall; per legacy's own comment `10=boys overall 20=girls overall 11=boys national 21=girls national`). **A boys event will show an empty left dropdown forever**, with the same non-message as this bug — indistinguishable from it. But the screen is titled plain **"National Rankings"** and the blurb reads *"AI discovers published national rankings online and matches them to your registered teams"* — nothing says Girls. **Two options**: if boys rankings are in scope, that's its own item (the plumbing is a `v` value, not a rewrite); if they're not, the heading and blurb should say **Girls** so a boys director isn't left hunting like Ann was. Your call which.
+- **Severity**: 🟠 **Feature is completely unusable** — the workflow cannot be started at all. Not a go-live blocker (pool seeding works fine without national rankings; this only feeds smarter seeding).
+- **Status**: 🔴 **OPEN — for Todd.** Filed 08-28 from Ann's screenshot. Root cause identified in code; **which of the two failure modes is live must be read off the dev box's log before fixing** (step 1).
+
+### AR-051: [Tournament Parking Analysis] ✅ Fall events work — verified against Fall Showcase 2025. But the *complex name* is derived by splitting the field name at the first hyphen, and that misfires on two real naming styles
+- **Topic**: Scheduling → **Tournament Parking Analysis** (`tournament-parking`)
+- **Question (Ann, 08-28)**: *"I see this under LFTC Summer 2026. Can you check to be sure it is working for Fall 2026 events?"*
+
+**✅ ANSWER: yes, it works on Fall events — and I proved it on real data rather than reasoning about it.** Ran the repository's exact filter and grouping against **Lax For The Cure:Fall Showcase 2025** (the most recent *scheduled* Fall event):
+- **475 schedule rows, and all 475 pass the filter** (`G_Date`, `fName`, `T1_ID` all non-null, `T1_Type = 'T'` — 100% of that job's rows are type `T`).
+- Produces a clean **2 complexes × 2 days**: `Allentown` 11/15 (56 teams) + 11/16 (54), `NewEgyptHS` 11/15 (95) + 11/16 (111). **Same two complexes as Ann's Summer screenshot**, so Fall and Summer behave identically. Nothing about the feature is season-aware.
+
+**✅ AND: Fall *2026* will show nothing right now — correctly, not as a bug.** The report is built **entirely** from `Leagues.schedule` rows. I checked every Fall 2026 job on dev: **all 15 have zero schedule rows** — LFTC Fall Showcase 2026 (11/14/26), Garden State Futures, Go2Sports Alliance, Live Love Lax Girls Fall Festival, STEPS Fall Rodeo, Signature Sports, Top Threat Fall Draw, D2 Showcase, and the rest. They're future events that haven't been scheduled yet.
+- **The screen handles this properly** — `presence.Count == 0` short-circuits to an empty response (`TournamentParkingService.cs:30`), and the UI shows a real empty state: *"No scheduled games found for this event. Schedule games first, then return here for parking analysis."* (`tournament-parking.component.html:108-114`). **No error, no crash, no misleading numbers.** ✅ Contrast this with AR-050, where the same "nothing to show" condition produced silence — here it was done right.
+- 🔸 **One cosmetic wart, low priority**: the three KPI cards still render **above** that empty state reading `0`, `0`, and `0 × 0`, because the empty response ships a zeroed summary object and `summary()` only checks for null (`component.ts:46`). Not wrong, just noise stacked on top of a message that already says it better. Suppress the cards when `rollup().length === 0`.
+
+**🟠 THE REAL FINDING — the "complex" is guessed from the field name, by cutting at the first hyphen.** `TournamentParkingRepository.cs:33-35` (T1) and `:51-53` (T2): if `fName` contains `-`, take everything before the **first** one; otherwise take the whole name. `NewEgyptHS-01` → `NewEgyptHS` ✅. That works because LFTC names fields `Complex-NN`. **Two other naming styles in live data break it:**
+
+| Style | Example (real) | Derived complex | Effect |
+|:--|:--|:--|:--|
+| Hyphen **inside** the complex name | `ALEX-PARK-01` | **`ALEX`** | Label truncated. Grouping still correct. |
+| **No** hyphen — space-separated | `Fowler Park 05` | **`Fowler Park 05`** | **Every field becomes its own "complex."** |
+
+- **Case 1 — cosmetic. And it lands on a Fall 2026 job.** `Top Threat Tournaments:Fall Draw` names fields `ALEX-PARK-01…04`, so the report labels that complex **`ALEX`**. Its siblings `DN-01…10` and `JPC-01…04` come through fine. The *numbers are right* — all four ALEX-PARK fields still collapse into one bucket and no other complex starts with "ALEX" — it's the **name on the row that's wrong**. Affects Fall Draw 2023/2024/2025 and Top Threat Championship 2025 (242 rows, 4 field names). **`Top Threat Tournaments:Fall Draw 2026` (11/14/26) is unscheduled today, so this is what Ann will hit when it *is* scheduled**, if they name fields the way they have for three straight years.
+- **🟠 Case 2 — this one distorts the actual answer, and it's the one worth fixing.** `Top Threat Tournaments:The SAT Georgia 2026` (06/06/26) uses `Fowler Park 05…10` and `Matt Park 01…04B` — no hyphens. The report will show **12 complexes instead of 2**, one per field. Peak Teams/Cars On-Site is then computed **per individual field**, which **understates the parking load at the actual lot by roughly the number of fields sharing it** — and parking load per lot is the entire point of the screen. Also hits `The SAT Florida 2026` (8 fields) and `UM:Independent Club Playday 2022-2026` (2-4 fields each). **All are Spring/Summer 2026 events, not Fall — but they're upcoming, so they'll be scheduled before the Fall ones are.**
+
+**🔍 PARITY CHECK — I pulled the legacy sproc, because "did we break this?" changes who owns it.** `[utility].[TournamentTeamsOnSiteReporting]` line 40: `substring(s.fName, 0, charindex('-', s.fName))` — **the same first-hyphen cut**.
+- **Case 1 is pre-existing parity, not a regression.** Legacy truncated `ALEX-PARK-01` to `ALEX` too. It has presumably always printed that way.
+- **Case 2 genuinely differs — and neither version is right.** In T-SQL `charindex` returns `0` when there's no hyphen, so `substring(fName, 0, 0)` yields an **empty string**: legacy lumped *every* hyphenless field at a job into one **blank-named** complex. The new code returns the whole field name instead, fragmenting them. **Legacy over-merged (12 fields → 1 unnamed bucket); we now over-split (12 fields → 12 buckets).** So this is not "we broke it" — it's an edge legacy never handled either, surfaced differently. Worth Todd knowing before he treats it as a regression.
+
+**🎯 For Todd:**
+1. **Stop inferring the complex from a string.** `Leagues.schedule` carries **`fieldID`**, and `[reference].[Fields]` is the real table — if it has a complex/site parent, join to it and delete the guess. That's the correct fix and it kills both cases at once.
+2. **If a join isn't available**, the cheap improvement is to strip a **trailing field designator** rather than cut at the first hyphen — i.e. drop a trailing `-NN` / ` NN` / ` NNx` token. That maps `ALEX-PARK-01`→`ALEX-PARK`, `Fowler Park 05`→`Fowler Park`, `NewEgyptHS-01`→`NewEgyptHS`, and handles `Matt Park 04A/04B`. **Note this changes today's output for the ALEX jobs** (`ALEX` → `ALEX-PARK`), which is a correction, but flag it so it isn't read as a new bug.
+3. **Either way, suppress the zeroed KPI cards** on the empty state (item above) — it's two lines and it's the thing every director looking at an unscheduled event sees first.
+- **Severity**: 🟡 **Not a Fall problem and not a blocker** — the feature is sound and Fall is verified working. Case 2 is an **accuracy** defect on jobs that name fields without hyphens.
+- **Status**: 🔴 **OPEN — for Todd.** Ann's question ✅ **ANSWERED: Fall events are fine.** Filed 08-28 for the complex-name derivation found while verifying it.
 
 ### AR-038: 🚨🚨 [Privacy / Med Forms] A player's medical form is visible on EVERY registration they hold — across jobs AND across unrelated customers
 - **Topic**: Search Registrations → registrant fly-in → **"Medical form on file" / View** (`MedFormController`, `MedFormService`)
