@@ -2,6 +2,7 @@ using Syncfusion.Pdf;
 using Syncfusion.Pdf.Graphics;
 using Syncfusion.Pdf.Grid;
 using Syncfusion.Drawing;
+using TSIC.Contracts.Dtos.Store;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 
@@ -14,17 +15,147 @@ namespace TSIC.API.Services.Store;
 public sealed class StoreReceiptService : IStoreReceiptService
 {
 	private readonly IStoreCartRepository _cartRepo;
-	private readonly IJobRepository _jobRepo;
+	private readonly IStoreRepository _storeRepo;
 
-	public StoreReceiptService(IStoreCartRepository cartRepo, IJobRepository jobRepo)
+	// IJobRepository is gone: the job name now comes from GetReceiptContextAsync, which resolves it
+	// from the BATCH rather than from the caller's claims. Reading it from the caller is what let a
+	// foreign receipt render under the reader's own job name.
+	private readonly IEmailService _emailService;
+
+	public StoreReceiptService(
+		IStoreCartRepository cartRepo,
+		IStoreRepository storeRepo,
+		IEmailService emailService)
 	{
 		_cartRepo = cartRepo;
-		_jobRepo = jobRepo;
+		_storeRepo = storeRepo;
+		_emailService = emailService;
+	}
+
+	public async Task<StoreReceiptEmailResult> EmailReceiptAsync(
+		Guid jobId, int storeCartBatchId, CancellationToken cancellationToken = default)
+	{
+		var context = await _cartRepo.GetReceiptContextAsync(storeCartBatchId, cancellationToken);
+		if (context == null || context.JobId != jobId)
+			return new StoreReceiptEmailResult
+			{
+				Sent = false,
+				Recipients = [],
+				Reason = "Batch not found in this job."
+			};
+
+		var recipients = BuildRecipients(context);
+		if (recipients.Count == 0)
+			return new StoreReceiptEmailResult
+			{
+				Sent = false,
+				Recipients = [],
+				// Not an error. A walk-up buyer registered at the counter often has no address on
+				// file, and legacy mailed nobody in that case too — silently.
+				Reason = "No email address on file for this family."
+			};
+
+		var pdf = await GenerateReceiptPdfAsync(jobId, storeCartBatchId, cancellationToken);
+		if (pdf == null)
+			return new StoreReceiptEmailResult
+			{
+				Sent = false,
+				Recipients = recipients,
+				Reason = "Receipt could not be generated (batch unpaid or empty)."
+			};
+
+		var storeName = string.IsNullOrWhiteSpace(context.DisplayName)
+			? context.JobName
+			: context.DisplayName;
+
+		var message = new EmailMessageDto
+		{
+			FromName = storeName,
+			// Replies go to the DIRECTOR's store contact, not TSIC support — it is their store,
+			// their merchandise, and their pickup table. Falls back to the verified From identity
+			// when the job has not set one.
+			ReplyToName = $"{storeName} Merchandise",
+			ReplyToAddress = context.StoreContactEmail,
+			ToAddresses = recipients,
+			Subject = $"Your {storeName} merchandise receipt",
+			HtmlBody = BuildReceiptEmailBody(storeName, storeCartBatchId, context.StoreContactEmail),
+			Attachments =
+			{
+				new EmailAttachmentDto
+				{
+					FileName = $"receipt-{storeCartBatchId}.pdf",
+					Content = pdf,
+					ContentType = "application/pdf"
+				}
+			}
+		};
+
+		// sendInDevelopment stays FALSE: a local or staging checkout must not mail a real family.
+		// Production is the only environment that reaches a shopper (SANDBOX-RULE).
+		var sent = await _emailService.SendAsync(message, sendInDevelopment: false, cancellationToken);
+
+		return new StoreReceiptEmailResult
+		{
+			Sent = sent,
+			Recipients = recipients,
+			Reason = sent ? null : "Transport reported a failure."
+		};
+	}
+
+	/// <summary>
+	/// LEGACY order and dedup (<c>SendEmailReceipt</c>): Mom, then Dad, then each directed
+	/// registrant, skipping blanks and anything already on the list. Case-insensitive here —
+	/// legacy's <c>List.Contains</c> was ordinal, so a parent whose player registration carried
+	/// the same address in different case got the receipt twice.
+	/// </summary>
+	private static List<string> BuildRecipients(StoreReceiptContextDto context)
+	{
+		var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		var recipients = new List<string>();
+
+		void Add(string? address)
+		{
+			var trimmed = address?.Trim();
+			if (string.IsNullOrEmpty(trimmed)) return;
+			if (seen.Add(trimmed)) recipients.Add(trimmed);
+		}
+
+		Add(context.MomEmail);
+		Add(context.DadEmail);
+		foreach (var email in context.DirectedEmails) Add(email);
+
+		return recipients;
+	}
+
+	private static string BuildReceiptEmailBody(string storeName, int batchId, string? contactEmail)
+	{
+		var contactLine = string.IsNullOrWhiteSpace(contactEmail)
+			? ""
+			: $"<p style=\"margin:0 0 12px\">Questions about your order? Reply to this email or write to "
+				+ $"<a href=\"mailto:{contactEmail}\">{contactEmail}</a>.</p>";
+
+		return $"""
+			<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1f2937">
+			  <p style="margin:0 0 12px">Thank you for your order from <strong>{storeName}</strong>.</p>
+			  <p style="margin:0 0 12px">Your receipt is attached as a PDF. Order #{batchId}.</p>
+			  {contactLine}
+			</div>
+			""";
 	}
 
 	public async Task<byte[]?> GenerateReceiptPdfAsync(
 		Guid jobId, int storeCartBatchId, CancellationToken cancellationToken = default)
 	{
+		// SECURITY: the batch must belong to the caller's job. `jobId` used to be accepted here
+		// and never applied — every read below keys on storeCartBatchId alone — so any
+		// authenticated user could walk receipt/1, receipt/2, … and pull another family's PDF:
+		// buyer name, the registrants goods were directed to, the amounts, and the card's last
+		// four. Worse, the document was TITLED with the caller's job, so it did not even look
+		// foreign. Closed here, at the one place every receipt path passes through. See D-11.
+		var context = await _cartRepo.GetReceiptContextAsync(storeCartBatchId, cancellationToken);
+		if (context == null || context.JobId != jobId)
+			return null;
+
 		// Validate: batch must be paid
 		var accounting = await _cartRepo.GetBatchAccountingAsync(storeCartBatchId, cancellationToken);
 		if (accounting == null)
@@ -35,8 +166,7 @@ public sealed class StoreReceiptService : IStoreReceiptService
 		if (lineItems.Count == 0)
 			return null;
 
-		// Get job name
-		var jobName = await _jobRepo.GetJobNameAsync(jobId, cancellationToken) ?? "Store";
+		var jobName = context.JobName;
 
 		// Build PDF
 		using var document = new PdfDocument();
@@ -233,6 +363,31 @@ public sealed class StoreReceiptService : IStoreReceiptService
 		footerPage.Graphics.DrawString("Thank you for your business!", headingFont,
 			new PdfSolidBrush(headerColor),
 			new PointF(labelX, footerY));
+
+		// ── Policy footer ──
+		// LEGACY (GenerateInvoicePdf): the receipt ends with Refund Policy / Pickup Instructions /
+		// Merch Contact, drawn on the LEFT under the grid. Ours omitted it entirely, so the one
+		// document a shopper keeps said nothing about where to collect their goods or how to reach
+		// anyone. Same three job-level strings as the storefront panel — see StoreFrontInfoDto.
+		var storeInfo = await _storeRepo.GetStoreFrontInfoAsync(jobId, cancellationToken);
+		if (storeInfo.HasAny)
+		{
+			var lines = new List<string>();
+			if (storeInfo.RefundPolicy is not null)
+				lines.Add($"Refund Policy: {storeInfo.RefundPolicy}");
+			if (storeInfo.PickupDetails is not null)
+				lines.Add($"Pickup Instructions: {storeInfo.PickupDetails}");
+			if (storeInfo.ContactEmail is not null)
+				lines.Add($"Merch Contact: For questions regarding merchandise, please reach out to {storeInfo.ContactEmail}.");
+
+			// Drawn from the left margin across the full width, NOT in the right-hand totals
+			// column — this is prose and needs the room to wrap.
+			var policyElement = new PdfTextElement(
+				string.Join("\n\n", lines), bodyFont, PdfBrushes.Black);
+			policyElement.Draw(
+				footerPage,
+				new RectangleF(0, footerY + 30, clientWidth, 200));
+		}
 
 		// Serialize to byte array
 		using var ms = new MemoryStream();

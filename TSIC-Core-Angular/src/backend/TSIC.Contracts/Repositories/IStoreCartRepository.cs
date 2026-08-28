@@ -80,6 +80,25 @@ public interface IStoreCartRepository
     /// </summary>
     Task<StoreCartBatchAccounting?> GetBatchAccountingAsync(int storeCartBatchId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Who a purchase belongs to and who its receipt goes to. Null when the batch does not exist.
+    ///
+    /// <para>
+    /// This is the ONE place a receipt caller learns the batch's owning job and family, and every
+    /// receipt path must consult it BEFORE generating or mailing anything — see
+    /// <see cref="StoreReceiptContextDto"/>. Do not add a second batch lookup that answers
+    /// "who owns this" differently.
+    /// </para>
+    /// </summary>
+    Task<StoreReceiptContextDto?> GetReceiptContextAsync(int storeCartBatchId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// One family's purchase history in one job, newest first — legacy's Invoices grid. Scoped by
+    /// BOTH job and family in the query itself, so there is no id a caller can pass to widen it.
+    /// </summary>
+    Task<List<StoreFamilyPurchaseHistoryRowDto>> GetFamilyPurchaseHistoryAsync(
+        Guid jobId, string familyUserId, CancellationToken cancellationToken = default);
+
     // ── Availability queries ──
 
     /// <summary>

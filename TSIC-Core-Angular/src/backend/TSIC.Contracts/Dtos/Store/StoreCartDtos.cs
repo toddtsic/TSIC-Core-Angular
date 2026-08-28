@@ -144,3 +144,68 @@ public record StoreCheckoutPrepareDto
     public required bool WasAutoUpdated { get; init; }
     public required List<StoreCartTrimAdjustmentDto> Adjustments { get; init; }
 }
+
+// ── Receipts ──
+
+/// <summary>
+/// Who a completed purchase belongs to, and who its receipt goes to.
+///
+/// <para>
+/// The <see cref="JobId"/> and <see cref="FamilyUserId"/> here are a SECURITY BOUNDARY, not
+/// decoration. Every receipt read must check the batch against the caller's job — and, for a
+/// shopper, against their own family — before a byte of the PDF is generated. A store receipt
+/// carries the buyer's name, the registrants the goods were directed to, the amounts, and the
+/// last four of the card.
+/// </para>
+///
+/// <para>
+/// LEGACY recipient rule (<c>StoreFamilyController.SendEmailReceipt</c>): Mom's email, then Dad's,
+/// then the email of every registrant a line was directed to, each added only if not already
+/// present. Blank addresses are skipped. Legacy performed NO ownership check on the batch id at
+/// all — see D-11.
+/// </para>
+/// </summary>
+public record StoreReceiptContextDto
+{
+    public required Guid JobId { get; init; }
+    public required string JobName { get; init; }
+    public string? DisplayName { get; init; }
+    public required string FamilyUserId { get; init; }
+
+    public string? MomEmail { get; init; }
+    public string? DadEmail { get; init; }
+
+    /// <summary>
+    /// Emails of the registrants this purchase's lines were directed to. On the live data 87 of
+    /// 651 directed lines carry an address that is neither parent's — a player address the family
+    /// chose to enter, which is why legacy mails it.
+    /// </summary>
+    public required List<string> DirectedEmails { get; init; }
+
+    /// <summary>The job's store contact address — becomes the receipt's Reply-To.</summary>
+    public string? StoreContactEmail { get; init; }
+}
+
+/// <summary>
+/// One row of the shopper's purchase history — legacy <c>StoreFamily/Invoices</c>
+/// (<c>GetFamilyTxBatchHistory</c>).
+///
+/// <para>
+/// The grain is the ACCOUNTING RECORD, not the batch. Legacy groups by
+/// (batch, date, invoice, paid, method), so a purchase that was later refunded produces two rows —
+/// the charge and the reversal. That reads oddly as "invoices" but it is the truthful thing for a
+/// shopper looking for what happened to their money, and it is what legacy showed.
+/// </para>
+/// </summary>
+public record StoreFamilyPurchaseHistoryRowDto
+{
+    public required int StoreCartBatchId { get; init; }
+    public required DateTime PaymentDate { get; init; }
+
+    /// <summary>The ADN invoice number. Null on a walk-up or cash sale, which is why legacy's
+    /// toolbar refused to act on a row without one.</summary>
+    public string? AdnInvoiceNo { get; init; }
+
+    public required decimal PaidTotal { get; init; }
+    public required string PaymentMethod { get; init; }
+}

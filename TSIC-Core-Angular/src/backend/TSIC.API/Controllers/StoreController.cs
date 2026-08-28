@@ -9,6 +9,7 @@ using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.Store;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 
 namespace TSIC.API.Controllers;
 
@@ -604,6 +605,20 @@ public class StoreController : ControllerBase
     //  CART — Customer
     // ═══════════════════════════════════════════
 
+    /// <summary>
+    /// This family's completed purchases in this job — legacy's Invoices screen (A-28), and the
+    /// count behind the storefront's purchase-history badge (A-09).
+    ///
+    /// <para>Scoped to the caller's own family in the query, so there is no id to tamper with.</para>
+    /// </summary>
+    [HttpGet("purchase-history")]
+    [ProducesResponseType(typeof(List<StoreFamilyPurchaseHistoryRowDto>), 200)]
+    public async Task<IActionResult> GetPurchaseHistory(CancellationToken ct)
+    {
+        var (jobId, userId) = await ResolveContext();
+        return Ok(await _cartService.GetPurchaseHistoryAsync(jobId, userId, ct));
+    }
+
     [HttpGet("cart")]
     [ProducesResponseType(typeof(StoreCartBatchDto), 200)]
     public async Task<IActionResult> GetCurrentCart()
@@ -733,16 +748,75 @@ public class StoreController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// The PDF receipt for one completed purchase.
+    ///
+    /// <para>
+    /// TWO boundaries, both required. The service checks the batch belongs to the caller's JOB;
+    /// this checks it belongs to the caller's own FAMILY, unless they are store staff — a director
+    /// or store admin legitimately pulls any receipt in their job from the Sales tab. Legacy had
+    /// neither check: <c>SendEmailReceipt</c> and <c>GenerateInvoice</c> took a bare batch id.
+    /// Both are answered by the same <c>GetReceiptContextAsync</c> read. See D-11.
+    /// </para>
+    ///
+    /// <para>404, not 403, on a foreign batch — a distinguishable "forbidden" would confirm the
+    /// batch exists and let the ids be walked for reconnaissance.</para>
+    /// </summary>
     [HttpGet("receipt/{storeCartBatchId:int}")]
     [ProducesResponseType(typeof(FileContentResult), 200)]
     [ProducesResponseType(404)]
     public async Task<IActionResult> GetReceipt(int storeCartBatchId, CancellationToken ct)
     {
-        var (jobId, _) = await ResolveContext();
+        var (jobId, userId) = await ResolveContext();
+        if (!await CallerMayReadReceipt(storeCartBatchId, userId, ct)) return NotFound();
+
         var pdf = await _receiptService.GenerateReceiptPdfAsync(jobId, storeCartBatchId, ct);
         if (pdf == null) return NotFound();
         return File(pdf, "application/pdf", $"receipt-{storeCartBatchId}.pdf");
     }
+
+    /// <summary>
+    /// Resend the receipt for a completed purchase — legacy's <c>SendEmailReceipt</c>, reachable
+    /// from the shopper's Invoices screen and from the director's Sales tab.
+    ///
+    /// <para>
+    /// Legacy took a bare batch id with no ownership check of any kind, so any logged-in user
+    /// could make the system mail any family their own purchase receipt, repeatedly. Guarded here
+    /// by the same rule as the download.
+    /// </para>
+    ///
+    /// <para>The response reports who it went to. A family with no address on file is not an
+    /// error — it is an answer the screen should show, so it comes back 200 with Sent false.</para>
+    /// </summary>
+    [HttpPost("receipt/{storeCartBatchId:int}/email")]
+    [ProducesResponseType(typeof(StoreReceiptEmailResult), 200)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> EmailReceipt(int storeCartBatchId, CancellationToken ct)
+    {
+        var (jobId, userId) = await ResolveContext();
+        if (!await CallerMayReadReceipt(storeCartBatchId, userId, ct)) return NotFound();
+
+        return Ok(await _receiptService.EmailReceiptAsync(jobId, storeCartBatchId, ct));
+    }
+
+    /// <summary>
+    /// True when the caller is store staff, or the purchase is their own family's. The job
+    /// boundary is enforced separately, inside the receipt service.
+    /// </summary>
+    private async Task<bool> CallerMayReadReceipt(
+        int storeCartBatchId, string userId, CancellationToken ct)
+    {
+        if (IsStoreStaff) return true;
+        var context = await _cartRepo.GetReceiptContextAsync(storeCartBatchId, ct);
+        return context is not null
+            && string.Equals(context.FamilyUserId, userId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Mirrors the "StoreAdmin" policy — Superuser · Director · Store Admin.</summary>
+    private bool IsStoreStaff =>
+        User.IsInRole(RoleConstants.Names.SuperuserName)
+        || User.IsInRole(RoleConstants.Names.DirectorName)
+        || User.IsInRole(RoleConstants.Names.StoreAdminName);
 
     [HttpGet("family-players")]
     [ProducesResponseType(typeof(List<StoreFamilyPlayerDto>), 200)]

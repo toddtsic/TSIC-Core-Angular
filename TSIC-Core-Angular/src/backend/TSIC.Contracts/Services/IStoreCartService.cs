@@ -13,6 +13,13 @@ public interface IStoreCartService
     Task<StoreCartBatchDto> GetCurrentCartAsync(Guid jobId, string familyUserId);
 
     /// <summary>
+    /// This family's completed purchases in this job, newest first — legacy's Invoices screen.
+    /// Also the source of the storefront's purchase-history badge count.
+    /// </summary>
+    Task<List<StoreFamilyPurchaseHistoryRowDto>> GetPurchaseHistoryAsync(
+        Guid jobId, string familyUserId, CancellationToken ct = default);
+
+    /// <summary>
     /// Add a SKU to the cart (with availability check).
     /// </summary>
     Task<StoreCartBatchDto> AddToCartAsync(Guid jobId, string familyUserId, string userId, AddToCartRequest request);

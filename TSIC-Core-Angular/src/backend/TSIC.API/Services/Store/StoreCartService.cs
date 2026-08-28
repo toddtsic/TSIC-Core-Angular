@@ -20,20 +20,30 @@ public sealed class StoreCartService : IStoreCartService
     private readonly IStoreItemRepository _itemRepo;
     private readonly IAdnApiService _adnApiService;
     private readonly TSIC.Contracts.Services.IJobPaymentFeaturesService _paymentFeatures;
+    private readonly IStoreReceiptService _receiptService;
+    private readonly ILogger<StoreCartService> _logger;
 
     public StoreCartService(
         IStoreRepository storeRepo,
         IStoreCartRepository cartRepo,
         IStoreItemRepository itemRepo,
         IAdnApiService adnApiService,
-        TSIC.Contracts.Services.IJobPaymentFeaturesService paymentFeatures)
+        TSIC.Contracts.Services.IJobPaymentFeaturesService paymentFeatures,
+        IStoreReceiptService receiptService,
+        ILogger<StoreCartService> logger)
     {
         _storeRepo = storeRepo;
         _cartRepo = cartRepo;
         _itemRepo = itemRepo;
         _adnApiService = adnApiService;
         _paymentFeatures = paymentFeatures;
+        _receiptService = receiptService;
+        _logger = logger;
     }
+
+    public Task<List<StoreFamilyPurchaseHistoryRowDto>> GetPurchaseHistoryAsync(
+        Guid jobId, string familyUserId, CancellationToken ct = default)
+        => _cartRepo.GetFamilyPurchaseHistoryAsync(jobId, familyUserId, ct);
 
     public async Task<StoreCartBatchDto> GetCurrentCartAsync(Guid jobId, string familyUserId)
     {
@@ -539,6 +549,29 @@ public sealed class StoreCartService : IStoreCartService
 
         // Single SaveChanges: line item updates + accounting record (implicit transaction)
         await _cartRepo.SaveChangesAsync();
+
+        // LEGACY (A-26): the receipt is emailed automatically on a successful charge. Legacy
+        // wrapped this in a try/catch commented "Priority 3 - Send email (failure acceptable)",
+        // and that ordering is the point: the money has already moved and the accounting row is
+        // committed. A mail failure must never come back to the shopper as a failed checkout, so
+        // it is swallowed and logged. The shopper can resend from Invoices (A-27) and the
+        // director can resend for them.
+        try
+        {
+            var emailResult = await _receiptService.EmailReceiptAsync(jobId, batch.StoreCartBatchId);
+            if (!emailResult.Sent)
+            {
+                _logger.LogWarning(
+                    "Store receipt not emailed for batch {BatchId} in job {JobId}: {Reason}",
+                    batch.StoreCartBatchId, jobId, emailResult.Reason);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Store receipt email threw for batch {BatchId} in job {JobId}. Payment is recorded; receipt was not sent.",
+                batch.StoreCartBatchId, jobId);
+        }
 
         return new StoreCheckoutResultDto
         {

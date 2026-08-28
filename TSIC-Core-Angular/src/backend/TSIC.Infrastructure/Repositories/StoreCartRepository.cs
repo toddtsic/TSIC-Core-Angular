@@ -134,6 +134,86 @@ public class StoreCartRepository : IStoreCartRepository
             .FirstOrDefaultAsync(a => a.StoreCartBatchId == storeCartBatchId, cancellationToken);
     }
 
+    public async Task<StoreReceiptContextDto?> GetReceiptContextAsync(
+        int storeCartBatchId, CancellationToken cancellationToken = default)
+    {
+        var batch = await _context.StoreCartBatches
+            .AsNoTracking()
+            .Where(b => b.StoreCartBatchId == storeCartBatchId)
+            .Select(b => new
+            {
+                b.StoreCart.Store.JobId,
+                b.StoreCart.Store.Job.JobName,
+                b.StoreCart.Store.Job.DisplayName,
+                b.StoreCart.Store.Job.StoreContactEmail,
+                b.StoreCart.FamilyUserId
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (batch is null) return null;
+
+        // Legacy reads Mom then Dad off the Families row keyed by the CART's family user.
+        var family = await _context.Families
+            .AsNoTracking()
+            .Where(f => f.FamilyUserId == batch.FamilyUserId)
+            .Select(f => new { f.MomEmail, f.DadEmail })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        // Then every registrant a line was directed to. Distinct at the database; the caller
+        // dedupes these against the parents, in legacy's order.
+        var directed = await _context.StoreCartBatchSkus
+            .AsNoTracking()
+            .Where(s => s.StoreCartBatchId == storeCartBatchId
+                && s.DirectToReg != null
+                && s.DirectToReg.User.Email != null
+                && s.DirectToReg.User.Email != "")
+            .Select(s => s.DirectToReg!.User.Email!)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return new StoreReceiptContextDto
+        {
+            JobId = batch.JobId,
+            JobName = batch.JobName,
+            DisplayName = batch.DisplayName,
+            StoreContactEmail = batch.StoreContactEmail,
+            FamilyUserId = batch.FamilyUserId,
+            MomEmail = family?.MomEmail,
+            DadEmail = family?.DadEmail,
+            DirectedEmails = directed
+        };
+    }
+
+    public async Task<List<StoreFamilyPurchaseHistoryRowDto>> GetFamilyPurchaseHistoryAsync(
+        Guid jobId, string familyUserId, CancellationToken cancellationToken = default)
+    {
+        // Legacy groups by the whole tuple, which makes this a DISTINCT rather than an aggregate —
+        // a batch with a charge and a later reversal yields two rows. Preserved: it is the
+        // truthful record of what happened to the shopper's money.
+        return await _context.StoreCartBatchAccounting
+            .AsNoTracking()
+            .Where(a => a.StoreCartBatch.StoreCart.Store.JobId == jobId
+                && a.StoreCartBatch.StoreCart.FamilyUserId == familyUserId)
+            .GroupBy(a => new
+            {
+                a.StoreCartBatchId,
+                a.CreateDate,
+                a.AdnInvoiceNo,
+                a.Paid,
+                PaymentMethodName = a.PaymentMethod.PaymentMethod
+            })
+            .Select(g => new StoreFamilyPurchaseHistoryRowDto
+            {
+                StoreCartBatchId = g.Key.StoreCartBatchId,
+                PaymentDate = g.Key.CreateDate,
+                AdnInvoiceNo = g.Key.AdnInvoiceNo,
+                PaidTotal = g.Key.Paid,
+                PaymentMethod = g.Key.PaymentMethodName
+            })
+            .OrderByDescending(r => r.PaymentDate)
+            .ToListAsync(cancellationToken);
+    }
+
     // ── Availability queries ──
 
     public async Task<int> GetSoldCountForSkuAsync(
