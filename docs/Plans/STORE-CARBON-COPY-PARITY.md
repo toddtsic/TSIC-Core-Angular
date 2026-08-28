@@ -59,9 +59,14 @@ settled:
 - `StoreSales` carries a dead `DOMContentLoaded` block of commented-out scratch wiring for a
   `.select-row-button` that does not exist in its markup. Absent from the twin. Nothing to port.
 
-Every inventoried pathway now has code behind it. What remains is **verification, not
-construction** — see the status legend: 71 rows sit at `IMPL`, and nothing is `DONE` until it has
-been run against legacy.
+Every inventoried pathway now has code behind it.
+
+⚠ **"Complete" means every SCREEN was opened — it does not mean every WIDGET on those screens was
+counted.** The screen-by-screen walk started 2026-08-28 immediately disproved the stronger
+reading: `StoreDashboard` had been signed off at three rows, and the very first capture showed
+legacy's middle card holds **two** charts side by side, not one. The Revenue-by-Item doughnut had
+never been a row (now D-05). Assume more of these exist inside dense screens, and let the walk
+find them — a screen is not covered because its controller action is.
 
 ---
 
@@ -180,8 +185,10 @@ been run against legacy.
 |---|---|---|
 | D-01 | Sales Rollup pivot — rows item→sku, cols year→month, Units + Sales | BUILT |
 | D-02 | Pivot: label filter, value filter, sorting, `C2` format | BUILT |
-| D-03 | Product Sales chart (legacy id says Stacked, config says Column) | BUILT |
-| D-04 | Sales Rollup chart | BUILT |
+| D-03 | `pvProductSalesStacked` — Product Sales chart, "Sales Analysis" (legacy id says Stacked, `e-chartSeries` says Column; the source wins). Legacy puts its row/column captions on the WRONG fields — rows `YearMonth` unlabelled, columns `Product` captioned "Year-Month"; corrected here | BUILT |
+| D-04 | `pvSalesRollupChart` — Sales Rollup chart, Column, `C0` | BUILT |
+| D-05 | `pvcRevenueByItem` — **Revenue by Item DOUGHNUT**, the second chart inside legacy's one "Useful Sales Graphics Here..." card. **Missed until the 08-28 screen walk** — the card holds two charts side by side and only the left one had ever been inventoried. Reads the same pivot rows as the rest of the screen | BUILT |
+| D-06d | `GetSalesByItemPieData` — private method computing `ViewBag.ListSalesByItemPieData`, referenced **zero times** by the view. Dead; deliberately unported | REFUSED |
 
 ## E · Email campaigns
 

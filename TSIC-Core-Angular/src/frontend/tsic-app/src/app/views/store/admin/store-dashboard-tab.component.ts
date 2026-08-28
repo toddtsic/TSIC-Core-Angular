@@ -158,6 +158,33 @@ export class StoreDashboardTabComponent {
 		chartSeries: { type: 'Column' as const },
 	};
 
+	/**
+	 * D-05 — `pvcRevenueByItem`: the doughnut that sits to the RIGHT of Product Sales in legacy's
+	 * one "Useful Sales Graphics Here..." card. Revenue share per product, no time dimension.
+	 *
+	 * <p>It reads the same pivot rows as everything else on this screen. Legacy's controller also
+	 * computes a `ListSalesByItemPieData` that LOOKS like this chart's source — a private method
+	 * with its own filter — but the view references it zero times, so it is dead and stays
+	 * unported. Feeding this off the pivot data is what legacy actually does.</p>
+	 */
+	readonly revenueByItem = computed<IDataOptions>(() => ({
+		dataSource: this.records(),
+		expandAll: true,
+		enableSorting: true,
+		allowLabelFilter: true,
+		allowValueFilter: true,
+		rows: [{ name: 'itemName', caption: 'Store Item' }],
+		values: [{ name: 'revenue', caption: 'Revenue', type: 'Sum' }],
+		formatSettings: [
+			{ name: 'revenue', format: 'C', maximumSignificantDigits: 10, minimumSignificantDigits: 1, useGrouping: true },
+		],
+	}));
+
+	readonly revenueByItemChart = {
+		title: 'Revenue by Item',
+		chartSeries: { type: 'Doughnut' as const },
+	};
+
 	/** D-04 — `pvSalesRollupChart`: rows item, columns year, Units + Sales, whole dollars. */
 	readonly salesRollupChart = computed<IDataOptions>(() => ({
 		dataSource: this.records(),

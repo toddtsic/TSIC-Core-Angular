@@ -100,6 +100,26 @@
 	</section>
 
 	<!-- ══════════════════════════════════════ -->
+	<!-- D-05: Revenue by Item doughnut         -->
+	<!-- Legacy pairs this beside Product Sales -->
+	<!-- inside one card; stacked here so both  -->
+	<!-- keep a readable width on a narrow tab. -->
+	<!-- ══════════════════════════════════════ -->
+	<section class="panel">
+		<h3 class="panel-title">Revenue by Item</h3>
+		<p class="panel-sub">Each product's share of store revenue, all time.</p>
+		<div class="pivot-wrap">
+			<ejs-pivotview
+				[dataSourceSettings]="revenueByItem()"
+				[chartSettings]="revenueByItemChart"
+				[displayOption]="chartDisplay"
+				[height]="360"
+				[showFieldList]="false">
+			</ejs-pivotview>
+		</div>
+	</section>
+
+	<!-- ══════════════════════════════════════ -->
 	<!-- D-04: Sales Rollup chart               -->
 	<!-- ══════════════════════════════════════ -->
 	<section class="panel">
