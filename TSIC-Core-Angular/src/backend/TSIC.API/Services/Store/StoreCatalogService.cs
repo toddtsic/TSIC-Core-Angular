@@ -163,6 +163,67 @@ public sealed class StoreCatalogService : IStoreCatalogService
         return skus.First(s => s.StoreSkuId == storeSkuId);
     }
 
+    /// <summary>
+    /// LEGACY (StoreSkusController.UpdateSku, action "remove"): delete a single SKU row outright.
+    ///
+    /// Legacy calls Remove and lets a foreign-key violation surface as an unhandled exception when
+    /// the SKU has been sold. We refuse up front with a message instead — same outcome, deletion
+    /// blocked, but the caller learns why. A SKU referenced by a cart line is part of a purchase
+    /// record and must never be removed.
+    /// </summary>
+    public async Task DeleteSkuAsync(Guid jobId, int storeSkuId)
+    {
+        var sku = await _itemRepo.GetSkuByIdAsync(storeSkuId)
+            ?? throw new InvalidOperationException($"SKU {storeSkuId} not found.");
+
+        await AssertItemBelongsToJobAsync(jobId, sku.StoreItemId);
+
+        if (await _itemRepo.IsSkuReferencedAsync(storeSkuId))
+            throw new InvalidOperationException(
+                "Cannot delete a SKU that appears in a cart or purchase. Deactivate it instead.");
+
+        _itemRepo.RemoveSku(sku);
+        await _itemRepo.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// LEGACY (StoreSkusController.UpdateSku, action "batch"): remove every SKU of the item first,
+    /// then the item itself — the grouped grid deletes a whole product in one gesture.
+    /// Refused when any SKU has been sold or is sitting in a cart, for the same reason as above.
+    /// </summary>
+    public async Task DeleteItemAsync(Guid jobId, int storeItemId)
+    {
+        var item = await AssertItemBelongsToJobAsync(jobId, storeItemId);
+
+        if (await _itemRepo.IsItemReferencedAsync(storeItemId))
+            throw new InvalidOperationException(
+                "Cannot delete an item that has been sold or is in a cart. Deactivate it instead.");
+
+        // SKUs first, then the item — the FK runs SKU -> item.
+        var skus = await _itemRepo.GetSkusForItemAsync(storeItemId);
+        _itemRepo.RemoveSkus(skus);
+        _itemRepo.RemoveItem(item);
+        await _itemRepo.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Deletion is keyed by StoreItemId/StoreSkuId, neither of which is job-scoped, so confirm the
+    /// item belongs to the caller's job before touching it.
+    /// </summary>
+    private async Task<StoreItems> AssertItemBelongsToJobAsync(Guid jobId, int storeItemId)
+    {
+        var store = await _storeRepo.GetByJobIdAsync(jobId)
+            ?? throw new InvalidOperationException("Store not found for this job.");
+
+        var item = await _itemRepo.GetItemByIdAsync(storeItemId)
+            ?? throw new InvalidOperationException($"Item {storeItemId} not found.");
+
+        if (item.StoreId != store.StoreId)
+            throw new InvalidOperationException($"Item {storeItemId} not found.");
+
+        return item;
+    }
+
     // ── Colors ──
 
     public async Task<List<StoreColorDto>> GetColorsAsync()

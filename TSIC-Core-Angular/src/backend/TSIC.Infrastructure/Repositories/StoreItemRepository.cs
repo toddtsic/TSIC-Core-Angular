@@ -275,4 +275,43 @@ public class StoreItemRepository : IStoreItemRepository
                 && !cbs.StoreCartBatch.StoreCartBatchAccounting.Any())
             .SumAsync(cbs => cbs.Quantity, cancellationToken);
     }
+
+    // ── Deletion ──
+
+    public async Task<List<StoreItemSkus>> GetSkusForItemAsync(
+        int storeItemId, CancellationToken cancellationToken = default)
+    {
+        return await _context.StoreItemSkus
+            .Where(sku => sku.StoreItemId == storeItemId)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<bool> IsSkuReferencedAsync(
+        int storeSkuId, CancellationToken cancellationToken = default)
+    {
+        return await _context.StoreCartBatchSkus
+            .AnyAsync(cbs => cbs.StoreSkuId == storeSkuId, cancellationToken);
+    }
+
+    public async Task<bool> IsItemReferencedAsync(
+        int storeItemId, CancellationToken cancellationToken = default)
+    {
+        return await _context.StoreCartBatchSkus
+            .AnyAsync(cbs => cbs.StoreSku.StoreItemId == storeItemId, cancellationToken);
+    }
+
+    public void RemoveSku(StoreItemSkus sku)
+    {
+        _context.StoreItemSkus.Remove(sku);
+    }
+
+    public void RemoveSkus(IEnumerable<StoreItemSkus> skus)
+    {
+        _context.StoreItemSkus.RemoveRange(skus);
+    }
+
+    public void RemoveItem(StoreItems item)
+    {
+        _context.StoreItems.Remove(item);
+    }
 }

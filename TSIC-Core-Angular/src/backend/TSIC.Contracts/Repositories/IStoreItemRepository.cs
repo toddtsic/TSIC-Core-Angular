@@ -72,4 +72,26 @@ public interface IStoreItemRepository
     /// InCart = Active line items in batches that have NO accounting records.
     /// </summary>
     Task<int> GetInCartCountAsync(int storeSkuId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// All SKUs belonging to an item, tracked, for deletion.
+    /// </summary>
+    Task<List<StoreItemSkus>> GetSkusForItemAsync(int storeItemId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// True when any cart line — paid or unpaid — references this SKU. A referenced SKU cannot be
+    /// deleted: the row is part of a purchase record.
+    /// </summary>
+    Task<bool> IsSkuReferencedAsync(int storeSkuId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// True when any cart line references any SKU of this item.
+    /// </summary>
+    Task<bool> IsItemReferencedAsync(int storeItemId, CancellationToken cancellationToken = default);
+
+    void RemoveSku(StoreItemSkus sku);
+
+    void RemoveSkus(IEnumerable<StoreItemSkus> skus);
+
+    void RemoveItem(StoreItems item);
 }

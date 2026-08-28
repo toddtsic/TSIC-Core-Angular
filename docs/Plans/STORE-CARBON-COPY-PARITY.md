@@ -112,9 +112,10 @@ CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
 | B-12 | `UnSold = MaxCanSell − Sold` (**no in-cart deduction**) | IMPL |
 | B-13 | SKU label `Item:Size:Color`, `::`→`:` collapse when a dimension is null | IMPL |
 | B-14 | SKU sort: Item → Size → Colour, alphabetical | IMPL |
-| B-15 | `UpdateSku` writes **Active + MaxCanSell ONLY** | UNVER |
-| B-16 | `UpdateSku` StoreItemSkuId==0 branch → updates parent item Active | GAP |
-| B-17 | `UpdateSku` batch branch → delete SKUs, then parent item | GAP |
+| B-15 | `UpdateSku` writes **Active + MaxCanSell ONLY** | IMPL |
+| B-16 | `UpdateSku` StoreItemSkuId==0 branch → updates parent item Active | IMPL |
+| B-17 | `UpdateSku` batch branch → delete SKUs, then parent item | IMPL |
+| B-36 | `UpdateSku` action "remove" branch → delete a single SKU by key | IMPL |
 | B-18 | Skus toolbar: Excel Export | GAP |
 | B-19 | `StoreImages/Index` grid — Store Item · File · Image | WALKED |
 | B-20 | Images toolbar: **Add · Edit · Delete** (only Store screen with create/delete) | GAP |

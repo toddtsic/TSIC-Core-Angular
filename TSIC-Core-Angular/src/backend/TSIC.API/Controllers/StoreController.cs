@@ -138,6 +138,47 @@ public class StoreController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Legacy StoreSkusController.UpdateSku, action "remove" — delete one SKU.
+    /// </summary>
+    [HttpDelete("skus/{storeSkuId:int}")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(204)]
+    public async Task<IActionResult> DeleteSku(int storeSkuId)
+    {
+        var (jobId, _) = await ResolveContext();
+        try
+        {
+            await _catalogService.DeleteSkuAsync(jobId, storeSkuId);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Legacy StoreSkusController.UpdateSku, action "batch" — delete every SKU of the item, then
+    /// the item itself.
+    /// </summary>
+    [HttpDelete("items/{storeItemId:int}")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(204)]
+    public async Task<IActionResult> DeleteItem(int storeItemId)
+    {
+        var (jobId, _) = await ResolveContext();
+        try
+        {
+            await _catalogService.DeleteItemAsync(jobId, storeItemId);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     // ── Colors ──
 
     [HttpGet("colors")]

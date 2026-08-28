@@ -147,6 +147,11 @@
 											title="Edit item" aria-label="Edit item">
 										<i class="bi bi-pencil"></i>
 									</button>
+									<button class="action-btn action-btn-danger" (click)="confirmDeleteItem(item)"
+										title="Delete item and all its SKUs"
+										[attr.aria-label]="'Delete ' + item.storeItemName">
+										<i class="bi bi-trash"></i>
+									</button>
 								</div>
 							</td>
 						</tr>
@@ -240,6 +245,11 @@
 																			title="Edit SKU" aria-label="Edit SKU">
 																		<i class="bi bi-pencil"></i>
 																	</button>
+																			<button class="action-btn action-btn-danger"
+																				(click)="confirmDeleteSku(sku)"
+																				title="Delete SKU" [attr.aria-label]="'Delete ' + sku.skuLabel">
+																				<i class="bi bi-trash"></i>
+																			</button>
 																</div>
 															</td>
 														</tr>
@@ -545,8 +555,8 @@
 <!-- Delete Confirmation -->
 @if (showDeleteConfirm()) {
 	<confirm-dialog
-		[title]="'Delete ' + (deleteTarget()?.type === 'color' ? 'Color' : 'Size') + '?'"
-		[message]="'Are you sure you want to delete &quot;' + deleteTarget()?.name + '&quot;? This cannot be undone.'"
+		[title]="'Delete ' + deleteTargetLabel() + '?'"
+		[message]="'Are you sure you want to delete &quot;' + deleteTarget()?.name + '&quot;?' + deleteTargetWarning() + ' This cannot be undone.'"
 		confirmLabel="Delete"
 		cancelLabel="Cancel"
 		confirmVariant="danger"

@@ -83,6 +83,16 @@ export class StoreService {
 		return this.http.put<StoreSkuDto>(`${this.base}/skus/${storeSkuId}`, request);
 	}
 
+	/** Delete one SKU. Refused server-side if it appears in any cart or purchase. */
+	deleteSku(storeSkuId: number): Observable<void> {
+		return this.http.delete<void>(`${this.base}/skus/${storeSkuId}`);
+	}
+
+	/** Delete an item and all of its SKUs. Refused if any SKU has been sold or is in a cart. */
+	deleteItem(storeItemId: number): Observable<void> {
+		return this.http.delete<void>(`${this.base}/items/${storeItemId}`);
+	}
+
 	// ── Colors ──
 
 	getColors(): Observable<StoreColorDto[]> {

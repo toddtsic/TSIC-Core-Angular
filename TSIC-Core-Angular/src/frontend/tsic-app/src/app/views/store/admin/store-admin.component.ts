@@ -84,7 +84,8 @@ export class StoreAdminComponent {
 
 	// ── Delete confirmation ──
 	readonly showDeleteConfirm = signal(false);
-	readonly deleteTarget = signal<{ type: 'color' | 'size'; id: number; name: string } | null>(null);
+	readonly deleteTarget =
+		signal<{ type: 'color' | 'size' | 'item' | 'sku'; id: number; name: string } | null>(null);
 
 	// ── Computed ──
 	readonly isEditingItem = computed(() => this.editingItem() !== null);
@@ -435,28 +436,78 @@ export class StoreAdminComponent {
 	//  DELETE CONFIRMATION
 	// ═══════════════════════════════════════
 
+	/**
+	 * Legacy StoreSkusController.UpdateSku, action "batch": deleting an item removes all of its
+	 * SKUs first, then the item. The server does that in one call.
+	 */
+	confirmDeleteItem(item: StoreItemSummaryDto): void {
+		this.deleteTarget.set({ type: 'item', id: item.storeItemId, name: item.storeItemName });
+		this.showDeleteConfirm.set(true);
+	}
+
+	/** Legacy action "remove": delete a single SKU. */
+	confirmDeleteSku(sku: StoreSkuDto): void {
+		this.deleteTarget.set({ type: 'sku', id: sku.storeSkuId, name: sku.skuLabel });
+		this.showDeleteConfirm.set(true);
+	}
+
+	readonly deleteTargetLabel = computed(() => {
+		switch (this.deleteTarget()?.type) {
+			case 'color': return 'Color';
+			case 'size': return 'Size';
+			case 'item': return 'Item';
+			case 'sku': return 'SKU';
+			default: return '';
+		}
+	});
+
+	/**
+	 * Deleting an item takes every SKU with it, so the warning has to say so — the confirm text
+	 * is the last point at which that is recoverable information.
+	 */
+	readonly deleteTargetWarning = computed(() =>
+		this.deleteTarget()?.type === 'item'
+			? ' Every SKU under it is deleted too.'
+			: '');
+
 	onDeleteConfirmed(): void {
 		const target = this.deleteTarget();
 		if (!target) return;
 
 		this.isSaving.set(true);
-		const delete$ = target.type === 'color'
-			? this.store.deleteColor(target.id)
-			: this.store.deleteSize(target.id);
+		const delete$ =
+			target.type === 'color' ? this.store.deleteColor(target.id)
+			: target.type === 'size' ? this.store.deleteSize(target.id)
+			: target.type === 'item' ? this.store.deleteItem(target.id)
+			: this.store.deleteSku(target.id);
 
 		delete$.subscribe({
 			next: () => {
-				if (target.type === 'color') {
-					this.colors.update(list => list.filter(c => c.storeColorId !== target.id));
-				} else {
-					this.sizes.update(list => list.filter(s => s.storeSizeId !== target.id));
+				switch (target.type) {
+					case 'color':
+						this.colors.update(list => list.filter(c => c.storeColorId !== target.id));
+						break;
+					case 'size':
+						this.sizes.update(list => list.filter(s => s.storeSizeId !== target.id));
+						break;
+					case 'item':
+						this.items.update(list => list.filter(i => i.storeItemId !== target.id));
+						if (this.expandedItemId() === target.id) {
+							this.expandedItemId.set(null);
+						}
+						break;
+					case 'sku':
+						this.expandedSkus.update(list => list.filter(s => s.storeSkuId !== target.id));
+						// SKU counts on the parent row are now stale.
+						this.refreshItems();
+						break;
 				}
-				this.toast.show(`${target.type === 'color' ? 'Color' : 'Size'} deleted`, 'success');
+				this.toast.show(`${this.deleteTargetLabel()} deleted`, 'success');
 				this.showDeleteConfirm.set(false);
 				this.isSaving.set(false);
 			},
 			error: err => {
-				this.toast.show(err?.error?.message || 'Cannot delete — in use by SKUs', 'danger');
+				this.toast.show(err?.error?.message || 'Cannot delete — in use', 'danger');
 				this.showDeleteConfirm.set(false);
 				this.isSaving.set(false);
 			}
