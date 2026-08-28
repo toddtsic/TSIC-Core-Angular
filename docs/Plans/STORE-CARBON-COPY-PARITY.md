@@ -22,6 +22,7 @@ behaves as legacy behaves.
 | Status | Meaning |
 |---|---|
 | `GAP` | Confirmed absent on the new side |
+| `REFUSED` | Legacy behaviour deliberately NOT built, with the reason recorded |
 | `UNVER` | Something exists; **not** verified pathway-by-pathway against legacy |
 | `WALKED` | Legacy screen opened and compared with Todd; observations recorded below |
 | `IMPL` | Code written to legacy semantics; **not yet verified** against a legacy run |
@@ -106,7 +107,7 @@ StoreSalesWalkup, StoreTwoClick, CheckoutConfirmation, WalkUp, and the Labels/Cr
 | B-07 | SKU matrix size × colour on create, skipping existing combos; SIZE outer / COLOUR inner | IMPL |
 | B-08 | Items toolbar: Excel Export. **Inert in legacy** — the toolbar declares the button but the grid never sets `allowExcelExport="true"`, so clicking it does nothing (see D-9). BUILT anyway, server-side: Active · Item · Sort Order | BUILT |
 | B-28 | **`StoreColors`/`StoreSizes` are a GLOBAL dictionary** — looked up by name with no store or job filter | IMPL |
-| B-29 | Create POST is wired to `hide.bs.modal` — **Cancel and × also submit** | GAP |
+| B-29 | Create POST is wired to `hide.bs.modal` — **Cancel and × also submit**. A legacy defect: our modal submits only from the Create button. Standing decision, R-10 | REFUSED |
 | B-30 | `GetOrCreateStoreItemAsync` matches `StoreId + StoreItemName`; on hit reuses the item and does **not** update price/comments | IMPL |
 | B-31 | No sizes and no colours → `CreateDefaultSkuAsync`, one null/null SKU | DONE (already correct) |
 | B-32 | New SKUs born `Active = true, MaxCanSell = 0`; no MaxCanSell field at creation | IMPL |
