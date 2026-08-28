@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit, input, output, viewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, inject, signal, computed, OnInit, input, output, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { RichTextEditorAllModule, RichTextEditorComponent } from '@syncfusion/ej2-angular-richtexteditor';
@@ -132,7 +132,6 @@ export type ModalMode = 'add' | 'edit';
 
                         <div class="editor-preview-grid" [class.split]="previewOpen()">
                             <ejs-richtexteditor #rteEditor
-                                [value]="text()"
                                 tsicRte
                                 [height]="rteHeight"
                                 [enableHtmlSanitizer]="false"
@@ -400,7 +399,7 @@ export type ModalMode = 'add' | 'edit';
     `],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class BulletinFormModalComponent implements OnInit {
+export class BulletinFormModalComponent implements OnInit, AfterViewInit {
     readonly mode = input<ModalMode>('add');
     readonly bulletin = input<BulletinAdminDto | null>(null);
     readonly close = output<void>();
@@ -448,6 +447,30 @@ export class BulletinFormModalComponent implements OnInit {
     readonly pulseHasOverrides = computed(() => Object.keys(this.pulseOverride()).length > 0);
 
     private readonly previewTrigger$ = new Subject<void>();
+
+    /**
+     * Seeds the editor once, with the text ngOnInit loaded in edit mode.
+     *
+     * This replaces a `[value]="text()"` binding, which was doing this job and one other,
+     * harmful one: it fed the editor's own `(change)` emissions straight back in. Syncfusion
+     * answers a `value` write by re-rendering `inputElement.innerHTML` from the string, and it
+     * normalizes the HTML on the way in (cleanHTMLString + getStructuredHtml run regardless of
+     * `enableHtmlSanitizer`), so the string virtually never matches the live DOM and the
+     * re-render virtually always fires.
+     *
+     * Harmless while typing. Fatal across a dialog: Insert Link and Insert Image save the caret
+     * when they open and restore it when you press Insert. The re-render in between detaches the
+     * nodes that saved caret points at, the restore falls back to the root element, and the
+     * insert replaces the whole bulletin — you add one link and are left with nothing but the
+     * link. Fixed first in EmailBodyEditorComponent; this is the same defect.
+     *
+     * The editor is authoritative for its own content from here on. The three paths that
+     * legitimately replace it from outside — draftWithAi, formatWithAi, revertFormat — already
+     * write `rteEditor().value` directly, which is the correct way in.
+     */
+    ngAfterViewInit(): void {
+        this.rteEditor().value = this.text();
+    }
 
     ngOnInit(): void {
         const bulletin = this.bulletin();
