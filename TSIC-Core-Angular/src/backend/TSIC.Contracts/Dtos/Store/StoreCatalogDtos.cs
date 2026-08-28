@@ -147,6 +147,24 @@ public record StoreSkuDto
     public required int SoldCount { get; init; }
     public required int InCartCount { get; init; }
     public required int AvailableCount { get; init; }
+
+    /// <summary>
+    /// Legacy `SkuLabel` — "Item:Size:Color", with "::" collapsed and stray colons trimmed when a
+    /// dimension is null. Built server-side so every surface shows the same string.
+    /// </summary>
+    public required string SkuLabel { get; init; }
+
+    /// <summary>
+    /// Legacy `PickedUp` (CartBatchSkuItemsSignedFor): paid units on a batch with a
+    /// SignedForDate, net of restocks. What has physically left the table.
+    /// </summary>
+    public required int PickedUpCount { get; init; }
+
+    /// <summary>
+    /// Legacy `UnSold` = MaxCanSell − Sold. Deliberately does NOT deduct in-cart units, so it is
+    /// stock-on-hand for a director, not the shopper-facing availability figure.
+    /// </summary>
+    public required int UnSoldCount { get; init; }
 }
 
 public record UpdateStoreSkuRequest

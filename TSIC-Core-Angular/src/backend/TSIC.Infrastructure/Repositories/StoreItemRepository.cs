@@ -57,9 +57,9 @@ public class StoreItemRepository : IStoreItemRepository
     public async Task<StoreItemDto?> GetItemWithSkusAsync(
         int storeItemId, int storeId, CancellationToken cancellationToken = default)
     {
-        return await _context.StoreItems
+        var item = await _context.StoreItems
             .Where(i => i.StoreItemId == storeItemId && i.StoreId == storeId)
-            .Select(i => new StoreItemDto
+            .Select(i => new ItemShell
             {
                 StoreItemId = i.StoreItemId,
                 StoreId = i.StoreId,
@@ -69,30 +69,31 @@ public class StoreItemRepository : IStoreItemRepository
                 Active = i.Active,
                 SortOrder = i.SortOrder,
                 Modified = i.Modified,
-                Skus = i.StoreItemSkus.Select(sku => new StoreSkuDto
-                {
-                    StoreSkuId = sku.StoreSkuId,
-                    StoreItemId = sku.StoreItemId,
-                    StoreColorId = sku.StoreColorId,
-                    StoreColorName = sku.StoreColor != null ? sku.StoreColor.StoreColorName : null,
-                    StoreSizeId = sku.StoreSizeId,
-                    StoreSizeName = sku.StoreSize != null ? sku.StoreSize.StoreSizeName : null,
-                    Active = sku.Active,
-                    MaxCanSell = sku.MaxCanSell,
-                    SoldCount = sku.StoreCartBatchSkus
-                        .Where(cbs => cbs.Active && cbs.StoreCartBatch.StoreCartBatchAccounting.Any())
-                        .Sum(cbs => cbs.Quantity),
-                    InCartCount = sku.StoreCartBatchSkus
-                        .Where(cbs => cbs.Active && !cbs.StoreCartBatch.StoreCartBatchAccounting.Any())
-                        .Sum(cbs => cbs.Quantity),
-                    AvailableCount = sku.MaxCanSell
-                        - sku.StoreCartBatchSkus
-                            .Where(cbs => cbs.Active && cbs.StoreCartBatch.StoreCartBatchAccounting.Any())
-                            .Sum(cbs => cbs.Quantity)
-                        - sku.StoreCartBatchSkus
-                            .Where(cbs => cbs.Active && !cbs.StoreCartBatch.StoreCartBatchAccounting.Any())
-                            .Sum(cbs => cbs.Quantity)
-                }).ToList(),
+                // Same legacy count semantics as GetSkusWithAvailabilityAsync - see ToSkuDto.
+                Skus = i.StoreItemSkus
+                    .OrderBy(sku => sku.StoreSize!.StoreSizeName)
+                    .ThenBy(sku => sku.StoreColor!.StoreColorName)
+                    .Select(sku => new SkuCountsRow(
+                        sku.StoreSkuId,
+                        sku.StoreItemId,
+                        i.StoreItemName,
+                        sku.StoreColorId,
+                        sku.StoreColor != null ? sku.StoreColor.StoreColorName : null,
+                        sku.StoreSizeId,
+                        sku.StoreSize != null ? sku.StoreSize.StoreSizeName : null,
+                        sku.Active,
+                        sku.MaxCanSell,
+                        sku.StoreCartBatchSkus
+                            .Where(cbs => cbs.StoreCartBatch.StoreCartBatchAccounting.Any())
+                            .Sum(cbs => cbs.Quantity - cbs.Restocked),
+                        sku.StoreCartBatchSkus
+                            .Where(cbs => cbs.PaidTotal == 0)
+                            .Sum(cbs => cbs.Quantity - cbs.Restocked),
+                        sku.StoreCartBatchSkus
+                            .Where(cbs => cbs.StoreCartBatch.StoreCartBatchAccounting.Any()
+                                && cbs.StoreCartBatch.SignedForDate != null)
+                            .Sum(cbs => cbs.Quantity - cbs.Restocked)))
+                    .ToList(),
                 ImageUrls = i.StoreItemImage
                     .OrderBy(img => img.DisplayOrder)
                     .Select(img => img.ImageUrl)
@@ -100,6 +101,37 @@ public class StoreItemRepository : IStoreItemRepository
             })
             .AsNoTracking()
             .FirstOrDefaultAsync(cancellationToken);
+
+        if (item == null) return null;
+
+        return new StoreItemDto
+        {
+            StoreItemId = item.StoreItemId,
+            StoreId = item.StoreId,
+            StoreItemName = item.StoreItemName,
+            StoreItemComments = item.StoreItemComments,
+            StoreItemPrice = item.StoreItemPrice,
+            Active = item.Active,
+            SortOrder = item.SortOrder,
+            Modified = item.Modified,
+            Skus = item.Skus.Select(ToSkuDto).ToList(),
+            ImageUrls = item.ImageUrls
+        };
+    }
+
+    /// <summary>Database-shaped item projection, before SKU labels are built in memory.</summary>
+    private sealed class ItemShell
+    {
+        public required int StoreItemId { get; init; }
+        public required int StoreId { get; init; }
+        public required string StoreItemName { get; init; }
+        public string? StoreItemComments { get; init; }
+        public required decimal StoreItemPrice { get; init; }
+        public required bool Active { get; init; }
+        public required int SortOrder { get; init; }
+        public required DateTime Modified { get; init; }
+        public required List<SkuCountsRow> Skus { get; init; }
+        public required List<string> ImageUrls { get; init; }
     }
 
     public async Task<StoreItems?> GetItemByIdAsync(
@@ -138,35 +170,79 @@ public class StoreItemRepository : IStoreItemRepository
     public async Task<List<StoreSkuDto>> GetSkusWithAvailabilityAsync(
         int storeItemId, CancellationToken cancellationToken = default)
     {
-        return await _context.StoreItemSkus
+        var rows = await _context.StoreItemSkus
             .Where(sku => sku.StoreItemId == storeItemId)
-            .Select(sku => new StoreSkuDto
-            {
-                StoreSkuId = sku.StoreSkuId,
-                StoreItemId = sku.StoreItemId,
-                StoreColorId = sku.StoreColorId,
-                StoreColorName = sku.StoreColor != null ? sku.StoreColor.StoreColorName : null,
-                StoreSizeId = sku.StoreSizeId,
-                StoreSizeName = sku.StoreSize != null ? sku.StoreSize.StoreSizeName : null,
-                Active = sku.Active,
-                MaxCanSell = sku.MaxCanSell,
-                SoldCount = sku.StoreCartBatchSkus
-                    .Where(cbs => cbs.Active && cbs.StoreCartBatch.StoreCartBatchAccounting.Any())
-                    .Sum(cbs => cbs.Quantity),
-                InCartCount = sku.StoreCartBatchSkus
-                    .Where(cbs => cbs.Active && !cbs.StoreCartBatch.StoreCartBatchAccounting.Any())
-                    .Sum(cbs => cbs.Quantity),
-                AvailableCount = sku.MaxCanSell
-                    - sku.StoreCartBatchSkus
-                        .Where(cbs => cbs.Active && cbs.StoreCartBatch.StoreCartBatchAccounting.Any())
-                        .Sum(cbs => cbs.Quantity)
-                    - sku.StoreCartBatchSkus
-                        .Where(cbs => cbs.Active && !cbs.StoreCartBatch.StoreCartBatchAccounting.Any())
-                        .Sum(cbs => cbs.Quantity)
-            })
+            .OrderBy(sku => sku.StoreItem.StoreItemName)
+            .ThenBy(sku => sku.StoreSize!.StoreSizeName)
+            .ThenBy(sku => sku.StoreColor!.StoreColorName)
+            .Select(sku => new SkuCountsRow(
+                sku.StoreSkuId,
+                sku.StoreItemId,
+                sku.StoreItem.StoreItemName,
+                sku.StoreColorId,
+                sku.StoreColor != null ? sku.StoreColor.StoreColorName : null,
+                sku.StoreSizeId,
+                sku.StoreSize != null ? sku.StoreSize.StoreSizeName : null,
+                sku.Active,
+                sku.MaxCanSell,
+                sku.StoreCartBatchSkus
+                    .Where(cbs => cbs.StoreCartBatch.StoreCartBatchAccounting.Any())
+                    .Sum(cbs => cbs.Quantity - cbs.Restocked),
+                sku.StoreCartBatchSkus
+                    .Where(cbs => cbs.PaidTotal == 0)
+                    .Sum(cbs => cbs.Quantity - cbs.Restocked),
+                sku.StoreCartBatchSkus
+                    .Where(cbs => cbs.StoreCartBatch.StoreCartBatchAccounting.Any()
+                        && cbs.StoreCartBatch.SignedForDate != null)
+                    .Sum(cbs => cbs.Quantity - cbs.Restocked)))
             .AsNoTracking()
             .ToListAsync(cancellationToken);
+
+        return rows.Select(ToSkuDto).ToList();
     }
+
+    /// <summary>
+    /// Raw per-SKU counts straight from the database, before the in-memory label build.
+    /// Kept separate because the legacy label needs Trim(char), which EF cannot translate.
+    /// </summary>
+    private sealed record SkuCountsRow(
+        int StoreSkuId, int StoreItemId, string ItemName,
+        int? ColorId, string? ColorName, int? SizeId, string? SizeName,
+        bool Active, int MaxCanSell, int Sold, int InCart, int PickedUp);
+
+    /// <summary>
+    /// LEGACY COUNT SEMANTICS (IStoreService.CartBatchSkuItemsSold / …SignedFor / …InCarts):
+    ///   Sold     = SUM(Quantity - Restocked) over batches that HAVE accounting rows
+    ///   InCart   = SUM(Quantity - Restocked) where PaidTotal = 0
+    ///   PickedUp = Sold, further restricted to batches with a SignedForDate
+    ///   UnSold   = MaxCanSell - Sold           (NO in-cart deduction - stock on hand)
+    /// Two things we previously got wrong: restocked units were counted as still sold, and the
+    /// counts were filtered on StoreCartBatchSkus.Active, which legacy never filters on.
+    /// </summary>
+    private static StoreSkuDto ToSkuDto(SkuCountsRow r) => new()
+    {
+        StoreSkuId = r.StoreSkuId,
+        StoreItemId = r.StoreItemId,
+        StoreColorId = r.ColorId,
+        StoreColorName = r.ColorName,
+        StoreSizeId = r.SizeId,
+        StoreSizeName = r.SizeName,
+        Active = r.Active,
+        MaxCanSell = r.MaxCanSell,
+        SoldCount = r.Sold,
+        InCartCount = r.InCart,
+        PickedUpCount = r.PickedUp,
+        UnSoldCount = r.MaxCanSell - r.Sold,
+        AvailableCount = r.MaxCanSell - r.Sold - r.InCart,
+        SkuLabel = BuildSkuLabel(r.ItemName, r.SizeName, r.ColorName)
+    };
+
+    /// <summary>
+    /// Legacy SkuLabel: "Item:Size:Color", collapsing "::" and trimming stray colons so a SKU
+    /// missing a dimension reads "Item:Large" rather than "Item:Large:".
+    /// </summary>
+    private static string BuildSkuLabel(string itemName, string? sizeName, string? colorName) =>
+        $"{itemName}:{sizeName}:{colorName}".Replace("::", ":").Trim(':');
 
     public async Task<StoreItemSkus?> GetSkuByIdAsync(
         int storeSkuId, CancellationToken cancellationToken = default)

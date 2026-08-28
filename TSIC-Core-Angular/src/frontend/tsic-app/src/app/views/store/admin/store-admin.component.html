@@ -182,7 +182,9 @@
 													<tr>
 														<th>Variant</th>
 														<th class="text-center">Max</th>
-														<th class="text-center">Sold</th>
+														<th class="text-center" title="Paid units collected - batch signed for">Picked Up</th>
+														<th class="text-center" title="Paid units, net of restocks">Sold</th>
+														<th class="text-center" title="Max Can Sell minus Sold - stock on hand, ignores carts">Unsold</th>
 														<th class="text-center">In Cart</th>
 														<th class="text-center">Available</th>
 														<th class="text-center">Active</th>
@@ -210,7 +212,9 @@
 																</span>
 															</td>
 															<td class="text-center">{{ sku.maxCanSell }}</td>
+															<td class="text-center">{{ sku.pickedUpCount }}</td>
 															<td class="text-center">{{ sku.soldCount }}</td>
+															<td class="text-center">{{ sku.unSoldCount }}</td>
 															<td class="text-center">{{ sku.inCartCount }}</td>
 															<td class="text-center">
 																<span class="stock-cell"

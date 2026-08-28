@@ -107,11 +107,11 @@ CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
 | B-34 | New items born `SortOrder = 0` → sort **last** on the storefront (see A-02) | IMPL |
 | B-35 | Client validation is `if (itemName && itemPrice)` — sizes/colours **not** enforced despite the placeholder | IMPL |
 | B-09 | `StoreSkus/Index` grouped by item, collapsible, "N skus" caption | WALKED |
-| B-10 | SKU columns: Active · Sku · PickedUp · Sold · UnSold · MaxCanSell · Price | WALKED |
-| B-11 | `PickedUp` = `CartBatchSkuItemsSignedFor` | GAP |
-| B-12 | `UnSold = MaxCanSell − Sold` (**no in-cart deduction**) | GAP |
-| B-13 | SKU label `Item:Size:Color`, `::`→`:` collapse when a dimension is null | UNVER |
-| B-14 | SKU sort: Item → Size → Colour, alphabetical | UNVER |
+| B-10 | SKU columns: Active · Sku · PickedUp · Sold · UnSold · MaxCanSell · Price | IMPL |
+| B-11 | `PickedUp` = `CartBatchSkuItemsSignedFor` | IMPL |
+| B-12 | `UnSold = MaxCanSell − Sold` (**no in-cart deduction**) | IMPL |
+| B-13 | SKU label `Item:Size:Color`, `::`→`:` collapse when a dimension is null | IMPL |
+| B-14 | SKU sort: Item → Size → Colour, alphabetical | IMPL |
 | B-15 | `UpdateSku` writes **Active + MaxCanSell ONLY** | UNVER |
 | B-16 | `UpdateSku` StoreItemSkuId==0 branch → updates parent item Active | GAP |
 | B-17 | `UpdateSku` batch branch → delete SKUs, then parent item | GAP |
