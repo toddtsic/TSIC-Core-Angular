@@ -31,6 +31,7 @@ public class StoreController : ControllerBase
     private readonly IStoreCampaignService _campaignService;
     private readonly IStoreAdminRosterService _storeAdminRosterService;
     private readonly IStoreExportService _exportService;
+    private readonly ITeamRepository _teamRepo;
     private readonly IEmailBatchJobRegistry _batchJobs;
 
     public StoreController(
@@ -47,6 +48,7 @@ public class StoreController : ControllerBase
         IStoreCampaignService campaignService,
         IStoreAdminRosterService storeAdminRosterService,
         IStoreExportService exportService,
+        ITeamRepository teamRepo,
         IEmailBatchJobRegistry batchJobs)
     {
         _catalogService = catalogService;
@@ -62,6 +64,7 @@ public class StoreController : ControllerBase
         _campaignService = campaignService;
         _storeAdminRosterService = storeAdminRosterService;
         _exportService = exportService;
+        _teamRepo = teamRepo;
         _batchJobs = batchJobs;
     }
 
@@ -743,13 +746,18 @@ public class StoreController : ControllerBase
 
     [HttpPost("checkout")]
     [ProducesResponseType(typeof(StoreCheckoutResultDto), 200)]
-    public async Task<IActionResult> Checkout([FromBody] StoreCheckoutRequest request)
+    public async Task<IActionResult> Checkout([FromBody] StoreCheckoutRequest request, CancellationToken ct)
     {
         var (jobId, userId) = await ResolveContext();
         try
         {
             var result = await _cartService.CheckoutAsync(jobId, userId, userId, request);
-            return Ok(result);
+
+            // Whether this buyer is the walk-up counter is a fact about the CALLER, derived from
+            // the immutable regId claim — so it is resolved here, not inside the cart service,
+            // which only ever sees the family id. Legacy read the team name off the caller's
+            // registration for exactly the same purpose (A-24).
+            return Ok(result with { IsWalkUp = await CallerIsWalkUpAsync(jobId, ct) });
         }
         catch (InvalidOperationException ex)
         {
@@ -1108,6 +1116,23 @@ public class StoreController : ControllerBase
     // ═══════════════════════════════════════════
     //  PRIVATE HELPERS
     // ═══════════════════════════════════════════
+
+    /// <summary>
+    /// Is the caller shopping as the walk-up counter? Legacy compared the caller's assigned team
+    /// name to the literal "Store Merch"; the anchor team is already resolved by id everywhere
+    /// else in this subsystem (<see cref="ITeamRepository.GetStoreMerchTeamIdAsync"/>), so the
+    /// comparison is on ids here — same rule, no second place the string is spelled out.
+    ///
+    /// <para>Fails closed: a caller with no team, or a job with no anchor, is not a walk-up.</para>
+    /// </summary>
+    private async Task<bool> CallerIsWalkUpAsync(Guid jobId, CancellationToken ct)
+    {
+        var callerTeamId = await User.GetTeamIdFromRegistrationAsync(_jobLookupService, ct);
+        if (callerTeamId == null) return false;
+
+        var storeMerchTeamId = await _teamRepo.GetStoreMerchTeamIdAsync(jobId, ct);
+        return storeMerchTeamId != null && storeMerchTeamId == callerTeamId;
+    }
 
     private async Task<(Guid jobId, string userId)> ResolveContext()
     {

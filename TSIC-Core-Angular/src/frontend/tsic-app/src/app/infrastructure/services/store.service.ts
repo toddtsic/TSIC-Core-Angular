@@ -28,6 +28,8 @@ import type {
 	StoreSalesByItemDto,
 	StorePaymentDetailDto,
 	StoreFamilyPurchaseDto,
+	StoreFamilyPurchaseHistoryRowDto,
+	StoreReceiptEmailResult,
 	StoreRefundedItemDto,
 	StoreRestockedItemDto,
 	LogRestockRequest,
@@ -69,6 +71,10 @@ export class StoreService {
 
 	// ── Family players (for DirectTo dropdown) ──
 	public readonly familyPlayers = signal<StoreFamilyPlayerDto[]>([]);
+
+	// ── This family's completed purchases (Invoices screen + storefront badge) ──
+	public readonly purchaseHistory = signal<StoreFamilyPurchaseHistoryRowDto[]>([]);
+	public readonly purchaseCount = computed(() => this.purchaseHistory().length);
 
 	// ═══════════════════════════════════════
 	//  CATALOG — Admin
@@ -398,8 +404,16 @@ export class StoreService {
 		return this.http.get<PaymentMethodOptionDto[]>(`${this.base}/payment-methods`);
 	}
 
+	/**
+	 * The receipt PDF itself. Callers that want to SHOW it (the confirmation iframe) need the
+	 * blob; `downloadReceipt` is the save-to-disk wrapper over the same request.
+	 */
+	getReceiptBlob(storeCartBatchId: number): Observable<Blob> {
+		return this.http.get(`${this.base}/receipt/${storeCartBatchId}`, { responseType: 'blob' });
+	}
+
 	downloadReceipt(storeCartBatchId: number): void {
-		this.http.get(`${this.base}/receipt/${storeCartBatchId}`, { responseType: 'blob' }).subscribe({
+		this.getReceiptBlob(storeCartBatchId).subscribe({
 			next: blob => {
 				const url = URL.createObjectURL(blob);
 				const a = document.createElement('a');
@@ -409,6 +423,23 @@ export class StoreService {
 				URL.revokeObjectURL(url);
 			}
 		});
+	}
+
+	/** Legacy `SendEmailReceipt` — resend a receipt the shopper already owns. */
+	emailReceipt(storeCartBatchId: number): Observable<StoreReceiptEmailResult> {
+		return this.http.post<StoreReceiptEmailResult>(
+			`${this.base}/receipt/${storeCartBatchId}/email`, {}
+		);
+	}
+
+	/**
+	 * This family's completed purchases in this job — legacy's Invoices grid, and the count
+	 * behind the storefront badge. Scoped server-side to the caller's own family.
+	 */
+	loadPurchaseHistory(): Observable<StoreFamilyPurchaseHistoryRowDto[]> {
+		return this.http.get<StoreFamilyPurchaseHistoryRowDto[]>(`${this.base}/purchase-history`).pipe(
+			tap(rows => this.purchaseHistory.set(rows))
+		);
 	}
 
 	// ═══════════════════════════════════════

@@ -1,0 +1,54 @@
+<div class="invoices-container">
+	<div class="invoices-header">
+		<h4 class="mb-0"><i class="bi bi-receipt me-2 text-primary"></i>Purchase History</h4>
+		<a routerLink="../" class="back-link">
+			<i class="bi bi-arrow-left"></i>Continue Shopping
+		</a>
+	</div>
+
+	@if (isLoading()) {
+		<div class="text-center py-5">
+			<div class="spinner-border text-primary"></div>
+		</div>
+	}
+
+	@if (errorMessage()) {
+		<div class="alert alert-danger">
+			<i class="bi bi-exclamation-triangle me-2"></i>{{ errorMessage() }}
+		</div>
+	}
+
+	@if (!isLoading() && !errorMessage() && rows().length === 0) {
+		<div class="text-center py-5">
+			<i class="bi bi-receipt-cutoff display-4 text-body-tertiary"></i>
+			<p class="text-body-secondary mt-3">You have not purchased anything from this store yet.</p>
+			<a routerLink="../" class="btn btn-primary mt-2">Browse Store</a>
+		</div>
+	}
+
+	@for (row of rows(); track row.storeCartBatchId) {
+		<div class="invoice-card">
+			<div class="invoice-card-top">
+				<div class="invoice-meta">
+					<div class="invoice-date">{{ row.paymentDate | date: 'MM/dd/yyyy hh:mm a' }}</div>
+					@if (row.adnInvoiceNo) {
+						<div class="invoice-number">Invoice #{{ row.adnInvoiceNo }}</div>
+					}
+					<div class="invoice-method">{{ row.paymentMethod }}</div>
+				</div>
+				<div class="invoice-total">{{ formatCurrency(row.paidTotal) }}</div>
+			</div>
+
+			<div class="invoice-actions">
+				<button class="btn-invoice-action" (click)="downloadReceipt(row.storeCartBatchId)">
+					<i class="bi bi-file-earmark-pdf me-1"></i>Download Receipt
+				</button>
+				<button class="btn-invoice-action"
+						(click)="emailReceipt(row.storeCartBatchId)"
+						[disabled]="emailingBatchId() !== null">
+					<i class="bi bi-envelope me-1"></i>{{ emailingBatchId() === row.storeCartBatchId ? 'Sending…' : 'Email Receipt' }}
+				</button>
+			</div>
+		</div>
+	}
+</div>

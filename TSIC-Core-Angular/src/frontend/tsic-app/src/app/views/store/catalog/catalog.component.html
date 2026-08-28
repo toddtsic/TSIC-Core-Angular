@@ -22,6 +22,18 @@
 	}
 </div>
 
+<!--
+	Purchase history (A-09). Legacy carried a badge with the batch count into StoreFamily/Invoices;
+	it is hidden outright when the shopper has bought nothing, since the screen would be empty.
+-->
+@if (purchaseCount() > 0) {
+	<a routerLink="../store/invoices" class="history-link">
+		<i class="bi bi-receipt me-1"></i>
+		<span>Purchase History</span>
+		<span class="history-badge">{{ purchaseCount() }}</span>
+	</a>
+}
+
 <!-- ═══ Loading ═══ -->
 @if (isLoading()) {
 	<div class="text-center py-5">

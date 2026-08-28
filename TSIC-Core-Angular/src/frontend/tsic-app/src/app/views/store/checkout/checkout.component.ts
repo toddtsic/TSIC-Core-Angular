@@ -1,6 +1,7 @@
-import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, OnDestroy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { AuthService } from '../../../infrastructure/services/auth.service';
 import { StoreService } from '../../../infrastructure/services/store.service';
 import { ToastService } from '../../../shared-ui/toast.service';
@@ -18,18 +19,22 @@ import { StoreFrontInfoComponent } from '../store-front-info.component';
 	templateUrl: './checkout.component.html',
 	styleUrl: './checkout.component.scss',
 })
-export class StoreCheckoutComponent {
+export class StoreCheckoutComponent implements OnDestroy {
 	private readonly auth = inject(AuthService);
 	private readonly store = inject(StoreService);
 	private readonly toast = inject(ToastService);
+	private readonly sanitizer = inject(DomSanitizer);
 
 	readonly cart = this.store.cart;
 	readonly isLoading = signal(true);
 	readonly isSubmitting = signal(false);
 	readonly errorMessage = signal<string | null>(null);
 
-	// Payment method (auto-resolved to CC)
+	// Payment method (auto-resolved to CC). The NAME is kept alongside the id purely so the
+	// confirmation can say "Your Credit Card of $x was successful", as legacy's does — that
+	// sentence is the only place it is used, and it costs no extra round trip.
 	private readonly ccPaymentMethodId = signal('');
+	readonly paymentMethodName = signal('');
 
 	// Credit card state
 	private readonly _creditCard = signal<CreditCardFormValue>({
@@ -40,6 +45,15 @@ export class StoreCheckoutComponent {
 
 	// Confirmation state (after successful checkout)
 	readonly confirmation = signal<StoreCheckoutResultDto | null>(null);
+
+	/**
+	 * The receipt, shown inline under the confirmation as legacy did (A-23). Legacy inlined the
+	 * whole PDF as a base64 `data:` URI in the rendered HTML; this fetches the same bytes and
+	 * hands the iframe a blob URL, which keeps a multi-hundred-KB document out of the DOM.
+	 */
+	readonly receiptUrl = signal<SafeResourceUrl | null>(null);
+	private receiptObjectUrl: string | null = null;
+	readonly isResendingReceipt = signal(false);
 
 	readonly lineItems = computed(() => this.cart()?.lineItems ?? []);
 	readonly grandTotal = computed(() => this.cart()?.grandTotal ?? 0);
@@ -75,7 +89,10 @@ export class StoreCheckoutComponent {
 				this.store.getPaymentMethods().subscribe({
 					next: methods => {
 						const cc = methods.find(m => m.paymentMethod.toLowerCase().includes('credit'));
-						if (cc) this.ccPaymentMethodId.set(cc.paymentMethodId);
+						if (cc) {
+							this.ccPaymentMethodId.set(cc.paymentMethodId);
+							this.paymentMethodName.set(cc.paymentMethod);
+						}
 						this.isLoading.set(false);
 					},
 					error: () => {
@@ -126,6 +143,7 @@ export class StoreCheckoutComponent {
 					this.confirmation.set(result);
 					this.isSubmitting.set(false);
 					this.toast.show('Order placed successfully!', 'success');
+					this.loadInlineReceipt(result.storeCartBatchId, !!result.isWalkUp);
 					return;
 				}
 
@@ -159,6 +177,65 @@ export class StoreCheckoutComponent {
 	downloadReceipt(): void {
 		const conf = this.confirmation();
 		if (conf) this.store.downloadReceipt(conf.storeCartBatchId);
+	}
+
+	/** Legacy's Resend Receipt button (A-27). The receipt already went out on checkout (A-26). */
+	resendReceipt(): void {
+		const conf = this.confirmation();
+		if (!conf || this.isResendingReceipt()) return;
+
+		this.isResendingReceipt.set(true);
+		this.store.emailReceipt(conf.storeCartBatchId).subscribe({
+			next: result => {
+				this.isResendingReceipt.set(false);
+				// The server reports WHY nothing was sent — no address on file is the common
+				// case, and legacy's blanket "sent SUCCESSFULLY" toast lied about it.
+				if (result.sent) {
+					this.toast.show(`Receipt emailed to ${result.recipients.join(', ')}`, 'success');
+				} else {
+					this.toast.show(result.reason || 'No email address on file for this purchase.', 'warning');
+				}
+			},
+			error: () => {
+				this.isResendingReceipt.set(false);
+				this.toast.show('Could not send the receipt. Please try again.', 'danger');
+			},
+		});
+	}
+
+	/**
+	 * Fetch the receipt for the inline frame, and — for a walk-up — end the session once it is on
+	 * screen. Legacy signed the walk-up customer out while RENDERING this page
+	 * (`CheckoutConfirmation` → `SignoutCustomAsync`), which is the point: the counter tablet is
+	 * shared, and the next customer must not inherit this one's account. Order matters — the PDF
+	 * request carries the token, so the sign-out waits until the bytes are in hand. Clearing auth
+	 * does not disturb the page (route guards run on navigation), so the customer keeps reading
+	 * their receipt and the next click lands on the store login, exactly as legacy behaved.
+	 */
+	private loadInlineReceipt(storeCartBatchId: number, isWalkUp: boolean): void {
+		this.store.getReceiptBlob(storeCartBatchId).subscribe({
+			next: blob => {
+				this.revokeReceiptUrl();
+				this.receiptObjectUrl = URL.createObjectURL(blob);
+				this.receiptUrl.set(
+					this.sanitizer.bypassSecurityTrustResourceUrl(this.receiptObjectUrl)
+				);
+				if (isWalkUp) this.auth.logoutLocal();
+			},
+			// Supporting detail: the money moved and the confirmation above stands on its own.
+			error: () => { if (isWalkUp) this.auth.logoutLocal(); },
+		});
+	}
+
+	private revokeReceiptUrl(): void {
+		if (this.receiptObjectUrl) {
+			URL.revokeObjectURL(this.receiptObjectUrl);
+			this.receiptObjectUrl = null;
+		}
+	}
+
+	ngOnDestroy(): void {
+		this.revokeReceiptUrl();
 	}
 
 	formatCurrency(value: number): string {

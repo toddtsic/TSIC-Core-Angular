@@ -6,13 +6,25 @@
 				<i class="bi bi-check-circle-fill"></i>
 			</div>
 			<h3 class="confirmation-title">Order Confirmed!</h3>
-			<p class="confirmation-subtitle">Your order has been placed successfully.</p>
+			<p class="confirmation-subtitle">
+				@if (conf.isWalkUp) {
+					Your receipt has been emailed.
+				} @else {
+					Your receipt has been emailed to the parents and to any players who received merchandise.
+				}
+			</p>
 
 			<div class="confirmation-card">
 				<div class="confirmation-row">
 					<span>Order #</span>
 					<span class="fw-semibold font-monospace">{{ conf.storeCartBatchId }}</span>
 				</div>
+				@if (paymentMethodName()) {
+					<div class="confirmation-row">
+						<span>Payment Method</span>
+						<span class="fw-semibold">{{ paymentMethodName() }}</span>
+					</div>
+				}
 				<div class="confirmation-row">
 					<span>Total Paid</span>
 					<span class="confirmation-total">{{ formatCurrency(conf.totalPaid) }}</span>
@@ -31,14 +43,30 @@
 				}
 			</div>
 
+			<!--
+				Walk-up gets no receipt buttons: legacy omitted them because the counter session
+				is over — this customer is signed out the moment the receipt renders (A-24).
+			-->
 			<div class="confirmation-actions">
-				<button class="btn-download-receipt" (click)="downloadReceipt()">
-					<i class="bi bi-file-earmark-pdf me-1"></i>Download Receipt
-				</button>
+				@if (!conf.isWalkUp) {
+					<button class="btn-download-receipt" (click)="downloadReceipt()">
+						<i class="bi bi-file-earmark-pdf me-1"></i>Download Receipt
+					</button>
+					<button class="btn-resend-receipt" (click)="resendReceipt()" [disabled]="isResendingReceipt()">
+						<i class="bi bi-envelope me-1"></i>{{ isResendingReceipt() ? 'Sending…' : 'Resend Receipt' }}
+					</button>
+				}
 				<a routerLink="../../store" class="btn-back-to-store">
 					<i class="bi bi-shop me-1"></i>Back to Store
 				</a>
 			</div>
+
+			@if (receiptUrl(); as pdf) {
+				<div class="confirmation-receipt">
+					<h4 class="confirmation-receipt-title">Receipt</h4>
+					<iframe [src]="pdf" title="Purchase receipt" class="confirmation-receipt-frame"></iframe>
+				</div>
+			}
 		</div>
 	} @else {
 		<!-- ═══ Checkout form ═══ -->

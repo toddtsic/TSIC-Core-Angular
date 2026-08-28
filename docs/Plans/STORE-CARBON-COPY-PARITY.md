@@ -63,7 +63,7 @@ StoreSalesWalkup, StoreTwoClick, CheckoutConfirmation, WalkUp, and the Labels/Cr
 | A-06 | Auto-selects when exactly one family player, as legacy | IMPL |
 | A-07 | Size/Colour/Quantity. Colour+size auto-select on a single option, as legacy. Quantity now takes the LOWER of legacy's 5-per-add and the shelf — see A-37 | IMPL |
 | A-08 | Cart badge with item count | IMPL |
-| A-09 | Purchase-history badge with batch count | GAP |
+| A-09 | Purchase-history badge with batch count. Hidden outright at zero — the screen behind it would be empty | BUILT |
 | A-10 | "No items available for sale at this time" empty state | IMPL |
 | A-11 | Add to cart. Ours posts a resolved storeSkuId; legacy resolves (item,colour,size) server-side with `(StoreColorId ?? 0)`. Same outcome, ours unambiguous | IMPL — divergence A-38 |
 | A-12 | Cart list with per-line remove. Card layout, not an EJ2 grid — consistent with every other shopper surface | IMPL — presentation divergence |
@@ -76,15 +76,15 @@ StoreSalesWalkup, StoreTwoClick, CheckoutConfirmation, WalkUp, and the Labels/Cr
 | A-19 | Quantity-adjustment audit row on auto-trim | BUILT — see D-8 |
 | A-20 | ADN charge, batch settle and StoreCartBatchAccounting row all written | IMPL |
 | A-21 | Empty-cart + already-processed guards both present | IMPL |
-| A-22 | Confirmation shows Order #, Total Paid, Transaction ID, Invoice #. **Payment method is not shown** | IMPL — minor gap |
-| A-23 | Confirmation: inline PDF receipt iframe | GAP |
-| A-24 | Walk-up confirmation variant (different copy, no receipt buttons). **One confirmation view only; no walk-up variant** | GAP |
+| A-22 | Confirmation shows Order #, Payment Method, Total Paid, Transaction ID, Invoice #. Payment method was the one missing line; it is the name of the method the shopper actually used, kept from the payment-methods call rather than re-fetched | IMPL |
+| A-23 | Confirmation: inline PDF receipt iframe. Legacy inlined the whole PDF as a base64 `data:` URI in the page HTML; ours fetches the same bytes and hands the iframe a blob URL. See D-12 | BUILT |
+| A-24 | Walk-up confirmation variant: different copy, no receipt buttons, and the counter session ends once the receipt is on screen. `IsWalkUp` is resolved server-side from the caller regId claim against the job Store Merch anchor. See D-12 | BUILT |
 | A-25 | Receipt PDF via GET /store/receipt/{id} + Download Receipt button | IMPL |
-| A-26 | Receipt emailed automatically on successful checkout (parents + players) | GAP |
-| A-27 | `SendEmailReceipt` — resend | GAP |
-| A-28 | `Invoices` — purchase-history grid | GAP |
-| A-29 | Invoices toolbar: Download Receipt · Email Receipt | GAP |
-| A-30 | Invoices auto-selects row 0 on databound | GAP |
+| A-26 | Receipt emailed automatically on successful checkout (parents + players). Legacy Priority 3 ordering kept: a mail failure is logged, never surfaced as a failed checkout | BUILT |
+| A-27 | `SendEmailReceipt` — resend, from the confirmation and from each Invoices row. Legacy toasted success unconditionally; ours reports what the server actually did, including who it went to | BUILT |
+| A-28 | `Invoices` — purchase history. Cards with per-row actions, not an EJ2 grid with a selection toolbar. See D-12 | BUILT |
+| A-29 | Download Receipt / Email Receipt, moved from a selection toolbar onto each row | BUILT |
+| A-30 | ~~Invoices auto-selects row 0 on databound~~ — **CLOSED, nothing to port**: auto-selection existed only so legacy toolbar buttons were not dead on arrival. With per-row actions there is no selection to prime | CLOSED |
 | A-31 | `WalkUpRegister` — mini-registration form + state list | IMPL — form fields not yet compared |
 | A-32 | `StoreTwoClick/Login` — family login into store | IMPL — flow not yet compared |
 | A-36 | Sold-out items stay visible; unbuyable variants are named (`SoldOutOrInactiveSkuLabels`), listing gate is `active && skuCount > 0` as legacy | IMPL |
@@ -603,6 +603,51 @@ Verified clean and left alone, which is where the pattern above came from:
 `GetSwapOptionsAsync`/`GetBatchSettledStatusAsync` (`LoadLineInStoreAsync`,
 `AssertBatchInStoreAsync`), `GetItemDetailAsync`, `DeleteSkuAsync`/`DeleteItemAsync`
 (`AssertItemBelongsToJobAsync`).
+
+### D-12 · Receipts and Invoices — the shopper's copy of what they bought (A-23…A-30)
+
+Four legacy pathways with one subject: the receipt. It is emailed on checkout, shown on the
+confirmation, downloadable, resendable, and reachable later from a purchase-history screen.
+
+**The receipt is fetched, not inlined.** Legacy base64-encoded the whole PDF into the
+confirmation page's HTML (`ViewBag.InvoicePdfBase64` → a `data:` URI iframe). Ours requests the
+same bytes from `GET /store/receipt/{id}` and hands the iframe a blob URL, revoked on destroy.
+Same document on screen; a several-hundred-KB attachment stays out of the DOM and off the
+server-rendered page.
+
+**Walk-up ends the session, once the receipt is up.** Legacy's `CheckoutConfirmation` calls
+`SignoutCustomAsync` while rendering when the caller's team is "Store Merch" — the counter
+tablet is shared, and the next customer must not inherit this one's account. Order matters here:
+the PDF request carries the token, so the sign-out waits until the bytes are in hand. Clearing
+auth does not disturb the page (route guards run on navigation), so the customer keeps reading
+their receipt and their next click lands on the store login — which is what legacy did too.
+
+`IsWalkUp` is resolved server-side, in the controller, from the immutable regId claim: legacy
+compared the caller's team NAME to the literal "Store Merch", ours compares team ids against
+`ITeamRepository.GetStoreMerchTeamIdAsync`, the anchor resolver the rest of this subsystem
+already uses. Same rule, one place the string is spelled. Fails closed.
+
+**Invoices is cards with per-row actions, not a grid with a selection toolbar.** Legacy's EJ2
+grid put Download Receipt and Email Receipt on the toolbar, acting on the selected row, and
+auto-selected row 0 on databound (A-30) so the toolbar was never dead on arrival. The buttons sit
+on each row here. Three things follow: the select-then-act step disappears, legacy's "Please
+select a row with an invoice number first" alert becomes a state that cannot occur, and A-30 has
+nothing left to port. It also matches the card layout every other shopper surface in this port
+uses (A-12).
+
+Two legacy grid details deliberately not carried: `paymentMethod` is declared `format="C2"` — a
+currency format on a string column — and the selection guard tests `batchId`, the primary key,
+while its message talks about the invoice number. Neither survives the move to per-row buttons.
+
+**The resend toast reports what happened.** Legacy's `success:` handler fired
+"E-Mail sent SUCCESSFULLY" for any 200, including the common case of a family with no address on
+file, where nothing was sent. `StoreReceiptEmailResult` carries `sent`, `recipients` and
+`reason`; the screen names the addresses on success and the reason otherwise.
+
+**Purchase history is one read, two consumers.** `GET /store/purchase-history` is scoped to the
+caller's own family inside the query — there is no id in the URL to tamper with — and backs both
+the Invoices list and the storefront badge (A-09). The badge is hidden at zero rather than shown
+as "0", since the screen behind it would be empty.
 
 ## Open recommendations
 

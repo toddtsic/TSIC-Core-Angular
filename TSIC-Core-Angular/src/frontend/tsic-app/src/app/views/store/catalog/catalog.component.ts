@@ -42,6 +42,9 @@ export class StoreCatalogComponent {
 	readonly cartCount = this.store.cartCount;
 	readonly cartTotal = this.store.cartTotal;
 
+	// Completed purchases, for the history badge (A-09)
+	readonly purchaseCount = this.store.purchaseCount;
+
 	// Family players (for DirectTo dropdown)
 	readonly familyPlayers = this.store.familyPlayers;
 
@@ -60,6 +63,8 @@ export class StoreCatalogComponent {
 		this.loadItems();
 		this.store.loadCart().subscribe();
 		this.store.loadFamilyPlayers().subscribe();
+		// Badge only; a shopper with no history sees nothing, so a failure here is silent.
+		this.store.loadPurchaseHistory().subscribe({ error: () => { } });
 	}
 
 	private loadItems(): void {

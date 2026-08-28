@@ -442,6 +442,11 @@ export const routes: Routes = [
 				loadComponent: () => import('./views/store/checkout/checkout.component').then(m => m.StoreCheckoutComponent)
 			},
 			{
+				path: 'store/invoices',
+				canActivate: [storeGuard],
+				loadComponent: () => import('./views/store/invoices/invoices.component').then(m => m.StoreInvoicesComponent)
+			},
+			{
 				path: 'store/admin',
 				canActivate: [authGuard],
 				data: { roles: [Roles.Superuser, Roles.Director, Roles.StoreAdmin], helpKey: 'store-admin' },

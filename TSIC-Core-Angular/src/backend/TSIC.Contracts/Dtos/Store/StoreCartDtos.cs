@@ -112,6 +112,14 @@ public record StoreCheckoutResultDto
     public string? InvoiceNo { get; init; }
     public string? Message { get; init; }
     public string? ErrorCode { get; init; }
+
+    /// <summary>
+    /// The buyer is the walk-up counter registration rather than a family with an account —
+    /// legacy's <c>isWalkupRegistration</c> (<c>StoreFamilyController.CheckoutConfirmation</c>,
+    /// where the test is the caller's team name being "Store Merch"). Drives the confirmation
+    /// copy and the kiosk sign-out. See A-24.
+    /// </summary>
+    public bool IsWalkUp { get; init; }
 }
 
 // ── Checkout availability re-check (legacy GetAllSkusAvailableStatus) ──

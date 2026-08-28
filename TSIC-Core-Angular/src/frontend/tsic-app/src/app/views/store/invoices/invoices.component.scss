@@ -1,0 +1,130 @@
+:host {
+	display: block;
+	padding: var(--space-4);
+}
+
+.invoices-container {
+	max-width: 600px;
+	margin: 0 auto;
+}
+
+// ═══ Header ═══
+.invoices-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: var(--space-4);
+}
+
+.back-link {
+	font-size: var(--font-size-sm);
+	color: var(--bs-secondary-color);
+	text-decoration: none;
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+
+	&:active {
+		opacity: 0.7;
+	}
+}
+
+// ═══ One purchase ═══
+.invoice-card {
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--radius-md);
+	padding: var(--space-3);
+	margin-bottom: var(--space-2);
+	background: var(--bs-card-bg, var(--neutral-0));
+}
+
+.invoice-card-top {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: var(--space-3);
+}
+
+.invoice-meta {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	min-width: 0;
+}
+
+.invoice-date {
+	font-weight: var(--font-weight-semibold);
+	font-variant-numeric: tabular-nums;
+}
+
+.invoice-number,
+.invoice-method {
+	font-size: var(--font-size-sm);
+	color: var(--bs-secondary-color);
+}
+
+.invoice-number {
+	font-family: var(--font-family-monospace, monospace);
+}
+
+.invoice-total {
+	font-weight: var(--font-weight-bold);
+	font-size: var(--font-size-lg);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+// ═══ Per-row actions ═══
+.invoice-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	margin-top: var(--space-3);
+}
+
+.btn-invoice-action {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-1);
+	padding: var(--space-2) var(--space-4);
+	border: 1px solid var(--bs-primary);
+	border-radius: var(--radius-full);
+	background: transparent;
+	color: var(--bs-primary);
+	font-weight: var(--font-weight-semibold);
+	font-size: var(--font-size-sm);
+	min-height: 44px;
+	cursor: pointer;
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+
+	&:disabled {
+		opacity: 0.6;
+		cursor: default;
+	}
+
+	&:active:not(:disabled) {
+		transform: scale(0.98);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.btn-invoice-action,
+	.back-link {
+		transition: none !important;
+
+		&:active {
+			transform: none !important;
+			opacity: 1;
+		}
+	}
+}

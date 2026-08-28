@@ -162,10 +162,10 @@ public class StoreCartRepository : IStoreCartRepository
             .Select(b => new
             {
                 b.StoreCart.Store.JobId,
-                b.StoreCart.Store.Job.JobName,
+                JobName = b.StoreCart.Store.Job.JobName ?? "",
                 b.StoreCart.Store.Job.DisplayName,
                 b.StoreCart.Store.Job.StoreContactEmail,
-                b.StoreCart.FamilyUserId
+                FamilyUserId = b.StoreCart.FamilyUserId ?? ""
             })
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -184,8 +184,8 @@ public class StoreCartRepository : IStoreCartRepository
             .AsNoTracking()
             .Where(s => s.StoreCartBatchId == storeCartBatchId
                 && s.DirectToReg != null
-                && s.DirectToReg.User.Email != null
-                && s.DirectToReg.User.Email != "")
+                && s.DirectToReg!.User.Email != null
+                && s.DirectToReg!.User.Email != "")
             .Select(s => s.DirectToReg!.User.Email!)
             .Distinct()
             .ToListAsync(cancellationToken);
@@ -219,7 +219,7 @@ public class StoreCartRepository : IStoreCartRepository
                 a.CreateDate,
                 a.AdnInvoiceNo,
                 a.Paid,
-                PaymentMethodName = a.PaymentMethod.PaymentMethod
+                PaymentMethodName = a.PaymentMethod.PaymentMethod ?? ""
             })
             .Select(g => new StoreFamilyPurchaseHistoryRowDto
             {

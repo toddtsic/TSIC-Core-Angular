@@ -10,5 +10,6 @@ export type StoreCheckoutResultDto = {
     invoiceNo?: string | null;
     message?: string | null;
     errorCode?: string | null;
+    isWalkUp?: boolean;
 };
 
