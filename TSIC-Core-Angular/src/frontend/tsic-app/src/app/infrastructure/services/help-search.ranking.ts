@@ -115,7 +115,7 @@ export function rank(
         component: p.doc.component,
         topic: p.doc.topic,
         title: p.doc.title,
-        heading: pickHeading(p, terms),
+        heading: pickHeading(p, terms, q),
         snippet: buildSnippet(p.doc.text, p.textLc, terms),
         score,
       },
@@ -151,15 +151,39 @@ function countWordStartOccurrences(haystack: string, term: string): number {
   }
 }
 
-/** The first heading containing any term — usually the FAQ question the user was really asking. */
-function pickHeading(p: PreparedDoc, terms: readonly string[]): string | null {
-  for (let i = 0; i < p.headingsLc.length; i++) {
-    if (terms.some((t) => startsWord(p.headingsLc[i], t))) {
-      // headings[0] is the page title; surfacing it as the "section" is noise.
-      return i === 0 ? null : p.doc.headings[i];
+/**
+ * The BEST-matching heading — usually the FAQ question the user was really asking.
+ *
+ * Scored, not first-found. First-found is subtly wrong on exactly the queries that matter: for
+ * "send warning to all" on the ARB Health FAQ it returned "Is there help for parents, and where do
+ * I send them?" (question 10, one term) instead of "The one-click 'Send Warning to All' — who gets
+ * it?" (question 14, four terms plus the whole phrase). The label pointed at the wrong answer on a
+ * page where the right one sits 81% down.
+ *
+ * headings[0] is the page title, so it is skipped entirely: when only the title matches there is no
+ * SECTION to name, and the caller shows none.
+ */
+function pickHeading(p: PreparedDoc, terms: readonly string[], q: string): string | null {
+  let bestIndex = -1;
+  let bestScore = 0;
+
+  for (let i = 1; i < p.headingsLc.length; i++) {
+    const heading = p.headingsLc[i];
+    let score = 0;
+    for (const term of terms) {
+      if (startsWord(heading, term)) score += 10;
+    }
+    // A heading carrying the query intact beats one that merely collects the same words.
+    if (terms.length > 1 && heading.includes(q)) score += 25;
+
+    // Strictly greater, so ties keep the earliest — the page's own order is the tiebreak.
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = i;
     }
   }
-  return null;
+
+  return bestIndex < 0 ? null : p.doc.headings[bestIndex];
 }
 
 /**
