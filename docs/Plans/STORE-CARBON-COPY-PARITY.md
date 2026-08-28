@@ -44,8 +44,24 @@ Invoices, StoreFamily/Index (partial), Checkout (partial).**
 Since inventoried and ported in full: **StoreDashboard** (three pivots — D-01…D-04, plus its one
 dead action) and **the three StoreEmail\* screens** (E-01…E-05).
 
-**NOT yet inventoried at pathway granularity** — these rows are placeholders and will grow:
-StoreSalesWalkup, StoreTwoClick, CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
+**The inventory is COMPLETE as of 2026-08-28.** The five screens that were carrying placeholder
+rows have all been enumerated: CheckoutConfirmation (A-23, A-24), WalkUp (A-31), StoreTwoClick
+(A-32), the Labels/Crystal group (F-01…F-04), and StoreSalesWalkup.
+
+`StoreSalesWalkup` needed no rows of its own. It is a literal file copy of `StoreSales` with one
+argument flipped — `GetJobStorePaymentData(..., walkupsOnly: true)` — the same four controller
+actions and an identical column list, so C-13's single row covers it. Two things the diff
+settled:
+
+- It **corroborates D-9**. The hidden `Restocked` column is headed `"Restocked"` in this copy and
+  `"Refunded"` in `StoreSales`. The duplicate header is a StoreSales defect, now confirmed
+  against its own twin rather than inferred from one file.
+- `StoreSales` carries a dead `DOMContentLoaded` block of commented-out scratch wiring for a
+  `.select-row-button` that does not exist in its markup. Absent from the twin. Nothing to port.
+
+Every inventoried pathway now has code behind it. What remains is **verification, not
+construction** — see the status legend: 71 rows sit at `IMPL`, and nothing is `DONE` until it has
+been run against legacy.
 
 ---
 
@@ -152,7 +168,7 @@ StoreSalesWalkup, StoreTwoClick, CheckoutConfirmation, WalkUp, and the Labels/Cr
 | C-10 | Void dialog: batch total paid shown. Legacy also listed the batch's SKUs; ours names the amount and that everything is restocked | IMPL |
 | C-11 | Void refunds and restocks **every SKU in the batch** | IMPL |
 | C-12 | `UpdateCartSku` — server side of swap/refund/void | IMPL |
-| C-13 | `StoreSalesWalkup/Index` — same grid, walk-ups only. Ours is a toggle on the one grid | IMPL |
+| C-13 | `StoreSalesWalkup/Index` — same grid, walk-ups only. Ours is a toggle on the one grid. **Inventoried 08-28: legacy is a literal copy of `StoreSales` with `walkupsOnly: true`, same four actions, identical columns** — no pathways of its own | IMPL |
 | C-14 | `StoreRefunded/Index` grid. Compared and completed — see D-13 | IMPL |
 | C-15 | `StoreRestocked/Index` grid, `frozenColumns=4`. Compared and completed — see D-13 | IMPL |
 | C-16 | `StoreCartQuantityAdjustments/Index` grid | BUILT — Sales tab → Quantity Adjustments |
