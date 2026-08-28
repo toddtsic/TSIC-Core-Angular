@@ -12,6 +12,13 @@ public class RegistrationAccountingRepository : IRegistrationAccountingRepositor
 {
     private readonly SqlDbContext _context;
 
+    /// <summary>
+    /// Card charges a refund may be issued against, as an array so EF translates the membership
+    /// test to a SQL IN. Both accounting projections below read this one field: they are otherwise
+    /// duplicate copies of the same DTO build, and the CanRefund defect was in both of them.
+    /// </summary>
+    private static readonly Guid[] RefundableMethods = [.. PaymentMethodIds.CcRefundable];
+
     public RegistrationAccountingRepository(SqlDbContext context)
     {
         _context = context;
@@ -256,8 +263,11 @@ public class RegistrationAccountingRepository : IRegistrationAccountingRepositor
                 AdnCc4 = x.a.AdnCc4,
                 AdnCcExpDate = x.a.AdnCcexpDate,
                 AdnInvoiceNo = x.a.AdnInvoiceNo,
+                // Was PaymentMethod.Contains("Credit Card"), which also matched the refund method,
+                // the void and both failed variants — offering Refund on rows with nothing to
+                // return, our own refund rows included (they carry a transaction id too).
                 CanRefund = x.a.AdnTransactionId != null && x.a.AdnTransactionId != ""
-                    && x.pm.PaymentMethod != null && x.pm.PaymentMethod.Contains("Credit Card")
+                    && RefundableMethods.Contains(x.a.PaymentMethodId)
             })
             .ToListAsync(ct);
     }
@@ -296,8 +306,11 @@ public class RegistrationAccountingRepository : IRegistrationAccountingRepositor
                 AdnCc4 = x.a.AdnCc4,
                 AdnCcExpDate = x.a.AdnCcexpDate,
                 AdnInvoiceNo = x.a.AdnInvoiceNo,
+                // Was PaymentMethod.Contains("Credit Card"), which also matched the refund method,
+                // the void and both failed variants — offering Refund on rows with nothing to
+                // return, our own refund rows included (they carry a transaction id too).
                 CanRefund = x.a.AdnTransactionId != null && x.a.AdnTransactionId != ""
-                    && x.pm.PaymentMethod != null && x.pm.PaymentMethod.Contains("Credit Card")
+                    && RefundableMethods.Contains(x.a.PaymentMethodId)
             })
             .ToListAsync(ct);
     }

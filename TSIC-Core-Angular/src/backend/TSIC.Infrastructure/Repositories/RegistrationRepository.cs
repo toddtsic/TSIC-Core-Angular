@@ -11,6 +11,7 @@ using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Dtos.Stp;
 using TSIC.Contracts.Dtos.ThirdPartyAccess;
 using TSIC.Contracts.Dtos.UsLax;
+using TSIC.Contracts.Payments;
 using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Adults;
@@ -30,6 +31,15 @@ namespace TSIC.Infrastructure.Repositories;
 public class RegistrationRepository : IRegistrationRepository
 {
     private readonly SqlDbContext _context;
+
+    /// <summary>
+    /// Fallback for rows whose method is only recorded in the legacy free-text
+    /// <c>Paymeth</c> column. Exact names, not a substring: "Credit Card Credit" and
+    /// "Credit Card Void" both contain "Credit Card" and neither is refundable.
+    /// </summary>
+    private static bool IsRefundableLegacyMethodText(string? paymeth) =>
+        string.Equals(paymeth, "Credit Card Payment", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(paymeth, "Credit Card Payment PIF", StringComparison.OrdinalIgnoreCase);
 
     public RegistrationRepository(SqlDbContext context)
     {
@@ -2610,9 +2620,12 @@ public class RegistrationRepository : IRegistrationRepository
                 AdnCc4 = a.AdnCc4,
                 AdnCcExpDate = a.AdnCcexpDate,
                 AdnInvoiceNo = a.AdnInvoiceNo,
+                // Was Contains("Credit Card") on both the joined name and the legacy free-text
+                // column, which also matched the refund method, the void and both failed
+                // variants — offering Refund on rows with nothing left to return.
                 CanRefund = !string.IsNullOrWhiteSpace(a.AdnTransactionId)
-                    && (a.PaymentMethod?.PaymentMethod?.Contains("Credit Card") == true
-                        || (a.Paymeth != null && a.Paymeth.Contains("Credit Card")))
+                    && (PaymentMethodIds.CcRefundable.Contains(a.PaymentMethodId)
+                        || IsRefundableLegacyMethodText(a.Paymeth))
             })
             .ToList();
 

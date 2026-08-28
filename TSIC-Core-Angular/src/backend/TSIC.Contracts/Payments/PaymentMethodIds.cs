@@ -35,12 +35,36 @@ public static class PaymentMethodIds
     /// </summary>
     public static readonly Guid CreditCardPayment = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
 
+    public static readonly Guid CreditCardPaymentPif = Guid.Parse("5C46057C-69DE-4A22-B20F-D2BBDFE3A43A");
+    public static readonly Guid AutomatedRecurrentBilling = Guid.Parse("0CF0E4C2-5853-4A45-A7A5-A0D632BE8870");
+    public static readonly Guid CreditCardCredit = Guid.Parse("31ECA575-A268-E111-9D56-F04DA202060D");
+
     public static readonly IReadOnlySet<Guid> CcPaid = new HashSet<Guid>
     {
-        CreditCardPayment,                                  // Credit Card Payment
-        Guid.Parse("5C46057C-69DE-4A22-B20F-D2BBDFE3A43A"), // Credit Card Payment PIF
-        Guid.Parse("0CF0E4C2-5853-4A45-A7A5-A0D632BE8870"), // Automated Recurrent Billing
-        Guid.Parse("31ECA575-A268-E111-9D56-F04DA202060D"), // Credit Card Credit (refund — negative Payamt)
+        CreditCardPayment,          // Credit Card Payment
+        CreditCardPaymentPif,       // Credit Card Payment PIF
+        AutomatedRecurrentBilling,  // Automated Recurrent Billing
+        CreditCardCredit,           // Credit Card Credit (refund — negative Payamt)
+    };
+
+    /// <summary>
+    /// Card charges a refund may be issued AGAINST. Narrower than <see cref="CcPaid"/>, which
+    /// exists to SUM what a family paid and therefore includes the negative refund rows.
+    ///
+    /// This replaces a <c>PaymentMethod.Contains("Credit Card")</c> text test that matched six of
+    /// the sixteen methods, so the Refund button was offered on a refund row, on an already-voided
+    /// charge, and on both failed variants where the charge never cleared. Reachable rather than
+    /// theoretical: the only other condition is a gateway transaction id, and our own refund rows
+    /// carry one.
+    ///
+    /// Automated Recurrent Billing is a real settled charge, but the old text test never matched
+    /// its name, so refunding an ARB row was not on offer and is not being added here — this
+    /// removes wrong options, it does not grant new ones.
+    /// </summary>
+    public static readonly IReadOnlySet<Guid> CcRefundable = new HashSet<Guid>
+    {
+        CreditCardPayment,
+        CreditCardPaymentPif,
     };
 
     // ACH / eCheck — Payamt is principal; eCheck-specific proc rate applied at swipe.
