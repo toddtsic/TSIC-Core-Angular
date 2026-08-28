@@ -244,7 +244,9 @@ public sealed class StoreReceiptService : IStoreReceiptService
 			if (!string.IsNullOrEmpty(item.DirectToPlayerName))
 				variant = string.IsNullOrEmpty(variant)
 					? $"For {item.DirectToPlayerName}"
-					: $"{variant} — For {item.DirectToPlayerName}";
+					// ASCII separator, not an em dash: the PDF font drops U+2014 and the cell
+					// renders "White / Small  For Test Test" — a gap where the divider should be.
+					: $"{variant} - For {item.DirectToPlayerName}";
 
 			dataTable.Rows.Add(
 				item.ItemName,
