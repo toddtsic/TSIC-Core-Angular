@@ -36,6 +36,17 @@ public record AgeGroupOptionDto
 }
 
 /// <summary>
+/// A season published by usclublax.com, e.g. Value "2025", Text "2025-26".
+/// The site serves one season per page; Value is the yr query parameter.
+/// </summary>
+public record RankingSeasonDto
+{
+    public required string Value { get; init; }
+    public required string Text { get; init; }
+    public required bool IsCurrent { get; init; }
+}
+
+/// <summary>
 /// Registered team info projected for the matching algorithm
 /// </summary>
 public record RankingsTeamDto

@@ -32,6 +32,16 @@
 		</div>
 	</div>
 
+	<!-- Experimental-tool disclaimer -->
+	<p class="experimental-note">
+		<i class="bi bi-exclamation-triangle-fill me-2"></i>
+		<span>
+			<strong>Experimental tool.</strong> Rankings are read live from a third-party website
+			(usclublax.com) that we do not control and that can change or go offline at any time.
+			Check the results before you rely on them for seeding — use at your own discretion.
+		</span>
+	</p>
+
 	<!-- Messages -->
 	@if (errorMessage()) {
 		<div class="alert alert-danger d-flex align-items-center" role="alert">
@@ -52,6 +62,14 @@
 	<!-- Selector -->
 	<div class="selector-panel">
 		<div class="selector-row">
+			<div class="selector-field selector-field-season">
+				<label class="form-label fw-bold"><i class="bi bi-calendar3 me-1 text-primary"></i>Season</label>
+				<select class="form-select form-select-sm"
+					[ngModel]="selectedSeason()" (ngModelChange)="onSeasonChange($event)"
+					[disabled]="seasons().length === 0">
+					@for (s of seasons(); track s.value) { <option [value]="s.value">{{ s.text }}</option> }
+				</select>
+			</div>
 			<div class="selector-field">
 				<label class="form-label fw-bold"><i class="bi bi-globe2 me-1 text-primary"></i>National Rankings Agegroups</label>
 				<select class="form-select form-select-sm"
@@ -60,28 +78,77 @@
 					@for (ag of scrapedAgeGroups(); track ag.value) { <option [value]="ag.value">{{ ag.text }}</option> }
 				</select>
 			</div>
-			<div class="selector-field">
-				<label class="form-label fw-bold"><i class="bi bi-people me-1 text-primary"></i>{{ jobName() }} Agegroups</label>
-				<select class="form-select form-select-sm"
-					[ngModel]="selectedRegisteredAg()" (ngModelChange)="onRegisteredAgChange($event)">
-					<option value="">Select your event's age group...</option>
-					@for (ag of registeredAgeGroups(); track ag.value) { <option [value]="ag.value">{{ ag.text }}</option> }
-				</select>
+			@if (canMatch()) {
+				<div class="selector-field">
+					<label class="form-label fw-bold"><i class="bi bi-people me-1 text-primary"></i>{{ jobName() }} Agegroups</label>
+					<select class="form-select form-select-sm"
+						[ngModel]="selectedRegisteredAg()" (ngModelChange)="onRegisteredAgChange($event)">
+						<option value="">Select your event's age group...</option>
+						@for (ag of registeredAgeGroups(); track ag.value) { <option [value]="ag.value">{{ ag.text }}</option> }
+					</select>
+				</div>
+				<div class="selector-actions">
+					<button class="btn btn-primary btn-sm btn-find"
+						(click)="align()" [disabled]="isLoading() || !selectedScrapedAg() || !selectedRegisteredAg()">
+						@if (isLoading()) { <span class="spinner-border spinner-border-sm me-1"></span>Matching... }
+						@else if (hasResults()) { <i class="bi bi-arrow-repeat me-1"></i>Re-Match }
+						@else { <i class="bi bi-stars me-1"></i>Find Matches }
+					</button>
+					<button class="btn btn-outline-danger btn-sm" (click)="confirmClearRankings()"
+						[disabled]="isLoading() || !selectedRegisteredAg()" title="Clear all ranking data">
+						<i class="bi bi-trash"></i>
+					</button>
+				</div>
+			}
+		</div>
+		@if (!canMatch()) {
+			<p class="selector-note">
+				<i class="bi bi-info-circle me-1"></i>Matching rankings to your registered teams is
+				available for <strong>tournament</strong> events — it exists to seed pools. You can
+				browse the published rankings here for any event.
+			</p>
+		}
+	</div>
+
+	<!-- Browse: published rankings on their own, before any age group is matched -->
+	@if (isBrowsing()) {
+		<div class="results-bar">
+			<strong>{{ browseRankings().length }}</strong> published rankings for
+			<strong>{{ browseLabel() }}</strong>
+			@if (canMatch()) {
+				— pick your event's age group above to match them to your teams
+			}
+		</div>
+
+		<div class="browse-panel">
+			<div class="sidebar-search">
+				<input type="text" class="form-control form-control-sm" placeholder="Filter..."
+					[ngModel]="sidebarSearch()" (ngModelChange)="sidebarSearch.set($event)">
 			</div>
-			<div class="selector-actions">
-				<button class="btn btn-primary btn-sm btn-find"
-					(click)="align()" [disabled]="isLoading() || !selectedScrapedAg() || !selectedRegisteredAg()">
-					@if (isLoading()) { <span class="spinner-border spinner-border-sm me-1"></span>Matching... }
-					@else if (hasResults()) { <i class="bi bi-arrow-repeat me-1"></i>Re-Match }
-					@else { <i class="bi bi-stars me-1"></i>Find Matches }
-				</button>
-				<button class="btn btn-outline-danger btn-sm" (click)="confirmClearRankings()"
-					[disabled]="isLoading() || !selectedRegisteredAg()" title="Clear all ranking data">
-					<i class="bi bi-trash"></i>
-				</button>
+			<div class="sidebar-col-headers">
+				<span class="sidebar-col sortable-col" (click)="toggleSidebarSort('rank')"># <i class="bi" [class]="sidebarSortIcon('rank')"></i></span>
+				<span class="sidebar-col sidebar-col-team sortable-col" (click)="toggleSidebarSort('team')">Team <i class="bi" [class]="sidebarSortIcon('team')"></i></span>
+				<span class="sidebar-col sidebar-col-state sortable-col" (click)="toggleSidebarSort('state')">St <i class="bi" [class]="sidebarSortIcon('state')"></i></span>
+				<span class="sidebar-col sidebar-col-stat">W-L</span>
+				<span class="sidebar-col sidebar-col-stat sortable-col" (click)="toggleSidebarSort('rating')">Rtg <i class="bi" [class]="sidebarSortIcon('rating')"></i></span>
+				<span class="sidebar-col sidebar-col-stat">AGD</span>
+				<span class="sidebar-col sidebar-col-stat">Sch</span>
+			</div>
+			<div class="sidebar-list browse-list">
+				@for (r of filteredBrowseRankings(); track r.rank) {
+					<div class="sidebar-item sidebar-item-static">
+						<span class="sidebar-rank">#{{ r.rank }}</span>
+						<span class="sidebar-team">{{ r.team }}</span>
+						<span class="sidebar-state">{{ r.state }}</span>
+						<span class="sidebar-stat">{{ r.record }}</span>
+						<span class="sidebar-stat">{{ r.rating | number:'1.1-1' }}</span>
+						<span class="sidebar-stat">{{ r.agd | number:'1.1-1' }}</span>
+						<span class="sidebar-stat">{{ r.sched | number:'1.1-1' }}</span>
+					</div>
+				}
 			</div>
 		</div>
-	</div>
+	}
 
 	<!-- Results -->
 	@if (alignment(); as result) {
@@ -266,6 +333,19 @@
 				<dd><strong>Match</strong> — pair an unmatched team via the sidebar. <strong>Change</strong> — reassign an AI match.</dd>
 				<dt><i class="bi bi-cloud-upload text-primary"></i> Save</dt>
 				<dd>Choose a confidence threshold. Manual pairings always included. Rankings appear as <strong>Nat'l Rank</strong> in Pool Assignment.</dd>
+				<dt><i class="bi bi-calendar3 text-primary"></i> Seasons</dt>
+				<dd>
+					usclublax.com publishes rankings one season at a time. The Season list mirrors
+					what they currently offer and defaults to the newest — switch it to seed from a
+					completed season instead. The available age groups differ from season to season.
+				</dd>
+				<dt><i class="bi bi-exclamation-triangle-fill text-warning"></i> Experimental</dt>
+				<dd>
+					This tool reads a third-party website we do not control. If they change their
+					page layout, rename an age group, or go offline, results here can change or stop
+					working without notice. Treat it as an aid to seeding, not a source of record —
+					use at your own discretion.
+				</dd>
 			</dl>
 		</div>
 	</div>

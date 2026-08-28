@@ -9,6 +9,7 @@ import type {
 	ImportRankingsRequest,
 	ImportRankingsResultDto,
 	RankingsTeamDto,
+	RankingSeasonDto,
 	UpdateTeamRankingRequest
 } from '@core/api';
 
@@ -17,9 +18,15 @@ export class UsLaxRankingsService {
 	private readonly http = inject(HttpClient);
 	private readonly base = `${environment.apiUrl}/uslax-rankings`;
 
-	/** Get available age groups from usclublax.com */
-	getScrapedAgeGroups(): Observable<AgeGroupOptionDto[]> {
-		return this.http.get<AgeGroupOptionDto[]>(`${this.base}/age-groups`);
+	/** Seasons published by usclublax.com, newest first, current one flagged */
+	getSeasons(): Observable<RankingSeasonDto[]> {
+		return this.http.get<RankingSeasonDto[]>(`${this.base}/seasons`);
+	}
+
+	/** Age groups from usclublax.com. Omit yr for the season the site currently serves. */
+	getScrapedAgeGroups(yr?: string): Observable<AgeGroupOptionDto[]> {
+		const params = yr ? new HttpParams().set('yr', yr) : undefined;
+		return this.http.get<AgeGroupOptionDto[]>(`${this.base}/age-groups`, { params });
 	}
 
 	/** Get registered age groups from the current job */

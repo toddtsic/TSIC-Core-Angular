@@ -7,6 +7,7 @@ using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Dtos.Rankings;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 
 namespace TSIC.API.Controllers;
 
@@ -24,6 +25,7 @@ public class USLaxRankingsController : ControllerBase
     private readonly ITeamRepository _teamRepo;
     private readonly IAgeGroupRepository _ageGroupRepo;
     private readonly IJobLookupService _jobLookupService;
+    private readonly IJobRepository _jobRepo;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -35,25 +37,62 @@ public class USLaxRankingsController : ControllerBase
         IUSLaxMatchingService matchingService,
         ITeamRepository teamRepo,
         IAgeGroupRepository ageGroupRepo,
-        IJobLookupService jobLookupService)
+        IJobLookupService jobLookupService,
+        IJobRepository jobRepo)
     {
         _scrapingService = scrapingService;
         _matchingService = matchingService;
         _teamRepo = teamRepo;
         _ageGroupRepo = ageGroupRepo;
         _jobLookupService = jobLookupService;
+        _jobRepo = jobRepo;
     }
 
-    // ── Scrape endpoints ──
+    /// <summary>
+    /// National-ranking matching exists to seed tournament pools, so the half of this
+    /// controller that touches job data is tournament-only. The scrape endpoints above
+    /// stay open: browsing published rankings is useful to any director, and reads
+    /// nothing but usclublax.com.
+    /// </summary>
+    private async Task<ActionResult?> RejectIfNotTournamentAsync(Guid jobId, CancellationToken ct)
+    {
+        var jobTypeId = await _jobRepo.GetJobTypeIdAsync(jobId, ct);
+        if (jobTypeId == JobConstants.JobTypeTournament)
+            return null;
+
+        return StatusCode(StatusCodes.Status403Forbidden, new
+        {
+            message = "National ranking matching is available for tournament events only."
+        });
+    }
+
+    // ── Scrape endpoints (browse) ──
+    //
+    // These read usclublax.com only — no job data, no writes — so they are open to any
+    // authorised director. The matching half below is gated to tournaments.
 
     /// <summary>
-    /// Get available age groups from usclublax.com (Girls National page options).
+    /// Get the seasons usclublax.com publishes, newest first, with the season the site
+    /// currently serves flagged IsCurrent.
+    /// </summary>
+    [HttpGet("seasons")]
+    public async Task<ActionResult<List<RankingSeasonDto>>> GetSeasons(CancellationToken ct)
+    {
+        var result = await _scrapingService.GetAvailableSeasonsAsync(ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get available Girls age groups from usclublax.com. Pass yr to read an archived
+    /// season; omit it for the season the site currently serves. The set of groups
+    /// differs season to season, so re-fetch whenever the season changes.
     /// </summary>
     [HttpGet("age-groups")]
     public async Task<ActionResult<List<AgeGroupOptionDto>>> GetScrapedAgeGroups(
+        [FromQuery] string? yr,
         CancellationToken ct)
     {
-        var result = await _scrapingService.GetAvailableAgeGroupsAsync(ct);
+        var result = await _scrapingService.GetAvailableAgeGroupsAsync(yr, ct);
         return Ok(result);
     }
 
@@ -67,6 +106,9 @@ public class USLaxRankingsController : ControllerBase
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null) return BadRequest(new { message = "Unable to resolve job from token." });
+
+        var gate = await RejectIfNotTournamentAsync(jobId.Value, ct);
+        if (gate is not null) return gate;
 
         var result = await _ageGroupRepo.GetActiveAgeGroupsForJobAsync(jobId.Value, ct);
         return Ok(result);
@@ -83,6 +125,9 @@ public class USLaxRankingsController : ControllerBase
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null) return BadRequest(new { message = "Unable to resolve job from token." });
+
+        var gate = await RejectIfNotTournamentAsync(jobId.Value, ct);
+        if (gate is not null) return gate;
 
         var teams = await _teamRepo.GetTeamsForRankingsAsync(jobId.Value, agegroupId, ct);
         var withRankings = teams.Where(t => t.NationalRankingData != null).ToList();
@@ -129,6 +174,9 @@ public class USLaxRankingsController : ControllerBase
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null) return BadRequest(new { message = "Unable to resolve job from token." });
 
+        var gate = await RejectIfNotTournamentAsync(jobId.Value, ct);
+        if (gate is not null) return gate;
+
         // Scrape rankings from usclublax.com
         var scrapeResult = await _scrapingService.ScrapeRankingsAsync(v, alpha, yr, ct);
         if (!scrapeResult.Success)
@@ -169,6 +217,9 @@ public class USLaxRankingsController : ControllerBase
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null) return BadRequest(new { message = "Unable to resolve job from token." });
+
+        var gate = await RejectIfNotTournamentAsync(jobId.Value, ct);
+        if (gate is not null) return gate;
 
         // Scrape + align
         var scrapeResult = await _scrapingService.ScrapeRankingsAsync(
@@ -239,6 +290,9 @@ public class USLaxRankingsController : ControllerBase
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null) return BadRequest(new { message = "Unable to resolve job from token." });
 
+        var gate = await RejectIfNotTournamentAsync(jobId.Value, ct);
+        if (gate is not null) return gate;
+
         var team = await _teamRepo.GetTeamFromTeamId(teamId, ct);
         if (team == null) return NotFound(new { message = "Team not found." });
 
@@ -262,6 +316,9 @@ public class USLaxRankingsController : ControllerBase
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null) return BadRequest(new { message = "Unable to resolve job from token." });
+
+        var gate = await RejectIfNotTournamentAsync(jobId.Value, ct);
+        if (gate is not null) return gate;
 
         var cleared = await _teamRepo.ClearNationalRankingDataForAgegroupAsync(jobId.Value, agegroupId, ct);
 
@@ -288,6 +345,9 @@ public class USLaxRankingsController : ControllerBase
 
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null) return BadRequest(new { message = "Unable to resolve job from token." });
+
+        var gate = await RejectIfNotTournamentAsync(jobId.Value, ct);
+        if (gate is not null) return gate;
 
         var scrapeResult = await _scrapingService.ScrapeRankingsAsync(v, alpha, yr, ct);
         if (!scrapeResult.Success)

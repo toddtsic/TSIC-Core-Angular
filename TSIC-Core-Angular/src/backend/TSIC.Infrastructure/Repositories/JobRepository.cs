@@ -368,6 +368,15 @@ public class JobRepository : IJobRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<int?> GetJobTypeIdAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => (int?)j.JobTypeId)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<string?> GetJobNameAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
         return await _context.Jobs

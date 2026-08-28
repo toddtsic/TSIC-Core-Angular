@@ -558,6 +558,7 @@ export type { QaUnscheduledTeam } from './models/QaUnscheduledTeam';
 export type { QuickLoginRequest } from './models/QuickLoginRequest';
 export type { QuickLoginResponse } from './models/QuickLoginResponse';
 export type { RankingEntryDto } from './models/RankingEntryDto';
+export type { RankingSeasonDto } from './models/RankingSeasonDto';
 export type { RankingsTeamDto } from './models/RankingsTeamDto';
 export type { ReadinessClauseDto } from './models/ReadinessClauseDto';
 export type { RecalculateTeamFeesRequest } from './models/RecalculateTeamFeesRequest';

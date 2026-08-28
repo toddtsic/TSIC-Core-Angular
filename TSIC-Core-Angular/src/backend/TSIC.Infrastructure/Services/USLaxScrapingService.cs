@@ -19,9 +19,16 @@ public sealed class USLaxScrapingService : IUSLaxScrapingService
     private const string RankingsPath = "/rankings";
     private const string RankPath = "/rank";
 
-    // Girls Overall default params
+    // Girls Overall. The trailing two digits of v are the graduation class and shift
+    // with the season, so only the family prefix is safe to pin:
+    //   10xx = boys overall   11xx = boys national
+    //   20xx = girls overall  21xx = girls national
     private const string DefaultVersion = "20";
-    private const string DefaultYear = "2025";
+
+    // Fallback only, for a link whose href somehow carries no yr. The season is never
+    // pinned -- /rankings serves whatever season the site currently publishes, and
+    // /rankings/?yr=N serves that archived season.
+    private const string FallbackYear = "2025";
 
     // Hardcoded column mapping matching usclublax.com 2025 table structure
     private const int ColRank = 0;
@@ -45,7 +52,7 @@ public sealed class USLaxScrapingService : IUSLaxScrapingService
         }
     }
 
-    public async Task<List<AgeGroupOptionDto>> GetAvailableAgeGroupsAsync(CancellationToken ct = default)
+    public async Task<List<RankingSeasonDto>> GetAvailableSeasonsAsync(CancellationToken ct = default)
     {
         try
         {
@@ -53,9 +60,73 @@ public sealed class USLaxScrapingService : IUSLaxScrapingService
             var doc = new HtmlDocument();
             doc.LoadHtml(html);
 
-            // Find age group links matching Girls rankings pattern
+            // The season tab strip: <a class="rank-season-tab [is-active]" href="/rankings/?yr=2025">2025-26</a>
             var nodes = doc.DocumentNode.SelectNodes(
-                $"//a[contains(@href, 'v={DefaultVersion}') and contains(@href, 'yr={DefaultYear}')]");
+                "//a[contains(@class, 'rank-season-tab')]");
+
+            if (nodes is null)
+            {
+                _logger.LogWarning("No season tabs found on {Path}", RankingsPath);
+                return [];
+            }
+
+            var seen = new HashSet<string>();
+            var results = new List<RankingSeasonDto>();
+
+            foreach (var node in nodes)
+            {
+                var href = WebUtility.HtmlDecode(node.GetAttributeValue("href", ""));
+                var yr = ParseQueryString(href).GetValueOrDefault("yr", "");
+                if (string.IsNullOrEmpty(yr) || !seen.Add(yr))
+                    continue;
+
+                var css = node.GetAttributeValue("class", "");
+                results.Add(new RankingSeasonDto
+                {
+                    Value = yr,
+                    Text = GetAgeGroupLabel(node),
+                    IsCurrent = css.Contains("is-active")
+                });
+            }
+
+            // Newest first. If the site ever drops the is-active marker, fall back to
+            // the highest season so a default can still be chosen.
+            results = [.. results.OrderByDescending(s => s.Value, StringComparer.Ordinal)];
+            if (results.Count > 0 && !results.Any(s => s.IsCurrent))
+            {
+                _logger.LogWarning("No season tab marked is-active; defaulting to newest {Season}", results[0].Value);
+                results[0] = results[0] with { IsCurrent = true };
+            }
+
+            _logger.LogInformation("Scraped {Count} seasons from usclublax.com", results.Count);
+            return results;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching seasons from usclublax.com");
+            return [];
+        }
+    }
+
+    public async Task<List<AgeGroupOptionDto>> GetAvailableAgeGroupsAsync(string? yr = null, CancellationToken ct = default)
+    {
+        try
+        {
+            // No yr => the season the site currently serves. The season is never pinned:
+            // usclublax rolls annually, and the set of age groups differs season to season
+            // (older seasons publish 12 groups where the current one publishes 28).
+            var path = string.IsNullOrWhiteSpace(yr)
+                ? BaseUrl + RankingsPath
+                : $"{BaseUrl}{RankingsPath}/?yr={Uri.EscapeDataString(yr)}";
+
+            var html = await _http.GetStringAsync(path, ct);
+            var doc = new HtmlDocument();
+            doc.LoadHtml(html);
+
+            // Girls links for whatever season this page is serving. Only the v family is
+            // pinned; the season comes back off the href below.
+            var nodes = doc.DocumentNode.SelectNodes(
+                $"//a[contains(@href, 'v={DefaultVersion}')]");
 
             if (nodes is null)
                 return [];
@@ -76,13 +147,15 @@ public sealed class USLaxScrapingService : IUSLaxScrapingService
                 var queryParams = ParseQueryString(href);
                 var v = queryParams.GetValueOrDefault("v", DefaultVersion);
                 var alpha = queryParams.GetValueOrDefault("alpha", "N");
-                var yr = queryParams.GetValueOrDefault("yr", DefaultYear);
-                var value = $"{v}|{alpha}|{yr}";
+                var season = queryParams.GetValueOrDefault("yr", yr ?? FallbackYear);
+                var value = $"{v}|{alpha}|{season}";
 
                 results.Add(new AgeGroupOptionDto { Value = value, Text = text });
             }
 
-            _logger.LogInformation("Scraped {Count} Girls age groups from usclublax.com", results.Count);
+            _logger.LogInformation(
+                "Scraped {Count} Girls age groups from usclublax.com for season {Season}",
+                results.Count, yr ?? "(current)");
             return results;
         }
         catch (Exception ex)
@@ -94,7 +167,7 @@ public sealed class USLaxScrapingService : IUSLaxScrapingService
 
     public async Task<ScrapeResultDto> ScrapeRankingsAsync(string v, string alpha, string yr, CancellationToken ct = default)
     {
-        var ageGroupLabel = $"Girls {yr}";
+        var ageGroupLabel = DescribeAgeGroup(v, yr);
         try
         {
             var url = $"{BaseUrl}{RankPath}?v={v}&alpha={alpha}&yr={yr}";
@@ -223,6 +296,23 @@ public sealed class USLaxScrapingService : IUSLaxScrapingService
         var desktopCopy = node.SelectSingleNode(".//span[contains(@class, 'uscl-rankings-nav__title')]");
         var raw = desktopCopy?.InnerText ?? node.InnerText ?? "";
         return WebUtility.HtmlDecode(raw).Trim().TrimEnd('\u203A').Trim();
+    }
+
+    /// <summary>
+    /// Builds a display label from the scrape parameters. v is {family}{class}, e.g.
+    /// 2027 = girls overall class of 2027, 2127 = girls national class of 2027; yr is
+    /// the SEASON, not the class -- yr=2025 is the 2025-26 season.
+    /// </summary>
+    private static string DescribeAgeGroup(string v, string yr)
+    {
+        var season = int.TryParse(yr, out var y) ? $"{y}-{(y + 1) % 100:D2}" : yr;
+
+        if (v.Length != 4)
+            return $"Rankings {v} ({season})";
+
+        var gender = v[0] == '1' ? "Boys" : "Girls";
+        var tier = v[1] == '1' ? " National" : "";
+        return $"{gender} 20{v[2..]}{tier} ({season})";
     }
 
     private static Dictionary<string, string> ParseQueryString(string href)

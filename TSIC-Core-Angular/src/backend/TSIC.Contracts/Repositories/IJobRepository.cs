@@ -230,6 +230,12 @@ public interface IJobRepository
 
     /// <summary>
     /// Get job name by job ID.
+    /// <summary>
+    /// Job type discriminator for a job — see <see cref="TSIC.Domain.Constants.JobConstants"/>.
+    /// Null when the job does not exist.
+    /// </summary>
+    Task<int?> GetJobTypeIdAsync(Guid jobId, CancellationToken cancellationToken = default);
+
     /// </summary>
     Task<string?> GetJobNameAsync(Guid jobId, CancellationToken cancellationToken = default);
 

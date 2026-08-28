@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { UsLaxRankingsService } from '@infrastructure/services/uslax-rankings.service';
 import { JobService } from '@infrastructure/services/job.service';
+import { isTournament } from '@infrastructure/constants/job-type.constants';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import type {
 	AgeGroupOptionDto,
@@ -11,6 +12,7 @@ import type {
 	AlignedTeamDto,
 	RankingEntryDto,
 	RankingsTeamDto,
+	RankingSeasonDto,
 	ImportRankingsResultDto,
 } from '@core/api';
 
@@ -57,15 +59,29 @@ export class UsLaxRankingsComponent {
 
 	readonly jobName = computed(() => this.jobService.currentJob()?.jobName ?? 'your event');
 
+	/**
+	 * Matching registered teams to national rankings exists to seed tournament pools, so
+	 * it is tournament-only (the API enforces the same rule). Browsing the published
+	 * rankings stays open to every event type — hence two capabilities, one screen.
+	 */
+	readonly canMatch = computed(() => isTournament(this.jobService.currentJob()?.jobTypeId));
+
 	// ── (single-page, no tabs) ──
 
 	// ── Dropdown options ──
+	readonly seasons = signal<RankingSeasonDto[]>([]);
 	readonly scrapedAgeGroups = signal<AgeGroupOptionDto[]>([]);
 	readonly registeredAgeGroups = signal<AgeGroupOptionDto[]>([]);
 
 	// ── Selections ──
+	readonly selectedSeason = signal('');
 	readonly selectedScrapedAg = signal('');
 	readonly selectedRegisteredAg = signal('');
+
+	/** Browse mode: rankings shown on their own, with no registered age group picked. */
+	readonly browseRankings = signal<RankingEntryDto[]>([]);
+	readonly browseLabel = signal('');
+	readonly isBrowsing = computed(() => !this.alignment() && this.browseRankings().length > 0);
 
 	// ── Loading / messages ──
 	readonly isLoading = signal(false);
@@ -165,8 +181,15 @@ export class UsLaxRankingsComponent {
 	});
 
 	// ── Computed: filtered + sorted sidebar rankings (unmatched only) ──
-	readonly filteredSidebarRankings = computed(() => {
-		let rankings = this.unmatchedRankings();
+	readonly filteredSidebarRankings = computed(() =>
+		this.filterAndSortRankings(this.unmatchedRankings()));
+
+	/** Same filter/sort controls drive the browse list, which has no matching context. */
+	readonly filteredBrowseRankings = computed(() =>
+		this.filterAndSortRankings(this.browseRankings()));
+
+	private filterAndSortRankings(source: RankingEntryDto[]): RankingEntryDto[] {
+		let rankings = source;
 		const search = this.sidebarSearch().trim().toLowerCase();
 		if (search) {
 			rankings = rankings.filter(r =>
@@ -185,7 +208,7 @@ export class UsLaxRankingsComponent {
 				default: return 0;
 			}
 		});
-	});
+	}
 
 	// ── Computed: counts for summary chips ──
 	readonly selectedAgName = computed(() => {
@@ -232,7 +255,8 @@ export class UsLaxRankingsComponent {
 		}));
 
 	constructor() {
-		this.loadAgeGroups();
+		this.loadSeasons();
+		this.loadRegisteredAgeGroups();
 	}
 
 	@HostListener('document:keydown.escape')
@@ -242,13 +266,39 @@ export class UsLaxRankingsComponent {
 	}
 
 
-	// ── Load age groups ──
+	// ── Load seasons + age groups ──
 
-	private loadAgeGroups(): void {
-		this.rankingsService.getScrapedAgeGroups().subscribe({
+	private loadSeasons(): void {
+		this.rankingsService.getSeasons().subscribe({
+			next: seasons => {
+				this.seasons.set(seasons);
+				const current = seasons.find(s => s.isCurrent) ?? seasons[0];
+				this.selectedSeason.set(current?.value ?? '');
+				// Omit yr on the first load so we take whatever season the site serves,
+				// rather than asserting one it may not publish.
+				this.loadScrapedAgeGroups();
+			},
+			error: () => {
+				this.seasons.set([]);
+				this.loadScrapedAgeGroups();
+			}
+		});
+	}
+
+	/**
+	 * The set of age groups differs season to season — older seasons publish 12 where the
+	 * current one publishes 28 — so this re-runs on every season change rather than
+	 * filtering one cached list.
+	 */
+	private loadScrapedAgeGroups(yr?: string): void {
+		this.rankingsService.getScrapedAgeGroups(yr).subscribe({
 			next: groups => this.scrapedAgeGroups.set(groups),
 			error: () => this.scrapedAgeGroups.set([])
 		});
+	}
+
+	private loadRegisteredAgeGroups(): void {
+		if (!this.canMatch()) return;
 		this.rankingsService.getRegisteredAgeGroups().subscribe({
 			next: groups => this.registeredAgeGroups.set(groups),
 			error: () => this.registeredAgeGroups.set([])
@@ -257,20 +307,85 @@ export class UsLaxRankingsComponent {
 
 	// ── Dropdown change handlers ──
 
+	onSeasonChange(value: string): void {
+		this.selectedSeason.set(value);
+		// A group from the old season may not exist in the new one — clear rather than
+		// carry a selection that would scrape a URL the site does not serve.
+		this.selectedScrapedAg.set('');
+		this.scrapedAgeGroups.set([]);
+		this.clearResults();
+		this.loadScrapedAgeGroups(value);
+	}
+
 	onScrapedAgChange(value: string): void {
 		this.selectedScrapedAg.set(value);
-		this.autoAlign();
+		this.clearResults();
+		if (!value) return;
+
+		if (this.canMatch() && this.selectedRegisteredAg()) {
+			this.align();
+		} else {
+			this.browse();
+		}
 	}
 
 	onRegisteredAgChange(value: string): void {
 		this.selectedRegisteredAg.set(value);
-		this.autoAlign();
-	}
-
-	private autoAlign(): void {
-		if (this.selectedScrapedAg() && this.selectedRegisteredAg() && !this.hasResults()) {
+		if (this.selectedScrapedAg() && value && !this.hasResults()) {
 			this.align();
 		}
+	}
+
+	/** Splits the dropdown value, which the API hands us as "v|alpha|yr". */
+	private parseAgValue(value: string): { v: string; alpha: string; yr: string } {
+		const parts = value.split('|');
+		return {
+			v: parts[0],
+			alpha: parts.length > 2 ? parts[1] : '',
+			yr: parts.length > 2 ? parts[2] : parts[1]
+		};
+	}
+
+	private clearResults(): void {
+		this.alignment.set(null);
+		this.matchedTeams.set([]);
+		this.unmatchedRankings.set([]);
+		this.unmatchedTeams.set([]);
+		this.browseRankings.set([]);
+		this.browseLabel.set('');
+		this.activeMatchTeamId.set(null);
+		this.errorMessage.set(null);
+		this.successMessage.set(null);
+	}
+
+	// ── Browse: show the published rankings on their own ──
+
+	browse(): void {
+		const scraped = this.selectedScrapedAg();
+		if (!scraped) return;
+
+		const { v, alpha, yr } = this.parseAgValue(scraped);
+
+		this.isLoading.set(true);
+		this.errorMessage.set(null);
+
+		this.rankingsService.scrapeRankings(v, alpha, yr).subscribe({
+			next: result => {
+				this.isLoading.set(false);
+				if (!result.success) {
+					this.browseRankings.set([]);
+					this.errorMessage.set(result.errorMessage ?? 'Could not read rankings from usclublax.com.');
+					return;
+				}
+				this.browseRankings.set([...result.rankings]);
+				this.browseLabel.set(result.ageGroup);
+			},
+			error: (err: { error?: { message?: string } }) => {
+				this.isLoading.set(false);
+				this.browseRankings.set([]);
+				this.errorMessage.set(err.error?.message ?? 'Could not reach usclublax.com to read rankings.');
+			}
+		});
 	}
 
 	// ── Align ──
@@ -283,10 +398,7 @@ export class UsLaxRankingsComponent {
 			return;
 		}
 
-		const parts = scraped.split('|');
-		const v = parts[0];
-		const alpha = parts.length > 2 ? parts[1] : '';
-		const yr = parts.length > 2 ? parts[2] : parts[1];
+		const { v, alpha, yr } = this.parseAgValue(scraped);
 
 		this.isLoading.set(true);
 		this.errorMessage.set(null);
