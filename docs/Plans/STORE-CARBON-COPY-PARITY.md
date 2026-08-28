@@ -168,11 +168,11 @@ CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
 
 | # | Legacy pathway | Status |
 |---|---|---|
-| E-01 | `StoreEmailAbandondedCarts` — min/max age-hours dropdowns | GAP |
-| E-02 | Abandoned grid + checkbox column + detail rows | GAP |
-| E-03 | Abandoned: subject + body + SendEmail | GAP |
-| E-04 | `StoreEmailFamiliesThatNeverUsed` — subject + body + SendEmail | GAP |
-| E-05 | `StoreEmailFamiliesThatOrdered` — subject + body + SendEmail | GAP |
+| E-01 | `StoreEmailAbandondedCarts` — min/max age-hours dropdowns | BUILT |
+| E-02 | Abandoned grid + checkbox column + detail rows | BUILT |
+| E-03 | Abandoned: subject + body + SendEmail | BUILT |
+| E-04 | `StoreEmailFamiliesThatNeverUsed` — subject + body + SendEmail | BUILT |
+| E-05 | `StoreEmailFamiliesThatOrdered` — subject + body + SendEmail | BUILT |
 
 ## F · Labels / Crystal
 
@@ -226,6 +226,40 @@ A-03's carousel had nothing to page through. The sync repairs that on first open
 schema change. `DisplayOrder` now carries the instance number, which is what orders the carousel.
 
 Written by `StoreImageService` (Infrastructure). B-19…B-27 all ship.
+
+**D-3 — Store email campaigns. SETTLED, APPLIED. Three legacy controllers, one code path.**
+`StoreEmailAbandondedCarts`, `StoreEmailFamiliesThatNeverUsed` and `StoreEmailFamiliesThatOrdered`
+were byte-for-byte identical below the audience query — same address resolution, same substitution
+loop, same `EmailLogs` row, same sender confirmation, all three copied. The port keeps ONE service
+(`StoreCampaignService`) whose only branch is the audience; the send rides the existing
+`IEmailBatchService` engine that registration-search, My Roster, ARB and USLax already use.
+
+Deliberate divergences, each a defect in legacy rather than a behaviour worth copying:
+
+1. **Unsubscribe is honoured.** Legacy's three store screens tested `BEmailOptOut` nowhere, so a
+   family that had clicked unsubscribe still got store blasts. The engine applies opt-out for every
+   batch path. A family counts as opted out if ANY of its registrations is — mom and dad share the
+   mailbox across every child, so one click silences it.
+2. **Inactive cart lines are excluded.** Legacy's abandoned query did not filter `Active`, so a
+   voided or removed line was still advertised back to the family as "you left this behind".
+3. **`!JOBLINK` → `!STORELINK` in the seeded templates.** Legacy's store templates bound `!JOBLINK`
+   to `/{jobPath}/StoreTwoClick/Index` while the same token means the job home page everywhere else.
+   The store link gets its own token; `!JOBLINK` keeps its app-wide meaning.
+4. **Non-registered families still render tokens.** A store family need not be registered in the job
+   — on the reference walk-up store 24 of 27 purchasing families are not, and the substitution
+   engine keys entirely off `Registrations`. Without the fallback, those 24 emails would have
+   shipped literal `!JOBNAME` text.
+5. **`!BATCHCARTSKUS` items are wrapped in `<li>`.** Legacy opened a `<ul>` and appended bare
+   strings, so the cart contents rendered as one run-on line.
+6. **The headcount equals what sends.** Legacy counted family ids, then dropped address-less
+   families mid-send; the screen's number and the result never agreed. Both now resolve through the
+   same path, and `skippedNoEmail` reports the difference explicitly.
+7. **One availability round-trip, not N.** Legacy called `GetSkuAvailableCountBySoldAndBuffer` per
+   line inside a per-cart loop. The stock BASIS is legacy's and load-bearing: `MaxCanSell − Sold`,
+   ignoring in-cart quantities. Netting in-cart here would count the very cart being advertised and
+   zero out every abandoned cart.
+8. **The sender receipt reaches the always-copy list.** Legacy hand-rolled a confirmation to the
+   sender alone in each of the three controllers; this uses the shared `BatchCompletionReceipt`.
 
 ## Open recommendations
 

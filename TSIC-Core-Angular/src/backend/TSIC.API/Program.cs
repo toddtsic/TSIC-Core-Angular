@@ -185,6 +185,7 @@ builder.Services.AddScoped<IJobConfigRepository, JobConfigRepository>();
 builder.Services.AddScoped<IRefAssignmentRepository, RefAssignmentRepository>();
 // Store
 builder.Services.AddScoped<IStoreAnalyticsRepository, StoreAnalyticsRepository>();
+builder.Services.AddScoped<IStoreCampaignRepository, StoreCampaignRepository>();
 builder.Services.AddScoped<IStoreCartRepository, StoreCartRepository>();
 builder.Services.AddScoped<IStoreItemRepository, StoreItemRepository>();
 builder.Services.AddScoped<IStoreRepository, StoreRepository>();
@@ -339,6 +340,7 @@ builder.Services.AddScoped<IStoreAdminService, StoreAdminService>();
 // The one writer that puts store stock back on the shelf — see IStoreRestockService.
 builder.Services.AddScoped<IStoreRestockService, StoreRestockService>();
 builder.Services.AddScoped<IStoreSalesOpsService, StoreSalesOpsService>();
+builder.Services.AddScoped<IStoreCampaignService, StoreCampaignService>();
 builder.Services.AddScoped<IStoreCatalogService, StoreCatalogService>();
 builder.Services.AddScoped<IStoreCartService, StoreCartService>();
 builder.Services.AddScoped<IStoreWalkUpService, StoreWalkUpService>();

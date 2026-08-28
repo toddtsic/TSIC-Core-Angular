@@ -19,6 +19,9 @@
 	<button class="editor-tab" [class.active]="activeTab() === 'sales'" (click)="activeTab.set('sales')">
 		<i class="bi bi-receipt me-1"></i>Sales
 	</button>
+	<button class="editor-tab" [class.active]="activeTab() === 'campaigns'" (click)="activeTab.set('campaigns')">
+		<i class="bi bi-envelope me-1"></i>Email
+	</button>
 	<button class="editor-tab" [class.active]="activeTab() === 'colors'" (click)="activeTab.set('colors')">
 		<i class="bi bi-palette me-1"></i>Colors
 	</button>
@@ -391,6 +394,13 @@
 <!-- ══════════════════════════════════════ -->
 @if (!isLoading() && activeTab() === 'sales') {
 	<app-store-sales-tab />
+}
+
+<!-- ══════════════════════════════════════ -->
+<!-- TAB 7: EMAIL CAMPAIGNS                 -->
+<!-- ══════════════════════════════════════ -->
+@if (!isLoading() && activeTab() === 'campaigns') {
+	<app-store-campaigns-tab />
 }
 
 <!-- ══════════════════════════════════════ -->

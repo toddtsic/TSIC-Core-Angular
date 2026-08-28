@@ -25,6 +25,8 @@ public class StoreController : ControllerBase
     private readonly IStoreCartRepository _cartRepo;
     private readonly IStoreImageService _imageService;
     private readonly IStoreSalesOpsService _salesOpsService;
+    private readonly IStoreCampaignService _campaignService;
+    private readonly IEmailBatchJobRegistry _batchJobs;
 
     public StoreController(
         IStoreCatalogService catalogService,
@@ -36,7 +38,9 @@ public class StoreController : ControllerBase
         IRegistrationAccountingRepository accountingRepo,
         IStoreCartRepository cartRepo,
         IStoreImageService imageService,
-        IStoreSalesOpsService salesOpsService)
+        IStoreSalesOpsService salesOpsService,
+        IStoreCampaignService campaignService,
+        IEmailBatchJobRegistry batchJobs)
     {
         _catalogService = catalogService;
         _cartService = cartService;
@@ -48,6 +52,8 @@ public class StoreController : ControllerBase
         _cartRepo = cartRepo;
         _imageService = imageService;
         _salesOpsService = salesOpsService;
+        _campaignService = campaignService;
+        _batchJobs = batchJobs;
     }
 
     // ═══════════════════════════════════════════
@@ -285,6 +291,69 @@ public class StoreController : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    // ═══════════════════════════════════════════
+    //  EMAIL CAMPAIGNS — Admin
+    //  Legacy StoreEmailAbandondedCarts / StoreEmailFamiliesThatNeverUsed /
+    //  StoreEmailFamiliesThatOrdered — three near-identical controllers, one code path here.
+    // ═══════════════════════════════════════════
+
+    /// <summary>
+    /// Opens a campaign: audience size, the seeded subject/body, the token palette, and — for
+    /// <c>abandonedCarts</c> — the selectable cart grid and its age window.
+    /// </summary>
+    [HttpGet("campaigns/{kind}")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(StoreCampaignSetupDto), 200)]
+    public async Task<IActionResult> GetCampaignSetup(
+        StoreCampaignKind kind,
+        [FromQuery] int? minAgeHours,
+        [FromQuery] int? maxAgeHours,
+        CancellationToken ct)
+    {
+        var (jobId, _) = await ResolveContext();
+        try
+        {
+            return Ok(await _campaignService.GetSetupAsync(jobId, kind, minAgeHours, maxAgeHours, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Queues the campaign and returns immediately. Poll <c>campaigns/status/{batchJobId}</c> for
+    /// progress; the sender receives a completion receipt when the batch drains.
+    /// </summary>
+    [HttpPost("campaigns/{kind}/send")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(StoreCampaignSendResponse), 200)]
+    public async Task<IActionResult> SendCampaign(
+        StoreCampaignKind kind,
+        [FromBody] StoreCampaignSendRequest request,
+        CancellationToken ct)
+    {
+        var (jobId, userId) = await ResolveContext();
+        try
+        {
+            return Ok(await _campaignService.SendAsync(jobId, userId, kind, request, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>Progress + final summary for a queued campaign.</summary>
+    [HttpGet("campaigns/status/{batchJobId:guid}")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(EmailBatchJobStatus), 200)]
+    public ActionResult<EmailBatchJobStatus> GetCampaignStatus(Guid batchJobId)
+    {
+        var status = _batchJobs.Get(batchJobId);
+        return status == null ? NotFound() : Ok(status);
     }
 
     // ═══════════════════════════════════════════

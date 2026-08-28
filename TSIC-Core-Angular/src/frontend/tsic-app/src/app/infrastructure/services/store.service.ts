@@ -1,6 +1,6 @@
 import { inject, Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, tap } from 'rxjs';
+import { Observable, tap, timer, switchMap, takeWhile, last } from 'rxjs';
 import { environment } from '@environments/environment';
 import type {
 	StoreDto,
@@ -42,6 +42,11 @@ import type {
 	StoreRefundRequest,
 	StoreRefundResponse,
 	StoreBatchSettledStatusDto,
+	StoreCampaignKind,
+	StoreCampaignSetupDto,
+	StoreCampaignSendRequest,
+	StoreCampaignSendResponse,
+	EmailBatchJobStatus,
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -139,6 +144,60 @@ export class StoreService {
 	 */
 	refundSale(request: StoreRefundRequest): Observable<StoreRefundResponse> {
 		return this.http.post<StoreRefundResponse>(`${this.base}/sales/refund`, request);
+	}
+
+	// ── Email campaigns ──
+	// Legacy's three store email screens. One endpoint family, `kind` selects the audience.
+
+	/**
+	 * Opens a campaign: audience size, seeded subject/body, token palette, and — for abandoned
+	 * carts — the cart grid and its age window.
+	 */
+	getCampaignSetup(
+		kind: StoreCampaignKind,
+		minAgeHours?: number,
+		maxAgeHours?: number,
+	): Observable<StoreCampaignSetupDto> {
+		const params = new URLSearchParams();
+		if (minAgeHours != null) params.set('minAgeHours', String(minAgeHours));
+		if (maxAgeHours != null) params.set('maxAgeHours', String(maxAgeHours));
+		const query = params.toString();
+		return this.http.get<StoreCampaignSetupDto>(
+			`${this.base}/campaigns/${kind}${query ? `?${query}` : ''}`,
+		);
+	}
+
+	startCampaign(
+		kind: StoreCampaignKind,
+		request: StoreCampaignSendRequest,
+	): Observable<StoreCampaignSendResponse> {
+		return this.http.post<StoreCampaignSendResponse>(
+			`${this.base}/campaigns/${kind}/send`,
+			request,
+		);
+	}
+
+	getCampaignStatus(batchJobId: string): Observable<EmailBatchJobStatus> {
+		return this.http.get<EmailBatchJobStatus>(`${this.base}/campaigns/status/${batchJobId}`);
+	}
+
+	/**
+	 * Fires the campaign and polls until the background batch drains, emitting the final summary.
+	 * Same shape as the roster and registration-search blasts — sends are never synchronous.
+	 */
+	sendCampaignAndAwait(
+		kind: StoreCampaignKind,
+		request: StoreCampaignSendRequest,
+	): Observable<EmailBatchJobStatus> {
+		return this.startCampaign(kind, request).pipe(
+			switchMap(handle =>
+				timer(0, 1000).pipe(
+					switchMap(() => this.getCampaignStatus(handle.batchJobId)),
+					takeWhile(s => !s.done, true),
+					last(),
+				),
+			),
+		);
 	}
 
 	// ── Images ──
