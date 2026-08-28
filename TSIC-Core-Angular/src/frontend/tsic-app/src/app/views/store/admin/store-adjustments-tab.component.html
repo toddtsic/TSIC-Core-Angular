@@ -14,6 +14,10 @@
 			[ngModel]="search()"
 			(ngModelChange)="search.set($event)"
 			aria-label="Filter adjustments" />
+		<app-store-export-button
+			label="Export"
+			hint="Download the adjustments log as an Excel workbook"
+			[fetch]="exportAdjustments" />
 		<button class="btn btn-outline-secondary btn-sm" (click)="load()" [disabled]="isLoading()">
 			<i class="bi bi-arrow-clockwise me-1"></i>Refresh
 		</button>

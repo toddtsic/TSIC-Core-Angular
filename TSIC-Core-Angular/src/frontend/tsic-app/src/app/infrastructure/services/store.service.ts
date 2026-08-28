@@ -1,5 +1,5 @@
 import { inject, Injectable, signal, computed } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpResponse } from '@angular/common/http';
 import { Observable, tap, timer, switchMap, takeWhile, last } from 'rxjs';
 import { environment } from '@environments/environment';
 import type {
@@ -414,6 +414,36 @@ export class StoreService {
 	getQuantityAdjustments(): Observable<StoreQuantityAdjustmentDto[]> {
 		return this.http.get<StoreQuantityAdjustmentDto[]>(
 			`${this.base}/analytics/quantity-adjustments`);
+	}
+
+	// ═══════════════════════════════════════
+	//  EXCEL EXPORTS — Admin
+	//  Legacy exported client-side from the EJ2 grid; ours is built server-side, so these are
+	//  plain blob GETs. Hand the response to `ReportingService.triggerDownload` — the one place
+	//  a blob becomes a file on disk, filename taken from Content-Disposition.
+	// ═══════════════════════════════════════
+
+	exportItems(): Observable<HttpResponse<Blob>> {
+		return this.exportGet('export/items');
+	}
+
+	exportSkus(): Observable<HttpResponse<Blob>> {
+		return this.exportGet('export/skus');
+	}
+
+	exportSales(walkUpOnly = false): Observable<HttpResponse<Blob>> {
+		return this.exportGet(`export/sales${walkUpOnly ? '?walkUpOnly=true' : ''}`);
+	}
+
+	exportQuantityAdjustments(): Observable<HttpResponse<Blob>> {
+		return this.exportGet('export/quantity-adjustments');
+	}
+
+	private exportGet(path: string): Observable<HttpResponse<Blob>> {
+		return this.http.get(`${this.base}/${path}`, {
+			responseType: 'blob',
+			observe: 'response',
+		});
 	}
 
 	getSalesByItem(): Observable<StoreSalesByItemDto[]> {

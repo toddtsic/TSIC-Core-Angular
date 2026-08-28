@@ -12,6 +12,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Syncfusion.XlsIO;
+using TSIC.API.Services.Shared.Files;
+using SheetData = TSIC.API.Services.Shared.Files.ExcelSheet;
 using TSIC.API.Configuration;
 using TSIC.API.Utilities;
 using TSIC.Contracts.Configuration;
@@ -646,7 +648,7 @@ public sealed class ReportingService : IReportingService
     private static StackArtifacts BuildStackArtifacts(List<SheetData> sheets)
     {
         var (iifBytes, sourceTrns, consolidatedTrns) = BuildConsolidatedIif(sheets);
-        return new StackArtifacts(BuildExcelFromSheets(sheets), iifBytes, sourceTrns, consolidatedTrns);
+        return new StackArtifacts(ExcelWorkbookWriter.Build(sheets), iifBytes, sourceTrns, consolidatedTrns);
     }
 
     private readonly record struct StackArtifacts(byte[] Xlsx, byte[] Iif, int SourceTrns, int ConsolidatedTrns);
@@ -695,7 +697,7 @@ public sealed class ReportingService : IReportingService
             sheets.Add(new SheetData { Name = "Summary" });
         }
 
-        return BuildExcelFromSheets(sheets);
+        return ExcelWorkbookWriter.Build(sheets);
     }
 
     private static string ToUniqueSheetName(string raw, HashSet<string> used)
@@ -932,7 +934,7 @@ public sealed class ReportingService : IReportingService
     /// Ported from legacy ReportingService.BuildExcelExport.
     /// </summary>
     private static async Task<byte[]> BuildExcelFromDataReader(DbDataReader reader)
-        => BuildExcelFromSheets(await ReadReaderIntoSheetsAsync(reader));
+        => ExcelWorkbookWriter.Build(await ReadReaderIntoSheetsAsync(reader));
 
     /// <summary>
     /// One in-memory result set from a multi-sheet stored procedure: the sheet name (from the
@@ -940,12 +942,7 @@ public sealed class ReportingService : IReportingService
     /// Both the Excel renderer and the QuickBooks IIF renderer project from this single model,
     /// so a reconciliation SP is executed exactly once yet yields two consistent artifacts.
     /// </summary>
-    private sealed class SheetData
-    {
-        public required string Name { get; init; }
-        public List<string> Columns { get; } = new();
-        public List<object?[]> Rows { get; } = new();
-    }
+    // SheetData is an alias for the shared ExcelSheet — see the using at the top of the file.
 
     /// <summary>
     /// Drains a (possibly multi-result-set) reader into a list of <see cref="SheetData"/>.
@@ -1018,99 +1015,6 @@ public sealed class ReportingService : IReportingService
         return sheets;
     }
 
-    /// <summary>
-    /// Renders the sheet model to an .xlsx. Behavior-preserving port of the legacy
-    /// BuildExcelFromDataReader Excel path (reuse default sheet, header row, DateTime formatting).
-    /// </summary>
-    private static byte[] BuildExcelFromSheets(List<SheetData> sheets)
-    {
-        using var excelEngine = new ExcelEngine();
-        IApplication application = excelEngine.Excel;
-        application.DefaultVersion = Syncfusion.XlsIO.ExcelVersion.Xlsx;
-        IWorkbook workbook = application.Workbooks.Create(1);
-        var sheetsCreated = 0;
-        var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        // Reuse the default sheet XlsIO creates for the first sheet, then create new
-        // ones — preserves EPPlus's "start empty, add named sheets" behavior without
-        // leaving a stray "Sheet1" in the output. Names are sanitized here — the one
-        // place they enter the workbook — because they come from legacy SPs' "QA Test:"
-        // markers, which can violate Excel's sheet-name rules (e.g. RegsaverRegistrants_ALL
-        // emits "STEPS X-Check By Year/Month"; the '/' made XlsIO throw "Sheet Name is
-        // InValid". EPPlus, which the legacy app used, never validated).
-        IWorksheet AddWorksheet(string name)
-        {
-            var safeName = SanitizeSheetName(name, usedNames);
-            var sheet = sheetsCreated == 0 ? workbook.Worksheets[0] : workbook.Worksheets.Create(safeName);
-            sheet.Name = safeName;
-            sheetsCreated++;
-            return sheet;
-        }
-
-        foreach (var sheetData in sheets)
-        {
-            var worksheet = AddWorksheet(sheetData.Name);
-
-            for (var col = 0; col < sheetData.Columns.Count; col++)
-            {
-                worksheet.Range[1, col + 1].SetCellValue(sheetData.Columns[col]);
-            }
-
-            for (var r = 0; r < sheetData.Rows.Count; r++)
-            {
-                var row = sheetData.Rows[r];
-                for (var col = 0; col < row.Length; col++)
-                {
-                    var cellValue = row[col];
-                    var target = worksheet.Range[r + 2, col + 1];
-
-                    if (cellValue is DateTime)
-                    {
-                        target.SetCellValue(cellValue);
-                        target.NumberFormat = "mm/dd/yyyy";
-                    }
-                    else
-                    {
-                        target.SetCellValue(cellValue);
-                    }
-                }
-            }
-        }
-
-        return workbook.ToByteArray();
-    }
-
-    /// <summary>
-    /// Makes a sheet name legal for Excel: replaces <c>: \ / ? * [ ]</c> with <c>-</c>,
-    /// strips wrapping apostrophes, caps at 31 chars, falls back to "Sheet" when empty,
-    /// and uniquifies with an " (n)" suffix (duplicate names also throw in XlsIO).
-    /// Applies only to the Excel render — the IIF renderer keys on raw sheet content.
-    /// </summary>
-    private static string SanitizeSheetName(string name, HashSet<string> usedNames)
-    {
-        var cleaned = new string(name
-            .Select(c => c is ':' or '\\' or '/' or '?' or '*' or '[' or ']' ? '-' : c)
-            .ToArray()).Trim().Trim('\'');
-        if (cleaned.Length == 0)
-        {
-            cleaned = "Sheet";
-        }
-        if (cleaned.Length > 31)
-        {
-            cleaned = cleaned[..31].TrimEnd();
-        }
-
-        var candidate = cleaned;
-        var n = 2;
-        while (!usedNames.Add(candidate))
-        {
-            var suffix = $" ({n++})";
-            candidate = cleaned.Length + suffix.Length <= 31
-                ? cleaned + suffix
-                : cleaned[..(31 - suffix.Length)].TrimEnd() + suffix;
-        }
-        return candidate;
-    }
 
     // Consolidation order for QuickBooks IIF sheets — ported verbatim from scripts/adn/IIFExtract.ps1.
     // A sheet's position is the index of the first keyword its name contains; unmatched sheets sort last.

@@ -57,6 +57,12 @@ public interface IStoreItemRepository
     Task<List<StoreSkuDto>> GetSkusWithAvailabilityAsync(int storeItemId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Every SKU in a store, same shape and same counts as the per-item read. Backs the
+    /// Skus grid's Excel export, which is store-wide.
+    /// </summary>
+    Task<List<StoreSkuDto>> GetAllSkusWithAvailabilityAsync(int storeId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get a tracked SKU entity for updates.
     /// </summary>
     Task<StoreItemSkus?> GetSkuByIdAsync(int storeSkuId, CancellationToken cancellationToken = default);

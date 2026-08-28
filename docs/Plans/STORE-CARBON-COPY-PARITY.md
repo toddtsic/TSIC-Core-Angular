@@ -104,7 +104,7 @@ StoreSalesWalkup, StoreTwoClick, CheckoutConfirmation, WalkUp, and the Labels/Cr
 | B-05 | `CreateNewStoreItem` modal — **4 fields**: name, price (min 1 / max 200 / c2), sizes, colours | IMPL |
 | B-06 | Sizes/colours split on `;`, `RemoveEmptyEntries`, then `.Trim()` | IMPL |
 | B-07 | SKU matrix size × colour on create, skipping existing combos; SIZE outer / COLOUR inner | IMPL |
-| B-08 | Items toolbar: Excel Export | GAP |
+| B-08 | Items toolbar: Excel Export. **Inert in legacy** — the toolbar declares the button but the grid never sets `allowExcelExport="true"`, so clicking it does nothing (see D-9). BUILT anyway, server-side: Active · Item · Sort Order | BUILT |
 | B-28 | **`StoreColors`/`StoreSizes` are a GLOBAL dictionary** — looked up by name with no store or job filter | IMPL |
 | B-29 | Create POST is wired to `hide.bs.modal` — **Cancel and × also submit** | GAP |
 | B-30 | `GetOrCreateStoreItemAsync` matches `StoreId + StoreItemName`; on hit reuses the item and does **not** update price/comments | IMPL |
@@ -123,7 +123,7 @@ StoreSalesWalkup, StoreTwoClick, CheckoutConfirmation, WalkUp, and the Labels/Cr
 | B-16 | `UpdateSku` StoreItemSkuId==0 branch → updates parent item Active | IMPL |
 | B-17 | `UpdateSku` batch branch → delete SKUs, then parent item | IMPL |
 | B-36 | `UpdateSku` action "remove" branch → delete a single SKU by key | IMPL |
-| B-18 | Skus toolbar: Excel Export | GAP |
+| B-18 | Skus toolbar: Excel Export. **Inert in legacy**, same cause as B-08 (see D-9). BUILT: Item · Active · Sku · PickedUp · Sold · UnSold · MaxCanSell · Price, store-wide — legacy's Skus grid listed every SKU in the job, which our UI folds into the expandable row under each item, so the export restores the flat list | BUILT |
 | B-19 | `StoreImages/Index` grid — every image in the job, one row per file. Ours groups by item (`Photos` tab) — same rows, the shape the question is actually asked in | IMPL |
 | B-20 | Images toolbar: **Add · Edit · Delete** (only Store screen with create/delete) | IMPL |
 | B-21 | Upload, auto-numbered `{storeId}-{storeItemId}-{instance}.jpg`, instance = max+1 | IMPL |
@@ -141,7 +141,7 @@ StoreSalesWalkup, StoreTwoClick, CheckoutConfirmation, WalkUp, and the Labels/Cr
 |---|---|---|
 | C-01 | `StoreSales/Index` line-item grid. Ours is the same grain (one row per purchased line) with the columns a director acts on; the 24-column set is trimmed, see R-15 | IMPL |
 | C-02 | Columns incl. DirectTo club · agegroup · pool · team · email · cellphone | IMPL |
-| C-03 | Excel export **including hidden columns** | GAP |
+| C-03 | Excel export **including hidden columns**. BUILT: all 24 data columns in legacy's grid order, following the Walk-ups filter. Two of legacy's 26 columns are deliberately absent and two labels corrected — see D-9 | BUILT |
 | C-04 | Excel/Filter menu, paging 10/20/50/100/All, sorting. Ours: free-text filter across item/buyer/team/club; no paging (654 lines across all 1,096 jobs) | IMPL |
 | C-05 | Swap command → `GetCartItemSkuOptions` → swap dialog | IMPL |
 | C-06 | Swap: target SKU dropdown + quantity, both required | IMPL |
@@ -473,6 +473,49 @@ jobs, and that is the correct reading — it is an exception log, not a report. 
 `LogRestock` is worth knowing about while you are here: it builds a `StoreCartBatchSkuRestocks`
 row and never `Add`s it before saving, so legacy's restock logging has always been a no-op.
 
+### D-9 · Excel exports — two of legacy's four buttons never worked (B-08, B-18, C-03)
+
+Legacy exported CLIENT-side: the EJ2 grid serialised its own column set in the browser. Two
+things follow, and both were verifiable in the markup rather than by running anything.
+
+**The Items and Skus export buttons are dead in legacy.** Both views put `ExcelExport` in
+`toolbar` but neither sets `allowExcelExport="true"` on the grid — without it the toolbar item is
+inert and the click does nothing. Only `StoreSales`, `StoreRefunded` and
+`StoreCartQuantityAdjustments` enable it (17 views project-wide do). So a director who clicked
+Export on the Items or Skus screen got silence, for years.
+
+Ruling: **build all four anyway.** The column sets come from legacy's own grid definitions, so
+these are the exports legacy intended; replicating two dead buttons would be carbon-copying a
+defect, which is the R-10 call again. All four run server-side over the shared
+`ExcelWorkbookWriter` — extracted out of `ReportingService`, which is still its largest caller,
+so there is one workbook writer in the codebase and not two that drift.
+
+**Every export reads what a screen already reads.** No export-only query exists: items come from
+`GetItemsAsync`, sales from `GetSaleLinesAsync`, adjustments from `GetQuantityAdjustmentsAsync`.
+The one new repository method, `GetAllSkusWithAvailabilityAsync(storeId)`, shares its projection
+with the per-item read through a private `ProjectSkusAsync` — the counts have subtle legacy
+semantics (restocks netted, in-cart NOT deducted from UnSold), and a second copy of them is
+exactly how a workbook ends up reporting different stock than the tab it was exported from.
+
+**Four corrections to legacy's sales columns**, all from legacy's own markup:
+
+1. `NewSku` and `New Sku Quantity` are the inline editor's scratch fields for the swap command.
+   They hold no data on any row, so legacy's `includeHiddenColumn: true` export emitted two
+   entirely blank columns. Dropped — 24 columns, not 26.
+2. Legacy labels the `Restocked` column **"Refunded"**, the same header as the actual Refunded
+   money column. Two identically-named columns that are not the same thing. Ours says
+   `Restocked`.
+3. Legacy formats `Restocked` as `c2` — it is a UNIT COUNT, so "3 units restocked" exported as
+   "$3.00". Ours exports the integer.
+4. Booleans go out as Yes/No. Legacy rendered them as checkboxes, which has no cell equivalent,
+   and a word is what a reader of a spreadsheet can filter on.
+
+The sales export follows the Walk-ups switch, so the workbook always matches the grid on screen.
+All four endpoints read under `StoreAdmin` — the same policy as the grids they export, so a store
+admin working the table can pull a pick list without a director present.
+
+R-15 is closed by this: nothing gets promoted on-screen. See its row.
+
 ## Open recommendations
 
 | ID | Recommendation | Status |
@@ -490,7 +533,7 @@ row and never `Add`s it before saving, so legacy's restock logging has always be
 | R-13 | Sales tax conventions settled in code: `SalesTaxMath.ToTaxMultiplier` (percent-form, clamped 0-12) is the single conversion point, and `SalesTaxMath.TaxableBase` names what tax applies to. Deliberate documented divergence — legacy's multiplier arithmetic is unreachable code (654/654 rows at zero) and would charge 100x. | IMPL |
 | R-10 | Do **NOT** replicate B-29 (`hide.bs.modal` fires the POST, so Cancel and × also create the item). It is a legacy defect, not a feature; our modal submits only from the Create button. | OPEN |
 | R-11 | ~~itemBufferSize~~ — **WITHDRAWN**, see A-33. | CLOSED |
-| R-15 | Legacy's sales grid carries 24 columns, most hidden behind the column chooser and only reachable via Excel export. Ours shows the 9 a director acts on and drops the rest until C-03 (export) lands, where the full set belongs. Decide then whether any hidden column deserves to be on-screen. | OPEN |
+| R-15 | ~~Legacy's sales grid carries 24 columns, most hidden behind the column chooser and only reachable via Excel export.~~ **SETTLED with C-03.** The screen keeps the 9 columns a director acts on; the workbook carries all 24. Nothing is promoted on-screen: the hidden set is the buyer's club/agegroup/pool/team and their email and cellphone, which are reference data for a mail-merge or a pick list, not a decision a director makes at the grid. They are one click away and they are complete, which is what they were for. | CLOSED |
 | R-16 | **Walk-up identification was wrong on the new side and is now fixed.** `IsWalkUp` tested "no line has a DirectToRegId"; walk-ups DO have one, pointing at the Store Merch counter registration `StoreWalkUpService` mints. On the dev DB the old rule found **2** batches where legacy's finds **36**, and only 3 of 654 lines have a null `DirectToRegId` at all. Now one definition (`StoreAnalyticsRepository.WalkUpLines`) serves both the payments grid and the sales grid. | IMPL |
 | R-17 | **Swap fee split diverges from legacy, deliberately.** Legacy recomputed the split-off line's processing fee and tax from TODAY's job rates and subtracted those from the original, so a rate change since purchase left the two halves not summing to what the customer paid. An exchange moves no money, so ours apportions every money column by quantity and leaves the rounding remainder on the original line — the halves always sum exactly. Note `StoreCartBatchSkuEdits` is **0 rows**: the legacy swap has never run in production, so there is no historical behaviour to match. | IMPL |
 | R-18 | **A line-level refund on an UNSETTLED charge reverses the whole purchase.** Authorize.Net has no partial void, so the gateway reverses everything whatever was asked for. Legacy booked that as a line refund, leaving the batch's other lines marked paid with no money behind them. Ours treats the gateway's answer as authoritative, books the full batch, and says so in the message. The dialog also asks the settled status up front so the case is usually avoided rather than explained after. | IMPL |

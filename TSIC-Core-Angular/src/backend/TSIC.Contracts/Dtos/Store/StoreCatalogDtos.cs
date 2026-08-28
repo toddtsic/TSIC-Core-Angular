@@ -194,6 +194,17 @@ public record StoreSkuDto
 {
     public required int StoreSkuId { get; init; }
     public required int StoreItemId { get; init; }
+
+    /// <summary>Legacy `Item` column — the parent item's name, carried so a store-wide SKU list
+    /// can group without a second lookup.</summary>
+    public required string StoreItemName { get; init; }
+
+    /// <summary>
+    /// Legacy `Price` — <c>StoreItem.StoreItemPrice</c>. Price lives on the ITEM, not the SKU;
+    /// every SKU under an item carries the same figure.
+    /// </summary>
+    public required decimal Price { get; init; }
+
     public int? StoreColorId { get; init; }
     public string? StoreColorName { get; init; }
     public int? StoreSizeId { get; init; }

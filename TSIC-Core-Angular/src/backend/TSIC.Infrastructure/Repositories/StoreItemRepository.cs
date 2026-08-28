@@ -111,6 +111,7 @@ public class StoreItemRepository : IStoreItemRepository
                         sku.StoreSkuId,
                         sku.StoreItemId,
                         i.StoreItemName,
+                        i.StoreItemPrice,
                         sku.StoreColorId,
                         sku.StoreColor != null ? sku.StoreColor.StoreColorName : null,
                         sku.StoreSizeId,
@@ -201,11 +202,27 @@ public class StoreItemRepository : IStoreItemRepository
 
     // ── SKUs ──
 
-    public async Task<List<StoreSkuDto>> GetSkusWithAvailabilityAsync(
+    public Task<List<StoreSkuDto>> GetSkusWithAvailabilityAsync(
         int storeItemId, CancellationToken cancellationToken = default)
+        => ProjectSkusAsync(
+            _context.StoreItemSkus.Where(sku => sku.StoreItemId == storeItemId),
+            cancellationToken);
+
+    public Task<List<StoreSkuDto>> GetAllSkusWithAvailabilityAsync(
+        int storeId, CancellationToken cancellationToken = default)
+        => ProjectSkusAsync(
+            _context.StoreItemSkus.Where(sku => sku.StoreItem.StoreId == storeId),
+            cancellationToken);
+
+    /// <summary>
+    /// The one SKU projection, shared by the per-item and whole-store reads. The counts carry
+    /// legacy's semantics (see <c>ToSkuDto</c>); duplicating them per caller is how two screens
+    /// end up reporting different stock for the same SKU.
+    /// </summary>
+    private static async Task<List<StoreSkuDto>> ProjectSkusAsync(
+        IQueryable<StoreItemSkus> query, CancellationToken cancellationToken)
     {
-        var rows = await _context.StoreItemSkus
-            .Where(sku => sku.StoreItemId == storeItemId)
+        var rows = await query
             .OrderBy(sku => sku.StoreItem.StoreItemName)
             .ThenBy(sku => sku.StoreSize!.StoreSizeName)
             .ThenBy(sku => sku.StoreColor!.StoreColorName)
@@ -213,6 +230,7 @@ public class StoreItemRepository : IStoreItemRepository
                 sku.StoreSkuId,
                 sku.StoreItemId,
                 sku.StoreItem.StoreItemName,
+                sku.StoreItem.StoreItemPrice,
                 sku.StoreColorId,
                 sku.StoreColor != null ? sku.StoreColor.StoreColorName : null,
                 sku.StoreSizeId,
@@ -240,7 +258,7 @@ public class StoreItemRepository : IStoreItemRepository
     /// Kept separate because the legacy label needs Trim(char), which EF cannot translate.
     /// </summary>
     private sealed record SkuCountsRow(
-        int StoreSkuId, int StoreItemId, string ItemName,
+        int StoreSkuId, int StoreItemId, string ItemName, decimal Price,
         int? ColorId, string? ColorName, int? SizeId, string? SizeName,
         bool Active, int MaxCanSell, int Sold, int InCart, int PickedUp);
 
@@ -257,6 +275,8 @@ public class StoreItemRepository : IStoreItemRepository
     {
         StoreSkuId = r.StoreSkuId,
         StoreItemId = r.StoreItemId,
+        StoreItemName = r.ItemName,
+        Price = r.Price,
         StoreColorId = r.ColorId,
         StoreColorName = r.ColorName,
         StoreSizeId = r.SizeId,

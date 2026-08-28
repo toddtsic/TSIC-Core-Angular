@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TSIC.API.Extensions;
+using TSIC.API.Services.Shared.Files;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.RegistrationSearch;
@@ -28,6 +29,7 @@ public class StoreController : ControllerBase
     private readonly IStoreSalesOpsService _salesOpsService;
     private readonly IStoreCampaignService _campaignService;
     private readonly IStoreAdminRosterService _storeAdminRosterService;
+    private readonly IStoreExportService _exportService;
     private readonly IEmailBatchJobRegistry _batchJobs;
 
     public StoreController(
@@ -43,6 +45,7 @@ public class StoreController : ControllerBase
         IStoreSalesOpsService salesOpsService,
         IStoreCampaignService campaignService,
         IStoreAdminRosterService storeAdminRosterService,
+        IStoreExportService exportService,
         IEmailBatchJobRegistry batchJobs)
     {
         _catalogService = catalogService;
@@ -57,6 +60,7 @@ public class StoreController : ControllerBase
         _salesOpsService = salesOpsService;
         _campaignService = campaignService;
         _storeAdminRosterService = storeAdminRosterService;
+        _exportService = exportService;
         _batchJobs = batchJobs;
     }
 
@@ -882,6 +886,49 @@ public class StoreController : ControllerBase
         var (jobId, _) = await ResolveContext();
         return Ok(await _adminService.GetQuantityAdjustmentsAsync(jobId, ct));
     }
+
+    // ═══════════════════════════════════════════
+    //  EXCEL EXPORTS — legacy EJ2 toolbar `ExcelExport`
+    //
+    //  All four read under "StoreAdmin", matching the grids they export: a store admin working
+    //  the table can pull the pick list without a director present. They are GETs so the browser
+    //  can download them with a plain link; nothing here writes.
+    // ═══════════════════════════════════════════
+
+    [HttpGet("export/items")]
+    [Authorize(Policy = "StoreAdmin")]
+    public async Task<IActionResult> ExportItems(CancellationToken ct)
+    {
+        var (jobId, _) = await ResolveContext();
+        return ExcelFile(await _exportService.ExportItemsAsync(jobId, ct));
+    }
+
+    [HttpGet("export/skus")]
+    [Authorize(Policy = "StoreAdmin")]
+    public async Task<IActionResult> ExportSkus(CancellationToken ct)
+    {
+        var (jobId, _) = await ResolveContext();
+        return ExcelFile(await _exportService.ExportSkusAsync(jobId, ct));
+    }
+
+    [HttpGet("export/sales")]
+    [Authorize(Policy = "StoreAdmin")]
+    public async Task<IActionResult> ExportSales([FromQuery] bool walkUpOnly, CancellationToken ct)
+    {
+        var (jobId, _) = await ResolveContext();
+        return ExcelFile(await _exportService.ExportSalesAsync(jobId, walkUpOnly, ct));
+    }
+
+    [HttpGet("export/quantity-adjustments")]
+    [Authorize(Policy = "StoreAdmin")]
+    public async Task<IActionResult> ExportQuantityAdjustments(CancellationToken ct)
+    {
+        var (jobId, _) = await ResolveContext();
+        return ExcelFile(await _exportService.ExportQuantityAdjustmentsAsync(jobId, ct));
+    }
+
+    private FileContentResult ExcelFile(StoreExportFile file) =>
+        File(file.Content, ExcelWorkbookWriter.XlsxContentType, file.FileName);
 
     // ═══════════════════════════════════════════
     //  STORE ADMINISTRATORS — legacy StoreAdminAddController

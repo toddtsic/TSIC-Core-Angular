@@ -2,6 +2,7 @@ import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@a
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { StoreService } from '../../../infrastructure/services/store.service';
+import { StoreExportButtonComponent } from './store-export-button.component';
 import type { StoreQuantityAdjustmentDto } from '@core/api';
 
 /**
@@ -18,7 +19,7 @@ import type { StoreQuantityAdjustmentDto } from '@core/api';
 @Component({
 	selector: 'app-store-adjustments-tab',
 	standalone: true,
-	imports: [CommonModule, FormsModule],
+	imports: [CommonModule, FormsModule, StoreExportButtonComponent],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './store-adjustments-tab.component.html',
 	styleUrl: './store-adjustments-tab.component.scss',
@@ -30,6 +31,8 @@ export class StoreAdjustmentsTabComponent {
 	readonly errorMessage = signal<string | null>(null);
 	readonly rows = signal<StoreQuantityAdjustmentDto[]>([]);
 	readonly search = signal('');
+
+	readonly exportAdjustments = () => this.store.exportQuantityAdjustments();
 
 	readonly visibleRows = computed(() => {
 		const term = this.search().trim().toLowerCase();

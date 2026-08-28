@@ -5,6 +5,7 @@ import { StoreService } from '../../../infrastructure/services/store.service';
 import { ToastService } from '../../../shared-ui/toast.service';
 import { TsicDialogComponent } from '../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { StoreAdjustmentsTabComponent } from './store-adjustments-tab.component';
+import { StoreExportButtonComponent } from './store-export-button.component';
 import type {
 	StoreSaleLineDto,
 	StoreSwapOptionDto,
@@ -21,7 +22,13 @@ import type {
 @Component({
 	selector: 'app-store-sales-tab',
 	standalone: true,
-	imports: [CommonModule, FormsModule, TsicDialogComponent, StoreAdjustmentsTabComponent],
+	imports: [
+		CommonModule,
+		FormsModule,
+		TsicDialogComponent,
+		StoreAdjustmentsTabComponent,
+		StoreExportButtonComponent,
+	],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './store-sales-tab.component.html',
 	styleUrl: './store-sales-tab.component.scss',
@@ -44,6 +51,9 @@ export class StoreSalesTabComponent {
 	/** Legacy's StoreSalesWalkup screen, as a filter. */
 	readonly walkUpOnly = signal(false);
 	readonly search = signal('');
+
+	/** Follows the Walk-ups filter, so the workbook matches the grid the director is looking at. */
+	readonly exportSales = () => this.store.exportSales(this.walkUpOnly());
 
 	// ── Swap dialog ──
 	readonly showSwapModal = signal(false);

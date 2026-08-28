@@ -11,6 +11,7 @@ import { StoreSalesTabComponent } from './store-sales-tab.component';
 import { StoreCampaignsTabComponent } from './store-campaigns-tab.component';
 import { StoreDashboardTabComponent } from './store-dashboard-tab.component';
 import { StoreStaffTabComponent } from './store-staff-tab.component';
+import { StoreExportButtonComponent } from './store-export-button.component';
 import type {
 	StoreItemSummaryDto,
 	StoreItemDto,
@@ -38,6 +39,7 @@ type TabKey = 'items' | 'images' | 'sales' | 'campaigns' | 'dashboard' | 'colors
 		StoreCampaignsTabComponent,
 		StoreDashboardTabComponent,
 		StoreStaffTabComponent,
+		StoreExportButtonComponent,
 	],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './store-admin.component.html',
@@ -49,6 +51,11 @@ export class StoreAdminComponent {
 
 	// ── Tab state ──
 	readonly activeTab = signal<TabKey>('items');
+
+	// Bound as fields, not methods, so the template's [fetch] input keeps a stable reference and
+	// `this` stays the component when the button calls back.
+	readonly exportItems = () => this.store.exportItems();
+	readonly exportSkus = () => this.store.exportSkus();
 
 	// ── Loading/saving ──
 	readonly isLoading = signal(false);

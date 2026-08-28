@@ -66,9 +66,22 @@
 			<span class="meta-count">{{ items().length }}</span>
 			<span>{{ items().length === 1 ? 'item' : 'items' }}</span>
 		</div>
-		<button class="btn btn-primary btn-sm" (click)="openNewItemModal()">
-			<i class="bi bi-plus-lg me-1"></i>New Item
-		</button>
+		<div class="tab-toolbar-actions">
+			<!-- Two exports, because legacy had two grids here: Items (Active · Item · Sort
+			     Order) and the store-wide Skus list, which our UI folds into the expandable
+			     row under each item. -->
+			<app-store-export-button
+				label="Export Items"
+				hint="Download every item as an Excel workbook"
+				[fetch]="exportItems" />
+			<app-store-export-button
+				label="Export SKUs"
+				hint="Download every SKU in the store, with stock counts"
+				[fetch]="exportSkus" />
+			<button class="btn btn-primary btn-sm" (click)="openNewItemModal()">
+				<i class="bi bi-plus-lg me-1"></i>New Item
+			</button>
+		</div>
 	</div>
 
 	@if (items().length === 0) {

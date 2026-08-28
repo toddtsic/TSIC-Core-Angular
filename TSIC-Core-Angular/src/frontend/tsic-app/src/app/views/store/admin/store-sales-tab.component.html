@@ -49,6 +49,13 @@
 				(change)="toggleWalkUpOnly()" />
 			<label class="form-check-label" for="sales-walkup-only">Walk-ups only</label>
 		</div>
+		<!-- The workbook carries all 24 of legacy's columns, not the 9 on screen — legacy exported
+		     with includeHiddenColumn:true, and the buyer's club/age/pool/team and contact details
+		     only ever existed in the export. It follows the Walk-ups filter. -->
+		<app-store-export-button
+			[label]="walkUpOnly() ? 'Export Walk-Ups' : 'Export Sales'"
+			hint="Download every sale line, including the columns not shown here"
+			[fetch]="exportSales" />
 		<button class="btn btn-outline-secondary btn-sm" (click)="load()" [disabled]="isLoading()">
 			<i class="bi bi-arrow-clockwise me-1"></i>Refresh
 		</button>
