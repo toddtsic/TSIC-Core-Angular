@@ -121,16 +121,17 @@
 }
 
 /*
-	City takes the slack; State is sized to hold a full state name ("Massachusetts")
-	without clipping; ZIP needs only five to ten characters.
+	State takes the slack, ZIP is fixed. The select must NOT sit on an auto track:
+	it contributes the width of its widest option ("District of Columbia") and
+	collapses whatever shares the row with it.
 */
-.wu-row--csz {
-	grid-template-columns: minmax(0, 1fr) minmax(11rem, auto) 6.5rem;
+.wu-row--state-zip {
+	grid-template-columns: minmax(0, 1fr) 7rem;
 }
 
 @media (max-width: 30rem) {
 	.wu-row--halves,
-	.wu-row--csz {
+	.wu-row--state-zip {
 		grid-template-columns: 1fr;
 	}
 }
@@ -157,7 +158,9 @@
 	font-family: inherit;
 	font-size: var(--font-size-base);
 	color: var(--brand-text);
-	background: var(--input-bg);
+	/* A hair of fill so the control reads as a field rather than a hairline box —
+	   derived from the text colour so it lands on the right side of both themes. */
+	background: color-mix(in srgb, var(--brand-text) 4%, var(--input-bg));
 	border: 1px solid var(--input-border);
 	border-radius: var(--radius-md);
 	transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
@@ -193,6 +196,7 @@
 .wu-select-wrap {
 	position: relative;
 	display: block;
+	min-width: 0;
 }
 
 .wu-select {

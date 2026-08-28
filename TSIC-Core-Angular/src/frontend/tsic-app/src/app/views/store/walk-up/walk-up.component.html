@@ -73,18 +73,20 @@
 						   name="streetAddress" required autocomplete="street-address">
 				</div>
 
+				<!-- City -->
+				<div class="wu-field">
+					<label for="city" class="wu-label">City</label>
+					<input id="city" type="text" class="wu-input"
+						   [ngModel]="city()" (ngModelChange)="city.set($event)"
+						   name="city" required autocomplete="address-level2">
+				</div>
+
 				<!--
-					City / State / ZIP. The State control holds full state names, so it is sized
-					by its content rather than by a fraction of the row — a fixed narrow column
-					clipped the placeholder to "Selec".
+					State and ZIP share a row. State is NOT on an auto/fr track: a select
+					contributes the width of its widest option ("District of Columbia"),
+					which collapses whatever shares the row with it.
 				-->
-				<div class="wu-row wu-row--csz">
-					<div class="wu-field">
-						<label for="city" class="wu-label">City</label>
-						<input id="city" type="text" class="wu-input"
-							   [ngModel]="city()" (ngModelChange)="city.set($event)"
-							   name="city" required autocomplete="address-level2">
-					</div>
+				<div class="wu-row wu-row--state-zip">
 					<div class="wu-field">
 						<label for="state" class="wu-label">State</label>
 						<div class="wu-select-wrap">
