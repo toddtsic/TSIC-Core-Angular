@@ -45,6 +45,13 @@ public interface IStoreRepository
     Task<JobStoreConfig?> GetJobStoreConfigAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// The director's shopper-facing store copy: pickup details, refund policy, contact email.
+    /// Kept off <see cref="JobStoreConfig"/> deliberately — that record is the money/ADN config
+    /// and has no business growing a tail of display text.
+    /// </summary>
+    Task<StoreFrontInfoDto> GetStoreFrontInfoAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Add a new store for a job.
     /// </summary>
     void Add(Stores store);

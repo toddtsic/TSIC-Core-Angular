@@ -45,6 +45,9 @@ public sealed class StoreCatalogService : IStoreCatalogService
         return new StoreDto { StoreId = newStore.StoreId, JobId = newStore.JobId };
     }
 
+    public Task<StoreFrontInfoDto> GetStoreFrontInfoAsync(Guid jobId, CancellationToken ct = default)
+        => _storeRepo.GetStoreFrontInfoAsync(jobId, ct);
+
     // ── Items ──
 
     public async Task<List<StoreItemSummaryDto>> GetItemsAsync(Guid jobId)

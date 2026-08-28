@@ -78,6 +78,19 @@ public class StoreController : ControllerBase
         return Ok(store);
     }
 
+    /// <summary>
+    /// The director's shopper-facing store copy: pickup details, refund policy, contact email.
+    /// Plain `[Authorize]` like the items list — this is what a SHOPPER reads, so it must not sit
+    /// behind the StoreAdmin policy the admin store-identity endpoint above uses.
+    /// </summary>
+    [HttpGet("storefront-info")]
+    [ProducesResponseType(typeof(StoreFrontInfoDto), 200)]
+    public async Task<IActionResult> GetStoreFrontInfo(CancellationToken ct)
+    {
+        var (jobId, _) = await ResolveContext();
+        return Ok(await _catalogService.GetStoreFrontInfoAsync(jobId, ct));
+    }
+
     [HttpGet("items")]
     [ProducesResponseType(typeof(List<StoreItemSummaryDto>), 200)]
     public async Task<IActionResult> GetItems()

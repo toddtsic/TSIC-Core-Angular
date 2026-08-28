@@ -711,6 +711,7 @@ export type { StoreDto } from './models/StoreDto';
 export type { StoreFamilyPlayerDto } from './models/StoreFamilyPlayerDto';
 export type { StoreFamilyPurchaseDto } from './models/StoreFamilyPurchaseDto';
 export type { StoreFamilyTransactionDto } from './models/StoreFamilyTransactionDto';
+export type { StoreFrontInfoDto } from './models/StoreFrontInfoDto';
 export type { StoreItemDto } from './models/StoreItemDto';
 export type { StoreItemImageDto } from './models/StoreItemImageDto';
 export type { StoreItemSummaryDto } from './models/StoreItemSummaryDto';

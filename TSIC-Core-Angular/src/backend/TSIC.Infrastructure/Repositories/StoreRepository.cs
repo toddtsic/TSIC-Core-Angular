@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Dtos.Store;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
@@ -44,6 +45,38 @@ public class StoreRepository : IStoreRepository
             })
             .AsNoTracking()
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<StoreFrontInfoDto> GetStoreFrontInfoAsync(
+        Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var row = await _context.Jobs
+            .Where(j => j.JobId == jobId)
+            .Select(j => new
+            {
+                j.StorePickupDetails,
+                j.StoreRefundPolicy,
+                j.StoreContactEmail
+            })
+            .AsNoTracking()
+            .FirstOrDefaultAsync(cancellationToken);
+
+        // Blank-but-present is the same as absent to a shopper, so trim to null here rather than
+        // making every consumer test for whitespace.
+        static string? Clean(string? value) =>
+            string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+        var pickup = Clean(row?.StorePickupDetails);
+        var refund = Clean(row?.StoreRefundPolicy);
+        var contact = Clean(row?.StoreContactEmail);
+
+        return new StoreFrontInfoDto
+        {
+            PickupDetails = pickup,
+            RefundPolicy = refund,
+            ContactEmail = contact,
+            HasAny = pickup is not null || refund is not null || contact is not null
+        };
     }
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

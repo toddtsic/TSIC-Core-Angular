@@ -45,6 +45,13 @@
 	</div>
 }
 
+<!-- ═══ Pickup / Refunds / Contact ═══ -->
+<!-- Legacy repeated this same job-level copy inside every item card (A-04). Once, above the
+     list, is the same information without twelve identical copies of it. -->
+@if (!isLoading() && items().length > 0) {
+	<app-store-front-info variant="panel" />
+}
+
 <!-- ═══ Item List ═══ -->
 @if (!isLoading() && items().length > 0) {
 	<div class="item-list">

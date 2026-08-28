@@ -6,6 +6,7 @@ import { StoreService } from '../../../infrastructure/services/store.service';
 import { ToastService } from '../../../shared-ui/toast.service';
 import type { StoreItemSummaryDto, StoreItemDto, StoreSkuDto, SkuAvailabilityDto, StoreCartLineItemDto } from '@core/api';
 import { clampAddQuantity, maxAddQuantity } from '../store-quantity';
+import { StoreFrontInfoComponent } from '../store-front-info.component';
 
 interface ExpandedItemState {
 	item: StoreItemDto;
@@ -24,7 +25,7 @@ interface ExpandedItemState {
 @Component({
 	selector: 'app-catalog',
 	standalone: true,
-	imports: [CommonModule, FormsModule, RouterLink],
+	imports: [CommonModule, FormsModule, RouterLink, StoreFrontInfoComponent],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './catalog.component.html',
 	styleUrl: './catalog.component.scss',

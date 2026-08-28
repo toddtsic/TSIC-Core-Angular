@@ -55,7 +55,7 @@ StoreSalesWalkup, StoreTwoClick, CheckoutConfirmation, WalkUp, and the Labels/Cr
 | A-01 | `Index` — catalog render, active items only | IMPL |
 | A-02 | Catalog order: `SortOrder`, **0 sorts LAST (→10000)**, then `StoreItemName` | IMPL |
 | A-03 | Per-item image carousel. **The carousel was already built** in `item-detail`; what was missing was data — `StoreItemImage` held only each item's FIRST instance, so `imageUrls` was never longer than 1. The image sync now indexes every file on disk, so items with 2–3 photos surface all of them | IMPL |
-| A-04 | Per-item tabs: Pickup · Return Policy · Contact | GAP |
+| A-04 | Per-item tabs: Pickup · Return Policy · Contact. BUILT as **one** panel per surface, not one per item — the three strings are JOB-level (`Jobs.StorePickupDetails` / `StoreRefundPolicy` / `StoreContactEmail`), so legacy's tab strip repeated identical text once per product. Storefront gets a collapsible panel, checkout gets the three open lines legacy also had there. See D-10 | BUILT |
 | A-05 | `listSoldOutOrInactiveSkus` surfaced per item | IMPL |
 | A-33 | ~~Per-item `itemBufferSize` reserve~~ — **CLOSED, not a gap**: legacy declares `private static readonly int itemBufferSize = 0` (`IStoreService.cs:73`). A dead constant that subtracts nothing. | CLOSED |
 | A-34 | Availability forced to **0** when the SKU OR its parent item is inactive (`IStoreService.cs:1376`) | IMPL |
@@ -515,6 +515,37 @@ All four endpoints read under `StoreAdmin` — the same policy as the grids they
 admin working the table can pull a pick list without a director present.
 
 R-15 is closed by this: nothing gets promoted on-screen. See its row.
+
+### D-10 · Pickup / Refund Policy / Contact — job-level copy, rendered once (A-04)
+
+Three strings the director writes on the job config Store tab: `Jobs.StorePickupDetails`,
+`Jobs.StoreRefundPolicy`, `Jobs.StoreContactEmail`. Legacy put them in two shopper surfaces —
+a Pickup · Return Policy · Contact tab strip inside EVERY item card on `StoreFamily/Index`, and
+three labelled lines on `StoreFamily/Checkout`.
+
+**Rendered once per surface, not once per item.** The strings are job-level, so legacy's tab
+strip showed twelve identical copies of the pickup instructions in a twelve-product store. Same
+copy, same two places a shopper meets it, without the duplication: a collapsible panel above the
+storefront list, and always-open lines at checkout (the shopper is one button from paying and
+should not have to click to find the refund policy).
+
+**One name for one field.** Legacy labelled it "Return Policy" on the tab and "Refund Policy" at
+checkout. The column is `StoreRefundPolicy`; it says Refund Policy everywhere here.
+
+**Plain text, interpolated — never `[innerHTML]`.** Job config collects these in bare
+`textarea`s and legacy rendered them through Razor's HTML-encoding interpolation, so they have
+never been HTML. `white-space: pre-line` keeps the line breaks the director typed.
+
+Two details that matter with 1,096 jobs, most of which leave all three blank:
+`GetStoreFrontInfoAsync` trims blank-but-present to null at the repository (blank and absent are
+the same thing to a shopper) and returns `HasAny`, so the surfaces render *nothing* rather than
+an empty panel with three blank headings. A failed fetch is silent for the same reason — this is
+supporting copy, and a shopper who cannot see the pickup note must still be able to buy.
+
+The read is a new `GET /store/storefront-info` under plain `[Authorize]`, matching
+`GET /store/items` — this is what a SHOPPER reads, so it must not sit behind `StoreAdmin` the way
+the admin store-identity endpoint does. It is deliberately NOT folded into `JobStoreConfig`:
+that record is the money/ADN config and has no business growing a tail of display text.
 
 ## Open recommendations
 

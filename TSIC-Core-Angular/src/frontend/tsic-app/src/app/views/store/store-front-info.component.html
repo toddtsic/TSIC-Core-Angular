@@ -1,0 +1,70 @@
+@if (info(); as i) {
+	@if (i.hasAny) {
+		@if (variant() === 'inline') {
+			<!-- Checkout: always open. The shopper is about to pay; the refund policy must not be
+			     behind a click. -->
+			<div class="sfi-inline">
+				@if (i.pickupDetails) {
+					<div class="sfi-row">
+						<span class="sfi-label">Pickup</span>
+						<span class="sfi-body">{{ i.pickupDetails }}</span>
+					</div>
+				}
+				@if (i.refundPolicy) {
+					<div class="sfi-row">
+						<span class="sfi-label">Refund Policy</span>
+						<span class="sfi-body">{{ i.refundPolicy }}</span>
+					</div>
+				}
+				@if (i.contactEmail) {
+					<div class="sfi-row">
+						<span class="sfi-label">Questions</span>
+						<span class="sfi-body">
+							For questions about merchandise, email
+							<a [href]="'mailto:' + i.contactEmail">{{ i.contactEmail }}</a>.
+						</span>
+					</div>
+				}
+			</div>
+		} @else {
+			<!-- Storefront: collapsed by default. It is reference copy, not something to read
+			     before every purchase, and it is identical for every product in the store. -->
+			<div class="sfi-panel">
+				<button
+					type="button"
+					class="sfi-toggle"
+					[attr.aria-expanded]="isOpen()"
+					(click)="toggle()">
+					<i class="bi" [class.bi-chevron-right]="!isOpen()" [class.bi-chevron-down]="isOpen()"></i>
+					<span>Pickup, refunds &amp; contact</span>
+				</button>
+
+				@if (isOpen()) {
+					<div class="sfi-panel-body">
+						@if (i.pickupDetails) {
+							<section class="sfi-section">
+								<h3 class="sfi-heading">Pickup</h3>
+								<p class="sfi-body">{{ i.pickupDetails }}</p>
+							</section>
+						}
+						@if (i.refundPolicy) {
+							<section class="sfi-section">
+								<h3 class="sfi-heading">Refund Policy</h3>
+								<p class="sfi-body">{{ i.refundPolicy }}</p>
+							</section>
+						}
+						@if (i.contactEmail) {
+							<section class="sfi-section">
+								<h3 class="sfi-heading">Contact</h3>
+								<p class="sfi-body">
+									For questions about merchandise, email
+									<a [href]="'mailto:' + i.contactEmail">{{ i.contactEmail }}</a>.
+								</p>
+							</section>
+						}
+					</div>
+				}
+			</div>
+		}
+	}
+}

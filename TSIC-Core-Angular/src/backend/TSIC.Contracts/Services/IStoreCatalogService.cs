@@ -15,6 +15,12 @@ public interface IStoreCatalogService
     /// </summary>
     Task<StoreDto> GetOrCreateStoreAsync(Guid jobId, string userId);
 
+    /// <summary>
+    /// The director's shopper-facing store copy — pickup, refund policy, contact. Read by the
+    /// storefront and the checkout page; see <see cref="StoreFrontInfoDto"/>.
+    /// </summary>
+    Task<StoreFrontInfoDto> GetStoreFrontInfoAsync(Guid jobId, CancellationToken ct = default);
+
     // ── Items ──
 
     /// <summary>

@@ -4,6 +4,7 @@ import { Observable, tap, timer, switchMap, takeWhile, last } from 'rxjs';
 import { environment } from '@environments/environment';
 import type {
 	StoreDto,
+	StoreFrontInfoDto,
 	StoreItemSummaryDto,
 	StoreItemDto,
 	StoreSkuDto,
@@ -79,6 +80,14 @@ export class StoreService {
 
 	getItems(): Observable<StoreItemSummaryDto[]> {
 		return this.http.get<StoreItemSummaryDto[]>(`${this.base}/items`);
+	}
+
+	/**
+	 * The director's shopper-facing store copy: pickup, refund policy, contact email. Job-level,
+	 * so it is the same on every product — see `StoreFrontInfoComponent`.
+	 */
+	getStoreFrontInfo(): Observable<StoreFrontInfoDto> {
+		return this.http.get<StoreFrontInfoDto>(`${this.base}/storefront-info`);
 	}
 
 	getItemDetail(storeItemId: number): Observable<StoreItemDto> {

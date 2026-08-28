@@ -11,6 +11,38 @@ public record StoreDto
     public required Guid JobId { get; init; }
 }
 
+/// <summary>
+/// The three pieces of shopper-facing copy the director writes for their store —
+/// <c>Jobs.StorePickupDetails</c>, <c>Jobs.StoreRefundPolicy</c>, <c>Jobs.StoreContactEmail</c>.
+///
+/// <para>
+/// Legacy surfaced these as a Pickup / Return Policy / Contact tab strip on EVERY item card in
+/// the storefront, and again as three labelled lines on the checkout page. They are job-level,
+/// not per-item, so the tab strip repeated identical text once per product.
+/// </para>
+///
+/// <para>
+/// All three are nullable and usually are: most of the 1,096 jobs never fill them in. A surface
+/// showing this must render nothing at all when all three are empty rather than an empty panel
+/// with three blank headings.
+/// </para>
+///
+/// <para>
+/// PLAIN TEXT, not HTML. The job config editor collects them in plain `textarea`s and legacy
+/// rendered them through Razor's HTML-encoding interpolation. Interpolate; never bind
+/// `[innerHTML]`. Line breaks are meaningful — the director typed them.
+/// </para>
+/// </summary>
+public record StoreFrontInfoDto
+{
+    public string? PickupDetails { get; init; }
+    public string? RefundPolicy { get; init; }
+    public string? ContactEmail { get; init; }
+
+    /// <summary>False when the director has filled none of the three in.</summary>
+    public required bool HasAny { get; init; }
+}
+
 // ── Colors ──
 
 /// <summary>
