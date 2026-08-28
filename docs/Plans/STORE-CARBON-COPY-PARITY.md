@@ -152,8 +152,8 @@ StoreSalesWalkup, StoreTwoClick, CheckoutConfirmation, WalkUp, and the Labels/Cr
 | C-11 | Void refunds and restocks **every SKU in the batch** | IMPL |
 | C-12 | `UpdateCartSku` — server side of swap/refund/void | IMPL |
 | C-13 | `StoreSalesWalkup/Index` — same grid, walk-ups only. Ours is a toggle on the one grid | IMPL |
-| C-14 | `StoreRefunded/Index` grid | IMPL — column set not yet compared |
-| C-15 | `StoreRestocked/Index` grid, `frozenColumns=4` | IMPL — column set not yet compared |
+| C-14 | `StoreRefunded/Index` grid. Compared and completed — see D-13 | IMPL |
+| C-15 | `StoreRestocked/Index` grid, `frozenColumns=4`. Compared and completed — see D-13 | IMPL |
 | C-16 | `StoreCartQuantityAdjustments/Index` grid | BUILT — Sales tab → Quantity Adjustments |
 | C-17 | Adjustments columns incl. parent first/last/email, WhenChanged | BUILT — legacy order, two corrections in D-8 |
 
@@ -648,6 +648,43 @@ file, where nothing was sent. `StoreReceiptEmailResult` carries `sent`, `recipie
 caller's own family inside the query — there is no id in the URL to tamper with — and backs both
 the Invoices list and the storefront badge (A-09). The badge is hidden at zero rather than shown
 as "0", since the screen behind it would be empty.
+
+### D-13 · Refunded and Restocked column sets, compared (C-14, C-15)
+
+Both screens had been carried across at about half of legacy's width. Compared column by column
+against the live grids and completed.
+
+**Read the Razor, not the column list.** Legacy's `StoreRefunded/Index` appears to declare 26
+columns; 14 of them sit inside a `@* … *@` block. The live grid is the first 12 — Item · Color ·
+Size · Active · Quantity · $Product · $Processing · $FeeTotal · $Paid · $Refunded · $Refundable ·
+Restocked. Everything the commented block held is refund-EVENT detail (RefundDate, RefundType,
+TxRefund, Comment, RefundedBy), so what a director actually sees is the purchased LINE and its
+refund state, not the refund transaction. That is what is built.
+
+Six columns were missing here: Active, $Product, $Processing, $FeeTotal, $Refundable, Restocked.
+`$Refundable` is the one a director acts on. Customer and Date are kept — legacy has them only in
+the commented block, but they were already built and dropping them would take away the two things
+that identify a row.
+
+**`SkuRefundable` is `FeeTotal − RefundedTotal`, and that is legacy's formula.** Legacy's own
+refund dialog caps at `Paid − Refunded`, so the two disagree on paper. Measured: 654 lines, 178
+where `FeeTotal ≠ PaidTotal`, and in every one of them the line is unpaid — `PaidTotal` is 0 while
+`FeeTotal` carries what is owed. A line that was never paid cannot be refunded, so the difference
+is unreachable on this grid and legacy's formula is kept verbatim.
+
+Ordering is legacy's: Item → Colour → Size, not refund date. This is read as an inventory list,
+and the variants of one product belong next to each other.
+
+**Restocked** was missing nine of legacy's twelve: BatchId, CartSkuId, quantity bought, Paid,
+Refunded, purchase date, Family, Player. All added; `ModifiedBy` is ours and stays — legacy tracks
+who refunded (in its commented block) but never who restocked.
+
+One legacy defect not replicated, the same shape as D-9's: `RestockDate` is labelled "Purchased",
+duplicating the header of the column beside it. Ours says Restock Date.
+
+Both tables are near-empty on live data — 5 refunded lines, 0 restocks across all 1,096 jobs — so
+this is about the screens being right when they are first used, not about fixing what a director
+is looking at today.
 
 ## Open recommendations
 

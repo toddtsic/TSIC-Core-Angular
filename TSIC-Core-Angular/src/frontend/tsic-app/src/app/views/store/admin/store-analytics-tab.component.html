@@ -332,9 +332,15 @@
 					<tr>
 						<th>Item</th>
 						<th>Variant</th>
+						<th class="text-center">Active</th>
 						<th class="text-center">Qty</th>
+						<th class="text-end">Product</th>
+						<th class="text-end">Processing</th>
+						<th class="text-end">Fee Total</th>
 						<th class="text-end">Paid</th>
 						<th class="text-end">Refunded</th>
+						<th class="text-end">Refundable</th>
+						<th class="text-center">Restocked</th>
 						<th>Customer</th>
 						<th class="text-center">Date</th>
 					</tr>
@@ -356,9 +362,19 @@
 									}
 								</span>
 							</td>
+							<td class="text-center">
+								<i class="bi" [class.bi-check-circle-fill]="r.active" [class.bi-dash-circle]="!r.active"
+								   [class.text-success]="r.active" [class.text-body-tertiary]="!r.active"></i>
+								<span class="visually-hidden">{{ r.active ? 'Active' : 'Inactive' }}</span>
+							</td>
 							<td class="text-center"><span class="money">{{ r.quantity }}</span></td>
+							<td class="text-end"><span class="money">{{ formatCurrency(r.feeProduct) }}</span></td>
+							<td class="text-end"><span class="money">{{ formatCurrency(r.feeProcessing) }}</span></td>
+							<td class="text-end"><span class="money">{{ formatCurrency(r.feeTotal) }}</span></td>
 							<td class="text-end"><span class="money">{{ formatCurrency(r.paidTotal) }}</span></td>
 							<td class="text-end"><span class="money money--neg">{{ formatCurrency(r.refundedTotal) }}</span></td>
+							<td class="text-end"><span class="money">{{ formatCurrency(r.skuRefundable) }}</span></td>
+							<td class="text-center"><span class="money">{{ r.restocked }}</span></td>
 							<td>{{ r.familyUserName }}</td>
 							<td class="text-center">{{ formatDate(r.modifiedDate) }}</td>
 						</tr>
@@ -400,16 +416,26 @@
 			<table class="table align-middle store-table">
 				<thead>
 					<tr>
+						<th class="text-end">Batch</th>
+						<th class="text-end">Line</th>
 						<th>Item</th>
 						<th>Variant</th>
-						<th class="text-center">Restock Count</th>
-						<th class="text-center">Date</th>
+						<th class="text-center">Qty Bought</th>
+						<th class="text-center">Restocked</th>
+						<th class="text-end">Paid</th>
+						<th class="text-end">Refunded</th>
+						<th class="text-center">Purchased</th>
+						<th class="text-center">Restock Date</th>
+						<th>Customer</th>
+						<th>Player</th>
 						<th>Modified By</th>
 					</tr>
 				</thead>
 				<tbody>
 					@for (r of restockedItems(); track r.storeCartBatchSkuRestockId) {
 						<tr>
+							<td class="text-end"><span class="money">{{ r.storeCartBatchId }}</span></td>
+							<td class="text-end"><span class="money">{{ r.storeCartBatchSkuId }}</span></td>
 							<td><span class="item-name">{{ r.itemName }}</span></td>
 							<td>
 								<span class="variant-chips">
@@ -424,8 +450,14 @@
 									}
 								</span>
 							</td>
+							<td class="text-center"><span class="money">{{ r.skuQuantity }}</span></td>
 							<td class="text-center"><span class="money money--pos">+{{ r.restockCount }}</span></td>
+							<td class="text-end"><span class="money">{{ formatCurrency(r.paidTotal) }}</span></td>
+							<td class="text-end"><span class="money money--neg">{{ formatCurrency(r.refundedTotal) }}</span></td>
+							<td class="text-center">{{ formatDate(r.purchaseDate) }}</td>
 							<td class="text-center">{{ formatDate(r.modifiedDate) }}</td>
+							<td>{{ r.familyUserName }}</td>
+							<td>{{ r.directToPlayerName || '—' }}</td>
 							<td>{{ r.modifiedBy }}</td>
 						</tr>
 					}

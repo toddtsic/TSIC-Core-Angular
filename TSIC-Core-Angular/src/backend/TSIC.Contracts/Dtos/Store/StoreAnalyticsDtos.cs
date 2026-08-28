@@ -89,9 +89,29 @@ public record StoreRefundedItemDto
     public required string ItemName { get; init; }
     public string? ColorName { get; init; }
     public string? SizeName { get; init; }
+
+    /// <summary>Whether the purchased LINE is still active — legacy's "Active" column.</summary>
+    public required bool Active { get; init; }
+
     public required int Quantity { get; init; }
+    public required decimal FeeProduct { get; init; }
+    public required decimal FeeProcessing { get; init; }
+    public required decimal FeeTotal { get; init; }
     public required decimal PaidTotal { get; init; }
     public required decimal RefundedTotal { get; init; }
+
+    /// <summary>
+    /// What is still refundable on this line. Legacy computes <c>FeeTotal - RefundedTotal</c>, not
+    /// <c>PaidTotal - RefundedTotal</c> as its own refund dialog caps at. The two agree on every
+    /// line that was actually paid (654 lines, 178 differ, and in every one of those the line is
+    /// unpaid so <c>PaidTotal</c> is 0 while <c>FeeTotal</c> holds what is owed) — a line that was
+    /// never paid cannot be refunded, so the difference is unreachable. Legacy's formula kept.
+    /// </summary>
+    public required decimal SkuRefundable { get; init; }
+
+    /// <summary>Units of this line already put back on the shelf.</summary>
+    public required int Restocked { get; init; }
+
     public required string FamilyUserName { get; init; }
     public required DateTime ModifiedDate { get; init; }
 }
@@ -102,10 +122,32 @@ public record StoreRefundedItemDto
 public record StoreRestockedItemDto
 {
     public required int StoreCartBatchSkuRestockId { get; init; }
+
+    /// <summary>The purchase the restocked unit came off — legacy's Id-B / BatchId.</summary>
+    public required int StoreCartBatchId { get; init; }
+
+    /// <summary>The purchased LINE — legacy's CartSkuId, the id the restock hangs on.</summary>
+    public required int StoreCartBatchSkuId { get; init; }
+
     public required string ItemName { get; init; }
     public string? ColorName { get; init; }
     public string? SizeName { get; init; }
+
+    /// <summary>How many units the family bought on that line, against which this restock counts.</summary>
+    public required int SkuQuantity { get; init; }
+
     public required int RestockCount { get; init; }
+    public required decimal PaidTotal { get; init; }
+    public required decimal RefundedTotal { get; init; }
+
+    /// <summary>When the line was bought — legacy's "Purchased".</summary>
+    public required DateTime PurchaseDate { get; init; }
+
+    public required string FamilyUserName { get; init; }
+
+    /// <summary>Who the merchandise was for, when the line was directed to a registrant.</summary>
+    public string? DirectToPlayerName { get; init; }
+
     public required DateTime ModifiedDate { get; init; }
     public required string ModifiedBy { get; init; }
 }

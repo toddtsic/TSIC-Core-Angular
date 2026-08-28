@@ -298,16 +298,28 @@ public class StoreAnalyticsRepository : IStoreAnalyticsRepository
             join cart in _context.StoreCart on batch.StoreCartId equals cart.StoreCartId
             join familyUser in _context.AspNetUsers on cart.FamilyUserId equals familyUser.Id
             where item.StoreId == storeId && cbs.RefundedTotal > 0
-            orderby cbs.Modified descending
+            // Legacy orders Item → Colour → Size, not by when the refund happened: this is read as
+            // an inventory list, and the variants of one product belong next to each other.
+            orderby item.StoreItemName,
+                sku.StoreColor!.StoreColorName,
+                sku.StoreSize!.StoreSizeName
             select new StoreRefundedItemDto
             {
                 StoreCartBatchSkuId = cbs.StoreCartBatchSkuId,
                 ItemName = item.StoreItemName,
                 ColorName = sku.StoreColor != null ? sku.StoreColor!.StoreColorName : null,
                 SizeName = sku.StoreSize != null ? sku.StoreSize!.StoreSizeName : null,
+                Active = cbs.Active,
                 Quantity = cbs.Quantity,
+                FeeProduct = cbs.FeeProduct,
+                FeeProcessing = cbs.FeeProcessing,
+                FeeTotal = cbs.FeeTotal,
                 PaidTotal = cbs.PaidTotal,
                 RefundedTotal = cbs.RefundedTotal,
+                // Legacy's formula verbatim — see StoreRefundedItemDto.SkuRefundable for why
+                // FeeTotal rather than PaidTotal makes no reachable difference.
+                SkuRefundable = cbs.FeeTotal - cbs.RefundedTotal,
+                Restocked = cbs.Restocked,
                 FamilyUserName = familyUser.UserName ?? "",
                 ModifiedDate = cbs.Modified
             }
@@ -325,15 +337,28 @@ public class StoreAnalyticsRepository : IStoreAnalyticsRepository
             join sku in _context.StoreItemSkus on cbs.StoreSkuId equals sku.StoreSkuId
             join item in _context.StoreItems on sku.StoreItemId equals item.StoreItemId
             join user in _context.AspNetUsers on rs.LebUserId equals user.Id
+            join batch in _context.StoreCartBatches on cbs.StoreCartBatchId equals batch.StoreCartBatchId
+            join cart in _context.StoreCart on batch.StoreCartId equals cart.StoreCartId
+            join familyUser in _context.AspNetUsers on cart.FamilyUserId equals familyUser.Id
             where item.StoreId == storeId
             orderby rs.Modified descending
             select new StoreRestockedItemDto
             {
                 StoreCartBatchSkuRestockId = rs.StoreCartBatchSkuRestockId,
+                StoreCartBatchId = cbs.StoreCartBatchId,
+                StoreCartBatchSkuId = cbs.StoreCartBatchSkuId,
                 ItemName = item.StoreItemName,
-                ColorName = sku.StoreColor != null ? sku.StoreColor.StoreColorName : null,
-                SizeName = sku.StoreSize != null ? sku.StoreSize.StoreSizeName : null,
+                ColorName = sku.StoreColor != null ? sku.StoreColor!.StoreColorName : null,
+                SizeName = sku.StoreSize != null ? sku.StoreSize!.StoreSizeName : null,
+                SkuQuantity = cbs.Quantity,
                 RestockCount = rs.RestockCount,
+                PaidTotal = cbs.PaidTotal,
+                RefundedTotal = cbs.RefundedTotal,
+                PurchaseDate = cbs.CreateDate,
+                FamilyUserName = familyUser.UserName ?? "",
+                DirectToPlayerName = cbs.DirectToReg != null
+                    ? cbs.DirectToReg!.User!.FirstName + " " + cbs.DirectToReg!.User!.LastName
+                    : null,
                 ModifiedDate = rs.Modified,
                 ModifiedBy = user.UserName ?? ""
             }

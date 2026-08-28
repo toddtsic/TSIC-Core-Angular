@@ -7,9 +7,15 @@ export type StoreRefundedItemDto = {
     itemName: string;
     colorName?: string | null;
     sizeName?: string | null;
+    active: boolean;
     quantity: number;
+    feeProduct: number;
+    feeProcessing: number;
+    feeTotal: number;
     paidTotal: number;
     refundedTotal: number;
+    skuRefundable: number;
+    restocked: number;
     familyUserName: string;
     modifiedDate: string;
 };
