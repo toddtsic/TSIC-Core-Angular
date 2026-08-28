@@ -53,6 +53,17 @@
 .store-table {
 	margin-bottom: 0;
 
+	// Bootstrap paints every cell's background as an inset box-shadow from --bs-table-accent-bg,
+	// NOT as a background-color. That is where the flat grey wash on these tables came from, and
+	// it also sat on top of our own hover colour. Neutralising the table's own custom properties
+	// settles it at the source instead of fighting it per cell: the wrap supplies the surface,
+	// these rules supply everything drawn on it.
+	--bs-table-bg: transparent;
+	--bs-table-accent-bg: transparent;
+	--bs-table-striped-bg: transparent;
+	--bs-table-color: var(--brand-text);
+	--bs-table-border-color: var(--bs-border-color);
+
 	thead th {
 		font-size: var(--font-size-xs);
 		font-weight: 600;
@@ -60,13 +71,19 @@
 		letter-spacing: 0.04em;
 		color: var(--bs-secondary-color);
 		border-bottom: 1px solid var(--bs-border-color);
-		padding: var(--space-3) var(--space-3);
-		background: transparent;
+		padding: var(--space-2) var(--space-3);
+		background: color-mix(in srgb, var(--brand-text) 3%, transparent);
 		white-space: nowrap;
 	}
 
+	// A data table, not prose. The body inherited the page base (16px) while the headers were
+	// 12px, which inverted the hierarchy: the labels whispered and the data shouted. Dropping
+	// to 14px and halving the vertical padding is what lets a wide table — Refunded carries
+	// thirteen columns — be read across a row rather than scanned one cell at a time.
 	tbody td {
-		padding: var(--space-3);
+		padding: var(--space-2) var(--space-3);
+		font-size: var(--font-size-sm);
+		line-height: 1.45;
 		border-bottom-color: var(--bs-border-color);
 		vertical-align: middle;
 	}
@@ -80,15 +97,16 @@
 	}
 
 	tbody tr:hover > td:not(.p-0) {
-		background-color: color-mix(in srgb, var(--bs-primary) 4%, transparent);
+		background-color: color-mix(in srgb, var(--bs-primary) 5%, transparent);
 	}
 
 	tfoot td {
-		padding: var(--space-3);
+		padding: var(--space-2) var(--space-3);
+		font-size: var(--font-size-sm);
 		font-weight: 700;
 		font-variant-numeric: tabular-nums;
 		border-top: 1px solid var(--bs-border-color);
-		background: color-mix(in srgb, var(--bs-primary) 3%, transparent);
+		background: color-mix(in srgb, var(--bs-primary) 4%, transparent);
 	}
 }
 
