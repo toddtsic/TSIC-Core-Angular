@@ -15,6 +15,16 @@ public record JobStoreConfig
     /// ProcessingRateMath.ToCcMultiplier — never divide by 100 directly.
     /// </summary>
     public required decimal? ProcessingFeePercent { get; init; }
+
+    /// <summary>
+    /// Customers.CustomerAi — first segment of the ADN invoice number.
+    /// </summary>
+    public required int CustomerAi { get; init; }
+
+    /// <summary>
+    /// Jobs.JobAi — second segment of the ADN invoice number.
+    /// </summary>
+    public required int JobAi { get; init; }
 }
 
 /// <summary>

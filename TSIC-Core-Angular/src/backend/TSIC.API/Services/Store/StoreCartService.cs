@@ -301,7 +301,15 @@ public sealed class StoreCartService : IStoreCartService
             }
 
             var env = _adnApiService.GetADNEnvironment();
-            adnInvoiceNo = $"STORE-{batch.StoreCartBatchId}";
+            // LEGACY FORMAT — LOAD-BEARING FOR TSIC REVENUE (IStoreService.CreateAdnInvoiceNumber):
+            //   {CustomerAi}_{JobAi}_{batchId}_M      "_M" denotes merch, added 12/14/2025
+            // adn.MonthyQBPExport_Automated_Merch selects merch transactions with
+            //   charindex('_M', [Txs].[Invoice Number]) > 0
+            // and bills the customer coalesce(storeTSICRate, 0.10) x SUM(FeeProduct) off them.
+            // The previous "STORE-{id}" form never matched, so every sale settled at ADN, charged
+            // the family correctly, and was silently absent from the monthly remittance export.
+            // Do not change this shape without changing that procedure.
+            adnInvoiceNo = $"{config.CustomerAi}_{config.JobAi}_{batch.StoreCartBatchId}_M";
 
             var chargeResult = _adnApiService.ADN_Charge_Result(new AdnChargeRequest
             {

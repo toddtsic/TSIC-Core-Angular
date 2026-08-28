@@ -57,6 +57,7 @@ CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
 | A-05 | `listSoldOutOrInactiveSkus` surfaced per item | UNVER |
 | A-33 | ~~Per-item `itemBufferSize` reserve~~ — **CLOSED, not a gap**: legacy declares `private static readonly int itemBufferSize = 0` (`IStoreService.cs:73`). A dead constant that subtracts nothing. | CLOSED |
 | A-34 | Availability forced to **0** when the SKU OR its parent item is inactive (`IStoreService.cs:1376`) | IMPL |
+| A-35 | **ADN invoice number `{CustomerAi}_{JobAi}_{batchId}_M`** (`IStoreService.CreateAdnInvoiceNumber`). The `_M` suffix is how `adn.MonthyQBPExport_Automated_Merch` finds merch transactions (`charindex('_M', [Invoice Number]) > 0`). Ours built `STORE-{id}`, which never matched — every new-store sale was absent from the monthly remittance export. | IMPL |
 | A-06 | DirectTo recipient select (family players) | UNVER |
 | A-07 | Size select, Colour select, Quantity | UNVER |
 | A-08 | Cart badge with item count | UNVER |
@@ -211,8 +212,8 @@ photo requires SQL — strictly worse than legacy. Ship the write pathways in Ph
 
 | ID | Recommendation | Status |
 |---|---|---|
-| R-01 | Sales tax is a **multiplier**, not a percent — remove `÷ 100` from `RecalculateLineItemFees` | OPEN |
-| R-02 | Relabel + range-guard the tax field so `6` cannot be entered meaning 6% | OPEN |
+| R-01 | ~~Sales tax multiplier vs percent~~ — **MOOT. There is no sales tax in the fee model.** All 654 `StoreCartBatchSkus` rows carry `SalesTax = 0`, and the remittance export has no tax line. The two tracked figures are the CC processing fee and TSIC's percent of sales. | CLOSED |
+| R-02 | Remove the Sales Tax field from the job config screen so the unused `/100` path cannot be armed by a typo. | OPEN |
 | R-03 | Decide whether `Enable STP` belongs on the new store tab | OPEN |
 | R-04 | Add a Sort Order control to the items editor | OPEN |
 | R-05 | Post-creation price editing — **RESOLVED: locked, per legacy.** Name/price/comments are read-only on edit; the modal now edits Active + SortOrder, which is all `UpdateItem` writes. | CLOSED |
@@ -220,6 +221,7 @@ photo requires SQL — strictly worse than legacy. Ship the write pathways in Ph
 | R-07 | Add `PickedUp` to the SKU panel | OPEN |
 | R-08 | Keep legacy `UnSold` as its own column alongside In Cart | OPEN |
 | R-09 | Preserve legacy's alphabetical size ordering | OPEN |
+| R-12 | Config screen labels **both** `Sales Tax (%)` and `TSIC Rate (%)`, but the two columns use OPPOSITE conventions: `storeTSICRate` is a multiplier (0.10 = 10%, default in the export proc) while `ProcessingFeePercent` is a percent (3.5, divided by 100 in the proc). Relabel `TSIC Rate` as a decimal rate. | OPEN |
 | R-10 | Do **NOT** replicate B-29 (`hide.bs.modal` fires the POST, so Cancel and × also create the item). It is a legacy defect, not a feature; our modal submits only from the Create button. | OPEN |
 | R-11 | ~~itemBufferSize~~ — **WITHDRAWN**, see A-33. | CLOSED |
 
