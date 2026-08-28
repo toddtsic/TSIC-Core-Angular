@@ -262,7 +262,7 @@ public sealed class StoreCartService : IStoreCartService
         foreach (var lineItem in lineItems)
         {
             RecalculateLineItemFees(lineItem, config);
-            var lineTotal = lineItem.UnitPrice * lineItem.Quantity + lineItem.FeeTotal;
+            var lineTotal = lineItem.FeeTotal; // FeeTotal already includes the merchandise subtotal
             lineItem.PaidTotal = lineTotal;
             lineItem.Modified = DateTime.Now;
             lineItem.LebUserId = userId;
@@ -426,8 +426,11 @@ public sealed class StoreCartService : IStoreCartService
         // bookkeeping and is never a customer-facing rate.
         lineItem.FeeProcessing = Math.Round(subtotal * ProcessingRateMath.ToCcMultiplier(config.ProcessingFeePercent), 2, MidpointRounding.AwayFromZero);
         lineItem.SalesTax = Math.Round(subtotal * config.StoreSalesTax / 100m, 2, MidpointRounding.AwayFromZero);
-        lineItem.FeeProduct = 0m; // No product fee in current implementation
-        lineItem.FeeTotal = lineItem.FeeProcessing + lineItem.SalesTax + lineItem.FeeProduct;
+        // LEGACY SEMANTICS (authoritative): FeeProduct is the merchandise subtotal and FeeTotal
+        // is the line GRAND total (product + processing + tax) - matching all 476 historical
+        // rows. FeeTotal is NOT fees-only; never add the subtotal to it again downstream.
+        lineItem.FeeProduct = subtotal;
+        lineItem.FeeTotal = lineItem.FeeProduct + lineItem.FeeProcessing + lineItem.SalesTax;
     }
 
     private async Task<StoreCartBatchDto> BuildCartBatchDto(int storeCartBatchId)
@@ -435,7 +438,7 @@ public sealed class StoreCartService : IStoreCartService
         var lineItems = await _cartRepo.GetBatchLineItemsAsync(storeCartBatchId);
 
         var subtotal = lineItems.Sum(li => li.UnitPrice * li.Quantity);
-        var totalFees = lineItems.Sum(li => li.FeeProcessing + li.FeeProduct);
+        var totalFees = lineItems.Sum(li => li.FeeProcessing); // FeeProduct IS the subtotal, not a fee
         var totalTax = lineItems.Sum(li => li.SalesTax);
         var grandTotal = subtotal + totalFees + totalTax;
 

@@ -157,7 +157,7 @@ public class StoreAnalyticsRepository : IStoreAnalyticsRepository
                                 FeeProcessing = cbs.FeeProcessing,
                                 SalesTax = cbs.SalesTax,
                                 FeeTotal = cbs.FeeTotal,
-                                LineTotal = cbs.UnitPrice * cbs.Quantity + cbs.FeeTotal,
+                                LineTotal = cbs.FeeTotal, // FeeTotal is the line grand total (legacy semantics)
                                 DirectToRegId = cbs.DirectToRegId,
                                 Active = cbs.Active
                             }).ToList()
@@ -206,7 +206,7 @@ public class StoreAnalyticsRepository : IStoreAnalyticsRepository
                                 FeeProcessing = cbs.FeeProcessing,
                                 SalesTax = cbs.SalesTax,
                                 FeeTotal = cbs.FeeTotal,
-                                LineTotal = cbs.UnitPrice * cbs.Quantity + cbs.FeeTotal,
+                                LineTotal = cbs.FeeTotal, // FeeTotal is the line grand total (legacy semantics)
                                 DirectToRegId = cbs.DirectToRegId,
                                 Active = cbs.Active
                             }).ToList()
