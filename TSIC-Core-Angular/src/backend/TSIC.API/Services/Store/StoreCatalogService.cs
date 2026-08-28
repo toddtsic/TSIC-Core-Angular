@@ -81,9 +81,9 @@ public sealed class StoreCatalogService : IStoreCatalogService
             {
                 StoreId = storeDto.StoreId,
                 StoreItemName = request.StoreItemName,
-                // Legacy's create modal does not collect comments — the field is commented out of
-                // the Razor and the POST sends null. request.StoreItemComments is ignored here.
-                StoreItemComments = null,
+                // Legacy assigns model.ItemComments here. The create modal does not collect it
+                // (the field is commented out of the Razor), so in practice this is null.
+                StoreItemComments = request.StoreItemComments,
                 StoreItemPrice = request.StoreItemPrice,
                 Active = true,
                 SortOrder = 0,
@@ -95,11 +95,15 @@ public sealed class StoreCatalogService : IStoreCatalogService
             await _itemRepo.SaveChangesAsync();
         }
 
+        // Legacy resolves size/colour NAMES against the global dictionaries, creating any that
+        // do not exist (ProcessSizesAsync / ProcessColorsAsync).
+        var sizeIds = await ResolveSizeIdsAsync(request.ItemSizes, userId);
+        var colorIds = await ResolveColorIdsAsync(request.ItemColors, userId);
+
         // Existing SKUs are skipped, matching legacy's per-combination skuExists check.
         var existing = await _itemRepo.GetSkusWithAvailabilityAsync(item.StoreItemId);
 
-        var skus = GenerateSkuMatrix(item.StoreItemId, request.ColorIds, request.SizeIds,
-            existing, userId);
+        var skus = GenerateSkuMatrix(item.StoreItemId, colorIds, sizeIds, existing, userId);
 
         if (skus.Count > 0)
         {
@@ -296,6 +300,70 @@ public sealed class StoreCatalogService : IStoreCatalogService
     /// Sizes only → one SKU per size (no color).
     /// Neither → one default SKU.
     /// </summary>
+    /// <summary>
+    /// LEGACY (StoreItemsController.ProcessSizesAsync): split on ';' discarding empties, trim each
+    /// name, then look it up in the GLOBAL StoreSizes table and create it if absent. No store or
+    /// job scoping — every customer shares one dictionary.
+    /// </summary>
+    private async Task<List<int>> ResolveSizeIdsAsync(string? itemSizes, string userId)
+    {
+        var ids = new List<int>();
+        if (string.IsNullOrWhiteSpace(itemSizes)) return ids;
+
+        foreach (var raw in itemSizes.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var name = raw.Trim();
+            var size = await _storeRepo.GetSizeByNameAsync(name);
+
+            if (size == null)
+            {
+                size = new StoreSizes
+                {
+                    StoreSizeName = name,
+                    Modified = DateTime.Now,
+                    LebUserId = userId
+                };
+                _storeRepo.AddSize(size);
+                await _storeRepo.SaveChangesAsync();
+            }
+
+            ids.Add(size.StoreSizeId);
+        }
+
+        return ids;
+    }
+
+    /// <summary>
+    /// LEGACY (StoreItemsController.ProcessColorsAsync) — see ResolveSizeIdsAsync.
+    /// </summary>
+    private async Task<List<int>> ResolveColorIdsAsync(string? itemColors, string userId)
+    {
+        var ids = new List<int>();
+        if (string.IsNullOrWhiteSpace(itemColors)) return ids;
+
+        foreach (var raw in itemColors.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var name = raw.Trim();
+            var color = await _storeRepo.GetColorByNameAsync(name);
+
+            if (color == null)
+            {
+                color = new StoreColors
+                {
+                    StoreColorName = name,
+                    Modified = DateTime.Now,
+                    LebUserId = userId
+                };
+                _storeRepo.AddColor(color);
+                await _storeRepo.SaveChangesAsync();
+            }
+
+            ids.Add(color.StoreColorId);
+        }
+
+        return ids;
+    }
+
     // LEGACY (StoreItemsController.CreateSkusAsync): iterate SIZE outer, COLOUR inner — the
     // insertion order determines StoreSkuId assignment. Skip any combination that already
     // exists. New SKUs are born Active = true, MaxCanSell = 0; legacy has no MaxCanSell field at

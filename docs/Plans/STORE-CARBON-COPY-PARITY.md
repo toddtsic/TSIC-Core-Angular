@@ -55,6 +55,8 @@ CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
 | A-03 | Per-item image carousel, multiple images, Fade, prev/next templates | UNVER |
 | A-04 | Per-item tabs: Pickup · Return Policy · Contact | GAP |
 | A-05 | `listSoldOutOrInactiveSkus` surfaced per item | UNVER |
+| A-33 | Availability = `MaxCanSell − sold − itemBufferSize`; a per-item **buffer** we do not implement (`IStoreService.cs:1308-1321`) | GAP |
+| A-34 | Availability forced to **0** when the SKU OR its parent item is inactive (`IStoreService.cs:1376`) | UNVER |
 | A-06 | DirectTo recipient select (family players) | UNVER |
 | A-07 | Size select, Colour select, Quantity | UNVER |
 | A-08 | Cart badge with item count | UNVER |
@@ -91,18 +93,18 @@ CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
 | B-02 | Item grid sorted alphabetically by Item (not SortOrder) | GAP |
 | B-03 | `UpdateItem` writes **SortOrder + Active ONLY** | IMPL |
 | B-04 | SortOrder editable in the grid dialog | GAP |
-| B-05 | `CreateNewStoreItem` modal — **4 fields**: name, price (min 1 / max 200 / c2), sizes, colours | WALKED |
-| B-06 | Sizes/colours split on `;`, `RemoveEmptyEntries`, then `.Trim()` | WALKED |
+| B-05 | `CreateNewStoreItem` modal — **4 fields**: name, price (min 1 / max 200 / c2), sizes, colours | IMPL |
+| B-06 | Sizes/colours split on `;`, `RemoveEmptyEntries`, then `.Trim()` | IMPL |
 | B-07 | SKU matrix size × colour on create, skipping existing combos; SIZE outer / COLOUR inner | IMPL |
 | B-08 | Items toolbar: Excel Export | GAP |
-| B-28 | **`StoreColors`/`StoreSizes` are a GLOBAL dictionary** — looked up by name with no store or job filter | GAP |
+| B-28 | **`StoreColors`/`StoreSizes` are a GLOBAL dictionary** — looked up by name with no store or job filter | IMPL |
 | B-29 | Create POST is wired to `hide.bs.modal` — **Cancel and × also submit** | GAP |
 | B-30 | `GetOrCreateStoreItemAsync` matches `StoreId + StoreItemName`; on hit reuses the item and does **not** update price/comments | IMPL |
 | B-31 | No sizes and no colours → `CreateDefaultSkuAsync`, one null/null SKU | DONE (already correct) |
 | B-32 | New SKUs born `Active = true, MaxCanSell = 0`; no MaxCanSell field at creation | IMPL |
-| B-33 | `Item Comments` is commented out of the modal; JS sends `null` | IMPL |
+| B-33 | `Item Comments` is commented out of the modal; JS sends `null` | DIVERGE (approved) — the DTO already carries `StoreItemComments`, so the field is KEPT on create rather than hidden. Ruling: "if comment is in model/dto already then preserve". |
 | B-34 | New items born `SortOrder = 0` → sort **last** on the storefront (see A-02) | GAP |
-| B-35 | Client validation is `if (itemName && itemPrice)` — sizes/colours **not** enforced despite the placeholder | GAP |
+| B-35 | Client validation is `if (itemName && itemPrice)` — sizes/colours **not** enforced despite the placeholder | IMPL |
 | B-09 | `StoreSkus/Index` grouped by item, collapsible, "N skus" caption | WALKED |
 | B-10 | SKU columns: Active · Sku · PickedUp · Sold · UnSold · MaxCanSell · Price | WALKED |
 | B-11 | `PickedUp` = `CartBatchSkuItemsSignedFor` | GAP |
@@ -218,6 +220,8 @@ photo requires SQL — strictly worse than legacy. Ship the write pathways in Ph
 | R-07 | Add `PickedUp` to the SKU panel | OPEN |
 | R-08 | Keep legacy `UnSold` as its own column alongside In Cart | OPEN |
 | R-09 | Preserve legacy's alphabetical size ordering | OPEN |
+| R-10 | Do **NOT** replicate B-29 (`hide.bs.modal` fires the POST, so Cancel and × also create the item). It is a legacy defect, not a feature; our modal submits only from the Create button. | OPEN |
+| R-11 | `itemBufferSize` (A-33) — confirm whether the reserve-stock buffer is still wanted before wiring availability | OPEN |
 
 ## Evidence worth keeping
 

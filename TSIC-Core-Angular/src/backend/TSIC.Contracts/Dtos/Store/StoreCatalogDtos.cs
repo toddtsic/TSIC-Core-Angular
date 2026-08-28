@@ -93,19 +93,31 @@ public record StoreItemDto
 }
 
 /// <summary>
-/// Create a new store item with optional size/color matrix.
-/// If both ColorIds and SizeIds are provided, SKUs are generated as the cross-product.
-/// If one list is empty, SKUs are generated per the other dimension.
-/// If both are empty, a single default SKU is created.
+/// Create a new store item. Mirrors legacy CreateNewStoreItemDto
+/// (StoreItemsController.CreateNewStoreItem).
+///
+/// Sizes and colours arrive as free text, semicolon-delimited, and are resolved by NAME against
+/// the GLOBAL StoreSizes / StoreColors tables — those are a shared dictionary with no store or
+/// job scoping. A name that does not exist yet is created.
+///
+/// SKU matrix: both dimensions → cross-product; one dimension → SKUs on that dimension only;
+/// neither → a single default SKU with both null.
+///
+/// There is deliberately no MaxCanSell here — legacy has no stock field at creation; stock is
+/// set afterwards on the Skus screen. StoreItemComments is accepted because legacy's DTO carries
+/// it, but the create modal does not collect it, so in practice it arrives null.
 /// </summary>
 public record CreateStoreItemRequest
 {
     public required string StoreItemName { get; init; }
     public string? StoreItemComments { get; init; }
     public required decimal StoreItemPrice { get; init; }
-    public required List<int> ColorIds { get; init; }
-    public required List<int> SizeIds { get; init; }
-    public required int MaxCanSell { get; init; }
+
+    /// <summary>Semicolon-delimited size names, e.g. "Adult Small;Adult Medium;Adult Large".</summary>
+    public string? ItemSizes { get; init; }
+
+    /// <summary>Semicolon-delimited colour names, e.g. "White;GrayS".</summary>
+    public string? ItemColors { get; init; }
 }
 
 public record UpdateStoreItemRequest

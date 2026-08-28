@@ -377,22 +377,13 @@
 					<input type="text" class="form-control" [ngModel]="formItemName()"
 						   (ngModelChange)="formItemName.set($event)" placeholder="e.g. Tournament T-Shirt">
 				</div>
-				<div class="row mb-3">
-					<div class="col-md-6">
-						<label class="form-label fw-medium">Price</label>
-						<div class="input-group">
-							<span class="input-group-text">$</span>
-							<input type="number" class="form-control" [ngModel]="formItemPrice()"
-								   (ngModelChange)="formItemPrice.set($event)" min="0" step="1">
-						</div>
+				<div class="mb-3">
+					<label class="form-label fw-medium">Item Price</label>
+					<div class="input-group">
+						<span class="input-group-text">$</span>
+						<input type="number" class="form-control" [ngModel]="formItemPrice()"
+							   (ngModelChange)="formItemPrice.set($event)" min="1" max="200" step="0.01">
 					</div>
-					@if (!isEditingItem()) {
-						<div class="col-md-6">
-							<label class="form-label fw-medium">Max Can Sell (per SKU)</label>
-							<input type="number" class="form-control" [ngModel]="formMaxCanSell()"
-								   (ngModelChange)="formMaxCanSell.set($event)" min="1">
-						</div>
-					}
 				</div>
 				<div class="mb-3">
 					<label class="form-label fw-medium">Comments</label>
@@ -401,53 +392,34 @@
 							  placeholder="Optional description or notes"></textarea>
 				</div>
 
-				<!-- Color/Size selection (only for new items) -->
+				<!-- Sizes/Colors: free text, semicolon-delimited, resolved BY NAME server-side
+					 against the global size/colour dictionary. Names that do not exist are created. -->
 				@if (!isEditingItem()) {
-					<div class="row">
-						<div class="col-md-6 mb-3">
-							<label class="form-label fw-medium">Colors</label>
-							@if (colors().length === 0) {
-								<p class="text-body-secondary small">No colors defined. Go to Colors tab first.</p>
-							} @else {
-								<div class="d-flex flex-wrap gap-2">
-									@for (color of colors(); track color.storeColorId) {
-										<button class="variant-chip"
-												[class.selected]="formSelectedColorIds().includes(color.storeColorId)"
-												(click)="toggleColorSelection(color.storeColorId)">
-											{{ color.storeColorName }}
-										</button>
-									}
-								</div>
-							}
-						</div>
-						<div class="col-md-6 mb-3">
-							<label class="form-label fw-medium">Sizes</label>
-							@if (sizes().length === 0) {
-								<p class="text-body-secondary small">No sizes defined. Go to Sizes tab first.</p>
-							} @else {
-								<div class="d-flex flex-wrap gap-2">
-									@for (size of sizes(); track size.storeSizeId) {
-										<button class="variant-chip"
-												[class.selected]="formSelectedSizeIds().includes(size.storeSizeId)"
-												(click)="toggleSizeSelection(size.storeSizeId)">
-											{{ size.storeSizeName }}
-										</button>
-									}
-								</div>
-							}
-						</div>
+					<div class="mb-3">
+						<label class="form-label fw-medium" for="itemSizes">Item Sizes</label>
+						<input type="text" id="itemSizes" class="form-control" [ngModel]="formItemSizes()"
+							   (ngModelChange)="formItemSizes.set($event)"
+							   placeholder="semi-colon delimited, e.g. Adult Small;Adult Medium;Adult Large">
+					</div>
+					<div class="mb-3">
+						<label class="form-label fw-medium" for="itemColors">Item Colors</label>
+						<input type="text" id="itemColors" class="form-control" [ngModel]="formItemColors()"
+							   (ngModelChange)="formItemColors.set($event)"
+							   placeholder="semi-colon delimited, e.g. White;Gray;Navy">
 					</div>
 					<div class="alert alert-info small mb-0">
 						<i class="bi bi-info-circle me-1"></i>
-						SKU matrix is auto-generated: {{ formSelectedColorIds().length || 1 }} color(s)
-						&times; {{ formSelectedSizeIds().length || 1 }} size(s)
-						= {{ (formSelectedColorIds().length || 1) * (formSelectedSizeIds().length || 1) }} SKU(s)
+						{{ parsedSizeNames().length || 'no' }} size(s) &times;
+						{{ parsedColorNames().length || 'no' }} color(s)
+						= {{ projectedSkuCount() }} SKU(s).
+						Each is created with <strong>zero stock</strong> &mdash; set Max Can Sell per SKU
+						before the item can sell.
 					</div>
 				}
 			</div>
 			<div class="modal-footer">
 				<button class="btn btn-outline-secondary" (click)="showItemModal.set(false)">Cancel</button>
-				<button class="btn btn-primary" [disabled]="isSaving() || !formItemName().trim()" (click)="saveItem()">
+				<button class="btn btn-primary" [disabled]="isSaving() || !canSaveItem()" (click)="saveItem()">
 					{{ isSaving() ? 'Saving...' : (isEditingItem() ? 'Update' : 'Create') }}
 				</button>
 			</div>

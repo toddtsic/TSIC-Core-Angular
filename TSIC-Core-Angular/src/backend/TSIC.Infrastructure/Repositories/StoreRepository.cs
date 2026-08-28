@@ -65,6 +65,12 @@ public class StoreRepository : IStoreRepository
             .FirstOrDefaultAsync(c => c.StoreColorId == storeColorId, cancellationToken);
     }
 
+    public async Task<StoreColors?> GetColorByNameAsync(string storeColorName, CancellationToken cancellationToken = default)
+    {
+        return await _context.StoreColors
+            .FirstOrDefaultAsync(c => c.StoreColorName == storeColorName, cancellationToken);
+    }
+
     public void AddColor(StoreColors color)
     {
         _context.StoreColors.Add(color);
@@ -96,6 +102,12 @@ public class StoreRepository : IStoreRepository
     {
         return await _context.StoreSizes
             .FirstOrDefaultAsync(s => s.StoreSizeId == storeSizeId, cancellationToken);
+    }
+
+    public async Task<StoreSizes?> GetSizeByNameAsync(string storeSizeName, CancellationToken cancellationToken = default)
+    {
+        return await _context.StoreSizes
+            .FirstOrDefaultAsync(s => s.StoreSizeName == storeSizeName, cancellationToken);
     }
 
     public void AddSize(StoreSizes size)

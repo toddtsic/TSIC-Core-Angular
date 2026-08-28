@@ -50,9 +50,12 @@ export class StoreAdminComponent {
 	readonly formItemName = signal('');
 	readonly formItemPrice = signal(0);
 	readonly formItemComments = signal('');
-	readonly formMaxCanSell = signal(100);
-	readonly formSelectedColorIds = signal<number[]>([]);
-	readonly formSelectedSizeIds = signal<number[]>([]);
+	// Legacy (Views/StoreItems/Index.cshtml) collects sizes and colours as free text,
+	// semicolon-delimited, and resolves them BY NAME against the global StoreSizes /
+	// StoreColors dictionary server-side, creating any name that does not exist yet.
+	// There is no MaxCanSell at creation - stock is set afterwards on the SKUs screen.
+	readonly formItemSizes = signal('');
+	readonly formItemColors = signal('');
 
 	// ── SKU expansion ──
 	readonly expandedItemId = signal<number | null>(null);
@@ -81,6 +84,23 @@ export class StoreAdminComponent {
 
 	// ── Computed ──
 	readonly isEditingItem = computed(() => this.editingItem() !== null);
+
+	/** Mirrors the server-side split: ';' delimited, empties removed, each name trimmed. */
+	private static parseNames(raw: string): string[] {
+		return raw.split(';').map(n => n.trim()).filter(n => n.length > 0);
+	}
+
+	readonly parsedSizeNames = computed(() => StoreAdminComponent.parseNames(this.formItemSizes()));
+	readonly parsedColorNames = computed(() => StoreAdminComponent.parseNames(this.formItemColors()));
+
+	/** SKU count the server will generate: cross-product, or one dimension, or a single default SKU. */
+	readonly projectedSkuCount = computed(() =>
+		(this.parsedSizeNames().length || 1) * (this.parsedColorNames().length || 1));
+
+	/** Legacy submit gate: `if (itemName && itemPrice)` - a zero price is falsy and blocks. */
+	readonly canSaveItem = computed(() =>
+		this.formItemName().trim().length > 0
+		&& (this.isEditingItem() || this.formItemPrice() > 0));
 
 	constructor() {
 		this.loadAll();
@@ -135,9 +155,8 @@ export class StoreAdminComponent {
 		this.formItemName.set('');
 		this.formItemPrice.set(0);
 		this.formItemComments.set('');
-		this.formMaxCanSell.set(100);
-		this.formSelectedColorIds.set([]);
-		this.formSelectedSizeIds.set([]);
+		this.formItemSizes.set('');
+		this.formItemColors.set('');
 		this.showItemModal.set(true);
 	}
 
@@ -159,26 +178,8 @@ export class StoreAdminComponent {
 		});
 	}
 
-	toggleColorSelection(colorId: number): void {
-		const current = this.formSelectedColorIds();
-		if (current.includes(colorId)) {
-			this.formSelectedColorIds.set(current.filter(id => id !== colorId));
-		} else {
-			this.formSelectedColorIds.set([...current, colorId]);
-		}
-	}
-
-	toggleSizeSelection(sizeId: number): void {
-		const current = this.formSelectedSizeIds();
-		if (current.includes(sizeId)) {
-			this.formSelectedSizeIds.set(current.filter(id => id !== sizeId));
-		} else {
-			this.formSelectedSizeIds.set([...current, sizeId]);
-		}
-	}
-
 	saveItem(): void {
-		if (!this.formItemName().trim()) return;
+		if (!this.canSaveItem()) return;
 		this.isSaving.set(true);
 
 		if (this.editingItem()) {
@@ -206,13 +207,14 @@ export class StoreAdminComponent {
 				storeItemName: this.formItemName().trim(),
 				storeItemPrice: this.formItemPrice(),
 				storeItemComments: this.formItemComments().trim() || null,
-				colorIds: this.formSelectedColorIds(),
-				sizeIds: this.formSelectedSizeIds(),
-				maxCanSell: this.formMaxCanSell(),
+				itemSizes: this.formItemSizes().trim() || null,
+				itemColors: this.formItemColors().trim() || null,
 			};
 			this.store.createItem(request).subscribe({
 				next: () => {
-					this.toast.show('Item created with SKU matrix', 'success');
+					// SKUs are created at MaxCanSell = 0 (legacy CreateSku), so the item is not
+					// sellable until stock is set per SKU. Say so, or it looks silently broken.
+					this.toast.show('Item created - now set stock per SKU', 'success');
 					this.showItemModal.set(false);
 					this.isSaving.set(false);
 					this.refreshItems();
