@@ -189,7 +189,7 @@
 
 	<!--
 		Legacy gated the whole compose form on @if (countBatches > 0): no carts, no form. Match it,
-		and it is the rule the fixed-audience tabs above already follow -- a composer that can never
+		and it is the rule the fixed-audience tabs above already follow: a composer that can never
 		send is furniture.
 	-->
 	@if (recipientCount() > 0 || (isAbandoned() && carts().length > 0)) {
@@ -223,10 +223,11 @@
 
 				<div class="field-row field-row-block">
 					<label class="field-label">Message</label>
+					<!-- 380, not 320: the seeded template overflowed the shorter frame, so the box
+					     could be wheel-scrolled off its own first line. -->
 					<app-email-body-editor
 						[(body)]="body"
 						[disabled]="isSending()"
-						<!-- 320 clipped the seeded template, so the box could be wheel-scrolled off its own first line. -->
 						[height]="380"
 						placeholder="Write your message…" />
 				</div>
