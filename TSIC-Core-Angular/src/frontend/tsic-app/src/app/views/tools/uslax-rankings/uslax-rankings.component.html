@@ -11,10 +11,12 @@
 					<h1 class="page-heading">National Rankings</h1>
 					<span class="ai-pill"><i class="bi bi-stars me-1"></i>AI-Powered</span>
 				</div>
-				<p class="title-desc">
-					AI discovers published national rankings online and matches them to your registered
-					teams by comparing club names, colors, years, and states — for smarter pool seeding.
-				</p>
+				<!-- Tournaments get the full intent panel below, so this would only repeat it. -->
+				@if (!canMatch()) {
+					<p class="title-desc">
+						Browse published national rankings for club lacrosse teams.
+					</p>
+				}
 			</div>
 		</div>
 		<div class="title-actions">
@@ -54,10 +56,52 @@
 		</div>
 	}
 
-	<!-- Workflow hint -->
-	<p class="workflow-hint">
-		<strong>Select</strong> age groups and match → <strong>Review</strong> and fix any misses → <strong>Save</strong> rankings to teams
-	</p>
+	<!-- What this tool is for. Tournament-only: pool seeding is the whole point of it. -->
+	@if (canMatch()) {
+		<div class="intent-panel">
+			<div class="intent-lead">
+				<i class="bi bi-diagram-3-fill" aria-hidden="true"></i>
+				<p>
+					Attach <strong>national ranking numbers</strong> to the teams registered in your
+					event, so you can build pools by strength instead of by guesswork. Whatever you
+					save here shows up as <strong>Nat'l Rank</strong> over in
+					<a routerLink="../../ladt/pool-assignment">Pool Assignment</a>.
+				</p>
+			</div>
+			<ol class="intent-steps">
+				<li>
+					<span class="intent-num" aria-hidden="true">1</span>
+					<span class="intent-body">
+						<strong>Pick a season, then two age groups.</strong>
+						The published groups are by <em>graduation class</em> — "Girls 2029" is the
+						class of 2029 — so pair each one with the age group in your event that holds
+						those players. Seeding a new event? Use the most recently
+						<em>completed</em> season; it has a full year of results behind it.
+					</span>
+				</li>
+				<li>
+					<span class="intent-num" aria-hidden="true">2</span>
+					<span class="intent-body">
+						<strong>Review every match, not just the weak ones.</strong>
+						Teams are paired by comparing club name, colour, graduation year and state —
+						it is a best guess, and clubs rename teams between seasons. Anything left
+						over appears on the right; use <strong>Match</strong> on a team to pair it by
+						hand, or <strong>Change</strong> to correct one the matcher got wrong.
+					</span>
+				</li>
+				<li>
+					<span class="intent-num" aria-hidden="true">3</span>
+					<span class="intent-body">
+						<strong>Save at a confidence level you trust.</strong>
+						75%+ is the safe default; anything you paired by hand is always saved. Then
+						sort by <strong>Nat'l Rank</strong> in Pool Assignment and snake the top
+						teams across pools so the strong ones do not stack up in one bracket.
+						Re-run this any time — saving again just overwrites.
+					</span>
+				</li>
+			</ol>
+		</div>
+	}
 
 	<!-- Selector -->
 	<div class="selector-panel">
