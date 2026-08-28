@@ -1,27 +1,307 @@
+/*
+	Walk-up counter registration. This is the very first screen an on-site shopper
+	sees, often on a phone held at a merch table, so it owns its chrome rather than
+	inheriting Bootstrap's form defaults: larger hit targets, a real surface, and
+	colours drawn entirely from tokens so both palettes and dark mode follow.
+*/
+
 :host {
-	display: block;
-	min-height: 100dvh;
-	padding: var(--space-4);
+	/* Dark mode's primary is a light slate, so white-on-primary would be unreadable
+	   there; the label colour flips with the theme rather than being hardcoded. */
+	--wu-on-primary: #ffffff;
+
 	display: flex;
 	align-items: flex-start;
 	justify-content: center;
-	padding-top: var(--space-8);
+	min-height: 100dvh;
+	padding: var(--space-6) var(--space-4) var(--space-12);
+	background:
+		radial-gradient(120% 60% at 50% 0%,
+			color-mix(in srgb, var(--bs-primary) 10%, transparent) 0%,
+			transparent 70%),
+		var(--brand-bg);
 }
 
-.walk-up-card {
+.wu-shell {
 	width: 100%;
-	max-width: 480px;
-	border-radius: var(--radius-lg);
+	max-width: 520px;
 }
 
-// Large touch targets for mobile
-.form-control-lg {
+/* ── Card ───────────────────────────────────────────────────────── */
+
+.wu-card {
+	overflow: hidden;
+	background: var(--brand-surface);
+	border: 1px solid var(--brand-border);
+	border-radius: var(--radius-xl);
+	box-shadow: var(--shadow-lg);
+}
+
+.wu-masthead {
+	padding: var(--space-8) var(--space-6) var(--space-6);
+	text-align: center;
+	background:
+		linear-gradient(180deg,
+			color-mix(in srgb, var(--bs-primary) 12%, var(--brand-surface)) 0%,
+			var(--brand-surface) 100%);
+	border-bottom: 1px solid var(--brand-border);
+}
+
+.wu-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 56px;
+	height: 56px;
+	margin-bottom: var(--space-3);
+	font-size: var(--font-size-2xl);
+	line-height: 1;
+	color: var(--bs-primary);
+	background: var(--brand-surface);
+	border: 1px solid color-mix(in srgb, var(--bs-primary) 30%, var(--brand-border));
+	border-radius: var(--radius-full);
+	box-shadow: var(--shadow-sm);
+}
+
+.wu-title {
+	margin: 0 0 var(--space-2);
+	font-size: var(--font-size-2xl);
+	font-weight: var(--font-weight-bold);
+	line-height: var(--line-height-tight);
+	color: var(--brand-text);
+}
+
+.wu-subtitle {
+	margin: 0 auto;
+	max-width: 34ch;
+	font-size: var(--font-size-sm);
+	line-height: var(--line-height-normal);
+	color: var(--brand-text-muted);
+}
+
+.wu-body {
+	padding: var(--space-6);
+}
+
+/* ── Alert ──────────────────────────────────────────────────────── */
+
+.wu-alert {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-2);
+	margin-bottom: var(--space-5);
+	padding: var(--space-3) var(--space-4);
+	font-size: var(--font-size-sm);
+	color: var(--brand-danger);
+	background: color-mix(in srgb, var(--brand-danger) 10%, var(--brand-surface));
+	border: 1px solid color-mix(in srgb, var(--brand-danger) 35%, transparent);
+	border-radius: var(--radius-md);
+
+	i {
+		flex: 0 0 auto;
+		margin-top: 0.1em;
+	}
+}
+
+/* ── Form ───────────────────────────────────────────────────────── */
+
+.wu-form {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+}
+
+.wu-row {
+	display: grid;
+	gap: var(--space-4);
+}
+
+.wu-row--halves {
+	grid-template-columns: 1fr 1fr;
+}
+
+/*
+	City takes the slack; State is sized to hold a full state name ("Massachusetts")
+	without clipping; ZIP needs only five to ten characters.
+*/
+.wu-row--csz {
+	grid-template-columns: minmax(0, 1fr) minmax(11rem, auto) 6.5rem;
+}
+
+@media (max-width: 30rem) {
+	.wu-row--halves,
+	.wu-row--csz {
+		grid-template-columns: 1fr;
+	}
+}
+
+.wu-field {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	min-width: 0;
+}
+
+.wu-label {
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-semibold);
+	color: var(--brand-text);
+}
+
+/* ── Controls ───────────────────────────────────────────────────── */
+
+.wu-input {
+	width: 100%;
 	min-height: 48px;
+	padding: var(--space-3) var(--space-4);
+	font-family: inherit;
 	font-size: var(--font-size-base);
+	color: var(--brand-text);
+	background: var(--input-bg);
+	border: 1px solid var(--input-border);
+	border-radius: var(--radius-md);
+	transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+	appearance: none;
+
+	&::placeholder {
+		color: var(--brand-text-muted);
+		opacity: 0.75;
+	}
+
+	&:hover:not(:disabled) {
+		border-color: color-mix(in srgb, var(--bs-primary) 40%, var(--input-border));
+	}
+
+	&:focus,
+	&:focus-visible {
+		outline: none;
+		border-color: var(--bs-primary);
+		box-shadow: var(--shadow-focus);
+	}
+
+	&.is-invalid {
+		border-color: var(--brand-danger);
+
+		&:focus {
+			box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-danger) 20%, transparent);
+		}
+	}
 }
 
-.btn-lg {
+/* The caret is drawn separately so the select keeps the same fill and border as
+   every text input beside it. */
+.wu-select-wrap {
+	position: relative;
+	display: block;
+}
+
+.wu-select {
+	padding-right: var(--space-10);
+	cursor: pointer;
+	text-overflow: ellipsis;
+}
+
+.wu-select-caret {
+	position: absolute;
+	top: 50%;
+	right: var(--space-4);
+	transform: translateY(-50%);
+	pointer-events: none;
+	font-size: var(--font-size-sm);
+	color: var(--brand-text-muted);
+}
+
+.wu-error {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	margin: 0;
+	font-size: var(--font-size-xs);
+	color: var(--brand-danger);
+}
+
+/* ── Submit ─────────────────────────────────────────────────────── */
+
+.wu-submit {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2);
+	width: 100%;
 	min-height: 52px;
+	margin-top: var(--space-2);
+	padding: var(--space-3) var(--space-5);
+	font-family: inherit;
 	font-size: var(--font-size-lg);
 	font-weight: var(--font-weight-semibold);
+	color: var(--wu-on-primary);
+	background: var(--bs-primary);
+	border: 1px solid var(--bs-primary);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-sm);
+	cursor: pointer;
+	transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+
+	i {
+		font-size: var(--font-size-xl);
+		line-height: 1;
+	}
+
+	&:hover:not(:disabled) {
+		background: var(--brand-primary-hover);
+		border-color: var(--brand-primary-hover);
+		box-shadow: var(--shadow-md);
+		transform: translateY(-1px);
+	}
+
+	&:active:not(:disabled) {
+		transform: translateY(0);
+		box-shadow: var(--shadow-xs);
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus), var(--shadow-md);
+	}
+
+	&:disabled {
+		cursor: not-allowed;
+		background: color-mix(in srgb, var(--bs-primary) 45%, var(--brand-bg-secondary));
+		border-color: transparent;
+		box-shadow: none;
+		transform: none;
+	}
+}
+
+.wu-spinner {
+	display: inline-block;
+	width: 1.05em;
+	height: 1.05em;
+	border: 2px solid currentColor;
+	border-right-color: transparent;
+	border-radius: var(--radius-full);
+	animation: wu-spin 0.75s linear infinite;
+}
+
+@keyframes wu-spin {
+	to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.wu-input,
+	.wu-submit {
+		transition: none;
+	}
+
+	.wu-submit:hover:not(:disabled) {
+		transform: none;
+	}
+
+	.wu-spinner {
+		animation-duration: 2s;
+	}
+}
+
+:host-context([data-bs-theme='dark']) {
+	--wu-on-primary: var(--neutral-100);
 }

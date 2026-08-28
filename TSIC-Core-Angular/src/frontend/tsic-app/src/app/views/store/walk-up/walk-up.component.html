@@ -1,112 +1,124 @@
 @if (ready()) {
-<div class="walk-up-container">
-	<div class="card shadow-sm walk-up-card">
-		<div class="card-body">
-			<div class="text-center mb-4">
-				<i class="bi bi-shop fs-1 text-primary"></i>
-				<h3 class="mt-2 mb-1">Welcome to the Store</h3>
-				<p class="text-body-secondary mb-0">Just a few quick details and you're in — shopping takes less than a minute.</p>
-			</div>
+<div class="wu-shell">
+	<div class="wu-card">
 
-			@if (errorMessage()) {
-				<div class="alert alert-danger py-2">
-					<i class="bi bi-exclamation-triangle me-2"></i>{{ errorMessage() }}
+		<!-- Masthead -->
+		<div class="wu-masthead">
+			<span class="wu-badge"><i class="bi bi-shop" aria-hidden="true"></i></span>
+			<h1 class="wu-title">Welcome to the Store</h1>
+			<p class="wu-subtitle">Just a few quick details and you're in &mdash; shopping takes less than a minute.</p>
+		</div>
+
+		<div class="wu-body">
+			@if (errorMessage(); as err) {
+				<div class="wu-alert" role="alert">
+					<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+					<span>{{ err }}</span>
 				</div>
 			}
 
-			<form (ngSubmit)="submit()" #walkUpForm="ngForm">
-				<!-- Name row -->
-				<div class="row g-3 mb-3">
-					<div class="col-6">
-						<label for="firstName" class="form-label fw-medium">First Name</label>
-						<input id="firstName" type="text" class="form-control form-control-lg"
+			<form class="wu-form" (ngSubmit)="submit()" #walkUpForm="ngForm">
+
+				<!-- Name -->
+				<div class="wu-row wu-row--halves">
+					<div class="wu-field">
+						<label for="firstName" class="wu-label">First Name</label>
+						<input id="firstName" type="text" class="wu-input"
 							   [ngModel]="firstName()" (ngModelChange)="firstName.set($event)"
 							   name="firstName" required autocomplete="given-name">
 					</div>
-					<div class="col-6">
-						<label for="lastName" class="form-label fw-medium">Last Name</label>
-						<input id="lastName" type="text" class="form-control form-control-lg"
+					<div class="wu-field">
+						<label for="lastName" class="wu-label">Last Name</label>
+						<input id="lastName" type="text" class="wu-input"
 							   [ngModel]="lastName()" (ngModelChange)="lastName.set($event)"
 							   name="lastName" required autocomplete="family-name">
 					</div>
 				</div>
 
 				<!-- Email -->
-				<div class="mb-3">
-					<label for="email" class="form-label fw-medium">Email</label>
-					<input id="email" type="email" class="form-control form-control-lg"
+				<div class="wu-field">
+					<label for="email" class="wu-label">Email</label>
+					<input id="email" type="email" class="wu-input"
 						   [ngModel]="email()" (ngModelChange)="email.set($event)"
 						   name="email" required autocomplete="email"
 						   placeholder="you@example.com"
 						   [class.is-invalid]="emailError()"
+						   [attr.aria-invalid]="emailError() ? 'true' : null"
 						   [attr.aria-describedby]="emailError() ? 'emailError' : null">
 					@if (emailError(); as err) {
-						<div id="emailError" class="invalid-feedback d-block">{{ err }}</div>
+						<p id="emailError" class="wu-error"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>{{ err }}</p>
 					}
 				</div>
 
 				<!-- Phone -->
-				<div class="mb-3">
-					<label for="phone" class="form-label fw-medium">Phone</label>
-					<input id="phone" type="tel" class="form-control form-control-lg"
+				<div class="wu-field">
+					<label for="phone" class="wu-label">Phone</label>
+					<input id="phone" type="tel" class="wu-input"
 						   [ngModel]="phone()" (ngModelChange)="phone.set($event)"
 						   name="phone" required autocomplete="tel"
 						   inputmode="numeric" maxlength="10" placeholder="10 digits, no spaces"
 						   [class.is-invalid]="phoneError()"
+						   [attr.aria-invalid]="phoneError() ? 'true' : null"
 						   [attr.aria-describedby]="phoneError() ? 'phoneError' : null">
 					@if (phoneError(); as err) {
-						<div id="phoneError" class="invalid-feedback d-block">{{ err }}</div>
+						<p id="phoneError" class="wu-error"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>{{ err }}</p>
 					}
 				</div>
 
 				<!-- Street Address -->
-				<div class="mb-3">
-					<label for="streetAddress" class="form-label fw-medium">Street Address</label>
-					<input id="streetAddress" type="text" class="form-control form-control-lg"
+				<div class="wu-field">
+					<label for="streetAddress" class="wu-label">Street Address</label>
+					<input id="streetAddress" type="text" class="wu-input"
 						   [ngModel]="streetAddress()" (ngModelChange)="streetAddress.set($event)"
 						   name="streetAddress" required autocomplete="street-address">
 				</div>
 
-				<!-- City / State / ZIP row -->
-				<div class="row g-3 mb-4">
-					<div class="col-5">
-						<label for="city" class="form-label fw-medium">City</label>
-						<input id="city" type="text" class="form-control form-control-lg"
+				<!--
+					City / State / ZIP. The State control holds full state names, so it is sized
+					by its content rather than by a fraction of the row — a fixed narrow column
+					clipped the placeholder to "Selec".
+				-->
+				<div class="wu-row wu-row--csz">
+					<div class="wu-field">
+						<label for="city" class="wu-label">City</label>
+						<input id="city" type="text" class="wu-input"
 							   [ngModel]="city()" (ngModelChange)="city.set($event)"
 							   name="city" required autocomplete="address-level2">
 					</div>
-					<div class="col-3">
-						<label for="state" class="form-label fw-medium">State</label>
-						<select id="state" class="form-select form-select-lg"
-								[ngModel]="state()" (ngModelChange)="state.set($event)"
-								name="state" required autocomplete="address-level1">
-							<option value="">Select</option>
-							@for (s of states; track s.value) {
-								<option [value]="s.value">{{ s.label }}</option>
-							}
-						</select>
+					<div class="wu-field">
+						<label for="state" class="wu-label">State</label>
+						<div class="wu-select-wrap">
+							<select id="state" class="wu-input wu-select"
+									[ngModel]="state()" (ngModelChange)="state.set($event)"
+									name="state" required autocomplete="address-level1">
+								<option value="">Select a state</option>
+								@for (s of states; track s.value) {
+									<option [value]="s.value">{{ s.label }}</option>
+								}
+							</select>
+							<i class="bi bi-chevron-down wu-select-caret" aria-hidden="true"></i>
+						</div>
 					</div>
-					<div class="col-4">
-						<label for="zip" class="form-label fw-medium">ZIP</label>
-						<input id="zip" type="text" class="form-control form-control-lg"
+					<div class="wu-field">
+						<label for="zip" class="wu-label">ZIP</label>
+						<input id="zip" type="text" class="wu-input"
 							   [ngModel]="zip()" (ngModelChange)="zip.set($event)"
 							   name="zip" required autocomplete="postal-code"
-							   inputmode="numeric" maxlength="10"
+							   inputmode="numeric" maxlength="10" placeholder="12345"
 							   [class.is-invalid]="zipError()"
+							   [attr.aria-invalid]="zipError() ? 'true' : null"
 							   [attr.aria-describedby]="zipError() ? 'zipError' : null">
 						@if (zipError(); as err) {
-							<div id="zipError" class="invalid-feedback d-block">{{ err }}</div>
+							<p id="zipError" class="wu-error"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>{{ err }}</p>
 						}
 					</div>
 				</div>
 
-				<!-- Submit -->
-				<button type="submit" class="btn btn-primary btn-lg w-100"
-						[disabled]="!isValid || isLoading()">
+				<button type="submit" class="wu-submit" [disabled]="!isValid || isLoading()">
 					@if (isLoading()) {
-						<span class="spinner-border spinner-border-sm me-2"></span>Registering...
+						<span class="wu-spinner" aria-hidden="true"></span>Registering&hellip;
 					} @else {
-						<i class="bi bi-arrow-right-circle me-2"></i>Let's Go
+						<i class="bi bi-arrow-right-circle" aria-hidden="true"></i>Let's Go
 					}
 				</button>
 			</form>
