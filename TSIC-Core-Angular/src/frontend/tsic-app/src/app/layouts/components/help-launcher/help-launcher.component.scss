@@ -198,3 +198,305 @@
  * styles/_help-content.scss — the single source of truth for every help block, applied identically to
  * this read view and to both editor previews. Nothing to add here; keep the launcher chrome above.
  */
+
+/* ── In-drawer search ────────────────────────────────────────────────────────
+   Search lives in the drawer, not as a second header icon: the "?" answers
+   "explain THIS screen" and search answers "which screen does that?" — two
+   questions, one surface. */
+.help-panel {
+  .help-search-field {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    margin-top: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--radius-md);
+    background: var(--bs-body-bg);
+    color: var(--bs-secondary-color, var(--neutral-500));
+
+    &:focus-within {
+      border-color: var(--bs-primary);
+      box-shadow: var(--shadow-focus);
+    }
+  }
+
+  .help-search-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: var(--bs-body-color);
+    font-size: var(--font-size-sm, 0.875rem);
+    line-height: 1.4;
+
+    &::placeholder {
+      color: var(--bs-secondary-color, var(--neutral-500));
+    }
+
+    &:focus {
+      outline: none;
+    }
+
+    /* The type="search" clear affordance is browser chrome; we render our own. */
+    &::-webkit-search-cancel-button {
+      appearance: none;
+    }
+  }
+
+  .help-search-clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--bs-secondary-color, var(--neutral-500));
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(var(--bs-primary-rgb), 0.1);
+      color: var(--bs-body-color);
+    }
+
+    &:focus-visible {
+      outline: none;
+      box-shadow: var(--shadow-focus);
+    }
+  }
+
+  /* Return path from a searched-to page back to the route the user is actually on. */
+  .help-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+    padding: var(--space-1) 0;
+    border: 0;
+    background: transparent;
+    color: var(--bs-primary);
+    font-size: var(--font-size-sm, 0.875rem);
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
+
+    &:focus-visible {
+      outline: none;
+      box-shadow: var(--shadow-focus);
+    }
+  }
+}
+
+/* ── Search results ── */
+.help-results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.help-result {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+
+  /* Keyboard and pointer share one highlight, so ArrowDown and hover never disagree on screen. */
+  &.active {
+    background: rgba(var(--bs-primary-rgb), 0.1);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+}
+
+.result-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.result-title {
+  color: var(--bs-body-color);
+  font-weight: var(--font-weight-semibold, 600);
+  font-size: var(--font-size-sm, 0.875rem);
+}
+
+/* Which tab the hit lives on. Paired with its text label, never colour alone. */
+.result-topic {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  background: rgba(var(--bs-primary-rgb), 0.12);
+  color: var(--bs-primary);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+}
+
+.result-heading {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--bs-body-color);
+  font-size: var(--font-size-xs);
+  font-style: italic;
+}
+
+.result-snippet {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--bs-secondary-color, var(--neutral-500));
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+
+  /*
+   * ::ng-deep is required, not lazy: the snippet arrives through [innerHTML], so its <mark>
+   * elements never receive this component's _ngcontent attribute and an encapsulated rule would
+   * silently miss them. Scoped under .result-snippet, and the content is ours (built by
+   * help-search.ranking), not a third party's.
+   */
+  ::ng-deep mark {
+    padding: 0 0.1em;
+    border-radius: var(--radius-sm);
+    background: rgba(var(--bs-warning-rgb), 0.35);
+    color: inherit;
+    font-weight: var(--font-weight-semibold, 600);
+  }
+}
+
+/* ── Browse: the table of contents shown where a route has no help of its own ── */
+.help-browse {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.help-browse-lead {
+  margin: 0 0 var(--space-1);
+  padding: 0 var(--space-3);
+  color: var(--bs-secondary-color, var(--neutral-500));
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold, 600);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.help-browse-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--bs-body-color);
+  font-size: var(--font-size-sm, 0.875rem);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  > i {
+    flex-shrink: 0;
+    color: var(--bs-secondary-color, var(--neutral-500));
+  }
+
+  &:hover {
+    background: rgba(var(--bs-primary-rgb), 0.1);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+/* ── Two-line drawer heading: fixed frame over moving topic ── */
+.help-panel .panel-title {
+  /* Claim the width the tabs and actions don't need — the longest page name is 32 chars, which
+     fits at the default panel width; ellipsis stays only as a last resort when resized narrow. */
+  .panel-title-stack {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.2;
+  }
+
+  /* The constant: what you're reading, never changes as topics do. */
+  .panel-overline {
+    color: var(--bs-secondary-color, var(--neutral-500));
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-normal);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* The variable: which page of it you're on. */
+  .panel-topic {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+  }
+}
+
+/*
+ * Every authored page opens with an <h3> naming itself, and that name is now the drawer's heading —
+ * so rendering it again as the first line of the body says the same thing twice. Hidden in the READ
+ * view only: the editor renders its own template, so the author still sees and edits the real <h3>.
+ * ::ng-deep because the body arrives via [innerHTML] and carries no _ngcontent attribute.
+ */
+:host ::ng-deep .help-content > h3:first-child {
+  display: none;
+}
+
+/* ── "All topics": the way into the manual from any page ──
+   Sits on the search row because browsing and searching are one surface — the contents, and the
+   contents narrowed by a query. Reachable everywhere, so the drawer reads the same whether or not
+   the current page happens to have help of its own. */
+.help-panel .help-all-topics {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--bs-secondary-color, var(--neutral-500));
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+
+  &:hover,
+  &.active {
+    background: rgba(var(--bs-primary-rgb), 0.1);
+    border-color: rgba(var(--bs-primary-rgb), 0.28);
+    color: var(--bs-primary);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
