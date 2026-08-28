@@ -433,6 +433,10 @@ public class StoreController : ControllerBase
     /// <summary>
     /// Add a photo. Capped at 10 per item, matching legacy MAX_IMAGES_PER_ITEM.
     /// </summary>
+    // 6 MB: the 5 MB content cap plus multipart overhead. Without it the body is buffered to
+    // Kestrel's 30 MB default before StoreImageService gets to refuse it - the same shape the
+    // headshot upload already guards against.
+    [RequestSizeLimit(6 * 1024 * 1024)]
     [HttpPost("items/{storeItemId:int}/images")]
     [Authorize(Policy = "StoreAdmin")]
     [ProducesResponseType(typeof(StoreItemImageDto), 200)]
@@ -459,6 +463,7 @@ public class StoreController : ControllerBase
     /// <summary>
     /// Replace one photo in place, keeping its position in the item's image order.
     /// </summary>
+    [RequestSizeLimit(6 * 1024 * 1024)]
     [HttpPut("items/{storeItemId:int}/images/{instance:int}")]
     [Authorize(Policy = "StoreAdmin")]
     [ProducesResponseType(typeof(StoreItemImageDto), 200)]

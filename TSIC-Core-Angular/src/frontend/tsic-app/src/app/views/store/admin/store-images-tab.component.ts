@@ -141,10 +141,28 @@ export class StoreImagesTabComponent {
 	 * Pull the file off the input and clear the input's value, so picking the SAME file again
 	 * still fires a change event — the usual "re-upload after a failure does nothing" trap.
 	 */
+	/**
+	 * The server's ceiling, checked here as well.
+	 *
+	 * Not a duplicate of the server's rule so much as the polite half of it: without this, a
+	 * 20 MB photo is uploaded in full, buffered, and only then refused — which on a phone at a
+	 * tournament is a long wait for a failure the browser already had everything it needed to
+	 * predict. StoreImageService remains the enforcer.
+	 */
+	private static readonly MaxFileBytes = 5 * 1024 * 1024;
+
 	private takeFile(event: Event): File | null {
 		const input = event.target as HTMLInputElement;
 		const file = input.files?.[0] ?? null;
 		input.value = '';
+
+		if (file && file.size > StoreImagesTabComponent.MaxFileBytes) {
+			const mb = (file.size / (1024 * 1024)).toFixed(1);
+			this.toast.show(
+				`That photo is ${mb} MB. Photos must be 5 MB or smaller.`, 'danger', 6000);
+			return null;
+		}
+
 		return file;
 	}
 
