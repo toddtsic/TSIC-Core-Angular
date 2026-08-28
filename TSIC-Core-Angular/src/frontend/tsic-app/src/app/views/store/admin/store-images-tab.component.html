@@ -1,0 +1,156 @@
+<div class="tab-toolbar">
+	<div class="tab-toolbar-meta">
+		<span class="meta-count">{{ photoCount() }}</span>
+		<span>{{ photoCount() === 1 ? 'photo' : 'photos' }}</span>
+		@if (missingCount() > 0) {
+			<span class="meta-divider" aria-hidden="true"></span>
+			<span class="meta-warning">
+				<i class="bi bi-exclamation-triangle me-1"></i>
+				{{ missingCount() }} without a photo
+			</span>
+		}
+	</div>
+	<div class="tab-toolbar-actions">
+		<div class="form-check form-switch mb-0">
+			<input
+				class="form-check-input"
+				type="checkbox"
+				id="images-missing-only"
+				[checked]="missingOnly()"
+				(change)="missingOnly.set(!missingOnly())" />
+			<label class="form-check-label" for="images-missing-only">Needs a photo</label>
+		</div>
+		<button class="btn btn-outline-secondary btn-sm" (click)="load()" [disabled]="isLoading()">
+			<i class="bi bi-arrow-clockwise me-1"></i>Refresh
+		</button>
+	</div>
+</div>
+
+@if (errorMessage()) {
+	<div class="alert alert-danger d-flex align-items-center" role="alert">
+		<i class="bi bi-exclamation-triangle-fill me-2"></i>
+		{{ errorMessage() }}
+	</div>
+}
+
+@if (isLoading()) {
+	<div class="text-center py-5">
+		<div class="spinner-border text-primary" role="status">
+			<span class="visually-hidden">Loading...</span>
+		</div>
+		<p class="mt-2 text-body-secondary">Loading product photos...</p>
+	</div>
+} @else if (groups().length === 0) {
+	<div class="empty-state">
+		<span class="empty-state-icon"><i class="bi bi-image"></i></span>
+		<div class="empty-state-title">No items yet</div>
+		<p class="empty-state-desc">
+			Create items on the Items tab first. Each one can then carry up to
+			{{ maxImagesPerItem }} photos.
+		</p>
+	</div>
+} @else if (visibleGroups().length === 0) {
+	<div class="empty-state">
+		<span class="empty-state-icon"><i class="bi bi-check2-circle"></i></span>
+		<div class="empty-state-title">Every item has a photo</div>
+		<p class="empty-state-desc">Turn off "Needs a photo" to see the full catalog.</p>
+	</div>
+} @else {
+	<div class="image-groups">
+		@for (group of visibleGroups(); track group.storeItemId) {
+			<section class="image-group" [class.is-busy]="isBusy(group.storeItemId)">
+				<header class="image-group-header">
+					<h3 class="image-group-title">{{ group.storeItemName }}</h3>
+					<div class="image-group-meta">
+						@if (group.images.length === 0) {
+							<span class="badge-needs-photo">
+								<i class="bi bi-exclamation-triangle me-1"></i>Needs a photo
+							</span>
+						} @else {
+							<span class="image-group-count">
+								{{ group.images.length }} of {{ maxImagesPerItem }}
+							</span>
+						}
+					</div>
+				</header>
+
+				<div class="image-strip">
+					@for (image of group.images; track image.fileName) {
+						<figure class="image-card">
+							<div class="image-frame">
+								<img [src]="image.imageUrl" [alt]="group.storeItemName" loading="lazy" />
+								@if (image.instance === 1) {
+									<span class="image-primary-flag" title="Shown on the item card">
+										<i class="bi bi-star-fill me-1"></i>Primary
+									</span>
+								}
+							</div>
+							<figcaption class="image-actions">
+								<label class="photo-action" [class.disabled]="isBusy(group.storeItemId)">
+									<i class="bi bi-arrow-repeat"></i>
+									<span>Replace</span>
+									<input
+										type="file"
+										class="visually-hidden"
+										accept="image/jpeg,image/png,image/webp"
+										[disabled]="isBusy(group.storeItemId)"
+										(change)="onReplaceFile($event, image)" />
+								</label>
+								<button
+									type="button"
+									class="photo-action photo-action-danger"
+									[disabled]="isBusy(group.storeItemId)"
+									(click)="confirmDelete(image)">
+									<i class="bi bi-trash"></i>
+									<span>Delete</span>
+								</button>
+							</figcaption>
+						</figure>
+					}
+
+					@if (isFull(group)) {
+						<div class="image-add is-full">
+							<i class="bi bi-slash-circle"></i>
+							<span>Limit of {{ maxImagesPerItem }} reached</span>
+						</div>
+					} @else {
+						<label class="image-add" [class.disabled]="isBusy(group.storeItemId)">
+							@if (isBusy(group.storeItemId)) {
+								<span class="spinner-border spinner-border-sm" role="status"></span>
+								<span>Uploading...</span>
+							} @else {
+								<i class="bi bi-plus-lg"></i>
+								<span>{{ group.images.length === 0 ? 'Add a photo' : 'Add another' }}</span>
+							}
+							<input
+								type="file"
+								class="visually-hidden"
+								accept="image/jpeg,image/png,image/webp"
+								[disabled]="isBusy(group.storeItemId)"
+								(change)="onAddFile($event, group)" />
+						</label>
+					}
+				</div>
+			</section>
+		}
+	</div>
+
+	<p class="image-help">
+		JPG, PNG, or WebP, up to 5&nbsp;MB. Photos are converted to JPEG and scaled to
+		1200&nbsp;px wide. The first photo is the one shoppers see on the item card.
+	</p>
+}
+
+@if (showDeleteConfirm() && deleteTarget()) {
+	<confirm-dialog
+		title="Delete this photo?"
+		[message]="
+			'Delete photo ' + deleteTarget()!.instance + ' of &quot;' + deleteTarget()!.storeItemName
+			+ '&quot;? The remaining photos move up one place. This cannot be undone.'"
+		confirmLabel="Delete"
+		cancelLabel="Cancel"
+		confirmVariant="danger"
+		(confirmed)="executeDelete()"
+		(cancelled)="cancelDelete()">
+	</confirm-dialog>
+}

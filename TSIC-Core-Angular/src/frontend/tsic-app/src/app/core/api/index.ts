@@ -700,6 +700,7 @@ export type { StoreFamilyPlayerDto } from './models/StoreFamilyPlayerDto';
 export type { StoreFamilyPurchaseDto } from './models/StoreFamilyPurchaseDto';
 export type { StoreFamilyTransactionDto } from './models/StoreFamilyTransactionDto';
 export type { StoreItemDto } from './models/StoreItemDto';
+export type { StoreItemImageDto } from './models/StoreItemImageDto';
 export type { StoreItemSummaryDto } from './models/StoreItemSummaryDto';
 export type { StorePaymentDetailDto } from './models/StorePaymentDetailDto';
 export type { StoreRefundedItemDto } from './models/StoreRefundedItemDto';

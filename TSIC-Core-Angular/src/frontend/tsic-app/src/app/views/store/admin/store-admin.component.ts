@@ -6,6 +6,7 @@ import { ToastService } from '../../../shared-ui/toast.service';
 import { TsicDialogComponent } from '../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { ConfirmDialogComponent } from '../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { StoreAnalyticsTabComponent } from './store-analytics-tab.component';
+import { StoreImagesTabComponent } from './store-images-tab.component';
 import type {
 	StoreItemSummaryDto,
 	StoreItemDto,
@@ -17,12 +18,19 @@ import type {
 	UpdateStoreSkuRequest,
 } from '@core/api';
 
-type TabKey = 'items' | 'colors' | 'sizes' | 'analytics';
+type TabKey = 'items' | 'images' | 'colors' | 'sizes' | 'analytics';
 
 @Component({
 	selector: 'app-store-admin',
 	standalone: true,
-	imports: [CommonModule, FormsModule, TsicDialogComponent, ConfirmDialogComponent, StoreAnalyticsTabComponent],
+	imports: [
+		CommonModule,
+		FormsModule,
+		TsicDialogComponent,
+		ConfirmDialogComponent,
+		StoreAnalyticsTabComponent,
+		StoreImagesTabComponent,
+	],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './store-admin.component.html',
 	styleUrl: './store-admin.component.scss',

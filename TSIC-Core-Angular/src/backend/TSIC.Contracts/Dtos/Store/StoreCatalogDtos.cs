@@ -142,6 +142,49 @@ public record UpdateStoreItemRequest
     public required int SortOrder { get; init; }
 }
 
+// ── Images ──
+
+/// <summary>Id + name of one store item, for surfaces that only need to label a row.</summary>
+public record StoreItemKeyDto
+{
+    public required int StoreItemId { get; init; }
+    public required string StoreItemName { get; init; }
+}
+
+/// <summary>
+/// One row of the legacy store-images grid (StoreImagesController.Index /
+/// IStoreService.GetJobItemsPictures): one image file belonging to one item.
+///
+/// <para>
+/// Legacy lists EVERY item in the job. An item with no file on disk still gets a row, carrying
+/// the missing-image.jpg placeholder — that is how a director sees at a glance which products
+/// have no photo. Those rows have <see cref="IsPlaceholder"/> true and cannot be deleted.
+/// </para>
+/// </summary>
+public record StoreItemImageDto
+{
+    public required int StoreItemId { get; init; }
+    public required string StoreItemName { get; init; }
+
+    /// <summary>
+    /// The trailing number in the legacy filename {storeId}-{storeItemId}-{instance}.jpg.
+    /// Instances are contiguous from 1 and are renumbered when one is deleted, so this is a
+    /// position, not a stable id. Zero on a placeholder row.
+    /// </summary>
+    public required int Instance { get; init; }
+
+    public required string FileName { get; init; }
+
+    /// <summary>
+    /// Absolute statics URL, with a cache-busting query so a replaced image is picked up
+    /// immediately rather than served from the browser cache (legacy AddCacheBuster).
+    /// </summary>
+    public required string ImageUrl { get; init; }
+
+    /// <summary>True for the missing-image.jpg stand-in shown when an item has no photo.</summary>
+    public required bool IsPlaceholder { get; init; }
+}
+
 // ── SKUs ──
 
 /// <summary>

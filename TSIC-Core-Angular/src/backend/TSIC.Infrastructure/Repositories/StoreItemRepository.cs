@@ -347,4 +347,40 @@ public class StoreItemRepository : IStoreItemRepository
     {
         _context.StoreItems.Remove(item);
     }
+
+    // ── Images ──
+
+    public async Task<List<StoreItemKeyDto>> GetItemKeysForStoreAsync(
+        int storeId, CancellationToken cancellationToken = default)
+    {
+        return await _context.StoreItems
+            .Where(i => i.StoreId == storeId)
+            .OrderBy(i => i.StoreItemName)
+            .Select(i => new StoreItemKeyDto
+            {
+                StoreItemId = i.StoreItemId,
+                StoreItemName = i.StoreItemName
+            })
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<StoreItemImage>> GetImageRowsForItemsAsync(
+        IEnumerable<int> storeItemIds, CancellationToken cancellationToken = default)
+    {
+        var ids = storeItemIds.ToList();
+        return await _context.StoreItemImage
+            .Where(img => ids.Contains(img.StoreItemId))
+            .ToListAsync(cancellationToken);
+    }
+
+    public void AddImageRows(IEnumerable<StoreItemImage> images)
+    {
+        _context.StoreItemImage.AddRange(images);
+    }
+
+    public void RemoveImageRows(IEnumerable<StoreItemImage> images)
+    {
+        _context.StoreItemImage.RemoveRange(images);
+    }
 }

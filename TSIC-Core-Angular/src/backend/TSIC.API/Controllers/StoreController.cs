@@ -23,6 +23,7 @@ public class StoreController : ControllerBase
     private readonly IStoreReceiptService _receiptService;
     private readonly IRegistrationAccountingRepository _accountingRepo;
     private readonly IStoreCartRepository _cartRepo;
+    private readonly IStoreImageService _imageService;
 
     public StoreController(
         IStoreCatalogService catalogService,
@@ -32,7 +33,8 @@ public class StoreController : ControllerBase
         IStoreWalkUpService walkUpService,
         IStoreReceiptService receiptService,
         IRegistrationAccountingRepository accountingRepo,
-        IStoreCartRepository cartRepo)
+        IStoreCartRepository cartRepo,
+        IStoreImageService imageService)
     {
         _catalogService = catalogService;
         _cartService = cartService;
@@ -42,6 +44,7 @@ public class StoreController : ControllerBase
         _receiptService = receiptService;
         _accountingRepo = accountingRepo;
         _cartRepo = cartRepo;
+        _imageService = imageService;
     }
 
     // ═══════════════════════════════════════════
@@ -171,6 +174,121 @@ public class StoreController : ControllerBase
         try
         {
             await _catalogService.DeleteItemAsync(jobId, storeItemId);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    //  IMAGES — Admin
+    //  Legacy StoreImagesController. Files on the statics share are the source of truth;
+    //  stores.StoreItemImage is a read index the service re-syncs on every call.
+    // ═══════════════════════════════════════════
+
+    /// <summary>
+    /// Every image in the job's store, one row per file, with a placeholder row for each item
+    /// that has no photo (legacy IStoreService.GetJobItemsPictures).
+    /// </summary>
+    [HttpGet("images")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(List<StoreItemImageDto>), 200)]
+    public async Task<IActionResult> GetStoreImages(CancellationToken ct)
+    {
+        var (jobId, userId) = await ResolveContext();
+        try
+        {
+            return Ok(await _imageService.GetStoreImagesAsync(jobId, userId, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("items/{storeItemId:int}/images")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(List<StoreItemImageDto>), 200)]
+    public async Task<IActionResult> GetItemImages(int storeItemId, CancellationToken ct)
+    {
+        var (jobId, userId) = await ResolveContext();
+        try
+        {
+            return Ok(await _imageService.GetItemImagesAsync(jobId, storeItemId, userId, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Add a photo. Capped at 10 per item, matching legacy MAX_IMAGES_PER_ITEM.
+    /// </summary>
+    [HttpPost("items/{storeItemId:int}/images")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(StoreItemImageDto), 200)]
+    public async Task<IActionResult> AddItemImage(
+        int storeItemId, IFormFile file, CancellationToken ct)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "No file was uploaded." });
+
+        var (jobId, userId) = await ResolveContext();
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var dto = await _imageService.AddItemImageAsync(
+                jobId, storeItemId, stream, file.FileName, userId, ct);
+            return Ok(dto);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Replace one photo in place, keeping its position in the item's image order.
+    /// </summary>
+    [HttpPut("items/{storeItemId:int}/images/{instance:int}")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(StoreItemImageDto), 200)]
+    public async Task<IActionResult> ReplaceItemImage(
+        int storeItemId, int instance, IFormFile file, CancellationToken ct)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "No file was uploaded." });
+
+        var (jobId, userId) = await ResolveContext();
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var dto = await _imageService.ReplaceItemImageAsync(
+                jobId, storeItemId, instance, stream, file.FileName, userId, ct);
+            return Ok(dto);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Delete a photo. Remaining photos are renumbered so instances stay contiguous from 1.
+    /// </summary>
+    [HttpDelete("items/{storeItemId:int}/images/{instance:int}")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(204)]
+    public async Task<IActionResult> DeleteItemImage(
+        int storeItemId, int instance, CancellationToken ct)
+    {
+        var (jobId, userId) = await ResolveContext();
+        try
+        {
+            await _imageService.DeleteItemImageAsync(jobId, storeItemId, instance, userId, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)

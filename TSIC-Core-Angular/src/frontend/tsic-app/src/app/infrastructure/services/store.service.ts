@@ -35,6 +35,7 @@ import type {
 	StoreWalkUpRegisterRequest,
 	StoreWalkUpRegisterResponse,
 	StoreFamilyPlayerDto,
+	StoreItemImageDto,
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -91,6 +92,48 @@ export class StoreService {
 	/** Delete an item and all of its SKUs. Refused if any SKU has been sold or is in a cart. */
 	deleteItem(storeItemId: number): Observable<void> {
 		return this.http.delete<void>(`${this.base}/items/${storeItemId}`);
+	}
+
+	// ── Images ──
+	// Files on the statics share are the source of truth, as in legacy; the server re-syncs its
+	// index on every call, so a fresh GET after any mutation is always authoritative.
+
+	/**
+	 * Every image in the job's store. Items with no photo come back as one placeholder row
+	 * (`isPlaceholder`), which is how the grid shows what still needs a picture.
+	 */
+	getStoreImages(): Observable<StoreItemImageDto[]> {
+		return this.http.get<StoreItemImageDto[]>(`${this.base}/images`);
+	}
+
+	getItemImages(storeItemId: number): Observable<StoreItemImageDto[]> {
+		return this.http.get<StoreItemImageDto[]>(`${this.base}/items/${storeItemId}/images`);
+	}
+
+	/** Add a photo. Server caps an item at 10, matching legacy. */
+	addItemImage(storeItemId: number, file: File): Observable<StoreItemImageDto> {
+		const form = new FormData();
+		form.append('file', file, file.name);
+		return this.http.post<StoreItemImageDto>(`${this.base}/items/${storeItemId}/images`, form);
+	}
+
+	/** Replace one photo in place, keeping its position in the item's image order. */
+	replaceItemImage(
+		storeItemId: number,
+		instance: number,
+		file: File,
+	): Observable<StoreItemImageDto> {
+		const form = new FormData();
+		form.append('file', file, file.name);
+		return this.http.put<StoreItemImageDto>(
+			`${this.base}/items/${storeItemId}/images/${instance}`,
+			form,
+		);
+	}
+
+	/** Delete a photo. Remaining photos are renumbered server-side, so re-fetch after this. */
+	deleteItemImage(storeItemId: number, instance: number): Observable<void> {
+		return this.http.delete<void>(`${this.base}/items/${storeItemId}/images/${instance}`);
 	}
 
 	// ── Colors ──

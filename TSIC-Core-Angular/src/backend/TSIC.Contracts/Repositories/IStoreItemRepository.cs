@@ -94,4 +94,22 @@ public interface IStoreItemRepository
     void RemoveSkus(IEnumerable<StoreItemSkus> skus);
 
     void RemoveItem(StoreItems item);
+
+    // ── Images ──
+
+    /// <summary>
+    /// Id + name for every item in a store. The images surface is job-wide and lists every item,
+    /// including ones with no photo, so it needs the full roster of items rather than a page of
+    /// them (legacy IStoreService.GetJobItemsPictures).
+    /// </summary>
+    Task<List<StoreItemKeyDto>> GetItemKeysForStoreAsync(int storeId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Tracked StoreItemImage rows for these items, so the index can be re-synced from disk.
+    /// </summary>
+    Task<List<StoreItemImage>> GetImageRowsForItemsAsync(IEnumerable<int> storeItemIds, CancellationToken cancellationToken = default);
+
+    void AddImageRows(IEnumerable<StoreItemImage> images);
+
+    void RemoveImageRows(IEnumerable<StoreItemImage> images);
 }

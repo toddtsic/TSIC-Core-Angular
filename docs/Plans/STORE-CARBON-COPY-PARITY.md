@@ -52,7 +52,7 @@ CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
 |---|---|---|
 | A-01 | `Index` — catalog render, active items only | IMPL |
 | A-02 | Catalog order: `SortOrder`, **0 sorts LAST (→10000)**, then `StoreItemName` | IMPL |
-| A-03 | Per-item image carousel. **Ours renders `imageUrls[0]` only** — no carousel, no prev/next, additional images unreachable | GAP |
+| A-03 | Per-item image carousel. **The carousel was already built** in `item-detail`; what was missing was data — `StoreItemImage` held only each item's FIRST instance, so `imageUrls` was never longer than 1. The image sync now indexes every file on disk, so items with 2–3 photos surface all of them | IMPL |
 | A-04 | Per-item tabs: Pickup · Return Policy · Contact | GAP |
 | A-05 | `listSoldOutOrInactiveSkus` surfaced per item | IMPL |
 | A-33 | ~~Per-item `itemBufferSize` reserve~~ — **CLOSED, not a gap**: legacy declares `private static readonly int itemBufferSize = 0` (`IStoreService.cs:73`). A dead constant that subtracts nothing. | CLOSED |
@@ -122,15 +122,16 @@ CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
 | B-17 | `UpdateSku` batch branch → delete SKUs, then parent item | IMPL |
 | B-36 | `UpdateSku` action "remove" branch → delete a single SKU by key | IMPL |
 | B-18 | Skus toolbar: Excel Export | GAP |
-| B-19 | `StoreImages/Index` grid — Store Item · File · Image | WALKED |
-| B-20 | Images toolbar: **Add · Edit · Delete** (only Store screen with create/delete) | GAP |
-| B-21 | Upload, auto-numbered `{storeId}-{storeItemId}-{instance}.jpg`, instance = max+1 | GAP |
-| B-22 | Replace an existing image | GAP |
-| B-23 | Delete an image, with confirm dialog | GAP |
-| B-24 | `MAX_IMAGES_PER_ITEM = 10` cap | GAP |
-| B-25 | Missing-image fallback. Legacy substitutes `missing-image.jpg`; ours renders a CSS placeholder tile. Same outcome, different mechanism | IMPL |
-| B-26 | StoreItemId edit is a dropdown of the job's items | GAP |
+| B-19 | `StoreImages/Index` grid — every image in the job, one row per file. Ours groups by item (`Photos` tab) — same rows, the shape the question is actually asked in | IMPL |
+| B-20 | Images toolbar: **Add · Edit · Delete** (only Store screen with create/delete) | IMPL |
+| B-21 | Upload, auto-numbered `{storeId}-{storeItemId}-{instance}.jpg`, instance = max+1 | IMPL |
+| B-22 | Replace an existing image, keeping its instance and position | IMPL |
+| B-23 | Delete an image, with confirm dialog | IMPL |
+| B-24 | `MAX_IMAGES_PER_ITEM = 10` cap | IMPL |
+| B-25 | Missing-image fallback. Legacy substitutes `missing-image.jpg`; ours renders a CSS placeholder tile, and the admin grid flags the item "Needs a photo". Same outcome, different mechanism | IMPL |
+| B-26 | StoreItemId edit is a dropdown of the job's items. **MOOT by shape:** legacy needed it because its grid was flat and a row had to name its item; ours groups by item, so upload is already addressed to a known item and cannot be mis-targeted | CLOSED |
 | B-27 | Grid thumbnail. Legacy base64-encodes the local file; ours points at the statics URL. Same outcome, better mechanism | IMPL |
+| B-37 | `RenumberImagesAfterDeletion` — instances stay contiguous from 1 after a delete, two-phase so a shift never collides | IMPL |
 
 ## C · Sales operations
 
@@ -206,13 +207,25 @@ Legacy semantics restored across six sites: `RecalculateLineItemFees`, checkout 
 Also fixed a live display bug — `LineTotal` was rendering a $38.30 line as $75.30.
 Read `StoreFamilyController.AddItemToCart` for the authoritative math; do not restate it here.
 
-**D-2 — Store image storage. Table + statics retained; legacy behaviour to be ported onto it.**
-Legacy defines *what happens*; it does not define *where bytes live*. `stores.StoreItemImage` +
-`statics.teamsportsinfo.com` wins on read cost (legacy enumerates the entire shared image folder
-per item per page render), on deploy safety (legacy images live inside the deploy artifact), and
-on ordering (legacy encodes order in the filename suffix). **All B-20…B-26 pathways still ship.**
-Until they do, the table is a 20-row hand-seeded snapshot with no writer and changing a product
-photo requires SQL — strictly worse than legacy. Ship the write pathways in Phase 1.
+**D-2 — Store image storage. SETTLED, APPLIED. Disk is truth; the table is an index.**
+Legacy defines *what happens*; it does not define *where bytes live*. The resolution keeps both,
+each doing the job it is good at:
+
+- **The filesystem is the source of truth**, exactly as in legacy — the files on the statics share
+  matching `{storeId}-{storeItemId}-{instance}.jpg` ARE the item's images. Every existing file
+  keeps working untouched, and the legacy app and the new one can write the same folder.
+- **`stores.StoreItemImage` is a read index**, not a second source of truth. It exists so the
+  shopper-facing catalog projects image URLs inside its existing query instead of enumerating a
+  directory per item per render — the cost that made legacy's read path expensive.
+- **Every mutation re-syncs the index from disk** for the items it touches, so the two cannot
+  drift, and reading the admin Photos tab reconciles the whole store.
+
+That last point is not theoretical: the table held 20 rows against 34 files, because it recorded
+only each item's FIRST instance. Items with two or three photos showed one in the new catalog and
+A-03's carousel had nothing to page through. The sync repairs that on first open — no script, no
+schema change. `DisplayOrder` now carries the instance number, which is what orders the carousel.
+
+Written by `StoreImageService` (Infrastructure). B-19…B-27 all ship.
 
 ## Open recommendations
 

@@ -13,6 +13,9 @@
 	<button class="editor-tab" [class.active]="activeTab() === 'items'" (click)="activeTab.set('items')">
 		<i class="bi bi-box-seam me-1"></i>Items
 	</button>
+	<button class="editor-tab" [class.active]="activeTab() === 'images'" (click)="activeTab.set('images')">
+		<i class="bi bi-image me-1"></i>Photos
+	</button>
 	<button class="editor-tab" [class.active]="activeTab() === 'colors'" (click)="activeTab.set('colors')">
 		<i class="bi bi-palette me-1"></i>Colors
 	</button>
@@ -371,6 +374,13 @@
 <!-- ══════════════════════════════════════ -->
 @if (!isLoading() && activeTab() === 'analytics') {
 	<app-store-analytics-tab />
+}
+
+<!-- ══════════════════════════════════════ -->
+<!-- TAB 5: PHOTOS                          -->
+<!-- ══════════════════════════════════════ -->
+@if (!isLoading() && activeTab() === 'images') {
+	<app-store-images-tab />
 }
 
 <!-- ══════════════════════════════════════ -->
