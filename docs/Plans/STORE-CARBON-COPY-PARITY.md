@@ -50,41 +50,46 @@ CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
 
 | # | Legacy pathway | Status |
 |---|---|---|
-| A-01 | `Index` — catalog render, active items only | UNVER |
+| A-01 | `Index` — catalog render, active items only | GAP — see A-36 |
 | A-02 | Catalog order: `SortOrder`, **0 sorts LAST (→10000)**, then `StoreItemName` | IMPL |
-| A-03 | Per-item image carousel, multiple images, Fade, prev/next templates | UNVER |
+| A-03 | Per-item image carousel. **Ours renders `imageUrls[0]` only** — no carousel, no prev/next, additional images unreachable | GAP |
 | A-04 | Per-item tabs: Pickup · Return Policy · Contact | GAP |
-| A-05 | `listSoldOutOrInactiveSkus` surfaced per item | UNVER |
+| A-05 | `listSoldOutOrInactiveSkus` surfaced per item | GAP — see A-36 |
 | A-33 | ~~Per-item `itemBufferSize` reserve~~ — **CLOSED, not a gap**: legacy declares `private static readonly int itemBufferSize = 0` (`IStoreService.cs:73`). A dead constant that subtracts nothing. | CLOSED |
 | A-34 | Availability forced to **0** when the SKU OR its parent item is inactive (`IStoreService.cs:1376`) | IMPL |
 | A-35 | **ADN invoice number `{CustomerAi}_{JobAi}_{batchId}_M`** (`IStoreService.CreateAdnInvoiceNumber`). The `_M` suffix is how `adn.MonthyQBPExport_Automated_Merch` finds merch transactions (`charindex('_M', [Invoice Number]) > 0`). Ours built `STORE-{id}`, which never matched — every new-store sale was absent from the monthly remittance export. | IMPL |
-| A-06 | DirectTo recipient select (family players) | UNVER |
-| A-07 | Size select, Colour select, Quantity | UNVER |
-| A-08 | Cart badge with item count | UNVER |
+| A-06 | Auto-selects when exactly one family player, as legacy | IMPL |
+| A-07 | Size/Colour/Quantity. Colour+size auto-select on a single option, as legacy. **Quantity differs: legacy is a hard 1-5 dropdown; ours clamps to availableCount (cap 99)** | IMPL — divergence A-37 |
+| A-08 | Cart badge with item count | IMPL |
 | A-09 | Purchase-history badge with batch count | GAP |
-| A-10 | "No items available for sale at this time" empty state | UNVER |
-| A-11 | `AddItemToCartRequest` → `AddItemToCart` | UNVER |
-| A-12 | `ShoppingCart` — grid, frozen columns, per-line delete command | UNVER |
-| A-13 | Cart column set incl. `directTo`, `feeProduct`, `feeProcessing`, `owesTotal` | UNVER |
-| A-14 | Cart footer aggregates (4 Sum columns) | UNVER |
-| A-15 | `RemoveCartSku` | UNVER |
-| A-16 | Empty-cart guard on Checkout navigation | UNVER |
-| A-17 | `Checkout` GET — CC form, fee breakdown, total due | UNVER |
+| A-10 | "No items available for sale at this time" empty state | IMPL |
+| A-11 | Add to cart. Ours posts a resolved storeSkuId; legacy resolves (item,colour,size) server-side with `(StoreColorId ?? 0)`. Same outcome, ours unambiguous | IMPL — divergence A-38 |
+| A-12 | Cart list with per-line remove. Card layout, not an EJ2 grid — consistent with every other shopper surface | IMPL — presentation divergence |
+| A-13 | Recipient, unit price, quantity, line total present. Per-line feeProduct/feeProcessing shown as cart-level Subtotal/Fees instead of per-row columns | IMPL — presentation divergence |
+| A-14 | Cart totals present (Subtotal / Fees / Tax / Total). NOTE: 3 of legacy's 4 footer aggregates reference fields absent from its own grid (`storeItemQuantity`, `storeItemTotalPrice`, `paidTotal`) and render empty — a legacy defect, not replicated | IMPL |
+| A-15 | `RemoveCartSku` | IMPL |
+| A-16 | Empty-cart guard on Checkout navigation | IMPL |
+| A-17 | `Checkout` GET — CC form, fee breakdown, total due | IMPL |
 | A-18 | Availability re-check → auto-trim + `bCartHasBeenAutoUpdated` banner | GAP |
 | A-19 | Quantity-adjustment audit row on auto-trim | GAP |
-| A-20 | `Checkout` POST — ADN charge, batch settle, accounting rows | UNVER |
-| A-21 | Empty-cart guard on POST (duplicate-submit protection) | UNVER |
-| A-22 | `CheckoutConfirmation` — success panel, invoice #, method, amount | UNVER |
+| A-20 | ADN charge, batch settle and StoreCartBatchAccounting row all written | IMPL |
+| A-21 | Duplicate-submit protection. Ours guards on an existing accounting record; **the empty-cart guard itself is MISSING — see A-39** | GAP |
+| A-22 | Confirmation shows Order #, Total Paid, Transaction ID, Invoice #. **Payment method is not shown** | IMPL — minor gap |
 | A-23 | Confirmation: inline PDF receipt iframe | GAP |
-| A-24 | Confirmation: walk-up variant (different copy, no receipt buttons) | UNVER |
-| A-25 | `GenerateInvoice` — receipt PDF download | UNVER |
+| A-24 | Walk-up confirmation variant (different copy, no receipt buttons). **One confirmation view only; no walk-up variant** | GAP |
+| A-25 | Receipt PDF via GET /store/receipt/{id} + Download Receipt button | IMPL |
 | A-26 | Receipt emailed automatically on successful checkout (parents + players) | GAP |
 | A-27 | `SendEmailReceipt` — resend | GAP |
 | A-28 | `Invoices` — purchase-history grid | GAP |
 | A-29 | Invoices toolbar: Download Receipt · Email Receipt | GAP |
 | A-30 | Invoices auto-selects row 0 on databound | GAP |
-| A-31 | `WalkUpRegister` — mini-registration form + state list | UNVER |
-| A-32 | `StoreTwoClick/Login` — family login into store | UNVER |
+| A-31 | `WalkUpRegister` — mini-registration form + state list | IMPL — form fields not yet compared |
+| A-32 | `StoreTwoClick/Login` — family login into store | IMPL — flow not yet compared |
+| A-36 | **Catalog hides items whose SKUs are all sold out.** Legacy renders the item and names the unavailable variants in `listSoldOutOrInactiveSkus`; it deliberately does NOT filter SKUs on Active (the filter is commented out in `GetListActiveJobStoreItems`) and requires only that the item have >=1 SKU of any state. Ours filters `active && activeSkuCount > 0` and builds the size/colour pickers from active SKUs only, so a sold-out product vanishes instead of showing as sold out | GAP |
+| A-37 | Quantity cap: legacy offers a fixed 1-5 dropdown per add; ours clamps to availableCount (fallback 99) | GAP |
+| A-38 | Add-to-cart availability basis: legacy checks `GetSkuAvailableCountBySoldAndBuffer` (sold only, NOT in-cart) and relies on the checkout auto-trim; ours deducts in-cart too, refusing earlier. Ours is stricter | DIVERGE |
+| A-39 | **No empty-cart guard on checkout POST.** Legacy has one explicitly ("Fix #1") returning "Your cart is empty or has already been processed". Without it an empty batch yields totalPaid = 0 and an ADN charge is attempted for $0 | GAP |
+| A-40 | Legacy re-checks `PaidTotal != FeeTotal` on the batch IMMEDIATELY before charging ("Fix #6", race-condition catch). Ours checks for an accounting record earlier in the method | GAP |
 
 ## B · Catalog configuration
 
@@ -123,9 +128,9 @@ CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
 | B-22 | Replace an existing image | GAP |
 | B-23 | Delete an image, with confirm dialog | GAP |
 | B-24 | `MAX_IMAGES_PER_ITEM = 10` cap | GAP |
-| B-25 | `missing-image.jpg` fallback when an item has none | UNVER |
+| B-25 | Missing-image fallback. Legacy substitutes `missing-image.jpg`; ours renders a CSS placeholder tile. Same outcome, different mechanism | IMPL |
 | B-26 | StoreItemId edit is a dropdown of the job's items | GAP |
-| B-27 | Base64 thumbnail preview in the grid | UNVER |
+| B-27 | Grid thumbnail. Legacy base64-encodes the local file; ours points at the statics URL. Same outcome, better mechanism | IMPL |
 
 ## C · Sales operations
 
@@ -144,8 +149,8 @@ CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
 | C-11 | Void refunds and restocks **every SKU in the batch** | GAP |
 | C-12 | `UpdateCartSku` — server side of swap/refund/void | GAP |
 | C-13 | `StoreSalesWalkup/Index` — same grid, walk-ups only | GAP |
-| C-14 | `StoreRefunded/Index` grid | UNVER |
-| C-15 | `StoreRestocked/Index` grid, `frozenColumns=4` | UNVER |
+| C-14 | `StoreRefunded/Index` grid | IMPL — column set not yet compared |
+| C-15 | `StoreRestocked/Index` grid, `frozenColumns=4` | IMPL — column set not yet compared |
 | C-16 | `StoreCartQuantityAdjustments/Index` grid | GAP |
 | C-17 | Adjustments columns incl. Mom first/last/email, WhenChanged | GAP |
 
@@ -182,11 +187,11 @@ CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
 | # | Legacy pathway | Status |
 |---|---|---|
 | G-01 | Job Admin **Merch tab** — 8 fields | WALKED |
-| G-02 | `Enable Store` · `Allow Store Walk-up` · Contact Email · Refund Policy · Pickup Details | UNVER |
+| G-02 | `Enable Store` · `Allow Store Walk-up` · Contact Email · Refund Policy · Pickup Details | IMPL |
 | G-03 | `Enable STP` on the Merch tab | GAP |
 | G-04 | `Store Sales Tax` / `Store TSIC Rate` — no `%` in label | GAP |
-| G-05 | `StoreAdminAdd` — jqGrid roster of Store Admins | UNVER |
-| G-06 | Store Admin add / edit / delete, username readonly on edit | UNVER |
+| G-05 | `StoreAdminAdd` — jqGrid roster of Store Admins | GAP — no Store Admin roster UI exists |
+| G-06 | Store Admin add / edit / delete, username readonly on edit | GAP — no Store Admin roster UI exists |
 | G-07 | Store admin menu: 4 groups, 13 destinations | GAP |
 | G-08 | `Dashboard Home` link, right-aligned | GAP |
 
