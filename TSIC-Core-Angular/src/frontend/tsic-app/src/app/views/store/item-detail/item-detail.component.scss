@@ -73,3 +73,18 @@
 .qty-input {
 	width: 56px;
 }
+
+// Which ceiling the quantity stepper just hit. Sits beside the stepper, not under it, so it
+// reads as a property of the control rather than a validation error.
+.qty-cap-note {
+	font-size: var(--font-size-sm);
+	color: var(--bs-secondary-color);
+	white-space: nowrap;
+}
+
+// "Sold out" is the one that stops the sale, so it carries the danger colour AND its own words —
+// never colour alone.
+.qty-cap-out {
+	color: var(--bs-danger);
+	font-weight: 600;
+}

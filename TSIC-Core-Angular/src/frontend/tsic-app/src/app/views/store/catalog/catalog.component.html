@@ -234,11 +234,19 @@
 										</button>
 										<span class="qty-value">{{ s.quantity }}</span>
 										<button class="qty-btn" (click)="setQuantity(s.quantity + 1)"
-												[disabled]="s.availability && s.quantity >= s.availability.availableCount"
+												[disabled]="s.quantity >= maxQuantity"
 												aria-label="Increase quantity">
 											<i class="bi bi-plus-lg"></i>
 										</button>
 									</div>
+
+									<!-- The stock reasons are already stated above ("Only N left" /
+									     "Out of stock"). This names the OTHER ceiling — legacy's 5
+									     per add — which would otherwise be a dead + button with no
+									     explanation. -->
+									@if (s.quantity >= maxQuantity && maxQuantity >= 5) {
+										<span class="qty-cap-note">5 per order</span>
+									}
 
 									<button class="btn-add-to-cart"
 											[disabled]="!canAddToCart || s.isAdding"

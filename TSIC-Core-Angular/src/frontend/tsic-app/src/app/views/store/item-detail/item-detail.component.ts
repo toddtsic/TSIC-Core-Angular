@@ -5,6 +5,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { StoreService } from '../../../infrastructure/services/store.service';
 import { ToastService } from '../../../shared-ui/toast.service';
 import type { StoreItemDto, StoreSkuDto, SkuAvailabilityDto } from '@core/api';
+import { clampAddQuantity, maxAddQuantity } from '../store-quantity';
 
 @Component({
 	selector: 'app-item-detail',
@@ -43,6 +44,9 @@ export class StoreItemDetailComponent {
 	// Availability
 	readonly availability = signal<SkuAvailabilityDto | null>(null);
 	readonly isCheckingAvailability = signal(false);
+
+	/** Legacy's 5-per-add ceiling, met with the shelf. See `store-quantity.ts`. */
+	readonly maxQuantity = computed(() => maxAddQuantity(this.availability()?.availableCount));
 
 	// Derived: unique colors and sizes from active SKUs
 	readonly availableColors = computed(() => {
@@ -88,9 +92,8 @@ export class StoreItemDetailComponent {
 
 	readonly canAddToCart = computed(() => {
 		const sku = this.selectedSku();
-		const avail = this.availability();
 		if (!sku) return false;
-		if (avail && avail.availableCount < this.quantity()) return false;
+		if (this.quantity() > this.maxQuantity()) return false;
 		// If family players exist, require DirectTo selection
 		if (this.familyPlayers().length > 0 && !this.selectedDirectToRegId()) return false;
 		return this.quantity() >= 1;
@@ -172,6 +175,10 @@ export class StoreItemDetailComponent {
 		this.store.checkAvailability(storeSkuId).subscribe({
 			next: avail => {
 				this.availability.set(avail);
+				// Re-clamp: switching to a variant with less stock must not leave a quantity
+				// standing that the new ceiling forbids. Done here, at the one place availability
+				// is written, rather than in an effect.
+				this.setQuantity(this.quantity());
 				this.isCheckingAvailability.set(false);
 			},
 			error: () => this.isCheckingAvailability.set(false)
@@ -179,8 +186,7 @@ export class StoreItemDetailComponent {
 	}
 
 	setQuantity(qty: number): void {
-		const max = this.availability()?.availableCount ?? 99;
-		this.quantity.set(Math.max(1, Math.min(qty, max)));
+		this.quantity.set(clampAddQuantity(qty, this.availability()?.availableCount));
 	}
 
 	addToCart(): void {

@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { StoreService } from '../../../infrastructure/services/store.service';
 import { ToastService } from '../../../shared-ui/toast.service';
 import type { StoreItemSummaryDto, StoreItemDto, StoreSkuDto, SkuAvailabilityDto, StoreCartLineItemDto } from '@core/api';
+import { clampAddQuantity, maxAddQuantity } from '../store-quantity';
 
 interface ExpandedItemState {
 	item: StoreItemDto;
@@ -184,7 +185,7 @@ export class StoreCatalogComponent {
 		const sku = this.resolveSelectedSku(updatedState);
 		// Pull availability from pre-fetched map
 		const avail = sku ? s.skuAvailabilityMap.get(sku.storeSkuId) ?? null : null;
-		this.expandedState.set({ ...updatedState, availability: avail });
+		this.setState({ ...updatedState, availability: avail });
 	}
 
 	selectDirectTo(regId: string): void {
@@ -210,11 +211,31 @@ export class StoreCatalogComponent {
 		return this.getSizesForColor(s, s.selectedColorId);
 	}
 
+	/** Legacy's 5-per-add ceiling, met with the shelf. See `store-quantity.ts`. */
+	get maxQuantity(): number {
+		return maxAddQuantity(this.expandedState()?.availability?.availableCount);
+	}
+
+	/**
+	 * Every write of `availability` goes through here, so switching to a variant with less stock
+	 * can never leave behind a quantity the new ceiling forbids. The alternative — an effect
+	 * watching availability — is banned, and would be re-entrant besides: it writes the same
+	 * `expandedState` it reads.
+	 */
+	private setState(next: ExpandedItemState): void {
+		this.expandedState.set({
+			...next,
+			quantity: clampAddQuantity(next.quantity, next.availability?.availableCount),
+		});
+	}
+
 	setQuantity(qty: number): void {
 		const s = this.expandedState();
 		if (!s) return;
-		const max = s.availability?.availableCount ?? 99;
-		this.expandedState.set({ ...s, quantity: Math.max(1, Math.min(qty, max)) });
+		this.expandedState.set({
+			...s,
+			quantity: clampAddQuantity(qty, s.availability?.availableCount),
+		});
 	}
 
 	resolveSelectedSku(state: ExpandedItemState): StoreSkuDto | null {
@@ -272,7 +293,7 @@ export class StoreCatalogComponent {
 				const sku = this.resolveSelectedSku(cur);
 				const selectedAvail = sku ? map.get(sku.storeSkuId) ?? null : null;
 
-				this.expandedState.set({
+				this.setState({
 					...cur,
 					skuAvailabilityMap: map,
 					availability: selectedAvail,

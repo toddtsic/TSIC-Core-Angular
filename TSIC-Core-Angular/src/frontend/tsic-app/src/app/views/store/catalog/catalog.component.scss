@@ -499,3 +499,11 @@
 	font-style: italic;
 	margin: 0;
 }
+
+// Names legacy's 5-per-add ceiling when stock is not the reason the + button went dead.
+// Sits in the action row beside the stepper.
+.qty-cap-note {
+	font-size: var(--font-size-sm);
+	color: var(--bs-secondary-color);
+	white-space: nowrap;
+}

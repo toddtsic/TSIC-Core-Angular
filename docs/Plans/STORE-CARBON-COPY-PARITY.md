@@ -61,7 +61,7 @@ StoreSalesWalkup, StoreTwoClick, CheckoutConfirmation, WalkUp, and the Labels/Cr
 | A-34 | Availability forced to **0** when the SKU OR its parent item is inactive (`IStoreService.cs:1376`) | IMPL |
 | A-35 | **ADN invoice number `{CustomerAi}_{JobAi}_{batchId}_M`** (`IStoreService.CreateAdnInvoiceNumber`). The `_M` suffix is how `adn.MonthyQBPExport_Automated_Merch` finds merch transactions (`charindex('_M', [Invoice Number]) > 0`). Ours built `STORE-{id}`, which never matched — every new-store sale was absent from the monthly remittance export. | IMPL |
 | A-06 | Auto-selects when exactly one family player, as legacy | IMPL |
-| A-07 | Size/Colour/Quantity. Colour+size auto-select on a single option, as legacy. **Quantity differs: legacy is a hard 1-5 dropdown; ours clamps to availableCount (cap 99)** | IMPL — divergence A-37 |
+| A-07 | Size/Colour/Quantity. Colour+size auto-select on a single option, as legacy. Quantity now takes the LOWER of legacy's 5-per-add and the shelf — see A-37 | IMPL |
 | A-08 | Cart badge with item count | IMPL |
 | A-09 | Purchase-history badge with batch count | GAP |
 | A-10 | "No items available for sale at this time" empty state | IMPL |
@@ -88,7 +88,7 @@ StoreSalesWalkup, StoreTwoClick, CheckoutConfirmation, WalkUp, and the Labels/Cr
 | A-31 | `WalkUpRegister` — mini-registration form + state list | IMPL — form fields not yet compared |
 | A-32 | `StoreTwoClick/Login` — family login into store | IMPL — flow not yet compared |
 | A-36 | Sold-out items stay visible; unbuyable variants are named (`SoldOutOrInactiveSkuLabels`), listing gate is `active && skuCount > 0` as legacy | IMPL |
-| A-37 | Quantity cap: legacy offers a fixed 1-5 dropdown per add; ours clamps to availableCount (fallback 99) | GAP |
+| A-37 | Quantity cap. **Legacy's rule recovered and kept**: `StoreFamilyController` builds the dropdown from a hard `int maxQuantity = 5` — five of one variant per add, availability never consulted. Ours had the availability clamp but had DROPPED the 5, with a 99 fallback. Now `min(5, availableCount)`, one definition in `store-quantity.ts` shared by both add surfaces, with the fallback at 5 rather than 99 while availability is in flight. The screen names which ceiling was hit ("5 per order" vs "Only N left" vs "Sold out"). The in-cart editor stays uncapped, matching legacy's freely-editable cart grid — 5 limits one add, not what a family may own | BUILT |
 | A-38 | Add-to-cart availability basis: legacy checks `GetSkuAvailableCountBySoldAndBuffer` (sold only, NOT in-cart) and relies on the checkout auto-trim; ours deducts in-cart too, refusing earlier. Ours is stricter. **The auto-trim legacy leans on now exists (D-8)**, so this is a deliberate belt-and-braces, not a missing safety net | DIVERGE |
 | A-39 | Empty-cart guard on checkout POST (legacy "Fix #1") | IMPL |
 | A-40 | Unpaid-lines re-check immediately before charging (legacy "Fix #6") | IMPL |

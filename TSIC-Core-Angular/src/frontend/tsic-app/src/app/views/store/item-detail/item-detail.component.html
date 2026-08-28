@@ -143,12 +143,27 @@
 						</button>
 						<input type="number" class="form-control form-control-sm text-center mx-1 qty-input"
 							   [ngModel]="quantity()" (ngModelChange)="setQuantity($event)" min="1"
-							   [max]="availability()?.availableCount ?? 99">
+							   [max]="maxQuantity()"
+							   aria-label="Quantity">
 						<button class="btn btn-outline-secondary btn-sm" (click)="setQuantity(quantity() + 1)"
-								[disabled]="availability() && quantity() >= availability()!.availableCount">
+								[disabled]="quantity() >= maxQuantity()">
 							<i class="bi bi-plus"></i>
 						</button>
 					</div>
+
+					<!-- Say WHICH ceiling was hit. "5 per order" is a rule the shopper can work
+					     around by adding again; "only 2 left" is not. -->
+					@if (maxQuantity() === 0) {
+						<span class="qty-cap-note qty-cap-out">Sold out</span>
+					} @else if (quantity() >= maxQuantity()) {
+						<span class="qty-cap-note">
+							@if (maxQuantity() < 5) {
+								Only {{ maxQuantity() }} left
+							} @else {
+								5 per order
+							}
+						</span>
+					}
 
 					<button class="btn btn-primary" [disabled]="!canAddToCart() || isAdding()" (click)="addToCart()">
 						@if (isAdding()) {
