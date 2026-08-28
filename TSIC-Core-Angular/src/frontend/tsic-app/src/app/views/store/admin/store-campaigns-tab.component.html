@@ -45,19 +45,26 @@
 		<div class="tab-toolbar">
 			<div class="age-window">
 				<label class="age-label" for="min-age">Carts abandoned between</label>
+				<!--
+					[selected] on the option, NOT [value] on the select. Setting value on a
+					<select> whose options are rendered by @for lands before those options
+					exist, so the browser keeps selectedIndex 0: the server queried legacy's
+					6-hour floor and the control said 0. The window shown must be the window
+					that ran.
+				-->
 				<select id="min-age" class="form-select form-select-sm age-select"
-					[value]="data.minAgeHours" [disabled]="isSending()"
+					[disabled]="isSending()"
 					(change)="onMinAgeChange($any($event.target).value)">
 					@for (option of data.minAgeHourOptions; track option) {
-						<option [value]="option">{{ option }}</option>
+						<option [value]="option" [selected]="option === data.minAgeHours">{{ option }}</option>
 					}
 				</select>
 				<span class="age-label">and</span>
 				<select id="max-age" class="form-select form-select-sm age-select"
-					[value]="data.maxAgeHours" [disabled]="isSending()"
+					[disabled]="isSending()"
 					(change)="onMaxAgeChange($any($event.target).value)">
 					@for (option of data.maxAgeHourOptions; track option) {
-						<option [value]="option">{{ option }}</option>
+						<option [value]="option" [selected]="option === data.maxAgeHours">{{ option }}</option>
 					}
 				</select>
 				<span class="age-label">hours ago</span>
@@ -156,6 +163,30 @@
 	<!-- ══════════════════════════════════════ -->
 	<!-- COMPOSE                                -->
 	<!-- ══════════════════════════════════════ -->
+	@if (recipientCount() === 0 && !isAbandoned()) {
+		<!--
+			The fixed-audience campaigns hide the composer when they would reach nobody, and
+			that left the tab as a bare "0 families that have never ordered" with no page
+			under it. Say why the list is empty, as the abandoned-carts tab already does.
+		-->
+		<div class="empty-state">
+			<span class="empty-state-icon"><i class="bi bi-envelope-open"></i></span>
+			<div class="empty-state-title">
+				{{ isNeverOrdered() ? 'Every family has ordered' : 'No family has ordered yet' }}
+			</div>
+			<p class="empty-state-desc">
+				@if (isNeverOrdered()) {
+					There is no one left to invite — every family in this event with a
+					reachable email address has bought something.
+				} @else {
+					Once a family completes a purchase they appear here, and you can send
+					them pickup instructions.
+				}
+				Families who have unsubscribed are never counted.
+			</p>
+		</div>
+	}
+
 	@if (recipientCount() > 0 || isAbandoned()) {
 		<div class="compose-card">
 			<div class="compose-header">

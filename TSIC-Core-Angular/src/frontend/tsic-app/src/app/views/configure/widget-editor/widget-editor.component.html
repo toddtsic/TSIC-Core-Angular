@@ -52,12 +52,14 @@
 		<!-- JobType selector -->
 		<div class="d-flex align-items-center gap-2">
 			<label for="jobTypeSelect" class="form-label mb-0 fw-semibold">Job Type:</label>
+			<!-- [selected] on the option, not [value] on the select: a value set before the
+			     @for options exist leaves selectedIndex 0, so the control reads "Select a job
+			     type..." while the matrix below it is already loaded for a real one. -->
 			<select id="jobTypeSelect" class="form-select form-select-sm" style="width: auto;"
-				[value]="selectedJobTypeId()"
 				(change)="onJobTypeChange($event)">
-				<option [value]="0" disabled>Select a job type...</option>
+				<option [value]="0" disabled [selected]="!selectedJobTypeId()">Select a job type...</option>
 				@for (jt of jobTypes(); track jt.jobTypeId) {
-					<option [value]="jt.jobTypeId">{{ jt.jobTypeName }}</option>
+					<option [value]="jt.jobTypeId" [selected]="jt.jobTypeId === selectedJobTypeId()">{{ jt.jobTypeName }}</option>
 				}
 			</select>
 		</div>
@@ -412,12 +414,12 @@
 		<!-- JobType selector -->
 		<div class="d-flex align-items-center gap-2">
 			<label for="overrideJobTypeSelect" class="form-label mb-0 fw-semibold">Job Type:</label>
+			<!-- [selected] on the option — same reason as the matrix tab select above. -->
 			<select id="overrideJobTypeSelect" class="form-select form-select-sm" style="width: auto;"
-				[value]="overrideSelectedJobTypeId()"
 				(change)="onOverrideJobTypeChange($event)">
-				<option [value]="0" disabled>Select a job type...</option>
+				<option [value]="0" disabled [selected]="!overrideSelectedJobTypeId()">Select a job type...</option>
 				@for (jt of jobTypes(); track jt.jobTypeId) {
-					<option [value]="jt.jobTypeId">{{ jt.jobTypeName }}</option>
+					<option [value]="jt.jobTypeId" [selected]="jt.jobTypeId === overrideSelectedJobTypeId()">{{ jt.jobTypeName }}</option>
 				}
 			</select>
 		</div>

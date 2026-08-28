@@ -61,6 +61,7 @@ export class StoreCampaignsTabComponent {
 	// ═══════════════════════════════════════
 
 	readonly isAbandoned = computed(() => this.kind() === this.ABANDONED_CARTS);
+	readonly isNeverOrdered = computed(() => this.kind() === this.NEVER_ORDERED);
 
 	readonly carts = computed(() => this.setup()?.abandonedCarts ?? []);
 
