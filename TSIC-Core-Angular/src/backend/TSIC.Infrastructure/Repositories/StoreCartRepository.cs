@@ -84,11 +84,30 @@ public class StoreCartRepository : IStoreCartRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<StoreCartBatchSkus?> GetLineItemByIdAsync(
-        int storeCartBatchSkuId, CancellationToken cancellationToken = default)
+    // Both predicates below ARE the authorization checks — see the interface docs. The line's
+    // owner is reached through StoreCartBatch -> StoreCart, which carries both StoreId and
+    // FamilyUserId, so neither boundary needs a second lookup.
+
+    public async Task<StoreCartBatchSkus?> GetLineItemForFamilyAsync(
+        int storeCartBatchSkuId, int storeId, string familyUserId,
+        CancellationToken cancellationToken = default)
     {
         return await _context.StoreCartBatchSkus
-            .FirstOrDefaultAsync(cbs => cbs.StoreCartBatchSkuId == storeCartBatchSkuId, cancellationToken);
+            .FirstOrDefaultAsync(
+                cbs => cbs.StoreCartBatchSkuId == storeCartBatchSkuId
+                    && cbs.StoreCartBatch.StoreCart.StoreId == storeId
+                    && cbs.StoreCartBatch.StoreCart.FamilyUserId == familyUserId,
+                cancellationToken);
+    }
+
+    public async Task<StoreCartBatchSkus?> GetLineItemInStoreAsync(
+        int storeCartBatchSkuId, int storeId, CancellationToken cancellationToken = default)
+    {
+        return await _context.StoreCartBatchSkus
+            .FirstOrDefaultAsync(
+                cbs => cbs.StoreCartBatchSkuId == storeCartBatchSkuId
+                    && cbs.StoreCartBatch.StoreCart.StoreId == storeId,
+                cancellationToken);
     }
 
     public async Task<StoreCartBatchSkus?> GetLineItemBySkuAsync(

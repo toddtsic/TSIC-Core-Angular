@@ -71,7 +71,7 @@ public sealed class StoreCampaignService : IStoreCampaignService
         var max = ClampMax(maxAgeHours ?? DefaultMaxAgeHours);
 
         var carts = kind == StoreCampaignKind.AbandonedCarts
-            ? await LoadPurchasableAbandonedCartsAsync(storeId, min, max, cancellationToken)
+            ? await LoadPurchasableAbandonedCartsAsync(jobId, storeId, min, max, cancellationToken)
             : [];
 
         // Count the families this campaign would actually REACH, not the raw audience size —
@@ -106,13 +106,13 @@ public sealed class StoreCampaignService : IStoreCampaignService
     /// would zero out every abandoned cart and the campaign would find nobody to mail.
     /// </summary>
     private async Task<List<StoreAbandonedCartDto>> LoadPurchasableAbandonedCartsAsync(
-        int storeId, int minAgeHours, int maxAgeHours, CancellationToken ct)
+        Guid jobId, int storeId, int minAgeHours, int maxAgeHours, CancellationToken ct)
     {
         var rows = await _campaignRepo.GetAbandonedCartsAsync(storeId, minAgeHours, maxAgeHours, ct);
         if (rows.Count == 0) return [];
 
         var skuIds = rows.SelectMany(r => r.Lines).Select(l => l.StoreSkuId).Distinct().ToList();
-        var availability = await _cartService.CheckAvailabilityBatchAsync(skuIds);
+        var availability = await _cartService.CheckAvailabilityBatchAsync(jobId, skuIds);
         var stockBySku = availability.ToDictionary(a => a.StoreSkuId, a => a.MaxCanSell - a.SoldCount);
 
         return rows
@@ -276,7 +276,7 @@ public sealed class StoreCampaignService : IStoreCampaignService
             // Re-resolve the carts server-side rather than trusting the posted rows: the client sends
             // ids, and the SKU list it was shown may be minutes stale. Selecting an id outside the
             // current window simply does not match — it cannot address a cart in another store.
-            var carts = await LoadPurchasableAbandonedCartsAsync(storeId, 0, int.MaxValue, ct);
+            var carts = await LoadPurchasableAbandonedCartsAsync(jobId, storeId, 0, int.MaxValue, ct);
             var selected = carts.Where(c => request.BatchIds.Contains(c.BatchId)).ToList();
 
             if (selected.Count == 0)

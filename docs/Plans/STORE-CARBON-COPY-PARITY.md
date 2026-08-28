@@ -547,6 +547,63 @@ The read is a new `GET /store/storefront-info` under plain `[Authorize]`, matchi
 the admin store-identity endpoint does. It is deliberately NOT folded into `JobStoreConfig`:
 that record is the money/ADN config and has no business growing a tail of display text.
 
+### D-11 · Scope-boundary bug class — seven endpoints where the id WAS the credential
+
+Found while wiring the receipt email (A-25). `GET /store/receipt/{storeCartBatchId}` took the
+batch id, looked it up with no predicate but that id, and rendered the PDF under the *reader's*
+job name — so any authenticated family could pull any other family's receipt, in any of the
+1,096 jobs, and it would look like their own store's document. Grepping for the shape found six
+more of it.
+
+**The shape.** The endpoint accepts an entity id from the URL *and* a `jobId` (or the caller's
+`familyUserId`) — and the repository query keys on the id alone. The extra parameter is threaded
+through the controller and the service and then never reaches a `WHERE`. The id is the only
+credential, and ids are sequential integers.
+
+| # | Endpoint | What a caller could reach |
+|---|---|---|
+| 1 | `GET /store/receipt/{id}` | any family's receipt PDF, any job |
+| 2 | `DELETE /store/cart/items/{id}` | delete any family's cart line — response returned the victim's cart |
+| 3 | `PUT /store/cart/items/{id}/quantity` | rewrite any family's cart line |
+| 4 | `POST /store/cart/items` | add another job's SKU, at that job's price |
+| 5 | `PUT /store/skus/{id}` | store admin flips Active/MaxCanSell on another job's SKU |
+| 6 | `GET /store/items/{id}/skus` | store admin reads another job's stock and prices |
+| 7 | `POST /store/restock` | store admin restocks another job's line — inventory write *and* audit row |
+| — | `GET /store/skus/{id}/availability` (+ batch) | cross-job stock disclosure |
+
+Not a legacy defect to preserve: legacy is a per-job MVC app where the session carries the job,
+and its queries inherit the boundary from `Session["JobId"]`. This is a shape our stateless API
+introduced.
+
+**The remedy is structural, not per-call-site.** Guards at each call site are one forgotten
+`if` from regressing, and the next endpoint written against the same repository method starts
+unguarded. The unscoped readers are DELETED so a scope-free overload cannot be called:
+
+- `GetSkuByIdAsync(int)` → `GetSkuInStoreAsync(int storeSkuId, int storeId)`. The `StoreId`
+  predicate *is* the authorization check.
+- `GetLineItemByIdAsync(int)` → **two** methods, not one nullable "family, or null for staff"
+  parameter: `GetLineItemForFamilyAsync(int, int storeId, string familyUserId)` for shopper
+  actions, `GetLineItemInStoreAsync(int, int storeId)` for staff actions. Which boundary applies
+  is then a compile-time choice at the call site instead of an argument someone can pass `null`.
+
+Same reasoning that deleted `ValidateBatchAvailabilityAsync` (R-15): when the safe and unsafe
+paths are two overloads of one name, the unsafe one gets called.
+
+The receipt is the one case an id-only lookup is *nearly* right — a family reads their own — so
+it gets both checks explicitly in the controller: `CallerMayReadReceipt` compares
+`StoreReceiptContextDto.FamilyUserId` to the caller for shoppers, and staff are allowed through
+by role, while `GenerateReceiptPdfAsync` independently refuses when `context.JobId != jobId`.
+Two boundaries because there are two ways to be wrong here: wrong family, wrong job.
+
+**Explicitly NOT built:** a generic ownership filter or middleware. Ownership differs per
+entity — a SKU belongs to a store, a cart line belongs to a store *and* a family, a batch belongs
+to a job — and a filter that has to be told which is which is the same `if` in a costume.
+
+Verified clean and left alone, which is where the pattern above came from:
+`GetSwapOptionsAsync`/`GetBatchSettledStatusAsync` (`LoadLineInStoreAsync`,
+`AssertBatchInStoreAsync`), `GetItemDetailAsync`, `DeleteSkuAsync`/`DeleteItemAsync`
+(`AssertItemBelongsToJobAsync`).
+
 ## Open recommendations
 
 | ID | Recommendation | Status |

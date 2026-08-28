@@ -143,15 +143,21 @@ public sealed class StoreCatalogService : IStoreCatalogService
 
     // ── SKUs ──
 
-    public async Task<List<StoreSkuDto>> GetSkusAsync(int storeItemId)
+    public async Task<List<StoreSkuDto>> GetSkusAsync(Guid jobId, int storeItemId)
     {
+        // The same assert the delete paths already used. It was written; these two just did not
+        // call it, which is why a store admin could read and write another job's stock.
+        await AssertItemBelongsToJobAsync(jobId, storeItemId);
         return await _itemRepo.GetSkusWithAvailabilityAsync(storeItemId);
     }
 
     public async Task<StoreSkuDto> UpdateSkuAsync(
-        string userId, int storeSkuId, UpdateStoreSkuRequest request)
+        Guid jobId, string userId, int storeSkuId, UpdateStoreSkuRequest request)
     {
-        var sku = await _itemRepo.GetSkuByIdAsync(storeSkuId)
+        var store = await _storeRepo.GetByJobIdAsync(jobId)
+            ?? throw new InvalidOperationException("Store not found for this job.");
+
+        var sku = await _itemRepo.GetSkuInStoreAsync(storeSkuId, store.StoreId)
             ?? throw new InvalidOperationException($"SKU {storeSkuId} not found.");
 
         sku.Active = request.Active;
@@ -176,10 +182,11 @@ public sealed class StoreCatalogService : IStoreCatalogService
     /// </summary>
     public async Task DeleteSkuAsync(Guid jobId, int storeSkuId)
     {
-        var sku = await _itemRepo.GetSkuByIdAsync(storeSkuId)
-            ?? throw new InvalidOperationException($"SKU {storeSkuId} not found.");
+        var store = await _storeRepo.GetByJobIdAsync(jobId)
+            ?? throw new InvalidOperationException("Store not found for this job.");
 
-        await AssertItemBelongsToJobAsync(jobId, sku.StoreItemId);
+        var sku = await _itemRepo.GetSkuInStoreAsync(storeSkuId, store.StoreId)
+            ?? throw new InvalidOperationException($"SKU {storeSkuId} not found.");
 
         if (await _itemRepo.IsSkuReferencedAsync(storeSkuId))
             throw new InvalidOperationException(

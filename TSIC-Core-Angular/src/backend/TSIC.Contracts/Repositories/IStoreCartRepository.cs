@@ -43,9 +43,27 @@ public interface IStoreCartRepository
     Task<List<StoreCartLineItemDto>> GetBatchLineItemsAsync(int storeCartBatchId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get a tracked line item entity for updates.
+    /// A tracked cart line, constrained to ONE FAMILY'S cart in one store. For shopper paths.
+    ///
+    /// <para>
+    /// Two predicates, both required: the store is the job boundary, the family user is the owner
+    /// boundary. This replaced an unscoped <c>GetLineItemByIdAsync(int)</c> whose callers took a
+    /// <c>familyUserId</c> and never used it — a line id from the URL was the only credential, so
+    /// any shopper could rewrite or delete any other family's cart line in any job.
+    /// </para>
     /// </summary>
-    Task<StoreCartBatchSkus?> GetLineItemByIdAsync(int storeCartBatchSkuId, CancellationToken cancellationToken = default);
+    Task<StoreCartBatchSkus?> GetLineItemForFamilyAsync(
+        int storeCartBatchSkuId, int storeId, string familyUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// A tracked cart line, constrained to one STORE but any family. For staff paths — restock,
+    /// refunds — where a director acts on a shopper's purchase inside their own job.
+    ///
+    /// <para>Deliberately separate from <see cref="GetLineItemForFamilyAsync"/>: one nullable
+    /// "family, or null for staff" parameter is how the boundary gets silently passed null.</para>
+    /// </summary>
+    Task<StoreCartBatchSkus?> GetLineItemInStoreAsync(
+        int storeCartBatchSkuId, int storeId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get existing line item for a SKU within a batch (to increment quantity instead of duplicating).

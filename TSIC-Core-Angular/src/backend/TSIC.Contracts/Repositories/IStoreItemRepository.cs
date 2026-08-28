@@ -63,9 +63,18 @@ public interface IStoreItemRepository
     Task<List<StoreSkuDto>> GetAllSkusWithAvailabilityAsync(int storeId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get a tracked SKU entity for updates.
+    /// Get a tracked SKU entity for updates, CONSTRAINED to one store.
+    ///
+    /// <para>
+    /// The <paramref name="storeId"/> is not a filter of convenience, it is the authorization
+    /// check: a SKU id arriving from a URL is attacker-controlled, and a store is a job. This
+    /// replaced an unscoped <c>GetSkuByIdAsync(int)</c> whose callers accepted a jobId and never
+    /// applied it, which let a shopper add another job's SKU to their cart and a store admin flip
+    /// Active/MaxCanSell on another job's stock. Do not reintroduce a scope-free overload — one
+    /// that compiles is one that gets called.
+    /// </para>
     /// </summary>
-    Task<StoreItemSkus?> GetSkuByIdAsync(int storeSkuId, CancellationToken cancellationToken = default);
+    Task<StoreItemSkus?> GetSkuInStoreAsync(int storeSkuId, int storeId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// How many of each SKU may be sold AT ALL, in one query.

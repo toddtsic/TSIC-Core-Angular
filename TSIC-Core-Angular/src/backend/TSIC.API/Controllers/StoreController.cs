@@ -151,8 +151,15 @@ public class StoreController : ControllerBase
     [ProducesResponseType(typeof(List<StoreSkuDto>), 200)]
     public async Task<IActionResult> GetSkus(int storeItemId)
     {
-        var skus = await _catalogService.GetSkusAsync(storeItemId);
-        return Ok(skus);
+        var (jobId, _) = await ResolveContext();
+        try
+        {
+            return Ok(await _catalogService.GetSkusAsync(jobId, storeItemId));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPut("skus/{storeSkuId:int}")]
@@ -160,10 +167,10 @@ public class StoreController : ControllerBase
     [ProducesResponseType(typeof(StoreSkuDto), 200)]
     public async Task<IActionResult> UpdateSku(int storeSkuId, [FromBody] UpdateStoreSkuRequest request)
     {
-        var (_, userId) = await ResolveContext();
+        var (jobId, userId) = await ResolveContext();
         try
         {
-            var sku = await _catalogService.UpdateSkuAsync(userId, storeSkuId, request);
+            var sku = await _catalogService.UpdateSkuAsync(jobId, userId, storeSkuId, request);
             return Ok(sku);
         }
         catch (InvalidOperationException ex)
@@ -683,7 +690,8 @@ public class StoreController : ControllerBase
     {
         try
         {
-            var availability = await _cartService.CheckAvailabilityAsync(storeSkuId);
+            var (jobId, _) = await ResolveContext();
+            var availability = await _cartService.CheckAvailabilityAsync(jobId, storeSkuId);
             return Ok(availability);
         }
         catch (InvalidOperationException ex)
@@ -709,7 +717,8 @@ public class StoreController : ControllerBase
         if (ids.Count == 0)
             return BadRequest(new { message = "No valid SKU IDs provided." });
 
-        var availability = await _cartService.CheckAvailabilityBatchAsync(ids);
+        var (jobId, _) = await ResolveContext();
+        var availability = await _cartService.CheckAvailabilityBatchAsync(jobId, ids);
         return Ok(availability);
     }
 

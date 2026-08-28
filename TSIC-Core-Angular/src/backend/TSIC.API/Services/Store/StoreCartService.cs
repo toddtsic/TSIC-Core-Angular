@@ -69,8 +69,9 @@ public sealed class StoreCartService : IStoreCartService
         var store = await _storeRepo.GetByJobIdAsync(jobId)
             ?? throw new InvalidOperationException("Store not found for this job.");
 
-        // Validate SKU exists and is active
-        var sku = await _itemRepo.GetSkuByIdAsync(request.StoreSkuId)
+        // Validate SKU exists, is active, and BELONGS TO THIS JOB'S STORE. Unscoped, a posted SKU
+        // id from another job was added to this cart at that job's price.
+        var sku = await _itemRepo.GetSkuInStoreAsync(request.StoreSkuId, store.StoreId)
             ?? throw new InvalidOperationException("SKU not found.");
         // LEGACY (IStoreService.StoreItemSkuMaxCanSell): stock is
         //   (s.Active && s.StoreItem.Active) ? s.MaxCanSell : 0
@@ -148,11 +149,18 @@ public sealed class StoreCartService : IStoreCartService
         if (request.Quantity < 1)
             throw new InvalidOperationException("Quantity must be at least 1.");
 
-        var lineItem = await _cartRepo.GetLineItemByIdAsync(storeCartBatchSkuId)
+        var store = await _storeRepo.GetByJobIdAsync(jobId)
+            ?? throw new InvalidOperationException("Store not found for this job.");
+
+        // Scoped to this job AND this family: the line id comes from the URL, so it is the
+        // attacker's to choose. A foreign line reads as "not found" — the same answer as a
+        // deleted one, which is the answer that leaks least.
+        var lineItem = await _cartRepo.GetLineItemForFamilyAsync(
+                storeCartBatchSkuId, store.StoreId, familyUserId)
             ?? throw new InvalidOperationException("Line item not found.");
 
         // Validate availability for the new quantity
-        var sku = await _itemRepo.GetSkuByIdAsync(lineItem.StoreSkuId)
+        var sku = await _itemRepo.GetSkuInStoreAsync(lineItem.StoreSkuId, store.StoreId)
             ?? throw new InvalidOperationException("SKU not found.");
 
         // Same legacy rule as AddToCartAsync: an inactive SKU *or* inactive parent item = no stock.
@@ -186,7 +194,13 @@ public sealed class StoreCartService : IStoreCartService
     public async Task<StoreCartBatchDto> RemoveFromCartAsync(
         Guid jobId, string familyUserId, string userId, int storeCartBatchSkuId)
     {
-        var lineItem = await _cartRepo.GetLineItemByIdAsync(storeCartBatchSkuId)
+        var store = await _storeRepo.GetByJobIdAsync(jobId)
+            ?? throw new InvalidOperationException("Store not found for this job.");
+
+        // Same two boundaries as UpdateQuantityAsync. Unscoped, this deleted another family's
+        // cart line AND returned their whole cart in the response.
+        var lineItem = await _cartRepo.GetLineItemForFamilyAsync(
+                storeCartBatchSkuId, store.StoreId, familyUserId)
             ?? throw new InvalidOperationException("Line item not found.");
 
         var batchId = lineItem.StoreCartBatchId;
@@ -197,9 +211,12 @@ public sealed class StoreCartService : IStoreCartService
             with { JobUsesAmex = await _paymentFeatures.UsesAmexAsync(jobId) };
     }
 
-    public async Task<SkuAvailabilityDto> CheckAvailabilityAsync(int storeSkuId)
+    public async Task<SkuAvailabilityDto> CheckAvailabilityAsync(Guid jobId, int storeSkuId)
     {
-        var sku = await _itemRepo.GetSkuByIdAsync(storeSkuId)
+        var store = await _storeRepo.GetByJobIdAsync(jobId)
+            ?? throw new InvalidOperationException("Store not found for this job.");
+
+        var sku = await _itemRepo.GetSkuInStoreAsync(storeSkuId, store.StoreId)
             ?? throw new InvalidOperationException("SKU not found.");
 
         var soldCount = await _cartRepo.GetSoldCountForSkuAsync(storeSkuId);
@@ -215,15 +232,20 @@ public sealed class StoreCartService : IStoreCartService
         };
     }
 
-    public async Task<List<SkuAvailabilityDto>> CheckAvailabilityBatchAsync(List<int> storeSkuIds)
+    public async Task<List<SkuAvailabilityDto>> CheckAvailabilityBatchAsync(
+        Guid jobId, List<int> storeSkuIds)
     {
         if (storeSkuIds.Count == 0) return [];
 
-        // Fetch all SKUs to get MaxCanSell
+        var store = await _storeRepo.GetByJobIdAsync(jobId);
+        if (store == null) return [];
+
+        // Fetch all SKUs to get MaxCanSell. A SKU outside this store returns null and is simply
+        // dropped — the caller learns nothing about ids belonging to other jobs.
         var skus = new List<(int SkuId, int MaxCanSell)>();
         foreach (var skuId in storeSkuIds)
         {
-            var sku = await _itemRepo.GetSkuByIdAsync(skuId);
+            var sku = await _itemRepo.GetSkuInStoreAsync(skuId, store.StoreId);
             if (sku != null) skus.Add((skuId, sku.MaxCanSell));
         }
 

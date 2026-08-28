@@ -291,16 +291,19 @@ public class StoreItemRepository : IStoreItemRepository
         SkuLabel = StoreSkuLabel.Build(r.ItemName, r.SizeName, r.ColorName)
     };
 
-    public async Task<StoreItemSkus?> GetSkuByIdAsync(
-        int storeSkuId, CancellationToken cancellationToken = default)
+    public async Task<StoreItemSkus?> GetSkuInStoreAsync(
+        int storeSkuId, int storeId, CancellationToken cancellationToken = default)
     {
         // StoreItem is included because availability depends on the PARENT item's Active flag,
         // not just the SKU's - legacy StoreItemSkuMaxCanSell returns
         //   (s.Active && s.StoreItem.Active) ? s.MaxCanSell : 0
         // so deactivating an item zeroes the stock of every SKU under it.
+        // The StoreId predicate IS the authorization check — see the interface doc.
         return await _context.StoreItemSkus
             .Include(s => s.StoreItem)
-            .FirstOrDefaultAsync(s => s.StoreSkuId == storeSkuId, cancellationToken);
+            .FirstOrDefaultAsync(
+                s => s.StoreSkuId == storeSkuId && s.StoreItem.StoreId == storeId,
+                cancellationToken);
     }
 
     public async Task<Dictionary<int, int>> GetEffectiveMaxCanSellAsync(

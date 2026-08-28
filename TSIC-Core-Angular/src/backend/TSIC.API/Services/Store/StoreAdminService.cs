@@ -93,7 +93,7 @@ public sealed class StoreAdminService : IStoreAdminService
     public async Task LogRestockAsync(Guid jobId, string userId, LogRestockRequest request)
     {
         await _restockService.StageRestockAsync(
-            request.StoreCartBatchSkuId, request.RestockCount, userId);
+            jobId, request.StoreCartBatchSkuId, request.RestockCount, userId);
 
         await _analyticsRepo.SaveChangesAsync();
     }

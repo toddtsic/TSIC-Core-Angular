@@ -48,12 +48,17 @@ public interface IStoreCatalogService
     /// <summary>
     /// Get SKUs for an item with availability info.
     /// </summary>
-    Task<List<StoreSkuDto>> GetSkusAsync(int storeItemId);
+    /// <summary>
+    /// SKUs of one item. <paramref name="jobId"/> is the authorization boundary — a store admin
+    /// in one job must not read another job's stock and prices. Both this and
+    /// <see cref="UpdateSkuAsync"/> previously took no job at all.
+    /// </summary>
+    Task<List<StoreSkuDto>> GetSkusAsync(Guid jobId, int storeItemId);
 
     /// <summary>
     /// Update SKU (active, MaxCanSell).
     /// </summary>
-    Task<StoreSkuDto> UpdateSkuAsync(string userId, int storeSkuId, UpdateStoreSkuRequest request);
+    Task<StoreSkuDto> UpdateSkuAsync(Guid jobId, string userId, int storeSkuId, UpdateStoreSkuRequest request);
 
     /// <summary>
     /// Delete a single SKU. Refused when the SKU appears in any cart or purchase.

@@ -281,8 +281,8 @@ public sealed class StoreSalesOpsService : IStoreSalesOpsService
         var isFullBatchReversal = request.VoidEntireBatch || reversal.Kind == AdnReversalKind.Void;
 
         var restocked = isFullBatchReversal
-            ? await BookBatchReversalAsync(batchLines, userId, ct)
-            : await BookLineRefundAsync(line, reversal.ReversedAmount, request.RestockCount, userId, ct);
+            ? await BookBatchReversalAsync(jobId, batchLines, userId, ct)
+            : await BookLineRefundAsync(jobId, line, reversal.ReversedAmount, request.RestockCount, userId, ct);
 
         RecordAccountingEntry(original, reversal, request.Reason, userId);
         await _analyticsRepo.SaveChangesAsync(ct);
@@ -307,7 +307,7 @@ public sealed class StoreSalesOpsService : IStoreSalesOpsService
     /// unpaid, with what it had been paid recorded as refunded. Legacy's RefundProceedWithVoid.
     /// </summary>
     private async Task<int> BookBatchReversalAsync(
-        List<StoreCartBatchSkus> batchLines, string userId, CancellationToken ct)
+        Guid jobId, List<StoreCartBatchSkus> batchLines, string userId, CancellationToken ct)
     {
         var restocked = 0;
 
@@ -317,7 +317,7 @@ public sealed class StoreSalesOpsService : IStoreSalesOpsService
             if (toRestock > 0)
             {
                 await _restockService.StageRestockAsync(
-                    batchLine.StoreCartBatchSkuId, toRestock, userId, ct);
+                    jobId, batchLine.StoreCartBatchSkuId, toRestock, userId, ct);
                 restocked += toRestock;
             }
 
@@ -341,10 +341,10 @@ public sealed class StoreSalesOpsService : IStoreSalesOpsService
     /// </para>
     /// </summary>
     private async Task<int> BookLineRefundAsync(
-        StoreCartBatchSkus line, decimal amount, int restockCount, string userId, CancellationToken ct)
+        Guid jobId, StoreCartBatchSkus line, decimal amount, int restockCount, string userId, CancellationToken ct)
     {
         if (restockCount > 0)
-            await _restockService.StageRestockAsync(line.StoreCartBatchSkuId, restockCount, userId, ct);
+            await _restockService.StageRestockAsync(jobId, line.StoreCartBatchSkuId, restockCount, userId, ct);
 
         line.RefundedTotal += amount;
         line.Modified = DateTime.Now;

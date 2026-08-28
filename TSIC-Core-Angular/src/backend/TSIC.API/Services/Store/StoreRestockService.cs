@@ -9,22 +9,31 @@ public class StoreRestockService : IStoreRestockService
 {
     private readonly IStoreCartRepository _cartRepo;
     private readonly IStoreAnalyticsRepository _analyticsRepo;
+    private readonly IStoreRepository _storeRepo;
 
     public StoreRestockService(
         IStoreCartRepository cartRepo,
-        IStoreAnalyticsRepository analyticsRepo)
+        IStoreAnalyticsRepository analyticsRepo,
+        IStoreRepository storeRepo)
     {
         _cartRepo = cartRepo;
         _analyticsRepo = analyticsRepo;
+        _storeRepo = storeRepo;
     }
 
     public async Task StageRestockAsync(
-        int storeCartBatchSkuId, int count, string userId, CancellationToken ct = default)
+        Guid jobId, int storeCartBatchSkuId, int count, string userId, CancellationToken ct = default)
     {
         if (count <= 0)
             throw new InvalidOperationException("Restock count must be at least 1.");
 
-        var lineItem = await _cartRepo.GetLineItemByIdAsync(storeCartBatchSkuId, ct)
+        var store = await _storeRepo.GetByJobIdAsync(jobId, ct)
+            ?? throw new InvalidOperationException("Store not found for this job.");
+
+        // Job-scoped, not family-scoped: restock is a STAFF action on a shopper's purchase inside
+        // the director's own job. Without the jobId this took a bare line id, so a store admin in
+        // one job could put another job's stock back on the shelf and write an audit row there.
+        var lineItem = await _cartRepo.GetLineItemInStoreAsync(storeCartBatchSkuId, store.StoreId, ct)
             ?? throw new InvalidOperationException("Purchase line not found.");
 
         // You cannot put back more than went out. Without this the availability arithmetic

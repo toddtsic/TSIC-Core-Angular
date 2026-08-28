@@ -39,5 +39,5 @@ public interface IStoreRestockService
     /// </para>
     /// </summary>
     Task StageRestockAsync(
-        int storeCartBatchSkuId, int count, string userId, CancellationToken ct = default);
+        Guid jobId, int storeCartBatchSkuId, int count, string userId, CancellationToken ct = default);
 }

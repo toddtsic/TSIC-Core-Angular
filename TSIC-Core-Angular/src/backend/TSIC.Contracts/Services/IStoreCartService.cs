@@ -37,14 +37,19 @@ public interface IStoreCartService
         int storeCartBatchSkuId);
 
     /// <summary>
-    /// Check availability for a specific SKU.
+    /// Check availability for a specific SKU in this job's store.
+    ///
+    /// <para>Both of these took a bare SKU id and answered for ANY job's stock. The jobId is the
+    /// boundary; a SKU outside it is simply absent from the answer.</para>
     /// </summary>
-    Task<SkuAvailabilityDto> CheckAvailabilityAsync(int storeSkuId);
+    Task<SkuAvailabilityDto> CheckAvailabilityAsync(Guid jobId, int storeSkuId);
 
     /// <summary>
-    /// Check availability for multiple SKUs in a batch (2 DB queries instead of 2N).
+    /// Check availability for multiple SKUs in this job's store (2 DB queries instead of 2N).
+    /// SKUs outside the job are dropped rather than reported, so the response cannot be used to
+    /// probe which ids exist elsewhere.
     /// </summary>
-    Task<List<SkuAvailabilityDto>> CheckAvailabilityBatchAsync(List<int> storeSkuIds);
+    Task<List<SkuAvailabilityDto>> CheckAvailabilityBatchAsync(Guid jobId, List<int> storeSkuIds);
 
     /// <summary>
     /// Validate cart, recalculate totals, record payment, mark items paid.
