@@ -211,10 +211,24 @@
 						[ngModel]="formEmail()" (ngModelChange)="formEmail.set($event)">
 				</div>
 
-				<div class="mb-0">
+				<div class="mb-3">
 					<label class="form-label fw-medium" for="staff-cell">Cell Phone</label>
 					<input id="staff-cell" type="tel" class="form-control"
 						[ngModel]="formCellphone()" (ngModelChange)="formCellphone.set($event)">
+				</div>
+
+				<!--
+					These two fields look store-local and are not: the save writes them to the
+					person's own account, so the email becomes their sign-in address and where a
+					password reset is sent, on every event they work. Same class of surprise as
+					renaming a colour, and with more at stake — say so before it is saved, not
+					after.
+				-->
+				<div class="sf-warn">
+					<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+					<span>Email and cell phone belong to this person's <strong>TeamSportsInfo
+					account</strong>, not just this store. Changing the email changes how they
+					sign in and where a password reset is sent.</span>
 				</div>
 			</div>
 			<div class="modal-footer">
