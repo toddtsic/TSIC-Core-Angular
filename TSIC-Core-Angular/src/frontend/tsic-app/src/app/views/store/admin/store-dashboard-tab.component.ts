@@ -59,12 +59,16 @@ export class StoreDashboardTabComponent {
 	 * The three entries legacy's store-admin menu shows, in its order and with its wording.
 	 * A fourth action, StorePickupSignoff, is live on the server but COMMENTED OUT of legacy's
 	 * menu; it stays unlinked here so the visible surface matches.
+	 *
+	 * <p>These are now server-side code-gen PDFs, not Crystal proxies — the three Crystal reports
+	 * they named never existed. The descriptions say what the sheet IS, including the label stock,
+	 * because a director has to buy the right paper before clicking the first one.</p>
 	 */
 	readonly reportLinks: StoreReportLink[] = [
 		{
 			action: 'StoreLabels',
 			label: 'Store Bag Labels',
-			description: 'One label per bag, for packing the order.',
+			description: 'One label per player, on Avery 5163 sheets (10 per page).',
 			icon: 'bi-tags',
 		},
 		{
@@ -76,7 +80,7 @@ export class StoreDashboardTabComponent {
 		{
 			action: 'StorePerPlayerPivot',
 			label: 'Per Family Pivot',
-			description: 'Every family and what they ordered, one page.',
+			description: 'Every family and what they ordered, one row each.',
 			icon: 'bi-table',
 		},
 	];

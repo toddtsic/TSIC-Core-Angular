@@ -405,6 +405,7 @@ builder.Services.AddScoped<IAmericanSelectReportPdfService, AmericanSelectReport
 builder.Services.AddScoped<IGameBoardsPdfService, GameBoardsPdfService>();
 builder.Services.AddScoped<IShowcaseScheduleReportService, ShowcaseScheduleReportService>();
 builder.Services.AddScoped<IClubRosterPdfService, ClubRosterPdfService>();
+builder.Services.AddScoped<IStoreFulfillmentPdfService, StoreFulfillmentPdfService>();
 builder.Services.AddScoped<IThirdPartyRosterExportService, ThirdPartyRosterExportService>();
 builder.Services.AddScoped<IStpService, TSIC.API.Services.Stp.StpService>();
 builder.Services.AddHttpClient("CrystalReports");

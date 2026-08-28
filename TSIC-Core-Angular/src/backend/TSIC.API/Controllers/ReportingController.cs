@@ -31,6 +31,7 @@ public class ReportingController : ControllerBase
     private readonly IShowcaseScheduleReportService _showcaseScheduleService;
     private readonly IClubRosterPdfService _clubRosterService;
     private readonly IThirdPartyRosterExportService _thirdPartyRosterExportService;
+    private readonly IStoreFulfillmentPdfService _storeFulfillmentService;
 
     // JWT carries the role NAME ("Director"); reporting.JobReports.RoleId is the role-id GUID.
     // Mirrors the local map pattern used by NavController / WidgetDashboardService /
@@ -63,7 +64,8 @@ public class ReportingController : ControllerBase
         IRosterTablePdfService rosterTableService,
         IShowcaseScheduleReportService showcaseScheduleService,
         IClubRosterPdfService clubRosterService,
-        IThirdPartyRosterExportService thirdPartyRosterExportService)
+        IThirdPartyRosterExportService thirdPartyRosterExportService,
+        IStoreFulfillmentPdfService storeFulfillmentService)
     {
         _reportingService = reportingService;
         _jobLookupService = jobLookupService;
@@ -78,6 +80,7 @@ public class ReportingController : ControllerBase
         _showcaseScheduleService = showcaseScheduleService;
         _clubRosterService = clubRosterService;
         _thirdPartyRosterExportService = thirdPartyRosterExportService;
+        _storeFulfillmentService = storeFulfillmentService;
     }
 
     /// <summary>
@@ -631,28 +634,62 @@ public class ReportingController : ControllerBase
         => CrystalReportAsync("ClubRep_BalanceDue_ByAgegroupTeamFee", exportFormat);
 
     // ──────────────────────────────────────────────────────────────
-    // Crystal Reports — StoreAdmin Policy
+    // Store fulfilment — StoreAdmin Policy
+    //
+    // Code-gen PDFs (Syncfusion.Pdf), NOT Crystal proxies. These four route names were pointing
+    // at Crystal reports that never existed: the Crystal host holds 110 .rpt files and none of
+    // them starts with "Store", so legacy's Labels menu was dead long before the host was
+    // switched off. `exportFormat` is accepted and ignored — it was Crystal's format enum, and
+    // every one of these is a PDF by construction. It stays on the signature so the frontend's
+    // shared ReportingService.downloadReport() call needs no special case.
     // ──────────────────────────────────────────────────────────────
 
     [HttpGet("StoreLabels")]
     [Authorize(Policy = "StoreAdmin")]
     public Task<ActionResult> StoreLabels([FromQuery] int exportFormat = 1)
-        => CrystalReportAsync("StoreLabels3", exportFormat);
+        => StoreFulfillmentAsync((svc, jobId, ct) => svc.GenerateBagLabelsAsync(jobId, ct));
 
+    /// <summary>
+    /// Same sheet as <see cref="StorePerPlayerPickup"/>. Legacy exposed two menu entries pointing
+    /// at two report names for one artefact, and commented one of them out; both routes are kept
+    /// so an existing bookmark or Reports Library row does not 404.
+    /// </summary>
     [HttpGet("StorePickupSignoff")]
     [Authorize(Policy = "StoreAdmin")]
     public Task<ActionResult> StorePickupSignoff([FromQuery] int exportFormat = 1)
-        => CrystalReportAsync("StorePickupSignoff", exportFormat);
+        => StoreFulfillmentAsync((svc, jobId, ct) => svc.GeneratePickupSignoffAsync(jobId, ct));
 
     [HttpGet("StorePerPlayerPickup")]
     [Authorize(Policy = "StoreAdmin")]
     public Task<ActionResult> StorePerPlayerPickup([FromQuery] int exportFormat = 1)
-        => CrystalReportAsync("StorePerPlayerPickup", exportFormat);
+        => StoreFulfillmentAsync((svc, jobId, ct) => svc.GeneratePickupSignoffAsync(jobId, ct));
 
     [HttpGet("StorePerPlayerPivot")]
     [Authorize(Policy = "StoreAdmin")]
     public Task<ActionResult> StorePerPlayerPivot([FromQuery] int exportFormat = 1)
-        => CrystalReportAsync("StorePerPlayerPivot", exportFormat);
+        => StoreFulfillmentAsync((svc, jobId, ct) => svc.GenerateFamilyPivotAsync(jobId, ct));
+
+    /// <summary>
+    /// Shared shell for the three store fulfilment PDFs: resolve the job from the caller's claims
+    /// (never from a parameter — the jobPath boundary is a security control), render, and record
+    /// the export the same way the Crystal path did.
+    /// </summary>
+    private async Task<ActionResult> StoreFulfillmentAsync(
+        Func<IStoreFulfillmentPdfService, Guid, CancellationToken, Task<ReportExportResult>> render)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+        {
+            return BadRequest(new { message = "No job in scope for this request." });
+        }
+
+        var result = await render(_storeFulfillmentService, jobId.Value, HttpContext.RequestAborted);
+
+        await _reportingService.RecordExportHistoryAsync(
+            User.GetRegistrationId(), null, Path.GetFileNameWithoutExtension(result.FileName));
+
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
 
     // ──────────────────────────────────────────────────────────────
     // Crystal Reports — AdminOnly Policy

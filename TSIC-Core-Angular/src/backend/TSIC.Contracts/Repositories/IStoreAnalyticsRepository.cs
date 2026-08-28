@@ -38,6 +38,21 @@ public interface IStoreAnalyticsRepository
     /// </summary>
     Task<StoreFamilyPurchaseDto?> GetFamilyPurchaseHistoryAsync(int storeId, string familyUserId, CancellationToken cancellationToken = default);
 
+    // ── Fulfilment (bag labels, pickup signoff, per-family pivot) ──
+
+    /// <summary>
+    /// Every paid SKU line in the store, with family, player, placement and item, for the three
+    /// fulfilment reports. Ordered agegroup → club → team → player → item, matching the order a
+    /// director packs in.
+    ///
+    /// <para>Replaces the Crystal procs <c>reporting.StoreLabels</c> and
+    /// <c>reporting.StorePickupConfirmation</c>. Unlike those, the club-rep, team and registration
+    /// joins are all OPTIONAL — see <see cref="StoreFulfillmentRowDto"/> for why that matters
+    /// (the Crystal version silently dropped every walk-up sale).</para>
+    /// </summary>
+    Task<List<StoreFulfillmentRowDto>> GetFulfillmentRowsAsync(
+        int storeId, CancellationToken cancellationToken = default);
+
     // ── Refunds ──
 
     /// <summary>

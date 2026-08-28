@@ -285,6 +285,133 @@ public class StoreAnalyticsRepository : IStoreAnalyticsRepository
         ).AsNoTracking().FirstOrDefaultAsync(cancellationToken);
     }
 
+    // ── Fulfilment ──
+
+    /// <summary>
+    /// The one query behind bag labels, the pickup signoff sheet and the per-family pivot.
+    ///
+    /// <para>
+    /// Shape follows the Crystal procs it replaces (<c>reporting.StoreLabels</c>,
+    /// <c>reporting.StorePickupConfirmation</c>) but every placement join is a LEFT join. Those
+    /// procs INNER-joined the club-rep registration, which excluded every line on a team without
+    /// a club rep — i.e. every walk-up, since walk-ups sit on the "Store Merch" team. Measured on
+    /// the live database that silently dropped 43 of 484 lines, and 42 of the 43 lines belonging
+    /// to StateOne Lacrosse: Onsite Merch 2026. A packing list that omits 98% of a job's orders
+    /// with no warning is worse than no packing list.
+    /// </para>
+    ///
+    /// <para>
+    /// The paid-batch filter is the same one <see cref="GetSalesPivotAsync"/> uses: a batch with
+    /// an accounting row. Ordering is the director's packing order, with unattached lines last so
+    /// they are conspicuous rather than lost.
+    /// </para>
+    /// </summary>
+    public async Task<List<StoreFulfillmentRowDto>> GetFulfillmentRowsAsync(
+        int storeId, CancellationToken cancellationToken = default)
+    {
+        // Every placement hop is an explicit LEFT join with its own range variable. Chained
+        // navigation properties would translate identically, but the null-guard on a four-deep
+        // chain is unreadable and the compiler cannot follow it — this form is what the report
+        // actually means: the player, the team, the age group and the club rep are each optional.
+        var rows = await (
+            from cbs in _context.StoreCartBatchSkus
+            join fam in _context.Families
+                on cbs.StoreCartBatch.StoreCart.FamilyUserId equals fam.FamilyUserId into famJoin
+            from fam in famJoin.DefaultIfEmpty()
+            join reg in _context.Registrations
+                on cbs.DirectToRegId equals reg.RegistrationId into regJoin
+            from reg in regJoin.DefaultIfEmpty()
+            join pu in _context.AspNetUsers
+                on reg.UserId equals pu.Id into puJoin
+            from pu in puJoin.DefaultIfEmpty()
+            join tm in _context.Teams
+                on reg.AssignedTeamId equals tm.TeamId into tmJoin
+            from tm in tmJoin.DefaultIfEmpty()
+            join ag in _context.Agegroups
+                on tm.AgegroupId equals ag.AgegroupId into agJoin
+            from ag in agJoin.DefaultIfEmpty()
+            join dv in _context.Divisions
+                on tm.DivId equals dv.DivId into dvJoin
+            from dv in dvJoin.DefaultIfEmpty()
+            join cr in _context.Registrations
+                on tm.ClubrepRegistrationid equals cr.RegistrationId into crJoin
+            from cr in crJoin.DefaultIfEmpty()
+            join sis in _context.StoreItemSkus
+                on cbs.StoreSkuId equals sis.StoreSkuId
+            join sit in _context.StoreItems
+                on sis.StoreItemId equals sit.StoreItemId
+            join ssz in _context.StoreSizes
+                on sis.StoreSizeId equals ssz.StoreSizeId into sszJoin
+            from ssz in sszJoin.DefaultIfEmpty()
+            join scl in _context.StoreColors
+                on sis.StoreColorId equals scl.StoreColorId into sclJoin
+            from scl in sclJoin.DefaultIfEmpty()
+            where cbs.StoreCartBatch.StoreCart.StoreId == storeId
+                && cbs.Active
+                && cbs.StoreCartBatch.StoreCartBatchAccounting.Any()
+                && cbs.Quantity > 0
+            select new StoreFulfillmentRowDto
+            {
+                BatchId = cbs.StoreCartBatchId,
+                CartSkuId = cbs.StoreCartBatchSkuId,
+                BatchDate = cbs.StoreCartBatch.Modified,
+                InvoiceNo = cbs.StoreCartBatch.StoreCartBatchAccounting
+                    .Select(a => a.AdnInvoiceNo).FirstOrDefault(),
+                SignedForBy = cbs.StoreCartBatch.SignedForBy,
+                SignedForDate = cbs.StoreCartBatch.SignedForDate,
+
+                FamilyUserId = cbs.StoreCartBatch.StoreCart.FamilyUserId,
+                FamilyUsername = cbs.StoreCartBatch.StoreCart.FamilyUser.UserName,
+                MomFirstName = fam != null ? fam.MomFirstName : null,
+                MomLastName = fam != null ? fam.MomLastName : null,
+                MomCellphone = fam != null ? fam.MomCellphone : null,
+                MomEmail = fam != null ? fam.MomEmail : null,
+                DadFirstName = fam != null ? fam.DadFirstName : null,
+                DadLastName = fam != null ? fam.DadLastName : null,
+                DadCellphone = fam != null ? fam.DadCellphone : null,
+                DadEmail = fam != null ? fam.DadEmail : null,
+
+                PlayerRegId = cbs.DirectToRegId,
+                PlayerUserId = reg != null ? reg.UserId : null,
+                PlayerFirstName = pu != null ? pu.FirstName : null,
+                PlayerLastName = pu != null ? pu.LastName : null,
+                PlayerCellphone = pu != null ? pu.Cellphone : null,
+                PlayerEmail = pu != null ? pu.Email : null,
+
+                AgegroupName = ag != null ? ag.AgegroupName : null,
+                DivName = dv != null ? dv.DivName : null,
+                // The club NAME lives on the club rep's own registration, not on the team.
+                ClubName = cr != null ? cr.ClubName : null,
+                TeamName = tm != null ? tm.TeamName : null,
+                IsWalkUp = tm != null
+                    && tm.TeamName == WalkUpTeamName
+                    && ag != null && ag.AgegroupName == WalkUpBucketName
+                    && dv != null && dv.DivName == WalkUpBucketName,
+
+                ItemName = sit.StoreItemName,
+                SizeName = ssz != null ? ssz.StoreSizeName : null,
+                ColorName = scl != null ? scl.StoreColorName : null,
+                Quantity = cbs.Quantity,
+                Restocked = cbs.Restocked,
+            })
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        // Sorted in memory: the packing order puts unattached lines last, which SQL cannot express
+        // as cheaply as a null-first/last flag here, and the row count is per-store (hundreds).
+        return rows
+            .OrderBy(r => r.PlayerRegId == null ? 1 : 0)
+            .ThenBy(r => r.IsWalkUp ? 1 : 0)
+            .ThenBy(r => r.AgegroupName ?? "", StringComparer.OrdinalIgnoreCase)
+            .ThenBy(r => r.ClubName ?? "", StringComparer.OrdinalIgnoreCase)
+            .ThenBy(r => r.TeamName ?? "", StringComparer.OrdinalIgnoreCase)
+            .ThenBy(r => r.PlayerLastName ?? "", StringComparer.OrdinalIgnoreCase)
+            .ThenBy(r => r.PlayerFirstName ?? "", StringComparer.OrdinalIgnoreCase)
+            .ThenBy(r => r.ItemName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(r => r.CartSkuId)
+            .ToList();
+    }
+
     // ── Refunds ──
 
     public async Task<List<StoreRefundedItemDto>> GetRefundedItemsAsync(
