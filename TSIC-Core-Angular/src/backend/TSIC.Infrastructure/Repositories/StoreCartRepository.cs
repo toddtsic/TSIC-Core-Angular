@@ -76,7 +76,7 @@ public class StoreCartRepository : IStoreCartRepository
                 LineTotal = cbs.FeeTotal, // FeeTotal is the line grand total (legacy semantics)
                 DirectToRegId = cbs.DirectToRegId,
                 DirectToPlayerName = cbs.DirectToReg != null && cbs.DirectToReg.User != null
-                    ? cbs.DirectToReg.User.FirstName + " " + cbs.DirectToReg.User.LastName
+                    ? cbs.DirectToReg.User.FirstName.Trim() + " " + cbs.DirectToReg.User.LastName.Trim()
                     : null,
                 Active = cbs.Active
             })

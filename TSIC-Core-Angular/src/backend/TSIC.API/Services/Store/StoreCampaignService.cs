@@ -165,7 +165,9 @@ public sealed class StoreCampaignService : IStoreCampaignService
         // identity downstream, so the sender's identity lives solely on Reply-To.
         var sender = await _userRepo.GetByIdAsync(senderUserId, cancellationToken);
         var replyToAddress = sender?.Email;
-        var replyToName = $"{sender?.FirstName} {sender?.LastName}".Trim();
+        // Trim each part, not just the joined string: a stored "Test " first name leaves a
+        // double space in the middle, which an outer Trim() cannot reach.
+        var replyToName = $"{sender?.FirstName?.Trim()} {sender?.LastName?.Trim()}".Trim();
 
         var storeLink = BuildStoreLink(jobPath);
         var jobName = jobInfo?.JobName ?? string.Empty;
