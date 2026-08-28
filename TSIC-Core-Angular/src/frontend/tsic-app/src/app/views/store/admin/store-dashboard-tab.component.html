@@ -44,8 +44,8 @@
 		<span class="empty-state-icon"><i class="bi bi-graph-up-arrow"></i></span>
 		<div class="empty-state-title">No sales yet</div>
 		<p class="empty-state-desc">
-			The dashboard fills in as purchases are paid for. Units are net of restocks and
-			sales are net of refunds, so a returned item never shows as sold.
+			The dashboard fills in as purchases are paid for. Items a customer returned, and
+			money you refunded, are deducted — so a returned item never shows as sold.
 		</p>
 	</div>
 } @else {
@@ -55,12 +55,12 @@
 		<div class="kpi">
 			<span class="kpi-label">Units Sold</span>
 			<span class="kpi-value">{{ totalUnits() }}</span>
-			<span class="kpi-note">net of restocks</span>
+			<span class="kpi-note">returned items already deducted</span>
 		</div>
 		<div class="kpi">
 			<span class="kpi-label">Sales</span>
 			<span class="kpi-value">{{ formatCurrency(totalRevenue()) }}</span>
-			<span class="kpi-note">net of refunds</span>
+			<span class="kpi-note">refunds already deducted</span>
 		</div>
 	</div>
 

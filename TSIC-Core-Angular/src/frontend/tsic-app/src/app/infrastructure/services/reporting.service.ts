@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
+import { skipErrorToast } from '../interceptors/http-error-context';
 import type {
     JobReportEntryDto,
     JobReportEditorRoleDto,
@@ -60,9 +61,15 @@ export class ReportingService {
             url += `?${searchParams.toString()}`;
         }
 
+        // Every caller of this method already reports the failure in its own words - a toast
+        // naming the report, or an inline message - so the global interceptor toast was a second
+        // one saying less. It is worth suppressing rather than tidying because these reports are
+        // EXPECTED to fail: Crystal is being retired and its host is off, so a director clicking
+        // one of the store report buttons got two red toasts for one dead button.
         return this.http.get(url, {
             responseType: 'blob',
-            observe: 'response'
+            observe: 'response',
+            context: skipErrorToast()
         });
     }
 
