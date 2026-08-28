@@ -70,7 +70,13 @@
 						</button>
 					</div>
 					<div class="cart-item-price">
-						<div class="cart-item-line-total">{{ formatCurrency(item.lineTotal) }}</div>
+						<!--
+							Product only. `lineTotal` is legacy's "Owes" — it already carries the
+							line's processing fee — and printing it here put a bigger number on the
+							row than the Subtotal those rows are supposed to add up to. Subtotal is
+							Σ(unitPrice × quantity) on the server, so this is the figure that sums.
+						-->
+						<div class="cart-item-line-total">{{ formatCurrency(item.unitPrice * item.quantity) }}</div>
 						@if (item.quantity > 1) {
 							<div class="cart-item-unit">{{ formatCurrency(item.unitPrice) }} ea</div>
 						}
