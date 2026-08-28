@@ -24,7 +24,11 @@
 .day-tabs {
 	display: flex;
 	gap: var(--space-1);
+	// .day-tab overlaps this border with margin-bottom: -2px; overflow-x: auto would force
+	// the y-axis to auto as well and hang a scrollbar off the strip. Clip instead.
 	overflow-x: auto;
+	overflow-y: clip;
+	overflow-clip-margin: 4px;
 	border-bottom: 2px solid var(--border-color);
 	margin-bottom: var(--space-4);
 }

@@ -189,7 +189,11 @@
 // ── Tab Bar ──
 .tab-bar {
 	display: flex;
+	// .tab-btn overlaps this border with margin-bottom: -2px; overflow-x: auto would force
+	// the y-axis to auto as well and hang a scrollbar off the strip. Clip instead.
 	overflow-x: auto;
+	overflow-y: clip;
+	overflow-clip-margin: 4px;
 	border-bottom: 2px solid var(--brand-border);
 	margin-bottom: var(--space-4);
 	-webkit-overflow-scrolling: touch;

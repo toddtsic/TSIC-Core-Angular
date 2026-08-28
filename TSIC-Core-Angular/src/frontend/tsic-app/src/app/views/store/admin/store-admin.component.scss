@@ -12,7 +12,13 @@
 	gap: var(--space-1);
 	border-bottom: 2px solid var(--bs-border-color);
 	margin-bottom: var(--space-4);
+	// The tabs overlap this border with margin-bottom: -2px, so the strip overflows
+	// vertically by 2px. overflow-x: auto forces the y-axis to auto as well (per spec a
+	// non-visible value on one axis computes visible to auto on the other), which put a
+	// scrollbar on the tab strip. Clip instead, with room for the underline.
 	overflow-x: auto;
+	overflow-y: clip;
+	overflow-clip-margin: 4px;
 }
 
 .editor-tab {
