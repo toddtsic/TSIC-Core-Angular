@@ -267,15 +267,28 @@
 										<span class="qty-cap-note">5 per order</span>
 									}
 
-									<button class="btn-add-to-cart"
-											[disabled]="!canAddToCart || s.isAdding"
-											(click)="addToCart()">
-										@if (s.isAdding) {
-											<span class="spinner-border spinner-border-sm me-1"></span>Adding...
-										} @else {
-											<i class="bi bi-cart-plus me-1"></i>Add to Cart
-										}
-									</button>
+									<!--
+										Legacy gives every item TWO add buttons: keep shopping, or
+										leave for the cart. Its second is labelled "Add to Cart and
+										Checkout" but navigates to ShoppingCart, so ours is named
+										for the destination rather than the legacy label.
+									-->
+									<div class="add-actions">
+										<button class="btn-add-to-cart"
+												[disabled]="!canAddToCart || s.isAdding"
+												(click)="addToCart()">
+											@if (s.isAdding) {
+												<span class="spinner-border spinner-border-sm me-1"></span>Adding...
+											} @else {
+												<i class="bi bi-cart-plus me-1"></i>Add &amp; Keep Shopping
+											}
+										</button>
+										<button class="btn-add-to-cart btn-add-to-cart--secondary"
+												[disabled]="!canAddToCart || s.isAdding"
+												(click)="addToCart(true)">
+											<i class="bi bi-cart-check me-1"></i>Add &amp; Go to Cart
+										</button>
+									</div>
 								</div>
 							}
 						}

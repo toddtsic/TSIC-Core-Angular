@@ -543,3 +543,19 @@
 	color: var(--bs-secondary-color);
 	white-space: nowrap;
 }
+
+// Legacy's two per-item add buttons. They wrap on a narrow phone rather than squeezing
+// both onto one line, since each carries a full sentence of label.
+.add-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	flex: 1;
+}
+
+.btn-add-to-cart--secondary {
+	background: transparent;
+	color: var(--bs-primary);
+	border: 1px solid var(--bs-primary);
+	box-shadow: none;
+}

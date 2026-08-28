@@ -189,7 +189,15 @@ export class StoreItemDetailComponent {
 		this.quantity.set(clampAddQuantity(qty, this.availability()?.availableCount));
 	}
 
-	addToCart(): void {
+	/**
+	 * Legacy offers TWO add buttons per item — `PreSubmit(true)` "Add to Cart and Keep Shopping"
+	 * and `PreSubmit(false)` "Add to Cart and Checkout" — and only the first was ported.
+	 *
+	 * <p>Note what the second one actually does: it navigates to <c>ShoppingCart</c>, not to
+	 * Checkout. The label is legacy's own, and it is wrong about its own destination, so the
+	 * button here is named for where it goes.</p>
+	 */
+	addToCart(thenGoToCart = false): void {
 		const sku = this.selectedSku();
 		if (!sku || this.isAdding()) return;
 
@@ -200,8 +208,16 @@ export class StoreItemDetailComponent {
 			directToRegId: this.selectedDirectToRegId(),
 		}).subscribe({
 			next: () => {
-				this.toast.show('Added to cart!', 'success');
 				this.isAdding.set(false);
+
+				if (thenGoToCart) {
+					// Same depth the Cart link in this template already uses ("../../../store/cart"),
+					// written as discrete segments so each '..' is resolved rather than parsed.
+					this.router.navigate(['..', '..', '..', 'store', 'cart'], { relativeTo: this.route });
+					return;
+				}
+
+				this.toast.show('Added to cart!', 'success');
 				// Refresh availability
 				this.checkAvailability(sku.storeSkuId);
 			},

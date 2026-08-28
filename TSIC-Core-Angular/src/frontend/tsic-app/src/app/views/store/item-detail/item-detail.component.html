@@ -165,13 +165,23 @@
 						</span>
 					}
 
-					<button class="btn btn-primary" [disabled]="!canAddToCart() || isAdding()" (click)="addToCart()">
-						@if (isAdding()) {
-							<span class="spinner-border spinner-border-sm me-1"></span>Adding...
-						} @else {
-							<i class="bi bi-cart-plus me-1"></i>Add to Cart
-						}
-					</button>
+					<!--
+						Legacy gives every item TWO add buttons: keep shopping, or go to the cart.
+						Its second is labelled "Add to Cart and Checkout" but navigates to the
+						ShoppingCart, so the name here follows the destination.
+					-->
+					<div class="add-actions">
+						<button class="btn btn-primary" [disabled]="!canAddToCart() || isAdding()" (click)="addToCart()">
+							@if (isAdding()) {
+								<span class="spinner-border spinner-border-sm me-1"></span>Adding...
+							} @else {
+								<i class="bi bi-cart-plus me-1"></i>Add &amp; Keep Shopping
+							}
+						</button>
+						<button class="btn btn-outline-primary" [disabled]="!canAddToCart() || isAdding()" (click)="addToCart(true)">
+							<i class="bi bi-cart-check me-1"></i>Add &amp; Go to Cart
+						</button>
+					</div>
 				</div>
 			} @else if (!isLoading()) {
 				@if (hasColors() || hasSizes()) {

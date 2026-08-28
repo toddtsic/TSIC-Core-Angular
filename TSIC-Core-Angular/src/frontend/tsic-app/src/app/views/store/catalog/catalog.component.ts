@@ -1,7 +1,7 @@
 import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { StoreService } from '../../../infrastructure/services/store.service';
 import { ToastService } from '../../../shared-ui/toast.service';
 import type { StoreItemSummaryDto, StoreItemDto, StoreSkuDto, SkuAvailabilityDto, StoreCartLineItemDto } from '@core/api';
@@ -33,6 +33,8 @@ interface ExpandedItemState {
 export class StoreCatalogComponent {
 	private readonly store = inject(StoreService);
 	private readonly toast = inject(ToastService);
+	private readonly route = inject(ActivatedRoute);
+	private readonly router = inject(Router);
 
 	readonly items = signal<StoreItemSummaryDto[]>([]);
 	readonly isLoading = signal(true);
@@ -326,7 +328,15 @@ export class StoreCatalogComponent {
 		return avail ? avail.availableCount <= 0 : false;
 	}
 
-	addToCart(): void {
+	/**
+	 * Legacy offers TWO add buttons per item — `PreSubmit(true)` "Add to Cart and Keep Shopping"
+	 * and `PreSubmit(false)` "Add to Cart and Checkout" — and only the first was ported.
+	 *
+	 * <p>Note where the second one actually goes: `ShoppingCart`, not Checkout. The label is
+	 * legacy's own and it is wrong about its own destination, so ours is named for where it
+	 * lands.</p>
+	 */
+	addToCart(thenGoToCart = false): void {
 		const s = this.expandedState();
 		if (!s) return;
 		const sku = this.resolveSelectedSku(s);
@@ -340,6 +350,12 @@ export class StoreCatalogComponent {
 			directToRegId: s.selectedDirectToRegId,
 		}).subscribe({
 			next: () => {
+				if (thenGoToCart) {
+					// No toast and no re-arming of the picker — the cart page is the confirmation.
+					this.router.navigate(['..', 'store', 'cart'], { relativeTo: this.route });
+					return;
+				}
+
 				this.toast.show('Added to cart!', 'success');
 				this.triggerCartPulse();
 				const cur = this.expandedState();
