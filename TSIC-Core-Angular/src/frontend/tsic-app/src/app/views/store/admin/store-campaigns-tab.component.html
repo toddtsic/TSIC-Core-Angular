@@ -187,7 +187,12 @@
 		</div>
 	}
 
-	@if (recipientCount() > 0 || isAbandoned()) {
+	<!--
+		Legacy gated the whole compose form on @if (countBatches > 0): no carts, no form. Match it,
+		and it is the rule the fixed-audience tabs above already follow -- a composer that can never
+		send is furniture.
+	-->
+	@if (recipientCount() > 0 || (isAbandoned() && carts().length > 0)) {
 		<div class="compose-card">
 			<div class="compose-header">
 				<i class="bi bi-envelope me-2"></i>Compose
@@ -221,7 +226,8 @@
 					<app-email-body-editor
 						[(body)]="body"
 						[disabled]="isSending()"
-						[height]="320"
+						<!-- 320 clipped the seeded template, so the box could be wheel-scrolled off its own first line. -->
+						[height]="380"
 						placeholder="Write your message…" />
 				</div>
 			</div>
