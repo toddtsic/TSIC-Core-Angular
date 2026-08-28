@@ -114,11 +114,24 @@ export class StoreAdminComponent {
 	readonly isEditingItem = computed(() => this.editingItem() !== null);
 
 	/**
-	 * The API returns items in STOREFRONT order (SortOrder, 0 last, then name). Legacy's admin
-	 * grid is sorted alphabetically by Item instead, so the manager list re-sorts by name.
+	 * The API returns items in STOREFRONT order (SortOrder, 0 last, then name); legacy's admin
+	 * grid sorts alphabetically by Item instead. Both are offered, defaulting to legacy's.
+	 *
+	 * <p>Alphabetical is right for finding a product to edit, and it is what legacy showed. But
+	 * Sort Order is an editable field on that same edit modal, and with only the alphabetical
+	 * view a director sets a number and has no way to see what it did without leaving for the
+	 * storefront. R-06.</p>
 	 */
-	readonly sortedItems = computed(() =>
-		[...this.items()].sort((a, b) => a.storeItemName.localeCompare(b.storeItemName)));
+	readonly itemSort = signal<'name' | 'storefront'>('name');
+
+	readonly sortedItems = computed(() => {
+		const items = this.items();
+		// Storefront order is what the API already returned — re-sorting would only risk
+		// disagreeing with it. The one rule worth restating: 0 means "no preference", and the
+		// server sorts those LAST (A-02), so this view must not push them to the top.
+		if (this.itemSort() === 'storefront') return items;
+		return [...items].sort((a, b) => a.storeItemName.localeCompare(b.storeItemName));
+	});
 
 	/** Mirrors the server-side split: ';' delimited, empties removed, each name trimmed. */
 	private static parseNames(raw: string): string[] {

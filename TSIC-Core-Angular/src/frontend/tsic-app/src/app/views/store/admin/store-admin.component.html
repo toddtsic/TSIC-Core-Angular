@@ -78,6 +78,21 @@
 				label="Export SKUs"
 				hint="Download every SKU in the store, with stock counts"
 				[fetch]="exportSkus" />
+			<!--
+				Sort Order is editable on the item modal, so the manager needs a way to see what
+				a number did without walking over to the storefront. Alphabetical stays the
+				default — it is legacy's, and it is the right order for finding a product. R-06.
+			-->
+			<div class="btn-group btn-group-sm" role="group" aria-label="Item order">
+				<button type="button" class="btn btn-outline-secondary"
+						[class.active]="itemSort() === 'name'"
+						[attr.aria-pressed]="itemSort() === 'name'"
+						(click)="itemSort.set('name')">By name</button>
+				<button type="button" class="btn btn-outline-secondary"
+						[class.active]="itemSort() === 'storefront'"
+						[attr.aria-pressed]="itemSort() === 'storefront'"
+						(click)="itemSort.set('storefront')">Storefront order</button>
+			</div>
 			<button class="btn btn-primary btn-sm" (click)="openNewItemModal()">
 				<i class="bi bi-plus-lg me-1"></i>New Item
 			</button>
@@ -135,6 +150,12 @@
 										<div class="item-name">{{ item.storeItemName }}</div>
 										<div class="item-meta-line">
 											<span class="item-id">Id:{{ item.storeItemId }}</span>
+											@if (itemSort() === 'storefront') {
+												<!-- 0 means no preference, and the storefront sorts those last (A-02). -->
+												<span class="item-id" title="Sort Order — 0 means no preference and sorts last">
+													Sort:{{ item.sortOrder || '—' }}
+												</span>
+											}
 										</div>
 									</div>
 								</div>
