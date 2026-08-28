@@ -137,7 +137,9 @@
 							}
 						</div>
 						<div class="order-item-qty">&times; {{ item.quantity }}</div>
-						<div class="order-item-price">{{ formatCurrency(item.lineTotal) }}</div>
+						<!-- Product only — see the cart. `lineTotal` carries the line's processing
+						     fee, which the Fees row below already states. -->
+						<div class="order-item-price">{{ formatCurrency(item.unitPrice * item.quantity) }}</div>
 					</div>
 				}
 				<div class="order-totals">
@@ -171,16 +173,16 @@
 			     refund policy. -->
 			<app-store-front-info variant="inline" />
 
-			<!-- ── Payment ── -->
-			<div class="section-card">
-				<h6 class="section-title"><i class="bi bi-credit-card-fill me-1"></i>Payment</h6>
-				<app-credit-card-form
-					[allowAmex]="jobUsesAmex()"
-					[defaultEmail]="defaultEmail()"
-					(validChange)="onCcValidChange($event)"
-					(valueChange)="onCcValueChange($event)">
-				</app-credit-card-form>
-			</div>
+			<!-- ── Payment ──
+			     No section-card wrapper: the shared form carries its own titled panel
+			     ("Credit Card Information"), and wrapping it produced a card inside a card
+			     with two headings saying the same thing. -->
+			<app-credit-card-form
+				[allowAmex]="jobUsesAmex()"
+				[defaultEmail]="defaultEmail()"
+				(validChange)="onCcValidChange($event)"
+				(valueChange)="onCcValueChange($event)">
+			</app-credit-card-form>
 
 			<!-- ── Place Order ── -->
 			<button class="btn-checkout"

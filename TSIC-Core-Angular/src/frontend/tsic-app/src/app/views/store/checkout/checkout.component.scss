@@ -337,3 +337,10 @@
 	border-radius: var(--radius-md);
 	background: var(--bs-body-bg);
 }
+
+// The payment form is unwrapped (it brings its own titled panel), so the spacing the
+// removed section-card used to contribute has to come from the host.
+app-credit-card-form {
+	display: block;
+	margin-bottom: var(--space-4);
+}
