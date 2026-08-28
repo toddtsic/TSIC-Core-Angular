@@ -69,25 +69,37 @@ public sealed class StoreCatalogService : IStoreCatalogService
         // Get or create store
         var storeDto = await GetOrCreateStoreAsync(jobId, userId);
 
-        // Create the item
-        var item = new StoreItems
+        // LEGACY (StoreItemsController.GetOrCreateStoreItemAsync): items are get-or-create by
+        // StoreId + StoreItemName. Creating with an existing name REUSES that item and adds any
+        // missing SKUs — it does NOT create a duplicate, and it does NOT update price or
+        // comments on the existing row.
+        var item = await _itemRepo.GetItemByNameAsync(storeDto.StoreId, request.StoreItemName);
+
+        if (item == null)
         {
-            StoreId = storeDto.StoreId,
-            StoreItemName = request.StoreItemName,
-            StoreItemComments = request.StoreItemComments,
-            StoreItemPrice = request.StoreItemPrice,
-            Active = true,
-            SortOrder = 0,
-            Modified = DateTime.Now,
-            LebUserId = userId
-        };
+            item = new StoreItems
+            {
+                StoreId = storeDto.StoreId,
+                StoreItemName = request.StoreItemName,
+                // Legacy's create modal does not collect comments — the field is commented out of
+                // the Razor and the POST sends null. request.StoreItemComments is ignored here.
+                StoreItemComments = null,
+                StoreItemPrice = request.StoreItemPrice,
+                Active = true,
+                SortOrder = 0,
+                Modified = DateTime.Now,
+                LebUserId = userId
+            };
 
-        _itemRepo.AddItem(item);
-        await _itemRepo.SaveChangesAsync();
+            _itemRepo.AddItem(item);
+            await _itemRepo.SaveChangesAsync();
+        }
 
-        // Generate SKU matrix
+        // Existing SKUs are skipped, matching legacy's per-combination skuExists check.
+        var existing = await _itemRepo.GetSkusWithAvailabilityAsync(item.StoreItemId);
+
         var skus = GenerateSkuMatrix(item.StoreItemId, request.ColorIds, request.SizeIds,
-            request.MaxCanSell, userId);
+            existing, userId);
 
         if (skus.Count > 0)
         {
@@ -108,9 +120,10 @@ public sealed class StoreCatalogService : IStoreCatalogService
         var item = await _itemRepo.GetItemByIdAsync(storeItemId)
             ?? throw new InvalidOperationException($"Item {storeItemId} not found.");
 
-        item.StoreItemName = request.StoreItemName;
-        item.StoreItemComments = request.StoreItemComments;
-        item.StoreItemPrice = request.StoreItemPrice;
+        // LEGACY (StoreItemsController.UpdateItem): "Update active flag and sort order only".
+        // Name, comments and price are read-only after creation — the legacy grid marks
+        // StoreItemName allowEditing="false" and the action never assigns price or comments.
+        // request.StoreItemName / StoreItemComments / StoreItemPrice are deliberately ignored.
         item.Active = request.Active;
         item.SortOrder = request.SortOrder;
         item.Modified = DateTime.Now;
@@ -283,79 +296,58 @@ public sealed class StoreCatalogService : IStoreCatalogService
     /// Sizes only → one SKU per size (no color).
     /// Neither → one default SKU.
     /// </summary>
+    // LEGACY (StoreItemsController.CreateSkusAsync): iterate SIZE outer, COLOUR inner — the
+    // insertion order determines StoreSkuId assignment. Skip any combination that already
+    // exists. New SKUs are born Active = true, MaxCanSell = 0; legacy has no MaxCanSell field at
+    // creation (it is set afterwards on the Skus screen), so request.MaxCanSell is not used.
     private static List<StoreItemSkus> GenerateSkuMatrix(
-        int storeItemId, List<int> colorIds, List<int> sizeIds, int maxCanSell, string userId)
+        int storeItemId, List<int> colorIds, List<int> sizeIds,
+        List<StoreSkuDto> existing, string userId)
     {
         var skus = new List<StoreItemSkus>();
         var now = DateTime.Now;
 
-        if (colorIds.Count > 0 && sizeIds.Count > 0)
+        bool Exists(int? sizeId, int? colorId) =>
+            existing.Any(e => e.StoreSizeId == sizeId && e.StoreColorId == colorId);
+
+        StoreItemSkus New(int? sizeId, int? colorId) => new()
         {
-            // Cross-product: Color × Size
-            foreach (var colorId in colorIds)
+            StoreItemId = storeItemId,
+            StoreSizeId = sizeId,
+            StoreColorId = colorId,
+            Active = true,
+            MaxCanSell = 0,
+            Modified = now,
+            LebUserId = userId
+        };
+
+        if (sizeIds.Count > 0 && colorIds.Count > 0)
+        {
+            foreach (var sizeId in sizeIds)
             {
-                foreach (var sizeId in sizeIds)
+                foreach (var colorId in colorIds)
                 {
-                    skus.Add(new StoreItemSkus
-                    {
-                        StoreItemId = storeItemId,
-                        StoreColorId = colorId,
-                        StoreSizeId = sizeId,
-                        Active = true,
-                        MaxCanSell = maxCanSell,
-                        Modified = now,
-                        LebUserId = userId
-                    });
+                    if (!Exists(sizeId, colorId)) skus.Add(New(sizeId, colorId));
                 }
-            }
-        }
-        else if (colorIds.Count > 0)
-        {
-            // Colors only
-            foreach (var colorId in colorIds)
-            {
-                skus.Add(new StoreItemSkus
-                {
-                    StoreItemId = storeItemId,
-                    StoreColorId = colorId,
-                    StoreSizeId = null,
-                    Active = true,
-                    MaxCanSell = maxCanSell,
-                    Modified = now,
-                    LebUserId = userId
-                });
             }
         }
         else if (sizeIds.Count > 0)
         {
-            // Sizes only
             foreach (var sizeId in sizeIds)
             {
-                skus.Add(new StoreItemSkus
-                {
-                    StoreItemId = storeItemId,
-                    StoreColorId = null,
-                    StoreSizeId = sizeId,
-                    Active = true,
-                    MaxCanSell = maxCanSell,
-                    Modified = now,
-                    LebUserId = userId
-                });
+                if (!Exists(sizeId, null)) skus.Add(New(sizeId, null));
             }
         }
-        else
+        else if (colorIds.Count > 0)
         {
-            // Default SKU (no variant)
-            skus.Add(new StoreItemSkus
+            foreach (var colorId in colorIds)
             {
-                StoreItemId = storeItemId,
-                StoreColorId = null,
-                StoreSizeId = null,
-                Active = true,
-                MaxCanSell = maxCanSell,
-                Modified = now,
-                LebUserId = userId
-            });
+                if (!Exists(null, colorId)) skus.Add(New(null, colorId));
+            }
+        }
+        else if (!Exists(null, null))
+        {
+            skus.Add(New(null, null));
         }
 
         return skus;

@@ -27,6 +27,13 @@ public interface IStoreItemRepository
     Task<StoreItems?> GetItemByIdAsync(int storeItemId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Find an item by name within a store. Legacy creates items get-or-create by
+    /// StoreId + StoreItemName (StoreItemsController.GetOrCreateStoreItemAsync), so a
+    /// second create with an existing name adds SKUs rather than a duplicate item.
+    /// </summary>
+    Task<StoreItems?> GetItemByNameAsync(int storeId, string storeItemName, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Add a new item.
     /// </summary>
     void AddItem(StoreItems item);

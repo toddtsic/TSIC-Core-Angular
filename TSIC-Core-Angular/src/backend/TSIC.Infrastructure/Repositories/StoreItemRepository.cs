@@ -104,6 +104,15 @@ public class StoreItemRepository : IStoreItemRepository
             .FirstOrDefaultAsync(i => i.StoreItemId == storeItemId, cancellationToken);
     }
 
+    public async Task<StoreItems?> GetItemByNameAsync(
+        int storeId, string storeItemName, CancellationToken cancellationToken = default)
+    {
+        return await _context.StoreItems
+            .FirstOrDefaultAsync(
+                i => i.StoreId == storeId && i.StoreItemName == storeItemName,
+                cancellationToken);
+    }
+
     public void AddItem(StoreItems item)
     {
         _context.StoreItems.Add(item);
