@@ -13,6 +13,7 @@ import { StoreService } from '../../../infrastructure/services/store.service';
 import { ReportingService } from '../../../infrastructure/services/reporting.service';
 import { ToastService } from '../../../shared-ui/toast.service';
 import type { StoreSalesPivotDto } from '@core/api';
+import { formatCurrency } from '@shared/utils/money.util';
 
 /** One entry in legacy's "Labels" menu group. */
 interface StoreReportLink {
@@ -262,7 +263,5 @@ export class StoreDashboardTabComponent {
 		});
 	}
 
-	formatCurrency(value: number): string {
-		return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
-	}
+	readonly formatCurrency = formatCurrency;
 }

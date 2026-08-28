@@ -7,6 +7,7 @@ import { ToastService } from '../../../shared-ui/toast.service';
 import type { StoreItemSummaryDto, StoreItemDto, StoreSkuDto, SkuAvailabilityDto, StoreCartLineItemDto } from '@core/api';
 import { clampAddQuantity, maxAddQuantity } from '../store-quantity';
 import { StoreFrontInfoComponent } from '../store-front-info.component';
+import { formatCurrency } from '@shared/utils/money.util';
 
 interface ExpandedItemState {
 	item: StoreItemDto;
@@ -454,7 +455,5 @@ export class StoreCatalogComponent {
 		return label.startsWith(prefix) ? label.slice(prefix.length).replace(/:/g, ' · ') : label;
 	}
 
-	formatCurrency(value: number): string {
-		return '$' + value.toFixed(2);
-	}
+	readonly formatCurrency = formatCurrency;
 }

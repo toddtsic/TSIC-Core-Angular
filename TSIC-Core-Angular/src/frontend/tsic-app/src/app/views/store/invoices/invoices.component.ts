@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { StoreService } from '../../../infrastructure/services/store.service';
 import { ToastService } from '../../../shared-ui/toast.service';
+import { formatCurrency } from '@shared/utils/money.util';
 
 /**
  * Legacy's `StoreFamily/Invoices` — the shopper's own purchase history, with the receipt for any
@@ -70,7 +71,5 @@ export class StoreInvoicesComponent {
 		});
 	}
 
-	formatCurrency(value: number): string {
-		return '$' + value.toFixed(2);
-	}
+	readonly formatCurrency = formatCurrency;
 }

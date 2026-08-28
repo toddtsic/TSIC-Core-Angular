@@ -22,6 +22,7 @@ import type {
 	UpdateStoreItemRequest,
 	UpdateStoreSkuRequest,
 } from '@core/api';
+import { formatCurrency } from '@shared/utils/money.util';
 
 type TabKey = 'items' | 'images' | 'sales' | 'campaigns' | 'dashboard' | 'colors' | 'sizes' | 'analytics' | 'staff';
 
@@ -552,9 +553,7 @@ export class StoreAdminComponent {
 
 	// ── Helpers ──
 
-	formatCurrency(value: number): string {
-		return '$' + value.toFixed(2);
-	}
+	readonly formatCurrency = formatCurrency;
 
 	skuLabel(sku: StoreSkuDto): string {
 		const parts: string[] = [];

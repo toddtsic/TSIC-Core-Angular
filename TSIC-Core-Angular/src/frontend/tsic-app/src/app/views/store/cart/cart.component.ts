@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { StoreService } from '../../../infrastructure/services/store.service';
 import { ToastService } from '../../../shared-ui/toast.service';
 import type { StoreCartLineItemDto } from '@core/api';
+import { formatCurrency } from '@shared/utils/money.util';
 
 @Component({
 	selector: 'app-cart',
@@ -72,7 +73,5 @@ export class StoreCartComponent {
 		return parts.join(' / ');
 	}
 
-	formatCurrency(value: number): string {
-		return '$' + value.toFixed(2);
-	}
+	readonly formatCurrency = formatCurrency;
 }

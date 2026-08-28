@@ -10,6 +10,7 @@ import { sanitizeExpiry, sanitizePhone } from '@views/registration/shared/servic
 import type { StoreCheckoutResultDto, StoreCartTrimAdjustmentDto } from '@core/api';
 import type { CreditCardFormValue } from '@views/registration/shared/types/wizard.types';
 import { StoreFrontInfoComponent } from '../store-front-info.component';
+import { formatCurrency } from '@shared/utils/money.util';
 
 @Component({
 	selector: 'app-checkout',
@@ -243,9 +244,7 @@ export class StoreCheckoutComponent implements OnDestroy {
 		this.revokeReceiptUrl();
 	}
 
-	formatCurrency(value: number): string {
-		return '$' + value.toFixed(2);
-	}
+	readonly formatCurrency = formatCurrency;
 
 	variantLabel(item: { colorName?: string | null; sizeName?: string | null }): string {
 		const parts: string[] = [];

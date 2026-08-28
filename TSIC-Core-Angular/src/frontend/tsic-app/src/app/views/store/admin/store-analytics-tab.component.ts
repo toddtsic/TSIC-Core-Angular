@@ -12,8 +12,16 @@ import type {
 	StoreRefundedItemDto,
 	StoreRestockedItemDto,
 } from '@core/api';
+import { formatCurrency } from '@shared/utils/money.util';
 
 type AnalyticsSection = 'sales-by-item' | 'sales-pivot' | 'payments' | 'family-purchases' | 'refunded' | 'restocked';
+
+/** Units and revenue summed over a table's rows. */
+function total<T>(rows: T[], units: (row: T) => number, revenue: (row: T) => number) {
+	return rows.reduce(
+		(sum, row) => ({ units: sum.units + units(row), revenue: sum.revenue + revenue(row) }),
+		{ units: 0, revenue: 0 });
+}
 
 @Component({
 	selector: 'app-store-analytics-tab',
@@ -61,6 +69,19 @@ export class StoreAnalyticsTabComponent {
 
 		return [...buckets.values()];
 	});
+
+	/**
+	 * Grand totals. Both of these tables descend from the Dashboard's EJ2 pivot views, which
+	 * carried their own grand-total row; flattening them to a table dropped it, and "what did
+	 * this store take in" was the one number the screen no longer answered. Legacy's plain
+	 * admin grids had no aggregates, which is why Payments and Family Purchases have none.
+	 */
+	readonly salesByItemTotals = computed(() => total(
+		this.salesByItem(), r => r.totalUnitsSold, r => r.totalRevenue));
+
+	readonly salesPivotTotals = computed(() => total(
+		this.salesPivotByItem(), r => r.unitsSold, r => r.revenue));
+
 	readonly payments = signal<StorePaymentDetailDto[]>([]);
 	readonly familyPurchases = signal<StoreFamilyPurchaseDto[]>([]);
 	readonly refundedItems = signal<StoreRefundedItemDto[]>([]);
@@ -207,9 +228,7 @@ export class StoreAnalyticsTabComponent {
 		});
 	}
 
-	formatCurrency(value: number): string {
-		return '$' + value.toFixed(2);
-	}
+	readonly formatCurrency = formatCurrency;
 
 	formatDate(dateStr: string): string {
 		return new Date(dateStr).toLocaleDateString();

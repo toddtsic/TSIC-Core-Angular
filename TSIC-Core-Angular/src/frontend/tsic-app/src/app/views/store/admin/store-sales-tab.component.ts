@@ -11,6 +11,7 @@ import type {
 	StoreSwapOptionDto,
 	StoreBatchSettledStatusDto,
 } from '@core/api';
+import { formatCurrency } from '@shared/utils/money.util';
 
 /**
  * Sales operations — what a director does to a sale after the money has moved.
@@ -266,9 +267,7 @@ export class StoreSalesTabComponent {
 	//  TEMPLATE HELPERS
 	// ═══════════════════════════════════════
 
-	formatCurrency(value: number): string {
-		return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
-	}
+	readonly formatCurrency = formatCurrency;
 
 	directToName(line: StoreSaleLineDto): string {
 		const name = `${line.directToFirstName ?? ''} ${line.directToLastName ?? ''}`.trim();

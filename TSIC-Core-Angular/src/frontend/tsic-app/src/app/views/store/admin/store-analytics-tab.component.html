@@ -72,6 +72,13 @@
 						</tr>
 					}
 				</tbody>
+				<tfoot>
+					<tr>
+						<td>Total</td>
+						<td class="text-end"><span class="money">{{ salesByItemTotals().units }}</span></td>
+						<td class="text-end"><span class="money money--strong">{{ formatCurrency(salesByItemTotals().revenue) }}</span></td>
+					</tr>
+				</tfoot>
 			</table>
 		</div>
 	}
@@ -118,6 +125,13 @@
 						</tr>
 					}
 				</tbody>
+				<tfoot>
+					<tr>
+						<td colspan="2">Total</td>
+						<td class="text-end"><span class="money">{{ salesPivotTotals().units }}</span></td>
+						<td class="text-end"><span class="money money--strong">{{ formatCurrency(salesPivotTotals().revenue) }}</span></td>
+					</tr>
+				</tfoot>
 			</table>
 		</div>
 	}
