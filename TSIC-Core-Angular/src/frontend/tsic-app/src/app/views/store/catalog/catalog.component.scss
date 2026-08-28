@@ -245,6 +245,8 @@
 // alert and lives inside the open item, where the shopper is actually choosing.
 .item-soldout {
 	display: inline-flex;
+	// A flex-column child stretches by default; the chip has to hug its own text.
+	align-self: flex-start;
 	align-items: center;
 	gap: var(--space-1);
 	margin-top: var(--space-1);
@@ -638,7 +640,8 @@ app-store-front-info {
 	object-fit: contain;
 	border: 1px solid var(--bs-border-color);
 	border-radius: var(--radius-md);
-	background: var(--bs-body-bg);
+	// Letterboxing around a non-square image should read as the card, not as a band.
+	background: var(--bs-card-bg, var(--neutral-0));
 }
 
 .gallery-strip {
