@@ -267,6 +267,12 @@ export class UsLaxRankingsComponent {
 
 	// ── Load seasons + age groups ──
 
+	/**
+	 * Two ways this can come back with nothing, and they are not the same fact:
+	 * a 502 means we never reached usclublax.com and retrying may work; an empty 200
+	 * means we did reach it and it published nothing. Say which — an unexplained empty
+	 * dropdown is the failure this screen was reported for.
+	 */
 	private loadSeasons(): void {
 		this.rankingsService.getSeasons().subscribe({
 			next: seasons => {
@@ -277,8 +283,12 @@ export class UsLaxRankingsComponent {
 				// rather than asserting one it may not publish.
 				this.loadScrapedAgeGroups();
 			},
-			error: () => {
+			error: (err: { error?: { message?: string } }) => {
 				this.seasons.set([]);
+				this.errorMessage.set(err.error?.message
+					?? "Couldn't reach usclublax.com to read the list of seasons.");
+				// Still try the age groups: without a season the site serves its current
+				// one, so the screen may be usable even with the season list missing.
 				this.loadScrapedAgeGroups();
 			}
 		});
@@ -291,8 +301,20 @@ export class UsLaxRankingsComponent {
 	 */
 	private loadScrapedAgeGroups(yr?: string): void {
 		this.rankingsService.getScrapedAgeGroups(yr).subscribe({
-			next: groups => this.scrapedAgeGroups.set(groups),
-			error: () => this.scrapedAgeGroups.set([])
+			next: groups => {
+				this.scrapedAgeGroups.set(groups);
+				if (groups.length === 0) {
+					const season = this.seasons().find(s => s.value === this.selectedSeason())?.text;
+					this.errorMessage.set(season
+						? `usclublax.com published no girls age groups for ${season}.`
+						: 'usclublax.com published no girls age groups.');
+				}
+			},
+			error: (err: { error?: { message?: string } }) => {
+				this.scrapedAgeGroups.set([]);
+				this.errorMessage.set(err.error?.message
+					?? "Couldn't reach usclublax.com to read the age groups.");
+			}
 		});
 	}
 

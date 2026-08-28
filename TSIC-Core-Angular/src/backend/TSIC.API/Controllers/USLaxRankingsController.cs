@@ -79,6 +79,9 @@ public class USLaxRankingsController : ControllerBase
     public async Task<ActionResult<List<RankingSeasonDto>>> GetSeasons(CancellationToken ct)
     {
         var result = await _scrapingService.GetAvailableSeasonsAsync(ct);
+        if (result is null)
+            return Unreachable();
+
         return Ok(result);
     }
 
@@ -93,8 +96,22 @@ public class USLaxRankingsController : ControllerBase
         CancellationToken ct)
     {
         var result = await _scrapingService.GetAvailableAgeGroupsAsync(yr, ct);
+        if (result is null)
+            return Unreachable();
+
         return Ok(result);
     }
+
+    /// <summary>
+    /// We could not reach usclublax.com at all. Distinct from an empty 200, which means
+    /// we did reach it and it published nothing — the caller shows a different message
+    /// for each, because one is worth retrying and the other is not.
+    /// </summary>
+    private ObjectResult Unreachable() =>
+        StatusCode(StatusCodes.Status502BadGateway, new
+        {
+            message = "Couldn't reach usclublax.com. It may be temporarily unavailable — try again shortly."
+        });
 
     /// <summary>
     /// Get active age groups from the current job's registered teams.

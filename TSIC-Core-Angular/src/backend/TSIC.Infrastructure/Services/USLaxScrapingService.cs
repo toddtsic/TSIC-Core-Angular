@@ -52,7 +52,7 @@ public sealed class USLaxScrapingService : IUSLaxScrapingService
         }
     }
 
-    public async Task<List<RankingSeasonDto>> GetAvailableSeasonsAsync(CancellationToken ct = default)
+    public async Task<List<RankingSeasonDto>?> GetAvailableSeasonsAsync(CancellationToken ct = default)
     {
         try
         {
@@ -103,12 +103,14 @@ public sealed class USLaxScrapingService : IUSLaxScrapingService
         }
         catch (Exception ex)
         {
+            // null, not empty: we never got an answer, which is a different fact from
+            // the site publishing no seasons. The caller turns this into a 502.
             _logger.LogError(ex, "Error fetching seasons from usclublax.com");
-            return [];
+            return null;
         }
     }
 
-    public async Task<List<AgeGroupOptionDto>> GetAvailableAgeGroupsAsync(string? yr = null, CancellationToken ct = default)
+    public async Task<List<AgeGroupOptionDto>?> GetAvailableAgeGroupsAsync(string? yr = null, CancellationToken ct = default)
     {
         try
         {
@@ -129,7 +131,13 @@ public sealed class USLaxScrapingService : IUSLaxScrapingService
                 $"//a[contains(@href, 'v={DefaultVersion}')]");
 
             if (nodes is null)
+            {
+                // Reached the page but matched no links -- the site changed, or this season
+                // has no girls groups. Either way it is an answer, not a failure.
+                _logger.LogWarning(
+                    "No Girls age group links found for season {Season}", yr ?? "(current)");
                 return [];
+            }
 
             var seen = new HashSet<string>();
             var results = new List<AgeGroupOptionDto>();
@@ -161,7 +169,7 @@ public sealed class USLaxScrapingService : IUSLaxScrapingService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching available age groups from usclublax.com");
-            return [];
+            return null;
         }
     }
 
