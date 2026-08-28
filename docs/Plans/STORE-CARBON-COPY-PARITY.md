@@ -223,7 +223,6 @@ photo requires SQL — strictly worse than legacy. Ship the write pathways in Ph
 | R-09 | Preserve legacy's alphabetical size ordering | OPEN |
 | R-12 | Config screen labels **both** `Sales Tax (%)` and `TSIC Rate (%)`, but the two columns use OPPOSITE conventions: `storeTSICRate` is a multiplier (0.10 = 10%, default in the export proc) while `ProcessingFeePercent` is a percent (3.5, divided by 100 in the proc). Relabel `TSIC Rate` as a decimal rate. | OPEN |
 | R-13 | Sales tax conventions settled in code: `SalesTaxMath.ToTaxMultiplier` (percent-form, clamped 0-12) is the single conversion point, and `SalesTaxMath.TaxableBase` names what tax applies to. Deliberate documented divergence — legacy's multiplier arithmetic is unreachable code (654/654 rows at zero) and would charge 100x. | IMPL |
-| R-14 | `scripts/14-store-sales-tax-audit-columns.sql` — PROPOSED, NOT APPLIED. Adds `StoreCartBatchSkus.SalesTaxRate` (a tax figure must name its own rate to be auditable) and `StoreItems.Taxable` (apparel is exempt or capped in PA/NJ/MN/VT/NY/MA). Zero backfill risk while every row is at zero. | OPEN |
 | R-10 | Do **NOT** replicate B-29 (`hide.bs.modal` fires the POST, so Cancel and × also create the item). It is a legacy defect, not a feature; our modal submits only from the Create button. | OPEN |
 | R-11 | ~~itemBufferSize~~ — **WITHDRAWN**, see A-33. | CLOSED |
 
