@@ -566,8 +566,8 @@
 				}
 			</div>
 			<div class="modal-footer">
-				<button class="btn btn-outline-secondary" (click)="showItemModal.set(false)">Cancel</button>
-				<button class="btn btn-primary" [disabled]="isSaving() || !canSaveItem()" (click)="saveItem()">
+				<button class="sf-btn sf-btn--ghost" (click)="showItemModal.set(false)">Cancel</button>
+				<button class="sf-btn sf-btn--primary" [disabled]="isSaving() || !canSaveItem()" (click)="saveItem()">
 					{{ isSaving() ? 'Saving...' : (isEditingItem() ? 'Update' : 'Create') }}
 				</button>
 			</div>
@@ -602,8 +602,8 @@
 				</div>
 			</div>
 			<div class="modal-footer">
-				<button class="btn btn-outline-secondary" (click)="showSkuModal.set(false)">Cancel</button>
-				<button class="btn btn-primary" [disabled]="isSaving()" (click)="saveSku()">
+				<button class="sf-btn sf-btn--ghost" (click)="showSkuModal.set(false)">Cancel</button>
+				<button class="sf-btn sf-btn--primary" [disabled]="isSaving()" (click)="saveSku()">
 					{{ isSaving() ? 'Saving...' : 'Update' }}
 				</button>
 			</div>
@@ -634,8 +634,8 @@
 				</div>
 			</div>
 			<div class="modal-footer">
-				<button class="btn btn-outline-secondary" (click)="showColorModal.set(false)">Cancel</button>
-				<button class="btn btn-primary" [disabled]="isSaving() || !formColorName().trim()" (click)="saveColor()">
+				<button class="sf-btn sf-btn--ghost" (click)="showColorModal.set(false)">Cancel</button>
+				<button class="sf-btn sf-btn--primary" [disabled]="isSaving() || !formColorName().trim()" (click)="saveColor()">
 					{{ isSaving() ? 'Saving...' : (editingColor() ? 'Update' : 'Create') }}
 				</button>
 			</div>
@@ -665,8 +665,8 @@
 				</div>
 			</div>
 			<div class="modal-footer">
-				<button class="btn btn-outline-secondary" (click)="showSizeModal.set(false)">Cancel</button>
-				<button class="btn btn-primary" [disabled]="isSaving() || !formSizeName().trim()" (click)="saveSize()">
+				<button class="sf-btn sf-btn--ghost" (click)="showSizeModal.set(false)">Cancel</button>
+				<button class="sf-btn sf-btn--primary" [disabled]="isSaving() || !formSizeName().trim()" (click)="saveSize()">
 					{{ isSaving() ? 'Saving...' : (editingSize() ? 'Update' : 'Create') }}
 				</button>
 			</div>

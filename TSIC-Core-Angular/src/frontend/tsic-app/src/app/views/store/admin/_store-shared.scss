@@ -492,3 +492,66 @@ textarea.sf-input {
 		transition: none;
 	}
 }
+
+// ── Modal footer buttons ──
+// The global .btn-outline-secondary renders as a filled dark button here, so Cancel
+// carried the same weight as the primary action. These are quiet-and-loud by design.
+.sf-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2);
+	min-height: 40px;
+	padding: var(--space-2) var(--space-5);
+	font-family: inherit;
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-semibold);
+	border-radius: var(--radius-md);
+	border: 1px solid transparent;
+	cursor: pointer;
+	transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+
+	&:disabled {
+		cursor: not-allowed;
+		opacity: 0.55;
+	}
+}
+
+.sf-btn--ghost {
+	color: var(--brand-text-muted);
+	background: transparent;
+	border-color: var(--brand-border);
+
+	&:hover:not(:disabled) {
+		color: var(--brand-text);
+		background: var(--brand-bg-secondary);
+		border-color: var(--brand-text-muted);
+	}
+}
+
+.sf-btn--primary {
+	color: #fff;
+	background: var(--bs-primary);
+	border-color: var(--bs-primary);
+	box-shadow: var(--shadow-xs);
+
+	&:hover:not(:disabled) {
+		background: var(--brand-primary-hover);
+		border-color: var(--brand-primary-hover);
+		box-shadow: var(--shadow-sm);
+	}
+}
+
+// Dark mode's --bs-primary is a light slate; white on it is unreadable.
+:host-context([data-bs-theme='dark']) .sf-btn--primary {
+	color: var(--neutral-100);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sf-btn { transition: none; }
+}
