@@ -85,8 +85,8 @@ StoreSalesWalkup, StoreTwoClick, CheckoutConfirmation, WalkUp, and the Labels/Cr
 | A-28 | `Invoices` — purchase history. Cards with per-row actions, not an EJ2 grid with a selection toolbar. See D-12 | BUILT |
 | A-29 | Download Receipt / Email Receipt, moved from a selection toolbar onto each row | BUILT |
 | A-30 | ~~Invoices auto-selects row 0 on databound~~ — **CLOSED, nothing to port**: auto-selection existed only so legacy toolbar buttons were not dead on arrival. With per-row actions there is no selection to prime | CLOSED |
-| A-31 | `WalkUpRegister` — mini-registration form + state list | IMPL — form fields not yet compared |
-| A-32 | `StoreTwoClick/Login` — family login into store | IMPL — flow not yet compared |
+| A-31 | `WalkUpRegister` — mini-registration form + state list. Compared: same eight fields, but legacy validation and the state dropdown were missing. See D-14 | IMPL |
+| A-32 | `StoreTwoClick/Login` — family login into store. Compared; deliberate flow divergence, see D-14 | DIVERGE |
 | A-36 | Sold-out items stay visible; unbuyable variants are named (`SoldOutOrInactiveSkuLabels`), listing gate is `active && skuCount > 0` as legacy | IMPL |
 | A-37 | Quantity cap. **Legacy's rule recovered and kept**: `StoreFamilyController` builds the dropdown from a hard `int maxQuantity = 5` — five of one variant per add, availability never consulted. Ours had the availability clamp but had DROPPED the 5, with a 99 fallback. Now `min(5, availableCount)`, one definition in `store-quantity.ts` shared by both add surfaces, with the fallback at 5 rather than 99 while availability is in flight. The screen names which ceiling was hit ("5 per order" vs "Only N left" vs "Sold out"). The in-cart editor stays uncapped, matching legacy's freely-editable cart grid — 5 limits one add, not what a family may own | BUILT |
 | A-38 | Add-to-cart availability basis: legacy checks `GetSkuAvailableCountBySoldAndBuffer` (sold only, NOT in-cart) and relies on the checkout auto-trim; ours deducts in-cart too, refusing earlier. Ours is stricter. **The auto-trim legacy leans on now exists (D-8)**, so this is a deliberate belt-and-braces, not a missing safety net | DIVERGE |
@@ -685,6 +685,45 @@ duplicating the header of the column beside it. Ours says Restock Date.
 Both tables are near-empty on live data — 5 refunded lines, 0 restocks across all 1,096 jobs — so
 this is about the screens being right when they are first used, not about fixing what a director
 is looking at today.
+
+### D-14 · Walk-up form and the store login flow, compared (A-31, A-32)
+
+**A-31 — same eight fields, none of legacy's rules.** `FirstName · LastName · Email · Phone ·
+Address · City · State · Zip` match one for one. What was missing was everything legacy's
+`StoreWalkUpRegistrationDto` annotations enforced:
+
+| Rule | Legacy | Was |
+|---|---|---|
+| Email is an address | `[EmailAddress]` | non-empty |
+| Phone is exactly 10 digits | `^([0-9]{10})$` | non-empty |
+| ZIP is `12345` or `12345-6789` | `^\d{5}(-\d{4})?$` | non-empty |
+| State comes from a list | `<select asp-items="ViewBag.listStates">` | free-text, `maxlength=2` |
+
+All four restored. The state box is now the same options every other address form in this app
+uses, via `FormFieldDataService` — a two-character free-text field is how "CA", "Cal" and
+"california" end up in one column.
+
+The three format rules are enforced on **both** sides, and the server side is the one that
+matters: `POST /store/walk-up-register` is `[AllowAnonymous]`, and one accepted POST mints a
+user, a family and a registration. A junk phone or ZIP there is a permanent row, not a rejected
+form. `[ApiController]` turns the annotations into a 400 with no controller code.
+
+**A-32 — accepted divergence, not a gap.** Legacy's `StoreTwoClick` is what its name says: check
+the password, then silently pick the family's FIRST registration in this job matching
+`BActive && AssignedTeamId != null && RoleId == Player`, sign in as Family, land in the store.
+No players matched → "Family account {x} does not have any players registered for this event"
+and back to the event home.
+
+Ours goes through the app's standard two-phase auth: sign in, choose the registration, land in
+the store — one more click, and the empty case is handled by role-selection rather than by a
+store-specific message. Rebuilding an auto-select path would mean a second entry into the
+authentication system for one screen's convenience; the store is not the place to fork auth.
+
+One legacy restriction deliberately not carried: legacy required `AssignedTeamId != null`, so a
+family whose player was registered but not yet rostered could not reach the store at all. That
+is a restriction, not a capability, and it blocks a customer who wants to spend money. The DirectTo
+dropdown on each product already lets a shopper buy for any of their players, so which
+registration they signed in under barely reaches the purchase.
 
 ## Open recommendations
 

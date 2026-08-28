@@ -37,7 +37,12 @@
 					<input id="email" type="email" class="form-control form-control-lg"
 						   [ngModel]="email()" (ngModelChange)="email.set($event)"
 						   name="email" required autocomplete="email"
-						   placeholder="you@example.com">
+						   placeholder="you@example.com"
+						   [class.is-invalid]="emailError()"
+						   [attr.aria-describedby]="emailError() ? 'emailError' : null">
+					@if (emailError(); as err) {
+						<div id="emailError" class="invalid-feedback d-block">{{ err }}</div>
+					}
 				</div>
 
 				<!-- Phone -->
@@ -45,7 +50,13 @@
 					<label for="phone" class="form-label fw-medium">Phone</label>
 					<input id="phone" type="tel" class="form-control form-control-lg"
 						   [ngModel]="phone()" (ngModelChange)="phone.set($event)"
-						   name="phone" required autocomplete="tel">
+						   name="phone" required autocomplete="tel"
+						   inputmode="numeric" maxlength="10" placeholder="10 digits, no spaces"
+						   [class.is-invalid]="phoneError()"
+						   [attr.aria-describedby]="phoneError() ? 'phoneError' : null">
+					@if (phoneError(); as err) {
+						<div id="phoneError" class="invalid-feedback d-block">{{ err }}</div>
+					}
 				</div>
 
 				<!-- Street Address -->
@@ -66,17 +77,26 @@
 					</div>
 					<div class="col-3">
 						<label for="state" class="form-label fw-medium">State</label>
-						<input id="state" type="text" class="form-control form-control-lg"
-							   [ngModel]="state()" (ngModelChange)="state.set($event)"
-							   name="state" required autocomplete="address-level1"
-							   maxlength="2" style="text-transform: uppercase">
+						<select id="state" class="form-select form-select-lg"
+								[ngModel]="state()" (ngModelChange)="state.set($event)"
+								name="state" required autocomplete="address-level1">
+							<option value="">Select</option>
+							@for (s of states; track s.value) {
+								<option [value]="s.value">{{ s.label }}</option>
+							}
+						</select>
 					</div>
 					<div class="col-4">
 						<label for="zip" class="form-label fw-medium">ZIP</label>
 						<input id="zip" type="text" class="form-control form-control-lg"
 							   [ngModel]="zip()" (ngModelChange)="zip.set($event)"
 							   name="zip" required autocomplete="postal-code"
-							   maxlength="10">
+							   inputmode="numeric" maxlength="10"
+							   [class.is-invalid]="zipError()"
+							   [attr.aria-describedby]="zipError() ? 'zipError' : null">
+						@if (zipError(); as err) {
+							<div id="zipError" class="invalid-feedback d-block">{{ err }}</div>
+						}
 					</div>
 				</div>
 
