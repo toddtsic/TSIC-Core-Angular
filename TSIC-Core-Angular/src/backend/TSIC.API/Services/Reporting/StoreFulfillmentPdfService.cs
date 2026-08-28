@@ -316,6 +316,7 @@ public sealed class StoreFulfillmentPdfService : IStoreFulfillmentPdfService
         using var document = new PdfDocument();
         document.PageSettings.Size = new SizeF(PageW, PageH);
         document.PageSettings.Margins.All = SheetMargin;
+        document.DocumentInformation.Title = "Store Pickup Signoff";
         AddFooter(document, SheetW, "Store pickup signoff");
 
         var fonts = new Fonts();
@@ -481,6 +482,7 @@ public sealed class StoreFulfillmentPdfService : IStoreFulfillmentPdfService
         document.PageSettings.Orientation = PdfPageOrientation.Landscape;
         document.PageSettings.Size = new SizeF(PageW, PageH);
         document.PageSettings.Margins.All = PivMargin;
+        document.DocumentInformation.Title = "Store Per-Family Pivot";
         AddFooter(document, PivW, "Store per-family pivot");
 
         var fonts = new Fonts();
@@ -575,6 +577,12 @@ public sealed class StoreFulfillmentPdfService : IStoreFulfillmentPdfService
                     y = DrawPivotHeader(g, panel, colW, y, fonts);
                 }
 
+                // Band and rule, because bold alone did not read as a summary: the TOTAL row got
+                // the same hairline as every family above it and scanned as one more family.
+                var totalsW = FamilyColW + (panel.Count * colW) + TotalColW;
+                g.DrawRectangle(BandBrush, new RectangleF(0, y, totalsW, PivRowH));
+                g.DrawLine(RulePen, new PointF(0, y), new PointF(totalsW, y));
+
                 DrawClip(g, "TOTAL", fonts.RowBold, PdfBrushes.Black, 2f, y + 1.5f, FamilyColW - 4f, PivRowH);
                 var x = FamilyColW;
                 var grand = 0;
@@ -590,6 +598,8 @@ public sealed class StoreFulfillmentPdfService : IStoreFulfillmentPdfService
                 g.DrawString(grand.ToString(CultureInfo.InvariantCulture), fonts.RowBold, PdfBrushes.Black,
                     new RectangleF(FamilyColW + (panel.Count * colW), y + 1.5f, TotalColW, PivRowH),
                     new PdfStringFormat(PdfTextAlignment.Center, PdfVerticalAlignment.Top));
+
+                g.DrawLine(RulePen, new PointF(0, y + PivRowH), new PointF(totalsW, y + PivRowH));
             }
         }
 
