@@ -5,6 +5,8 @@
 export type StoreSkuDto = {
     storeSkuId: number;
     storeItemId: number;
+    storeItemName: string;
+    price: number;
     storeColorId?: number | null;
     storeColorName?: string | null;
     storeSizeId?: number | null;
