@@ -28,6 +28,9 @@
 	<button class="editor-tab" [class.active]="activeTab() === 'sizes'" (click)="activeTab.set('sizes')">
 		<i class="bi bi-rulers me-1"></i>Sizes
 	</button>
+	<button class="editor-tab" [class.active]="activeTab() === 'dashboard'" (click)="activeTab.set('dashboard')">
+		<i class="bi bi-speedometer2 me-1"></i>Dashboard
+	</button>
 	<button class="editor-tab" [class.active]="activeTab() === 'analytics'" (click)="activeTab.set('analytics')">
 		<i class="bi bi-graph-up me-1"></i>Analytics
 	</button>
@@ -401,6 +404,13 @@
 <!-- ══════════════════════════════════════ -->
 @if (!isLoading() && activeTab() === 'campaigns') {
 	<app-store-campaigns-tab />
+}
+
+<!-- ══════════════════════════════════════ -->
+<!-- TAB 8: DASHBOARD                       -->
+<!-- ══════════════════════════════════════ -->
+@if (!isLoading() && activeTab() === 'dashboard') {
+	<app-store-dashboard-tab />
 }
 
 <!-- ══════════════════════════════════════ -->

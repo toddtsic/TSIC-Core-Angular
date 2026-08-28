@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { StoreService } from '../../../infrastructure/services/store.service';
@@ -34,6 +34,33 @@ export class StoreAnalyticsTabComponent {
 	// ── Data signals ──
 	readonly salesByItem = signal<StoreSalesByItemDto[]>([]);
 	readonly salesPivot = signal<StoreSalesPivotDto[]>([]);
+
+	/**
+	 * The endpoint reports at SKU grain (the Dashboard's pivot drills item → SKU). This flat
+	 * table is the item-level summary, so roll the SKUs of an item back up within each period.
+	 */
+	readonly salesPivotByItem = computed(() => {
+		const buckets = new Map<string, { itemName: string; month: number; year: number; unitsSold: number; revenue: number }>();
+
+		for (const row of this.salesPivot()) {
+			const key = `${row.itemName}|${row.year}|${row.month}`;
+			const bucket = buckets.get(key);
+			if (bucket) {
+				bucket.unitsSold += row.unitsSold;
+				bucket.revenue += row.revenue;
+			} else {
+				buckets.set(key, {
+					itemName: row.itemName,
+					month: row.month,
+					year: row.year,
+					unitsSold: row.unitsSold,
+					revenue: row.revenue,
+				});
+			}
+		}
+
+		return [...buckets.values()];
+	});
 	readonly payments = signal<StorePaymentDetailDto[]>([]);
 	readonly familyPurchases = signal<StoreFamilyPurchaseDto[]>([]);
 	readonly refundedItems = signal<StoreRefundedItemDto[]>([]);

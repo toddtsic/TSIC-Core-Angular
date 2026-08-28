@@ -12,7 +12,8 @@ public interface IStoreAnalyticsRepository
     // ── Sales Analytics ──
 
     /// <summary>
-    /// Sales pivot: units and revenue by item by year-month.
+    /// Sales pivot: units NET of restocks and revenue NET of refunds, by item, sku and year-month.
+    /// The one dataset behind all three of legacy's Store Dashboard pivots.
     /// </summary>
     Task<List<StoreSalesPivotDto>> GetSalesPivotAsync(int storeId, CancellationToken cancellationToken = default);
 

@@ -1,0 +1,73 @@
+@use './store-shared' as *;
+
+// ── Headline totals ──
+
+.kpi-row {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: var(--space-3);
+	margin-bottom: var(--space-5);
+}
+
+.kpi {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	padding: var(--space-4);
+	background: var(--brand-surface);
+	border: 1px solid var(--bs-border-color);
+	border-left: 3px solid var(--bs-primary);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-xs);
+}
+
+.kpi-label {
+	font-size: var(--font-size-xs);
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--bs-secondary-color);
+}
+
+.kpi-value {
+	font-size: var(--font-size-xl);
+	font-weight: 700;
+	color: var(--brand-text);
+	font-variant-numeric: tabular-nums;
+	line-height: 1.1;
+}
+
+.kpi-note {
+	font-size: var(--font-size-xs);
+	color: var(--bs-secondary-color);
+}
+
+// ── Panels ──
+
+.panel {
+	margin-bottom: var(--space-5);
+	padding: var(--space-4);
+	background: var(--brand-surface);
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-xs);
+}
+
+.panel-title {
+	margin: 0;
+	font-size: var(--font-size-base);
+	font-weight: 600;
+	color: var(--brand-text);
+}
+
+.panel-sub {
+	margin: var(--space-1) 0 var(--space-3);
+	font-size: var(--font-size-sm);
+	color: var(--bs-secondary-color);
+}
+
+// The pivot renders a fixed-width table; it scrolls inside its own box so the page body never
+// scrolls sideways.
+.pivot-wrap {
+	overflow-x: auto;
+}

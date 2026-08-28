@@ -3,14 +3,26 @@ namespace TSIC.Contracts.Dtos.Store;
 // ── Sales Analytics ──
 
 /// <summary>
-/// Sales pivot data: units and revenue by item by year-month.
+/// Sales pivot data — the single dataset behind all three of legacy's Store Dashboard pivots
+/// (Sales Rollup table, Product Sales chart, Sales Rollup chart). Legacy's
+/// <c>GetJobPurchasesPivotData</c> shipped one row per line item and let the pivot component
+/// aggregate; this is grouped to the same grain the pivot rolls up to (item + sku + year + month),
+/// which is arithmetically identical for Sum aggregates and a fraction of the payload.
 /// </summary>
 public record StoreSalesPivotDto
 {
     public required string ItemName { get; init; }
+
+    /// <summary>Legacy's <c>storeItemSku</c>: "Item:Size:Color" — the pivot's second row level.</summary>
+    public required string SkuLabel { get; init; }
+
     public required int Month { get; init; }
     public required int Year { get; init; }
+
+    /// <summary>Quantity NET of restocks — a restocked unit came back and was not sold.</summary>
     public required int UnitsSold { get; init; }
+
+    /// <summary>Paid NET of refunds. A line that was never paid contributes zero, not a negative.</summary>
     public required decimal Revenue { get; init; }
 }
 

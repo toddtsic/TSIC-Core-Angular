@@ -9,6 +9,7 @@ import { StoreAnalyticsTabComponent } from './store-analytics-tab.component';
 import { StoreImagesTabComponent } from './store-images-tab.component';
 import { StoreSalesTabComponent } from './store-sales-tab.component';
 import { StoreCampaignsTabComponent } from './store-campaigns-tab.component';
+import { StoreDashboardTabComponent } from './store-dashboard-tab.component';
 import type {
 	StoreItemSummaryDto,
 	StoreItemDto,
@@ -20,7 +21,7 @@ import type {
 	UpdateStoreSkuRequest,
 } from '@core/api';
 
-type TabKey = 'items' | 'images' | 'sales' | 'campaigns' | 'colors' | 'sizes' | 'analytics';
+type TabKey = 'items' | 'images' | 'sales' | 'campaigns' | 'dashboard' | 'colors' | 'sizes' | 'analytics';
 
 @Component({
 	selector: 'app-store-admin',
@@ -34,6 +35,7 @@ type TabKey = 'items' | 'images' | 'sales' | 'campaigns' | 'colors' | 'sizes' | 
 		StoreImagesTabComponent,
 		StoreSalesTabComponent,
 		StoreCampaignsTabComponent,
+		StoreDashboardTabComponent,
 	],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './store-admin.component.html',

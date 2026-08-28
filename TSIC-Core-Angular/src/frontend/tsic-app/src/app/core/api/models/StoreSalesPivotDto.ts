@@ -4,6 +4,7 @@
 /* eslint-disable */
 export type StoreSalesPivotDto = {
     itemName: string;
+    skuLabel: string;
     month: number;
     year: number;
     unitsSold: number;

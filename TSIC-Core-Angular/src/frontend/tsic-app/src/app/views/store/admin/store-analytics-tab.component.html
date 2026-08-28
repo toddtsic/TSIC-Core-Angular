@@ -92,8 +92,8 @@
 	} @else {
 		<div class="tab-toolbar">
 			<div class="tab-toolbar-meta">
-				<span class="meta-count">{{ salesPivot().length }}</span>
-				<span>{{ salesPivot().length === 1 ? 'row' : 'rows' }}</span>
+				<span class="meta-count">{{ salesPivotByItem().length }}</span>
+				<span>{{ salesPivotByItem().length === 1 ? 'row' : 'rows' }}</span>
 			</div>
 		</div>
 		<div class="table-responsive store-table-wrap">
@@ -107,7 +107,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					@for (row of salesPivot(); track row.itemName + row.month + row.year) {
+					@for (row of salesPivotByItem(); track row.itemName + row.month + row.year) {
 						<tr>
 							<td><span class="item-name">{{ row.itemName }}</span></td>
 							<td class="text-center">

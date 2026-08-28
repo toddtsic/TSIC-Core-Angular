@@ -50,51 +50,93 @@ public class StoreAnalyticsRepository : IStoreAnalyticsRepository
 
     // ── Sales Analytics ──
 
+    /// <summary>
+    /// Legacy <c>IStoreService.GetJobPurchasesPivotData</c>, restored exactly. Three earlier
+    /// divergences were each overstating a director-facing number — measured across the live
+    /// database, they inflated units 533 → 529 and revenue $11,755.21 → $11,662.05:
+    ///
+    /// <list type="bullet">
+    /// <item>Units summed <c>Quantity</c>, not <c>Quantity − Restocked</c>: returned goods counted as sold.</item>
+    /// <item>Revenue summed <c>PaidTotal</c> and ignored <c>RefundedTotal</c> entirely.</item>
+    /// <item>The filter was <c>PaidTotal &gt; 0</c> rather than "the batch was paid for", so a line
+    /// refunded down to zero vanished from the rollup instead of showing as zero revenue.</item>
+    /// </list>
+    ///
+    /// The zero guard is legacy's and is per-ROW, applied before the sum: a line with no payment
+    /// contributes 0, never a negative — a refund can only cancel money that was taken.
+    /// </summary>
     public async Task<List<StoreSalesPivotDto>> GetSalesPivotAsync(
         int storeId, CancellationToken cancellationToken = default)
     {
-        return await (
+        var rows = await (
             from cbs in _context.StoreCartBatchSkus
-            join sku in _context.StoreItemSkus on cbs.StoreSkuId equals sku.StoreSkuId
-            join item in _context.StoreItems on sku.StoreItemId equals item.StoreItemId
-            where item.StoreId == storeId
+            where cbs.StoreCartBatch.StoreCart.StoreId == storeId
                 && cbs.Active
-                && cbs.PaidTotal > 0
+                && cbs.StoreCartBatch.StoreCartBatchAccounting.Any()
             group cbs by new
             {
-                item.StoreItemName,
+                ItemName = cbs.StoreSku.StoreItem.StoreItemName,
+                SizeName = cbs.StoreSku.StoreSize != null ? cbs.StoreSku.StoreSize.StoreSizeName : null,
+                ColorName = cbs.StoreSku.StoreColor != null ? cbs.StoreSku.StoreColor.StoreColorName : null,
                 cbs.CreateDate.Month,
                 cbs.CreateDate.Year
             } into g
-            orderby g.Key.Year descending, g.Key.Month descending, g.Key.StoreItemName
-            select new StoreSalesPivotDto
+            select new
             {
-                ItemName = g.Key.StoreItemName,
-                Month = g.Key.Month,
-                Year = g.Key.Year,
-                UnitsSold = g.Sum(x => x.Quantity),
-                Revenue = g.Sum(x => x.PaidTotal)
+                g.Key.ItemName,
+                g.Key.SizeName,
+                g.Key.ColorName,
+                g.Key.Month,
+                g.Key.Year,
+                UnitsSold = g.Sum(x => x.Quantity - x.Restocked),
+                Revenue = g.Sum(x => x.PaidTotal == 0 ? 0 : x.PaidTotal - x.RefundedTotal)
             }
         ).AsNoTracking().ToListAsync(cancellationToken);
+
+        return rows
+            .Select(r => new StoreSalesPivotDto
+            {
+                ItemName = r.ItemName,
+                // Legacy concatenated the three parts with ':' unconditionally. In SQL that makes
+                // the WHOLE label NULL for a sku with no colour or size, which the pivot would
+                // then render as a blank row header. Joining the non-blank parts is the same
+                // string for every sku that has both — which is all of them today — and degrades
+                // to "Item:Size" instead of nothing when one is missing.
+                SkuLabel = string.Join(":", new[] { r.ItemName, r.SizeName, r.ColorName }
+                    .Where(p => !string.IsNullOrWhiteSpace(p))),
+                Month = r.Month,
+                Year = r.Year,
+                UnitsSold = r.UnitsSold,
+                Revenue = r.Revenue
+            })
+            .OrderByDescending(r => r.Year)
+            .ThenByDescending(r => r.Month)
+            .ThenBy(r => r.ItemName)
+            .ThenBy(r => r.SkuLabel)
+            .ToList();
     }
 
+    /// <summary>
+    /// Sales by item. Same "sold" and "revenue" rule as <see cref="GetSalesPivotAsync"/> — units net
+    /// of restocks, money net of refunds, scoped to batches that were actually paid for. It had the
+    /// same three overstatements, and two readouts of the same money disagreeing is worse than
+    /// either being wrong on its own.
+    /// </summary>
     public async Task<List<StoreSalesByItemDto>> GetSalesByItemAsync(
         int storeId, CancellationToken cancellationToken = default)
     {
         return await (
             from cbs in _context.StoreCartBatchSkus
-            join sku in _context.StoreItemSkus on cbs.StoreSkuId equals sku.StoreSkuId
-            join item in _context.StoreItems on sku.StoreItemId equals item.StoreItemId
-            where item.StoreId == storeId
+            where cbs.StoreCartBatch.StoreCart.StoreId == storeId
                 && cbs.Active
-                && cbs.PaidTotal > 0
-            group cbs by item.StoreItemName into g
-            orderby g.Sum(x => x.PaidTotal) descending
+                && cbs.StoreCartBatch.StoreCartBatchAccounting.Any()
+            group cbs by cbs.StoreSku.StoreItem.StoreItemName into g
+            orderby g.Sum(x => x.PaidTotal == 0 ? 0 : x.PaidTotal - x.RefundedTotal) descending
             select new StoreSalesByItemDto
             {
                 ItemName = g.Key,
-                TotalUnitsSold = g.Sum(x => x.Quantity),
-                TotalRevenue = g.Sum(x => x.PaidTotal)
+                TotalUnitsSold = g.Sum(x => x.Quantity - x.Restocked),
+                TotalRevenue = g.Sum(x => x.PaidTotal == 0 ? 0 : x.PaidTotal - x.RefundedTotal)
             }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
@@ -381,10 +423,10 @@ public class StoreAnalyticsRepository : IStoreAnalyticsRepository
                 x.IsWalkUp,
                 // LEGACY fallback chain: the directed registrant, else the purchasing family's
                 // Mom, else Dad — so the grid always names someone to hand the goods to.
-                x.Line.DirectToReg != null ? x.Line.DirectToReg.User.FirstName : null,
-                x.Line.DirectToReg != null ? x.Line.DirectToReg.User.LastName : null,
-                x.Line.DirectToReg != null ? x.Line.DirectToReg.User.Email : null,
-                x.Line.DirectToReg != null ? x.Line.DirectToReg.User.Cellphone : null,
+                x.Line.DirectToReg != null && x.Line.DirectToReg.User != null ? x.Line.DirectToReg.User.FirstName : null,
+                x.Line.DirectToReg != null && x.Line.DirectToReg.User != null ? x.Line.DirectToReg.User.LastName : null,
+                x.Line.DirectToReg != null && x.Line.DirectToReg.User != null ? x.Line.DirectToReg.User.Email : null,
+                x.Line.DirectToReg != null && x.Line.DirectToReg.User != null ? x.Line.DirectToReg.User.Cellphone : null,
                 x.Line.StoreCartBatch.StoreCart.FamilyUser.FamiliesFamilyUser!.MomFirstName,
                 x.Line.StoreCartBatch.StoreCart.FamilyUser.FamiliesFamilyUser!.MomLastName,
                 x.Line.StoreCartBatch.StoreCart.FamilyUser.FamiliesFamilyUser!.MomEmail,

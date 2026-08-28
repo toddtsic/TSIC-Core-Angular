@@ -1,0 +1,90 @@
+@if (errorMessage(); as message) {
+	<div class="alert alert-danger" role="alert">
+		<i class="bi bi-exclamation-triangle-fill me-2"></i>{{ message }}
+	</div>
+}
+
+@if (isLoading()) {
+	<div class="text-center py-5">
+		<div class="spinner-border text-primary" role="status">
+			<span class="visually-hidden">Loading...</span>
+		</div>
+		<p class="mt-2 text-body-secondary">Loading dashboard...</p>
+	</div>
+} @else if (!hasData()) {
+	<div class="empty-state">
+		<span class="empty-state-icon"><i class="bi bi-graph-up-arrow"></i></span>
+		<div class="empty-state-title">No sales yet</div>
+		<p class="empty-state-desc">
+			The dashboard fills in as purchases are paid for. Units are net of restocks and
+			sales are net of refunds, so a returned item never shows as sold.
+		</p>
+	</div>
+} @else {
+
+	<!-- Headline totals — the two numbers a director looks for before reading anything else. -->
+	<div class="kpi-row">
+		<div class="kpi">
+			<span class="kpi-label">Units Sold</span>
+			<span class="kpi-value">{{ totalUnits() }}</span>
+			<span class="kpi-note">net of restocks</span>
+		</div>
+		<div class="kpi">
+			<span class="kpi-label">Sales</span>
+			<span class="kpi-value">{{ formatCurrency(totalRevenue()) }}</span>
+			<span class="kpi-note">net of refunds</span>
+		</div>
+	</div>
+
+	<!-- ══════════════════════════════════════ -->
+	<!-- D-01/D-02: Sales Rollup pivot table    -->
+	<!-- ══════════════════════════════════════ -->
+	<section class="panel">
+		<h3 class="panel-title">Sales Rollup</h3>
+		<p class="panel-sub">
+			Item and SKU down the side, year and month across the top. Right-click a header to
+			filter or sort.
+		</p>
+		<div class="pivot-wrap">
+			<ejs-pivotview
+				[dataSourceSettings]="salesRollup()"
+				[height]="620"
+				[showFieldList]="false">
+			</ejs-pivotview>
+		</div>
+	</section>
+
+	<!-- ══════════════════════════════════════ -->
+	<!-- D-03: Product Sales chart              -->
+	<!-- ══════════════════════════════════════ -->
+	<section class="panel">
+		<h3 class="panel-title">Product Sales</h3>
+		<p class="panel-sub">Units sold each month, one series per product.</p>
+		<div class="pivot-wrap">
+			<ejs-pivotview
+				[dataSourceSettings]="productSales()"
+				[chartSettings]="productSalesChart"
+				[displayOption]="chartDisplay"
+				[height]="400"
+				[showFieldList]="false">
+			</ejs-pivotview>
+		</div>
+	</section>
+
+	<!-- ══════════════════════════════════════ -->
+	<!-- D-04: Sales Rollup chart               -->
+	<!-- ══════════════════════════════════════ -->
+	<section class="panel">
+		<h3 class="panel-title">Sales Rollup Chart</h3>
+		<p class="panel-sub">The rollup above as units and dollars per item, by year.</p>
+		<div class="pivot-wrap">
+			<ejs-pivotview
+				[dataSourceSettings]="salesRollupChart()"
+				[chartSettings]="salesRollupChartSettings"
+				[displayOption]="chartDisplay"
+				[height]="360"
+				[showFieldList]="false">
+			</ejs-pivotview>
+		</div>
+	</section>
+}

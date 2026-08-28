@@ -40,9 +40,11 @@ Mechanically enumerated from legacy source: **StoreItems, StoreSkus, StoreImages
 StoreRefunded, StoreRestocked, StoreCartQuantityAdjustments, StoreAdminAdd, ShoppingCart,
 Invoices, StoreFamily/Index (partial), Checkout (partial).**
 
+Since inventoried and ported in full: **StoreDashboard** (three pivots — D-01…D-04, plus its one
+dead action) and **the three StoreEmail\* screens** (E-01…E-05).
+
 **NOT yet inventoried at pathway granularity** — these rows are placeholders and will grow:
-StoreSalesWalkup, StoreDashboard, the three StoreEmail\* screens, StoreTwoClick,
-CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
+StoreSalesWalkup, StoreTwoClick, CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
 
 ---
 
@@ -159,10 +161,10 @@ CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
 
 | # | Legacy pathway | Status |
 |---|---|---|
-| D-01 | Sales Rollup pivot — rows item→sku, cols year→month, Units + Sales | GAP |
-| D-02 | Pivot: label filter, value filter, sorting, `C2` format | GAP |
-| D-03 | Product Sales stacked column chart | GAP |
-| D-04 | Sales Rollup chart | GAP |
+| D-01 | Sales Rollup pivot — rows item→sku, cols year→month, Units + Sales | BUILT |
+| D-02 | Pivot: label filter, value filter, sorting, `C2` format | BUILT |
+| D-03 | Product Sales chart (legacy id says Stacked, config says Column) | BUILT |
+| D-04 | Sales Rollup chart | BUILT |
 
 ## E · Email campaigns
 
@@ -260,6 +262,36 @@ Deliberate divergences, each a defect in legacy rather than a behaviour worth co
    zero out every abandoned cart.
 8. **The sender receipt reaches the always-copy list.** Legacy hand-rolled a confirmation to the
    sender alone in each of the three controllers; this uses the shared `BatchCompletionReceipt`.
+
+**D-4 — Store Dashboard. SETTLED, APPLIED. One dataset, three pivots, and a money correction.**
+Legacy's `StoreDashboard/Index` rendered three `ejs-pivotview` instances. It fed two from
+`GetJobPurchasesPivotData` and the third from a separate inline projection of the same table;
+all three now read one endpoint, so the chart and the table above it cannot disagree.
+
+Restoring `GetJobPurchasesPivotData` exposed three divergences in the query we already had, each
+overstating a director-facing number. Measured across the live database: **units 533 → 529,
+revenue $11,755.21 → $11,662.05.**
+
+1. Units summed `Quantity`, not `Quantity − Restocked` — returned goods counted as sold.
+2. Revenue summed `PaidTotal` and ignored `RefundedTotal` entirely, overstating by **$93.16**.
+3. The filter was `PaidTotal > 0` rather than "the batch was paid for", so a line refunded down to
+   zero vanished from the rollup instead of showing as zero revenue against its units.
+
+`GetSalesByItemAsync` carried the same three and was corrected to match: two readouts of the same
+money disagreeing is worse than either being wrong alone.
+
+The per-row zero guard is legacy's and is load-bearing — `PaidTotal == 0 ? 0 : PaidTotal −
+RefundedTotal`, applied before the sum, so an unpaid line contributes zero and never a negative.
+
+Two legacy details worth recording so nobody "restores" them:
+
+- **`GetSalesByItemPieData` is dead code.** Its view was commented out, and it computes
+  `(CountSold / CountSoldTotal) * 100` on two `int`s — integer division, so every percentage it
+  ever produced was 0. Not ported.
+- **`storeItemSku` was built by unconditional `':'` concatenation.** In SQL that makes the WHOLE
+  label NULL for a sku missing a colour or size, blanking the pivot's row header. No sku in the
+  database has a null colour or size today, so this is latent, not live; the port joins the
+  non-blank parts instead.
 
 ## Open recommendations
 
