@@ -427,11 +427,6 @@ export const routes: Routes = [
 				loadComponent: () => import('./views/store/catalog/catalog.component').then(m => m.StoreCatalogComponent)
 			},
 			{
-				path: 'store/item/:storeItemId',
-				canActivate: [storeGuard],
-				loadComponent: () => import('./views/store/item-detail/item-detail.component').then(m => m.StoreItemDetailComponent)
-			},
-			{
 				path: 'store/cart',
 				canActivate: [storeGuard],
 				loadComponent: () => import('./views/store/cart/cart.component').then(m => m.StoreCartComponent)

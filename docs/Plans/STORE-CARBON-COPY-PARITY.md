@@ -76,7 +76,7 @@ find them — a screen is not covered because its controller action is.
 |---|---|---|
 | A-01 | `Index` — catalog render, active items only | IMPL |
 | A-02 | Catalog order: `SortOrder`, **0 sorts LAST (→10000)**, then `StoreItemName` | IMPL |
-| A-03 | Per-item image carousel. **The carousel was already built** in `item-detail`; what was missing was data — `StoreItemImage` held only each item's FIRST instance, so `imageUrls` was never longer than 1. The image sync now indexes every file on disk, so items with 2–3 photos surface all of them | IMPL |
+| A-03 | Per-item images. Legacy ran an EJ2 carousel inside every item card. The open item in the catalog now shows the image at size, with a thumbnail strip when there is more than one — same capability, no widget. The carousel that once lived in `item-detail` went with that component (nothing linked to it; see D-15). Measured 2026-08-28: 20 store items hold exactly one image, 14 hold none — **no item in the database has ever had two**, so multi-image is capability, not an observed case | DONE |
 | A-04 | Per-item tabs: Pickup · Return Policy · Contact. BUILT as **one** panel per surface, not one per item — the three strings are JOB-level (`Jobs.StorePickupDetails` / `StoreRefundPolicy` / `StoreContactEmail`), so legacy's tab strip repeated identical text once per product. Storefront gets a collapsible panel, checkout gets the three open lines legacy also had there. See D-10 | BUILT |
 | A-05 | `listSoldOutOrInactiveSkus` surfaced per item | IMPL |
 | A-33 | ~~Per-item `itemBufferSize` reserve~~ — **CLOSED, not a gap**: legacy declares `private static readonly int itemBufferSize = 0` (`IStoreService.cs:73`). A dead constant that subtracts nothing. | CLOSED |
@@ -799,3 +799,21 @@ registration they signed in under barely reaches the purchase.
   `@* … *@` block and the JS hardcodes `itemComments = null`. Misread a commented-out block as live.
 - Graded pickup-signing as "new, no legacy equivalent" in the retired ledger; legacy has
   `CartBatchSkuItemsSignedFor` and surfaces it as the `PickedUp` column (B-11).
+
+---
+
+## D-15 — `store/item/:storeItemId` deleted (2026-08-28)
+
+The first store commit (`89240e803`) shipped the catalog as a **grid of cards**; clicking one
+called `viewItem(item)` and navigated to `/store/item/:id`, so the detail page *was* the
+purchase screen. The catalog was later rebuilt as the inline-expanding list — which is what
+legacy actually does, everything inside the item card — and the detail page was orphaned at
+that point rather than removed.
+
+By 2026-08-28 nothing in the app linked to it: reachable only by typing the URL. It carried its
+own second copy of the colour/size resolution, the availability check, the quantity clamp and
+add-to-cart, so one purchase path had two implementations and only one of them was ever
+exercised. Route and component deleted; the shared `store-quantity.ts` helper stays, still used
+by the catalog.
+
+Legacy has no counterpart to delete against — `StoreFamily` has no per-item page.
