@@ -65,7 +65,7 @@ public sealed class USLaxScrapingService : IUSLaxScrapingService
 
             foreach (var node in nodes)
             {
-                var text = node.InnerText?.Trim();
+                var text = GetAgeGroupLabel(node);
                 var href = WebUtility.HtmlDecode(node.GetAttributeValue("href", ""));
 
                 if (string.IsNullOrEmpty(text) || !text.Contains("Girls") || !seen.Add(href))
@@ -202,6 +202,25 @@ public sealed class USLaxScrapingService : IUSLaxScrapingService
 
     private static string ExtractDigits(string? text) =>
         string.IsNullOrEmpty(text) ? string.Empty : new string(text.Where(char.IsDigit).ToArray());
+
+    /// <summary>
+    /// usclublax.com renders each rankings link with the label twice -- a mobile copy and a
+    /// desktop copy -- followed by a chevron span holding an undecoded HTML entity. So
+    /// HtmlAgilityPack's InnerText concatenates all three and yields
+    /// "Girls 2027/U17/VarsityGirls 2027/U17/Varsity" plus a trailing entity. The title
+    /// attribute carries the label exactly once; fall back to the desktop copy, then to
+    /// raw InnerText.
+    /// </summary>
+    private static string GetAgeGroupLabel(HtmlNode node)
+    {
+        var title = WebUtility.HtmlDecode(node.GetAttributeValue("title", "")).Trim();
+        if (!string.IsNullOrEmpty(title))
+            return title;
+
+        var desktopCopy = node.SelectSingleNode(".//span[contains(@class, 'uscl-rankings-nav__title')]");
+        var raw = desktopCopy?.InnerText ?? node.InnerText ?? "";
+        return WebUtility.HtmlDecode(raw).Trim().TrimEnd('\u203A').Trim();
+    }
 
     private static Dictionary<string, string> ParseQueryString(string href)
     {
