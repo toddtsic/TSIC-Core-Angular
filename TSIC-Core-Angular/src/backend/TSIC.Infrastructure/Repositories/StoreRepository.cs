@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos.Store;
 using TSIC.Contracts.Repositories;
+using TSIC.Contracts.Store;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
@@ -125,12 +126,19 @@ public class StoreRepository : IStoreRepository
 
     // ── Sizes ──
 
+    /// <summary>
+    /// Size order, not alphabetical order - the list feeds the SKU-builder pickers as well as the
+    /// Sizes screen, and "Adult Large, Adult Medium, Adult Small, Adult XL" is not a size list.
+    /// The sort is in memory because <see cref="StoreSizeOrder"/> cannot be translated to SQL;
+    /// the table is a single global lookup of a few dozen rows.
+    /// </summary>
     public async Task<List<StoreSizes>> GetAllSizesAsync(CancellationToken cancellationToken = default)
     {
-        return await _context.StoreSizes
-            .OrderBy(s => s.StoreSizeName)
+        var sizes = await _context.StoreSizes
             .AsNoTracking()
             .ToListAsync(cancellationToken);
+
+        return [.. sizes.OrderBy(s => StoreSizeOrder.Key(s.StoreSizeName))];
     }
 
     public async Task<StoreSizes?> GetSizeByIdAsync(int storeSizeId, CancellationToken cancellationToken = default)

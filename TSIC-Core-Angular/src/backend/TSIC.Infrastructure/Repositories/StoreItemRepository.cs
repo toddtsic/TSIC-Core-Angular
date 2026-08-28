@@ -149,7 +149,7 @@ public class StoreItemRepository : IStoreItemRepository
             Active = item.Active,
             SortOrder = item.SortOrder,
             Modified = item.Modified,
-            Skus = item.Skus.Select(ToSkuDto).ToList(),
+            Skus = SortRows(item.Skus).Select(ToSkuDto).ToList(),
             ImageUrls = item.ImageUrls
         };
     }
@@ -250,8 +250,19 @@ public class StoreItemRepository : IStoreItemRepository
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
-        return rows.Select(ToSkuDto).ToList();
+        return SortRows(rows).Select(ToSkuDto).ToList();
     }
+
+    /// <summary>
+    /// Final SKU order. The database can only sort sizes alphabetically, which lists an Adult
+    /// S/M/L/XL shirt as "Adult Large, Adult Medium, Adult Small, Adult XL" - see
+    /// <see cref="StoreSizeOrder"/>. Both SKU reads land here, so the storefront and the admin
+    /// grid cannot disagree about the order.
+    /// </summary>
+    private static IEnumerable<SkuCountsRow> SortRows(IEnumerable<SkuCountsRow> rows) =>
+        rows.OrderBy(r => r.ItemName)
+            .ThenBy(r => StoreSizeOrder.Key(r.SizeName))
+            .ThenBy(r => r.ColorName);
 
     /// <summary>
     /// Raw per-SKU counts straight from the database, before the in-memory label build.
