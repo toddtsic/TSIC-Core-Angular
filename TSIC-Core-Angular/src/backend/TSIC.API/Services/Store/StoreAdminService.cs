@@ -12,13 +12,16 @@ public sealed class StoreAdminService : IStoreAdminService
 {
     private readonly IStoreRepository _storeRepo;
     private readonly IStoreAnalyticsRepository _analyticsRepo;
+    private readonly IStoreRestockService _restockService;
 
     public StoreAdminService(
         IStoreRepository storeRepo,
-        IStoreAnalyticsRepository analyticsRepo)
+        IStoreAnalyticsRepository analyticsRepo,
+        IStoreRestockService restockService)
     {
         _storeRepo = storeRepo;
         _analyticsRepo = analyticsRepo;
+        _restockService = restockService;
     }
 
     // ── Analytics ──
@@ -69,17 +72,21 @@ public sealed class StoreAdminService : IStoreAdminService
         return await _analyticsRepo.GetRestockedItemsAsync(store.StoreId);
     }
 
+    /// <summary>
+    /// Manual restock from the admin grid — a unit came back over the counter.
+    ///
+    /// <para>
+    /// Routes through <see cref="IStoreRestockService"/>, which is what actually returns the unit
+    /// to sellable inventory. This method used to write only the audit row: the report showed the
+    /// restock and the SKU stayed unsellable, because every availability figure is
+    /// SUM(Quantity - Restocked) and Restocked was never touched.
+    /// </para>
+    /// </summary>
     public async Task LogRestockAsync(Guid jobId, string userId, LogRestockRequest request)
     {
-        var restock = new StoreCartBatchSkuRestocks
-        {
-            StoreCartBatchSkuId = request.StoreCartBatchSkuId,
-            RestockCount = request.RestockCount,
-            Modified = DateTime.Now,
-            LebUserId = userId
-        };
+        await _restockService.StageRestockAsync(
+            request.StoreCartBatchSkuId, request.RestockCount, userId);
 
-        _analyticsRepo.AddRestock(restock);
         await _analyticsRepo.SaveChangesAsync();
     }
 

@@ -91,6 +91,7 @@ public class ProcFreeSliceCheckGateTests
         var svc = new TeamSearchService(
             teamRepo, accountingRepo, registrationRepo, jobRepo.Object,
             feeService.Object, paymentState, new Mock<IAdnApiService>().Object,
+            new Mock<IAdnReversalService>().Object,
             new Mock<ILadtService>().Object,
             new Mock<IEmailService>().Object, new Mock<IPaymentService>().Object,
             new Mock<TSIC.API.Services.Teams.IRegisteredTeamShaper>().Object,

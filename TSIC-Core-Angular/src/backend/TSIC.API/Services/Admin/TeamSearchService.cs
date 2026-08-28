@@ -35,6 +35,7 @@ public sealed class TeamSearchService : ITeamSearchService
     private readonly IFeeResolutionService _feeService;
     private readonly IPaymentStateService _paymentState;
     private readonly IAdnApiService _adnApi;
+    private readonly IAdnReversalService _adnReversal;
     private readonly ILadtService _ladtService;
     private readonly IEmailService _emailService;
     private readonly IPaymentService _paymentService;
@@ -57,6 +58,7 @@ public sealed class TeamSearchService : ITeamSearchService
         IFeeResolutionService feeService,
         IPaymentStateService paymentState,
         IAdnApiService adnApi,
+        IAdnReversalService adnReversal,
         ILadtService ladtService,
         IEmailService emailService,
         IPaymentService paymentService,
@@ -73,6 +75,7 @@ public sealed class TeamSearchService : ITeamSearchService
         _feeService = feeService;
         _paymentState = paymentState;
         _adnApi = adnApi;
+        _adnReversal = adnReversal;
         _ladtService = ladtService;
         _emailService = emailService;
         _paymentService = paymentService;
@@ -488,89 +491,58 @@ public sealed class TeamSearchService : ITeamSearchService
         if (original == null)
             return new RefundResponse { Success = false, Message = "Accounting record not found." };
 
-        if (string.IsNullOrWhiteSpace(original.AdnTransactionId))
-            return new RefundResponse { Success = false, Message = "No Authorize.Net transaction ID — cannot refund." };
+        // Confirm the record belongs to THIS job before reversing money against it. AId is a bare
+        // integer supplied by the caller and jobId was previously used only to pick merchant
+        // credentials — which most customers share across their jobs, so a record from another
+        // job would have refunded successfully against the same account. Mirrors the check in
+        // ChargeCcForTeamAsync below and the player path in RegistrationSearchService.
+        if (!await AccountingRecordBelongsToJobAsync(original, jobId, ct))
+            return new RefundResponse { Success = false, Message = "Accounting record does not belong to this job." };
 
+        // Missing-transaction and amount validation are enforced by IAdnReversalService, so the
+        // rules cannot say one thing here and another on the player or store path.
         var originalPay = original.Payamt ?? 0;
-        if (request.RefundAmount <= 0 || request.RefundAmount > originalPay)
-            return new RefundResponse { Success = false, Message = $"Refund amount must be between $0.01 and ${originalPay:F2}." };
 
         try
         {
-            var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId);
-            var env = _adnApi.GetADNEnvironment();
-
-            // Check original transaction status to determine void vs refund
-            var txDetails = _adnApi.ADN_GetTransactionDetails(env, creds.AdnLoginId!, creds.AdnTransactionKey!, original.AdnTransactionId);
-
-            if (txDetails?.messages?.resultCode != messageTypeEnum.Ok)
+            var reversal = await _adnReversal.ReverseAsync(new AdnReversalRequest
             {
-                var adnError = txDetails?.messages?.message?.FirstOrDefault()?.text ?? "Gateway returned no error details";
-                return new RefundResponse { Success = false, Message = adnError };
-            }
+                JobId = jobId,
+                AdnTransactionId = original.AdnTransactionId,
+                OriginalPaidAmount = originalPay,
+                RequestedAmount = request.RefundAmount,
+                CardLast4 = original.AdnCc4,
+                CardExpiry = original.AdnCcexpDate,
+                InvoiceNumber = original.AdnInvoiceNo
+            }, ct);
 
-            var txStatus = txDetails.transaction?.transactionStatus;
-            string refundTransId;
+            if (!reversal.Success)
+                return new RefundResponse { Success = false, Message = reversal.Message };
 
-            if (txStatus == "capturedPendingSettlement")
+            if (reversal.Kind == AdnReversalKind.Void)
             {
-                // VOID the transaction (full amount)
-                var voidResult = _adnApi.ADN_Void_Result(new AdnVoidRequest
-                {
-                    Env = env,
-                    LoginId = creds.AdnLoginId ?? "",
-                    TransactionKey = creds.AdnTransactionKey ?? "",
-                    TransactionId = original.AdnTransactionId
-                });
-
-                if (!voidResult.Success)
-                    return new RefundResponse { Success = false, Message = voidResult.MessageForUser };
-
-                refundTransId = voidResult.TransactionId ?? "";
-
                 // Mark original record as voided. Write the void fact into Comment — the field
                 // the accounting tab actually renders. (Paymeth is NOT shown: the display prefers
                 // the AccountingPaymentMethods lookup name, so anything appended to Paymeth is
                 // invisible.) Make it unmistakably a VOID, not a refund, so admin can tell at a glance.
-                var voidNote = $"VOIDED {DateTime.Now:g} — CC was not yet settled at "
-                    + $"Authorize.Net, so the original ${originalPay:F2} charge was VOIDED (not refunded). "
-                    + $"ADN void tx {refundTransId}."
-                    + (string.IsNullOrWhiteSpace(request.Reason) ? "" : $" Reason: {request.Reason}");
-                original.Comment = string.IsNullOrWhiteSpace(original.Comment)
-                    ? voidNote
-                    : $"{original.Comment} | {voidNote}";
+                original.Comment = IAdnReversalService.AppendNote(
+                    original.Comment,
+                    IAdnReversalService.BuildVoidNote(
+                        reversal.ReversedAmount, reversal.TransactionId ?? "", request.Reason));
                 original.Payamt = 0;
             }
-            else if (txStatus == "settledSuccessfully")
+            else
             {
-                // REFUND the transaction (partial or full)
-                var refundResult = _adnApi.ADN_Refund_Result(new AdnRefundRequest
-                {
-                    Env = env,
-                    LoginId = creds.AdnLoginId ?? "",
-                    TransactionKey = creds.AdnTransactionKey ?? "",
-                    CardNumberLast4 = original.AdnCc4 ?? "0000",
-                    Expiry = original.AdnCcexpDate ?? "XXXX",
-                    TransactionId = original.AdnTransactionId,
-                    Amount = request.RefundAmount,
-                    InvoiceNumber = original.AdnInvoiceNo ?? ""
-                });
-
-                if (!refundResult.Success)
-                    return new RefundResponse { Success = false, Message = refundResult.MessageForUser };
-
-                refundTransId = refundResult.TransactionId ?? "";
-
                 // Create a negative accounting record for the refund
                 _accountingRepo.Add(new RegistrationAccounting
                 {
                     RegistrationId = original.RegistrationId,
                     TeamId = original.TeamId,
                     PaymentMethodId = CcCreditMethodId,
-                    Payamt = -request.RefundAmount,
+                    Payamt = -reversal.ReversedAmount,
                     Dueamt = 0,
                     Comment = request.Reason ?? "Refund processed",
-                    AdnTransactionId = refundTransId,
+                    AdnTransactionId = reversal.TransactionId,
                     AdnCc4 = original.AdnCc4,
                     AdnCcexpDate = original.AdnCcexpDate,
                     AdnInvoiceNo = original.AdnInvoiceNo,
@@ -580,10 +552,6 @@ public sealed class TeamSearchService : ITeamSearchService
                     LebUserId = userId
                 });
             }
-            else
-            {
-                return new RefundResponse { Success = false, Message = $"Transaction status '{txStatus}' does not support refund/void." };
-            }
 
             // Update team financials
             if (original.TeamId.HasValue)
@@ -591,14 +559,11 @@ public sealed class TeamSearchService : ITeamSearchService
                 var team = await _teamRepo.GetTeamFromTeamId(original.TeamId.Value, ct);
                 if (team != null)
                 {
-                    // Void reverses what was PAID (captured before Payamt was zeroed above), not
+                    // Reverses what was PAID (captured before Payamt was zeroed above), not
                     // Dueamt — the two only coincide because team charges book Dueamt == Payamt.
-                    // Matches the player path in RegistrationSearchService.
-                    var refundAmt = txStatus == "capturedPendingSettlement"
-                        ? originalPay               // void reverses full original payment
-                        : request.RefundAmount;     // refund reverses requested amount
-
-                    team.PaidTotal = (team.PaidTotal ?? 0) - refundAmt;
+                    // ReversedAmount is the full original on a void, the requested amount on a
+                    // refund. Matches the player path in RegistrationSearchService.
+                    team.PaidTotal = (team.PaidTotal ?? 0) - reversal.ReversedAmount;
                     team.RecalcTotals();
                 }
             }
@@ -614,15 +579,17 @@ public sealed class TeamSearchService : ITeamSearchService
                 await _registrationRepo.SynchronizeClubRepFinancialsAsync(original.RegistrationId.Value, userId, ct);
             }
 
-            _logger.LogInformation("Team refund processed: AId={AId}, Amount={Amount}, TransId={TransId}",
-                request.AccountingRecordId, request.RefundAmount, refundTransId);
+            _logger.LogInformation("Team refund/{Action} processed: AId={AId}, Amount={Amount}, TransId={TransId}",
+                reversal.Kind, request.AccountingRecordId, reversal.ReversedAmount, reversal.TransactionId);
 
             return new RefundResponse
             {
                 Success = true,
-                Message = "Refund processed successfully.",
-                TransactionId = refundTransId,
-                RefundedAmount = request.RefundAmount
+                Message = reversal.Message,
+                TransactionId = reversal.TransactionId,
+                // The FULL original on a void, not what was asked for — the caller displays this
+                // figure, and reporting a partial amount after a full void misstates the ledger.
+                RefundedAmount = reversal.ReversedAmount
             };
         }
         catch (Exception ex)
@@ -630,6 +597,26 @@ public sealed class TeamSearchService : ITeamSearchService
             _logger.LogError(ex, "Team refund failed for AId={AId}", request.AccountingRecordId);
             return new RefundResponse { Success = false, Message = $"Refund failed: {ex.Message}" };
         }
+    }
+
+    /// <summary>
+    /// Is this accounting record inside the caller's job? A team-path record may be keyed by team,
+    /// by registration, or both, so either link is sufficient — but at least one must resolve, or
+    /// the record is unscoped and must not be touched.
+    /// </summary>
+    private async Task<bool> AccountingRecordBelongsToJobAsync(
+        RegistrationAccounting record, Guid jobId, CancellationToken ct)
+    {
+        if (record.Registration != null)
+            return record.Registration.JobId == jobId;
+
+        if (record.TeamId.HasValue)
+        {
+            var team = await _teamRepo.GetTeamFromTeamId(record.TeamId.Value, ct);
+            return team != null && team.JobId == jobId;
+        }
+
+        return false;
     }
 
     // ── CC Charge (team-level) ──

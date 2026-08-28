@@ -449,29 +449,12 @@ public sealed class StoreCartService : IStoreCartService
         return raw;
     }
 
+    /// <summary>
+    /// Delegates to <see cref="StoreLineFeeMath.Recalculate"/> — the single resolver shared with
+    /// the walk-up sale and the admin SKU swap, so no path can price a line differently.
+    /// </summary>
     private static void RecalculateLineItemFees(StoreCartBatchSkus lineItem, JobStoreConfig config)
-    {
-        var subtotal = lineItem.UnitPrice * lineItem.Quantity;
-        // CC processing fee comes from the job's Payment settings (ProcessingFeePercent,
-        // clamped by ProcessingRateMath) — same source as registration fees. Legacy store
-        // paths all used GetPerJobCCProcessingFee; Jobs.StoreTsicrate is TSIC commission
-        // bookkeeping and is never a customer-facing rate.
-        lineItem.FeeProcessing = Math.Round(subtotal * ProcessingRateMath.ToCcMultiplier(config.ProcessingFeePercent), 2, MidpointRounding.AwayFromZero);
-
-        // Sales tax: rate resolved through SalesTaxMath (clamped, percent -> multiplier), applied
-        // to an explicitly named taxable base rather than to `subtotal` by coincidence. The base
-        // excludes the CC convenience fee today; states that tax service charges change that rule
-        // in SalesTaxMath.TaxableBase and nowhere else. Tax is NOT part of FeeProduct, so it never
-        // enters the TSIC commission base in adn.MonthyQBPExport_Automated_Merch.
-        var taxableBase = SalesTaxMath.TaxableBase(subtotal, lineItem.FeeProcessing);
-        lineItem.SalesTax = Math.Round(
-            taxableBase * SalesTaxMath.ToTaxMultiplier(config.StoreSalesTax), 2, MidpointRounding.AwayFromZero);
-        // LEGACY SEMANTICS (authoritative): FeeProduct is the merchandise subtotal and FeeTotal
-        // is the line GRAND total (product + processing + tax) - matching all 476 historical
-        // rows. FeeTotal is NOT fees-only; never add the subtotal to it again downstream.
-        lineItem.FeeProduct = subtotal;
-        lineItem.FeeTotal = lineItem.FeeProduct + lineItem.FeeProcessing + lineItem.SalesTax;
-    }
+        => StoreLineFeeMath.Recalculate(lineItem, config);
 
     private async Task<StoreCartBatchDto> BuildCartBatchDto(int storeCartBatchId)
     {

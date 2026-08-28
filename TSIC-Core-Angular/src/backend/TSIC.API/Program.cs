@@ -223,6 +223,8 @@ builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IJobLookupService, JobLookupService>();
 builder.Services.AddScoped<ITeamLookupService, TeamLookupService>();
 builder.Services.AddScoped<IAdnApiService, AdnApiService>();
+// The one void-vs-refund decision, shared by the registration, team, and store refund paths.
+builder.Services.AddScoped<IAdnReversalService, AdnReversalService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IPlayerRegistrationService, PlayerRegistrationService>();
 builder.Services.AddScoped<IPlayerFormValidationService, PlayerFormValidationService>();
@@ -334,6 +336,8 @@ builder.Services.AddHttpClient<IUSLaxScrapingService, TSIC.Infrastructure.Servic
 builder.Services.AddScoped<IUSLaxMatchingService, TSIC.API.Services.Rankings.USLaxMatchingService>();
 // Store
 builder.Services.AddScoped<IStoreAdminService, StoreAdminService>();
+// The one writer that puts store stock back on the shelf — see IStoreRestockService.
+builder.Services.AddScoped<IStoreRestockService, StoreRestockService>();
 builder.Services.AddScoped<IStoreCatalogService, StoreCatalogService>();
 builder.Services.AddScoped<IStoreCartService, StoreCartService>();
 builder.Services.AddScoped<IStoreWalkUpService, StoreWalkUpService>();

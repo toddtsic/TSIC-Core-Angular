@@ -45,7 +45,8 @@ public class ClubRepDeleteTests
         var svc = new RegistrationSearchService(
             registrationRepo, accountingRepo,
             new Mock<IJobRepository>().Object, familiesRepo, deviceRepo.Object,
-            teamRepo, new Mock<IAdnApiService>().Object, new Mock<IArbSubscriptionRepository>().Object,
+            teamRepo, new Mock<IAdnApiService>().Object,
+            new Mock<IAdnReversalService>().Object, new Mock<IArbSubscriptionRepository>().Object,
             new Mock<ITextSubstitutionService>().Object,
             new Mock<IEmailBatchService>().Object,
             new Mock<IRegistrationFeeAdjustmentService>().Object,

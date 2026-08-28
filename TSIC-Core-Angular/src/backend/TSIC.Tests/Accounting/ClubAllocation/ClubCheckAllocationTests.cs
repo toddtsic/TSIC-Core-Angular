@@ -87,7 +87,8 @@ public class ClubCheckAllocationTests
         var paymentState = new PaymentStateService(accountingRepo, jobRepo.Object, new FeeRepository(ctx), new TeamRepository(ctx));
         var svc = new TeamSearchService(
             teamRepo, accountingRepo, registrationRepo, jobRepo.Object,
-            feeService.Object, paymentState, adnApi.Object, ladtService.Object,
+            feeService.Object, paymentState, adnApi.Object,
+            new Mock<IAdnReversalService>().Object, ladtService.Object,
             new Mock<IEmailService>().Object, new Mock<IPaymentService>().Object,
             new Mock<TSIC.API.Services.Teams.IRegisteredTeamShaper>().Object,
             new Mock<TSIC.API.Services.Teams.ITeamRenameService>().Object,

@@ -84,7 +84,8 @@ public class PlayerCheckTests
         var feeAdjustment = new RegistrationFeeAdjustmentService(jobRepo.Object, feeService.Object, paymentState);
         var svc = new RegistrationSearchService(
             registrationRepo, accountingRepo, jobRepo.Object, familiesRepo.Object, deviceRepo.Object,
-            new Mock<ITeamRepository>().Object, adnApi.Object, arbRepo.Object, textSub.Object,
+            new Mock<ITeamRepository>().Object, adnApi.Object,
+            new Mock<IAdnReversalService>().Object, arbRepo.Object, textSub.Object,
             new Mock<IEmailBatchService>().Object, feeAdjustment, new Mock<IPaymentService>().Object, paymentState,
             new Mock<IRegisteredPlayerShaper>().Object, new Mock<IUserRepository>().Object,
             new Mock<TSIC.API.Services.Shared.UsLax.IUsLaxService>().Object,
