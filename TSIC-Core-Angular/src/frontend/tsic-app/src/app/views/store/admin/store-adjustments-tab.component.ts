@@ -58,7 +58,7 @@ export class StoreAdjustmentsTabComponent {
 				this.rows.set(rows);
 				this.isLoading.set(false);
 			},
-			error: err => {
+			error: (err: { error?: { message?: string } }) => {
 				this.errorMessage.set(err?.error?.message ?? 'Could not load the adjustments log.');
 				this.isLoading.set(false);
 			},
