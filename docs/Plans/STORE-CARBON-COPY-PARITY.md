@@ -183,8 +183,8 @@ find them — a screen is not covered because its controller action is.
 
 | # | Legacy pathway | Status |
 |---|---|---|
-| D-01 | Sales Rollup pivot — rows item→sku, cols year→month, Units + Sales | BUILT |
-| D-02 | Pivot: label filter, value filter, sorting, `C2` format | BUILT |
+| D-01 | Sales Rollup pivot — rows item→sku, cols year→month, Units + Sales. **VERIFIED 08-28** side by side on `stateonelacrosse-onsitemerch-2026`: every visible row and all three grand totals match legacy exactly — 33/$848.81 · 12/$274.32 · 45/$1,123.13 | DONE |
+| D-02 | Pivot: label filter, value filter, sorting, `C2` format. **VERIFIED 08-28** with D-01 | DONE |
 | D-03 | `pvProductSalesStacked` — Product Sales chart, "Sales Analysis" (legacy id says Stacked, `e-chartSeries` says Column; the source wins). Legacy puts its row/column captions on the WRONG fields — rows `YearMonth` unlabelled, columns `Product` captioned "Year-Month"; corrected here | BUILT |
 | D-04 | `pvSalesRollupChart` — Sales Rollup chart, Column, `C0` | BUILT |
 | D-05 | `pvcRevenueByItem` — **Revenue by Item DOUGHNUT**, the second chart inside legacy's one "Useful Sales Graphics Here..." card. **Missed until the 08-28 screen walk** — the card holds two charts side by side and only the left one had ever been inventoried. Reads the same pivot rows as the rest of the screen | BUILT |
