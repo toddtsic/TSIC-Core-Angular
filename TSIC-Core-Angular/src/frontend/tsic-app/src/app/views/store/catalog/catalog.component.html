@@ -84,13 +84,10 @@
 							<span class="item-price">{{ formatCurrency(item.storeItemPrice) }}</span>
 							<span class="item-variants">{{ item.activeSkuCount }} option{{ item.activeSkuCount !== 1 ? 's' : '' }}</span>
 						</span>
-						<!-- Legacy listSoldOutOrInactiveSkus: name what cannot be bought rather
-							 than hiding the product. -->
 						@if (item.soldOutOrInactiveSkuLabels.length) {
 							<span class="item-soldout">
-								<i class="bi bi-slash-circle me-1" aria-hidden="true"></i>
-								Sold out:
-								{{ item.soldOutOrInactiveSkuLabels.join(', ') }}
+								<i class="bi bi-slash-circle" aria-hidden="true"></i>
+								{{ item.soldOutOrInactiveSkuLabels.length }} sold out
 							</span>
 						}
 					</div>
@@ -289,6 +286,25 @@
 											<i class="bi bi-cart-check me-1"></i>Add &amp; Go to Cart
 										</button>
 									</div>
+								</div>
+							}
+
+							<!--
+								Legacy's "Currently Unavailable" alert (listSoldOutOrInactiveSkus),
+								in legacy's position — under the buttons, inside the open item. The
+								item name is dropped from each label: it is the card's own title.
+							-->
+							@if (item.soldOutOrInactiveSkuLabels.length) {
+								<div class="unavailable">
+									<div class="unavailable-head">
+										<i class="bi bi-slash-circle" aria-hidden="true"></i>
+										Currently unavailable
+									</div>
+									<ul class="unavailable-list">
+										@for (label of item.soldOutOrInactiveSkuLabels; track label) {
+											<li>{{ variantOnly(label, item.storeItemName) }}</li>
+										}
+									</ul>
 								</div>
 							}
 						}

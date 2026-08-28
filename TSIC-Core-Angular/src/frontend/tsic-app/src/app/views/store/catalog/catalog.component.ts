@@ -434,6 +434,18 @@ export class StoreCatalogComponent {
 		setTimeout(() => this.cartPulse.set(false), 400);
 	}
 
+	/**
+	 * Strip the item name off a SKU label. The backend builds these as
+	 * `Item:Size:Colour` (legacy's own shape, see `StoreSkuLabel.Build`), and the list
+	 * renders inside the card that already carries the item name, so the prefix is
+	 * three words of noise per row. Falls back to the whole label if it does not
+	 * start with the name — never show less than the backend said.
+	 */
+	variantOnly(label: string, itemName: string): string {
+		const prefix = `${itemName}:`;
+		return label.startsWith(prefix) ? label.slice(prefix.length).replace(/:/g, ' · ') : label;
+	}
+
 	formatCurrency(value: number): string {
 		return '$' + value.toFixed(2);
 	}
