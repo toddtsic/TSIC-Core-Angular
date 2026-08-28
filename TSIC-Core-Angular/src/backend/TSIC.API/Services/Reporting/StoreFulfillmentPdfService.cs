@@ -362,12 +362,60 @@ public sealed class StoreFulfillmentPdfService : IStoreFulfillmentPdfService
     private const float SignRowH = 26f;
     private const float BlockGap = 10f;
 
+    /// <summary>
+    /// Is this bag the buyer purchasing for themselves? True only for a walk-up whose player name
+    /// also matches a family contact — BOTH, never either alone.
+    ///
+    /// <para>The obvious identity test, <c>PlayerUserId == FamilyUserId</c>, is FALSE here: the
+    /// walk-up flow mints a separate <c>AspNetUsers</c> row and a <c>Families</c> row for the
+    /// counter buyer, so the same human holds two ids. Measured on the live database it matched
+    /// 0 of 324 bags.</para>
+    ///
+    /// <para>The name half cannot stand alone either — 3 of 296 real-family bags have a player
+    /// whose name equals a parent's (a child named for a parent), and collapsing those would hide
+    /// a genuinely distinct person. Requiring the structural walk-up flag as well leaves those 3
+    /// untouched while still catching 28 of 28 walk-ups.</para>
+    /// </summary>
+    private static bool IsSelfPurchase(StoreFulfillmentRowDto r)
+    {
+        if (!r.IsWalkUp)
+        {
+            return false;
+        }
+
+        var player = ComposeFirstLast(r.PlayerFirstName, r.PlayerLastName);
+        if (player.Length == 0)
+        {
+            return false;
+        }
+
+        return player.Equals(ComposeFirstLast(r.MomFirstName, r.MomLastName), StringComparison.OrdinalIgnoreCase)
+            || player.Equals(ComposeFirstLast(r.DadFirstName, r.DadLastName), StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Collapse the per-player heading only when EVERY bag in the family is a self-purchase.
+    /// A family with both a walk-up and a child's order keeps all its headings — a half-collapsed
+    /// block would leave one item list unlabelled, which is worse than the repetition it removes.
+    /// Measured: no family in the database is mixed, so this is a guard, not a live case.
+    /// </summary>
+    private static bool FamilyIsSelfOnly(List<Bag> family)
+        => family.All(b => IsSelfPurchase(b.Head));
+
+    /// <summary>
+    /// Height of one bag's player heading. Measure and draw BOTH call this — the two must never
+    /// disagree about a block's height or families start overlapping the page break.
+    /// </summary>
+    private static float PlayerHeadHeightFor(List<Bag> family)
+        => FamilyIsSelfOnly(family) ? 0f : PlayerHeadH;
+
     private static float MeasureFamilyBlock(List<Bag> family)
     {
+        var headH = PlayerHeadHeightFor(family);
         var h = FamHeaderH + FamContactH + 4f;
         foreach (var bag in family)
         {
-            h += PlayerHeadH + (bag.Lines.Count * ItemLineH) + 3f;
+            h += headH + (bag.Lines.Count * ItemLineH) + 3f;
         }
         return h + SignRowH + BlockGap;
     }
@@ -392,21 +440,33 @@ public sealed class StoreFulfillmentPdfService : IStoreFulfillmentPdfService
         y += FamHeaderH;
 
         // ── Contacts ──
-        DrawClip(g, ComposeContact(head), fonts.Small, PdfBrushes.Black, 4f, y + 1f, SheetW - 8f, FamContactH);
+        // On a self-purchase the player heading below is dropped, so its placement text has to
+        // land somewhere: it rides on the contact line rather than being lost.
+        var selfOnly = FamilyIsSelfOnly(family);
+        var contact = selfOnly
+            ? Join(ComposeContact(head), ComposePlacement(head))
+            : ComposeContact(head);
+        DrawClip(g, contact, fonts.Small, PdfBrushes.Black, 4f, y + 1f, SheetW - 8f, FamContactH);
         y += FamContactH + 4f;
 
         // ── One sub-block per player ──
+        // The heading is suppressed when the buyer bought for themselves: the family header, the
+        // contact line and the player line were all the same name, three times in one block.
+        var headH = PlayerHeadHeightFor(family);
         foreach (var bag in family)
         {
-            var name = ComposeLastFirst(bag.Head.PlayerLastName, bag.Head.PlayerFirstName);
-            if (name.Length == 0)
+            if (!selfOnly)
             {
-                name = "(no player named)";
-            }
+                var name = ComposeLastFirst(bag.Head.PlayerLastName, bag.Head.PlayerFirstName);
+                if (name.Length == 0)
+                {
+                    name = "(no player named)";
+                }
 
-            DrawClip(g, name, fonts.RowBold, PdfBrushes.Black, 10f, y, 200f, PlayerHeadH);
-            DrawClip(g, ComposePlacement(bag.Head), fonts.Small, GrayBrush, 214f, y + 1f, SheetW - 224f, PlayerHeadH);
-            y += PlayerHeadH;
+                DrawClip(g, name, fonts.RowBold, PdfBrushes.Black, 10f, y, 200f, PlayerHeadH);
+                DrawClip(g, ComposePlacement(bag.Head), fonts.Small, GrayBrush, 214f, y + 1f, SheetW - 224f, PlayerHeadH);
+            }
+            y += headH;
 
             foreach (var line in bag.Lines)
             {
