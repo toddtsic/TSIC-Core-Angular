@@ -287,6 +287,18 @@
 													<div class="txn-header">
 														<span class="txn-date">{{ formatDate(txn.purchaseDate) }}</span>
 														<span class="txn-summary">
+															<!--
+																totalPaid sums the accounting rows, so a refund nets
+																against it while the lines it was issued against stay
+																on the order. Without saying so, a refunded order reads
+																as "$0.00 · 1 item" and looks like a broken screen.
+															-->
+															@if (refundedAmount(txn); as refunded) {
+																<span class="txn-refunded">
+																	<i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+																	{{ formatCurrency(refunded) }} refunded
+																</span>
+															}
 															<span class="txn-total">{{ formatCurrency(txn.totalPaid) }}</span>
 															· {{ txn.itemCount }} {{ txn.itemCount === 1 ? 'item' : 'items' }}
 														</span>

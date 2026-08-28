@@ -228,6 +228,24 @@ export class StoreAnalyticsTabComponent {
 		});
 	}
 
+	/**
+	 * What came back off this order, or null if nothing did.
+	 *
+	 * The DTO carries no refund field: `totalPaid` sums the accounting rows, so a refund is
+	 * already netted out of it, while the lines it was issued against remain on the order. The
+	 * gap between the two IS the refund, and naming it is the difference between a director
+	 * reading "$0.00 · 1 item" as a bug and reading it as a returned sweatshirt.
+	 *
+	 * Deliberately one-directional: a batch whose lines were deleted outright (legacy's SKU
+	 * "remove" left six such orders on this store) pays MORE than its lines total, which is not a
+	 * refund and gets no chip.
+	 */
+	refundedAmount(txn: { totalPaid: number; items: { lineTotal: number }[] }): number | null {
+		const lines = txn.items.reduce((sum, item) => sum + item.lineTotal, 0);
+		const refunded = lines - txn.totalPaid;
+		return refunded > 0.005 ? refunded : null;
+	}
+
 	readonly formatCurrency = formatCurrency;
 
 	formatDate(dateStr: string): string {

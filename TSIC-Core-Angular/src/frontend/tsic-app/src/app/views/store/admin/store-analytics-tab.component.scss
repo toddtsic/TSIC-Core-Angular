@@ -265,6 +265,21 @@
 			font-variant-numeric: tabular-nums;
 			margin-right: var(--space-1);
 		}
+
+		// Carries an icon as well as the colour: never rely on colour alone (WCAG AA).
+		.txn-refunded {
+			display: inline-flex;
+			align-items: center;
+			gap: 4px;
+			margin-right: var(--space-2);
+			padding: 1px 8px;
+			border-radius: 999px;
+			font-weight: 600;
+			font-variant-numeric: tabular-nums;
+			color: var(--brand-warn);
+			background: color-mix(in srgb, var(--brand-warn) 12%, transparent);
+			border: 1px solid color-mix(in srgb, var(--brand-warn) 30%, transparent);
+		}
 	}
 }
 
