@@ -22,6 +22,29 @@ public enum AdnReversalKind
 }
 
 /// <summary>
+/// Where a charge stands at Authorize.Net, which is what decides how it can be reversed.
+/// </summary>
+public enum AdnChargeStatus
+{
+    /// <summary>The gateway could not be asked, or did not recognise the transaction.</summary>
+    Unknown = 0,
+
+    /// <summary>
+    /// Captured but not settled. Reversible ONLY by a full void — so a UI must not offer a partial
+    /// refund against it, and a caller asking for one will get a full reversal.
+    /// </summary>
+    Unsettled = 1,
+
+    /// <summary>Settled. Reversible by a refund, partial or full.</summary>
+    Settled = 2,
+
+    /// <summary>
+    /// A real transaction in a state that supports neither (already voided, declined, expired).
+    /// </summary>
+    NotReversible = 3
+}
+
+/// <summary>
 /// Reverse a card charge at Authorize.Net. Carries only what the gateway needs; where the money
 /// is booked afterwards is the caller's business.
 /// </summary>

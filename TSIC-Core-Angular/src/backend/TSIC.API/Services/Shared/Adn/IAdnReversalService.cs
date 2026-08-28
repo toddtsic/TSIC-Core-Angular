@@ -27,6 +27,19 @@ public interface IAdnReversalService
     Task<AdnReversalResult> ReverseAsync(AdnReversalRequest request, CancellationToken ct = default);
 
     /// <summary>
+    /// Where a charge stands at the gateway, WITHOUT reversing anything. Lets a UI offer only the
+    /// operation that will actually work — an unsettled charge cannot be partially refunded, so
+    /// showing an amount box against one only sets a director up to be surprised.
+    ///
+    /// <para>
+    /// Legacy StoreSalesController.GetCartBatchHasSettledStatus asked the same question with its
+    /// own copy of the lookup.
+    /// </para>
+    /// </summary>
+    Task<AdnChargeStatus> GetChargeStatusAsync(
+        Guid jobId, string? adnTransactionId, CancellationToken ct = default);
+
+    /// <summary>
     /// The standard note recorded against a voided charge. Shared so every ledger says the same
     /// thing, in the same words, about the same event — a void reads very differently from a
     /// refund to whoever finds it later, and the distinction must survive in the record.

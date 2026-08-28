@@ -1,0 +1,355 @@
+<div class="tab-toolbar">
+	<div class="tab-toolbar-meta">
+		<span class="meta-count">{{ visibleLines().length }}</span>
+		<span>{{ visibleLines().length === 1 ? 'line' : 'lines' }}</span>
+		<span class="meta-divider" aria-hidden="true"></span>
+		<span class="meta-count">{{ totalUnits() }}</span>
+		<span>{{ totalUnits() === 1 ? 'unit' : 'units' }}</span>
+		<span class="meta-divider" aria-hidden="true"></span>
+		<span class="meta-money">{{ formatCurrency(totalPaid()) }}</span>
+		<span>collected</span>
+		@if (totalRefunded() > 0) {
+			<span class="meta-divider" aria-hidden="true"></span>
+			<span class="meta-refunded">{{ formatCurrency(totalRefunded()) }} refunded</span>
+		}
+	</div>
+	<div class="tab-toolbar-actions">
+		<input
+			type="search"
+			class="form-control form-control-sm sales-search"
+			placeholder="Filter by item, buyer, team..."
+			[ngModel]="search()"
+			(ngModelChange)="search.set($event)"
+			aria-label="Filter sales" />
+		<div class="form-check form-switch mb-0">
+			<input
+				class="form-check-input"
+				type="checkbox"
+				id="sales-walkup-only"
+				[checked]="walkUpOnly()"
+				(change)="toggleWalkUpOnly()" />
+			<label class="form-check-label" for="sales-walkup-only">Walk-ups only</label>
+		</div>
+		<button class="btn btn-outline-secondary btn-sm" (click)="load()" [disabled]="isLoading()">
+			<i class="bi bi-arrow-clockwise me-1"></i>Refresh
+		</button>
+	</div>
+</div>
+
+@if (errorMessage()) {
+	<div class="alert alert-danger d-flex align-items-center" role="alert">
+		<i class="bi bi-exclamation-triangle-fill me-2"></i>
+		{{ errorMessage() }}
+	</div>
+}
+
+@if (isLoading()) {
+	<div class="text-center py-5">
+		<div class="spinner-border text-primary" role="status">
+			<span class="visually-hidden">Loading...</span>
+		</div>
+		<p class="mt-2 text-body-secondary">Loading sales...</p>
+	</div>
+} @else if (lines().length === 0) {
+	<div class="empty-state">
+		<span class="empty-state-icon"><i class="bi bi-receipt"></i></span>
+		<div class="empty-state-title">
+			{{ walkUpOnly() ? 'No walk-up sales yet' : 'No sales yet' }}
+		</div>
+		<p class="empty-state-desc">
+			{{ walkUpOnly()
+				? 'Sales made at the table will appear here.'
+				: 'Purchases appear here once a family checks out.' }}
+		</p>
+	</div>
+} @else if (visibleLines().length === 0) {
+	<div class="empty-state">
+		<span class="empty-state-icon"><i class="bi bi-search"></i></span>
+		<div class="empty-state-title">Nothing matches that filter</div>
+		<p class="empty-state-desc">Clear the search to see all {{ lines().length }} lines.</p>
+	</div>
+} @else {
+	<div class="table-responsive store-table-wrap">
+		<table class="table align-middle store-table">
+			<thead>
+				<tr>
+					<th>Item</th>
+					<th>For</th>
+					<th class="col-team">Team</th>
+					<th class="text-center">Qty</th>
+					<th class="text-end">Paid</th>
+					<th class="text-end">Refunded</th>
+					<th class="text-center">Restocked</th>
+					<th class="col-date">Purchased</th>
+					<th class="col-actions text-end">Actions</th>
+				</tr>
+			</thead>
+			<tbody>
+				@for (line of visibleLines(); track line.storeCartBatchSkuId) {
+					<tr [class.row-reversed]="isFullyRefunded(line)">
+						<td>
+							<div class="sale-sku">{{ line.skuLabel }}</div>
+							<div class="sale-sub">
+								{{ formatCurrency(line.unitPrice) }} each
+								@if (line.isWalkUp) {
+									<span class="badge-walkup">
+										<i class="bi bi-shop me-1"></i>Walk-up
+									</span>
+								}
+							</div>
+						</td>
+						<td>
+							<div class="sale-name">{{ directToName(line) }}</div>
+							@if (line.directToEmail) {
+								<div class="sale-sub">{{ line.directToEmail }}</div>
+							}
+						</td>
+						<td class="col-team">
+							@if (line.directToTeam) {
+								<div class="sale-sub">{{ line.directToTeam }}</div>
+								@if (line.directToClub) {
+									<div class="sale-sub sale-sub-dim">{{ line.directToClub }}</div>
+								}
+							} @else {
+								<span class="sale-sub sale-sub-dim">&mdash;</span>
+							}
+						</td>
+						<td class="text-center num">{{ line.quantity }}</td>
+						<td class="text-end num">{{ formatCurrency(line.paid) }}</td>
+						<td class="text-end num">
+							@if (line.refunded > 0) {
+								<span class="amount-refunded">{{ formatCurrency(line.refunded) }}</span>
+							} @else {
+								<span class="sale-sub-dim">&mdash;</span>
+							}
+						</td>
+						<td class="text-center num">
+							@if (line.restocked > 0) {
+								{{ line.restocked }}
+							} @else {
+								<span class="sale-sub-dim">&mdash;</span>
+							}
+						</td>
+						<td class="col-date sale-sub">
+							{{ line.purchaseDate ? (line.purchaseDate | date: 'MMM d, y') : '—' }}
+						</td>
+						<td class="col-actions text-end">
+							<div class="row-actions justify-content-end">
+								<button
+									type="button"
+									class="btn btn-outline-secondary btn-sm"
+									[disabled]="line.quantity < 1"
+									(click)="openSwap(line)">
+									<i class="bi bi-arrow-left-right me-1"></i>Exchange
+								</button>
+								<button
+									type="button"
+									class="btn btn-outline-danger btn-sm"
+									[disabled]="isFullyRefunded(line)"
+									(click)="openRefund(line)">
+									<i class="bi bi-cash-stack me-1"></i>Refund
+								</button>
+							</div>
+						</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	</div>
+}
+
+<!-- ══════════════════════════════════════ -->
+<!-- EXCHANGE (SWAP)                       -->
+<!-- ══════════════════════════════════════ -->
+@if (showSwapModal() && swapLine(); as line) {
+	<tsic-dialog [open]="true" size="md" (requestClose)="showSwapModal.set(false)">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title">Exchange {{ line.skuLabel }}</h5>
+				<button type="button" class="btn-close" (click)="showSwapModal.set(false)"
+						aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<p class="dialog-lede">
+					Swap for a different size or colour of the same item. The price is unchanged,
+					so no money moves.
+				</p>
+
+				@if (isLoadingSwapOptions()) {
+					<div class="text-center py-4">
+						<div class="spinner-border spinner-border-sm text-primary" role="status">
+							<span class="visually-hidden">Loading...</span>
+						</div>
+					</div>
+				} @else if (swapOptions().length === 0) {
+					<div class="alert alert-warning mb-0">
+						<i class="bi bi-exclamation-triangle me-2"></i>
+						No other variant of this item is active and in stock.
+					</div>
+				} @else {
+					<div class="mb-3">
+						<label class="form-label fw-medium" for="swap-target">Exchange for</label>
+						<select
+							id="swap-target"
+							class="form-select"
+							[ngModel]="swapTargetSkuId()"
+							(ngModelChange)="swapTargetSkuId.set($event)">
+							<option [ngValue]="null">Choose a variant...</option>
+							@for (option of swapOptions(); track option.storeSkuId) {
+								<option [ngValue]="option.storeSkuId">
+									{{ option.skuLabel }} ({{ option.availableCount }} available)
+								</option>
+							}
+						</select>
+					</div>
+
+					<div class="mb-3">
+						<label class="form-label fw-medium" for="swap-qty">
+							How many of the {{ line.quantity }} purchased
+						</label>
+						<input
+							id="swap-qty"
+							type="number"
+							class="form-control"
+							min="1"
+							[max]="line.quantity"
+							[ngModel]="swapQuantity()"
+							(ngModelChange)="swapQuantity.set($event)" />
+						<div class="form-text">
+							Exchanging fewer than all of them splits this purchase into two lines.
+						</div>
+					</div>
+				}
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-outline-secondary"
+						(click)="showSwapModal.set(false)">Cancel</button>
+				<button type="button" class="btn btn-primary"
+						[disabled]="!canSwap()" (click)="confirmSwap()">
+					@if (isSaving()) {
+						<span class="spinner-border spinner-border-sm me-1" role="status"></span>
+					}
+					Exchange
+				</button>
+			</div>
+		</div>
+	</tsic-dialog>
+}
+
+<!-- ══════════════════════════════════════ -->
+<!-- REFUND / VOID                         -->
+<!-- ══════════════════════════════════════ -->
+@if (showRefundModal() && refundLine(); as line) {
+	<tsic-dialog [open]="true" size="md" (requestClose)="showRefundModal.set(false)">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title">Refund {{ line.skuLabel }}</h5>
+				<button type="button" class="btn-close" (click)="showRefundModal.set(false)"
+						aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				@if (isLoadingStatus()) {
+					<div class="text-center py-4">
+						<div class="spinner-border spinner-border-sm text-primary" role="status">
+							<span class="visually-hidden">Checking payment status...</span>
+						</div>
+						<p class="mt-2 mb-0 sale-sub">Checking the payment status...</p>
+					</div>
+				} @else if (batchStatus() && !batchStatus()!.hasCardPayment) {
+					<div class="alert alert-warning mb-0">
+						<i class="bi bi-exclamation-triangle me-2"></i>
+						This purchase has no card payment to reverse.
+					</div>
+				} @else {
+					@if (mustVoid()) {
+						<!-- Not settled: Authorize.Net offers no partial void, so a partial refund
+						     here is not possible and must not be offered. -->
+						<div class="alert alert-warning">
+							<i class="bi bi-exclamation-triangle me-2"></i>
+							<strong>This charge has not settled yet.</strong>
+							Authorize.Net can only void it in full, so the entire purchase of
+							{{ formatCurrency(batchStatus()!.batchPaidTotal) }} will be reversed
+							and every item on it returned to stock.
+						</div>
+					} @else {
+						<div class="mb-3">
+							<label class="form-label fw-medium" for="refund-amount">
+								Refund amount
+							</label>
+							<input
+								id="refund-amount"
+								type="number"
+								class="form-control"
+								min="0"
+								step="0.01"
+								[max]="line.maxCanRefund"
+								[disabled]="voidEntireBatch()"
+								[ngModel]="refundAmount()"
+								(ngModelChange)="refundAmount.set($event)" />
+							<div class="form-text">
+								Up to {{ formatCurrency(line.maxCanRefund) }} on this line.
+							</div>
+						</div>
+
+						<div class="mb-3">
+							<label class="form-label fw-medium" for="refund-restock">
+								Units back into stock
+							</label>
+							<input
+								id="refund-restock"
+								type="number"
+								class="form-control"
+								min="0"
+								[max]="line.maxCanRestock"
+								[disabled]="voidEntireBatch()"
+								[ngModel]="refundRestockCount()"
+								(ngModelChange)="refundRestockCount.set($event)" />
+							<div class="form-text">
+								Separate from the amount on purpose &mdash; a damaged item can be
+								refunded without going back on the shelf.
+							</div>
+						</div>
+
+						<div class="form-check mb-3">
+							<input
+								class="form-check-input"
+								type="checkbox"
+								id="refund-void-all"
+								[checked]="voidEntireBatch()"
+								(change)="voidEntireBatch.set(!voidEntireBatch())" />
+							<label class="form-check-label" for="refund-void-all">
+								Reverse the <strong>entire purchase</strong>
+								({{ formatCurrency(batchStatus()?.batchPaidTotal ?? 0) }}) and
+								restock everything on it
+							</label>
+						</div>
+					}
+
+					<div class="mb-0">
+						<label class="form-label fw-medium" for="refund-reason">
+							Reason <span class="sale-sub-dim">(recorded on the ledger)</span>
+						</label>
+						<input
+							id="refund-reason"
+							type="text"
+							class="form-control"
+							placeholder="e.g. wrong size, damaged, customer changed their mind"
+							[ngModel]="refundReason()"
+							(ngModelChange)="refundReason.set($event)" />
+					</div>
+				}
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-outline-secondary"
+						(click)="showRefundModal.set(false)">Cancel</button>
+				<button type="button" class="btn btn-danger"
+						[disabled]="!canRefund()" (click)="confirmRefund()">
+					@if (isSaving()) {
+						<span class="spinner-border spinner-border-sm me-1" role="status"></span>
+					}
+					{{ (voidEntireBatch() || mustVoid()) ? 'Reverse entire purchase' : 'Refund' }}
+				</button>
+			</div>
+		</div>
+	</tsic-dialog>
+}

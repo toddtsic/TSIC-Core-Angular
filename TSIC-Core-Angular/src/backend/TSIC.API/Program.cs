@@ -338,6 +338,7 @@ builder.Services.AddScoped<IUSLaxMatchingService, TSIC.API.Services.Rankings.USL
 builder.Services.AddScoped<IStoreAdminService, StoreAdminService>();
 // The one writer that puts store stock back on the shelf — see IStoreRestockService.
 builder.Services.AddScoped<IStoreRestockService, StoreRestockService>();
+builder.Services.AddScoped<IStoreSalesOpsService, StoreSalesOpsService>();
 builder.Services.AddScoped<IStoreCatalogService, StoreCatalogService>();
 builder.Services.AddScoped<IStoreCartService, StoreCartService>();
 builder.Services.AddScoped<IStoreWalkUpService, StoreWalkUpService>();

@@ -137,19 +137,19 @@ CheckoutConfirmation, WalkUp, and the Labels/Crystal group.
 
 | # | Legacy pathway | Status |
 |---|---|---|
-| C-01 | `StoreSales/Index` line-item grid, 24 columns | GAP |
-| C-02 | Columns incl. DirectTo club · agegroup · pool · team · email · cellphone | GAP |
+| C-01 | `StoreSales/Index` line-item grid. Ours is the same grain (one row per purchased line) with the columns a director acts on; the 24-column set is trimmed, see R-15 | IMPL |
+| C-02 | Columns incl. DirectTo club · agegroup · pool · team · email · cellphone | IMPL |
 | C-03 | Excel export **including hidden columns** | GAP |
-| C-04 | Excel/Filter menu, paging 10/20/50/100/All, sorting | GAP |
-| C-05 | Swap command → `GetCartItemSkuOptions` → swap dialog | GAP |
-| C-06 | Swap: target SKU dropdown + quantity dropdown, both required | GAP |
-| C-07 | Refund command → `GetCartBatchHasSettledStatus` | GAP |
-| C-08 | Refund dialog: amount capped at `Paid − Refunded`, restock count capped at qty | GAP |
-| C-09 | Unsettled batch → `confirm()` → VOID path | GAP |
-| C-10 | Void dialog: batch SKU listbox + batch total paid | GAP |
-| C-11 | Void refunds and restocks **every SKU in the batch** | GAP |
-| C-12 | `UpdateCartSku` — server side of swap/refund/void | GAP |
-| C-13 | `StoreSalesWalkup/Index` — same grid, walk-ups only | GAP |
+| C-04 | Excel/Filter menu, paging 10/20/50/100/All, sorting. Ours: free-text filter across item/buyer/team/club; no paging (654 lines across all 1,096 jobs) | IMPL |
+| C-05 | Swap command → `GetCartItemSkuOptions` → swap dialog | IMPL |
+| C-06 | Swap: target SKU dropdown + quantity, both required | IMPL |
+| C-07 | Refund command → `GetCartBatchHasSettledStatus`. Shared with the registration and team refund paths via `IAdnReversalService.GetChargeStatusAsync` | IMPL |
+| C-08 | Refund dialog: amount capped at `Paid − Refunded`, restock count capped at qty. **Now enforced SERVER-side too** — legacy capped in the dialog only, so the ceiling was advisory | IMPL |
+| C-09 | Unsettled batch → VOID path. Ours states the consequence in the dialog and hides the amount box rather than asking `confirm()` after the fact | IMPL |
+| C-10 | Void dialog: batch total paid shown. Legacy also listed the batch's SKUs; ours names the amount and that everything is restocked | IMPL |
+| C-11 | Void refunds and restocks **every SKU in the batch** | IMPL |
+| C-12 | `UpdateCartSku` — server side of swap/refund/void | IMPL |
+| C-13 | `StoreSalesWalkup/Index` — same grid, walk-ups only. Ours is a toggle on the one grid | IMPL |
 | C-14 | `StoreRefunded/Index` grid | IMPL — column set not yet compared |
 | C-15 | `StoreRestocked/Index` grid, `frozenColumns=4` | IMPL — column set not yet compared |
 | C-16 | `StoreCartQuantityAdjustments/Index` grid | GAP |
@@ -244,6 +244,10 @@ Written by `StoreImageService` (Infrastructure). B-19…B-27 all ship.
 | R-13 | Sales tax conventions settled in code: `SalesTaxMath.ToTaxMultiplier` (percent-form, clamped 0-12) is the single conversion point, and `SalesTaxMath.TaxableBase` names what tax applies to. Deliberate documented divergence — legacy's multiplier arithmetic is unreachable code (654/654 rows at zero) and would charge 100x. | IMPL |
 | R-10 | Do **NOT** replicate B-29 (`hide.bs.modal` fires the POST, so Cancel and × also create the item). It is a legacy defect, not a feature; our modal submits only from the Create button. | OPEN |
 | R-11 | ~~itemBufferSize~~ — **WITHDRAWN**, see A-33. | CLOSED |
+| R-15 | Legacy's sales grid carries 24 columns, most hidden behind the column chooser and only reachable via Excel export. Ours shows the 9 a director acts on and drops the rest until C-03 (export) lands, where the full set belongs. Decide then whether any hidden column deserves to be on-screen. | OPEN |
+| R-16 | **Walk-up identification was wrong on the new side and is now fixed.** `IsWalkUp` tested "no line has a DirectToRegId"; walk-ups DO have one, pointing at the Store Merch counter registration `StoreWalkUpService` mints. On the dev DB the old rule found **2** batches where legacy's finds **36**, and only 3 of 654 lines have a null `DirectToRegId` at all. Now one definition (`StoreAnalyticsRepository.WalkUpLines`) serves both the payments grid and the sales grid. | IMPL |
+| R-17 | **Swap fee split diverges from legacy, deliberately.** Legacy recomputed the split-off line's processing fee and tax from TODAY's job rates and subtracted those from the original, so a rate change since purchase left the two halves not summing to what the customer paid. An exchange moves no money, so ours apportions every money column by quantity and leaves the rounding remainder on the original line — the halves always sum exactly. Note `StoreCartBatchSkuEdits` is **0 rows**: the legacy swap has never run in production, so there is no historical behaviour to match. | IMPL |
+| R-18 | **A line-level refund on an UNSETTLED charge reverses the whole purchase.** Authorize.Net has no partial void, so the gateway reverses everything whatever was asked for. Legacy booked that as a line refund, leaving the batch's other lines marked paid with no money behind them. Ours treats the gateway's answer as authoritative, books the full batch, and says so in the message. The dialog also asks the settled status up front so the case is usually avoided rather than explained after. | IMPL |
 
 ## Evidence worth keeping
 

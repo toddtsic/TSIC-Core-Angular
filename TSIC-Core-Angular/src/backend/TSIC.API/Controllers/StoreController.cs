@@ -24,6 +24,7 @@ public class StoreController : ControllerBase
     private readonly IRegistrationAccountingRepository _accountingRepo;
     private readonly IStoreCartRepository _cartRepo;
     private readonly IStoreImageService _imageService;
+    private readonly IStoreSalesOpsService _salesOpsService;
 
     public StoreController(
         IStoreCatalogService catalogService,
@@ -34,7 +35,8 @@ public class StoreController : ControllerBase
         IStoreReceiptService receiptService,
         IRegistrationAccountingRepository accountingRepo,
         IStoreCartRepository cartRepo,
-        IStoreImageService imageService)
+        IStoreImageService imageService,
+        IStoreSalesOpsService salesOpsService)
     {
         _catalogService = catalogService;
         _cartService = cartService;
@@ -45,6 +47,7 @@ public class StoreController : ControllerBase
         _accountingRepo = accountingRepo;
         _cartRepo = cartRepo;
         _imageService = imageService;
+        _salesOpsService = salesOpsService;
     }
 
     // ═══════════════════════════════════════════
@@ -175,6 +178,108 @@ public class StoreController : ControllerBase
         {
             await _catalogService.DeleteItemAsync(jobId, storeItemId);
             return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    //  SALES OPERATIONS — Admin
+    //  Legacy StoreSales/Index + StoreSalesWalkup/Index and their row commands.
+    // ═══════════════════════════════════════════
+
+    /// <summary>
+    /// Every purchased line in the store. <paramref name="walkUpOnly"/> is legacy's separate
+    /// StoreSalesWalkup screen — same grid, counter sales only.
+    /// </summary>
+    [HttpGet("sales/lines")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(List<StoreSaleLineDto>), 200)]
+    public async Task<IActionResult> GetSaleLines([FromQuery] bool walkUpOnly, CancellationToken ct)
+    {
+        var (jobId, _) = await ResolveContext();
+        try
+        {
+            return Ok(await _salesOpsService.GetSaleLinesAsync(jobId, walkUpOnly, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>Variants this line could be exchanged for — same item, active, in stock.</summary>
+    [HttpGet("sales/lines/{storeCartBatchSkuId:int}/swap-options")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(List<StoreSwapOptionDto>), 200)]
+    public async Task<IActionResult> GetSwapOptions(int storeCartBatchSkuId, CancellationToken ct)
+    {
+        var (jobId, _) = await ResolveContext();
+        try
+        {
+            return Ok(await _salesOpsService.GetSwapOptionsAsync(jobId, storeCartBatchSkuId, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Whether the purchase's card charge has settled. The admin UI asks BEFORE opening the refund
+    /// dialog, because an unsettled charge can only be voided in full.
+    /// </summary>
+    [HttpGet("sales/batches/{storeCartBatchId:int}/settled-status")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(StoreBatchSettledStatusDto), 200)]
+    public async Task<IActionResult> GetBatchSettledStatus(int storeCartBatchId, CancellationToken ct)
+    {
+        var (jobId, _) = await ResolveContext();
+        try
+        {
+            return Ok(await _salesOpsService.GetBatchSettledStatusAsync(jobId, storeCartBatchId, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>Exchange units of a line for a different size or colour of the same item.</summary>
+    [HttpPost("sales/swap")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(204)]
+    public async Task<IActionResult> SwapCartSku(
+        [FromBody] StoreSwapRequest request, CancellationToken ct)
+    {
+        var (jobId, userId) = await ResolveContext();
+        try
+        {
+            await _salesOpsService.SwapCartSkuAsync(jobId, userId, request, ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Refund a line or void the whole purchase. Returns 200 with Success=false for a gateway
+    /// refusal — a declined refund is an answer the director needs to read, not a 500.
+    /// </summary>
+    [HttpPost("sales/refund")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(StoreRefundResponse), 200)]
+    public async Task<IActionResult> RefundSale(
+        [FromBody] StoreRefundRequest request, CancellationToken ct)
+    {
+        var (jobId, userId) = await ResolveContext();
+        try
+        {
+            return Ok(await _salesOpsService.RefundAsync(jobId, userId, request, ct));
         }
         catch (InvalidOperationException ex)
         {

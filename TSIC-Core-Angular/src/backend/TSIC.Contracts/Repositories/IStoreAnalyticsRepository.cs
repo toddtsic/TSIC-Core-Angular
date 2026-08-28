@@ -72,4 +72,38 @@ public interface IStoreAnalyticsRepository
     /// Persist all pending changes.
     /// </summary>
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    // ── Sales operations ──
+
+    /// <summary>
+    /// Every PURCHASED LINE in the store — the grain of legacy's StoreSales grid, and the row the
+    /// Swap and Refund commands act on. <paramref name="walkUpOnly"/> narrows to counter sales
+    /// (legacy StoreSalesWalkup/Index).
+    /// </summary>
+    Task<List<StoreSaleLineDto>> GetSaleLinesAsync(
+        int storeId, bool walkUpOnly, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// One purchased line, TRACKED, with its SKU and owning batch — for swap and refund.
+    /// </summary>
+    Task<StoreCartBatchSkus?> GetTrackedLineAsync(
+        int storeCartBatchSkuId, CancellationToken cancellationToken = default);
+
+    /// <summary>Every line on a batch, TRACKED — a void reverses all of them.</summary>
+    Task<List<StoreCartBatchSkus>> GetTrackedBatchLinesAsync(
+        int storeCartBatchId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// A batch's accounting rows, TRACKED, OLDEST FIRST so the original charge is identifiable.
+    /// </summary>
+    Task<List<StoreCartBatchAccounting>> GetTrackedBatchAccountingAsync(
+        int storeCartBatchId, CancellationToken cancellationToken = default);
+
+    void AddAccounting(StoreCartBatchAccounting accounting);
+
+    /// <summary>Record that one line was split off another by a SKU swap.</summary>
+    void AddSkuEdit(StoreCartBatchSkuEdits edit);
+
+    /// <summary>Add the new line a partial swap splits off.</summary>
+    void AddLine(StoreCartBatchSkus line);
 }

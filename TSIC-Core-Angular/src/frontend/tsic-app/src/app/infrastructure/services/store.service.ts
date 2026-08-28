@@ -36,6 +36,12 @@ import type {
 	StoreWalkUpRegisterResponse,
 	StoreFamilyPlayerDto,
 	StoreItemImageDto,
+	StoreSaleLineDto,
+	StoreSwapOptionDto,
+	StoreSwapRequest,
+	StoreRefundRequest,
+	StoreRefundResponse,
+	StoreBatchSettledStatusDto,
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -92,6 +98,47 @@ export class StoreService {
 	/** Delete an item and all of its SKUs. Refused if any SKU has been sold or is in a cart. */
 	deleteItem(storeItemId: number): Observable<void> {
 		return this.http.delete<void>(`${this.base}/items/${storeItemId}`);
+	}
+
+	// ── Sales operations ──
+
+	/**
+	 * Every purchased line. `walkUpOnly` is legacy's separate walk-up sales screen — the same
+	 * grid narrowed to counter sales.
+	 */
+	getSaleLines(walkUpOnly = false): Observable<StoreSaleLineDto[]> {
+		return this.http.get<StoreSaleLineDto[]>(
+			`${this.base}/sales/lines?walkUpOnly=${walkUpOnly}`,
+		);
+	}
+
+	/** Variants this line could be exchanged for — same item, active, in stock. */
+	getSwapOptions(storeCartBatchSkuId: number): Observable<StoreSwapOptionDto[]> {
+		return this.http.get<StoreSwapOptionDto[]>(
+			`${this.base}/sales/lines/${storeCartBatchSkuId}/swap-options`,
+		);
+	}
+
+	/**
+	 * Whether the purchase's card charge has settled. Ask BEFORE opening the refund dialog: an
+	 * unsettled charge can only be voided in full, so offering an amount box would mislead.
+	 */
+	getBatchSettledStatus(storeCartBatchId: number): Observable<StoreBatchSettledStatusDto> {
+		return this.http.get<StoreBatchSettledStatusDto>(
+			`${this.base}/sales/batches/${storeCartBatchId}/settled-status`,
+		);
+	}
+
+	swapCartSku(request: StoreSwapRequest): Observable<void> {
+		return this.http.post<void>(`${this.base}/sales/swap`, request);
+	}
+
+	/**
+	 * Refund a line or void the whole purchase. Resolves with `success: false` for a gateway
+	 * refusal — that is an answer to show the director, not an error to swallow.
+	 */
+	refundSale(request: StoreRefundRequest): Observable<StoreRefundResponse> {
+		return this.http.post<StoreRefundResponse>(`${this.base}/sales/refund`, request);
 	}
 
 	// ── Images ──

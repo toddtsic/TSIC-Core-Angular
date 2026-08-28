@@ -16,6 +16,9 @@
 	<button class="editor-tab" [class.active]="activeTab() === 'images'" (click)="activeTab.set('images')">
 		<i class="bi bi-image me-1"></i>Photos
 	</button>
+	<button class="editor-tab" [class.active]="activeTab() === 'sales'" (click)="activeTab.set('sales')">
+		<i class="bi bi-receipt me-1"></i>Sales
+	</button>
 	<button class="editor-tab" [class.active]="activeTab() === 'colors'" (click)="activeTab.set('colors')">
 		<i class="bi bi-palette me-1"></i>Colors
 	</button>
@@ -381,6 +384,13 @@
 <!-- ══════════════════════════════════════ -->
 @if (!isLoading() && activeTab() === 'images') {
 	<app-store-images-tab />
+}
+
+<!-- ══════════════════════════════════════ -->
+<!-- TAB 6: SALES OPERATIONS                -->
+<!-- ══════════════════════════════════════ -->
+@if (!isLoading() && activeTab() === 'sales') {
+	<app-store-sales-tab />
 }
 
 <!-- ══════════════════════════════════════ -->

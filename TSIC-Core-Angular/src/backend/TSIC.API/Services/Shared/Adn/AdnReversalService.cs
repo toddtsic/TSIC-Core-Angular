@@ -40,8 +40,43 @@ public class AdnReversalService : IAdnReversalService
 
         // The gateway decides which operation applies — ask it, do not infer from local state.
         // A locally-stored "settled" flag goes stale the moment ADN runs its nightly batch.
+        var (status, rawStatus, error) = LookUpStatus(env, creds, transactionId);
+
+        if (error != null)
+            return AdnReversalResult.Failed(error);
+
+        return status switch
+        {
+            AdnChargeStatus.Unsettled => Void(request, transactionId, env, creds),
+            AdnChargeStatus.Settled => Refund(request, transactionId, env, creds),
+            _ => AdnReversalResult.Failed(
+                $"Transaction status '{rawStatus}' does not support refund/void.")
+        };
+    }
+
+    public async Task<AdnChargeStatus> GetChargeStatusAsync(
+        Guid jobId, string? adnTransactionId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(adnTransactionId))
+            return AdnChargeStatus.Unknown;
+
+        var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId);
+        var env = _adnApi.GetADNEnvironment();
+
+        var (status, _, _) = LookUpStatus(env, creds, adnTransactionId);
+        return status;
+    }
+
+    /// <summary>
+    /// The single call to the gateway for "where does this charge stand". Returns the mapped
+    /// status, the gateway's raw status string for messages, and a user-facing error when the
+    /// lookup itself failed.
+    /// </summary>
+    private (AdnChargeStatus Status, string? RawStatus, string? Error) LookUpStatus(
+        AuthorizeNet.Environment env, AdnCredentialsViewModel creds, string transactionId)
+    {
         var txDetails = _adnApi.ADN_GetTransactionDetails(
-            env, creds.AdnLoginId ?? "", creds.AdnTransactionKey ?? "", request.AdnTransactionId);
+            env, creds.AdnLoginId ?? "", creds.AdnTransactionKey ?? "", transactionId);
 
         if (txDetails?.messages?.resultCode != messageTypeEnum.Ok)
         {
@@ -49,18 +84,19 @@ public class AdnReversalService : IAdnReversalService
             // tells a director nothing they can act on.
             var adnError = txDetails?.messages?.message?.FirstOrDefault()?.text
                 ?? "Gateway returned no error details";
-            return AdnReversalResult.Failed(adnError);
+            return (AdnChargeStatus.Unknown, null, adnError);
         }
 
-        var txStatus = txDetails.transaction?.transactionStatus;
+        var rawStatus = txDetails.transaction?.transactionStatus;
 
-        return txStatus switch
+        var status = rawStatus switch
         {
-            StatusCapturedPendingSettlement => Void(request, transactionId, env, creds),
-            StatusSettledSuccessfully => Refund(request, transactionId, env, creds),
-            _ => AdnReversalResult.Failed(
-                $"Transaction status '{txStatus}' does not support refund/void.")
+            StatusCapturedPendingSettlement => AdnChargeStatus.Unsettled,
+            StatusSettledSuccessfully => AdnChargeStatus.Settled,
+            _ => AdnChargeStatus.NotReversible
         };
+
+        return (status, rawStatus, null);
     }
 
     /// <summary>
