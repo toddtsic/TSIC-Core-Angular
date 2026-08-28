@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.Store;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
@@ -15,18 +16,11 @@ public class AdministratorRepository : IAdministratorRepository
     private readonly SqlDbContext _context;
 
     /// <summary>
-    /// The set of role IDs that constitute administrative roles.
+    /// The set of role IDs that constitute administrative roles. Aliases
+    /// <see cref="RoleConstants.AdminRoleIds"/> rather than restating it — a private copy had
+    /// drifted out of sight of the lane model that reads the shared list.
     /// </summary>
-    private static readonly string[] AdminRoleIds =
-    [
-        RoleConstants.Superuser,
-        RoleConstants.Director,
-        RoleConstants.SuperDirector,
-        RoleConstants.ApiAuthorized,
-        RoleConstants.RefAssignor,
-        RoleConstants.StoreAdmin,
-        RoleConstants.StpAdmin
-    ];
+    private static readonly string[] AdminRoleIds = RoleConstants.AdminRoleIds;
 
     public AdministratorRepository(SqlDbContext context)
     {
@@ -175,6 +169,28 @@ public class AdministratorRepository : IAdministratorRepository
         return await _context.Registrations
             .Include(r => r.Job)
             .Where(r => r.UserId == userId)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<StoreAdminRosterRowDto>> GetStoreAdminRosterAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && r.RoleId == RoleConstants.StoreAdmin)
+            .OrderBy(r => r.User!.LastName)
+            .ThenBy(r => r.User!.FirstName)
+            .Select(r => new StoreAdminRosterRowDto
+            {
+                RegistrationId = r.RegistrationId,
+                UserName = r.User!.UserName ?? "",
+                FirstName = r.User.FirstName ?? "",
+                LastName = r.User.LastName ?? "",
+                Email = r.User.Email ?? "",
+                Cellphone = r.User.Cellphone,
+                IsActive = r.BActive ?? false
+            })
             .ToListAsync(cancellationToken);
     }
 

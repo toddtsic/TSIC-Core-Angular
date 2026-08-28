@@ -38,6 +38,17 @@ export class MobileStoreTabComponent implements OnInit {
   storeSalesTax = linkedSignal(() => this.svc.mobileStore()?.storeSalesTax);
   storeTsicrate = linkedSignal(() => this.svc.mobileStore()?.storeTsicrate);
 
+  /**
+   * The TSIC rate restated as a percentage, so the multiplier the field actually stores is
+   * never ambiguous. Null when unset or zero — there is nothing to disambiguate then, and a
+   * bare "Currently 0%" would just be noise.
+   */
+  readonly tsicRatePercentLabel = computed(() => {
+    const rate = this.storeTsicrate();
+    if (rate == null || rate === 0) return null;
+    return `${+(rate * 100).toFixed(2)}%`;
+  });
+
   private readonly cleanSnapshot = computed(() => {
     const m = this.svc.mobileStore();
     if (!m) return '';

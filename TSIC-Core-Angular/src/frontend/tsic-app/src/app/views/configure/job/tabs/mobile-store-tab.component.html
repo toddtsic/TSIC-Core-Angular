@@ -120,16 +120,29 @@
               (ngModelChange)="storePickupDetails.set($event); onFieldChange()"></textarea>
           </div>
           <div class="col-md-4">
-            <label class="field-label">Sales Tax (%)</label>
-            <input type="number" class="field-input" step="0.01"
+            <label class="field-label" for="store-sales-tax">Sales Tax (%)</label>
+            <input id="store-sales-tax" type="number" class="field-input" step="0.01"
               [ngModel]="storeSalesTax()"
               (ngModelChange)="storeSalesTax.set($event); onFieldChange()" />
+            <div class="field-help">Charged to the buyer. Enter a percent — 8.75 means 8.75%.</div>
           </div>
           <div class="col-md-4">
-            <label class="field-label">TSIC Rate (%)</label>
-            <input type="number" class="field-input" step="0.01"
+            <!-- NOT a percent, despite reading like one for a long time. Jobs.StoreTSICRate is a
+                 MULTIPLIER: the ten jobs that set it carry 0.100 and 0.125. It is TSIC's own
+                 remittance bookkeeping (adn.MonthyQBPExport_Automated_Merch) and never reaches a
+                 buyer, so nothing on the storefront exposed the mismatch — but a superuser who
+                 read the old "(%)" label and typed 12.5 would have inflated the figure a
+                 hundredfold. Sales Tax above IS a percent; the two are deliberately unlike. -->
+            <label class="field-label" for="store-tsic-rate">TSIC Rate (multiplier)</label>
+            <input id="store-tsic-rate" type="number" class="field-input" step="0.001"
               [ngModel]="storeTsicrate()"
               (ngModelChange)="storeTsicrate.set($event); onFieldChange()" />
+            <div class="field-help">
+              TSIC's commission on merch sales, as a decimal — 0.125 is 12.5%.
+              @if (tsicRatePercentLabel(); as pct) {
+                <strong>Currently {{ pct }}.</strong>
+              }
+            </div>
           </div>
         </div>
       </div>

@@ -26,6 +26,20 @@
 	}
 }
 
+.tab-toolbar-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-3);
+}
+
+.meta-divider {
+	width: 1px;
+	height: 0.9em;
+	background: var(--bs-border-color);
+	display: inline-block;
+	align-self: center;
+}
+
 // ── Shared table chrome ──
 
 .store-table-wrap {

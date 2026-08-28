@@ -341,6 +341,7 @@ builder.Services.AddScoped<IStoreAdminService, StoreAdminService>();
 builder.Services.AddScoped<IStoreRestockService, StoreRestockService>();
 builder.Services.AddScoped<IStoreSalesOpsService, StoreSalesOpsService>();
 builder.Services.AddScoped<IStoreCampaignService, StoreCampaignService>();
+builder.Services.AddScoped<IStoreAdminRosterService, StoreAdminRosterService>();
 builder.Services.AddScoped<IStoreCatalogService, StoreCatalogService>();
 builder.Services.AddScoped<IStoreCartService, StoreCartService>();
 builder.Services.AddScoped<IStoreWalkUpService, StoreWalkUpService>();

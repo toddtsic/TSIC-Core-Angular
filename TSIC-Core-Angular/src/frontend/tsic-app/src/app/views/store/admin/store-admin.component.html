@@ -34,6 +34,9 @@
 	<button class="editor-tab" [class.active]="activeTab() === 'analytics'" (click)="activeTab.set('analytics')">
 		<i class="bi bi-graph-up me-1"></i>Analytics
 	</button>
+	<button class="editor-tab" [class.active]="activeTab() === 'staff'" (click)="activeTab.set('staff')">
+		<i class="bi bi-people me-1"></i>Staff
+	</button>
 </div>
 
 <!-- Error alert -->
@@ -411,6 +414,13 @@
 <!-- ══════════════════════════════════════ -->
 @if (!isLoading() && activeTab() === 'dashboard') {
 	<app-store-dashboard-tab />
+}
+
+<!-- ══════════════════════════════════════ -->
+<!-- TAB 9: STAFF (legacy StoreAdminAdd)    -->
+<!-- ══════════════════════════════════════ -->
+@if (!isLoading() && activeTab() === 'staff') {
+	<app-store-staff-tab />
 }
 
 <!-- ══════════════════════════════════════ -->

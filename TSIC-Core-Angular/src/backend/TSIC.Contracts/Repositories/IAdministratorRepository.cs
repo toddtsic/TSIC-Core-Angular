@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.Store;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
@@ -72,6 +73,15 @@ public interface IAdministratorRepository
     /// convert a pending Unassigned Adult registration into an admin registration; AM-004).
     /// </summary>
     Task<List<Registrations>> GetRegistrationsByUserIdAsync(string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The Store Administrators roster for a job — every registration on the job carrying the
+    /// Store Admin role, ordered by last then first name (legacy StoreAdminAdd.Get).
+    /// Projected, AsNoTracking; carries the user email and cell phone the roster grid edits.
+    /// </summary>
+    Task<List<StoreAdminRosterRowDto>> GetStoreAdminRosterAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// True when the user is the credential holder of any family registration

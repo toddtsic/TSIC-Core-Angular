@@ -691,6 +691,9 @@ export type { StandingsByDivisionResponse } from './models/StandingsByDivisionRe
 export type { StandingsDto } from './models/StandingsDto';
 export type { StandingsSortProfileOptionDto } from './models/StandingsSortProfileOptionDto';
 export type { StoreAbandonedCartDto } from './models/StoreAbandonedCartDto';
+export type { StoreAdminAddRequest } from './models/StoreAdminAddRequest';
+export type { StoreAdminRosterRowDto } from './models/StoreAdminRosterRowDto';
+export type { StoreAdminUpdateRequest } from './models/StoreAdminUpdateRequest';
 export type { StoreBatchSettledStatusDto } from './models/StoreBatchSettledStatusDto';
 export type { StoreCampaignKind } from './models/StoreCampaignKind';
 export type { StoreCampaignSendRequest } from './models/StoreCampaignSendRequest';

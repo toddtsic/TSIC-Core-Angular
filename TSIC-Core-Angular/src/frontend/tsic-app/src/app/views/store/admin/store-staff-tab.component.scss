@@ -1,0 +1,146 @@
+@use './store-shared' as *;
+
+// ── Roster table ──
+
+.col-active {
+	width: 96px;
+}
+
+.col-actions {
+	width: 64px;
+	text-align: right;
+}
+
+.cell-mono {
+	font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+	font-size: var(--font-size-sm);
+}
+
+.cell-email a {
+	color: var(--bs-primary);
+	text-decoration: none;
+
+	&:hover,
+	&:focus-visible {
+		text-decoration: underline;
+	}
+}
+
+// Dimmed via color-mix against the surface, never opacity — opacity on a row would fade the
+// focus ring and the status pill's border along with the text.
+.store-table tbody tr.is-inactive > td {
+	color: color-mix(in srgb, var(--brand-text) 55%, var(--brand-surface));
+}
+
+// ── Add modal: typeahead ──
+
+.search-field {
+	position: relative;
+}
+
+.search-spinner {
+	position: absolute;
+	right: var(--space-3);
+	top: 50%;
+	transform: translateY(-50%);
+	color: var(--bs-secondary-color);
+	pointer-events: none;
+}
+
+.candidate-list {
+	list-style: none;
+	margin: var(--space-2) 0 0;
+	padding: 0;
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--radius-md);
+	overflow: hidden;
+	max-height: 260px;
+	overflow-y: auto;
+}
+
+.candidate {
+	display: grid;
+	grid-template-columns: 1fr auto auto;
+	align-items: center;
+	gap: var(--space-3);
+	width: 100%;
+	text-align: left;
+	appearance: none;
+	border: 0;
+	border-bottom: 1px solid var(--bs-border-color);
+	background: var(--brand-surface);
+	padding: var(--space-2) var(--space-3);
+	color: var(--brand-text);
+	font-size: var(--font-size-sm);
+	transition: background-color 0.12s ease;
+
+	&:hover {
+		background: color-mix(in srgb, var(--bs-primary) 6%, var(--brand-surface));
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+.candidate-list li:last-child .candidate {
+	border-bottom: 0;
+}
+
+.candidate-name {
+	font-weight: 600;
+}
+
+.candidate-user {
+	font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+	color: var(--bs-secondary-color);
+	font-size: var(--font-size-xs);
+}
+
+.candidate-badge {
+	font-size: var(--font-size-xs);
+	font-weight: 600;
+	padding: 2px 8px;
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--bs-primary) 10%, transparent);
+	color: var(--bs-primary);
+	white-space: nowrap;
+}
+
+.selected-user {
+	display: flex;
+	align-items: center;
+	margin-top: var(--space-3);
+	padding: var(--space-3);
+	border-radius: var(--radius-md);
+	background: color-mix(in srgb, var(--bs-success) 8%, transparent);
+	border: 1px solid color-mix(in srgb, var(--bs-success) 24%, transparent);
+	color: var(--bs-success);
+}
+
+// ── Edit modal ──
+
+.readonly-identity {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-3);
+	padding: var(--space-2) var(--space-3);
+	border-radius: var(--radius-md);
+	background: rgba(var(--brand-text-rgb), 0.04);
+	border: 1px solid var(--bs-border-color);
+}
+
+.readonly-label {
+	font-size: var(--font-size-xs);
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--bs-secondary-color);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.candidate {
+		transition: none !important;
+	}
+}

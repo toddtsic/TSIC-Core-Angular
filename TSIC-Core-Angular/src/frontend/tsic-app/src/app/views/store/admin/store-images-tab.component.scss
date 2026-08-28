@@ -1,20 +1,8 @@
 @use './store-shared' as *;
 
 // ── Toolbar extras ──
-
-.tab-toolbar-actions {
-	display: inline-flex;
-	align-items: center;
-	gap: var(--space-3);
-}
-
-.meta-divider {
-	width: 1px;
-	height: 0.9em;
-	background: var(--bs-border-color);
-	display: inline-block;
-	align-self: center;
-}
+// .tab-toolbar-actions and .meta-divider live in _store-shared.scss — every tab drew the
+// same two rules.
 
 .meta-warning {
 	color: var(--bs-warning-text-emphasis, var(--bs-warning));

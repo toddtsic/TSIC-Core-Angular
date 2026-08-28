@@ -46,6 +46,10 @@ import type {
 	StoreCampaignSetupDto,
 	StoreCampaignSendRequest,
 	StoreCampaignSendResponse,
+	StoreAdminRosterRowDto,
+	StoreAdminAddRequest,
+	StoreAdminUpdateRequest,
+	UserSearchResponseDto,
 	EmailBatchJobStatus,
 } from '@core/api';
 
@@ -197,6 +201,34 @@ export class StoreService {
 					last(),
 				),
 			),
+		);
+	}
+
+	// ── Store administrators ──
+	// Legacy StoreAdminAdd. Every write answers with the whole refreshed roster, so the grid
+	// never reconciles a partial row against a list the server may have re-sorted.
+
+	getStoreAdmins(): Observable<StoreAdminRosterRowDto[]> {
+		return this.http.get<StoreAdminRosterRowDto[]>(`${this.base}/admins`);
+	}
+
+	addStoreAdmin(request: StoreAdminAddRequest): Observable<StoreAdminRosterRowDto[]> {
+		return this.http.post<StoreAdminRosterRowDto[]>(`${this.base}/admins`, request);
+	}
+
+	updateStoreAdmin(
+		registrationId: string,
+		request: StoreAdminUpdateRequest,
+	): Observable<StoreAdminRosterRowDto[]> {
+		return this.http.put<StoreAdminRosterRowDto[]>(
+			`${this.base}/admins/${registrationId}`,
+			request,
+		);
+	}
+
+	searchStoreAdminCandidates(query: string): Observable<UserSearchResponseDto> {
+		return this.http.get<UserSearchResponseDto>(
+			`${this.base}/admins/candidates?q=${encodeURIComponent(query)}`,
 		);
 	}
 

@@ -211,12 +211,12 @@ rather than handing the browser a broken "PDF".
 |---|---|---|
 | G-01 | Job Admin **Merch tab** — 8 fields | WALKED |
 | G-02 | `Enable Store` · `Allow Store Walk-up` · Contact Email · Refund Policy · Pickup Details | IMPL |
-| G-03 | `Enable STP` on the Merch tab | GAP |
-| G-04 | `Store Sales Tax` / `Store TSIC Rate` — no `%` in label | GAP |
-| G-05 | `StoreAdminAdd` — jqGrid roster of Store Admins | GAP — no Store Admin roster UI exists |
-| G-06 | Store Admin add / edit / delete, username readonly on edit | GAP — no Store Admin roster UI exists |
-| G-07 | Store admin menu: 4 groups, 13 destinations | GAP |
-| G-08 | `Dashboard Home` link, right-aligned | GAP |
+| G-03 | `Enable STP` on the Merch tab | BUILT — moved to the Teams/ClubReps tab 2026-08-23, see D-6 |
+| G-04 | `Store Sales Tax` / `Store TSIC Rate` — no `%` in label | BUILT — see D-6 |
+| G-05 | `StoreAdminAdd` — jqGrid roster of Store Admins | BUILT — Store Manager → **Staff** tab |
+| G-06 | Store Admin add / edit, username readonly on edit | BUILT — see D-7 |
+| G-07 | Store admin menu: 4 groups, 12 live destinations | BUILT except Quantity Adjustments (C-16) |
+| G-08 | `Dashboard Home` link, right-aligned | BUILT — the Dashboard tab is the destination |
 
 ---
 
@@ -336,14 +336,86 @@ path falls through to the Angular site.
 `!IsSuccessStatusCode`. A 200 carrying `text/html` is treated as success, and 11KB of HTML is
 streamed to the user as `TSIC-Export.pdf`. The user sees a downloaded PDF that will not open.
 
-**What I could not rule out from here:** PHOENIX may pin `cr2025` in its hosts file to a local
-address where the real CR site listens (the mitigation recorded in
-`reference_prod_dns_and_crystal_reports`), in which case the server-to-server call succeeds and
-only outside probes see the SPA. Only someone on .202 can settle that — check IIS bindings for the
-TSIC-CR-2025 site and the hosts file.
+**SETTLED by Todd, 2026-08-28: "cr2025 website has been turned off."** Not a lost binding, not
+DNS — a decision, and consistent with the agreed retirement of Crystal in favour of code-gen off
+the Syncfusion file-format libraries. So this is the steady state, not an outage, until that port
+lands.
 
-**Worth hardening regardless:** the proxy should reject a `text/html` response body as a failure.
-A report endpoint that answers 200 with the wrong content type is not a success.
+**FIXED (`69736f0e`).** `ExportCrystalReportAsync` now rejects a `text/html` body and returns the
+same `TSIC-Export-Error.txt` it already used for a Crystal refusal, so no surface hands the user a
+`.pdf` that will not open. The shared test moved to `ReportingService.isErrorPayload` on the
+frontend.
+
+**Still open, product-wide:** only the store's Labels buttons call `isErrorPayload` and show a
+message. `reports-library`, `report-launcher`, `client-menu`, `produce-job-invoices` and
+`x-job-reports-library` still save the error `.txt` — self-describing, but a message on screen
+would be better. One shared definition now exists for whoever does that sweep.
+
+**D-6 — Surface G, the config half. Two of the four config gaps were already decided elsewhere;
+one was a live money-label defect.**
+
+*G-03 `Enable STP`* — closed by a prior ruling, not by new work. The flag moved to the
+Teams/ClubReps tab on 2026-08-23 because enabling Stay-to-Play is the **director's** consent
+decision and the Merch tab is `superUserOnly` — no director could ever have reached it there.
+Legacy put it on the Merch tab; that placement is the thing we deliberately did not copy.
+
+*G-04 `TSIC Rate`* — a real defect, found by reading the column rather than the label. The screen
+said **`TSIC Rate (%)`**, but `Jobs.StoreTSICRate` is a **multiplier**:
+
+```sql
+SELECT StoreSalesTax, StoreTSICRate, COUNT(*) FROM Jobs.Jobs GROUP BY StoreSalesTax, StoreTSICRate
+--  0.0000   NULL    904
+--  0.0000  0.000    186
+--  0.0000  0.125      5     <- 12.5%, not 0.125%
+--  0.0000  0.100      5     <- 10%
+```
+
+A superuser who trusted the label and typed `12.5` would have inflated TSIC's own remittance
+figure a hundredfold. It never reaches a buyer (the column feeds
+`adn.MonthyQBPExport_Automated_Merch` only), which is exactly why nothing on the storefront ever
+exposed the mismatch. Now labelled *(multiplier)*, with the stored value restated as a percent
+beside the field. **`Sales Tax (%)` is NOT the same case** and keeps its label — R-13 settled that
+one as percent-form, and `SalesTaxMath` is its single conversion point. The two fields sit side by
+side and use opposite conventions; the help text on each says which.
+
+---
+
+**D-7 — Store Administrators (G-05/G-06). The roster already existed; what was missing was who
+could reach it.**
+
+Every Store Admin registration is already listed, added, edited, activated and deleted by the
+SuperUser **Administrators** screen, which manages all seven admin roles at once and enforces the
+AM-004 lane wall. That is a superset of legacy's `StoreAdminAdd` — except for reach:
+
+| | read | write |
+|---|---|---|
+| legacy `StoreAdminAddController` | `StoreAdmin` (Superuser · Director · Store Admin) | `AdminOnly` (Superuser · Director · SuperDirector) |
+| new Administrators screen | `SuperUserOnly` | `SuperUserOnly` |
+
+So a **director could not staff their own merch table**. Widening the Administrators screen was
+rejected outright: it would let a director mint Directors and SuperDirectors. Instead the new
+**Staff** tab carries legacy's policies endpoint for endpoint and is scoped to Store Admin rows
+only — the role is a server-side constant, never a request field, and `UpdateAsync` refuses any
+registration that is not a Store Admin on the caller's own job. Without that second check a
+director holding only a registration id would be able to edit a Superuser.
+
+`IStoreAdminRosterService.AddAsync` **delegates** to `IAdministratorService` rather than
+re-implementing eligibility, so the lane wall has one home.
+
+Three deliberate divergences, all recorded on the DTOs:
+
+1. **Adding names an existing account.** Legacy's add branch minted a fresh `AspNetUsers` row
+   whose **password was the username**, with gender `"F"` and a 1980-01-01 date of birth, then
+   registered it. AM-004 replaced that for every admin role; the typeahead is now the only path in.
+2. **Username / first / last are read-only on edit.** Legacy marked them editable in the grid but
+   its `Edit` action never read them — only `Active`, `Email` and `Cellphone` were written. Typing
+   a new surname there silently did nothing.
+3. **No delete.** Legacy defined `deleteOptions` but passed `del: false` to `navGrid`, so delete
+   was never on the screen. Clearing Active is how a store admin is retired, then and now.
+
+One improvement over legacy: the email write goes through `UserManager.SetEmailAsync`, which also
+rewrites `NormalizedEmail`. Legacy assigned the raw column and left the normalized copy stale —
+which is what forgot-password looks accounts up by.
 
 ## Open recommendations
 
@@ -351,14 +423,14 @@ A report endpoint that answers 200 with the wrong content type is not a success.
 |---|---|---|
 | R-01 | ~~Sales tax multiplier vs percent~~ — **MOOT. There is no sales tax in the fee model.** All 654 `StoreCartBatchSkus` rows carry `SalesTax = 0`, and the remittance export has no tax line. The two tracked figures are the CC processing fee and TSIC's percent of sales. | CLOSED |
 | R-02 | ~~Remove the Sales Tax field from config~~ — **WITHDRAWN.** Tax is a future obligation, not dead weight; the field stays, correctly bounded and labelled. Superseded by R-13/R-14. | CLOSED |
-| R-03 | Decide whether `Enable STP` belongs on the new store tab | OPEN |
+| R-03 | ~~Decide whether `Enable STP` belongs on the new store tab~~ — **DECIDED 2026-08-23: no.** It moved to the Teams/ClubReps tab. STP is a director's consent decision, and the Merch tab is superUserOnly, so no director could ever have reached it there. G-03 closed. | CLOSED |
 | R-04 | Add a Sort Order control to the items editor | OPEN |
 | R-05 | Post-creation price editing — **RESOLVED: locked, per legacy.** Name/price/comments are read-only on edit; the modal now edits Active + SortOrder, which is all `UpdateItem` writes. | CLOSED |
 | R-06 | Sort the items list by SortOrder, or offer both | OPEN |
 | R-07 | Add `PickedUp` to the SKU panel | OPEN |
 | R-08 | Keep legacy `UnSold` as its own column alongside In Cart | OPEN |
 | R-09 | Preserve legacy's alphabetical size ordering | OPEN |
-| R-12 | Config screen labels **both** `Sales Tax (%)` and `TSIC Rate (%)`, but the two columns use OPPOSITE conventions: `storeTSICRate` is a multiplier (0.10 = 10%, default in the export proc) while `ProcessingFeePercent` is a percent (3.5, divided by 100 in the proc). Relabel `TSIC Rate` as a decimal rate. | OPEN |
+| R-12 | ~~Config screen labels **both** `Sales Tax (%)` and `TSIC Rate (%)`, but the two columns use OPPOSITE conventions.~~ **DONE.** `TSIC Rate` now reads *(multiplier)*, carries "0.125 is 12.5%" help text, and restates the stored value as a percent beside it; `step` is 0.001. Sales Tax keeps `(%)` per R-13 and gains its own help line. Verified against the live DB: every job has `StoreSalesTax = 0.0000`, and the only non-zero `StoreTSICRate` values are **0.125 (5 jobs)** and **0.100 (5 jobs)** — decimals, not percents. G-04 closed. | IMPL |
 | R-13 | Sales tax conventions settled in code: `SalesTaxMath.ToTaxMultiplier` (percent-form, clamped 0-12) is the single conversion point, and `SalesTaxMath.TaxableBase` names what tax applies to. Deliberate documented divergence — legacy's multiplier arithmetic is unreachable code (654/654 rows at zero) and would charge 100x. | IMPL |
 | R-10 | Do **NOT** replicate B-29 (`hide.bs.modal` fires the POST, so Cancel and × also create the item). It is a legacy defect, not a feature; our modal submits only from the Create button. | OPEN |
 | R-11 | ~~itemBufferSize~~ — **WITHDRAWN**, see A-33. | CLOSED |

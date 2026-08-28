@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.Store;
 using TSIC.Contracts.Repositories;
@@ -26,6 +27,7 @@ public class StoreController : ControllerBase
     private readonly IStoreImageService _imageService;
     private readonly IStoreSalesOpsService _salesOpsService;
     private readonly IStoreCampaignService _campaignService;
+    private readonly IStoreAdminRosterService _storeAdminRosterService;
     private readonly IEmailBatchJobRegistry _batchJobs;
 
     public StoreController(
@@ -40,6 +42,7 @@ public class StoreController : ControllerBase
         IStoreImageService imageService,
         IStoreSalesOpsService salesOpsService,
         IStoreCampaignService campaignService,
+        IStoreAdminRosterService storeAdminRosterService,
         IEmailBatchJobRegistry batchJobs)
     {
         _catalogService = catalogService;
@@ -53,6 +56,7 @@ public class StoreController : ControllerBase
         _imageService = imageService;
         _salesOpsService = salesOpsService;
         _campaignService = campaignService;
+        _storeAdminRosterService = storeAdminRosterService;
         _batchJobs = batchJobs;
     }
 
@@ -849,6 +853,85 @@ public class StoreController : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    // ═══════════════════════════════════════════
+    //  STORE ADMINISTRATORS — legacy StoreAdminAddController
+    //
+    //  The policies are legacy's, endpoint for endpoint: the roster READS under "StoreAdmin"
+    //  (Superuser · Director · Store Admin — a store admin may see who else works the table),
+    //  and every WRITE narrows to "AdminOnly" (Superuser · Director · SuperDirector), so a
+    //  store admin cannot appoint another. The SuperUser Administrators screen still manages
+    //  these same registrations alongside every other admin role; this surface exists because
+    //  that screen is Superuser-only and legacy let the event's own director staff the store.
+    // ═══════════════════════════════════════════
+
+    [HttpGet("admins")]
+    [Authorize(Policy = "StoreAdmin")]
+    [ProducesResponseType(typeof(List<StoreAdminRosterRowDto>), 200)]
+    public async Task<IActionResult> GetStoreAdmins(CancellationToken ct)
+    {
+        var (jobId, _) = await ResolveContext();
+        return Ok(await _storeAdminRosterService.GetRosterAsync(jobId, ct));
+    }
+
+    [HttpPost("admins")]
+    [Authorize(Policy = "AdminOnly")]
+    [ProducesResponseType(typeof(List<StoreAdminRosterRowDto>), 200)]
+    [ProducesResponseType(400)]
+    public async Task<IActionResult> AddStoreAdmin(
+        [FromBody] StoreAdminAddRequest request,
+        CancellationToken ct)
+    {
+        var (jobId, userId) = await ResolveContext();
+        try
+        {
+            return Ok(await _storeAdminRosterService.AddAsync(jobId, request, userId, ct));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("admins/{registrationId:guid}")]
+    [Authorize(Policy = "AdminOnly")]
+    [ProducesResponseType(typeof(List<StoreAdminRosterRowDto>), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> UpdateStoreAdmin(
+        Guid registrationId,
+        [FromBody] StoreAdminUpdateRequest request,
+        CancellationToken ct)
+    {
+        var (jobId, userId) = await ResolveContext();
+        try
+        {
+            return Ok(await _storeAdminRosterService.UpdateAsync(jobId, registrationId, request, userId, ct));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("admins/candidates")]
+    [Authorize(Policy = "AdminOnly")]
+    [ProducesResponseType(typeof(UserSearchResponseDto), 200)]
+    public async Task<IActionResult> SearchStoreAdminCandidates(
+        [FromQuery] string q,
+        CancellationToken ct)
+    {
+        var (jobId, _) = await ResolveContext();
+        return Ok(await _storeAdminRosterService.SearchCandidatesAsync(q, jobId, ct));
     }
 
     // ═══════════════════════════════════════════

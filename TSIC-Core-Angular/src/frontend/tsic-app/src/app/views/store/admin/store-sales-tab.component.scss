@@ -1,24 +1,11 @@
 @use './store-shared' as *;
 
 // ── Toolbar ──
-
-.tab-toolbar-actions {
-	display: inline-flex;
-	align-items: center;
-	gap: var(--space-3);
-}
+// .tab-toolbar-actions and .meta-divider live in _store-shared.scss.
 
 .sales-search {
 	width: 240px;
 	max-width: 40vw;
-}
-
-.meta-divider {
-	width: 1px;
-	height: 0.9em;
-	background: var(--bs-border-color);
-	display: inline-block;
-	align-self: center;
 }
 
 .meta-money {
