@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, model, viewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, OnChanges, SimpleChanges, input, model, viewChild } from '@angular/core';
 import { RichTextEditorAllModule, RichTextEditorComponent } from '@syncfusion/ej2-angular-richtexteditor';
 import { TsicRteDirective } from '@shared-ui/rte.directive';
 
@@ -19,7 +19,6 @@ import { TsicRteDirective } from '@shared-ui/rte.directive';
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <ejs-richtexteditor #rte
-            [value]="body()"
             tsicRte
             [height]="height()"
             [saveInterval]="200"
@@ -29,10 +28,9 @@ import { TsicRteDirective } from '@shared-ui/rte.directive';
         </ejs-richtexteditor>
     `
 })
-export class EmailBodyEditorComponent {
-    /** The body as HTML. Writing a new string re-seeds the editor (writing back the
-     *  editor's own emission is a no-op — the wrapper only propagates changed strings —
-     *  so the [(body)] loop cannot fight the caret). */
+export class EmailBodyEditorComponent implements AfterViewInit, OnChanges {
+    /** The body as HTML. Writing a new string from OUTSIDE re-seeds the editor; the editor's
+     *  own emissions are never written back (see seed()). */
     readonly body = model<string>('');
     readonly height = input(250);
     readonly placeholder = input('Compose your email…');
@@ -46,8 +44,54 @@ export class EmailBodyEditorComponent {
 
     private readonly rte = viewChild.required<RichTextEditorComponent>('rte');
 
+    private viewReady = false;
+
+    /**
+     * The last HTML this component pushed into `body`.
+     *
+     * This is the whole fix, so it is worth stating why. `value` used to be BOUND
+     * (`[value]="body()"`), which made a Syncfusion editor — a widget that owns its own
+     * contenteditable DOM — into a controlled input. Every emission travelled model → binding →
+     * editor, and Syncfusion answers a `value` write by re-rendering `inputElement.innerHTML`
+     * from the string (it normalizes the HTML on the way in, so the string virtually never
+     * matches the live DOM and the re-render virtually always happens).
+     *
+     * Harmless while typing. Fatal across a dialog: the Insert Link / Insert Image dialogs save
+     * the caret when they open and restore it when you press Insert. A re-render in between
+     * detaches the nodes that saved caret points at, the restore falls back to the root element,
+     * and the insert replaces the whole body — the reported "my text vanished, only the link is
+     * left".
+     *
+     * So the editor is now authoritative for its own content and we only write to it when the
+     * value genuinely came from somewhere else (a template picked, a modal reset, a loaded draft).
+     * Comparing against the last emission is what tells the two apart.
+     */
+    private lastEmitted: string | null = null;
+
+    ngAfterViewInit(): void {
+        this.viewReady = true;
+        this.seed(this.body());
+    }
+
+    ngOnChanges(changes: SimpleChanges): void {
+        // Before ngAfterViewInit there is no editor yet, and the initial value is seeded there.
+        if (!this.viewReady || !changes['body']) { return; }
+        const next = this.body();
+        if (next === this.lastEmitted) { return; } // our own emission arriving back — never re-render on it
+        this.seed(next);
+    }
+
+    /** Push HTML INTO the editor. Only for values that did not come from the editor. */
+    private seed(html: string): void {
+        this.lastEmitted = html;
+        this.rte().value = html;
+    }
+
     onRteChange(event: { value?: string | null }): void {
-        this.body.set(event?.value ?? '');
+        // Syncfusion emits null for an empty editor; the send guards and previews want ''.
+        const html = event?.value ?? '';
+        this.lastEmitted = html;
+        this.body.set(html);
     }
 
     /** Insert a substitution token (e.g. "!PERSON") at the caret, followed by a separator
@@ -61,6 +105,8 @@ export class EmailBodyEditorComponent {
         // executeCommand bypasses the saveInterval cycle — pull the fresh HTML into the model now
         // so send guards and previews see the token immediately.
         editor.updateValue();
-        this.body.set(editor.value ?? '');
+        const html = editor.value ?? '';
+        this.lastEmitted = html;
+        this.body.set(html);
     }
 }
