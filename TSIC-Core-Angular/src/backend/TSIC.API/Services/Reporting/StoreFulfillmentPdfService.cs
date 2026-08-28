@@ -149,6 +149,9 @@ public sealed class StoreFulfillmentPdfService : IStoreFulfillmentPdfService
         document.PageSettings.Size = new SizeF(PageW, PageH);
         document.PageSettings.Margins.All = 0;   // absolute positioning: the stock defines the grid
 
+        // Third place the stock is named: the viewer's title bar / tab, which survives a rename.
+        document.DocumentInformation.Title = "Store Bag Labels (Avery 5163)";
+
         var fonts = new Fonts();
 
         // Expand each bag into one or more labels — a player with more items than fit continues
@@ -169,7 +172,8 @@ public sealed class StoreFulfillmentPdfService : IStoreFulfillmentPdfService
             empty.DrawString("No paid store orders to label.", fonts.LabelName, PdfBrushes.Gray,
                 new RectangleF(0, PageH / 2f - 10f, PageW, 20f),
                 new PdfStringFormat(PdfTextAlignment.Center, PdfVerticalAlignment.Middle));
-            return Save(document, "Store-Bag-Labels.pdf");
+            DrawStockCaption(empty, fonts);
+            return Save(document, LabelFileName);
         }
 
         var perPage = LabelCols * LabelRows;
@@ -181,6 +185,7 @@ public sealed class StoreFulfillmentPdfService : IStoreFulfillmentPdfService
             if (slot == 0)
             {
                 g = document.Pages.Add().Graphics;
+                DrawStockCaption(g, fonts);
             }
 
             var col = slot % LabelCols;
@@ -191,8 +196,35 @@ public sealed class StoreFulfillmentPdfService : IStoreFulfillmentPdfService
             DrawLabel(g!, labels[i].Bag, labels[i].Lines, labels[i].Part, labels[i].Parts, x, y, fonts);
         }
 
-        return Save(document, "Store-Bag-Labels.pdf");
+        return Save(document, LabelFileName);
     }
+
+    /// <summary>
+    /// Names the stock on every sheet, in the 0.5in strip below the last row of labels.
+    ///
+    /// <para>That strip is backing paper on a 5163 sheet — the label grid runs y=36 to y=756 on a
+    /// 792pt page — so this prints on the carrier and never on a label a customer receives. It is
+    /// the only free space on the page, and the sheet is otherwise anonymous once it leaves the
+    /// printer: a director holding a stack of these has no way to tell which stock to reload.</para>
+    ///
+    /// <para>The scale warning earns its place. "Fit to page" silently shrinks the grid by ~4% and
+    /// every label drifts progressively further off its die-cut down the sheet — the failure looks
+    /// like a bad layout rather than a print setting, and it wastes a sheet of label stock each
+    /// time. The filename carries the Avery number too, since that is what a director sees in the
+    /// browser's download list before ever opening the file.</para>
+    /// </summary>
+    private static void DrawStockCaption(PdfGraphics g, Fonts fonts)
+    {
+        var captionY = LabelOriginY + (LabelRows * LabelH) + 8f;   // 764: inside the bottom strip
+        g.DrawString(
+            "Avery 5163  |  2in x 4in  |  10 per sheet  |  Print at 100% scale - do NOT use 'fit to page'",
+            fonts.LabelFoot, GrayBrush,
+            new RectangleF(0, captionY, PageW, 10f),
+            new PdfStringFormat(PdfTextAlignment.Center, PdfVerticalAlignment.Top));
+    }
+
+    /// <summary>Stock number in the filename: it is what shows in the browser's download list.</summary>
+    private const string LabelFileName = "Store-Bag-Labels-Avery-5163.pdf";
 
     private static void DrawLabel(
         PdfGraphics g,
