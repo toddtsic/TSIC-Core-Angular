@@ -4,6 +4,34 @@
 	</div>
 }
 
+<!-- ══════════════════════════════════════ -->
+<!-- F-01…F-03: legacy's "Labels" menu group -->
+<!-- Sits outside the sales guard: a director prints bag labels and pickup -->
+<!-- sheets whether or not the rollup has data yet. -->
+<!-- ══════════════════════════════════════ -->
+<section class="panel">
+	<h3 class="panel-title">Labels &amp; Pickup Sheets</h3>
+	<p class="panel-sub">Printable PDFs for packing and handing over orders.</p>
+	<div class="report-links">
+		@for (link of reportLinks; track link.action) {
+			<button type="button" class="report-link"
+				[disabled]="downloadingAction() !== null"
+				(click)="downloadReport(link)">
+				@if (downloadingAction() === link.action) {
+					<span class="spinner-border spinner-border-sm report-icon" role="status"></span>
+				} @else {
+					<i class="bi report-icon" [class]="link.icon"></i>
+				}
+				<span class="report-text">
+					<span class="report-label">{{ link.label }}</span>
+					<span class="report-desc">{{ link.description }}</span>
+				</span>
+				<i class="bi bi-download report-chevron"></i>
+			</button>
+		}
+	</div>
+</section>
+
 @if (isLoading()) {
 	<div class="text-center py-5">
 		<div class="spinner-border text-primary" role="status">

@@ -10,7 +10,18 @@ import {
 	IDataOptions,
 } from '@syncfusion/ej2-angular-pivotview';
 import { StoreService } from '../../../infrastructure/services/store.service';
+import { ReportingService } from '../../../infrastructure/services/reporting.service';
+import { ToastService } from '../../../shared-ui/toast.service';
 import type { StoreSalesPivotDto } from '@core/api';
+
+/** One entry in legacy's "Labels" menu group. */
+interface StoreReportLink {
+	/** ReportingController action — the Crystal report name is resolved server-side. */
+	action: string;
+	label: string;
+	description: string;
+	icon: string;
+}
 
 /**
  * Store Dashboard — port of legacy StoreDashboard/Index.
@@ -36,6 +47,40 @@ import type { StoreSalesPivotDto } from '@core/api';
 })
 export class StoreDashboardTabComponent {
 	private readonly store = inject(StoreService);
+	private readonly reporting = inject(ReportingService);
+	private readonly toast = inject(ToastService);
+
+	// ═══════════════════════════════════════
+	//  LABELS — legacy's _StoreAdminMenu "Labels" group
+	// ═══════════════════════════════════════
+
+	/**
+	 * The three entries legacy's store-admin menu shows, in its order and with its wording.
+	 * A fourth action, StorePickupSignoff, is live on the server but COMMENTED OUT of legacy's
+	 * menu; it stays unlinked here so the visible surface matches.
+	 */
+	readonly reportLinks: StoreReportLink[] = [
+		{
+			action: 'StoreLabels',
+			label: 'Store Bag Labels',
+			description: 'One label per bag, for packing the order.',
+			icon: 'bi-tags',
+		},
+		{
+			action: 'StorePerPlayerPickup',
+			label: 'Per Family Pickup Signoff',
+			description: 'Signature sheet handed over at the pickup table.',
+			icon: 'bi-pen',
+		},
+		{
+			action: 'StorePerPlayerPivot',
+			label: 'Per Family Pivot',
+			description: 'Every family and what they ordered, one page.',
+			icon: 'bi-table',
+		},
+	];
+
+	readonly downloadingAction = signal<string | null>(null);
 
 	readonly isLoading = signal(false);
 	readonly errorMessage = signal<string | null>(null);
@@ -153,6 +198,40 @@ export class StoreDashboardTabComponent {
 			error: err => {
 				this.errorMessage.set(err?.error?.message ?? 'Could not load the dashboard.');
 				this.isLoading.set(false);
+			},
+		});
+	}
+
+	/**
+	 * PDF download. `exportFormat: 1` is Crystal's Pdf enum value and is legacy's default for all
+	 * three of these. The blob plumbing (Content-Disposition filename, popup-blocker-safe anchor)
+	 * is the shared ReportingService one every other report surface uses.
+	 */
+	downloadReport(link: StoreReportLink): void {
+		if (this.downloadingAction()) return;
+		this.downloadingAction.set(link.action);
+
+		this.reporting.downloadReport(link.action, { exportFormat: '1' }).subscribe({
+			next: response => {
+				this.downloadingAction.set(null);
+
+				// Two ways this comes back 200 but useless: the proxy wraps a Crystal refusal as
+				// text/plain, and a mis-bound cr2025 host answers every path with the Angular
+				// app's index.html (text/html). Neither is a PDF — say so rather than handing
+				// the browser a file that will not open.
+				const contentType = (response.headers.get('Content-Type') ?? '').toLowerCase();
+				if (contentType.includes('text/plain') || contentType.includes('text/html')) {
+					this.toast.show(
+						`${link.label} could not be generated — the reporting service did not return a PDF.`,
+						'danger', 6000);
+					return;
+				}
+
+				this.reporting.triggerDownload(response, link.label.replace(/\s+/g, '-'));
+			},
+			error: () => {
+				this.downloadingAction.set(null);
+				this.toast.show(`${link.label} could not be generated.`, 'danger', 5000);
 			},
 		});
 	}

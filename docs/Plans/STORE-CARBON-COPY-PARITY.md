@@ -180,10 +180,30 @@ StoreSalesWalkup, StoreTwoClick, CheckoutConfirmation, WalkUp, and the Labels/Cr
 
 | # | Legacy pathway | Status |
 |---|---|---|
-| F-01 | Store Bag Labels (pdf) linked from store admin | GAP (endpoint exists) |
-| F-02 | Store Per Family Pickup Signoff (pdf) linked | GAP (endpoint exists) |
-| F-03 | Store Per Family Pivot (pdf) linked | GAP (endpoint exists) |
-| F-04 | `StorePickupSignoff` — commented out of legacy menu, action live | GAP (endpoint exists) |
+| F-01 | Store Bag Labels (pdf) linked from store admin | BUILT — **report file absent server-side**, see F-note |
+| F-02 | Store Per Family Pickup Signoff (pdf) linked | BUILT — **report file absent server-side**, see F-note |
+| F-03 | Store Per Family Pivot (pdf) linked | BUILT — **report file absent server-side**, see F-note |
+| F-04 | `StorePickupSignoff` — commented out of legacy menu, action live | ENDPOINT LIVE, DELIBERATELY UNLINKED — matches legacy's visible surface |
+
+**F-note — the four Store reports do not exist on the Crystal Reports server.**
+The endpoints were already correct (`ReportingController.StoreLabels` → `StoreLabels3`, etc.) and
+the UI links now exist, so the port is complete on our side. What is missing is upstream:
+
+- The CR deployment at `C:\Websites\TSIC-CR-2025\App_Data\CrystalReports\` holds **110 report
+  files. Not one of them starts with "Store".** `StoreLabels3.rpt`, `StorePickupSignoff.rpt`,
+  `StorePerPlayerPickup.rpt` and `StorePerPlayerPivot.rpt` are all absent. Every OTHER endpoint
+  name we expose has a matching file (`League_Teams.rpt`, `ClubRep_BalanceDue_*.rpt`,
+  `camp_excelexport_short.rpt`, …), so the name→file convention is confirmed and the absence is real.
+- Only two of the four have a backing proc — `reporting.StoreLabels` and
+  `reporting.StorePickupConfirmation`. `StorePerPlayerPickup` and `StorePerPlayerPivot` have
+  neither a proc nor a report file.
+- **Legacy is in exactly the same position.** Its `appsettings.json` points at the same
+  `https://cr2025.teamsportsinfo.com/api/`, so its three Labels menu items hit the same missing
+  reports. This is a pre-existing gap in both apps, not a regression introduced by the port.
+
+The buttons are shipped because the pathway is ours to migrate and they start working the moment
+the report files are deployed. The UI treats the proxy's `text/plain` error body as a failure
+rather than handing the browser a broken "PDF".
 
 ## G · Access, config, navigation
 
@@ -292,6 +312,38 @@ Two legacy details worth recording so nobody "restores" them:
   label NULL for a sku missing a colour or size, blanking the pivot's row header. No sku in the
   database has a null colour or size today, so this is latent, not live; the port joins the
   non-blank parts instead.
+
+**D-5 — ⛔ OUT OF SCOPE BUT URGENT: `cr2025.teamsportsinfo.com` is serving the Angular app, not
+Crystal Reports.** Found while verifying Surface F. This is NOT a store problem — it affects
+**every Crystal report in the product**.
+
+Probed from this box:
+
+```
+nslookup cr2025.teamsportsinfo.com   -> 204.17.37.202   (PHOENIX, via the wildcard record)
+POST https://cr2025.teamsportsinfo.com/api/CrystalReports/Get
+  -> HTTP 200, Content-Type: text/html, 11,083 bytes
+  -> body is the Angular SPA index.html (VerticalInsure import, --brand-* tokens)
+  -> identical ETag and byte count to GET https://cr2025.teamsportsinfo.com/
+  -> Last-Modified: Thu, 27 Aug 2026 16:49:53  (yesterday's prod deploy)
+```
+
+The same response comes back for a KNOWN-GOOD report (`League_Teams`, whose `.rpt` is present), so
+this is not about the store reports — the host has no IIS binding for the Crystal site and every
+path falls through to the Angular site.
+
+**Why this is silent:** `ReportingService.ExportCrystalReportAsync` only branches on
+`!IsSuccessStatusCode`. A 200 carrying `text/html` is treated as success, and 11KB of HTML is
+streamed to the user as `TSIC-Export.pdf`. The user sees a downloaded PDF that will not open.
+
+**What I could not rule out from here:** PHOENIX may pin `cr2025` in its hosts file to a local
+address where the real CR site listens (the mitigation recorded in
+`reference_prod_dns_and_crystal_reports`), in which case the server-to-server call succeeds and
+only outside probes see the SPA. Only someone on .202 can settle that — check IIS bindings for the
+TSIC-CR-2025 site and the hosts file.
+
+**Worth hardening regardless:** the proxy should reject a `text/html` response body as a failure.
+A report endpoint that answers 200 with the wrong content type is not a success.
 
 ## Open recommendations
 

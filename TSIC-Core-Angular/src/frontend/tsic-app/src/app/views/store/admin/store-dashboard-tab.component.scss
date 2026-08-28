@@ -71,3 +71,70 @@
 .pivot-wrap {
 	overflow-x: auto;
 }
+
+// ── Label / pickup-sheet links ──
+
+.report-links {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+	gap: var(--space-3);
+}
+
+.report-link {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	width: 100%;
+	text-align: left;
+	padding: var(--space-3);
+	background: var(--bs-body-bg);
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--radius-md);
+	color: var(--brand-text);
+	transition: border-color 0.15s ease, background-color 0.15s ease;
+
+	&:hover:not(:disabled) {
+		border-color: color-mix(in srgb, var(--bs-primary) 45%, transparent);
+		background: color-mix(in srgb, var(--bs-primary) 5%, transparent);
+	}
+
+	&:disabled { opacity: 0.6; }
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+.report-icon {
+	flex: 0 0 auto;
+	font-size: 1.25rem;
+	color: var(--bs-primary);
+}
+
+.report-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+.report-label {
+	font-weight: 600;
+	font-size: var(--font-size-sm);
+}
+
+.report-desc {
+	font-size: var(--font-size-xs);
+	color: var(--bs-secondary-color);
+}
+
+.report-chevron {
+	flex: 0 0 auto;
+	color: var(--bs-secondary-color);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.report-link { transition: none !important; }
+}
