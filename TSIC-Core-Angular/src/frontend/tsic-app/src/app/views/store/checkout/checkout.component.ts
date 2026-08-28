@@ -217,8 +217,13 @@ export class StoreCheckoutComponent implements OnDestroy {
 			next: blob => {
 				this.revokeReceiptUrl();
 				this.receiptObjectUrl = URL.createObjectURL(blob);
+				// Legacy's own viewer fragment. Without it the embedded PDF renders with the
+				// full reader chrome — toolbar and a thumbnail rail that takes half the width
+				// — around a one-page receipt. Revoke uses the bare URL, not this one.
 				this.receiptUrl.set(
-					this.sanitizer.bypassSecurityTrustResourceUrl(this.receiptObjectUrl)
+					this.sanitizer.bypassSecurityTrustResourceUrl(
+						`${this.receiptObjectUrl}#toolbar=0&navpanes=0&scrollbar=0`
+					)
 				);
 				if (isWalkUp) this.auth.logoutLocal();
 			},
