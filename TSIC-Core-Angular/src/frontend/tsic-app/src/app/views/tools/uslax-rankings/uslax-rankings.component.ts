@@ -114,7 +114,6 @@ export class UsLaxRankingsComponent {
 
 
 	// ── Dialogs ──
-	readonly showHelp = signal(false);
 	readonly showClearConfirm = signal(false);
 	readonly showSaveDropdown = signal(false);
 

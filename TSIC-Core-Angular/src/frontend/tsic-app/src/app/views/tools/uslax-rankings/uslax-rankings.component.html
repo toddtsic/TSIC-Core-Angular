@@ -23,9 +23,6 @@
 			<a class="btn btn-outline-primary btn-sm" routerLink="../../ladt/pool-assignment">
 				<i class="bi bi-grid-3x3-gap me-1"></i>Pool Assignment
 			</a>
-			<button class="btn btn-outline-secondary btn-sm" (click)="showHelp.set(true)">
-				<i class="bi bi-book me-1"></i>How It Works
-			</button>
 			@if (hasResults()) {
 				<button class="btn btn-outline-secondary btn-sm" (click)="exportCsv()">
 					<i class="bi bi-download me-1"></i>CSV
@@ -354,43 +351,4 @@
 		confirmLabel="Clear All Rankings" confirmVariant="danger"
 		(confirmed)="clearRankings()" (cancelled)="showClearConfirm.set(false)">
 	</confirm-dialog>
-}
-@if (showHelp()) {
-	<div class="help-backdrop" (click)="showHelp.set(false)"></div>
-	<div class="help-dialog" role="dialog">
-		<div class="help-header">
-			<h5 class="mb-0"><i class="bi bi-book me-2"></i>How It Works</h5>
-			<button class="btn-close btn-close-white" (click)="showHelp.set(false)"></button>
-		</div>
-		<div class="help-body">
-			<dl class="help-dl">
-				<dt><i class="bi bi-stars text-primary"></i> AI Matching</dt>
-				<dd>
-					AI discovers published national rankings on the internet, then compares club name,
-					team color, graduation year, and state against your registered teams.
-					<div class="confidence-key">
-						<span class="badge confidence-high">75%+</span>
-						<span class="badge confidence-medium">50–74%</span>
-					</div>
-				</dd>
-				<dt><i class="bi bi-hand-index text-primary"></i> Manual Override</dt>
-				<dd><strong>Match</strong> — pair an unmatched team via the sidebar. <strong>Change</strong> — reassign an AI match.</dd>
-				<dt><i class="bi bi-cloud-upload text-primary"></i> Save</dt>
-				<dd>Choose a confidence threshold. Manual pairings always included. Rankings appear as <strong>Nat'l Rank</strong> in Pool Assignment.</dd>
-				<dt><i class="bi bi-calendar3 text-primary"></i> Seasons</dt>
-				<dd>
-					usclublax.com publishes rankings one season at a time. The Season list mirrors
-					what they currently offer and defaults to the newest — switch it to seed from a
-					completed season instead. The available age groups differ from season to season.
-				</dd>
-				<dt><i class="bi bi-exclamation-triangle-fill text-warning"></i> Experimental</dt>
-				<dd>
-					This tool reads a third-party website we do not control. If they change their
-					page layout, rename an age group, or go offline, results here can change or stop
-					working without notice. Treat it as an aid to seeding, not a source of record —
-					use at your own discretion.
-				</dd>
-			</dl>
-		</div>
-	</div>
 }
