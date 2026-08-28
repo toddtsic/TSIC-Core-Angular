@@ -28,9 +28,16 @@ public static class PaymentMethodIds
     // then reduces principal paid by the refund's principal-equivalent;
     // entity columns are also adjusted at refund time, so both sources of
     // truth stay aligned (TeamSearchService.ProcessRefundAsync L337/L366).
+    /// <summary>
+    /// The method a successful card charge is stamped with. Named because a write path must
+    /// never pick a card method by scanning the reference table for a name containing "credit":
+    /// six of the sixteen do, including the refund, the void and both failed variants.
+    /// </summary>
+    public static readonly Guid CreditCardPayment = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
+
     public static readonly IReadOnlySet<Guid> CcPaid = new HashSet<Guid>
     {
-        Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D"), // Credit Card Payment
+        CreditCardPayment,                                  // Credit Card Payment
         Guid.Parse("5C46057C-69DE-4A22-B20F-D2BBDFE3A43A"), // Credit Card Payment PIF
         Guid.Parse("0CF0E4C2-5853-4A45-A7A5-A0D632BE8870"), // Automated Recurrent Billing
         Guid.Parse("31ECA575-A268-E111-9D56-F04DA202060D"), // Credit Card Credit (refund — negative Payamt)

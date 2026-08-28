@@ -89,7 +89,12 @@ export class StoreCheckoutComponent implements OnDestroy {
 				this.trimmedLines.set(prepared.adjustments);
 				this.store.getPaymentMethods().subscribe({
 					next: methods => {
-						const cc = methods.find(m => m.paymentMethod.toLowerCase().includes('credit'));
+						// EXACT match. `includes('credit')` matched six of the sixteen methods, and
+						// the list arrives alphabetically, so it always picked "Credit Card
+						// Credit" — the refund method — and posted it as the payment method.
+						// The server now stamps the method itself; this only supplies the label
+						// the shopper reads on the confirmation.
+						const cc = methods.find(m => m.paymentMethod.toLowerCase() === 'credit card payment');
 						if (cc) {
 							this.ccPaymentMethodId.set(cc.paymentMethodId);
 							this.paymentMethodName.set(cc.paymentMethod);

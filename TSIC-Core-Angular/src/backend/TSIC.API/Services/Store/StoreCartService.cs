@@ -554,7 +554,14 @@ public sealed class StoreCartService : IStoreCartService
         var accounting = new StoreCartBatchAccounting
         {
             StoreCartBatchId = batch.StoreCartBatchId,
-            PaymentMethodId = request.PaymentMethodId,
+            // The payment method is what WE just did, not what the browser said. It used to be
+            // taken from the request, and the client chose it by scanning the method list for the
+            // first name containing "credit" — the list is ordered alphabetically, so that is
+            // "Credit Card Credit", the REFUND method. Every online store sale was booked under
+            // it, the shopper's confirmation read "Payment Method: Credit Card Credit", and
+            // FindOriginalCardChargeAsync accepts only Payment or Void — so none of those orders
+            // could ever be refunded or voided, the reversal being unable to find the charge.
+            PaymentMethodId = ResolvePaymentMethodId(request),
             Paid = totalPaid,
             CreateDate = DateTime.Now,
             Cclast4 = ccLast4,
@@ -663,6 +670,29 @@ public sealed class StoreCartService : IStoreCartService
     /// Delegates to <see cref="StoreLineFeeMath.Recalculate"/> — the single resolver shared with
     /// the walk-up sale and the admin SKU swap, so no path can price a line differently.
     /// </summary>
+    /// <summary>
+    /// The payment method for a checkout, decided here rather than accepted from the caller.
+    ///
+    /// A card was charged, so the row is a card payment — full stop. The request's
+    /// <c>PaymentMethodId</c> only still has a say on the cash/check path the DTO documents
+    /// ("For Cash/Check, CreditCard is null"), and even there it is checked against the two
+    /// buckets that path may legitimately name. Nothing a browser sends can book a store sale as
+    /// a refund, a void or a failed charge.
+    /// </summary>
+    private static Guid ResolvePaymentMethodId(StoreCheckoutRequest request)
+    {
+        if (request.CreditCard is not null) return PaymentMethodIds.CreditCardPayment;
+
+        if (PaymentMethodIds.Cash.Contains(request.PaymentMethodId)
+            || PaymentMethodIds.Check.Contains(request.PaymentMethodId))
+        {
+            return request.PaymentMethodId;
+        }
+
+        throw new InvalidOperationException(
+            "A store checkout must be a card payment, or cash or a check taken at the counter.");
+    }
+
     private static void RecalculateLineItemFees(StoreCartBatchSkus lineItem, JobStoreConfig config)
         => StoreLineFeeMath.Recalculate(lineItem, config);
 
