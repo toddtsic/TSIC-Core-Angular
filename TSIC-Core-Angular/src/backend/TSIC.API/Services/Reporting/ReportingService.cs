@@ -250,6 +250,34 @@ public sealed class ReportingService : IReportingService
             };
         }
 
+        // A 200 is not proof a report came back. `cr2025` resolves through the wildcard DNS record
+        // to the prod box, so whenever the Crystal site is stopped every request falls through to
+        // the Angular site, which answers 200 with its index.html for ANY path. Status alone said
+        // "success", and ~11 KB of HTML was handed to the user as TSIC-Export.pdf — a download that
+        // silently will not open, on every report surface at once.
+        //
+        // Crystal is being retired (the reports are moving to code-gen off the Syncfusion
+        // file-format libraries), so a stopped CR service is the expected steady state, not an
+        // outage. Fail loudly on it.
+        var upstreamMediaType = response.Content.Headers.ContentType?.MediaType;
+        if (upstreamMediaType != null && upstreamMediaType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogError(
+                "Crystal Reports returned text/html for {ReportName} — the reporting service at {Url} is not serving reports.",
+                reportName, crUrl);
+
+            var notServingBytes = Encoding.UTF8.GetBytes(
+                "Crystal Reports export failed: the reporting service is not currently serving reports " +
+                "(it answered with a web page instead of a document). No report was produced.");
+
+            return new ReportExportResult
+            {
+                FileBytes = notServingBytes,
+                ContentType = "text/plain",
+                FileName = "TSIC-Export-Error.txt"
+            };
+        }
+
         var (contentType, fileName) = exportFormat switch
         {
             (int)ReportExportFormat.Pdf => ("application/pdf", "TSIC-Export.pdf"),

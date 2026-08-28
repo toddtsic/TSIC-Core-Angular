@@ -216,11 +216,10 @@ export class StoreDashboardTabComponent {
 				this.downloadingAction.set(null);
 
 				// Two ways this comes back 200 but useless: the proxy wraps a Crystal refusal as
-				// text/plain, and a mis-bound cr2025 host answers every path with the Angular
+				// text/plain, and the stopped cr2025 host answers every path with the Angular
 				// app's index.html (text/html). Neither is a PDF — say so rather than handing
 				// the browser a file that will not open.
-				const contentType = (response.headers.get('Content-Type') ?? '').toLowerCase();
-				if (contentType.includes('text/plain') || contentType.includes('text/html')) {
+				if (this.reporting.isErrorPayload(response)) {
 					this.toast.show(
 						`${link.label} could not be generated — the reporting service did not return a PDF.`,
 						'danger', 6000);
