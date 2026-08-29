@@ -498,7 +498,7 @@ type ClubDecision = 'pending' | 'new' | 'clear';
                             [class.is-required]="!form.controls.state.value"
                             [class.is-invalid]="submitted() && form.controls.state.invalid">
                       <option value="">State</option>
-                      @for (s of stateOptions; track s.value) {
+                      @for (s of stateOptions(); track s.value) {
                         <option [value]="s.value">{{ s.label }}</option>
                       }
                     </select>
@@ -582,7 +582,9 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
     private readonly clubNameInput = viewChild<ElementRef<HTMLInputElement>>('clubNameInput');
     private readonly firstNameInput = viewChild<ElementRef<HTMLInputElement>>('firstNameInput');
 
-    readonly stateOptions: SelectOption[] = this.fieldData.getOptionsForDataSource('states');
+    // computed, not a captured array: reference.States arrives after bootstrap, and a plain
+    // field would pin this select to the static fallback for the life of the component.
+    readonly stateOptions = computed<SelectOption[]>(() => this.fieldData.getOptionsForDataSource('states'));
 
     // UI state
     readonly submitted = signal(false);

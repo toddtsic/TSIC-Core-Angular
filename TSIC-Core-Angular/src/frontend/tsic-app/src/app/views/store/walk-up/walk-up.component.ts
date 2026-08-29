@@ -25,11 +25,14 @@ export class StoreWalkUpComponent implements OnInit {
 	private readonly auth = inject(AuthService);
 
 	/**
-	 * The same state list every other address form in the app uses. Legacy's walk-up form bound
-	 * State to a `<select>` from `ViewBag.listStates`; ours was a two-character free-text box,
-	 * which is how "CA", "Cal" and "california" end up in one column.
+	 * The same state list every other address form in the app uses — reference.States, the same
+	 * table legacy's walk-up form bound to via `ViewBag.listStates`. Ours was a two-character
+	 * free-text box, which is how "CA", "Cal" and "california" end up in one column.
+	 *
+	 * computed, not a captured array: the list arrives after bootstrap.
 	 */
-	readonly states = inject(FormFieldDataService).getOptionsForDataSource('states');
+	private readonly fieldData = inject(FormFieldDataService);
+	readonly states = computed(() => this.fieldData.getOptionsForDataSource('states'));
 
 	readonly isLoading = signal(false);
 	readonly errorMessage = signal<string | null>(null);

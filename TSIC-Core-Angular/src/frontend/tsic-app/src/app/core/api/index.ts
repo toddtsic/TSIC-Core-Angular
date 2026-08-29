@@ -691,6 +691,7 @@ export type { SportRefDto } from './models/SportRefDto';
 export type { StandingsByDivisionResponse } from './models/StandingsByDivisionResponse';
 export type { StandingsDto } from './models/StandingsDto';
 export type { StandingsSortProfileOptionDto } from './models/StandingsSortProfileOptionDto';
+export type { StateOptionDto } from './models/StateOptionDto';
 export type { StoreAbandonedCartDto } from './models/StoreAbandonedCartDto';
 export type { StoreAdminAddRequest } from './models/StoreAdminAddRequest';
 export type { StoreAdminRosterRowDto } from './models/StoreAdminRosterRowDto';

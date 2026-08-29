@@ -94,7 +94,7 @@
 									[ngModel]="state()" (ngModelChange)="state.set($event)"
 									name="state" required autocomplete="address-level1">
 								<option value="">Select a state</option>
-								@for (s of states; track s.value) {
+								@for (s of states(); track s.value) {
 									<option [value]="s.value">{{ s.label }}</option>
 								}
 							</select>

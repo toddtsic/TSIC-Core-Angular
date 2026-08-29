@@ -173,6 +173,7 @@ builder.Services.AddScoped<IWidgetRepository, WidgetRepository>();
 builder.Services.AddScoped<IWidgetEditorRepository, WidgetEditorRepository>();
 builder.Services.AddScoped<IJobCloneRepository, JobCloneRepository>();
 builder.Services.AddScoped<IDdlOptionsRepository, DdlOptionsRepository>();
+builder.Services.AddScoped<IReferenceDataRepository, ReferenceDataRepository>();
 builder.Services.AddScoped<IEmailLogRepository, EmailLogRepository>();
 builder.Services.AddScoped<IMobileScorerRepository, MobileScorerRepository>();
 builder.Services.AddScoped<IArbSubscriptionRepository, ArbSubscriptionRepository>();
@@ -318,6 +319,8 @@ builder.Services.AddScoped<IWidgetEditorService, WidgetEditorService>();
 builder.Services.AddScoped<IJobCloneService, JobCloneService>();
 builder.Services.AddScoped<TSIC.API.Services.Admin.JobClonePlanner>();
 builder.Services.AddScoped<IDdlOptionsService, DdlOptionsService>();
+// reference.States — the one state list every address form reads. Anonymous + cached.
+builder.Services.AddScoped<IReferenceDataService, TSIC.API.Services.Reference.ReferenceDataService>();
 builder.Services.AddScoped<IJobConfigService, JobConfigService>();
 builder.Services.AddScoped<IJobVisibilityService, JobVisibilityService>();
 // The single authority for registration-CREATE permission (door · toggle · precondition).

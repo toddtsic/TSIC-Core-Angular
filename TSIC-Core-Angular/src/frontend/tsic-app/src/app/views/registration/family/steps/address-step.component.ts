@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { AutofocusDirective } from '@shared-ui/directives/autofocus.directive';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
@@ -40,7 +40,7 @@ import { FamilyStateService } from '../state/family-state.service';
                     [class.is-required]="!form.controls.state.value"
                     [class.is-invalid]="touched() && form.controls.state.invalid" (change)="syncToState()">
               <option value="" disabled>Select</option>
-              @for (s of statesOptions; track s.value) {
+              @for (s of statesOptions(); track s.value) {
                 <option [value]="s.value">{{ s.label }}</option>
               }
             </select>
@@ -82,7 +82,9 @@ export class AddressStepComponent {
     private readonly fieldData = inject(FormFieldDataService);
 
     readonly touched = signal(false);
-    readonly statesOptions: SelectOption[] = this.fieldData.getOptionsForDataSource('states');
+    // computed, not a captured array: reference.States arrives after bootstrap, and a plain
+    // field would pin this select to the static fallback for the life of the component.
+    readonly statesOptions = computed<SelectOption[]>(() => this.fieldData.getOptionsForDataSource('states'));
 
     readonly form = this.fb.group({
         address1: ['', [Validators.required]],

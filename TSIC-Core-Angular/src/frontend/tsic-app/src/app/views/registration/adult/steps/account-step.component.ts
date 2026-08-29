@@ -7,35 +7,7 @@ import { LoginComponent } from '@views/auth/login/login.component';
 import { TosAcceptanceStepComponent } from '../../shared/components/tos-acceptance-step.component';
 import { HeadshotUploadComponent } from '@views/registration/shared/components/headshot-upload.component';
 import { AdultWizardStateService } from '../state/adult-wizard-state.service';
-
-const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
-    { value: 'AL', label: 'Alabama' }, { value: 'AK', label: 'Alaska' },
-    { value: 'AZ', label: 'Arizona' }, { value: 'AR', label: 'Arkansas' },
-    { value: 'CA', label: 'California' }, { value: 'CO', label: 'Colorado' },
-    { value: 'CT', label: 'Connecticut' }, { value: 'DE', label: 'Delaware' },
-    { value: 'DC', label: 'District of Columbia' }, { value: 'FL', label: 'Florida' },
-    { value: 'GA', label: 'Georgia' }, { value: 'HI', label: 'Hawaii' },
-    { value: 'ID', label: 'Idaho' }, { value: 'IL', label: 'Illinois' },
-    { value: 'IN', label: 'Indiana' }, { value: 'IA', label: 'Iowa' },
-    { value: 'KS', label: 'Kansas' }, { value: 'KY', label: 'Kentucky' },
-    { value: 'LA', label: 'Louisiana' }, { value: 'ME', label: 'Maine' },
-    { value: 'MD', label: 'Maryland' }, { value: 'MA', label: 'Massachusetts' },
-    { value: 'MI', label: 'Michigan' }, { value: 'MN', label: 'Minnesota' },
-    { value: 'MS', label: 'Mississippi' }, { value: 'MO', label: 'Missouri' },
-    { value: 'MT', label: 'Montana' }, { value: 'NE', label: 'Nebraska' },
-    { value: 'NV', label: 'Nevada' }, { value: 'NH', label: 'New Hampshire' },
-    { value: 'NJ', label: 'New Jersey' }, { value: 'NM', label: 'New Mexico' },
-    { value: 'NY', label: 'New York' }, { value: 'NC', label: 'North Carolina' },
-    { value: 'ND', label: 'North Dakota' }, { value: 'OH', label: 'Ohio' },
-    { value: 'OK', label: 'Oklahoma' }, { value: 'OR', label: 'Oregon' },
-    { value: 'PA', label: 'Pennsylvania' }, { value: 'RI', label: 'Rhode Island' },
-    { value: 'SC', label: 'South Carolina' }, { value: 'SD', label: 'South Dakota' },
-    { value: 'TN', label: 'Tennessee' }, { value: 'TX', label: 'Texas' },
-    { value: 'UT', label: 'Utah' }, { value: 'VT', label: 'Vermont' },
-    { value: 'VA', label: 'Virginia' }, { value: 'WA', label: 'Washington' },
-    { value: 'WV', label: 'West Virginia' }, { value: 'WI', label: 'Wisconsin' },
-    { value: 'WY', label: 'Wyoming' },
-];
+import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
 
 /**
  * Account step — matches the player/team wizard account pattern:
@@ -144,7 +116,7 @@ const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
                                     [ngModel]="state.state()"
                                     (ngModelChange)="state.setState($event)">
                                     <option value="">-- Select --</option>
-                                    @for (s of states; track s.value) {
+                                    @for (s of states(); track s.value) {
                                         <option [value]="s.value">{{ s.label }}</option>
                                     }
                                 </select>
@@ -370,7 +342,7 @@ const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
                                         [ngModel]="state.state()"
                                         (ngModelChange)="state.setState($event)">
                                         <option value="">-- Select --</option>
-                                        @for (s of states; track s.value) {
+                                        @for (s of states(); track s.value) {
                                             <option [value]="s.value">{{ s.label }}</option>
                                         }
                                     </select>
@@ -588,7 +560,10 @@ export class AccountStepComponent implements OnInit {
     /** Returning-user view: 'summary' (review) or 'edit' (update contact/address). */
     readonly accountView = signal<'summary' | 'edit'>('summary');
     readonly tosError = signal<string | null>(null);
-    readonly states = US_STATES;
+    // reference.States, same as every other address form. This step used to carry its own
+    // 51-entry array (US + DC, no provinces, no territories) — one of three divergent lists.
+    private readonly fieldData = inject(FormFieldDataService);
+    readonly states = computed(() => this.fieldData.getOptionsForDataSource('states'));
     readonly showPassword = signal(false);
     readonly showConfirm = signal(false);
 

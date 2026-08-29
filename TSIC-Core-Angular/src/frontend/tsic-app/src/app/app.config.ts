@@ -10,6 +10,7 @@ import { CrossTabSessionSyncService } from './infrastructure/services/cross-tab-
 import { LastLocationService } from './infrastructure/services/last-location.service';
 import { ThemeOverridesService } from './infrastructure/services/theme-overrides.service';
 import { JobContextService } from './infrastructure/services/job-context.service';
+import { FormFieldDataService } from './infrastructure/services/form-field-data.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -37,6 +38,11 @@ export const appConfig: ApplicationConfig = {
     // Instantiate ThemeOverridesService to auto-apply saved per-job theme tokens
     provideAppInitializer(() => { inject(ThemeOverridesService); }),
     // Initialize JobContextService early so jobPath is available to components/guards
-    provideAppInitializer(() => inject(JobContextService).init())
+    provideAppInitializer(() => inject(JobContextService).init()),
+    // Fetch reference.States once — the one state list every address form reads.
+    // Deliberately NOT awaited: a slow or dead endpoint must not delay bootstrap. Consumers
+    // read it through computed() and re-render when it lands; until then they show the
+    // static mirror of the same table.
+    provideAppInitializer(() => { inject(FormFieldDataService).loadStates(); })
   ]
 };
