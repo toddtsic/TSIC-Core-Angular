@@ -8,7 +8,7 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 
 ---
 
-## 🔺 OPEN FOR TODD — as of 2026-08-28
+## 🔺 OPEN FOR TODD — as of 2026-08-29
 
 > Maintained at the top so nothing waiting on Todd is buried mid-file. **Delete a row the moment its item closes.** Parked/REVISIT items are not listed here *unless Todd owes a decision on one* (flagged as such below).
 
@@ -77,6 +77,18 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 | **AR-013** | **Filed 08-20 — after Todd's 08-19 closure sweep, so he has very likely never seen it.** Dunning email sends expired/terminated ARB families to a "Pay Balance Due" menu item that is suppressed for them. Root cause verified; fix is a status-vs-id gate at two call sites. **No longer blocked on a decision** — the "just route everyone to Update CC" shortcut can't be validated (no terminated subscription exists to test, Ann 08-21), so build the status gate. **Promotion candidate** — misfires in Production the first time a director sends that template. ✅ **VERIFIED PASSING (Ann, 08-24) — CLOSED, both directions** (dead plan shows the row; live plan behind in payments still does not). Update CC follow-up split out to **AR-027**. **Both deferred halves resolved 08-26: stale template copy ✅ FIXED 08-25 in `3969edbc` (sweep text alignment); club-rep half → **AR-043** (latent, unreachable).** Nothing outstanding. | ✅ VERIFIED |
 | **AR-050** | **REVISED 08-28 — the "empty dropdown" root cause is REFUTED; the feature works.** Todd's screenshot shows the **National Rankings Agegroups** dropdown fully populated (7 Girls groups, 491 unmatched rankings loaded), and a live fetch of usclublax.com from this box returned **HTTP 200 with 31 `yr=2025` links and zero `yr=2026`** — the site has not rolled, so the `yr=2025` pin (`USLaxScrapingService.cs:24`) is **not** what Ann hit. The earlier 403 was **transient**, which leaves the real defect: the failure is swallowed at all three layers (`:88-92` → `component.ts:250` → no empty state), so a transient upstream 403 and a permanent break look identical — that is what Ann saw, and it is the remaining work. **Separately, a real bug Todd caught in the screenshot: the labels are mangled** — `Girls 2027/U17/VarsityGirls 2027/U17/Varsity&rsaquo;`. usclublax redesigned its nav; each anchor now holds a mobile copy + a desktop copy + a chevron entity, and `InnerText` (`:68`) concatenated all three without de-entitizing. **✅ Fixed** — the label now comes off the anchor's `title` attribute. Cosmetic only; the `v\|alpha\|yr` value was never wrong. **Also for Ann:** the scraper is **Girls-only by construction** (`:71`, `v=20`) — boys events get the same silent empty dropdown forever, on a screen titled plain "National Rankings". |
 | **AR-051** | **New 08-28 — Ann's question is ANSWERED, this is the leftover.** Tournament Parking Analysis **works fine on Fall events** — verified on Fall Showcase 2025 (475/475 rows pass, clean 2 complexes × 2 days). Fall *2026* shows nothing because **all 15 Fall 2026 jobs have zero schedule rows**, and the screen says so properly. **What needs you:** the field *complex* is guessed by cutting `fName` at the first hyphen (`TournamentParkingRepository.cs:33-35`, `:51-53`). `ALEX-PARK-01` → **`ALEX`** (cosmetic; hits **Top Threat Fall Draw**, whose 2026 edition is unscheduled today) and `Fowler Park 05` → its own complex, so **The SAT Georgia 2026 reports 12 complexes instead of 2 and understates per-lot parking load** — the point of the screen. **Legacy did the same first-hyphen cut**, so case 1 is parity, not a regression; the hyphenless case differs (legacy over-merged to a blank name, we over-split). **⚠️ RULING (Todd, 08-28): the FIELD NAMING CONVENTION `{complexname}-{NN}` — no hyphen in the complexname part — is the MECHANISM and MUST BE OBSERVED. It is the only signal that tells the report which fields share a lot; a non-conforming name yields a silently WRONG parking number.** Defensive `IndexOf`→`LastIndexOf` edit approved (grandfathers `ALEX-PARK-NN`, does nothing for hyphenless names). **34 non-conforming names / ~9 jobs / 2 customers — TSIC admins the renames, not directors.** Deriving the complex from `Fields.address` was investigated and **REJECTED** (it merges complexes named apart; `Fields` has no complex/site column at all). Blocker on the renames: 6 single-venue fields (`SECU Stadium`, `VTH Turf`) have no field number, so the convention doesn't cover them yet. Also two lines: suppress the `0 / 0 / 0 × 0` KPI cards that render above the empty state. |
+| **AR-052** | **New 08-29 — customer-facing 404 on a paid add-on.** Bulletin "Click here" for Team Registration Protection → `https://www.teamsportsinfo.com/!JSEG/ClubRepVIUpdate`. **`!JSEG` is never substituted on the bulletin path** — it's defined at `TextSubstitutionService.cs:422` but bulletins use their own tiny substitution (`BulletinService.cs:266-271` = `!JOBNAME` + `!USLAXVALIDTHROUGHDATE` only) and unknown tokens pass through **silently** (`BulletinTokenRegistry.cs:34-41`). Substituting the token alone won't fix it — the host is the **legacy** site too. What actually rescues most bulletins is `TranslateLegacyUrlsPipe`, which rewrites the whole anchor to a relative route — **and it has no rule for `ClubRepVIUpdate` or `PlayerVIUpdate`**, so those fall through as authored. **404 active bulletins carry `!JSEG` in an href; 87 point somewhere the pipe doesn't translate.** Fix = two lines in `translateAnchor`; **both routes already exist** (`app.routes.ts:726`, `:715`). |
+| **AR-053** | **New 08-29 — same symptom, different cause, and this one EMAILS families.** Registration Complete → *"To delete this registration or to change your player's Team or Uniform#"* → `https://www.teamsportsinfo.com/topthreat-falldraw-2026/PlayerWaiverUpdate`. **`!JOBPATH` substituted fine** — the faults are the legacy host and that `PlayerWaiverUpdate` is now a **modal**, not a route. The pipe already maps it (`translate-legacy-urls.pipe.ts:255-256`) → `internal-link.directive.ts:55-58` opens the modal — **but the pipe is applied in exactly one file, `bulletins.component.html`.** On-screen fix is wiring. **The email half is the bigger one: 116 jobs carry this in `PlayerReg_ConfirmationEmail` (48 current), all on the absolute legacy host — a pipe can't run in an email, so it needs a server-side rewrite, and someone must decide what an emailed link lands on given the destination is a modal.** |
+| **AR-054** | **New 08-29 — two adjacent lines, one has the gate and one doesn't.** Job landing shows **Register Coach** on an event with **no teams** (The Pickle 2026 — literally zero `Leagues.teams` rows) while the player badge correctly hides. `registration-panel.component.ts:162` gates the player link on `isPlayerRegistrationEffectivelyOpen` (= toggle **AND** teams exist); `:167` gates coach on `p.staffRegistrationOpen` **alone**. **Not cosmetic — the wizard behind it can never be submitted**: `hasValidTeams` demands ≥1 selected team and `NeedsTeamSelection: true` is set for **Club, Tournament AND League** alike, server-enforced. **The design already assumed this gate** — `AdultRegistrationService.cs:1596` says coach reg is *"release-gated on teams-exist… the picker is never empty"* — but `EnsureAdultRegOpen` checks only the toggle, so it's a convention documented as a guarantee. ⚠️ **Do NOT reuse the player flag**: the coach picker deliberately ignores `BAllowSelfRostering` and the date window, so reusing it would hide Register Coach on tournaments that have teams but no self-rostering. Needs a **new** adult-side pulse flag; same flag should cover the `REGISTER_STAFF` bulletin token, which gates on `AdultRegistrationPlanned` only. **⛔ SCOPE CORRECTED 08-29 (Ann): this is the NORMAL opening window of every released team-registration job** — the gap between go-live and the first team registering. My "one job" count was a point-in-time snapshot of a transient state and understated it badly. Player reg already holds to the right rule (hidden until the first team registers); coach reg must match. **Severity re-rated 🟡 → 🟠.** |
+| **AR-055** | **New 08-29 — RegSaver not offered; the toggle is NOT the problem.** Pickle 2026 has `bOfferPlayerRegsaverInsurance=1` (Team RegSaver off), so gate 1 passes. The offer also requires, in one query (`RegistrationRepository.cs:1022-1050`): `FeeTotal > 0` · **`AssignedTeam != null`** · team `Expireondate` **more than 24h out** · and at least one non-$0 product. **On this job it is the team condition and can't be anything else — zero `Leagues.teams` rows have ever existed**, so no registration can be team-assigned and the offer is impossible. **Same zero-teams root condition as AR-054 — one data state, three symptoms.** ⚠️ **Ann to confirm the event/flow first**: the job holds NO player registrations and no fee-bearing rows, so the screen she describes isn't reproducible here; on a different job the cause would be the $0-fee, 24-hour, or $0-product gate instead. **The real defect either way: all five conditions — plus a thrown VI call — return the identical silent `Available = false`, so nobody can tell which fired.** Recommend logging the failing gate. |
+| **AR-056** | **New 08-29 — read the framing before reaching for AR-007.** Ann wants a SuperUser to **ADD** text to a Smart Bulletin (e.g. *"You can Register a Player to sign up for a HOUSE Team!"* on the Registration Links panel) — **explicitly not** the off-switch AR-007 declined: *"a request not to remove them but to add text."* **Ruling 1's rationale doesn't reach it** — an additive slot can't hide a link or quietly stop a site advertising registration. **Why she needs it:** every string in that panel is computed (`'Self-Roster Player'` vs `'Register Player'` by job type); there is **no free-text slot anywhere** in it. **Why the workaround fails:** a manual bulletin renders *below* the band, and AR-007 Rulings 2 and 3 closed both routes to moving it up (297 live bulletins, 294 started >30 days ago; and the pin column was rejected as cosmetic schema). **The design is already on record** — AR-007's `smartbulletins` schema giving each SB type a durable identity + overrides; an annotation is the least dangerous override it could carry and would be its first consumer. ⚠️ **Design hazard to settle up front:** hand-typed text can contradict a derived panel and won't self-retire — recommend phase-scoping it so it renders only while its section does. `widgets.JobWidget` is **not** a shortcut (0 rows, band hard-placed). |
+| **AR-057** | **New 08-29 — store admin, discoverability.** Ann went looking for photos on **New Item** and found them on a separate **Photos** tab. Confirmed: the item modal (`store-admin.component.html:467-600`) contains **zero** occurrences of photo/image/picture — not even a pointer. **The split is probably right** (an item holds several photos, and on *New* there's no id to attach one to yet), **so the defect is the missing hand-off, not the architecture.** Cheapest fix: one line + a button in the modal that switches to Photos and scrolls to this item. Full upload-in-modal **not** recommended. |
+| **AR-058** | **New 08-29 — storefront merchandising; three separable parts, only one is a debate.** **Part 1 needs no work:** multi-image already ships (`c7a89e78c`) — the *expanded* item has a main image + thumbnail strip; Ann's screenshot is the collapsed list, so she hadn't opened one. Worth telling her. **Part 2 — size, and the numbers back her up:** collapsed thumb **60×60**, expanded main **max-width 260px**. *"I can't see the quality of the shirts"* is a true statement about a 60px thumbnail. CSS-level fix; check the stored uploads aren't too small first. **Part 3 — CONFIRMED MISSING: no image anywhere in cart OR checkout** (not one `<img>` in either folder). Shopper picks from a 60px thumb and never sees it again while paying. `imageUrls` is already on the DTO — **cheapest, clearest win, do it regardless.** **Ann's legacy memory is exact** — I pulled `Views/StoreFamily/Index.cshtml`: one card per item, `<ejs-carousel>` of every image at `col-lg-6` LEFT, name/price/selectors `col-lg-6` RIGHT. Restoring that shape is a **product decision, not a bug** — the accordion is deliberate and better on mobile; middle path = keep the list, make the *expanded* state the two-column product view. |
+| **AR-059** | **New 08-29 — store receipt, three parts.** **(1) "Too small" is measured, and it is NOT the frame ratio** (that was deliberate in `6d720f0c6` — don't touch it): the receipt is **A4 LANDSCAPE inside a 600px checkout column** (`checkout.component.scss:6-8`), so it renders at roughly **half physical size**. Fix = let the confirmation view break out of the 600px container, or generate **portrait**. **(2) Columns:** wants `Recipient · Item · Quantity · Unit Price · Product Fee · Processing Fee · Fee Total · Paid`; today it's `Item · Variant · Qty · Unit Price · Fees · Tax · Line Total`. **Recipient is buried in the Variant cell; `FeeProduct` and `FeeTotal` are already on the DTO and simply never printed; "Fees" is really Processing Fee.** ✅ **Zero new data needed — one method.** ⚠️ Ann must answer two things first: what "Paid" means per line, and whether Variant/Tax stay. **(3) Logo:** confirmed absent entirely (no image of any kind in the PDF); `Jobs.bannerFile` exists on 616 jobs but it's a **banner, not a logo**, and it lives on the **PROD statics host** — so it will look broken off-prod and must degrade gracefully. |
+| **AR-060** | **New 08-29 — store flow, Ann's four questions.** **Q2/Q3 is a concrete defect and the cheapest win:** `credit-card-form` accepts **six** `default*` autofill inputs and the store checkout passes **one** (`defaultEmail`, only if the username has an `@`). So a **walk-up shopper types name/address/ZIP/phone on the way in and is asked for all four AGAIN at payment** — we already hold every value. No "same as shipping" checkbox needed; there is no shipping address (pickup at event) — just pre-fill. **Q1 (why identity before browsing) is a real product decision**: the store is gated at the door (Family Sign In or an 8-field walk-up form) before any product is visible — inverted from normal e-commerce, but it's legacy's shape and deferring identity needs a guest-cart→identity merge. **Q4 ✅ ANSWERED: the family/parent account is the customer; the player is a per-LINE recipient** (`DirectToRegId`/`DirectToPlayerName`) — one order can carry items for several players, which is exactly why AR-059 wants Recipient as its own column. |
+| **AR-061** | **New 08-29 — "Browse the Store" is the LAST element on the player confirmation step**, below the director's entire `confirmationHtml` — status table, contacts, **and the full waiver bullet list**. It's also `btn-outline-primary`, the low-emphasis variant, so "make it prominent" means reversing a styling choice too. **Two lines fixes Ann's ask** (move above `confirmation-content`, switch to `btn-primary`); suggest keeping a second copy at the bottom. **🔴 The bigger find: the store CTA exists on exactly ONE surface in the whole app** — the player wizard. **Adult/coach and team/club-rep confirmations have none**, and those are the people who buy event apparel. Reuse the existing `checkStoreAvailability()` probe. |
+| **AR-062** | **✅ ANSWERED 08-29, no action** — Ann asked how Camps & Clinics differs from a tournament. **A tournament is a TEAM site; a camp is a PLAYER site, grouped with Club and Showcase** (`visibility-rules.ts:50` = `playerSiteOnly`). Five traced differences: who registers · **coach self-reg does not exist on camps (the server THROWS — `ResolveCoach` handles only Club/Tournament/League)** · no referee/recruiter (gated on `competitive()` = tournament-or-league) · "Register Player" vs "Self-Roster Player" · no Public Rosters / change-team. Camps get their own tooling instead (Camp Groups, camp roster preset). ✅ Checked the AR-054 interaction: **zero camp/showcase jobs have coach reg enabled**, so the throw isn't reachable today. 🟡 **One real finding**: the FRONTEND `job-type.constants.ts` is missing `Showcase: 6` despite **271 jobs** using it (backend has it), so `visibility-rules.ts:50` hardcodes a bare `6`. One-line fix. |
+| **⚠️ AR-052 + AR-053 shared** | **One question governs both, worth answering before any bulk edit:** what will **`www.teamsportsinfo.com`** resolve to after go-live? Every one of these authored links is absolute to `www`. If `www` becomes the new app they turn into in-app paths and only the route/modal mappings matter; if `www` stays legacy, all of them need their host rewritten too. |
 
 **~~Also outstanding~~ — ANSWERED (Todd, 08-21): "dev was deployed."** So Ann's 08-21 verifies of AR-003/AR-006/AR-008 were against current code and stand, and AR-017 is a live bug rather than a stale bundle. Keep flagging any future "fixed" item she cannot see.
 
@@ -474,7 +486,7 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 - **Severity**: ⚪ None — the requested behaviour already ships
 - **Status**: ⛔ **NO ACTION — Todd, 08-26.** Filed and closed the same day. Last of Ann's TSIC-Teams items for 08-26.
 
-<!-- New items go below this line, newest at the bottom, next id = AR-052 -->
+<!-- New items go below this line, newest at the bottom, next id = AR-063 -->
 
 ### AR-050: [USA Lacrosse National Rankings] ⚠️ **REVISED 08-28 — the year-pin root cause is REFUTED.** The dropdown populates; the labels are mangled. The silent-failure defect stands, and is now the *only* remaining explanation for what Ann saw
 - **Topic**: Tools → **US Lacrosse National Rankings** (`uslax-rankings`) → the two-dropdown selector row
@@ -571,6 +583,347 @@ Investigated 08-28 and **ruled out**, despite grouping the SAT Georgia and Fall 
 
 - **Severity**: 🟡 **Not a Fall problem and not a blocker** — the feature is sound and Fall is verified working. But the accuracy defect is **silent**, which is what makes the convention non-negotiable.
 - **Status**: 🔴 **OPEN — for Todd.** Ann's question ✅ **ANSWERED: Fall events are fine.** Ruling recorded 08-28. Remaining: the defensive edit, the KPI-card gate, the single-venue naming decision (item 5), then the 34 renames.
+
+### AR-052: [Bulletins] "Click here" for Team Registration Protection 404s — `!JSEG` is never substituted on the bulletin path, and the pipe that would have rescued it has no rule for `ClubRepVIUpdate`
+- **Topic**: Job landing → **News & Updates** bulletin → the Team Registration Protection / ViCoverage bulletin
+- **Observation (Ann, 08-29)**: on **Top Threat Tournaments:Carolina Clash 2027**, the **"Click here"** link in *"Already registered your team but forgot to purchase coverage?"* goes to **`https://www.teamsportsinfo.com/!JSEG/ClubRepVIUpdate`** and 404s.
+
+**✅ THE DESTINATION EXISTS AND WORKS — this is a broken link, not a missing feature.** `ClubRepVIUpdate` is a live route (`app.routes.ts:726`, with a lowercase redirect at `:731`), the component ships (`views/clubrep-vi-update/`), and the app already links it from two other places: the header bar's **"Buy Team Regsaver"** (`client-header-bar.component.ts:167`) and the landing registration panel (`registration-panel.component.ts:281`). Only the bulletin link is broken.
+
+**🔴 TWO FAULTS COMPOUND HERE. Fixing either one alone leaves it broken.**
+
+**Fault 1 — `!JSEG` is a real token that the bulletin path doesn't know.** It *is* defined: `TextSubstitutionService.cs:422` sets `tokens["!JSEG"] = jobSegment`, one line above `!JOBPATH` at `:425`. **But bulletins don't go through that service.** The public fetch path does its own, much smaller substitution:
+- `BulletinService.ReplaceTextTokens` (`:266-271`) handles **exactly two** tokens — `!JOBNAME` and `!USLAXVALIDTHROUGHDATE`.
+- `BulletinTokenRegistry` resolves **eight** more, all of them `REGISTER_*` / `SCHEDULE` / `PUBLIC_ROSTERS` / `EVENT_INFO` widgets.
+- **`!JSEG` is in neither list**, and an unrecognised token is returned **verbatim and silently** (`BulletinTokenRegistry.cs:34-41` — `TryGetValue` fails → `return match.Value`). So the literal text `!JSEG` lands in the href.
+
+**Fault 2 — the host is the legacy site.** Even with `!JSEG` resolved you'd get `https://www.teamsportsinfo.com/topthreat-carolinaclash-2027/ClubRepVIUpdate`, which **leaves the new app entirely**. ⚠️ **So "just substitute the token" is not the fix** — it would swap one wrong URL for another.
+
+**🔍 WHY MOST BULLETINS SURVIVE THIS ANYWAY — and it explains exactly which ones don't.** `TranslateLegacyUrlsPipe` rewrites the **whole anchor** to a relative `/{jobPath}/…` route, which makes both the unresolved token *and* the legacy host irrelevant. Its table (`translate-legacy-urls.pipe.ts:221-258`) covers `StartARegistration`, `JobAdministrator/Admin`, the public roster lookups, `Schedules/Index`, and `PlayerWaiverUpdate`. **It has no rule for `ClubRepVIUpdate` or `PlayerVIUpdate`** — those fall through `return null`, the anchor is left exactly as authored, and the user gets Ann's 404. **The pipe's allowlist is the de-facto fix for `!JSEG`; anything missing from it stays broken.**
+
+**📊 SCALE (dev DB, 08-29):** **404 active bulletins** carry `!JSEG` inside an `href`. **87 of them contain at least one link whose destination the pipe does not translate** — those are the live 404s. Sampling each bulletin's first such link: **ClubRepVIUpdate 21 · PlayerVIUpdate 11 · Family/RegisterFamily 2 · Staff/RegisterStaff 1 · ASLRosters/Index 1**. The high-volume destinations (`StartARegistration` 280, `Schedules/Index` 87) are all covered by the pipe and work.
+
+**🎯 For Todd:**
+1. **Two lines in `translateAnchor` closes Ann's bug and its twin**: `clubrepviupdate` → `/${jobPath}/ClubRepVIUpdate`, `playerviupdate` → `/${jobPath}/PlayerVIUpdate`. **Both routes already exist** — nothing to build.
+2. **Three destinations still need a routing decision** before they can be mapped: `Family/RegisterFamily`, `Staff/RegisterStaff`, `ASLRosters/Index` (4 bulletins total).
+3. **The structural issue is that the allowlist fails silently.** Every legacy path nobody thought of 404s with no signal — which is why this surfaced as Ann clicking a link rather than as a report. Either teach the bulletin path `!JSEG` (it's already computed one service over) so an un-mapped link at least carries the right job, **or** log un-translated legacy anchors so the remaining set is knowable instead of discovered one at a time.
+- **⚠️ QUESTION THAT CHANGES THIS ITEM — what will `www.teamsportsinfo.com` resolve to after go-live?** Every one of these authored links is absolute to `www`. If `www` stays the legacy app they are permanently wrong; if `www` becomes the new app they turn into in-app paths overnight and the calculus changes for all 404 bulletins at once. **Worth settling before any bulk edit of bulletin text.** Same question governs **AR-053**.
+- **Severity**: 🟠 **Customer-facing dead link on a paid add-on** — a club rep trying to buy coverage they already meant to buy hits a 404. Money-adjacent, though the coverage remains reachable from the header bar.
+- **Status**: 🔴 **OPEN — for Todd.** Filed 08-29 from Ann's screenshot. Root cause confirmed in code and quantified in data.
+
+### AR-053: [Registration Complete + confirmation EMAIL] The "delete this registration / change Team or Uniform#" link 404s — legacy host plus a route that no longer exists, and the email half reaches families
+- **Topic**: Player registration wizard → **Done / Registration Complete** step, and the matching **confirmation email**
+- **Observation (Ann, 08-29)**: on **Top Threat Tournaments:Fall Draw 2026**, *"To delete this registration or to change your player's Team or Uniform# for this event go to:"* links to **`https://www.teamsportsinfo.com/topthreat-falldraw-2026/PlayerWaiverUpdate`** and 404s.
+
+**✅ TOKEN SUBSTITUTION IS NOT THE FAULT HERE — and that's what separates this from AR-052.** The stored text in `Jobs.PlayerReg_ConfirmationOnScreen` is authored as `…/!JOBPATH/PlayerWaiverUpdate`, and `!JOBPATH` **resolved correctly** — Ann's screenshot shows the real `topthreat-falldraw-2026`. The substitution engine did its job.
+
+**🔴 TWO OTHER FAULTS:**
+1. **Absolute legacy host.** `https://www.teamsportsinfo.com/…` leaves the new app no matter what path follows it.
+2. **`PlayerWaiverUpdate` has no route in the new system, by design.** The replacement is not a page — it's a **modal**. `internal-link.directive.ts:55-58` watches for an href containing `/registration/self-roster-update` and opens `SelfRosterUpdateModalService` instead of navigating.
+
+**⚠️ THE MAPPING ALREADY EXISTS — IT JUST ISN'T REACHED HERE.** `TranslateLegacyUrlsPipe` translates `playerwaiverupdate` → `/${jobPath}/registration/self-roster-update` (`translate-legacy-urls.pipe.ts:255-256`), which the directive then turns into the modal. **But the pipe is applied in exactly one file in the entire app — `bulletins.component.html`.** The Registration Complete page renders this HTML without it. **The same link inside a bulletin works; here it doesn't.**
+
+**📊 SCALE — and the half Ann hasn't seen is the bigger one.** On the dev DB:
+- **116 jobs** carry `PlayerWaiverUpdate` in `PlayerReg_ConfirmationOnScreen` — **48 of them current or upcoming**.
+- **The same 116 carry it in `PlayerReg_ConfirmationEmail`.** ✉️ **Every player confirmation email on those jobs ships this dead link to a family.** Verified the email body uses the identical absolute form.
+- **All 116 use the absolute legacy host** — there is no variant already authored as a relative path, so no job is accidentally fine.
+
+**🎯 For Todd — the two halves need different fixes, and the email one is not optional:**
+1. **On-screen**: apply `| translateLegacyUrls:jobPath` **and** `appInternalLink` to the confirmation block, exactly as `bulletins.component.html` does. The rule and the modal hand-off both already exist, so this is wiring, not new logic. ⚠️ Check the other confirmation surfaces while in there — `RecruiterReg_ConfirmationOnScreen` exists too, and the adult / club-rep flows have their own.
+2. **Email — a pipe cannot help.** An Angular pipe and a click directive are both browser-side; an email has neither. The link must be rewritten **server-side** at send time into an absolute URL on the **correct** host. And since the destination is a *modal*, someone has to decide what an emailed link actually lands on — a route that opens the modal on arrival, or a real standalone page. **That decision is the blocker on this half.**
+3. **Don't hand-edit 116 rows** until the `www` question below is answered — the right rewrite depends on it.
+- **⚠️ SAME GOVERNING QUESTION AS AR-052 — what does `www.teamsportsinfo.com` point at after go-live?** If `www` becomes the new app, these absolute URLs become in-app paths and only the `PlayerWaiverUpdate` → modal mapping matters. If `www` stays legacy, every one of the 116 needs its host rewritten too. **Settle this once; it governs both items.**
+- **Severity**: 🟠 **Customer-facing, and it goes out by email.** A parent told to use this link to fix a team assignment or uniform number, or to cancel, hits a 404 — and then contacts the director. Reaches families directly rather than waiting for a click on a landing page.
+- **Status**: 🔴 **OPEN — for Todd.** Filed 08-29 from Ann's screenshot. Root cause confirmed in code and quantified in data. Sibling of AR-052 — different mechanism, shared `www` question.
+
+### AR-054: [Job landing → Registration Links] "Register Coach" shows on an event with NO teams — the player badge is team-gated, the coach badge isn't, and the wizard behind it CANNOT be completed
+- **Topic**: Job landing → **Registration Links** panel → the **ADULT** column
+- **Observation (Ann, 08-29)**: on **STEPS Lacrosse:The Pickle 2026** there are **no teams**. The **Self-Roster Player** badge correctly does **not** show — but **Register Coach** still does. It should be gated the same way.
+
+**✅ CONFIRMED, and the data matches exactly.** The Pickle 2026 has **zero team rows** (`Leagues.teams` — not "no active teams", literally none) with all three toggles on: `bRegistrationAllowPlayer=1`, `bRegistrationAllowStaff=1`, `bRegistrationAllowTeam=1`. So the panel renders Register Coach, Register Team and Public Rosters, and correctly omits the player badge.
+
+**🔴 THE ASYMMETRY IS TWO ADJACENT LINES.** `registration-panel.component.ts`:
+| Line | Link | Gate |
+|:--|:--|:--|
+| `:162` | Self-Roster Player | `allowed.has('register-player') && isPlayerRegistrationEffectivelyOpen(p)` |
+| `:167` | **Register Coach** | `allowed.has('register-coach') && p.staffRegistrationOpen` |
+`isPlayerRegistrationEffectivelyOpen` is `playerRegistrationOpen && playerTeamsAvailableForRegistration` (`landing-phase.ts:74-76`) — **the player link asks whether any team actually exists to land on. The coach link asks only whether the director flipped a toggle.**
+
+**🔴 THIS IS NOT COSMETIC — the link leads somewhere a coach cannot finish.** Coach registration requires picking at least one team, on **every** job type:
+- `hasValidTeams = !needsTeamSelection() || teamIdsCoaching().length > 0` (`adult-wizard-state.service.ts:279-280`). With zero teams the second clause can never be satisfied, so **submission is blocked permanently**.
+- `NeedsTeamSelection: true` is set for **Club, Tournament AND League** alike (`AdultRegistrationService.cs:1602`, `:1616`) — Club captures non-binding *requests*, Tournament/League are *binding* placements, but all three demand ≥1 team. **So this is not a tournament-only defect.**
+- The server enforces it too (`:264`, `:372`, `:880`), so there's no way around it via the API.
+- The wizard is at least honest about it — `profile-step.component.ts:91-96` shows *"No teams are registered yet for this event. Contact the tournament director."* **But that's a dead end reached after several steps of typing, not a gate.**
+
+**🎯 THE DESIGN ALREADY ASSUMED THIS GATE — it was just never enforced.** Two comments in `AdultRegistrationService.cs` state it as fact:
+- `:1587-1590` — *"Release gate: a director opens coach/staff registration only after teams exist (so coaches have real teams to pick)."*
+- `:1596-1601` — *"Safe because coach registration is **release-gated on teams-exist** (Phase 1): the picker is never empty by the time a coach can reach this."*
+**Nothing implements that.** `EnsureAdultRegOpen` (`:1556-1563`) checks the toggle and nothing else. It is a **convention the code documents as a guarantee** — and The Pickle 2026 is a director who didn't follow it.
+
+**⚠️ IMPORTANT — do NOT reuse the player flag, even though Ann's "gate it the same way" is right in spirit.** The two pickers use deliberately different filters:
+| | Filter |
+|:--|:--|
+| **Player** (`TeamSelfRosterAvailability`) | Active · **`BAllowSelfRostering`** on team or agegroup · **inside the registration date window** · not Waitlist/Dropped |
+| **Coach** (`AdultRegistrationRepository.GetAvailableTeamsAsync:138-147`) | Active · not Waitlist · not Dropped — **no self-rostering flag, no date window** |
+The coach filter is looser **on purpose**: a coach doesn't self-roster, so team self-rostering settings and player windows are none of their business. **Wiring the coach link to `playerTeamsAvailableForRegistration` would wrongly hide Register Coach on any tournament that has teams but hasn't enabled self-rostering, or whose player windows have closed** — both perfectly normal states in which coaches must still be able to register. **A new pulse flag mirroring the ADULT filter is needed; there is no existing flag to reuse.**
+
+**📊 SCOPE — ⛔ CORRECTED 08-29 (Ann). My original "exactly one job" reading was wrong, and it understated this badly.** Ann: *"AR-054 occurs in **all cases** where a job has been released but there aren't any teams registered yet. If Player Reg is turned on, it won't show until the first team is registered. BUT Coach Registration will turn on without any teams registered and it should NOT."*
+- **She is right, and the error was in the measurement, not the code reading.** I counted jobs *currently sitting* in the zero-teams state — a **point-in-time snapshot of a transient window**. The window is the gap between a job going live and its first team registering, and **every team-registration job passes through it.** A snapshot catches only whoever happens to be inside it right now (on 08-29, The Pickle 2026); it cannot see the jobs that passed through it last week or will next week. **"One job" was an artifact of when I looked.**
+- **So this is the NORMAL opening state of every released job, not a director's mistake.** The earlier framing — *"directors do generally follow the documented convention; this is the one who didn't"* — is withdrawn. There is no convention being violated: a director releases the job, coach registration comes on, and teams arrive afterward. **The code comment at `AdultRegistrationService.cs:1596` ("the picker is never empty by the time a coach can reach this") is simply false for the opening window of every event.**
+- **Ann's framing is the correct statement of the rule**: player registration already behaves right — it stays hidden until the first team registers. **Coach registration should hold to exactly that standard**, on its own (looser) team filter per the warning above.
+- **Incidence is therefore recurring and universal, not rare** — every event, every season, for as long as the gap lasts. Severity re-rated accordingly.
+
+**🎯 For Todd:**
+1. **Add an adult-side pulse flag** (e.g. `AdultTeamsAvailableForPlacement`) computed off the **adult** filter above, and gate `registration-panel.component.ts:167` on it. That closes Ann's report.
+2. **Two other coach entry points dangle the same way** and should take the same flag, or the gate has holes: the bulletin `REGISTER_STAFF` token, which gates only on `AdultRegistrationPlanned` (`RegisterStaffResolver.cs:7,11`), and its `REGISTER_SELFROSTERPLAYERSANDCOACH` sibling.
+3. **Consider enforcing it server-side** in `EnsureAdultRegOpen` so a direct API hit gets the same answer as the UI — and so the comment at `:1596` becomes true instead of aspirational.
+- **Severity**: 🟠 **RE-RATED 08-29 (was 🟡).** Not "one live event" — the **normal opening window of every released team-registration job**. A coach who follows the link fills in a wizard that cannot be submitted, then emails the director. Recurring, and it lands on brand-new events when directors are least able to absorb support noise.
+- **Status**: 🔴 **OPEN — for Todd.** Filed 08-29 from Ann's screenshot. Root cause confirmed in code, reproduced against the job's data, and scoped in the DB.
+
+### AR-055: [Player RegSaver] Insurance not offered on the player payment screen — the offer requires an ASSIGNED TEAM, and it is silently suppressed when there isn't one
+- **Topic**: Player registration wizard → **Payment** step → RegSaver / Vertical Insure offer
+- **Observation (Ann, 08-29)**: **STEPS Lacrosse:The Pickle 2026** charges fees for **both** team and player registration. **Only Player RegSaver is turned on.** Registering for the event, **registration insurance was not offered on the payment screen** for the player registration.
+
+**✅ THE CONFIG IS EXACTLY AS ANN DESCRIBES — verified, so the toggle is not the problem.** On the job: `bOfferPlayerRegsaverInsurance = 1`, `bOfferTeamRegsaverInsurance = 0`. Player RegSaver on, Team RegSaver off. **The first gate passes.** The wiring is real too — the player wizard requests the offer and renders it (`registration-wizard.service.ts:778`, `:827`), and the payment controller builds it (`PlayerRegistrationPaymentController.cs:368`). **Nothing here is unbuilt.**
+
+**🔴 THE OFFER IS GATED ON FOUR CONDITIONS, AND ANY ONE OF THEM SILENTLY KILLS IT.** `VerticalInsureService.BuildOfferAsync` (`:67-107`) returns `Available = false` — indistinguishable from "this job doesn't offer insurance" — when **any** of these fails. Three live in one query, `RegistrationRepository.GetEligibleInsuranceRegistrationsAsync` (`:1022-1050`):
+
+| # | Condition | Where | Fails when |
+|:--|:--|:--|:--|
+| 1 | `BOfferPlayerRegsaverInsurance` | `VerticalInsureService.cs:72` | director toggle off — **passes here** |
+| 2 | `r.FeeTotal > 0` | `RegistrationRepository.cs:1032` | the player's own fee is $0 (team pays all) |
+| 3 | **`r.AssignedTeam != null`** | `:1034` | **the registration isn't on a team** |
+| 4 | `r.AssignedTeam.Expireondate > now + 24h` | `:1027,:1035` | the team's registration window closes **within 24 hours** |
+| 5 | every product priced to $0 | `VerticalInsureService.cs:86-92` | e.g. the free WAITLIST twin |
+
+**🎯 ON THIS JOB IT IS CONDITION 3, AND IT CANNOT BE ANYTHING ELSE.** **The Pickle 2026 has ZERO team rows** — not "no active teams", none have ever existed (`Leagues.teams` count = 0, including inactive). With no teams, **no registration can satisfy `AssignedTeam != null`**, so the eligible list is always empty, so `Available = false`. **Deterministic — the offer is impossible on this job in its current state, regardless of the toggle.**
+- **⚠️ THIS IS THE SAME ROOT CONDITION AS AR-054.** Zero teams is why Register Coach wrongly shows, why the player badge correctly hides, and why insurance can't be offered. **One data state, three symptoms.** Fixing the config won't help; a registered team will.
+
+**⚠️ WHAT I COULD NOT VERIFY — Ann, this needs a word from you before Todd acts.** The job currently holds **no player registrations at all** (roles present: Director ×7, Superuser ×2, Club Rep ×1, ApiAuthorized ×1 — **no Player**) and **no registration with a fee > 0**. So I **cannot reproduce the payment screen you saw on this job**, and with zero teams the player wizard shouldn't have been reachable in the first place (that's AR-054's other half — the player badge correctly hides).
+- **If you ran this on The Pickle 2026**, condition 3 is the whole answer and nothing else needs investigating.
+- **If you ran it on a different job** (or Pickle had a team at the time), the cause is one of conditions 2, 4 or 5 instead — **and #4 is the sneaky one**: a team whose `Expireondate` is inside the next 24 hours makes every player on it ineligible, with no message. **Please confirm which event and which flow**, and I'll finish the trace.
+
+**🎯 For Todd — regardless of which condition fired, the real defect is that all five are indistinguishable:**
+1. **`Available = false` is overloaded.** "Director didn't offer it", "no team yet", "fee is $0", "event starts tomorrow", and "the VI call threw" all render as **no offer, no message** — the family simply never sees insurance, and the director has no way to know why. The `catch` at `:104-108` even folds a genuine API failure into the same silence.
+2. **Condition 4 deserves a decision, not just a fix.** A 24-hour floor is a reasonable underwriting rule, but it's hardcoded (`DateTime.Now.AddHours(24)`) and unexplained. Late registrants on a Friday get no offer for a Saturday event — **probably correct, definitely invisible**, and it will read as a bug the first time a director notices.
+3. **Minimum: log which condition suppressed the offer.** Even a single log line naming the failing gate turns this class of report from a code trace into a lookup.
+- **Severity**: 🟡 **Revenue-adjacent, non-blocking.** Insurance is optional, but an unoffered policy is an uncollected sale — and RegSaver is a director-visible product they believe they switched on.
+- **Status**: 🔴 **OPEN — awaiting Ann's confirmation of the event/flow, then Todd.** Config verified, code path traced end to end, and the Pickle-specific answer is certain. Sibling of **AR-054** — same zero-teams root condition.
+
+### AR-056: [Smart Bulletins] Let a SuperUser ADD text to a Smart Bulletin — additive annotation, explicitly NOT the suppression that AR-007 declined
+- **Topic**: Communications → **Smart Bulletins** → the **Registration Links** panel (the one pinned to the top)
+- **Request (Ann, 08-29)**: *"Revisiting again the possibility for a SuperUser to edit a Smart Bulletin. Example: on the Registration Links bulletin which always goes to the top, entering: **'You can Register a Player to sign up for a HOUSE Team!'** So this is a request **not to remove them but to add text** if needed **in a prominent place**."*
+
+**✅ READ THIS BEFORE REACHING FOR AR-007's RULING — Ann has already ruled that out herself.** AR-007 Ruling 1 declined an SB **off switch** (*"we built this for a reason, to alleviate club rep admin time"*) and closed with **"never re-propose an SB off switch."** **This is not that.** Ann is explicit: *not to remove them but to add text*. The distinction is load-bearing:
+- **Ruling 1's stated fear was a toggle flipped once and forgotten, so a site quietly stops advertising registration while registration is open.** An **additive** text slot cannot do that — it cannot hide a link, cannot suppress a section, and cannot make the band render less than it does today. **The rationale for Ruling 1 does not reach this request.**
+- Ann also isn't asking for the "info-only mode" half of AR-007 (banner without the quicklinks) — that *was* subtractive. **The quicklinks stay; she wants a sentence next to them.**
+
+**🎯 WHY SHE NEEDS IT — the derived labels physically cannot say this.** Every string in that panel is computed. The heading is a `computed()` that returns `'Registration Links'` or `'Wrap-Up'`; each link's label is a literal in `registration-panel.component.ts` (`'Self-Roster Player'` on tournaments, `'Register Player'` elsewhere). **There is no free-text slot anywhere in the panel** — I checked the whole template. So a job whose local meaning is *"registering a player is how you join a HOUSE team"* has **nowhere to say so**, because the label is chosen by job type, not by what the director calls it.
+
+**🔴 THE WORKAROUND EXISTS AND FAILS ON EXACTLY THE HALF SHE ASKED FOR.** A director can author this today as a **manual bulletin** — but manual bulletins render **below** the smart band, under the "News & Updates" divider (`bulletins.component.html`). Ann asked for *"a prominent place"*, and that is precisely what's unavailable. **Two standing rulings close that route:**
+- **AR-007 Ruling 2** rejected flipping the order globally, **on data**: of 297 live bulletins across 187 jobs, **294 started >30 days ago and 269 started >180 days ago** — they're in-window because of a far-out EndDate, not because they're current. Bulletins-first would put last season's notice above the live registration CTA on 187 sites. **That data hasn't changed and the ruling should stand.**
+- **AR-007 Ruling 3** rejected a per-bulletin "pin above the band" column as a cosmetic schema change on a live prod DB, and warned specifically: **do not launder `BCore` or `ExpireHours` into it.**
+- **So the manual-bulletin route is genuinely closed — which is what makes this a real request rather than a "just use a bulletin" answer.**
+
+**✅ AND THE RIGHT DESIGN IS ALREADY ON RECORD — this needs scheduling, not designing.** AR-007's closing note states the correct future approach verbatim: *the blocker was never storage, it was **identity** — the SB sections have no durable keys, so there is nothing to hang a rule on.* The recorded answer is a **new `smartbulletins` SQL schema** (a namespace sibling to `Leagues` / `Jobs` / `widgets` / `nav`) that **tracks each SB type as a row and allows overrides against it**, with the instruction: **"build the schema first — do not retrofit a boolean."**
+- **An annotation is an override.** A per-job, per-SB-type text field is the *least* dangerous thing that schema could carry — strictly additive, no suppression semantics, and it gives the identity work an immediate, low-risk first consumer.
+- ⛔ **`widgets.JobWidget` is NOT a shortcut** — already established in AR-007: it models a per-job/per-role override tier with `IsEnabled` + `Config` but holds **0 rows**, and the band is hard-placed in `job-landing.component.html:72`, never routed through the widget outlet. **Don't re-derive this.**
+
+**🎯 For Todd — decisions, if this is taken up:**
+1. **Scope**: SuperUser-only, or Directors too? (Ann leaned Director-inclusive on AR-007; the risk profile is much lower here since nothing can be hidden.)
+2. **Granularity**: one text slot per SB **type** per job (Registration Links, Event Status, Game Day, USA Lacrosse, Store), or a single slot at the top of the band? Ann's example is type-specific — she wants it *on the Registration Links bulletin*.
+3. **⚠️ The one genuine hazard, worth designing for up front**: the band's whole premise is that it is a **true readout** derived from live flags. A hand-typed sentence can **contradict** the derivation and won't self-retire — *"You can Register a Player…"* would still be sitting there after player registration closes, next to a panel that has correctly stopped offering it. **Recommend the annotation be phase-scoped** (rendered only while its section renders) so it can never outlive the thing it annotates. That preserves the readout guarantee Ruling 1 was protecting.
+4. **Plain-text or rich text?** The manual bulletins run through `RichTextPipe` + `TranslateLegacyUrlsPipe`; matching that is free, but it also means an annotation could carry links — see **AR-052** for what un-mapped legacy links do.
+- **Severity**: 🔵 **Feature / director voice (non-blocking).** No defect; a real gap between what the automation says and what a job means locally.
+- **Status**: 🔴 **OPEN — for Todd.** Filed 08-29. **Not a re-proposal of AR-007** — that was suppression and stays declined; this is additive annotation, which Ruling 1's rationale does not cover. The `smartbulletins` schema recorded in AR-007 is the stated path, and this would be its first consumer.
+
+### AR-057: [Store admin] Photos are unreachable from "New Item" — the item modal has no photo affordance at all, not even a pointer to the Photos tab
+- **Topic**: Store → **Admin editor** → **Items** tab → **New Item** / **Edit Item** modal, vs the **Photos** tab
+- **Observation (Ann, 08-29)**: *"Image Editor — I was looking for this when I selected **add NEW Item**, but I then saw you have a **Photos** tab."*
+
+**✅ CONFIRMED — and it's a total absence, not a hidden control.** I read the entire New Item / Edit Item modal (`store-admin.component.html:467-600`): **zero occurrences of photo, image, or picture.** The modal carries Sort Order, Active, the Item/Price/Comments readouts, Item Name and Item Price — and nothing else. Photo management lives **only** on a separate top-level tab labelled **Photos** (`:16-18`, `bi-image`), one of nine tabs, where uploads are attached per item (`store-images-tab.component.ts:109`, `addItemImage(group.storeItemId, file)`).
+
+**🎯 SO ANN'S INSTINCT WAS RIGHT AND THE UI DIDN'T MEET IT.** Creating an item and giving it a picture is one mental task; the app splits it across two tabs with no thread between them. **The Photos tab is discoverable eventually — she found it — but only after looking for it in the place it wasn't.** Worth noting she went looking for an "Image Editor" *by name*, which suggests legacy put it closer to item authoring.
+
+**🔸 IMPORTANT — the split may well be the right architecture; the missing hand-off is the defect.** Photos are grouped by item on the Photos tab and an item may hold several, so a full uploader crammed into the item modal isn't obviously better. **Three options, cheapest first:**
+1. **A pointer only** — one line in the modal: *"Photos are managed on the Photos tab"*, ideally a button that switches tabs and scrolls to this item. **No new upload plumbing, closes Ann's report.**
+2. **A read-only strip** in the modal showing the item's current photos (plus that button). Tells the director what the item already has while they're editing it.
+3. **Full upload in the modal.** Most work, and duplicates a screen that already exists.
+- **Recommend option 1**, possibly 2. **Option 3 is not recommended** — the Photos tab is genuinely better for managing several images per item.
+- **⚠️ There's a sequencing wrinkle worth designing around**: on **New** Item the item doesn't exist yet, so it has no id to attach a photo to. Whatever is added must behave sensibly in the create case — most likely *"save the item first, then add photos"* rather than a dead control. **This is probably why photos were split out in the first place.**
+- **Severity**: 🔵 **Discoverability / workflow (non-blocking).** Nothing is broken or unreachable; a director hunts for it once and then knows.
+- **Status**: 🔴 **OPEN — for Todd.** Filed 08-29. Related to **AR-058** (Ann's other store-image items, on the customer-facing side).
+
+### AR-058: [Storefront] The product presentation is a compact list, not the legacy product page — multi-image EXISTS but is 260px behind a click, and cart/checkout carry no image at all
+- **Topic**: Store → **customer-facing catalog** (`catalog.component`), and the **cart / checkout** screens
+- **Observation (Ann, 08-29)**: *"For Add Photo the first image is the one they see on the card text. **What about multi-image display as before? Display on purchase.** I thought these were larger items like on a clothing store website with **images that move forward and backwards on the left and product information and select color, size, pricing on the right**? Items are small and multiple items on a page — **I can't even see the quality of the shirts/sweatshirts.**"*
+
+**✅ ANN'S MEMORY OF LEGACY IS EXACT — I pulled the old view to check, because "as before" is a factual claim.** `reference/…/Views/StoreFamily/Index.cshtml` renders **one Bootstrap card per item**, split `col-lg-6` / `col-lg-6`:
+- **LEFT** — an **`<ejs-carousel>`** cycling every uploaded image for that item, with indicator bars and prev/next, and a `missing-image.jpg` placeholder when there are none (`:92-122`).
+- **RIGHT** — the item name as an `<h1>` with the price at 30px, then the selectors (`:129-180`).
+**That is "carousel left, product info and selectors right", to the letter.** She is describing the shipped legacy layout, not an aspiration.
+
+**✅ PART 1 — MULTI-IMAGE ALREADY EXISTS. It is not missing; it is small and one click away.** Todd built it in `c7a89e78c`. In the **expanded** item the catalog renders a `gallery-main` plus a `gallery-strip` of every image (`catalog.component.html:127-140`), and the code comment says so explicitly: *"Legacy showed a per-item EJ2 carousel of every uploaded image… the open item shows the product properly — with a thumbnail strip when there is more than one image, which is the whole of what the carousel did."*
+- **So the answer to "what about multi-image display as before?" is: it's there, as a thumbnail strip instead of a prev/next carousel, inside the open item.** Ann's screenshot is the **collapsed** list, which is why she didn't see it.
+- **Functionally equivalent to the carousel** — every image is reachable — but it is **not** the same *shape*, and she went looking for the arrows.
+
+**🟠 PART 2 — THE REAL COMPLAINT IS SIZE, AND THE NUMBERS BACK HER UP.** From `catalog.component.scss`:
+| Element | Size |
+|:--|:--|
+| Collapsed row thumbnail | **60 × 60 px** |
+| Expanded gallery main image | **max-width 260px**, square |
+| Expanded gallery thumbnails | 48 × 48 px |
+**A 60px thumbnail cannot show the quality of a garment — that is a true statement, not a preference.** Even expanded, 260px is a preview, not a product shot. Against legacy's half-page `col-lg-6` carousel this is a large reduction in how well merchandise is presented, on the one screen whose job is to sell it. **The compact list is excellent for scanning ten items and poor for evaluating one** — and apparel is the case that needs evaluating.
+
+**🔴 PART 3 — "Display on purchase": CONFIRMED MISSING ENTIRELY.** There is **no image anywhere in the cart or the checkout**. I checked every file in `views/store/cart/` and `views/store/checkout/` — **not one `<img>` tag, not one `imageUrl` reference.** A shopper picks a shirt from a 60px thumbnail and then never sees it again while paying. **This is the cleanest, smallest win of the three** and is a straightforward add — the DTO already carries `imageUrls`, so the data is present at both screens.
+
+**🎯 For Todd — three separable decisions, and only one is a layout debate:**
+1. **Cart/checkout thumbnails (Part 3)** — do this regardless of what's decided about the catalog. Data already available, no new endpoint, and it's what "display on purchase" asks for.
+2. **Bigger imagery in the open item (Part 2)** — raising `gallery-main` from 260px, and/or the collapsed thumb from 60px, is CSS. **The cheapest meaningful answer to "I can't see the quality."** ⚠️ Check what the stored images actually are first — if uploads are small, enlarging just shows a blurry picture; the recent oversized-photo guard (`0fed0f8a9`) governs the ceiling, not the floor.
+3. **Whether to restore the legacy product-page shape (Ann's main point)** — one card per item, big carousel left, info and selectors right. **This is a genuine product decision, not a bug**: the current accordion is deliberate and better on mobile and for long catalogs; legacy's layout is better for apparel. A middle path exists — keep the list, make the **expanded** state the two-column product view with a properly sized image. **Todd's call; Ann's rationale is sound and specific to apparel.**
+- **🔸 Also, for whoever picks this up**: legacy shipped a `missing-image.jpg` placeholder; the new catalog has an `item-thumb-placeholder` div (`:77`) for the no-image case, so that base is covered.
+- **Severity**: 🟡 **Merchandising quality, revenue-adjacent.** Nothing is broken and everything is reachable — but this is the screen that sells the goods, and a shopper who can't see a sweatshirt is less likely to buy one.
+- **Status**: 🔴 **OPEN — for Todd.** Filed 08-29. **Part 1 needs no work** (multi-image ships; Ann just hadn't opened an item — worth telling her). Parts 2 and 3 are the ask. Sibling of **AR-057** (the admin-side half of Ann's store-image pass).
+
+### AR-059: [Store Receipt] Renders at ~half size because a LANDSCAPE page is embedded in a 600px checkout column, the column set is wrong (no Recipient, no Product Fee, "Fees" is really Processing Fee), and there is no logo
+- **Topic**: Store → **Checkout → Order Confirmed → Receipt** (inline PDF), generated by `StoreReceiptService`
+- **Observation (Ann, 08-29)**: *"First it is **too small on the screen**. Some headers/columns are missing: **Recipient, Item, Quantity, Unit Price, Product Fee, Processing Fee, Fee Total, Paid** is the order of what should be there."*
+
+## Part 1 — "too small": measured, and it isn't the frame ratio
+**The receipt is A4 LANDSCAPE (297mm wide) squeezed into a 600px column.**
+- `checkout.component.scss:6-8` — `.checkout-container { max-width: 600px; }`, and the receipt sits **inside** it (`checkout.component.html:1` → `:65-67`).
+- `:332-341` — the frame is `width: 100%` with `aspect-ratio: 297/210`, so it resolves to **600 × ~424 px**.
+- The embedded viewer fits the whole landscape page to that width, so the document renders at roughly **half physical size**. Ann is reading a page designed to be ~11" wide at about 6".
+- **⚠️ Do NOT "fix" the aspect-ratio — that is already correct and was deliberate.** Todd set it in `6d720f0c6` precisely so a one-page receipt fills the frame instead of floating above the viewer's black ground, and the comment says so. **The constraint is the 600px column, which is sized for a checkout FORM, not for a landscape document.**
+- **Options for Todd, cheapest first:** (a) let `.confirmation-receipt` break out of the 600px container on the confirmation view only — the form is gone by then, so the width is free; (b) generate the receipt **portrait** instead, which suits a 600px column far better and matches how people expect a receipt to look; (c) keep it small but make **"Open receipt in new tab"** a prominent affordance. **(a) is the smallest change; (b) is arguably the more correct answer** and interacts with Part 2 below.
+
+## Part 2 — the columns: 6 of Ann's 8 are wrong, and NO new data is needed
+**Today** (`StoreReceiptService.cs:230-236`): `Item · Variant · Qty · Unit Price · Fees · Tax · Line Total`
+**Ann wants**: `Recipient · Item · Quantity · Unit Price · Product Fee · Processing Fee · Fee Total · Paid`
+
+| Ann's column | Status today | Source |
+|:--|:--|:--|
+| **Recipient** | ❌ **not a column** — the player's name is buried inside the **Variant** cell as `"… - For {name}"` (`:246-249`) | `DirectToPlayerName` ✅ |
+| Item | ✅ present | `ItemName` |
+| Quantity | ⚠️ present, labelled **"Qty"** | `Quantity` |
+| Unit Price | ✅ present | `UnitPrice` |
+| **Product Fee** | ❌ **missing entirely** | **`FeeProduct` ✅ already on the DTO, unused by the receipt** |
+| **Processing Fee** | ⚠️ present but labelled **"Fees"** — ambiguous | `FeeProcessing` |
+| **Fee Total** | ❌ receipt prints **`LineTotal`** under the heading "Line Total" | **`FeeTotal` ✅ already on the DTO, unused** |
+| **Paid** | ❌ no per-line column; only a **"Total Paid"** in the footer (`:355-359`) | see question below |
+
+**✅ THE KEY FINDING: `StoreCartLineItemDto` already carries every field Ann named** (`StoreCartDtos.cs:29-43` — `FeeProduct`, `FeeProcessing`, `FeeTotal`, `LineTotal`, `DirectToPlayerName` are all there). **`FeeProduct` and `FeeTotal` are populated and simply never printed.** So this is a **column-set edit in one method**, not a data or repository change.
+
+**❓ TWO THINGS ANN NEEDS TO CONFIRM BEFORE TODD BUILDS IT:**
+1. **What is "Paid" per line?** `LineTotal` is the obvious candidate, but if a batch can be partially paid or partly refunded, a per-line "Paid" may not equal the line total. **If it just means the line total, say so and this is trivial.**
+2. **Do Variant and Tax stay?** Ann's list has neither. **Variant carries colour/size** — dropping it makes two rows of the same shirt indistinguishable, so I'd keep it (with Recipient split out into its own column). **Tax** is currently printed per line; her list omits it. **Confirm whether to drop it or keep it as a ninth column.**
+- ⚠️ **Width is the real constraint, and it collides with Part 1**: 7 columns already fit a landscape page; Ann's set is 8–9. `grid.Columns[0].Width = 160` (Item) is hand-set at `:304`. **A portrait receipt (option b above) makes the column problem harder, not easier — so decide Part 1's shape BEFORE widening the table.**
+- 🔸 **One semantic to preserve**: the totals footer comment at `:317` states **"FeeProduct IS the subtotal, not a fee."** If that's right, a column headed *"Product Fee"* is arguably mis-named for what it holds — worth Ann and Todd agreeing what the heading should read before it ships, since the footer's subtotal maths depends on that meaning.
+- 🔸 Don't regress `138f477cc` — the Variant cell uses an **ASCII** separator on purpose; the PDF font drops the em dash and leaves a gap.
+
+## Part 3 — LOGO at the top, prominent (added by Ann, 08-29)
+**Request (Ann)**: *"Logo should be present at the top and be prominent!"*
+**✅ CONFIRMED ABSENT — the receipt has no image of any kind.** I grepped `StoreReceiptService.cs` for logo / image / `DrawImage` / `PdfBitmap`: **zero hits.** The header is text only — `"Store: {jobName}"` in 14pt Times Bold, then a slate-blue **RECEIPT** bar, then date and invoice number (`:180-200`). A customer's kept copy of the purchase carries no branding at all.
+- **✅ The source exists**: `Jobs.bannerFile` holds a filename (e.g. `steps.jpg`) and is populated on **616 jobs**; `bBannerIsCustom` flags per-job artwork vs the customer default. So there is something to draw, and Syncfusion `PdfBitmap` + `DrawImage` is the mechanism.
+- **⚠️ TWO THINGS TO CHECK BEFORE BUILDING IT, both learned the hard way elsewhere:**
+  1. **`bannerFile` is a BANNER, not a logo** — wide, not square. Dropped into a receipt header it will either dominate the page or need cropping. **Confirm with Ann whether the banner is the right asset**, or whether a separate logo field is wanted. It may look nothing like what she pictures.
+  2. **🔴 Where does the PDF read the file FROM?** Images live on the statics host, which **is the PRODUCTION box** — this is the same topology that makes headshots 404 on dev/staging (a known, documented artifact). **A receipt generated off-prod may fail to fetch the image**, so this must degrade gracefully — no logo rather than a broken receipt — and **cannot be judged working on dev.** Verify in Production.
+- 🔸 **Interacts with Part 1**: a prominent logo costs vertical space on a page already too small in a 600px column, and Part 2 wants more columns. **Decide the page shape (landscape vs portrait, breakout width) before laying out a header band.**
+- **Severity**: 🟡 **Customer-facing document, legibility + completeness.** The receipt is what a shopper keeps and what they email back when they query a charge.
+- **Status**: 🔴 **OPEN — Part 2 needs Ann's two answers, then Todd.** Both halves confirmed in code; all required data already present. Part of Ann's 08-29 store pass with **AR-057** / **AR-058**.
+
+
+### AR-060: [Store flow] Identity is collected BEFORE the catalog, and then collected again at payment — the CC form already accepts six autofill inputs and the store passes exactly one
+- **Topic**: Store → entry (**Family Sign In** / **Continue as Guest → walk-up**) → catalog → cart → **checkout**
+- **Questions (Ann, 08-29)**: *"Why do I need to enter personal information on going into the store? Don't you select items first and then enter info afterwards for any store? Should cc info be auto-filled if you check a box, like billing info same as shipping info? Also, what if I am a registered player, shouldn't this be auto-filled? Is parent or player the customer?"*
+
+## Q1 — "Why enter personal information to get in?" ✅ Ann is right about the flow
+**The store is gated at the door.** `login.component.html` offers exactly two ways in: **Family Sign In**, or **Continue as Guest** → the **walk-up** form. There is no browse-first path.
+- **The walk-up form asks for eight fields before a single product is visible**: First Name, Last Name, Email, Phone, Street Address, City, State, ZIP (`walk-up/…html:25-105`).
+- **That is inverted from standard e-commerce**, exactly as Ann says: browse → cart → checkout → identity. Asking a parent for a street address before showing them a $5 sticker is the highest-friction possible ordering, and it's front-loaded onto people who haven't yet decided to buy anything.
+- 🔸 **This is legacy's shape, not an oversight** — legacy's store also sat behind family identity, and `57e1478b0` deliberately restored legacy's walk-up field rules. **So it's a product decision to revisit, not a regression.** But Ann's instinct matches how every consumer store works, and the cost is measurable in abandoned carts.
+- **Note what's actually load-bearing**: the cart is server-side and per-batch, and line items can be directed to a specific player (`DirectToRegId`), so *some* identity is needed **by checkout**. **None of it is needed to browse.** A deferred-identity flow is feasible; it is not free (guest cart → identity merge), which is why this is a decision rather than a quick fix.
+
+## Q2 — "Should CC info be auto-filled?" 🔴 YES, and the plumbing already exists and is unused
+**`credit-card-form.component.ts` accepts SIX autofill inputs** — `defaultFirstName`, `defaultLastName`, `defaultAddress`, `defaultZip`, `defaultEmail`, `defaultPhone` — and re-seeds them via `ngOnChanges` (`:141-142`, `:182`).
+**The store checkout passes exactly one:** `[defaultEmail]="defaultEmail()"` (`checkout.component.html:180-185`), and even that is only the login username when it happens to contain an `@` (`checkout.component.ts:67-70`).
+- **🔴 So a WALK-UP shopper types their name, address, ZIP and phone on the way in — and is then asked for name, address, ZIP and phone AGAIN on the payment form.** The app already holds every one of those values. **This is straightforward double entry, and it's the clearest defect in this item.**
+- **Ann's "like billing same as shipping" is the right instinct but the wrong mechanism here** — there is no shipping address in this store (goods are picked up at the event; see the storefront's "Pickup, refunds & contact" panel). **So no checkbox is needed: the values should simply be pre-filled, editable, from what we already know.** A checkbox implies two addresses; there is one.
+
+## Q3 — "What if I am a registered player, shouldn't this be auto-filled?" ✅ Yes — same fix, other source
+For a **family sign-in** shopper the account carries the same contact details the registration wizard uses. **Nothing reads them into the CC form.** One `defaultEmail` derived from the username is the whole of today's personalisation.
+- **Recommended shape**: one resolver feeding all six inputs, sourced from the **walk-up submission** for guests and the **family/registrant contact** for signed-in shoppers. **Same wiring, two sources** — the component doesn't care which.
+
+## Q4 — "Is parent or player the customer?" ✅ ANSWERED — the parent/family account is the customer; the player is a per-line RECIPIENT
+- The **purchaser** is the family account (or the walk-up person). The **player is a property of a line item**, not the buyer: `StoreCartLineItemDto` carries `DirectToRegId` + `DirectToPlayerName` (`StoreCartDtos.cs:41-42`), and the receipt prints it as **"For {player}"**.
+- **Legacy agrees** — `Views/StoreFamily/Index.cshtml:176-180` puts a per-cart-line `--select from list--` of players bound to `DirectToRegId`. **Same model, unchanged.**
+- **So one order can contain items for several different players**, which is why the recipient is per line and not per order. 🔸 **This is exactly why AR-059 asks for Recipient as its own receipt column** — today it's buried inside the Variant cell.
+
+## 🎯 For Todd
+1. **Do Q2/Q3 first — it's wiring, not design.** Pass all six `default*` inputs from a single resolver (walk-up data for guests, family contact for signed-in). **Removes a full re-type from every walk-up purchase.**
+2. **Q1 is a genuine product decision**, and worth a deliberate answer rather than drift: keep the gate (legacy parity, simplest cart model) or defer identity to checkout (standard e-commerce, needs guest-cart → identity merge). **Ann's argument is sound; the cost is the merge.**
+3. **Q4 needs no work** — but the answer should reach the UI: if a shopper can buy for several players, the catalog and cart should make "who is this for?" obvious. Feeds **AR-059**.
+- **Severity**: 🟡 **Friction / usability, revenue-adjacent.** Q2/Q3 is a concrete defect (double entry of data we already hold). Q1 is a design question. Q4 is answered.
+- **Status**: 🔴 **OPEN — for Todd.** Filed 08-29. Q4 ✅ answered, no action. Part of Ann's 08-29 store pass with **AR-057** / **AR-058** / **AR-059**.
+
+### AR-061: ["Browse the Store" CTA] Buried below the director's whole confirmation block including the waiver — and it exists on ONLY ONE of the registration paths
+- **Topic**: Player registration wizard → **Confirmation / Done** step → **Browse the Store** button
+- **Request (Ann, 08-29)**: *"Browse the Store on the Confirmation screen of a tourney for instance is at the absolute bottom of the screen. Recommend putting it at the top and making it prominent!"*
+
+**✅ CONFIRMED — it is literally the last element on the step.** `confirmation-step.component.ts` renders, in order: Re-Send Confirmation Email → resend message → **the director's entire `confirmationHtml`** → *then* the store CTA (`:118-122`).
+- **That middle block is long.** It's the same content behind **AR-053** — registration-status table, the "delete/change team" line, the contacts table, **and the full Waiver bullet list** (seven paragraphs on the job Ann screenshotted). **So "absolute bottom" is exact**: the store link sits below a wall of legal text that a parent has every reason to stop reading.
+- **And it isn't just placement — it's de-emphasised on purpose.** The class is **`btn-outline-primary`** (`:119`): an outline button, the low-emphasis Bootstrap variant. **Ann's "make it prominent" is asking to reverse a styling choice, not just move a div.** A filled `btn-primary` is the one-word version of that fix.
+
+**🔴 THE BIGGER FIND — the store CTA exists on exactly ONE surface in the whole app.** I searched every registration and landing view for `Browse the Store` / `store-cta` / `checkStoreAvailability`: **one file, the player wizard's confirmation step.**
+- **The adult / coach wizard has no store CTA at all.** Neither does **team / club-rep** registration.
+- **That is very likely backwards for merchandise.** Coaches and team staff are prime buyers of event apparel — the sweatshirts and long-sleeves in Ann's AR-058 screenshot — and a club rep registering a team is the single most engaged person on the site. **None of them are offered the store at the moment they finish registering**, which is the highest-intent moment there is.
+- 🔸 The gate itself is fine and worth keeping: `showStoreCta()` is set by a live `checkStoreAvailability()` probe (`:152-157`), so the button never appears on a job without a store. **Whatever surfaces gain the CTA should reuse that probe.**
+
+**🎯 For Todd — three separable pieces, increasing in size:**
+1. **Move it above `confirmation-content` and switch `btn-outline-primary` → `btn-primary`.** Two lines. Closes Ann's request outright.
+2. ⚠️ **Consider keeping a second copy at the bottom** rather than only relocating — a shopper who *does* read to the end shouldn't lose the link. Cheap, and avoids trading one bury for another.
+3. **Add the CTA to the adult/coach and team/club-rep confirmations** using the same availability probe. **This is the revenue item**, and it's larger than Ann asked for — flagging it as a separate decision, not folding it into her request.
+- 🔸 **Placement nuance worth one thought**: the confirmation block leads with *"Registration Complete!"* and the status table — the reassurance the parent came for. **Putting a shopping button above that could read as selling before confirming.** Recommend directly *under* the status summary and *above* the waiver, rather than at the very top.
+- **Severity**: 🔵 **Merchandising placement (non-blocking).** No defect; a CTA positioned where fewest people will see it, on the surface with the most buying intent.
+- **Status**: 🔴 **OPEN — for Todd.** Filed 08-29. Part of Ann's 08-29 store pass with **AR-057** / **AR-058** / **AR-059** / **AR-060**.
+
+### AR-062: [Question — ANSWERED] How a Camps & Clinics site differs from a tournament — it's a PLAYER site, in the Club family, and coach/referee/recruiter registration doesn't exist on it
+- **Topic**: Job types — **Camp Registration (4)** vs **Tournament Scheduling (2)**
+- **Question (Ann, 08-29)**: *"How does a camps and clinics site handle differently than a player site like a tournament?"*
+
+**🔸 First, a terminology correction that matters for the rest of the answer: a tournament is NOT a player site — it's a *team* site.** That distinction is the whole basis of the split. The app's own grouping (`visibility-rules.ts:50`) tags **Club (1), Camp (4) and Showcase (6)** with the flag **`playerSiteOnly`**. **Tournament and League are the team sites.** So a camp sits with **Club**, opposite the tournament.
+
+**📊 THE FULL SET (`reference.JobTypes`, with dev job counts):**
+| id | Name | Jobs | Family |
+|:--|:--|--:|:--|
+| 0 | Customer Root | 0 | not a real job |
+| 1 | Club Sport Registration | 348 | **player site** |
+| 2 | Tournament Scheduling | 357 | **team site** |
+| 3 | League Scheduling | 17 | **team site** |
+| **4** | **Camp Registration** | **101** | **player site** |
+| 5 | Sales Venue | 1 | — |
+| 6 | Showcase Registration | 271 | **player site** |
+
+**🎯 WHAT ACTUALLY DIFFERS — five behaviours, all traced to code:**
+| Behaviour | Camp (4) | Tournament (2) |
+|:--|:--|:--|
+| **Who registers** | the **player**, directly | a **club rep registers a TEAM**; players then join it |
+| **Coach / staff self-registration** | **❌ does not exist — the server THROWS** | ✅ resolves to **Staff**, binding, one row per selected team |
+| **Referee & College Recruiter** | ❌ not offered | ✅ offered |
+| **Player link label** | **"Register Player"** | **"Self-Roster Player"** |
+| **Public Rosters · change team / uniform #** | ❌ not offered | ✅ tournament-only |
+
+- **Coach registration is the sharpest difference.** `AdultRegistrationService.ResolveCoach` handles **only** Club, Tournament and League; everything else hits `default:` and throws **"Adult coach registration is not supported for this event type."** The comment names the excluded set explicitly: *"Root, Camp, Sales, or anything else."* **A camp has no coach self-registration path at all** — where a Club vets coaches through the Unassigned-Adult queue and a Tournament places them straight onto teams, a camp does neither.
+- **Referee/recruiter** are gated on `competitive()` = tournament **or** league (`registration-panel.component.ts:102`) — *"the competitive settings where recruiters scout."* A camp isn't one.
+- **Self-rostering language and tooling are tournament-only** because they presuppose teams to join: `isTournament()` drives the label, and Public Rosters / change-team-or-uniform are gated the same way.
+- **✅ Camps get their own tooling instead**: the **Camp Groups** screen (`/camp-groups`, nav-gated by a jobTypes allowlist) and a **camp preset** in the Roster Table Designer. So the divergence runs both directions — a camp isn't a tournament minus features.
+
+**✅ NO LATENT TRAP FOUND — I checked, because AR-054 made it worth checking.** If a camp had `bRegistrationAllowStaff = 1`, the landing page would show **Register Coach** (the AR-054 defect) and clicking it would hit the server throw above. **Zero camp, showcase or sales jobs have coach registration enabled** — current or historical. **Not live; worth knowing it's one config toggle away.**
+
+**🟡 ONE REAL FINDING WHILE ANSWERING — the FRONTEND job-type constant is missing Showcase.** `job-type.constants.ts` stops at `Sales: 5`, even though the backend `JobConstants.cs` **does** define `JobTypeShowcase = 6` and **271 jobs use it** — the second-largest player-site type. The one place the frontend needs it (`visibility-rules.ts:50`) hardcodes a bare literal: `jobTypeId === 1 || jobTypeId === 4 || jobTypeId === 6`.
+- **The file's own docstring claims it "mirrors backend `JobConstants`" — it no longer does.** Low-risk today, but the next person adding a player-site rule has no `JobType.Showcase` to reach for and will copy the literal. **Small fix: add `Showcase: 6` and replace the literals.**
+- **Severity**: ⚪ **Question — answered, no action.** The constant gap is 🔵 minor housekeeping.
+- **Status**: ✅ **ANSWERED (Claude, 08-29).** Ann's question resolved; no defect in camp handling. Leaving 🔴 only for Todd's call on the one-line `Showcase: 6` constant.
 
 ### AR-038: 🚨🚨 [Privacy / Med Forms] A player's medical form is visible on EVERY registration they hold — across jobs AND across unrelated customers
 - **Topic**: Search Registrations → registrant fly-in → **"Medical form on file" / View** (`MedFormController`, `MedFormService`)
