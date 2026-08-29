@@ -83,7 +83,7 @@ find them — a screen is not covered because its controller action is.
 | A-34 | Availability forced to **0** when the SKU OR its parent item is inactive (`IStoreService.cs:1376`) | IMPL |
 | A-35 | **ADN invoice number `{CustomerAi}_{JobAi}_{batchId}_M`** (`IStoreService.CreateAdnInvoiceNumber`). The `_M` suffix is how `adn.MonthyQBPExport_Automated_Merch` finds merch transactions (`charindex('_M', [Invoice Number]) > 0`). Ours built `STORE-{id}`, which never matched — every new-store sale was absent from the monthly remittance export. | IMPL |
 | A-06 | Auto-selects when exactly one family player, as legacy | IMPL |
-| A-07 | Size/Colour/Quantity. Colour+size auto-select on a single option, as legacy. Quantity now takes the LOWER of legacy's 5-per-add and the shelf — see A-37 | IMPL |
+| A-07 | Size/Colour/Quantity. Colour+size auto-select on a single option, as legacy. Quantity now takes the LOWER of legacy's 5-per-add and the shelf — see A-37. **Presentation ruled 2026-08-29 (Todd): the cascade IS the design — colour releases size, size releases availability.** Legacy renders three independent dropdowns at once with the size list unfiltered by colour; ours discloses progressively and filters sizes to the chosen colour, so a dead combination can never be offered. Approved divergence, not a gap — do not re-propose independent dropdowns | IMPL — divergence approved |
 | A-08 | Cart badge with item count | IMPL |
 | A-09 | Purchase-history badge with batch count. Hidden outright at zero — the screen behind it would be empty | BUILT |
 | A-10 | "No items available for sale at this time" empty state | IMPL |

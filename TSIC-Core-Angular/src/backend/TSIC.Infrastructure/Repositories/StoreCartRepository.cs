@@ -291,18 +291,39 @@ public class StoreCartRepository : IStoreCartRepository
 
     // ── Family players (for DirectTo dropdown) ──
 
+    // The caller's OWN registration counts as a recipient, not just their Family_Members.
+    // A walk-up buyer is minted with a registration but no Family_Members row, so the
+    // Family_Members join alone returned an empty list: the catalog had nobody to
+    // auto-select, add-to-cart posted a null DirectToRegId, and the purchase was recorded
+    // with no recipient — no name on the cart or receipt, and invisible to the walk-up
+    // analytics in StoreAnalyticsRepository.WalkUpLines, which key on that column.
+    // Legacy has no such hole: GetListFamilyPlayers keys on Registrations.FamilyUserId and
+    // never consults Family_Members (IStoreService.cs:322). Read that before touching this.
+    //
+    // Deliberately a UNION and not a swap to legacy's key. Measured on the dev DB: legacy's
+    // keying reaches 475 active registrations this join misses, and this join reaches 394
+    // legacy misses (Family_UserId null or pointing elsewhere). Neither is a superset, so
+    // conforming outright would hide 394 recipients that work today. The self clause below
+    // is the part that is unambiguous — you are always a valid recipient of your own
+    // purchase — and it is all this fix claims. The wider keying question is Todd's.
+    //
+    // Ordering is legacy's: LastName then FirstName.
     public async Task<List<StoreFamilyPlayerDto>> GetFamilyPlayersForJobAsync(
         string familyUserId, Guid jobId, CancellationToken cancellationToken = default)
     {
         return await (
-            from fm in _context.FamilyMembers
-            join r in _context.Registrations
-                on fm.FamilyMemberUserId equals r.UserId
+            from r in _context.Registrations
             join u in _context.AspNetUsers
                 on r.UserId equals u.Id
-            where fm.FamilyUserId == familyUserId
-                && r.JobId == jobId
+            where r.JobId == jobId
                 && r.BActive == true
+                && (
+                    r.UserId == familyUserId
+                    || _context.FamilyMembers.Any(fm =>
+                        fm.FamilyUserId == familyUserId
+                        && fm.FamilyMemberUserId == r.UserId)
+                )
+            orderby u.LastName, u.FirstName
             select new StoreFamilyPlayerDto
             {
                 RegistrationId = r.RegistrationId,
