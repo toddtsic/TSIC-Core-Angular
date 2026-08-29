@@ -16,19 +16,6 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
         _context = context;
     }
 
-    public async Task<JobTokenInfo?> GetJobTokenInfoAsync(string jobPath, CancellationToken cancellationToken = default)
-    {
-        return await _context.Jobs
-            .AsNoTracking()
-            .Where(j => j.JobPath == jobPath)
-            .Select(j => new JobTokenInfo
-            {
-                JobName = j.JobName ?? string.Empty,
-                UslaxNumberValidThroughDate = j.UslaxNumberValidThroughDate
-            })
-            .FirstOrDefaultAsync(cancellationToken);
-    }
-
     public async Task<List<FixedFieldsData>> LoadFixedFieldsByRegistrationAsync(Guid registrationId, CancellationToken cancellationToken = default)
     {
         return await (from r in _context.Registrations

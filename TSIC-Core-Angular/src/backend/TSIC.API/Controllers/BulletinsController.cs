@@ -5,6 +5,7 @@ using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Bulletins;
 using TSIC.API.Services.Shared.Bulletins.TokenResolution;
 using TSIC.API.Services.Shared.Jobs;
+using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.Bulletin;
@@ -23,6 +24,7 @@ public class BulletinsController : ControllerBase
     private readonly IJobLookupService _jobLookupService;
     private readonly IJobRepository _jobRepository;
     private readonly BulletinTokenRegistry _tokenRegistry;
+    private readonly ITextSubstitutionService _textSubstitution;
     private readonly ILogger<BulletinsController> _logger;
 
     public BulletinsController(
@@ -30,12 +32,14 @@ public class BulletinsController : ControllerBase
         IJobLookupService jobLookupService,
         IJobRepository jobRepository,
         BulletinTokenRegistry tokenRegistry,
+        ITextSubstitutionService textSubstitution,
         ILogger<BulletinsController> logger)
     {
         _bulletinService = bulletinService;
         _jobLookupService = jobLookupService;
         _jobRepository = jobRepository;
         _tokenRegistry = tokenRegistry;
+        _textSubstitution = textSubstitution;
         _logger = logger;
     }
 
@@ -98,7 +102,12 @@ public class BulletinsController : ControllerBase
             Pulse = pulse
         };
 
-        var resolved = _tokenRegistry.ResolveTokens(request.Html ?? string.Empty, ctx);
+        // Same job tokens the public fetch path resolves. Preview must match what a visitor will
+        // see: an author shown a raw !JSEG would "fix" it by hand-typing a URL, which is how the
+        // legacy hard-coded links in these bulletins came to exist.
+        var jobTokens = await _textSubstitution.BuildJobTokensAsync(jobMetadata.JobId, cancellationToken);
+
+        var resolved = _tokenRegistry.ResolveTokens(request.Html ?? string.Empty, ctx, jobTokens);
         return Ok(new BulletinPreviewResponse { Html = resolved });
     }
 

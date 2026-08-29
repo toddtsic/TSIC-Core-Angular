@@ -63,8 +63,12 @@ public interface ITextSubstitutionService
     Task<JobInvariantFieldsData?> LoadJobInvariantFieldsAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Substitutes job-level tokens only (e.g., !JOBNAME, !USLAXVALIDTHROUGHDATE).
-    /// Use this for anonymous/public content like bulletins and menus.
+    /// The JOB-SCOPED token values only — everything that depends on the job and nothing on the
+    /// viewer. Use this for anonymous/public content like bulletins and menus: the person-scoped
+    /// tokens are not reachable through it, so no viewer data can leak onto a public page.
+    /// Keys carry no leading '!' (BulletinTokenRegistry's convention). Empty when the job is
+    /// not found. See <see cref="JobTokens"/>.
     /// </summary>
-    Task<string> SubstituteJobTokensAsync(string jobPath, string template);
+    Task<IReadOnlyDictionary<string, string>> BuildJobTokensAsync(
+        Guid jobId, CancellationToken cancellationToken = default);
 }

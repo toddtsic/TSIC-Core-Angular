@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using TSIC.API.Services.Shared.TextSubstitution;
 
 namespace TSIC.API.Services.Shared.Bulletins.TokenResolution;
 
@@ -19,12 +20,39 @@ public sealed partial class BulletinTokenRegistry
     public BulletinTokenRegistry(IEnumerable<IBulletinTokenResolver> resolvers)
     {
         _resolvers = resolvers.ToDictionary(r => r.TokenName, StringComparer.Ordinal);
+
+        // Two sources of truth for one token is always a bug. Job tokens (JobTokens.Names) and
+        // widget resolvers share this namespace; a collision would let a resolver silently
+        // shadow a job value. Fail loudly rather than pick a winner.
+        var collisions = JobTokens.Names.Where(_resolvers.ContainsKey).ToList();
+        if (collisions.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Bulletin token name(s) served by both a resolver and JobTokens: {string.Join(", ", collisions)}.");
+        }
     }
 
     /// <summary>All registered resolvers, in registration order.</summary>
     public IReadOnlyCollection<IBulletinTokenResolver> All => _resolvers.Values;
 
-    public string ResolveTokens(string html, TokenContext ctx)
+    /// <summary>
+    /// Resolves widget tokens and, when supplied, job tokens in a SINGLE walk.
+    /// One pass matters: Regex.Replace never re-scans what it just inserted, so a job value
+    /// that happens to look like a token (a job named "SUMMER!BLAST") can never be misread.
+    /// A second sequential substitution pass would have that hazard.
+    /// </summary>
+    /// <param name="ctx">
+    /// Widget context. NULL when the job pulse could not be loaded — widget tokens then pass
+    /// through verbatim, exactly as they did before, while job tokens still resolve. Job values
+    /// must not depend on pulse availability: !JOBNAME resolved without it previously and a
+    /// regression there would put a raw token on a public page.
+    /// </param>
+    /// <param name="jobTokens">
+    /// Job-scoped values from ITextSubstitutionService.BuildJobTokensAsync, keyed without the
+    /// leading '!'. Null on paths with no job context; those tokens then pass through verbatim,
+    /// exactly like any unknown token.
+    /// </param>
+    public string ResolveTokens(string html, TokenContext? ctx, IReadOnlyDictionary<string, string>? jobTokens = null)
     {
         if (string.IsNullOrEmpty(html))
         {
@@ -34,8 +62,13 @@ public sealed partial class BulletinTokenRegistry
         return TokenRegex().Replace(html, match =>
         {
             var name = match.Groups[1].Value;
-            return _resolvers.TryGetValue(name, out var resolver)
-                ? resolver.Resolve(ctx)
+            if (ctx != null && _resolvers.TryGetValue(name, out var resolver))
+            {
+                return resolver.Resolve(ctx);
+            }
+
+            return jobTokens != null && jobTokens.TryGetValue(name, out var value)
+                ? value
                 : match.Value;
         });
     }

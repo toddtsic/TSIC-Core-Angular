@@ -7,11 +7,6 @@ namespace TSIC.Contracts.Repositories;
 public interface ITextSubstitutionRepository
 {
     /// <summary>
-    /// Get job basic info for token substitution.
-    /// </summary>
-    Task<JobTokenInfo?> GetJobTokenInfoAsync(string jobPath, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Load fixed fields for a single registration.
     /// </summary>
     Task<List<FixedFieldsData>> LoadFixedFieldsByRegistrationAsync(Guid registrationId, CancellationToken cancellationToken = default);
@@ -134,15 +129,6 @@ public interface ITextSubstitutionRepository
     /// dropped (a request is advisory, not a gate).
     /// </summary>
     Task<List<CoachTeamChoice>> GetTeamLabelsByIdsAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default);
-}
-
-/// <summary>
-/// Job info for simple token substitution.
-/// </summary>
-public record JobTokenInfo
-{
-    public required string JobName { get; init; }
-    public DateTime? UslaxNumberValidThroughDate { get; init; }
 }
 
 /// <summary>

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Adults;
@@ -100,18 +101,13 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         _frontendBaseUrl = (frontendSettings.Value.BaseUrl ?? string.Empty).TrimEnd('/');
     }
 
-    public async Task<string> SubstituteJobTokensAsync(string jobPath, string template)
+    public async Task<IReadOnlyDictionary<string, string>> BuildJobTokensAsync(
+        Guid jobId, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(template)) return template;
-
-        var job = await _repo.GetJobTokenInfoAsync(jobPath);
-        if (job == null) return template;
-
-        var uslaxDate = job.UslaxNumberValidThroughDate?.ToString("M/d/yy") ?? string.Empty;
-
-        return template
-            .Replace("!JOBNAME", job.JobName, StringComparison.OrdinalIgnoreCase)
-            .Replace("!USLAXVALIDTHROUGHDATE", uslaxDate, StringComparison.OrdinalIgnoreCase);
+        var job = await _repo.LoadJobInvariantFieldsAsync(jobId, cancellationToken);
+        return job == null
+            ? new Dictionary<string, string>(StringComparer.Ordinal)
+            : JobTokens.Build(job, _frontendBaseUrl);
     }
 
     public async Task<string> SubstituteAsync(
