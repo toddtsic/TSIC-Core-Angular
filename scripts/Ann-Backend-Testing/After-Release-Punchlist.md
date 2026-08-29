@@ -88,6 +88,7 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 | **AR-060** | **New 08-29 — store flow, Ann's four questions.** **Q2/Q3 is a concrete defect and the cheapest win:** `credit-card-form` accepts **six** `default*` autofill inputs and the store checkout passes **one** (`defaultEmail`, only if the username has an `@`). So a **walk-up shopper types name/address/ZIP/phone on the way in and is asked for all four AGAIN at payment** — we already hold every value. No "same as shipping" checkbox needed; there is no shipping address (pickup at event) — just pre-fill. **Q1 (why identity before browsing) is a real product decision**: the store is gated at the door (Family Sign In or an 8-field walk-up form) before any product is visible — inverted from normal e-commerce, but it's legacy's shape and deferring identity needs a guest-cart→identity merge. **Q4 ✅ ANSWERED: the family/parent account is the customer; the player is a per-LINE recipient** (`DirectToRegId`/`DirectToPlayerName`) — one order can carry items for several players, which is exactly why AR-059 wants Recipient as its own column. |
 | **AR-061** | **New 08-29 — "Browse the Store" is the LAST element on the player confirmation step**, below the director's entire `confirmationHtml` — status table, contacts, **and the full waiver bullet list**. It's also `btn-outline-primary`, the low-emphasis variant, so "make it prominent" means reversing a styling choice too. **Two lines fixes Ann's ask** (move above `confirmation-content`, switch to `btn-primary`); suggest keeping a second copy at the bottom. **🔴 The bigger find: the store CTA exists on exactly ONE surface in the whole app** — the player wizard. **Adult/coach and team/club-rep confirmations have none**, and those are the people who buy event apparel. Reuse the existing `checkStoreAvailability()` probe. |
 | **AR-062** | **✅ ANSWERED 08-29, no action** — Ann asked how Camps & Clinics differs from a tournament. **A tournament is a TEAM site; a camp is a PLAYER site, grouped with Club and Showcase** (`visibility-rules.ts:50` = `playerSiteOnly`). Five traced differences: who registers · **coach self-reg does not exist on camps (the server THROWS — `ResolveCoach` handles only Club/Tournament/League)** · no referee/recruiter (gated on `competitive()` = tournament-or-league) · "Register Player" vs "Self-Roster Player" · no Public Rosters / change-team. Camps get their own tooling instead (Camp Groups, camp roster preset). ✅ Checked the AR-054 interaction: **zero camp/showcase jobs have coach reg enabled**, so the throw isn't reachable today. 🟡 **One real finding**: the FRONTEND `job-type.constants.ts` is missing `Showcase: 6` despite **271 jobs** using it (backend has it), so `visibility-rules.ts:50` hardcodes a bare `6`. One-line fix. |
+| **AR-063** | **New 08-29 — parity sweep result, and it redirects the effort.** ⛔ **Do NOT commission a fresh store comparison — Todd's `STORE-CARBON-COPY-PARITY.md` already holds it and its inventory is COMPLETE (08-28).** Status tally: **74 `IMPL` · 12 `DONE` · 4 `WALKED` · 3 `REFUSED` · 2 `UNVER` · 1 `GAP`** — so **only 12 of 96 pathways are verified against a legacy run**, and the ledger's own rule is that `IMPL` is not a pass. **The outstanding work is VERIFICATION, not discovery**, and Ann's walkthroughs are the instrument that converts it. **Three findings from this pass:** (1) 🔴 **AR-059 is now pure parity and unblocked** — legacy's `CustomerBatchOrder` declares *exactly* Ann's eight columns in her order, and legacy drew `JobDisplayOptions.logo_header` (populated on **all 1,095 jobs**) into the PDF; both open questions closed against legacy source. (2) 🟠 **Multi-image is moot** — measured across all jobs, **32 items: 12 with ZERO images, 20 with one, NONE with two.** A carousel would page through one picture. **The real hole is that 37.5% of items have no image at all, and AR-057 is a plausible cause.** (3) ✅ **The identity gate IS legacy parity** (`StoreFamilyController` is `[Authorize]`), so **AR-060 Q1 is a deliberate departure from the carbon-copy spec and needs Todd's ruling** — restoring parity would cement it, not fix it. |
 | **⚠️ AR-052 + AR-053 shared** | **One question governs both, worth answering before any bulk edit:** what will **`www.teamsportsinfo.com`** resolve to after go-live? Every one of these authored links is absolute to `www`. If `www` becomes the new app they turn into in-app paths and only the route/modal mappings matter; if `www` stays legacy, all of them need their host rewritten too. |
 
 **~~Also outstanding~~ — ANSWERED (Todd, 08-21): "dev was deployed."** So Ann's 08-21 verifies of AR-003/AR-006/AR-008 were against current code and stand, and AR-017 is a live bug rather than a stale bundle. Keep flagging any future "fixed" item she cannot see.
@@ -486,7 +487,7 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 - **Severity**: ⚪ None — the requested behaviour already ships
 - **Status**: ⛔ **NO ACTION — Todd, 08-26.** Filed and closed the same day. Last of Ann's TSIC-Teams items for 08-26.
 
-<!-- New items go below this line, newest at the bottom, next id = AR-063 -->
+<!-- New items go below this line, newest at the bottom, next id = AR-064 -->
 
 ### AR-050: [USA Lacrosse National Rankings] ⚠️ **REVISED 08-28 — the year-pin root cause is REFUTED.** The dropdown populates; the labels are mangled. The silent-failure defect stands, and is now the *only* remaining explanation for what Ann saw
 - **Topic**: Tools → **US Lacrosse National Rankings** (`uslax-rankings`) → the two-dropdown selector row
@@ -814,9 +815,13 @@ The coach filter is looser **on purpose**: a coach doesn't self-roster, so team 
 
 **✅ THE KEY FINDING: `StoreCartLineItemDto` already carries every field Ann named** (`StoreCartDtos.cs:29-43` — `FeeProduct`, `FeeProcessing`, `FeeTotal`, `LineTotal`, `DirectToPlayerName` are all there). **`FeeProduct` and `FeeTotal` are populated and simply never printed.** So this is a **column-set edit in one method**, not a data or repository change.
 
-**❓ TWO THINGS ANN NEEDS TO CONFIRM BEFORE TODD BUILDS IT:**
-1. **What is "Paid" per line?** `LineTotal` is the obvious candidate, but if a batch can be partially paid or partly refunded, a per-line "Paid" may not equal the line total. **If it just means the line total, say so and this is trivial.**
-2. **Do Variant and Tax stay?** Ann's list has neither. **Variant carries colour/size** — dropping it makes two rows of the same shirt indistinguishable, so I'd keep it (with Recipient split out into its own column). **Tax** is currently printed per line; her list omits it. **Confirm whether to drop it or keep it as a ninth column.**
+**✅✅ BOTH QUESTIONS ANSWERED BY LEGACY — 08-29, and Ann's list is an EXACT parity match.** I opened the legacy receipt generator rather than guess. Legacy binds its PDF grid to `receipt.BatchOrders` (`IStoreService.cs:708`), and that row class — `CustomerBatchOrder` (`Store_ViewModels.cs:245-255`) — declares **exactly eight properties, in exactly this order**:
+```
+Player · Item · Quantity · UnitPrice · FeeProduct · FeeProcessing · FeeTotal · PaidTotal
+```
+**That is Ann's list, one for one, in her order** — "Recipient" = `Player`, "Paid" = `PaidTotal`. **She was reciting the legacy receipt from memory, column for column.** Under the carbon-copy ruling this is not a preference; it is the spec.
+1. **"Paid" = `PaidTotal`, a real per-row legacy field** — *not* `LineTotal`, which was my guess. Check what the new side populates it from before wiring it.
+2. **Variant and Tax: legacy had NEITHER.** No variant column, no tax column. **So Ann's eight are complete, and Variant/Tax are new-side additions.** ⚠️ **Do not silently drop Variant, though** — legacy's `Item` string may already carry colour/size, in which case dropping it loses nothing; if it doesn't, two rows of the same shirt become indistinguishable. **Check what legacy put in `Item` before removing the column.**
 - ⚠️ **Width is the real constraint, and it collides with Part 1**: 7 columns already fit a landscape page; Ann's set is 8–9. `grid.Columns[0].Width = 160` (Item) is hand-set at `:304`. **A portrait receipt (option b above) makes the column problem harder, not easier — so decide Part 1's shape BEFORE widening the table.**
 - 🔸 **One semantic to preserve**: the totals footer comment at `:317` states **"FeeProduct IS the subtotal, not a fee."** If that's right, a column headed *"Product Fee"* is arguably mis-named for what it holds — worth Ann and Todd agreeing what the heading should read before it ships, since the footer's subtotal maths depends on that meaning.
 - 🔸 Don't regress `138f477cc` — the Variant cell uses an **ASCII** separator on purpose; the PDF font drops the em dash and leaves a gap.
@@ -824,13 +829,13 @@ The coach filter is looser **on purpose**: a coach doesn't self-roster, so team 
 ## Part 3 — LOGO at the top, prominent (added by Ann, 08-29)
 **Request (Ann)**: *"Logo should be present at the top and be prominent!"*
 **✅ CONFIRMED ABSENT — the receipt has no image of any kind.** I grepped `StoreReceiptService.cs` for logo / image / `DrawImage` / `PdfBitmap`: **zero hits.** The header is text only — `"Store: {jobName}"` in 14pt Times Bold, then a slate-blue **RECEIPT** bar, then date and invoice number (`:180-200`). A customer's kept copy of the purchase carries no branding at all.
-- **✅ The source exists**: `Jobs.bannerFile` holds a filename (e.g. `steps.jpg`) and is populated on **616 jobs**; `bBannerIsCustom` flags per-job artwork vs the customer default. So there is something to draw, and Syncfusion `PdfBitmap` + `DrawImage` is the mechanism.
-- **⚠️ TWO THINGS TO CHECK BEFORE BUILDING IT, both learned the hard way elsewhere:**
-  1. **`bannerFile` is a BANNER, not a logo** — wide, not square. Dropped into a receipt header it will either dominate the page or need cropping. **Confirm with Ann whether the banner is the right asset**, or whether a separate logo field is wanted. It may look nothing like what she pictures.
-  2. **🔴 Where does the PDF read the file FROM?** Images live on the statics host, which **is the PRODUCTION box** — this is the same topology that makes headshots 404 on dev/staging (a known, documented artifact). **A receipt generated off-prod may fail to fetch the image**, so this must degrade gracefully — no logo rather than a broken receipt — and **cannot be judged working on dev.** Verify in Production.
+- **✅✅ LEGACY HAD A LOGO — this is parity, not a new ask. And I had the wrong source.** `IStoreService.GenerateInvoicePdf` reads **`JobDisplayOptions.logo_header`** (`:608-612`), fetches it over HTTP, and draws it with `PdfBitmap` + `DrawImage` (`:636-640`). **⛔ CORRECTION: it is NOT `Jobs.bannerFile`** — that was my guess before opening the legacy source, and it was wrong.
+- **✅ The source is universal**: `logo_header` is populated on **all 1,095 jobs** (values like `{guid}_logoheader.png`). Nothing to backfill.
+- **⚠️ But legacy's was SMALL and top-RIGHT** — drawn at **50×50 px** at `ClientSize.Width - 50`. **So "present at the top" is parity; "prominent" is Ann asking for MORE than legacy.** Worth Todd knowing which half is the carbon-copy obligation and which is the enhancement — a 50×50 corner mark is not what "prominent" describes.
+- **🔴 Where the file is fetched FROM is the risk.** Legacy pulled it over HTTP from its own base address. Images live on the statics host, which **is the PRODUCTION box** — the same topology that makes headshots 404 on dev/staging. **A receipt generated off-prod may fail to fetch it**, so it must degrade gracefully (no logo, never a broken receipt) and **cannot be judged working on dev.** Verify in Production.
 - 🔸 **Interacts with Part 1**: a prominent logo costs vertical space on a page already too small in a 600px column, and Part 2 wants more columns. **Decide the page shape (landscape vs portrait, breakout width) before laying out a header band.**
 - **Severity**: 🟡 **Customer-facing document, legibility + completeness.** The receipt is what a shopper keeps and what they email back when they query a charge.
-- **Status**: 🔴 **OPEN — Part 2 needs Ann's two answers, then Todd.** Both halves confirmed in code; all required data already present. Part of Ann's 08-29 store pass with **AR-057** / **AR-058**.
+- **Status**: 🔴 **OPEN — for Todd; no longer blocked on Ann.** ✅ Updated 08-29 against the legacy source: her eight columns are an exact match for legacy's `CustomerBatchOrder`, and legacy drew a `logo_header` image — so Parts 2 and 3 are both **carbon-copy parity obligations**, not preferences. All required data already present on the new side. Part of Ann's 08-29 store pass with **AR-057** / **AR-058** / **AR-060** / **AR-061**.
 
 
 ### AR-060: [Store flow] Identity is collected BEFORE the catalog, and then collected again at payment — the CC form already accepts six autofill inputs and the store passes exactly one
@@ -924,6 +929,49 @@ For a **family sign-in** shopper the account carries the same contact details th
 - **The file's own docstring claims it "mirrors backend `JobConstants`" — it no longer does.** Low-risk today, but the next person adding a player-site rule has no `JobType.Showcase` to reach for and will copy the literal. **Small fix: add `Showcase: 6` and replace the literals.**
 - **Severity**: ⚪ **Question — answered, no action.** The constant gap is 🔵 minor housekeeping.
 - **Status**: ✅ **ANSWERED (Claude, 08-29).** Ann's question resolved; no defect in camp handling. Leaving 🔴 only for Todd's call on the one-line `Showcase: 6` constant.
+
+### AR-063: [Store parity sweep] Legacy-vs-new comparison — the ledger already exists and its inventory is COMPLETE; the outstanding work is VERIFICATION, and three concrete gaps came out of this pass
+- **Topic**: Store → legacy (`reference/TSIC-Unify-2024`) vs new, whole-surface comparison
+- **Request (Ann, 08-29)**: *"What we're looking for is parity with what legacy had… do a comparison of the two sites (legacy and new) and see what else needs to be updated."*
+
+**⛔ FIRST, THE THING THAT CHANGES HOW THIS SHOULD BE RUN: the comparison already exists, and re-doing it would be waste.** `docs/Plans/STORE-CARBON-COPY-PARITY.md` (819 lines) is Todd's carbon-copy ledger, opened under his 2026-08-27 ruling — ***"`reference/TSIC-Unify-2024` IS THE SPEC. Where the new store diverges, legacy is right and the new code conforms. Every pathway migrates."*** **It states its inventory is COMPLETE as of 2026-08-28**, mechanically enumerated from legacy source across every store screen.
+- **⚠️ It also forbids the obvious next move**: *"Never describe a legacy pathway from this file. Open the legacy source."* **Any parity answer must come from `reference/`, not from a summary.** Everything below was read from legacy source.
+
+**📊 WHERE THE LEDGER ACTUALLY STANDS (status tally, 08-29):**
+| Status | Count | Meaning per the ledger's own key |
+|:--|--:|:--|
+| **`IMPL`** | **74** | **code written to legacy semantics — NOT yet verified against a legacy run** |
+| `DONE` | 12 | reproduced **and verified** against legacy |
+| `WALKED` | 4 | legacy screen opened and compared with Todd |
+| `REFUSED` | 3 | deliberately not built, reason recorded |
+| `UNVER` | 2 | exists, never checked pathway-by-pathway |
+| `GAP` | 1 | confirmed absent |
+- **🎯 SO THE ANSWER TO "WHAT ELSE NEEDS UPDATING" IS MOSTLY *NOT* DISCOVERY — IT IS VERIFICATION.** Only **12 of 96** pathways have been confirmed against a legacy run. **74 are built-but-unverified**, and the ledger's own rule is explicit: *"`UNVER` is the default and it is not a pass. Nothing becomes `DONE` without a legacy comparison."* **Ann's walkthrough is exactly the instrument that converts `IMPL` → `DONE`** — every item she filed today was a real divergence found in built code.
+
+**✅ ANN'S ITEMS ARE NOT DUPLICATES — the ledger tracks pathways, not presentation.** Searched it for each: **`autofill` 0 hits · `billing` 0 · `logo` 0 · `Browse the Store` 0 · `gallery` 0.** The ledger enumerates controller actions, grid columns and buttons; **layout, sizing, field pre-fill and CTA placement fall between its rows.** AR-057…AR-061 are genuine additions.
+
+## Three concrete findings from this pass
+
+**1. 🔴 The receipt logo and column set are PARITY OBLIGATIONS, not preferences — both fed back into AR-059.**
+- Legacy's receipt row class `CustomerBatchOrder` (`Store_ViewModels.cs:245-255`) declares **exactly** `Player · Item · Quantity · UnitPrice · FeeProduct · FeeProcessing · FeeTotal · PaidTotal` — **Ann's eight columns, in her order.** She was reciting legacy.
+- Legacy drew **`JobDisplayOptions.logo_header`** into the PDF (`IStoreService.cs:608-612`, `:636-640`) — populated on **all 1,095 jobs**. The new receipt has **no image of any kind**.
+- **Both are now recorded in AR-059 with the legacy line references, and its two open questions are closed.**
+
+**2. 🟠 MULTI-IMAGE IS MOOT IN PRACTICE — and the real merchandising gap is emptier than that.** Measured across **all** jobs, not one: the store holds **32 items total — 12 with ZERO images, 20 with exactly one, and NOT ONE with two or more.**
+- **So restoring legacy's carousel would page through a single picture.** The ledger reached the same conclusion independently (A-03, `DONE`: *"no item in the database has ever had two — multi-image is capability, not an observed case"*). **AR-058's multi-image half is therefore already satisfied and should not be built up further.**
+- **🔴 The finding that matters: 12 of 32 items (37.5%) have NO IMAGE AT ALL** and render a placeholder. That is a merchandising hole far larger than carousel-vs-strip, and **AR-057 is a plausible cause** — photos live on a separate tab a director has to go hunting for, exactly as Ann did. **Recommend treating AR-057 as the fix for this number, and re-measuring after.**
+
+**3. ✅ THE STORE'S IDENTITY GATE IS LEGACY PARITY — so AR-060 Q1 is a change request, not a regression.** Legacy's `StoreFamilyController` is `[Authorize]` at class level with only two `[AllowAnonymous]` actions. **Legacy also made you identify yourself before shopping.**
+- ⚠️ **This matters for how Todd reads AR-060**: under the carbon-copy ruling, *restoring parity would CEMENT the behaviour Ann objects to, not fix it.* Deferring identity to checkout is a **deliberate, ruled departure from legacy** — the one item in her store pass that cannot be justified as parity. **It needs Todd's explicit decision, not a parity argument.**
+- 🔸 By contrast **AR-060's Q2/Q3 (autofill) is neutral to the ruling** — legacy had no autofill either, but re-asking for data the app already holds is a defect on any standard. Safe to fix.
+
+**🎯 For Todd — what this pass says to do:**
+1. **AR-059 is now unblocked and is pure parity** — the column list and the logo both trace to legacy source. Smallest, best-evidenced item in the set.
+2. **Point the remaining effort at the 74 `IMPL` rows.** Discovery is finished; **verification against a legacy run is the whole job**, and it is what turns Ann's walkthroughs into closures.
+3. **AR-058: build the imagery sizing, drop the carousel question.** The data says there is nothing to page through.
+4. **AR-060 Q1 needs a ruling**, since it is the one request that runs *against* the carbon-copy spec rather than toward it.
+- **Severity**: ⚪ **Analysis — no defect of its own.** Feeds AR-057…AR-061.
+- **Status**: ✅ **COMPLETE (Claude, 08-29).** Comparison run against legacy source; AR-059 updated with what it settled. **Recommend NOT commissioning a fresh full sweep** — Todd's ledger already holds the inventory, and its bottleneck is verification.
 
 ### AR-038: 🚨🚨 [Privacy / Med Forms] A player's medical form is visible on EVERY registration they hold — across jobs AND across unrelated customers
 - **Topic**: Search Registrations → registrant fly-in → **"Medical form on file" / View** (`MedFormController`, `MedFormService`)
