@@ -193,6 +193,59 @@
 	}
 }
 
+// ── Second accordion: the chart panel ───────────────────
+// Deliberately the SAME shell as .jrcd__summary — inset-shadow border, tertiary fill,
+// identical hover and focus treatment — so the two read as sibling controls rather than
+// one styled accordion and one plain link. What it does NOT share is the column grid:
+// there are no figures to align, so it is a plain flex row.
+
+.jrcd__panel-head {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	width: 100%;
+	margin-top: var(--space-3);
+	padding: var(--space-2);
+	border: 0;
+	box-shadow: inset 0 0 0 1px var(--bs-border-color);
+	border-radius: var(--radius-md);
+	background: var(--bs-tertiary-bg);
+	color: var(--brand-text);
+	text-align: left;
+	cursor: pointer;
+	transition: background-color 0.12s ease;
+
+	&:hover {
+		background: var(--bs-secondary-bg);
+	}
+
+	// Same reason as .jrcd__summary: the border IS the box-shadow, so the focus ring has
+	// to re-declare it or it disappears on focus.
+	&:focus-visible {
+		outline: none;
+		box-shadow: inset 0 0 0 1px var(--bs-border-color), var(--shadow-focus);
+	}
+}
+
+.jrcd__panel-label {
+	font-size: var(--font-size-sm);
+	font-weight: 700;
+}
+
+// "top 12 of 73" — states the fold rather than letting the chart quietly omit events.
+.jrcd__panel-note {
+	margin-left: auto;
+	font-size: var(--font-size-xs);
+	color: var(--brand-text-muted);
+}
+
+.jrcd__chart {
+	margin-top: var(--space-2);
+	// ej2 renders an SVG sized to the container; without this the chart can report a
+	// width one frame before the panel has one.
+	min-width: 0;
+}
+
 // ── Column widths ───────────────────────────────────────
 // Per the shared sheet's rule: every column declares a width EXCEPT Event, which is
 // marked .wt-flex and takes the remainder. These seven total 40.75rem (652px), so in a
@@ -258,7 +311,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.jrcd__summary {
+	.jrcd__summary,
+	.jrcd__panel-head {
 		transition: none !important;
 		animation: none !important;
 	}

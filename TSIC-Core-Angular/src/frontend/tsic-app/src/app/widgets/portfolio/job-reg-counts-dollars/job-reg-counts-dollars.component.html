@@ -175,11 +175,93 @@
 					</tbody>
 				</table>
 			</div>
-
-			<p class="jrcd__footnote">
-				Live events only — those still open to users. <strong>Owed</strong> includes contracted
-				payment-plan installments that are not yet due; it is not a past-due figure.
-			</p>
 		}
+
+		<!-- SECOND accordion: the at-a-glance view of the same response. Bar length is the
+		     contracted fee, split into what is banked and what is still outstanding, so
+		     size and collection state are read in one pass. Open by default. -->
+		<button
+			type="button"
+			class="jrcd__panel-head"
+			[attr.aria-expanded]="isChartOpen()"
+			aria-controls="jrcd-chart"
+			(click)="toggleChart()">
+
+			<i class="bi jrcd__chev" [class.bi-chevron-right]="!isChartOpen()"
+				[class.bi-chevron-down]="isChartOpen()" aria-hidden="true"></i>
+			<span class="jrcd__panel-label">Billed vs Collected by Event</span>
+			<!-- States every reason the chart shows fewer bars than the table has rows. -->
+			@if (chartNote()) {
+				<span class="jrcd__panel-note">{{ chartNote() }}</span>
+			}
+		</button>
+
+		@if (isChartOpen()) {
+			<div class="jrcd__chart" id="jrcd-chart">
+				<!-- Every live event can legitimately be pre-billing (a customer whose whole
+				     calendar is next season). An empty plot with axes would read as a
+				     failure; say what is actually true instead. -->
+				@if (chartBars().length === 0) {
+					<div class="jrcd__state">
+						<i class="bi bi-hourglass-split" aria-hidden="true"></i>
+						<span>No fees billed yet on any live event.</span>
+					</div>
+				} @else {
+				<ejs-chart
+					[primaryXAxis]="chartXAxis()"
+					[primaryYAxis]="chartYAxis()"
+					[tooltip]="chartTooltip()"
+					[legendSettings]="chartLegend()"
+					[chartArea]="chartArea"
+					[margin]="chartMargin"
+					[width]="'100%'"
+					[height]="chartHeight()"
+					[background]="'transparent'"
+					(tooltipRender)="onChartTooltip($event)"
+					(axisLabelRender)="onChartAxisLabel($event)"
+					(textRender)="onChartTextRender($event)">
+
+					<e-series-collection>
+						<!-- Paid then Owed, one hue at two steps: this is part-to-whole of a
+						     single measure (dollars), not two identities, so a second colour
+						     would assert a distinction that is not there.
+						     Both fills are SOLID — the lighter step is a computed tint, not a
+						     series opacity, because ej2 builds legend swatches from `fill` and
+						     ignores opacity there, which would give the two keys the identical
+						     colour. The 2px border in the card colour is the gap between
+						     segments — not an outline around them. -->
+						<e-series
+							[dataSource]="chartBars()"
+							type="StackingBar"
+							xName="name"
+							yName="paid"
+							name="Paid"
+							[fill]="paidColor()"
+							[border]="{ width: 2, color: surfaceColor() }"
+							[columnWidth]="0.65">
+						</e-series>
+						<e-series
+							[dataSource]="chartBars()"
+							type="StackingBar"
+							xName="name"
+							yName="owed"
+							name="Owed"
+							[fill]="owedColor()"
+							[border]="{ width: 2, color: surfaceColor() }"
+							[columnWidth]="0.65"
+							[marker]="{ dataLabel: feeTotalLabel() }">
+						</e-series>
+					</e-series-collection>
+				</ejs-chart>
+				}
+			</div>
+		}
+
+		<!-- Outside both panels: the Owed caveat applies to the chart as much as the table,
+		     and the chart is the one that opens by default. -->
+		<p class="jrcd__footnote">
+			Live events only — those still open to users. <strong>Owed</strong> includes contracted
+			payment-plan installments that are not yet due; it is not a past-due figure.
+		</p>
 	}
 </div>
