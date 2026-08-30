@@ -731,6 +731,21 @@ export const routes: Routes = [
 				path: 'clubrepviupdate',
 				redirectTo: 'ClubRepVIUpdate',
 				pathMatch: 'full'
+			},
+			// Post-registration self-roster re-entry (change team / uniform # / cancel) — URL
+			// baked into the player confirmation on-screen text AND confirmation email on 120
+			// jobs, and copied onto every clone by JobCloneResetRules. Exact-case path preserved
+			// for the same reason as the VIUpdate pair above. The destination is a modal rather
+			// than a page, so this loads a shim that opens it; the modal carries its own login
+			// for the cold arrival an emailed link produces.
+			{
+				path: 'PlayerWaiverUpdate',
+				loadComponent: () => import('./views/registration/self-roster-update/player-waiver-update-route.component').then(m => m.PlayerWaiverUpdateRouteComponent)
+			},
+			{
+				path: 'playerwaiverupdate',
+				redirectTo: 'PlayerWaiverUpdate',
+				pathMatch: 'full'
 			}
 		]
 	},
