@@ -71,14 +71,27 @@
 }
 
 // ── The single summary line / accordion header ──────────
+// Laid out on the SAME column grid as the table beneath it, so every rollup figure sits
+// directly over the column it summarises. It was a flex row pushed right with a fixed
+// gap, which gave it no relationship to the columns at all — "$845,500 FEES" landed
+// between the Fees and Paid headings and the reader had to do the alignment by eye.
 
 .jrcd__summary {
-	display: flex;
-	align-items: center;
-	gap: var(--space-3);
+	display: grid;
+	// Mirrors the .jrcd__c-* widths exactly, with 1fr standing in for the one column the
+	// table leaves undeclared. If those widths change, this MUST change with them.
+	grid-template-columns: minmax(0, 1fr) 5.5rem 8rem 5rem 5rem 5.75rem 5.75rem 5.75rem;
+	// Two-line stats, one-line heading: bottom-align so the figures share a baseline row
+	// with the label beside them.
+	align-items: end;
 	width: 100%;
-	padding: var(--space-3);
-	border: 1px solid var(--bs-border-color);
+	// Horizontal padding is ZERO here and lives on each cell instead, matching the table's
+	// own cell padding. Outer padding would inset all eight columns and undo the alignment.
+	padding: var(--space-2) 0;
+	// Inset shadow, NOT a border: a real border eats 1px of content width and shifts every
+	// column off the table below it. Identical appearance, no layout cost.
+	border: 0;
+	box-shadow: inset 0 0 0 1px var(--bs-border-color);
 	border-radius: var(--radius-md);
 	background: var(--bs-tertiary-bg);
 	color: var(--brand-text);
@@ -90,10 +103,20 @@
 		background: var(--bs-secondary-bg);
 	}
 
+	// The border is a box-shadow now, so the focus ring has to carry it too or the
+	// outline vanishes the moment the control is focused.
 	&:focus-visible {
 		outline: none;
-		box-shadow: var(--shadow-focus);
+		box-shadow: inset 0 0 0 1px var(--bs-border-color), var(--shadow-focus);
 	}
+}
+
+.jrcd__summary-head {
+	grid-column: 1;
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: 0 var(--space-2);
 }
 
 .jrcd__chev {
@@ -112,18 +135,19 @@
 	color: var(--brand-text-muted);
 }
 
-.jrcd__summary-stats {
-	margin-left: auto;
-	display: flex;
-	flex-wrap: wrap;
-	align-items: baseline;
-	gap: var(--space-5);
-}
-
 .jrcd__stat {
 	display: flex;
-	align-items: baseline;
-	gap: var(--space-1);
+	flex-direction: column;
+	align-items: flex-end;
+	padding: 0 var(--space-2);
+	text-align: right;
+}
+
+// Only the first stat is placed; grid auto-flow carries the remaining four into columns
+// 5 through 8. Columns 2 and 3 (Type, Starts) are deliberately left empty — a rollup of
+// a job type or a start date would be meaningless.
+.jrcd__stat--lead {
+	grid-column: 4;
 }
 
 .jrcd__stat-v {
@@ -136,11 +160,37 @@
 	font-variant-numeric: tabular-nums;
 }
 
+// Deliberately the same treatment as `thead th` in the shared sheet — sitting above its
+// figure and over its column, this IS a column heading and should read as one.
 .jrcd__stat-k {
 	font-size: var(--font-size-xs);
+	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.03em;
 	color: var(--brand-text-muted);
+}
+
+// Below the table's own scroll threshold the grid would squeeze the 1fr column to nothing
+// and overflow, while the summary — unlike the table — has no scroll container to escape
+// into. Fall back to the wrapped flex row, where alignment is moot anyway.
+@media (max-width: 48rem) {
+	.jrcd__summary {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: var(--space-3);
+		padding: var(--space-3);
+	}
+
+	.jrcd__stat {
+		flex-direction: row;
+		align-items: baseline;
+		gap: var(--space-1);
+	}
+
+	.jrcd__stat--lead {
+		grid-column: auto;
+	}
 }
 
 // ── Column widths ───────────────────────────────────────

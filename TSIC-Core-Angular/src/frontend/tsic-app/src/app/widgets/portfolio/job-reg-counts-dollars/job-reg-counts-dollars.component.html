@@ -30,7 +30,11 @@
 		</div>
 	} @else {
 
-		<!-- ONE accordion. Collapsed = the rollup line alone. -->
+		<!-- ONE accordion. Collapsed = the rollup line alone.
+		     Laid out on the table's own column grid (see .jrcd__summary), so each figure
+		     sits over the column it summarises and the label above it reads as that
+		     column's heading. The labels stay when EXPANDED too: collapsed is the default
+		     state, and that is exactly when no table headings exist to name the numbers. -->
 		<button
 			type="button"
 			class="jrcd__summary"
@@ -38,34 +42,33 @@
 			aria-controls="jrcd-rows"
 			(click)="toggle()">
 
-			<i class="bi jrcd__chev" [class.bi-chevron-right]="!isOpen()"
-				[class.bi-chevron-down]="isOpen()" aria-hidden="true"></i>
-
-			<span class="jrcd__summary-label">
-				Summary <span class="jrcd__count">({{ rows().length | number }})</span>
+			<span class="jrcd__summary-head">
+				<i class="bi jrcd__chev" [class.bi-chevron-right]="!isOpen()"
+					[class.bi-chevron-down]="isOpen()" aria-hidden="true"></i>
+				<span class="jrcd__summary-label">
+					Summary <span class="jrcd__count">({{ rows().length | number }})</span>
+				</span>
 			</span>
 
-			<span class="jrcd__summary-stats">
-				<span class="jrcd__stat">
-					<span class="jrcd__stat-v">{{ data()!.totalPlayers | number }}</span>
-					<span class="jrcd__stat-k">players</span>
-				</span>
-				<span class="jrcd__stat">
-					<span class="jrcd__stat-v">{{ data()!.totalTeams | number }}</span>
-					<span class="jrcd__stat-k">teams</span>
-				</span>
-				<span class="jrcd__stat">
-					<span class="jrcd__stat-v">{{ data()!.totalFees | currency:'USD':'symbol':'1.0-0' }}</span>
-					<span class="jrcd__stat-k">fees</span>
-				</span>
-				<span class="jrcd__stat">
-					<span class="jrcd__stat-v">{{ data()!.totalPaid | currency:'USD':'symbol':'1.0-0' }}</span>
-					<span class="jrcd__stat-k">paid</span>
-				</span>
-				<span class="jrcd__stat">
-					<span class="jrcd__stat-v">{{ data()!.totalOwed | currency:'USD':'symbol':'1.0-0' }}</span>
-					<span class="jrcd__stat-k">owed</span>
-				</span>
+			<span class="jrcd__stat jrcd__stat--lead">
+				<span class="jrcd__stat-k">Players</span>
+				<span class="jrcd__stat-v">{{ data()!.totalPlayers | number }}</span>
+			</span>
+			<span class="jrcd__stat">
+				<span class="jrcd__stat-k">Teams</span>
+				<span class="jrcd__stat-v">{{ data()!.totalTeams | number }}</span>
+			</span>
+			<span class="jrcd__stat">
+				<span class="jrcd__stat-k">Fees</span>
+				<span class="jrcd__stat-v">{{ data()!.totalFees | currency:'USD':'symbol':'1.0-0' }}</span>
+			</span>
+			<span class="jrcd__stat">
+				<span class="jrcd__stat-k">Paid</span>
+				<span class="jrcd__stat-v">{{ data()!.totalPaid | currency:'USD':'symbol':'1.0-0' }}</span>
+			</span>
+			<span class="jrcd__stat">
+				<span class="jrcd__stat-k">Owed</span>
+				<span class="jrcd__stat-v">{{ data()!.totalOwed | currency:'USD':'symbol':'1.0-0' }}</span>
 			</span>
 		</button>
 
