@@ -35,6 +35,22 @@
 		@for (item of lineItems(); track item.storeCartBatchSkuId) {
 			<div class="cart-item" [class.updating]="updatingId() === item.storeCartBatchSkuId">
 				<div class="cart-item-top">
+					<!--
+						The storefront is photographs the whole way to this screen, where it used to
+						become text. The thumbnail confirms the shopper got the RIGHT item without
+						going back, and keeps one visual language from shelf to cart.
+
+						Decorative: the name sits beside it in text, so an empty alt is correct —
+						a screen reader announcing the product twice is worse than not at all.
+						Images belong to the ITEM, so every variant of a product shows the same
+						picture; that is the data, not a bug.
+					-->
+					@if (item.imageUrl) {
+						<div class="cart-item-media">
+							<img [src]="item.imageUrl" alt="" class="cart-item-thumb">
+						</div>
+					}
+
 					<div class="cart-item-info">
 						<div class="cart-item-name">{{ item.itemName }}</div>
 						@if (variantLabel(item)) {

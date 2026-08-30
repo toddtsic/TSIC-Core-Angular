@@ -11,6 +11,7 @@ import type { StoreCheckoutResultDto, StoreCartTrimAdjustmentDto } from '@core/a
 import type { CreditCardFormValue } from '@views/registration/shared/types/wizard.types';
 import { StoreFrontInfoComponent } from '../store-front-info.component';
 import { formatCurrency } from '@shared/utils/money.util';
+import { variantLabel } from '../store-variant-label';
 
 @Component({
 	selector: 'app-checkout',
@@ -251,10 +252,5 @@ export class StoreCheckoutComponent implements OnDestroy {
 
 	readonly formatCurrency = formatCurrency;
 
-	variantLabel(item: { colorName?: string | null; sizeName?: string | null }): string {
-		const parts: string[] = [];
-		if (item.colorName) parts.push(item.colorName);
-		if (item.sizeName) parts.push(item.sizeName);
-		return parts.join(' / ');
-	}
+	variantLabel = variantLabel;
 }

@@ -6,6 +6,7 @@ import { StoreService } from '../../../infrastructure/services/store.service';
 import { ToastService } from '../../../shared-ui/toast.service';
 import type { StoreCartLineItemDto } from '@core/api';
 import { formatCurrency } from '@shared/utils/money.util';
+import { variantLabel } from '../store-variant-label';
 
 @Component({
 	selector: 'app-cart',
@@ -66,12 +67,7 @@ export class StoreCartComponent {
 		});
 	}
 
-	variantLabel(item: StoreCartLineItemDto): string {
-		const parts: string[] = [];
-		if (item.colorName) parts.push(item.colorName);
-		if (item.sizeName) parts.push(item.sizeName);
-		return parts.join(' / ');
-	}
+	variantLabel = variantLabel;
 
 	readonly formatCurrency = formatCurrency;
 }

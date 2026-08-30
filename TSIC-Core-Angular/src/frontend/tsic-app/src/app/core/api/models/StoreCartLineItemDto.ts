@@ -6,6 +6,7 @@ export type StoreCartLineItemDto = {
     storeCartBatchSkuId: number;
     storeSkuId: number;
     itemName: string;
+    imageUrl?: string | null;
     colorName?: string | null;
     sizeName?: string | null;
     quantity: number;

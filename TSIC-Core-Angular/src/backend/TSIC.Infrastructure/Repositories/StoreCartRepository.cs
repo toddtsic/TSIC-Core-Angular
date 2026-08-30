@@ -65,6 +65,12 @@ public class StoreCartRepository : IStoreCartRepository
                 StoreCartBatchSkuId = cbs.StoreCartBatchSkuId,
                 StoreSkuId = cbs.StoreSkuId,
                 ItemName = cbs.StoreSku.StoreItem.StoreItemName,
+                // Same ordering the storefront card uses, so the cart shows the picture the
+                // shopper was looking at when they chose it.
+                ImageUrl = cbs.StoreSku.StoreItem.StoreItemImage
+                    .OrderBy(img => img.DisplayOrder)
+                    .Select(img => img.ImageUrl)
+                    .FirstOrDefault(),
                 ColorName = cbs.StoreSku.StoreColor != null ? cbs.StoreSku.StoreColor.StoreColorName : null,
                 SizeName = cbs.StoreSku.StoreSize != null ? cbs.StoreSku.StoreSize.StoreSizeName : null,
                 Quantity = cbs.Quantity,

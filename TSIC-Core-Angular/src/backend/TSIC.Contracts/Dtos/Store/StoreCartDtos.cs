@@ -29,6 +29,20 @@ public record StoreCartLineItemDto
     public required int StoreCartBatchSkuId { get; init; }
     public required int StoreSkuId { get; init; }
     public required string ItemName { get; init; }
+
+    /// <summary>
+    /// First image of the parent ITEM by DisplayOrder, or null when the director has uploaded
+    /// none. Images belong to the item, not the SKU — there is no per-colour photograph — so
+    /// every line of a multi-variant product carries the same picture.
+    ///
+    /// <para>
+    /// Optional rather than required: the two analytics projections that also build this DTO
+    /// (StoreAnalyticsRepository) are admin surfaces with no use for it, and leaving it unset
+    /// there costs a join they would otherwise pay for on every batch.
+    /// </para>
+    /// </summary>
+    public string? ImageUrl { get; init; }
+
     public string? ColorName { get; init; }
     public string? SizeName { get; init; }
     public required int Quantity { get; init; }

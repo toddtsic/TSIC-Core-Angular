@@ -125,6 +125,17 @@
 				<h6 class="section-title">Order Summary</h6>
 				@for (item of lineItems(); track item.storeCartBatchSkuId) {
 					<div class="order-item">
+						<!--
+							Same thumbnail as the shelf and the cart, so the last screen before a
+							card is charged shows the shopper the thing they are buying rather than
+							a description of it. Decorative — the name is beside it in text.
+						-->
+						@if (item.imageUrl) {
+							<div class="order-item-media">
+								<img [src]="item.imageUrl" alt="" class="order-item-thumb">
+							</div>
+						}
+
 						<div class="order-item-info">
 							<div class="order-item-name">{{ item.itemName }}</div>
 							@if (variantLabel(item)) {
