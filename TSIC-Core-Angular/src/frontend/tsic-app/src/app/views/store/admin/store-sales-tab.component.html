@@ -207,6 +207,22 @@
 									(click)="openRefund(line)">
 									<i class="bi bi-cash-stack me-1"></i>Refund
 								</button>
+								<!--
+									Restocking without refunding: the goods came back but the money
+									stays put. Lives on the line because the line IS the thing being
+									put back on the shelf — it used to be a toolbar button on the
+									Analytics tab asking for a StoreCartBatchSkuId typed by hand.
+								-->
+								<button
+									type="button"
+									class="btn btn-outline-secondary btn-sm"
+									[disabled]="restockableCount(line) < 1"
+									[title]="restockableCount(line) < 1
+										? 'Every unit on this line is already back on the shelf'
+										: 'Put units from this line back on the shelf'"
+									(click)="openRestock(line)">
+									<i class="bi bi-box-arrow-in-down me-1"></i>Restock
+								</button>
 							</div>
 						</td>
 					</tr>
@@ -290,6 +306,65 @@
 						<span class="spinner-border spinner-border-sm me-1" role="status"></span>
 					}
 					Exchange
+				</button>
+			</div>
+		</div>
+	</tsic-dialog>
+}
+
+<!-- ══════════════════════════════════════ -->
+<!-- RESTOCK                               -->
+<!-- ══════════════════════════════════════ -->
+@if (showRestockModal() && restockLine(); as line) {
+	<tsic-dialog [open]="true" size="sm" (requestClose)="showRestockModal.set(false)">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title">Restock {{ line.skuLabel }}</h5>
+				<button type="button" class="btn-close" (click)="showRestockModal.set(false)"
+						aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<p class="dialog-lede">
+					Puts units back on the shelf so they can be sold again. <strong>No money
+					moves</strong> — if the customer is owed their money back, use Refund instead,
+					which restocks as part of the reversal.
+				</p>
+
+				<div class="sf-form">
+					<div class="sf-readout">
+						<div class="sf-readout-row">
+							<span class="sf-readout-label">Bought by</span>
+							<span class="sf-readout-value">{{ directToName(line) }}</span>
+						</div>
+						<div class="sf-readout-row">
+							<span class="sf-readout-label">Purchased</span>
+							<span class="sf-readout-value">{{ line.quantity }}</span>
+						</div>
+						<div class="sf-readout-row">
+							<span class="sf-readout-label">Already back</span>
+							<span class="sf-readout-value">{{ line.restocked }}</span>
+						</div>
+					</div>
+
+					<div class="sf-field">
+						<label class="sf-label" for="restockQty">
+							How many of the {{ restockableCount(line) }} still out
+						</label>
+						<input type="number" id="restockQty" class="sf-input"
+							   [ngModel]="restockQuantity()"
+							   (ngModelChange)="restockQuantity.set($event)"
+							   min="1" [max]="restockableCount(line)">
+						<span class="sf-hint">
+							You cannot put back more than went out — the server enforces the same
+							ceiling, so availability can never read as over-stocked.
+						</span>
+					</div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button class="sf-btn sf-btn--ghost" (click)="showRestockModal.set(false)">Cancel</button>
+				<button class="sf-btn sf-btn--primary" [disabled]="!canRestock()" (click)="confirmRestock()">
+					{{ isSaving() ? 'Saving…' : 'Return to stock' }}
 				</button>
 			</div>
 		</div>

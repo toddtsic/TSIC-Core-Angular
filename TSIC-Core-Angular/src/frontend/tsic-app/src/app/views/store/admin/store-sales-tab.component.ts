@@ -65,6 +65,14 @@ export class StoreSalesTabComponent {
 	readonly swapTargetSkuId = signal<number | null>(null);
 	readonly swapQuantity = signal(1);
 
+	// ── Restock dialog ──
+	// Restocking WITHOUT refunding: the shirt came back, the money did not move. Legacy had no
+	// screen for this at all, and ours put it on the Analytics toolbar behind a hand-typed line
+	// id. It belongs on the line, where the id is already known.
+	readonly showRestockModal = signal(false);
+	readonly restockLine = signal<StoreSaleLineDto | null>(null);
+	readonly restockQuantity = signal(1);
+
 	// ── Refund dialog ──
 	readonly showRefundModal = signal(false);
 	readonly refundLine = signal<StoreSaleLineDto | null>(null);
@@ -137,6 +145,12 @@ export class StoreSalesTabComponent {
 		if (!line) return false;
 		if (this.voidEntireBatch() || this.mustVoid()) return true;
 		return this.refundAmount() > 0 && this.refundAmount() <= line.maxCanRefund;
+	});
+
+	readonly canRestock = computed(() => {
+		const line = this.restockLine();
+		if (!line || this.isSaving()) return false;
+		return this.restockQuantity() >= 1 && this.restockQuantity() <= line.maxCanRestock;
 	});
 
 	readonly canSwap = computed(() => {
@@ -220,6 +234,44 @@ export class StoreSalesTabComponent {
 			},
 			error: err => {
 				this.toast.show(err?.error?.message || 'Exchange failed', 'danger');
+				this.isSaving.set(false);
+			},
+		});
+	}
+
+	// ═══════════════════════════════════════
+	//  RESTOCK
+	// ═══════════════════════════════════════
+
+	/** Units on this line that are still out. The server enforces the same ceiling. */
+	restockableCount(line: StoreSaleLineDto): number {
+		return line.maxCanRestock;
+	}
+
+	openRestock(line: StoreSaleLineDto): void {
+		if (this.restockableCount(line) < 1) return;
+		this.restockLine.set(line);
+		this.restockQuantity.set(this.restockableCount(line));
+		this.showRestockModal.set(true);
+	}
+
+	confirmRestock(): void {
+		const line = this.restockLine();
+		if (!line || !this.canRestock()) return;
+
+		this.isSaving.set(true);
+		this.store.logRestock({
+			storeCartBatchSkuId: line.storeCartBatchSkuId,
+			restockCount: this.restockQuantity(),
+		}).subscribe({
+			next: () => {
+				this.toast.show('Units returned to stock', 'success');
+				this.showRestockModal.set(false);
+				this.isSaving.set(false);
+				this.load();
+			},
+			error: err => {
+				this.toast.show(err?.error?.message || 'Restock failed', 'danger');
 				this.isSaving.set(false);
 			},
 		});

@@ -85,9 +85,18 @@ public interface IStoreAnalyticsRepository
     // ── Pickup ──
 
     /// <summary>
-    /// Get a tracked batch entity for sign-off updates.
+    /// Get a tracked batch entity for sign-off updates, scoped to one store.
     /// </summary>
-    Task<StoreCartBatches?> GetBatchByIdAsync(int storeCartBatchId, CancellationToken cancellationToken = default);
+    ///
+    /// <para>
+    /// The store is not optional and there is deliberately no by-id-alone variant. Sign-off is a
+    /// STAFF action on a shopper's order inside the director's own job; taking a bare batch id let
+    /// a store admin in one job sign an order in another, because a batch id is a small integer
+    /// and the screen asked the director to type one. Same rule, same reason, as
+    /// <c>IStoreCartRepository.GetLineItemInStoreAsync</c>.
+    /// </para>
+    Task<StoreCartBatches?> GetBatchInStoreAsync(
+        int storeCartBatchId, int storeId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Persist all pending changes.

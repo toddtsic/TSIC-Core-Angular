@@ -15,5 +15,7 @@ export type StorePaymentDetailDto = {
     adnTransactionId?: string | null;
     comment?: string | null;
     isWalkUp: boolean;
+    signedForDate?: string | null;
+    signedForBy?: string | null;
 };
 

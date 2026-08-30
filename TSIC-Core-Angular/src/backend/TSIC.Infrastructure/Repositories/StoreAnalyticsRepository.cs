@@ -180,7 +180,9 @@ public class StoreAnalyticsRepository : IStoreAnalyticsRepository
                 AdnInvoiceNo = x.acct.AdnInvoiceNo,
                 AdnTransactionId = x.acct.AdnTransactionId,
                 Comment = x.acct.Comment,
-                IsWalkUp = x.IsWalkUp
+                IsWalkUp = x.IsWalkUp,
+                SignedForDate = x.batch.SignedForDate,
+                SignedForBy = x.batch.SignedForBy
             })
             .AsNoTracking()
             .ToListAsync(cancellationToken);
@@ -546,11 +548,14 @@ public class StoreAnalyticsRepository : IStoreAnalyticsRepository
 
     // ── Pickup ──
 
-    public async Task<StoreCartBatches?> GetBatchByIdAsync(
-        int storeCartBatchId, CancellationToken cancellationToken = default)
+    public async Task<StoreCartBatches?> GetBatchInStoreAsync(
+        int storeCartBatchId, int storeId, CancellationToken cancellationToken = default)
     {
         return await _context.StoreCartBatches
-            .FirstOrDefaultAsync(b => b.StoreCartBatchId == storeCartBatchId, cancellationToken);
+            .FirstOrDefaultAsync(
+                b => b.StoreCartBatchId == storeCartBatchId
+                    && b.StoreCart.StoreId == storeId,
+                cancellationToken);
     }
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

@@ -102,7 +102,13 @@ public sealed class StoreAdminService : IStoreAdminService
 
     public async Task SignForPickupAsync(Guid jobId, string userId, SignForPickupRequest request)
     {
-        var batch = await _analyticsRepo.GetBatchByIdAsync(request.StoreCartBatchId)
+        // Job-scoped, exactly as StoreRestockService.StageRestockAsync is. This used to fetch by
+        // batch id alone while accepting a jobId it never read, so a store admin in one job could
+        // sign an order in another — and the screen's own instruction was to type a batch id.
+        var store = await _storeRepo.GetByJobIdAsync(jobId)
+            ?? throw new InvalidOperationException("Store not found for this job.");
+
+        var batch = await _analyticsRepo.GetBatchInStoreAsync(request.StoreCartBatchId, store.StoreId)
             ?? throw new InvalidOperationException($"Batch {request.StoreCartBatchId} not found.");
 
         batch.SignedForDate = DateTime.Now;

@@ -53,6 +53,15 @@ public record StorePaymentDetailDto
     public string? AdnTransactionId { get; init; }
     public string? Comment { get; init; }
     public required bool IsWalkUp { get; init; }
+
+    /// <summary>
+    /// When this order was signed out at the pickup table, and by whom. Null until it is
+    /// collected. Carried on the payment row because that row IS the order, and the screen has to
+    /// be able to show what has already been signed — otherwise the same order gets signed twice.
+    /// </summary>
+    public DateTime? SignedForDate { get; init; }
+
+    public string? SignedForBy { get; init; }
 }
 
 /// <summary>

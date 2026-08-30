@@ -120,8 +120,8 @@ export class StoreAnalyticsTabComponent {
 		}
 	});
 
-	readonly paymentsSort = tableSort<'customer' | 'method' | 'paid' | 'date' | 'card' | 'walkup'>(
-		'date', { paid: 'desc', date: 'desc', walkup: 'desc' });
+	readonly paymentsSort = tableSort<'customer' | 'method' | 'paid' | 'date' | 'card' | 'walkup' | 'pickup'>(
+		'date', { paid: 'desc', date: 'desc', walkup: 'desc', pickup: 'desc' });
 
 	readonly sortedPayments = this.paymentsSort.applyTo(this.payments, (col, a, b) => {
 		switch (col) {
@@ -131,6 +131,9 @@ export class StoreAnalyticsTabComponent {
 			case 'date':     return dateKey(a.createDate) - dateKey(b.createDate);
 			case 'card':     return textKey(a.cclast4, b.cclast4);
 			case 'walkup':   return Number(a.isWalkUp) - Number(b.isWalkUp);
+			// Uncollected orders are the ones with work left on them, so ascending puts them
+			// first and descending brings the most recently collected to the top.
+			case 'pickup':   return dateKey(a.signedForDate) - dateKey(b.signedForDate);
 		}
 	});
 
@@ -206,15 +209,14 @@ export class StoreAnalyticsTabComponent {
 	readonly expandedFamilyUserId = signal<string | null>(null);
 	readonly expandedFamilyDetail = signal<StoreFamilyPurchaseDto | null>(null);
 
-	// ── Restock modal ──
-	readonly showRestockModal = signal(false);
-	readonly restockBatchSkuId = signal(0);
-	readonly restockCount = signal(0);
 	readonly isSaving = signal(false);
 
-	// ── Pickup modal ──
+	// ── Pickup sign-off ──
+	// The order is the row the director clicked, not a number they typed. Holding the row itself
+	// means the dialog can name the customer and the amount, and the batch id never reaches a
+	// text box where it could be mistyped into somebody else's order.
 	readonly showPickupModal = signal(false);
-	readonly pickupBatchId = signal(0);
+	readonly pickupTarget = signal<StorePaymentDetailDto | null>(null);
 	readonly pickupSignedForBy = signal('');
 
 	constructor() {
@@ -285,53 +287,31 @@ export class StoreAnalyticsTabComponent {
 		});
 	}
 
-	// ── Restock ──
-
-	openRestockModal(): void {
-		this.restockBatchSkuId.set(0);
-		this.restockCount.set(0);
-		this.showRestockModal.set(true);
-	}
-
-	submitRestock(): void {
-		if (!this.restockBatchSkuId() || this.restockCount() < 1) return;
-		this.isSaving.set(true);
-		this.store.logRestock({
-			storeCartBatchSkuId: this.restockBatchSkuId(),
-			restockCount: this.restockCount()
-		}).subscribe({
-			next: () => {
-				this.toast.show('Restock logged', 'success');
-				this.showRestockModal.set(false);
-				this.isSaving.set(false);
-				this.loadSection('restocked');
-			},
-			error: err => {
-				this.toast.show(err?.error?.message || 'Restock failed', 'danger');
-				this.isSaving.set(false);
-			}
-		});
-	}
-
 	// ── Pickup ──
 
-	openPickupModal(): void {
-		this.pickupBatchId.set(0);
+	openPickup(order: StorePaymentDetailDto): void {
+		this.pickupTarget.set(order);
 		this.pickupSignedForBy.set('');
 		this.showPickupModal.set(true);
 	}
 
 	submitPickup(): void {
-		if (!this.pickupBatchId() || !this.pickupSignedForBy().trim()) return;
+		const order = this.pickupTarget();
+		const signedForBy = this.pickupSignedForBy().trim();
+		if (!order || !signedForBy) return;
+
 		this.isSaving.set(true);
 		this.store.signForPickup({
-			storeCartBatchId: this.pickupBatchId(),
-			signedForBy: this.pickupSignedForBy().trim()
+			storeCartBatchId: order.storeCartBatchId,
+			signedForBy
 		}).subscribe({
 			next: () => {
-				this.toast.show('Pickup signed', 'success');
+				this.toast.show(`${order.familyUserName}'s order signed out`, 'success');
 				this.showPickupModal.set(false);
 				this.isSaving.set(false);
+				// Re-read so the row switches to showing who collected it. Without this the
+				// button stays live and the same order can be signed a second time.
+				this.loadSection('payments');
 			},
 			error: err => {
 				this.toast.show(err?.error?.message || 'Pickup sign-off failed', 'danger');

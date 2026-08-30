@@ -176,9 +176,6 @@
 			Walk-up only
 		</label>
 		<span class="filter-spacer"></span>
-		<button class="btn btn-sm btn-outline-primary" (click)="openPickupModal()">
-			<i class="bi bi-pen me-1"></i>Sign for Pickup
-		</button>
 	</div>
 
 	@if (payments().length === 0) {
@@ -228,6 +225,11 @@
 								Walk-up <i class="bi" [class]="paymentsSort.icon('walkup')" [class.active]="paymentsSort.column() === 'walkup'"></i>
 							</button>
 						</th>
+						<th class="col-pickup" [attr.aria-sort]="paymentsSort.aria('pickup')">
+							<button type="button" class="sort-th" (click)="paymentsSort.toggle('pickup')" title="Sort by pickup">
+								Picked up <i class="bi" [class]="paymentsSort.icon('pickup')" [class.active]="paymentsSort.column() === 'pickup'"></i>
+							</button>
+						</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -255,6 +257,29 @@
 									<i class="bi bi-check-circle-fill walkup-yes" aria-label="Walk-up"></i>
 								} @else {
 									<i class="bi bi-dash walkup-no" aria-label="Online"></i>
+								}
+							</td>
+							<td class="col-pickup">
+								<!--
+									Signed orders show WHO and WHEN rather than a spent button, so a
+									second sign-off on the same order is not offered at all.
+								-->
+								@if (p.signedForDate) {
+									<span class="pickup-signed">
+										<i class="bi bi-check2-circle" aria-hidden="true"></i>
+										<span class="pickup-signed-text">
+											<span class="pickup-when">{{ formatDate(p.signedForDate) }}</span>
+											@if (p.signedForBy) {
+												<span class="pickup-who">{{ p.signedForBy }}</span>
+											}
+										</span>
+									</span>
+								} @else {
+									<button type="button" class="btn btn-outline-secondary btn-sm"
+											(click)="openPickup(p)"
+											[attr.aria-label]="'Sign out ' + p.familyUserName + '\'s order'">
+										<i class="bi bi-pen me-1"></i>Sign out
+									</button>
 								}
 							</td>
 						</tr>
@@ -532,9 +557,6 @@
 			<span class="meta-count">{{ restockedItems().length }}</span>
 			<span>restock {{ restockedItems().length === 1 ? 'event' : 'events' }}</span>
 		</div>
-		<button class="btn btn-sm btn-outline-primary" (click)="openRestockModal()">
-			<i class="bi bi-plus-lg me-1"></i>Log Restock
-		</button>
 	</div>
 
 	@if (restockedItems().length === 0) {
@@ -542,12 +564,11 @@
 			<span class="empty-state-icon"><i class="bi bi-box-arrow-in-down"></i></span>
 			<div class="empty-state-title">No restock events logged</div>
 			<p class="empty-state-desc">
-				Use <strong>Log Restock</strong> to record incoming inventory against a SKU line.
-				Restock history appears here for audit.
+				This is the audit trail. A restock is recorded here when a refund puts units back on
+				the shelf, or when you restock a line by hand from
+				<strong>Sales &rarr; Restock</strong> — the line being restocked is the one to act on,
+				so the action lives on it.
 			</p>
-			<button class="btn btn-primary btn-sm" (click)="openRestockModal()">
-				<i class="bi bi-plus-lg me-1"></i>Log first restock
-			</button>
 		</div>
 	} @else {
 		<div class="table-responsive store-table-wrap">
@@ -658,63 +679,53 @@
 }
 
 <!-- ══════════════════════════════════════ -->
-<!-- Restock Modal                          -->
+<!-- Pickup sign-off                        -->
 <!-- ══════════════════════════════════════ -->
-@if (showRestockModal()) {
-	<tsic-dialog [open]="true" size="sm" (requestClose)="showRestockModal.set(false)">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h5 class="modal-title">Log Restock</h5>
-				<button type="button" class="btn-close" (click)="showRestockModal.set(false)" aria-label="Close"></button>
-			</div>
-			<div class="modal-body">
-				<div class="mb-3">
-					<label class="form-label fw-medium">Line Item ID (StoreCartBatchSkuId)</label>
-					<input type="number" class="form-control" [ngModel]="restockBatchSkuId()"
-						   (ngModelChange)="restockBatchSkuId.set($event)" min="1">
-				</div>
-				<div class="mb-3">
-					<label class="form-label fw-medium">Restock Count</label>
-					<input type="number" class="form-control" [ngModel]="restockCount()"
-						   (ngModelChange)="restockCount.set($event)" min="1">
-				</div>
-			</div>
-			<div class="modal-footer">
-				<button class="btn btn-outline-secondary" (click)="showRestockModal.set(false)">Cancel</button>
-				<button class="btn btn-primary" [disabled]="isSaving()" (click)="submitRestock()">
-					{{ isSaving() ? 'Saving...' : 'Log Restock' }}
-				</button>
-			</div>
-		</div>
-	</tsic-dialog>
-}
-
-<!-- ══════════════════════════════════════ -->
-<!-- Pickup Modal                           -->
-<!-- ══════════════════════════════════════ -->
-@if (showPickupModal()) {
+<!--
+	Opened from a Payments row, never from a toolbar. The order is chosen by pointing at it, so
+	the only thing left to type is the name of the person collecting — which is the only thing
+	the director actually knows. This used to ask for a StoreCartBatchId as a bare number.
+-->
+@if (showPickupModal() && pickupTarget(); as order) {
 	<tsic-dialog [open]="true" size="sm" (requestClose)="showPickupModal.set(false)">
 		<div class="modal-content">
 			<div class="modal-header">
-				<h5 class="modal-title">Sign for Pickup</h5>
+				<h5 class="modal-title">Sign out {{ order.familyUserName }}'s order</h5>
 				<button type="button" class="btn-close" (click)="showPickupModal.set(false)" aria-label="Close"></button>
 			</div>
 			<div class="modal-body">
-				<div class="mb-3">
-					<label class="form-label fw-medium">Batch ID (StoreCartBatchId)</label>
-					<input type="number" class="form-control" [ngModel]="pickupBatchId()"
-						   (ngModelChange)="pickupBatchId.set($event)" min="1">
-				</div>
-				<div class="mb-3">
-					<label class="form-label fw-medium">Signed For By</label>
-					<input type="text" class="form-control" [ngModel]="pickupSignedForBy()"
-						   (ngModelChange)="pickupSignedForBy.set($event)" placeholder="Name of person picking up">
+				<div class="sf-form">
+					<div class="sf-readout">
+						<div class="sf-readout-row">
+							<span class="sf-readout-label">Customer</span>
+							<span class="sf-readout-value">{{ order.familyUserName }}</span>
+						</div>
+						<div class="sf-readout-row">
+							<span class="sf-readout-label">Paid</span>
+							<span class="sf-readout-value">{{ formatCurrency(order.paid) }}</span>
+						</div>
+						<div class="sf-readout-row">
+							<span class="sf-readout-label">Ordered</span>
+							<span class="sf-readout-value">{{ formatDate(order.createDate) }}</span>
+						</div>
+					</div>
+
+					<div class="sf-field">
+						<label class="sf-label" for="signedForBy">Collected by</label>
+						<input type="text" id="signedForBy" class="sf-input"
+							   [ngModel]="pickupSignedForBy()"
+							   (ngModelChange)="pickupSignedForBy.set($event)"
+							   placeholder="Name of the person taking it">
+						<span class="sf-hint">Recorded against this order with today's date.</span>
+					</div>
 				</div>
 			</div>
 			<div class="modal-footer">
-				<button class="btn btn-outline-secondary" (click)="showPickupModal.set(false)">Cancel</button>
-				<button class="btn btn-primary" [disabled]="isSaving()" (click)="submitPickup()">
-					{{ isSaving() ? 'Saving...' : 'Sign Off' }}
+				<button class="sf-btn sf-btn--ghost" (click)="showPickupModal.set(false)">Cancel</button>
+				<button class="sf-btn sf-btn--primary"
+						[disabled]="isSaving() || !pickupSignedForBy().trim()"
+						(click)="submitPickup()">
+					{{ isSaving() ? 'Saving…' : 'Sign out' }}
 				</button>
 			</div>
 		</div>
