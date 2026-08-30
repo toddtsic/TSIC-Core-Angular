@@ -431,8 +431,17 @@ export class StoreAdminComponent {
 		} else {
 			this.store.createColor({ storeColorName: this.formColorName().trim() }).subscribe({
 				next: created => {
-					this.colors.update(list => [...list, created]);
-					this.toast.show('Color created', 'success');
+					// The server resolves by name and returns the EXISTING row when there is one,
+					// so appending blind would show a colour twice against a single database row.
+					const existing = this.colors().some(c => c.storeColorId === created.storeColorId);
+					if (!existing) {
+						this.colors.update(list => [...list, created]);
+					}
+					this.toast.show(
+						existing
+							? `${created.storeColorName} is already on the list`
+							: 'Color created',
+						existing ? 'info' : 'success');
 					this.showColorModal.set(false);
 					this.isSaving.set(false);
 				},
@@ -489,8 +498,16 @@ export class StoreAdminComponent {
 		} else {
 			this.store.createSize({ storeSizeName: this.formSizeName().trim() }).subscribe({
 				next: created => {
-					this.sizes.update(list => [...list, created]);
-					this.toast.show('Size created', 'success');
+					// Get-or-create by name server-side — see the colour handler above.
+					const existing = this.sizes().some(s => s.storeSizeId === created.storeSizeId);
+					if (!existing) {
+						this.sizes.update(list => [...list, created]);
+					}
+					this.toast.show(
+						existing
+							? `${created.storeSizeName} is already on the list`
+							: 'Size created',
+						existing ? 'info' : 'success');
 					this.showSizeModal.set(false);
 					this.isSaving.set(false);
 				},

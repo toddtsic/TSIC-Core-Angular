@@ -246,18 +246,37 @@ public sealed class StoreCatalogService : IStoreCatalogService
         }).ToList();
     }
 
+    /// <summary>
+    /// Get-or-create by name, which is what legacy does (<c>StoreItemsController</c>: look up
+    /// <c>StoreColorName</c>, insert only on a miss) and what <see cref="ResolveColorIdsAsync"/>
+    /// already did on the item-create path.
+    ///
+    /// <para>
+    /// This one inserted unconditionally, so the Colors tab's Add button could put a second
+    /// "Blue" into a dictionary that every store on the platform reads from — indistinguishable
+    /// from the first in every dropdown thereafter, and impossible to tell apart when picking one
+    /// for a SKU. Returning the existing row instead is silent and correct: the director asked
+    /// for a colour called Blue and there is one.
+    /// </para>
+    /// </summary>
     public async Task<StoreColorDto> CreateColorAsync(
         string userId, CreateStoreColorRequest request)
     {
-        var color = new StoreColors
-        {
-            StoreColorName = request.StoreColorName,
-            Modified = DateTime.Now,
-            LebUserId = userId
-        };
+        var name = request.StoreColorName.Trim();
 
-        _storeRepo.AddColor(color);
-        await _storeRepo.SaveChangesAsync();
+        var color = await _storeRepo.GetColorByNameAsync(name);
+        if (color == null)
+        {
+            color = new StoreColors
+            {
+                StoreColorName = name,
+                Modified = DateTime.Now,
+                LebUserId = userId
+            };
+
+            _storeRepo.AddColor(color);
+            await _storeRepo.SaveChangesAsync();
+        }
 
         return new StoreColorDto
         {
@@ -310,18 +329,25 @@ public sealed class StoreCatalogService : IStoreCatalogService
         }).ToList();
     }
 
+    /// <summary>Get-or-create by name. See <see cref="CreateColorAsync"/> for why.</summary>
     public async Task<StoreSizeDto> CreateSizeAsync(
         string userId, CreateStoreSizeRequest request)
     {
-        var size = new StoreSizes
-        {
-            StoreSizeName = request.StoreSizeName,
-            Modified = DateTime.Now,
-            LebUserId = userId
-        };
+        var name = request.StoreSizeName.Trim();
 
-        _storeRepo.AddSize(size);
-        await _storeRepo.SaveChangesAsync();
+        var size = await _storeRepo.GetSizeByNameAsync(name);
+        if (size == null)
+        {
+            size = new StoreSizes
+            {
+                StoreSizeName = name,
+                Modified = DateTime.Now,
+                LebUserId = userId
+            };
+
+            _storeRepo.AddSize(size);
+            await _storeRepo.SaveChangesAsync();
+        }
 
         return new StoreSizeDto
         {
