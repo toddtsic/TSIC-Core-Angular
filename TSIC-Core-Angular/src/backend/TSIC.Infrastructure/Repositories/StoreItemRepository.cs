@@ -59,6 +59,18 @@ public class StoreItemRepository : IStoreItemRepository
                     .Select(s => new UnbuyableSku(
                         s.StoreSize != null ? s.StoreSize.StoreSizeName : null,
                         s.StoreColor != null ? s.StoreColor.StoreColorName : null))
+                    .ToList(),
+                // What the item comes in, for the card. ACTIVE skus only — a shopper should not
+                // be shown a colour swatch for a variant that was retired. Distinct is applied
+                // in memory below rather than here: EF cannot translate Distinct() inside a
+                // projected subquery on every provider, and these lists are a handful of rows.
+                i.StoreItemSkus
+                    .Where(s => s.Active && s.StoreColor != null)
+                    .Select(s => s.StoreColor!.StoreColorName)
+                    .ToList(),
+                i.StoreItemSkus
+                    .Where(s => s.Active && s.StoreSize != null)
+                    .Select(s => s.StoreSize!.StoreSizeName)
                     .ToList()))
             .AsNoTracking()
             .ToListAsync(cancellationToken);
@@ -77,7 +89,12 @@ public class StoreItemRepository : IStoreItemRepository
             SingleSkuId = r.SingleSkuId,
             SoldOutOrInactiveSkuLabels = r.Unbuyable
                 .Select(u => StoreSkuLabel.Build(r.StoreItemName, u.SizeName, u.ColorName))
-                .ToList()
+                .ToList(),
+            // Distinct, first-seen order preserved. The SKU matrix is built SIZE outer / COLOUR
+            // inner (B-07), so the sizes already arrive in the order the director entered them —
+            // which is the order they want to read as a range.
+            ColorNames = r.ColorNames.Distinct().ToList(),
+            SizeNames = r.SizeNames.Distinct().ToList()
         }).ToList();
     }
 
@@ -86,7 +103,8 @@ public class StoreItemRepository : IStoreItemRepository
     private sealed record SummaryRow(
         int StoreItemId, int StoreId, string StoreItemName, decimal StoreItemPrice,
         bool Active, int SortOrder, int SkuCount, int ActiveSkuCount,
-        List<string> ImageUrls, int? SingleSkuId, List<UnbuyableSku> Unbuyable);
+        List<string> ImageUrls, int? SingleSkuId, List<UnbuyableSku> Unbuyable,
+        List<string> ColorNames, List<string> SizeNames);
 
     public async Task<StoreItemDto?> GetItemWithSkusAsync(
         int storeItemId, int storeId, CancellationToken cancellationToken = default)

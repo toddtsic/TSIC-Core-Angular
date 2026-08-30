@@ -455,5 +455,81 @@ export class StoreCatalogComponent {
 		return label.startsWith(prefix) ? label.slice(prefix.length).replace(/:/g, ' · ') : label;
 	}
 
+	/**
+	 * What the item comes in, in a shopper's terms. The card used to say "14 options", which is
+	 * the row count of a SKU matrix and tells nobody anything — the question being asked is
+	 * "does it come in my size, and in a colour I want".
+	 *
+	 * <p>Sizes read as a RANGE rather than a list because the matrix is built size-outer (B-07),
+	 * so they arrive in the order the director entered them — "Youth S – Adult XL" is both
+	 * shorter and more informative than eight chips. Colours are counted rather than named, since
+	 * the swatches beside this already name them.</p>
+	 *
+	 * <p>Returns null for a single-variant item: "Standard" under a Sticker is noise.</p>
+	 */
+	variantSummary(item: StoreItemSummaryDto): string | null {
+		const parts: string[] = [];
+		const sizes = item.sizeNames;
+		const colors = item.colorNames;
+
+		if (sizes.length > 2) {
+			parts.push(`${sizes[0]} – ${sizes[sizes.length - 1]}`);
+		} else if (sizes.length) {
+			parts.push(sizes.join(' · '));
+		}
+
+		if (colors.length > 1) {
+			parts.push(`${colors.length} colours`);
+		} else if (colors.length === 1) {
+			parts.push(colors[0]);
+		}
+
+		const summary = parts.join(' · ');
+		// One variant with nothing to choose — the picker will say so if they open it.
+		return summary && summary !== 'Standard' ? summary : null;
+	}
+
+	/**
+	 * A CSS colour for a swatch, derived from the colour's NAME — there is no colour value in the
+	 * database, only `StoreColorName`, and adding one is a schema change on a table shared by
+	 * every store on the platform.
+	 *
+	 * <p>Names that CSS already knows ("Black", "Navy", "Gray") resolve on their own, which covers
+	 * every colour currently in use. Anything CSS does not recognise falls back to a neutral chip
+	 * rather than rendering as transparent — a swatch that shows nothing is worse than one that
+	 * shows "some colour, hover for the name".</p>
+	 */
+	swatchColor(name: string): string {
+		const css = name.trim().toLowerCase().replace(/\s+/g, '');
+		return StoreCatalogComponent.CSS_COLOR_NAMES.has(css)
+			? css
+			: 'var(--bs-secondary-color)';
+	}
+
+	/**
+	 * CSS named colours, restricted to the ones a garment is plausibly described by. Deliberately
+	 * not the full 148: "tomato" and "peru" are real CSS colours and a false positive there would
+	 * paint a swatch a confidently wrong shade.
+	 */
+	private static readonly CSS_COLOR_NAMES = new Set([
+		'black', 'white', 'gray', 'grey', 'silver', 'navy', 'blue', 'lightblue', 'royalblue',
+		'darkblue', 'red', 'darkred', 'maroon', 'crimson', 'green', 'darkgreen', 'forestgreen',
+		'lime', 'olive', 'yellow', 'gold', 'orange', 'purple', 'violet', 'pink', 'hotpink',
+		'brown', 'tan', 'beige', 'teal', 'turquoise', 'cyan', 'magenta'
+	]);
+
+	/**
+	 * The director's description, or null when there isn't a real one.
+	 *
+	 * <p>Item create seeds the field with the literal string "new item Comments" — 2 of the 32
+	 * items in the database carry it and nothing else does. Rendering that to a shopper would be
+	 * worse than rendering nothing, so the placeholder is treated as absent.</p>
+	 */
+	itemDescription(item: StoreItemDto): string | null {
+		const text = item.storeItemComments?.trim();
+		if (!text) return null;
+		return text.toLowerCase() === 'new item comments' ? null : text;
+	}
+
 	readonly formatCurrency = formatCurrency;
 }

@@ -99,26 +99,37 @@
 // ═══════════════════════════════════
 //  HEADER
 // ═══════════════════════════════════
+// The catalog is a SHOP now, not a list: one shared max-width so the header, the grid and the
+// footer line up, and wide enough for three tiles rather than one row per product.
+$store-width: 1100px;
+
 .store-header {
 	display: flex;
-	align-items: baseline;
+	align-items: center;
 	justify-content: space-between;
-	margin-bottom: var(--space-4);
-	max-width: 600px;
-	margin-left: auto;
-	margin-right: auto;
+	flex-wrap: wrap;
+	gap: var(--space-3);
+	margin: 0 auto var(--space-5);
+	max-width: $store-width;
 }
 
-// ═══════════════════════════════════
-//  PURCHASE HISTORY LINK (A-09)
-// ═══════════════════════════════════
-.history-link {
+.store-title {
+	margin: 0;
+	font-weight: var(--font-weight-bold);
+}
+
+.store-header-links {
 	display: flex;
 	align-items: center;
 	gap: var(--space-2);
-	max-width: 600px;
-	margin: 0 auto var(--space-4);
-	padding: var(--space-2) var(--space-3);
+}
+
+.header-link {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	min-height: 44px;
+	padding: 0 var(--space-3);
 	border: 1px solid var(--bs-border-color);
 	border-radius: var(--radius-md);
 	background: var(--bs-card-bg, var(--neutral-0));
@@ -126,7 +137,12 @@
 	text-decoration: none;
 	font-size: var(--font-size-sm);
 	font-weight: var(--font-weight-semibold);
-	min-height: 44px;
+	transition: border-color 0.15s ease, color 0.15s ease;
+
+	&:hover {
+		border-color: var(--bs-primary);
+		color: var(--bs-primary);
+	}
 
 	&:focus-visible {
 		outline: none;
@@ -134,8 +150,13 @@
 	}
 }
 
-.history-badge {
-	margin-left: auto;
+// An empty cart is still worth showing — quietly. It is the only thing telling a first-time
+// shopper that a cart exists before they have put anything in it.
+.header-link--cart.is-empty {
+	color: var(--bs-secondary-color);
+}
+
+.header-badge {
 	min-width: 1.5rem;
 	padding: 0 var(--space-1);
 	border-radius: var(--radius-full);
@@ -143,118 +164,215 @@
 	color: var(--bs-light);
 	text-align: center;
 	font-variant-numeric: tabular-nums;
+	font-size: var(--font-size-xs);
+}
+
+@media (max-width: 30rem) {
+	.header-link-text { display: none; }
+}
+
+.store-foot {
+	max-width: $store-width;
+	margin: var(--space-8) auto 0;
+	padding-top: var(--space-5);
+	border-top: 1px solid var(--bs-border-color);
 }
 
 // ═══════════════════════════════════
-//  ITEM LIST
+//  PURCHASE HISTORY LINK (A-09)
 // ═══════════════════════════════════
-.item-list {
-	max-width: 600px;
+// ═══════════════════════════════════
+//  ITEM GRID
+// ═══════════════════════════════════
+// auto-fill + minmax collapses to one column on a phone without a media query, so the mobile
+// layout is the same rule rather than a second one that can drift.
+.item-grid {
+	max-width: $store-width;
 	margin: 0 auto;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+	gap: var(--space-4);
+	align-items: start;
 }
 
 // ═══════════════════════════════════
 //  ITEM CARD
 // ═══════════════════════════════════
 .item-card {
+	position: relative;
 	border-radius: var(--radius-md);
 	border: 1px solid var(--bs-border-color);
 	background: var(--bs-card-bg, var(--neutral-0));
-	margin-bottom: var(--space-3);
 	overflow: hidden;
-	transition: box-shadow 0.2s ease, border-color 0.2s ease;
+	transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 
+	&:hover {
+		box-shadow: var(--shadow-sm);
+		border-color: color-mix(in srgb, var(--bs-primary) 40%, var(--bs-border-color));
+	}
+
+	// The open card takes the whole row. A picker squeezed into a 15rem tile would wrap every
+	// chip onto its own line; spanning gives it the width it needs without a second layout.
 	&.expanded {
+		grid-column: 1 / -1;
 		box-shadow: var(--shadow-md);
 		border-color: var(--bs-primary);
 	}
 }
 
-// ── Tap Row ──
-.item-row {
+// ── The card face, which is the disclosure button ──
+.item-open {
 	display: flex;
-	align-items: center;
-	gap: var(--space-3);
-	padding: var(--space-3);
+	flex-direction: column;
+	align-items: stretch;
+	gap: 0;
+	width: 100%;
+	padding: 0;
+	background: none;
+	border: 0;
+	font: inherit;
+	color: inherit;
+	text-align: left;
 	cursor: pointer;
 	-webkit-tap-highlight-color: transparent;
-	transition: background 0.12s ease;
 
-	&:active {
-		background: rgba(var(--bs-primary-rgb), 0.04);
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
 	}
 }
 
+// An open card puts its face back into a row, so the picker below starts higher up the screen.
+.item-card.expanded .item-open {
+	flex-direction: row;
+	align-items: center;
+	gap: var(--space-3);
+	padding: var(--space-3);
+}
+
+// ── Media ──
+// One fixed aspect box for every item, whatever shape the photo is. `contain` on a neutral
+// ground rather than `cover`, because a garment shot cropped to fill loses the garment.
+.item-media {
+	display: block;
+	position: relative;
+	width: 100%;
+	aspect-ratio: 4 / 3;
+	overflow: hidden;
+	background: color-mix(in srgb, var(--brand-text) 4%, transparent);
+	border-bottom: 1px solid var(--bs-border-color);
+}
+
 .item-thumb {
-	width: 60px;
-	height: 60px;
-	border-radius: var(--radius-sm);
-	object-fit: cover;
-	flex-shrink: 0;
-	box-shadow: var(--shadow-xs);
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	transition: transform 0.25s ease;
+}
+
+// Hover blow-up. Scaling inside an overflow-hidden frame reads as a zoom without the image
+// escaping the card or shifting anything around it.
+.item-open:hover .item-thumb,
+.item-open:focus-visible .item-thumb {
+	transform: scale(1.06);
 }
 
 .item-thumb-placeholder {
-	width: 60px;
-	height: 60px;
-	border-radius: var(--radius-sm);
-	background: rgba(var(--bs-primary-rgb), 0.08);
 	display: flex;
+	width: 100%;
+	height: 100%;
 	align-items: center;
 	justify-content: center;
-	font-size: 1.5rem;
+	font-size: 2rem;
 	color: var(--bs-primary);
-	flex-shrink: 0;
+	background: rgba(var(--bs-primary-rgb), 0.06);
 }
 
-.item-info {
-	flex: 1;
-	min-width: 0;
+.item-card.expanded .item-media {
+	width: 72px;
+	aspect-ratio: 1;
+	flex: 0 0 auto;
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--radius-sm);
+}
+
+// ── Body ──
+.item-body {
 	display: flex;
 	flex-direction: column;
-	gap: 2px;
+	gap: var(--space-1);
+	padding: var(--space-3);
+	min-width: 0;
+	flex: 1;
 }
 
+.item-card.expanded .item-body { padding: 0; }
+
+// The product leads. Price used to be bolder than the name AND primary-blue, which read as a
+// link and put the cost ahead of the thing being sold.
 .item-name {
-	font-weight: var(--font-weight-semibold);
-	font-size: var(--font-size-base);
+	font-weight: var(--font-weight-bold);
+	font-size: var(--font-size-lg);
 	color: var(--brand-text, var(--neutral-900));
 	line-height: var(--line-height-tight);
 }
 
-.item-meta {
-	display: flex;
-	align-items: center;
-	gap: var(--space-2);
-}
-
 .item-price {
-	font-weight: var(--font-weight-bold);
-	color: var(--bs-primary);
+	font-weight: var(--font-weight-semibold);
 	font-size: var(--font-size-base);
+	color: var(--brand-text, var(--neutral-900));
+	font-variant-numeric: tabular-nums;
 }
 
 .item-variants {
-	font-size: var(--font-size-xs);
+	font-size: var(--font-size-sm);
 	color: var(--bs-secondary-color);
 }
 
-// Variants a shopper cannot buy. Legacy names them rather than hiding the product, so this
-// reads as information, not as an error — muted, with an icon so it is not colour-only.
-// Collapsed row: a count only. The full list is legacy's "Currently Unavailable"
-// alert and lives inside the open item, where the shopper is actually choosing.
-.item-soldout {
+// ── Colour swatches ──
+.item-swatches {
 	display: inline-flex;
-	// A flex-column child stretches by default; the chip has to hug its own text.
-	align-self: flex-start;
 	align-items: center;
-	gap: var(--space-1);
-	margin-top: var(--space-1);
-	padding: 0.1rem var(--space-2);
-	border-radius: var(--radius-full);
-	background: color-mix(in srgb, var(--bs-secondary-color) 12%, transparent);
-	font-size: var(--font-size-xs);
+	gap: 4px;
+	margin-top: 2px;
+}
+
+.item-swatch {
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	// A ring, so white and near-white swatches are still visible on a white card.
+	box-shadow: inset 0 0 0 1px rgba(var(--brand-text-rgb), 0.25);
+}
+
+// ── Chevron ──
+.item-chevron {
+	position: absolute;
+	top: var(--space-2);
+	right: var(--space-2);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	background: color-mix(in srgb, var(--bs-card-bg, var(--neutral-0)) 85%, transparent);
 	color: var(--bs-secondary-color);
+	font-size: var(--font-size-sm);
+}
+
+.item-card.expanded .item-chevron {
+	position: static;
+	background: none;
+	color: var(--bs-primary);
+}
+
+// ── Item description ──
+.item-description {
+	margin: 0 0 var(--space-3);
+	color: var(--bs-secondary-color);
+	font-size: var(--font-size-sm);
+	line-height: var(--line-height-normal);
 }
 
 // ── Currently unavailable (legacy listSoldOutOrInactiveSkus) ──
@@ -307,7 +425,13 @@
 }
 
 // ── Quick-Add Button (single-SKU items) ──
+// Sibling of the card face, floated over its lower-right corner — it cannot be a child of the
+// face, because a button inside a button is invalid and the inner one stops being reachable.
 .btn-quick-add {
+	position: absolute;
+	right: var(--space-3);
+	bottom: var(--space-3);
+	z-index: 1;
 	flex-shrink: 0;
 	width: 40px;
 	height: 40px;
@@ -331,6 +455,34 @@
 		opacity: 0.6;
 		cursor: not-allowed;
 		box-shadow: none;
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+// Open, the face becomes a short row and the picker owns the space below it, so the quick-add
+// pins to the TOP-right instead — level with the face, clear of the chevron. Left static it
+// would drop onto a line of its own beneath the face, since it is a sibling and the card is
+// not a flex container.
+.item-card.expanded .btn-quick-add {
+	top: var(--space-3);
+	bottom: auto;
+	right: var(--space-8);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.item-card,
+	.item-thumb,
+	.btn-quick-add {
+		transition: none !important;
+	}
+
+	.item-open:hover .item-thumb,
+	.item-open:focus-visible .item-thumb {
+		transform: none;
 	}
 }
 
@@ -633,15 +785,34 @@ app-store-front-info {
 	margin-bottom: var(--space-4);
 }
 
-.gallery-main {
+// Zoom frame: the image scales inside a clipped box on hover, so a shopper can look closer at
+// the print on a shirt without a lightbox to open and dismiss.
+.gallery-main-frame {
 	width: 100%;
-	max-width: 260px;
+	max-width: 320px;
 	aspect-ratio: 1;
-	object-fit: contain;
+	overflow: hidden;
 	border: 1px solid var(--bs-border-color);
 	border-radius: var(--radius-md);
 	// Letterboxing around a non-square image should read as the card, not as a band.
 	background: var(--bs-card-bg, var(--neutral-0));
+	cursor: zoom-in;
+}
+
+.gallery-main {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	transition: transform 0.3s ease;
+}
+
+.gallery-main-frame:hover .gallery-main {
+	transform: scale(1.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.gallery-main { transition: none; }
+	.gallery-main-frame:hover .gallery-main { transform: none; }
 }
 
 .gallery-strip {

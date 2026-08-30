@@ -118,6 +118,24 @@ public record StoreItemSummaryDto
     /// </para>
     /// </summary>
     public required List<string> SoldOutOrInactiveSkuLabels { get; init; }
+
+    /// <summary>
+    /// Distinct colour names across the item's ACTIVE SKUs, so the card can show what the product
+    /// comes in without opening it. "14 options" is a warehouse count; "Black · Blue" is what a
+    /// shopper is deciding between.
+    /// </summary>
+    ///
+    /// <para>
+    /// Non-nullable by design: a nullable List&lt;T&gt; generates as <c>any[]</c> in the TypeScript
+    /// client, which loses the element type at every call site. Empty list, never null.
+    /// </para>
+    public required List<string> ColorNames { get; init; }
+
+    /// <summary>
+    /// Distinct size names across the item's ACTIVE SKUs, in the order the SKUs come back, so the
+    /// card can say "Youth S – Adult XL" rather than a count.
+    /// </summary>
+    public required List<string> SizeNames { get; init; }
 }
 
 /// <summary>

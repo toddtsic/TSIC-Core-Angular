@@ -14,5 +14,7 @@ export type StoreItemSummaryDto = {
     imageUrls: Array<string>;
     singleSkuId?: number | null;
     soldOutOrInactiveSkuLabels: Array<string>;
+    colorNames: Array<string>;
+    sizeNames: Array<string>;
 };
 
