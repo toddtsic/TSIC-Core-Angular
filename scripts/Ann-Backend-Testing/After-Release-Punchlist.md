@@ -79,8 +79,8 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 | **AR-051** | **New 08-28 — Ann's question is ANSWERED, this is the leftover.** Tournament Parking Analysis **works fine on Fall events** — verified on Fall Showcase 2025 (475/475 rows pass, clean 2 complexes × 2 days). Fall *2026* shows nothing because **all 15 Fall 2026 jobs have zero schedule rows**, and the screen says so properly. **What needs you:** the field *complex* is guessed by cutting `fName` at the first hyphen (`TournamentParkingRepository.cs:33-35`, `:51-53`). `ALEX-PARK-01` → **`ALEX`** (cosmetic; hits **Top Threat Fall Draw**, whose 2026 edition is unscheduled today) and `Fowler Park 05` → its own complex, so **The SAT Georgia 2026 reports 12 complexes instead of 2 and understates per-lot parking load** — the point of the screen. **Legacy did the same first-hyphen cut**, so case 1 is parity, not a regression; the hyphenless case differs (legacy over-merged to a blank name, we over-split). **⚠️ RULING (Todd, 08-28): the FIELD NAMING CONVENTION `{complexname}-{NN}` — no hyphen in the complexname part — is the MECHANISM and MUST BE OBSERVED. It is the only signal that tells the report which fields share a lot; a non-conforming name yields a silently WRONG parking number.** Defensive `IndexOf`→`LastIndexOf` edit approved (grandfathers `ALEX-PARK-NN`, does nothing for hyphenless names). **34 non-conforming names / ~9 jobs / 2 customers — TSIC admins the renames, not directors.** Deriving the complex from `Fields.address` was investigated and **REJECTED** (it merges complexes named apart; `Fields` has no complex/site column at all). Blocker on the renames: 6 single-venue fields (`SECU Stadium`, `VTH Turf`) have no field number, so the convention doesn't cover them yet. Also two lines: suppress the `0 / 0 / 0 × 0` KPI cards that render above the empty state. |
 | **AR-052** | **New 08-29 — customer-facing 404 on a paid add-on.** Bulletin "Click here" for Team Registration Protection → `https://www.teamsportsinfo.com/!JSEG/ClubRepVIUpdate`. **`!JSEG` is never substituted on the bulletin path** — it's defined at `TextSubstitutionService.cs:422` but bulletins use their own tiny substitution (`BulletinService.cs:266-271` = `!JOBNAME` + `!USLAXVALIDTHROUGHDATE` only) and unknown tokens pass through **silently** (`BulletinTokenRegistry.cs:34-41`). Substituting the token alone won't fix it — the host is the **legacy** site too. What actually rescues most bulletins is `TranslateLegacyUrlsPipe`, which rewrites the whole anchor to a relative route — **and it has no rule for `ClubRepVIUpdate` or `PlayerVIUpdate`**, so those fall through as authored. **404 active bulletins carry `!JSEG` in an href; 87 point somewhere the pipe doesn't translate.** Fix = two lines in `translateAnchor`; **both routes already exist** (`app.routes.ts:726`, `:715`). |
 | **AR-053** | **New 08-29 — same symptom, different cause, and this one EMAILS families.** Registration Complete → *"To delete this registration or to change your player's Team or Uniform#"* → `https://www.teamsportsinfo.com/topthreat-falldraw-2026/PlayerWaiverUpdate`. **`!JOBPATH` substituted fine** — the faults are the legacy host and that `PlayerWaiverUpdate` is now a **modal**, not a route. The pipe already maps it (`translate-legacy-urls.pipe.ts:255-256`) → `internal-link.directive.ts:55-58` opens the modal — **but the pipe is applied in exactly one file, `bulletins.component.html`.** On-screen fix is wiring. **The email half is the bigger one: 116 jobs carry this in `PlayerReg_ConfirmationEmail` (48 current), all on the absolute legacy host — a pipe can't run in an email, so it needs a server-side rewrite, and someone must decide what an emailed link lands on given the destination is a modal.** |
-| **AR-054** | **New 08-29 — two adjacent lines, one has the gate and one doesn't.** Job landing shows **Register Coach** on an event with **no teams** (The Pickle 2026 — literally zero `Leagues.teams` rows) while the player badge correctly hides. `registration-panel.component.ts:162` gates the player link on `isPlayerRegistrationEffectivelyOpen` (= toggle **AND** teams exist); `:167` gates coach on `p.staffRegistrationOpen` **alone**. **Not cosmetic — the wizard behind it can never be submitted**: `hasValidTeams` demands ≥1 selected team and `NeedsTeamSelection: true` is set for **Club, Tournament AND League** alike, server-enforced. **The design already assumed this gate** — `AdultRegistrationService.cs:1596` says coach reg is *"release-gated on teams-exist… the picker is never empty"* — but `EnsureAdultRegOpen` checks only the toggle, so it's a convention documented as a guarantee. ⚠️ **Do NOT reuse the player flag**: the coach picker deliberately ignores `BAllowSelfRostering` and the date window, so reusing it would hide Register Coach on tournaments that have teams but no self-rostering. Needs a **new** adult-side pulse flag; same flag should cover the `REGISTER_STAFF` bulletin token, which gates on `AdultRegistrationPlanned` only. **⛔ SCOPE CORRECTED 08-29 (Ann): this is the NORMAL opening window of every released team-registration job** — the gap between go-live and the first team registering. My "one job" count was a point-in-time snapshot of a transient state and understated it badly. Player reg already holds to the right rule (hidden until the first team registers); coach reg must match. **Severity re-rated 🟡 → 🟠.** |
-| **AR-055** | **New 08-29 — RegSaver not offered; the toggle is NOT the problem.** Pickle 2026 has `bOfferPlayerRegsaverInsurance=1` (Team RegSaver off), so gate 1 passes. The offer also requires, in one query (`RegistrationRepository.cs:1022-1050`): `FeeTotal > 0` · **`AssignedTeam != null`** · team `Expireondate` **more than 24h out** · and at least one non-$0 product. **On this job it is the team condition and can't be anything else — zero `Leagues.teams` rows have ever existed**, so no registration can be team-assigned and the offer is impossible. **Same zero-teams root condition as AR-054 — one data state, three symptoms.** ⚠️ **Ann to confirm the event/flow first**: the job holds NO player registrations and no fee-bearing rows, so the screen she describes isn't reproducible here; on a different job the cause would be the $0-fee, 24-hour, or $0-product gate instead. **The real defect either way: all five conditions — plus a thrown VI call — return the identical silent `Available = false`, so nobody can tell which fired.** Recommend logging the failing gate. |
+| **AR-054** | **⛔ DIAGNOSIS REFUTED 08-29 — the gate ALREADY EXISTS and has since June.** The claim this item rested on ("coach is gated on the toggle alone") is false: `JobRepository.cs:697-698` computes `StaffRegistrationOpen = BRegistrationAllowStaff && Teams.Any(t => t.JobId == j.JobId)`, committed `60456b604` on **2026-06-24**, two months before filing. `registration-panel.component.ts:166` consumes exactly that flag, so the player/coach "asymmetry" never existed. **Cause of the error: the flag's meaning was inferred from its NAME and the server-side computation never opened.** Re-verified in DB 08-29 — Pickle 2026 has **0 team rows**, so the panel **cannot** render Register Coach on current master, and the job's one active bulletin carries no `REGISTER_STAFF` token. The gate is documented as intended in `quick-links.component.ts:123` and the customer-facing help FAQ. **Withdrawn: the new-pulse-flag recommendation, the "convention documented as a guarantee" reading (that comment is ACCURATE), and the universal-opening-window scope.** ❓ **Ann's report still stands and is UNEXPLAINED — do not close on the refutation alone**; need the URL and build date (leading hypotheses: stale local bundle, different job, cached pulse). 🟡 **Residual real defect — a filter mismatch, not a missing gate**: the pulse counts ANY team row while the coach picker (`AdultRegistrationRepository.GetAvailableTeamsAsync:138-147`) requires active + not Waitlist + not Dropped, so system-bucket/inactive teams pass the gate and still dead-end the wizard. **1 live job**: `gardenstatefutures-falltournament-2026`. One line, no regen. **Severity 🟠 → 🟡.** |
+| **AR-055** | **New 08-29 — RegSaver not offered; the toggle is NOT the problem.** Pickle 2026 has `bOfferPlayerRegsaverInsurance=1` (Team RegSaver off), so gate 1 passes. The offer also requires, in one query (`RegistrationRepository.cs:1022-1050`): `FeeTotal > 0` · **`AssignedTeam != null`** · team `Expireondate` **more than 24h out** · and at least one non-$0 product. **On this job it is the team condition and can't be anything else — zero `Leagues.teams` rows have ever existed**, so no registration can be team-assigned and the offer is impossible. **Same zero-teams root condition as AR-054** — but note AR-054's coach-badge diagnosis was **REFUTED 08-29**; what the two items share is the *data state*, not a common defect. ⚠️ **Ann to confirm the event/flow first**: the job holds NO player registrations and no fee-bearing rows, so the screen she describes isn't reproducible here; on a different job the cause would be the $0-fee, 24-hour, or $0-product gate instead. **The real defect either way: all five conditions — plus a thrown VI call — return the identical silent `Available = false`, so nobody can tell which fired.** Recommend logging the failing gate. |
 | **AR-056** | **New 08-29 — read the framing before reaching for AR-007.** Ann wants a SuperUser to **ADD** text to a Smart Bulletin (e.g. *"You can Register a Player to sign up for a HOUSE Team!"* on the Registration Links panel) — **explicitly not** the off-switch AR-007 declined: *"a request not to remove them but to add text."* **Ruling 1's rationale doesn't reach it** — an additive slot can't hide a link or quietly stop a site advertising registration. **Why she needs it:** every string in that panel is computed (`'Self-Roster Player'` vs `'Register Player'` by job type); there is **no free-text slot anywhere** in it. **Why the workaround fails:** a manual bulletin renders *below* the band, and AR-007 Rulings 2 and 3 closed both routes to moving it up (297 live bulletins, 294 started >30 days ago; and the pin column was rejected as cosmetic schema). **The design is already on record** — AR-007's `smartbulletins` schema giving each SB type a durable identity + overrides; an annotation is the least dangerous override it could carry and would be its first consumer. ⚠️ **Design hazard to settle up front:** hand-typed text can contradict a derived panel and won't self-retire — recommend phase-scoping it so it renders only while its section does. `widgets.JobWidget` is **not** a shortcut (0 rows, band hard-placed). |
 | **AR-057** | **New 08-29 — store admin, discoverability.** Ann went looking for photos on **New Item** and found them on a separate **Photos** tab. Confirmed: the item modal (`store-admin.component.html:467-600`) contains **zero** occurrences of photo/image/picture — not even a pointer. **The split is probably right** (an item holds several photos, and on *New* there's no id to attach one to yet), **so the defect is the missing hand-off, not the architecture.** Cheapest fix: one line + a button in the modal that switches to Photos and scrolls to this item. Full upload-in-modal **not** recommended. |
 | **🔴 AR-058** | **🔴 ANN’S TOP STORE PRIORITY — storefront APPEARANCE, “same if not better” than legacy (08-29).** Measured: legacy gave a product a **carousel `height: 800px`** in a half-page `col-lg-6`, an **`<h1>`** name and a **30px** price. New puts the **entire catalog in a `max-width: 600px` column** (`.item-list`, `catalog.component.scss:150`), caps the opened image at **260px**, uses a **60px** collapsed thumb, and renders name AND price at body size. **~3× smaller linear, ~9× by area.** 🎯 **ONE root cause, not a dozen** — the 600px column, which is also why the **receipt renders at half size (AR-059 Part 1)**; fix it once, both improve. **Order: lift the cap → re-size imagery (check uploads first — AR-063: 12/32 items have NO image, none has two) → type scale → cart/checkout thumbnails (independent, do regardless) → revisit card-vs-accordion LAST, since much of “items are small” may resolve once the width opens.** ⚠️ **Do NOT revert to legacy markup to reach parity** — the chips, the staged colour→size picker and the consolidated Pickup/Return/Contact panel beat legacy’s four dropdowns and its per-item tab triplication. Those are the “better” half of the ask. **Part 1 (multi-image) needs no work.** *(AR-064 merged in here 08-29.)* |
@@ -586,9 +586,62 @@ Investigated 08-28 and **ruled out**, despite grouping the SAT Georgia and Fall 
 - **Severity**: 🟡 **Not a Fall problem and not a blocker** — the feature is sound and Fall is verified working. But the accuracy defect is **silent**, which is what makes the convention non-negotiable.
 - **Status**: 🔴 **OPEN — for Todd.** Ann's question ✅ **ANSWERED: Fall events are fine.** Ruling recorded 08-28. Remaining: the defensive edit, the KPI-card gate, the single-venue naming decision (item 5), then the 34 renames.
 
-### AR-052: [Bulletins] "Click here" for Team Registration Protection 404s — `!JSEG` is never substituted on the bulletin path, and the pipe that would have rescued it has no rule for `ClubRepVIUpdate`
+### AR-052: 🟡 FIXED (Todd, 08-29) — awaiting deploy + Ann verify · [Bulletins] "Click here" for Team Registration Protection 404s — bulletins never called `TextSubstitutionService`
 - **Topic**: Job landing → **News & Updates** bulletin → the Team Registration Protection / ViCoverage bulletin
 - **Observation (Ann, 08-29)**: on **Top Threat Tournaments:Carolina Clash 2027**, the **"Click here"** link in *"Already registered your team but forgot to purchase coverage?"* goes to **`https://www.teamsportsinfo.com/!JSEG/ClubRepVIUpdate`** and 404s.
+
+> ## ⚠️ ROOT CAUSE CORRECTED 08-29 — THE ORIGINAL ANALYSIS BELOW IS WRONG. DO NOT ACT ON IT.
+>
+> **The real cause: bulletins never called `TextSubstitutionService` at all.** `BulletinService`
+> carried a **private two-token copy** of the substitution logic (`ReplaceTextTokens` — `!JOBNAME`
+> and `!USLAXVALIDTHROUGHDATE` only), so every other job token a director wrote rendered as
+> literal text. The service *already had* a method for this — `SubstituteJobTokensAsync`,
+> documented *"Use this for anonymous/public content like bulletins and menus"* — with **zero
+> callers**. Written for this job, truncated to two tokens, abandoned.
+>
+> **Proved against production, not inferred.** `GET /api/bulletins/job/topthreat-carolinaclash-2027`
+> returned `"title":"…Carolina Clash 2027"` (`!JOBNAME` resolved) and `href=\"/!JSEG/ClubRepVIUpdate`
+> (`!JSEG` not) in the **same payload**. The substitution stage ran; `!JSEG` was not in its list.
+>
+> **Scale:** across 839 active bulletins the only tokens in use are `!JSEG` 516 · `!JOBNAME` 506 ·
+> `!JOBPATH` 96 · `!USLAXVALIDTHROUGHDATE` 58 — **612 of 1,176 occurrences (52%) never resolved.**
+>
+> ### ❌ REJECTED — do not re-propose
+> - **"The links are absolute to `www`, so the host is wrong."** The `!JSEG` family (312 bulletins)
+>   is **root-relative** — `href="/!JSEG/ClubRepVIUpdate"` — and inherits whatever origin the
+>   visitor is on. Apex `teamsportsinfo.com` serves the new app (confirmed from Ann's screenshot:
+>   new header, footer stamp `v260828.1602.0fed0f8a9`). The separate `!JOBPATH` family (96) *is*
+>   absolute to `www` — see the open item at the end of this entry.
+> - **"Add `clubrepviupdate` to `TranslateLegacyUrlsPipe`'s allowlist."** Treats the symptom in the
+>   frontend and leaves the other 400+ bulletins broken. Not done.
+> - **"Deactivate the bulletins; smart bulletins/quick links cover the function."** They do **not**
+>   for an anonymous visitor: the header and registration-panel RegSaver links are pulse-gated on
+>   `myClubRepHasTeamWithoutRegsaver`, so an unauthenticated club rep sees only "Register Team".
+>   The bulletin is their **only** route to coverage. Deactivating removes the sole public path to
+>   a paid product.
+>
+> ### ✅ THE FIX (shipped 08-29)
+> `BulletinService` now calls `ITextSubstitutionService.BuildJobTokensAsync(jobId)` — the canonical
+> job vocabulary (15 tokens), built from the job slice `LoadJobInvariantFieldsAsync` already loads —
+> and seeds `BulletinTokenRegistry` with it, so **job tokens and widget tokens resolve in ONE pass**
+> instead of two (a second pass re-scans what the first injected). New `JobTokens.cs` holds the
+> vocabulary; the registry throws if a resolver name ever collides with a job-token name.
+> `ReplaceTextTokens` deleted, along with the dead `GetJobTokenInfoAsync` / `JobTokenInfo` that
+> existed only to feed the truncated method. **`AddSimpleTokens` and every email path untouched** —
+> email already resolved everything correctly and had no defect.
+>
+> The editor's live-preview endpoint was fixed in the same pass: it resolved widget tokens but no
+> job tokens, so an author would have seen a raw `!JSEG` and "fixed" it by typing a URL — which is
+> how these legacy links came to exist.
+>
+> **Two accepted behavior changes:** `!USLAXVALIDTHROUGHDATE` now renders `6/1/2027` rather than
+> `6/1/27` (canonical format, 58 bulletins); and lowercase tokens (`!jobname`) no longer resolve —
+> the old path was case-insensitive, the registry regex is uppercase-only. **Zero** active bulletins
+> use a lowercase token.
+>
+> **OPEN, separate:** the **96 bulletins** whose links are absolute to
+> `https://www.teamsportsinfo.com/!JOBPATH/…` — substitution fixes the path but not the host.
+> Whether `www` resolves to the new app decides those. Needs Todd's ruling.
 
 **✅ THE DESTINATION EXISTS AND WORKS — this is a broken link, not a missing feature.** `ClubRepVIUpdate` is a live route (`app.routes.ts:726`, with a lowercase redirect at `:731`), the component ships (`views/clubrep-vi-update/`), and the app already links it from two other places: the header bar's **"Buy Team Regsaver"** (`client-header-bar.component.ts:167`) and the landing registration panel (`registration-panel.component.ts:281`). Only the bulletin link is broken.
 
@@ -638,49 +691,72 @@ Investigated 08-28 and **ruled out**, despite grouping the SAT Georgia and Fall 
 - **Severity**: 🟠 **Customer-facing, and it goes out by email.** A parent told to use this link to fix a team assignment or uniform number, or to cancel, hits a 404 — and then contacts the director. Reaches families directly rather than waiting for a click on a landing page.
 - **Status**: 🔴 **OPEN — for Todd.** Filed 08-29 from Ann's screenshot. Root cause confirmed in code and quantified in data. Sibling of AR-052 — different mechanism, shared `www` question.
 
-### AR-054: [Job landing → Registration Links] "Register Coach" shows on an event with NO teams — the player badge is team-gated, the coach badge isn't, and the wizard behind it CANNOT be completed
+### AR-054: [Job landing → Registration Links] "Register Coach" on an event with no teams — ⛔ ORIGINAL DIAGNOSIS REFUTED: the gate has existed since June
 - **Topic**: Job landing → **Registration Links** panel → the **ADULT** column
 - **Observation (Ann, 08-29)**: on **STEPS Lacrosse:The Pickle 2026** there are **no teams**. The **Self-Roster Player** badge correctly does **not** show — but **Register Coach** still does. It should be gated the same way.
 
-**✅ CONFIRMED, and the data matches exactly.** The Pickle 2026 has **zero team rows** (`Leagues.teams` — not "no active teams", literally none) with all three toggles on: `bRegistrationAllowPlayer=1`, `bRegistrationAllowStaff=1`, `bRegistrationAllowTeam=1`. So the panel renders Register Coach, Register Team and Public Rosters, and correctly omits the player badge.
+#### 📣 QUESTION FOR ANN — AR-054 (08-29): **one question, and an apology for the analysis under it**
 
-**🔴 THE ASYMMETRY IS TWO ADJACENT LINES.** `registration-panel.component.ts`:
-| Line | Link | Gate |
-|:--|:--|:--|
-| `:162` | Self-Roster Player | `allowed.has('register-player') && isPlayerRegistrationEffectivelyOpen(p)` |
-| `:167` | **Register Coach** | `allowed.has('register-coach') && p.staffRegistrationOpen` |
-`isPlayerRegistrationEffectivelyOpen` is `playerRegistrationOpen && playerTeamsAvailableForRegistration` (`landing-phase.ts:74-76`) — **the player link asks whether any team actually exists to land on. The coach link asks only whether the director flipped a toggle.**
+**First, what went wrong on our end.** The write-up below originally told you the coach link had **no** teams-exist gate, and that this affected **every** released job. **Both claims were wrong.** The gate has been in the code since 24 June. I read the frontend line, saw a flag named `staffRegistrationOpen`, and assumed from the *name* that it was just the director's toggle — without ever opening where that value is calculated. It is calculated as *toggle **AND** at least one team exists*. Everything I built on top of that — the "two adjacent lines" story, the severity increase, the "this happens on every event" scope — came from that one unchecked assumption, and it is all withdrawn. **Your report is not in question. My explanation of it was.**
 
-**🔴 THIS IS NOT COSMETIC — the link leads somewhere a coach cannot finish.** Coach registration requires picking at least one team, on **every** job type:
-- `hasValidTeams = !needsTeamSelection() || teamIdsCoaching().length > 0` (`adult-wizard-state.service.ts:279-280`). With zero teams the second clause can never be satisfied, so **submission is blocked permanently**.
-- `NeedsTeamSelection: true` is set for **Club, Tournament AND League** alike (`AdultRegistrationService.cs:1602`, `:1616`) — Club captures non-binding *requests*, Tournament/League are *binding* placements, but all three demand ≥1 team. **So this is not a tournament-only defect.**
-- The server enforces it too (`:264`, `:372`, `:880`), so there's no way around it via the API.
-- The wizard is at least honest about it — `profile-step.component.ts:91-96` shows *"No teams are registered yet for this event. Contact the tournament director."* **But that's a dead end reached after several steps of typing, not a gate.**
+**So that we chase the right thing, one question:**
 
-**🎯 THE DESIGN ALREADY ASSUMED THIS GATE — it was just never enforced.** Two comments in `AdultRegistrationService.cs` state it as fact:
-- `:1587-1590` — *"Release gate: a director opens coach/staff registration only after teams exist (so coaches have real teams to pick)."*
-- `:1596-1601` — *"Safe because coach registration is **release-gated on teams-exist** (Phase 1): the picker is never empty by the time a coach can reach this."*
-**Nothing implements that.** `EnsureAdultRegOpen` (`:1556-1563`) checks the toggle and nothing else. It is a **convention the code documents as a guarantee** — and The Pickle 2026 is a director who didn't follow it.
+> **Which screen were you looking at when you saw Register Coach on The Pickle 2026 — the public job landing page, or a director-side setup screen (Quick Links / registration settings)?**
 
-**⚠️ IMPORTANT — do NOT reuse the player flag, even though Ann's "gate it the same way" is right in spirit.** The two pickers use deliberately different filters:
-| | Filter |
-|:--|:--|
-| **Player** (`TeamSelfRosterAvailability`) | Active · **`BAllowSelfRostering`** on team or agegroup · **inside the registration date window** · not Waitlist/Dropped |
-| **Coach** (`AdultRegistrationRepository.GetAvailableTeamsAsync:138-147`) | Active · not Waitlist · not Dropped — **no self-rostering flag, no date window** |
-The coach filter is looser **on purpose**: a coach doesn't self-roster, so team self-rostering settings and player windows are none of their business. **Wiring the coach link to `playerTeamsAvailableForRegistration` would wrongly hide Register Coach on any tournament that has teams but hasn't enabled self-rostering, or whose player windows have closed** — both perfectly normal states in which coaches must still be able to register. **A new pulse flag mirroring the ADULT filter is needed; there is no existing flag to reuse.**
+**Why it decides everything:** your words were *"Coach Registration will **turn on** without any teams registered and it should NOT."*
+- If you meant the **public landing page badge** — that should be impossible on current code, and we need your page URL and roughly when you last pulled/built, because something is out of step.
+- If you meant the **director-side setting** — **you are right and always were.** Nothing stops a director switching coach registration on for an event with no teams; the setting simply accepts it. That would make this a *"don't let them turn it on yet"* item, which is a different (and easier) fix than anything discussed below.
 
-**📊 SCOPE — ⛔ CORRECTED 08-29 (Ann). My original "exactly one job" reading was wrong, and it understated this badly.** Ann: *"AR-054 occurs in **all cases** where a job has been released but there aren't any teams registered yet. If Player Reg is turned on, it won't show until the first team is registered. BUT Coach Registration will turn on without any teams registered and it should NOT."*
-- **She is right, and the error was in the measurement, not the code reading.** I counted jobs *currently sitting* in the zero-teams state — a **point-in-time snapshot of a transient window**. The window is the gap between a job going live and its first team registering, and **every team-registration job passes through it.** A snapshot catches only whoever happens to be inside it right now (on 08-29, The Pickle 2026); it cannot see the jobs that passed through it last week or will next week. **"One job" was an artifact of when I looked.**
-- **So this is the NORMAL opening state of every released job, not a director's mistake.** The earlier framing — *"directors do generally follow the documented convention; this is the one who didn't"* — is withdrawn. There is no convention being violated: a director releases the job, coach registration comes on, and teams arrive afterward. **The code comment at `AdultRegistrationService.cs:1596` ("the picker is never empty by the time a coach can reach this") is simply false for the opening window of every event.**
-- **Ann's framing is the correct statement of the rule**: player registration already behaves right — it stays hidden until the first team registers. **Coach registration should hold to exactly that standard**, on its own (looser) team filter per the warning above.
-- **Incidence is therefore recurring and universal, not rare** — every event, every season, for as long as the gap lasts. Severity re-rated accordingly.
+A screenshot with the address bar visible answers it on its own.
 
-**🎯 For Todd:**
-1. **Add an adult-side pulse flag** (e.g. `AdultTeamsAvailableForPlacement`) computed off the **adult** filter above, and gate `registration-panel.component.ts:167` on it. That closes Ann's report.
-2. **Two other coach entry points dangle the same way** and should take the same flag, or the gate has holes: the bulletin `REGISTER_STAFF` token, which gates only on `AdultRegistrationPlanned` (`RegisterStaffResolver.cs:7,11`), and its `REGISTER_SELFROSTERPLAYERSANDCOACH` sibling.
-3. **Consider enforcing it server-side** in `EnsureAdultRegOpen` so a direct API hit gets the same answer as the UI — and so the comment at `:1596` becomes true instead of aspirational.
-- **Severity**: 🟠 **RE-RATED 08-29 (was 🟡).** Not "one live event" — the **normal opening window of every released team-registration job**. A coach who follows the link fills in a wizard that cannot be submitted, then emails the director. Recurring, and it lands on brand-new events when directors are least able to absorb support noise.
-- **Status**: 🔴 **OPEN — for Todd.** Filed 08-29 from Ann's screenshot. Root cause confirmed in code, reproduced against the job's data, and scoped in the DB.
+---
+
+**⛔ REFUTED 08-29. The claim this item was built on — "the coach link is gated on the toggle alone" — is FALSE, and has been false since 2026-06-24.**
+
+`StaffRegistrationOpen` is **not** a bare toggle mirror. `JobRepository.cs:697-698`:
+```csharp
+StaffRegistrationOpen = j.BRegistrationAllowStaff == true
+    && _context.Teams.Any(t => t.JobId == j.JobId),
+```
+Committed in `60456b604` (*"feat(adult-reg): wire coach/referee/recruiter release gate + Quick Links + hero CTAs"*, **2026-06-24**) — **two months before this item was filed.** `registration-panel.component.ts:166` consumes exactly that flag. **The player/coach "asymmetry across two adjacent lines" never existed**: both links carry a teams-exist condition; they differ only in the *filter* used to count teams (see the residual defect below).
+
+**How the error happened — worth recording, because it is a repeatable failure mode.** The original pass read the frontend gate (`p.staffRegistrationOpen`), inferred its meaning **from the field name**, and never opened the server-side computation. Everything downstream inherited the bad premise: the "two adjacent lines" framing, the "the design assumed a gate nobody implemented" reading of the `AdultRegistrationService.cs:1596` comment (that comment is **accurate**, not aspirational), the new-pulse-flag recommendation, and the 🟠 severity re-rate. **All of it is withdrawn.** A flag's name is not its definition — resolve the computation before asserting what a gate checks.
+
+**✅ THE DATA CONFIRMS THE REFUTATION, not the original reading.** Re-queried 08-29:
+| Job | `bRegistrationAllowStaff` | Any `Leagues.teams` rows | Rows passing the coach picker's filter |
+|:--|:--|:--|:--|
+| steps-thepickle-2026 | 1 | **0** | **0** |
+With zero team rows `StaffRegistrationOpen` evaluates **false**, so the Registration Links panel **cannot render Register Coach on current master**. The only other surface that emits a coach CTA is the `REGISTER_STAFF` bulletin token — and that job carries **one** active bulletin (PLAYER Registration Protection), which contains no such token.
+
+**The gate is also documented as intended behaviour**, in two places written for the director:
+- `quick-links.component.ts:123` — *"No teams exist yet — coaches will have nothing to request, and the 'Register Coach' Smart Bulletin stays hidden until teams are added."*
+- `public/help/quick-links/faq.html:59,73` — same wording, customer-facing.
+
+**❓ ANN'S REPORT STILL STANDS AND IS UNEXPLAINED.** Current source says the badge cannot render on that job. **Do not close this item on the refutation alone.**
+
+**Her words, preserved verbatim — the analysis was wrong, the report is the record:** *"AR-054 occurs in **all cases** where a job has been released but there aren't any teams registered yet. If Player Reg is turned on, it won't show until the first team is registered. BUT Coach Registration will turn on without any teams registered and it should NOT."*
+
+**⚠️ TWO READINGS OF THAT QUOTE, and the original pass assumed the first without asking:**
+1. **Public landing badge renders** — what this item was written against. Refuted above for the Pickle.
+2. **The DIRECTOR-SIDE toggle turns on / is offered with no teams** — *"Coach Registration will **turn on**"* reads at least as naturally this way, and on that reading **her report is simply true**: `bRegistrationAllowStaff=1` on the Pickle with zero teams, and nothing stops a director setting it. The Quick Links editor even ships a tip for the state (`quick-links.component.ts:123`). That would make this a **config-validation** item — should the system let coach registration be switched on before any team exists? — **not a rendering bug**, and it would explain why the code reading and the report disagree.
+
+**Also note: "occurs in all cases" is a rule she stated after seeing ONE case.** The original pass treated it as measurement and re-rated severity on it. It may well be right; nothing in the record shows a second job was checked.
+
+Needed from Ann, cheapest first:
+1. **WHICH SCREEN** — the public job landing, or a director-side config/Quick Links page? This one question separates reading 1 from reading 2 and should be asked first.
+2. The **URL** of the page in the screenshot (confirms the job — it may not have been the Pickle).
+3. The **date/commit of the build** she was running (a stale local bundle predating `60456b604` is the leading hypothesis, though it is two months old).
+4. Whether a hard reload changes it (a cached pulse response is the third hypothesis).
+
+**🟡 ONE REAL RESIDUAL DEFECT — a filter mismatch, not a missing gate.** The pulse counts **any** team row (`Teams.Any(t => t.JobId == j.JobId)`); the coach picker requires **active AND not Waitlist AND not Dropped** (`AdultRegistrationRepository.GetAvailableTeamsAsync:138-147`). So a job whose only teams are inactive or sitting in the system buckets **passes the gate and still dead-ends the wizard** — the original symptom, reached by a different route.
+- **Measured scope: 1 job today** — `gardenstatefutures-falltournament-2026` (Garden State Futures: Fall Tournament 2026): 1 team row, 0 pickable, `ExpiryUsers` 2026-11-30. Not "every released job."
+- **Fix**: align the pulse count with the picker's filter — the `Any()` gains the same active/Waitlist/Dropped conditions. One line, no new pulse field, **no `2-Regenerate-API-Models.ps1` run.**
+- ⚠️ Still true and still worth heeding: **do not reuse the PLAYER flag.** `TeamSelfRosterAvailability` additionally demands `BAllowSelfRostering` and an open registration window; the coach picker deliberately ignores both, so reusing it would hide Register Coach on tournaments that have teams but no self-rostering.
+
+**Optional hardening, unchanged in substance but no longer urgent:** `EnsureAdultRegOpen` (`AdultRegistrationService.cs:1556-1563`) checks the toggle only, so a direct API hit is not gated the way the UI is. Three bulletin resolvers gate on `AdultRegistrationPlanned` alone — `REGISTER_STAFF`, `REGISTER_SELFROSTERPLAYERSANDCOACH`, `REGISTER_UNASSIGNEDADULT` (the original write-up named two of the three) — and that flag is a bare OR of the three adult toggles with no teams condition and no create-door AND.
+
+- **Severity**: 🟡 **RE-RATED DOWN 08-29 (was 🟠, originally 🟡).** The universal-opening-window scope was an artifact of the refuted premise. The residual filter-mismatch defect affects **one** live job.
+- **Status**: 🟠 **OPEN — awaiting Ann.** Original root-cause claim refuted against source and re-verified in the DB. Two separable pieces remain: (a) explain what Ann actually saw, (b) the one-line filter alignment.
 
 ### AR-055: [Player RegSaver] Insurance not offered on the player payment screen — the offer requires an ASSIGNED TEAM, and it is silently suppressed when there isn't one
 - **Topic**: Player registration wizard → **Payment** step → RegSaver / Vertical Insure offer
@@ -699,7 +775,7 @@ The coach filter is looser **on purpose**: a coach doesn't self-roster, so team 
 | 5 | every product priced to $0 | `VerticalInsureService.cs:86-92` | e.g. the free WAITLIST twin |
 
 **🎯 ON THIS JOB IT IS CONDITION 3, AND IT CANNOT BE ANYTHING ELSE.** **The Pickle 2026 has ZERO team rows** — not "no active teams", none have ever existed (`Leagues.teams` count = 0, including inactive). With no teams, **no registration can satisfy `AssignedTeam != null`**, so the eligible list is always empty, so `Available = false`. **Deterministic — the offer is impossible on this job in its current state, regardless of the toggle.**
-- **⚠️ THIS IS THE SAME ROOT CONDITION AS AR-054.** Zero teams is why Register Coach wrongly shows, why the player badge correctly hides, and why insurance can't be offered. **One data state, three symptoms.** Fixing the config won't help; a registered team will.
+- **⚠️ THIS IS THE SAME ROOT DATA CONDITION AS AR-054 — but not the same defect.** Zero teams is why the player badge correctly hides and why insurance can't be offered. ⛔ **Corrected 08-29**: it is *also* why Register Coach should NOT have shown — `StaffRegistrationOpen` has carried a teams-exist condition since `60456b604` (2026-06-24), so AR-054's original "wrongly shows" diagnosis is refuted and that leg of "three symptoms" is withdrawn. Fixing the config won't help either item; a registered team will.
 
 **⚠️ WHAT I COULD NOT VERIFY — Ann, this needs a word from you before Todd acts.** The job currently holds **no player registrations at all** (roles present: Director ×7, Superuser ×2, Club Rep ×1, ApiAuthorized ×1 — **no Player**) and **no registration with a fee > 0**. So I **cannot reproduce the payment screen you saw on this job**, and with zero teams the player wizard shouldn't have been reachable in the first place (that's AR-054's other half — the player badge correctly hides).
 - **If you ran this on The Pickle 2026**, condition 3 is the whole answer and nothing else needs investigating.
@@ -954,7 +1030,7 @@ For a **family sign-in** shopper the account carries the same contact details th
 - **Self-rostering language and tooling are tournament-only** because they presuppose teams to join: `isTournament()` drives the label, and Public Rosters / change-team-or-uniform are gated the same way.
 - **✅ Camps get their own tooling instead**: the **Camp Groups** screen (`/camp-groups`, nav-gated by a jobTypes allowlist) and a **camp preset** in the Roster Table Designer. So the divergence runs both directions — a camp isn't a tournament minus features.
 
-**✅ NO LATENT TRAP FOUND — I checked, because AR-054 made it worth checking.** If a camp had `bRegistrationAllowStaff = 1`, the landing page would show **Register Coach** (the AR-054 defect) and clicking it would hit the server throw above. **Zero camp, showcase or sales jobs have coach registration enabled** — current or historical. **Not live; worth knowing it's one config toggle away.**
+**✅ NO LATENT TRAP FOUND — I checked, because AR-054 made it worth checking.** If a camp had `bRegistrationAllowStaff = 1` **and at least one team row** (⛔ corrected 08-29 — `StaffRegistrationOpen` requires teams to exist; the original wording omitted that condition because it inherited AR-054's refuted premise), the landing page would show **Register Coach** and clicking it would hit the server throw above. **Zero camp, showcase or sales jobs have coach registration enabled** — current or historical. **Not live; worth knowing it's one config toggle away.**
 
 **🟡 ONE REAL FINDING WHILE ANSWERING — the FRONTEND job-type constant is missing Showcase.** `job-type.constants.ts` stops at `Sales: 5`, even though the backend `JobConstants.cs` **does** define `JobTypeShowcase = 6` and **271 jobs use it** — the second-largest player-site type. The one place the frontend needs it (`visibility-rules.ts:50`) hardcodes a bare literal: `jobTypeId === 1 || jobTypeId === 4 || jobTypeId === 6`.
 - **The file's own docstring claims it "mirrors backend `JobConstants`" — it no longer does.** Low-risk today, but the next person adding a player-site rule has no `JobType.Showcase` to reach for and will copy the literal. **Small fix: add `Showcase: 6` and replace the literals.**
