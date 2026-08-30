@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -6,7 +6,10 @@ import { StoreService } from '../../../infrastructure/services/store.service';
 import { ToastService } from '../../../shared-ui/toast.service';
 import type { StoreItemSummaryDto, StoreItemDto, StoreSkuDto, SkuAvailabilityDto, StoreCartLineItemDto } from '@core/api';
 import { clampAddQuantity, maxAddQuantity } from '../store-quantity';
+import { compareSizeNames, isPlaceholderVariantName, orderSizes } from '../store-size-order';
+import { variantLabel } from '../store-variant-label';
 import { StoreFrontInfoComponent } from '../store-front-info.component';
+import { TsicDialogComponent } from '../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { formatCurrency } from '@shared/utils/money.util';
 
 interface ExpandedItemState {
@@ -26,7 +29,7 @@ interface ExpandedItemState {
 @Component({
 	selector: 'app-catalog',
 	standalone: true,
-	imports: [CommonModule, FormsModule, RouterLink, StoreFrontInfoComponent],
+	imports: [CommonModule, FormsModule, RouterLink, StoreFrontInfoComponent, TsicDialogComponent],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './catalog.component.html',
 	styleUrl: './catalog.component.scss',
@@ -63,6 +66,17 @@ export class StoreCatalogComponent {
 	readonly expandedState = signal<ExpandedItemState | null>(null);
 	readonly isExpandLoading = signal(false);
 
+	/**
+	 * The open item's GRID row, which is already in hand when the dialog opens. It carries the
+	 * name, the price and the sold-out labels, so the dialog header is populated on the first
+	 * frame and only the body waits on the detail fetch — an empty title bar over a spinner
+	 * reads as a broken dialog rather than a loading one.
+	 */
+	readonly expandedSummary = computed(() => {
+		const id = this.expandedId();
+		return id === null ? null : this.items().find(i => i.storeItemId === id) ?? null;
+	});
+
 	// Quick-add state for single-SKU items
 	readonly quickAddingItemId = signal<number | null>(null);
 
@@ -94,15 +108,19 @@ export class StoreCatalogComponent {
 		});
 	}
 
-	toggleItem(summary: StoreItemSummaryDto): void {
-		// Collapse if tapping the already-expanded item
+	/** Dismiss the quick-view. Nothing is retained: reopening re-fetches and re-arms the picker. */
+	closeItem(): void {
+		this.expandedId.set(null);
+		this.expandedState.set(null);
+	}
+
+	openItem(summary: StoreItemSummaryDto): void {
 		if (this.expandedId() === summary.storeItemId) {
-			this.expandedId.set(null);
-			this.expandedState.set(null);
+			this.closeItem();
 			return;
 		}
 
-		// Expand: fetch full detail with SKUs
+		// Fetch full detail with SKUs. The dialog opens on this frame, on expandedId alone.
 		this.galleryIndex.set(0);
 		this.expandedId.set(summary.storeItemId);
 		this.expandedState.set(null);
@@ -119,7 +137,14 @@ export class StoreCatalogComponent {
 				}
 
 				const colors = Array.from(colorMap, ([id, name]) => ({ id, name }));
-				const sizes = Array.from(sizeMap, ([id, name]) => ({ id, name }));
+
+				// Smallest first. The API hands these over in legacy's order, which is
+				// `OrderBy(StoreSizeName)` — alphabetical — so untouched the picker offers
+				// "Adult Large, Adult Medium, Adult Small, Adult XL, Youth Large…". Nobody
+				// shops a size ladder alphabetically, and the card above it states a range,
+				// which the chips would then contradict.
+				const sizes = Array.from(sizeMap, ([id, name]) => ({ id, name }))
+					.sort((a, b) => compareSizeNames(a.name, b.name));
 
 				// Auto-select if only one option
 				const autoColor = colors.length === 1 ? colors[0].id : null;
@@ -365,29 +390,14 @@ export class StoreCatalogComponent {
 					return;
 				}
 
+				// The dialog closes on a successful add and the cart bar pulses behind it. It
+				// used to stay open and re-arm the picker, which is the right move for an inline
+				// panel and the wrong one for a modal: the shopper is left staring at a form they
+				// have finished with, and has to dismiss it before seeing that anything happened.
+				// "Keep shopping" is what the button says, so put them back in the shop.
+				this.closeItem();
 				this.toast.show('Added to cart!', 'success');
 				this.triggerCartPulse();
-				const cur = this.expandedState();
-				if (!cur) return;
-				const resetColor = cur.availableColors.length === 1 ? cur.availableColors[0].id : null;
-				const players = this.familyPlayers();
-				const updated: ExpandedItemState = {
-					...cur,
-					isAdding: false,
-					selectedColorId: resetColor,
-					selectedSizeId: null,
-					selectedDirectToRegId: players.length === 1 ? players[0].registrationId : null,
-					availability: null,
-					skuAvailabilityMap: new Map(),
-					quantity: 1,
-				};
-				this.expandedState.set(updated);
-				// Re-fetch availability (stock changed after add)
-				if (resetColor !== null) {
-					this.batchCheckAvailability(updated, resetColor);
-				} else if (cur.availableColors.length === 0 && cur.availableSizes.length > 0) {
-					this.batchCheckAvailability(updated, null);
-				}
 			},
 			error: err => {
 				this.toast.show(err?.error?.message || 'Failed to add to cart', 'danger');
@@ -399,11 +409,11 @@ export class StoreCatalogComponent {
 
 	/** Quick-add for single-SKU items (no variant selection needed) */
 	quickAdd(item: StoreItemSummaryDto, event: Event): void {
-		event.stopPropagation(); // Prevent row toggle
+		event.stopPropagation(); // Prevent the card opening behind it
 		if (!item.singleSkuId || this.quickAddingItemId()) return;
-		// When family players exist, force expansion to select DirectTo
+		// When family players exist, open the dialog instead — DirectTo has to be chosen.
 		if (this.familyPlayers().length > 0) {
-			this.toggleItem(item);
+			this.openItem(item);
 			return;
 		}
 
@@ -431,12 +441,7 @@ export class StoreCatalogComponent {
 		return cart.lineItems.filter(li => skuIds.has(li.storeSkuId));
 	}
 
-	variantLabel(item: StoreCartLineItemDto): string {
-		const parts: string[] = [];
-		if (item.colorName) parts.push(item.colorName);
-		if (item.sizeName) parts.push(item.sizeName);
-		return parts.join(' / ');
-	}
+	readonly variantLabel = variantLabel;
 
 	private triggerCartPulse(): void {
 		this.cartPulse.set(true);
@@ -460,17 +465,23 @@ export class StoreCatalogComponent {
 	 * the row count of a SKU matrix and tells nobody anything — the question being asked is
 	 * "does it come in my size, and in a colour I want".
 	 *
-	 * <p>Sizes read as a RANGE rather than a list because the matrix is built size-outer (B-07),
-	 * so they arrive in the order the director entered them — "Youth S – Adult XL" is both
-	 * shorter and more informative than eight chips. Colours are counted rather than named, since
-	 * the swatches beside this already name them.</p>
+	 * <p>Sizes read as a RANGE rather than a list — "Youth Small – Adult XL" is both shorter and
+	 * more informative than eight chips. The ends come from `orderSizes`, NOT from the order the
+	 * API returns: legacy sorts sizes by name (`OrderBy(StoreSizeName)`), so the raw order is
+	 * alphabetical and every garment here read "Adult Large – Youth Small", a range running
+	 * backwards. Colors are counted rather than named, since the swatches beside this name them.</p>
 	 *
-	 * <p>Returns null for a single-variant item: "Standard" under a Sticker is noise.</p>
+	 * <p>Returns null when nothing is left to say — a single-variant item whose only size and
+	 * color are both the "Standard" placeholder.</p>
 	 */
 	variantSummary(item: StoreItemSummaryDto): string | null {
 		const parts: string[] = [];
-		const sizes = item.sizeNames;
-		const colors = item.colorNames;
+
+		// "Standard" is what item create writes when a director defines no variants at all. It
+		// is a placeholder on BOTH dimensions, which is how a card came to read "Standard ·
+		// Standard" — two words that answer nothing.
+		const sizes = orderSizes(item.sizeNames.filter(n => !isPlaceholderVariantName(n)));
+		const colors = item.colorNames.filter(n => !isPlaceholderVariantName(n));
 
 		if (sizes.length > 2) {
 			parts.push(`${sizes[0]} – ${sizes[sizes.length - 1]}`);
@@ -479,14 +490,13 @@ export class StoreCatalogComponent {
 		}
 
 		if (colors.length > 1) {
-			parts.push(`${colors.length} colours`);
+			parts.push(`${colors.length} colors`);
 		} else if (colors.length === 1) {
 			parts.push(colors[0]);
 		}
 
-		const summary = parts.join(' · ');
-		// One variant with nothing to choose — the picker will say so if they open it.
-		return summary && summary !== 'Standard' ? summary : null;
+		// Nothing worth saying — the item has one variant and the picker will show it.
+		return parts.join(' · ') || null;
 	}
 
 	/**

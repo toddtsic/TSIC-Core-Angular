@@ -77,22 +77,22 @@
 	<div class="item-grid">
 		@for (item of items(); track item.storeItemId) {
 			<!--
-				A card, not a list row. The open card spans the full grid width so the picker has
-				room to breathe; the rest stay as tiles, which is what lets a shopper see the whole
-				range at once instead of one product per screenful.
+				A card, not a list row, and it NEVER changes shape. Choosing happens in a dialog
+				over the grid, so opening an item cannot move the products around it — an in-grid
+				expansion has to reflow every card after the one that opened, whatever else it
+				gets right.
 			-->
-			<article class="item-card" [class.expanded]="expandedId() === item.storeItemId">
+			<article class="item-card">
 
 				<!--
-					The WHOLE card is the disclosure control, and it is a real <button> — it used to
-					be a div with a click handler, which no keyboard could reach. Every card carries
-					a chevron because every card expands; two of them used to hide it, which made
-					the chevron read as a sold-out marker rather than "there is more here".
+					The WHOLE card is the control, and it is a real <button> — it used to be a div
+					with a click handler, which no keyboard could reach. Every card carries the
+					open badge because every card opens; two of them used to hide it, which made
+					the marker read as "sold out" rather than "there is more here".
 				-->
 				<button type="button" class="item-open"
-						[attr.aria-expanded]="expandedId() === item.storeItemId"
-						[attr.aria-controls]="'item-panel-' + item.storeItemId"
-						(click)="toggleItem(item)">
+						aria-haspopup="dialog"
+						(click)="openItem(item)">
 
 					<span class="item-media">
 						@if (item.imageUrls.length) {
@@ -113,7 +113,7 @@
 						}
 
 						@if (item.colorNames.length > 1) {
-							<span class="item-swatches" [attr.aria-label]="'Colours: ' + item.colorNames.join(', ')">
+							<span class="item-swatches" [attr.aria-label]="'Colors: ' + item.colorNames.join(', ')">
 								@for (color of item.colorNames; track color) {
 									<span class="item-swatch"
 										  [style.background]="swatchColor(color)"
@@ -125,10 +125,12 @@
 						<span class="item-price">{{ formatCurrency(item.storeItemPrice) }}</span>
 					</span>
 
-					<span class="item-chevron" aria-hidden="true">
-						<i class="bi"
-						   [class.bi-chevron-down]="expandedId() !== item.storeItemId"
-						   [class.bi-chevron-up]="expandedId() === item.storeItemId"></i>
+					<!--
+						Expand arrows, not a chevron. A chevron promises the card will unfold in
+						place; this one opens a dialog, and the icon should say which.
+					-->
+					<span class="item-open-badge" aria-hidden="true">
+						<i class="bi bi-arrows-angle-expand"></i>
 					</span>
 				</button>
 
@@ -148,36 +150,73 @@
 						}
 					</button>
 				}
+			</article>
+		}
+	</div>
+}
 
-				<!-- Expanded: picker panel -->
-				@if (expandedId() === item.storeItemId) {
-					<div class="picker-panel" [id]="'item-panel-' + item.storeItemId">
-						@if (isExpandLoading()) {
-							<div class="text-center py-3">
-								<span class="spinner-border spinner-border-sm text-primary"></span>
-							</div>
-						} @else if (expandedState(); as s) {
+<!-- ═══ Quick-View Dialog ═══ -->
+<!--
+	Legacy chose variants in an accordion under the item card, and so did we until the grid
+	landed. In a grid an in-place panel has to take the whole row, which moves every card after
+	it — you tap the second product and the shelf rearranges itself. The dialog is the only
+	shape that leaves the grid alone.
 
+	Not draggable: a product view is not a tool window, and dragging it off-centre only ever
+	loses it. ESC, the backdrop and the × all close it (tsic-dialog).
+-->
+@if (expandedId() !== null) {
+	<tsic-dialog size="lg" [draggable]="false" (requestClose)="closeItem()">
+		<div class="modal-content quickview">
+
+			<!--
+				Name and price come from the SUMMARY, which is already loaded, so the header is
+				populated on the first frame — the detail fetch only fills the body below it.
+			-->
+			<div class="modal-header quickview-head">
+				<div class="quickview-heading">
+					<h5 class="modal-title">{{ expandedSummary()?.storeItemName }}</h5>
+					@if (expandedSummary(); as summary) {
+						<span class="quickview-price">{{ formatCurrency(summary.storeItemPrice) }}</span>
+					}
+				</div>
+				<button type="button" class="btn-close" (click)="closeItem()" aria-label="Close"></button>
+			</div>
+
+			<div class="modal-body quickview-body">
+				@if (isExpandLoading()) {
+					<div class="text-center py-5">
+						<span class="spinner-border text-primary"></span>
+					</div>
+				} @else if (expandedState(); as s) {
+
+					<!--
+						Two columns: the product on the left, the decision on the right. Stacked in
+						one 1100px column, the gallery pushed the colour chips below the fold and
+						the whole thing read as empty space.
+					-->
+					<div class="quickview-cols">
+
+						<div class="qv-media">
 							<!--
-								Legacy showed a per-item EJ2 carousel of every uploaded image. The
-								collapsed row carries only a 44px thumb, so the open item shows the
-								product properly — with a thumbnail strip when there is more than
-								one image, which is the whole of what the carousel did.
+								Legacy showed a per-item EJ2 carousel of every uploaded image. No
+								item in the database has ever had more than one, so this is a
+								thumbnail strip — the same capability without the widget.
 							-->
-							@if (item.imageUrls.length) {
+							@if (s.item.imageUrls.length) {
 								<div class="gallery">
 									<div class="gallery-main-frame">
-										<img [src]="item.imageUrls[galleryIndex()] ?? item.imageUrls[0]"
-											 [alt]="item.storeItemName" class="gallery-main">
+										<img [src]="s.item.imageUrls[galleryIndex()] ?? s.item.imageUrls[0]"
+											 [alt]="s.item.storeItemName" class="gallery-main">
 									</div>
-									@if (item.imageUrls.length > 1) {
+									@if (s.item.imageUrls.length > 1) {
 										<div class="gallery-strip">
-											@for (url of item.imageUrls; track url; let i = $index) {
+											@for (url of s.item.imageUrls; track url; let i = $index) {
 												<button type="button" class="gallery-thumb"
 														[class.selected]="galleryIndex() === i"
 														(click)="galleryIndex.set(i)"
 														[attr.aria-label]="'View image ' + (i + 1)">
-													<img [src]="url" [alt]="item.storeItemName + ' image ' + (i + 1)">
+													<img [src]="url" [alt]="s.item.storeItemName + ' image ' + (i + 1)">
 												</button>
 											}
 										</div>
@@ -189,13 +228,16 @@
 								The director's own words about the product, when there are any.
 								Measured 2026-08-30: 2 of 32 items carry StoreItemComments and both
 								hold the literal placeholder "new item Comments", so this renders
-								for almost nobody today — the field exists and is simply unused.
-								Shown here rather than on the card for that reason: it earns space
-								when a director actually writes something, and costs none until then.
+								for almost nobody today — the field exists and is simply unused. It
+								earns its space when a director writes something, and costs none
+								until then.
 							-->
 							@if (itemDescription(s.item); as description) {
 								<p class="item-description">{{ description }}</p>
 							}
+						</div>
+
+						<div class="qv-choices">
 
 							<!-- Already in cart reminder -->
 							@if (cartItemsForExpanded.length > 0) {
@@ -206,7 +248,7 @@
 									@for (ci of cartItemsForExpanded; track ci.storeCartBatchSkuId) {
 										<div class="in-cart-line">
 											<span>
-												{{ ci.quantity }}&times; {{ variantLabel(ci) || 'Standard' }}
+												{{ ci.quantity }}&times; {{ variantLabel(ci) || ci.itemName }}
 												@if (ci.directToPlayerName) {
 													<span class="in-cart-player"> &mdash; For {{ ci.directToPlayerName }}</span>
 												}
@@ -367,31 +409,34 @@
 									</div>
 								</div>
 							}
-
-							<!--
-								Legacy's "Currently Unavailable" alert (listSoldOutOrInactiveSkus),
-								in legacy's position — under the buttons, inside the open item. The
-								item name is dropped from each label: it is the card's own title.
-							-->
-							@if (item.soldOutOrInactiveSkuLabels.length) {
-								<div class="unavailable">
-									<div class="unavailable-head">
-										<i class="bi bi-slash-circle" aria-hidden="true"></i>
-										Currently unavailable
-									</div>
-									<ul class="unavailable-list">
-										@for (label of item.soldOutOrInactiveSkuLabels; track label) {
-											<li>{{ variantOnly(label, item.storeItemName) }}</li>
-										}
-									</ul>
-								</div>
-							}
-						}
+						</div>
 					</div>
+
+					<!--
+						Legacy's "Currently Unavailable" alert (listSoldOutOrInactiveSkus), in
+						legacy's position — after the choices, not before them. Full width under
+						both columns, since it is about the product rather than either half. The
+						item name is dropped from each label: it is the dialog's own title.
+					-->
+					@if (expandedSummary(); as summary) {
+						@if (summary.soldOutOrInactiveSkuLabels.length) {
+							<div class="unavailable">
+								<div class="unavailable-head">
+									<i class="bi bi-slash-circle" aria-hidden="true"></i>
+									Currently unavailable
+								</div>
+								<ul class="unavailable-list">
+									@for (label of summary.soldOutOrInactiveSkuLabels; track label) {
+										<li>{{ variantOnly(label, summary.storeItemName) }}</li>
+									}
+								</ul>
+							</div>
+						}
+					}
 				}
-			</article>
-		}
-	</div>
+			</div>
+		</div>
+	</tsic-dialog>
 }
 
 <!--

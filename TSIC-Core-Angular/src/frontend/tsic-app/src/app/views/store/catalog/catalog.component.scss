@@ -192,14 +192,24 @@ $store-width: 1100px;
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
 	gap: var(--space-4);
-	align-items: start;
+	// Every tile the same height, across rows as well as within one. Left to size themselves,
+	// cards with a swatch row stood a line taller than cards without, so a shelf of five
+	// products had three different card heights and no two prices on a common baseline.
+	// `1fr` on the implicit rows equalises them; `stretch` (the default, restored here from an
+	// earlier `start`) makes each card fill the row it is in.
+	grid-auto-rows: 1fr;
+	align-items: stretch;
 }
 
 // ═══════════════════════════════════
 //  ITEM CARD
 // ═══════════════════════════════════
+// A tile has ONE appearance. It never expands, never reflows, never becomes a row — opening an
+// item puts it in a dialog over the grid instead.
 .item-card {
 	position: relative;
+	display: flex;
+	flex-direction: column;
 	border-radius: var(--radius-md);
 	border: 1px solid var(--bs-border-color);
 	background: var(--bs-card-bg, var(--neutral-0));
@@ -210,22 +220,17 @@ $store-width: 1100px;
 		box-shadow: var(--shadow-sm);
 		border-color: color-mix(in srgb, var(--bs-primary) 40%, var(--bs-border-color));
 	}
-
-	// The open card takes the whole row. A picker squeezed into a 15rem tile would wrap every
-	// chip onto its own line; spanning gives it the width it needs without a second layout.
-	&.expanded {
-		grid-column: 1 / -1;
-		box-shadow: var(--shadow-md);
-		border-color: var(--bs-primary);
-	}
 }
 
-// ── The card face, which is the disclosure button ──
+// ── The card face, which is the open button ──
 .item-open {
 	display: flex;
 	flex-direction: column;
 	align-items: stretch;
 	gap: 0;
+	// Fills the card so the whole tile is the hit target, including the slack a short card
+	// gains from the equal-height row.
+	flex: 1;
 	width: 100%;
 	padding: 0;
 	background: none;
@@ -240,14 +245,6 @@ $store-width: 1100px;
 		outline: none;
 		box-shadow: var(--shadow-focus);
 	}
-}
-
-// An open card puts its face back into a row, so the picker below starts higher up the screen.
-.item-card.expanded .item-open {
-	flex-direction: row;
-	align-items: center;
-	gap: var(--space-3);
-	padding: var(--space-3);
 }
 
 // ── Media ──
@@ -267,11 +264,22 @@ $store-width: 1100px;
 	width: 100%;
 	height: 100%;
 	object-fit: contain;
-	transition: transform 0.25s ease;
+	transition: transform 0.3s ease;
 }
 
-// Hover blow-up. Scaling inside an overflow-hidden frame reads as a zoom without the image
-// escaping the card or shifting anything around it.
+// A liveness cue, deliberately slight. It is NOT the way to look closer at a product — that is
+// the quick-view dialog, which shows it full size with its own 1.5x zoom one click away.
+//
+// Calibrated by eye, walked down from 1.5. A `contain`-fitted image eats its letterbox before
+// it grows, so this reads as the garment settling slightly further into its frame rather than
+// as a zoom — which is the whole intent.
+//
+// It looked like nothing for three rounds of review, but that was the reduced-motion rule below
+// zeroing the transform outright, NOT this value. Check that first before touching this number.
+//
+// A panel floated over the grid was tried for the real blow-up and rejected: it covers the tile
+// you are trying to click, and a hover-only trigger small enough to stay out of the way is too
+// small to find. Looking closer is the dialog's job.
 .item-open:hover .item-thumb,
 .item-open:focus-visible .item-thumb {
 	transform: scale(1.06);
@@ -288,14 +296,6 @@ $store-width: 1100px;
 	background: rgba(var(--bs-primary-rgb), 0.06);
 }
 
-.item-card.expanded .item-media {
-	width: 72px;
-	aspect-ratio: 1;
-	flex: 0 0 auto;
-	border: 1px solid var(--bs-border-color);
-	border-radius: var(--radius-sm);
-}
-
 // ── Body ──
 .item-body {
 	display: flex;
@@ -306,8 +306,6 @@ $store-width: 1100px;
 	flex: 1;
 }
 
-.item-card.expanded .item-body { padding: 0; }
-
 // The product leads. Price used to be bolder than the name AND primary-blue, which read as a
 // link and put the cost ahead of the thing being sold.
 .item-name {
@@ -317,7 +315,11 @@ $store-width: 1100px;
 	line-height: var(--line-height-tight);
 }
 
+// Pushed to the foot of the body, so prices sit on one line across a row whether or not the
+// card above them carried a swatch strip.
 .item-price {
+	margin-top: auto;
+	padding-top: var(--space-1);
 	font-weight: var(--font-weight-semibold);
 	font-size: var(--font-size-base);
 	color: var(--brand-text, var(--neutral-900));
@@ -345,8 +347,8 @@ $store-width: 1100px;
 	box-shadow: inset 0 0 0 1px rgba(var(--brand-text-rgb), 0.25);
 }
 
-// ── Chevron ──
-.item-chevron {
+// ── Open badge ──
+.item-open-badge {
 	position: absolute;
 	top: var(--space-2);
 	right: var(--space-2);
@@ -359,12 +361,13 @@ $store-width: 1100px;
 	background: color-mix(in srgb, var(--bs-card-bg, var(--neutral-0)) 85%, transparent);
 	color: var(--bs-secondary-color);
 	font-size: var(--font-size-sm);
+	transition: color 0.15s ease, background 0.15s ease;
 }
 
-.item-card.expanded .item-chevron {
-	position: static;
-	background: none;
+.item-open:hover .item-open-badge,
+.item-open:focus-visible .item-open-badge {
 	color: var(--bs-primary);
+	background: var(--bs-card-bg, var(--neutral-0));
 }
 
 // ── Item description ──
@@ -417,13 +420,6 @@ $store-width: 1100px;
 	}
 }
 
-.expand-chevron {
-	flex-shrink: 0;
-	color: var(--bs-secondary-color);
-	font-size: var(--font-size-sm);
-	transition: transform 0.2s ease;
-}
-
 // ── Quick-Add Button (single-SKU items) ──
 // Sibling of the card face, floated over its lower-right corner — it cannot be a child of the
 // face, because a button inside a button is invalid and the inner one stops being reachable.
@@ -463,36 +459,81 @@ $store-width: 1100px;
 	}
 }
 
-// Open, the face becomes a short row and the picker owns the space below it, so the quick-add
-// pins to the TOP-right instead — level with the face, clear of the chevron. Left static it
-// would drop onto a line of its own beneath the face, since it is a sibling and the card is
-// not a flex container.
-.item-card.expanded .btn-quick-add {
-	top: var(--space-3);
-	bottom: auto;
-	right: var(--space-8);
-}
-
 @media (prefers-reduced-motion: reduce) {
 	.item-card,
 	.item-thumb,
+	.item-open-badge,
 	.btn-quick-add {
 		transition: none !important;
 	}
 
-	.item-open:hover .item-thumb,
-	.item-open:focus-visible .item-thumb {
-		transform: none;
-	}
+	// The ZOOM SURVIVES. Zeroing the transform here was the bug behind three rounds of "no
+	// hover effect": reduced-motion exists for vestibular triggers — things that travel across
+	// the screen — and an image growing in place is not one. Killing the transition above
+	// already removes the animation; the scale then snaps, which is the correct reduced-motion
+	// treatment of a zoom rather than its deletion.
+	//
+	// This matters far more than it looks: Windows Server has display animations off by
+	// default, so the query matches on an ordinary RDP session and the effect was switched off
+	// for everyone testing on this box. Do not "restore" this rule.
 }
 
 // ═══════════════════════════════════
-//  PICKER PANEL (expanded)
+//  QUICK-VIEW DIALOG
 // ═══════════════════════════════════
-.picker-panel {
-	padding: var(--space-3) var(--space-3) var(--space-4);
-	border-top: 1px solid var(--bs-border-color);
-	background: rgba(var(--bs-primary-rgb), 0.02);
+// Class-qualified so these beat tsic-dialog's own `:host ::ng-deep .modal-content` rules, which
+// carry the same specificity and would otherwise win or lose on stylesheet order.
+.modal-content.quickview {
+	// The dialog scrolls as ONE surface. Left to the body alone, the header scrolled away with
+	// it and a shopper mid-picker had nothing naming the product they were configuring.
+	display: flex;
+	flex-direction: column;
+	max-height: 90vh;
+	overflow: hidden;
+}
+
+.modal-header.quickview-head {
+	flex: 0 0 auto;
+}
+
+.quickview-heading {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-3);
+	min-width: 0;
+}
+
+.quickview-price {
+	font-weight: var(--font-weight-semibold);
+	font-size: var(--font-size-base);
+	color: var(--bs-primary);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.modal-body.quickview-body {
+	flex: 1 1 auto;
+	overflow-y: auto;
+}
+
+// The product on the left, the decision on the right. Stacked in one column the gallery pushed
+// the colour chips below the fold, so the first thing a shopper saw of a picker was blank space.
+.quickview-cols {
+	display: grid;
+	grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+	gap: var(--space-5);
+	align-items: start;
+}
+
+.qv-media {
+	min-width: 0;
+}
+
+.qv-choices {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+	min-width: 0;
 }
 
 // ── In-Cart Summary ──
@@ -780,16 +821,18 @@ app-store-front-info {
 .gallery {
 	display: flex;
 	flex-direction: column;
-	align-items: center;
+	align-items: stretch;
 	gap: var(--space-2);
 	margin-bottom: var(--space-4);
 }
 
 // Zoom frame: the image scales inside a clipped box on hover, so a shopper can look closer at
 // the print on a shirt without a lightbox to open and dismiss.
+//
+// Fills its column rather than capping at 320px — it owns a half of the dialog now, and a
+// stamp floating in the middle of that half was most of why the old panel read as empty.
 .gallery-main-frame {
 	width: 100%;
-	max-width: 320px;
 	aspect-ratio: 1;
 	overflow: hidden;
 	border: 1px solid var(--bs-border-color);
@@ -810,9 +853,10 @@ app-store-front-info {
 	transform: scale(1.5);
 }
 
+// Same call as the tile zoom: drop the easing, keep the magnification. A shopper who has asked
+// for less motion still needs to be able to look closely at the print on a shirt.
 @media (prefers-reduced-motion: reduce) {
 	.gallery-main { transition: none; }
-	.gallery-main-frame:hover .gallery-main { transform: none; }
 }
 
 .gallery-strip {
@@ -853,4 +897,32 @@ app-store-front-info {
 
 @media (prefers-reduced-motion: reduce) {
 	.gallery-thumb { transition: none; }
+}
+
+// ── Phone: a full-height sheet, not a shrunken modal ──
+// A 960px dialog on a 390px screen is a scrap of paper with a backdrop. Below 640px it takes
+// the whole viewport, the columns stack, and the header stays put at the top so the × is always
+// in reach — a shopper deep in a size list has no other way out on a phone but the back button,
+// which would leave the store entirely.
+@media (max-width: 640px) {
+	.quickview-cols {
+		grid-template-columns: minmax(0, 1fr);
+		gap: var(--space-4);
+	}
+
+	// dvh, not vh: a mobile browser's vh is the chrome-hidden height, so a vh-tall sheet puts
+	// its own footer underneath the URL bar until the page is scrolled.
+	.modal-content.quickview {
+		max-height: 100dvh;
+		height: 100dvh;
+		border-radius: 0;
+		border: 0;
+	}
+
+	// The gallery is the first thing in a stacked layout and would otherwise fill the screen
+	// before a single chip is visible.
+	.gallery-main-frame {
+		max-width: 260px;
+		margin: 0 auto;
+	}
 }
