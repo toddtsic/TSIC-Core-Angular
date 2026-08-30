@@ -23,6 +23,8 @@ import {
 } from '@syncfusion/ej2-angular-pivotview';
 import { MultiSelectAllModule } from '@syncfusion/ej2-angular-dropdowns';
 import { AuthService } from '../../../infrastructure/services/auth.service';
+import { JobPulseService } from '@infrastructure/services/job-pulse.service';
+import { AdminNavPillComponent } from '@shared-ui/components/admin-nav-pill.component';
 import type { RevenueRollupResponseDto } from '@core/api';
 import type { JobPaymentRecordDto } from '@core/api';
 import type { UpdateMonthlyCountRequest } from '@core/api';
@@ -56,7 +58,7 @@ interface SubmittedScope {
 @Component({
 	selector: 'app-customer-job-revenue',
 	standalone: true,
-	imports: [CommonModule, FormsModule, GridAllModule, PivotViewAllModule, MultiSelectAllModule],
+	imports: [CommonModule, FormsModule, GridAllModule, PivotViewAllModule, MultiSelectAllModule, AdminNavPillComponent],
 	// The export services are NOT bundled by the *AllModules (pivot or grid) — without
 	// them pdfExport()/excelExport() are silent no-ops.
 	providers: [
@@ -70,7 +72,24 @@ interface SubmittedScope {
 export class CustomerJobRevenueComponent {
 	private readonly http = inject(HttpClient);
 	private readonly auth = inject(AuthService);
+	private readonly pulseService = inject(JobPulseService);
 	private readonly apiUrl = `${environment.apiUrl}/customer-job-revenue`;
+
+	/**
+	 * Reciprocal of the JobRegCountsAndDollars widget's link out — the widget gives the
+	 * glance, this page gives the drill, and the pill is the way back.
+	 *
+	 * Gated on the SAME pulse flag as the other two dashboard doors (job-landing pill,
+	 * client-header-bar menu entry) so all three can never disagree about whether a
+	 * dashboard exists. `=== true` on purpose: the flag is null while the pulse is in
+	 * flight and null for a non-admin, and neither is "yes". The route already limits
+	 * this page to Superuser/SuperDirector, so no separate role clause is needed.
+	 */
+	readonly showDashboardLink = computed(() =>
+		this.pulseService.pulse()?.myHasDashboardWidgets === true);
+
+	readonly dashboardLink = computed(() =>
+		['/', this.auth.currentUser()?.jobPath ?? '', 'dashboard']);
 
 	// UI state
 	isLoading = signal(false);

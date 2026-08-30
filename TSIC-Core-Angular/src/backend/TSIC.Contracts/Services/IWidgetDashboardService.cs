@@ -85,4 +85,13 @@ public interface IWidgetDashboardService
     Task<YearOverYearComparisonDto> GetYearOverYearAsync(
         Guid jobId,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Portfolio table for the JobRegCountsAndDollars widget — every LIVE job of the
+    /// caller current customer, with counts for both units and the ledger totals.
+    /// </summary>
+    Task<JobRegCountsAndDollarsDto> GetJobRegCountsAndDollarsAsync(
+        Guid currentJobId,
+        CancellationToken ct = default);
+
 }

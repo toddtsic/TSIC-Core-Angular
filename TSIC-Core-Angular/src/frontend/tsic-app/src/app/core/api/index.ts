@@ -394,6 +394,8 @@ export type { JobOverridesResponse } from './models/JobOverridesResponse';
 export type { JobPaymentRecordDto } from './models/JobPaymentRecordDto';
 export type { JobPulseDto } from './models/JobPulseDto';
 export type { JobRefDto } from './models/JobRefDto';
+export type { JobRegCountsAndDollarsDto } from './models/JobRegCountsAndDollarsDto';
+export type { JobRegCountsAndDollarsRowDto } from './models/JobRegCountsAndDollarsRowDto';
 export type { JobRegFieldDto } from './models/JobRegFieldDto';
 export type { JobRegFormDto } from './models/JobRegFormDto';
 export type { JobReportEditorCreateDto } from './models/JobReportEditorCreateDto';

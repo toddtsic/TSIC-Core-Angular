@@ -546,4 +546,84 @@ public class WidgetRepository : IWidgetRepository
             CurrentYear = currentJob.Year,
         };
     }
+
+    public async Task<JobRegCountsAndDollarsDto> GetJobRegCountsAndDollarsAsync(
+        Guid currentJobId,
+        CancellationToken ct = default)
+    {
+        var now = DateTime.Now;
+
+        // Scope = the customer owning the job the caller is standing in. This mirrors
+        // JobRepository.GetCustomerJobIdsAsync, the shipped precedent for customer-scoped
+        // reach, and pairs with the CanCrossCustomerJobs policy on the endpoint.
+        var customerId = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == currentJobId)
+            .Select(j => j.CustomerId)
+            .FirstOrDefaultAsync(ct);
+
+        if (customerId == Guid.Empty)
+        {
+            return new JobRegCountsAndDollarsDto
+            {
+                Rows = [],
+                TotalPlayers = 0,
+                TotalTeams = 0,
+                TotalFees = 0m,
+                TotalPaid = 0m,
+                TotalOwed = 0m,
+            };
+        }
+
+        // LIVE = ExpiryUsers > now. This is the canonical "is the event over?" test
+        // (AdministratorService, JobClonePlanner). ExpiryAdmin is deliberately NOT used:
+        // the admin door stays open ~a year past the event, so it would drag concluded
+        // events into the portfolio.
+        var rows = await (
+            from j in _context.Jobs.AsNoTracking()
+            join jt in _context.JobTypes on j.JobTypeId equals jt.JobTypeId
+            where j.CustomerId == customerId && j.ExpiryUsers > now
+            select new JobRegCountsAndDollarsRowDto
+            {
+                JobId = j.JobId,
+                JobName = j.JobName ?? string.Empty,
+                JobPath = j.JobPath,
+                JobTypeName = jt.JobTypeName ?? string.Empty,
+                EventStartDate = j.EventStartDate,
+
+                PlayerCount = _context.Registrations
+                    .Count(r => r.JobId == j.JobId
+                             && r.BActive == true
+                             && r.RoleId == RoleConstants.Player),
+
+                TeamCount = _context.Teams
+                    .Count(t => t.JobId == j.JobId && t.Active == true),
+
+                Fees = _context.Registrations
+                    .Where(r => r.JobId == j.JobId && r.BActive == true)
+                    .Sum(r => (decimal?)r.FeeTotal) ?? 0m,
+
+                Paid = _context.Registrations
+                    .Where(r => r.JobId == j.JobId && r.BActive == true)
+                    .Sum(r => (decimal?)r.PaidTotal) ?? 0m,
+
+                Owed = _context.Registrations
+                    .Where(r => r.JobId == j.JobId && r.BActive == true)
+                    .Sum(r => (decimal?)r.OwedTotal) ?? 0m,
+            })
+            .OrderBy(x => x.EventStartDate)
+            .ThenBy(x => x.JobName)
+            .ToListAsync(ct);
+
+        return new JobRegCountsAndDollarsDto
+        {
+            Rows = rows,
+            TotalPlayers = rows.Sum(x => x.PlayerCount),
+            TotalTeams = rows.Sum(x => x.TeamCount),
+            TotalFees = rows.Sum(x => x.Fees),
+            TotalPaid = rows.Sum(x => x.Paid),
+            TotalOwed = rows.Sum(x => x.Owed),
+        };
+    }
+
 }

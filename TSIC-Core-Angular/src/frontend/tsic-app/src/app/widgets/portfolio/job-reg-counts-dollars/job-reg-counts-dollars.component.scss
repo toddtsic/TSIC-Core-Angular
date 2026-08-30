@@ -1,0 +1,301 @@
+// JobRegCountsAndDollars — live-jobs portfolio.
+// Tokens only; no hardcoded colour, spacing or shadow.
+
+.jrcd {
+	// Top margin clears the floating Home pill the dashboard renders above the widgets.
+	margin-top: var(--space-6);
+	background: var(--bs-body-bg);
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--radius-lg, var(--space-2));
+	box-shadow: var(--shadow-sm);
+	padding: var(--space-4);
+}
+
+.jrcd__head {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	margin-bottom: var(--space-3);
+
+	i {
+		color: var(--bs-primary);
+	}
+}
+
+.jrcd__title {
+	font-size: var(--font-size-lg, 1.125rem);
+	font-weight: 600;
+	margin: 0;
+	color: var(--brand-text);
+}
+
+.jrcd__detail-link {
+	margin-left: auto;
+	font-size: var(--font-size-sm, 0.875rem);
+	font-weight: 500;
+	color: var(--bs-primary);
+	text-decoration: none;
+	white-space: nowrap;
+
+	&:hover {
+		text-decoration: underline;
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+		border-radius: var(--space-1);
+	}
+}
+
+// ── States ──────────────────────────────────────────────
+
+.jrcd__state {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-6) var(--space-4);
+	color: var(--bs-secondary-color);
+
+	&--error {
+		color: var(--bs-warning-text-emphasis);
+	}
+}
+
+// ── The single summary line / accordion header ──────────
+
+.jrcd__summary {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	width: 100%;
+	padding: var(--space-3);
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--radius-md, var(--space-2));
+	background: var(--bs-tertiary-bg);
+	color: var(--bs-body-color);
+	text-align: left;
+	cursor: pointer;
+
+	&:hover {
+		background: var(--bs-secondary-bg);
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+.jrcd__chev {
+	color: var(--bs-secondary-color);
+	flex: 0 0 auto;
+}
+
+.jrcd__summary-label {
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+.jrcd__count {
+	font-weight: 400;
+	color: var(--bs-secondary-color);
+}
+
+.jrcd__summary-stats {
+	margin-left: auto;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: var(--space-5);
+}
+
+.jrcd__stat {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-1);
+}
+
+.jrcd__stat-v {
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+}
+
+.jrcd__stat-k {
+	font-size: var(--font-size-xs, 0.75rem);
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: var(--bs-secondary-color);
+}
+
+// ── Rows table ──────────────────────────────────────────
+
+.jrcd__scroll {
+	overflow-x: auto;
+	margin-top: var(--space-3);
+}
+
+.jrcd__table {
+	width: 100%;
+	// FIXED, not auto. Under `table-layout: auto` the browser sizes columns to their
+	// content and treats max-width on a cell as advisory — long event names simply
+	// pushed into the next column instead of wrapping. Fixed layout makes the declared
+	// column widths authoritative, which is what makes wrapping actually happen.
+	table-layout: fixed;
+	min-width: 52rem;
+	border-collapse: collapse;
+	font-size: var(--font-size-sm, 0.875rem);
+
+	th,
+	td {
+		padding: var(--space-2) var(--space-3);
+		text-align: left;
+		white-space: nowrap;
+		vertical-align: top;
+	}
+
+	thead th {
+		font-weight: 600;
+		color: var(--bs-secondary-color);
+		border-bottom: 1px solid var(--bs-border-color);
+		text-transform: uppercase;
+		font-size: var(--font-size-xs, 0.75rem);
+		letter-spacing: 0.03em;
+	}
+
+	// The sort button fills the heading, so the whole cell is the hit target
+	// rather than just the word.
+	thead th:has(.sort-th) {
+		padding: 0;
+	}
+}
+
+// Same shape as the store-admin grids (_store-shared.scss) — a sortable heading is a
+// real <button>, and the caret stays in the DOM dimmed when inactive so headings do
+// not reflow by an icon width on every click.
+.sort-th {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	width: 100%;
+	padding: var(--space-2) var(--space-3);
+	background: none;
+	border: 0;
+	font: inherit;
+	color: inherit;
+	letter-spacing: inherit;
+	text-transform: inherit;
+	text-align: inherit;
+	white-space: nowrap;
+	cursor: pointer;
+	transition: color 0.12s ease, background-color 0.12s ease;
+
+	i {
+		font-size: 0.85em;
+		color: var(--bs-secondary-color);
+		opacity: 0.4;
+		transition: opacity 0.12s ease, color 0.12s ease;
+	}
+
+	i.active {
+		color: var(--bs-primary);
+		opacity: 1;
+	}
+
+	&:hover {
+		color: var(--brand-text);
+		background: color-mix(in srgb, var(--bs-primary) 5%, transparent);
+
+		i { opacity: 0.8; }
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+// Numeric headings right-align with their column; the button must follow.
+.jrcd__c-num .sort-th,
+.jrcd__c-money .sort-th {
+	justify-content: flex-end;
+}
+
+.jrcd__c-num,
+.jrcd__c-money {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+// Event names are long. Under fixed layout these widths are authoritative, so the
+// name wraps inside its column instead of shoving the table sideways.
+.jrcd__c-event {
+	width: 20rem;
+	white-space: normal;
+	overflow-wrap: anywhere;
+	font-weight: 500;
+}
+
+.jrcd__c-type {
+	width: 6.5rem;
+	color: var(--bs-secondary-color);
+	white-space: normal;
+}
+
+.jrcd__c-date {
+	width: 8.5rem;
+}
+
+.jrcd__c-num {
+	width: 5rem;
+}
+
+.jrcd__c-money {
+	width: 6.5rem;
+}
+
+// NOTE: the customer name prefixes EVERY row ("Top Threat Tournaments:Fall Draw 2026")
+// and is constant across the table — scope is one customer by definition. It is stripped
+// for display (see eventName()) and kept on the title attribute, so the widest column
+// spends its space on the part that differs.
+
+.jrcd__row {
+	border-bottom: 1px solid var(--bs-border-color-translucent);
+
+	&:hover {
+		background: var(--bs-secondary-bg);
+	}
+}
+
+.jrcd__paid {
+	color: var(--bs-success-text-emphasis);
+}
+
+.jrcd__none {
+	color: var(--bs-secondary-color);
+}
+
+.jrcd__daysout {
+	margin-left: var(--space-2);
+	padding: 0 var(--space-1);
+	border-radius: var(--space-1);
+	background: var(--bs-tertiary-bg);
+	color: var(--bs-secondary-color);
+	font-size: var(--font-size-xs, 0.75rem);
+}
+
+.jrcd__footnote {
+	margin: var(--space-3) 0 0;
+	font-size: var(--font-size-xs, 0.75rem);
+	color: var(--bs-secondary-color);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.jrcd__summary,
+	.jrcd__row,
+	.sort-th,
+	.sort-th i {
+		transition: none !important;
+		animation: none !important;
+	}
+}

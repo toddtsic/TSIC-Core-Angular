@@ -8,6 +8,7 @@ import { TeamTrendWidgetComponent } from '@widgets/registration/team-trend-widge
 import { AgegroupDistributionWidgetComponent } from '@widgets/registration/agegroup-distribution-widget/agegroup-distribution-widget.component';
 import { YearOverYearWidgetComponent } from '@widgets/scheduling/year-over-year-widget/year-over-year-widget.component';
 import { FinancialHealthComponent } from '@widgets/financial/financial-health/financial-health.component';
+import { JobRegCountsAndDollarsComponent } from '@widgets/portfolio/job-reg-counts-dollars/job-reg-counts-dollars.component';
 import { Workspaces, type WorkspaceKey } from '@widgets/workspace.constants';
 
 // ════════════════════════════════════════════════════════════
@@ -117,6 +118,20 @@ export const WIDGET_MANIFEST: Record<string, WidgetManifestEntry> = {
 		widgetType:  'chart-tile',
 		workspace:   Workspaces.Dashboard,
 		description: 'Registration comparison between current and prior year',
+	},
+
+	// ── Portfolio (cross-job) ──
+	// widgetType MUST stay 'content'. A full-width table cannot be a 'chart-tile'
+	// (crushed into the small-chart grid) and 'status-tile' categories are skipped
+	// outright by the dashboard template — it would render nowhere, with no error.
+	'job-reg-counts-dollars': {
+		component:    JobRegCountsAndDollarsComponent,
+		label:        'JobRegCountsAndDollars',
+		icon:         'bi-clipboard-data',
+		widgetType:   'content',
+		workspace:    Workspaces.Dashboard,
+		description:  'Live events across the customer with registration counts and ledger dollars',
+		displayStyle: 'table',
 	},
 
 };

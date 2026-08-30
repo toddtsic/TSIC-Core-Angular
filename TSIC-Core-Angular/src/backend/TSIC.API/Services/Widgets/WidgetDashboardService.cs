@@ -374,4 +374,12 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
         public string? Config { get; init; }
         public bool IsOverridden { get; init; }
     }
+
+    public async Task<JobRegCountsAndDollarsDto> GetJobRegCountsAndDollarsAsync(
+        Guid currentJobId,
+        CancellationToken ct = default)
+    {
+        return await _widgetRepo.GetJobRegCountsAndDollarsAsync(currentJobId, ct);
+    }
+
 }

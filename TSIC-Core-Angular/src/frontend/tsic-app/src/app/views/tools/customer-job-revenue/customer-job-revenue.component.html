@@ -1,4 +1,11 @@
 <div class="container-fluid py-3">
+
+	<!-- Reciprocal of the JobRegCountsAndDollars widget's link out. Same pill component
+	     as the landing/dashboard pair, same pulse gate — see showDashboardLink. -->
+	@if (showDashboardLink()) {
+		<app-admin-nav-pill icon="bi-speedometer2" label="Dashboard" [link]="dashboardLink()" />
+	}
+
 	<div class="page-header">
 		<h2 class="page-title"><i class="bi bi-cash-stack page-title-icon"></i> Customer Job Revenue</h2>
 	</div>

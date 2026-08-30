@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
-import type { AgegroupDistributionDto, AvailableWidgetDto, DashboardMetricsDto, EventContactDto, RegistrationTimeSeriesDto, SaveUserWidgetsRequest, UserWidgetEntryDto, WidgetDashboardResponse, YearOverYearComparisonDto } from '@core/api';
+import type { AgegroupDistributionDto, AvailableWidgetDto, DashboardMetricsDto, EventContactDto, JobRegCountsAndDollarsDto, RegistrationTimeSeriesDto, SaveUserWidgetsRequest, UserWidgetEntryDto, WidgetDashboardResponse, YearOverYearComparisonDto } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
 export class WidgetDashboardService {
@@ -47,6 +47,15 @@ export class WidgetDashboardService {
 
 	getYearOverYear(): Observable<YearOverYearComparisonDto> {
 		return this.http.get<YearOverYearComparisonDto>(`${this.apiUrl}/year-over-year`);
+	}
+
+	/**
+	 * Live-jobs portfolio table for the JobRegCountsAndDollars widget.
+	 * Scope is resolved server-side from the token's job (customer of that job,
+	 * ExpiryUsers > now) — never passed from here.
+	 */
+	getJobRegCountsAndDollars(): Observable<JobRegCountsAndDollarsDto> {
+		return this.http.get<JobRegCountsAndDollarsDto>(`${this.apiUrl}/job-reg-counts-dollars`);
 	}
 
 	// ── User Widget Customization ──

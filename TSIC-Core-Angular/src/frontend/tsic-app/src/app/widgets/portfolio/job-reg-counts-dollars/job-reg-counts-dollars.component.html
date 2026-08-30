@@ -1,0 +1,177 @@
+<div class="jrcd">
+
+	<div class="jrcd__head">
+		<i class="bi bi-clipboard-data" aria-hidden="true"></i>
+		<h3 class="jrcd__title">Live Events — Registrations &amp; Dollars</h3>
+
+		<!-- Header, not footer: with many live rows a footer link sits below the fold
+		     exactly when the table is long enough to need it. Named for its destination
+		     so the reader knows where they are going before they click. -->
+		<a class="jrcd__detail-link" [routerLink]="detailLink()">
+			Customer Job Revenue <i class="bi bi-arrow-right" aria-hidden="true"></i>
+		</a>
+	</div>
+
+	@if (isLoading()) {
+		<div class="jrcd__state">
+			<div class="spinner-border spinner-border-sm" role="status"></div>
+			<span>Loading live events…</span>
+		</div>
+	} @else if (hasError()) {
+		<div class="jrcd__state jrcd__state--error">
+			<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+			<span>Unable to load live events</span>
+			<button type="button" class="btn btn-sm btn-outline-secondary" (click)="load()">Retry</button>
+		</div>
+	} @else if (isEmpty()) {
+		<div class="jrcd__state">
+			<i class="bi bi-calendar-x" aria-hidden="true"></i>
+			<span>No live events — every event for this customer has concluded.</span>
+		</div>
+	} @else {
+
+		<!-- ONE accordion. Collapsed = the rollup line alone. -->
+		<button
+			type="button"
+			class="jrcd__summary"
+			[attr.aria-expanded]="isOpen()"
+			aria-controls="jrcd-rows"
+			(click)="toggle()">
+
+			<i class="bi jrcd__chev" [class.bi-chevron-right]="!isOpen()"
+				[class.bi-chevron-down]="isOpen()" aria-hidden="true"></i>
+
+			<span class="jrcd__summary-label">
+				Summary <span class="jrcd__count">({{ rows().length | number }})</span>
+			</span>
+
+			<span class="jrcd__summary-stats">
+				<span class="jrcd__stat">
+					<span class="jrcd__stat-v">{{ data()!.totalPlayers | number }}</span>
+					<span class="jrcd__stat-k">players</span>
+				</span>
+				<span class="jrcd__stat">
+					<span class="jrcd__stat-v">{{ data()!.totalTeams | number }}</span>
+					<span class="jrcd__stat-k">teams</span>
+				</span>
+				<span class="jrcd__stat">
+					<span class="jrcd__stat-v">{{ data()!.totalFees | currency:'USD':'symbol':'1.0-0' }}</span>
+					<span class="jrcd__stat-k">fees</span>
+				</span>
+				<span class="jrcd__stat">
+					<span class="jrcd__stat-v jrcd__paid">{{ data()!.totalPaid | currency:'USD':'symbol':'1.0-0' }}</span>
+					<span class="jrcd__stat-k">paid</span>
+				</span>
+				<span class="jrcd__stat">
+					<span class="jrcd__stat-v">{{ data()!.totalOwed | currency:'USD':'symbol':'1.0-0' }}</span>
+					<span class="jrcd__stat-k">owed</span>
+				</span>
+			</span>
+		</button>
+
+		@if (isOpen()) {
+			<div class="jrcd__scroll" id="jrcd-rows">
+				<table class="jrcd__table">
+					<caption class="visually-hidden">
+						Live events with registration counts and ledger dollars
+					</caption>
+					<!-- Every heading is a real <button> so it is keyboard reachable and
+					     announced as actionable; aria-sort carries the current order. -->
+					<thead>
+						<tr>
+							<th scope="col" class="jrcd__c-event" [attr.aria-sort]="sort.aria('event')">
+								<button type="button" class="sort-th" (click)="sort.toggle('event')" title="Sort by event">
+									Event <i class="bi" [class]="sort.icon('event')" [class.active]="sort.column() === 'event'"></i>
+								</button>
+							</th>
+							<th scope="col" class="jrcd__c-type" [attr.aria-sort]="sort.aria('type')">
+								<button type="button" class="sort-th" (click)="sort.toggle('type')" title="Sort by job type">
+									Type <i class="bi" [class]="sort.icon('type')" [class.active]="sort.column() === 'type'"></i>
+								</button>
+							</th>
+							<th scope="col" class="jrcd__c-date" [attr.aria-sort]="sort.aria('starts')">
+								<button type="button" class="sort-th" (click)="sort.toggle('starts')" title="Sort by start date">
+									Starts <i class="bi" [class]="sort.icon('starts')" [class.active]="sort.column() === 'starts'"></i>
+								</button>
+							</th>
+							<th scope="col" class="jrcd__c-num" [attr.aria-sort]="sort.aria('players')">
+								<button type="button" class="sort-th" (click)="sort.toggle('players')" title="Sort by players">
+									Players <i class="bi" [class]="sort.icon('players')" [class.active]="sort.column() === 'players'"></i>
+								</button>
+							</th>
+							<th scope="col" class="jrcd__c-num" [attr.aria-sort]="sort.aria('teams')">
+								<button type="button" class="sort-th" (click)="sort.toggle('teams')" title="Sort by teams">
+									Teams <i class="bi" [class]="sort.icon('teams')" [class.active]="sort.column() === 'teams'"></i>
+								</button>
+							</th>
+							<th scope="col" class="jrcd__c-money" [attr.aria-sort]="sort.aria('fees')">
+								<button type="button" class="sort-th" (click)="sort.toggle('fees')" title="Sort by fees">
+									Fees <i class="bi" [class]="sort.icon('fees')" [class.active]="sort.column() === 'fees'"></i>
+								</button>
+							</th>
+							<th scope="col" class="jrcd__c-money" [attr.aria-sort]="sort.aria('paid')">
+								<button type="button" class="sort-th" (click)="sort.toggle('paid')" title="Sort by paid">
+									Paid <i class="bi" [class]="sort.icon('paid')" [class.active]="sort.column() === 'paid'"></i>
+								</button>
+							</th>
+							<th scope="col" class="jrcd__c-money" [attr.aria-sort]="sort.aria('owed')">
+								<button type="button" class="sort-th" (click)="sort.toggle('owed')" title="Sort by owed">
+									Owed <i class="bi" [class]="sort.icon('owed')" [class.active]="sort.column() === 'owed'"></i>
+								</button>
+							</th>
+						</tr>
+					</thead>
+					<tbody>
+						@for (row of sortedRows(); track trackRow($index, row)) {
+							<tr class="jrcd__row">
+								<!-- Event only; the customer half of "Customer:Event" is constant
+								     across the table. Full name kept on hover. -->
+								<th scope="row" class="jrcd__c-event" [title]="row.jobName">
+									{{ eventName(row) }}
+								</th>
+
+								<td class="jrcd__c-type" [title]="row.jobTypeName">{{ typeLabel(row) }}</td>
+
+								<td class="jrcd__c-date">
+									@if (row.eventStartDate) {
+										{{ row.eventStartDate | date:'MM/dd/yyyy' }}
+										@if (daysOut(row) !== null) {
+											<span class="jrcd__daysout">{{ daysOut(row) }}d</span>
+										}
+									} @else {
+										<span class="jrcd__none">—</span>
+									}
+								</td>
+
+								<td class="jrcd__c-num">
+									@if (row.playerCount > 0) {
+										{{ row.playerCount | number }}
+									} @else {
+										<span class="jrcd__none">—</span>
+									}
+								</td>
+
+								<td class="jrcd__c-num">
+									@if (row.teamCount > 0) {
+										{{ row.teamCount | number }}
+									} @else {
+										<span class="jrcd__none">—</span>
+									}
+								</td>
+
+								<td class="jrcd__c-money">{{ row.fees | currency:'USD':'symbol':'1.0-0' }}</td>
+								<td class="jrcd__c-money jrcd__paid">{{ row.paid | currency:'USD':'symbol':'1.0-0' }}</td>
+								<td class="jrcd__c-money">{{ row.owed | currency:'USD':'symbol':'1.0-0' }}</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+
+			<p class="jrcd__footnote">
+				Live events only — those still open to users. <strong>Owed</strong> includes contracted
+				payment-plan installments that are not yet due; it is not a past-due figure.
+			</p>
+		}
+	}
+</div>

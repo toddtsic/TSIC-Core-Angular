@@ -77,4 +77,14 @@ public interface IWidgetRepository
     /// Returns up to 4 most recent years.
     /// </summary>
     Task<YearOverYearComparisonDto> GetYearOverYearAsync(Guid currentJobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Portfolio table for the JobRegCountsAndDollars widget: every LIVE job
+    /// (ExpiryUsers > now) belonging to the same customer as <paramref name="currentJobId"/>,
+    /// with both count units and the registration ledger totals, plus a rollup.
+    /// </summary>
+    Task<JobRegCountsAndDollarsDto> GetJobRegCountsAndDollarsAsync(
+        Guid currentJobId,
+        CancellationToken ct = default);
+
 }

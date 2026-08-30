@@ -261,4 +261,24 @@ public class WidgetDashboardController : ControllerBase
 
         return Ok(result);
     }
+
+    /// <summary>
+    /// JobRegCountsAndDollars widget: registration counts and ledger dollars for every
+    /// LIVE job (ExpiryUsers > now) of the customer owning the caller current job.
+    /// Gated CanCrossCustomerJobs (Superuser + SuperDirector) — the shipped policy for
+    /// cross-customer-jobs reach; scope is resolved server-side from the token job,
+    /// never from the request.
+    /// </summary>
+    [HttpGet("job-reg-counts-dollars")]
+    [Authorize(Policy = "CanCrossCustomerJobs")]
+    public async Task<ActionResult<JobRegCountsAndDollarsDto>> GetJobRegCountsAndDollars(CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Job context required" });
+
+        var result = await _dashboardService.GetJobRegCountsAndDollarsAsync(jobId.Value, ct);
+        return Ok(result);
+    }
+
 }
