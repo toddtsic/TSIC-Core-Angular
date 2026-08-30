@@ -133,6 +133,10 @@ public sealed record ClubTeamDto
     // True if this ClubTeam has ever appeared on a schedule (any job). When true,
     // name/gradYear/LOP are locked to protect the team's historical performance record.
     public required bool BHasBeenScheduled { get; init; }
+    // True if any event, in any job, still references this ClubTeam. This is the exact fact
+    // DeleteClubTeamAsync refuses on, surfaced so the client can dark the Delete button rather
+    // than offer it and let the server reject the call. Scheduled implies registered.
+    public required bool BHasEventRegistrations { get; init; }
     // True when the rep has retired the team from their visible library. Archived rows
     // still reserve (name, gradYear) so historical performance records stay attributable.
     public required bool BArchived { get; init; }

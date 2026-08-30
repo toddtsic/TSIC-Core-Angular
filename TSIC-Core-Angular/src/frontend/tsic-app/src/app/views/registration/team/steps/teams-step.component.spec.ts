@@ -32,6 +32,7 @@ describe('TeamTeamsStepComponent — register response handling', () => {
         clubTeamGradYear: '2030',
         clubTeamLevelOfPlay: 'A',
         bHasBeenScheduled: false,
+        bHasEventRegistrations: false,
         bArchived: false,
     };
 

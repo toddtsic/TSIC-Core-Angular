@@ -385,7 +385,12 @@ public class TeamRegistrationService : ITeamRegistrationService
             .Concat(registeredClubTeamIds)
             .Concat(droppedClubTeamIds)
             .Distinct();
-        var scheduledIds = await _clubTeams.GetScheduledClubTeamIdsAsync(allCandidateIds);
+        var allCandidateIdList = allCandidateIds.ToList();
+        var scheduledIds = await _clubTeams.GetScheduledClubTeamIdsAsync(allCandidateIdList);
+        // Second batched lookup, same id set: the exact fact DeleteClubTeamAsync refuses on. Carried
+        // to the client so a delete is only offered where it can actually succeed. Sequential await —
+        // never Task.WhenAll, these share the scoped DbContext.
+        var registeredAnywhereIds = await _clubTeams.GetClubTeamIdsWithEventRegistrationsAsync(allCandidateIdList);
 
         // ── Ephemeral late-fee derive for the rep's payment preview (DISPLAY ONLY — never persists) ──
         // The wizard payment tab is the ONE place the registrant sees the late fee *in effect today*:
@@ -442,6 +447,7 @@ public class TeamRegistrationService : ITeamRegistrationService
                 ClubTeamGradYear = ct.ClubTeamGradYear,
                 ClubTeamLevelOfPlay = ct.ClubTeamLevelOfPlay ?? string.Empty,
                 BHasBeenScheduled = scheduledIds.Contains(ct.ClubTeamId),
+                BHasEventRegistrations = registeredAnywhereIds.Contains(ct.ClubTeamId),
                 BArchived = !ct.Active,
             })
             .OrderBy(ct => ct.ClubTeamName)
@@ -1143,6 +1149,9 @@ public class TeamRegistrationService : ITeamRegistrationService
             }
 
             var scheduledMatch = await _clubTeams.GetScheduledClubTeamIdsAsync(new[] { match.ClubTeamId });
+            // Pre-existing row — it may already be referenced by an event, so this must be looked up
+            // rather than assumed. Sequential await: same scoped DbContext as the call above.
+            var registeredMatch = await _clubTeams.HasAnyTeamRegistrationsAsync(match.ClubTeamId);
             return new ClubTeamDto
             {
                 ClubTeamId = match.ClubTeamId,
@@ -1150,6 +1159,7 @@ public class TeamRegistrationService : ITeamRegistrationService
                 ClubTeamGradYear = match.ClubTeamGradYear,
                 ClubTeamLevelOfPlay = match.ClubTeamLevelOfPlay ?? string.Empty,
                 BHasBeenScheduled = scheduledMatch.Contains(match.ClubTeamId),
+                BHasEventRegistrations = registeredMatch,
                 BArchived = false,
             };
         }
@@ -1167,6 +1177,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         _clubTeams.Add(entity);
         await _clubTeams.SaveChangesAsync();
 
+        // Brand-new row: nothing can reference it yet, so both flags are false by construction.
         return new ClubTeamDto
         {
             ClubTeamId = entity.ClubTeamId,
@@ -1174,6 +1185,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             ClubTeamGradYear = entity.ClubTeamGradYear,
             ClubTeamLevelOfPlay = entity.ClubTeamLevelOfPlay ?? string.Empty,
             BHasBeenScheduled = false,
+            BHasEventRegistrations = false,
             BArchived = false,
         };
     }
@@ -1232,6 +1244,10 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         _logger.LogInformation("Updated ClubTeam {ClubTeamId} for user {UserId}", clubTeamId, userId);
 
+        // BHasBeenScheduled is false by construction — the guard above rejects scheduled teams.
+        // Registrations are NOT implied by that: an unscheduled team can still be referenced by an
+        // event, so this one is looked up rather than assumed.
+        var updatedHasRegistrations = await _clubTeams.HasAnyTeamRegistrationsAsync(clubTeamId);
         return new ClubTeamDto
         {
             ClubTeamId = entity.ClubTeamId,
@@ -1239,6 +1255,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             ClubTeamGradYear = entity.ClubTeamGradYear,
             ClubTeamLevelOfPlay = entity.ClubTeamLevelOfPlay ?? string.Empty,
             BHasBeenScheduled = false,
+            BHasEventRegistrations = updatedHasRegistrations,
             BArchived = !entity.Active,
         };
     }
@@ -1252,11 +1269,9 @@ public class TeamRegistrationService : ITeamRegistrationService
         if (!myClubs.Any(c => c.ClubId == entity.ClubId))
             throw new UnauthorizedAccessException("You do not have access to this team.");
 
-        // Archive is the retirement path for teams with history. Unscheduled teams should be deleted.
-        var scheduledIds = await _clubTeams.GetScheduledClubTeamIdsAsync(new[] { clubTeamId });
-        if (!scheduledIds.Contains(clubTeamId))
-            throw new InvalidOperationException("Only teams with schedule history can be archived. Delete this team instead.");
-
+        // Archive is a visibility flag and nothing more: it moves the team out of the active list
+        // into the Archived section, and Restore moves it back. Schedule history has no bearing on
+        // that write, so it is not consulted as a gate (it is read below for the returned DTO only).
         if (!entity.Active)
             throw new InvalidOperationException("This team is already archived.");
 
@@ -1267,13 +1282,17 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         _logger.LogInformation("Archived ClubTeam {ClubTeamId} for user {UserId}", clubTeamId, userId);
 
+        // Read the real flags rather than assuming them — archive no longer implies schedule history.
+        var scheduledIds = await _clubTeams.GetScheduledClubTeamIdsAsync(new[] { clubTeamId });
+        var archivedHasRegistrations = await _clubTeams.HasAnyTeamRegistrationsAsync(clubTeamId);
         return new ClubTeamDto
         {
             ClubTeamId = entity.ClubTeamId,
             ClubTeamName = entity.ClubTeamName,
             ClubTeamGradYear = entity.ClubTeamGradYear,
             ClubTeamLevelOfPlay = entity.ClubTeamLevelOfPlay ?? string.Empty,
-            BHasBeenScheduled = true,
+            BHasBeenScheduled = scheduledIds.Contains(clubTeamId),
+            BHasEventRegistrations = archivedHasRegistrations,
             BArchived = true,
         };
     }
@@ -1298,6 +1317,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         _logger.LogInformation("Unarchived ClubTeam {ClubTeamId} for user {UserId}", clubTeamId, userId);
 
         var scheduledIds = await _clubTeams.GetScheduledClubTeamIdsAsync(new[] { clubTeamId });
+        var restoredHasRegistrations = await _clubTeams.HasAnyTeamRegistrationsAsync(clubTeamId);
         return new ClubTeamDto
         {
             ClubTeamId = entity.ClubTeamId,
@@ -1305,6 +1325,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             ClubTeamGradYear = entity.ClubTeamGradYear,
             ClubTeamLevelOfPlay = entity.ClubTeamLevelOfPlay ?? string.Empty,
             BHasBeenScheduled = scheduledIds.Contains(clubTeamId),
+            BHasEventRegistrations = restoredHasRegistrations,
             BArchived = false,
         };
     }

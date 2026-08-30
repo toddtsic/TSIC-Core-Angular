@@ -962,8 +962,9 @@ export class TeamTeamsStepComponent implements OnInit {
             });
     }
 
+    /** Mirrors the server's delete guard: any event reference, in any job, blocks it. */
     askDeleteTeam(team: ClubTeamDto): void {
-        if (team.bHasBeenScheduled) return;
+        if (team.bHasEventRegistrations) return;
         this.pendingDelete.set(team);
     }
 
@@ -992,8 +993,9 @@ export class TeamTeamsStepComponent implements OnInit {
         this.pendingDelete.set(null);
     }
 
+    /** Archive is a visibility flag — only a live registration in THIS event blocks it. */
     askArchiveTeam(team: ClubTeamDto): void {
-        if (!team.bHasBeenScheduled || this.isEnteredTeam(team.clubTeamId)) return;
+        if (this.isEnteredTeam(team.clubTeamId)) return;
         this.pendingArchive.set(team);
     }
 

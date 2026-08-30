@@ -74,6 +74,15 @@ public interface IClubTeamRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Batched form of <see cref="HasAnyTeamRegistrationsAsync"/>: returns the subset of the supplied
+    /// ClubTeamIds that any Teams row references, in any job. Lets the library list carry the same
+    /// fact the delete guard enforces, so the client never offers a delete the server will refuse.
+    /// </summary>
+    Task<HashSet<int>> GetClubTeamIdsWithEventRegistrationsAsync(
+        IEnumerable<int> clubTeamIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Returns true if any Teams row references the given ClubTeamId (any job).
     /// Used to block deletion of a library team that still has event registrations.
     /// </summary>

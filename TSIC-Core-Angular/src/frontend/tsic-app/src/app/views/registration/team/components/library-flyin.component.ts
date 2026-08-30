@@ -362,7 +362,7 @@ interface LibraryGroup {
                             @if (openMenuTeamId() === team.clubTeamId) {
                               @let renameLock = renameLockReason();
                               @let editLock = editLockReason(team);
-                              @let archiveLock = archiveLockReason(team, !!registered);
+                              @let archiveLock = archiveLockReason(!!registered);
                               @let deleteLock = deleteLockReason(team, !!registered);
                               <div class="lib-menu" role="menu" (click)="$event.stopPropagation()">
                                 <!-- Rename stands apart from Edit details: a name is a label the rep
@@ -2387,16 +2387,28 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
         return null;
     }
 
-    /** Returns the lock reason for Archive, or null if available. */
-    archiveLockReason(team: ClubTeamDto, registered: boolean): string | null {
-        if (!team.bHasBeenScheduled) return 'Use Delete — no event history';
+    /**
+     * Returns the lock reason for Archive, or null if available.
+     *
+     * Archive is a visibility flag: the team leaves the active list for the Archived section and
+     * Restore brings it back. Nothing is destroyed, so schedule history is NOT a gate here (it was,
+     * and it stranded every team that had registered for an event but never been put on a game).
+     */
+    archiveLockReason(registered: boolean): string | null {
         if (registered) return 'Registered for this event';
         return null;
     }
 
-    /** Returns the lock reason for Delete, or null if available. */
+    /**
+     * Returns the lock reason for Delete, or null if available.
+     *
+     * Gated on bHasEventRegistrations — the SAME fact DeleteClubTeamAsync refuses on (any Teams row,
+     * any job). It was gated on bHasBeenScheduled, which is narrower: a team that registered for an
+     * event but never reached a game read as deletable here and was rejected by the server, with a
+     * message naming an event the rep could not see from this screen.
+     */
     deleteLockReason(team: ClubTeamDto, registered: boolean): string | null {
-        if (team.bHasBeenScheduled) return 'Use Archive — has event history';
+        if (team.bHasEventRegistrations) return 'Use Archive — registered for an event';
         if (registered) return 'Registered for this event';
         return null;
     }
@@ -2413,7 +2425,7 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
 
     handleMenuArchive(team: ClubTeamDto, registered: boolean): void {
         this.closeMenu();
-        if (!this.archiveLockReason(team, registered)) this.archive.emit(team);
+        if (!this.archiveLockReason(registered)) this.archive.emit(team);
     }
 
     handleMenuDelete(team: ClubTeamDto, registered: boolean): void {

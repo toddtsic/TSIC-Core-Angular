@@ -8,6 +8,7 @@ export type ClubTeamDto = {
     clubTeamGradYear: string;
     clubTeamLevelOfPlay: string;
     bHasBeenScheduled: boolean;
+    bHasEventRegistrations: boolean;
     bArchived: boolean;
 };
 

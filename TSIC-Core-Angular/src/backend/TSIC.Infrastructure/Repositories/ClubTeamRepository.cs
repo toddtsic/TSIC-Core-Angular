@@ -117,6 +117,23 @@ public class ClubTeamRepository : IClubTeamRepository
         return scheduled.ToHashSet();
     }
 
+    public async Task<HashSet<int>> GetClubTeamIdsWithEventRegistrationsAsync(
+        IEnumerable<int> clubTeamIds,
+        CancellationToken cancellationToken = default)
+    {
+        var idList = clubTeamIds.ToList();
+        if (idList.Count == 0) return new HashSet<int>();
+
+        var referenced = await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.ClubTeamId != null && idList.Contains(t.ClubTeamId.Value))
+            .Select(t => t.ClubTeamId!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return referenced.ToHashSet();
+    }
+
     public async Task<bool> HasAnyTeamRegistrationsAsync(
         int clubTeamId,
         CancellationToken cancellationToken = default)

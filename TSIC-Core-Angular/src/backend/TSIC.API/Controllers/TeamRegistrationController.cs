@@ -585,8 +585,8 @@ public class TeamRegistrationController : ControllerBase
     }
 
     /// <summary>
-    /// Archive a ClubTeam (retire from visible library, retain history).
-    /// Rejected with 400 if the team has never been scheduled — those should be deleted instead.
+    /// Archive a ClubTeam: a visibility flag only — the team leaves the active library list
+    /// and appears in the Archived section, where Restore reverses it. No history is required.
     /// </summary>
     [HttpPost("club-team/{clubTeamId:int}/archive")]
     [ProducesResponseType(typeof(ClubTeamDto), 200)]
