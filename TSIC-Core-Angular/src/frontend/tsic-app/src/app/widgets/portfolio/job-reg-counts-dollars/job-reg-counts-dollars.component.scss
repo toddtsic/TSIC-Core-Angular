@@ -176,8 +176,14 @@
 // for display (see eventName()) and kept on the title attribute, so the widest column
 // spends its space on the part that differs.
 
-.jrcd__paid {
-	color: var(--bs-success-text-emphasis);
+// Owed carries the emphasis, not Paid -- on a money widget it is the number the reader
+// is hunting. WEIGHT, never colour: the footnote states Owed is NOT past-due, so red or
+// amber would contradict the widget in the widget. Weight is also theme-proof, unlike
+// --bs-success-text-emphasis, which resolves to a near-black #0a3622 in light and a mint
+// #75b798 in dark -- correct for that token, but it made the column read as "heavier"
+// in one theme and "green" in the other.
+.jrcd__owed {
+	font-weight: 600;
 }
 
 .jrcd__daysout {
