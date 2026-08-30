@@ -22,9 +22,17 @@
 // column is allowed to breathe (usually the name) and leave that one alone.
 
 .wt-scroll {
-	// Not the primary defence — the fixed-layout rule above is. This is the floor for
-	// genuinely narrow viewports, where a scrollbar IS the correct answer.
-	overflow-x: auto;
+	// NO overflow at normal widths. The fixed-layout rule above guarantees the table
+	// fits, so a scroll container here can only ever produce a phantom scrollbar — and
+	// per CSS Overflow 3 a VERTICAL one too: when one axis is non-visible and the other
+	// is visible, the visible one computes to AUTO. So `overflow-x: auto` alone silently
+	// scrolls both axes, and any height-constrained ancestor then clips rows with no
+	// indication they exist. `overflow-y: visible` cannot override it; the spec wins.
+	//
+	// Below the table min-width a horizontal scroll IS the right answer, so scope it there.
+	@media (max-width: 48rem) {
+		overflow-x: auto;
+	}
 }
 
 .widget-table {
@@ -63,6 +71,13 @@
 	tbody tr {
 		border-bottom: 1px solid var(--bs-border-color-translucent);
 		transition: background-color 0.12s ease;
+
+		// Eight columns against a hairline border is hard to track across. Striping does
+		// more for legibility on a wide table than a heavier border would. Declared BEFORE
+		// :hover — equal specificity, so source order is what lets hover still win.
+		&:nth-child(even) {
+			background: color-mix(in srgb, var(--brand-text) 2%, transparent);
+		}
 
 		&:last-child {
 			border-bottom: 0;
@@ -146,6 +161,16 @@
 		outline: none;
 		box-shadow: var(--shadow-focus);
 	}
+}
+
+// ── Zero and empty values ──────────────────────────────
+// A zero figure is NOT the same as an absent one, so it keeps its number rather than
+// becoming an em dash — $0 owed is a real, meaningful reading. What it gives up is
+// weight, so the rows carrying actual money are what the eye lands on.
+// --brand-text-muted (#78716c) on --brand-surface (#ffffff) measures 4.81:1 — WCAG AA.
+.wt-zero {
+	color: var(--brand-text-muted);
+	font-weight: 400;
 }
 
 // ── Empty-cell marker ───────────────────────────────────

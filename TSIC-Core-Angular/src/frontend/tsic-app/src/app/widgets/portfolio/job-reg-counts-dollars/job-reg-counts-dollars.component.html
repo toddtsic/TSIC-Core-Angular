@@ -159,9 +159,13 @@
 									}
 								</td>
 
-								<td class="jrcd__c-money wt-money">{{ row.fees | currency:'USD':'symbol':'1.0-0' }}</td>
-								<td class="jrcd__c-money wt-money jrcd__paid">{{ row.paid | currency:'USD':'symbol':'1.0-0' }}</td>
-								<td class="jrcd__c-money wt-money">{{ row.owed | currency:'USD':'symbol':'1.0-0' }}</td>
+								<!-- Zero money keeps its figure ($0 owed is a real reading) but gives up its
+								     weight, so the rows holding actual money are what the eye lands on. Paid is
+								     coloured ONLY when something was collected -- a green $0 read as a positive
+								     result when nothing had come in at all. -->
+								<td class="jrcd__c-money wt-money" [class.wt-zero]="row.fees === 0">{{ row.fees | currency:'USD':'symbol':'1.0-0' }}</td>
+								<td class="jrcd__c-money wt-money" [class.jrcd__paid]="row.paid > 0" [class.wt-zero]="row.paid === 0">{{ row.paid | currency:'USD':'symbol':'1.0-0' }}</td>
+								<td class="jrcd__c-money wt-money" [class.wt-zero]="row.owed === 0">{{ row.owed | currency:'USD':'symbol':'1.0-0' }}</td>
 							</tr>
 						}
 					</tbody>
