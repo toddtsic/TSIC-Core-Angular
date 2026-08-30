@@ -206,6 +206,12 @@
 .jrcd__c-type {
 	width: 5.5rem;
 	color: var(--brand-text-muted);
+}
+
+// Nested for the same specificity reason as the .wt-* modifiers: bare, this loses to
+// `.widget-table td { white-space: nowrap }` and the type label silently cannot wrap.
+// `width` and `color` above have no competing base rule, so they are fine unnested.
+.widget-table .jrcd__c-type {
 	white-space: normal;
 }
 

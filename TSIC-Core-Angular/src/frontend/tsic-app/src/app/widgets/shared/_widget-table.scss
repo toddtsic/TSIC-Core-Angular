@@ -68,6 +68,28 @@
 		padding: 0;
 	}
 
+	// ── Column modifiers ────────────────────────────────
+	// These MUST be nested. As bare `.wt-num` etc they are (0,1,0) and lose to the
+	// `.widget-table td` rule above at (0,1,1) — one class beats one class only when the
+	// element selector is not there to break the tie. The consequence was silent and
+	// total: `text-align: right` never applied, so EVERY numeric column rendered
+	// left-aligned, and `white-space: normal` never applied, so .wt-flex could not wrap —
+	// which is the only reason .wt-flex exists. Nesting makes them (0,2,0) and they win.
+	// Any new .wt-* modifier that touches a property the base th/td rule sets belongs here.
+	.wt-num,
+	.wt-money {
+		text-align: right;
+		font-variant-numeric: tabular-nums;
+	}
+
+	// The one column with no declared width. Wrapping is the point: it is what lets the
+	// table give back the space instead of pushing sideways.
+	.wt-flex {
+		white-space: normal;
+		overflow-wrap: anywhere;
+		font-weight: 500;
+	}
+
 	tbody tr {
 		border-bottom: 1px solid var(--bs-border-color-translucent);
 		transition: background-color 0.12s ease;
@@ -89,28 +111,17 @@
 	}
 }
 
-// ── Column helpers ──────────────────────────────────────
-// Counts and money right-align and use tabular figures so digits form columns.
-
-.wt-num,
-.wt-money {
-	text-align: right;
-	font-variant-numeric: tabular-nums;
-}
-
 // The heading button must follow its column's alignment or the caret floats away
 // from the figures it sorts.
+// Numeric headings: caret BEFORE the label. With the caret last it owned the right
+// edge and pushed the heading text ~16px inboard (8px padding + caret + gap), so the
+// heading never lined up with the figures below it. row-reverse runs the main axis
+// right-to-left, so flex-start packs to the right and the first DOM item — the label —
+// lands hard against the same 8px inset the numbers use.
 .wt-num .sort-th,
 .wt-money .sort-th {
-	justify-content: flex-end;
-}
-
-// The one column with no declared width. Wrapping is the point: it is what lets the
-// table give back the space instead of pushing sideways.
-.wt-flex {
-	white-space: normal;
-	overflow-wrap: anywhere;
-	font-weight: 500;
+	flex-direction: row-reverse;
+	justify-content: flex-start;
 }
 
 // ── Sortable heading ────────────────────────────────────
