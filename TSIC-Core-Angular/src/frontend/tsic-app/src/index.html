@@ -8,9 +8,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
-  <!-- VerticalInsure embedded offer script: globally available so components can instantiate without dynamic injection -->
+  <!--
+    VerticalInsure embedded offer script: globally available so components can instantiate
+    without dynamic injection.
+
+    PINNED, and it must stay pinned. This read `@latest`, which is third-party code entering
+    the registration and payment pages with no deploy of ours: jsDelivr serves that URL with
+    s-maxage=43200, so whatever VerticalInsure publishes is executing in shoppers' browsers
+    within about twelve hours and cached by them for up to seven days. The package is 0.x, so
+    semver promises nothing — a breaking change can arrive as a minor bump.
+
+    That matters here because our integration depends on a specific callback contract
+    (onOfferStateChange, instance.validate(), state.quotes — see vi-widget-base.service.ts) and
+    on viConfirmed / viPolicyNumber reaching preSubmit. A silent shift in that shape does not
+    crash: it fails open and stops selling insurance, or records a decision wrong. Either way
+    there would be nothing in our history to correlate it against.
+
+    To upgrade: change the version deliberately, exercise the payment step's offer, and check
+    quotes still arrive in the shape the service expects. Do not put a floating tag back.
+
+    SRI is not an option on this URL — jsDelivr generates `+esm` bundles on demand and says so
+    in the file header. Self-hosting the file on our own statics is the real fix and is not
+    done yet.
+  -->
   <script type="module">
-    import VerticalInsure from 'https://cdn.jsdelivr.net/npm/@vertical-insure/embedded-offer@latest/+esm';
+    import VerticalInsure from 'https://cdn.jsdelivr.net/npm/@vertical-insure/embedded-offer@0.18.2/+esm';
     window.VerticalInsure = VerticalInsure?.default ?? VerticalInsure;
     console.log('VI SDK loaded?', !!window.VerticalInsure);
   </script>
