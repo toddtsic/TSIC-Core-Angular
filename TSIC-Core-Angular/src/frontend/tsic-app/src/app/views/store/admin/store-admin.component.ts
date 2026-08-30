@@ -2,6 +2,7 @@ import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@a
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { StoreService } from '../../../infrastructure/services/store.service';
+import { AuthService } from '../../../infrastructure/services/auth.service';
 import { ToastService } from '../../../shared-ui/toast.service';
 import { TsicDialogComponent } from '../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { ConfirmDialogComponent } from '../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
@@ -49,6 +50,23 @@ type TabKey = 'items' | 'images' | 'sales' | 'campaigns' | 'dashboard' | 'colors
 })
 export class StoreAdminComponent {
 	private readonly store = inject(StoreService);
+	private readonly auth = inject(AuthService);
+
+	/**
+	 * Colours and sizes are a GLOBAL dictionary — no JobId, no StoreId (B-28). Every colour in
+	 * use is shared: "Blue" and "Black" each sit under 56 SKUs across four different stores.
+	 * Renaming one therefore renames it for those stores too, which is correct for a dictionary
+	 * and wrong for a merch-table volunteer to be able to do on a whim.
+	 *
+	 * <p>So the dictionary is READ and ADD for a store admin, EDIT and DELETE for a SuperUser.
+	 * Adding is safe — a new row nobody else points at yet. Mirrors the policy split on
+	 * StoreController's colours and sizes endpoints; the UI hides what the API would refuse.</p>
+	 *
+	 * <p>Legacy had no colour or size screen at all: a colour came into existence only by being
+	 * typed into the semicolon list on item create, and could never be renamed. This is the
+	 * narrowest gate that keeps our screen useful without handing out that new power.</p>
+	 */
+	readonly canEditTaxonomy = this.auth.isSuperuser;
 	private readonly toast = inject(ToastService);
 
 	// ── Tab state ──

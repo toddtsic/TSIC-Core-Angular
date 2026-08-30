@@ -530,7 +530,7 @@ public class StoreController : ControllerBase
     }
 
     [HttpPut("colors/{storeColorId:int}")]
-    [Authorize(Policy = "StoreAdmin")]
+    [Authorize(Policy = "SuperUserOnly")]
     [ProducesResponseType(typeof(StoreColorDto), 200)]
     public async Task<IActionResult> UpdateColor(int storeColorId, [FromBody] UpdateStoreColorRequest request)
     {
@@ -547,7 +547,7 @@ public class StoreController : ControllerBase
     }
 
     [HttpDelete("colors/{storeColorId:int}")]
-    [Authorize(Policy = "StoreAdmin")]
+    [Authorize(Policy = "SuperUserOnly")]
     [ProducesResponseType(204)]
     public async Task<IActionResult> DeleteColor(int storeColorId)
     {
@@ -584,7 +584,7 @@ public class StoreController : ControllerBase
     }
 
     [HttpPut("sizes/{storeSizeId:int}")]
-    [Authorize(Policy = "StoreAdmin")]
+    [Authorize(Policy = "SuperUserOnly")]
     [ProducesResponseType(typeof(StoreSizeDto), 200)]
     public async Task<IActionResult> UpdateSize(int storeSizeId, [FromBody] UpdateStoreSizeRequest request)
     {
@@ -601,7 +601,7 @@ public class StoreController : ControllerBase
     }
 
     [HttpDelete("sizes/{storeSizeId:int}")]
-    [Authorize(Policy = "StoreAdmin")]
+    [Authorize(Policy = "SuperUserOnly")]
     [ProducesResponseType(204)]
     public async Task<IActionResult> DeleteSize(int storeSizeId)
     {

@@ -348,6 +348,18 @@
 		</button>
 	</div>
 
+	@if (!canEditTaxonomy()) {
+		<!-- Says why the chips have no pencil, rather than leaving it to look broken. -->
+		<div class="sf-note taxonomy-note">
+			<i class="bi bi-info-circle" aria-hidden="true"></i>
+			<span>
+				Colour names are shared with every other event on TeamSportsInfo, so renaming one
+				would rename it for all of them. Add the colours you need here &mdash; renaming and
+				removing is a TSIC operation.
+			</span>
+		</div>
+	}
+
 	@if (colors().length === 0) {
 		<div class="empty-state">
 			<span class="empty-state-icon"><i class="bi bi-palette"></i></span>
@@ -365,18 +377,20 @@
 			@for (color of colors(); track color.storeColorId) {
 				<div class="taxonomy-chip taxonomy-chip--color">
 					<span class="taxonomy-chip-name">{{ color.storeColorName }}</span>
-					<div class="taxonomy-chip-actions">
-						<button type="button" class="taxonomy-chip-btn"
-								(click)="editColor(color)"
-								title="Edit color" aria-label="Edit color">
-							<i class="bi bi-pencil"></i>
-						</button>
-						<button type="button" class="taxonomy-chip-btn taxonomy-chip-btn--danger"
-								(click)="confirmDeleteColor(color)"
-								title="Delete color" aria-label="Delete color">
-							<i class="bi bi-trash"></i>
-						</button>
-					</div>
+					@if (canEditTaxonomy()) {
+						<div class="taxonomy-chip-actions">
+							<button type="button" class="taxonomy-chip-btn"
+									(click)="editColor(color)"
+									title="Edit color" aria-label="Edit color">
+								<i class="bi bi-pencil"></i>
+							</button>
+							<button type="button" class="taxonomy-chip-btn taxonomy-chip-btn--danger"
+									(click)="confirmDeleteColor(color)"
+									title="Delete color" aria-label="Delete color">
+								<i class="bi bi-trash"></i>
+							</button>
+						</div>
+					}
 				</div>
 			}
 		</div>
@@ -397,6 +411,17 @@
 		</button>
 	</div>
 
+	@if (!canEditTaxonomy()) {
+		<div class="sf-note taxonomy-note">
+			<i class="bi bi-info-circle" aria-hidden="true"></i>
+			<span>
+				Size names are shared with every other event on TeamSportsInfo, so renaming one
+				would rename it for all of them. Add the sizes you need here &mdash; renaming and
+				removing is a TSIC operation.
+			</span>
+		</div>
+	}
+
 	@if (sizes().length === 0) {
 		<div class="empty-state">
 			<span class="empty-state-icon"><i class="bi bi-rulers"></i></span>
@@ -414,18 +439,20 @@
 			@for (size of sizes(); track size.storeSizeId) {
 				<div class="taxonomy-chip taxonomy-chip--size">
 					<span class="taxonomy-chip-name">{{ size.storeSizeName }}</span>
-					<div class="taxonomy-chip-actions">
-						<button type="button" class="taxonomy-chip-btn"
-								(click)="editSize(size)"
-								title="Edit size" aria-label="Edit size">
-							<i class="bi bi-pencil"></i>
-						</button>
-						<button type="button" class="taxonomy-chip-btn taxonomy-chip-btn--danger"
-								(click)="confirmDeleteSize(size)"
-								title="Delete size" aria-label="Delete size">
-							<i class="bi bi-trash"></i>
-						</button>
-					</div>
+					@if (canEditTaxonomy()) {
+						<div class="taxonomy-chip-actions">
+							<button type="button" class="taxonomy-chip-btn"
+									(click)="editSize(size)"
+									title="Edit size" aria-label="Edit size">
+								<i class="bi bi-pencil"></i>
+							</button>
+							<button type="button" class="taxonomy-chip-btn taxonomy-chip-btn--danger"
+									(click)="confirmDeleteSize(size)"
+									title="Delete size" aria-label="Delete size">
+								<i class="bi bi-trash"></i>
+							</button>
+						</div>
+					}
 				</div>
 			}
 		</div>
