@@ -46,7 +46,13 @@
 	background: var(--brand-surface);
 	border: 1px solid var(--bs-border-color);
 	border-radius: var(--radius-md);
-	overflow: hidden;
+	// `overflow: hidden` here clipped the table's square corners to this radius, but it also
+	// landed on the SAME element as Bootstrap's .table-responsive and, loading later, overrode
+	// its overflow-x: auto. The thirteen-column Refunded and Restocked grids were 1363px of
+	// content in an 1182px box with no scrollbar and no wheel scroll — the Date column simply
+	// could not be reached. Splitting the axes keeps the corner clipping and gives the scroll back.
+	overflow-x: auto;
+	overflow-y: hidden;
 	box-shadow: var(--shadow-xs);
 }
 
