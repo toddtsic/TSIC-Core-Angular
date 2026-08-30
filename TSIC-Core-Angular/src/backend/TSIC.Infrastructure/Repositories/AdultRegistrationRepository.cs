@@ -3,6 +3,7 @@ using TSIC.Contracts.Dtos.AdultRegistration;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
+using TSIC.Domain.JobRules;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.Infrastructure.Repositories;
@@ -137,13 +138,15 @@ public class AdultRegistrationRepository : IAdultRegistrationRepository
 
     public async Task<List<AdultTeamOptionDto>> GetAvailableTeamsAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
+        // The placeability rule lives in AdultTeamPlacementAvailability — the SAME expression
+        // the public pulse counts to decide whether "Register Coach" renders at all. It was
+        // written out here only, and the pulse asked a laxer question ("does any team row
+        // exist"), so a job whose one team had been dropped advertised a link into an empty
+        // picker (AR-054). Chained rather than combined: EF ANDs successive Where clauses.
         return await _context.Teams
             .AsNoTracking()
-            .Where(t =>
-                t.JobId == jobId
-                && t.Active == true
-                && !(t.Agegroup.AgegroupName ?? "").Contains("Waitlist")
-                && !(t.Agegroup.AgegroupName ?? "").Contains("Dropped"))
+            .Where(t => t.JobId == jobId)
+            .Where(AdultTeamPlacementAvailability.Placeable)
             .OrderBy(t => t.ClubrepRegistration!.ClubName)
             .ThenBy(t => t.Agegroup.AgegroupName)
             .ThenBy(t => t.Div!.DivName)

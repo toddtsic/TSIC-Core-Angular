@@ -691,11 +691,14 @@ public class JobRepository : IJobRepository
                     AdultRegistrationPlanned = j.BRegistrationAllowStaff == true
                         || j.BRegistrationAllowReferee == true
                         || j.BRegistrationAllowRecruiter == true,
-                    // Coach/staff release gate (BRegistrationAllowStaff) AND teams exist —
-                    // a coach can only request a team once teams are in. Mirrors the Quick
-                    // Links editor's TeamsConfigured relevance.
-                    StaffRegistrationOpen = j.BRegistrationAllowStaff == true
-                        && _context.Teams.Any(t => t.JobId == j.JobId),
+                    // Toggle ONLY, as with the player and team flags above. The teams clause
+                    // is ANDed in the step-4 fold from the team snapshot, through
+                    // AdultTeamPlacementAvailability — the same expression the coach picker
+                    // filters on. It used to be an inline `Teams.Any(t => t.JobId == j.JobId)`
+                    // here, which asked a LAXER question than the picker answered: a job whose
+                    // only team had been dropped passed the gate and emptied the picker, so
+                    // "Register Coach" led into a wizard that could never be submitted (AR-054).
+                    StaffRegistrationOpen = j.BRegistrationAllowStaff == true,
                     // Referee/recruiter need no teams — gate on their flag alone.
                     RefereeRegistrationOpen = j.BRegistrationAllowReferee == true,
                     RecruiterRegistrationOpen = j.BRegistrationAllowRecruiter == true,
@@ -809,7 +812,10 @@ public class JobRepository : IJobRepository
             TeamRegistrationOpen = verdicts.TeamRegistrationOpen,
             ClubRepAllowAdd = pulse.ClubRepAllowAdd && door,
             ClubRepAllowDelete = pulse.ClubRepAllowDelete && door,
-            StaffRegistrationOpen = pulse.StaffRegistrationOpen && door,
+            // Toggle AND a team a coach can actually be placed on AND the create door. The
+            // middle clause is the AR-054 fix: without it the link rendered for a job whose
+            // only team was dropped, and the wizard behind it could never be submitted.
+            StaffRegistrationOpen = pulse.StaffRegistrationOpen && teams.AdultPlaceable > 0 && door,
             RefereeRegistrationOpen = pulse.RefereeRegistrationOpen && door,
             RecruiterRegistrationOpen = pulse.RecruiterRegistrationOpen && door,
         };
@@ -838,6 +844,12 @@ public class JobRepository : IJobRepository
 
         var teamsTotal = await jobTeams.CountAsync(cancellationToken);
         var eligibleCount = await eligible.CountAsync(cancellationToken);
+
+        // The ADULT cut of the same set: active and out of the system buckets, with no
+        // self-rostering flag and no date window (a coach doesn't self-roster). Counted here
+        // so the pulse's StaffRegistrationOpen and the coach picker answer one question once.
+        var adultPlaceable = await jobTeams.CountAsync(
+            AdultTeamPlacementAvailability.Placeable, cancellationToken);
         var availableNow = await eligible.CountAsync(
             TeamSelfRosterAvailability.WindowContains(now), cancellationToken);
 
@@ -862,6 +874,7 @@ public class JobRepository : IJobRepository
             TeamsTotal = teamsTotal,
             EligibleIgnoringWindow = eligibleCount,
             AvailableNow = availableNow,
+            AdultPlaceable = adultPlaceable,
             ClosesSoonest = closesSoonest,
             OpensSoonest = opensSoonest,
             LatestClose = latestClose,
@@ -993,6 +1006,9 @@ public class JobRepository : IJobRepository
         public required int TeamsTotal { get; init; }
         public required int EligibleIgnoringWindow { get; init; }
         public required int AvailableNow { get; init; }
+        /// <summary>Teams a COACH can be placed on — active, not a system bucket, no
+        /// self-rostering flag and no date window. Gates StaffRegistrationOpen.</summary>
+        public required int AdultPlaceable { get; init; }
         public DateTime? ClosesSoonest { get; init; }
         public DateTime? OpensSoonest { get; init; }
         public DateTime? LatestClose { get; init; }
