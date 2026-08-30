@@ -558,6 +558,15 @@
 			transform: none;
 		}
 	}
+
+	// Last in the block on purpose: `.selected` sets a box-shadow of its own at the same
+	// specificity, and focus has to win over it. Required now that sold-out chips are
+	// aria-disabled rather than disabled — they are in the tab order, so there has to be
+	// something to see when they take focus. The selectable chips never had one either.
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
 }
 
 .oos-label {

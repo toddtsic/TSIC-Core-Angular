@@ -43,7 +43,12 @@ export class StoreShellComponent {
     readonly purchaseCount = this.store.purchaseCount;
 
     private static readonly TITLES: Record<StorePage, { title: string; icon: string }> = {
-        shop: { title: 'Team Store', icon: 'bi-shop' },
+        // "Store", not "Team Store" or "Event Store". Legacy calls it "Store"
+        // (StoreFamily/CheckoutConfirmation.cshtml: "Return to Store") and so does the nav item
+        // that gets you here. Two branded names were invented independently during the port and
+        // sat one click apart — the shopper tapped "Store" and landed on "Event Store", signed
+        // in, and arrived at "Team Store".
+        shop: { title: 'Store', icon: 'bi-shop' },
         cart: { title: 'Your Cart', icon: 'bi-cart3' },
         checkout: { title: 'Checkout', icon: 'bi-credit-card' },
         history: { title: 'Purchase History', icon: 'bi-receipt' },

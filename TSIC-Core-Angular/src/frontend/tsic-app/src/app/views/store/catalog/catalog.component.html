@@ -268,10 +268,18 @@
 									</label>
 									<div class="chip-row">
 										@for (size of filteredSizes; track size.id) {
+											<!--
+												aria-disabled, NOT disabled. A disabled button is
+												removed from the tab order, so a keyboard or screen
+												reader user never reaches a sold-out size and never
+												hears the "Sold out" label inside it — the size simply
+												does not exist for them. aria-disabled keeps the chip
+												reachable and announced; selectSize() refuses it.
+											-->
 											<button class="variant-chip"
 													[class.selected]="s.selectedSizeId === size.id"
 													[class.out-of-stock]="isSizeOutOfStock(size.id)"
-													[disabled]="isSizeOutOfStock(size.id)"
+													[attr.aria-disabled]="isSizeOutOfStock(size.id)"
 													(click)="selectSize(size.id)">
 												{{ size.name }}
 												@if (isSizeOutOfStock(size.id)) {

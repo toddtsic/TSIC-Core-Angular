@@ -223,6 +223,10 @@ export class StoreCatalogComponent {
 	selectSize(sizeId: number): void {
 		const s = this.expandedState();
 		if (!s) return;
+		// The sold-out chip is aria-disabled rather than disabled, so it stays reachable and
+		// announced — which means it is also still clickable. The refusal lives here, at the
+		// one place selection happens, rather than on the element.
+		if (this.isSizeOutOfStock(sizeId)) return;
 
 		const updatedState = { ...s, selectedSizeId: sizeId };
 		const sku = this.resolveSelectedSku(updatedState);
