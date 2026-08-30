@@ -833,10 +833,14 @@ export class WidgetEditorComponent implements HasUnsavedChanges {
 		const isPublic = this.isPublicCategory();
 		const verb = this.editingWidget() ? 'updated' : 'created';
 
-		// Need at least one job type. Public widgets don't need roles (one row per
-		// jobType with RoleId = null); role-scoped widgets need both.
-		const missing = jobTypeIds.size === 0 || (!isPublic && roles.size === 0);
-		if (missing) {
+		// An EMPTY selection is only "nothing to do" when CREATING — a brand-new widget
+		// has no assignments to clear. On an EDIT it is a deliberate instruction: clear
+		// this widget everywhere. Those two cases have the same shape, and treating both
+		// as "skip" silently discarded every de-assignment while still showing a success
+		// toast. SaveWidgetAssignmentsAsync deletes-then-inserts, so an empty list is a
+		// valid, meaningful payload — send it.
+		const isEmpty = jobTypeIds.size === 0 || (!isPublic && roles.size === 0);
+		if (isEmpty && !this.editingWidget()) {
 			this.toast.show(`Widget ${verb} successfully.`, 'success');
 			this.closeWidgetModal();
 			this.reloadWidgets();
@@ -856,9 +860,13 @@ export class WidgetEditorComponent implements HasUnsavedChanges {
 			}
 		}
 
-		const successMsg = isPublic
-			? `Widget ${verb} and assigned to ${jobTypeIds.size} job type(s) (public — all roles).`
-			: `Widget ${verb} and assigned to ${roles.size} role(s) across ${jobTypeIds.size} job type(s).`;
+		// Say what actually happened. An empty payload is a clear, not an assignment —
+		// reporting it as "assigned to 0 role(s)" is how the silent no-op read as success.
+		const successMsg = assignments.length === 0
+			? `Widget ${verb} — all role assignments removed. It no longer appears on any job.`
+			: isPublic
+				? `Widget ${verb} and assigned to ${jobTypeIds.size} job type(s) (public — all roles).`
+				: `Widget ${verb} and assigned to ${roles.size} role(s) across ${jobTypeIds.size} job type(s).`;
 
 		this.editorService.saveWidgetAssignments({
 			widgetId,
