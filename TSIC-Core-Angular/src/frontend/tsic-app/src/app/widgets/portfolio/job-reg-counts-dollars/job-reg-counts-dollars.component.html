@@ -70,8 +70,8 @@
 		</button>
 
 		@if (isOpen()) {
-			<div class="jrcd__scroll" id="jrcd-rows">
-				<table class="jrcd__table">
+			<div class="jrcd__scroll wt-scroll" id="jrcd-rows">
+				<table class="widget-table">
 					<caption class="visually-hidden">
 						Live events with registration counts and ledger dollars
 					</caption>
@@ -79,7 +79,7 @@
 					     announced as actionable; aria-sort carries the current order. -->
 					<thead>
 						<tr>
-							<th scope="col" class="jrcd__c-event" [attr.aria-sort]="sort.aria('event')">
+							<th scope="col" class="jrcd__c-event wt-flex" [attr.aria-sort]="sort.aria('event')">
 								<button type="button" class="sort-th" (click)="sort.toggle('event')" title="Sort by event">
 									Event <i class="bi" [class]="sort.icon('event')" [class.active]="sort.column() === 'event'"></i>
 								</button>
@@ -94,27 +94,27 @@
 									Starts <i class="bi" [class]="sort.icon('starts')" [class.active]="sort.column() === 'starts'"></i>
 								</button>
 							</th>
-							<th scope="col" class="jrcd__c-num" [attr.aria-sort]="sort.aria('players')">
+							<th scope="col" class="jrcd__c-num wt-num" [attr.aria-sort]="sort.aria('players')">
 								<button type="button" class="sort-th" (click)="sort.toggle('players')" title="Sort by players">
 									Players <i class="bi" [class]="sort.icon('players')" [class.active]="sort.column() === 'players'"></i>
 								</button>
 							</th>
-							<th scope="col" class="jrcd__c-num" [attr.aria-sort]="sort.aria('teams')">
+							<th scope="col" class="jrcd__c-num wt-num" [attr.aria-sort]="sort.aria('teams')">
 								<button type="button" class="sort-th" (click)="sort.toggle('teams')" title="Sort by teams">
 									Teams <i class="bi" [class]="sort.icon('teams')" [class.active]="sort.column() === 'teams'"></i>
 								</button>
 							</th>
-							<th scope="col" class="jrcd__c-money" [attr.aria-sort]="sort.aria('fees')">
+							<th scope="col" class="jrcd__c-money wt-money" [attr.aria-sort]="sort.aria('fees')">
 								<button type="button" class="sort-th" (click)="sort.toggle('fees')" title="Sort by fees">
 									Fees <i class="bi" [class]="sort.icon('fees')" [class.active]="sort.column() === 'fees'"></i>
 								</button>
 							</th>
-							<th scope="col" class="jrcd__c-money" [attr.aria-sort]="sort.aria('paid')">
+							<th scope="col" class="jrcd__c-money wt-money" [attr.aria-sort]="sort.aria('paid')">
 								<button type="button" class="sort-th" (click)="sort.toggle('paid')" title="Sort by paid">
 									Paid <i class="bi" [class]="sort.icon('paid')" [class.active]="sort.column() === 'paid'"></i>
 								</button>
 							</th>
-							<th scope="col" class="jrcd__c-money" [attr.aria-sort]="sort.aria('owed')">
+							<th scope="col" class="jrcd__c-money wt-money" [attr.aria-sort]="sort.aria('owed')">
 								<button type="button" class="sort-th" (click)="sort.toggle('owed')" title="Sort by owed">
 									Owed <i class="bi" [class]="sort.icon('owed')" [class.active]="sort.column() === 'owed'"></i>
 								</button>
@@ -123,10 +123,10 @@
 					</thead>
 					<tbody>
 						@for (row of sortedRows(); track trackRow($index, row)) {
-							<tr class="jrcd__row">
+							<tr>
 								<!-- Event only; the customer half of "Customer:Event" is constant
 								     across the table. Full name kept on hover. -->
-								<th scope="row" class="jrcd__c-event" [title]="row.jobName">
+								<th scope="row" class="jrcd__c-event wt-flex" [title]="row.jobName">
 									{{ eventName(row) }}
 								</th>
 
@@ -139,29 +139,29 @@
 											<span class="jrcd__daysout">{{ daysOut(row) }}d</span>
 										}
 									} @else {
-										<span class="jrcd__none">—</span>
+										<span class="wt-none">—</span>
 									}
 								</td>
 
-								<td class="jrcd__c-num">
+								<td class="jrcd__c-num wt-num">
 									@if (row.playerCount > 0) {
 										{{ row.playerCount | number }}
 									} @else {
-										<span class="jrcd__none">—</span>
+										<span class="wt-none">—</span>
 									}
 								</td>
 
-								<td class="jrcd__c-num">
+								<td class="jrcd__c-num wt-num">
 									@if (row.teamCount > 0) {
 										{{ row.teamCount | number }}
 									} @else {
-										<span class="jrcd__none">—</span>
+										<span class="wt-none">—</span>
 									}
 								</td>
 
-								<td class="jrcd__c-money">{{ row.fees | currency:'USD':'symbol':'1.0-0' }}</td>
-								<td class="jrcd__c-money jrcd__paid">{{ row.paid | currency:'USD':'symbol':'1.0-0' }}</td>
-								<td class="jrcd__c-money">{{ row.owed | currency:'USD':'symbol':'1.0-0' }}</td>
+								<td class="jrcd__c-money wt-money">{{ row.fees | currency:'USD':'symbol':'1.0-0' }}</td>
+								<td class="jrcd__c-money wt-money jrcd__paid">{{ row.paid | currency:'USD':'symbol':'1.0-0' }}</td>
+								<td class="jrcd__c-money wt-money">{{ row.owed | currency:'USD':'symbol':'1.0-0' }}</td>
 							</tr>
 						}
 					</tbody>

@@ -1,0 +1,165 @@
+// SHARED DASHBOARD-WIDGET TABLE STYLES
+// Any table rendered by a widget on the dashboard.
+// Import via: @use '../../shared/widget-table' as *;
+//
+// Sibling of _widget-summary.scss and used the same way.
+//
+// WHY THIS IS SEPARATE FROM .store-table (views/store/admin/_store-shared.scss):
+// a store grid is a full-page work surface with action columns, status pills and row
+// buttons, and it carries its own card chrome (.store-table-wrap). A widget table is a
+// read-only figure block living INSIDE a widget card that already has border and shadow,
+// in roughly a thousand pixels rather than a whole page. Same font scale, different job.
+//
+// ── THE RULE THAT MATTERS ──────────────────────────────────────────────────────
+// A widget table must NEVER scroll horizontally at normal dashboard widths. Under
+// `table-layout: fixed` the declared column widths are authoritative, so:
+//
+//     DECLARE A WIDTH ON EVERY COLUMN EXCEPT ONE.
+//
+// The single undeclared column absorbs the remainder, flexes with the dashboard and
+// wraps in place. Declaring all of them sums to a constant that will eventually exceed
+// the card — and then the table overflows no matter how the widths are tuned. Ask which
+// column is allowed to breathe (usually the name) and leave that one alone.
+
+.wt-scroll {
+	// Not the primary defence — the fixed-layout rule above is. This is the floor for
+	// genuinely narrow viewports, where a scrollbar IS the correct answer.
+	overflow-x: auto;
+}
+
+.widget-table {
+	width: 100%;
+	table-layout: fixed;
+	border-collapse: collapse;
+	font-size: var(--font-size-sm);
+
+	th,
+	td {
+		// space-2 both axes. A widget table pays horizontal padding once per column and
+		// there are usually many columns; at space-3 that alone can be ~130px of a card
+		// that only has ~1000px, and the space reads better spent on the name column.
+		padding: var(--space-2);
+		text-align: left;
+		white-space: nowrap;
+		vertical-align: top;
+	}
+
+	thead th {
+		font-weight: 600;
+		font-size: var(--font-size-xs);
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		color: var(--brand-text-muted);
+		background: color-mix(in srgb, var(--brand-text) 3%, transparent);
+		border-bottom: 1px solid var(--bs-border-color);
+	}
+
+	// A sortable heading is a real <button> that fills its cell, so the whole heading is
+	// the hit target rather than just the word. The cell surrenders its padding to it.
+	thead th:has(.sort-th) {
+		padding: 0;
+	}
+
+	tbody tr {
+		border-bottom: 1px solid var(--bs-border-color-translucent);
+		transition: background-color 0.12s ease;
+
+		&:last-child {
+			border-bottom: 0;
+		}
+
+		&:hover {
+			background: color-mix(in srgb, var(--bs-primary) 5%, transparent);
+		}
+	}
+}
+
+// ── Column helpers ──────────────────────────────────────
+// Counts and money right-align and use tabular figures so digits form columns.
+
+.wt-num,
+.wt-money {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+// The heading button must follow its column's alignment or the caret floats away
+// from the figures it sorts.
+.wt-num .sort-th,
+.wt-money .sort-th {
+	justify-content: flex-end;
+}
+
+// The one column with no declared width. Wrapping is the point: it is what lets the
+// table give back the space instead of pushing sideways.
+.wt-flex {
+	white-space: normal;
+	overflow-wrap: anywhere;
+	font-weight: 500;
+}
+
+// ── Sortable heading ────────────────────────────────────
+// NOTE: a near-identical .sort-th lives in views/store/admin/_store-shared.scss. Both are
+// component-scoped by Angular so they do not collide, but they ARE two definitions of one
+// idea. Collapsing them into styles/_tables.scss is the right follow-up; it touches eight
+// shipped store tabs, which is why it is not done here.
+//
+// The caret stays in the DOM, dimmed, when inactive — headings must not reflow by an icon
+// width on every click.
+.sort-th {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	width: 100%;
+	padding: var(--space-2);
+	background: none;
+	border: 0;
+	font: inherit;
+	color: inherit;
+	letter-spacing: inherit;
+	text-transform: inherit;
+	text-align: inherit;
+	white-space: nowrap;
+	cursor: pointer;
+	transition: color 0.12s ease, background-color 0.12s ease;
+
+	i {
+		font-size: 0.85em;
+		color: var(--brand-text-muted);
+		opacity: 0.4;
+		transition: opacity 0.12s ease, color 0.12s ease;
+	}
+
+	i.active {
+		color: var(--bs-primary);
+		opacity: 1;
+	}
+
+	&:hover {
+		color: var(--brand-text);
+		background: color-mix(in srgb, var(--bs-primary) 5%, transparent);
+
+		i { opacity: 0.8; }
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+// ── Empty-cell marker ───────────────────────────────────
+// A blank count is information, not a gap — an em dash says "none", where whitespace
+// reads as a rendering failure.
+.wt-none {
+	color: var(--brand-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.widget-table tbody tr,
+	.sort-th,
+	.sort-th i {
+		transition: none !important;
+		animation: none !important;
+	}
+}

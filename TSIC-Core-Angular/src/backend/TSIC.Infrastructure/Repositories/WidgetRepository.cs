@@ -579,41 +579,84 @@ public class WidgetRepository : IWidgetRepository
         // (AdministratorService, JobClonePlanner). ExpiryAdmin is deliberately NOT used:
         // the admin door stays open ~a year past the event, so it would drag concluded
         // events into the portfolio.
-        var rows = await (
+        //
+        // SHAPE: three round-trips — the job spine, then ONE grouped pass over each child
+        // table. The first cut asked for five correlated subqueries PER JOB (player count,
+        // team count, and three separate sums that re-read the very same rows), i.e. 1+5N
+        // queries against a 667k-row Registrations table that has NO index on JobId. On 18
+        // live jobs that measured 1,468ms; this shape measures 156ms for identical output.
+        //
+        // Each child aggregate joins back to the customer-filtered job set rather than
+        // taking an IN-list of job ids: customerID is the scope key AND the security
+        // boundary, so it belongs in the query, not in a list assembled beforehand.
+        //
+        // Scope is keyed on Jobs.Jobs.customerID and nothing else. Registrations and teams
+        // both carry their own customerID column, but those are ~99.95% NULL (667,333 of
+        // 667,686 and 51,395 of 51,608) — filtering on them returns almost nothing, and it
+        // fails SILENTLY rather than erroring.
+        var jobs = await (
             from j in _context.Jobs.AsNoTracking()
             join jt in _context.JobTypes on j.JobTypeId equals jt.JobTypeId
             where j.CustomerId == customerId && j.ExpiryUsers > now
-            select new JobRegCountsAndDollarsRowDto
+            select new
             {
-                JobId = j.JobId,
+                j.JobId,
                 JobName = j.JobName ?? string.Empty,
-                JobPath = j.JobPath,
+                j.JobPath,
                 JobTypeName = jt.JobTypeName ?? string.Empty,
-                EventStartDate = j.EventStartDate,
+                j.EventStartDate,
+            })
+            .ToListAsync(ct);
 
-                PlayerCount = _context.Registrations
-                    .Count(r => r.JobId == j.JobId
-                             && r.BActive == true
-                             && r.RoleId == RoleConstants.Player),
+        // Sequential awaits, never Task.WhenAll — these share one scoped DbContext.
+        var regAgg = await (
+            from r in _context.Registrations.AsNoTracking()
+            join j in _context.Jobs on r.JobId equals j.JobId
+            where j.CustomerId == customerId && j.ExpiryUsers > now && r.BActive == true
+            group r by r.JobId into g
+            select new
+            {
+                JobId = g.Key,
+                PlayerCount = g.Count(x => x.RoleId == RoleConstants.Player),
+                Fees = g.Sum(x => x.FeeTotal),
+                Paid = g.Sum(x => x.PaidTotal),
+                Owed = g.Sum(x => x.OwedTotal),
+            })
+            .ToDictionaryAsync(x => x.JobId, ct);
 
-                TeamCount = _context.Teams
-                    .Count(t => t.JobId == j.JobId && t.Active == true),
+        var teamAgg = await (
+            from t in _context.Teams.AsNoTracking()
+            join j in _context.Jobs on t.JobId equals j.JobId
+            where j.CustomerId == customerId && j.ExpiryUsers > now && t.Active == true
+            group t by t.JobId into g
+            select new { JobId = g.Key, TeamCount = g.Count() })
+            .ToDictionaryAsync(x => x.JobId, ct);
 
-                Fees = _context.Registrations
-                    .Where(r => r.JobId == j.JobId && r.BActive == true)
-                    .Sum(r => (decimal?)r.FeeTotal) ?? 0m,
+        // A job with no registrations produces no group, which is a genuine zero, not a
+        // gap — the widget renders it as an em dash.
+        var rows = jobs
+            .Select(j =>
+            {
+                var agg = regAgg.GetValueOrDefault(j.JobId);
+                var teams = teamAgg.GetValueOrDefault(j.JobId);
 
-                Paid = _context.Registrations
-                    .Where(r => r.JobId == j.JobId && r.BActive == true)
-                    .Sum(r => (decimal?)r.PaidTotal) ?? 0m,
-
-                Owed = _context.Registrations
-                    .Where(r => r.JobId == j.JobId && r.BActive == true)
-                    .Sum(r => (decimal?)r.OwedTotal) ?? 0m,
+                return new JobRegCountsAndDollarsRowDto
+                {
+                    JobId = j.JobId,
+                    JobName = j.JobName,
+                    JobPath = j.JobPath,
+                    JobTypeName = j.JobTypeName,
+                    EventStartDate = j.EventStartDate,
+                    PlayerCount = agg?.PlayerCount ?? 0,
+                    TeamCount = teams?.TeamCount ?? 0,
+                    Fees = agg?.Fees ?? 0m,
+                    Paid = agg?.Paid ?? 0m,
+                    Owed = agg?.Owed ?? 0m,
+                };
             })
             .OrderBy(x => x.EventStartDate)
             .ThenBy(x => x.JobName)
-            .ToListAsync(ct);
+            .ToList();
 
         return new JobRegCountsAndDollarsDto
         {
