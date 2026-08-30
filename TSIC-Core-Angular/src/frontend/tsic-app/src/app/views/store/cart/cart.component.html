@@ -1,11 +1,4 @@
-<div class="cart-container">
-	<!-- Header -->
-	<div class="cart-header">
-		<h4 class="mb-0"><i class="bi bi-cart3 me-2 text-primary"></i>Your Cart</h4>
-		<a routerLink="../" class="back-link">
-			<i class="bi bi-arrow-left"></i>Continue Shopping
-		</a>
-	</div>
+<app-store-shell page="cart">
 
 	<!-- Loading -->
 	@if (isLoading()) {
@@ -129,4 +122,4 @@
 			</a>
 		</div>
 	}
-</div>
+</app-store-shell>

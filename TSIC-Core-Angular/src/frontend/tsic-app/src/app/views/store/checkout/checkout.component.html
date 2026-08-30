@@ -1,6 +1,11 @@
-<div class="checkout-container">
-	<!-- ═══ Confirmation view ═══ -->
-	@if (confirmation(); as conf) {
+<!--
+	The confirmation is NOT wrapped in the store shell. It is a terminal state, not a screen you
+	navigate the store from — it carries its own centred layout and its own way back — and the
+	shell's header would put "Checkout" above "Order Confirmed!", two headings disagreeing about
+	what the page is.
+-->
+@if (confirmation(); as conf) {
+	<div class="checkout-container">
 		<div class="confirmation-view">
 			<div class="confirmation-icon">
 				<i class="bi bi-check-circle-fill"></i>
@@ -68,14 +73,10 @@
 				</div>
 			}
 		</div>
-	} @else {
+	</div>
+} @else {
 		<!-- ═══ Checkout form ═══ -->
-		<div class="checkout-header">
-			<h4 class="mb-0"><i class="bi bi-credit-card me-2 text-primary"></i>Checkout</h4>
-			<a routerLink="../../store/cart" class="back-link">
-				<i class="bi bi-arrow-left"></i>Back to Cart
-			</a>
-		</div>
+		<app-store-shell page="checkout">
 
 		<!-- Loading -->
 		@if (isLoading()) {
@@ -214,5 +215,5 @@
 				<a routerLink="../../store" class="btn btn-primary mt-2">Browse Store</a>
 			</div>
 		}
-	}
-</div>
+	</app-store-shell>
+}

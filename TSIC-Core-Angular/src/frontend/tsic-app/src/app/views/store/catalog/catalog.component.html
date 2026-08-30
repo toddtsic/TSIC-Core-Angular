@@ -12,42 +12,12 @@
 	</div>
 }
 
-<!-- ═══ Header ═══ -->
-<div class="store-header">
-	<h4 class="store-title">
-		<i class="bi bi-shop me-2 text-primary"></i>Team Store
-	</h4>
-
-	<div class="store-header-links">
-		<!--
-			Purchase history (A-09). Legacy carried a badge with the batch count into
-			StoreFamily/Invoices; hidden outright when the shopper has bought nothing, since
-			the screen behind it would be empty.
-		-->
-		@if (purchaseCount() > 0) {
-			<a routerLink="../store/invoices" class="header-link">
-				<i class="bi bi-receipt" aria-hidden="true"></i>
-				<span class="header-link-text">Purchase History</span>
-				<span class="header-badge">{{ purchaseCount() }}</span>
-			</a>
-		}
-
-		<!--
-			The cart lives here at ALL times, not only once it holds something. The sticky bar
-			below appears on the first add and is the loud version; this is the quiet one that
-			tells a first-time shopper a cart exists at all. Without it the only evidence of a
-			cart was a bar that had not appeared yet.
-		-->
-		<a routerLink="../store/cart" class="header-link header-link--cart"
-		   [class.is-empty]="cartCount() === 0">
-			<i class="bi bi-cart3" aria-hidden="true"></i>
-			<span class="header-link-text">Cart</span>
-			@if (cartCount() > 0) {
-				<span class="header-badge">{{ cartCount() }}</span>
-			}
-		</a>
-	</div>
-</div>
+<!--
+	Header, width and store navigation all come from the shell, which every purchaser-facing
+	store screen shares. The cart bar above stays OUTSIDE it: it is position:fixed to the
+	viewport and belongs to no column.
+-->
+<app-store-shell page="shop">
 
 <!-- ═══ Loading ═══ -->
 @if (isLoading()) {
@@ -454,3 +424,5 @@
 @if (cartCount() > 0) {
 	<div class="cart-bar-spacer"></div>
 }
+
+</app-store-shell>

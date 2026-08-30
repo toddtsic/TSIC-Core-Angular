@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { StoreService } from '../../../infrastructure/services/store.service';
 import { ToastService } from '../../../shared-ui/toast.service';
+import { StoreShellComponent } from '../store-shell.component';
 import { formatCurrency } from '@shared/utils/money.util';
 
 /**
@@ -19,7 +20,7 @@ import { formatCurrency } from '@shared/utils/money.util';
 @Component({
 	selector: 'app-store-invoices',
 	standalone: true,
-	imports: [CommonModule, RouterLink],
+	imports: [CommonModule, RouterLink, StoreShellComponent],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './invoices.component.html',
 	styleUrl: './invoices.component.scss',

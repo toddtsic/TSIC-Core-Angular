@@ -10,6 +10,7 @@ import { compareSizeNames, isPlaceholderVariantName, orderSizes } from '../store
 import { variantLabel } from '../store-variant-label';
 import { StoreFrontInfoComponent } from '../store-front-info.component';
 import { TsicDialogComponent } from '../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
+import { StoreShellComponent } from '../store-shell.component';
 import { formatCurrency } from '@shared/utils/money.util';
 
 interface ExpandedItemState {
@@ -29,7 +30,7 @@ interface ExpandedItemState {
 @Component({
 	selector: 'app-catalog',
 	standalone: true,
-	imports: [CommonModule, FormsModule, RouterLink, StoreFrontInfoComponent, TsicDialogComponent],
+	imports: [CommonModule, FormsModule, RouterLink, StoreFrontInfoComponent, TsicDialogComponent, StoreShellComponent],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './catalog.component.html',
 	styleUrl: './catalog.component.scss',

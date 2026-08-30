@@ -1,32 +1,11 @@
-:host {
-	display: block;
-	padding: var(--space-4);
-}
+// The page frame lives in app-store-shell. `.checkout-container` survives for the CONFIRMATION
+// only, which is a terminal state outside the shell — see the template.
+:host { display: block; padding: var(--space-4); }
+
 
 .checkout-container {
 	max-width: 600px;
 	margin: 0 auto;
-}
-
-// ═══ Header ═══
-.checkout-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	margin-bottom: var(--space-4);
-}
-
-.back-link {
-	font-size: var(--font-size-sm);
-	color: var(--bs-secondary-color);
-	text-decoration: none;
-	display: inline-flex;
-	align-items: center;
-	gap: var(--space-1);
-
-	&:active {
-		opacity: 0.7;
-	}
 }
 
 // ═══ Section Cards ═══

@@ -5,13 +5,14 @@ import { RouterLink } from '@angular/router';
 import { StoreService } from '../../../infrastructure/services/store.service';
 import { ToastService } from '../../../shared-ui/toast.service';
 import type { StoreCartLineItemDto } from '@core/api';
+import { StoreShellComponent } from '../store-shell.component';
 import { formatCurrency } from '@shared/utils/money.util';
 import { variantLabel } from '../store-variant-label';
 
 @Component({
 	selector: 'app-cart',
 	standalone: true,
-	imports: [CommonModule, FormsModule, RouterLink],
+	imports: [CommonModule, FormsModule, RouterLink, StoreShellComponent],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './cart.component.html',
 	styleUrl: './cart.component.scss',

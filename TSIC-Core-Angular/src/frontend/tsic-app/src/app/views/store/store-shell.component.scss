@@ -1,0 +1,97 @@
+:host {
+	display: block;
+	padding: var(--space-4);
+}
+
+// Width is the only thing that varies between store screens, and it varies for a reason: the
+// shelf needs room for three tiles across, while the cart, checkout and receipts read worse
+// wide than narrow. Everything else about the frame is identical everywhere.
+.shell {
+	max-width: 600px;
+	margin: 0 auto;
+}
+
+.shell--wide {
+	max-width: 1100px;
+}
+
+.shell-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: var(--space-3);
+	margin: 0 0 var(--space-5);
+}
+
+.shell-title {
+	margin: 0;
+	font-weight: var(--font-weight-bold);
+}
+
+.shell-links {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.header-link {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	// 44px is the minimum comfortable touch target; these are the only navigation on a phone.
+	min-height: 44px;
+	padding: 0 var(--space-3);
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--radius-md);
+	background: var(--bs-card-bg, var(--neutral-0));
+	color: var(--bs-body-color);
+	text-decoration: none;
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-semibold);
+	transition: border-color 0.15s ease, color 0.15s ease;
+
+	&:hover {
+		border-color: var(--bs-primary);
+		color: var(--bs-primary);
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+// Going back is not a destination — it should not compete with the cart for attention.
+.header-link--quiet {
+	border-color: transparent;
+	background: none;
+	color: var(--bs-secondary-color);
+	font-weight: var(--font-weight-normal);
+}
+
+// An empty cart is still worth showing, quietly.
+.header-link--cart.is-empty {
+	color: var(--bs-secondary-color);
+}
+
+.header-badge {
+	min-width: 1.5rem;
+	padding: 0 var(--space-1);
+	border-radius: var(--radius-full);
+	background: var(--bs-primary);
+	color: var(--bs-light);
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+	font-size: var(--font-size-xs);
+}
+
+// Icons only on a narrow screen — three labelled buttons will not fit beside a title on a
+// phone, and the icons carry the meaning on their own.
+@media (max-width: 30rem) {
+	.header-link-text { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.header-link { transition: none; }
+}

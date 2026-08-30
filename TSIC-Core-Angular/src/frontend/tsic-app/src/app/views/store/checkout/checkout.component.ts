@@ -10,13 +10,14 @@ import { sanitizeExpiry, sanitizePhone } from '@views/registration/shared/servic
 import type { StoreCheckoutResultDto, StoreCartTrimAdjustmentDto } from '@core/api';
 import type { CreditCardFormValue } from '@views/registration/shared/types/wizard.types';
 import { StoreFrontInfoComponent } from '../store-front-info.component';
+import { StoreShellComponent } from '../store-shell.component';
 import { formatCurrency } from '@shared/utils/money.util';
 import { variantLabel } from '../store-variant-label';
 
 @Component({
 	selector: 'app-checkout',
 	standalone: true,
-	imports: [CommonModule, RouterLink, CreditCardFormComponent, StoreFrontInfoComponent],
+	imports: [CommonModule, RouterLink, CreditCardFormComponent, StoreFrontInfoComponent, StoreShellComponent],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './checkout.component.html',
 	styleUrl: './checkout.component.scss',

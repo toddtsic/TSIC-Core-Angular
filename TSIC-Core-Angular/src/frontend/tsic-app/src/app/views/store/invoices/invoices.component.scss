@@ -1,38 +1,6 @@
-:host {
-	display: block;
-	padding: var(--space-4);
-}
-
-.invoices-container {
-	max-width: 600px;
-	margin: 0 auto;
-}
-
-// ═══ Header ═══
-.invoices-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	margin-bottom: var(--space-4);
-}
-
-.back-link {
-	font-size: var(--font-size-sm);
-	color: var(--bs-secondary-color);
-	text-decoration: none;
-	display: inline-flex;
-	align-items: center;
-	gap: var(--space-1);
-
-	&:focus-visible {
-		outline: none;
-		box-shadow: var(--shadow-focus);
-	}
-
-	&:active {
-		opacity: 0.7;
-	}
-}
+// The page frame — padding, width, header and store navigation — lives in app-store-shell,
+// shared by every purchaser-facing store screen. See store-shell.component.ts.
+:host { display: block; }
 
 // ═══ One purchase ═══
 .invoice-card {

@@ -1,0 +1,52 @@
+<div class="shell" [class.shell--wide]="page() === 'shop'">
+
+	<div class="shell-header">
+		<h4 class="shell-title">
+			<i class="bi {{ icon() }} me-2 text-primary" aria-hidden="true"></i>{{ title() }}
+		</h4>
+
+		<!--
+			The same three destinations on every store screen, minus whichever one you are
+			standing on. Before this, leaving the shelf took the cart and the history with it.
+		-->
+		<nav class="shell-links" aria-label="Store">
+			@if (page() !== 'shop') {
+				<a [routerLink]="shopLink" class="header-link header-link--quiet" aria-label="Continue shopping">
+					<i class="bi bi-arrow-left" aria-hidden="true"></i>
+					<span class="header-link-text">Continue Shopping</span>
+				</a>
+			}
+
+			<!--
+				Purchase history (A-09). Legacy carried a badge with the batch count into
+				StoreFamily/Invoices; hidden outright when the shopper has bought nothing, since
+				the screen behind it would be empty.
+			-->
+			@if (page() !== 'history' && purchaseCount() > 0) {
+				<a [routerLink]="historyLink" class="header-link" aria-label="Purchase history">
+					<i class="bi bi-receipt" aria-hidden="true"></i>
+					<span class="header-link-text">Purchase History</span>
+					<span class="header-badge">{{ purchaseCount() }}</span>
+				</a>
+			}
+
+			<!--
+				The cart shows even when EMPTY, quietly. On the shelf the sticky bar only appears
+				after the first add, so without this a first-time shopper had no evidence a cart
+				existed at all.
+			-->
+			@if (page() !== 'cart') {
+				<a [routerLink]="cartLink" class="header-link header-link--cart" aria-label="Cart"
+				   [class.is-empty]="cartCount() === 0">
+					<i class="bi bi-cart3" aria-hidden="true"></i>
+					<span class="header-link-text">Cart</span>
+					@if (cartCount() > 0) {
+						<span class="header-badge">{{ cartCount() }}</span>
+					}
+				</a>
+			}
+		</nav>
+	</div>
+
+	<ng-content />
+</div>
