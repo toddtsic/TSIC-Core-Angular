@@ -12,6 +12,7 @@ import type {
 	StoreBatchSettledStatusDto,
 } from '@core/api';
 import { formatCurrency } from '@shared/utils/money.util';
+import { dateKey, tableSort, textKey } from '../../../shared-ui/table-sort';
 
 /**
  * Sales operations — what a director does to a sale after the money has moved.
@@ -88,6 +89,27 @@ export class StoreSalesTabComponent {
 			|| `${l.directToFirstName ?? ''} ${l.directToLastName ?? ''}`.toLowerCase().includes(term)
 			|| (l.directToTeam ?? '').toLowerCase().includes(term)
 			|| (l.directToClub ?? '').toLowerCase().includes(term));
+	});
+
+	/**
+	 * Newest sale first, which is what a director opening this grid is looking for. Money and
+	 * counts open descending for the same reason; names open A–Z.
+	 */
+	readonly sort = tableSort<
+		'item' | 'for' | 'team' | 'qty' | 'paid' | 'refunded' | 'restocked' | 'purchased'
+	>('purchased', { qty: 'desc', paid: 'desc', refunded: 'desc', restocked: 'desc', purchased: 'desc' });
+
+	readonly sortedLines = this.sort.applyTo(this.visibleLines, (col, a, b) => {
+		switch (col) {
+			case 'item':      return textKey(a.skuLabel, b.skuLabel);
+			case 'for':       return textKey(this.directToName(a), this.directToName(b));
+			case 'team':      return textKey(a.directToTeam, b.directToTeam);
+			case 'qty':       return a.quantity - b.quantity;
+			case 'paid':      return a.paid - b.paid;
+			case 'refunded':  return a.refunded - b.refunded;
+			case 'restocked': return a.restocked - b.restocked;
+			case 'purchased': return dateKey(a.purchaseDate) - dateKey(b.purchaseDate);
+		}
 	});
 
 	readonly totalPaid = computed(() =>

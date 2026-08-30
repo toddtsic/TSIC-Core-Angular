@@ -3,7 +3,8 @@
 // ── Roster table ──
 
 .col-active {
-	width: 96px;
+	// Wide enough for the heading, its sort caret and the Yes/No pill without wrapping.
+	width: 116px;
 }
 
 .col-actions {

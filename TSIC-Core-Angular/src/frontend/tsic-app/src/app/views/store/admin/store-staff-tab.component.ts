@@ -8,6 +8,7 @@ import { AuthService } from '../../../infrastructure/services/auth.service';
 import { ToastService } from '../../../shared-ui/toast.service';
 import { TsicDialogComponent } from '../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
 import type { StoreAdminRosterRowDto, UserSearchResultDto } from '@core/api';
+import { tableSort, textKey } from '../../../shared-ui/table-sort';
 
 /**
  * Store Administrators — port of legacy `StoreAdminAdd/Index`.
@@ -53,6 +54,22 @@ export class StoreStaffTabComponent {
 	readonly errorMessage = signal<string | null>(null);
 
 	readonly activeCount = computed(() => this.rows().filter(r => r.isActive).length);
+
+	/** Legacy's grid opened on last name; retired admins sort below the working ones. */
+	readonly sort = tableSort<
+		'active' | 'username' | 'lastName' | 'firstName' | 'email' | 'cell'
+	>('lastName', { active: 'desc' });
+
+	readonly sortedRows = this.sort.applyTo(this.rows, (col, a, b) => {
+		switch (col) {
+			case 'active':    return Number(a.isActive) - Number(b.isActive);
+			case 'username':  return textKey(a.userName, b.userName);
+			case 'lastName':  return textKey(a.lastName, b.lastName) || textKey(a.firstName, b.firstName);
+			case 'firstName': return textKey(a.firstName, b.firstName) || textKey(a.lastName, b.lastName);
+			case 'email':     return textKey(a.email, b.email);
+			case 'cell':      return textKey(a.cellphone, b.cellphone);
+		}
+	});
 
 	// ── Add modal ──
 

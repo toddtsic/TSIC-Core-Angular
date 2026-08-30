@@ -58,13 +58,25 @@
 			<table class="table align-middle store-table">
 				<thead>
 					<tr>
-						<th>Item</th>
-						<th class="text-end">Units Sold</th>
-						<th class="text-end">Revenue</th>
+						<th [attr.aria-sort]="salesByItemSort.aria('item')">
+							<button type="button" class="sort-th" (click)="salesByItemSort.toggle('item')" title="Sort by item">
+								Item <i class="bi" [class]="salesByItemSort.icon('item')" [class.active]="salesByItemSort.column() === 'item'"></i>
+							</button>
+						</th>
+						<th class="text-end" [attr.aria-sort]="salesByItemSort.aria('units')">
+							<button type="button" class="sort-th sort-th--end" (click)="salesByItemSort.toggle('units')" title="Sort by units sold">
+								Units Sold <i class="bi" [class]="salesByItemSort.icon('units')" [class.active]="salesByItemSort.column() === 'units'"></i>
+							</button>
+						</th>
+						<th class="text-end" [attr.aria-sort]="salesByItemSort.aria('revenue')">
+							<button type="button" class="sort-th sort-th--end" (click)="salesByItemSort.toggle('revenue')" title="Sort by revenue">
+								Revenue <i class="bi" [class]="salesByItemSort.icon('revenue')" [class.active]="salesByItemSort.column() === 'revenue'"></i>
+							</button>
+						</th>
 					</tr>
 				</thead>
 				<tbody>
-					@for (row of salesByItem(); track row.itemName) {
+					@for (row of sortedSalesByItem(); track row.itemName) {
 						<tr>
 							<td><span class="item-name">{{ row.itemName }}</span></td>
 							<td class="text-end"><span class="money">{{ row.totalUnitsSold }}</span></td>
@@ -107,14 +119,30 @@
 			<table class="table align-middle store-table">
 				<thead>
 					<tr>
-						<th>Item</th>
-						<th class="text-center">Period</th>
-						<th class="text-end">Units Sold</th>
-						<th class="text-end">Revenue</th>
+						<th [attr.aria-sort]="salesPivotSort.aria('item')">
+							<button type="button" class="sort-th" (click)="salesPivotSort.toggle('item')" title="Sort by item">
+								Item <i class="bi" [class]="salesPivotSort.icon('item')" [class.active]="salesPivotSort.column() === 'item'"></i>
+							</button>
+						</th>
+						<th class="text-center" [attr.aria-sort]="salesPivotSort.aria('period')">
+							<button type="button" class="sort-th sort-th--center" (click)="salesPivotSort.toggle('period')" title="Sort by period">
+								Period <i class="bi" [class]="salesPivotSort.icon('period')" [class.active]="salesPivotSort.column() === 'period'"></i>
+							</button>
+						</th>
+						<th class="text-end" [attr.aria-sort]="salesPivotSort.aria('units')">
+							<button type="button" class="sort-th sort-th--end" (click)="salesPivotSort.toggle('units')" title="Sort by units sold">
+								Units Sold <i class="bi" [class]="salesPivotSort.icon('units')" [class.active]="salesPivotSort.column() === 'units'"></i>
+							</button>
+						</th>
+						<th class="text-end" [attr.aria-sort]="salesPivotSort.aria('revenue')">
+							<button type="button" class="sort-th sort-th--end" (click)="salesPivotSort.toggle('revenue')" title="Sort by revenue">
+								Revenue <i class="bi" [class]="salesPivotSort.icon('revenue')" [class.active]="salesPivotSort.column() === 'revenue'"></i>
+							</button>
+						</th>
 					</tr>
 				</thead>
 				<tbody>
-					@for (row of salesPivotByItem(); track row.itemName + row.month + row.year) {
+					@for (row of sortedSalesPivot(); track row.itemName + row.month + row.year) {
 						<tr>
 							<td><span class="item-name">{{ row.itemName }}</span></td>
 							<td class="text-center">
@@ -170,16 +198,40 @@
 			<table class="table align-middle store-table">
 				<thead>
 					<tr>
-						<th>Customer</th>
-						<th>Method</th>
-						<th class="text-end">Paid</th>
-						<th class="text-center">Date</th>
-						<th class="text-center">Card</th>
-						<th class="text-center">Walk-up</th>
+						<th [attr.aria-sort]="paymentsSort.aria('customer')">
+							<button type="button" class="sort-th" (click)="paymentsSort.toggle('customer')" title="Sort by customer">
+								Customer <i class="bi" [class]="paymentsSort.icon('customer')" [class.active]="paymentsSort.column() === 'customer'"></i>
+							</button>
+						</th>
+						<th [attr.aria-sort]="paymentsSort.aria('method')">
+							<button type="button" class="sort-th" (click)="paymentsSort.toggle('method')" title="Sort by payment method">
+								Method <i class="bi" [class]="paymentsSort.icon('method')" [class.active]="paymentsSort.column() === 'method'"></i>
+							</button>
+						</th>
+						<th class="text-end" [attr.aria-sort]="paymentsSort.aria('paid')">
+							<button type="button" class="sort-th sort-th--end" (click)="paymentsSort.toggle('paid')" title="Sort by amount paid">
+								Paid <i class="bi" [class]="paymentsSort.icon('paid')" [class.active]="paymentsSort.column() === 'paid'"></i>
+							</button>
+						</th>
+						<th class="text-center" [attr.aria-sort]="paymentsSort.aria('date')">
+							<button type="button" class="sort-th sort-th--center" (click)="paymentsSort.toggle('date')" title="Sort by date">
+								Date <i class="bi" [class]="paymentsSort.icon('date')" [class.active]="paymentsSort.column() === 'date'"></i>
+							</button>
+						</th>
+						<th class="text-center" [attr.aria-sort]="paymentsSort.aria('card')">
+							<button type="button" class="sort-th sort-th--center" (click)="paymentsSort.toggle('card')" title="Sort by card">
+								Card <i class="bi" [class]="paymentsSort.icon('card')" [class.active]="paymentsSort.column() === 'card'"></i>
+							</button>
+						</th>
+						<th class="text-center" [attr.aria-sort]="paymentsSort.aria('walkup')">
+							<button type="button" class="sort-th sort-th--center" (click)="paymentsSort.toggle('walkup')" title="Sort by walk-up">
+								Walk-up <i class="bi" [class]="paymentsSort.icon('walkup')" [class.active]="paymentsSort.column() === 'walkup'"></i>
+							</button>
+						</th>
 					</tr>
 				</thead>
 				<tbody>
-					@for (p of payments(); track p.storeCartBatchAccountingId) {
+					@for (p of sortedPayments(); track p.storeCartBatchAccountingId) {
 						<tr>
 							<td>
 								<div class="customer-cell">
@@ -238,12 +290,20 @@
 				<thead>
 					<tr>
 						<th class="col-expand"></th>
-						<th>Family</th>
-						<th class="text-end">Total Spent</th>
+						<th [attr.aria-sort]="familyPurchasesSort.aria('family')">
+							<button type="button" class="sort-th" (click)="familyPurchasesSort.toggle('family')" title="Sort by family">
+								Family <i class="bi" [class]="familyPurchasesSort.icon('family')" [class.active]="familyPurchasesSort.column() === 'family'"></i>
+							</button>
+						</th>
+						<th class="text-end" [attr.aria-sort]="familyPurchasesSort.aria('spent')">
+							<button type="button" class="sort-th sort-th--end" (click)="familyPurchasesSort.toggle('spent')" title="Sort by total spent">
+								Total Spent <i class="bi" [class]="familyPurchasesSort.icon('spent')" [class.active]="familyPurchasesSort.column() === 'spent'"></i>
+							</button>
+						</th>
 					</tr>
 				</thead>
 				<tbody>
-					@for (fp of familyPurchases(); track fp.familyUserId) {
+					@for (fp of sortedFamilyPurchases(); track fp.familyUserId) {
 						<tr class="family-row"
 							[class.is-expanded]="expandedFamilyUserId() === fp.familyUserId"
 							(click)="expandFamily(fp.familyUserId)">
@@ -356,23 +416,75 @@
 			<table class="table align-middle store-table">
 				<thead>
 					<tr>
-						<th>Item</th>
-						<th>Variant</th>
-						<th class="text-center">Active</th>
-						<th class="text-center">Qty</th>
-						<th class="text-end">Product</th>
-						<th class="text-end">Processing</th>
-						<th class="text-end">Fee Total</th>
-						<th class="text-end">Paid</th>
-						<th class="text-end">Refunded</th>
-						<th class="text-end">Refundable</th>
-						<th class="text-center">Restocked</th>
-						<th>Customer</th>
-						<th class="text-center">Date</th>
+						<th [attr.aria-sort]="refundedSort.aria('item')">
+							<button type="button" class="sort-th" (click)="refundedSort.toggle('item')" title="Sort by item">
+								Item <i class="bi" [class]="refundedSort.icon('item')" [class.active]="refundedSort.column() === 'item'"></i>
+							</button>
+						</th>
+						<th [attr.aria-sort]="refundedSort.aria('variant')">
+							<button type="button" class="sort-th" (click)="refundedSort.toggle('variant')" title="Sort by variant">
+								Variant <i class="bi" [class]="refundedSort.icon('variant')" [class.active]="refundedSort.column() === 'variant'"></i>
+							</button>
+						</th>
+						<th class="text-center" [attr.aria-sort]="refundedSort.aria('active')">
+							<button type="button" class="sort-th sort-th--center" (click)="refundedSort.toggle('active')" title="Sort by active state">
+								Active <i class="bi" [class]="refundedSort.icon('active')" [class.active]="refundedSort.column() === 'active'"></i>
+							</button>
+						</th>
+						<th class="text-center" [attr.aria-sort]="refundedSort.aria('qty')">
+							<button type="button" class="sort-th sort-th--center" (click)="refundedSort.toggle('qty')" title="Sort by quantity">
+								Qty <i class="bi" [class]="refundedSort.icon('qty')" [class.active]="refundedSort.column() === 'qty'"></i>
+							</button>
+						</th>
+						<th class="text-end" [attr.aria-sort]="refundedSort.aria('product')">
+							<button type="button" class="sort-th sort-th--end" (click)="refundedSort.toggle('product')" title="Sort by product fee">
+								Product <i class="bi" [class]="refundedSort.icon('product')" [class.active]="refundedSort.column() === 'product'"></i>
+							</button>
+						</th>
+						<th class="text-end" [attr.aria-sort]="refundedSort.aria('processing')">
+							<button type="button" class="sort-th sort-th--end" (click)="refundedSort.toggle('processing')" title="Sort by processing fee">
+								Processing <i class="bi" [class]="refundedSort.icon('processing')" [class.active]="refundedSort.column() === 'processing'"></i>
+							</button>
+						</th>
+						<th class="text-end" [attr.aria-sort]="refundedSort.aria('feeTotal')">
+							<button type="button" class="sort-th sort-th--end" (click)="refundedSort.toggle('feeTotal')" title="Sort by fee total">
+								Fee Total <i class="bi" [class]="refundedSort.icon('feeTotal')" [class.active]="refundedSort.column() === 'feeTotal'"></i>
+							</button>
+						</th>
+						<th class="text-end" [attr.aria-sort]="refundedSort.aria('paid')">
+							<button type="button" class="sort-th sort-th--end" (click)="refundedSort.toggle('paid')" title="Sort by amount paid">
+								Paid <i class="bi" [class]="refundedSort.icon('paid')" [class.active]="refundedSort.column() === 'paid'"></i>
+							</button>
+						</th>
+						<th class="text-end" [attr.aria-sort]="refundedSort.aria('refunded')">
+							<button type="button" class="sort-th sort-th--end" (click)="refundedSort.toggle('refunded')" title="Sort by amount refunded">
+								Refunded <i class="bi" [class]="refundedSort.icon('refunded')" [class.active]="refundedSort.column() === 'refunded'"></i>
+							</button>
+						</th>
+						<th class="text-end" [attr.aria-sort]="refundedSort.aria('refundable')">
+							<button type="button" class="sort-th sort-th--end" (click)="refundedSort.toggle('refundable')" title="Sort by amount still refundable">
+								Refundable <i class="bi" [class]="refundedSort.icon('refundable')" [class.active]="refundedSort.column() === 'refundable'"></i>
+							</button>
+						</th>
+						<th class="text-center" [attr.aria-sort]="refundedSort.aria('restocked')">
+							<button type="button" class="sort-th sort-th--center" (click)="refundedSort.toggle('restocked')" title="Sort by restocked count">
+								Restocked <i class="bi" [class]="refundedSort.icon('restocked')" [class.active]="refundedSort.column() === 'restocked'"></i>
+							</button>
+						</th>
+						<th [attr.aria-sort]="refundedSort.aria('customer')">
+							<button type="button" class="sort-th" (click)="refundedSort.toggle('customer')" title="Sort by customer">
+								Customer <i class="bi" [class]="refundedSort.icon('customer')" [class.active]="refundedSort.column() === 'customer'"></i>
+							</button>
+						</th>
+						<th class="text-center" [attr.aria-sort]="refundedSort.aria('date')">
+							<button type="button" class="sort-th sort-th--center" (click)="refundedSort.toggle('date')" title="Sort by date">
+								Date <i class="bi" [class]="refundedSort.icon('date')" [class.active]="refundedSort.column() === 'date'"></i>
+							</button>
+						</th>
 					</tr>
 				</thead>
 				<tbody>
-					@for (r of refundedItems(); track r.storeCartBatchSkuId) {
+					@for (r of sortedRefundedItems(); track r.storeCartBatchSkuId) {
 						<tr>
 							<td><span class="item-name">{{ r.itemName }}</span></td>
 							<td>
@@ -442,23 +554,75 @@
 			<table class="table align-middle store-table">
 				<thead>
 					<tr>
-						<th class="text-end">Batch</th>
-						<th class="text-end">Line</th>
-						<th>Item</th>
-						<th>Variant</th>
-						<th class="text-center">Qty Bought</th>
-						<th class="text-center">Restocked</th>
-						<th class="text-end">Paid</th>
-						<th class="text-end">Refunded</th>
-						<th class="text-center">Purchased</th>
-						<th class="text-center">Restock Date</th>
-						<th>Customer</th>
-						<th>Player</th>
-						<th>Modified By</th>
+						<th class="text-end" [attr.aria-sort]="restockedSort.aria('batch')">
+							<button type="button" class="sort-th sort-th--end" (click)="restockedSort.toggle('batch')" title="Sort by batch">
+								Batch <i class="bi" [class]="restockedSort.icon('batch')" [class.active]="restockedSort.column() === 'batch'"></i>
+							</button>
+						</th>
+						<th class="text-end" [attr.aria-sort]="restockedSort.aria('line')">
+							<button type="button" class="sort-th sort-th--end" (click)="restockedSort.toggle('line')" title="Sort by line">
+								Line <i class="bi" [class]="restockedSort.icon('line')" [class.active]="restockedSort.column() === 'line'"></i>
+							</button>
+						</th>
+						<th [attr.aria-sort]="restockedSort.aria('item')">
+							<button type="button" class="sort-th" (click)="restockedSort.toggle('item')" title="Sort by item">
+								Item <i class="bi" [class]="restockedSort.icon('item')" [class.active]="restockedSort.column() === 'item'"></i>
+							</button>
+						</th>
+						<th [attr.aria-sort]="restockedSort.aria('variant')">
+							<button type="button" class="sort-th" (click)="restockedSort.toggle('variant')" title="Sort by variant">
+								Variant <i class="bi" [class]="restockedSort.icon('variant')" [class.active]="restockedSort.column() === 'variant'"></i>
+							</button>
+						</th>
+						<th class="text-center" [attr.aria-sort]="restockedSort.aria('qtyBought')">
+							<button type="button" class="sort-th sort-th--center" (click)="restockedSort.toggle('qtyBought')" title="Sort by quantity bought">
+								Qty Bought <i class="bi" [class]="restockedSort.icon('qtyBought')" [class.active]="restockedSort.column() === 'qtyBought'"></i>
+							</button>
+						</th>
+						<th class="text-center" [attr.aria-sort]="restockedSort.aria('restocked')">
+							<button type="button" class="sort-th sort-th--center" (click)="restockedSort.toggle('restocked')" title="Sort by restocked count">
+								Restocked <i class="bi" [class]="restockedSort.icon('restocked')" [class.active]="restockedSort.column() === 'restocked'"></i>
+							</button>
+						</th>
+						<th class="text-end" [attr.aria-sort]="restockedSort.aria('paid')">
+							<button type="button" class="sort-th sort-th--end" (click)="restockedSort.toggle('paid')" title="Sort by amount paid">
+								Paid <i class="bi" [class]="restockedSort.icon('paid')" [class.active]="restockedSort.column() === 'paid'"></i>
+							</button>
+						</th>
+						<th class="text-end" [attr.aria-sort]="restockedSort.aria('refunded')">
+							<button type="button" class="sort-th sort-th--end" (click)="restockedSort.toggle('refunded')" title="Sort by amount refunded">
+								Refunded <i class="bi" [class]="restockedSort.icon('refunded')" [class.active]="restockedSort.column() === 'refunded'"></i>
+							</button>
+						</th>
+						<th class="text-center" [attr.aria-sort]="restockedSort.aria('purchased')">
+							<button type="button" class="sort-th sort-th--center" (click)="restockedSort.toggle('purchased')" title="Sort by purchase date">
+								Purchased <i class="bi" [class]="restockedSort.icon('purchased')" [class.active]="restockedSort.column() === 'purchased'"></i>
+							</button>
+						</th>
+						<th class="text-center" [attr.aria-sort]="restockedSort.aria('restockDate')">
+							<button type="button" class="sort-th sort-th--center" (click)="restockedSort.toggle('restockDate')" title="Sort by restock date">
+								Restock Date <i class="bi" [class]="restockedSort.icon('restockDate')" [class.active]="restockedSort.column() === 'restockDate'"></i>
+							</button>
+						</th>
+						<th [attr.aria-sort]="restockedSort.aria('customer')">
+							<button type="button" class="sort-th" (click)="restockedSort.toggle('customer')" title="Sort by customer">
+								Customer <i class="bi" [class]="restockedSort.icon('customer')" [class.active]="restockedSort.column() === 'customer'"></i>
+							</button>
+						</th>
+						<th [attr.aria-sort]="restockedSort.aria('player')">
+							<button type="button" class="sort-th" (click)="restockedSort.toggle('player')" title="Sort by player">
+								Player <i class="bi" [class]="restockedSort.icon('player')" [class.active]="restockedSort.column() === 'player'"></i>
+							</button>
+						</th>
+						<th [attr.aria-sort]="restockedSort.aria('modifiedBy')">
+							<button type="button" class="sort-th" (click)="restockedSort.toggle('modifiedBy')" title="Sort by who logged it">
+								Modified By <i class="bi" [class]="restockedSort.icon('modifiedBy')" [class.active]="restockedSort.column() === 'modifiedBy'"></i>
+							</button>
+						</th>
 					</tr>
 				</thead>
 				<tbody>
-					@for (r of restockedItems(); track r.storeCartBatchSkuRestockId) {
+					@for (r of sortedRestockedItems(); track r.storeCartBatchSkuRestockId) {
 						<tr>
 							<td class="text-end"><span class="money">{{ r.storeCartBatchId }}</span></td>
 							<td class="text-end"><span class="money">{{ r.storeCartBatchSkuId }}</span></td>

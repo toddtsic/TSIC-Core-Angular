@@ -23,6 +23,7 @@ import type {
 	UpdateStoreSkuRequest,
 } from '@core/api';
 import { formatCurrency } from '@shared/utils/money.util';
+import { tableSort, textKey } from '../../../shared-ui/table-sort';
 
 type TabKey = 'items' | 'images' | 'sales' | 'campaigns' | 'dashboard' | 'colors' | 'sizes' | 'analytics' | 'staff';
 
@@ -122,16 +123,35 @@ export class StoreAdminComponent {
 	 * Sort Order is an editable field on that same edit modal, and with only the alphabetical
 	 * view a director sets a number and has no way to see what it did without leaving for the
 	 * storefront. R-06.</p>
+	 *
+	 * <p>The By-name / Storefront pair now drives the same state the column headings do, rather
+	 * than sitting beside it as a second control: "By name" IS the Item column ascending, and
+	 * "Storefront order" is a column of its own that happens to have no heading. Two independent
+	 * controls would let a director press By-name, then click Price, and leave the toolbar
+	 * claiming an order the table is no longer in.</p>
 	 */
-	readonly itemSort = signal<'name' | 'storefront'>('name');
+	readonly itemsSort = tableSort<'item' | 'price' | 'skus' | 'status' | 'storefront'>(
+		'item', { price: 'desc', skus: 'desc', status: 'desc' });
 
-	readonly sortedItems = computed(() => {
-		const items = this.items();
-		// Storefront order is what the API already returned — re-sorting would only risk
-		// disagreeing with it. The one rule worth restating: 0 means "no preference", and the
-		// server sorts those LAST (A-02), so this view must not push them to the top.
-		if (this.itemSort() === 'storefront') return items;
-		return [...items].sort((a, b) => a.storeItemName.localeCompare(b.storeItemName));
+	/** Kept for the toolbar's pressed state and the Sort:n sub-line under each item name. */
+	readonly itemSort = computed<'name' | 'storefront'>(() =>
+		this.itemsSort.column() === 'storefront' ? 'storefront' : 'name');
+
+	readonly sortedItems = this.itemsSort.applyTo(this.items, (col, a, b) => {
+		switch (col) {
+			case 'item':   return textKey(a.storeItemName, b.storeItemName);
+			case 'price':  return a.storeItemPrice - b.storeItemPrice;
+			case 'skus':   return a.activeSkuCount - b.activeSkuCount;
+			case 'status': return Number(a.active) - Number(b.active);
+			// Storefront order is what the API already returned, restated here because the sort
+			// has to be expressed as a comparison: SortOrder ascending, with 0 meaning "no
+			// preference" and sorting LAST (A-02), then name.
+			case 'storefront': {
+				const rank = (n: number) => (n === 0 ? Number.MAX_SAFE_INTEGER : n);
+				return (rank(a.sortOrder) - rank(b.sortOrder))
+					|| textKey(a.storeItemName, b.storeItemName);
+			}
+		}
 	});
 
 	/** Mirrors the server-side split: ';' delimited, empties removed, each name trimmed. */

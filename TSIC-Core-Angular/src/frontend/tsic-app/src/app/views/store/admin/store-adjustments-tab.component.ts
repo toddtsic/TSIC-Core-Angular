@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { StoreService } from '../../../infrastructure/services/store.service';
 import { StoreExportButtonComponent } from './store-export-button.component';
 import type { StoreQuantityAdjustmentDto } from '@core/api';
+import { dateKey, tableSort, textKey } from '../../../shared-ui/table-sort';
 
 /**
  * Quantity Adjustments — port of legacy `StoreCartQuantityAdjustments/Index`.
@@ -42,6 +43,24 @@ export class StoreAdjustmentsTabComponent {
 			|| r.familyUserName.toLowerCase().includes(term)
 			|| r.email.toLowerCase().includes(term)
 			|| `${r.parentFirstName ?? ''} ${r.parentLastName ?? ''}`.toLowerCase().includes(term));
+	});
+
+	/** Most recent cut first — the shopper still worth calling back. */
+	readonly sort = tableSort<
+		'adj' | 'sku' | 'from' | 'to' | 'login' | 'parent' | 'email' | 'when'
+	>('when', { adj: 'desc', from: 'desc', to: 'desc', when: 'desc' });
+
+	readonly sortedRows = this.sort.applyTo(this.visibleRows, (col, a, b) => {
+		switch (col) {
+			case 'adj':    return a.adjQuantity - b.adjQuantity;
+			case 'sku':    return textKey(a.skuLabel, b.skuLabel);
+			case 'from':   return a.fromQuantity - b.fromQuantity;
+			case 'to':     return a.toQuantity - b.toQuantity;
+			case 'login':  return textKey(a.familyUserName, b.familyUserName);
+			case 'parent': return textKey(this.parentName(a), this.parentName(b));
+			case 'email':  return textKey(a.email, b.email);
+			case 'when':   return dateKey(a.whenChanged) - dateKey(b.whenChanged);
+		}
 	});
 
 	/** Units the shoppers in view did not get. */

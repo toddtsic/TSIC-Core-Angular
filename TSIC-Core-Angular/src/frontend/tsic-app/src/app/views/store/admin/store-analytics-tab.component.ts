@@ -13,6 +13,7 @@ import type {
 	StoreRestockedItemDto,
 } from '@core/api';
 import { formatCurrency } from '@shared/utils/money.util';
+import { dateKey, tableSort, textKey } from '../../../shared-ui/table-sort';
 
 type AnalyticsSection = 'sales-by-item' | 'sales-pivot' | 'payments' | 'family-purchases' | 'refunded' | 'restocked';
 
@@ -86,6 +87,117 @@ export class StoreAnalyticsTabComponent {
 	readonly familyPurchases = signal<StoreFamilyPurchaseDto[]>([]);
 	readonly refundedItems = signal<StoreRefundedItemDto[]>([]);
 	readonly restockedItems = signal<StoreRestockedItemDto[]>([]);
+
+	// ═══════════════════════════════════════
+	//  COLUMN SORTING
+	// ═══════════════════════════════════════
+	// One `tableSort` per table — each section is its own grid and keeps its own column and
+	// direction, so switching sections and coming back finds the order it was left in. Money and
+	// counts open descending (biggest first); names and dates open on the reading a director
+	// wants without a second click.
+
+	readonly salesByItemSort = tableSort<'item' | 'units' | 'revenue'>(
+		'revenue', { units: 'desc', revenue: 'desc' });
+
+	readonly sortedSalesByItem = this.salesByItemSort.applyTo(this.salesByItem, (col, a, b) => {
+		switch (col) {
+			case 'item':    return textKey(a.itemName, b.itemName);
+			case 'units':   return a.totalUnitsSold - b.totalUnitsSold;
+			case 'revenue': return a.totalRevenue - b.totalRevenue;
+		}
+	});
+
+	readonly salesPivotSort = tableSort<'item' | 'period' | 'units' | 'revenue'>(
+		'period', { period: 'desc', units: 'desc', revenue: 'desc' });
+
+	readonly sortedSalesPivot = this.salesPivotSort.applyTo(this.salesPivotByItem, (col, a, b) => {
+		switch (col) {
+			// Year first, then month — a plain month compare would interleave two seasons.
+			case 'period':  return (a.year - b.year) || (a.month - b.month);
+			case 'item':    return textKey(a.itemName, b.itemName);
+			case 'units':   return a.unitsSold - b.unitsSold;
+			case 'revenue': return a.revenue - b.revenue;
+		}
+	});
+
+	readonly paymentsSort = tableSort<'customer' | 'method' | 'paid' | 'date' | 'card' | 'walkup'>(
+		'date', { paid: 'desc', date: 'desc', walkup: 'desc' });
+
+	readonly sortedPayments = this.paymentsSort.applyTo(this.payments, (col, a, b) => {
+		switch (col) {
+			case 'customer': return textKey(a.familyUserName, b.familyUserName);
+			case 'method':   return textKey(a.paymentMethodName, b.paymentMethodName);
+			case 'paid':     return a.paid - b.paid;
+			case 'date':     return dateKey(a.createDate) - dateKey(b.createDate);
+			case 'card':     return textKey(a.cclast4, b.cclast4);
+			case 'walkup':   return Number(a.isWalkUp) - Number(b.isWalkUp);
+		}
+	});
+
+	readonly familyPurchasesSort = tableSort<'family' | 'spent'>('spent', { spent: 'desc' });
+
+	readonly sortedFamilyPurchases = this.familyPurchasesSort.applyTo(
+		this.familyPurchases, (col, a, b) =>
+			col === 'spent'
+				? a.totalSpent - b.totalSpent
+				: textKey(a.familyUserName, b.familyUserName));
+
+	readonly refundedSort = tableSort<
+		'item' | 'variant' | 'active' | 'qty' | 'product' | 'processing' | 'feeTotal'
+		| 'paid' | 'refunded' | 'refundable' | 'restocked' | 'customer' | 'date'
+	>('date', {
+		active: 'desc', qty: 'desc', product: 'desc', processing: 'desc', feeTotal: 'desc',
+		paid: 'desc', refunded: 'desc', refundable: 'desc', restocked: 'desc', date: 'desc',
+	});
+
+	readonly sortedRefundedItems = this.refundedSort.applyTo(this.refundedItems, (col, a, b) => {
+		switch (col) {
+			case 'item':       return textKey(a.itemName, b.itemName);
+			case 'variant':    return textKey(this.variantLabel(a), this.variantLabel(b));
+			case 'active':     return Number(a.active) - Number(b.active);
+			case 'qty':        return a.quantity - b.quantity;
+			case 'product':    return a.feeProduct - b.feeProduct;
+			case 'processing': return a.feeProcessing - b.feeProcessing;
+			case 'feeTotal':   return a.feeTotal - b.feeTotal;
+			case 'paid':       return a.paidTotal - b.paidTotal;
+			case 'refunded':   return a.refundedTotal - b.refundedTotal;
+			case 'refundable': return a.skuRefundable - b.skuRefundable;
+			case 'restocked':  return a.restocked - b.restocked;
+			case 'customer':   return textKey(a.familyUserName, b.familyUserName);
+			case 'date':       return dateKey(a.modifiedDate) - dateKey(b.modifiedDate);
+		}
+	});
+
+	readonly restockedSort = tableSort<
+		'batch' | 'line' | 'item' | 'variant' | 'qtyBought' | 'restocked' | 'paid'
+		| 'refunded' | 'purchased' | 'restockDate' | 'customer' | 'player' | 'modifiedBy'
+	>('restockDate', {
+		batch: 'desc', line: 'desc', qtyBought: 'desc', restocked: 'desc', paid: 'desc',
+		refunded: 'desc', purchased: 'desc', restockDate: 'desc',
+	});
+
+	readonly sortedRestockedItems = this.restockedSort.applyTo(this.restockedItems, (col, a, b) => {
+		switch (col) {
+			case 'batch':       return a.storeCartBatchId - b.storeCartBatchId;
+			case 'line':        return a.storeCartBatchSkuId - b.storeCartBatchSkuId;
+			case 'item':        return textKey(a.itemName, b.itemName);
+			case 'variant':     return textKey(this.variantLabel(a), this.variantLabel(b));
+			case 'qtyBought':   return a.skuQuantity - b.skuQuantity;
+			case 'restocked':   return a.restockCount - b.restockCount;
+			case 'paid':        return a.paidTotal - b.paidTotal;
+			case 'refunded':    return a.refundedTotal - b.refundedTotal;
+			case 'purchased':   return dateKey(a.purchaseDate) - dateKey(b.purchaseDate);
+			case 'restockDate': return dateKey(a.modifiedDate) - dateKey(b.modifiedDate);
+			case 'customer':    return textKey(a.familyUserName, b.familyUserName);
+			case 'player':      return textKey(a.directToPlayerName, b.directToPlayerName);
+			case 'modifiedBy':  return textKey(a.modifiedBy, b.modifiedBy);
+		}
+	});
+
+	/** The Variant cell's chips as one sortable string; "Default" rows sort together. */
+	private variantLabel(row: { colorName?: string | null; sizeName?: string | null }): string {
+		return [row.colorName, row.sizeName].filter(Boolean).join(' ') || 'Default';
+	}
 
 	// ── Filters ──
 	readonly walkUpOnly = signal(false);
@@ -248,7 +360,15 @@ export class StoreAnalyticsTabComponent {
 
 	readonly formatCurrency = formatCurrency;
 
+	/**
+	 * MM/dd/yyyy, always. `toLocaleDateString()` dropped the leading zeros ("6/1/2026"), so a
+	 * column of dates would not line up and could not be scanned down; it also follows the
+	 * viewer's locale, which would silently reorder day and month for anyone not on en-US.
+	 */
 	formatDate(dateStr: string): string {
-		return new Date(dateStr).toLocaleDateString();
+		const d = new Date(dateStr);
+		if (Number.isNaN(d.getTime())) return '—';
+		const pad = (n: number) => String(n).padStart(2, '0');
+		return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()}`;
 	}
 }

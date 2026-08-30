@@ -99,19 +99,51 @@
 		<table class="table align-middle store-table">
 			<thead>
 				<tr>
-					<th>Item</th>
-					<th>For</th>
-					<th class="col-team">Team</th>
-					<th class="text-center">Qty</th>
-					<th class="text-end">Paid</th>
-					<th class="text-end">Refunded</th>
-					<th class="text-center">Restocked</th>
-					<th class="col-date">Purchased</th>
+					<th [attr.aria-sort]="sort.aria('item')">
+						<button type="button" class="sort-th" (click)="sort.toggle('item')" title="Sort by item">
+							Item <i class="bi" [class]="sort.icon('item')" [class.active]="sort.column() === 'item'"></i>
+						</button>
+					</th>
+					<th [attr.aria-sort]="sort.aria('for')">
+						<button type="button" class="sort-th" (click)="sort.toggle('for')" title="Sort by recipient">
+							For <i class="bi" [class]="sort.icon('for')" [class.active]="sort.column() === 'for'"></i>
+						</button>
+					</th>
+					<th class="col-team" [attr.aria-sort]="sort.aria('team')">
+						<button type="button" class="sort-th" (click)="sort.toggle('team')" title="Sort by team">
+							Team <i class="bi" [class]="sort.icon('team')" [class.active]="sort.column() === 'team'"></i>
+						</button>
+					</th>
+					<th class="text-center" [attr.aria-sort]="sort.aria('qty')">
+						<button type="button" class="sort-th sort-th--center" (click)="sort.toggle('qty')" title="Sort by quantity">
+							Qty <i class="bi" [class]="sort.icon('qty')" [class.active]="sort.column() === 'qty'"></i>
+						</button>
+					</th>
+					<th class="text-end" [attr.aria-sort]="sort.aria('paid')">
+						<button type="button" class="sort-th sort-th--end" (click)="sort.toggle('paid')" title="Sort by amount paid">
+							Paid <i class="bi" [class]="sort.icon('paid')" [class.active]="sort.column() === 'paid'"></i>
+						</button>
+					</th>
+					<th class="text-end" [attr.aria-sort]="sort.aria('refunded')">
+						<button type="button" class="sort-th sort-th--end" (click)="sort.toggle('refunded')" title="Sort by amount refunded">
+							Refunded <i class="bi" [class]="sort.icon('refunded')" [class.active]="sort.column() === 'refunded'"></i>
+						</button>
+					</th>
+					<th class="text-center" [attr.aria-sort]="sort.aria('restocked')">
+						<button type="button" class="sort-th sort-th--center" (click)="sort.toggle('restocked')" title="Sort by restocked count">
+							Restocked <i class="bi" [class]="sort.icon('restocked')" [class.active]="sort.column() === 'restocked'"></i>
+						</button>
+					</th>
+					<th class="col-date" [attr.aria-sort]="sort.aria('purchased')">
+						<button type="button" class="sort-th" (click)="sort.toggle('purchased')" title="Sort by purchase date">
+							Purchased <i class="bi" [class]="sort.icon('purchased')" [class.active]="sort.column() === 'purchased'"></i>
+						</button>
+					</th>
 					<th class="col-actions text-end">Actions</th>
 				</tr>
 			</thead>
 			<tbody>
-				@for (line of visibleLines(); track line.storeCartBatchSkuId) {
+				@for (line of sortedLines(); track line.storeCartBatchSkuId) {
 					<tr [class.row-reversed]="isFullyRefunded(line)">
 						<td>
 							<div class="sale-sku">{{ line.skuLabel }}</div>
@@ -157,7 +189,7 @@
 							}
 						</td>
 						<td class="col-date sale-sub">
-							{{ line.purchaseDate ? (line.purchaseDate | date: 'MMM d, y') : '—' }}
+							{{ line.purchaseDate ? (line.purchaseDate | date: 'MM/dd/yyyy') : '—' }}
 						</td>
 						<td class="col-actions text-end">
 							<div class="row-actions justify-content-end">

@@ -108,6 +108,67 @@
 		border-top: 1px solid var(--bs-border-color);
 		background: color-mix(in srgb, var(--bs-primary) 4%, transparent);
 	}
+
+	// A sortable heading is a real <button> so it is reachable by keyboard and announced as
+	// actionable; the <th> keeps its own padding and the button fills it, so the whole heading
+	// cell is the hit target rather than just the word.
+	thead th:has(.sort-th) {
+		padding: 0;
+	}
+}
+
+.sort-th {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	width: 100%;
+	padding: var(--space-2) var(--space-3);
+	background: none;
+	border: 0;
+	border-radius: 0;
+	font: inherit;
+	color: inherit;
+	letter-spacing: inherit;
+	text-transform: inherit;
+	text-align: inherit;
+	white-space: nowrap;
+	cursor: pointer;
+	transition: color 0.12s ease, background-color 0.12s ease;
+
+	// The caret is always in the DOM, dimmed when the column is not the active one. Showing it
+	// only on the sorted column makes every heading reflow by an icon-width on each click.
+	i {
+		font-size: 0.85em;
+		color: var(--text-muted, var(--bs-secondary-color));
+		opacity: 0.4;
+		transition: opacity 0.12s ease, color 0.12s ease;
+	}
+
+	i.active {
+		color: var(--bs-primary);
+		opacity: 1;
+	}
+
+	&:hover {
+		color: var(--brand-text);
+		background: color-mix(in srgb, var(--bs-primary) 5%, transparent);
+
+		i { opacity: 0.8; }
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+
+	// Numeric and money columns are right-aligned; the heading has to follow the data.
+	&.sort-th--end {
+		justify-content: flex-end;
+	}
+
+	&.sort-th--center {
+		justify-content: center;
+	}
 }
 
 // ── Status pill ──
@@ -274,6 +335,7 @@
 
 @media (prefers-reduced-motion: reduce) {
 	.store-table tbody tr { transition: none !important; }
+	.sort-th, .sort-th i { transition: none !important; }
 }
 
 // ══════════════════════════════════════════════════════════════════

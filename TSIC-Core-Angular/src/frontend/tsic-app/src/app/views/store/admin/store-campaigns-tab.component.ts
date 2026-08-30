@@ -10,6 +10,7 @@ import type {
 	StoreAbandonedCartDto,
 	EmailBatchJobStatus,
 } from '@core/api';
+import { dateKey, tableSort, textKey } from '../../../shared-ui/table-sort';
 
 /**
  * Store email campaigns — port of legacy StoreEmailAbandondedCarts,
@@ -64,6 +65,18 @@ export class StoreCampaignsTabComponent {
 	readonly isNeverOrdered = computed(() => this.kind() === this.NEVER_ORDERED);
 
 	readonly carts = computed(() => this.setup()?.abandonedCarts ?? []);
+
+	/** Freshest cart first — the family most likely to still want the item. */
+	readonly sort = tableSort<'date' | 'family' | 'items'>(
+		'date', { date: 'desc', items: 'desc' });
+
+	readonly sortedCarts = this.sort.applyTo(this.carts, (col, a, b) => {
+		switch (col) {
+			case 'date':   return dateKey(a.batchDate) - dateKey(b.batchDate);
+			case 'family': return textKey(a.familyUserName, b.familyUserName);
+			case 'items':  return a.skus.length - b.skus.length;
+		}
+	});
 
 	readonly tokens = computed(() => this.setup()?.tokens ?? []);
 

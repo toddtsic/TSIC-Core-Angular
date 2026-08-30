@@ -52,19 +52,43 @@
 		<table class="store-table">
 			<thead>
 				<tr>
-					<th scope="col" class="col-active">Active</th>
-					<th scope="col">Username</th>
-					<th scope="col">Last Name</th>
-					<th scope="col">First Name</th>
-					<th scope="col">Email</th>
-					<th scope="col">Cell Phone</th>
+					<th scope="col" class="col-active" [attr.aria-sort]="sort.aria('active')">
+						<button type="button" class="sort-th" (click)="sort.toggle('active')" title="Sort by active state">
+							Active <i class="bi" [class]="sort.icon('active')" [class.active]="sort.column() === 'active'"></i>
+						</button>
+					</th>
+					<th scope="col" [attr.aria-sort]="sort.aria('username')">
+						<button type="button" class="sort-th" (click)="sort.toggle('username')" title="Sort by username">
+							Username <i class="bi" [class]="sort.icon('username')" [class.active]="sort.column() === 'username'"></i>
+						</button>
+					</th>
+					<th scope="col" [attr.aria-sort]="sort.aria('lastName')">
+						<button type="button" class="sort-th" (click)="sort.toggle('lastName')" title="Sort by last name">
+							Last Name <i class="bi" [class]="sort.icon('lastName')" [class.active]="sort.column() === 'lastName'"></i>
+						</button>
+					</th>
+					<th scope="col" [attr.aria-sort]="sort.aria('firstName')">
+						<button type="button" class="sort-th" (click)="sort.toggle('firstName')" title="Sort by first name">
+							First Name <i class="bi" [class]="sort.icon('firstName')" [class.active]="sort.column() === 'firstName'"></i>
+						</button>
+					</th>
+					<th scope="col" [attr.aria-sort]="sort.aria('email')">
+						<button type="button" class="sort-th" (click)="sort.toggle('email')" title="Sort by email">
+							Email <i class="bi" [class]="sort.icon('email')" [class.active]="sort.column() === 'email'"></i>
+						</button>
+					</th>
+					<th scope="col" [attr.aria-sort]="sort.aria('cell')">
+						<button type="button" class="sort-th" (click)="sort.toggle('cell')" title="Sort by cell phone">
+							Cell Phone <i class="bi" [class]="sort.icon('cell')" [class.active]="sort.column() === 'cell'"></i>
+						</button>
+					</th>
 					@if (canManage()) {
 						<th scope="col" class="col-actions"><span class="visually-hidden">Actions</span></th>
 					}
 				</tr>
 			</thead>
 			<tbody>
-				@for (row of rows(); track row.registrationId) {
+				@for (row of sortedRows(); track row.registrationId) {
 					<tr [class.is-inactive]="!row.isActive">
 						<td class="col-active">
 							<!-- Icon AND text: state is never carried by colour alone. -->

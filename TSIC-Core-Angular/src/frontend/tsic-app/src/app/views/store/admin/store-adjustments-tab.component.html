@@ -55,18 +55,50 @@
 		<table class="store-table">
 			<thead>
 				<tr>
-					<th scope="col" class="text-end">Adj Qty</th>
-					<th scope="col">SKU</th>
-					<th scope="col" class="text-end">From</th>
-					<th scope="col" class="text-end">To</th>
-					<th scope="col">Login</th>
-					<th scope="col">Parent</th>
-					<th scope="col">Email</th>
-					<th scope="col">When</th>
+					<th scope="col" class="text-end" [attr.aria-sort]="sort.aria('adj')">
+						<button type="button" class="sort-th sort-th--end" (click)="sort.toggle('adj')" title="Sort by adjustment size">
+							Adj Qty <i class="bi" [class]="sort.icon('adj')" [class.active]="sort.column() === 'adj'"></i>
+						</button>
+					</th>
+					<th scope="col" [attr.aria-sort]="sort.aria('sku')">
+						<button type="button" class="sort-th" (click)="sort.toggle('sku')" title="Sort by SKU">
+							SKU <i class="bi" [class]="sort.icon('sku')" [class.active]="sort.column() === 'sku'"></i>
+						</button>
+					</th>
+					<th scope="col" class="text-end" [attr.aria-sort]="sort.aria('from')">
+						<button type="button" class="sort-th sort-th--end" (click)="sort.toggle('from')" title="Sort by original quantity">
+							From <i class="bi" [class]="sort.icon('from')" [class.active]="sort.column() === 'from'"></i>
+						</button>
+					</th>
+					<th scope="col" class="text-end" [attr.aria-sort]="sort.aria('to')">
+						<button type="button" class="sort-th sort-th--end" (click)="sort.toggle('to')" title="Sort by adjusted quantity">
+							To <i class="bi" [class]="sort.icon('to')" [class.active]="sort.column() === 'to'"></i>
+						</button>
+					</th>
+					<th scope="col" [attr.aria-sort]="sort.aria('login')">
+						<button type="button" class="sort-th" (click)="sort.toggle('login')" title="Sort by login">
+							Login <i class="bi" [class]="sort.icon('login')" [class.active]="sort.column() === 'login'"></i>
+						</button>
+					</th>
+					<th scope="col" [attr.aria-sort]="sort.aria('parent')">
+						<button type="button" class="sort-th" (click)="sort.toggle('parent')" title="Sort by parent name">
+							Parent <i class="bi" [class]="sort.icon('parent')" [class.active]="sort.column() === 'parent'"></i>
+						</button>
+					</th>
+					<th scope="col" [attr.aria-sort]="sort.aria('email')">
+						<button type="button" class="sort-th" (click)="sort.toggle('email')" title="Sort by email">
+							Email <i class="bi" [class]="sort.icon('email')" [class.active]="sort.column() === 'email'"></i>
+						</button>
+					</th>
+					<th scope="col" [attr.aria-sort]="sort.aria('when')">
+						<button type="button" class="sort-th" (click)="sort.toggle('when')" title="Sort by date">
+							When <i class="bi" [class]="sort.icon('when')" [class.active]="sort.column() === 'when'"></i>
+						</button>
+					</th>
 				</tr>
 			</thead>
 			<tbody>
-				@for (row of visibleRows(); track row.storeCartBatchSkuQuantityAdjustmentsId) {
+				@for (row of sortedRows(); track row.storeCartBatchSkuQuantityAdjustmentsId) {
 					<tr>
 						<td class="text-end num">
 							<span class="adj-badge" [class.is-removed]="row.toQuantity === 0">

@@ -100,13 +100,25 @@
 									aria-label="Select all carts" />
 							</th>
 							<th class="col-expand"></th>
-							<th>Cart Date</th>
-							<th>Family</th>
-							<th class="col-items">Items</th>
+							<th [attr.aria-sort]="sort.aria('date')">
+								<button type="button" class="sort-th" (click)="sort.toggle('date')" title="Sort by cart date">
+									Cart Date <i class="bi" [class]="sort.icon('date')" [class.active]="sort.column() === 'date'"></i>
+								</button>
+							</th>
+							<th [attr.aria-sort]="sort.aria('family')">
+								<button type="button" class="sort-th" (click)="sort.toggle('family')" title="Sort by family">
+									Family <i class="bi" [class]="sort.icon('family')" [class.active]="sort.column() === 'family'"></i>
+								</button>
+							</th>
+							<th class="col-items" [attr.aria-sort]="sort.aria('items')">
+								<button type="button" class="sort-th sort-th--end" (click)="sort.toggle('items')" title="Sort by item count">
+									Items <i class="bi" [class]="sort.icon('items')" [class.active]="sort.column() === 'items'"></i>
+								</button>
+							</th>
 						</tr>
 					</thead>
 					<tbody>
-						@for (cart of carts(); track trackCart($index, cart)) {
+						@for (cart of sortedCarts(); track trackCart($index, cart)) {
 							<tr [class.row-selected]="isSelected(cart.batchId)">
 								<td class="col-check">
 									<input type="checkbox" class="form-check-input"

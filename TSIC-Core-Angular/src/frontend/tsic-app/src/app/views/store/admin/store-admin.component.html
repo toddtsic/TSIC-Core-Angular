@@ -82,16 +82,17 @@
 				Sort Order is editable on the item modal, so the manager needs a way to see what
 				a number did without walking over to the storefront. Alphabetical stays the
 				default — it is legacy's, and it is the right order for finding a product. R-06.
+				Both buttons drive the same sort state the column headings do.
 			-->
 			<div class="btn-group btn-group-sm" role="group" aria-label="Item order">
 				<button type="button" class="btn btn-outline-secondary"
 						[class.active]="itemSort() === 'name'"
 						[attr.aria-pressed]="itemSort() === 'name'"
-						(click)="itemSort.set('name')">By name</button>
+						(click)="itemsSort.set('item', 'asc')">By name</button>
 				<button type="button" class="btn btn-outline-secondary"
 						[class.active]="itemSort() === 'storefront'"
 						[attr.aria-pressed]="itemSort() === 'storefront'"
-						(click)="itemSort.set('storefront')">Storefront order</button>
+						(click)="itemsSort.set('storefront')">Storefront order</button>
 			</div>
 			<button class="btn btn-primary btn-sm" (click)="openNewItemModal()">
 				<i class="bi bi-plus-lg me-1"></i>New Item
@@ -117,10 +118,26 @@
 				<thead>
 					<tr>
 						<th class="col-expand"></th>
-						<th>Item</th>
-						<th class="col-price text-end">Price</th>
-						<th class="col-skus">SKU Inventory</th>
-						<th class="col-status text-center">Status</th>
+						<th [attr.aria-sort]="itemsSort.aria('item')">
+							<button type="button" class="sort-th" (click)="itemsSort.toggle('item')" title="Sort by item name">
+								Item <i class="bi" [class]="itemsSort.icon('item')" [class.active]="itemsSort.column() === 'item'"></i>
+							</button>
+						</th>
+						<th class="col-price text-end" [attr.aria-sort]="itemsSort.aria('price')">
+							<button type="button" class="sort-th sort-th--end" (click)="itemsSort.toggle('price')" title="Sort by price">
+								Price <i class="bi" [class]="itemsSort.icon('price')" [class.active]="itemsSort.column() === 'price'"></i>
+							</button>
+						</th>
+						<th class="col-skus" [attr.aria-sort]="itemsSort.aria('skus')">
+							<button type="button" class="sort-th" (click)="itemsSort.toggle('skus')" title="Sort by active SKU count">
+								SKU Inventory <i class="bi" [class]="itemsSort.icon('skus')" [class.active]="itemsSort.column() === 'skus'"></i>
+							</button>
+						</th>
+						<th class="col-status text-center" [attr.aria-sort]="itemsSort.aria('status')">
+							<button type="button" class="sort-th sort-th--center" (click)="itemsSort.toggle('status')" title="Sort by status">
+								Status <i class="bi" [class]="itemsSort.icon('status')" [class.active]="itemsSort.column() === 'status'"></i>
+							</button>
+						</th>
 						<th class="col-actions text-end">Actions</th>
 					</tr>
 				</thead>
