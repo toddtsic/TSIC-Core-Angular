@@ -615,29 +615,48 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
     }
 
     // =====================================================================
-    // TEAM BILLING (Team Billing tab) — TEAM-DRIVEN, not payment-driven.
+    // TEAMS/PLAYERS TO CUSTOMER — the CLIENT's view of their own money.
     //
-    // The rollup above starts at Registration_Accounting and joins back, so a team that
-    // registered and never paid produces no rows and cannot appear (520 of Top Threat's
-    // 7,942 active teams, carrying most of the outstanding balance). This inverts that:
-    // enumerate active teams first, then attach money.
+    // The Revenue Rollup is TSIC's view: what settles between TSIC and the client, netted
+    // down by fees, with client-received checks explicitly cancelled out. This is the other
+    // direction — what the client's own registrants owe THEM. Two different documents, not
+    // two cuts of one figure, and they are not expected to tie.
     //
-    // Money reaches a team by exactly two routes (Todd's rule, 2026-08-31):
-    //   1. role = Club Rep              -> teams.clubrep_registrationid  (TEAM fees)
-    //   2. else assigned_teamID != null
-    //      AND fee_total <> 0           -> teams.teamID                  (PLAYER fees)
-    // Route 1's money is already denormalised onto Leagues.teams, so it needs no join.
-    // The fee_total guard on route 2 is load-bearing: SELF-ROSTERING DOES NOT CHARGE, and
-    // 98.4% of Top Threat's non-clubrep registrations are zero-fee self-roster rows.
-    // `<> 0` not `> 0` — 59 registrations system-wide carry a NEGATIVE fee_total (credits).
+    // EVENT-GRAINED, not team-grained. A tournament team pays a deposit in one month and its
+    // balance in another; a player on an ARB plan pays across six or ten months. A stored
+    // paid_total collapses all of that into one undated number, so it cannot place any of it.
+    // Instead every row here is a thing that HAPPENED, on the date it happened:
     //
-    // Never read the club rep's own paid_total/owed_total rollup: it drifts from the sum of
-    // its teams by ~$373K paid / ~$362K owed across 11% of Top Threat's reps. Team level is
-    // the side we read. ALL ACCOUNTING AT THE TEAM LEVEL.
+    //   charge event   at teams.createdate / Registrations.RegistrationTS  -> Billed, Owed
+    //   payment event  at Registration_Accounting.createdate               -> Collected
     //
-    // Three PROJECTED, sequential queries merged in memory on teamId. Registrations has NO
-    // index on assigned_teamID (667K rows, heap-scanned), so the per-team roster count MUST
-    // be one grouped aggregate — as a correlated subquery it would be ~8,000 table scans.
+    // That is also what rescues the team that never paid: being charged is itself an event
+    // with a date, so an unpaid team is simply the case with one event instead of several,
+    // rather than a special case needing its own handling.
+    //
+    // Money reaches a team by two routes, keyed on registration ROLE rather than job type,
+    // so one query serves tournaments and player sites alike (Todd, 2026-08-31):
+    //   1. role = Club Rep                                 -> teams.clubrep_registrationid
+    //   2. else assigned_teamID != null AND fee_total <> 0  -> teams.teamID
+    // The fee_total guard is load-bearing: SELF-ROSTERING DOES NOT CHARGE, and 98.4% of Top
+    // Threat non-clubrep registrations are zero-fee self-roster rows. Use `<> 0` not `> 0`:
+    // 59 registrations system-wide carry a NEGATIVE fee_total (credits).
+    //
+    // Payments route the same way with no risk of double counting: VERIFIED on Top Threat,
+    // club-rep ledger rows always carry a teamID (13,389 rows / $11,077,132.82) and player
+    // ledger rows never do (457 rows / $86,611.77). Disjoint sets, so
+    // `ra.TeamId ?? r.AssignedTeamId` places every row exactly once.
+    //
+    // No payment-method filter: summing every active row reproduces the stored paid_total to
+    // the cent, and that is the client actual receipts — credit cards, checks, online
+    // corrections ($582K on Top Threat, material) and refunds as negatives.
+    //
+    // Team-level money only. The club-rep rollup drifts from the sum of its own teams by
+    // ~$373K paid / ~$362K owed across 11% of Top Threat reps.
+    //
+    // Four PROJECTED, sequential queries assembled in memory. Registrations has NO index on
+    // assigned_teamID (667K rows, heap-scanned), so the roster count MUST be one grouped
+    // aggregate — as a correlated subquery it would be ~8,000 table scans.
     // =====================================================================
     public async Task<List<TeamBillingRecordDto>> GetTeamBillingAsync(
         Guid jobId, DateTime? startDate, DateTime? endDate, IReadOnlyList<string> jobNames,
@@ -645,33 +664,50 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
     {
         var customerIds = await GetCustomerGroupIdsAsync(jobId, ct);
         var jobFilter = jobNames.ToList();
-        // Same contract as the rollup: end date is advanced a day, comparisons are < end.
+        // The date range does TWO jobs here, and neither is the rollup's (Todd, 2026-08-31):
+        //
+        //   1. It SELECTS THE EVENTS. A job qualifies when its ExpiryUsers falls in the range.
+        //      This is what keeps the report about the events you asked about — a July 2026
+        //      range takes Top Threat from 125 jobs down to 5.
+        //   2. For those jobs it reports AS OF the end date — their whole financial history up
+        //      to it, however far back that reaches. The start date does NOT clip transactions.
+        //
+        // Rule 2 is what makes Owed honest. Clipping transactions at the front dropped any team
+        // charged before the window and took its balance with it: a July window on Fall Draw
+        // 2026 reported $8,210.00 outstanding against a real receivable of $49,452.50, because
+        // only 21 of its 258 teams happened to register that month. A balance has no July
+        // version. Rule 1 is what stops rule 2 from dragging in the customer's entire history.
+        //
+        // Months still matter INSIDE the result — the pivot's year/month levels are what put a
+        // deposit in its month, the balance in its, and each ARB draft in its own.
+        //
+        // Same end-date contract as the rollup: advanced a day, comparisons are < end.
         DateTime? endEx = endDate?.Date.AddDays(1);
-        DateTime? start = startDate;
 
-        // --- Q1: the teams themselves, with their denormalised team-fee money ---
+        // --- Q1: team identity + the team own charge. NOT date-filtered: a team charged in
+        //         January can still have a payment event inside a July window, and it has to
+        //         be identifiable to carry that row labels. ---
         var teams = await (
             from t in _context.Teams
             join j in _context.Jobs on t.JobId equals j.JobId
             join a in _context.Agegroups on t.AgegroupId equals a.AgegroupId
             where customerIds.Contains(j.CustomerId)
+                // The date range picks the EVENTS, not the transactions: a job qualifies when
+                // its ExpiryUsers falls inside the range. Without this, as-of pulled in every
+                // job the customer has ever run (125 on Top Threat) to report on a handful.
+                && (startDate == null || j.ExpiryUsers >= startDate)
+                && (endEx == null || j.ExpiryUsers < endEx)
                 && t.Active == true
-                && (start == null || t.Createdate >= start)
-                && (endEx == null || t.Createdate < endEx)
                 && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
             select new
             {
                 t.TeamId,
                 JobName = j.JobName!,
-                Year = t.Createdate.Year,
-                Month = t.Createdate.Month,
-                // Owning club via the club-rep registration; null when the team has no club rep
-                // (whole showcase/clinic events run that way). Labelled at projection time.
+                t.Createdate,
                 ClubName = t.ClubrepRegistration != null ? t.ClubrepRegistration.ClubName : null,
                 AgegroupName = a.AgegroupName,
                 t.TeamName,
                 Billed = t.FeeTotal,
-                Collected = t.PaidTotal,
                 Owed = t.OwedTotal
             })
             .AsNoTracking()
@@ -682,67 +718,179 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             return [];
         }
 
-        // --- Q2: player fees charged against a team (route 2) ---
-        var playerMoney = await (
-            from r in _context.Registrations
-            join t in _context.Teams on r.AssignedTeamId equals t.TeamId
-            join j in _context.Jobs on t.JobId equals j.JobId
-            where customerIds.Contains(j.CustomerId)
-                && t.Active == true
-                && r.FeeTotal != 0m
-                && (start == null || t.Createdate >= start)
-                && (endEx == null || t.Createdate < endEx)
-                && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
-            group r by t.TeamId into g
-            select new
-            {
-                TeamId = g.Key,
-                Billed = g.Sum(x => x.FeeTotal),
-                Collected = g.Sum(x => x.PaidTotal),
-                Owed = g.Sum(x => x.OwedTotal)
-            })
-            .AsNoTracking()
-            .ToListAsync(ct);
-
-        // --- Q3: roster headcount (self-rostered players included — they are roster size,
-        //         not revenue). Definition mirrors the CADT tree's PlayerCount exactly. ---
+        // --- Q2: roster headcount. Self-rostered players ARE counted — they are roster
+        //         size, not revenue. Mirrors the CADT tree PlayerCount definition. ---
         var rosterCounts = await (
             from r in _context.Registrations
             join t in _context.Teams on r.AssignedTeamId equals t.TeamId
             join j in _context.Jobs on t.JobId equals j.JobId
             where customerIds.Contains(j.CustomerId)
+                // The date range picks the EVENTS, not the transactions: a job qualifies when
+                // its ExpiryUsers falls inside the range. Without this, as-of pulled in every
+                // job the customer has ever run (125 on Top Threat) to report on a handful.
+                && (startDate == null || j.ExpiryUsers >= startDate)
+                && (endEx == null || j.ExpiryUsers < endEx)
                 && t.Active == true
                 && r.BActive == true
                 && r.RoleId == RoleConstants.Player
-                && (start == null || t.Createdate >= start)
-                && (endEx == null || t.Createdate < endEx)
                 && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
             group r by t.TeamId into g
             select new { TeamId = g.Key, Count = g.Count() })
             .AsNoTracking()
             .ToListAsync(ct);
 
-        var moneyByTeam = playerMoney.ToDictionary(x => x.TeamId);
-        var countByTeam = rosterCounts.ToDictionary(x => x.TeamId, x => x.Count);
-
-        return teams
-            .Select(t =>
+        // --- Q3: player charge events, dated at the PLAYER own registration. ---
+        var playerCharges = await (
+            from r in _context.Registrations
+            join t in _context.Teams on r.AssignedTeamId equals t.TeamId
+            join j in _context.Jobs on t.JobId equals j.JobId
+            where customerIds.Contains(j.CustomerId)
+                // The date range picks the EVENTS, not the transactions: a job qualifies when
+                // its ExpiryUsers falls inside the range. Without this, as-of pulled in every
+                // job the customer has ever run (125 on Top Threat) to report on a handful.
+                && (startDate == null || j.ExpiryUsers >= startDate)
+                && (endEx == null || j.ExpiryUsers < endEx)
+                && t.Active == true
+                && r.FeeTotal != 0m
+                && (endEx == null || r.RegistrationTs < endEx)
+                && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
+            group new { r.FeeTotal, r.OwedTotal } by new
             {
-                var extra = moneyByTeam.GetValueOrDefault(t.TeamId);
-                var count = countByTeam.GetValueOrDefault(t.TeamId, 0);
+                t.TeamId,
+                Year = r.RegistrationTs.Year,
+                Month = r.RegistrationTs.Month
+            } into g
+            select new
+            {
+                g.Key.TeamId,
+                g.Key.Year,
+                g.Key.Month,
+                Billed = g.Sum(x => x.FeeTotal),
+                Owed = g.Sum(x => x.OwedTotal)
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        // --- Q4: payment events, dated at the LEDGER ROW. This is what splits a deposit
+        //         from its balance, and an ARB plan into its individual drafts. ---
+        var payments = await (
+            from ra in _context.RegistrationAccounting
+            join r in _context.Registrations on ra.RegistrationId equals r.RegistrationId
+            join t in _context.Teams on (ra.TeamId ?? r.AssignedTeamId) equals t.TeamId
+            join j in _context.Jobs on t.JobId equals j.JobId
+            where customerIds.Contains(j.CustomerId)
+                // The date range picks the EVENTS, not the transactions: a job qualifies when
+                // its ExpiryUsers falls inside the range. Without this, as-of pulled in every
+                // job the customer has ever run (125 on Top Threat) to report on a handful.
+                && (startDate == null || j.ExpiryUsers >= startDate)
+                && (endEx == null || j.ExpiryUsers < endEx)
+                && t.Active == true
+                && ra.Active == true
+                && ra.Createdate != null
+                && (endEx == null || ra.Createdate < endEx)
+                && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
+            group new { ra.Payamt } by new
+            {
+                t.TeamId,
+                Year = ra.Createdate!.Value.Year,
+                Month = ra.Createdate.Value.Month
+            } into g
+            select new
+            {
+                g.Key.TeamId,
+                g.Key.Year,
+                g.Key.Month,
+                Collected = g.Sum(x => x.Payamt ?? 0m)
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        // --- Assemble. Key is (team, year, month); a charge and a payment landing in the
+        //     same month collapse onto one row, which is what a reader expects to see. ---
+        var countByTeam = rosterCounts.ToDictionary(x => x.TeamId, x => x.Count);
+        var identity = teams.ToDictionary(x => x.TeamId);
+        var cells = new Dictionary<(Guid TeamId, int Year, int Month), (decimal Billed, decimal Collected, decimal Owed)>();
+
+        void Accrue(Guid teamId, int year, int month, decimal billed, decimal collected, decimal owed)
+        {
+            var key = (teamId, year, month);
+            var cur = cells.TryGetValue(key, out var v) ? v : (Billed: 0m, Collected: 0m, Owed: 0m);
+            cells[key] = (cur.Billed + billed, cur.Collected + collected, cur.Owed + owed);
+        }
+
+        // Owed is COMPUTED as of the end date, not read from teams.owed_total, because the
+        // stored column is the balance RIGHT NOW — it would contradict an as-of report whose
+        // end date is in the past. Deriving it from this report's own Billed and Collected
+        // makes the three columns self-consistent by construction.
+        //
+        // VERIFIED against the stored column on Fall Draw 2026, whole history: computed
+        // $49,452.50 vs stored $49,452.50. The underlying identity fee_total - paid_total =
+        // owed_total holds on 46,349 of 46,381 active teams system-wide (32 exceptions,
+        // $3,574.24 total drift — pre-existing data, not introduced here).
+        var owedAsOf = new Dictionary<Guid, decimal>();
+
+        void Charge(Guid teamId, decimal amount)
+            => owedAsOf[teamId] = owedAsOf.GetValueOrDefault(teamId) + amount;
+
+        // Team charge events — the team fee, at the month it registered. A team charged after
+        // the end date did not exist yet, so it is absent entirely rather than showing zeros.
+        foreach (var t in teams)
+        {
+            if (endEx != null && t.Createdate >= endEx)
+            {
+                continue;
+            }
+            Accrue(t.TeamId, t.Createdate.Year, t.Createdate.Month, t.Billed ?? 0m, 0m, 0m);
+            Charge(t.TeamId, t.Billed ?? 0m);
+        }
+
+        foreach (var p in playerCharges)
+        {
+            Accrue(p.TeamId, p.Year, p.Month, p.Billed, 0m, 0m);
+            Charge(p.TeamId, p.Billed);
+        }
+
+        foreach (var p in payments)
+        {
+            Accrue(p.TeamId, p.Year, p.Month, 0m, p.Collected, 0m);
+            Charge(p.TeamId, -p.Collected);
+        }
+
+        // Place each team's balance on the month it registered — the one row every team has.
+        // Per TEAM, not per month: spreading it across months would make a payment-only month
+        // read as negative Owed, which is an artifact, not a receivable. Summed up the pivot,
+        // the job total is the true outstanding as of the end date.
+        foreach (var t in teams)
+        {
+            if (endEx != null && t.Createdate >= endEx)
+            {
+                continue;
+            }
+            var balance = owedAsOf.GetValueOrDefault(t.TeamId);
+            if (balance != 0m)
+            {
+                Accrue(t.TeamId, t.Createdate.Year, t.Createdate.Month, 0m, 0m, balance);
+            }
+        }
+
+        return cells
+            .Select(kv =>
+            {
+                var t = identity[kv.Key.TeamId];
+                var count = countByTeam.GetValueOrDefault(kv.Key.TeamId, 0);
                 var teamName = string.IsNullOrWhiteSpace(t.TeamName) ? "(Unnamed team)" : t.TeamName;
                 return new TeamBillingRecordDto
                 {
                     JobName = t.JobName,
-                    Year = t.Year,
-                    Month = t.Month,
+                    Year = kv.Key.Year,
+                    Month = kv.Key.Month,
                     // Established fallback — same string the CADT tree uses.
                     ClubName = string.IsNullOrWhiteSpace(t.ClubName) ? "(No Club)" : t.ClubName,
                     // public-rosters label convention: "{agegroup}:{team} ({rosterCount})".
                     TeamLabel = $"{t.AgegroupName}:{teamName} ({count})",
-                    Billed = Math.Round((t.Billed ?? 0m) + (extra?.Billed ?? 0m), 2, MidpointRounding.AwayFromZero),
-                    Collected = Math.Round((t.Collected ?? 0m) + (extra?.Collected ?? 0m), 2, MidpointRounding.AwayFromZero),
-                    Owed = Math.Round((t.Owed ?? 0m) + (extra?.Owed ?? 0m), 2, MidpointRounding.AwayFromZero)
+                    Billed = Math.Round(kv.Value.Billed, 2, MidpointRounding.AwayFromZero),
+                    Collected = Math.Round(kv.Value.Collected, 2, MidpointRounding.AwayFromZero),
+                    Owed = Math.Round(kv.Value.Owed, 2, MidpointRounding.AwayFromZero)
                 };
             })
             .OrderBy(r => r.JobName, StringComparer.Ordinal)
