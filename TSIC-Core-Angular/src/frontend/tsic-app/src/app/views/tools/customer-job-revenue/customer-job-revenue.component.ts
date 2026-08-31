@@ -560,7 +560,10 @@ export class CustomerJobRevenueComponent {
 			return;
 		}
 		if (tab === 'teamBilling') {
-			this.exportTeamBillingPivot(kind);
+			// Excel only — the PDF button is not rendered on this tab.
+			if (kind === 'excel') {
+				this.exportTeamBillingPivot();
+			}
 			return;
 		}
 		if (this.detailLoading() !== null) {
@@ -598,40 +601,33 @@ export class CustomerJobRevenueComponent {
 	}
 
 	/**
-	 * Team Billing export. Its header says what the window MEANS on this tab — the shared
-	 * scope label reads as a money window, and here it's a registration window over current
-	 * balances. An exported sheet travels without the on-screen caption, so it has to carry
-	 * the qualifier itself.
+	 * Team Billing export — EXCEL ONLY, deliberately. The PDF button is hidden on this tab
+	 * (see the template) for two reasons:
+	 *
+	 * 1. It would THROW. PDF standard fonts are WinAnsi-only, which is why `toPdfSafe`
+	 *    exists; the grids sanitize cells through `pdfQueryCellInfo`, but the pivot exposes
+	 *    no equivalent per-cell hook. The rollup pivot gets away with it because every job
+	 *    name in the system is ASCII — but club and team names are user-entered free text,
+	 *    and 15 of Top Threat's carry curly apostrophes ("Women's", "Santa's").
+	 * 2. Even sanitized it is the wrong shape: 5 nested row levels, team labels up to 84
+	 *    characters, 7,942 team rows. Excel handles both the Unicode and the volume.
+	 *
+	 * The header carries the basis qualifier because an exported sheet travels without the
+	 * on-screen caption, and the shared scope label alone reads as a money window.
 	 */
-	private exportTeamBillingPivot(kind: 'pdf' | 'excel'): void {
+	private exportTeamBillingPivot(): void {
 		const pivot = this.teamBillingPivot();
 		if (!pivot) {
 			return;
 		}
 		const label = `${this.submittedScope()?.label ?? ''} — ${TEAM_BILLING_BASIS}`;
-		if (kind === 'pdf') {
-			pivot.pdfExport({
-				fileName: 'CustomerJobRevenue-TeamBilling.pdf',
-				header: {
-					fromTop: 0,
-					height: 50,
-					contents: [{
-						type: 'Text' as const,
-						value: this.toPdfSafe(`Team Billing - ${label}`),
-						position: { x: 0, y: 15 },
-						style: { textBrushColor: '#000000', fontSize: 12 }
-					}]
-				}
-			});
-		} else {
-			pivot.excelExport({
-				fileName: 'CustomerJobRevenue-TeamBilling.xlsx',
-				header: {
-					headerRows: 1,
-					rows: [{ cells: [{ colSpan: 8, value: `Team Billing — ${label}`, style: { fontSize: 13, bold: true } }] }]
-				}
-			});
-		}
+		pivot.excelExport({
+			fileName: 'CustomerJobRevenue-TeamBilling.xlsx',
+			header: {
+				headerRows: 1,
+				rows: [{ cells: [{ colSpan: 8, value: `Team Billing — ${label}`, style: { fontSize: 13, bold: true } }] }]
+			}
+		});
 	}
 
 	private excelHeader(colSpan: number) {

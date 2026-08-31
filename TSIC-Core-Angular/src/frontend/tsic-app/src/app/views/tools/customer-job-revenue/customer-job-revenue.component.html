@@ -189,9 +189,14 @@
 				}
 			}
 			<span class="ms-auto d-flex gap-2">
-				<button class="btn btn-sm btn-outline-primary" (click)="exportActive('pdf')">
-					<i class="bi bi-file-earmark-pdf me-1"></i>PDF
-				</button>
+				<!-- No PDF on Team Billing: the pivot exposes no per-cell sanitiser, and
+				     club/team names are free text carrying characters the WinAnsi PDF fonts
+				     reject. Excel handles the Unicode and the row volume. -->
+				@if (activeTab() !== 'teamBilling') {
+					<button class="btn btn-sm btn-outline-primary" (click)="exportActive('pdf')">
+						<i class="bi bi-file-earmark-pdf me-1"></i>PDF
+					</button>
+				}
 				<button class="btn btn-sm btn-outline-primary" (click)="exportActive('excel')">
 					<i class="bi bi-file-earmark-excel me-1"></i>Excel
 				</button>
