@@ -43,13 +43,19 @@ type ScopeMode = 'jobs' | 'period';
 type DetailKey = 'cc' | 'check' | 'echeck';
 
 /**
- * The Team Billing tab reuses the shared date pickers, but the window means something
- * different there: on every other tab it bounds WHEN MONEY MOVED, here it bounds WHEN THE
- * TEAM REGISTERED, and the balances shown are current. A team that registered in January
- * and paid in March reports its Collected under January — so the two tabs will not
- * reconcile month-to-month, by design. Stated on screen and in every export.
+ * What the Teams/Players to Customer tab is, in one line, shown on screen and carried into
+ * every export.
+ *
+ * The tab answers a different question from the other six. They show TSIC's settlement with
+ * the client — what we owe them, netted by our fees. This shows what the client's own
+ * registrants owe THEM. Both use the word "owed" pointing opposite directions, which is
+ * exactly why it has to be said out loud rather than inferred.
+ *
+ * Its rows are events: a charge lands in the month the team or player registered, a payment
+ * in the month it was received, and Owed is the balance right now. So within any single
+ * month the three columns need not relate to one another.
  */
-const TEAM_BILLING_BASIS = 'teams registered in this window; balances as of today';
+const TEAM_BILLING_BASIS = 'what your teams and players owe you';
 
 /**
  * The scope the currently-displayed data was fetched with. Rendered as the audit-stamp
@@ -130,6 +136,16 @@ export class CustomerJobRevenueComponent {
 	private readonly teamBilling = signal<TeamBillingRecordDto[] | null>(null);
 	teamBillingLoading = signal(false);
 	readonly teamBillingBasis = TEAM_BILLING_BASIS;
+
+	// The reading rules are needed ONCE. Left expanded they are ~200px of permanent chrome
+	// between the reader and the numbers, so only the basis line is always on — enough to
+	// stop anyone reading this tab as the rollup — and the rest is one click away. Collapsed
+	// by default; the state is per-visit, deliberately not persisted.
+	teamBillingHelpOpen = signal(false);
+
+	toggleTeamBillingHelp(): void {
+		this.teamBillingHelpOpen.update(open => !open);
+	}
 	teamBillingRecords = computed(() => this.teamBilling() ?? []);
 
 	// Derived
@@ -147,10 +163,11 @@ export class CustomerJobRevenueComponent {
 	 *   one club, so its subtotal is honest); age group is folded into the team's LABEL
 	 *   rather than made a level, because one club-rep payment can span up to 11 age
 	 *   groups and a per-age-group subtotal would be a number the data can't support.
-	 * - Three value fields instead of a pay-category axis: these are balances, not a
-	 *   transaction breakdown.
-	 * - Year/Month come from teams.createdate (when the team REGISTERED). That is what
-	 *   lets an unpaid team exist on the timeline at all — it has no payment to be dated by.
+	 * - Three value fields instead of a pay-category axis.
+	 * - Year/Month come from the EVENT: a charge is dated at registration, a payment at the
+	 *   ledger row. That is what lets a deposit and its balance sit in different months, an
+	 *   ARB plan spread across its drafts, and an unpaid team exist on the timeline at all —
+	 *   being charged is itself a dated event, so it needs no special case.
 	 */
 	readonly teamBillingDataSource = signal<IDataOptions>({
 		dataSource: [],
@@ -165,6 +182,10 @@ export class CustomerJobRevenueComponent {
 			{ name: 'teamLabel', caption: 'Team' }
 		],
 		columns: [],
+		// With nothing on the column axis the pivot captions the value headers itself as
+		// "Total Sum of {caption}" — the aggregation name plus the grand-total prefix. These
+		// are three balances, not an aggregation the reader needs narrated, so suppress it.
+		showAggregationOnValueField: false,
 		values: [
 			{ name: 'billed', caption: 'Billed', type: 'Sum' },
 			{ name: 'collected', caption: 'Collected', type: 'Sum' },
@@ -594,7 +615,16 @@ export class CustomerJobRevenueComponent {
 			return;
 		}
 		if (kind === 'pdf') {
-			pivot.pdfExport({ fileName: 'CustomerJobRevenue.pdf', header: this.pdfHeader() });
+			// The rollup is WIDE, not long: a 640px row header plus ten ~120px category
+			// columns is ~1,840px, which portrait Letter (~816px) splits across three pages
+			// side by side. Landscape Ledger (~1,632px) brings it back to a single column of
+			// pages. Drop pageSize to 'Letter' if these ever need to print on office paper.
+			pivot.pdfExport({
+				fileName: 'CustomerJobRevenue.pdf',
+				header: this.pdfHeader(),
+				pageOrientation: 'Landscape',
+				pageSize: 'Ledger'
+			});
 		} else {
 			pivot.excelExport({ fileName: 'CustomerJobRevenue.xlsx', header: this.excelHeader(8) });
 		}
@@ -622,10 +652,10 @@ export class CustomerJobRevenueComponent {
 		}
 		const label = `${this.submittedScope()?.label ?? ''} — ${TEAM_BILLING_BASIS}`;
 		pivot.excelExport({
-			fileName: 'CustomerJobRevenue-TeamBilling.xlsx',
+			fileName: 'CustomerJobRevenue-TeamsPlayersToCustomer.xlsx',
 			header: {
 				headerRows: 1,
-				rows: [{ cells: [{ colSpan: 8, value: `Team Billing — ${label}`, style: { fontSize: 13, bold: true } }] }]
+				rows: [{ cells: [{ colSpan: 8, value: `Teams/Players to Customer — ${label}`, style: { fontSize: 13, bold: true } }] }]
 			}
 		});
 	}

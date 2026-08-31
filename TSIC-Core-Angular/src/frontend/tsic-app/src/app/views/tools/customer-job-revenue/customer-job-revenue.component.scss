@@ -240,6 +240,58 @@
 
 // AM-054/AM-064: colors/weight come from the shared .tsic-callout--warning
 // (global _callouts.scss) — Ann's amber "stand-out" container. Only spacing here.
-.grand-total-caption {
+//
+// ABOVE the pivot, not below: an expanded pivot is tall enough to push a footer
+// note off-screen, and these explain how to read numbers the reader is looking at
+// right then. The global callout padding is sized for one-line captions, so these
+// get more room — the team-billing panel runs several lines.
+.cjr-info-panel {
+	padding: var(--space-3) var(--space-4);
+	margin-bottom: var(--space-3);
+	line-height: 1.5;
+
+	// Each rule in the multi-line panel is its own <br>-separated statement; without
+	// this they run together into a wall of bold text.
+	br + strong {
+		display: inline-block;
+		margin-top: var(--space-2);
+	}
+}
+
+// Inline "How to read this" disclosure. Borrows the callout's own text colour rather
+// than a link colour — it belongs to the note, and --bs-*-text-emphasis is what keeps
+// the amber readable across all 8 palettes and both themes.
+.cjr-help-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	margin-left: var(--space-2);
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	font-weight: 700;
+	text-decoration: underline;
+	cursor: pointer;
+
+	&:hover {
+		text-decoration: none;
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+		border-radius: var(--radius-sm);
+	}
+
+	// Chevron direction already carries the state, so open/closed is never colour-only.
+	> i {
+		font-size: var(--font-size-xs);
+	}
+}
+
+.cjr-help-detail {
+	display: block;
 	margin-top: var(--space-2);
 }

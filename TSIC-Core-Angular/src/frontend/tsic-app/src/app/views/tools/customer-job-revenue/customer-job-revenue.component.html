@@ -165,7 +165,7 @@
 			</li>
 			<li class="nav-item">
 				<button class="nav-link" [class.active]="activeTab() === 'teamBilling'" (click)="setTab('teamBilling')">
-					Team Billing
+					Teams/Players to Customer
 				</button>
 			</li>
 		</ul>
@@ -230,6 +230,14 @@
 					}
 				</div>
 			}
+			<!-- AM-054 (Ann): Grand Total is CC-only — always-visible caption in OUR
+			     template rather than an icon injected into the SF pivot header (SF DOM
+			     hooks are off-limits; header survives re-renders, this always does).
+			     Above the pivot so it stays on screen once the pivot is expanded. -->
+			<div class="cjr-info-panel tsic-callout tsic-callout--warning tsic-callout--block" role="note">
+				<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+				<span><strong>Grand Total</strong>&nbsp;= CC Revenue less Fees. Total does NOT include Check Revenue.</span>
+			</div>
 			<ejs-pivotview #pivotView
 				[dataSourceSettings]="pivotDataSource()"
 				[height]="pivotHeight()"
@@ -237,13 +245,6 @@
 				[allowPdfExport]="true"
 				[gridSettings]="pivotGridSettings">
 			</ejs-pivotview>
-			<!-- AM-054 (Ann): Grand Total is CC-only — always-visible caption in OUR
-			     template rather than an icon injected into the SF pivot header (SF DOM
-			     hooks are off-limits; header survives re-renders, this always does). -->
-			<div class="grand-total-caption tsic-callout tsic-callout--warning tsic-callout--block" role="note">
-				<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
-				<span><strong>Grand Total</strong>&nbsp;= CC Revenue less Fees. Total does NOT include Check Revenue.</span>
-			</div>
 		}
 
 		<!-- Tab 2: Player/Team Counts (editable grid) -->
@@ -386,17 +387,46 @@
 
 		<!-- Tab 7: Team Billing (PivotView) — team-driven, so unpaid teams are present -->
 		@if (activeTab() === 'teamBilling') {
-			<!-- The shared scope banner above reads as a money window. On this tab the same
-			     dates bound team REGISTRATION and the balances are current, so the two tabs
-			     do not reconcile month-to-month. Say so where the numbers are, not in a
-			     tooltip — same reasoning as the Grand Total caption on the rollup tab. -->
-			<div class="tsic-callout tsic-callout--warning tsic-callout--block mb-2" role="note">
+			<!-- Above the pivot: an expanded pivot pushes a footer note off-screen, and both
+			     perspectives use the word "owed" pointing opposite ways, so the lens has to be
+			     stated where the numbers are. -->
+			<div class="cjr-info-panel tsic-callout tsic-callout--warning tsic-callout--block" role="note">
 				<i class="bi bi-info-circle" aria-hidden="true"></i>
 				<span>
-					<strong>Different basis from the other tabs.</strong>
-					Rows are <strong>{{ teamBillingBasis }}</strong> — a team that registered in January
-					and paid in March reports its Collected under January. These figures will not tie
-					to Revenue Rollup month&#8209;by&#8209;month.
+					<strong>This tab is {{ teamBillingBasis }}.</strong>
+					The other tabs show TSIC's settlement with you; this one shows your own registrants'
+					position with you, so the two are not meant to reconcile.
+					<button type="button" class="cjr-help-toggle"
+						[attr.aria-expanded]="teamBillingHelpOpen()"
+						(click)="toggleTeamBillingHelp()">
+						<i class="bi" aria-hidden="true"
+							[class.bi-chevron-right]="!teamBillingHelpOpen()"
+							[class.bi-chevron-down]="teamBillingHelpOpen()"></i>
+						How to read this
+					</button>
+					@if (teamBillingHelpOpen()) {
+						<span class="cjr-help-detail">
+							<strong>Your dates pick the events.</strong> An event is included when it is active
+							between your start and end dates. Everything else is left out, so you see the events
+							you asked about rather than your whole history.
+							<br>
+							<strong>Each included event then shows its full record, as of the end date.</strong>
+							A team that registered and paid long before your start date is still counted — your
+							start date chooses events, it does not hide their money.
+							<br>
+							<strong>Each month shows what happened in that month.</strong> A team charged a deposit
+							in March that pays its balance in July appears in both: the charge under March, the
+							money under July. Players on a payment plan appear in every month they were drafted.
+							So Billed and Collected are not expected to match inside any one month — only the
+							totals tie out.
+							<br>
+							<strong>Owed is each team's balance as of the end date</strong>, shown against the month
+							that team registered.
+							<br>
+							<strong>The number in parentheses after a team name is its roster count</strong> — how
+							many active players are on that team.
+						</span>
+					}
 				</span>
 			</div>
 			@if (teamBillingLoading()) {
