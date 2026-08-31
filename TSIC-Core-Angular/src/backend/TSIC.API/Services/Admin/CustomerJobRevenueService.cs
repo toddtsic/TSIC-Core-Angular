@@ -168,6 +168,17 @@ public class CustomerJobRevenueService : ICustomerJobRevenueService
         };
     }
 
+    /// <summary>
+    /// Team Billing tab. No isTsicAdn branch: these are balances off Leagues.teams, not
+    /// settlement-vs-RA cash, so the merchant-account classification is irrelevant here.
+    /// </summary>
+    public async Task<List<TeamBillingRecordDto>> GetTeamBillingAsync(
+        Guid jobId, DateTime? startDate, DateTime? endDate,
+        List<string> jobNames, CancellationToken ct = default)
+    {
+        return await _repo.GetTeamBillingAsync(jobId, startDate, endDate, jobNames, ct);
+    }
+
     public async Task UpdateMonthlyCountAsync(
         int aid, UpdateMonthlyCountRequest request, string userId,
         CancellationToken ct = default)

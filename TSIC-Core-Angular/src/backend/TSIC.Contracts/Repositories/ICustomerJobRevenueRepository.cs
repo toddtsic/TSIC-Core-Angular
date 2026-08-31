@@ -41,6 +41,19 @@ public interface ICustomerJobRevenueRepository
         CancellationToken ct = default);
 
     /// <summary>
+    /// Team Billing tab: every ACTIVE team in scope with its lifetime billed/collected/owed,
+    /// bucketed by <c>teams.createdate</c>. Team-driven, not payment-driven — a team that never
+    /// paid still returns a row (with zeros), which is the point of the report.
+    /// </summary>
+    /// <remarks>
+    /// Scope semantics match <see cref="GetRollupAsync"/>: non-empty <paramref name="jobNames"/>
+    /// = those jobs complete, dates ignored; otherwise the date range bounds <c>createdate</c>.
+    /// </remarks>
+    Task<List<TeamBillingRecordDto>> GetTeamBillingAsync(
+        Guid jobId, DateTime? startDate, DateTime? endDate, IReadOnlyList<string> jobNames,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Updates a single MonthlyJobStats row (inline edit from the counts grid).
     /// </summary>
     Task UpdateMonthlyCountAsync(

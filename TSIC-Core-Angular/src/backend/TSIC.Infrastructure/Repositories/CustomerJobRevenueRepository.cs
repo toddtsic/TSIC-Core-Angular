@@ -3,6 +3,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos.CustomerJobRevenue;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Constants;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.Infrastructure.Repositories;
@@ -610,6 +611,145 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             .ThenBy(r => r.Year)
             .ThenBy(r => r.Month)
             .ThenBy(r => r.PaymentDate)
+            .ToList();
+    }
+
+    // =====================================================================
+    // TEAM BILLING (Team Billing tab) — TEAM-DRIVEN, not payment-driven.
+    //
+    // The rollup above starts at Registration_Accounting and joins back, so a team that
+    // registered and never paid produces no rows and cannot appear (520 of Top Threat's
+    // 7,942 active teams, carrying most of the outstanding balance). This inverts that:
+    // enumerate active teams first, then attach money.
+    //
+    // Money reaches a team by exactly two routes (Todd's rule, 2026-08-31):
+    //   1. role = Club Rep              -> teams.clubrep_registrationid  (TEAM fees)
+    //   2. else assigned_teamID != null
+    //      AND fee_total <> 0           -> teams.teamID                  (PLAYER fees)
+    // Route 1's money is already denormalised onto Leagues.teams, so it needs no join.
+    // The fee_total guard on route 2 is load-bearing: SELF-ROSTERING DOES NOT CHARGE, and
+    // 98.4% of Top Threat's non-clubrep registrations are zero-fee self-roster rows.
+    // `<> 0` not `> 0` — 59 registrations system-wide carry a NEGATIVE fee_total (credits).
+    //
+    // Never read the club rep's own paid_total/owed_total rollup: it drifts from the sum of
+    // its teams by ~$373K paid / ~$362K owed across 11% of Top Threat's reps. Team level is
+    // the side we read. ALL ACCOUNTING AT THE TEAM LEVEL.
+    //
+    // Three PROJECTED, sequential queries merged in memory on teamId. Registrations has NO
+    // index on assigned_teamID (667K rows, heap-scanned), so the per-team roster count MUST
+    // be one grouped aggregate — as a correlated subquery it would be ~8,000 table scans.
+    // =====================================================================
+    public async Task<List<TeamBillingRecordDto>> GetTeamBillingAsync(
+        Guid jobId, DateTime? startDate, DateTime? endDate, IReadOnlyList<string> jobNames,
+        CancellationToken ct = default)
+    {
+        var customerIds = await GetCustomerGroupIdsAsync(jobId, ct);
+        var jobFilter = jobNames.ToList();
+        // Same contract as the rollup: end date is advanced a day, comparisons are < end.
+        DateTime? endEx = endDate?.Date.AddDays(1);
+        DateTime? start = startDate;
+
+        // --- Q1: the teams themselves, with their denormalised team-fee money ---
+        var teams = await (
+            from t in _context.Teams
+            join j in _context.Jobs on t.JobId equals j.JobId
+            join a in _context.Agegroups on t.AgegroupId equals a.AgegroupId
+            where customerIds.Contains(j.CustomerId)
+                && t.Active == true
+                && (start == null || t.Createdate >= start)
+                && (endEx == null || t.Createdate < endEx)
+                && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
+            select new
+            {
+                t.TeamId,
+                JobName = j.JobName!,
+                Year = t.Createdate.Year,
+                Month = t.Createdate.Month,
+                // Owning club via the club-rep registration; null when the team has no club rep
+                // (whole showcase/clinic events run that way). Labelled at projection time.
+                ClubName = t.ClubrepRegistration != null ? t.ClubrepRegistration.ClubName : null,
+                AgegroupName = a.AgegroupName,
+                t.TeamName,
+                Billed = t.FeeTotal,
+                Collected = t.PaidTotal,
+                Owed = t.OwedTotal
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        if (teams.Count == 0)
+        {
+            return [];
+        }
+
+        // --- Q2: player fees charged against a team (route 2) ---
+        var playerMoney = await (
+            from r in _context.Registrations
+            join t in _context.Teams on r.AssignedTeamId equals t.TeamId
+            join j in _context.Jobs on t.JobId equals j.JobId
+            where customerIds.Contains(j.CustomerId)
+                && t.Active == true
+                && r.FeeTotal != 0m
+                && (start == null || t.Createdate >= start)
+                && (endEx == null || t.Createdate < endEx)
+                && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
+            group r by t.TeamId into g
+            select new
+            {
+                TeamId = g.Key,
+                Billed = g.Sum(x => x.FeeTotal),
+                Collected = g.Sum(x => x.PaidTotal),
+                Owed = g.Sum(x => x.OwedTotal)
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        // --- Q3: roster headcount (self-rostered players included — they are roster size,
+        //         not revenue). Definition mirrors the CADT tree's PlayerCount exactly. ---
+        var rosterCounts = await (
+            from r in _context.Registrations
+            join t in _context.Teams on r.AssignedTeamId equals t.TeamId
+            join j in _context.Jobs on t.JobId equals j.JobId
+            where customerIds.Contains(j.CustomerId)
+                && t.Active == true
+                && r.BActive == true
+                && r.RoleId == RoleConstants.Player
+                && (start == null || t.Createdate >= start)
+                && (endEx == null || t.Createdate < endEx)
+                && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
+            group r by t.TeamId into g
+            select new { TeamId = g.Key, Count = g.Count() })
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        var moneyByTeam = playerMoney.ToDictionary(x => x.TeamId);
+        var countByTeam = rosterCounts.ToDictionary(x => x.TeamId, x => x.Count);
+
+        return teams
+            .Select(t =>
+            {
+                var extra = moneyByTeam.GetValueOrDefault(t.TeamId);
+                var count = countByTeam.GetValueOrDefault(t.TeamId, 0);
+                var teamName = string.IsNullOrWhiteSpace(t.TeamName) ? "(Unnamed team)" : t.TeamName;
+                return new TeamBillingRecordDto
+                {
+                    JobName = t.JobName,
+                    Year = t.Year,
+                    Month = t.Month,
+                    // Established fallback — same string the CADT tree uses.
+                    ClubName = string.IsNullOrWhiteSpace(t.ClubName) ? "(No Club)" : t.ClubName,
+                    // public-rosters label convention: "{agegroup}:{team} ({rosterCount})".
+                    TeamLabel = $"{t.AgegroupName}:{teamName} ({count})",
+                    Billed = Math.Round((t.Billed ?? 0m) + (extra?.Billed ?? 0m), 2, MidpointRounding.AwayFromZero),
+                    Collected = Math.Round((t.Collected ?? 0m) + (extra?.Collected ?? 0m), 2, MidpointRounding.AwayFromZero),
+                    Owed = Math.Round((t.Owed ?? 0m) + (extra?.Owed ?? 0m), 2, MidpointRounding.AwayFromZero)
+                };
+            })
+            .OrderBy(r => r.JobName, StringComparer.Ordinal)
+            .ThenBy(r => r.Year)
+            .ThenBy(r => r.Month)
+            .ThenBy(r => r.ClubName, StringComparer.Ordinal)
+            .ThenBy(r => r.TeamLabel, StringComparer.Ordinal)
             .ToList();
     }
 

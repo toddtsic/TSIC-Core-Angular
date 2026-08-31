@@ -163,13 +163,20 @@
 					E-Check Records
 				</button>
 			</li>
+			<li class="nav-item">
+				<button class="nav-link" [class.active]="activeTab() === 'teamBilling'" (click)="setTab('teamBilling')">
+					Team Billing
+				</button>
+			</li>
 		</ul>
 
 		<!-- Shared tab toolbar: exports identical on every tab; rollup adds its own tools -->
 		<div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-			@if (activeTab() === 'rollup') {
+			@if (activeTab() === 'rollup' || activeTab() === 'teamBilling') {
 				<button class="btn btn-sm btn-outline-secondary" (click)="expandAll()">Expand All</button>
 				<button class="btn btn-sm btn-outline-secondary" (click)="collapseAll()">Collapse All</button>
+			}
+			@if (activeTab() === 'rollup') {
 				@if (isSuperUser() && qaEnabled) {
 					<button class="btn btn-sm btn-outline-warning" (click)="runLegacyCompare()" [disabled]="qaRunning()">
 						@if (qaRunning()) {
@@ -369,6 +376,42 @@
 						<e-column field="paymentAmount" headerText="Payment" width="100" format="C2" textAlign="Right"></e-column>
 					</e-columns>
 				</ejs-grid>
+			}
+		}
+
+		<!-- Tab 7: Team Billing (PivotView) — team-driven, so unpaid teams are present -->
+		@if (activeTab() === 'teamBilling') {
+			<!-- The shared scope banner above reads as a money window. On this tab the same
+			     dates bound team REGISTRATION and the balances are current, so the two tabs
+			     do not reconcile month-to-month. Say so where the numbers are, not in a
+			     tooltip — same reasoning as the Grand Total caption on the rollup tab. -->
+			<div class="tsic-callout tsic-callout--warning tsic-callout--block mb-2" role="note">
+				<i class="bi bi-info-circle" aria-hidden="true"></i>
+				<span>
+					<strong>Different basis from the other tabs.</strong>
+					Rows are <strong>{{ teamBillingBasis }}</strong> — a team that registered in January
+					and paid in March reports its Collected under January. These figures will not tie
+					to Revenue Rollup month&#8209;by&#8209;month.
+				</span>
+			</div>
+			@if (teamBillingLoading()) {
+				<div class="text-center py-4">
+					<span class="spinner-border text-primary"></span>
+					<div class="text-muted mt-2">Loading team billing...</div>
+				</div>
+			} @else if (teamBillingRecords().length === 0) {
+				<div class="list-empty-state">
+					<i class="bi bi-people"></i>
+					<div>No active teams registered in this scope.</div>
+				</div>
+			} @else {
+				<ejs-pivotview #teamBillingPivot
+					[dataSourceSettings]="teamBillingDataSource()"
+					[height]="pivotHeight()"
+					[allowExcelExport]="true"
+					[allowPdfExport]="true"
+					[gridSettings]="pivotGridSettings">
+				</ejs-pivotview>
 			}
 		}
 	}

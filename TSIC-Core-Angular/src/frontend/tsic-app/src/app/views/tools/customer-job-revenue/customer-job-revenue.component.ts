@@ -29,6 +29,7 @@ import type { RevenueRollupResponseDto } from '@core/api';
 import type { JobPaymentRecordDto } from '@core/api';
 import type { UpdateMonthlyCountRequest } from '@core/api';
 import type { LegacyCompareResultDto } from '@core/api';
+import type { TeamBillingRecordDto } from '@core/api';
 
 interface MonthOption {
 	startDate: string;
@@ -40,6 +41,15 @@ interface MonthOption {
 
 type ScopeMode = 'jobs' | 'period';
 type DetailKey = 'cc' | 'check' | 'echeck';
+
+/**
+ * The Team Billing tab reuses the shared date pickers, but the window means something
+ * different there: on every other tab it bounds WHEN MONEY MOVED, here it bounds WHEN THE
+ * TEAM REGISTERED, and the balances shown are current. A team that registered in January
+ * and paid in March reports its Collected under January — so the two tabs will not
+ * reconcile month-to-month, by design. Stated on screen and in every export.
+ */
+const TEAM_BILLING_BASIS = 'teams registered in this window; balances as of today';
 
 /**
  * The scope the currently-displayed data was fetched with. Rendered as the audit-stamp
@@ -94,7 +104,7 @@ export class CustomerJobRevenueComponent {
 	// UI state
 	isLoading = signal(false);
 	errorMessage = signal('');
-	activeTab = signal<'rollup' | 'counts' | 'adminFees' | 'ccRecords' | 'checkRecords' | 'echeckRecords'>('rollup');
+	activeTab = signal<'rollup' | 'counts' | 'adminFees' | 'ccRecords' | 'checkRecords' | 'echeckRecords' | 'teamBilling'>('rollup');
 
 	// Guided scope flow — lands on All jobs · date range (pickers preset to last month);
 	// nothing runs until the user clicks Run Report.
@@ -114,12 +124,58 @@ export class CustomerJobRevenueComponent {
 	private readonly echeckDetail = signal<JobPaymentRecordDto[] | null>(null);
 	detailLoading = signal<DetailKey | null>(null);
 
+	// Team Billing tab — lazily fetched on first open, same invalidation rules as the
+	// detail tabs. Separate endpoint: this one is team-driven, so it carries teams the
+	// payment-driven rollup can't see (registered, never paid).
+	private readonly teamBilling = signal<TeamBillingRecordDto[] | null>(null);
+	teamBillingLoading = signal(false);
+	readonly teamBillingBasis = TEAM_BILLING_BASIS;
+	teamBillingRecords = computed(() => this.teamBilling() ?? []);
+
 	// Derived
 	monthlyCounts = computed(() => this.rollup()?.monthlyCounts ?? []);
 	adminFees = computed(() => this.rollup()?.adminFees ?? []);
 	creditCardRecords = computed(() => this.ccDetail() ?? []);
 	checkRecords = computed(() => this.checkDetail() ?? []);
 	echeckRecords = computed(() => this.echeckDetail() ?? []);
+
+	/**
+	 * Team Billing pivot. Deliberately a DIFFERENT shape from the revenue rollup:
+	 *
+	 * - Rows go one level deeper — club, then the team itself — because the grain is the
+	 *   team, not the payment. Club is a real level (a club-rep payment belongs wholly to
+	 *   one club, so its subtotal is honest); age group is folded into the team's LABEL
+	 *   rather than made a level, because one club-rep payment can span up to 11 age
+	 *   groups and a per-age-group subtotal would be a number the data can't support.
+	 * - Three value fields instead of a pay-category axis: these are balances, not a
+	 *   transaction breakdown.
+	 * - Year/Month come from teams.createdate (when the team REGISTERED). That is what
+	 *   lets an unpaid team exist on the timeline at all — it has no payment to be dated by.
+	 */
+	readonly teamBillingDataSource = signal<IDataOptions>({
+		dataSource: [],
+		enableSorting: true,
+		expandAll: false,
+		emptyCellsTextContent: '$0.00',
+		rows: [
+			{ name: 'jobName', caption: 'Job' },
+			{ name: 'year', caption: 'Year' },
+			{ name: 'month', caption: 'Month' },
+			{ name: 'clubName', caption: 'Club' },
+			{ name: 'teamLabel', caption: 'Team' }
+		],
+		columns: [],
+		values: [
+			{ name: 'billed', caption: 'Billed', type: 'Sum' },
+			{ name: 'collected', caption: 'Collected', type: 'Sum' },
+			{ name: 'owed', caption: 'Owed', type: 'Sum' }
+		],
+		formatSettings: [
+			{ name: 'billed', format: 'C2', useGrouping: true },
+			{ name: 'collected', format: 'C2', useGrouping: true },
+			{ name: 'owed', format: 'C2', useGrouping: true }
+		]
+	});
 
 	// Date range options (monthly buckets from last month back to Jan 2022)
 	monthOptions: MonthOption[] = [];
@@ -188,6 +244,8 @@ export class CustomerJobRevenueComponent {
 	);
 
 	readonly pivotView = viewChild.required<PivotViewComponent>('pivotView');
+	// Not `.required` — the Team Billing pivot only exists while its tab is open.
+	readonly teamBillingPivot = viewChild<PivotViewComponent>('teamBillingPivot');
 	readonly countsGrid = viewChild.required<GridComponent>('countsGrid');
 	readonly adminFeesGrid = viewChild.required<GridComponent>('adminFeesGrid');
 	readonly ccGrid = viewChild.required<GridComponent>('ccGrid');
@@ -275,6 +333,7 @@ export class CustomerJobRevenueComponent {
 		this.ccDetail.set(null);
 		this.checkDetail.set(null);
 		this.echeckDetail.set(null);
+		this.teamBilling.set(null);
 		this.qaResult.set(null);
 		this.errorMessage.set('');
 		this.activeTab.set('rollup');
@@ -330,6 +389,7 @@ export class CustomerJobRevenueComponent {
 				this.ccDetail.set(null);
 				this.checkDetail.set(null);
 				this.echeckDetail.set(null);
+				this.teamBilling.set(null);
 				this.qaResult.set(null);
 				this.rowHeaderWidth = this.measureRowHeaderWidth(data.revenueRecords);
 				this.pivotDataSource.set({
@@ -368,6 +428,31 @@ export class CustomerJobRevenueComponent {
 		if (detailKey) {
 			this.fetchDetailIfNeeded(detailKey);
 		}
+		if (tab === 'teamBilling') {
+			this.fetchTeamBillingIfNeeded();
+		}
+	}
+
+	private fetchTeamBillingIfNeeded(): void {
+		const scope = this.submittedScope();
+		if (!scope || this.teamBilling() !== null || this.teamBillingLoading()) {
+			return;
+		}
+		this.teamBillingLoading.set(true);
+		this.http.get<TeamBillingRecordDto[]>(`${this.apiUrl}/team-billing`, { params: this.scopeParams(scope) }).subscribe({
+			next: (records) => {
+				this.teamBilling.set(records);
+				this.teamBillingDataSource.set({
+					...this.teamBillingDataSource(),
+					dataSource: records as never[]
+				});
+				this.teamBillingLoading.set(false);
+			},
+			error: (err) => {
+				this.teamBillingLoading.set(false);
+				this.errorMessage.set(err.error?.message || 'Failed to load team billing');
+			}
+		});
 	}
 
 	/** Accent Credit Card Credit rows so they jump out when scanning the CC grid. */
@@ -459,7 +544,8 @@ export class CustomerJobRevenueComponent {
 	 * passed here are touched — rows/columns/values/dataSource survive.
 	 */
 	private setExpandAll(expand: boolean): void {
-		const pivotView = this.pivotView();
+		// Whichever pivot is on screen — same drilledMembers caveat applies to both.
+		const pivotView = this.activeTab() === 'teamBilling' ? this.teamBillingPivot() : this.pivotView();
 		if (pivotView) {
 			pivotView.setProperties({ dataSourceSettings: { expandAll: expand, drilledMembers: [] } });
 		}
@@ -471,6 +557,10 @@ export class CustomerJobRevenueComponent {
 		const tab = this.activeTab();
 		if (tab === 'rollup') {
 			this.exportPivot(kind);
+			return;
+		}
+		if (tab === 'teamBilling') {
+			this.exportTeamBillingPivot(kind);
 			return;
 		}
 		if (this.detailLoading() !== null) {
@@ -504,6 +594,43 @@ export class CustomerJobRevenueComponent {
 			pivot.pdfExport({ fileName: 'CustomerJobRevenue.pdf', header: this.pdfHeader() });
 		} else {
 			pivot.excelExport({ fileName: 'CustomerJobRevenue.xlsx', header: this.excelHeader(8) });
+		}
+	}
+
+	/**
+	 * Team Billing export. Its header says what the window MEANS on this tab — the shared
+	 * scope label reads as a money window, and here it's a registration window over current
+	 * balances. An exported sheet travels without the on-screen caption, so it has to carry
+	 * the qualifier itself.
+	 */
+	private exportTeamBillingPivot(kind: 'pdf' | 'excel'): void {
+		const pivot = this.teamBillingPivot();
+		if (!pivot) {
+			return;
+		}
+		const label = `${this.submittedScope()?.label ?? ''} — ${TEAM_BILLING_BASIS}`;
+		if (kind === 'pdf') {
+			pivot.pdfExport({
+				fileName: 'CustomerJobRevenue-TeamBilling.pdf',
+				header: {
+					fromTop: 0,
+					height: 50,
+					contents: [{
+						type: 'Text' as const,
+						value: this.toPdfSafe(`Team Billing - ${label}`),
+						position: { x: 0, y: 15 },
+						style: { textBrushColor: '#000000', fontSize: 12 }
+					}]
+				}
+			});
+		} else {
+			pivot.excelExport({
+				fileName: 'CustomerJobRevenue-TeamBilling.xlsx',
+				header: {
+					headerRows: 1,
+					rows: [{ cells: [{ colSpan: 8, value: `Team Billing — ${label}`, style: { fontSize: 13, bold: true } }] }]
+				}
+			});
 		}
 	}
 

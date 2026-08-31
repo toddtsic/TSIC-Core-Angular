@@ -757,6 +757,7 @@ export type { SyncDeviceResponse } from './models/SyncDeviceResponse';
 export type { TeamArbTrialPaymentRequestDto } from './models/TeamArbTrialPaymentRequestDto';
 export type { TeamArbTrialPaymentResponseDto } from './models/TeamArbTrialPaymentResponseDto';
 export type { TeamArbTrialResultDto } from './models/TeamArbTrialResultDto';
+export type { TeamBillingRecordDto } from './models/TeamBillingRecordDto';
 export type { TeamCcChargeRequest } from './models/TeamCcChargeRequest';
 export type { TeamCcChargeResponse } from './models/TeamCcChargeResponse';
 export type { TeamCheckinRowDto } from './models/TeamCheckinRowDto';
