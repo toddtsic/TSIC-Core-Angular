@@ -168,6 +168,11 @@
 					Teams/Players to Customer
 				</button>
 			</li>
+			<li class="nav-item">
+				<button class="nav-link" [class.active]="activeTab() === 'yoy'" (click)="setTab('yoy')">
+					Year-over-Year
+				</button>
+			</li>
 		</ul>
 
 		<!-- Shared tab toolbar: exports identical on every tab; rollup adds its own tools -->
@@ -192,14 +197,18 @@
 				<!-- No PDF on Team Billing: the pivot exposes no per-cell sanitiser, and
 				     club/team names are free text carrying characters the WinAnsi PDF fonts
 				     reject. Excel handles the Unicode and the row volume. -->
-				@if (activeTab() !== 'teamBilling') {
+				@if (activeTab() !== 'teamBilling' && activeTab() !== 'yoy') {
 					<button class="btn btn-sm btn-outline-primary" (click)="exportActive('pdf')">
 						<i class="bi bi-file-earmark-pdf me-1"></i>PDF
 					</button>
 				}
-				<button class="btn btn-sm btn-outline-primary" (click)="exportActive('excel')">
-					<i class="bi bi-file-earmark-excel me-1"></i>Excel
-				</button>
+				<!-- No export on Year-over-Year: it renders charts, not a grid or pivot, so
+				     there is no exporter to call. -->
+				@if (activeTab() !== 'yoy') {
+					<button class="btn btn-sm btn-outline-primary" (click)="exportActive('excel')">
+						<i class="bi bi-file-earmark-excel me-1"></i>Excel
+					</button>
+				}
 			</span>
 		</div>
 
@@ -460,5 +469,182 @@
 				</ejs-pivotview>
 			}
 		}
+		<!-- ============ YEAR-OVER-YEAR REVIEW ============ -->
+		@if (activeTab() === 'yoy') {
+			<!-- Same "say what this is" contract as Teams/Players: two tabs on this page use the
+			     word "owed" pointing in opposite directions, so the basis is stated, not inferred. -->
+			<div class="alert alert-info yoy-basis d-flex align-items-start gap-2">
+				<i class="bi bi-graph-up-arrow mt-1"></i>
+				<div class="flex-grow-1">
+					<strong>This tab is {{ yoyBasis }}.</strong>
+					<button type="button" class="btn btn-link btn-sm p-0 ms-2 align-baseline"
+						(click)="toggleYoyHelp()"
+						[attr.aria-expanded]="yoyHelpOpen()">
+						<i class="bi"
+							[class.bi-chevron-right]="!yoyHelpOpen()"
+							[class.bi-chevron-down]="yoyHelpOpen()"></i>
+						How to read it
+					</button>
+					@if (yoyHelpOpen()) {
+						<div class="yoy-help mt-2">
+							<p class="mb-2">
+								Every season is measured at the <strong>same point in the calendar</strong> —
+								your end date, shifted back a whole year at a time. Ask on 8/31/2026 and the
+								2025 bars show where 2025 stood on <strong>8/31/2025</strong>, not what it
+								finished with. That is what makes a season still selling comparable to one
+								that has already run.
+							</p>
+							<p class="mb-2">
+								Because the cutoff travels with the date you ask, older seasons are not frozen.
+								Run this a month from now and last season's bars advance a month too.
+							</p>
+							<p class="mb-2">
+								<strong>Billed</strong> is what was charged, already net of discounts.
+								<strong>Collected</strong> is what came in, all methods, refunds netted out.
+								<strong>Owed</strong> is Billed less Collected at that cutoff — computed here,
+								not the balance as it stands today.
+							</p>
+							<p class="mb-0">
+								Events are grouped by name with the year removed, so <em>Fall Draw 2026</em> and
+								<em>Fall Draw 2025</em> land on one chart. The jobs behind each chart are listed
+								underneath — check them if a comparison looks wrong.
+							</p>
+						</div>
+					}
+				</div>
+			</div>
+
+			@if (yoyNeedsDateScope()) {
+				<div class="alert alert-warning">
+					<i class="bi bi-calendar-range me-2"></i>
+					Year-over-Year needs a date range. Every season is measured against the same calendar
+					point, and a specific-jobs scope carries no date to measure from — re-run with
+					<strong>All Jobs</strong> and a start and end date.
+				</div>
+			} @else if (yoyLoading()) {
+				<div class="text-center py-5">
+					<div class="spinner-border text-primary"></div>
+					<p class="mt-2 text-muted">Loading year-over-year review...</p>
+				</div>
+			} @else if (yoyGroups().length === 0) {
+				<div class="alert alert-secondary">
+					No events were live inside this date range, so there is nothing to compare. The range
+					picks the events (a job is live when its user expiry falls inside it); their prior
+					seasons are then pulled in regardless of age.
+				</div>
+			} @else {
+				@if (yoyAsOfDate(); as asOf) {
+					<p class="yoy-asof">
+						<i class="bi bi-pin-angle me-1"></i>
+						Newest season measured as of <strong>{{ asOf | date:'MMM d, y' }}</strong>; each earlier
+						season at the same date in its own year.
+					</p>
+				}
+
+				@if (yoyUngrouped().length > 0) {
+					<!-- A live job with no usable Jobs.year cannot be placed in a column OR grouped, so
+					     it is named rather than silently dropped — an absent event is the one failure a
+					     reader would never catch on their own. -->
+					<div class="alert alert-warning">
+						<i class="bi bi-exclamation-triangle me-2"></i>
+						These live events carry no usable year and are not on any chart:
+						<ul class="mb-0 mt-1">
+							@for (name of yoyUngrouped(); track name) {
+								<li>{{ name }}</li>
+							}
+						</ul>
+					</div>
+				}
+
+				<div class="yoy-stack">
+					@for (group of yoyGroups(); track group.label) {
+						<section class="yoy-card">
+							<header class="yoy-card__head">
+								<h3 class="yoy-card__title">{{ group.label }}</h3>
+								<span class="yoy-card__meta">
+									{{ group.points.length }} season{{ group.points.length === 1 ? '' : 's' }}
+									@if (group.needsScroll) {
+										<span class="yoy-card__scrollhint">
+											<i class="bi bi-arrow-left-right ms-2 me-1"></i>scroll for older
+										</span>
+									}
+								</span>
+							</header>
+
+							<ejs-chart
+								[primaryXAxis]="yoyXAxis(group)"
+								[primaryYAxis]="yoyYAxis()"
+								[zoomSettings]="yoyZoom(group)"
+								[tooltip]="yoyTooltip"
+								[legendSettings]="yoyLegend"
+								[chartArea]="yoyChartArea"
+								[margin]="yoyMargin"
+								[width]="'100%'"
+								[height]="'300'"
+								[background]="'transparent'"
+								(axisLabelRender)="onYoyAxisLabel($event)"
+								(tooltipRender)="onYoyTooltip($event)">
+								<e-series-collection>
+									<!-- Charges, then receipts, then what is still out. Ordered the way the
+									     money moves; Owed last because Billed − Collected = Owed does not
+									     hold bar-for-bar once discounts and corrections are in play. -->
+									<e-series
+										[dataSource]="group.points"
+										type="Column"
+										xName="year"
+										yName="billed"
+										name="Billed"
+										[fill]="yoyBilledColor()"
+										[columnWidth]="0.7"
+										[cornerRadius]="{ topLeft: 3, topRight: 3 }">
+									</e-series>
+									<e-series
+										[dataSource]="group.points"
+										type="Column"
+										xName="year"
+										yName="collected"
+										name="Collected"
+										[fill]="yoyCollectedColor()"
+										[columnWidth]="0.7"
+										[cornerRadius]="{ topLeft: 3, topRight: 3 }">
+									</e-series>
+									<e-series
+										[dataSource]="group.points"
+										type="Column"
+										xName="year"
+										yName="owed"
+										name="Owed"
+										[fill]="yoyOwedColor()"
+										[columnWidth]="0.7"
+										[cornerRadius]="{ topLeft: 3, topRight: 3 }">
+									</e-series>
+								</e-series-collection>
+							</ejs-chart>
+
+							<!-- The safety rail. Grouping on a name is a heuristic and its failure mode is a
+							     confident chart against the wrong baseline — a split into North/South, a stray
+							     apostrophe. Printing the jobs lets a director catch in one glance what no
+							     parser will. -->
+							<details class="yoy-jobs">
+								<summary>Events on this chart ({{ group.jobLines.length }})</summary>
+								<ul>
+									@for (line of group.jobLines; track line) {
+										<li>{{ line }}</li>
+									}
+								</ul>
+							</details>
+						</section>
+					}
+				</div>
+
+				@if (yoyHasActiveColumn()) {
+					<p class="yoy-footnote">
+						<strong>*</strong> Season still open at that cutoff — it has not finished taking
+						money yet, so it is expected to sit below a completed one.
+					</p>
+				}
+			}
+		}
+
 	}
 </div>

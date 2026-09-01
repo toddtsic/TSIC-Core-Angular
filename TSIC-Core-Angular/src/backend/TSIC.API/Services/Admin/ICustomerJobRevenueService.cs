@@ -22,6 +22,10 @@ public interface ICustomerJobRevenueService
         Guid jobId, DateTime? startDate, DateTime? endDate,
         List<string> jobNames, CancellationToken ct = default);
 
+    Task<YoyRevenueResponseDto> GetYoyRevenueAsync(
+        Guid jobId, DateTime startDate, DateTime endDate,
+        CancellationToken ct = default);
+
     Task UpdateMonthlyCountAsync(
         int aid, UpdateMonthlyCountRequest request, string userId,
         CancellationToken ct = default);

@@ -54,6 +54,22 @@ public interface ICustomerJobRevenueRepository
         CancellationToken ct = default);
 
     /// <summary>
+    /// Year-over-Year Review: for every event lineage the customer is running inside the
+    /// date range, that lineage's prior seasons measured at the SAME calendar point — the
+    /// end date shifted back whole years, so a season still selling is read against where
+    /// last season stood on that date rather than against what it finished with.
+    /// </summary>
+    /// <remarks>
+    /// Lineages are keyed on the job name minus its own <c>Jobs.year</c> token; every
+    /// figure is aggregated strictly per jobId and only then attributed to a (group, year)
+    /// cell, so name grouping can never disturb the arithmetic. Same money basis as
+    /// <see cref="GetTeamBillingAsync"/> — the client's own book, not TSIC settlement.
+    /// </remarks>
+    Task<YoyRevenueResponseDto> GetYoyRevenueAsync(
+        Guid jobId, DateTime startDate, DateTime endDate,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Updates a single MonthlyJobStats row (inline edit from the counts grid).
     /// </summary>
     Task UpdateMonthlyCountAsync(

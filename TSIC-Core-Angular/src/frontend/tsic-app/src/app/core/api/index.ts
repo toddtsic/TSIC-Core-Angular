@@ -927,3 +927,6 @@ export type { WidgetWorkspaceDto } from './models/WidgetWorkspaceDto';
 export type { YearDayPointDto } from './models/YearDayPointDto';
 export type { YearOverYearComparisonDto } from './models/YearOverYearComparisonDto';
 export type { YearSeriesDto } from './models/YearSeriesDto';
+export type { YoyEventGroupDto } from './models/YoyEventGroupDto';
+export type { YoyRevenueResponseDto } from './models/YoyRevenueResponseDto';
+export type { YoyYearColumnDto } from './models/YoyYearColumnDto';

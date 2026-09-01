@@ -179,6 +179,13 @@ public class CustomerJobRevenueService : ICustomerJobRevenueService
         return await _repo.GetTeamBillingAsync(jobId, startDate, endDate, jobNames, ct);
     }
 
+    public async Task<YoyRevenueResponseDto> GetYoyRevenueAsync(
+        Guid jobId, DateTime startDate, DateTime endDate,
+        CancellationToken ct = default)
+    {
+        return await _repo.GetYoyRevenueAsync(jobId, startDate, endDate, ct);
+    }
+
     public async Task UpdateMonthlyCountAsync(
         int aid, UpdateMonthlyCountRequest request, string userId,
         CancellationToken ct = default)

@@ -157,6 +157,45 @@ public class CustomerJobRevenueController : ControllerBase
     }
 
     /// <summary>
+    /// Year-over-Year Review: every event lineage live inside the date range, with its
+    /// prior seasons each measured at the SAME calendar point — the end date shifted back
+    /// whole years.
+    /// </summary>
+    /// <remarks>
+    /// Dates are REQUIRED and there is no job-name scope. The range selects which lineages
+    /// appear (a job is live when its <c>ExpiryUsers</c> falls inside it); the history each
+    /// lineage reaches back through is deliberately unbounded, because a prior season that
+    /// was collected well has no recent transactions and any activity-based filter would
+    /// drop exactly the seasons worth comparing against.
+    /// </remarks>
+    [HttpGet("yoy")]
+    public async Task<ActionResult<YoyRevenueResponseDto>> GetYoyRevenue(
+        [FromQuery] DateTime? startDate,
+        [FromQuery] DateTime? endDate,
+        CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+        {
+            return BadRequest(new { message = "Registration context required" });
+        }
+
+        if (startDate == null || endDate == null)
+        {
+            return BadRequest(new { message = "Year-over-Year requires a full date range." });
+        }
+        if (startDate > endDate)
+        {
+            return BadRequest(new { message = "startDate must be on or before endDate." });
+        }
+
+        var result = await _revenueService.GetYoyRevenueAsync(
+            jobId.Value, startDate.Value, endDate.Value, ct);
+
+        return Ok(result);
+    }
+
+    /// <summary>
     /// The scope guardrail born of two real overpayment incidents: an unscoped request
     /// (no jobs, no dates) silently aggregated x-job revenue. Reject it server-side.
     /// </summary>

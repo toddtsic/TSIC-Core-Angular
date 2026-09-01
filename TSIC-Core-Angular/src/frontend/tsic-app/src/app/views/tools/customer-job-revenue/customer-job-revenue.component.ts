@@ -22,6 +22,7 @@ import {
 	ExcelExportService
 } from '@syncfusion/ej2-angular-pivotview';
 import { MultiSelectAllModule } from '@syncfusion/ej2-angular-dropdowns';
+import { ChartAllModule } from '@syncfusion/ej2-angular-charts';
 import { AuthService } from '../../../infrastructure/services/auth.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { AdminNavPillComponent } from '@shared-ui/components/admin-nav-pill.component';
@@ -30,6 +31,7 @@ import type { JobPaymentRecordDto } from '@core/api';
 import type { UpdateMonthlyCountRequest } from '@core/api';
 import type { LegacyCompareResultDto } from '@core/api';
 import type { TeamBillingRecordDto } from '@core/api';
+import type { YoyRevenueResponseDto, YoyEventGroupDto } from '@core/api';
 
 interface MonthOption {
 	startDate: string;
@@ -58,6 +60,54 @@ type DetailKey = 'cc' | 'check' | 'echeck';
 const TEAM_BILLING_BASIS = 'what your teams and players owe you';
 
 /**
+ * What the Year-over-Year Review is, in one line, shown on screen.
+ *
+ * Same book as Teams/Players to Customer — the client's own receivable, not TSIC settlement —
+ * but read at a POINT rather than over a period. Each season is measured at the same calendar
+ * date, the end date shifted back whole years, so a season still selling is compared against
+ * where the prior one stood on that date rather than against what it finished with.
+ */
+const YOY_BASIS = 'how each event is doing versus the same point in prior seasons';
+
+/**
+ * Seasons visible before the chart starts scrolling. Four clusters of three bars read
+ * comfortably at any card width; past that the bars thin faster than the extra history earns
+ * its place, so the rest goes behind the scrollbar rather than off the design.
+ */
+const YOY_VISIBLE_YEARS = 4;
+
+/** One season of one lineage, shaped for the chart. */
+interface YoyChartPoint {
+	/** Axis label — carries the in-flight asterisk, which is why it is a string. */
+	year: string;
+	rawYear: number;
+	billed: number;
+	collected: number;
+	owed: number;
+	discounts: number;
+	corrections: number;
+	refunds: number;
+	asOf: string;
+	active: boolean;
+	jobNames: string[];
+}
+
+/** One event lineage and its seasons — one chart. */
+interface YoyChartGroup {
+	label: string;
+	anchorYear: number;
+	points: YoyChartPoint[];
+	needsScroll: boolean;
+	zoomFactor: number;
+	jobLines: string[];
+}
+
+/** Read a CSS custom property off :root so chart fills follow the live palette. */
+function cssVar(name: string, fallback: string): string {
+	return getComputedStyle(document.documentElement).getPropertyValue(name)?.trim() || fallback;
+}
+
+/**
  * The scope the currently-displayed data was fetched with. Rendered as the audit-stamp
  * banner and embedded in every export header — a revenue figure never travels without
  * a statement of what it covers. (Born of two real overpayment incidents where silently
@@ -74,7 +124,7 @@ interface SubmittedScope {
 @Component({
 	selector: 'app-customer-job-revenue',
 	standalone: true,
-	imports: [CommonModule, FormsModule, GridAllModule, PivotViewAllModule, MultiSelectAllModule, AdminNavPillComponent],
+	imports: [CommonModule, FormsModule, GridAllModule, PivotViewAllModule, MultiSelectAllModule, ChartAllModule, AdminNavPillComponent],
 	// The export services are NOT bundled by the *AllModules (pivot or grid) — without
 	// them pdfExport()/excelExport() are silent no-ops.
 	providers: [
@@ -110,7 +160,7 @@ export class CustomerJobRevenueComponent {
 	// UI state
 	isLoading = signal(false);
 	errorMessage = signal('');
-	activeTab = signal<'rollup' | 'counts' | 'adminFees' | 'ccRecords' | 'checkRecords' | 'echeckRecords' | 'teamBilling'>('rollup');
+	activeTab = signal<'rollup' | 'counts' | 'adminFees' | 'ccRecords' | 'checkRecords' | 'echeckRecords' | 'teamBilling' | 'yoy'>('rollup');
 
 	// Guided scope flow — lands on All jobs · date range (pickers preset to last month);
 	// nothing runs until the user clicks Run Report.
@@ -370,6 +420,7 @@ export class CustomerJobRevenueComponent {
 		this.checkDetail.set(null);
 		this.echeckDetail.set(null);
 		this.teamBilling.set(null);
+		this.yoy.set(null);
 		this.qaResult.set(null);
 		this.errorMessage.set('');
 		this.activeTab.set('rollup');
@@ -426,6 +477,7 @@ export class CustomerJobRevenueComponent {
 				this.checkDetail.set(null);
 				this.echeckDetail.set(null);
 				this.teamBilling.set(null);
+				this.yoy.set(null);
 				this.qaResult.set(null);
 				this.rowHeaderWidth = this.measureRowHeaderWidth(data.revenueRecords);
 				this.pivotDataSource.set({
@@ -467,6 +519,9 @@ export class CustomerJobRevenueComponent {
 		if (tab === 'teamBilling') {
 			this.fetchTeamBillingIfNeeded();
 		}
+		if (tab === 'yoy') {
+			this.fetchYoyIfNeeded();
+		}
 	}
 
 	private fetchTeamBillingIfNeeded(): void {
@@ -489,6 +544,178 @@ export class CustomerJobRevenueComponent {
 				this.errorMessage.set(err.error?.message || 'Failed to load team billing');
 			}
 		});
+	}
+
+	// ===================================================================
+	// YEAR-OVER-YEAR REVIEW
+	//
+	// One chart per event lineage, years oldest to newest, three bars a year.
+	// Every column is measured at the SAME calendar point — the end date shifted back whole
+	// years — so a season still selling is read against where last season stood on that date,
+	// not against what it finished with.
+	// ===================================================================
+
+	private readonly yoy = signal<YoyRevenueResponseDto | null>(null);
+	yoyLoading = signal(false);
+	readonly yoyBasis = YOY_BASIS;
+
+	yoyHelpOpen = signal(false);
+	toggleYoyHelp(): void {
+		this.yoyHelpOpen.update(open => !open);
+	}
+
+	/**
+	 * Series colours, read once from the live palette. Semantic rather than decorative:
+	 * charges, money in, money still out. Never rely on the colour alone — the legend names
+	 * every series and the axis marks in-flight seasons in text.
+	 */
+	readonly yoyBilledColor = signal(cssVar('--bs-primary', '#0ea5e9'));
+	readonly yoyCollectedColor = signal(cssVar('--brand-success', '#22c55e'));
+	readonly yoyOwedColor = signal(cssVar('--brand-danger', '#ef4444'));
+	private readonly yoyMuted = signal(cssVar('--brand-text-muted', '#78716c'));
+	private readonly yoyBorder = signal(cssVar('--brand-border', '#e7e5e4'));
+
+	readonly yoyAsOfDate = computed(() => this.yoy()?.asOfDate ?? null);
+	readonly yoyUngrouped = computed(() => this.yoy()?.ungroupedJobNames ?? []);
+	readonly yoyGroups = computed<YoyChartGroup[]>(() =>
+		(this.yoy()?.groups ?? []).map(g => this.toChartGroup(g)));
+
+	/**
+	 * YoY needs dates: the whole report is an as-of pin shifted back whole years, and a
+	 * job-name scope carries no date to pin to. Rather than fail silently, the tab says so.
+	 */
+	readonly yoyNeedsDateScope = computed(() => this.submittedScope()?.mode === 'jobs');
+
+	/** Any season still open at its own cutoff — drives whether the footnote is worth printing. */
+	readonly yoyHasActiveColumn = computed(() =>
+		this.yoyGroups().some(g => g.points.some(p => p.active)));
+
+	private toChartGroup(g: YoyEventGroupDto): YoyChartGroup {
+		const points: YoyChartPoint[] = g.years.map(y => ({
+			// The asterisk is the in-flight marker, and it is TEXT on purpose — a season that
+			// has not finished must not be distinguished by colour alone.
+			year: y.isActive ? `${y.year}*` : `${y.year}`,
+			rawYear: y.year,
+			billed: y.billed,
+			collected: y.collected,
+			owed: y.owed,
+			discounts: y.discounts,
+			corrections: y.corrections,
+			refunds: y.refunds,
+			asOf: y.asOf,
+			active: y.isActive,
+			jobNames: y.jobNames
+		}));
+
+		// Deeper history than this stays reachable by scrolling rather than being cut off.
+		const visible = Math.min(YOY_VISIBLE_YEARS, points.length);
+		const needsScroll = points.length > YOY_VISIBLE_YEARS;
+
+		return {
+			label: g.groupLabel,
+			anchorYear: g.anchorYear,
+			points,
+			needsScroll,
+			// Opens on the most recent seasons; the scrollbar reaches back for the rest.
+			zoomFactor: needsScroll ? visible / points.length : 1,
+			// The composing jobs, printed under every chart. Name grouping is a heuristic and
+			// its failure mode is a confident chart against a wrong baseline — a reader spots
+			// a bad pairing instantly where no parser will.
+			jobLines: g.years.flatMap(y => y.jobNames.map(n => `${y.year} — ${n}`))
+		};
+	}
+
+	private fetchYoyIfNeeded(): void {
+		const scope = this.submittedScope();
+		if (!scope || scope.mode === 'jobs' || this.yoy() !== null || this.yoyLoading()) {
+			return;
+		}
+		this.yoyLoading.set(true);
+		const params = new HttpParams()
+			.set('startDate', scope.startDate!)
+			.set('endDate', scope.endDate!);
+		this.http.get<YoyRevenueResponseDto>(`${this.apiUrl}/yoy`, { params }).subscribe({
+			next: (data) => {
+				this.yoy.set(data);
+				this.yoyLoading.set(false);
+			},
+			error: (err) => {
+				this.yoyLoading.set(false);
+				this.errorMessage.set(err.error?.message || 'Failed to load year-over-year review');
+			}
+		});
+	}
+
+	/** Category axis — the seasons. */
+	yoyXAxis(group: YoyChartGroup): object {
+		return {
+			valueType: 'Category',
+			majorGridLines: { width: 0 },
+			majorTickLines: { width: 0 },
+			lineStyle: { width: 0.5, color: this.yoyBorder() },
+			labelStyle: { color: this.yoyMuted(), size: '12px' },
+			// Present only when there is more history than fits; a full view must not open
+			// zoomed, or the newest season looks like the only one.
+			...(group.needsScroll ? { zoomFactor: group.zoomFactor, zoomPosition: 1 } : {})
+		};
+	}
+
+	/** Value axis — dollars, abbreviated by onYoyAxisLabel. */
+	yoyYAxis(): object {
+		return {
+			majorGridLines: { width: 0.5, color: this.yoyBorder() },
+			majorTickLines: { width: 0 },
+			lineStyle: { width: 0 },
+			labelStyle: { color: this.yoyMuted(), size: '11px' }
+		};
+	}
+
+	/**
+	 * Pan-only. Mouse-wheel zooming is OFF deliberately: this tab is a vertical stack of
+	 * charts, and a wheel handler on each one would hijack page scrolling. Selection zooming
+	 * and the toolbar are off for the same reason — the scrollbar is the whole interaction.
+	 */
+	yoyZoom(group: YoyChartGroup): object {
+		return {
+			enableScrollbar: group.needsScroll,
+			enablePan: group.needsScroll,
+			mode: 'X',
+			enableMouseWheelZooming: false,
+			enableSelectionZooming: false,
+			enablePinchZooming: false,
+			enableDeferredZooming: false,
+			toolbarItems: []
+		};
+	}
+
+	readonly yoyLegend = { visible: true, position: 'Top' as const, alignment: 'Far' as const, padding: 8 };
+	readonly yoyTooltip = { enable: true, shared: true };
+	readonly yoyChartArea = { border: { width: 0 } };
+	readonly yoyMargin = { left: 8, right: 16, top: 4, bottom: 4 };
+
+	/** Dollars on the value axis, abbreviated so six-figure labels do not crowd the plot. */
+	onYoyAxisLabel(args: { axis?: { orientation?: string }; value?: number; text?: string }): void {
+		if (args.axis?.orientation !== 'Vertical' || args.value == null) {
+			return;
+		}
+		const v = args.value;
+		const abs = Math.abs(v);
+		const sign = v < 0 ? '-' : '';
+		args.text =
+			abs >= 1_000_000 ? `${sign}$${(abs / 1_000_000).toFixed(1)}M`
+			: abs >= 1_000 ? `${sign}$${Math.round(abs / 1_000)}K`
+			: `${sign}$${abs}`;
+	}
+
+	/** Full dollars in the tooltip — the axis is abbreviated, the readout must not be. */
+	onYoyTooltip(args: { text?: string; point?: { y?: number }; series?: { name?: string } }): void {
+		if (args.point?.y == null) {
+			return;
+		}
+		const amount = args.point.y.toLocaleString('en-US', {
+			style: 'currency', currency: 'USD', minimumFractionDigits: 2
+		});
+		args.text = `${args.series?.name ?? ''}: ${amount}`;
 	}
 
 	/** Accent Credit Card Credit rows so they jump out when scanning the CC grid. */

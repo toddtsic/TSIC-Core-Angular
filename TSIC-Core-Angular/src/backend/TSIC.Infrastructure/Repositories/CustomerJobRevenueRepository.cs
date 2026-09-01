@@ -1,4 +1,6 @@
 using System.Data;
+using System.Globalization;
+using System.Text;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos.CustomerJobRevenue;
@@ -943,6 +945,421 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             .ThenBy(r => r.ClubName, StringComparer.Ordinal)
             .ThenBy(r => r.TeamLabel, StringComparer.Ordinal)
             .ToList();
+    }
+
+    // =====================================================================
+    // YEAR-OVER-YEAR REVIEW — same basis as Teams/Players to Customer
+    //
+    // The question this answers is "how are we doing versus the same point last year", and
+    // every design choice below follows from the words SAME POINT.
+    //
+    // THE AS-OF PIN. Each year column aggregates from the beginning of its jobs' history to a
+    // cutoff, and that cutoff is the date asked shifted back a whole number of years. Ask on
+    // 8/31/2026 with a 2026 anchor and the 2025 column is measured at 8/31/2025 — deliberately
+    // NOT at what 2025 finished with. Comparing a season still selling against a prior season's
+    // FINAL figure manufactures a collapse that is only the calendar not having caught up.
+    //
+    // The pin travels with the date asked, so historical columns are not frozen: run the report
+    // a month later and last season's column advances a month too, converging on its final
+    // number about a year after the money stopped moving.
+    //
+    // SCOPE (Todd, 2026-09-01). Active jobs are those still LIVE when the range opens —
+    // ExpiryUsers at or after the start date, with no upper bound. Their group keys then reach
+    // into the ENTIRE customer history with no date bound at all. That unboundedness is
+    // deliberate: a prior season that was collected well has no recent transactions, so any
+    // activity-based inclusion test drops exactly the seasons worth comparing against and
+    // keeps the ones that never got paid.
+    //
+    // GROUPING IS BY NAME, ARITHMETIC IS BY jobId (Todd, 2026-09-01). Money is aggregated
+    // strictly per jobId and only then attributed to a (group, year) cell, so name handling can
+    // never disturb a figure. A cell may legitimately hold more than one job — a season that
+    // split into North and South — and because the jobs stay separable the composing names ride
+    // out to the client on every column. That is the safety rail: name grouping is a heuristic
+    // whose failure mode is a confident chart against a wrong baseline, and a reader spots a bad
+    // pairing instantly where no parser will.
+    //
+    // NO TEAM GRAIN. The Teams/Players tab computes Owed per team and sums; summation is linear,
+    // so at job level Owed is simply Billed less Collected over the same populations. The team
+    // join is still made — it is what enforces the routing rules and the active-team filter, so
+    // both reports read exactly the same population.
+    // =====================================================================
+    public async Task<YoyRevenueResponseDto> GetYoyRevenueAsync(
+        Guid jobId, DateTime startDate, DateTime endDate, CancellationToken ct = default)
+    {
+        // Chart readability, not a data bound. Deeper history stays reachable by scrolling.
+        const int MaxYearColumns = 6;
+
+        var customerIds = await GetCustomerGroupIdsAsync(jobId, ct);
+        var asOf = endDate.Date;
+        var activeFrom = startDate.Date;
+        // A job is LIVE when its registration window has not closed by the time the range
+        // opens. NOT "expiry falls inside the range": an expiry is a deadline, so it lands in
+        // any given month only by coincidence — on Top Threat an 8/1-8/31/2026 window caught 0
+        // of 18 live jobs, because Fall Draw 2026 expires 11/30/2026. There is deliberately no
+        // upper bound: a season selling now that closes in 2027 is exactly what the director
+        // wants paced against its prior years.
+
+        // Whole customer group — 125 rows on Top Threat, and the historic side needs all of it.
+        var allJobs = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => customerIds.Contains(j.CustomerId) && j.JobName != null)
+            .Select(j => new { j.JobId, JobName = j.JobName!, j.Year, j.ExpiryUsers })
+            .ToListAsync(ct);
+
+        // Jobs.year is varchar — parsed in memory, same as GetAvailableJobNamesAsync does.
+        var jobs = new List<YoyJobRef>();
+        var ungrouped = new List<string>();
+        foreach (var j in allJobs)
+        {
+            var year = ParseJobYear(j.Year);
+            if (year == null)
+            {
+                // Only worth reporting if it would otherwise have been on the chart. A dead
+                // 2014 job with a blank year is noise; a LIVE job that cannot be placed is a
+                // hole in the report the reader would never catch unaided.
+                if (j.ExpiryUsers >= activeFrom)
+                {
+                    ungrouped.Add(j.JobName);
+                }
+                continue;
+            }
+            jobs.Add(new YoyJobRef(
+                j.JobId, j.JobName, j.ExpiryUsers, year.Value,
+                BuildGroupKey(j.JobName, year.Value)));
+        }
+
+        // --- The active set picks which lineages appear at all; its newest season anchors the
+        //     pin. Max rather than first: a customer can have two seasons open at once. ---
+        var anchorByKey = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var labelByKey = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var a in jobs)
+        {
+            if (a.ExpiryUsers < activeFrom)
+            {
+                continue;
+            }
+            if (!anchorByKey.TryGetValue(a.GroupKey, out var cur) || a.Year > cur)
+            {
+                anchorByKey[a.GroupKey] = a.Year;
+                // Label follows the newest live season, so casing and spacing match the job
+                // the director is actually running right now.
+                labelByKey[a.GroupKey] = a.GroupKey;
+            }
+        }
+
+        if (anchorByKey.Count == 0)
+        {
+            return new YoyRevenueResponseDto
+            {
+                AsOfDate = asOf,
+                Groups = [],
+                UngroupedJobNames = ungrouped
+            };
+        }
+
+        // --- Every job in a live lineage, no date bound. Seasons NEWER than the anchor are
+        //     dropped: shifting the pin forward would read a future season against a cutoff it
+        //     has not reached, which is not a comparison. ---
+        var membersByKey = new Dictionary<string, List<YoyJobRef>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var j in jobs)
+        {
+            if (!anchorByKey.TryGetValue(j.GroupKey, out var anchor) || j.Year > anchor)
+            {
+                continue;
+            }
+            if (!membersByKey.TryGetValue(j.GroupKey, out var list))
+            {
+                list = [];
+                membersByKey[j.GroupKey] = list;
+            }
+            list.Add(j);
+        }
+
+        // --- Resolve every (group, year) cell to its cutoff, and every job to the cell it
+        //     belongs to. One job, one cell, one cutoff. ---
+        var cellJobs = new Dictionary<(string Key, int Year), List<YoyJobRef>>();
+        var pinByCell = new Dictionary<(string Key, int Year), DateTime>();
+        var pinExByJob = new Dictionary<Guid, DateTime>();
+
+        foreach (var (key, members) in membersByKey)
+        {
+            var anchor = anchorByKey[key];
+            var years = members
+                .Select(m => m.Year)
+                .Distinct()
+                .OrderByDescending(y => y)
+                .Take(MaxYearColumns)
+                .ToHashSet();
+
+            foreach (var m in members)
+            {
+                if (!years.Contains(m.Year))
+                {
+                    continue;
+                }
+                var cell = (key, m.Year);
+                if (!cellJobs.TryGetValue(cell, out var list))
+                {
+                    list = [];
+                    cellJobs[cell] = list;
+                    // AddYears is calendar-safe — a Feb 29 ask lands on Feb 28 in a common year.
+                    pinByCell[cell] = asOf.AddYears(m.Year - anchor);
+                }
+                list.Add(m);
+                pinExByJob[m.JobId] = pinByCell[cell].AddDays(1);
+            }
+        }
+
+        // --- Aggregate. Batched by distinct cutoff so each query carries ONE date comparison:
+        //     jobs of the same season share a pin, so this is a handful of batches, not one
+        //     pass per job. Sequential awaits throughout — shared scoped DbContext. ---
+        var billedByJob = new Dictionary<Guid, decimal>();
+        var discountsByJob = new Dictionary<Guid, decimal>();
+        var collectedByJob = new Dictionary<Guid, decimal>();
+        var correctionsByJob = new Dictionary<Guid, decimal>();
+        var refundsByJob = new Dictionary<Guid, decimal>();
+
+        foreach (var batch in pinExByJob.GroupBy(kv => kv.Value))
+        {
+            var pinEx = batch.Key;
+            var batchIds = batch.Select(kv => kv.Key).ToList();
+
+            // Team fees — the club-rep route, dated at teams.createdate.
+            var teamCharges = await (
+                from t in _context.Teams
+                where batchIds.Contains(t.JobId)
+                    && t.Active == true
+                    && t.Createdate < pinEx
+                group new { t.FeeTotal, t.FeeDiscount } by t.JobId into g
+                select new
+                {
+                    JobId = g.Key,
+                    Billed = g.Sum(x => x.FeeTotal),
+                    Discount = g.Sum(x => x.FeeDiscount)
+                })
+                .AsNoTracking()
+                .ToListAsync(ct);
+
+            foreach (var c in teamCharges)
+            {
+                billedByJob[c.JobId] = billedByJob.GetValueOrDefault(c.JobId) + (c.Billed ?? 0m);
+                discountsByJob[c.JobId] = discountsByJob.GetValueOrDefault(c.JobId) + (c.Discount ?? 0m);
+            }
+
+            // Player fees — the assigned-team route, dated at the registration. The
+            // `|| FeeDiscount != 0` half of the guard is load-bearing: a fully comped
+            // registration is charged to zero, and a fee-only guard drops 4,022 registrations
+            // carrying $3,396,848.43 of routed discount money. Self-rostering still falls out.
+            var playerCharges = await (
+                from r in _context.Registrations
+                join t in _context.Teams on r.AssignedTeamId equals t.TeamId
+                where batchIds.Contains(t.JobId)
+                    && t.Active == true
+                    && (r.FeeTotal != 0m || r.FeeDiscount != 0m)
+                    && r.RegistrationTs < pinEx
+                group new { r.FeeTotal, r.FeeDiscount } by t.JobId into g
+                select new
+                {
+                    JobId = g.Key,
+                    Billed = g.Sum(x => x.FeeTotal),
+                    Discount = g.Sum(x => x.FeeDiscount)
+                })
+                .AsNoTracking()
+                .ToListAsync(ct);
+
+            foreach (var c in playerCharges)
+            {
+                billedByJob[c.JobId] = billedByJob.GetValueOrDefault(c.JobId) + c.Billed;
+                discountsByJob[c.JobId] = discountsByJob.GetValueOrDefault(c.JobId) + c.Discount;
+            }
+
+            // Receipts. No payment-method filter — summing every active row is what reproduces
+            // the stored paid_total to the cent. Corrections and Refunds are broken out as
+            // SUBSETS of Collected, never added to it.
+            var payments = await (
+                from ra in _context.RegistrationAccounting
+                join apm in _context.AccountingPaymentMethods on ra.PaymentMethodId equals apm.PaymentMethodId
+                join r in _context.Registrations on ra.RegistrationId equals r.RegistrationId
+                join t in _context.Teams on (ra.TeamId ?? r.AssignedTeamId) equals t.TeamId
+                where batchIds.Contains(t.JobId)
+                    && t.Active == true
+                    && ra.Active == true
+                    && ra.Createdate != null
+                    && ra.Createdate < pinEx
+                group new
+                {
+                    ra.Payamt,
+                    IsCorrection = apm.PaymentMethod == "Online Correction By Client"
+                                || apm.PaymentMethod == "Online Correction By TSIC",
+                    IsRefund = apm.PaymentMethod == "Credit Card Credit"
+                } by t.JobId into g
+                select new
+                {
+                    JobId = g.Key,
+                    Collected = g.Sum(x => x.Payamt ?? 0m),
+                    Corrections = g.Sum(x => x.IsCorrection ? (x.Payamt ?? 0m) : 0m),
+                    Refunds = g.Sum(x => x.IsRefund ? (x.Payamt ?? 0m) : 0m)
+                })
+                .AsNoTracking()
+                .ToListAsync(ct);
+
+            foreach (var p in payments)
+            {
+                collectedByJob[p.JobId] = collectedByJob.GetValueOrDefault(p.JobId) + p.Collected;
+                correctionsByJob[p.JobId] = correctionsByJob.GetValueOrDefault(p.JobId) + p.Corrections;
+                refundsByJob[p.JobId] = refundsByJob.GetValueOrDefault(p.JobId) + p.Refunds;
+            }
+        }
+
+        // --- Assemble. Per-job figures are attributed to their cell here and nowhere earlier. ---
+        var groups = new List<YoyEventGroupDto>();
+
+        foreach (var (key, _) in membersByKey)
+        {
+            var anchor = anchorByKey[key];
+            var columns = new List<YoyYearColumnDto>();
+
+            foreach (var cell in cellJobs)
+            {
+                if (!string.Equals(cell.Key.Key, key, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var pin = pinByCell[cell.Key];
+                var pinEx = pin.AddDays(1);
+                decimal billed = 0m, discounts = 0m, collected = 0m, corrections = 0m, refunds = 0m;
+
+                foreach (var m in cell.Value)
+                {
+                    billed += billedByJob.GetValueOrDefault(m.JobId);
+                    discounts += discountsByJob.GetValueOrDefault(m.JobId);
+                    collected += collectedByJob.GetValueOrDefault(m.JobId);
+                    corrections += correctionsByJob.GetValueOrDefault(m.JobId);
+                    refunds += refundsByJob.GetValueOrDefault(m.JobId);
+                }
+
+                columns.Add(new YoyYearColumnDto
+                {
+                    Year = cell.Key.Year,
+                    AsOf = pin,
+                    // Still selling AT ITS OWN CUTOFF — so a concluded 2024 is not marked
+                    // in-flight merely because today is later than its pin.
+                    IsActive = cell.Value.Exists(m => m.ExpiryUsers >= pinEx),
+                    JobNames = cell.Value
+                        .Select(m => m.JobName)
+                        .OrderBy(n => n, StringComparer.Ordinal)
+                        .ToList(),
+                    Billed = Math.Round(billed, 2, MidpointRounding.AwayFromZero),
+                    Discounts = Math.Round(discounts, 2, MidpointRounding.AwayFromZero),
+                    Collected = Math.Round(collected, 2, MidpointRounding.AwayFromZero),
+                    Corrections = Math.Round(corrections, 2, MidpointRounding.AwayFromZero),
+                    Refunds = Math.Round(refunds, 2, MidpointRounding.AwayFromZero),
+                    // Computed, never read from teams.owed_total — that column is the balance
+                    // right now and would contradict a column measured in the past.
+                    Owed = Math.Round(billed - collected, 2, MidpointRounding.AwayFromZero)
+                });
+            }
+
+            if (columns.Count == 0)
+            {
+                continue;
+            }
+
+            groups.Add(new YoyEventGroupDto
+            {
+                GroupLabel = labelByKey.GetValueOrDefault(key, key),
+                AnchorYear = anchor,
+                Years = columns.OrderBy(c => c.Year).ToList()
+            });
+        }
+
+        return new YoyRevenueResponseDto
+        {
+            AsOfDate = asOf,
+            Groups = groups.OrderBy(g => g.GroupLabel, StringComparer.Ordinal).ToList(),
+            UngroupedJobNames = ungrouped.Distinct().OrderBy(n => n, StringComparer.Ordinal).ToList()
+        };
+    }
+
+    /// <summary>One job's identity for YoY placement. Money never travels on this record.</summary>
+    private sealed record YoyJobRef(
+        Guid JobId, string JobName, DateTime ExpiryUsers, int Year, string GroupKey);
+
+    /// <summary>
+    /// <c>Jobs.year</c> is varchar and not validated on write. Anything that is not a plausible
+    /// 4-digit season is refused rather than coerced — a job that cannot be placed in a column
+    /// is reported to the reader, not guessed at.
+    /// </summary>
+    private static int? ParseJobYear(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+        var s = raw.Trim();
+        if (s.Length != 4 || !int.TryParse(s, NumberStyles.None, CultureInfo.InvariantCulture, out var year))
+        {
+            return null;
+        }
+        return year is >= 1990 and <= 2100 ? year : null;
+    }
+
+    /// <summary>
+    /// The event lineage key: the job name with its own <c>Jobs.year</c> token removed, so
+    /// "Top Threat Tournaments:Fall Draw 2026" and "…Fall Draw 2025" collapse to one group.
+    /// </summary>
+    /// <remarks>
+    /// Only the job's OWN year is removed, and only where it stands alone — never a bare
+    /// 4-digit match, which would maul a name like "Class of 2026 Showcase 2027" or an event
+    /// numbered "1996". The customer prefix is left intact, which is what keeps a group key
+    /// from ever reaching across customers.
+    /// </remarks>
+    private static string BuildGroupKey(string jobName, int year)
+    {
+        var token = year.ToString(CultureInfo.InvariantCulture);
+        var stripped = new StringBuilder(jobName.Length);
+
+        var i = 0;
+        while (i < jobName.Length)
+        {
+            var isStandaloneToken =
+                i + token.Length <= jobName.Length
+                && string.CompareOrdinal(jobName, i, token, 0, token.Length) == 0
+                && (i == 0 || !char.IsDigit(jobName[i - 1]))
+                && (i + token.Length == jobName.Length || !char.IsDigit(jobName[i + token.Length]));
+
+            if (isStandaloneToken)
+            {
+                i += token.Length;
+                continue;
+            }
+            stripped.Append(jobName[i]);
+            i++;
+        }
+
+        // Collapse the whitespace the removal left behind, so "Fall  Draw" cannot fork a group.
+        var collapsed = new StringBuilder(stripped.Length);
+        var lastWasSpace = false;
+        foreach (var ch in stripped.ToString())
+        {
+            if (char.IsWhiteSpace(ch))
+            {
+                if (!lastWasSpace)
+                {
+                    collapsed.Append(' ');
+                    lastWasSpace = true;
+                }
+                continue;
+            }
+            collapsed.Append(ch);
+            lastWasSpace = false;
+        }
+
+        var key = collapsed.ToString().Trim(' ', '-', '–', '—', ',', ':', '/');
+        // A name that was NOTHING but its year leaves nothing to group on — keep the original
+        // rather than emit an empty key that would swallow every other such job.
+        return key.Length == 0 ? jobName.Trim() : key;
     }
 
     public async Task UpdateMonthlyCountAsync(

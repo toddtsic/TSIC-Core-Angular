@@ -295,3 +295,107 @@
 	display: block;
 	margin-top: var(--space-2);
 }
+
+/* ===================== Year-over-Year Review ===================== */
+
+.yoy-basis {
+	.yoy-help p {
+		font-size: 0.875rem;
+		line-height: 1.5;
+	}
+}
+
+.yoy-asof {
+	color: var(--brand-text-muted);
+	font-size: 0.875rem;
+	margin-bottom: var(--space-3);
+}
+
+/* One chart per event lineage, stacked. The page scrolls vertically through the lineages;
+   a chart with more seasons than fit scrolls horizontally INSIDE itself, via the ej2
+   scrollbar, so the page body never gains a horizontal scrollbar. */
+.yoy-stack {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-5);
+}
+
+.yoy-card {
+	background: var(--brand-surface);
+	border: 1px solid var(--brand-border);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-sm);
+	padding: var(--space-4);
+	/* Belt and braces against a wide chart: the ej2 scrollbar is the intended mechanism,
+	   but nothing inside a card may push the page sideways. */
+	overflow-x: auto;
+}
+
+.yoy-card__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-3);
+	margin-bottom: var(--space-2);
+	flex-wrap: wrap;
+}
+
+.yoy-card__title {
+	font-size: 1rem;
+	font-weight: 600;
+	color: var(--brand-text);
+	margin: 0;
+}
+
+.yoy-card__meta {
+	font-size: 0.8125rem;
+	color: var(--brand-text-muted);
+	white-space: nowrap;
+}
+
+.yoy-card__scrollhint {
+	color: var(--brand-text-muted);
+}
+
+/* The composing jobs — the check on a name-grouping mispair. Collapsed by default so it
+   informs without competing with the chart. */
+.yoy-jobs {
+	margin-top: var(--space-2);
+	font-size: 0.8125rem;
+
+	summary {
+		color: var(--brand-text-muted);
+		cursor: pointer;
+		padding: var(--space-1) 0;
+	}
+
+	summary:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+		border-radius: var(--radius-sm);
+	}
+
+	ul {
+		margin: var(--space-2) 0 0;
+		padding-left: var(--space-5);
+		color: var(--brand-text-muted);
+	}
+
+	li {
+		padding: 0.125rem 0;
+	}
+}
+
+.yoy-footnote {
+	color: var(--brand-text-muted);
+	font-size: 0.8125rem;
+	margin-top: var(--space-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.yoy-card,
+	.yoy-jobs summary {
+		transition: none !important;
+		animation: none !important;
+	}
+}
