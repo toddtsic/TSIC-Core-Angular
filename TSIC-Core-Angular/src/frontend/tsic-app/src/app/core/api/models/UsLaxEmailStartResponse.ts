@@ -8,5 +8,8 @@ export type UsLaxEmailStartResponse = {
     missingEmail: number;
     skippedHealthy: number;
     skippedNames: Array<string>;
+    unverifiable: number;
+    unverifiableNames: Array<string>;
+    noCutoffConfigured: boolean;
 };
 

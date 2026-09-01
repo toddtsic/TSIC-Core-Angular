@@ -8,6 +8,7 @@ using TSIC.Contracts.Dtos.UsLax;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Constants;
+using TSIC.Domain.Entities;
 using TSIC.Domain.UsLax;
 
 namespace TSIC.API.Services.Admin;
@@ -233,23 +234,70 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
             .GroupBy(f => f.FamilyUserId)
             .ToDictionary(g => g.Key, g => g.First());
 
-        // Up-front partition, so the skip rollup is known immediately and returned in the start
-        // response. Address resolution is pure dictionary work against the maps loaded above:
-        //   healthy   → NeedsAction == false (never false-alarm a valid member, even if force-selected)
-        //   no-email  → no sendable address resolved (also covers an id that no longer exists)
-        //   actionable→ everything else, becomes the background batch
+        // Who actually needs the email is decided by UsLaxEligibilityPolicy — the SAME rule the
+        // registration form runs — against data we fetch ourselves. It previously ran a second,
+        // weaker copy of that rule over the browser's snapshot, which checked only status and expiry.
+        // That copy called an identity mismatch "healthy" and silently skipped exactly the families
+        // the front door is blocking, while nagging the test-number and team-bypass exemptions.
+        //
+        // The candidate rows carry the director's cutoff, the team bypass, and the registrant's real
+        // lastname/DOB; the ping supplies the vendor half. Both roles are loaded because the request
+        // does not carry an audience — each registration's own RoleId decides which rule it gets.
+        // Sequential awaits, never Task.WhenAll: these share the scoped DbContext.
+        var candidates = (await _registrations.GetUsLaxReconciliationCandidatesAsync(jobId, UsLaxMembershipRole.Player, ct))
+            .Concat(await _registrations.GetUsLaxReconciliationCandidatesAsync(jobId, UsLaxMembershipRole.Coach, ct))
+            .GroupBy(c => c.RegistrationId)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        var pingIds = request.Recipients
+            .Select(r => candidates.TryGetValue(r.RegistrationId, out var c) ? c.SportAssnId : null)
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s!)
+            .Distinct()
+            .ToList();
+
+        IReadOnlyDictionary<string, UsLaxMemberPingResult> pingByMember;
+        try
+        {
+            pingByMember = await _usLax.GetMembersAsync(pingIds, ct);
+        }
+        catch (Exception ex)
+        {
+            // Every recipient then lands in the unverifiable bucket below and NOBODY is emailed,
+            // which is the point: an outage on our side must not tell a whole event their
+            // memberships are broken.
+            _logger.LogWarning(ex, "USLax batch ping threw while composing the email audience for job {JobId}.", jobId);
+            pingByMember = new Dictionary<string, UsLaxMemberPingResult>();
+        }
+
+        // Up-front partition, so the rollup is known immediately and returned in the start response:
+        //   healthy      → the policy passes them; never false-alarm a valid member
+        //   unverifiable → the failure is OURS (vendor unreachable / no cutoff set), so stay quiet
+        //   no-email     → no sendable address resolved (also covers an id that no longer exists)
+        //   actionable   → everything else, becomes the background batch
         var skippedNames = new List<string>();
+        var unverifiableNames = new List<string>();
         var missingEmail = 0;
+        var noCutoffConfigured = false;
         var actionable = new List<UsLaxSendItem>();
         foreach (var r in request.Recipients)
         {
-            if (!NeedsAction(r, jobValidThrough))
+            regById.TryGetValue(r.RegistrationId, out var reg);
+            candidates.TryGetValue(r.RegistrationId, out var candidate);
+            var ping = candidate is not null && pingByMember.TryGetValue(candidate.SportAssnId, out var p) ? p : null;
+
+            var disposition = Decide(reg, candidate, ping, jobValidThrough, ref noCutoffConfigured);
+            if (disposition == UsLaxEmailDisposition.Healthy)
             {
                 skippedNames.Add($"{r.FirstName} {r.LastName}".Trim());
                 continue;
             }
+            if (disposition == UsLaxEmailDisposition.Unverifiable)
+            {
+                unverifiableNames.Add($"{r.FirstName} {r.LastName}".Trim());
+                continue;
+            }
 
-            regById.TryGetValue(r.RegistrationId, out var reg);
             var toAddresses = reg is null
                 ? new List<string>()
                 : BatchEmailRecipientFilter.ResolveRecipients(
@@ -322,7 +370,10 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
             TotalRecipients = handle.TotalRecipients,
             MissingEmail = missingEmail,
             SkippedHealthy = skippedNames.Count,
-            SkippedNames = skippedNames
+            SkippedNames = skippedNames,
+            Unverifiable = unverifiableNames.Count,
+            UnverifiableNames = unverifiableNames,
+            NoCutoffConfigured = noCutoffConfigured
         };
     }
 
@@ -353,23 +404,82 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         List<string> ToAddresses,
         bool OptedOut);
 
-    /// <summary>
-    /// A recipient needs action (and therefore warrants the email) when:
-    ///   - USLax did not return a membership status (no ping / API error), OR
-    ///   - status is anything other than "Active" (PENDING / SUSPENDED / INACTIVE / …), OR
-    ///   - no expiry date on file, OR
-    ///   - expiry is before the job's USLax-valid-through date (when the job has one).
-    /// When the job has no valid-through date configured we skip the date comparison —
-    /// there's no cutoff to fail against.
-    /// </summary>
-    private static bool NeedsAction(UsLaxEmailRecipientDto r, DateTime? jobValidThrough)
+    /// <summary>What to do with one selected recipient.</summary>
+    private enum UsLaxEmailDisposition
     {
-        var status = r.MemStatus?.Trim();
-        if (string.IsNullOrEmpty(status)) return true;
-        if (!string.Equals(status, "Active", StringComparison.OrdinalIgnoreCase)) return true;
-        if (r.ExpiryDate is null) return true;
-        if (jobValidThrough.HasValue && r.ExpiryDate.Value.Date < jobValidThrough.Value.Date) return true;
-        return false;
+        /// <summary>Queue the email — there is something the family can act on.</summary>
+        Send,
+        /// <summary>Passes the same check the registration form applies. Say nothing.</summary>
+        Healthy,
+        /// <summary>
+        /// No verdict is possible because the failure is OURS — USA Lacrosse unreachable, or no
+        /// cutoff date configured on the job. Say nothing and report it: telling a family their
+        /// membership is broken because our own call failed is a false alarm, and on an outage it
+        /// would be a false alarm to every family on the list at once.
+        /// </summary>
+        Unverifiable
+    }
+
+    /// <summary>
+    /// Decides one recipient's disposition from data WE fetched — never from the request snapshot.
+    ///
+    /// Players run <see cref="UsLaxEligibilityPolicy"/>, the same rule the registration form and the
+    /// reconcile grid run, so the tool can no longer stay silent about a family the front door is
+    /// blocking. Coaches keep the older status-and-expiry rule until there is a ruling on what a
+    /// coach's eligibility means — but they now run it against the fresh ping rather than the
+    /// browser's copy of it, which is the same rule on trustworthy inputs.
+    /// </summary>
+    private static UsLaxEmailDisposition Decide(
+        Registrations? reg,
+        UsLaxReconciliationCandidateRow? candidate,
+        UsLaxMemberPingResult? ping,
+        DateTime? jobValidThrough,
+        ref bool noCutoffConfigured)
+    {
+        // Not a reconciliation candidate at all (no number on file, inactive, or gone). Nothing to
+        // judge, so nothing to claim.
+        if (reg is null || candidate is null) return UsLaxEmailDisposition.Unverifiable;
+
+        if (reg.RoleId != RoleConstants.Player)
+        {
+            if (ping is null || ping.StatusCode == 0) return UsLaxEmailDisposition.Unverifiable;
+            var status = ping.Output?.MemStatus?.Trim();
+            if (string.IsNullOrEmpty(status)) return UsLaxEmailDisposition.Send;
+            if (!string.Equals(status, "Active", StringComparison.OrdinalIgnoreCase)) return UsLaxEmailDisposition.Send;
+            if (!DateTime.TryParse(ping.Output?.ExpDate, out var coachExpiry)) return UsLaxEmailDisposition.Send;
+            if (jobValidThrough.HasValue && coachExpiry.Date < jobValidThrough.Value.Date) return UsLaxEmailDisposition.Send;
+            return UsLaxEmailDisposition.Healthy;
+        }
+
+        var verdict = UsLaxEligibilityPolicy.Evaluate(new UsLaxEligibilityInput
+        {
+            MembershipNumber = candidate.SportAssnId,
+            ValidThrough = candidate.ValidThrough,
+            TeamValidationDisabled = candidate.TeamValidationDisabled,
+            VendorStatusCode = ping?.StatusCode ?? 0,
+            VendorMemStatus = ping?.Output?.MemStatus,
+            VendorExpDate = ping?.Output?.ExpDate,
+            VendorLastName = ping?.Output?.LastName,
+            VendorBirthdate = ping?.Output?.Birthdate,
+            VendorInvolvement = ping?.Output?.Involvement,
+            RegistrantLastName = candidate.LastName,
+            RegistrantDob = candidate.Dob
+        });
+
+        if (verdict.Valid) return UsLaxEmailDisposition.Healthy;
+
+        // The two verdicts that are our problem, not the family's. NoCutoffConfigured is reported
+        // separately because it is one blank field on the director's own setup screen, and without
+        // saying so a wholesale skip looks like a malfunction.
+        if (verdict.Reason == UsLaxEligibilityReason.NoCutoffConfigured)
+        {
+            noCutoffConfigured = true;
+            return UsLaxEmailDisposition.Unverifiable;
+        }
+        if (verdict.Reason == UsLaxEligibilityReason.VendorUnavailable)
+            return UsLaxEmailDisposition.Unverifiable;
+
+        return UsLaxEmailDisposition.Send;
     }
 
     /// <summary>

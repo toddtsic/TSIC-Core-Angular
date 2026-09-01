@@ -143,12 +143,29 @@ public record UsLaxEmailStartResponse
     public required int MissingEmail { get; init; }
 
     /// <summary>
-    /// Recipients evaluated as already in good standing for the job (Active + expiry past the job's
-    /// valid-through date) and therefore not emailed — prevents false-alarm messages to valid members.
+    /// Recipients the shared <c>UsLaxEligibilityPolicy</c> passed — the same verdict the registration
+    /// form gives — and therefore not emailed. Prevents false-alarm messages to valid members.
     /// </summary>
     public required int SkippedHealthy { get; init; }
 
     public required IReadOnlyList<string> SkippedNames { get; init; }
+
+    /// <summary>
+    /// Recipients we could not reach a verdict on because the failure was OURS, not theirs: USA
+    /// Lacrosse was unreachable, or the job has no membership cutoff date configured. They are
+    /// skipped rather than emailed — telling a family their membership is bad because our own call
+    /// failed is a false alarm to the whole list — and surfaced here so the director knows to retry.
+    /// </summary>
+    public required int Unverifiable { get; init; }
+
+    public required IReadOnlyList<string> UnverifiableNames { get; init; }
+
+    /// <summary>
+    /// True when the job has no <c>USLaxNumberValidThroughDate</c> set. Every player is then
+    /// unverifiable for a reason the director can fix in one field, so the UI should say so
+    /// rather than reporting a mysterious wholesale skip.
+    /// </summary>
+    public required bool NoCutoffConfigured { get; init; }
 }
 
 /// <summary>

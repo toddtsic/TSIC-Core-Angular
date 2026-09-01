@@ -354,10 +354,16 @@ export class UsLaxMembershipComponent implements OnInit {
 				if (start.skippedHealthy > 0) {
 					parts.push(`${start.skippedHealthy} skipped (already in good standing)`);
 				}
+				// Not the family's fault — say so plainly, and say what to do about it.
+				if (start.unverifiable > 0) {
+					parts.push(start.noCutoffConfigured
+						? `${start.unverifiable} not checked — this event has no USA Lacrosse cutoff date set`
+						: `${start.unverifiable} not checked — USA Lacrosse was unreachable, try again later`);
+				}
 				const msg = parts.join(', ') + '.';
 				const level: 'success' | 'warning' =
-					status.failed > 0 || start.skippedHealthy > 0 ? 'warning' : 'success';
-				this.toast.show(msg, level, 6000);
+					status.failed > 0 || start.skippedHealthy > 0 || start.unverifiable > 0 ? 'warning' : 'success';
+				this.toast.show(msg, level, start.unverifiable > 0 ? 9000 : 6000);
 				this.showCompose.set(false);
 				this.gridRef?.clearSelection();
 				this.selectedRows.set([]);
@@ -372,25 +378,26 @@ export class UsLaxMembershipComponent implements OnInit {
 	// Needs-action evaluator ----------------------------------------------------------
 
 	/**
-	 * Mirrors the server-side `NeedsAction` check. A row warrants an email when:
-	 *   - the USLax ping errored, OR
-	 *   - status is anything other than Active, OR
-	 *   - no expiry on file, OR
-	 *   - expiry is before the job's USLax-valid-through cutoff (when set).
-	 * Keep this logic in sync with `UsLaxMembershipService.NeedsAction` on the server.
+	 * Reasons the check failed on OUR side, not the family's — USA Lacrosse unreachable, or no
+	 * cutoff date configured on the job. The server refuses to email these (it would be a false
+	 * alarm, and during an outage a false alarm to the entire list), so the quick-select must not
+	 * offer them either.
+	 */
+	private static readonly UNVERIFIABLE_REASONS = ['VendorUnavailable', 'NoCutoffConfigured'];
+
+	/**
+	 * A row warrants an email when the reconcile verdict says it is not eligible, EXCEPT where the
+	 * verdict failed for one of our own reasons.
+	 *
+	 * This reads the verdict the server already computed with `UsLaxEligibilityPolicy` — the same
+	 * rule the registration form applies — rather than re-deriving one here. It used to carry its
+	 * own copy of a status-and-expiry check, which is how a player whose membership was active but
+	 * registered under a different name or birthdate looked fine on this screen while the front
+	 * door was turning them away.
 	 */
 	needsAction(row: UsLaxReconciliationRowDto): boolean {
-		if (row.statusCode !== 200) return true;
-		const status = (row.memStatus ?? '').trim();
-		if (status === '' || status.toLowerCase() !== 'active') return true;
-		const expiryRaw = row.newExpiryDate ?? row.previousExpiryDate;
-		if (!expiryRaw) return true;
-		const cutoff = this.jobValidThrough();
-		if (cutoff) {
-			const expiryDate = new Date(expiryRaw);
-			if (!isNaN(expiryDate.getTime()) && expiryDate < cutoff) return true;
-		}
-		return false;
+		if (UsLaxMembershipComponent.UNVERIFIABLE_REASONS.includes(row.eligibilityReason)) return false;
+		return !row.eligible;
 	}
 
 	// Quick-select ---------------------------------------------------------------------
