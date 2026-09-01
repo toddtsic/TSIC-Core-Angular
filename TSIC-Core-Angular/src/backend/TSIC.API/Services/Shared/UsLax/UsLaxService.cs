@@ -26,8 +26,21 @@ public class UsLaxService : IUsLaxService
     // Forms step is reused when the same number is stamped at submit (player expiry minting) —
     // one vendor call, not two. A longer TTL only REDUCES vendor pressure (the blacklist lever
     // is batch size, not this window); exp dates don't change minute-to-minute, and a corrected
-    // number is a different cache key, so the staleness cost is negligible. Shared keyspace:
-    // coach submit, revalidate, and batch reconcile all benefit.
+    // number is a different cache key, so the staleness cost is negligible. Written ONLY by the
+    // single-ping GET path above; coach submit and revalidate read it.
+    //
+    // The batch path READS this keyspace but deliberately caches NOTHING of its own. Two reasons,
+    // and do not "optimize" either away:
+    //   1. A batch record is a REDUCED projection — the vendor omits `birthdate`.
+    //      UsLaxEligibilityPolicy needs it for the lastname+DOB identity match and fails CLOSED
+    //      without it (DobMismatch), so a batch record reaching the eligibility path would tell
+    //      families with perfectly good memberships that their DOB doesn't match.
+    //   2. It buys nothing. A reconcile is ONE POST regardless of how many ids are cached; a
+    //      cache only saves a call when EVERY id is cached — exactly the immediate re-run where
+    //      the director is iterating and needs fresh data.
+    // Caching batch records here previously did both harms at once: the flat record could not be
+    // read back by ParsePingResponse (which wants `status_code` at the root), so a second
+    // reconcile inside the TTL reported "API error" on every row and silently wrote no dates.
     private static readonly TimeSpan MemberCacheTtl = TimeSpan.FromMinutes(10);
     private static readonly Regex ValidMembershipFormat = new(@"^\d{6,12}$", RegexOptions.Compiled);
 
@@ -120,7 +133,8 @@ public class UsLaxService : IUsLaxService
         }
 
         // 2. Cache read-through. Reads the same `uslax:member:` keyspace the GET path
-        //    populates — a wizard validation in the last 60s makes this entry a freebie.
+        //    populates — a wizard validation inside the TTL makes this entry a freebie.
+        //    Read-only: nothing fetched below is written back. See MemberCacheTtl.
         var paddedResults = new Dictionary<string, UsLaxMemberPingResult>(paddedToRawIds.Count, StringComparer.Ordinal);
         var toFetch = new List<string>(paddedToRawIds.Count);
         foreach (var padded in paddedToRawIds.Keys)
@@ -378,7 +392,6 @@ public class UsLaxService : IUsLaxService
         // Records the API didn't recognize are silently omitted (NOT returned as null
         // placeholders) — synthesize 404 for any input id not found in the response.
         var byId = new Dictionary<string, UsLaxMemberPingResult>(StringComparer.Ordinal);
-        var rawSnippetById = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var element in root.EnumerateArray())
         {
             if (element.ValueKind != JsonValueKind.Object) continue;
@@ -410,7 +423,6 @@ public class UsLaxService : IUsLaxService
             // Defensive: an un-padded id in the response still matches our padded keys.
             var key = recordId.PadLeft(12, '0');
             byId[key] = parsed;
-            rawSnippetById[key] = element.GetRawText();
         }
 
         foreach (var id in paddedIds)
@@ -418,8 +430,6 @@ public class UsLaxService : IUsLaxService
             if (byId.TryGetValue(id, out var r))
             {
                 results[id] = r;
-                // Cache writeback at the wire level — only successful 200 records reach here.
-                _cache.Set(MemberCachePrefix + id, rawSnippetById[id], MemberCacheTtl);
             }
             else
             {

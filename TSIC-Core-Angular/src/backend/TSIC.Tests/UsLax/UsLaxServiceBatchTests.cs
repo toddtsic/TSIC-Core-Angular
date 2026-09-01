@@ -122,6 +122,44 @@ public class UsLaxServiceBatchTests
     }
 
     [Fact]
+    public async Task BatchResultsAreNotCached_SecondCallRefetches()
+    {
+        // The batch reads the `uslax:member:` keyspace but must never WRITE to it.
+        //
+        // It used to, storing the vendor's FLAT record verbatim — which ParsePingResponse
+        // (the only reader, looking for `status_code` at the root) read back as StatusCode 0
+        // = "vendor unreachable". A second reconcile inside the TTL showed API error on every
+        // row and silently wrote no expiry dates.
+        //
+        // Wrapping the record to fix the shape was the WRONG repair: a batch record carries no
+        // `birthdate`, and UsLaxEligibilityPolicy fails closed without one, so it would have
+        // handed the registration path a record that rejects valid members on DOB. The cache
+        // also buys the batch nothing — a reconcile is one POST no matter what is cached.
+        // Hence: read, never write. A refetch here is the CORRECT behavior, not a miss.
+        var cache = NewCache();
+        var sut = NewSut(
+            cache: cache,
+            canned: chunk => chunk.ToDictionary(
+                id => id,
+                id => new UsLaxMemberPingResult
+                {
+                    StatusCode = 200,
+                    Output = new UsLaxMemberPingOutput { MembershipId = id, ExpDate = "2027-04-30" }
+                },
+                StringComparer.Ordinal));
+
+        await sut.GetMembersAsync(new[] { "123456" });
+        var second = await sut.GetMembersAsync(new[] { "123456" });
+
+        sut.FetchCalls.Should().HaveCount(2, "the batch must go back to the vendor, not serve a cached record");
+        sut.FetchCalls[1].Should().BeEquivalentTo("000000123456");
+        second["123456"].StatusCode.Should().Be(200);
+        second["123456"].Output!.ExpDate.Should().Be("2027-04-30");
+        cache.TryGetValue<string>("uslax:member:000000123456", out _).Should().BeFalse(
+            "the single-ping keyspace backs registration eligibility and must never hold a batch record");
+    }
+
+    [Fact]
     public async Task ResponseSilentlyOmitsId_SynthesizesA404()
     {
         // Spec: ids with no AMMS record are silently omitted from the response array.
