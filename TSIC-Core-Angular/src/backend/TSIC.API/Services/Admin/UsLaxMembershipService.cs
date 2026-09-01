@@ -214,8 +214,18 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         // RegistrationSearchService.StartBatchEmailAsync.
         var postedIds = request.Recipients.Select(r => r.RegistrationId).Distinct().ToList();
         var regs = await _registrations.GetByIdsAsync(postedIds, ct);
-        if (regs.Any(reg => reg.JobId != jobId))
+        var foreign = regs.Where(reg => reg.JobId != jobId).Select(reg => reg.RegistrationId).ToList();
+        if (foreign.Count > 0)
+        {
+            // Should be unreachable from our own UI, which only ever posts rows it loaded for this
+            // job. If it fires it is either an FE defect or someone hand-crafting the request, and
+            // both are worth seeing — so it is a named Warning rather than an anonymous 500.
+            _logger.LogWarning(
+                "USLax email REJECTED: job {JobId} sender {SenderUserId} posted {ForeignCount} of "
+                + "{PostedCount} registrationIds belonging to another job.",
+                jobId, senderUserId, foreign.Count, postedIds.Count);
             throw new InvalidOperationException("Some registrations do not belong to this job.");
+        }
 
         var regById = regs.ToDictionary(reg => reg.RegistrationId);
 
@@ -280,13 +290,19 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         var missingEmail = 0;
         var noCutoffConfigured = false;
         var actionable = new List<UsLaxSendItem>();
+        // Why each recipient landed where it did, counts only — never names. A tally like
+        // "DobMismatch: 47" on a 60-person event says the comparison is broken, not that 47 families
+        // are. That is the fastest read there is on whether the stricter audience is behaving.
+        var reasonCounts = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var r in request.Recipients)
         {
             regById.TryGetValue(r.RegistrationId, out var reg);
             candidates.TryGetValue(r.RegistrationId, out var candidate);
             var ping = candidate is not null && pingByMember.TryGetValue(candidate.SportAssnId, out var p) ? p : null;
 
-            var disposition = Decide(reg, candidate, ping, jobValidThrough, ref noCutoffConfigured);
+            var (disposition, reason) = Decide(reg, candidate, ping, jobValidThrough, ref noCutoffConfigured);
+            reasonCounts[reason] = reasonCounts.GetValueOrDefault(reason) + 1;
+
             if (disposition == UsLaxEmailDisposition.Healthy)
             {
                 skippedNames.Add($"{r.FirstName} {r.LastName}".Trim());
@@ -364,6 +380,19 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
 
         var handle = await _emailBatch.StartAsync(plan, new EmailBatchOptions(), ct);
 
+        // One line per send, mirroring the reconcile line. The engine logs only failures and the
+        // EmailLogs row records what went out, so sent/failed is already answerable in SSMS — what
+        // is NOT recorded anywhere is the audience decision. That partition lived only in the HTTP
+        // response to the browser and then evaporated, which is precisely what you need after the
+        // fact when asking "why did only nine of the forty I selected get an email?"
+        // Counts only, no member details — the same PII rule the reconcile line follows.
+        _logger.LogInformation(
+            "USLax email: job {JobId} sender {SenderUserId} — {Selected} selected, {Queued} queued, "
+            + "{SkippedHealthy} already eligible, {Unverifiable} unverifiable, {MissingEmail} no address, "
+            + "noCutoff={NoCutoffConfigured}, reasons {@Reasons}",
+            jobId, senderUserId, request.Recipients.Count, handle.TotalRecipients,
+            skippedNames.Count, unverifiableNames.Count, missingEmail, noCutoffConfigured, reasonCounts);
+
         return new UsLaxEmailStartResponse
         {
             BatchJobId = handle.JobId,
@@ -429,7 +458,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
     /// coach's eligibility means — but they now run it against the fresh ping rather than the
     /// browser's copy of it, which is the same rule on trustworthy inputs.
     /// </summary>
-    private static UsLaxEmailDisposition Decide(
+    private static (UsLaxEmailDisposition Disposition, string Reason) Decide(
         Registrations? reg,
         UsLaxReconciliationCandidateRow? candidate,
         UsLaxMemberPingResult? ping,
@@ -438,17 +467,17 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
     {
         // Not a reconciliation candidate at all (no number on file, inactive, or gone). Nothing to
         // judge, so nothing to claim.
-        if (reg is null || candidate is null) return UsLaxEmailDisposition.Unverifiable;
+        if (reg is null || candidate is null) return (UsLaxEmailDisposition.Unverifiable, "NotACandidate");
 
         if (reg.RoleId != RoleConstants.Player)
         {
-            if (ping is null || ping.StatusCode == 0) return UsLaxEmailDisposition.Unverifiable;
+            if (ping is null || ping.StatusCode == 0) return (UsLaxEmailDisposition.Unverifiable, "Coach:VendorUnavailable");
             var status = ping.Output?.MemStatus?.Trim();
-            if (string.IsNullOrEmpty(status)) return UsLaxEmailDisposition.Send;
-            if (!string.Equals(status, "Active", StringComparison.OrdinalIgnoreCase)) return UsLaxEmailDisposition.Send;
-            if (!DateTime.TryParse(ping.Output?.ExpDate, out var coachExpiry)) return UsLaxEmailDisposition.Send;
-            if (jobValidThrough.HasValue && coachExpiry.Date < jobValidThrough.Value.Date) return UsLaxEmailDisposition.Send;
-            return UsLaxEmailDisposition.Healthy;
+            if (string.IsNullOrEmpty(status)) return (UsLaxEmailDisposition.Send, "Coach:NoStatus");
+            if (!string.Equals(status, "Active", StringComparison.OrdinalIgnoreCase)) return (UsLaxEmailDisposition.Send, "Coach:NotActive");
+            if (!DateTime.TryParse(ping.Output?.ExpDate, out var coachExpiry)) return (UsLaxEmailDisposition.Send, "Coach:NoExpiry");
+            if (jobValidThrough.HasValue && coachExpiry.Date < jobValidThrough.Value.Date) return (UsLaxEmailDisposition.Send, "Coach:ExpiresBeforeCutoff");
+            return (UsLaxEmailDisposition.Healthy, "Coach:Eligible");
         }
 
         var verdict = UsLaxEligibilityPolicy.Evaluate(new UsLaxEligibilityInput
@@ -466,7 +495,8 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
             RegistrantDob = candidate.Dob
         });
 
-        if (verdict.Valid) return UsLaxEmailDisposition.Healthy;
+        var reason = verdict.Reason.ToString();
+        if (verdict.Valid) return (UsLaxEmailDisposition.Healthy, reason);
 
         // The two verdicts that are our problem, not the family's. NoCutoffConfigured is reported
         // separately because it is one blank field on the director's own setup screen, and without
@@ -474,12 +504,12 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         if (verdict.Reason == UsLaxEligibilityReason.NoCutoffConfigured)
         {
             noCutoffConfigured = true;
-            return UsLaxEmailDisposition.Unverifiable;
+            return (UsLaxEmailDisposition.Unverifiable, reason);
         }
         if (verdict.Reason == UsLaxEligibilityReason.VendorUnavailable)
-            return UsLaxEmailDisposition.Unverifiable;
+            return (UsLaxEmailDisposition.Unverifiable, reason);
 
-        return UsLaxEmailDisposition.Send;
+        return (UsLaxEmailDisposition.Send, reason);
     }
 
     /// <summary>
