@@ -623,8 +623,9 @@
 				@if (yoyAsOfDate(); as asOf) {
 					<p class="yoy-asof">
 						<i class="bi bi-pin-angle me-1"></i>
-						Newest season measured as of <strong>{{ asOf | date:'MMM d, y' }}</strong>; each earlier
-						season at the same date in its own year.
+						Newest season measured as of <strong>{{ asOf | date:'MMM d, y' }}</strong>; each earlier season the same date a
+						whole number of years before that — one step back per season, so a bar's cutoff
+						need not land in the season's own year.
 					</p>
 				}
 

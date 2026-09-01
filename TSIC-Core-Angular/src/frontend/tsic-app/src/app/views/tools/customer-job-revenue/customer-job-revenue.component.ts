@@ -147,6 +147,21 @@ function cssVar(name: string, fallback: string): string {
 const YOY_FONT_FAMILY = cssVar('--font-family-sans', 'system-ui, -apple-system, sans-serif');
 
 /**
+ * The tournament, without the customer that owns it.
+ *
+ * Job names are "Signature Sports:Lax Clash 2027" — the customer, then the event. Every row on
+ * this report belongs to one customer, so the prefix is the same on every group and spends the
+ * width that the event name needs. Stripped for DISPLAY only: the group key keeps the full
+ * name, and the "Events on this chart" list prints jobs unabridged, which is where a reader
+ * checks that a lineage was assembled correctly.
+ */
+function eventLabel(groupLabel: string): string {
+	const cut = groupLabel.lastIndexOf(':');
+	const tail = cut >= 0 ? groupLabel.slice(cut + 1).trim() : '';
+	return tail.length > 0 ? tail : groupLabel;
+}
+
+/**
  * The season's cutoff, short. Formatted off the ISO date PARTS, never through `new Date(iso)` —
  * parsing a bare date string as UTC and rendering it local slides it a day backwards west of
  * Greenwich, which would print the pin as 8/30 for half the country.
@@ -688,17 +703,31 @@ export class CustomerJobRevenueComponent {
 		const pinLevel: { start: number; end: number; text: string }[] = [];
 		const groupLevel: { start: number; end: number; text: string }[] = [];
 
+		// A span is measured as `endX - startX - padding`, so start === end computes to a
+		// NEGATIVE width and ej2 renders the label as "...". Categories sit at integer indices
+		// and their band runs half a step either side, so every span is bracketed rather than
+		// pinned to the tick — without which a one-season event, and every per-bar cutoff, is
+		// an ellipsis.
+		const BAND = 0.5;
+
 		for (const g of groups) {
 			if (g.points.length === 0) {
 				continue;
 			}
 			const start = points.length;
 			for (const p of g.points) {
-				// Category spans address bars by INDEX, so each is recorded as it is appended.
-				pinLevel.push({ start: points.length, end: points.length, text: p.pinLabel });
+				pinLevel.push({
+					start: points.length - BAND,
+					end: points.length + BAND,
+					text: p.pinLabel
+				});
 				points.push(p);
 			}
-			groupLevel.push({ start, end: points.length - 1, text: g.label });
+			groupLevel.push({
+				start: start - BAND,
+				end: points.length - 1 + BAND,
+				text: eventLabel(g.label)
+			});
 		}
 
 		const visible = Math.min(YOY_VISIBLE_BARS, points.length);
@@ -794,12 +823,15 @@ export class CustomerJobRevenueComponent {
 				{
 					border: { type: 'WithoutTopandBottomBorder', width: 0 },
 					categories: view.pinLevel,
+					alignment: 'Center',
+					overflow: 'None',
 					textStyle: { color: this.yoyMuted(), size: '10px', fontFamily: YOY_FONT_FAMILY }
 				},
 				{
 					border: { type: 'Brace', width: 1, color: this.yoyBorder() },
 					categories: view.groupLevel,
-					overflow: 'Trim',
+					alignment: 'Center',
+					overflow: 'Wrap',
 					textStyle: { color: this.yoyText(), size: '12px', fontFamily: YOY_FONT_FAMILY }
 				}
 			],
@@ -860,7 +892,8 @@ export class CustomerJobRevenueComponent {
 		font: { fontFamily: YOY_FONT_FAMILY, size: '12px', fontWeight: '600', color: this.yoyText() }
 	};
 	readonly yoyChartArea = { border: { width: 0 } };
-	readonly yoyMargin = { left: 8, right: 16, top: 4, bottom: 4 };
+	// Bottom carries the season labels, the cutoff row and the braced event row.
+	readonly yoyMargin = { left: 8, right: 16, top: 4, bottom: 12 };
 
 	/**
 	 * Both axes. Horizontal: strip the lineage prefix that keeps categories unique, so the
