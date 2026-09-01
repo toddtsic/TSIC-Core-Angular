@@ -795,6 +795,15 @@ public record UsLaxReconciliationCandidateRow
     public required string SportAssnId { get; init; }
     public DateTime? SportAssnIdexpDate { get; init; }
     public string? TeamName { get; init; }
+
+    /// <summary>Jobs.USLaxNumberValidThroughDate — the director's cutoff. Carried here so the
+    /// reconcile can run the same UsLaxEligibilityPolicy the registration wizard runs, instead
+    /// of reporting only the involvement check.</summary>
+    public DateTime? ValidThrough { get; init; }
+
+    /// <summary>Leagues.teams.bDoNotValidateUSLaxNumber for the assigned team — the same bypass
+    /// the wizard honors. Null team (unrostered) means no bypass.</summary>
+    public bool TeamValidationDisabled { get; init; }
 }
 
 public record RegistrationWithInvoiceData

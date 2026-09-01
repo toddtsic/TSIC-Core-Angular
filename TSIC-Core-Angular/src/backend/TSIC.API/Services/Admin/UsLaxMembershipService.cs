@@ -7,6 +7,7 @@ using TSIC.API.Services.Shared.UsLax;
 using TSIC.Contracts.Dtos.UsLax;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.UsLax;
 
 namespace TSIC.API.Services.Admin;
 
@@ -115,12 +116,12 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
     {
         if (ping == null)
         {
-            return BuildRow(c, statusCode: 0, errorMessage: "Network or parse failure", newExpiry: null, updated: false);
+            return BuildRow(c, statusCode: 0, errorMessage: "Network or parse failure", newExpiry: null, updated: false, role: role);
         }
 
         if (ping.StatusCode != 200 || ping.Output is null)
         {
-            return BuildRow(c, statusCode: ping.StatusCode, errorMessage: ping.ErrorMessage, newExpiry: null, updated: false, output: ping.Output);
+            return BuildRow(c, statusCode: ping.StatusCode, errorMessage: ping.ErrorMessage, newExpiry: null, updated: false, role: role, output: ping.Output);
         }
 
         var output = ping.Output;
@@ -159,7 +160,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
             }
         }
 
-        return BuildRow(c, statusCode: 200, errorMessage: null, newExpiry: newExpiry, updated: updated, output: output);
+        return BuildRow(c, statusCode: 200, errorMessage: null, newExpiry: newExpiry, updated: updated, role: role, output: output);
     }
 
     public async Task<UsLaxEmailStartResponse> StartEmailAsync(Guid jobId, string? senderUserId, UsLaxEmailRequest request, CancellationToken ct = default)
@@ -333,8 +334,11 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         string? errorMessage,
         DateTime? newExpiry,
         bool updated,
+        UsLaxMembershipRole role,
         UsLaxMemberPingOutput? output = null)
     {
+        var (eligible, reason, detail) = EvaluateForDisplay(c, statusCode, role, output);
+
         return new UsLaxReconciliationRowDto
         {
             RegistrationId = c.RegistrationId,
@@ -350,7 +354,88 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
             Involvement = output?.Involvement,
             PreviousExpiryDate = c.SportAssnIdexpDate,
             NewExpiryDate = newExpiry ?? c.SportAssnIdexpDate,
-            ExpiryDateUpdated = updated
+            ExpiryDateUpdated = updated,
+            Eligible = eligible,
+            EligibilityReason = reason,
+            EligibilityDetail = detail
+        };
+    }
+
+    /// <summary>
+    /// Runs the SAME <see cref="UsLaxEligibilityPolicy"/> the registration wizard runs, so the
+    /// director sees the verdict the front door would actually give — status, involvement,
+    /// lastname, DOB and the job's cutoff — rather than the involvement-only check this grid
+    /// reported before. The batch MemberPing carries `lastname` and `birthdate`, so the identity
+    /// half of that policy is answerable here (confirmed from live traffic 2026-09-01).
+    ///
+    /// REPORTING ONLY. Nothing here gates the expiry write, which is unchanged.
+    ///
+    /// Player role only. The policy is the player gate — it requires Player involvement — so
+    /// running it over coaches would flag every one of them NotAPlayer. Coach rows are reported
+    /// as-was until there is a ruling on what a coach's eligibility even means.
+    /// </summary>
+    private static (bool Eligible, string Reason, string? Detail) EvaluateForDisplay(
+        UsLaxReconciliationCandidateRow c,
+        int statusCode,
+        UsLaxMembershipRole role,
+        UsLaxMemberPingOutput? output)
+    {
+        if (role != UsLaxMembershipRole.Player)
+        {
+            return (true, nameof(UsLaxEligibilityReason.Eligible), null);
+        }
+
+        var verdict = UsLaxEligibilityPolicy.Evaluate(new UsLaxEligibilityInput
+        {
+            MembershipNumber = c.SportAssnId,
+            ValidThrough = c.ValidThrough,
+            TeamValidationDisabled = c.TeamValidationDisabled,
+            VendorStatusCode = statusCode,
+            VendorMemStatus = output?.MemStatus,
+            VendorExpDate = output?.ExpDate,
+            VendorLastName = output?.LastName,
+            VendorBirthdate = output?.Birthdate,
+            VendorInvolvement = output?.Involvement,
+            RegistrantLastName = c.LastName,
+            RegistrantDob = c.Dob
+        });
+
+        return (verdict.Valid, verdict.Reason.ToString(), DescribeVerdict(c, verdict, output));
+    }
+
+    /// <summary>
+    /// One plain-English line for the grid's Details column, with the real values in it so the
+    /// director can act without cross-referencing another screen. The policy's own MessageFor()
+    /// is the parent-facing HTML checklist — deliberately not reused here; this audience is the
+    /// director, who needs the specific discrepancy, not the remediation steps.
+    /// </summary>
+    private static string? DescribeVerdict(
+        UsLaxReconciliationCandidateRow c,
+        UsLaxEligibilityVerdict verdict,
+        UsLaxMemberPingOutput? output)
+    {
+        static string D(DateTime? d) => d?.ToString("MMM d, yyyy", CultureInfo.InvariantCulture) ?? "—";
+
+        return verdict.Reason switch
+        {
+            UsLaxEligibilityReason.Eligible => null,
+            UsLaxEligibilityReason.TestNumber => "Test membership number — validation bypassed.",
+            UsLaxEligibilityReason.TeamBypass => "USA Lacrosse validation is turned off for this team.",
+            UsLaxEligibilityReason.NoCutoffConfigured =>
+                "No USA Lacrosse valid-through date is set for this event, so memberships can't be checked against a cutoff.",
+            UsLaxEligibilityReason.VendorUnavailable => "Couldn't reach USA Lacrosse — try again.",
+            UsLaxEligibilityReason.NotFound => "USA Lacrosse has no membership record for this number.",
+            UsLaxEligibilityReason.NotActive =>
+                $"USA Lacrosse membership status is {output?.MemStatus ?? "unknown"}, not Active.",
+            UsLaxEligibilityReason.NotAPlayer =>
+                "Membership is not registered as a Player at USA Lacrosse.",
+            UsLaxEligibilityReason.ExpiresBeforeCutoff =>
+                $"Expires {D(verdict.ExpDate)} — before this event's {D(c.ValidThrough)} cutoff.",
+            UsLaxEligibilityReason.LastNameMismatch =>
+                $"Last name doesn't match USA Lacrosse (we have \"{c.LastName}\", they have \"{output?.LastName ?? "nothing"}\").",
+            UsLaxEligibilityReason.DobMismatch =>
+                $"Date of birth doesn't match USA Lacrosse (we have {D(c.Dob)}, they have {output?.Birthdate ?? "nothing"}).",
+            _ => null
         };
     }
 }

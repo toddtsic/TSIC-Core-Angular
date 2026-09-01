@@ -17,5 +17,8 @@ export type UsLaxReconciliationRowDto = {
     previousExpiryDate?: string | null;
     newExpiryDate?: string | null;
     expiryDateUpdated: boolean;
+    eligible: boolean;
+    eligibilityReason: string;
+    eligibilityDetail?: string | null;
 };
 

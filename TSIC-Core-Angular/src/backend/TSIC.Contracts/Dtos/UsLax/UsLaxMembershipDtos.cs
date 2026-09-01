@@ -49,6 +49,22 @@ public record UsLaxReconciliationRowDto
 
     /// <summary>True when this reconciliation wrote a new SportAssnIdexpDate to the registration.</summary>
     public required bool ExpiryDateUpdated { get; init; }
+
+    /// <summary>
+    /// Verdict from <c>UsLaxEligibilityPolicy</c> — the SAME policy the registration wizard runs,
+    /// so the reconcile reports what the front door would actually decide rather than the weaker
+    /// involvement-only check it used to. Reporting only: the expiry write is unaffected.
+    /// </summary>
+    public required bool Eligible { get; init; }
+
+    /// <summary>Machine-readable reason code (<c>UsLaxEligibilityReason</c>) behind <see cref="Eligible"/>.</summary>
+    public required string EligibilityReason { get; init; }
+
+    /// <summary>
+    /// One plain-English line explaining the verdict, with the actual dates/values in it, for the
+    /// grid's Details column. Null when the member is eligible and there is nothing to explain.
+    /// </summary>
+    public string? EligibilityDetail { get; init; }
 }
 
 /// <summary>Batch reconciliation request. Empty list = reconcile every eligible candidate.</summary>

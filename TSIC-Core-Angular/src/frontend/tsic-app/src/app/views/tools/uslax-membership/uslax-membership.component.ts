@@ -467,8 +467,8 @@ export class UsLaxMembershipComponent implements OnInit {
 				args.value = view.findIndex(r => r.registrationId === d.registrationId) + 1;
 				break;
 			}
-			case 'Action':
-				args.value = this.needsAction(d) ? 'Needs action' : 'OK';
+			case 'Email':
+				args.value = this.needsAction(d) ? 'Would send' : 'Not needed';
 				break;
 			case 'Name':
 				args.value = `${d.lastName}, ${d.firstName}`;
@@ -477,7 +477,11 @@ export class UsLaxMembershipComponent implements OnInit {
 				args.value = this.padMembershipId(d.membershipId);
 				break;
 			case 'Status':
-				args.value = d.statusCode !== 200 ? 'API error' : (d.memStatus ?? 'Unknown');
+				// Vendor status verbatim — a failed call is reported under Details, not here.
+				args.value = d.memStatus ?? '';
+				break;
+			case 'Details':
+				args.value = d.eligibilityDetail ?? d.errorMessage ?? (d.eligible ? 'Passes validation' : '');
 				break;
 			case 'Age Verified':
 				args.value = this.ageVerifiedDisplay(d);

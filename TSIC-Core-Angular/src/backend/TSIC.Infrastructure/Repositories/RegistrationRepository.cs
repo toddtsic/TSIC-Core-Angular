@@ -3817,7 +3817,12 @@ public class RegistrationRepository : IRegistrationRepository
                 SportAssnIdexpDate = r.SportAssnIdexpDate,
                 TeamName = r.AssignedTeam != null && r.AssignedTeam.Agegroup != null
                     ? r.AssignedTeam.Agegroup.AgegroupName + ":" + r.AssignedTeam.TeamName
-                    : r.AssignedTeam != null ? r.AssignedTeam.TeamName : null
+                    : r.AssignedTeam != null ? r.AssignedTeam.TeamName : null,
+                // Same two inputs the wizard's validation context supplies, so the reconcile can
+                // run the identical eligibility policy rather than a weaker involvement-only check.
+                ValidThrough = j.UslaxNumberValidThroughDate,
+                TeamValidationDisabled = r.AssignedTeam != null
+                    && (r.AssignedTeam.BDoNotValidateUslaxNumber ?? false)
             }
         ).AsNoTracking().ToListAsync(ct);
     }
