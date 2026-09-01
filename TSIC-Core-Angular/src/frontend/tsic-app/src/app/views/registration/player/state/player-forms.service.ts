@@ -249,7 +249,19 @@ export class PlayerFormsService {
         isLocked: (pid: string) => boolean,
         isVisible: (pid: string, f: PlayerProfileFieldSchema) => boolean,
     ): string | null {
-        if (!isVisible(playerId, field) || isLocked(playerId)) return null;
+        if (!isVisible(playerId, field)) return null;
+        // A registered player's fields stay EDITABLE (the Forms step says so explicitly, and renders
+        // them enabled), so blanket-suppressing their errors means an edit that fails validation is
+        // silently accepted. For USLax that is not cosmetic: the submit gate rejects a CHANGED
+        // membership number, so a swallowed error here becomes an unexplained failure at PreSubmit.
+        //
+        // Scoped deliberately to USLax: only an edit can put this field in an error state for a
+        // registered player, because prefilled numbers are not auto-validated for them
+        // (see validatePrefilled). An untouched lapsed membership therefore still passes the step,
+        // matching how the submit gate exempts an unchanged number. Widening this to every field
+        // is a separate decision — it would surface 'Required' on registered players whose older
+        // registrations never collected today's fields, and block them at Continue.
+        if (isLocked(playerId) && !this.isUsLaxSchemaField(field)) return null;
         const raw = this.getPlayerFieldValue(playerId, field.name);
         const str = raw == null ? '' : String(raw).trim();
         if (this.isRequiredInvalid(field, raw, str)) return 'Required';
