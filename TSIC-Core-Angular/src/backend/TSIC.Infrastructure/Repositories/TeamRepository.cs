@@ -496,17 +496,33 @@ public class TeamRepository : ITeamRepository
         return (scheduled, nextDate);
     }
 
-    public async Task<List<TeamWithRegistrationInfo>> GetTeamsByClubExcludingRegistrationAsync(
+    public async Task<List<TeamWithRegistrationInfo>> GetTeamsForClubInJobByOtherUsersAsync(
         Guid jobId,
         int clubId,
-        Guid? excludeRegistrationId = null,
+        string excludeUserId,
         CancellationToken cancellationToken = default)
     {
         var query = from t in _context.Teams
                     join reg in _context.Registrations on t.ClubrepRegistrationid equals reg.RegistrationId
                     where t.JobId == jobId
                       && t.ClubrepRegistrationid != null
-                      && _context.ClubReps.Any(cr => cr.ClubRepUserId == reg.UserId && cr.ClubId == clubId)
+                      // One HUMAN per club. My own rows can never conflict with me, however many
+                      // registrations I hold on this job. A null owner is somebody else, not me —
+                      // spelled out because `UserId != @me` alone drops NULL rows in SQL.
+                      && (reg.UserId == null || reg.UserId != excludeUserId)
+                      && (
+                            // The team's OWN club, read through its library entry. This is the club
+                            // the rule is actually about.
+                            (t.ClubTeamId != null
+                                && _context.ClubTeams.Any(lib => lib.ClubTeamId == t.ClubTeamId && lib.ClubId == clubId))
+                            // Unlinked team (no library entry — 21% of teams on live jobs, and most
+                            // legacy rows). Its club is unknowable from the team itself, so fall back
+                            // to the owner's club membership, which is what this query used to do for
+                            // every row. Conservative: it can over-match for a rep of several clubs,
+                            // never under-match, so the guard is never weaker than before.
+                            || (t.ClubTeamId == null
+                                && _context.ClubReps.Any(cr => cr.ClubRepUserId == reg.UserId && cr.ClubId == clubId))
+                         )
                     select new TeamWithRegistrationInfo
                     {
                         TeamId = t.TeamId,
@@ -514,11 +530,6 @@ public class TeamRepository : ITeamRepository
                         Username = reg.User != null ? reg.User.UserName : null,
                         ClubrepRegistrationid = t.ClubrepRegistrationid
                     };
-
-        if (excludeRegistrationId.HasValue)
-        {
-            query = query.Where(t => t.ClubrepRegistrationid != excludeRegistrationId.Value);
-        }
 
         return await query
             .AsNoTracking()

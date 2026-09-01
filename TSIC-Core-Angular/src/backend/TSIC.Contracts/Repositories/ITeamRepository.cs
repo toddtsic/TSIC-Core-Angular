@@ -60,14 +60,15 @@ public record AvailableTeamQueryResult
 public interface ITeamRepository
 {
     /// <summary>
-    /// Get teams by club and job, excluding specific registration.
-    /// Used for checking conflicts when multiple club reps try to register teams.
-    /// Joins to Registrations → ClubReps to verify club association.
+    /// Teams in this job that belong to this club and to SOMEBODY ELSE — the read behind
+    /// "one club rep per event", which means one human per club, not one registration.
+    /// A team's club is its library entry's club; an unlinked team falls back to its owner's
+    /// club membership, which is how every row used to be matched.
     /// </summary>
-    Task<List<TeamWithRegistrationInfo>> GetTeamsByClubExcludingRegistrationAsync(
+    Task<List<TeamWithRegistrationInfo>> GetTeamsForClubInJobByOtherUsersAsync(
         Guid jobId,
         int clubId,
-        Guid? excludeRegistrationId = null,
+        string excludeUserId,
         CancellationToken cancellationToken = default);
 
     /// <summary>

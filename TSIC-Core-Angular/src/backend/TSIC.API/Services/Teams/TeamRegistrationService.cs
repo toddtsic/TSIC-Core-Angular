@@ -347,16 +347,14 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException($"Event not found: {jobPath}");
         }
 
-        // Get current user's registration for this event (if exists)
-        // Same set-then-choose rule as initialize; the club name is in hand here, so a rep who
-        // holds two registrations on this job is matched to the one for the club being checked.
-        var currentUserCandidates = await _registrations.GetClubRepRegistrationCandidatesAsync(userId, jobId.Value);
-        var currentUserRegistration = ClubRepRegistrationSelector.Select(currentUserCandidates, clubName);
-
-        var otherRepTeams = await _teams.GetTeamsByClubExcludingRegistrationAsync(
+        // The advisory twin of the register-team rule, and it asks the same question: does ANOTHER
+        // HUMAN already hold teams for this club in this event? Excluding by user rather than by
+        // registration means however many registrations the caller holds here, none of them can
+        // make the caller look like their own conflict.
+        var otherRepTeams = await _teams.GetTeamsForClubInJobByOtherUsersAsync(
             jobId.Value,
             clubRep.ClubId,
-            currentUserRegistration?.RegistrationId);
+            userId);
 
         if (otherRepTeams.Any())
         {
@@ -720,13 +718,12 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("Event does not have a league configured");
         }
 
-        // CRITICAL BUSINESS RULE: One club rep per event
-        var existingTeamsForClub = await _teams.GetTeamsByClubExcludingRegistrationAsync(jobId, effectiveClubId, clubRepRegistration.RegistrationId);
-
-        // Validate one-rep-per-event rule
-        var differentRepTeams = existingTeamsForClub
-            .Where(t => t.ClubrepRegistrationid != clubRepRegistration.RegistrationId)
-            .ToList();
+        // CRITICAL BUSINESS RULE: one club rep per club per event — one HUMAN, not one
+        // registration. The query excludes this user's own teams outright, so a rep who holds
+        // more than one registration on this job can no longer be blocked by themselves, and a
+        // rep of several clubs is no longer blocked in club B by their own teams in club A.
+        // A different person with teams for this club still stops the write, as it always did.
+        var differentRepTeams = await _teams.GetTeamsForClubInJobByOtherUsersAsync(jobId, effectiveClubId, userId);
 
         if (differentRepTeams.Any())
         {
