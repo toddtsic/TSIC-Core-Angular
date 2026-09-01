@@ -502,6 +502,9 @@ public class TeamRepository : ITeamRepository
         string excludeUserId,
         CancellationToken cancellationToken = default)
     {
+        // Club-rep-owned teams only. On a player-registration (league) job the director builds the
+        // teams and no club rep owns them, so those rows carry no ClubrepRegistrationid and are out
+        // of scope here by construction — this rule is about tournament jobs, where reps enter teams.
         var query = from t in _context.Teams
                     join reg in _context.Registrations on t.ClubrepRegistrationid equals reg.RegistrationId
                     where t.JobId == jobId
@@ -515,11 +518,12 @@ public class TeamRepository : ITeamRepository
                             // the rule is actually about.
                             (t.ClubTeamId != null
                                 && _context.ClubTeams.Any(lib => lib.ClubTeamId == t.ClubTeamId && lib.ClubId == clubId))
-                            // Unlinked team (no library entry — 21% of teams on live jobs, and most
-                            // legacy rows). Its club is unknowable from the team itself, so fall back
-                            // to the owner's club membership, which is what this query used to do for
-                            // every row. Conservative: it can over-match for a rep of several clubs,
-                            // never under-match, so the guard is never weaker than before.
+                            // A club-rep team with no library entry — director-created, or from
+                            // before the library existed. Its club is unknowable from the row, so
+                            // fall back to the owner's club membership, which is what this query
+                            // used to do for EVERY row. Conservative: it can over-match for a rep
+                            // of several clubs, never under-match, so the guard is never weaker
+                            // than before. A minority of club-rep teams (~7% on live jobs).
                             || (t.ClubTeamId == null
                                 && _context.ClubReps.Any(cr => cr.ClubRepUserId == reg.UserId && cr.ClubId == clubId))
                          )
