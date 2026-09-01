@@ -88,6 +88,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         var rows = new List<UsLaxReconciliationRowDto>(candidates.Count);
         var datesUpdated = 0;
         var failed = 0;
+        var eligible = 0;
 
         foreach (var c in candidates)
         {
@@ -97,7 +98,22 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
             rows.Add(row);
             if (row.ExpiryDateUpdated) datesUpdated++;
             if (row.StatusCode != 200) failed++;
+            if (row.Eligible) eligible++;
         }
+
+        // The one success-path record that a reconcile ran and what it did. Before this, a run
+        // that silently updated nothing left NOTHING in Seq — the only log lines on this path
+        // were failure warnings, so the endpoint was invisible unless you filtered EF command
+        // logs by ActionName and counted UPDATE statements by hand.
+        //
+        // Counts only, no member details — the same PII rule ValidationController's rejection
+        // log follows. Unlike the batch shape telemetry in UsLaxService this is NOT gated to
+        // non-Production: "did the director's reconcile do anything" is an operational question
+        // and prod is where it gets asked.
+        _logger.LogInformation(
+            "USLax reconcile: job {JobId} role {Role} — {Candidates} candidates, {Pinged} pinged, "
+            + "{Eligible} eligible, {Failed} failed, {DatesUpdated} dates written",
+            jobId, request.Role, candidates.Count, rows.Count, eligible, failed, datesUpdated);
 
         return new UsLaxReconciliationResponse
         {
