@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -18,6 +19,7 @@ public class UsLaxService : IUsLaxService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IMemoryCache _cache;
     private readonly IOptions<UsLaxSettings> _options;
+    private readonly IHostEnvironment _env;
     private readonly ILogger<UsLaxService> _logger;
     private const string AccessTokenCacheKey = "uslax:access_token";
     private const string AccessTokenExpiryKey = "uslax:access_token_exp";
@@ -48,11 +50,13 @@ public class UsLaxService : IUsLaxService
         IHttpClientFactory httpClientFactory,
         IMemoryCache cache,
         IOptions<UsLaxSettings> options,
+        IHostEnvironment env,
         ILogger<UsLaxService> logger)
     {
         _httpClientFactory = httpClientFactory;
         _cache = cache;
         _options = options;
+        _env = env;
         _logger = logger;
     }
 
@@ -392,17 +396,27 @@ public class UsLaxService : IUsLaxService
         // Records the API didn't recognize are silently omitted (NOT returned as null
         // placeholders) — synthesize 404 for any input id not found in the response.
         var byId = new Dictionary<string, UsLaxMemberPingResult>(StringComparer.Ordinal);
+        // Shape telemetry — see the LogInformation below. Field NAMES and counts only.
+        var fieldsSeen = new SortedSet<string>(StringComparer.Ordinal);
+        var withBirthdate = 0;
         foreach (var element in root.EnumerateArray())
         {
             if (element.ValueKind != JsonValueKind.Object) continue;
 
             UsLaxMemberPingResult? parsed;
             string? recordId;
+            // The element holding the member fields: the element itself when flat, `output`
+            // when envelope-shaped. Used for the shape telemetry only.
+            JsonElement fieldsEl;
             if (element.TryGetProperty("status_code", out _))
             {
                 // Envelope-shaped element.
                 parsed = ParseEnvelopeRoot(element);
                 recordId = parsed?.Output?.MembershipId;
+                fieldsEl = element.TryGetProperty("output", out var outEl)
+                           && outEl.ValueKind == JsonValueKind.Object
+                    ? outEl
+                    : element;
             }
             else if (element.TryGetProperty("membership_id", out var midEl))
             {
@@ -413,6 +427,7 @@ public class UsLaxService : IUsLaxService
                     StatusCode = 200,
                     Output = ExtractMemberFields(element)
                 };
+                fieldsEl = element;
             }
             else
             {
@@ -420,9 +435,43 @@ public class UsLaxService : IUsLaxService
             }
 
             if (parsed == null || string.IsNullOrWhiteSpace(recordId)) continue;
+
+            foreach (var prop in fieldsEl.EnumerateObject())
+            {
+                fieldsSeen.Add(prop.Name);
+            }
+            if (fieldsEl.TryGetProperty("birthdate", out var bdEl)
+                && bdEl.ValueKind != JsonValueKind.Null
+                && !string.IsNullOrWhiteSpace(bdEl.ToString()))
+            {
+                withBirthdate++;
+            }
+
             // Defensive: an un-padded id in the response still matches our padded keys.
             var key = recordId.PadLeft(12, '0');
             byId[key] = parsed;
+        }
+
+        // The batch response is a REDUCED projection of the single-ping record and we do not
+        // know with certainty which fields it carries — `birthdate` in particular decides
+        // whether a batch record could ever back an eligibility check (UsLaxEligibilityPolicy
+        // fails CLOSED without one). Log the SHAPE so we can settle it from real traffic.
+        //
+        // NON-PRODUCTION ONLY. Diagnostic telemetry, not an operational signal — gating it here
+        // rather than at a log level means it can stay in the code permanently without ever
+        // adding noise (or an audit surface) to the production log. Run a reconcile on
+        // dev/staging to answer the question; nothing to revert afterwards.
+        //
+        // Field NAMES and counts only — never values. Member details (name, DOB, email,
+        // membership number) are PII and do not belong in Seq; same rule the wizard's rejection
+        // log follows in ValidationController.
+        if (!_env.IsProduction())
+        {
+            _logger.LogInformation(
+                "USLax batch response shape: {RequestedCount} requested, {ReturnedCount} returned, "
+                + "{WithBirthdate} carrying a non-empty birthdate. Fields present: {Fields}",
+                paddedIds.Count, byId.Count, withBirthdate,
+                fieldsSeen.Count == 0 ? "(none)" : string.Join(",", fieldsSeen));
         }
 
         foreach (var id in paddedIds)

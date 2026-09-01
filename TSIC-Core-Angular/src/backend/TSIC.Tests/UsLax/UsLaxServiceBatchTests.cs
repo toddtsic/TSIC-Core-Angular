@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -436,6 +437,9 @@ public class UsLaxServiceBatchTests
                 Mock.Of<IHttpClientFactory>(),
                 cache,
                 Options.Create(new UsLaxSettings()),
+                // Non-production, so the batch-response shape telemetry is exercised by these
+                // tests rather than short-circuited.
+                Mock.Of<IHostEnvironment>(e => e.EnvironmentName == "Development"),
                 NullLogger<UsLaxService>.Instance)
         {
             _fetch = fetch;
