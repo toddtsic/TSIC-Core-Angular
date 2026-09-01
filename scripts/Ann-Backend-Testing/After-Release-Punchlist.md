@@ -13,6 +13,9 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 > Maintained at the top so nothing waiting on Todd is buried mid-file. **Delete a row the moment its item closes.** Parked/REVISIT items are not listed here *unless Todd owes a decision on one* (flagged as such below).
 
 | Item | Why it's on Todd | State |
+| **🚨 AR-065** | **🚨 NEW 09-01 (Ann) — IMPORTANT, and filed UNRESEARCHED at her request.** Reinstate the **48-hour delay** before an ARB Sweep failure posts to **Lookup Behind in Payment** and offers a **Balance Due** on **Update CC**. **It causes DOUBLE PAYMENTS** — Ann: *"We had a problem with this in the past and this fixed any issues."* Two live cases from the 08-31 sweep: **Maeve Lennon** (STEPS Elite AIM:Girls Elite Players 2026-2027) and **Gianna Rinaldi** (STEPS Lacrosse California:Girls Elite Players 2026-2027). **Todd is doing the research fresh — nothing here has been checked against code or data.** | 🔴 OPEN |
+| **AR-066** | **NEW 09-01 (Ann) — filed UNRESEARCHED at her request.** On **Change Password**, with a role selected, choosing a **Customer** does not filter — **other customers' jobs still appear in the Job column.** Ann: *"it doesn't filter. Other Customers appear in the Job column."* Unrated: worth establishing whether this is only a filtering annoyance or a cross-customer visibility question. **Todd is researching fresh — nothing checked against code or data.** | 🔴 OPEN |
+| **AR-067** | **NEW 09-01 (Ann) — filed UNRESEARCHED at her request.** Land **ARB Health** with **Lookup Behind in Payment already selected and its table showing**, rather than picking it every time. Ann: *"This is used heavily."* **No defect — a default is being asked for.** ⚠ Same screen as the four AR-039 fixes (closed 08-30), so it could ride along in one pass. **Todd is researching fresh.** | 🔴 OPEN |
 |:--|:--|:--|
 | **AR-004** | ✅ **VERIFIED BY ANN IN DEV 08-26 — CLOSED.** 🟡 **BUILT (Todd, 08-23)** — `MyRosterPdfService`, `Pos` **30f→40f + Wrap:true**, the 10f paid for by `Contact 2` 157f→147f (it wraps, so it grows taller rather than clipping). Arithmetic confirms Ann's symptom exactly: 24pt usable vs `midfield` at 27.6pt in Helvetica 8. **Data query killed the 08-21 sizing instruction — `Long Stick Midfield` DOES NOT EXIST, it is stored `LSM`**; `position` is free text and its longest values are junk (`still figuring it out`, 23 rows), which is why the fix wraps instead of widening further. Widest value needing to fit is `unknown` (32.0pt), not `midfield`. **Packed Roster untouched.** ✅ **VERIFIED PASSING (Ann, 08-24) — CLOSED.** | ✅ VERIFIED |
 | **AR-025** | ✅ **VERIFIED BY ANN IN DEV 08-26 — CLOSED.** 🟡 **BUILT (Todd, 08-23).** New `.switch-role-btn` left of the user menu calling the EXISTING `switchRole()`; gated on `regId` like the menu entry, dropdown entry kept. **Desktop-only came free** — that cluster is already `d-none d-md-flex`, so nothing renders on mobile and the hamburger keeps its own entry (Todd: "no room up there"). Labelled pill styled off `.theme-toggle-btn`; **drops to icon-only 768-992px** so the word cannot push the user menu off the edge. ORIGINAL: New 08-23 — trivial, an hour or so.** Put a **"Switch Role"** badge in the header chrome (left of home / dark-mode), calling the existing `switchRole()` (`client-header-bar.component.ts:318-322`) — same function, **same wording**, it's only reachable inside the user dropdown today. Keep the menu entry too. Watch the narrow-screen strip so it doesn't push the user menu off-screen. Ann considered and declined the "show current role instead" variant — build the literal badge. ✅ **VERIFIED PASSING (Ann, 08-24) — CLOSED.** | ✅ VERIFIED |
@@ -1015,6 +1018,49 @@ For a **family sign-in** shopper the account carries the same contact details th
 - **Everything that was here now lives in AR-058 Part 4** — her priority statement (*“my biggest concern is storefront appearance, wanting it to be the same if not better”*), the measured legacy-vs-new table (800px carousel → 260px gallery; `<h1>` + 30px price → body text), the **`max-width: 600px` root cause** shared with **AR-059** Part 1, the three things the new side does BETTER and must not be reverted, and the revised build order.
 - **Number retained deliberately** — the punchlist never renumbers, and AR-064 was pushed in `a3a22dca3` before consolidation, so the id may already be cited elsewhere.
 - **Status**: ⛔ **MERGED → see AR-058.** No work tracked here.
+
+### AR-065: 🚨🚨 [ARB Sweep] Reinstate the 48-hour delay before a failed sweep payment posts to Lookup Behind in Payment and offers a Balance Due on Update CC — it causes DOUBLE PAYMENTS
+- **Topic**: ARB Sweep to **Lookup Behind in Payment**, and the **Balance Due** offered when **Update CC** is selected
+- **Reported by**: Ann, 09-01. **Filed verbatim at her instruction — NOT researched, NOT diagnosed.** Todd asked to do the research fresh; nothing below has been checked against code or data.
+
+**ANN'S REQUEST, IN HER WORDS.** *"With ARB Sweep, please reinstate the 48-hour delay in posting the records to Lookup Behind in Payment and offering a Balance Due when Update CC is selected. This is important because it can result in double payments being made. We had a problem with this in the past and this fixed any issues."*
+
+**WHY SHE FLAGS IT AS IMPORTANT.** It can result in **double payments being made.** Ann states this was a problem **in the past** and that **the 48-hour delay fixed it** — so this is a REINSTATEMENT of a control that previously existed, not a new feature.
+
+**TWO LIVE EXAMPLES — from the failed payments on the sweep the day before filing (08-31):**
+| Registrant | Job |
+|:--|:--|
+| **Maeve Lennon** | STEPS Elite AIM:Girls Elite Players 2026-2027 |
+| **Gianna Rinaldi** | STEPS Lacrosse California:Girls Elite Players 2026-2027 |
+
+**RELATED, FOR WHOEVER PICKS THIS UP — do not treat as diagnosis:** a 48-hour grace already appears in the codebase per the AR-027 notes (`GetBehindInPaymentFlagsAsync:107-117`), and AR-027 documented a separate double-charge path on the Update CC screen. **Whether any of that is the same 48 hours Ann means is UNVERIFIED and is exactly what Todd is to research.**
+- **Severity**: 🚨🚨 **Ann-flagged IMPORTANT — real money, double payments, with two named live cases.**
+- **Status**: 🔴 **OPEN — for Todd. Filed 09-01, unresearched by request.**
+
+### AR-066: [Change Password] Selecting a Customer does not filter the list — other customers' jobs still appear in the Job column
+- **Topic**: **Change Password** screen — the **Customer** selector and the **Job** column
+- **Reported by**: Ann, 09-01. **Filed verbatim at her instruction — NOT researched, NOT diagnosed.** Todd is doing the research fresh; nothing below has been checked against code or data.
+
+**ANN'S REPORT, IN HER WORDS.** *"Under change password, when you have a role and select Customer, it doesn't filter. Other Customers appear in the Job column."*
+
+**WHAT THAT DESCRIBES.** On Change Password, with a role selected, choosing a **Customer** is expected to narrow the list to that customer's jobs. It does not — **jobs belonging to OTHER customers remain visible in the Job column.**
+
+**NOT YET ESTABLISHED — for Todd, not assumptions to carry forward:** whether the Customer selector is filtering nothing at all or filtering the wrong field; whether the Job column is the only place the leak shows; which role Ann had selected when she saw it; and whether what is displayed is only a job NAME or also identifies the other customer. **Nothing here has been checked.**
+- **Severity**: UNRATED — **cross-customer data appearing on an admin screen deserves a look at whether it is only a filtering annoyance or a visibility question.** Ann did not rate it; neither have I, because rating it would require the research she asked to defer.
+- **Status**: 🔴 **OPEN — for Todd. Filed 09-01, unresearched by request.**
+
+### AR-067: [ARB Health] Open with Lookup Behind in Payment ALREADY selected and its table showing — it is the heavily-used view
+- **Topic**: **ARB Subscription Health** — the landing state of the screen, and the **Lookup Behind in Payment** table
+- **Requested by**: Ann, 09-01. **Filed verbatim at her instruction — NOT researched, NOT designed.** Todd is doing the research fresh; nothing below has been checked against code or data.
+
+**ANN'S REQUEST, IN HER WORDS.** *"When you select ARB Health, can you have Lookup Behind in Payment already selected and table appearing? This is used heavily."*
+
+**WHAT IS BEING ASKED.** Land on ARB Health with **Lookup Behind in Payment already selected and its table already rendered**, instead of requiring the user to pick it every time. **Her stated justification is usage: it is what she goes to the screen for.**
+
+**NOT YET ESTABLISHED — for Todd, not assumptions:** what ARB Health currently defaults to; whether the lookup runs a query heavy enough that auto-running it on every open is a cost worth weighing; and whether anyone uses the screen for a different tab first. **Nothing here has been checked.**
+- **Note for whoever takes it**: this is the same screen as the four AR-039 fixes (closed 08-30). **If that screen is being opened again, these could be done in the same pass** — and note AR-039's part 3 shipped as the LABEL only, so `ArbDefensiveService` is still named that internally.
+- **Severity**: 🟢 **Convenience on a heavily-used screen. No defect reported** — Ann is asking for a default, not reporting a fault.
+- **Status**: 🔴 **OPEN — for Todd. Filed 09-01, unresearched by request.**
 
 ### AR-038: ✅ VERIFIED (Todd, 08-30) — CLOSED · 🚨🚨 [Privacy / Med Forms] A player's medical form is visible on EVERY registration they hold — across jobs AND across unrelated customers
 - **Topic**: Search Registrations → registrant fly-in → **"Medical form on file" / View** (`MedFormController`, `MedFormService`)
