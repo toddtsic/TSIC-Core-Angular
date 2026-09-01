@@ -90,16 +90,26 @@ public record YoyYearColumnDto
     /// <summary>Charged through the cutoff — team fees plus player fees, already net of discounts.</summary>
     public required decimal Billed { get; init; }
 
-    /// <summary>Fee reductions applied at charge time. NOT part of <see cref="Collected"/> — <see cref="Billed"/> is already net of them.</summary>
-    public required decimal Discounts { get; init; }
-
-    /// <summary>Received through the cutoff, all methods, refunds netted in as negatives.</summary>
+    /// <summary>Received through the cutoff, all methods — corrections included, refunds inside as negatives.</summary>
     public required decimal Collected { get; init; }
 
-    /// <summary>Online Corrections, net across both signs. A SUBSET of <see cref="Collected"/> — adding it double counts.</summary>
-    public required decimal Corrections { get; init; }
+    /// <summary>
+    /// Net fee adjustment through the cutoff — <c>lateFee − discount − correction</c>, the same
+    /// signed figure the player and club-rep grids show as "Fee-Adj". Positive = owes more.
+    /// <para>
+    /// A MEMO spanning both sides: the late-fee and discount terms are already inside
+    /// <see cref="Billed"/>, the correction term already inside <see cref="Collected"/>.
+    /// It adds to neither.
+    /// </para>
+    /// </summary>
+    public required decimal Adj { get; init; }
 
-    /// <summary>Credit Card Credits, always negative. A SUBSET of <see cref="Collected"/>.</summary>
+    /// <summary>
+    /// Credit Card Credits through the cutoff — always negative, already netted inside
+    /// <see cref="Collected"/>. Reported because netted-and-invisible makes a season that
+    /// collected $1.2M and refunded $200K read like one that collected $1M clean. NOT part of
+    /// <see cref="Adj"/>: a refund is returned tender, not a fee adjustment.
+    /// </summary>
     public required decimal Refunds { get; init; }
 
     /// <summary>

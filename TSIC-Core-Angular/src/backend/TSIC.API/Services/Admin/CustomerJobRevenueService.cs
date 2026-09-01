@@ -186,6 +186,13 @@ public class CustomerJobRevenueService : ICustomerJobRevenueService
         return await _repo.GetYoyRevenueAsync(jobId, startDate, endDate, ct);
     }
 
+    public async Task<List<AdjustmentRecordDto>> GetAdjustmentsAsync(
+        Guid jobId, DateTime? startDate, DateTime? endDate,
+        List<string> jobNames, CancellationToken ct = default)
+    {
+        return await _repo.GetAdjustmentsAsync(jobId, startDate, endDate, jobNames, ct);
+    }
+
     public async Task UpdateMonthlyCountAsync(
         int aid, UpdateMonthlyCountRequest request, string userId,
         CancellationToken ct = default)

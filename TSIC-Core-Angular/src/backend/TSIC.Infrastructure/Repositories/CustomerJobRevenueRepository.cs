@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos.CustomerJobRevenue;
+using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 using TSIC.Infrastructure.Data.SqlDbContext;
@@ -718,7 +719,12 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 t.TeamName,
                 Billed = t.FeeTotal,
                 Owed = t.OwedTotal,
-                Discount = t.FeeDiscount
+                // Both discount buckets and the late fee — the three charge-side terms of
+                // FeeAdj. TotalDiscount() is FeeDiscount + FeeDiscountMp everywhere else in
+                // the system; it is spelled out here because EF cannot translate the extension.
+                Discount = t.FeeDiscount,
+                DiscountMp = t.FeeDiscountMp,
+                LateFee = t.FeeLatefee
             })
             .AsNoTracking()
             .ToListAsync(ct);
@@ -775,7 +781,7 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 && (r.FeeTotal != 0m || r.FeeDiscount != 0m)
                 && (endEx == null || r.RegistrationTs < endEx)
                 && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
-            group new { r.FeeTotal, r.OwedTotal, r.FeeDiscount } by new
+            group new { r.FeeTotal, r.OwedTotal, r.FeeDiscount, r.FeeDiscountMp, r.FeeLatefee } by new
             {
                 t.TeamId,
                 Year = r.RegistrationTs.Year,
@@ -788,16 +794,26 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 g.Key.Month,
                 Billed = g.Sum(x => x.FeeTotal),
                 Owed = g.Sum(x => x.OwedTotal),
-                Discount = g.Sum(x => x.FeeDiscount)
+                Discount = g.Sum(x => x.FeeDiscount),
+                DiscountMp = g.Sum(x => x.FeeDiscountMp),
+                LateFee = g.Sum(x => x.FeeLatefee)
             })
             .AsNoTracking()
             .ToListAsync(ct);
 
         // --- Q4: payment events, dated at the LEDGER ROW. This is what splits a deposit
         //         from its balance, and an ARB plan into its individual drafts. ---
+        //
+        // Classified on the METHOD ID, never the display name. PaymentMethodIds exists for
+        // exactly this reason — its own header warns that a text test drifts across variants
+        // ("Credit Card Payment" vs "…PIF", "Correction" vs "Online Correction By Client"),
+        // and it is the single classifier the payment resolver sums on, so a second opinion
+        // here is how two reads of the same ledger come to disagree.
+        var correctionMethodIds = PaymentMethodIds.Correction.ToArray();
+        var creditCardCreditId = PaymentMethodIds.CreditCardCredit;
+
         var payments = await (
             from ra in _context.RegistrationAccounting
-            join apm in _context.AccountingPaymentMethods on ra.PaymentMethodId equals apm.PaymentMethodId
             join r in _context.Registrations on ra.RegistrationId equals r.RegistrationId
             join t in _context.Teams on (ra.TeamId ?? r.AssignedTeamId) equals t.TeamId
             join j in _context.Jobs on t.JobId equals j.JobId
@@ -815,19 +831,19 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 && ra.Createdate != null
                 && (endEx == null || ra.Createdate < endEx)
                 && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
-            // Corrections and Refunds are SUBSETS of Collected, broken out as memo columns —
-            // they are not added to it. Corrections are summed NET, both signs (Todd,
-            // 2026-08-31): the positives are money the director took outside the system, the
-            // negatives are write-offs. On Top Threat that is +$603,383.36 against
-            // -$21,639.50, so this column is overwhelmingly money IN, not comps.
-            // Refunds (Credit Card Credit) are stored negative without exception — 4,109 of
-            // 4,109 rows system-wide — so no sign correction is applied anywhere.
+            // Corrections and Refunds are both SUBSETS of Collected — memos, never added to
+            // it. Corrections are summed NET across both signs (Todd, 2026-08-31): the
+            // positives are money the director took outside the system, the negatives are
+            // write-offs. On Top Threat that is +$581,743.86 net across 1,019 rows, so this
+            // is overwhelmingly money IN, not comps — which is why it feeds Adj by SUBTRACTION
+            // (a credit correction lowers what is owed).
+            // Refunds (Credit Card Credit) are stored negative without exception — all 165
+            // rows on Top Threat, min -$2,259.50, max -$77.85 — so no sign correction anywhere.
             group new
             {
                 ra.Payamt,
-                IsCorrection = apm.PaymentMethod == "Online Correction By Client"
-                            || apm.PaymentMethod == "Online Correction By TSIC",
-                IsRefund = apm.PaymentMethod == "Credit Card Credit"
+                IsCorrection = correctionMethodIds.Contains(ra.PaymentMethodId),
+                IsRefund = ra.PaymentMethodId == creditCardCreditId
             } by new
             {
                 t.TeamId,
@@ -851,25 +867,31 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         var countByTeam = rosterCounts.ToDictionary(x => x.TeamId, x => x.Count);
         var identity = teams.ToDictionary(x => x.TeamId);
         var cells = new Dictionary<(Guid TeamId, int Year, int Month),
-            (decimal Billed, decimal Collected, decimal Owed, decimal Discounts, decimal Corrections, decimal Refunds)>();
+            (decimal Billed, decimal Collected, decimal Owed, decimal Adj, decimal Refunds)>();
 
         // Defaulted so every call site names only the figures it actually contributes — a
-        // charge says billed/discount, a payment says collected/corrections/refunds, and
-        // neither carries a row of zeroes for the other's columns.
+        // charge says billed/adj, a payment says collected/adj/refunds, and neither carries a
+        // row of zeroes for the other's columns.
+        //
+        // Adj is the ONE signed column that replaced separate Discounts and Corrections
+        // (Todd, 2026-09-01): lateFee - discount - correction, matching
+        // PaymentState.FeeAdjustment, which the player and club-rep grids already display as
+        // "Fee-Adj". It accumulates from BOTH sides of the ledger, which is why it is a memo
+        // and adds to nothing: the charge-side terms are already inside Billed, the correction
+        // term already inside Collected.
         void Accrue(Guid teamId, int year, int month,
             decimal billed = 0m, decimal collected = 0m, decimal owed = 0m,
-            decimal discounts = 0m, decimal corrections = 0m, decimal refunds = 0m)
+            decimal adj = 0m, decimal refunds = 0m)
         {
             var key = (teamId, year, month);
             var cur = cells.TryGetValue(key, out var v)
                 ? v
-                : (Billed: 0m, Collected: 0m, Owed: 0m, Discounts: 0m, Corrections: 0m, Refunds: 0m);
+                : (Billed: 0m, Collected: 0m, Owed: 0m, Adj: 0m, Refunds: 0m);
             cells[key] = (
                 cur.Billed + billed,
                 cur.Collected + collected,
                 cur.Owed + owed,
-                cur.Discounts + discounts,
-                cur.Corrections + corrections,
+                cur.Adj + adj,
                 cur.Refunds + refunds);
         }
 
@@ -896,22 +918,30 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 continue;
             }
             Accrue(t.TeamId, t.Createdate.Year, t.Createdate.Month,
-                billed: t.Billed ?? 0m, discounts: t.Discount ?? 0m);
+                billed: t.Billed ?? 0m,
+                // Charge-side half of FeeAdj: a late fee makes the team owe MORE (positive),
+                // a discount less (negative). A NEGATIVE fee_discount is a surcharge and
+                // flips this positive — 4 teams system-wide carry one, so the sign is real,
+                // not defensive.
+                adj: (t.LateFee ?? 0m) - ((t.Discount ?? 0m) + (t.DiscountMp ?? 0m)));
             Charge(t.TeamId, t.Billed ?? 0m);
         }
 
         foreach (var p in playerCharges)
         {
-            Accrue(p.TeamId, p.Year, p.Month, billed: p.Billed, discounts: p.Discount);
+            Accrue(p.TeamId, p.Year, p.Month, billed: p.Billed,
+                adj: p.LateFee - (p.Discount + p.DiscountMp));
             Charge(p.TeamId, p.Billed);
         }
 
         // Corrections and Refunds ride the SAME rows they are part of — they are a breakdown
         // of Collected, so they must never touch Charge() or they would be subtracted twice.
+        // The correction term enters Adj NEGATED, per FeeAdjustment's `- correction`: a credit
+        // correction is money credited against the balance, so it lowers what is owed.
         foreach (var p in payments)
         {
             Accrue(p.TeamId, p.Year, p.Month,
-                collected: p.Collected, corrections: p.Corrections, refunds: p.Refunds);
+                collected: p.Collected, adj: -p.Corrections, refunds: p.Refunds);
             Charge(p.TeamId, -p.Collected);
         }
 
@@ -950,8 +980,7 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                     Billed = Math.Round(kv.Value.Billed, 2, MidpointRounding.AwayFromZero),
                     Collected = Math.Round(kv.Value.Collected, 2, MidpointRounding.AwayFromZero),
                     Owed = Math.Round(kv.Value.Owed, 2, MidpointRounding.AwayFromZero),
-                    Discounts = Math.Round(kv.Value.Discounts, 2, MidpointRounding.AwayFromZero),
-                    Corrections = Math.Round(kv.Value.Corrections, 2, MidpointRounding.AwayFromZero),
+                    Adj = Math.Round(kv.Value.Adj, 2, MidpointRounding.AwayFromZero),
                     Refunds = Math.Round(kv.Value.Refunds, 2, MidpointRounding.AwayFromZero)
                 };
             })
@@ -1130,10 +1159,19 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         //     jobs of the same season share a pin, so this is a handful of batches, not one
         //     pass per job. Sequential awaits throughout — shared scoped DbContext. ---
         var billedByJob = new Dictionary<Guid, decimal>();
-        var discountsByJob = new Dictionary<Guid, decimal>();
         var collectedByJob = new Dictionary<Guid, decimal>();
-        var correctionsByJob = new Dictionary<Guid, decimal>();
         var refundsByJob = new Dictionary<Guid, decimal>();
+
+        // One signed adjustment per job — lateFee - discount - correction, matching
+        // PaymentState.FeeAdjustment. It accumulates from both the charge queries and the
+        // payment query, which is precisely why it is a memo that adds to nothing.
+        var adjByJob = new Dictionary<Guid, decimal>();
+
+        // Classified on the METHOD ID, never the display name — PaymentMethodIds is the single
+        // classifier the payment resolver sums on, and its own header warns that a text test
+        // drifts across method-name variants.
+        var correctionMethodIds = PaymentMethodIds.Correction.ToArray();
+        var creditCardCreditId = PaymentMethodIds.CreditCardCredit;
 
         foreach (var batch in pinExByJob.GroupBy(kv => kv.Value))
         {
@@ -1146,12 +1184,14 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 where batchIds.Contains(t.JobId)
                     && t.Active == true
                     && t.Createdate < pinEx
-                group new { t.FeeTotal, t.FeeDiscount } by t.JobId into g
+                group new { t.FeeTotal, t.FeeDiscount, t.FeeDiscountMp, t.FeeLatefee } by t.JobId into g
                 select new
                 {
                     JobId = g.Key,
                     Billed = g.Sum(x => x.FeeTotal),
-                    Discount = g.Sum(x => x.FeeDiscount)
+                    Discount = g.Sum(x => x.FeeDiscount),
+                    DiscountMp = g.Sum(x => x.FeeDiscountMp),
+                    LateFee = g.Sum(x => x.FeeLatefee)
                 })
                 .AsNoTracking()
                 .ToListAsync(ct);
@@ -1159,7 +1199,8 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             foreach (var c in teamCharges)
             {
                 billedByJob[c.JobId] = billedByJob.GetValueOrDefault(c.JobId) + (c.Billed ?? 0m);
-                discountsByJob[c.JobId] = discountsByJob.GetValueOrDefault(c.JobId) + (c.Discount ?? 0m);
+                adjByJob[c.JobId] = adjByJob.GetValueOrDefault(c.JobId)
+                    + (c.LateFee ?? 0m) - ((c.Discount ?? 0m) + (c.DiscountMp ?? 0m));
             }
 
             // Player fees — the assigned-team route, dated at the registration. The
@@ -1173,12 +1214,14 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                     && t.Active == true
                     && (r.FeeTotal != 0m || r.FeeDiscount != 0m)
                     && r.RegistrationTs < pinEx
-                group new { r.FeeTotal, r.FeeDiscount } by t.JobId into g
+                group new { r.FeeTotal, r.FeeDiscount, r.FeeDiscountMp, r.FeeLatefee } by t.JobId into g
                 select new
                 {
                     JobId = g.Key,
                     Billed = g.Sum(x => x.FeeTotal),
-                    Discount = g.Sum(x => x.FeeDiscount)
+                    Discount = g.Sum(x => x.FeeDiscount),
+                    DiscountMp = g.Sum(x => x.FeeDiscountMp),
+                    LateFee = g.Sum(x => x.FeeLatefee)
                 })
                 .AsNoTracking()
                 .ToListAsync(ct);
@@ -1186,7 +1229,8 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             foreach (var c in playerCharges)
             {
                 billedByJob[c.JobId] = billedByJob.GetValueOrDefault(c.JobId) + c.Billed;
-                discountsByJob[c.JobId] = discountsByJob.GetValueOrDefault(c.JobId) + c.Discount;
+                adjByJob[c.JobId] = adjByJob.GetValueOrDefault(c.JobId)
+                    + c.LateFee - (c.Discount + c.DiscountMp);
             }
 
             // Receipts. No payment-method filter — summing every active row is what reproduces
@@ -1194,7 +1238,6 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             // SUBSETS of Collected, never added to it.
             var payments = await (
                 from ra in _context.RegistrationAccounting
-                join apm in _context.AccountingPaymentMethods on ra.PaymentMethodId equals apm.PaymentMethodId
                 join r in _context.Registrations on ra.RegistrationId equals r.RegistrationId
                 join t in _context.Teams on (ra.TeamId ?? r.AssignedTeamId) equals t.TeamId
                 where batchIds.Contains(t.JobId)
@@ -1205,9 +1248,8 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 group new
                 {
                     ra.Payamt,
-                    IsCorrection = apm.PaymentMethod == "Online Correction By Client"
-                                || apm.PaymentMethod == "Online Correction By TSIC",
-                    IsRefund = apm.PaymentMethod == "Credit Card Credit"
+                    IsCorrection = correctionMethodIds.Contains(ra.PaymentMethodId),
+                    IsRefund = ra.PaymentMethodId == creditCardCreditId
                 } by t.JobId into g
                 select new
                 {
@@ -1222,7 +1264,9 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             foreach (var p in payments)
             {
                 collectedByJob[p.JobId] = collectedByJob.GetValueOrDefault(p.JobId) + p.Collected;
-                correctionsByJob[p.JobId] = correctionsByJob.GetValueOrDefault(p.JobId) + p.Corrections;
+                // Negated, per FeeAdjustment's `- correction`: a credit correction is money
+                // credited against the balance, so it lowers what is owed.
+                adjByJob[p.JobId] = adjByJob.GetValueOrDefault(p.JobId) - p.Corrections;
                 refundsByJob[p.JobId] = refundsByJob.GetValueOrDefault(p.JobId) + p.Refunds;
             }
         }
@@ -1244,14 +1288,13 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
 
                 var pin = pinByCell[cell.Key];
                 var pinEx = pin.AddDays(1);
-                decimal billed = 0m, discounts = 0m, collected = 0m, corrections = 0m, refunds = 0m;
+                decimal billed = 0m, collected = 0m, adj = 0m, refunds = 0m;
 
                 foreach (var m in cell.Value)
                 {
                     billed += billedByJob.GetValueOrDefault(m.JobId);
-                    discounts += discountsByJob.GetValueOrDefault(m.JobId);
                     collected += collectedByJob.GetValueOrDefault(m.JobId);
-                    corrections += correctionsByJob.GetValueOrDefault(m.JobId);
+                    adj += adjByJob.GetValueOrDefault(m.JobId);
                     refunds += refundsByJob.GetValueOrDefault(m.JobId);
                 }
 
@@ -1267,9 +1310,8 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                         .OrderBy(n => n, StringComparer.Ordinal)
                         .ToList(),
                     Billed = Math.Round(billed, 2, MidpointRounding.AwayFromZero),
-                    Discounts = Math.Round(discounts, 2, MidpointRounding.AwayFromZero),
                     Collected = Math.Round(collected, 2, MidpointRounding.AwayFromZero),
-                    Corrections = Math.Round(corrections, 2, MidpointRounding.AwayFromZero),
+                    Adj = Math.Round(adj, 2, MidpointRounding.AwayFromZero),
                     Refunds = Math.Round(refunds, 2, MidpointRounding.AwayFromZero),
                     // Computed, never read from teams.owed_total — that column is the balance
                     // right now and would contradict a column measured in the past.
@@ -1376,6 +1418,201 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         // A name that was NOTHING but its year leaves nothing to group on — keep the original
         // rather than emit an empty key that would swallow every other such job.
         return key.Length == 0 ? jobName.Trim() : key;
+    }
+
+    // =====================================================================
+    // ADJUSTMENTS — the entity-level detail behind the Adj column
+    //
+    // UNDATED, and that is the honest shape (Todd, 2026-09-01). Every other detail tab buckets
+    // by Year/Month because its rows are dated ledger events. Two of the three adjustment terms
+    // are not events at all: fee_discount and fee_latefee are stamped columns on the entity with
+    // no timestamp, no author and no reason. There is no adjustment-history table anywhere —
+    // fees.FeeModifiers holds the CONFIGURATION (3 rows system-wide, all LateFee), never an
+    // application. Inventing a date for a stamped balance would be a fiction, so this tab
+    // reports a rollup and says so.
+    //
+    // Still AS OF the end date, through the inclusion rule rather than a date column: an entity
+    // is in scope when it was CHARGED by the cutoff, and its correction rows — which genuinely
+    // are dated — are cut at the same cutoff.
+    //
+    // THE ENTITY IS THE MONEY-BEARING ONE, which depends on role: a club rep's money lives on
+    // Leagues.teams, everyone else's on their own registration. VERIFIED 2026-09-01: all 8
+    // club-rep registrations carrying a non-zero fee_discount carry EXACTLY their own teams'
+    // total ($4,132.25 both sides, row for row), so reading the team rather than the rep drops
+    // nothing and is what prevents double counting.
+    //
+    // Components are deliberately NOT broken out. fee_discount is a blended column — early bird
+    // is stamped from the cascade and discount codes += onto it afterwards — so a typed split
+    // was never recoverable from the data, and a tab that showed one would be inventing it.
+    //
+    // Rows whose net adjustment is zero are omitted: this tab exists to show the entities that
+    // HAVE an adjustment, and on Top Threat that is a few thousand rows out of a hundred
+    // thousand registrations.
+    // =====================================================================
+    public async Task<List<AdjustmentRecordDto>> GetAdjustmentsAsync(
+        Guid jobId, DateTime? startDate, DateTime? endDate, IReadOnlyList<string> jobNames,
+        CancellationToken ct = default)
+    {
+        var customerIds = await GetCustomerGroupIdsAsync(jobId, ct);
+        var jobFilter = jobNames.ToList();
+        DateTime? endEx = endDate?.Date.AddDays(1);
+
+        // Classified on the METHOD ID, never the display name — same single classifier the
+        // payment resolver sums on.
+        var correctionMethodIds = PaymentMethodIds.Correction.ToArray();
+
+        // --- Q1: the CLUB-REP route. Team money is native on Leagues.teams. ---
+        //
+        // No roster count in the label, unlike the Teams/Players tab: that count costs a grouped
+        // scan of Registrations (667K rows, no index on assigned_teamID) and this tab is about
+        // money adjustments, not roster size.
+        var teams = await (
+            from t in _context.Teams
+            join j in _context.Jobs on t.JobId equals j.JobId
+            join a in _context.Agegroups on t.AgegroupId equals a.AgegroupId
+            where customerIds.Contains(j.CustomerId)
+                && (startDate == null || j.ExpiryUsers >= startDate)
+                && t.Active == true
+                && (endEx == null || t.Createdate < endEx)
+                && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
+            select new
+            {
+                t.TeamId,
+                JobName = j.JobName!,
+                ClubName = t.ClubrepRegistration != null ? t.ClubrepRegistration.ClubName : null,
+                a.AgegroupName,
+                t.TeamName,
+                Discount = t.FeeDiscount,
+                DiscountMp = t.FeeDiscountMp,
+                LateFee = t.FeeLatefee
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        // --- Q2: the REGISTRATION route. Tests the FIELD, not a role list, so it cannot go
+        //         stale when another role starts carrying money. The fee_latefee arm of the
+        //         guard is not decoration: the first late-fee window in the system opens
+        //         2026-09-14, and without it a registration whose ONLY adjustment is a late fee
+        //         would be absent from the tab that exists to show it. ---
+        var regs = await (
+            from r in _context.Registrations
+            join t in _context.Teams on r.AssignedTeamId equals t.TeamId
+            join u in _context.AspNetUsers on r.UserId equals u.Id
+            join j in _context.Jobs on t.JobId equals j.JobId
+            where customerIds.Contains(j.CustomerId)
+                && (startDate == null || j.ExpiryUsers >= startDate)
+                && t.Active == true
+                && (r.FeeTotal != 0m || r.FeeDiscount != 0m || r.FeeLatefee != 0m)
+                && (endEx == null || r.RegistrationTs < endEx)
+                && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
+            select new
+            {
+                r.RegistrationId,
+                JobName = j.JobName!,
+                r.ClubName,
+                u.FirstName,
+                u.LastName,
+                Discount = r.FeeDiscount,
+                DiscountMp = r.FeeDiscountMp,
+                LateFee = r.FeeLatefee
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        // --- Q3: correction rows, cut at the same cutoff. Grouped so a correction lands on the
+        //         entity that owns it: club-rep ledger rows always carry a TeamId and player
+        //         rows never do (verified on Top Threat: 13,389 vs 457 rows, disjoint), so the
+        //         presence of TeamId IS the route discriminator. ---
+        var corrections = await (
+            from ra in _context.RegistrationAccounting
+            join r in _context.Registrations on ra.RegistrationId equals r.RegistrationId
+            join t in _context.Teams on (ra.TeamId ?? r.AssignedTeamId) equals t.TeamId
+            join j in _context.Jobs on t.JobId equals j.JobId
+            where customerIds.Contains(j.CustomerId)
+                && (startDate == null || j.ExpiryUsers >= startDate)
+                && t.Active == true
+                && ra.Active == true
+                && ra.Createdate != null
+                && (endEx == null || ra.Createdate < endEx)
+                && correctionMethodIds.Contains(ra.PaymentMethodId)
+                && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
+            group ra.Payamt by new { ra.TeamId, ra.RegistrationId } into g
+            select new
+            {
+                g.Key.TeamId,
+                g.Key.RegistrationId,
+                Amount = g.Sum(x => x ?? 0m)
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        var correctionByTeam = new Dictionary<Guid, decimal>();
+        var correctionByReg = new Dictionary<Guid, decimal>();
+        foreach (var c in corrections)
+        {
+            if (c.TeamId != null)
+            {
+                correctionByTeam[c.TeamId.Value] =
+                    correctionByTeam.GetValueOrDefault(c.TeamId.Value) + c.Amount;
+            }
+            else if (c.RegistrationId != null)
+            {
+                correctionByReg[c.RegistrationId.Value] =
+                    correctionByReg.GetValueOrDefault(c.RegistrationId.Value) + c.Amount;
+            }
+        }
+
+        var records = new List<AdjustmentRecordDto>();
+
+        // FeeAdj = lateFee - discount - correction, the same signed figure
+        // PaymentState.FeeAdjustment produces for the player and club-rep grids. Positive means
+        // the entity owes MORE.
+        foreach (var t in teams)
+        {
+            var adj = (t.LateFee ?? 0m)
+                - ((t.Discount ?? 0m) + (t.DiscountMp ?? 0m))
+                - correctionByTeam.GetValueOrDefault(t.TeamId);
+            if (adj == 0m)
+            {
+                continue;
+            }
+            var teamName = string.IsNullOrWhiteSpace(t.TeamName) ? "(Unnamed team)" : t.TeamName;
+            records.Add(new AdjustmentRecordDto
+            {
+                JobName = t.JobName,
+                ClubName = string.IsNullOrWhiteSpace(t.ClubName) ? "(No Club)" : t.ClubName,
+                EntityType = "Team",
+                EntityLabel = $"{t.AgegroupName}:{teamName}",
+                Adj = Math.Round(adj, 2, MidpointRounding.AwayFromZero)
+            });
+        }
+
+        foreach (var r in regs)
+        {
+            var adj = r.LateFee
+                - (r.Discount + r.DiscountMp)
+                - correctionByReg.GetValueOrDefault(r.RegistrationId);
+            if (adj == 0m)
+            {
+                continue;
+            }
+            var name = $"{r.FirstName} {r.LastName}".Trim();
+            records.Add(new AdjustmentRecordDto
+            {
+                JobName = r.JobName,
+                ClubName = string.IsNullOrWhiteSpace(r.ClubName) ? "(No Club)" : r.ClubName,
+                EntityType = "Registrant",
+                EntityLabel = string.IsNullOrWhiteSpace(name) ? "(Unnamed)" : name,
+                Adj = Math.Round(adj, 2, MidpointRounding.AwayFromZero)
+            });
+        }
+
+        return records
+            .OrderBy(r => r.JobName, StringComparer.Ordinal)
+            .ThenBy(r => r.ClubName, StringComparer.Ordinal)
+            .ThenBy(r => r.EntityType, StringComparer.Ordinal)
+            .ThenBy(r => r.EntityLabel, StringComparer.Ordinal)
+            .ToList();
     }
 
     public async Task UpdateMonthlyCountAsync(

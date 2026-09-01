@@ -196,6 +196,39 @@ public class CustomerJobRevenueController : ControllerBase
     }
 
     /// <summary>
+    /// Adjustments tab: one row per money-bearing entity carrying a non-zero net fee
+    /// adjustment, as of the end date. UNDATED rows — see the repository for why.
+    /// </summary>
+    [HttpGet("adjustments")]
+    public async Task<ActionResult<List<AdjustmentRecordDto>>> GetAdjustments(
+        [FromQuery] DateTime? startDate,
+        [FromQuery] DateTime? endDate,
+        [FromQuery] List<string> jobNames,
+        CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+        {
+            return BadRequest(new { message = "Registration context required" });
+        }
+
+        var scopeError = ValidateScope(startDate, endDate, jobNames);
+        if (scopeError != null)
+        {
+            return BadRequest(new { message = scopeError });
+        }
+
+        var hasJobScope = jobNames is { Count: > 0 };
+        var records = await _revenueService.GetAdjustmentsAsync(
+            jobId.Value,
+            hasJobScope ? null : startDate,
+            hasJobScope ? null : endDate,
+            jobNames ?? [], ct);
+
+        return Ok(records);
+    }
+
+    /// <summary>
     /// The scope guardrail born of two real overpayment incidents: an unscoped request
     /// (no jobs, no dates) silently aggregated x-job revenue. Reject it server-side.
     /// </summary>

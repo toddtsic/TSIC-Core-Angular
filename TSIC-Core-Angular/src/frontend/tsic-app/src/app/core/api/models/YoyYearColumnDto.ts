@@ -8,9 +8,8 @@ export type YoyYearColumnDto = {
     isActive: boolean;
     jobNames: Array<string>;
     billed: number;
-    discounts: number;
     collected: number;
-    corrections: number;
+    adj: number;
     refunds: number;
     owed: number;
 };

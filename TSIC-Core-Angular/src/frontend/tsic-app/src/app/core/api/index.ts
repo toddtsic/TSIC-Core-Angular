@@ -20,6 +20,7 @@ export type { AddTeamLinkRequest } from './models/AddTeamLinkRequest';
 export type { AddTimeslotDateRequest } from './models/AddTimeslotDateRequest';
 export type { AddTimeslotFieldRequest } from './models/AddTimeslotFieldRequest';
 export type { AddToCartRequest } from './models/AddToCartRequest';
+export type { AdjustmentRecordDto } from './models/AdjustmentRecordDto';
 export type { AdjustWeatherRequest } from './models/AdjustWeatherRequest';
 export type { AdjustWeatherResponse } from './models/AdjustWeatherResponse';
 export type { AdminClubRenameRequest } from './models/AdminClubRenameRequest';

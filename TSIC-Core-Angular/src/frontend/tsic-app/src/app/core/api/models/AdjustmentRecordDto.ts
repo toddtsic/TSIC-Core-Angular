@@ -2,16 +2,11 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type TeamBillingRecordDto = {
+export type AdjustmentRecordDto = {
     jobName: string;
-    year: number;
-    month: number;
     clubName: string;
-    teamLabel: string;
-    billed: number;
-    collected: number;
-    owed: number;
+    entityType: string;
+    entityLabel: string;
     adj: number;
-    refunds: number;
 };
 

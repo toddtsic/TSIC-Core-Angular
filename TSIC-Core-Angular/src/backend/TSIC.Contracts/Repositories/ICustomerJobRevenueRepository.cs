@@ -72,6 +72,20 @@ public interface ICustomerJobRevenueRepository
         CancellationToken ct = default);
 
     /// <summary>
+    /// Adjustments tab: one row per money-bearing entity with a NON-ZERO net fee adjustment
+    /// (<c>lateFee − discount − correction</c>), as of the end date.
+    /// </summary>
+    /// <remarks>
+    /// UNDATED by design — two of the three terms are stamped columns with no timestamp, and no
+    /// adjustment-history table exists anywhere. Still as-of, via the inclusion rule: an entity
+    /// is in scope when it was CHARGED by the cutoff, and its correction rows are cut there too.
+    /// Entity follows the role: team for a club rep, registration for everyone else.
+    /// </remarks>
+    Task<List<AdjustmentRecordDto>> GetAdjustmentsAsync(
+        Guid jobId, DateTime? startDate, DateTime? endDate, IReadOnlyList<string> jobNames,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Updates a single MonthlyJobStats row (inline edit from the counts grid).
     /// </summary>
     Task UpdateMonthlyCountAsync(

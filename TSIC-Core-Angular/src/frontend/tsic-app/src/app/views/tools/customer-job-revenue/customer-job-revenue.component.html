@@ -169,6 +169,11 @@
 				</button>
 			</li>
 			<li class="nav-item">
+				<button class="nav-link" [class.active]="activeTab() === 'adjustments'" (click)="setTab('adjustments')">
+					Adjustments
+				</button>
+			</li>
+			<li class="nav-item">
 				<button class="nav-link" [class.active]="activeTab() === 'yoy'" (click)="setTab('yoy')">
 					Year-over-Year
 				</button>
@@ -429,15 +434,17 @@
 							So Billed and Collected are not expected to match inside any one month — only the
 							totals tie out.
 							<br>
-							<strong>Discounts, Corrections and Refunds are extra detail, not extra money.</strong>
-							Discounts are fee reductions you granted — Billed is already net of them, so they
-							are never part of Collected. Corrections and Refunds are the opposite: they are
-							already inside Collected, shown separately so you can see them. Do not add these
-							three to Collected — you would be counting the same money twice.
+							<strong>The two "of which" columns are detail, not extra money.</strong> Both are
+							already inside the column to their left. Adding either one to Billed or Collected
+							counts the same money twice.
 							<br>
-							<strong>Corrections are mostly money coming in, not comps.</strong> A correction is
-							usually you recording a payment that arrived outside the system; a negative one is
-							a write-off. The column is the net of both.
+							<strong>Adj is every fee adjustment on that team or player, netted into one
+							number</strong> — late fees added, discounts and corrections taken off. A positive
+							Adj means they were charged more, a negative one means less. Billed is already net
+							of it. To see who a given adjustment belongs to, open the Adjustments tab.
+							<br>
+							<strong>Refunds are money that went back out</strong>, and they are already netted
+							inside Collected as negatives — so Collected is what you actually kept.
 							<br>
 							<strong>Owed, the last column, is each team's balance as of the end date</strong>,
 							shown against the month that team registered. It is the bottom line, not the
@@ -469,6 +476,79 @@
 				</ejs-pivotview>
 			}
 		}
+		<!-- Tab 8: Adjustments — the entity-level detail behind Teams/Players' Adj column.
+		     A grid, not a pivot: these rows carry no Year/Month to pivot on. -->
+		@if (activeTab() === 'adjustments') {
+			<div class="cjr-info-panel tsic-callout tsic-callout--warning tsic-callout--block" role="note">
+				<i class="bi bi-info-circle" aria-hidden="true"></i>
+				<span>
+					<strong>This tab is {{ adjustmentsBasis }}.</strong>
+					It breaks the Adj column on Teams/Players down to the team or player carrying it.
+					<button type="button" class="cjr-help-toggle"
+						[attr.aria-expanded]="adjustmentsHelpOpen()"
+						(click)="toggleAdjustmentsHelp()">
+						<i class="bi" aria-hidden="true"
+							[class.bi-chevron-right]="!adjustmentsHelpOpen()"
+							[class.bi-chevron-down]="adjustmentsHelpOpen()"></i>
+						How to read this
+					</button>
+					@if (adjustmentsHelpOpen()) {
+						<span class="cjr-help-detail">
+							<strong>One row per team or player, not per adjustment.</strong> Everything on an
+							entity is netted into a single figure: late fees added, discounts and corrections
+							taken off. Club-rep money sits on the team, everyone else's on their own
+							registration — the same split Teams/Players uses, so the two tabs tie out.
+							<br>
+							<strong>A positive number means they were charged more, a negative one less.</strong>
+							Most rows are negative, because most adjustments are discounts.
+							<br>
+							<strong>Only entities with an adjustment appear.</strong> A team or player whose
+							net adjustment is zero is left out — this tab is the exceptions, not the roster.
+							<br>
+							<strong>The type of adjustment is not shown, because the data does not record
+							it.</strong> Early-bird discounts, discount codes and sibling discounts all land in
+							one stored column with nothing marking which is which, and there is no adjustment
+							history anywhere to reconstruct it from. A typed breakdown here would be invented.
+							<br>
+							<strong>These rows carry no date.</strong> Discounts and late fees are stored as a
+							balance on the record, not as dated events, so there is no month to file them
+							under. Your dates still choose which events are included, and cut the correction
+							records at your end date.
+						</span>
+					}
+				</span>
+			</div>
+			@if (adjustmentsLoading()) {
+				<div class="text-center py-4">
+					<span class="spinner-border text-primary"></span>
+					<div class="text-muted mt-2">Loading adjustments...</div>
+				</div>
+			} @else if (adjustmentRecords().length === 0) {
+				<div class="list-empty-state">
+					<i class="bi bi-tags"></i>
+					<div>No teams or players carry a fee adjustment in this scope.</div>
+				</div>
+			} @else {
+				<ejs-grid width="100%" #adjustmentsGrid
+					[allowSorting]="true"
+					[allowTextWrap]="true"
+					[dataSource]="adjustmentRecords()"
+					cssClass="tsic-grid cjr-adjustments-grid"
+					[allowExcelExport]="true"
+					[allowPdfExport]="true"
+					(pdfQueryCellInfo)="onPdfQueryCellInfo($event)"
+					(actionFailure)="onGridActionFailure($event)">
+					<e-columns>
+						<e-column field="jobName" headerText="Job" width="240"></e-column>
+						<e-column field="clubName" headerText="Club" width="180"></e-column>
+						<e-column field="entityType" headerText="Type" width="110"></e-column>
+						<e-column field="entityLabel" headerText="Team / Registrant" width="220"></e-column>
+						<e-column field="adj" headerText="Adj" width="110" format="C2" textAlign="Right"></e-column>
+					</e-columns>
+				</ejs-grid>
+			}
+		}
+
 		<!-- ============ YEAR-OVER-YEAR REVIEW ============ -->
 		@if (activeTab() === 'yoy') {
 			<!-- Same "say what this is" contract as Teams/Players: two tabs on this page use the
@@ -499,7 +579,7 @@
 								Run this a month from now and last season's bars advance a month too.
 							</p>
 							<p class="mb-2">
-								<strong>Billed</strong> is what was charged, already net of discounts.
+								<strong>Billed</strong> is what was charged, already net of adjustments.
 								<strong>Collected</strong> is what came in, all methods, refunds netted out.
 								<strong>Owed</strong> is Billed less Collected at that cutoff — computed here,
 								not the balance as it stands today.
@@ -587,7 +667,7 @@
 								<e-series-collection>
 									<!-- Charges, then receipts, then what is still out. Ordered the way the
 									     money moves; Owed last because Billed − Collected = Owed does not
-									     hold bar-for-bar once discounts and corrections are in play. -->
+									     hold bar-for-bar once fee adjustments are in play. -->
 									<e-series
 										[dataSource]="group.points"
 										type="Column"

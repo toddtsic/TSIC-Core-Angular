@@ -60,28 +60,95 @@ public record TeamBillingRecordDto
     public required decimal Owed { get; init; }
 
     /// <summary>
-    /// Fee reductions applied at charge time — <c>teams.fee_discount</c> on the club-rep route,
-    /// <c>Registrations.fee_discount</c> on the assigned-team route. NOT part of
-    /// <see cref="Collected"/>: a discount lowers what was billed before any money moves, so
-    /// <see cref="Billed"/> is already net of it. Dated with the charge.
-    /// </summary>
-    public required decimal Discounts { get; init; }
-
-    /// <summary>
-    /// Online Correction rows (By Client and By TSIC), summed NET across both signs.
+    /// Net fee adjustment — <c>lateFee − discount − correction</c>, the same signed figure the
+    /// player and club-rep grids show as "Fee-Adj"
+    /// (<c>TSIC.Contracts.Payments.PaymentState.FeeAdjustment</c>).
     /// <para>
-    /// A SUBSET of <see cref="Collected"/>, not an addition to it — adding the two double
-    /// counts. Read it as a record type, not as comps: on Top Threat the positives are
-    /// +$603,383.36 (money the director took outside the system) against −$21,639.50 of
-    /// write-offs, so the net is overwhelmingly money in.
+    /// <b>Positive means the entity owes MORE</b> (late fees, charge-back corrections);
+    /// <b>negative means it owes less</b> (discounts, credit corrections). Both directions
+    /// occur: 4 teams system-wide carry a NEGATIVE <c>fee_discount</c>, which is a surcharge.
+    /// </para>
+    /// <para>
+    /// A MEMO column spanning both sides of the ledger, and it adds to nothing on this row.
+    /// The late-fee and discount terms are already inside <see cref="Billed"/> — a
+    /// <c>fee_total</c> includes its late fee and is already net of its discount. The
+    /// correction term is already inside <see cref="Collected"/>. Adding Adj to either
+    /// double counts.
+    /// </para>
+    /// <para>
+    /// Dated the way its parts are: the charge-side terms ride the entity's charge month, the
+    /// correction term rides the month the correction row was written. So within one month Adj
+    /// need not relate to the other columns any more than they relate to each other.
+    /// </para>
+    /// <para>
+    /// Replaces the former separate Discounts and Corrections columns (Todd, 2026-09-01). The
+    /// components are deliberately NOT broken out: <c>fee_discount</c> is a blended column —
+    /// early bird is stamped from the cascade and discount codes <c>+=</c> onto it afterwards —
+    /// so a typed split was never recoverable from the data.
     /// </para>
     /// </summary>
-    public required decimal Corrections { get; init; }
+    public required decimal Adj { get; init; }
 
     /// <summary>
-    /// Credit Card Credit rows — a SUBSET of <see cref="Collected"/>, already netted into it.
-    /// Always negative: 4,109 of 4,109 active rows system-wide carry a negative amount, so no
-    /// sign correction is applied.
+    /// Credit Card Credit rows — money returned to a card. Always negative: 4,109 of 4,109
+    /// active rows system-wide carry a negative amount, so no sign correction is applied.
+    /// <para>
+    /// A MEMO like <see cref="Adj"/>, and already netted inside <see cref="Collected"/> —
+    /// which is exactly why it is reported. Netted and invisible, an event that collected
+    /// $1.2M and refunded $200K reads identically to one that collected $1M clean.
+    /// </para>
+    /// <para>
+    /// NOT part of <see cref="Adj"/>: a refund is returned TENDER, not a fee adjustment, and
+    /// it is absent from the <c>FeeAdjustment</c> formula for that reason.
+    /// </para>
     /// </summary>
     public required decimal Refunds { get; init; }
+}
+
+/// <summary>
+/// One row of the Adjustments tab: a single entity and its net fee adjustment, as of the
+/// report's end date.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>UNDATED, on purpose.</b> Every other detail tab buckets by Year/Month because its rows
+/// are dated ledger events. Two of the three adjustment terms are not events at all —
+/// <c>fee_discount</c> and <c>fee_latefee</c> are stamped columns on the entity with no
+/// timestamp, no author and no reason. Inventing a date for them would be a fiction, so this
+/// tab reports a rollup instead and says so.
+/// </para>
+/// <para>
+/// Still AS OF the end date, via the inclusion rule rather than a date column: an entity is in
+/// scope when it was CHARGED by the cutoff, and its correction rows — which genuinely are
+/// dated — are cut at the same cutoff.
+/// </para>
+/// <para>
+/// <b>The entity is the money-bearing one</b>, which depends on the registration's role: a
+/// club rep's money lives on <c>Leagues.teams</c>, everyone else's on their own registration.
+/// Verified: all 8 club-rep registrations carrying a non-zero <c>fee_discount</c> carry
+/// EXACTLY their own teams' total, so reading the team rather than the rep drops nothing and
+/// avoids double counting.
+/// </para>
+/// <para>
+/// Components are not broken out — see <see cref="TeamBillingRecordDto.Adj"/> for why a typed
+/// split is unrecoverable.
+/// </para>
+/// </remarks>
+public record AdjustmentRecordDto
+{
+    public required string JobName { get; init; }
+
+    /// <summary>Owning club, or <c>"(No Club)"</c>.</summary>
+    public required string ClubName { get; init; }
+
+    /// <summary><c>"Team"</c> or <c>"Registrant"</c> — which route put this row here.</summary>
+    public required string EntityType { get; init; }
+
+    /// <summary>Team label on the club-rep route, person's name on the registration route.</summary>
+    public required string EntityLabel { get; init; }
+
+    /// <summary>
+    /// <c>lateFee − discount − correction</c> for this one entity. Positive = owes more.
+    /// </summary>
+    public required decimal Adj { get; init; }
 }

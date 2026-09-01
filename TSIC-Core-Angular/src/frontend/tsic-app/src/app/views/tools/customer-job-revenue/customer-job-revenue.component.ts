@@ -32,6 +32,7 @@ import type { UpdateMonthlyCountRequest } from '@core/api';
 import type { LegacyCompareResultDto } from '@core/api';
 import type { TeamBillingRecordDto } from '@core/api';
 import type { YoyRevenueResponseDto, YoyEventGroupDto } from '@core/api';
+import type { AdjustmentRecordDto } from '@core/api';
 
 interface MonthOption {
 	startDate: string;
@@ -70,6 +71,16 @@ const TEAM_BILLING_BASIS = 'what your teams and players owe you';
 const YOY_BASIS = 'how each event is doing versus the same point in prior seasons';
 
 /**
+ * What the Adjustments tab is, in one line, shown on screen.
+ *
+ * The entity-level detail behind the Adj column on Teams/Players — every team and registrant
+ * whose net fee adjustment is not zero. A rollup, never a typed breakdown: fee_discount is a
+ * blended column (early bird is stamped from the cascade, discount codes add onto it after),
+ * so which part came from where is not recoverable from the data.
+ */
+const ADJUSTMENTS_BASIS = 'who carries a fee adjustment, and how much';
+
+/**
  * Seasons visible before the chart starts scrolling. Four clusters of three bars read
  * comfortably at any card width; past that the bars thin faster than the extra history earns
  * its place, so the rest goes behind the scrollbar rather than off the design.
@@ -84,8 +95,7 @@ interface YoyChartPoint {
 	billed: number;
 	collected: number;
 	owed: number;
-	discounts: number;
-	corrections: number;
+	adj: number;
 	refunds: number;
 	asOf: string;
 	active: boolean;
@@ -160,7 +170,7 @@ export class CustomerJobRevenueComponent {
 	// UI state
 	isLoading = signal(false);
 	errorMessage = signal('');
-	activeTab = signal<'rollup' | 'counts' | 'adminFees' | 'ccRecords' | 'checkRecords' | 'echeckRecords' | 'teamBilling' | 'yoy'>('rollup');
+	activeTab = signal<'rollup' | 'counts' | 'adminFees' | 'ccRecords' | 'checkRecords' | 'echeckRecords' | 'teamBilling' | 'adjustments' | 'yoy'>('rollup');
 
 	// Guided scope flow — lands on All jobs · date range (pickers preset to last month);
 	// nothing runs until the user clicks Run Report.
@@ -197,6 +207,18 @@ export class CustomerJobRevenueComponent {
 		this.teamBillingHelpOpen.update(open => !open);
 	}
 	teamBillingRecords = computed(() => this.teamBilling() ?? []);
+
+	// Adjustments tab — the entity-level detail behind Teams/Players' Adj column. Same lazy
+	// fetch and same invalidation as the detail tabs.
+	private readonly adjustments = signal<AdjustmentRecordDto[] | null>(null);
+	adjustmentsLoading = signal(false);
+	readonly adjustmentsBasis = ADJUSTMENTS_BASIS;
+	adjustmentsHelpOpen = signal(false);
+
+	toggleAdjustmentsHelp(): void {
+		this.adjustmentsHelpOpen.update(open => !open);
+	}
+	adjustmentRecords = computed(() => this.adjustments() ?? []);
 
 	// Derived
 	monthlyCounts = computed(() => this.rollup()?.monthlyCounts ?? []);
@@ -236,10 +258,15 @@ export class CustomerJobRevenueComponent {
 		// "Total Sum of {caption}" — the aggregation name plus the grand-total prefix. These
 		// are three balances, not an aggregation the reader needs narrated, so suppress it.
 		showAggregationOnValueField: false,
-		// Ordered charges → receipts → balance, each memo column beside the figure it
-		// belongs to. Discounts is charge-side: it reduces Billed before any money moves and
-		// never touches Collected. Corrections and Refunds are receipts-side: both are
-		// SUBSETS already inside Collected, not additions to it, so adding them double counts.
+		// Ordered charges → receipts → balance, with each memo column sitting beside the
+		// figure it is part of, and CAPTIONED as a memo ("of which") so no one adds it in.
+		//
+		// Adj replaced separate Discounts and Corrections columns (Todd, 2026-09-01). It is
+		// one signed number — lateFee - discount - correction — matching the "Fee-Adj" the
+		// player and club-rep grids already show. It is a memo against BOTH neighbours at
+		// once: its charge-side terms are already inside Billed, its correction term already
+		// inside Collected. That is exactly why it is not a column anyone can total against
+		// the others, and why the Adjustments tab exists to break it down by entity.
 		//
 		// Owed goes LAST, not beside Billed and Collected (Todd, 2026-08-31). It is the
 		// bottom line, and Billed - Collected = Owed does NOT hold row by row — Owed sits
@@ -247,17 +274,15 @@ export class CustomerJobRevenueComponent {
 		// nowhere except at the totals.
 		values: [
 			{ name: 'billed', caption: 'Billed', type: 'Sum' },
-			{ name: 'discounts', caption: 'Discounts', type: 'Sum' },
+			{ name: 'adj', caption: 'of which Adj', type: 'Sum' },
 			{ name: 'collected', caption: 'Collected', type: 'Sum' },
-			{ name: 'corrections', caption: 'Corrections', type: 'Sum' },
-			{ name: 'refunds', caption: 'Refunds', type: 'Sum' },
+			{ name: 'refunds', caption: 'of which Refunds', type: 'Sum' },
 			{ name: 'owed', caption: 'Owed', type: 'Sum' }
 		],
 		formatSettings: [
 			{ name: 'billed', format: 'C2', useGrouping: true },
-			{ name: 'discounts', format: 'C2', useGrouping: true },
+			{ name: 'adj', format: 'C2', useGrouping: true },
 			{ name: 'collected', format: 'C2', useGrouping: true },
-			{ name: 'corrections', format: 'C2', useGrouping: true },
 			{ name: 'refunds', format: 'C2', useGrouping: true },
 			{ name: 'owed', format: 'C2', useGrouping: true }
 		]
@@ -337,6 +362,7 @@ export class CustomerJobRevenueComponent {
 	readonly ccGrid = viewChild.required<GridComponent>('ccGrid');
 	readonly checkGrid = viewChild.required<GridComponent>('checkGrid');
 	readonly echeckGrid = viewChild.required<GridComponent>('echeckGrid');
+	readonly adjustmentsGrid = viewChild<GridComponent>('adjustmentsGrid');
 
 	constructor() {
 		// Emitter and subscriber share this component's lifetime — no teardown needed.
@@ -477,6 +503,7 @@ export class CustomerJobRevenueComponent {
 				this.checkDetail.set(null);
 				this.echeckDetail.set(null);
 				this.teamBilling.set(null);
+				this.adjustments.set(null);
 				this.yoy.set(null);
 				this.qaResult.set(null);
 				this.rowHeaderWidth = this.measureRowHeaderWidth(data.revenueRecords);
@@ -519,6 +546,9 @@ export class CustomerJobRevenueComponent {
 		if (tab === 'teamBilling') {
 			this.fetchTeamBillingIfNeeded();
 		}
+		if (tab === 'adjustments') {
+			this.fetchAdjustmentsIfNeeded();
+		}
 		if (tab === 'yoy') {
 			this.fetchYoyIfNeeded();
 		}
@@ -542,6 +572,30 @@ export class CustomerJobRevenueComponent {
 			error: (err) => {
 				this.teamBillingLoading.set(false);
 				this.errorMessage.set(err.error?.message || 'Failed to load team billing');
+			}
+		});
+	}
+
+	/**
+	 * Adjustments detail. Unscoped by date on purpose: two of the three terms (fee_discount,
+	 * fee_latefee) are stamped columns with no timestamp, so the rows carry no Year/Month —
+	 * see the repository for why inventing one would be a fiction. The scope still applies,
+	 * through which entities are included and where the correction rows are cut.
+	 */
+	private fetchAdjustmentsIfNeeded(): void {
+		const scope = this.submittedScope();
+		if (!scope || this.adjustments() !== null || this.adjustmentsLoading()) {
+			return;
+		}
+		this.adjustmentsLoading.set(true);
+		this.http.get<AdjustmentRecordDto[]>(`${this.apiUrl}/adjustments`, { params: this.scopeParams(scope) }).subscribe({
+			next: (records) => {
+				this.adjustments.set(records);
+				this.adjustmentsLoading.set(false);
+			},
+			error: (err) => {
+				this.adjustmentsLoading.set(false);
+				this.errorMessage.set(err.error?.message || 'Failed to load adjustments');
 			}
 		});
 	}
@@ -599,8 +653,7 @@ export class CustomerJobRevenueComponent {
 			billed: y.billed,
 			collected: y.collected,
 			owed: y.owed,
-			discounts: y.discounts,
-			corrections: y.corrections,
+			adj: y.adj,
 			refunds: y.refunds,
 			asOf: y.asOf,
 			active: y.isActive,
@@ -826,6 +879,18 @@ export class CustomerJobRevenueComponent {
 			// Excel only — the PDF button is not rendered on this tab.
 			if (kind === 'excel') {
 				this.exportTeamBillingPivot();
+			}
+			return;
+		}
+		if (tab === 'adjustments') {
+			const grid = this.adjustmentsGrid();
+			if (!grid) {
+				return; // still loading — nothing rendered to export
+			}
+			if (kind === 'pdf') {
+				grid.pdfExport({ fileName: 'CustomerJobRevenue-Adjustments.pdf', header: this.pdfHeader() });
+			} else {
+				grid.excelExport({ fileName: 'CustomerJobRevenue-Adjustments.xlsx', header: this.excelHeader(5) });
 			}
 			return;
 		}

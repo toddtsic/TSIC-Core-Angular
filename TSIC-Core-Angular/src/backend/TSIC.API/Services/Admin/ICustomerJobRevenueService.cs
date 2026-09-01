@@ -26,6 +26,10 @@ public interface ICustomerJobRevenueService
         Guid jobId, DateTime startDate, DateTime endDate,
         CancellationToken ct = default);
 
+    Task<List<AdjustmentRecordDto>> GetAdjustmentsAsync(
+        Guid jobId, DateTime? startDate, DateTime? endDate,
+        List<string> jobNames, CancellationToken ct = default);
+
     Task UpdateMonthlyCountAsync(
         int aid, UpdateMonthlyCountRequest request, string userId,
         CancellationToken ct = default);
