@@ -173,11 +173,19 @@
 					Teams/Players to Customer
 				</button>
 			</li>
+			<!-- Year-over-Year is HIDDEN, not removed (Todd, 2026-09-01). Still being designed —
+			     the as-of pin is derived from the report's end date, which lands before the
+			     selling season for most tournaments and leaves the charts near-empty, and that
+			     question is open. Everything behind this tab is finished and working: the
+			     endpoint, the view model and the chart are all intact and untouched, and the
+			     content block below still compiles. Restoring the tab is uncommenting this one
+			     <li> — nothing else was ripped out, so nothing else has to be put back.
 			<li class="nav-item">
 				<button class="nav-link" [class.active]="activeTab() === 'yoy'" (click)="setTab('yoy')">
 					Year-over-Year
 				</button>
 			</li>
+			-->
 		</ul>
 
 		<!-- Shared tab toolbar: exports identical on every tab; rollup adds its own tools -->
