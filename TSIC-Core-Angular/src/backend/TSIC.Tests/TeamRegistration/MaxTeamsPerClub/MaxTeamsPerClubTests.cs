@@ -106,14 +106,10 @@ public class MaxTeamsPerClubTests
             .Setup(f => f.GetEffectiveProcessingRateAsync(TestJobId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(0m);
 
-        // 4. Club resolution is membership-first — the rep's ClubReps rows decide which library
-        //    this registration belongs to, not the club_name string.
-        clubReps
-            .Setup(cr => cr.GetClubLibrariesForRepAsync(TestUserId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<RepClubLibrary>
-            {
-                new() { ClubId = 1, ClubName = TestClubName, LibraryTeamCount = 0 }
-            });
+        // 4. GetByNameAsync → returns a club
+        clubs
+            .Setup(c => c.GetByNameAsync(TestClubName, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Clubs { ClubId = 1, ClubName = TestClubName });
 
         // 5. ExistsAsync → user has access to this club
         clubReps

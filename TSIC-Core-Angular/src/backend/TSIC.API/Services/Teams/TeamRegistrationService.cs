@@ -365,7 +365,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             .Select(id => id!.Value)
             .ToHashSet();
 
-        var effectiveClubId = await ResolveEffectiveClubIdAsync(regId, userId, registeredClubTeamIds, clubName);
+        var effectiveClubId = await ResolveEffectiveClubIdAsync(regId, registeredClubTeamIds, clubName);
 
         var suggestions = await GetHistoricalTeamSuggestionsAsync(userId, clubName ?? string.Empty, currentYear);
         var ageGroups = await GetAgeGroupsWithCountsAsync(jobId, job.Season ?? string.Empty);
@@ -630,26 +630,14 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         var processingRate = await _feeService.GetEffectiveProcessingRateAsync(jobId);
 
-        // Resolve the club through the SAME resolver the metadata read uses. It must be the same
-        // one: the read decides which library the rep is shown, and this write decides which club
-        // a new ClubTeams row is stamped with. Two different resolutions meant a rep could pick a
-        // team out of the library they were just shown and have this call fail — or, worse, mint
-        // a library team under a club that merely shared a name.
-        var registeredClubTeamIds = (await _teams.GetRegisteredTeamsForUserAndJobAsync(jobId, userId))
-            .Select(t => t.ClubTeamId)
-            .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .ToHashSet();
-
-        var effectiveClubId = await ResolveEffectiveClubIdAsync(regId, userId, registeredClubTeamIds, clubName);
-        if (effectiveClubId <= 0)
+        // Get club ID from ClubName
+        var club = await _clubs.GetByNameAsync(clubName ?? string.Empty);
+        if (club == null)
         {
-            _logger.LogWarning(
-                "Register-team could not resolve a club for registration {RegId} (club_name '{ClubName}', user {UserId})",
-                regId, clubName, userId);
-            throw new InvalidOperationException(
-                "Your club could not be determined for this registration. Please contact your organization administrator.");
+            _logger.LogWarning("Club not found: {ClubName}", clubName);
+            throw new InvalidOperationException($"Club not found: {clubName}");
         }
+        var effectiveClubId = club.ClubId;
 
         // Validate that user has access to this club (via ClubReps table)
         var hasAccess = await _clubReps.ExistsAsync(userId, effectiveClubId);
@@ -1070,19 +1058,9 @@ public class TeamRegistrationService : ITeamRegistrationService
     /// wizard never displays (True Lacrosse / "Cleveland 2029", 2026-08-12).
     /// Returns 0 when no club can be resolved; callers decide whether that is fatal.
     /// </summary>
-    /// <summary>
-    /// Decide which club library this club-rep registration belongs to, in descending order of
-    /// evidence: teams already registered → the rep's club membership → the club_name stamp.
-    /// The stamp is last on purpose; it is an unconstrained string and is the only one of the
-    /// three that can go stale without anyone touching the registration.
-    /// Returns 0 when no club can be established — callers fail loud, they never guess.
-    /// </summary>
     private async Task<int> ResolveEffectiveClubIdAsync(
-        Guid regId, string userId, IReadOnlyCollection<int> registeredClubTeamIds, string? clubName)
+        Guid regId, IReadOnlyCollection<int> registeredClubTeamIds, string? clubName)
     {
-        // ── 1. TEAMS ALREADY REGISTERED ────────────────────────────────────────────────────
-        // Hard linkage (Teams.ClubTeamId → ClubTeams.ClubId), not a string. Strongest signal
-        // there is: it is the library these teams demonstrably came out of.
         if (registeredClubTeamIds.Count > 0)
         {
             var clubIdByClubTeam = await _clubTeams.GetClubIdsForClubTeamIdsAsync(registeredClubTeamIds);
@@ -1108,111 +1086,8 @@ public class TeamRegistrationService : ITeamRegistrationService
             return effectiveClubId;
         }
 
-        // ── 2. MEMBERSHIP ──────────────────────────────────────────────────────────────────
-        // Registrations.club_name is a denormalized string with no FK. Resolving a library
-        // through it means a club rename (or two clubs sharing a name) silently hands back the
-        // wrong club — or none, which is what shows a rep with a full library the "Build your
-        // Club Library" empty state. Clubs.ClubReps is the actual ownership record, so ask it
-        // first and let the string be a tiebreak, never the anchor.
-        var repClubs = await _clubReps.GetClubLibrariesForRepAsync(userId);
-
-        // The overwhelmingly common case: one human, one club. No name is consulted at all, so
-        // this rep is immune to name drift by construction. Verified against live data before
-        // this was written — of every live club-rep registration where BOTH membership and the
-        // name resolve, membership returned the identical club in 932 of 932. This branch
-        // changes the answer for nobody who works today.
-        if (repClubs.Count == 1)
-        {
-            return repClubs[0].ClubId;
-        }
-
-        if (repClubs.Count > 1)
-        {
-            // Multi-club rep: the stamp says which of THEIR clubs this registration is for.
-            // Compare the way SQL would — the DB collation is CI_AS and 124 stamps carry
-            // stray padding, so an ordinal/untrimmed compare would drop live matches.
-            var named = repClubs
-                .Where(c => string.Equals(
-                    c.ClubName?.Trim(), clubName?.Trim(), StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            if (named.Count == 1)
-            {
-                return named[0].ClubId;
-            }
-
-            if (named.Count > 1)
-            {
-                // The rep owns two clubs with the SAME name — real, and the shape behind the
-                // original report. Both are theirs, so either is authorized; prefer the one
-                // they've actually built out. Deterministic, and logged so it can be merged.
-                var chosen = named
-                    .OrderByDescending(c => c.LibraryTeamCount)
-                    .ThenBy(c => c.ClubId)
-                    .First();
-                _logger.LogWarning(
-                    "Registration {RegId} (user {UserId}) names club '{ClubName}', which matches {Count} of the rep's own clubs ({Ids}); using {ClubId} (largest library). These clubs should be merged.",
-                    regId, userId, clubName, named.Count,
-                    string.Join(", ", named.Select(c => $"{c.ClubId}:{c.LibraryTeamCount}")), chosen.ClubId);
-                return chosen.ClubId;
-            }
-
-            // Multi-club rep whose stamp matches none of their clubs. Falling back to a global
-            // name lookup here would surface a library they do not own (and the write path's
-            // ExistsAsync gate would then 403 them anyway). Resolve to nothing and say why.
-            _logger.LogWarning(
-                "Registration {RegId} (user {UserId}) names club '{ClubName}', which matches none of the {Count} clubs this rep owns; no library resolved.",
-                regId, userId, clubName, repClubs.Count);
-            return 0;
-        }
-
-        // ── 3. NO MEMBERSHIP ROW ───────────────────────────────────────────────────────────
-        // A small legacy tail of club-rep registrations whose user has no Clubs.ClubReps row at
-        // all. Nothing but the name is available. Decide by SET SIZE: exactly one club with that
-        // name is an answer; several is an ambiguity, and with no membership to break the tie
-        // there is nothing to prefer — resolve to 0 rather than flip a coin. Callers fail loud
-        // on 0; they never guess.
-        var byName = await _clubs.GetAllByNameAsync(clubName ?? string.Empty);
-        if (byName.Count > 1)
-        {
-            _logger.LogWarning(
-                "Registration {RegId} (user {UserId}) names club '{ClubName}', which matches {Count} clubs ({Ids}), and the user has no ClubReps row to break the tie; no library resolved.",
-                regId, userId, clubName, byName.Count, string.Join(", ", byName.Select(c => c.ClubId)));
-            return 0;
-        }
-
-        return byName.Count == 1 ? byName[0].ClubId : 0;
-    }
-
-    /// <summary>
-    /// Resolve a club the caller named, restricted to clubs this user actually reps, deciding by
-    /// result-set SIZE. Used by the club-management writes, where guessing between two same-named
-    /// clubs would rename or unlink the wrong one. Throws on both "none" and "several" — an
-    /// ambiguity a user can see is worth refusing; a silent wrong-target write is not.
-    /// </summary>
-    private async Task<RepClubLibrary> ResolveOwnedClubByNameAsync(string userId, string clubName)
-    {
-        var owned = (await _clubReps.GetClubLibrariesForRepAsync(userId))
-            .Where(c => string.Equals(
-                c.ClubName?.Trim(), clubName?.Trim(), StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        if (owned.Count == 0)
-        {
-            _logger.LogWarning("User {UserId} reps no club named '{ClubName}'", userId, clubName);
-            throw new InvalidOperationException("You are not a representative for this club");
-        }
-
-        if (owned.Count > 1)
-        {
-            _logger.LogWarning(
-                "User {UserId} reps {Count} clubs named '{ClubName}' ({Ids}); refusing to guess which one this operation meant.",
-                userId, owned.Count, clubName, string.Join(", ", owned.Select(c => c.ClubId)));
-            throw new InvalidOperationException(
-                $"You represent more than one club named \"{clubName}\", so this change cannot be applied to the right one. Please contact your organization administrator to have them merged.");
-        }
-
-        return owned[0];
+        var club = await _clubs.GetByNameAsync(clubName ?? string.Empty);
+        return club?.ClubId ?? 0;
     }
 
     public async Task<ClubTeamDto> CreateClubTeamAsync(Guid regId, string userId, CreateClubTeamRequest request)
@@ -1232,7 +1107,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             .Select(id => id!.Value)
             .ToHashSet();
 
-        var effectiveClubId = await ResolveEffectiveClubIdAsync(regId, userId, registeredClubTeamIds, registration.ClubName);
+        var effectiveClubId = await ResolveEffectiveClubIdAsync(regId, registeredClubTeamIds, registration.ClubName);
         if (effectiveClubId <= 0)
         {
             // Fail loud instead of guessing a club — the old FirstOrDefault fallback is
@@ -1552,10 +1427,14 @@ public class TeamRegistrationService : ITeamRegistrationService
     {
         _logger.LogInformation("Removing club {ClubName} from rep account for user {UserId}", clubName, userId);
 
-        // Resolve among the clubs this user actually reps. A global name lookup could hand back
-        // a same-named club they don't own — and this method UNLINKS one, so a wrong target is
-        // a destructive write.
-        var club = await ResolveOwnedClubByNameAsync(userId, clubName);
+        // Find club
+        var club = await _clubs.GetByNameAsync(clubName);
+
+        if (club == null)
+        {
+            _logger.LogWarning("Club not found: {ClubName}", clubName);
+            throw new InvalidOperationException("Club not found");
+        }
 
         var hasTeams = await _teams.HasTeamsForClubRepAsync(userId, club.ClubId);
 
@@ -1566,7 +1445,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         }
 
         // Find and remove ClubReps link
-        var clubRep = await _clubReps.GetClubRepForUserAndClubAsync(userId, club.ClubId);
+        var clubRep = await _clubReps.GetClubRepForUserAndClubAsync(userId, club!.ClubId);
 
         if (clubRep == null)
         {
@@ -1586,38 +1465,43 @@ public class TeamRegistrationService : ITeamRegistrationService
         _logger.LogInformation("Updating club name from {OldName} to {NewName} for user {UserId}",
             oldClubName, newClubName, userId);
 
-        // Resolve among the clubs this user actually reps — a rename is the single most
-        // destructive thing a wrong club id can do here, because the losing club keeps working
-        // under a name nobody expects and every registration stamped with the OLD name silently
-        // stops matching it. That is the exact failure this whole change set exists to kill.
-        var owned = await ResolveOwnedClubByNameAsync(userId, oldClubName);
+        // Find club by old name
+        var club = await _clubs.GetByNameAsync(oldClubName);
 
-        var hasTeams = await _teams.HasTeamsForClubRepAsync(userId, owned.ClubId);
+        if (club == null)
+        {
+            _logger.LogWarning("Club not found: {OldClubName}", oldClubName);
+            throw new InvalidOperationException("Club not found");
+        }
+
+        // Verify user is rep for this club
+        var clubRep = await _clubReps.GetClubRepForUserAndClubAsync(userId, club.ClubId);
+
+        if (clubRep == null)
+        {
+            _logger.LogWarning("User {UserId} is not a rep for club {ClubId}", userId, club.ClubId);
+            throw new InvalidOperationException("You are not a representative for this club");
+        }
+
+        var hasTeams = await _teams.HasTeamsForClubRepAsync(userId, club.ClubId);
 
         if (hasTeams)
         {
-            _logger.LogWarning("Cannot rename club {ClubId} - has registered teams", owned.ClubId);
+            _logger.LogWarning("Cannot rename club {ClubId} - has registered teams", club.ClubId);
             throw new InvalidOperationException("Cannot rename club - teams have been registered under this club");
         }
 
-        // Refuse if ANY other club already holds the new name — checking only the first match
-        // could miss a second holder and mint the duplicate-name pair that makes name lookups
-        // ambiguous in the first place.
-        var collisions = await _clubs.GetAllByNameAsync(newClubName.Trim());
+        // Check if new name already exists (different club)
+        var existingClub = await _clubs.GetByNameAsync(newClubName);
 
-        if (collisions.Any(c => c.ClubId != owned.ClubId))
+        if (existingClub != null && existingClub.ClubId != club.ClubId)
         {
             _logger.LogWarning("Club name {NewClubName} already exists", newClubName);
             throw new InvalidOperationException("A club with this name already exists");
         }
 
-        var club = await _clubs.GetByIdAsync(owned.ClubId)
-            ?? throw new InvalidOperationException("Club not found");
-
-        // Update club name. Modified is stamped so a rename is attributable — its absence here
-        // is why an earlier rename could not be told apart from a hand-edit at the database.
+        // Update club name
         club.ClubName = newClubName.Trim();
-        club.Modified = DateTime.Now;
         await _clubs.SaveChangesAsync();
 
         _logger.LogInformation("Club {ClubId} renamed successfully from {OldName} to {NewName}",

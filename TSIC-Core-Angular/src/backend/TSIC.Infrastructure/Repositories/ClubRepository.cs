@@ -51,25 +51,9 @@ public class ClubRepository : IClubRepository
         string clubName,
         CancellationToken cancellationToken = default)
     {
-        // ClubName is not unique (634 clubs, no unique index — same-named clubs exist and are
-        // legitimately distinct programs). Without an ORDER BY, "first" is whatever the engine
-        // hands back, so the SAME rep could land on a DIFFERENT club between two page loads.
-        // Order by ClubId so an unavoidable tie is at least stable. Callers that can do better
-        // than a tie — the club-rep wizard resolves by MEMBERSHIP first — should.
         return await _context.Clubs
             .Where(c => c.ClubName == clubName)
-            .OrderBy(c => c.ClubId)
             .FirstOrDefaultAsync(cancellationToken);
-    }
-
-    public async Task<List<Clubs>> GetAllByNameAsync(
-        string clubName,
-        CancellationToken cancellationToken = default)
-    {
-        return await _context.Clubs
-            .Where(c => c.ClubName == clubName)
-            .OrderBy(c => c.ClubId)
-            .ToListAsync(cancellationToken);
     }
 
     /// <summary>
