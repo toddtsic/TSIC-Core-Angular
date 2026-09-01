@@ -1213,6 +1213,26 @@ public class RegistrationRepository : IRegistrationRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<bool> HasClubRepCommitmentsAsync(Guid registrationId, CancellationToken cancellationToken = default)
+    {
+        // Any team in ANY job that names this registration as its club rep. Not job-scoped on
+        // purpose: the stamp is read wherever those teams surface, not only in the job it was
+        // minted for.
+        var hasTeams = await _context.Teams
+            .AsNoTracking()
+            .AnyAsync(t => t.ClubrepRegistrationid == registrationId, cancellationToken);
+
+        if (hasTeams)
+            return true;
+
+        // Any accounting row at all — deliberately NOT filtered to Active, unlike
+        // HasPaymentsForTeamAsync. A reversed or voided row still means money moved against this
+        // registration, which is exactly what disqualifies it from being treated as an empty shell.
+        return await _context.RegistrationAccounting
+            .AsNoTracking()
+            .AnyAsync(a => a.RegistrationId == registrationId, cancellationToken);
+    }
+
     public async Task<RegistrationBasicInfo?> GetRegistrationBasicInfoAsync(Guid registrationId, string userId, CancellationToken cancellationToken = default)
     {
         return await _context.Registrations

@@ -247,6 +247,39 @@ public class TeamRegistrationService : ITeamRegistrationService
         else
         {
             _logger.LogInformation("Found existing registration {RegistrationId} for user {UserId}", registration.RegistrationId, userId);
+
+            // The club the rep just selected is live truth; the row's club_name is a denormalized
+            // stamp, and a club rename (or a hand-edited Clubs row) strands it. That matters because
+            // GetTeamsMetadata resolves the library from this stamp BY NAME — a stale one yields
+            // clubId 0, an empty library, and a hard refusal from CreateClubTeam. Re-stamp it.
+            //
+            // Only while the registration is still an empty shell. Once a team or an accounting row
+            // hangs off it the stamp is load-bearing — the club-rep accounting rollup, IsInUse, and
+            // the schedule's club attribution all read it — so a rewrite there would be rewriting
+            // history, not repairing a shell. Mismatch on a committed row is logged, never silently
+            // repaired. Case-only differences are left alone: the name lookup is case-insensitive,
+            // so they resolve correctly as they stand.
+            if (!string.Equals(registration.ClubName, clubName, StringComparison.OrdinalIgnoreCase))
+            {
+                if (await _registrations.HasClubRepCommitmentsAsync(registration.RegistrationId))
+                {
+                    _logger.LogWarning(
+                        "Club stamp mismatch on COMMITTED registration {RegistrationId} (user {UserId}, job {JobPath}): stamped '{StampedClub}', selected '{SelectedClub}'. Left as-is — teams or accounting rows reference it. Investigate club linkage.",
+                        registration.RegistrationId, userId, jobPath, registration.ClubName, clubName);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "Re-stamping club on empty registration {RegistrationId} (user {UserId}, job {JobPath}): '{StampedClub}' -> '{SelectedClub}'.",
+                        registration.RegistrationId, userId, jobPath, registration.ClubName, clubName);
+
+                    registration.ClubName = clubName;
+                    registration.Assignment = clubName;
+                    registration.RegistrationCategory = $"Club Rep: {clubName}";
+                    registration.Modified = DateTime.Now;
+                    await _registrations.SaveChangesAsync();
+                }
+            }
         }
 
         // Generate Phase 2 token with regId
