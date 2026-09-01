@@ -46,8 +46,10 @@ public interface ICustomerJobRevenueRepository
     /// paid still returns a row (with zeros), which is the point of the report.
     /// </summary>
     /// <remarks>
-    /// Scope semantics match <see cref="GetRollupAsync"/>: non-empty <paramref name="jobNames"/>
-    /// = those jobs complete, dates ignored; otherwise the date range bounds <c>createdate</c>.
+    /// Non-empty <paramref name="jobNames"/> = those jobs complete, dates ignored. Otherwise the
+    /// START date selects the events — those still live when it opens — and the END date is the
+    /// as-of cutoff their transactions are read through. The start date does NOT clip
+    /// transactions: a balance has no partial-period version.
     /// </remarks>
     Task<List<TeamBillingRecordDto>> GetTeamBillingAsync(
         Guid jobId, DateTime? startDate, DateTime? endDate, IReadOnlyList<string> jobNames,

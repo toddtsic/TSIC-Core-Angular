@@ -668,9 +668,13 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         var jobFilter = jobNames.ToList();
         // The date range does TWO jobs here, and neither is the rollup's (Todd, 2026-08-31):
         //
-        //   1. It SELECTS THE EVENTS. A job qualifies when its ExpiryUsers falls in the range.
-        //      This is what keeps the report about the events you asked about — a July 2026
-        //      range takes Top Threat from 125 jobs down to 5.
+        //   1. It SELECTS THE EVENTS. A job qualifies when it is still LIVE as the range
+        //      opens — ExpiryUsers at or after the start date, no upper bound. At 8/1/2026
+        //      that is 18 of Top Threat's 125 jobs.
+        //      This was "ExpiryUsers falls INSIDE the range" until 2026-09-01. An expiry is
+        //      a DEADLINE, so it lands in any given month only by coincidence: an August
+        //      2026 window matched ZERO jobs, and an empty receivable report reads as
+        //      "nothing is owed" rather than "no event closed in August" (Todd's call).
         //   2. For those jobs it reports AS OF the end date — their whole financial history up
         //      to it, however far back that reaches. The start date does NOT clip transactions.
         //
@@ -695,10 +699,13 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             join a in _context.Agegroups on t.AgegroupId equals a.AgegroupId
             where customerIds.Contains(j.CustomerId)
                 // The date range picks the EVENTS, not the transactions: a job qualifies when
-                // its ExpiryUsers falls inside the range. Without this, as-of pulled in every
-                // job the customer has ever run (125 on Top Threat) to report on a handful.
+                // it is still LIVE as the range opens. NOT "expiry lands inside the range" —
+                // an expiry is a DEADLINE, so it falls in any given month only by coincidence:
+                // an 8/1-8/31/2026 window matched 0 of Top Threat's 18 live jobs, because Fall
+                // Draw 2026 expires 11/30/2026, and the tab reported an empty receivable that
+                // reads as "nothing is owed". Without ANY filter, as-of pulled in every job the
+                // customer has ever run (125 on Top Threat) to report on a handful.
                 && (startDate == null || j.ExpiryUsers >= startDate)
-                && (endEx == null || j.ExpiryUsers < endEx)
                 && t.Active == true
                 && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
             select new
@@ -729,10 +736,13 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             join j in _context.Jobs on t.JobId equals j.JobId
             where customerIds.Contains(j.CustomerId)
                 // The date range picks the EVENTS, not the transactions: a job qualifies when
-                // its ExpiryUsers falls inside the range. Without this, as-of pulled in every
-                // job the customer has ever run (125 on Top Threat) to report on a handful.
+                // it is still LIVE as the range opens. NOT "expiry lands inside the range" —
+                // an expiry is a DEADLINE, so it falls in any given month only by coincidence:
+                // an 8/1-8/31/2026 window matched 0 of Top Threat's 18 live jobs, because Fall
+                // Draw 2026 expires 11/30/2026, and the tab reported an empty receivable that
+                // reads as "nothing is owed". Without ANY filter, as-of pulled in every job the
+                // customer has ever run (125 on Top Threat) to report on a handful.
                 && (startDate == null || j.ExpiryUsers >= startDate)
-                && (endEx == null || j.ExpiryUsers < endEx)
                 && t.Active == true
                 && r.BActive == true
                 && r.RoleId == RoleConstants.Player
@@ -749,10 +759,13 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             join j in _context.Jobs on t.JobId equals j.JobId
             where customerIds.Contains(j.CustomerId)
                 // The date range picks the EVENTS, not the transactions: a job qualifies when
-                // its ExpiryUsers falls inside the range. Without this, as-of pulled in every
-                // job the customer has ever run (125 on Top Threat) to report on a handful.
+                // it is still LIVE as the range opens. NOT "expiry lands inside the range" —
+                // an expiry is a DEADLINE, so it falls in any given month only by coincidence:
+                // an 8/1-8/31/2026 window matched 0 of Top Threat's 18 live jobs, because Fall
+                // Draw 2026 expires 11/30/2026, and the tab reported an empty receivable that
+                // reads as "nothing is owed". Without ANY filter, as-of pulled in every job the
+                // customer has ever run (125 on Top Threat) to report on a handful.
                 && (startDate == null || j.ExpiryUsers >= startDate)
-                && (endEx == null || j.ExpiryUsers < endEx)
                 && t.Active == true
                 // `|| FeeDiscount != 0` is load-bearing, not defensive: a FULLY comped
                 // registration is charged to zero, so a fee-only guard drops exactly the
@@ -790,10 +803,13 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             join j in _context.Jobs on t.JobId equals j.JobId
             where customerIds.Contains(j.CustomerId)
                 // The date range picks the EVENTS, not the transactions: a job qualifies when
-                // its ExpiryUsers falls inside the range. Without this, as-of pulled in every
-                // job the customer has ever run (125 on Top Threat) to report on a handful.
+                // it is still LIVE as the range opens. NOT "expiry lands inside the range" —
+                // an expiry is a DEADLINE, so it falls in any given month only by coincidence:
+                // an 8/1-8/31/2026 window matched 0 of Top Threat's 18 live jobs, because Fall
+                // Draw 2026 expires 11/30/2026, and the tab reported an empty receivable that
+                // reads as "nothing is owed". Without ANY filter, as-of pulled in every job the
+                // customer has ever run (125 on Top Threat) to report on a handful.
                 && (startDate == null || j.ExpiryUsers >= startDate)
-                && (endEx == null || j.ExpiryUsers < endEx)
                 && t.Active == true
                 && ra.Active == true
                 && ra.Createdate != null

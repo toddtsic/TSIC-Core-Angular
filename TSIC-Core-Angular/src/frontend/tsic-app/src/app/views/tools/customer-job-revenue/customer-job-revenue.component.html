@@ -528,9 +528,9 @@
 				</div>
 			} @else if (yoyGroups().length === 0) {
 				<div class="alert alert-secondary">
-					No events were live inside this date range, so there is nothing to compare. The range
-					picks the events (a job is live when its user expiry falls inside it); their prior
-					seasons are then pulled in regardless of age.
+					No events were still open as of your start date, so there is nothing to compare. The
+					start date picks the events — a job counts when its registration had not closed by then
+					— and their prior seasons are pulled in regardless of age.
 				</div>
 			} @else {
 				@if (yoyAsOfDate(); as asOf) {
