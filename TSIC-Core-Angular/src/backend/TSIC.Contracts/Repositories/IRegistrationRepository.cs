@@ -212,10 +212,12 @@ public interface IRegistrationRepository
     void Remove(Registrations registration);
 
     /// <summary>
-    /// Get club rep registration for a user and job.
-    /// Returns first active ClubRep registration matching userId, jobId, and ClubRep role.
+    /// Every club-rep registration this user holds on this job, oldest first, each carrying its
+    /// club stamp and team count. A (user, job) pair is not unique, so this returns the SET and
+    /// leaves the choice to <see cref="ClubRepRegistrationSelector"/> — callers must not take the
+    /// first row on their own.
     /// </summary>
-    Task<Registrations?> GetClubRepRegistrationAsync(string userId, Guid jobId, CancellationToken cancellationToken = default);
+    Task<List<ClubRepRegistrationCandidate>> GetClubRepRegistrationCandidatesAsync(string userId, Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// True when a club-rep registration has anything hanging off it — a team in any job, or an

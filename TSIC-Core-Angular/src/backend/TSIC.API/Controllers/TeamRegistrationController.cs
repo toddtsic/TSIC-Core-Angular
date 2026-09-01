@@ -165,7 +165,12 @@ public class TeamRegistrationController : ControllerBase
         if (jobId is null)
             return BadRequest(new { message = $"Event not found: {request.JobPath}" });
 
-        var registration = await _registrationRepository.GetClubRepRegistrationAsync(userId, jobId.Value);
+        // Re-entry with no club in hand: the caller names only the job, so the selector falls to
+        // its club-less rules — a registration with teams beats an empty twin, oldest breaks the
+        // tie. Never the arbitrary first row, which could hand this rep a token for an empty shell
+        // while their teams hang off the other registration.
+        var candidates = await _registrationRepository.GetClubRepRegistrationCandidatesAsync(userId, jobId.Value);
+        var registration = ClubRepRegistrationSelector.Select(candidates);
         if (registration is null)
             return BadRequest(new { message = "No team registration found for this event." });
 

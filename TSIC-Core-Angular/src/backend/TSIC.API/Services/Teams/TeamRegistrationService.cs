@@ -205,9 +205,24 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         var job = await _jobs.GetJobAuthInfoAsync(jobId.Value);
 
-        // Find or create Registration record
-        var registration = await _registrations.GetClubRepRegistrationAsync(userId, jobId.Value);
+        // Find or create Registration record. A (user, job) pair can legitimately carry more than
+        // one club-rep registration — a rep entering two clubs into one event, or a double-submit
+        // twin — so read the SET and choose by rule. The old FirstOrDefault silently asserted
+        // uniqueness that the data does not have, and the row it returned became the regId claim.
+        var candidates = await _registrations.GetClubRepRegistrationCandidatesAsync(userId, jobId.Value);
+        if (candidates.Count > 1)
+        {
+            _logger.LogWarning(
+                "User {UserId} holds {Count} club-rep registrations on job {JobPath} ({Breakdown}). Selecting by club '{SelectedClub}', then by teams, then oldest.",
+                userId, candidates.Count, jobPath,
+                string.Join(", ", candidates.Select(c => $"{c.RegistrationId}:'{c.ClubName}':{c.TeamCount} teams")),
+                clubName);
+        }
 
+        var chosen = ClubRepRegistrationSelector.Select(candidates, clubName);
+        var registration = chosen is null
+            ? null
+            : await _registrations.GetByIdAsync(chosen.RegistrationId);
         if (registration == null)
         {
             // No existing club-rep registration → minting a token here would CREATE a fresh
@@ -333,7 +348,10 @@ public class TeamRegistrationService : ITeamRegistrationService
         }
 
         // Get current user's registration for this event (if exists)
-        var currentUserRegistration = await _registrations.GetClubRepRegistrationAsync(userId, jobId.Value);
+        // Same set-then-choose rule as initialize; the club name is in hand here, so a rep who
+        // holds two registrations on this job is matched to the one for the club being checked.
+        var currentUserCandidates = await _registrations.GetClubRepRegistrationCandidatesAsync(userId, jobId.Value);
+        var currentUserRegistration = ClubRepRegistrationSelector.Select(currentUserCandidates, clubName);
 
         var otherRepTeams = await _teams.GetTeamsByClubExcludingRegistrationAsync(
             jobId.Value,

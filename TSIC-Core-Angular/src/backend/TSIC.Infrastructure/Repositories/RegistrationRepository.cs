@@ -1206,12 +1206,28 @@ public class RegistrationRepository : IRegistrationRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<Registrations?> GetClubRepRegistrationAsync(string userId, Guid jobId, CancellationToken cancellationToken = default)
+    public async Task<List<ClubRepRegistrationCandidate>> GetClubRepRegistrationCandidatesAsync(
+        string userId, Guid jobId, CancellationToken cancellationToken = default)
     {
+        // Ordered oldest-first here so the ordering is a property of the data, not of the plan:
+        // the selector's final tie-break is "the first one", and that has to mean something.
+        // RegistrationId breaks a same-timestamp tie (the double-submit twins land milliseconds
+        // apart, but a tie is still possible).
         return await _context.Registrations
+            .AsNoTracking()
             .Where(r => r.UserId == userId && r.JobId == jobId && r.RoleId == Domain.Constants.RoleConstants.ClubRep)
-            .FirstOrDefaultAsync(cancellationToken);
+            .Select(r => new ClubRepRegistrationCandidate
+            {
+                RegistrationId = r.RegistrationId,
+                ClubName = r.ClubName,
+                RegistrationTs = r.RegistrationTs,
+                TeamCount = _context.Teams.Count(t => t.ClubrepRegistrationid == r.RegistrationId),
+            })
+            .OrderBy(c => c.RegistrationTs)
+            .ThenBy(c => c.RegistrationId)
+            .ToListAsync(cancellationToken);
     }
+
 
     public async Task<bool> HasClubRepCommitmentsAsync(Guid registrationId, CancellationToken cancellationToken = default)
     {
