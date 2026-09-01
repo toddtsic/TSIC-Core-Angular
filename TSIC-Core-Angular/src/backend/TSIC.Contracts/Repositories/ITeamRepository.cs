@@ -64,7 +64,8 @@ public interface ITeamRepository
     /// "one club rep per event", which means one human per club, not one registration.
     /// A team's club is its library entry's club; a club-rep team with no library entry falls
     /// back to its owner's club membership, which is how every row used to be matched.
-    /// Tournament jobs only in effect: league teams have no club rep and never appear here.
+    /// Applies to the team-registration job types (Tournament Scheduling, League Scheduling);
+    /// player-registration jobs have no club-rep-owned teams and never appear here.
     /// </summary>
     Task<List<TeamWithRegistrationInfo>> GetTeamsForClubInJobByOtherUsersAsync(
         Guid jobId,
