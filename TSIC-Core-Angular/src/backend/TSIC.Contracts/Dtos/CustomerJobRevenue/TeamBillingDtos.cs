@@ -58,4 +58,30 @@ public record TeamBillingRecordDto
     /// </para>
     /// </summary>
     public required decimal Owed { get; init; }
+
+    /// <summary>
+    /// Fee reductions applied at charge time — <c>teams.fee_discount</c> on the club-rep route,
+    /// <c>Registrations.fee_discount</c> on the assigned-team route. NOT part of
+    /// <see cref="Collected"/>: a discount lowers what was billed before any money moves, so
+    /// <see cref="Billed"/> is already net of it. Dated with the charge.
+    /// </summary>
+    public required decimal Discounts { get; init; }
+
+    /// <summary>
+    /// Online Correction rows (By Client and By TSIC), summed NET across both signs.
+    /// <para>
+    /// A SUBSET of <see cref="Collected"/>, not an addition to it — adding the two double
+    /// counts. Read it as a record type, not as comps: on Top Threat the positives are
+    /// +$603,383.36 (money the director took outside the system) against −$21,639.50 of
+    /// write-offs, so the net is overwhelmingly money in.
+    /// </para>
+    /// </summary>
+    public required decimal Corrections { get; init; }
+
+    /// <summary>
+    /// Credit Card Credit rows — a SUBSET of <see cref="Collected"/>, already netted into it.
+    /// Always negative: 4,109 of 4,109 active rows system-wide carry a negative amount, so no
+    /// sign correction is applied.
+    /// </summary>
+    public required decimal Refunds { get; init; }
 }

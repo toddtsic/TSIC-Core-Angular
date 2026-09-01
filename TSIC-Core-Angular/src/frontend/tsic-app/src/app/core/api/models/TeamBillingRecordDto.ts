@@ -11,5 +11,8 @@ export type TeamBillingRecordDto = {
     billed: number;
     collected: number;
     owed: number;
+    discounts: number;
+    corrections: number;
+    refunds: number;
 };
 

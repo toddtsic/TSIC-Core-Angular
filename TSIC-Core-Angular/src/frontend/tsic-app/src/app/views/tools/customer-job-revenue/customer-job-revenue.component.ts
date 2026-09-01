@@ -186,14 +186,29 @@ export class CustomerJobRevenueComponent {
 		// "Total Sum of {caption}" — the aggregation name plus the grand-total prefix. These
 		// are three balances, not an aggregation the reader needs narrated, so suppress it.
 		showAggregationOnValueField: false,
+		// Ordered charges → receipts → balance, each memo column beside the figure it
+		// belongs to. Discounts is charge-side: it reduces Billed before any money moves and
+		// never touches Collected. Corrections and Refunds are receipts-side: both are
+		// SUBSETS already inside Collected, not additions to it, so adding them double counts.
+		//
+		// Owed goes LAST, not beside Billed and Collected (Todd, 2026-08-31). It is the
+		// bottom line, and Billed - Collected = Owed does NOT hold row by row — Owed sits
+		// only on each team's charge month — so adjacency implied arithmetic the data has
+		// nowhere except at the totals.
 		values: [
 			{ name: 'billed', caption: 'Billed', type: 'Sum' },
+			{ name: 'discounts', caption: 'Discounts', type: 'Sum' },
 			{ name: 'collected', caption: 'Collected', type: 'Sum' },
+			{ name: 'corrections', caption: 'Corrections', type: 'Sum' },
+			{ name: 'refunds', caption: 'Refunds', type: 'Sum' },
 			{ name: 'owed', caption: 'Owed', type: 'Sum' }
 		],
 		formatSettings: [
 			{ name: 'billed', format: 'C2', useGrouping: true },
+			{ name: 'discounts', format: 'C2', useGrouping: true },
 			{ name: 'collected', format: 'C2', useGrouping: true },
+			{ name: 'corrections', format: 'C2', useGrouping: true },
+			{ name: 'refunds', format: 'C2', useGrouping: true },
 			{ name: 'owed', format: 'C2', useGrouping: true }
 		]
 	});
@@ -655,7 +670,8 @@ export class CustomerJobRevenueComponent {
 			fileName: 'CustomerJobRevenue-TeamsPlayersToCustomer.xlsx',
 			header: {
 				headerRows: 1,
-				rows: [{ cells: [{ colSpan: 8, value: `Teams/Players to Customer — ${label}`, style: { fontSize: 13, bold: true } }] }]
+				// 5 row levels + 6 value columns.
+				rows: [{ cells: [{ colSpan: 11, value: `Teams/Players to Customer — ${label}`, style: { fontSize: 13, bold: true } }] }]
 			}
 		});
 	}

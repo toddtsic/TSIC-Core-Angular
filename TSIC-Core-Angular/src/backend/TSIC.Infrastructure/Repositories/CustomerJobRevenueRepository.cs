@@ -708,7 +708,8 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 AgegroupName = a.AgegroupName,
                 t.TeamName,
                 Billed = t.FeeTotal,
-                Owed = t.OwedTotal
+                Owed = t.OwedTotal,
+                Discount = t.FeeDiscount
             })
             .AsNoTracking()
             .ToListAsync(ct);
@@ -751,10 +752,15 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 && (startDate == null || j.ExpiryUsers >= startDate)
                 && (endEx == null || j.ExpiryUsers < endEx)
                 && t.Active == true
-                && r.FeeTotal != 0m
+                // `|| FeeDiscount != 0` is load-bearing, not defensive: a FULLY comped
+                // registration is charged to zero, so a fee-only guard drops exactly the
+                // registrations the Discounts column exists to report. System-wide that is
+                // 4,022 registrations carrying $3,396,848.43 — 61% of all routed discount
+                // money. Self-rostering still falls out, which is what the guard is for.
+                && (r.FeeTotal != 0m || r.FeeDiscount != 0m)
                 && (endEx == null || r.RegistrationTs < endEx)
                 && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
-            group new { r.FeeTotal, r.OwedTotal } by new
+            group new { r.FeeTotal, r.OwedTotal, r.FeeDiscount } by new
             {
                 t.TeamId,
                 Year = r.RegistrationTs.Year,
@@ -766,7 +772,8 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 g.Key.Year,
                 g.Key.Month,
                 Billed = g.Sum(x => x.FeeTotal),
-                Owed = g.Sum(x => x.OwedTotal)
+                Owed = g.Sum(x => x.OwedTotal),
+                Discount = g.Sum(x => x.FeeDiscount)
             })
             .AsNoTracking()
             .ToListAsync(ct);
@@ -775,6 +782,7 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         //         from its balance, and an ARB plan into its individual drafts. ---
         var payments = await (
             from ra in _context.RegistrationAccounting
+            join apm in _context.AccountingPaymentMethods on ra.PaymentMethodId equals apm.PaymentMethodId
             join r in _context.Registrations on ra.RegistrationId equals r.RegistrationId
             join t in _context.Teams on (ra.TeamId ?? r.AssignedTeamId) equals t.TeamId
             join j in _context.Jobs on t.JobId equals j.JobId
@@ -789,7 +797,20 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 && ra.Createdate != null
                 && (endEx == null || ra.Createdate < endEx)
                 && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
-            group new { ra.Payamt } by new
+            // Corrections and Refunds are SUBSETS of Collected, broken out as memo columns —
+            // they are not added to it. Corrections are summed NET, both signs (Todd,
+            // 2026-08-31): the positives are money the director took outside the system, the
+            // negatives are write-offs. On Top Threat that is +$603,383.36 against
+            // -$21,639.50, so this column is overwhelmingly money IN, not comps.
+            // Refunds (Credit Card Credit) are stored negative without exception — 4,109 of
+            // 4,109 rows system-wide — so no sign correction is applied anywhere.
+            group new
+            {
+                ra.Payamt,
+                IsCorrection = apm.PaymentMethod == "Online Correction By Client"
+                            || apm.PaymentMethod == "Online Correction By TSIC",
+                IsRefund = apm.PaymentMethod == "Credit Card Credit"
+            } by new
             {
                 t.TeamId,
                 Year = ra.Createdate!.Value.Year,
@@ -800,7 +821,9 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 g.Key.TeamId,
                 g.Key.Year,
                 g.Key.Month,
-                Collected = g.Sum(x => x.Payamt ?? 0m)
+                Collected = g.Sum(x => x.Payamt ?? 0m),
+                Corrections = g.Sum(x => x.IsCorrection ? (x.Payamt ?? 0m) : 0m),
+                Refunds = g.Sum(x => x.IsRefund ? (x.Payamt ?? 0m) : 0m)
             })
             .AsNoTracking()
             .ToListAsync(ct);
@@ -809,13 +832,27 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         //     same month collapse onto one row, which is what a reader expects to see. ---
         var countByTeam = rosterCounts.ToDictionary(x => x.TeamId, x => x.Count);
         var identity = teams.ToDictionary(x => x.TeamId);
-        var cells = new Dictionary<(Guid TeamId, int Year, int Month), (decimal Billed, decimal Collected, decimal Owed)>();
+        var cells = new Dictionary<(Guid TeamId, int Year, int Month),
+            (decimal Billed, decimal Collected, decimal Owed, decimal Discounts, decimal Corrections, decimal Refunds)>();
 
-        void Accrue(Guid teamId, int year, int month, decimal billed, decimal collected, decimal owed)
+        // Defaulted so every call site names only the figures it actually contributes — a
+        // charge says billed/discount, a payment says collected/corrections/refunds, and
+        // neither carries a row of zeroes for the other's columns.
+        void Accrue(Guid teamId, int year, int month,
+            decimal billed = 0m, decimal collected = 0m, decimal owed = 0m,
+            decimal discounts = 0m, decimal corrections = 0m, decimal refunds = 0m)
         {
             var key = (teamId, year, month);
-            var cur = cells.TryGetValue(key, out var v) ? v : (Billed: 0m, Collected: 0m, Owed: 0m);
-            cells[key] = (cur.Billed + billed, cur.Collected + collected, cur.Owed + owed);
+            var cur = cells.TryGetValue(key, out var v)
+                ? v
+                : (Billed: 0m, Collected: 0m, Owed: 0m, Discounts: 0m, Corrections: 0m, Refunds: 0m);
+            cells[key] = (
+                cur.Billed + billed,
+                cur.Collected + collected,
+                cur.Owed + owed,
+                cur.Discounts + discounts,
+                cur.Corrections + corrections,
+                cur.Refunds + refunds);
         }
 
         // Owed is COMPUTED as of the end date, not read from teams.owed_total, because the
@@ -840,19 +877,23 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             {
                 continue;
             }
-            Accrue(t.TeamId, t.Createdate.Year, t.Createdate.Month, t.Billed ?? 0m, 0m, 0m);
+            Accrue(t.TeamId, t.Createdate.Year, t.Createdate.Month,
+                billed: t.Billed ?? 0m, discounts: t.Discount ?? 0m);
             Charge(t.TeamId, t.Billed ?? 0m);
         }
 
         foreach (var p in playerCharges)
         {
-            Accrue(p.TeamId, p.Year, p.Month, p.Billed, 0m, 0m);
+            Accrue(p.TeamId, p.Year, p.Month, billed: p.Billed, discounts: p.Discount);
             Charge(p.TeamId, p.Billed);
         }
 
+        // Corrections and Refunds ride the SAME rows they are part of — they are a breakdown
+        // of Collected, so they must never touch Charge() or they would be subtracted twice.
         foreach (var p in payments)
         {
-            Accrue(p.TeamId, p.Year, p.Month, 0m, p.Collected, 0m);
+            Accrue(p.TeamId, p.Year, p.Month,
+                collected: p.Collected, corrections: p.Corrections, refunds: p.Refunds);
             Charge(p.TeamId, -p.Collected);
         }
 
@@ -869,7 +910,7 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             var balance = owedAsOf.GetValueOrDefault(t.TeamId);
             if (balance != 0m)
             {
-                Accrue(t.TeamId, t.Createdate.Year, t.Createdate.Month, 0m, 0m, balance);
+                Accrue(t.TeamId, t.Createdate.Year, t.Createdate.Month, owed: balance);
             }
         }
 
@@ -890,7 +931,10 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                     TeamLabel = $"{t.AgegroupName}:{teamName} ({count})",
                     Billed = Math.Round(kv.Value.Billed, 2, MidpointRounding.AwayFromZero),
                     Collected = Math.Round(kv.Value.Collected, 2, MidpointRounding.AwayFromZero),
-                    Owed = Math.Round(kv.Value.Owed, 2, MidpointRounding.AwayFromZero)
+                    Owed = Math.Round(kv.Value.Owed, 2, MidpointRounding.AwayFromZero),
+                    Discounts = Math.Round(kv.Value.Discounts, 2, MidpointRounding.AwayFromZero),
+                    Corrections = Math.Round(kv.Value.Corrections, 2, MidpointRounding.AwayFromZero),
+                    Refunds = Math.Round(kv.Value.Refunds, 2, MidpointRounding.AwayFromZero)
                 };
             })
             .OrderBy(r => r.JobName, StringComparer.Ordinal)
