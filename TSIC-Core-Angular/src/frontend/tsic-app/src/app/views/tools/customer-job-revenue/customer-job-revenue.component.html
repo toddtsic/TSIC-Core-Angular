@@ -154,6 +154,11 @@
 				</button>
 			</li>
 			<li class="nav-item">
+				<button class="nav-link" [class.active]="activeTab() === 'adjustments'" (click)="setTab('adjustments')">
+					Adjustments
+				</button>
+			</li>
+			<li class="nav-item">
 				<button class="nav-link" [class.active]="activeTab() === 'checkRecords'" (click)="setTab('checkRecords')">
 					Check Records
 				</button>
@@ -166,11 +171,6 @@
 			<li class="nav-item">
 				<button class="nav-link" [class.active]="activeTab() === 'teamBilling'" (click)="setTab('teamBilling')">
 					Teams/Players to Customer
-				</button>
-			</li>
-			<li class="nav-item">
-				<button class="nav-link" [class.active]="activeTab() === 'adjustments'" (click)="setTab('adjustments')">
-					Adjustments
 				</button>
 			</li>
 			<li class="nav-item">
@@ -343,7 +343,80 @@
 			}
 		}
 
-		<!-- Tab 5: Check Records (lazy) -->
+		<!-- Tab 5: Adjustments — the entity-level detail behind Teams/Players' Adj column.
+		     A grid, not a pivot: these rows carry no Year/Month to pivot on. -->
+		@if (activeTab() === 'adjustments') {
+			<div class="cjr-info-panel tsic-callout tsic-callout--warning tsic-callout--block" role="note">
+				<i class="bi bi-info-circle" aria-hidden="true"></i>
+				<span>
+					<strong>This tab is {{ adjustmentsBasis }}.</strong>
+					It breaks the Adj column on Teams/Players down to the team or player carrying it.
+					<button type="button" class="cjr-help-toggle"
+						[attr.aria-expanded]="adjustmentsHelpOpen()"
+						(click)="toggleAdjustmentsHelp()">
+						<i class="bi" aria-hidden="true"
+							[class.bi-chevron-right]="!adjustmentsHelpOpen()"
+							[class.bi-chevron-down]="adjustmentsHelpOpen()"></i>
+						How to read this
+					</button>
+					@if (adjustmentsHelpOpen()) {
+						<span class="cjr-help-detail">
+							<strong>One row per team or player, not per adjustment.</strong> Everything on an
+							entity is netted into a single figure: late fees added, discounts and corrections
+							taken off. Club-rep money sits on the team, everyone else's on their own
+							registration — the same split Teams/Players uses, so the two tabs tie out.
+							<br>
+							<strong>A positive number means they were charged more, a negative one less.</strong>
+							Most rows are negative, because most adjustments are discounts.
+							<br>
+							<strong>Only entities with an adjustment appear.</strong> A team or player whose
+							net adjustment is zero is left out — this tab is the exceptions, not the roster.
+							<br>
+							<strong>The type of adjustment is not shown, because the data does not record
+							it.</strong> Early-bird discounts, discount codes and sibling discounts all land in
+							one stored column with nothing marking which is which, and there is no adjustment
+							history anywhere to reconstruct it from. A typed breakdown here would be invented.
+							<br>
+							<strong>These rows carry no date.</strong> Discounts and late fees are stored as a
+							balance on the record, not as dated events, so there is no month to file them
+							under. Your dates still choose which events are included, and cut the correction
+							records at your end date.
+						</span>
+					}
+				</span>
+			</div>
+			@if (adjustmentsLoading()) {
+				<div class="text-center py-4">
+					<span class="spinner-border text-primary"></span>
+					<div class="text-muted mt-2">Loading adjustments...</div>
+				</div>
+			} @else if (adjustmentRecords().length === 0) {
+				<div class="list-empty-state">
+					<i class="bi bi-tags"></i>
+					<div>No teams or players carry a fee adjustment in this scope.</div>
+				</div>
+			} @else {
+				<ejs-grid width="100%" #adjustmentsGrid
+					[allowSorting]="true"
+					[allowTextWrap]="true"
+					[dataSource]="adjustmentRecords()"
+					cssClass="tsic-grid cjr-adjustments-grid"
+					[allowExcelExport]="true"
+					[allowPdfExport]="true"
+					(pdfQueryCellInfo)="onPdfQueryCellInfo($event)"
+					(actionFailure)="onGridActionFailure($event)">
+					<e-columns>
+						<e-column field="jobName" headerText="Job" width="240"></e-column>
+						<e-column field="clubName" headerText="Club" width="180"></e-column>
+						<e-column field="entityType" headerText="Type" width="110"></e-column>
+						<e-column field="entityLabel" headerText="Team / Registrant" width="220"></e-column>
+						<e-column field="adj" headerText="Adj" width="110" format="C2" textAlign="Right"></e-column>
+					</e-columns>
+				</ejs-grid>
+			}
+		}
+
+		<!-- Tab 6: Check Records (lazy) -->
 		@if (activeTab() === 'checkRecords') {
 			@if (detailLoading() === 'check') {
 				<div class="text-center py-4">
@@ -371,7 +444,7 @@
 			}
 		}
 
-		<!-- Tab 6: E-Check Records (lazy) -->
+		<!-- Tab 7: E-Check Records (lazy) -->
 		@if (activeTab() === 'echeckRecords') {
 			@if (detailLoading() === 'echeck') {
 				<div class="text-center py-4">
@@ -399,7 +472,7 @@
 			}
 		}
 
-		<!-- Tab 7: Team Billing (PivotView) — team-driven, so unpaid teams are present -->
+		<!-- Tab 8: Team Billing (PivotView) — team-driven, so unpaid teams are present -->
 		@if (activeTab() === 'teamBilling') {
 			<!-- Above the pivot: an expanded pivot pushes a footer note off-screen, and both
 			     perspectives use the word "owed" pointing opposite ways, so the lens has to be
@@ -476,79 +549,6 @@
 				</ejs-pivotview>
 			}
 		}
-		<!-- Tab 8: Adjustments — the entity-level detail behind Teams/Players' Adj column.
-		     A grid, not a pivot: these rows carry no Year/Month to pivot on. -->
-		@if (activeTab() === 'adjustments') {
-			<div class="cjr-info-panel tsic-callout tsic-callout--warning tsic-callout--block" role="note">
-				<i class="bi bi-info-circle" aria-hidden="true"></i>
-				<span>
-					<strong>This tab is {{ adjustmentsBasis }}.</strong>
-					It breaks the Adj column on Teams/Players down to the team or player carrying it.
-					<button type="button" class="cjr-help-toggle"
-						[attr.aria-expanded]="adjustmentsHelpOpen()"
-						(click)="toggleAdjustmentsHelp()">
-						<i class="bi" aria-hidden="true"
-							[class.bi-chevron-right]="!adjustmentsHelpOpen()"
-							[class.bi-chevron-down]="adjustmentsHelpOpen()"></i>
-						How to read this
-					</button>
-					@if (adjustmentsHelpOpen()) {
-						<span class="cjr-help-detail">
-							<strong>One row per team or player, not per adjustment.</strong> Everything on an
-							entity is netted into a single figure: late fees added, discounts and corrections
-							taken off. Club-rep money sits on the team, everyone else's on their own
-							registration — the same split Teams/Players uses, so the two tabs tie out.
-							<br>
-							<strong>A positive number means they were charged more, a negative one less.</strong>
-							Most rows are negative, because most adjustments are discounts.
-							<br>
-							<strong>Only entities with an adjustment appear.</strong> A team or player whose
-							net adjustment is zero is left out — this tab is the exceptions, not the roster.
-							<br>
-							<strong>The type of adjustment is not shown, because the data does not record
-							it.</strong> Early-bird discounts, discount codes and sibling discounts all land in
-							one stored column with nothing marking which is which, and there is no adjustment
-							history anywhere to reconstruct it from. A typed breakdown here would be invented.
-							<br>
-							<strong>These rows carry no date.</strong> Discounts and late fees are stored as a
-							balance on the record, not as dated events, so there is no month to file them
-							under. Your dates still choose which events are included, and cut the correction
-							records at your end date.
-						</span>
-					}
-				</span>
-			</div>
-			@if (adjustmentsLoading()) {
-				<div class="text-center py-4">
-					<span class="spinner-border text-primary"></span>
-					<div class="text-muted mt-2">Loading adjustments...</div>
-				</div>
-			} @else if (adjustmentRecords().length === 0) {
-				<div class="list-empty-state">
-					<i class="bi bi-tags"></i>
-					<div>No teams or players carry a fee adjustment in this scope.</div>
-				</div>
-			} @else {
-				<ejs-grid width="100%" #adjustmentsGrid
-					[allowSorting]="true"
-					[allowTextWrap]="true"
-					[dataSource]="adjustmentRecords()"
-					cssClass="tsic-grid cjr-adjustments-grid"
-					[allowExcelExport]="true"
-					[allowPdfExport]="true"
-					(pdfQueryCellInfo)="onPdfQueryCellInfo($event)"
-					(actionFailure)="onGridActionFailure($event)">
-					<e-columns>
-						<e-column field="jobName" headerText="Job" width="240"></e-column>
-						<e-column field="clubName" headerText="Club" width="180"></e-column>
-						<e-column field="entityType" headerText="Type" width="110"></e-column>
-						<e-column field="entityLabel" headerText="Team / Registrant" width="220"></e-column>
-						<e-column field="adj" headerText="Adj" width="110" format="C2" textAlign="Right"></e-column>
-					</e-columns>
-				</ejs-grid>
-			}
-		}
-
 		<!-- ============ YEAR-OVER-YEAR REVIEW ============ -->
 		@if (activeTab() === 'yoy') {
 			<!-- Same "say what this is" contract as Teams/Players: two tabs on this page use the
