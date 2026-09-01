@@ -22,6 +22,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
     private readonly IUsLaxService _usLax;
     private readonly IJobRepository _jobs;
     private readonly IFamiliesRepository _families;
+    private readonly IUserRepository _users;
     private readonly IEmailBatchService _emailBatch;
     private readonly ITextSubstitutionService _textSubstitution;
     private readonly IEmailTestSendService _testSend;
@@ -32,6 +33,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         IUsLaxService usLax,
         IJobRepository jobs,
         IFamiliesRepository families,
+        IUserRepository users,
         IEmailBatchService emailBatch,
         ITextSubstitutionService textSubstitution,
         IEmailTestSendService testSend,
@@ -41,6 +43,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         _usLax = usLax;
         _jobs = jobs;
         _families = families;
+        _users = users;
         _emailBatch = emailBatch;
         _textSubstitution = textSubstitution;
         _testSend = testSend;
@@ -186,9 +189,20 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
     public async Task<UsLaxEmailStartResponse> StartEmailAsync(Guid jobId, string? senderUserId, UsLaxEmailRequest request, CancellationToken ct = default)
     {
         var jobInfo = await _jobs.GetConfirmationEmailInfoAsync(jobId, ct);
-        var jobName = jobInfo?.JobName ?? string.Empty;
         var jobPath = jobInfo?.JobPath ?? string.Empty;
         var jobValidThrough = jobInfo?.UsLaxNumberValidThroughDate;
+
+        // From display = the public job/org label, matching every other batch surface. The From
+        // ADDRESS is forced to the SES-verified identity downstream; this is only what recipients see.
+        var fromName = jobInfo?.DisplayName ?? jobInfo?.JobName ?? string.Empty;
+
+        // Reply-To = the admin who sent it. SES rewrites From to support@, which delivers nothing, so
+        // Reply-To is the ONLY place the sending human can live — without it a parent who hits Reply
+        // to ask about their kid's membership is talking to a mailbox no one reads. Legacy put the
+        // sender on From and Reply-To both; this is that intent, carried onto the SES chokepoint.
+        var sender = string.IsNullOrWhiteSpace(senderUserId) ? null : await _users.GetByIdAsync(senderUserId, ct);
+        var senderEmail = sender?.Email;
+        var senderName = $"{sender?.FirstName} {sender?.LastName}".Trim();
 
         // SECURITY — the recipient snapshot is CLIENT-BUILT, so nothing in it may decide where mail
         // goes. Every posted registrationId is confirmed to belong to the CALLER'S job before anything
@@ -273,7 +287,9 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
                 {
                     Message = new EmailMessageDto
                     {
-                        FromName = jobName,
+                        FromName = fromName,
+                        ReplyToName = senderName,
+                        ReplyToAddress = senderEmail,
                         Subject = subject,
                         HtmlBody = body,
                         ToAddresses = i.ToAddresses
@@ -281,16 +297,21 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
                     UnsubscribeRegId = r.RegistrationId // engine appends the unsubscribe footer
                 };
             },
-            // Engine writes the EmailLogs audit row from this (replaces USLax's manual log). No
-            // sender-summary / director-notify for USLax, so no completion hook.
+            // Engine writes the EmailLogs audit row from this (replaces USLax's manual log).
             Audit = new EmailBatchAudit
             {
                 JobId = jobId,
                 SenderUserId = senderUserId,
                 Subject = subjectTemplate,
                 BodyTemplate = bodyTemplate,
-                SendFrom = null
-            }
+                // What the family actually saw in their inbox — the Email Troubleshooter reads this
+                // column, and it was writing NULL for every USLax send.
+                SendFrom = senderEmail
+            },
+            // The sender's receipt, copied to the job's always-copy oversight list — the same hook
+            // Search Reg uses. Legacy USLax mailed the admin a completion summary; the port dropped it.
+            OnCompleteAsync = (status, sp, token) => BatchCompletionReceipt.SendAsync(
+                status, sp, jobId, senderEmail, fromName, subjectTemplate, bodyTemplate, token)
         };
 
         var handle = await _emailBatch.StartAsync(plan, new EmailBatchOptions(), ct);
