@@ -622,7 +622,7 @@ export class PlayerFormsStepComponent implements OnDestroy {
                     membershipNumber: value,
                     jobPath: this.state.jobCtx.jobPath() ?? '',
                     lastName: this.state.familyPlayers.getPlayerLastName(playerId),
-                    dob: this.state.familyPlayers.getPlayerDob(playerId),
+                    dob: this.state.familyPlayers.getPlayerDobRaw(playerId),
                     teamId: this.state.eligibility.selectedTeams()[playerId]?.[0] ?? null,
                 }).pipe(
                     takeUntil(this.destroy$),

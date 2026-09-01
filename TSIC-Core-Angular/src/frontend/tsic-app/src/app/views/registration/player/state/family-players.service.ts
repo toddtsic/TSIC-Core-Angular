@@ -67,6 +67,16 @@ export class FamilyPlayersService {
         return fam?.lastName || null;
     }
 
+    /**
+     * DOB exactly as the API sent it, no Date round-trip. `new Date('2011-05-03')` parses a bare
+     * ISO date as UTC midnight, so reading local parts back yields 2011-05-02 anywhere west of
+     * Greenwich — which silently shifts an exact-match comparison by a day. Callers that compare
+     * or transmit a DOB must use this; getPlayerDob() below is for display/arithmetic only.
+     */
+    getPlayerDobRaw(playerId: string): string | null {
+        return this._familyPlayers().find(p => p.playerId === playerId)?.dob ?? null;
+    }
+
     getPlayerDob(playerId: string): Date | null {
         const fam = this._familyPlayers().find(p => p.playerId === playerId);
         if (fam?.dob) {
