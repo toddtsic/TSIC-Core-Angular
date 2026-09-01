@@ -312,14 +312,8 @@
 }
 
 /* One chart per event lineage, stacked. The page scrolls vertically through the lineages;
-   a chart with more seasons than fit scrolls horizontally INSIDE itself, via the ej2
-   scrollbar, so the page body never gains a horizontal scrollbar. */
-.yoy-stack {
-	display: flex;
-	flex-direction: column;
-	gap: var(--space-5);
-}
-
+   the chart scrolls horizontally INSIDE itself, via the ej2 scrollbar, so the page body
+   never gains a horizontal scrollbar. */
 .yoy-card {
 	background: var(--brand-surface);
 	border: 1px solid var(--brand-border);
@@ -376,7 +370,7 @@
 	}
 
 	ul {
-		margin: var(--space-2) 0 0;
+		margin: var(--space-1) 0 var(--space-2);
 		padding-left: var(--space-5);
 		color: var(--brand-text-muted);
 	}
@@ -384,6 +378,15 @@
 	li {
 		padding: 0.125rem 0;
 	}
+}
+
+/* One heading per lineage inside the collapsed list. The list covers the whole chart now,
+   so the jobs have to be attributed to the event they were grouped under — an unlabelled
+   flat list would defeat the point of printing them. */
+.yoy-jobs__event {
+	margin: var(--space-2) 0 0;
+	font-weight: 600;
+	color: var(--brand-text);
 }
 
 .yoy-footnote {

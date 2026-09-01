@@ -22,7 +22,7 @@ import {
 	ExcelExportService
 } from '@syncfusion/ej2-angular-pivotview';
 import { MultiSelectAllModule } from '@syncfusion/ej2-angular-dropdowns';
-import { ChartAllModule } from '@syncfusion/ej2-angular-charts';
+import { ChartAllModule, MultiLevelLabelService } from '@syncfusion/ej2-angular-charts';
 import { AuthService } from '../../../infrastructure/services/auth.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { AdminNavPillComponent } from '@shared-ui/components/admin-nav-pill.component';
@@ -81,21 +81,26 @@ const YOY_BASIS = 'how each event is doing versus the same point in prior season
 const ADJUSTMENTS_BASIS = 'who carries a fee adjustment, and how much';
 
 /**
- * Seasons visible before the chart starts scrolling. Four clusters of three bars read
- * comfortably at any card width; past that the bars thin faster than the extra history earns
- * its place, so the rest goes behind the scrollbar rather than off the design.
+ * Bars visible before the single chart starts scrolling. Every season of every lineage now
+ * shares one axis, so this is a width budget for the whole report rather than a per-event one;
+ * past it the bars thin faster than the extra history earns its place and the rest goes behind
+ * the scrollbar.
  */
-const YOY_VISIBLE_YEARS = 4;
+const YOY_VISIBLE_BARS = 16;
 
 /** One season of one lineage, shaped for the chart. */
 interface YoyChartPoint {
 	/**
-	 * Axis label — the season's OWN cutoff, e.g. "8/31/26" (Todd, 2026-09-01). A bare year
-	 * said nothing about where in the season the bar was measured, and that IS the report:
-	 * every column is read at the same calendar point, so the point belongs on the axis.
-	 * Carries the in-flight asterisk, which is why it is a string.
+	 * The category VALUE, and it must be unique across the whole chart. A Category axis keys
+	 * points by their x value, so two lineages both showing a 2025 season would collapse into
+	 * one bar. Prefixed with the lineage index and stripped back to the season by
+	 * onYoyAxisLabel, which is the only place the reader ever sees it.
 	 */
+	key: string;
+	/** What the axis shows: the SEASON, plus the in-flight asterisk. */
 	label: string;
+	/** The cutoff this bar was measured at, printed on its own row under the axis. */
+	pinLabel: string;
 	rawYear: number;
 	billed: number;
 	collected: number;
@@ -107,14 +112,24 @@ interface YoyChartPoint {
 	jobNames: string[];
 }
 
-/** One event lineage and its seasons — one chart. */
+/** One event lineage and its seasons — one span of the shared axis. */
 interface YoyChartGroup {
 	label: string;
 	anchorYear: number;
 	points: YoyChartPoint[];
+	jobLines: string[];
+}
+
+/** The whole report as ONE chart: every season of every lineage on a shared axis. */
+interface YoyChartView {
+	points: YoyChartPoint[];
+	/** Per-bar cutoff row, directly under the axis labels. */
+	pinLevel: { start: number; end: number; text: string }[];
+	/** Lineage row beneath that, one span per event. */
+	groupLevel: { start: number; end: number; text: string }[];
 	needsScroll: boolean;
 	zoomFactor: number;
-	jobLines: string[];
+	groups: YoyChartGroup[];
 }
 
 /** Read a CSS custom property off :root so chart fills follow the live palette. */
@@ -164,6 +179,7 @@ interface SubmittedScope {
 	// The export services are NOT bundled by the *AllModules (pivot or grid) — without
 	// them pdfExport()/excelExport() are silent no-ops.
 	providers: [
+		MultiLevelLabelService,
 		FieldListService, ToolbarService, PDFExportService, ExcelExportService,
 		GridPdfExportService, GridExcelExportService
 	],
@@ -658,7 +674,46 @@ export class CustomerJobRevenueComponent {
 	readonly yoyAsOfDate = computed(() => this.yoy()?.asOfDate ?? null);
 	readonly yoyUngrouped = computed(() => this.yoy()?.ungroupedJobNames ?? []);
 	readonly yoyGroups = computed<YoyChartGroup[]>(() =>
-		(this.yoy()?.groups ?? []).map(g => this.toChartGroup(g)));
+		(this.yoy()?.groups ?? []).map((g, i) => this.toChartGroup(g, i)));
+
+	/**
+	 * Everything on ONE chart (Todd, 2026-09-01): lineages as groups along a shared axis,
+	 * their seasons as the bars inside each group. A chart per event made the reader compare
+	 * across cards with a different y-scale on each; one axis makes the events comparable to
+	 * each other as well as to their own history.
+	 */
+	readonly yoyChart = computed<YoyChartView>(() => {
+		const groups = this.yoyGroups();
+		const points: YoyChartPoint[] = [];
+		const pinLevel: { start: number; end: number; text: string }[] = [];
+		const groupLevel: { start: number; end: number; text: string }[] = [];
+
+		for (const g of groups) {
+			if (g.points.length === 0) {
+				continue;
+			}
+			const start = points.length;
+			for (const p of g.points) {
+				// Category spans address bars by INDEX, so each is recorded as it is appended.
+				pinLevel.push({ start: points.length, end: points.length, text: p.pinLabel });
+				points.push(p);
+			}
+			groupLevel.push({ start, end: points.length - 1, text: g.label });
+		}
+
+		const visible = Math.min(YOY_VISIBLE_BARS, points.length);
+		const needsScroll = points.length > YOY_VISIBLE_BARS;
+
+		return {
+			points,
+			pinLevel,
+			groupLevel,
+			needsScroll,
+			// Opens on the most recent lineages; the scrollbar reaches back for the rest.
+			zoomFactor: needsScroll ? visible / points.length : 1,
+			groups
+		};
+	});
 
 	/**
 	 * YoY needs dates: the whole report is an as-of pin shifted back whole years, and a
@@ -668,13 +723,19 @@ export class CustomerJobRevenueComponent {
 
 	/** Any season still open at its own cutoff — drives whether the footnote is worth printing. */
 	readonly yoyHasActiveColumn = computed(() =>
-		this.yoyGroups().some(g => g.points.some(p => p.active)));
+		this.yoyChart().points.some(p => p.active));
 
-	private toChartGroup(g: YoyEventGroupDto): YoyChartGroup {
+	private toChartGroup(g: YoyEventGroupDto, index: number): YoyChartGroup {
 		const points: YoyChartPoint[] = g.years.map(y => ({
+			key: `${index}|${y.year}`,
 			// The asterisk is the in-flight marker, and it is TEXT on purpose — a season that
 			// has not finished must not be distinguished by colour alone.
-			label: y.isActive ? `${shortPin(y.asOf)}*` : shortPin(y.asOf),
+			label: y.isActive ? `${y.year}*` : `${y.year}`,
+			// The pin is a SECOND row, never the axis label itself. It is offset from the
+			// lineage's anchor, not from the season's own calendar year, so a 2024 season can
+			// legitimately be measured at 8/31/23 — a label showing only the cutoff would put
+			// "8/31/23" under a 2024 bar and name the wrong season.
+			pinLabel: shortPin(y.asOf),
 			rawYear: y.year,
 			billed: y.billed,
 			collected: y.collected,
@@ -686,17 +747,10 @@ export class CustomerJobRevenueComponent {
 			jobNames: y.jobNames
 		}));
 
-		// Deeper history than this stays reachable by scrolling rather than being cut off.
-		const visible = Math.min(YOY_VISIBLE_YEARS, points.length);
-		const needsScroll = points.length > YOY_VISIBLE_YEARS;
-
 		return {
 			label: g.groupLabel,
 			anchorYear: g.anchorYear,
 			points,
-			needsScroll,
-			// Opens on the most recent seasons; the scrollbar reaches back for the rest.
-			zoomFactor: needsScroll ? visible / points.length : 1,
 			// The composing jobs, printed under every chart. Name grouping is a heuristic and
 			// its failure mode is a confident chart against a wrong baseline — a reader spots
 			// a bad pairing instantly where no parser will.
@@ -725,17 +779,33 @@ export class CustomerJobRevenueComponent {
 		});
 	}
 
-	/** Category axis — the seasons. */
-	yoyXAxis(group: YoyChartGroup): object {
+	/**
+	 * Category axis — seasons, with two label rows beneath: each bar's cutoff, then the event
+	 * it belongs to. The lineage row is what turns one long axis back into readable groups.
+	 */
+	yoyXAxis(view: YoyChartView): object {
 		return {
 			valueType: 'Category',
 			majorGridLines: { width: 0 },
 			majorTickLines: { width: 0 },
 			lineStyle: { width: 0.5, color: this.yoyBorder() },
-			labelStyle: { color: this.yoyMuted(), size: '12px', fontFamily: YOY_FONT_FAMILY },
-			// Present only when there is more history than fits; a full view must not open
-			// zoomed, or the newest season looks like the only one.
-			...(group.needsScroll ? { zoomFactor: group.zoomFactor, zoomPosition: 1 } : {})
+			labelStyle: { color: this.yoyText(), size: '12px', fontFamily: YOY_FONT_FAMILY },
+			multiLevelLabels: [
+				{
+					border: { type: 'WithoutTopandBottomBorder', width: 0 },
+					categories: view.pinLevel,
+					textStyle: { color: this.yoyMuted(), size: '10px', fontFamily: YOY_FONT_FAMILY }
+				},
+				{
+					border: { type: 'Brace', width: 1, color: this.yoyBorder() },
+					categories: view.groupLevel,
+					overflow: 'Trim',
+					textStyle: { color: this.yoyText(), size: '12px', fontFamily: YOY_FONT_FAMILY }
+				}
+			],
+			// Present only when there is more than fits; a full view must not open zoomed, or
+			// the newest lineage looks like the only one.
+			...(view.needsScroll ? { zoomFactor: view.zoomFactor, zoomPosition: 1 } : {})
 		};
 	}
 
@@ -754,10 +824,10 @@ export class CustomerJobRevenueComponent {
 	 * charts, and a wheel handler on each one would hijack page scrolling. Selection zooming
 	 * and the toolbar are off for the same reason — the scrollbar is the whole interaction.
 	 */
-	yoyZoom(group: YoyChartGroup): object {
+	yoyZoom(view: YoyChartView): object {
 		return {
-			enableScrollbar: group.needsScroll,
-			enablePan: group.needsScroll,
+			enableScrollbar: view.needsScroll,
+			enablePan: view.needsScroll,
 			mode: 'X',
 			enableMouseWheelZooming: false,
 			enableSelectionZooming: false,
@@ -792,18 +862,31 @@ export class CustomerJobRevenueComponent {
 	readonly yoyChartArea = { border: { width: 0 } };
 	readonly yoyMargin = { left: 8, right: 16, top: 4, bottom: 4 };
 
-	/** Dollars on the value axis, abbreviated so six-figure labels do not crowd the plot. */
+	/**
+	 * Both axes. Horizontal: strip the lineage prefix that keeps categories unique, so the
+	 * reader sees the season and never the key. Vertical: abbreviate dollars so six-figure
+	 * labels do not crowd the plot.
+	 */
 	onYoyAxisLabel(args: { axis?: { orientation?: string }; value?: number; text?: string }): void {
-		if (args.axis?.orientation !== 'Vertical' || args.value == null) {
+		if (args.axis?.orientation !== 'Vertical') {
+			if (args.text) {
+				args.text = args.text.slice(args.text.indexOf('|') + 1);
+			}
+			return;
+		}
+		if (args.value == null) {
 			return;
 		}
 		const v = args.value;
 		const abs = Math.abs(v);
 		const sign = v < 0 ? '-' : '';
+		// toFixed BEFORE formatting, always. ej2 derives its own tick values, and a 0-to-1
+		// default range steps in thirds — which is how "$0.6000000000000001" reached the axis
+		// of every empty chart. Rounding only the large branches leaves the small one exposed.
 		args.text =
 			abs >= 1_000_000 ? `${sign}$${(abs / 1_000_000).toFixed(1)}M`
 			: abs >= 1_000 ? `${sign}$${Math.round(abs / 1_000)}K`
-			: `${sign}$${abs}`;
+			: `${sign}$${Number(abs.toFixed(2))}`;
 	}
 
 	/**

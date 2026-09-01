@@ -643,89 +643,95 @@
 					</div>
 				}
 
-				<div class="yoy-stack">
-					@for (group of yoyGroups(); track group.label) {
-						<section class="yoy-card">
-							<header class="yoy-card__head">
-								<h3 class="yoy-card__title">{{ group.label }}</h3>
-								<span class="yoy-card__meta">
-									{{ group.points.length }} season{{ group.points.length === 1 ? '' : 's' }}
-									@if (group.needsScroll) {
-										<span class="yoy-card__scrollhint">
-											<i class="bi bi-arrow-left-right ms-2 me-1"></i>scroll for older
-										</span>
-									}
-								</span>
-							</header>
+				@if (yoyChart(); as view) {
+					<section class="yoy-card">
+						<header class="yoy-card__head">
+							<h3 class="yoy-card__title">Revenue by event and season</h3>
+							<span class="yoy-card__meta">
+								{{ view.groups.length }} event{{ view.groups.length === 1 ? '' : 's' }},
+								{{ view.points.length }} season{{ view.points.length === 1 ? '' : 's' }}
+								@if (view.needsScroll) {
+									<span class="yoy-card__scrollhint">
+										<i class="bi bi-arrow-left-right ms-2 me-1"></i>scroll for more
+									</span>
+								}
+							</span>
+						</header>
 
-							<ejs-chart
-								[primaryXAxis]="yoyXAxis(group)"
-								[primaryYAxis]="yoyYAxis()"
-								[zoomSettings]="yoyZoom(group)"
-								[tooltip]="yoyTooltip"
-								[legendSettings]="yoyLegend"
-								[chartArea]="yoyChartArea"
-								[margin]="yoyMargin"
-								[stackLabels]="yoyStackLabels"
-								[useGroupingSeparator]="true"
-								[width]="'100%'"
-								[height]="'300'"
-								[background]="'transparent'"
-								(axisLabelRender)="onYoyAxisLabel($event)"
-								(tooltipRender)="onYoyTooltip($event)">
-								<e-series-collection>
-									<!-- ONE bar per season, not three (Todd, 2026-09-01). The bar's full
-									     height is what was billed, split into the part that came in and the
-									     part still out — so the eye reads the ratio, which is the question,
-									     instead of comparing three bars whose relationship it has to work
-									     out. Collected sits at the bottom because it is the part that is
-									     settled; Owed rides on top as the gap.
+						<!-- ONE chart, not one per event (Todd, 2026-09-01). A chart per event gave each
+						     its own y-scale, so two events could never be compared with the eye — only an
+						     event against its own history. A shared axis makes both readings available at
+						     once, with the lineage carried by the grouping row under the axis rather than
+						     by a card heading. -->
+						<ejs-chart
+							[primaryXAxis]="yoyXAxis(view)"
+							[primaryYAxis]="yoyYAxis()"
+							[zoomSettings]="yoyZoom(view)"
+							[tooltip]="yoyTooltip"
+							[legendSettings]="yoyLegend"
+							[chartArea]="yoyChartArea"
+							[margin]="yoyMargin"
+							[stackLabels]="yoyStackLabels"
+							[useGroupingSeparator]="true"
+							[width]="'100%'"
+							[height]="'460'"
+							[background]="'transparent'"
+							(axisLabelRender)="onYoyAxisLabel($event)"
+							(tooltipRender)="onYoyTooltip($event)">
+							<e-series-collection>
+								<!-- ONE bar per season, not three. The bar's full height is what was billed,
+								     split into the part that came in and the part still out — so the eye
+								     reads the ratio, which is the question, instead of comparing three bars
+								     whose relationship it has to work out. Collected sits at the bottom
+								     because it is the part that is settled; Owed rides on top as the gap.
 
-									     The total is printed above the bar by stackLabels: Billed is the
-									     whole bar, so it is the one figure a stacked column cannot show as
-									     a segment, and it must still be named.
+								     The total is printed above the bar by stackLabels: Billed is the whole
+								     bar, so it is the one figure a stacked column cannot show as a segment,
+								     and it must still be named.
 
-									     Collected + Owed = Billed holds exactly here — Owed is computed as
-									     Billed − Collected at each season's own cutoff, never read from a
-									     stored balance. If a season is ever OVERPAID the Owed segment goes
-									     negative and hangs below the axis; the stack label stays correct. -->
-									<e-series
-										[dataSource]="group.points"
-										type="StackingColumn"
-										xName="label"
-										yName="collected"
-										name="Collected"
-										[fill]="yoyCollectedColor()"
-										[columnWidth]="0.6">
-									</e-series>
-									<e-series
-										[dataSource]="group.points"
-										type="StackingColumn"
-										xName="label"
-										yName="owed"
-										name="Owed"
-										[fill]="yoyOwedColor()"
-										[columnWidth]="0.6"
-										[cornerRadius]="{ topLeft: 3, topRight: 3 }">
-									</e-series>
-								</e-series-collection>
-							</ejs-chart>
+								     Collected + Owed = Billed holds exactly here — Owed is computed as
+								     Billed − Collected at each season's own cutoff, never read from a
+								     stored balance. If a season is ever OVERPAID the Owed segment goes
+								     negative and hangs below the axis; the stack label stays correct. -->
+								<e-series
+									[dataSource]="view.points"
+									type="StackingColumn"
+									xName="key"
+									yName="collected"
+									name="Collected"
+									[fill]="yoyCollectedColor()"
+									[columnWidth]="0.6">
+								</e-series>
+								<e-series
+									[dataSource]="view.points"
+									type="StackingColumn"
+									xName="key"
+									yName="owed"
+									name="Owed"
+									[fill]="yoyOwedColor()"
+									[columnWidth]="0.6"
+									[cornerRadius]="{ topLeft: 3, topRight: 3 }">
+								</e-series>
+							</e-series-collection>
+						</ejs-chart>
 
-							<!-- The safety rail. Grouping on a name is a heuristic and its failure mode is a
-							     confident chart against the wrong baseline — a split into North/South, a stray
-							     apostrophe. Printing the jobs lets a director catch in one glance what no
-							     parser will. -->
-							<details class="yoy-jobs">
-								<summary>Events on this chart ({{ group.jobLines.length }})</summary>
+						<!-- The safety rail. Grouping on a name is a heuristic and its failure mode is a
+						     confident chart against the wrong baseline — a split into North/South, a stray
+						     apostrophe. Printing the jobs lets a director catch in one glance what no
+						     parser will. -->
+						<details class="yoy-jobs">
+							<summary>Events on this chart ({{ view.groups.length }})</summary>
+							@for (group of view.groups; track group.label) {
+								<p class="yoy-jobs__event">{{ group.label }}</p>
 								<ul>
 									@for (line of group.jobLines; track line) {
 										<li>{{ line }}</li>
 									}
 								</ul>
-							</details>
-						</section>
-					}
-				</div>
+							}
+						</details>
+					</section>
+				}
 
 				@if (yoyHasActiveColumn()) {
 					<p class="yoy-footnote">
