@@ -10,6 +10,18 @@ public record ClubWithUsageInfo
 }
 
 /// <summary>
+/// One club a rep is a member of, with the size of its team library. The library count is a
+/// raw ClubTeams row count — enough to rank two candidate clubs against each other, NOT the
+/// deduped figure the wizard displays.
+/// </summary>
+public record RepClubLibrary
+{
+    public required int ClubId { get; init; }
+    public required string ClubName { get; init; }
+    public required int LibraryTeamCount { get; init; }
+}
+
+/// <summary>
 /// Repository for managing ClubReps entity data access.
 /// </summary>
 public interface IClubRepRepository
@@ -19,6 +31,16 @@ public interface IClubRepRepository
     /// </summary>
     Task<List<ClubWithUsageInfo>> GetClubsForUserAsync(
         string userId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lean membership read for club resolution: every club this user reps, with each club's
+    /// library size. Deliberately NOT <see cref="GetClubsForUserAsync"/> — that one issues a
+    /// per-club scan of Teams⋈Registrations to derive an IsInUse flag this caller has no use
+    /// for. One query, no N+1.
+    /// </summary>
+    Task<List<RepClubLibrary>> GetClubLibrariesForRepAsync(
+        string clubRepUserId,
         CancellationToken cancellationToken = default);
 
     /// <summary>

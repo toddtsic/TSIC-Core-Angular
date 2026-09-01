@@ -51,6 +51,22 @@ public class ClubRepRepository : IClubRepRepository
         return result;
     }
 
+    public async Task<List<RepClubLibrary>> GetClubLibrariesForRepAsync(
+        string clubRepUserId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.ClubReps
+            .AsNoTracking()
+            .Where(cr => cr.ClubRepUserId == clubRepUserId)
+            .Select(cr => new RepClubLibrary
+            {
+                ClubId = cr.ClubId,
+                ClubName = cr.Club!.ClubName!,
+                LibraryTeamCount = _context.ClubTeams.Count(ct => ct.ClubId == cr.ClubId)
+            })
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<ClubReps?> GetClubRepForUserAndClubAsync(
         string clubRepUserId,
         int clubId,
