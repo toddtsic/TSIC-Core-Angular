@@ -7,6 +7,7 @@ using TSIC.API.Services.Shared.UsLax;
 using TSIC.Contracts.Dtos.UsLax;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 using TSIC.Domain.UsLax;
 
 namespace TSIC.API.Services.Admin;
@@ -20,6 +21,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
     private readonly IRegistrationRepository _registrations;
     private readonly IUsLaxService _usLax;
     private readonly IJobRepository _jobs;
+    private readonly IFamiliesRepository _families;
     private readonly IEmailBatchService _emailBatch;
     private readonly ITextSubstitutionService _textSubstitution;
     private readonly IEmailTestSendService _testSend;
@@ -29,6 +31,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         IRegistrationRepository registrations,
         IUsLaxService usLax,
         IJobRepository jobs,
+        IFamiliesRepository families,
         IEmailBatchService emailBatch,
         ITextSubstitutionService textSubstitution,
         IEmailTestSendService testSend,
@@ -37,6 +40,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         _registrations = registrations;
         _usLax = usLax;
         _jobs = jobs;
+        _families = families;
         _emailBatch = emailBatch;
         _textSubstitution = textSubstitution;
         _testSend = testSend;
@@ -186,14 +190,43 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         var jobPath = jobInfo?.JobPath ?? string.Empty;
         var jobValidThrough = jobInfo?.UsLaxNumberValidThroughDate;
 
-        // Up-front partition — pure checks on the request snapshot (no I/O), so the skip rollup is
-        // known immediately and returned in the start response:
+        // SECURITY — the recipient snapshot is CLIENT-BUILT, so nothing in it may decide where mail
+        // goes. Every posted registrationId is confirmed to belong to the CALLER'S job before anything
+        // else happens. Without this an admin of any job could post another job's ids (or ids paired
+        // with an arbitrary Email) and have the batch deliver arbitrary HTML under our SES identity —
+        // and the per-recipient render, which keys on registrationId ALONE, would substitute the other
+        // job's registrant into the tokens. Same guard, same shape, as
+        // RegistrationSearchService.StartBatchEmailAsync.
+        var postedIds = request.Recipients.Select(r => r.RegistrationId).Distinct().ToList();
+        var regs = await _registrations.GetByIdsAsync(postedIds, ct);
+        if (regs.Any(reg => reg.JobId != jobId))
+            throw new InvalidOperationException("Some registrations do not belong to this job.");
+
+        var regById = regs.ToDictionary(reg => reg.RegistrationId);
+
+        // Addresses are re-derived from the database, never taken from the snapshot. ResolveRecipients
+        // is the shared rule every other batch path uses: a Player fans out to mom + dad + the player's
+        // own address; every other role — including the Coach audience, which registers as
+        // UnassignedAdult — resolves to its own address only, which is the coach behaviour unchanged.
+        var emailByRegId = (await _registrations.GetRecipientEmailsByIdsAsync(postedIds, ct))
+            .GroupBy(e => e.RegistrationId)
+            .ToDictionary(g => g.Key, g => g.First().Email);
+        var playerFamilyIds = regs
+            .Where(reg => reg.RoleId == RoleConstants.Player && !string.IsNullOrWhiteSpace(reg.FamilyUserId))
+            .Select(reg => reg.FamilyUserId!)
+            .ToList();
+        var familyEmailsById = (await _families.GetByFamilyUserIdsAsync(playerFamilyIds, ct))
+            .GroupBy(f => f.FamilyUserId)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        // Up-front partition, so the skip rollup is known immediately and returned in the start
+        // response. Address resolution is pure dictionary work against the maps loaded above:
         //   healthy   → NeedsAction == false (never false-alarm a valid member, even if force-selected)
-        //   no-email  → blank Email
+        //   no-email  → no sendable address resolved (also covers an id that no longer exists)
         //   actionable→ everything else, becomes the background batch
         var skippedNames = new List<string>();
         var missingEmail = 0;
-        var actionable = new List<UsLaxEmailRecipientDto>();
+        var actionable = new List<UsLaxSendItem>();
         foreach (var r in request.Recipients)
         {
             if (!NeedsAction(r, jobValidThrough))
@@ -201,33 +234,33 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
                 skippedNames.Add($"{r.FirstName} {r.LastName}".Trim());
                 continue;
             }
-            if (string.IsNullOrWhiteSpace(r.Email))
+
+            regById.TryGetValue(r.RegistrationId, out var reg);
+            var toAddresses = reg is null
+                ? new List<string>()
+                : BatchEmailRecipientFilter.ResolveRecipients(
+                    reg.RoleId, reg.FamilyUserId, reg.RegistrationId, emailByRegId, familyEmailsById);
+
+            if (toAddresses.Count == 0)
             {
                 missingEmail++;
                 continue;
             }
-            actionable.Add(r);
+            actionable.Add(new UsLaxSendItem(r, toAddresses, reg!.BemailOptOut));
         }
-
-        // Opt-out is resolved SERVER-SIDE by registrationId — the FE recipient snapshot can't be
-        // trusted for it. One batch load builds the opted-out set the engine's IsOptedOut closes over.
-        var optedOut = (await _registrations.GetByIdsAsync(actionable.Select(a => a.RegistrationId).ToList(), ct))
-            .Where(reg => reg.BemailOptOut)
-            .Select(reg => reg.RegistrationId)
-            .ToHashSet();
 
         var subjectTemplate = request.Subject;
         var bodyTemplate = request.Body;
 
-        var plan = new EmailBatchPlan<UsLaxEmailRecipientDto>
+        var plan = new EmailBatchPlan<UsLaxSendItem>
         {
-            SeedAsync = (_, _) => Task.FromResult(new EmailBatchSeed<UsLaxEmailRecipientDto> { Items = actionable }),
-            IsOptedOut = r => optedOut.Contains(r.RegistrationId),
-            DescribeItem = r => $"{r.FirstName} {r.LastName}".Trim(),
-            RenderAsync = async (r, sp, _) =>
+            SeedAsync = (_, _) => Task.FromResult(new EmailBatchSeed<UsLaxSendItem> { Items = actionable }),
+            // Opt-out comes off the loaded registration, not the snapshot.
+            IsOptedOut = i => i.OptedOut,
+            DescribeItem = i => $"{i.Snapshot.FirstName} {i.Snapshot.LastName}".Trim(),
+            RenderAsync = async (i, sp, _) =>
             {
-                var toAddresses = BatchEmailRecipientFilter.BuildSendableSet(new[] { r.Email });
-                if (toAddresses.Count == 0) return null;
+                var r = i.Snapshot;
 
                 // Same TextSubstitution engine as every other email — resolved from the render scope.
                 var textSub = sp.GetRequiredService<ITextSubstitutionService>();
@@ -243,7 +276,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
                         FromName = jobName,
                         Subject = subject,
                         HtmlBody = body,
-                        ToAddresses = toAddresses
+                        ToAddresses = i.ToAddresses
                     },
                     UnsubscribeRegId = r.RegistrationId // engine appends the unsubscribe footer
                 };
@@ -288,6 +321,16 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         var renderedFor = $"{request.Recipient.FirstName} {request.Recipient.LastName}".Trim();
         return await _testSend.SendRenderedAsync(subject, body, renderedFor, request.TestRecipient, ct);
     }
+
+    /// <summary>
+    /// One queued send: the client's row snapshot (token data only — it decides NOTHING about
+    /// delivery), plus the two facts resolved server-side from the registration — where it goes
+    /// and whether that registrant has opted out.
+    /// </summary>
+    private sealed record UsLaxSendItem(
+        UsLaxEmailRecipientDto Snapshot,
+        List<string> ToAddresses,
+        bool OptedOut);
 
     /// <summary>
     /// A recipient needs action (and therefore warrants the email) when:
