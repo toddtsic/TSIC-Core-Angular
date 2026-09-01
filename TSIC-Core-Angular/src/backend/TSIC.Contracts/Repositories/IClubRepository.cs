@@ -26,6 +26,20 @@ public interface IClubRepository
     /// <summary>
     /// Get club by name (case-insensitive exact match if supported by DB collation).
     /// </summary>
+    /// <summary>
+    /// True only for an EMPTY SHELL club: no reps linked AND no library teams. This is the
+    /// sole condition under which the anonymous signup endpoint will attach a caller to an
+    /// existing club (<see cref="TSIC.Contracts.Dtos.ClubRepRegistrationRequest.ExistingClubId"/>).
+    ///
+    /// "No reps" alone is NOT sufficient and must never be used on its own: a club can shed
+    /// its last rep through RemoveClubFromRepAsync, whose guard only inspects registered
+    /// Teams, not the ClubTeams library. A repless club holding a library would otherwise be
+    /// claimable by a stranger who would inherit it. An empty shell has nothing to inherit.
+    /// </summary>
+    Task<bool> IsUnclaimedEmptyAsync(
+        int clubId,
+        CancellationToken cancellationToken = default);
+
     Task<Clubs?> GetByNameAsync(
         string clubName,
         CancellationToken cancellationToken = default);

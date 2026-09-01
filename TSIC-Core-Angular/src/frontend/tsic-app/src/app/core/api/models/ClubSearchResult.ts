@@ -10,6 +10,7 @@ export type ClubSearchResult = {
     matchScore: number;
     isRelatedClub?: boolean;
     isExactMatch?: boolean;
+    isClaimable?: boolean;
     repName?: string | null;
     repEmail?: string | null;
 };

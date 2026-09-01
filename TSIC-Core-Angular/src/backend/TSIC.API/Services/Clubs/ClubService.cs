@@ -112,36 +112,89 @@ public sealed class ClubService : IClubService
         //     ConfirmedNewClub. Allows regional chapters of national orgs
         //     (e.g. "Aacme Lax NJ" vs "Aacme Lax MA") to register as siblings.
 
-        var similarClubs = await SearchClubsAsync(request.ClubName, null);
-        var exactMatch = similarClubs.FirstOrDefault(c => c.IsExactMatch);
+        int clubId = 0; // sentinel: create new
 
-        if (exactMatch != null)
+        if (request.ExistingClubId.HasValue)
         {
-            return new ClubRepRegistrationResponse
+            // ── Join an existing club ───────────────────────────────────────
+            //
+            // The gate below guards duplicate CREATION, so it does not apply on this
+            // branch — nothing new is created; the user is linked as a rep of a club
+            // that already exists. Documented on this method from the original design
+            // (see the summary above); this wires it up.
+            //
+            // SECURITY: restricted to an EMPTY SHELL club — no reps AND no library teams.
+            // This endpoint is anonymous, so an unrestricted id-link would let anyone create
+            // an account attached to an established club and inherit its team library and
+            // rosters (minors' PII). "No reps" alone is not enough: a club can shed its last
+            // rep via RemoveClubFromRepAsync, which only guards on registered Teams. Requiring
+            // an empty library means a wrongful claim inherits nothing. Claiming is first-come:
+            // once this rep is linked the door shuts, and every later rep must be added through
+            // the authenticated add-club path.
+            var chosenClub = await _clubRepo.GetByIdAsync(request.ExistingClubId.Value);
+
+            if (chosenClub == null)
             {
-                Success = false, ClubId = null, UserId = null,
-                Message = $"A club named \"{exactMatch.ClubName}\" is already registered. "
+                return new ClubRepRegistrationResponse
+                {
+                    Success = false, ClubId = null, UserId = null,
+                    Message = "Selected club not found."
+                };
+            }
+
+            if (!await _clubRepo.IsUnclaimedEmptyAsync(chosenClub.ClubId))
+            {
+                return new ClubRepRegistrationResponse
+                {
+                    Success = false, ClubId = null, UserId = null,
+                    Message = $"\"{chosenClub.ClubName}\" is already in use. "
+                            + "If this is your club, please contact its representative to be added."
+                };
+            }
+
+            clubId = chosenClub.ClubId;
+        }
+        else
+        {
+            var similarClubs = await SearchClubsAsync(request.ClubName, null);
+            var exactMatch = similarClubs.FirstOrDefault(c => c.IsExactMatch);
+
+            if (exactMatch != null)
+            {
+                // An UNCLAIMED exact match is the provisioned-club case: there is no rep to
+                // contact, and telling her to find one would be a dead end. Point her at the
+                // claim instead. Still a refusal — claiming is an explicit second action, never
+                // something the server does for her off a name collision.
+                var claimable = similarClubs.FirstOrDefault(c => c.IsExactMatch && c.IsClaimable);
+
+                return new ClubRepRegistrationResponse
+                {
+                    Success = false, ClubId = null, UserId = null,
+                    Message = claimable != null
+                        ? $"\"{claimable.ClubName}\" is set up but has no representative and no teams yet. "
+                        + "If this is your club, select it below to become its rep."
+                        : $"A club named \"{exactMatch.ClubName}\" is already registered. "
                         + "If this is your club, please contact the existing rep to be added. "
                         + "If you're a different chapter, register with a name that distinguishes "
                         + "your region (e.g. add a state suffix).",
-                SimilarClubs = similarClubs
-            };
-        }
+                    SimilarClubs = similarClubs
+                };
+            }
 
-        var nearMatches = similarClubs.Where(c => c.MatchScore >= 65).ToList();
+            var nearMatches = similarClubs.Where(c => c.MatchScore >= 65).ToList();
 
-        if (nearMatches.Count > 0 && !request.ConfirmedNewClub)
-        {
-            return new ClubRepRegistrationResponse
+            if (nearMatches.Count > 0 && !request.ConfirmedNewClub)
             {
-                Success = false, ClubId = null, UserId = null,
-                Message = "We found clubs with similar names. If none of these are yours, confirm below to create a new club.",
-                SimilarClubs = nearMatches
-            };
-        }
+                return new ClubRepRegistrationResponse
+                {
+                    Success = false, ClubId = null, UserId = null,
+                    Message = "We found clubs with similar names. If none of these are yours, confirm below to create a new club.",
+                    SimilarClubs = nearMatches
+                };
+            }
 
-        // Either no matches or caller confirmed new club in warning band
-        int clubId = 0; // sentinel: create new
+            // Either no matches or caller confirmed new club in warning band
+        }
 
         // ── Create user + club/link inside transaction ──────────────────
 
@@ -345,6 +398,10 @@ public sealed class ClubService : IClubService
                     MatchScore = compositeScore,
                     IsRelatedClub = isRelated,
                     IsExactMatch = isExact,
+                    // Mirrors IClubRepository.IsUnclaimedEmptyAsync — no reps AND an empty
+                    // library. TeamCount is the ClubTeams count, so the two agree by
+                    // construction. The server re-checks on the write; this is display only.
+                    IsClaimable = !c.HasRep && c.TeamCount == 0,
                     RepName = c.RepName,
                     RepEmail = c.RepEmail
                 };

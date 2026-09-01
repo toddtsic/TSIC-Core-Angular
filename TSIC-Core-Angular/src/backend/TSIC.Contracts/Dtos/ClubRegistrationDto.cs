@@ -127,6 +127,15 @@ public record ClubSearchResult
     public bool IsExactMatch { get; init; }
 
     /// <summary>
+    /// True when this club is an EMPTY SHELL — no reps linked and no library teams.
+    /// Normally that means an admin provisioned the name for a rep who is about to claim
+    /// it. Only such a club may be passed as
+    /// <see cref="ClubRepRegistrationRequest.ExistingClubId"/>; the server re-checks on the
+    /// write, so this flag is for presentation, never the gate.
+    /// </summary>
+    public bool IsClaimable { get; init; }
+
+    /// <summary>
     /// Primary rep's full name (from Clubs.LebUserId → AspNetUsers).
     /// Shown to registrant so they can contact the existing rep directly.
     /// </summary>

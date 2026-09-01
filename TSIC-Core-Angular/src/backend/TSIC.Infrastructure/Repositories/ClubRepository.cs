@@ -47,6 +47,22 @@ public class ClubRepository : IClubRepository
             .SingleOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<bool> IsUnclaimedEmptyAsync(
+        int clubId,
+        CancellationToken cancellationToken = default)
+    {
+        var hasRep = await _context.ClubReps
+            .AnyAsync(cr => cr.ClubId == clubId, cancellationToken);
+
+        if (hasRep)
+        {
+            return false;
+        }
+
+        return !await _context.ClubTeams
+            .AnyAsync(ct => ct.ClubId == clubId, cancellationToken);
+    }
+
     public async Task<Clubs?> GetByNameAsync(
         string clubName,
         CancellationToken cancellationToken = default)
@@ -78,7 +94,8 @@ public class ClubRepository : IClubRepository
                     .FirstOrDefault(),
                 RepEmail = c.ClubReps.OrderBy(cr => cr.Aid)
                     .Select(cr => cr.ClubRepUser.Email)
-                    .FirstOrDefault()
+                    .FirstOrDefault(),
+                HasRep = c.ClubReps.Any()
             })
             .AsNoTracking()
             .ToListAsync(cancellationToken);
@@ -113,7 +130,8 @@ public class ClubRepository : IClubRepository
                     .FirstOrDefault(),
                 RepEmail = c.ClubReps.OrderBy(cr => cr.Aid)
                     .Select(cr => cr.ClubRepUser.Email)
-                    .FirstOrDefault()
+                    .FirstOrDefault(),
+                HasRep = c.ClubReps.Any()
             })
             .AsNoTracking()
             .ToListAsync(cancellationToken);

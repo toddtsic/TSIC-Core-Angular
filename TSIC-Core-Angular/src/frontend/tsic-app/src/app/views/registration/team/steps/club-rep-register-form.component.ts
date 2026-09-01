@@ -269,9 +269,24 @@ type ClubDecision = 'pending' | 'new' | 'clear';
                    Exact-normalized match → hard block (no Create-new button, danger framing).
                    Otherwise → similarity surface with Create-new available. -->
               @if (similarMatches().length > 0 && !clubSearchLoading() && clubDecision() !== 'new') {
-                <div class="club-similar-panel" [class.club-similar-panel--exact]="exactMatch() !== null">
+                <div class="club-similar-panel"
+                     [class.club-similar-panel--exact]="exactMatch() !== null && claimableMatch() === null">
                   <div class="club-similar-header">
-                    @if (exactMatch(); as exact) {
+                    @if (claimableMatch(); as claimable) {
+                      <h6><i class="bi bi-hand-index me-2 text-primary"></i>This club has no representative yet</h6>
+                      <p>
+                        <strong>"{{ claimable.clubName }}" is set up, but no one reps it and it has
+                        no teams.</strong> Usually that means it was created ready for its rep to take over.
+                      </p>
+                      <p>
+                        <strong>Only continue if this is genuinely your club.</strong> If it isn't,
+                        register under a name that identifies your own organization instead.
+                      </p>
+                      <p>
+                        Fill in your details above, then take it over below. You'll be its
+                        representative, and your teams will register under this name.
+                      </p>
+                    } @else if (exactMatch(); as exact) {
                       <h6><i class="bi bi-shield-exclamation me-2 text-danger"></i>This club is already registered</h6>
                       <p>
                         <strong>"{{ exact.clubName }}" already has a registered rep</strong> —
@@ -321,7 +336,9 @@ type ClubDecision = 'pending' | 'new' | 'clear';
                           @if (club.isRelatedClub) {
                             <span class="mega-club-tag"><i class="bi bi-diagram-3 me-1"></i>Same org</span>
                           }
-                          @if (club.isExactMatch) {
+                          @if (club.isExactMatch && club.isClaimable) {
+                            <span class="match-confidence confidence-high">Unclaimed</span>
+                          } @else if (club.isExactMatch) {
                             <span class="match-confidence confidence-exact">Already registered</span>
                           } @else if (club.matchScore >= 85) {
                             <span class="match-confidence confidence-high">Very similar</span>
@@ -348,7 +365,26 @@ type ClubDecision = 'pending' | 'new' | 'clear';
                       }
                     </div>
                   }
-                  @if (exactMatch() === null) {
+                  @if (claimableMatch(); as claimable) {
+                    <div class="similar-confirm-bar">
+                      <button type="button" class="btn btn-sm btn-primary fw-medium"
+                              [disabled]="saving() || !canClaim()"
+                              (click)="onSubmit(claimable.clubId)">
+                        @if (saving()) {
+                          <span class="spinner-border spinner-border-sm me-1"></span>Claiming...
+                        } @else {
+                          <i class="bi bi-hand-index me-1"></i>This is my club — I'm its rep
+                        }
+                      </button>
+                      <div class="small text-muted mt-1">
+                        @if (canClaim()) {
+                          This creates your account and makes you the rep for "{{ claimable.clubName }}".
+                        } @else {
+                          Complete the form above to continue.
+                        }
+                      </div>
+                    </div>
+                  } @else if (exactMatch() === null) {
                     <div class="similar-confirm-bar">
                       <button type="button" class="btn btn-sm btn-outline-primary fw-medium"
                               (click)="confirmNewClub()">
@@ -612,6 +648,21 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         this.clubSearchResults().find(c => c.isExactMatch) ?? null
     );
 
+    /** Exact match that has NO rep yet — a club an admin provisioned for this rep to claim.
+     *  Blocks creation like any exact match, but offers claiming as the way forward instead
+     *  of "contact the existing rep", which would be a dead end (there isn't one). */
+    readonly claimableMatch = computed(() =>
+        this.clubSearchResults().find(c => c.isExactMatch && c.isClaimable) ?? null
+    );
+
+    /** The claim button needs her details filled in — it creates her account too. */
+    readonly canClaim = computed(() =>
+        this.claimableMatch() !== null
+        && this.form.valid
+        && !this.passwordMismatch()
+        && this.usernameStatus() !== 'taken'
+    );
+
     /** Rows to render in the panel: only the exact match when blocked (the other
      *  similars are noise once the user can't proceed); otherwise all 65%+ matches. */
     readonly displayedMatches = computed(() => {
@@ -771,7 +822,8 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
             && !this.passwordMismatch();
     }
 
-    onSubmit(): void {
+    /** @param claimClubId when set, claim this UNCLAIMED club instead of creating a new one. */
+    onSubmit(claimClubId?: number): void {
         this.submitted.set(true);
         if (this.isEdit()) {
             if (this.form.invalid) return;
@@ -779,7 +831,13 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
             return;
         }
 
-        if (this.form.invalid || !this.canSubmit() || this.passwordMismatch()) return;
+        const claiming = claimClubId !== undefined;
+
+        if (claiming) {
+            if (!this.canClaim()) return;
+        } else if (this.form.invalid || !this.canSubmit() || this.passwordMismatch()) {
+            return;
+        }
 
         this.saving.set(true);
         this.errorMsg.set(null);
@@ -798,7 +856,10 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
             postalCode: v.postalCode!.trim(),
             username: v.username!.trim(),
             password: v.password!,
-            confirmedNewClub: true,
+            // Claiming links her to a club that already exists, so there is no new club to
+            // confirm. The server re-checks that the club is genuinely unclaimed.
+            confirmedNewClub: !claiming,
+            existingClubId: claiming ? claimClubId : null,
             acceptedTos: true,
         };
 
