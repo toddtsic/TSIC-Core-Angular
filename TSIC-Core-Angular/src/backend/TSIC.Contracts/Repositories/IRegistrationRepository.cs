@@ -690,6 +690,14 @@ public interface IRegistrationRepository
     Task<List<UsLaxReconciliationCandidateRow>> GetUsLaxReconciliationCandidatesAsync(Guid jobId, UsLaxMembershipRole role, CancellationToken ct = default);
 
     /// <summary>
+    /// Lastname + DOB for a set of player user ids, from AspNetUsers. These are the two facts the
+    /// USA Lacrosse identity match compares against the member record — they live on the user, not
+    /// on the registration, so the submit gate has to fetch them.
+    /// </summary>
+    Task<List<PlayerIdentityRow>> GetPlayerIdentitiesAsync(
+        IReadOnlyCollection<string> userIds, CancellationToken ct = default);
+
+    /// <summary>
     /// Write a new SportAssnIdexpDate to a single registration. Used by USLax reconciliation
     /// when a MemberPing returns an exp_date and the member is involved as a Player.
     /// </summary>
@@ -890,4 +898,13 @@ public record UniformTemplateRow
     public required string TeamName { get; init; }
     public string? UniformNo { get; init; }
     public string? DayGroup { get; init; }
+}
+
+/// <summary>Player identity facts used by the USA Lacrosse match — see
+/// <c>IRegistrationRepository.GetPlayerIdentitiesAsync</c>.</summary>
+public record PlayerIdentityRow
+{
+    public required string UserId { get; init; }
+    public string? LastName { get; init; }
+    public DateTime? Dob { get; init; }
 }

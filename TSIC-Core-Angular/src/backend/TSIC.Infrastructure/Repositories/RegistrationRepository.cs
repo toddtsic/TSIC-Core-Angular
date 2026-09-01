@@ -3822,6 +3822,23 @@ public class RegistrationRepository : IRegistrationRepository
         ).AsNoTracking().ToListAsync(ct);
     }
 
+    public async Task<List<PlayerIdentityRow>> GetPlayerIdentitiesAsync(
+        IReadOnlyCollection<string> userIds, CancellationToken ct = default)
+    {
+        if (userIds.Count == 0) return new List<PlayerIdentityRow>();
+
+        return await _context.AspNetUsers
+            .AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .Select(u => new PlayerIdentityRow
+            {
+                UserId = u.Id,
+                LastName = u.LastName,
+                Dob = u.Dob
+            })
+            .ToListAsync(ct);
+    }
+
     public async Task UpdateSportAssnIdExpDateAsync(Guid registrationId, DateTime newExpiryDate, CancellationToken ct = default)
     {
         // ExecuteUpdate avoids loading the whole entity into the change tracker.

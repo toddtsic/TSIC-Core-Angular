@@ -886,6 +886,7 @@ export type { UsLaxReconciliationRequest } from './models/UsLaxReconciliationReq
 export type { UsLaxReconciliationResponse } from './models/UsLaxReconciliationResponse';
 export type { UsLaxReconciliationRowDto } from './models/UsLaxReconciliationRowDto';
 export type { UsLaxTestSendRequest } from './models/UsLaxTestSendRequest';
+export type { UsLaxValidationResultDto } from './models/UsLaxValidationResultDto';
 export type { UsLaxVerifyBeginRequestDto } from './models/UsLaxVerifyBeginRequestDto';
 export type { UsLaxVerifyBeginResponseDto } from './models/UsLaxVerifyBeginResponseDto';
 export type { UsLaxVerifyConfirmRequestDto } from './models/UsLaxVerifyConfirmRequestDto';

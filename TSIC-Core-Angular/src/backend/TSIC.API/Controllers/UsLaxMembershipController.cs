@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
+using System.Text;
+using System.Text.RegularExpressions;
+using TSIC.API.Services.Shared.UsLax;
 using TSIC.Contracts.Dtos.UsLax;
 using TSIC.Contracts.Services;
 
@@ -24,17 +27,41 @@ public class UsLaxMembershipController : ControllerBase
     private readonly IJobLookupService _jobLookupService;
     private readonly IEmailBatchJobRegistry _batchJobs;
     private readonly IHostEnvironment _env;
+    private readonly IUsLaxService _usLax;
 
     public UsLaxMembershipController(
         IUsLaxMembershipService service,
         IJobLookupService jobLookupService,
         IEmailBatchJobRegistry batchJobs,
-        IHostEnvironment env)
+        IHostEnvironment env,
+        IUsLaxService usLax)
     {
         _service = service;
         _jobLookupService = jobLookupService;
         _batchJobs = batchJobs;
         _env = env;
+        _usLax = usLax;
+    }
+
+    /// <summary>
+    /// Raw MemberPing lookup for one number — the Tools → USLax Test diagnostic panel.
+    ///
+    /// This is the member record USA Lacrosse holds (name, DOB, email, postal code), so it lives
+    /// here behind AdminOnly rather than on the anonymous registration endpoint, which used to
+    /// return it to any caller who could guess a membership number.
+    /// </summary>
+    [HttpGet("member/{number}")]
+    public async Task<IActionResult> GetMember(string number, CancellationToken ct = default)
+    {
+        var trimmed = (number ?? string.Empty).Trim();
+        if (!Regex.IsMatch(trimmed, @"^\d{6,12}$"))
+            return BadRequest(new { message = "Membership number must be 6 to 12 digits" });
+
+        var content = await _usLax.GetMemberRawJsonAsync(trimmed, ct);
+        if (string.IsNullOrEmpty(content))
+            return Ok(new { status_code = 0, output = (object?)null, message = "USA Lacrosse is unreachable right now." });
+
+        return Content(content, "application/json", Encoding.UTF8);
     }
 
     [HttpGet("candidates")]

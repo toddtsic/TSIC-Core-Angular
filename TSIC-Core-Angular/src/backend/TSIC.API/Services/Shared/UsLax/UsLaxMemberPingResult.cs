@@ -23,6 +23,9 @@ public sealed class UsLaxMemberPingOutput
     public string? ExpDate { get; init; }
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
+    /// <summary>Member DOB as USA Lacrosse has it on file. Half of the identity match
+    /// (with LastName) that proves the number belongs to the registrant, not just that it exists.</summary>
+    public string? Birthdate { get; init; }
     /// <summary>Member's on-file email — the address USA Lacrosse has for this membership.
     /// Used as the identity-verification destination (controlling it ⇒ owning the membership).</summary>
     public string? Email { get; init; }

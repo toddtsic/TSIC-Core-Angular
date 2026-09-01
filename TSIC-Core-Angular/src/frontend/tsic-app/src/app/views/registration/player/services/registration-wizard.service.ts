@@ -977,14 +977,6 @@ export class RegistrationWizardService {
         catch { this.parsedJobOptions = null; }
         return (this.parsedJobOptions ?? null);
     }
-    /** Required valid-through date for USA Lax membership (from Job JsonOptions.USLaxNumberValidThroughDate) */
-    getUsLaxValidThroughDate(): Date | null {
-        const opts = this.getJobOptionsObject() as Record<string, unknown> | null;
-        const v = opts ? (opts['USLaxNumberValidThroughDate'] ?? opts['usLaxNumberValidThroughDate'] ?? null) : null;
-        if (!v) return null;
-        const d = new Date(v as string | number);
-        return Number.isNaN(d.getTime()) ? null : d;
-    }
     /** Last name for a player: prefer familyPlayers list; fallback to form values */
     getPlayerLastName(playerId: string): string | null {
         const fam = this.familyPlayers().find(p => p.playerId === playerId);

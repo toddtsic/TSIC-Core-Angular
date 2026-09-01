@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Text;
 using System.Text.RegularExpressions;
 using TSIC.API.Services.Shared.UsLax;
+using TSIC.Contracts.Dtos.UsLax;
+using TSIC.Contracts.Repositories;
+using TSIC.Domain.UsLax;
 
 namespace TSIC.API.Controllers;
 
@@ -17,11 +19,16 @@ public class ValidationController : ControllerBase
 {
     private readonly ILogger<ValidationController> _logger;
     private readonly IUsLaxService _usLaxService;
+    private readonly IJobRepository _jobRepository;
 
-    public ValidationController(ILogger<ValidationController> logger, IUsLaxService usLaxService)
+    public ValidationController(
+        ILogger<ValidationController> logger,
+        IUsLaxService usLaxService,
+        IJobRepository jobRepository)
     {
         _logger = logger;
         _usLaxService = usLaxService;
+        _jobRepository = jobRepository;
     }
 
     /// <summary>
@@ -71,16 +78,32 @@ public class ValidationController : ControllerBase
     }
 
     /// <summary>
-    /// Proxy endpoint for USA Lacrosse membership verification using official API.
-    /// Returns raw JSON from USALax (or a simplified error JSON) to the client.
-    /// Client performs last-name/DOB/expiration checks.
+    /// USA Lacrosse membership check for the registration form. Returns a VERDICT, not the member.
+    ///
+    /// This is the new app's equivalent of legacy's <c>ValidationRemote.IsUSLaxNumberValid</c>, which
+    /// the wizard calls as the user types. It previously returned USA Lacrosse's raw JSON and left
+    /// the decision to the browser — so the checks legacy ran server-side (Player involvement,
+    /// lastname, DOB) were simply absent, and the expiry comparison the browser did ran against a
+    /// stale JsonOptions key instead of the director's cutoff. All of it now happens here, through
+    /// the same <see cref="UsLaxEligibilityPolicy"/> the submit gate uses.
+    ///
+    /// Anonymous by necessity — families register without an account — so it returns no member
+    /// detail: the old passthrough leaked a stranger's name, DOB, email and postal code to anyone
+    /// who could guess a number.
     /// </summary>
-    /// <param name="number">Membership number</param>
-    /// <param name="lastName">Optional last name (not used server-side)</param>
-    /// <param name="dob">Optional DOB (not used server-side)</param>
-    /// <param name="validThrough">Optional valid-through date (not used server-side)</param>
+    /// <param name="number">Membership number (6–12 digits).</param>
+    /// <param name="jobPath">Job being registered for — supplies the director's valid-through date.</param>
+    /// <param name="lastName">Registrant's last name, matched against USA Lacrosse's record.</param>
+    /// <param name="dob">Registrant's date of birth, matched against USA Lacrosse's record.</param>
+    /// <param name="teamId">Team being registered for; honors its bDoNotValidateUSLaxNumber opt-out.</param>
     [HttpGet("uslax")]
-    public async Task<IActionResult> ValidateUsLax([FromQuery] string number)
+    public async Task<ActionResult<UsLaxValidationResultDto>> ValidateUsLax(
+        [FromQuery] string number,
+        [FromQuery] string? jobPath,
+        [FromQuery] string? lastName,
+        [FromQuery] DateTime? dob,
+        [FromQuery] Guid? teamId,
+        CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(number)) return BadRequest(new { message = "number is required" });
         var trimmed = number.Trim();
@@ -88,20 +111,55 @@ public class ValidationController : ControllerBase
         {
             return BadRequest(new { message = "Membership number must be 6 to 12 digits" });
         }
+
+        // The test number bypasses before any lookup, so it works with no jobPath — same as legacy,
+        // where it was the first statement in the action.
+        if (string.Equals(trimmed, UsLaxEligibilityPolicy.TestMembershipNumber, StringComparison.Ordinal))
+            return Ok(Verdict(true, UsLaxEligibilityReason.TestNumber, null));
+
+        if (string.IsNullOrWhiteSpace(jobPath))
+            return BadRequest(new { message = "jobPath is required" });
+
+        var jobCtx = await _jobRepository.GetUsLaxValidationContextAsync(jobPath, teamId, ct);
+        if (jobCtx is null) return NotFound(new { message = $"Job not found: {jobPath}" });
+
+        UsLaxMemberPingResult? member = null;
         try
         {
-            var content = await _usLaxService.GetMemberRawJsonAsync(trimmed);
-            if (string.IsNullOrEmpty(content))
-            {
-                return Ok(new { membership = (object?)null, message = "Validation service temporarily unavailable" });
-            }
-            return Content(content, "application/json", Encoding.UTF8);
+            member = await _usLaxService.GetMemberAsync(trimmed, ct);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "USLax validation failed for number {Number}", number);
-            return Ok(new { membership = (object?)null, message = "Validation service temporarily unavailable" });
+            // Swallowed to a transient verdict, never an exception the wizard has to interpret.
+            _logger.LogError(ex, "USLax validation call failed for job {JobPath}", jobPath);
         }
+
+        var verdict = UsLaxEligibilityPolicy.Evaluate(new UsLaxEligibilityInput
+        {
+            MembershipNumber = trimmed,
+            ValidThrough = jobCtx.ValidThrough,
+            TeamValidationDisabled = jobCtx.TeamValidationDisabled,
+            // Null result = transport/parse failure; policy maps status 0 to "try again", not "invalid".
+            VendorStatusCode = member?.StatusCode ?? 0,
+            VendorMemStatus = member?.Output?.MemStatus,
+            VendorExpDate = member?.Output?.ExpDate,
+            VendorLastName = member?.Output?.LastName,
+            VendorBirthdate = member?.Output?.Birthdate,
+            VendorInvolvement = member?.Output?.Involvement,
+            RegistrantLastName = lastName,
+            RegistrantDob = dob
+        });
+
+        if (!verdict.Valid)
+        {
+            // Reason only — logging the number or the member's details here would put PII in Seq.
+            _logger.LogInformation("USLax check rejected for job {JobPath}: {Reason}", jobPath, verdict.Reason);
+        }
+
+        return Ok(Verdict(verdict.Valid, verdict.Reason, UsLaxEligibilityPolicy.MessageFor(verdict)));
     }
+
+    private static UsLaxValidationResultDto Verdict(bool valid, UsLaxEligibilityReason reason, string? message) =>
+        new() { Valid = valid, Reason = reason.ToString(), Message = message };
 }
 

@@ -272,6 +272,7 @@ public class UsLaxService : IUsLaxService
             ExpDate = el.TryGetProperty("exp_date", out var ed) ? ed.GetString() : null,
             FirstName = el.TryGetProperty("firstname", out var fn) ? fn.GetString() : null,
             LastName = el.TryGetProperty("lastname", out var ln) ? ln.GetString() : null,
+            Birthdate = el.TryGetProperty("birthdate", out var bd) ? bd.GetString() : null,
             Email = el.TryGetProperty("email", out var em) ? em.GetString() : null,
             // age_verified is the one field whose shape we have seen the vendor treat loosely
             // ("Approved", not a boolean). GetString() THROWS on a non-string JsonValueKind, which

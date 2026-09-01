@@ -22,6 +22,47 @@ public class JobRepository : IJobRepository
         _context = context;
     }
 
+    public async Task<UsLaxJobValidationContext?> GetUsLaxValidationContextAsync(
+        string jobPath, Guid? teamId, CancellationToken cancellationToken = default)
+    {
+        var job = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobPath == jobPath)
+            .Select(j => new { j.JobId, j.UslaxNumberValidThroughDate })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (job is null) return null;
+
+        // Sequential, never Task.WhenAll — same scoped DbContext.
+        var bypass = false;
+        if (teamId.HasValue)
+        {
+            // Scoped to THIS job: the teamId arrives on an anonymous request, so a bypass flag must
+            // not be borrowed from some other job's team to switch validation off here.
+            bypass = await _context.Teams
+                .AsNoTracking()
+                .Where(t => t.TeamId == teamId.Value && t.JobId == job.JobId)
+                .Select(t => t.BDoNotValidateUslaxNumber ?? false)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        return new UsLaxJobValidationContext
+        {
+            JobId = job.JobId,
+            ValidThrough = job.UslaxNumberValidThroughDate,
+            TeamValidationDisabled = bypass
+        };
+    }
+
+    public async Task<DateTime?> GetUsLaxValidThroughAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.UslaxNumberValidThroughDate)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<JobPreSubmitMetadata?> GetPreSubmitMetadataAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
         return await _context.Jobs

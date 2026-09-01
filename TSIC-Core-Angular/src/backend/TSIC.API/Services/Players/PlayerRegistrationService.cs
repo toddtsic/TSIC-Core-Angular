@@ -56,6 +56,14 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         // values — including SportAssnId — applied to it). Populated at each ApplyFormValues site;
         // consumed by ApplyUsLaxPlayerValidationAsync to stamp SportAssnIdexpDate before the save.
         public List<Registrations> TouchedRegs { get; } = new();
+
+        // SportAssnId as it stood in the DB before this submission, keyed by RegistrationId.
+        // Captured because TouchedRegs is NOT a proxy for "newly registering": a returning family's
+        // already-registered player is re-sent by the wizard (their team is prefilled from the prior
+        // reg) and lands here as an update. Gating on membership in TouchedRegs would therefore
+        // reject people on registrations they completed months ago. A row absent from this map is
+        // new; a row whose number differs is a changed number. Those are the two the gate judges.
+        public Dictionary<Guid, string?> PriorSportAssnId { get; init; } = new();
     }
 
     public PlayerRegistrationService(
@@ -129,12 +137,29 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             _logger.LogWarning(vex, "[PreSubmit] Validation threw unexpectedly; proceeding.");
         }
 
-        // When the player form REQUIRES a USA Lacrosse number, mint the server-derived expiry
-        // (SportAssnIdexpDate) now, so it is persisted by the save below. Mirrors the coach path
-        // (ApplyUsLaxCoachValidationAsync); the wizard already validated the number on the Forms
-        // step, and that MemberPing is reused from cache here — not a second vendor call.
+        // When the player form REQUIRES a USA Lacrosse number, enforce eligibility and mint the
+        // server-derived expiry (SportAssnIdexpDate), so both are settled before the save below.
+        // The Forms-step check runs the same policy through ValidationController; this is the
+        // backstop for a bypassed or stale client.
         if (UsLaxMetadataPolicy.RequiresUsLax(ctx.MetadataJson))
-            await ApplyUsLaxPlayerValidationAsync(ctx.TouchedRegs);
+        {
+            var usLaxErrors = await ApplyUsLaxPlayerValidationAsync(ctx);
+            if (usLaxErrors.Count > 0)
+            {
+                // Same abort shape as metadata validation above: return before SaveChangesAsync, so
+                // nothing this submission staged is persisted.
+                var insurance = await _verticalInsure.BuildOfferAsync(ctx.JobId, ctx.FamilyUserId);
+                return new PreSubmitPlayerRegistrationResponseDto
+                {
+                    TeamResults = teamResults,
+                    NextTab = "Forms",
+                    ValidationErrors = usLaxErrors,
+                    Insurance = insurance,
+                    RawTeams = null,
+                    MovedToWaitlist = null
+                };
+            }
+        }
 
         await _registrations.SaveChangesAsync();
 
@@ -222,7 +247,10 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             WritableProps = writableProps,
             ExistingByPlayer = existingByPlayer,
             ExistingByPlayerTeam = existingByPlayerTeam,
-            WaitlistTeamIds = waitlistTeamIds
+            WaitlistTeamIds = waitlistTeamIds,
+            // Snapshot BEFORE any form values are applied — these entities are tracked, so reading
+            // SportAssnId after ApplyFormValues would return the incoming value, not the stored one.
+            PriorSportAssnId = existingRegs.ToDictionary(r => r.RegistrationId, r => r.SportAssnId)
         };
     }
 
@@ -557,52 +585,113 @@ public class PlayerRegistrationService : IPlayerRegistrationService
     }
 
     /// <summary>
-    /// Stamps the server-derived USA Lacrosse expiry (<c>SportAssnIdexpDate</c>) onto every touched
-    /// registration that carries a membership number. Called only when the player form REQUIRES USLax
-    /// (see <see cref="UsLaxMetadataPolicy.RequiresUsLax"/>). Mirrors the coach path's expiry stamp,
-    /// minus OTP: the wizard already validated the number, and the MemberPing is served from the same
-    /// cache that validation warmed (see <c>UsLaxService.MemberCacheTtl</c>) — not a second vendor call.
+    /// Enforces the USA Lacrosse eligibility rules at submit, and stamps the server-derived expiry
+    /// (<c>SportAssnIdexpDate</c>) onto every touched registration that carries a number. Called only
+    /// when the player form REQUIRES USLax (see <see cref="UsLaxMetadataPolicy.RequiresUsLax"/>).
     ///
-    /// Non-blocking by design (matches <c>RegistrationSearchService.RevalidateUsLaxAsync</c>): a vendor
-    /// outage or non-200 leaves the expiry untouched (null on a fresh row) rather than failing the
-    /// registration. The detail-panel "Live update" link is the admin backstop for those.
+    /// Returns the rejections; a non-empty list aborts the submission before <c>SaveChangesAsync</c>,
+    /// the same way metadata validation does. The live field check on the Forms step runs the same
+    /// <see cref="UsLaxEligibilityPolicy"/> through ValidationController, so this is the backstop for
+    /// a bypassed or stale client, not the primary UX.
+    ///
+    /// SCOPE: only rows being created, or rows whose number CHANGED. A returning family re-sends its
+    /// already-registered players (the wizard prefills their team from the prior registration), so an
+    /// unconditional gate would block a parent adding a sibling in November because the player they
+    /// registered in August has a membership expiring before the cutoff. Those rows are still stamped.
+    ///
+    /// One vendor lookup per distinct number, served from the cache the Forms-step check warmed
+    /// (see <c>UsLaxService.MemberCacheTtl</c>).
     /// </summary>
-    private async Task ApplyUsLaxPlayerValidationAsync(List<Registrations> regs)
+    private async Task<List<PreSubmitValidationErrorDto>> ApplyUsLaxPlayerValidationAsync(PreSubmitContext ctx)
     {
-        // One vendor lookup per distinct number — dedups a player on multiple teams (multiple rows,
-        // one number) or a family that happens to share a number.
+        var errors = new List<PreSubmitValidationErrorDto>();
+        var regs = ctx.TouchedRegs;
+
         var numbers = regs
             .Select(r => r.SportAssnId?.Trim())
             .Where(n => !string.IsNullOrWhiteSpace(n))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        if (numbers.Count == 0) return errors;
+
+        var validThrough = await _jobs.GetUsLaxValidThroughAsync(ctx.JobId);
+
+        // Identity for the match — lastname/DOB live on the user, not the registration.
+        var userIds = regs.Select(r => r.UserId).Where(u => !string.IsNullOrWhiteSpace(u)).Distinct().ToList()!;
+        var identities = (await _registrations.GetPlayerIdentitiesAsync(userIds!))
+            .ToDictionary(i => i.UserId, StringComparer.Ordinal);
+
         foreach (var number in numbers)
         {
-            DateTime? expDate = null;
+            UsLaxMemberPingResult? member = null;
             try
             {
-                var member = await _usLax.GetMemberAsync(number!);
-                if (member is { StatusCode: 200 }
-                    && DateTime.TryParse(member.Output?.ExpDate, out var dt))
-                {
-                    expDate = dt;
-                }
+                member = await _usLax.GetMemberAsync(number!);
             }
             catch (Exception ex)
             {
-                // Transient vendor/parse failure — never block a registration on it.
-                _logger.LogWarning(ex, "[PreSubmit] USLax expiry lookup failed for a player membership; leaving expiry unset.");
+                _logger.LogWarning(ex, "[PreSubmit] USLax lookup failed for a player membership.");
             }
-
-            if (expDate is null) continue; // outage / non-200 → leave stored value untouched
 
             foreach (var reg in regs)
             {
-                if (string.Equals(reg.SportAssnId?.Trim(), number, StringComparison.OrdinalIgnoreCase))
-                    reg.SportAssnIdexpDate = expDate;
+                if (!string.Equals(reg.SportAssnId?.Trim(), number, StringComparison.OrdinalIgnoreCase)) continue;
+
+                identities.TryGetValue(reg.UserId ?? string.Empty, out var identity);
+
+                var verdict = UsLaxEligibilityPolicy.Evaluate(new UsLaxEligibilityInput
+                {
+                    MembershipNumber = number,
+                    ValidThrough = validThrough,
+                    // Team bypass is resolved per registration: a job can mix flagged and unflagged teams.
+                    TeamValidationDisabled = reg.AssignedTeamId.HasValue
+                        && ctx.Teams.Find(t => t.TeamId == reg.AssignedTeamId.Value)?.BDoNotValidateUslaxNumber == true,
+                    VendorStatusCode = member?.StatusCode ?? 0,
+                    VendorMemStatus = member?.Output?.MemStatus,
+                    VendorExpDate = member?.Output?.ExpDate,
+                    VendorLastName = member?.Output?.LastName,
+                    VendorBirthdate = member?.Output?.Birthdate,
+                    VendorInvolvement = member?.Output?.Involvement,
+                    RegistrantLastName = identity?.LastName,
+                    RegistrantDob = identity?.Dob
+                });
+
+                // Stamp whatever expiry the vendor gave us regardless of the verdict — an accurate
+                // expiry on file is what makes the existing backlog reportable.
+                if (verdict.ExpDate is null && member is { StatusCode: 200 }
+                    && DateTime.TryParse(member.Output?.ExpDate, out var parsed))
+                {
+                    reg.SportAssnIdexpDate = parsed;
+                }
+                else if (verdict.ExpDate is not null)
+                {
+                    reg.SportAssnIdexpDate = verdict.ExpDate;
+                }
+
+                if (verdict.Valid || !IsGated(ctx, reg)) continue;
+
+                _logger.LogInformation(
+                    "[PreSubmit] USLax rejected registration for job {JobId}: {Reason}", ctx.JobId, verdict.Reason);
+
+                errors.Add(new PreSubmitValidationErrorDto
+                {
+                    PlayerId = reg.UserId ?? string.Empty,
+                    Field = "sportAssnId",
+                    Message = UsLaxEligibilityPolicy.MessageFor(verdict) ?? UsLaxEligibilityPolicy.FailureMessageHtml
+                });
             }
         }
+
+        return errors;
+    }
+
+    /// <summary>New row, or one whose membership number changed this submission — see
+    /// <c>PreSubmitContext.PriorSportAssnId</c> for why an untouched existing row is exempt.</summary>
+    private static bool IsGated(PreSubmitContext ctx, Registrations reg)
+    {
+        if (!ctx.PriorSportAssnId.TryGetValue(reg.RegistrationId, out var prior)) return true;
+        return !string.Equals(prior?.Trim(), reg.SportAssnId?.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

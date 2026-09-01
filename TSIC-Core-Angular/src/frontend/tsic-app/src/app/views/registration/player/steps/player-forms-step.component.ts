@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal, OnDestroy } from '@
 import { FormsModule } from '@angular/forms';
 import { NgTemplateOutlet } from '@angular/common';
 import { Subject } from 'rxjs';
-import { debounceTime, mergeMap, switchMap, takeUntil, filter } from 'rxjs/operators';
+import { debounceTime, mergeMap, switchMap, takeUntil, filter, catchError } from 'rxjs/operators';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 import { TeamService } from '@views/registration/player/services/team.service';
 import { UsLaxValidationService } from '@infrastructure/services/uslax-validation.service';
@@ -615,31 +615,30 @@ export class PlayerFormsStepComponent implements OnDestroy {
             filter(({ value }) => value.length >= 6),
             mergeMap(({ playerId, value, field }) => {
                 this.state.playerForms.setUsLaxValidating(playerId);
-                return this.usLaxService.verify(value).pipe(
+                // The server decides — active status, Player involvement, expiry vs the director's
+                // cutoff, and the lastname/DOB match. This used to be decided here off raw vendor
+                // JSON, against a stale JsonOptions date, with the identity checks missing entirely.
+                return this.usLaxService.checkEligibility({
+                    membershipNumber: value,
+                    jobPath: this.state.jobCtx.jobPath() ?? '',
+                    lastName: this.state.familyPlayers.getPlayerLastName(playerId),
+                    dob: this.state.familyPlayers.getPlayerDob(playerId),
+                    teamId: this.state.eligibility.selectedTeams()[playerId]?.[0] ?? null,
+                }).pipe(
                     takeUntil(this.destroy$),
-                    switchMap(member => {
-                        if (!member) {
-                            this.state.playerForms.setUsLaxResult(playerId, false, field.errorMessage || 'Member not found');
-                            return [];
-                        }
-                        // Check expiration against job's validThroughDate
-                        const validThrough = this.state.jobCtx.getUsLaxValidThroughDate();
-                        if (validThrough && member.exp_date) {
-                            const expDate = new Date(member.exp_date);
-                            if (expDate < validThrough) {
-                                this.state.playerForms.setUsLaxResult(playerId, false,
-                                    `Membership expires ${expDate.toLocaleDateString()} — must be valid through ${validThrough.toLocaleDateString()}`);
-                                return [];
-                            }
-                        }
-                        // Check membership status
-                        const status = (member.mem_status || '').toLowerCase();
-                        if (status !== 'active' && status !== 'valid') {
-                            this.state.playerForms.setUsLaxResult(playerId, false,
-                                field.errorMessage || `Membership status: ${member.mem_status}`);
-                            return [];
-                        }
-                        this.state.playerForms.setUsLaxResult(playerId, true, undefined, member as unknown as Record<string, unknown>);
+                    switchMap(verdict => {
+                        this.state.playerForms.setUsLaxResult(
+                            playerId,
+                            verdict.valid,
+                            verdict.valid ? undefined : (verdict.message || field.errorMessage || 'Invalid membership'),
+                        );
+                        return [];
+                    }),
+                    catchError(() => {
+                        // Network failure reaching US, not a verdict about the membership — don't
+                        // accuse the registrant's number when our own request never landed.
+                        this.state.playerForms.setUsLaxResult(
+                            playerId, false, 'We could not check this number just now. Please try again in a moment.');
                         return [];
                     }),
                 );

@@ -261,14 +261,11 @@ export class JobContextService {
         );
     }
 
-    // ── US Lax valid-through date ─────────────────────────────────────
-    getUsLaxValidThroughDate(): Date | null {
-        const opts = this.getJobOptionsObject() as Record<string, unknown> | null;
-        const v = opts ? (opts['USLaxNumberValidThroughDate'] ?? opts['usLaxNumberValidThroughDate'] ?? null) : null;
-        if (!v) return null;
-        const d = new Date(v as string | number);
-        return Number.isNaN(d.getTime()) ? null : d;
-    }
+    // The USLax valid-through date is NOT read here. It used to be, out of JsonOptions — a key that
+    // is absent on most jobs and years stale on the rest, while Configure → Job → Players writes the
+    // Jobs.USLaxNumberValidThroughDate column. The cutoff now lives only server-side, where the
+    // eligibility verdict is made (ValidationController → UsLaxEligibilityPolicy). Do not re-add a
+    // client-side copy: a second source is how the two drifted apart in the first place.
 
     /**
      * Recruiting grad years from JsonOptions.List_RecruitingGradYears.

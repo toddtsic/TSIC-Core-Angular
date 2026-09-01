@@ -138,6 +138,19 @@ public interface IJobRepository
     Task<JobPreSubmitMetadata?> GetPreSubmitMetadataAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Job cutoff date + team bypass flag for the USA Lacrosse eligibility check, from a public
+    /// jobPath. Null when the jobPath matches no job.
+    /// </summary>
+    Task<UsLaxJobValidationContext?> GetUsLaxValidationContextAsync(
+        string jobPath, Guid? teamId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Jobs.USLaxNumberValidThroughDate for a job. The submit gate already holds the job's teams, so
+    /// it needs only the cutoff — the team bypass is read from those.
+    /// </summary>
+    Task<DateTime?> GetUsLaxValidThroughAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Fetch payment configuration for a job (ARB settings).
     /// </summary>
     Task<JobPaymentInfo?> GetJobPaymentInfoAsync(Guid jobId, CancellationToken cancellationToken = default);
@@ -547,4 +560,20 @@ public record JobSeasonYear
 {
     public string? Season { get; init; }
     public string? Year { get; init; }
+}
+
+/// <summary>
+/// Job-side inputs the USA Lacrosse eligibility check needs, resolved from a public jobPath.
+/// Purpose-built for that one decision — see <c>UsLaxEligibilityPolicy</c>.
+/// </summary>
+public record UsLaxJobValidationContext
+{
+    public required Guid JobId { get; init; }
+
+    /// <summary>Jobs.USLaxNumberValidThroughDate — the column Configure → Job → Players writes.</summary>
+    public DateTime? ValidThrough { get; init; }
+
+    /// <summary>Leagues.teams.bDoNotValidateUSLaxNumber for the requested team. False when no team was
+    /// supplied, or when the team belongs to a different job (a bypass must not be borrowed across jobs).</summary>
+    public bool TeamValidationDisabled { get; init; }
 }

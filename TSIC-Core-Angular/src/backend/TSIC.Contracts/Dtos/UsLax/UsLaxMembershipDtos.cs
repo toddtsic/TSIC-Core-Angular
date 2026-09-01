@@ -134,3 +134,23 @@ public record UsLaxEmailStartResponse
 
     public required IReadOnlyList<string> SkippedNames { get; init; }
 }
+
+/// <summary>
+/// Verdict returned by the live registration-form check (GET /api/validation/uslax).
+///
+/// Deliberately carries NO member fields. The endpoint previously proxied USA Lacrosse's raw
+/// response to the browser, which handed any anonymous caller a stranger's name, DOB, email and
+/// postal code for any membership number they could guess — and left the accept/reject decision
+/// in JavaScript the registrant controls.
+/// </summary>
+public record UsLaxValidationResultDto
+{
+    public required bool Valid { get; init; }
+
+    /// <summary>Why it failed, for our logs and for the wizard's own messaging. Never a member detail.</summary>
+    public required string Reason { get; init; }
+
+    /// <summary>Text to show the registrant; null when valid. HTML for the actionable cases —
+    /// the wizard already renders an HTML field error through its details popup.</summary>
+    public string? Message { get; init; }
+}
