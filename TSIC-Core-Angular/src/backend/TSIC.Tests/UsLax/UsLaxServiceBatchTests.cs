@@ -132,10 +132,13 @@ public class UsLaxServiceBatchTests
         // = "vendor unreachable". A second reconcile inside the TTL showed API error on every
         // row and silently wrote no expiry dates.
         //
-        // Wrapping the record to fix the shape was the WRONG repair: a batch record carries no
-        // `birthdate`, and UsLaxEligibilityPolicy fails closed without one, so it would have
-        // handed the registration path a record that rejects valid members on DOB. The cache
-        // also buys the batch nothing — a reconcile is one POST no matter what is cached.
+        // Wrapping the record to fix the shape would have worked — the batch record IS
+        // field-compatible with the single-ping one (live traffic 2026-09-01: birthdate present
+        // on 400 of 400). It still isn't worth doing: a reconcile is one POST no matter what is
+        // cached, so a cache only pays off when EVERY id is already cached — precisely the
+        // immediate re-run where the director is iterating and needs current data, not a
+        // snapshot up to 10 minutes old.
+        //
         // Hence: read, never write. A refetch here is the CORRECT behavior, not a miss.
         var cache = NewCache();
         var sut = NewSut(

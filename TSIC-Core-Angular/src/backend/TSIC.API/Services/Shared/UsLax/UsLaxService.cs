@@ -31,18 +31,21 @@ public class UsLaxService : IUsLaxService
     // number is a different cache key, so the staleness cost is negligible. Written ONLY by the
     // single-ping GET path above; coach submit and revalidate read it.
     //
-    // The batch path READS this keyspace but deliberately caches NOTHING of its own. Two reasons,
-    // and do not "optimize" either away:
-    //   1. A batch record is a REDUCED projection — the vendor omits `birthdate`.
-    //      UsLaxEligibilityPolicy needs it for the lastname+DOB identity match and fails CLOSED
-    //      without it (DobMismatch), so a batch record reaching the eligibility path would tell
-    //      families with perfectly good memberships that their DOB doesn't match.
-    //   2. It buys nothing. A reconcile is ONE POST regardless of how many ids are cached; a
-    //      cache only saves a call when EVERY id is cached — exactly the immediate re-run where
-    //      the director is iterating and needs fresh data.
-    // Caching batch records here previously did both harms at once: the flat record could not be
-    // read back by ParsePingResponse (which wants `status_code` at the root), so a second
-    // reconcile inside the TTL reported "API error" on every row and silently wrote no dates.
+    // The batch path READS this keyspace but deliberately caches NOTHING of its own, because a
+    // cache buys it nothing: a reconcile is ONE POST regardless of how many ids are cached, and a
+    // cache only saves a call when EVERY id is cached — exactly the immediate re-run where the
+    // director is iterating and needs fresh data, not a snapshot up to 10 minutes old.
+    //
+    // It also went wrong in practice. Caching batch records here stored the vendor's FLAT record,
+    // which ParsePingResponse (wanting `status_code` at the root) read back as StatusCode 0 =
+    // "vendor unreachable", so a second reconcile inside the TTL reported "API error" on every row
+    // and silently wrote no expiry dates.
+    //
+    // For the record, since an earlier version of this comment claimed otherwise: the batch record
+    // is NOT a reduced projection. Live traffic 2026-09-01 returned birthdate on 400 of 400, with
+    // fields age_verified, birthdate, email, exp_date, firstname, gender, involvement, lastname,
+    // mem_status, membership_id, postalcode, state. It is field-compatible with the single-ping
+    // record. The reason not to cache it is cost-vs-benefit above, not missing data.
     private static readonly TimeSpan MemberCacheTtl = TimeSpan.FromMinutes(10);
     private static readonly Regex ValidMembershipFormat = new(@"^\d{6,12}$", RegexOptions.Compiled);
 
@@ -452,15 +455,16 @@ public class UsLaxService : IUsLaxService
             byId[key] = parsed;
         }
 
-        // The batch response is a REDUCED projection of the single-ping record and we do not
-        // know with certainty which fields it carries — `birthdate` in particular decides
-        // whether a batch record could ever back an eligibility check (UsLaxEligibilityPolicy
-        // fails CLOSED without one). Log the SHAPE so we can settle it from real traffic.
+        // Batch response shape. Settled 2026-09-01 from live traffic: 400 of 400 records carried
+        // birthdate, fields age_verified, birthdate, email, exp_date, firstname, gender,
+        // involvement, lastname, mem_status, membership_id, postalcode, state — field-compatible
+        // with the single-ping record, which is why the reconcile can run the full eligibility
+        // policy. Kept as a standing shape check: if the vendor drops a field we depend on, this
+        // line says so on the next run rather than the grid quietly going wrong.
         //
         // NON-PRODUCTION ONLY. Diagnostic telemetry, not an operational signal — gating it here
-        // rather than at a log level means it can stay in the code permanently without ever
-        // adding noise (or an audit surface) to the production log. Run a reconcile on
-        // dev/staging to answer the question; nothing to revert afterwards.
+        // rather than at a log level means it can stay permanently without ever adding noise (or
+        // an audit surface) to the production log.
         //
         // Field NAMES and counts only — never values. Member details (name, DOB, email,
         // membership number) are PII and do not belong in Seq; same rule the wizard's rejection
