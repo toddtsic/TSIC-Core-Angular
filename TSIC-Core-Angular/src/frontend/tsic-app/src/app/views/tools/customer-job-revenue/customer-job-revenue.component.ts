@@ -93,12 +93,11 @@ interface YoyChartPoint {
 	/**
 	 * The category VALUE, and it must be unique across the whole chart. A Category axis keys
 	 * points by their x value, so two lineages both showing a 2025 season would collapse into
-	 * one bar. Prefixed with the lineage index and stripped back to the season by
-	 * onYoyAxisLabel, which is the only place the reader ever sees it.
+	 * one bar. Prefixed with the lineage index; onYoyAxisLabel strips the prefix back off, so
+	 * what remains IS the axis label and everything the reader must see has to be in here —
+	 * the season and its in-flight asterisk both.
 	 */
 	key: string;
-	/** What the axis shows: the SEASON, plus the in-flight asterisk. */
-	label: string;
 	/** The cutoff this bar was measured at, printed on its own row under the axis. */
 	pinLabel: string;
 	rawYear: number;
@@ -756,10 +755,11 @@ export class CustomerJobRevenueComponent {
 
 	private toChartGroup(g: YoyEventGroupDto, index: number): YoyChartGroup {
 		const points: YoyChartPoint[] = g.years.map(y => ({
-			key: `${index}|${y.year}`,
 			// The asterisk is the in-flight marker, and it is TEXT on purpose — a season that
-			// has not finished must not be distinguished by colour alone.
-			label: y.isActive ? `${y.year}*` : `${y.year}`,
+			// has not finished must not be distinguished by colour alone. It rides INSIDE the
+			// key: the axis renders the key, so a marker held anywhere else never reaches the
+			// screen while the footnote explaining it still prints.
+			key: y.isActive ? `${index}|${y.year}*` : `${index}|${y.year}`,
 			// The pin is a SECOND row, never the axis label itself. It is offset from the
 			// lineage's anchor, not from the season's own calendar year, so a 2024 season can
 			// legitimately be measured at 8/31/23 — a label showing only the cutoff would put
