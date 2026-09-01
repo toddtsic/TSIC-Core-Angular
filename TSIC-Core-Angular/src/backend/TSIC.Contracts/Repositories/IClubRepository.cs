@@ -25,8 +25,20 @@ public interface IClubRepository
 
     /// <summary>
     /// Get club by name (case-insensitive exact match if supported by DB collation).
+    /// ClubName is NOT unique, so this collapses a set to one row and cannot tell a caller
+    /// that it did. Prefer <see cref="GetAllByNameAsync"/> anywhere the difference between
+    /// "one club" and "several clubs that share a name" changes what the caller should do —
+    /// which is every write.
     /// </summary>
     Task<Clubs?> GetByNameAsync(
+        string clubName,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Every club carrying this name. Lets the caller decide by result-set SIZE: one is an
+    /// answer, several is an ambiguity to refuse rather than a coin to flip.
+    /// </summary>
+    Task<List<Clubs>> GetAllByNameAsync(
         string clubName,
         CancellationToken cancellationToken = default);
 

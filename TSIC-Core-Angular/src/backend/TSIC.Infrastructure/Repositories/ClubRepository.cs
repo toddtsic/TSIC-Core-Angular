@@ -62,6 +62,16 @@ public class ClubRepository : IClubRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<List<Clubs>> GetAllByNameAsync(
+        string clubName,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Clubs
+            .Where(c => c.ClubName == clubName)
+            .OrderBy(c => c.ClubId)
+            .ToListAsync(cancellationToken);
+    }
+
     /// <summary>
     /// Single-query approach: gets all clubs with team counts and primary rep contact.
     /// Replaces the old N+1 loop that issued one COUNT query per club.
