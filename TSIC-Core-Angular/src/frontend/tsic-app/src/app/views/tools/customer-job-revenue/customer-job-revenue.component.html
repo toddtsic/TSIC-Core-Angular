@@ -579,7 +579,14 @@
 								Run this a month from now and last season's bars advance a month too.
 							</p>
 							<p class="mb-2">
-								<strong>Billed</strong> is what was charged, already net of adjustments.
+								<strong>One bar per season.</strong> The whole bar is <strong>Billed</strong> — what was charged,
+								already net of adjustments — printed above it. The green part is <strong>Collected</strong>,
+								what came in; the red part on top is <strong>Owed</strong>, the gap still out at that cutoff.
+								Owed is computed as Billed less Collected there, not the balance as it stands today.
+							</p>
+							<p class="mb-2">
+								<strong>Each bar is labelled with its own cutoff</strong>, not just its year, so you can
+								see at a glance that you are comparing the same date every season.
 								<strong>Collected</strong> is what came in, all methods, refunds netted out.
 								<strong>Owed</strong> is Billed less Collected at that cutoff — computed here,
 								not the balance as it stands today.
@@ -659,43 +666,46 @@
 								[legendSettings]="yoyLegend"
 								[chartArea]="yoyChartArea"
 								[margin]="yoyMargin"
+								[stackLabels]="yoyStackLabels"
+								[useGroupingSeparator]="true"
 								[width]="'100%'"
 								[height]="'300'"
 								[background]="'transparent'"
 								(axisLabelRender)="onYoyAxisLabel($event)"
 								(tooltipRender)="onYoyTooltip($event)">
 								<e-series-collection>
-									<!-- Charges, then receipts, then what is still out. Ordered the way the
-									     money moves; Owed last because Billed − Collected = Owed does not
-									     hold bar-for-bar once fee adjustments are in play. -->
+									<!-- ONE bar per season, not three (Todd, 2026-09-01). The bar's full
+									     height is what was billed, split into the part that came in and the
+									     part still out — so the eye reads the ratio, which is the question,
+									     instead of comparing three bars whose relationship it has to work
+									     out. Collected sits at the bottom because it is the part that is
+									     settled; Owed rides on top as the gap.
+
+									     The total is printed above the bar by stackLabels: Billed is the
+									     whole bar, so it is the one figure a stacked column cannot show as
+									     a segment, and it must still be named.
+
+									     Collected + Owed = Billed holds exactly here — Owed is computed as
+									     Billed − Collected at each season's own cutoff, never read from a
+									     stored balance. If a season is ever OVERPAID the Owed segment goes
+									     negative and hangs below the axis; the stack label stays correct. -->
 									<e-series
 										[dataSource]="group.points"
-										type="Column"
-										xName="year"
-										yName="billed"
-										name="Billed"
-										[fill]="yoyBilledColor()"
-										[columnWidth]="0.7"
-										[cornerRadius]="{ topLeft: 3, topRight: 3 }">
-									</e-series>
-									<e-series
-										[dataSource]="group.points"
-										type="Column"
-										xName="year"
+										type="StackingColumn"
+										xName="label"
 										yName="collected"
 										name="Collected"
 										[fill]="yoyCollectedColor()"
-										[columnWidth]="0.7"
-										[cornerRadius]="{ topLeft: 3, topRight: 3 }">
+										[columnWidth]="0.6">
 									</e-series>
 									<e-series
 										[dataSource]="group.points"
-										type="Column"
-										xName="year"
+										type="StackingColumn"
+										xName="label"
 										yName="owed"
 										name="Owed"
 										[fill]="yoyOwedColor()"
-										[columnWidth]="0.7"
+										[columnWidth]="0.6"
 										[cornerRadius]="{ topLeft: 3, topRight: 3 }">
 									</e-series>
 								</e-series-collection>

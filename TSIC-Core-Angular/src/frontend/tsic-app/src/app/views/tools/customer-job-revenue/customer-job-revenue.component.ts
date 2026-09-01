@@ -89,8 +89,13 @@ const YOY_VISIBLE_YEARS = 4;
 
 /** One season of one lineage, shaped for the chart. */
 interface YoyChartPoint {
-	/** Axis label — carries the in-flight asterisk, which is why it is a string. */
-	year: string;
+	/**
+	 * Axis label — the season's OWN cutoff, e.g. "8/31/26" (Todd, 2026-09-01). A bare year
+	 * said nothing about where in the season the bar was measured, and that IS the report:
+	 * every column is read at the same calendar point, so the point belongs on the axis.
+	 * Carries the in-flight asterisk, which is why it is a string.
+	 */
+	label: string;
 	rawYear: number;
 	billed: number;
 	collected: number;
@@ -115,6 +120,27 @@ interface YoyChartGroup {
 /** Read a CSS custom property off :root so chart fills follow the live palette. */
 function cssVar(name: string, fallback: string): string {
 	return getComputedStyle(document.documentElement).getPropertyValue(name)?.trim() || fallback;
+}
+
+/**
+ * The app's own type stack, applied to every piece of chart text.
+ *
+ * ej2 renders its labels into SVG with the theme's built-in family, so a chart left alone sits
+ * in a different typeface from the page around it. Axis labels, legend, tooltip and stack
+ * labels all take this, so the chart reads as part of the report rather than an embed.
+ */
+const YOY_FONT_FAMILY = cssVar('--font-family-sans', 'system-ui, -apple-system, sans-serif');
+
+/**
+ * The season's cutoff, short. Formatted off the ISO date PARTS, never through `new Date(iso)` —
+ * parsing a bare date string as UTC and rendering it local slides it a day backwards west of
+ * Greenwich, which would print the pin as 8/30 for half the country.
+ */
+function shortPin(iso: string): string {
+	const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
+	return Number.isFinite(y) && Number.isFinite(m) && Number.isFinite(d)
+		? `${m}/${d}/${String(y).slice(2)}`
+		: iso;
 }
 
 /**
@@ -623,10 +649,10 @@ export class CustomerJobRevenueComponent {
 	 * charges, money in, money still out. Never rely on the colour alone — the legend names
 	 * every series and the axis marks in-flight seasons in text.
 	 */
-	readonly yoyBilledColor = signal(cssVar('--bs-primary', '#0ea5e9'));
 	readonly yoyCollectedColor = signal(cssVar('--brand-success', '#22c55e'));
 	readonly yoyOwedColor = signal(cssVar('--brand-danger', '#ef4444'));
 	private readonly yoyMuted = signal(cssVar('--brand-text-muted', '#78716c'));
+	private readonly yoyText = signal(cssVar('--brand-text', '#1c1917'));
 	private readonly yoyBorder = signal(cssVar('--brand-border', '#e7e5e4'));
 
 	readonly yoyAsOfDate = computed(() => this.yoy()?.asOfDate ?? null);
@@ -648,7 +674,7 @@ export class CustomerJobRevenueComponent {
 		const points: YoyChartPoint[] = g.years.map(y => ({
 			// The asterisk is the in-flight marker, and it is TEXT on purpose — a season that
 			// has not finished must not be distinguished by colour alone.
-			year: y.isActive ? `${y.year}*` : `${y.year}`,
+			label: y.isActive ? `${shortPin(y.asOf)}*` : shortPin(y.asOf),
 			rawYear: y.year,
 			billed: y.billed,
 			collected: y.collected,
@@ -706,7 +732,7 @@ export class CustomerJobRevenueComponent {
 			majorGridLines: { width: 0 },
 			majorTickLines: { width: 0 },
 			lineStyle: { width: 0.5, color: this.yoyBorder() },
-			labelStyle: { color: this.yoyMuted(), size: '12px' },
+			labelStyle: { color: this.yoyMuted(), size: '12px', fontFamily: YOY_FONT_FAMILY },
 			// Present only when there is more history than fits; a full view must not open
 			// zoomed, or the newest season looks like the only one.
 			...(group.needsScroll ? { zoomFactor: group.zoomFactor, zoomPosition: 1 } : {})
@@ -719,7 +745,7 @@ export class CustomerJobRevenueComponent {
 			majorGridLines: { width: 0.5, color: this.yoyBorder() },
 			majorTickLines: { width: 0 },
 			lineStyle: { width: 0 },
-			labelStyle: { color: this.yoyMuted(), size: '11px' }
+			labelStyle: { color: this.yoyMuted(), size: '11px', fontFamily: YOY_FONT_FAMILY }
 		};
 	}
 
@@ -741,8 +767,28 @@ export class CustomerJobRevenueComponent {
 		};
 	}
 
-	readonly yoyLegend = { visible: true, position: 'Top' as const, alignment: 'Far' as const, padding: 8 };
-	readonly yoyTooltip = { enable: true, shared: true };
+	readonly yoyLegend = {
+		visible: true, position: 'Top' as const, alignment: 'Far' as const, padding: 8,
+		textStyle: { fontFamily: YOY_FONT_FAMILY, size: '12px' }
+	};
+	readonly yoyTooltip = {
+		enable: true, shared: true,
+		textStyle: { fontFamily: YOY_FONT_FAMILY, size: '12px' }
+	};
+
+	/**
+	 * The total sitting above each bar: Collected + Owed, which IS Billed — the one figure a
+	 * stacked bar cannot show as a segment because it is the whole bar.
+	 *
+	 * 'C0' rather than '{value}': a format string without the placeholder is routed through
+	 * ej2's number formatter, so this picks up currency and the grouping separator instead of
+	 * printing a bare 1420512.5. Whole dollars — cents above a bar are noise at this scale.
+	 */
+	readonly yoyStackLabels = {
+		visible: true,
+		format: 'C0',
+		font: { fontFamily: YOY_FONT_FAMILY, size: '12px', fontWeight: '600', color: this.yoyText() }
+	};
 	readonly yoyChartArea = { border: { width: 0 } };
 	readonly yoyMargin = { left: 8, right: 16, top: 4, bottom: 4 };
 
@@ -760,7 +806,10 @@ export class CustomerJobRevenueComponent {
 			: `${sign}$${abs}`;
 	}
 
-	/** Full dollars in the tooltip — the axis is abbreviated, the readout must not be. */
+	/**
+	 * Full dollars in the tooltip — the axis is abbreviated and the stack label is rounded to
+	 * whole dollars, so this is the only place the exact figure appears.
+	 */
 	onYoyTooltip(args: { text?: string; point?: { y?: number }; series?: { name?: string } }): void {
 		if (args.point?.y == null) {
 			return;
