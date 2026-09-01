@@ -205,24 +205,9 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         var job = await _jobs.GetJobAuthInfoAsync(jobId.Value);
 
-        // Find or create Registration record. A (user, job) pair can legitimately carry more than
-        // one club-rep registration — a rep entering two clubs into one event, or a double-submit
-        // twin — so read the SET and choose by rule. The old FirstOrDefault silently asserted
-        // uniqueness that the data does not have, and the row it returned became the regId claim.
-        var candidates = await _registrations.GetClubRepRegistrationCandidatesAsync(userId, jobId.Value);
-        if (candidates.Count > 1)
-        {
-            _logger.LogWarning(
-                "User {UserId} holds {Count} club-rep registrations on job {JobPath} ({Breakdown}). Selecting by club '{SelectedClub}', then by teams, then oldest.",
-                userId, candidates.Count, jobPath,
-                string.Join(", ", candidates.Select(c => $"{c.RegistrationId}:'{c.ClubName}':{c.TeamCount} teams")),
-                clubName);
-        }
+        // Find or create Registration record
+        var registration = await _registrations.GetClubRepRegistrationAsync(userId, jobId.Value);
 
-        var chosen = ClubRepRegistrationSelector.Select(candidates, clubName);
-        var registration = chosen is null
-            ? null
-            : await _registrations.GetByIdAsync(chosen.RegistrationId);
         if (registration == null)
         {
             // No existing club-rep registration → minting a token here would CREATE a fresh
@@ -262,39 +247,6 @@ public class TeamRegistrationService : ITeamRegistrationService
         else
         {
             _logger.LogInformation("Found existing registration {RegistrationId} for user {UserId}", registration.RegistrationId, userId);
-
-            // The club the rep just selected is live truth; the row's club_name is a denormalized
-            // stamp, and a club rename (or a hand-edited Clubs row) strands it. That matters because
-            // GetTeamsMetadata resolves the library from this stamp BY NAME — a stale one yields
-            // clubId 0, an empty library, and a hard refusal from CreateClubTeam. Re-stamp it.
-            //
-            // Only while the registration is still an empty shell. Once a team or an accounting row
-            // hangs off it the stamp is load-bearing — the club-rep accounting rollup, IsInUse, and
-            // the schedule's club attribution all read it — so a rewrite there would be rewriting
-            // history, not repairing a shell. Mismatch on a committed row is logged, never silently
-            // repaired. Case-only differences are left alone: the name lookup is case-insensitive,
-            // so they resolve correctly as they stand.
-            if (!string.Equals(registration.ClubName, clubName, StringComparison.OrdinalIgnoreCase))
-            {
-                if (await _registrations.HasClubRepCommitmentsAsync(registration.RegistrationId))
-                {
-                    _logger.LogWarning(
-                        "Club stamp mismatch on COMMITTED registration {RegistrationId} (user {UserId}, job {JobPath}): stamped '{StampedClub}', selected '{SelectedClub}'. Left as-is — teams or accounting rows reference it. Investigate club linkage.",
-                        registration.RegistrationId, userId, jobPath, registration.ClubName, clubName);
-                }
-                else
-                {
-                    _logger.LogWarning(
-                        "Re-stamping club on empty registration {RegistrationId} (user {UserId}, job {JobPath}): '{StampedClub}' -> '{SelectedClub}'.",
-                        registration.RegistrationId, userId, jobPath, registration.ClubName, clubName);
-
-                    registration.ClubName = clubName;
-                    registration.Assignment = clubName;
-                    registration.RegistrationCategory = $"Club Rep: {clubName}";
-                    registration.Modified = DateTime.Now;
-                    await _registrations.SaveChangesAsync();
-                }
-            }
         }
 
         // Generate Phase 2 token with regId
@@ -347,14 +299,13 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException($"Event not found: {jobPath}");
         }
 
-        // The advisory twin of the register-team rule, and it asks the same question: does ANOTHER
-        // HUMAN already hold teams for this club in this event? Excluding by user rather than by
-        // registration means however many registrations the caller holds here, none of them can
-        // make the caller look like their own conflict.
-        var otherRepTeams = await _teams.GetTeamsForClubInJobByOtherUsersAsync(
+        // Get current user's registration for this event (if exists)
+        var currentUserRegistration = await _registrations.GetClubRepRegistrationAsync(userId, jobId.Value);
+
+        var otherRepTeams = await _teams.GetTeamsByClubExcludingRegistrationAsync(
             jobId.Value,
             clubRep.ClubId,
-            userId);
+            currentUserRegistration?.RegistrationId);
 
         if (otherRepTeams.Any())
         {
@@ -718,12 +669,13 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("Event does not have a league configured");
         }
 
-        // CRITICAL BUSINESS RULE: one club rep per club per event — one HUMAN, not one
-        // registration. The query excludes this user's own teams outright, so a rep who holds
-        // more than one registration on this job can no longer be blocked by themselves, and a
-        // rep of several clubs is no longer blocked in club B by their own teams in club A.
-        // A different person with teams for this club still stops the write, as it always did.
-        var differentRepTeams = await _teams.GetTeamsForClubInJobByOtherUsersAsync(jobId, effectiveClubId, userId);
+        // CRITICAL BUSINESS RULE: One club rep per event
+        var existingTeamsForClub = await _teams.GetTeamsByClubExcludingRegistrationAsync(jobId, effectiveClubId, clubRepRegistration.RegistrationId);
+
+        // Validate one-rep-per-event rule
+        var differentRepTeams = existingTeamsForClub
+            .Where(t => t.ClubrepRegistrationid != clubRepRegistration.RegistrationId)
+            .ToList();
 
         if (differentRepTeams.Any())
         {

@@ -1206,47 +1206,11 @@ public class RegistrationRepository : IRegistrationRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<List<ClubRepRegistrationCandidate>> GetClubRepRegistrationCandidatesAsync(
-        string userId, Guid jobId, CancellationToken cancellationToken = default)
+    public async Task<Registrations?> GetClubRepRegistrationAsync(string userId, Guid jobId, CancellationToken cancellationToken = default)
     {
-        // Ordered oldest-first here so the ordering is a property of the data, not of the plan:
-        // the selector's final tie-break is "the first one", and that has to mean something.
-        // RegistrationId breaks a same-timestamp tie (the double-submit twins land milliseconds
-        // apart, but a tie is still possible).
         return await _context.Registrations
-            .AsNoTracking()
             .Where(r => r.UserId == userId && r.JobId == jobId && r.RoleId == Domain.Constants.RoleConstants.ClubRep)
-            .Select(r => new ClubRepRegistrationCandidate
-            {
-                RegistrationId = r.RegistrationId,
-                ClubName = r.ClubName,
-                RegistrationTs = r.RegistrationTs,
-                TeamCount = _context.Teams.Count(t => t.ClubrepRegistrationid == r.RegistrationId),
-            })
-            .OrderBy(c => c.RegistrationTs)
-            .ThenBy(c => c.RegistrationId)
-            .ToListAsync(cancellationToken);
-    }
-
-
-    public async Task<bool> HasClubRepCommitmentsAsync(Guid registrationId, CancellationToken cancellationToken = default)
-    {
-        // Any team in ANY job that names this registration as its club rep. Not job-scoped on
-        // purpose: the stamp is read wherever those teams surface, not only in the job it was
-        // minted for.
-        var hasTeams = await _context.Teams
-            .AsNoTracking()
-            .AnyAsync(t => t.ClubrepRegistrationid == registrationId, cancellationToken);
-
-        if (hasTeams)
-            return true;
-
-        // Any accounting row at all — deliberately NOT filtered to Active, unlike
-        // HasPaymentsForTeamAsync. A reversed or voided row still means money moved against this
-        // registration, which is exactly what disqualifies it from being treated as an empty shell.
-        return await _context.RegistrationAccounting
-            .AsNoTracking()
-            .AnyAsync(a => a.RegistrationId == registrationId, cancellationToken);
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task<RegistrationBasicInfo?> GetRegistrationBasicInfoAsync(Guid registrationId, string userId, CancellationToken cancellationToken = default)

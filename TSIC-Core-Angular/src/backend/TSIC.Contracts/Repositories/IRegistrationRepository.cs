@@ -212,19 +212,10 @@ public interface IRegistrationRepository
     void Remove(Registrations registration);
 
     /// <summary>
-    /// Every club-rep registration this user holds on this job, oldest first, each carrying its
-    /// club stamp and team count. A (user, job) pair is not unique, so this returns the SET and
-    /// leaves the choice to <see cref="ClubRepRegistrationSelector"/> — callers must not take the
-    /// first row on their own.
+    /// Get club rep registration for a user and job.
+    /// Returns first active ClubRep registration matching userId, jobId, and ClubRep role.
     /// </summary>
-    Task<List<ClubRepRegistrationCandidate>> GetClubRepRegistrationCandidatesAsync(string userId, Guid jobId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// True when a club-rep registration has anything hanging off it — a team in any job, or an
-    /// accounting row. The gate before rewriting the registration's denormalized club stamp: an
-    /// empty shell may be re-stamped, a committed one may not.
-    /// </summary>
-    Task<bool> HasClubRepCommitmentsAsync(Guid registrationId, CancellationToken cancellationToken = default);
+    Task<Registrations?> GetClubRepRegistrationAsync(string userId, Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get registration basic info (ClubName, JobId) by registration ID and user ID.

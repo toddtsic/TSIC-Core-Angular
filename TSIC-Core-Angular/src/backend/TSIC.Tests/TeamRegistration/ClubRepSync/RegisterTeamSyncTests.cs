@@ -100,8 +100,8 @@ public class RegisterTeamSyncTests
             .ReturnsAsync(TestLeagueId);
 
         teamRepo
-            .Setup(t => t.GetTeamsForClubInJobByOtherUsersAsync(
-                TestJobId, 1, TestUserId, It.IsAny<CancellationToken>()))
+            .Setup(t => t.GetTeamsByClubExcludingRegistrationAsync(
+                TestJobId, 1, TestRegId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<TeamWithRegistrationInfo>());
 
         agRepo

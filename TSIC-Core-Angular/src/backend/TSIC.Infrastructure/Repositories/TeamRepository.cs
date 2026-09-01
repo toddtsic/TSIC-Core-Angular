@@ -496,39 +496,17 @@ public class TeamRepository : ITeamRepository
         return (scheduled, nextDate);
     }
 
-    public async Task<List<TeamWithRegistrationInfo>> GetTeamsForClubInJobByOtherUsersAsync(
+    public async Task<List<TeamWithRegistrationInfo>> GetTeamsByClubExcludingRegistrationAsync(
         Guid jobId,
         int clubId,
-        string excludeUserId,
+        Guid? excludeRegistrationId = null,
         CancellationToken cancellationToken = default)
     {
-        // Club-rep-owned teams only. Player-registration jobs (Club Sport, Camp, Showcase) have
-        // their teams built by the director and owned by nobody, so those rows carry no
-        // ClubrepRegistrationid and fall out here by construction. The team-registration types —
-        // Tournament Scheduling AND League Scheduling — are the ones this rule governs.
         var query = from t in _context.Teams
                     join reg in _context.Registrations on t.ClubrepRegistrationid equals reg.RegistrationId
                     where t.JobId == jobId
                       && t.ClubrepRegistrationid != null
-                      // One HUMAN per club. My own rows can never conflict with me, however many
-                      // registrations I hold on this job. A null owner is somebody else, not me —
-                      // spelled out because `UserId != @me` alone drops NULL rows in SQL.
-                      && (reg.UserId == null || reg.UserId != excludeUserId)
-                      && (
-                            // The team's OWN club, read through its library entry. This is the club
-                            // the rule is actually about.
-                            (t.ClubTeamId != null
-                                && _context.ClubTeams.Any(lib => lib.ClubTeamId == t.ClubTeamId && lib.ClubId == clubId))
-                            // A club-rep team with no library entry. Its club is unknowable from the
-                            // row, so fall back to the owner's club membership — what this query
-                            // used to do for EVERY row. Conservative: it can over-match for a rep of
-                            // several clubs, never under-match, so the guard is never weaker here
-                            // than it was. This is the uncommon case on Tournament jobs and the
-                            // NORMAL case on League Scheduling jobs, where club-rep teams are
-                            // almost never linked to a library entry.
-                            || (t.ClubTeamId == null
-                                && _context.ClubReps.Any(cr => cr.ClubRepUserId == reg.UserId && cr.ClubId == clubId))
-                         )
+                      && _context.ClubReps.Any(cr => cr.ClubRepUserId == reg.UserId && cr.ClubId == clubId)
                     select new TeamWithRegistrationInfo
                     {
                         TeamId = t.TeamId,
@@ -536,6 +514,11 @@ public class TeamRepository : ITeamRepository
                         Username = reg.User != null ? reg.User.UserName : null,
                         ClubrepRegistrationid = t.ClubrepRegistrationid
                     };
+
+        if (excludeRegistrationId.HasValue)
+        {
+            query = query.Where(t => t.ClubrepRegistrationid != excludeRegistrationId.Value);
+        }
 
         return await query
             .AsNoTracking()
