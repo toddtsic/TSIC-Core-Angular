@@ -562,9 +562,13 @@ namespace TSIC.API.Controllers
                 var resetUrl = $"{_frontendSettings.BaseUrl.TrimEnd('/')}/reset-password" +
                     $"?token={Uri.EscapeDataString(token)}&userId={Uri.EscapeDataString(account.UserId)}";
 
+                // accounts.Count, not a flag: the email has to tell a recipient who is about to receive
+                // three near-identical messages WHY, or they call support to ask which one is real.
+                var forgotUrl = $"{_frontendSettings.BaseUrl.TrimEnd('/')}/forgot-password";
+
                 // No sendInDevelopment override: SES transmits only in Production (SANDBOX rule).
                 await _emailService.SendAsync(
-                    BuildPasswordResetEmail(recipient, account.UserName, resetUrl),
+                    BuildPasswordResetEmail(recipient, account.UserName, resetUrl, forgotUrl, accounts.Count),
                     cancellationToken: ct);
 
                 devLinks?.Add(new DevResetLink { UserName = account.UserName, ResetUrl = resetUrl });
@@ -617,11 +621,40 @@ namespace TSIC.API.Controllers
             return Ok(new { Message = "Your password has been reset successfully." });
         }
 
-        private static EmailMessageDto BuildPasswordResetEmail(string toEmail, string userName, string resetUrl)
+        /// <summary>
+        /// Builds one reset email. Every sentence here exists to stop a support call:
+        /// the lifespan and the single-use rule are stated up front (the error message says
+        /// "expired OR already used" and the user was never warned of either), a
+        /// request-a-new-link URL turns an expired link from a dead end into self-service,
+        /// and <paramref name="accountCount"/> above 1 explains the several near-identical
+        /// messages this address is about to receive.
+        /// The lifespan text comes from TsicConstants so the prose cannot outlive the token.
+        /// </summary>
+        private static EmailMessageDto BuildPasswordResetEmail(
+            string toEmail, string userName, string resetUrl, string forgotUrl, int accountCount)
         {
             // One email can own several accounts, and each account gets its own message — naming the
             // username is what tells the recipient which one this link resets.
             var encodedUserName = System.Net.WebUtility.HtmlEncode(userName);
+            var lifespan = TsicConstants.PasswordResetTokenLifespanText;
+
+            var multiAccountHtml = accountCount > 1
+                ? $"""
+                        <p style="color: #78716c; font-size: 13px; line-height: 1.5; margin: 16px 0 0; padding-top: 16px; border-top: 1px solid #e7e5e4;">
+                            This email address is linked to more than one account, so you will receive a
+                            separate email for each one. This message resets <strong>{encodedUserName}</strong>.
+                        </p>
+                """
+                : "";
+
+            var multiAccountText = accountCount > 1
+                ? $"""
+
+
+                    This email address is linked to more than one account, so you will receive a
+                    separate email for each one. This message resets: {userName}
+                    """
+                : "";
 
             var htmlBody = $"""
                 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
@@ -640,8 +673,14 @@ namespace TSIC.API.Controllers
                             </a>
                         </div>
                         <p style="color: #78716c; font-size: 13px; line-height: 1.5; margin: 16px 0 0;">
-                            This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email &mdash; your password will remain unchanged.
+                            This link expires in <strong>{lifespan}</strong> and can be used <strong>once</strong>.
+                            If you didn't request a password reset, you can safely ignore this email &mdash; your password will remain unchanged.
                         </p>
+                        <p style="color: #78716c; font-size: 13px; line-height: 1.5; margin: 12px 0 0;">
+                            Link expired? Request a new one at
+                            <a href="{forgotUrl}" style="color: #0ea5e9;">{forgotUrl}</a>
+                        </p>
+                {multiAccountHtml}
                     </div>
                     <p style="color: #a8a29e; font-size: 12px; text-align: center; margin-top: 24px;">
                         &copy; TEAMSPORTSINFO.COM
@@ -657,7 +696,11 @@ namespace TSIC.API.Controllers
 
                 {resetUrl}
 
-                This link expires in 1 hour. If you didn't request this, ignore this email.
+                This link expires in {lifespan} and can be used once.
+                If you didn't request this, ignore this email — your password will remain unchanged.
+
+                Link expired? Request a new one at:
+                {forgotUrl}{multiAccountText}
                 """;
 
             return new EmailMessageDto

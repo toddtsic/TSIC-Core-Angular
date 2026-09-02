@@ -548,11 +548,12 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => options.U
     .AddEntityFrameworkStores<TsicIdentityDbContext>()
     .AddDefaultTokenProviders();
 
-// Password reset token lifetime (1 hour)
+// Password reset token lifetime. TsicConstants owns the number because the reset EMAIL states it
+// in prose -- the two drifting apart is a support call nobody can diagnose from the error message.
 builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
-    options.TokenLifespan = TimeSpan.FromHours(1));
+    options.TokenLifespan = TimeSpan.FromHours(TsicConstants.PasswordResetTokenLifespanHours));
 
-// The key ring that seals the token above MUST outlive a restart, or the 1-hour lifespan is a lie.
+// The key ring that seals the token above MUST outlive a restart, or that lifespan is a lie.
 //
 // Under IIS the app pool has no user profile, so Data Protection's default discovery finds nowhere
 // to persist keys, falls back to an in-memory ring, and says so only in a startup warning. That ring
@@ -956,7 +957,7 @@ builder.Host.UseSerilog();
         keyRingDir is not null && Directory.Exists(keyRingDir)
             ? Directory.GetFiles(keyRingDir, "key-*.xml").Length
             : 0,
-        "1h");
+        $"{TsicConstants.PasswordResetTokenLifespanHours}h");
 
     bootLog.Information(
         "[STARTUP-CONFIG] adn: defaultMode={Mode} sandboxLoginIdFp={SandboxFp} sandboxTransactionKeyFp={SandboxTxFp} prodCredsSource=customer.AdnLoginId(per-job)",

@@ -31,5 +31,29 @@ namespace TSIC.Domain.Constants
         /// Support email address for customer communications.
         /// </summary>
         public const string SupportEmail = "support@teamsportsinfo.com";
+
+        /// <summary>
+        /// How long an emailed password-reset link stays valid.
+        ///
+        /// ONE source for three places that must never drift apart: the Identity token lifespan
+        /// (Program.cs, DataProtectionTokenProviderOptions), the "expires in ..." sentence in the
+        /// reset email (AuthController.BuildPasswordResetEmail), and the [STARTUP-CONFIG] audit line.
+        /// A link that outlives its own sentence -- or a sentence that outlives the link -- produces
+        /// the one failure the user cannot self-diagnose, because an expired token and a broken one
+        /// give the identical message.
+        ///
+        /// Raised from 1h to 8h: parents read email on their own schedule, and every link that dies
+        /// before it is clicked is a support call. The token is single-use (a successful reset rotates
+        /// the security stamp it embeds) and only ever reaches an address already on the account, so
+        /// the extra window costs little. 8h does not cover a full overnight -- a 9pm request clicked
+        /// at 7am is still expired.
+        /// </summary>
+        public const int PasswordResetTokenLifespanHours = 8;
+
+        /// <summary>
+        /// Human-readable form of <see cref="PasswordResetTokenLifespanHours"/>, for email copy.
+        /// </summary>
+        public static string PasswordResetTokenLifespanText =>
+            PasswordResetTokenLifespanHours == 1 ? "1 hour" : $"{PasswordResetTokenLifespanHours} hours";
     }
 }
