@@ -8,7 +8,7 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 
 ---
 
-## 🔺 OPEN FOR TODD — as of 2026-08-29
+## 🔺 OPEN FOR TODD — as of 2026-09-02
 
 > Maintained at the top so nothing waiting on Todd is buried mid-file. **Delete a row the moment its item closes.** Parked/REVISIT items are not listed here *unless Todd owes a decision on one* (flagged as such below).
 
@@ -16,6 +16,11 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 | **🚨 AR-065** | **🚨 NEW 09-01 (Ann) — IMPORTANT, and filed UNRESEARCHED at her request.** Reinstate the **48-hour delay** before an ARB Sweep failure posts to **Lookup Behind in Payment** and offers a **Balance Due** on **Update CC**. **It causes DOUBLE PAYMENTS** — Ann: *"We had a problem with this in the past and this fixed any issues."* Two live cases from the 08-31 sweep: **Maeve Lennon** (STEPS Elite AIM:Girls Elite Players 2026-2027) and **Gianna Rinaldi** (STEPS Lacrosse California:Girls Elite Players 2026-2027). **Todd is doing the research fresh — nothing here has been checked against code or data.** | 🔴 OPEN |
 | **AR-066** | **NEW 09-01 (Ann) — filed UNRESEARCHED at her request.** On **Change Password**, with a role selected, choosing a **Customer** does not filter — **other customers' jobs still appear in the Job column.** Ann: *"it doesn't filter. Other Customers appear in the Job column."* Unrated: worth establishing whether this is only a filtering annoyance or a cross-customer visibility question. **Todd is researching fresh — nothing checked against code or data.** | 🔴 OPEN |
 | **AR-067** | **NEW 09-01 (Ann) — filed UNRESEARCHED at her request.** Land **ARB Health** with **Lookup Behind in Payment already selected and its table showing**, rather than picking it every time. Ann: *"This is used heavily."* **No defect — a default is being asked for.** ⚠ Same screen as the four AR-039 fixes (closed 08-30), so it could ride along in one pass. **Todd is researching fresh.** | 🔴 OPEN |
+| **AR-068** | **NEW 09-02 (Ann) — no research requested.** The automated **2nd-and-15th "Credit Card Expiring" email** goes out with a **Club Director's personal address in the Sender** (`erinkay@stepslacrosse.com` on the 09-02 4:02 AM send), while club-composed bulletins on the same log read **"STEPS Lacrosse"**. Ann wants it **from `support@teamsportsinfo.com`** — explicitly **not** the primary contact either, because *"they don't know they're sending this."* Subject already says **TeamSportsInfo.com**. 🟡 Ann's rating: *"Middle (not UX, but not a bug either)."* **Same 2nd/15th pass as AR-045.** | 🔴 OPEN |
+| **AR-069** | **NEW 09-02 (Ann) — no research requested.** On the **Search Player fly-in → Details**, **First/Last Name are not editable** — SuperUser could not change them, and Ann thinks **Director probably should too** (her leaning, Todd's call). **Not cosmetic: it blocked a live fix today** — the name had to be adjusted so a **USA Lacrosse number would be accepted**, and there was no path from that screen.  **⚠ NO WORKAROUND — the number is STILL unaccepted (Ann, 09-02).** Open question is what else a name change should move (account? prior registrations? roster?). 🟡 Ann's rating, but she gave it before the no-workaround answer — **may deserve re-rating.** | 🔴 OPEN |
+| **AR-070** | **NEW 09-02 (Ann) — no research requested.** On **Search → Registrations**, **Staff** registrations across **a number of sites** render as a **bare comma "," with no name**. The rows are **real** — *"there are details associated with this"* — only the name is missing. **Raised now because Tournament and Club Directors are asking for it.** Ann recalls Todd once tying it to **registrant gender** — **unverified hearsay**, and ⚠ the same gender theory was **REFUTED** on the separate null-division investigation, so treat it as a lead only. Key unknown: **data-empty vs. not-being-read**, and whether these names show fine elsewhere. 🟡 Same rating as AR-068/069. | 🔴 OPEN |
+| **AR-071** | **NEW 09-02 (Ann) — no research requested.** Three changes to the **USA Lacrosse Membership Reconciliation** table: **(1)** filterable headers *(today the workaround is to export)*, **(2)** resizable columns so long values are visible, **(3)** replace **Details** with **DOB Match? / LN Match? / Meets Valid Thru?** Yes-No columns. **⚠ Part 3 hides a real defect:** *"a player had more than one error but only one was populated in Details"* — **multi-error records are reported as single-error**, which stands whether or not the redesign is built. Ann explicitly does **not** want the DOB value shown. **Read AR-044 first** — a wrong-word Yes/No verdict already shipped on this same table. 🟡 rating carried forward, not restated by Ann; **part 3 may deserve harder.** | 🔴 OPEN |
+| **AR-072** | **NEW 09-02 (Ann) — no research requested.** Add a **Club Name** search field under **Change Password Search**. Value is the one-to-many — it *"would show multiple club reps in a single club"* instead of finding them one at a time; Ann expects it *"used often."* **⚠ Same screen as AR-066**, where the **Customer filter is reported leaking other customers' jobs** — building a new search dimension on a filter path that may be broken would inherit the fault. **Suggest settling AR-066 first, or doing both in one pass.** 🟡 carried forward; a clean enhancement on a screen with an open defect. | 🔴 OPEN |
 |:--|:--|:--|
 | **AR-004** | ✅ **VERIFIED BY ANN IN DEV 08-26 — CLOSED.** 🟡 **BUILT (Todd, 08-23)** — `MyRosterPdfService`, `Pos` **30f→40f + Wrap:true**, the 10f paid for by `Contact 2` 157f→147f (it wraps, so it grows taller rather than clipping). Arithmetic confirms Ann's symptom exactly: 24pt usable vs `midfield` at 27.6pt in Helvetica 8. **Data query killed the 08-21 sizing instruction — `Long Stick Midfield` DOES NOT EXIST, it is stored `LSM`**; `position` is free text and its longest values are junk (`still figuring it out`, 23 rows), which is why the fix wraps instead of widening further. Widest value needing to fit is `unknown` (32.0pt), not `midfield`. **Packed Roster untouched.** ✅ **VERIFIED PASSING (Ann, 08-24) — CLOSED.** | ✅ VERIFIED |
 | **AR-025** | ✅ **VERIFIED BY ANN IN DEV 08-26 — CLOSED.** 🟡 **BUILT (Todd, 08-23).** New `.switch-role-btn` left of the user menu calling the EXISTING `switchRole()`; gated on `regId` like the menu entry, dropdown entry kept. **Desktop-only came free** — that cluster is already `d-none d-md-flex`, so nothing renders on mobile and the hamburger keeps its own entry (Todd: "no room up there"). Labelled pill styled off `.theme-toggle-btn`; **drops to icon-only 768-992px** so the word cannot push the user menu off the edge. ORIGINAL: New 08-23 — trivial, an hour or so.** Put a **"Switch Role"** badge in the header chrome (left of home / dark-mode), calling the existing `switchRole()` (`client-header-bar.component.ts:318-322`) — same function, **same wording**, it's only reachable inside the user dropdown today. Keep the menu entry too. Watch the narrow-screen strip so it doesn't push the user menu off-screen. Ann considered and declined the "show current role instead" variant — build the literal badge. ✅ **VERIFIED PASSING (Ann, 08-24) — CLOSED.** | ✅ VERIFIED |
@@ -1061,6 +1066,118 @@ For a **family sign-in** shopper the account carries the same contact details th
 - **Note for whoever takes it**: this is the same screen as the four AR-039 fixes (closed 08-30). **If that screen is being opened again, these could be done in the same pass** — and note AR-039's part 3 shipped as the LABEL only, so `ArbDefensiveService` is still named that internally.
 - **Severity**: 🟢 **Convenience on a heavily-used screen. No defect reported** — Ann is asking for a default, not reporting a fault.
 - **Status**: 🔴 **OPEN — for Todd. Filed 09-01, unresearched by request.**
+
+### AR-068: 🟡 [Automated Email / Expiring Card] The 2nd-and-15th "Credit Card Expiring" email goes out FROM a Club Director's personal address — it should be from support@teamsportsinfo.com
+- **Topic**: The **automated expiring-credit-card email** that runs on the **2nd and the 15th of every month** — specifically its **Sender**
+- **Reported by**: Ann, 09-02. **Filed at her instruction — NO research requested, NOT diagnosed.** Nothing below has been checked against code or data.
+
+**ANN'S REQUEST, IN HER WORDS.** *"Automated expired email sent on the 2nd and 15th of the month. The one ask is that the Sender of the email be support@teamsportsinfo.com not a random Club Director as in this case. I wouldn't even put the primary contact because they don't know they're sending this. Much better if it is from TSIC."*
+
+**WHY IT MATTERS, IN HER REASONING.** The person in the Sender field **does not know they are sending this** — it is a platform-generated dunning notice, not something a club person composed or scheduled. Ann rules out the job's **primary contact** as a substitute for exactly that reason. **This mail is from TeamSportsInfo, so it should say so.**
+
+**WHAT SHE SENT — described in words, because the screenshot may not travel.** The **Email Log** for **STEPS Lacrosse:Boys Elite Players 2026-2027** (DEV banner), top row:
+
+| # | Sent | Sender | Recipients | Subject |
+|:--|:--|:--|:--|:--|
+| **1** | **9/2/26 4:02 AM** | **`erinkay@stepslacrosse.com`** ← circled in red | **4** | **"TeamSportsInfo.com Credit Card Expiring This …"** |
+| 2 | 9/1/26 8:45 AM | STEPS Lacrosse | 156 | Back to School-Back to Lacrosse! |
+| 3 | 8/31/26 7:21 AM | STEPS Lacrosse | 168 | STEPS Apparel Store is Live! Don't Miss the Fit. |
+
+- **The contrast is the point.** Rows 2 and 3 are club-composed bulletins and read **"STEPS Lacrosse"**. Row 1 is the automated 4:02 AM job and reads a **named individual's personal club address**.
+- **The subject line already says "TeamSportsInfo.com"** — so the mail announces itself as platform mail while the From line contradicts it.
+- Recipients on that send (4): `carminejr@aumentaplumbing.com`, `mfedyna@hotmail.com`, `norafedyna@gmail.com`, `shanmoore7@gmail.com`.
+- **Timing corroborates the schedule** — 09-02 is the 2nd of the month, and the send stamped **4:02 AM**.
+
+**NOT ESTABLISHED — no research was requested, so these are open questions, not assumptions:** where the Sender is currently sourced from (job contact? customer record? the account that last touched something?); whether the same sender logic feeds the **other** automated pass Ann has referenced elsewhere (see **AR-045**, the ARB-sweep family email, which also names the **2nd/15th expiring-card pass**); whether Reply-To should also move, or stay with the club so a family's reply still reaches someone local; and whether any deliverability/SPF setup is needed for `support@teamsportsinfo.com` on this path.
+- **Related**: **AR-045** concerns the same 2nd/15th expiring-card pass (there, to KEEP it while stopping the failed-draft email). If that item is opened, this sender change is in the same code.
+- **Severity**: 🟡 **Ann's rating, in her words: "Middle (not UX, but not a bug either)."** One ask, one field.
+- **Status**: 🔴 **OPEN — for Todd. Filed 09-02.**
+
+### AR-069: 🟡 [Search Player fly-in / Details] SuperUser (and probably Director) cannot edit a Player's First and Last Name — it blocked a USA Lacrosse number fix today
+- **Topic**: **Search Player** → registrant **fly-in** → **Details** — the **First Name** and **Last Name** fields
+- **Reported by**: Ann, 09-02. **Filed as reported — NOT researched, NOT diagnosed.** Nothing below has been checked against code or data.
+
+**ANN'S REQUEST, IN HER WORDS.** *"Under the Search Player flyin Details, SuperUser and probably Director should be able to edit a Player's FN and LN. Today we were trying to adjust this so the USA Lacrosse number would be accepted and didn't have the ability to do this."*
+
+**THE ASK.** Make **First Name** and **Last Name** editable on the Details tab of the player fly-in for **SuperUser** — and, in Ann's judgment, **probably Director as well** (she flagged the Director half as her own leaning, not a settled requirement; **that part is Todd's call**).
+
+**THE REAL DRIVER — this is not a cosmetic edit.** It came up **today, in live use**: the name on the registration had to be adjusted so the **USA Lacrosse number would be accepted**, and there was **no way to make the change from this screen**. USA Lacrosse validation keys on the player's name, so a name that doesn't match theirs blocks the number — and with the field locked, the person working the problem has no path forward from where they are standing.
+
+**⚠ THE CASE IS STILL BROKEN — there was NO workaround (Ann, confirmed 09-02).** Asked directly how today's case was ultimately fixed, Ann's answer: **"It's still unaccepted."** So this is **not** an inconvenience with a longer path around it — **the player's USA Lacrosse number remains unaccepted**, and no one found another way to correct the name. **That removes the "she can fix it elsewhere" assumption before anyone forms it**, and it means the ask above is the only known route to resolving the case.
+
+**NOT ESTABLISHED — no research was requested, so these are open questions, not assumptions:** whether the fields are read-only by deliberate design or simply were never wired for edit; where the authoritative name lives (registration record vs. the user/account record) and therefore **what else a name change would move**; whether an edit here should also touch the roster, prior registrations on other jobs, or the account login; whether an audit trail is wanted on a name change; and what the alternate path is today — i.e. **how Ann was ultimately expected to fix this**, if not here.
+- **Related**: the USA Lacrosse verification work in **AR-044** (Age Verif column, closed 08-30) and the rankings item **AR-050** touch the same USAL matching surface. **If the name is what USAL matches on, that connection is worth Todd's eye when he picks this up.**
+- **Severity**: 🟡 **as Ann rated it — "Middle (not UX, but not a bug either)," same as AR-068.** **Left at her number deliberately, but flagged:** the follow-up answer (no workaround, the number is *still* unaccepted) is arguably harder than 🟡 — **Todd may want to re-rate it.** Ann rated it before that came out; I have not re-rated it for her.
+- **Status**: 🔴 **OPEN — for Todd. Filed 09-02.**
+
+### AR-070: 🟡 [Search / Registrations] Staff registrations on a number of sites show as a bare comma "," with no name — Directors are now asking for it
+- **Topic**: **Search → Registrations** table — the **name** cell on **Staff** registrations
+- **Reported by**: Ann, 09-02. **Filed as reported — NOT researched, NOT diagnosed.** Nothing below has been checked against code or data.
+
+**ANN'S REPORT, IN HER WORDS.** *"There are a number of sites with Staff registrations that appear on the Search/Registrations table as a ',' comma only. There are details associated with this so it is an actual Staff registration, it just needs the name added. We saw this before and Todd said it was something related to registrant gender. Including now as there have been Tournament and Club Directors who are asking for this to be fixed."*
+
+**WHAT IS AND IS NOT WRONG — Ann is specific about this.** The registration is **real and intact**: **"there are details associated with this so it is an actual Staff registration."** This is **not** an orphan row and **not** a data-loss report. **The row is fine; the NAME is what is missing** — the cell renders as nothing but a comma.
+
+**SCOPE.** **"A number of sites"** — not a single job, and Ann did not enumerate them. Affects **Staff** registrations specifically.
+
+**WHY IT IS BEING RAISED NOW.** It has been seen before, but **Tournament and Club Directors are now asking for it to be fixed** — so it has crossed from an internal observation to customer-visible pressure. **That, not a change in the symptom, is what prompted the filing.**
+
+**PRIOR ATTRIBUTION — recorded because Ann cited it, NOT because it has been verified.** She recalls **Todd previously saying it was "something related to registrant gender."** That is **hearsay from a past conversation, unconfirmed here**, and is offered only as a starting thread.
+- **⚠ Caution against leaning on it too hard:** a *different* investigation on this project — teams landing with a null division id — was **also** attributed to gender at first and that attribution was ultimately **REFUTED** (the real cause was an unported "place team in Unassigned division" step). **Two different symptoms, two different investigations, and the gender theory failed the other one.** Treat the recollection as a lead to test, not a conclusion to build on.
+
+**NOT ESTABLISHED — no research was requested, so these are open questions, not assumptions:** which sites and how many registrations are affected; whether the underlying name fields are genuinely **empty in the data** or merely **not being read** by this table (the bare comma is the shape a `"Last, First"` formatter takes when both halves are blank — **worth checking, not a finding**); whether the same registrations display correctly **elsewhere** in the app (fly-in, rosters, exports, emails) — which would separate a display bug from a data bug and materially change the fix; whether these rows share a common origin (a particular registration path, an import, a migration); and whether Ann's "it just needs the name added" means a **backfill** of existing rows, a **code fix** so new ones are right, or **both**.
+- **Severity**: 🟡 **Same as AR-068 / AR-069 — Ann's framing: "Middle (not UX, but not a bug either)."** **Note the pressure, though:** unlike the other two, this one has **Tournament and Club Directors actively asking**, and it is customer-facing on a search screen.
+- **Status**: 🔴 **OPEN — for Todd. Filed 09-02.**
+
+### AR-071: 🟡 [USA Lacrosse Membership Reconciliation] Three changes to the table — filterable headers, resizable columns, and replace "Details" with three Yes/No match columns (it only ever shows ONE error)
+- **Topic**: **USA Lacrosse Membership Reconciliation** table — headers, column sizing, and the **Details** column
+- **Reported by**: Ann, 09-02. **Filed as reported — NOT researched, NOT designed.** Nothing below has been checked against code or data.
+
+**ANN'S REQUEST, IN HER WORDS.** *"USA Lacrosse Membership Reconciliation table: 1) Make each header filterable (rather than needed to export) 2) Column margins need to be moveable so data is visible when longer 3) Details: recommend replacing with three new column headers: DOB Match? Yes/No  LN Match? Yes/No  Meets Valid Thru? Yes/No  We saw examples today where a player had more than one error but only one was populated in Details. Also, this would be much quicker to read/assess. DOB data not needed as it is easy to lookup with USA Lacrosse Test tool. This would make handling these easier."*
+
+**PART 1 — FILTERABLE HEADERS.** Make **each** column header filterable in place. **Ann's stated reason is that today the alternative is to EXPORT** — i.e. she leaves the screen and works the data in Excel to do something the grid should do. *(Note for whoever builds it: several other grids in the app already carry per-column filtering — worth matching whatever that is rather than inventing a second pattern. Not verified here.)*
+
+**PART 2 — RESIZABLE COLUMNS.** *"Column margins need to be moveable so data is visible when longer."* Longer values are being **cut off with no way to widen the column**. Straight grid-configuration ask.
+
+**PART 3 — REPLACE "Details" WITH THREE Yes/No COLUMNS. ⚠ THIS PART CONTAINS A DEFECT, not just a preference.**
+
+Proposed replacement columns:
+
+| Proposed column | Values |
+|:--|:--|
+| **DOB Match?** | Yes / No |
+| **LN Match?** | Yes / No |
+| **Meets Valid Thru?** | Yes / No |
+
+- **🔴 THE DEFECT — information is being LOST, not merely formatted awkwardly.** Ann: *"We saw examples today where a player had more than one error but only one was populated in Details."* **A player with multiple failures is reported as having one.** Anyone working from that column is being told the record is closer to correct than it is — they fix the one error shown, re-check, and the record still fails. **This half stands on its own even if the three-column redesign is declined**; the single-error display would still need fixing.
+- **The readability half.** Three Yes/No columns are *"much quicker to read/assess"* than prose in one cell — and, being columns, they also become **filterable and sortable** under Part 1. **The two asks compound.**
+- **Deliberate omission, stated by Ann:** **the DOB value itself is NOT needed** in the table — *"it is easy to look up with USA Lacrosse Test tool."* She wants the **match verdict**, not the data. **Do not add a DOB value column thinking it is an improvement.**
+- **Her goal, in one line:** *"This would make handling these easier."* This screen is worked as a task list; the ask is about throughput.
+
+**NOT ESTABLISHED — no research was requested, so these are open questions, not assumptions:** whether the "only one error populated" behavior is the reconciliation logic **stopping at the first mismatch** or the Details cell **rendering only the first of several** (very different fixes — one loses the data, the other only hides it); whether three columns cover every failure kind the Details cell can currently express, or whether some message would have **nowhere to go** after the swap (**this is the one that could bite** — check the full set of messages before deleting the column); whether First Name is ever the mismatch (she names **LN** only); and what "Meets Valid Thru" compares against.
+- **Related — same screen, and a caution:** **AR-044** (closed 08-30) fixed *"Age Verif…"* reading **No** for everyone on this very table — **we compared USA Lacrosse's answer to the wrong word.** A near-identical family of bug (a Yes/No verdict computed against the wrong thing) has already occurred here once. **Whoever adds three new Yes/No verdict columns should read AR-044 first.** Also see **AR-069** — a name that cannot be edited blocks USAL acceptance, and **LN Match?** is the column that would surface exactly that case.
+- **Severity**: 🟡 **carried forward from AR-068/069/070 — Ann did not restate a rating on this one and I have not invented one.** **Flagged:** parts 1 and 2 are plainly 🟡 convenience, but **part 3 contains a genuine correctness defect** (multi-error records reported as single-error) that may deserve its own harder rating.
+- **Status**: 🔴 **OPEN — for Todd. Filed 09-02.**
+
+### AR-072: 🟡 [Change Password / Search] Add a **Club Name** search field — it surfaces all of a club's reps at once
+- **Topic**: **Change Password** → the **Search** fields
+- **Reported by**: Ann, 09-02. **Filed as reported — NOT researched, NOT designed.** Nothing below has been checked against code or data.
+
+**ANN'S REQUEST, IN HER WORDS.** *"Under Change Password Search, add a Club Name search field. Would show multiple club reps in a single club and be used often."*
+
+**THE ASK.** A **Club Name** field among the Change Password search inputs.
+
+**WHY — note that it is not merely another way to find one person.** Ann's stated value is the **one-to-many**: searching a club *"would show multiple club reps in a single club."* Today, reaching a club's reps means knowing and searching them **individually**; a club search returns **the set**. She expects it to be **"used often."**
+
+**⚠ SAME SCREEN AS AR-066 — read these two together.** AR-066 (filed 09-01, still open) reports that on this same Change Password screen, **selecting a Customer does not filter — other customers' jobs still appear in the Job column.** The overlap is worth stating plainly:
+- **This item ADDS a search dimension to a screen whose EXISTING search dimension is reported broken.** Building Club Name on top of a filter path that may be filtering the wrong field would inherit the same fault — and a Club search that silently returns another club's reps would be **worse** than no club search, because it looks authoritative.
+- **Recommendation for sequencing (mine, not Ann's):** settle **AR-066** first, or at least learn *why* the Customer filter leaks, then build this. If they share a filtering path, that is one fix and one build rather than two.
+- **If Todd opens this screen for either item, both are in reach in the same pass.**
+
+**NOT ESTABLISHED — no research was requested, so these are open questions, not assumptions:** whether "Club Name" here means the **customer/organization** record or a club entity distinct from it (**and whether that is the very field AR-066's Customer selector is already failing on**); whether the result should list **reps** or the **jobs** they hold; whether partial/contains matching is wanted; and whether the same field would be useful on the other admin search screens or only this one.
+- **Related**: **AR-066** (same screen, filter leak — open).
+- **Severity**: 🟡 **carried forward from AR-068…071 — Ann did not restate a rating.** Cleanly an **enhancement**: nothing is broken here, a capability is missing. **The screen it lives on, however, has an open defect.**
+- **Status**: 🔴 **OPEN — for Todd. Filed 09-02.**
 
 ### AR-038: ✅ VERIFIED (Todd, 08-30) — CLOSED · 🚨🚨 [Privacy / Med Forms] A player's medical form is visible on EVERY registration they hold — across jobs AND across unrelated customers
 - **Topic**: Search Registrations → registrant fly-in → **"Medical form on file" / View** (`MedFormController`, `MedFormService`)
