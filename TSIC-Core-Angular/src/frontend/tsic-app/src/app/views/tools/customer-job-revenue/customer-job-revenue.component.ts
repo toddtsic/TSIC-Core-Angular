@@ -695,44 +695,24 @@ export class CustomerJobRevenueComponent {
 	}
 
 	/**
-	 * The two AS-OF tabs — Year-over-Year and Teams/Players — cut at this date instead of the
-	 * scope's end date, and it defaults to TODAY (Todd, 2026-09-02).
+	 * The cutoff for the two AS-OF tabs — Year-over-Year and Teams/Players — which is ALWAYS
+	 * TODAY. Not a setting, and deliberately not the scope's end date (Todd, 2026-09-02).
 	 *
-	 * The scope pickers are month-bounded because the rest of this tab is a monthly accounting
-	 * report, and they open on the last COMPLETE month. That is right for a period sum and
-	 * wrong for a snapshot: run the report on 9/2 and both tabs described the world as it stood
-	 * on 8/31, silently. Lax For The Cure:Fall Showcase 2026 took 128 player registrations on
-	 * 9/1 alone — 26% of that event's roster, invisible. On the 30th of a month the snapshot is
-	 * a full month behind, and nothing on screen says so.
+	 * The rule for both tabs: the date range picks WHICH JOBS are analysed — those active in
+	 * that range — and the numbers, dollars and registration counts alike, are as of right now.
 	 *
-	 * Neither tab has the reason a period sum has for wanting a whole month. Year-over-Year is
-	 * cumulative to its pin, so a partial month is exactly as well-defined as a whole one.
-	 * Teams/Players is period-structured — the pivot's month levels place each deposit in its
-	 * month — but a partial current month there is a partial current month, which is what you
-	 * want to see, not noise. And it cuts PAYMENTS at the same date (`ra.Createdate < endEx`),
-	 * so a team that paid yesterday still showed its full balance owing: a collections list
-	 * that chases money already in hand.
+	 * Before this they cut at the scope's end date, which is month-bounded and opens on the
+	 * last COMPLETE month. That is right for a period sum and wrong for a snapshot: run the
+	 * report on 9/2 and both tabs described the world as it stood on 8/31, silently. Lax For
+	 * The Cure:Fall Showcase 2026 took 128 player registrations on 9/1 alone — 26% of that
+	 * event's roster, invisible. On the 30th of a month the snapshot is a full month behind and
+	 * nothing on screen says so.
 	 *
-	 * A separate control rather than repointing the scope's end date, because that date also
-	 * drives the Revenue Rollup, which is not to be changed. Moving this one back is still
-	 * supported and meaningful — "where did we stand at 6/30" is a real question.
+	 * Read fresh per request rather than held in a field, so a session left open across
+	 * midnight does not keep reporting yesterday.
 	 */
-	readonly asOfDate = signal(this.formatDate(new Date()));
-
-	onAsOfChange(value: string): void {
-		if (!value || value === this.asOfDate()) {
-			return;
-		}
-		this.asOfDate.set(value);
-		// Both caches are stale, not just the visible one: the other tab would otherwise serve
-		// a snapshot cut at the previous date under the new date's label.
-		this.yoy.set(null);
-		this.teamBilling.set(null);
-		if (this.activeTab() === 'yoy') {
-			this.fetchYoyIfNeeded();
-		} else if (this.activeTab() === 'teamBilling') {
-			this.fetchTeamBillingIfNeeded();
-		}
+	private asOfToday(): string {
+		return this.formatDate(new Date());
 	}
 
 	setTab(tab: typeof this.activeTab extends ReturnType<typeof signal<infer T>> ? T : never): void {
@@ -766,7 +746,7 @@ export class CustomerJobRevenueComponent {
 		// no date range to override, so the params pass through untouched.
 		const params = scope.mode === 'jobs'
 			? this.scopeParams(scope)
-			: this.scopeParams(scope).set('endDate', this.asOfDate());
+			: this.scopeParams(scope).set('endDate', this.asOfToday());
 		this.http.get<TeamBillingRecordDto[]>(`${this.apiUrl}/team-billing`, { params }).subscribe({
 			next: (records) => {
 				this.teamBilling.set(records);
@@ -1043,10 +1023,10 @@ export class CustomerJobRevenueComponent {
 		}
 		this.yoyLoading.set(true);
 		// Start date picks which events are in the report; the as-of date is the PIN every
-		// season is cut at, and it is not the scope's end date — see asOfDate.
+		// season is cut at, and it is always TODAY — see asOfToday.
 		const params = new HttpParams()
 			.set('startDate', scope.startDate!)
-			.set('endDate', this.asOfDate());
+			.set('endDate', this.asOfToday());
 		this.http.get<YoyRevenueResponseDto>(`${this.apiUrl}/yoy`, { params }).subscribe({
 			next: (data) => {
 				this.yoy.set(data);

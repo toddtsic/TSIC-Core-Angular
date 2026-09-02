@@ -338,25 +338,6 @@
 	}
 }
 
-.cjr-asof-label {
-	color: var(--brand-text-muted);
-	font-size: 0.8125rem;
-	font-weight: 600;
-	margin-bottom: 0;
-	white-space: nowrap;
-}
-
-.cjr-asof {
-	width: auto;
-	min-width: 9.5rem;
-	flex: 0 0 auto;
-
-	&:focus-visible {
-		outline: none;
-		box-shadow: var(--shadow-focus);
-	}
-}
-
 .yoy-print {
 	flex: 0 0 auto;
 	white-space: nowrap;

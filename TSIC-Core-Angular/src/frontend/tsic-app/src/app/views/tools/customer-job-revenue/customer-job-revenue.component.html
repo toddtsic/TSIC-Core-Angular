@@ -182,16 +182,6 @@
 
 	<!-- Shared tab toolbar: exports identical on every tab; rollup adds its own tools -->
 		<div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-			<!-- The two AS-OF tabs cut at their own date, defaulting to today, rather than at the
-			     scope's end date — which is the last COMPLETE month and so describes the world as
-			     it stood up to a month ago. Deliberately not the scope control: that one also
-			     drives the Revenue Rollup. -->
-			@if (activeTab() === 'yoy' || activeTab() === 'teamBilling') {
-				<label class="cjr-asof-label" for="cjr-asof">As of</label>
-				<input id="cjr-asof" type="date" class="form-control form-control-sm cjr-asof"
-					[value]="asOfDate()"
-					(change)="onAsOfChange($any($event.target).value)">
-			}
 			@if (activeTab() === 'rollup' || activeTab() === 'teamBilling') {
 				<button class="btn btn-sm btn-outline-secondary" (click)="expandAll()">Expand All</button>
 				<button class="btn btn-sm btn-outline-secondary" (click)="collapseAll()">Collapse All</button>
@@ -389,9 +379,8 @@
 							<br>
 							<strong>These rows carry no date.</strong> Discounts and late fees are stored as a
 							balance on the record, not as dated events, so there is no month to file them
-							under. Your date range still chooses which events are included, and the
-							<em>As of</em> date above cuts the correction records — it defaults to today, so
-							what came in this morning is in.
+							under. Your date range chooses which events are included; it does not cut the
+							numbers, which run to today.
 						</span>
 					}
 				</span>
@@ -491,9 +480,11 @@
 			<div class="cjr-info-panel tsic-callout tsic-callout--warning tsic-callout--block" role="note">
 				<i class="bi bi-info-circle" aria-hidden="true"></i>
 				<span>
-					<strong>This tab is {{ teamBillingBasis }}.</strong>
+					<strong>This tab is {{ teamBillingBasis }}, as of today.</strong>
 					The other tabs show TSIC's settlement with you; this one shows your own registrants'
-					position with you, so the two are not meant to reconcile.
+					position with you, so the two are not meant to reconcile. Your date range picks which
+					events are analysed, not how far the numbers run — a payment taken this morning is
+					already in.
 					<button type="button" class="cjr-help-toggle"
 						[attr.aria-expanded]="teamBillingHelpOpen()"
 						(click)="toggleTeamBillingHelp()">
@@ -504,13 +495,17 @@
 					</button>
 					@if (teamBillingHelpOpen()) {
 						<span class="cjr-help-detail">
-							<strong>Your dates pick the events.</strong> An event is included when it is active
-							between your start and end dates. Everything else is left out, so you see the events
-							you asked about rather than your whole history.
+							<strong>Your start date picks the events.</strong> An event is in when its
+							registration was still open on that date — and so is anything that has opened
+							since. That keeps the report to the events you are actually running rather than
+							your whole history. The end date does not narrow this list: registration closing
+							is a deadline, so it falls inside any given month only by coincidence, and
+							filtering on it returned empty reports that read as "nothing is owed".
 							<br>
-							<strong>Each included event then shows its full record, as of the end date.</strong>
-							A team that registered and paid long before your start date is still counted — your
-							start date chooses events, it does not hide their money.
+							<strong>Each included event then shows its full record, as of today.</strong>
+							A team that registered and paid long before your start date is still counted — the
+							start date chooses events, it does not hide their money. Nothing on this tab is
+							cut at your end date; a payment taken this morning is already in.
 							<br>
 							<strong>Each month shows what happened in that month.</strong> A team charged a deposit
 							in March that pays its balance in July appears in both: the charge under March, the
@@ -518,9 +513,9 @@
 							So Billed and Collected are not expected to match inside any one month — only the
 							totals tie out.
 							<br>
-							<strong>The two "of which" columns are detail, not extra money.</strong> Both are
-							already inside the column to their left. Adding either one to Billed or Collected
-							counts the same money twice.
+							<strong>Adj and Refunds are detail, not extra money.</strong> Each is already
+							inside the column to its left — Adj inside Billed, Refunds inside Collected.
+							Adding either to the column it sits beside counts the same money twice.
 							<br>
 							<strong>Adj is every fee adjustment on that team or player, netted into one
 							number</strong> — late fees added, discounts and corrections taken off. A positive
@@ -530,7 +525,7 @@
 							<strong>Refunds are money that went back out</strong>, and they are already netted
 							inside Collected as negatives — so Collected is what you actually kept.
 							<br>
-							<strong>Owed, the last column, is each team's balance as of the end date</strong>,
+							<strong>Owed, the last column, is each team's balance as it stands today</strong>,
 							shown against the month that team registered. It is the bottom line, not the
 							arithmetic of the row it sits on.
 							<br>
@@ -580,20 +575,19 @@
 					</button>
 					@if (yoyHelpOpen()) {
 						<span class="cjr-help-detail">
-							<strong>Every season is cut at the same point in the calendar</strong> — the
-							<em>As of</em> date above, shifted back a whole year at a time. Ask as of 9/2/2026
-							and the 2025 bars show where 2025 stood on 9/2/2025, not what it finished with.
-							That is what makes a season still selling comparable to one that has already run,
-							and each bar prints its own cutoff beneath it so you can see the same date
-							repeating.
+							<strong>Your date range does not cut these numbers.</strong> Your start date
+							picks which events are compared — the ones whose registration was still open on
+							that date, plus anything that has opened since. The dollars and the registration
+							counts are all <strong>as of today</strong>, so what came in this morning is in.
 							<br>
-							<strong>As of defaults to today</strong>, not to the end of your date range. The
-							range picks which events are compared; this picks the moment they are all measured
-							at. Move it back to ask where every season stood on some earlier date.
+							<strong>Every season is cut at the same point in the calendar</strong> — today,
+							shifted back a whole year at a time. Read this on 9/2/2026 and the 2025 bars show
+							where 2025 stood on 9/2/2025, not what it finished with. That is what makes a
+							season still selling comparable to one that has already run, and each bar prints
+							its own cutoff beneath it so you can see the same date repeating.
 							<br>
-							<strong>The cutoff travels with the date you ask, so older seasons are not
-							frozen.</strong> Run this a month from now and last season's bars advance a month
-							too. A season that had not opened yet by its cutoff shows an empty bar — that is
+							<strong>The cutoff is today, so older seasons are not frozen.</strong> Run this
+							a month from now and last season's bars advance a month too. A season that had not opened yet by its cutoff shows an empty bar — that is
 							an answer, not a gap: the event was selling by this date last year and is not
 							this year.
 							<br>
@@ -605,8 +599,9 @@
 							<strong>The money bar's full height is Billed</strong>, what was charged, already
 							net of adjustments, printed above it. The green part is <strong>Collected</strong>,
 							what came in across all methods with refunds netted out; the red part on top is
-							<strong>Owed</strong>. Owed is computed as Billed less Collected at that cutoff —
-							it is not the balance as it stands today.
+							<strong>Owed</strong>. Owed is computed as Billed less Collected at that
+							season's own cutoff. For this season that is today's balance; for an older one it
+							is what was outstanding on that date, not what it finished up owing.
 							<br>
 							<strong>The count bar is split by route</strong> — teams on the club-rep
 							route, players on their own — and it counts <em>everyone</em>, whether or not
@@ -639,9 +634,9 @@
 			@if (yoyNeedsDateScope()) {
 				<div class="alert alert-warning">
 					<i class="bi bi-calendar-range me-2"></i>
-					Year-over-Year needs a date range. Every season is measured against the same calendar
-					point, and a specific-jobs scope carries no date to measure from — re-run with
-					<strong>All Jobs</strong> and a start and end date.
+					Year-over-Year needs a date range. Your start date is what picks the events to
+					compare and pulls in their prior seasons; a specific-jobs scope names individual jobs
+					instead, one season each — re-run with <strong>All Jobs</strong> and a start date.
 				</div>
 			} @else if (yoyLoading()) {
 				<div class="text-center py-5">
