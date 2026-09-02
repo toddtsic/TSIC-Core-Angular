@@ -14,5 +14,7 @@ export type YoyYearColumnDto = {
     owed: number;
     paidCount: number;
     owingCount: number;
+    teamCount: number;
+    playerCount: number;
 };
 

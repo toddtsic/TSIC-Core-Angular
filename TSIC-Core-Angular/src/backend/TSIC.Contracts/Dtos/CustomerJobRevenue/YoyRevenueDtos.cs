@@ -132,4 +132,23 @@ public record YoyYearColumnDto
 
     /// <summary>Money-bearing entities still carrying a balance as of this column's cutoff.</summary>
     public required int OwingCount { get; init; }
+
+    /// <summary>
+    /// Teams charged as of this column's cutoff — the club-rep route, where the TEAM is what
+    /// carries the fee and its players carry none.
+    /// </summary>
+    /// <remarks>
+    /// Reported SEPARATELY from <see cref="PlayerCount"/> rather than summed, because the two
+    /// are different things and a chart that adds them names neither. On Top Threat's 126 jobs
+    /// the routes are all but disjoint — 108 team-route only, 6 player-route only, 1 mixed — so
+    /// a single "registrations" count was calling 203 club teams registrations on every
+    /// tournament event the customer runs.
+    /// </remarks>
+    public required int TeamCount { get; init; }
+
+    /// <summary>
+    /// Player registrations charged as of this column's cutoff — the player route. See
+    /// <see cref="TeamCount"/> for why the two are not added together.
+    /// </summary>
+    public required int PlayerCount { get; init; }
 }

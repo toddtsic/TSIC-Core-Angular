@@ -96,7 +96,8 @@ const YOY_VISIBLE_BARS = 16;
 const YOY_SERIES = {
 	collected: 'Collected',
 	owed: 'Owed',
-	count: 'Registrations'
+	teams: 'Teams',
+	players: 'Players'
 } as const;
 
 /** Whole dollars. The stack label is a headline figure; cents there are noise. */
@@ -137,10 +138,16 @@ interface YoyChartPoint {
 	collected: number;
 	owed: number;
 	/**
-	 * The registrations bar plots the population. The settled/owing split rides along for the
-	 * tooltip only — see the count series in the template for why it is NOT drawn as a stack.
+	 * The count bar, split BY ROUTE. A charged team and a charged player are different things
+	 * and adding them names neither — on a tournament customer the sum was 203 club teams
+	 * labelled "registrations". Dollars still combine the two routes, because money is money.
 	 */
-	population: number;
+	teamCount: number;
+	playerCount: number;
+	/**
+	 * Settled and still-owing across both routes. A STATE of whatever population is there
+	 * rather than a route, so it is not split — it rides along for the tooltip only.
+	 */
 	paidCount: number;
 	owingCount: number;
 	jobNames: string[];
@@ -728,14 +735,18 @@ export class CustomerJobRevenueComponent {
 	readonly yoyCollectedColor = signal(cssVar('--brand-success', '#22c55e'));
 	readonly yoyOwedColor = signal(cssVar('--brand-danger', '#ef4444'));
 	/**
-	 * The registrations bar. A THIRD hue, not a reuse of the money pair (Todd, 2026-09-02):
-	 * green/red on both bars invited the reader to compare the red fraction of the dollars
-	 * against the red fraction of the people, and those two reds are not the same quantity.
-	 * Red-dollars is money not yet received; red-people was people not yet FINISHED — someone
-	 * who has paid 95% of a $3,500 fee counted fully red. On Players 2027 that gap held 532 of
-	 * 685 registrations, so the comparison the shared palette invited was one that never held.
+	 * The count bar's two segments — teams and players. Neither reuses the money pair
+	 * (Todd, 2026-09-02): green/red on both bars invited the reader to compare the red fraction
+	 * of the dollars against the red fraction of the people, and those two reds are not the
+	 * same quantity. Red-dollars is money not yet received; red-people was people not yet
+	 * FINISHED, so someone who had paid 95% of a $3,500 fee counted fully red — a gap holding
+	 * 532 of 685 registrations on Players 2027.
+	 *
+	 * Teams keeps the blue the single count bar had. Players takes the accent, so the two read
+	 * as a pair of units rather than as a good half and a bad half.
 	 */
-	readonly yoyCountColor = signal(cssVar('--bs-primary', '#0ea5e9'));
+	readonly yoyTeamColor = signal(cssVar('--bs-primary', '#0ea5e9'));
+	readonly yoyPlayerColor = signal(cssVar('--brand-accent', '#f97316'));
 	private readonly yoyMuted = signal(cssVar('--brand-text-muted', '#78716c'));
 	private readonly yoyText = signal(cssVar('--brand-text', '#1c1917'));
 	private readonly yoyBorder = signal(cssVar('--brand-border', '#e7e5e4'));
@@ -848,7 +859,8 @@ export class CustomerJobRevenueComponent {
 			billed: y.billed,
 			collected: y.collected,
 			owed: y.owed,
-			population: y.paidCount + y.owingCount,
+			teamCount: y.teamCount,
+			playerCount: y.playerCount,
 			paidCount: y.paidCount,
 			owingCount: y.owingCount,
 			jobNames: y.jobNames
@@ -958,13 +970,14 @@ export class CustomerJobRevenueComponent {
 			opposedPosition: true,
 			minimum: 0,
 			title: 'Registrations',
-			// Tinted to the count bar, now that the bar has a colour of its own: the axis says
-			// which of the two scales it belongs to without the reader having to work it out.
-			titleStyle: { color: this.yoyCountColor(), size: '11px', fontFamily: YOY_FONT_FAMILY },
+			// Tinted to the count bar: the axis says which of the two scales it belongs to
+			// without the reader having to work it out. Teams' blue, because the routes are
+			// near-disjoint per job and the tournament side is the bulk of them.
+			titleStyle: { color: this.yoyTeamColor(), size: '11px', fontFamily: YOY_FONT_FAMILY },
 			majorGridLines: { width: 0 },
 			majorTickLines: { width: 0 },
 			lineStyle: { width: 0 },
-			labelStyle: { color: this.yoyCountColor(), size: '11px', fontFamily: YOY_FONT_FAMILY }
+			labelStyle: { color: this.yoyTeamColor(), size: '11px', fontFamily: YOY_FONT_FAMILY }
 		}
 	]);
 
@@ -1116,20 +1129,39 @@ export class CustomerJobRevenueComponent {
 		}
 		const row = rows[i];
 
-		// Owed is the money stack's TOP series, so its label is the one sitting above that bar
-		// and it prints Billed rather than its own segment. The count bar is a single series,
-		// so its label is already its total. Collected carries no marker, so nothing else
-		// reaches this handler.
-		const value =
-			name === YOY_SERIES.owed ? row.billed
-			: name === YOY_SERIES.count ? row.population
-			: 0;
+		// Owed is the money stack's TOP series, so its label sits above that bar and prints
+		// Billed rather than its own segment. Collected carries no marker.
+		if (name === YOY_SERIES.owed) {
+			if (row.billed <= 0) {
+				args.cancel = true;
+				return;
+			}
+			args.text = usd0(row.billed);
+			return;
+		}
 
-		if (value <= 0) {
+		// The count bar's total is drawn by the TOPMOST SERIES THAT IS NON-ZERO, not simply by
+		// the top of the stack. Both count series sit at position 'Outer', so each one's label
+		// lands above its own segment — and when the segment above it is empty, that IS the top
+		// of the bar. Written this way because ej2 only renders a label for a point that got a
+		// symbolLocation, which a zero-height segment is not guaranteed to get: relying on
+		// Players to carry the total would have left every bar on a tournament customer, where
+		// Players is zero throughout, with no total at all.
+		//
+		// Routes are near-disjoint per job — 108 team-only, 6 player-only, 1 mixed across Top
+		// Threat's 126 — so in practice one segment fills the bar and labels it. On the rare
+		// mixed bar Players carries the sum and Teams stays quiet; the tooltip names both.
+		const total = row.teamCount + row.playerCount;
+		const carries =
+			row.playerCount > 0 ? YOY_SERIES.players
+			: row.teamCount > 0 ? YOY_SERIES.teams
+			: null;
+
+		if (carries !== name || total <= 0) {
 			args.cancel = true;
 			return;
 		}
-		args.text = name === YOY_SERIES.owed ? usd0(value) : `${value}`;
+		args.text = `${total}`;
 	}
 
 	/**
@@ -1160,8 +1192,12 @@ export class CustomerJobRevenueComponent {
 		// The lineage label, taken from the axis's own group spans rather than re-derived — so
 		// the popup can never name an event differently from the brace under the bar.
 		const span = this.yoyChart().groupLevel.find(s => i >= s.start && i <= s.end);
+		// Settled/owing lives in the HEADER, because it spans both routes and so belongs to no
+		// single series row. "Settled" means a zero balance, which reads correctly in words and
+		// misled as a coloured fraction of a bar.
 		args.headerText =
-			`${span ? `${span.text} · ` : ''}${row.rawYear} season, as of ${row.pinLabel}`;
+			`${span ? `${span.text} · ` : ''}${row.rawYear} season, as of ${row.pinLabel}` +
+			` — ${row.paidCount} settled, ${row.owingCount} still owing`;
 
 		// EXACTLY one entry per series, in series order: ej2 walks this array against its own
 		// point list to place the colour chips, and treats an empty string as "drop this
@@ -1170,11 +1206,12 @@ export class CustomerJobRevenueComponent {
 			switch (s?.name) {
 				case YOY_SERIES.collected: return `Collected: ${usd2(row.collected)}`;
 				case YOY_SERIES.owed: return `Owed: ${usd2(row.owed)}`;
-				// The settled/owing split is stated HERE and drawn nowhere: "settled" means a
-				// zero balance, so a registration 95% paid is owing — a distinction that reads
-				// correctly in words and misleads as a coloured fraction of a bar.
-				case YOY_SERIES.count:
-					return `${regs(row.population)} — ${row.paidCount} settled, ${row.owingCount} still owing`;
+				// Both route rows print even at zero. A blank entry would drop that series from
+				// ej2's chip list while staying in the text list, so the colour chips below it
+				// shift up by one — and "Players: 0" is itself the answer to which route an
+				// event runs on.
+				case YOY_SERIES.teams: return `Teams charged: ${row.teamCount}`;
+				case YOY_SERIES.players: return `Players charged: ${row.playerCount}`;
 				default: return args.text?.[k] ?? '';
 			}
 		});

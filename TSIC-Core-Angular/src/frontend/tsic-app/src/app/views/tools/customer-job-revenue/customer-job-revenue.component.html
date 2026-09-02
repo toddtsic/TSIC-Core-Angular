@@ -592,11 +592,13 @@
 							<strong>Owed</strong>. Owed is computed as Billed less Collected at that cutoff —
 							it is not the balance as it stands today.
 							<br>
-							<strong>The registrations bar is one colour, on purpose.</strong> It is a count,
-							not a second view of the money, and it is not split settled-versus-owing:
-							"settled" means a zero balance, so someone who has paid most of their fee still
-							counts as owing, and colouring that like the money bar would invite a comparison
-							that does not hold. Hover a bar for the split in words.
+							<strong>The count bar is split by who was charged</strong> — teams on the
+							club-rep route, players on their own. Almost every event runs purely one way,
+							so the bar is usually a single colour, and the number above it is the whole
+							count either way. It is deliberately NOT split settled-versus-owing: "settled"
+							means a zero balance, so someone who has paid most of their fee still counts as
+							owing, and colouring that like the money bar would invite a comparison that does
+							not hold. Hover a bar for how many have settled.
 							<br>
 							<strong>Events are grouped by name with the season removed</strong>, so
 							<em>Fall Draw 2026</em> and <em>Fall Draw 2025</em> sit under one heading. The jobs
@@ -738,24 +740,40 @@
 								     axes start at zero, so the two heights stay honestly comparable
 								     season to season.
 
-								     ONE colour, NOT split settled/owing in the money bar's green and red
-								     (Todd, 2026-09-02). Sharing the palette invited the reader to compare
-								     the red fraction of the dollars with the red fraction of the people,
-								     and those two reds are not the same quantity: red-dollars is money not
-								     yet received, red-people was people not yet FINISHED. A registration
-								     95% paid counted fully red — 532 of 685 on Players 2027 sat in exactly
-								     that gap, holding 43% of every dollar collected. So the bar says the
-								     one thing it can say honestly, how many registrations, and the
-								     settled/owing split is stated in the tooltip in words instead. -->
+								     Split by ROUTE — teams and players — not by settled/owing
+								     (Todd, 2026-09-02). Settled and owing are two states of ONE
+								     population, so colouring them invited a comparison against the money
+								     bar's red that never held: a registration 95% paid counted fully red,
+								     and 532 of 685 on Players 2027 sat in exactly that gap. Teams and
+								     players are two different THINGS, and a job is almost always purely
+								     one of them — 108 team-only, 6 player-only, 1 mixed across Top
+								     Threat's 126 — so each bar comes out a single colour in practice and
+								     the split does the job that matters: it puts the right unit in the
+								     legend instead of calling 203 club teams "registrations".
+
+								     Dollars still combine the two routes one bar over, and should:
+								     money is money. A count is not. -->
 								<e-series
 									[dataSource]="view.points"
 									type="StackingColumn"
 									xName="key"
-									yName="population"
-									name="Registrations"
+									yName="teamCount"
+									name="Teams"
 									stackingGroup="count"
 									yAxisName="count"
-									[fill]="yoyCountColor()"
+									[fill]="yoyTeamColor()"
+									[columnWidth]="0.7"
+									[marker]="yoyTotalMarker">
+								</e-series>
+								<e-series
+									[dataSource]="view.points"
+									type="StackingColumn"
+									xName="key"
+									yName="playerCount"
+									name="Players"
+									stackingGroup="count"
+									yAxisName="count"
+									[fill]="yoyPlayerColor()"
 									[columnWidth]="0.7"
 									[cornerRadius]="yoyTopCorner"
 									[marker]="yoyTotalMarker">

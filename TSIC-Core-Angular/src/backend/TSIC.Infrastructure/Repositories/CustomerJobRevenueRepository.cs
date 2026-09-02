@@ -1167,10 +1167,14 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         // payment query, which is precisely why it is a memo that adds to nothing.
         var adjByJob = new Dictionary<Guid, decimal>();
 
-        // Entity counts as of the pin: the whole population behind a bar, and how much of it
-        // was still owing. Paid is the difference — see the queries for why it is derived
-        // rather than counted, and why neither can come from owed_total.
-        var populationByJob = new Dictionary<Guid, int>();
+        // Entity counts as of the pin, kept apart BY ROUTE: a charged team and a charged player
+        // are different things, and the chart names the one it is actually drawing rather than
+        // summing them into a "registrations" figure that is teams on every tournament event.
+        // Owing stays combined — it is a state of whatever population is there, not a route.
+        // Paid is the difference; see the queries for why it is derived rather than counted,
+        // and why neither can come from owed_total.
+        var playerCountByJob = new Dictionary<Guid, int>();
+        var teamCountByJob = new Dictionary<Guid, int>();
         var owingCountByJob = new Dictionary<Guid, int>();
 
         // Classified on the METHOD ID, never the display name — PaymentMethodIds is the single
@@ -1336,11 +1340,11 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
 
             foreach (var p in playerPopulation)
             {
-                populationByJob[p.JobId] = populationByJob.GetValueOrDefault(p.JobId) + p.Count;
+                playerCountByJob[p.JobId] = playerCountByJob.GetValueOrDefault(p.JobId) + p.Count;
             }
             foreach (var p in teamPopulation)
             {
-                populationByJob[p.JobId] = populationByJob.GetValueOrDefault(p.JobId) + p.Count;
+                teamCountByJob[p.JobId] = teamCountByJob.GetValueOrDefault(p.JobId) + p.Count;
             }
             foreach (var p in playerOwing)
             {
@@ -1407,7 +1411,8 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 var pin = pinByCell[cell.Key];
                 var pinEx = pin.AddDays(1);
                 decimal billed = 0m, collected = 0m, adj = 0m, refunds = 0m;
-                var population = 0;
+                var playerCount = 0;
+                var teamCount = 0;
                 var owingCount = 0;
 
                 foreach (var m in cell.Value)
@@ -1416,7 +1421,8 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                     collected += collectedByJob.GetValueOrDefault(m.JobId);
                     adj += adjByJob.GetValueOrDefault(m.JobId);
                     refunds += refundsByJob.GetValueOrDefault(m.JobId);
-                    population += populationByJob.GetValueOrDefault(m.JobId);
+                    playerCount += playerCountByJob.GetValueOrDefault(m.JobId);
+                    teamCount += teamCountByJob.GetValueOrDefault(m.JobId);
                     owingCount += owingCountByJob.GetValueOrDefault(m.JobId);
                 }
 
@@ -1438,7 +1444,9 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                     // Computed, never read from teams.owed_total — that column is the balance
                     // right now and would contradict a column measured in the past.
                     Owed = Math.Round(billed - collected, 2, MidpointRounding.AwayFromZero),
-                    PaidCount = Math.Max(0, population - owingCount),
+                    TeamCount = teamCount,
+                    PlayerCount = playerCount,
+                    PaidCount = Math.Max(0, playerCount + teamCount - owingCount),
                     OwingCount = owingCount
                 });
             }
