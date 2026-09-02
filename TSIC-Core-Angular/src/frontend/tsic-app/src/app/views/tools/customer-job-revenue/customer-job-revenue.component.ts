@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, EventEmitter, signal, computed, inject, viewChild, HostListener } from '@angular/core';
+import { Component, ChangeDetectionStrategy, EventEmitter, signal, computed, linkedSignal, inject, viewChild, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpParams } from '@angular/common/http';
@@ -773,13 +773,60 @@ export class CustomerJobRevenueComponent {
 		(this.yoy()?.groups ?? []).map((g, i) => this.toChartGroup(g, i)));
 
 	/**
+	 * The label each lineage wears on the chart and in the picker, resolved ONCE over the whole
+	 * group list. Deriving it inside the filtered view instead would make a label change when
+	 * the reader picks an event: `singleOrg` is trivially true for a single group, so a
+	 * two-customer report that shows "Top Threat Tournaments:Fall Draw" in the brace would
+	 * silently shorten to "Fall Draw" on selection — and the prefix is the only thing telling
+	 * two same-named lineages apart.
+	 */
+	private readonly yoyGroupLabels = computed<Map<string, string>>(() => {
+		const groups = this.yoyGroups();
+		const singleOrg = new Set(groups.map(g => orgPrefix(g.label))).size === 1;
+		return new Map(groups.map(g => [g.label, singleOrg ? eventLabel(g.label) : g.label]));
+	});
+
+	/** The picker's options, in the chart's own order. Empty value means every event. */
+	readonly yoyGroupOptions = computed(() =>
+		this.yoyGroups()
+			.filter(g => g.points.length > 0)
+			.map(g => ({ value: g.label, text: this.yoyGroupLabels().get(g.label) ?? g.label })));
+
+	/**
+	 * Which lineage the chart is showing, '' for all of them (Todd, 2026-09-02).
+	 *
+	 * Scrolling could already reach an off-screen event, but reaching it is not the same as
+	 * reading it: every bar shares one dollar axis, so on a customer whose events span two
+	 * orders of magnitude the small ones are slivers no matter where the window sits. ej2
+	 * cannot rescale y to the visible x range — enableAutoIntervalOnBothAxis only recalculates
+	 * tick intervals, not the range — so the only way to give a small event its own scale is to
+	 * show it alone. Filtering does that AND removes the need to scroll, since one lineage is
+	 * almost always inside the visible-bar window.
+	 *
+	 * linkedSignal, not a plain signal: a fresh report can retire the selected lineage
+	 * entirely, and reseeding on `yoy` clears the selection with the data that justified it.
+	 */
+	readonly yoySelectedGroup = linkedSignal<YoyRevenueResponseDto | null, string>({
+		source: this.yoy,
+		computation: () => ''
+	});
+
+	onYoyGroupChange(value: string): void {
+		this.yoySelectedGroup.set(value);
+	}
+
+	/**
 	 * Everything on ONE chart (Todd, 2026-09-01): lineages as groups along a shared axis,
 	 * their seasons as the bars inside each group. A chart per event made the reader compare
 	 * across cards with a different y-scale on each; one axis makes the events comparable to
 	 * each other as well as to their own history.
+	 *
+	 * The picker narrows that to one lineage without refetching — the response already holds
+	 * every season of every event, so this is a filter over data in hand, not a new request.
 	 */
 	readonly yoyChart = computed<YoyChartView>(() => {
-		const groups = this.yoyGroups();
+		const selected = this.yoySelectedGroup();
+		const groups = this.yoyGroups().filter(g => !selected || g.label === selected);
 		const points: YoyChartPoint[] = [];
 		const pinLevel: { start: number; end: number; text: string }[] = [];
 		const groupLevel: { start: number; end: number; text: string }[] = [];
@@ -791,9 +838,8 @@ export class CustomerJobRevenueComponent {
 		// an ellipsis.
 		const BAND = 0.5;
 
-		// One org across the whole report means the prefix is repetition; more than one means
-		// it is the only thing telling two same-named lineages apart.
-		const singleOrg = new Set(groups.map(g => orgPrefix(g.label))).size === 1;
+		// Resolved over the WHOLE group list, not this filtered one — see yoyGroupLabels.
+		const labels = this.yoyGroupLabels();
 
 		for (const g of groups) {
 			if (g.points.length === 0) {
@@ -814,7 +860,7 @@ export class CustomerJobRevenueComponent {
 			groupLevel.push({
 				start: start - BAND,
 				end: points.length - 1 + BAND,
-				text: singleOrg ? eventLabel(g.label) : g.label
+				text: labels.get(g.label) ?? g.label
 			});
 		}
 
