@@ -386,12 +386,23 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         // response to the browser and then evaporated, which is precisely what you need after the
         // fact when asking "why did only nine of the forty I selected get an email?"
         // Counts only, no member details — the same PII rule the reconcile line follows.
+        //
+        // {Queued} counts REGISTRANTS, so on its own it can never show whether a player's mail
+        // actually reached the parents — the exact question this feature has now got wrong twice.
+        // {Addresses} answers it: greater than {Queued} means families fanned out, equal to it
+        // means every single one went to one mailbox, which is the player-only failure signature.
+        // {SingleAddress} is the population to inspect when it does. Still counts only — the
+        // addresses themselves live in the EmailLogs row (SendTo), not in Seq.
+        var addressCount = actionable.Sum(i => i.ToAddresses.Count);
+        var singleAddress = actionable.Count(i => i.ToAddresses.Count == 1);
         _logger.LogInformation(
             "USLax email: job {JobId} sender {SenderUserId} — {Selected} selected, {Queued} queued, "
             + "{SkippedHealthy} already eligible, {Unverifiable} unverifiable, {MissingEmail} no address, "
-            + "noCutoff={NoCutoffConfigured}, reasons {@Reasons}",
+            + "noCutoff={NoCutoffConfigured}, {Addresses} addresses ({SingleAddress} reached one "
+            + "address only), reasons {@Reasons}",
             jobId, senderUserId, request.Recipients.Count, handle.TotalRecipients,
-            skippedNames.Count, unverifiableNames.Count, missingEmail, noCutoffConfigured, reasonCounts);
+            skippedNames.Count, unverifiableNames.Count, missingEmail, noCutoffConfigured,
+            addressCount, singleAddress, reasonCounts);
 
         return new UsLaxEmailStartResponse
         {
