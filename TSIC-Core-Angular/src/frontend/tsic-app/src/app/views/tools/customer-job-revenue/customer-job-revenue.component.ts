@@ -739,6 +739,7 @@ export class CustomerJobRevenueComponent {
 	private readonly yoyMuted = signal(cssVar('--brand-text-muted', '#78716c'));
 	private readonly yoyText = signal(cssVar('--brand-text', '#1c1917'));
 	private readonly yoyBorder = signal(cssVar('--brand-border', '#e7e5e4'));
+	private readonly yoySurface = signal(cssVar('--brand-surface', '#ffffff'));
 
 	readonly yoyAsOfDate = computed(() => this.yoy()?.asOfDate ?? null);
 
@@ -1020,6 +1021,21 @@ export class CustomerJobRevenueComponent {
 	readonly yoyTotalLabel = {
 		visible: true,
 		position: 'Outer' as const,
+		// Filled in the SURFACE colour, which is what the card behind the chart is painted in.
+		// A full dollar total is roughly 75px wide against a ~30px bar, and ej2 centres the
+		// side-by-side pair inside its category band, so the money total always reaches across
+		// onto the registrations bar beside it. Neither obvious lever fixes that: narrowing
+		// columnWidth moves the two bars TOWARD each other, and the band has to reach about
+		// 210px — some seven visible bars — before a seven-figure label clears its partner.
+		//
+		// So the label carries its own ground. Where it does not overlap a bar the fill matches
+		// what is behind it and vanishes; where it crosses the registrations bar it reads as a
+		// chip. Abbreviating to $2.04M would also have worked and was declined — the exact
+		// figure is the point of putting it there (Todd, 2026-09-02).
+		fill: this.yoySurface(),
+		rx: 3,
+		ry: 3,
+		margin: { left: 5, right: 5, top: 1, bottom: 1 },
 		font: { fontFamily: YOY_FONT_FAMILY, size: '12px', fontWeight: '600', color: this.yoyText() }
 	};
 	/**
