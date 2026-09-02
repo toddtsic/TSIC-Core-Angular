@@ -440,6 +440,40 @@ export class UsLaxMembershipComponent implements OnInit {
 		return '';
 	}
 
+	// Sort comparers for the two TEMPLATE columns -------------------------------------
+	//
+	// Email and Involvement render from derived values, not from a single field, so ej2 has
+	// nothing to order them by and both were left unsortable. A column still needs a real
+	// `field` to be sortable at all, so each is pointed at a genuine row property and given a
+	// comparer that orders by what the cell actually DISPLAYS. ej2 hands the comparer the two
+	// row objects as its 3rd/4th arguments, which is where the derived value comes from.
+	// Arrow properties, not methods — they are passed by reference into the grid and would
+	// otherwise lose `this`.
+
+	/** Orders the Email column by its badge: "Not needed" before "Would send" ascending. */
+	readonly emailSortComparer = (
+		_x: unknown,
+		_y: unknown,
+		xRow?: UsLaxReconciliationRowDto,
+		yRow?: UsLaxReconciliationRowDto
+	): number => {
+		const a = xRow && this.needsAction(xRow) ? 1 : 0;
+		const b = yRow && this.needsAction(yRow) ? 1 : 0;
+		return a - b;
+	};
+
+	/** Orders the Involvement column by its badge text, e.g. "Player" before "Player, Official". */
+	readonly involvementSortComparer = (
+		_x: unknown,
+		_y: unknown,
+		xRow?: UsLaxReconciliationRowDto,
+		yRow?: UsLaxReconciliationRowDto
+	): number => {
+		const a = xRow ? this.involvementBadges(xRow).join(', ') : '';
+		const b = yRow ? this.involvementBadges(yRow).join(', ') : '';
+		return a.localeCompare(b);
+	};
+
 	involvementBadges(row: UsLaxReconciliationRowDto): string[] {
 		const inv = row.involvement;
 		if (!Array.isArray(inv)) return [];
@@ -501,9 +535,6 @@ export class UsLaxMembershipComponent implements OnInit {
 				break;
 			case 'New Expiry':
 				args.value = d.newExpiryDate ? new Date(d.newExpiryDate).toLocaleDateString() : '';
-				break;
-			case 'Details':
-				args.value = d.errorMessage ?? '';
 				break;
 		}
 	}

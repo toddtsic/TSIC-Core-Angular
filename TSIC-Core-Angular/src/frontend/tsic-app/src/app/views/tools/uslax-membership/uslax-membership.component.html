@@ -222,7 +222,8 @@
             <!-- This is the EMAIL selector, not a health verdict: it says whether the reminder
                  email would go to this family. The reason a member has a problem lives in
                  Details. Nothing sends automatically — you still select and send. -->
-            <e-column headerText="Email" width="110" textAlign="Center" [allowSorting]="false">
+            <e-column headerText="Email" width="110" textAlign="Center"
+                      field="eligibilityReason" [sortComparer]="emailSortComparer">
                 <ng-template #template let-data>
                     @if (needsAction(data)) {
                         <span class="badge bg-warning-subtle text-warning-emphasis"
@@ -274,7 +275,8 @@
                     {{ ageVerifiedDisplay(data) }}
                 </ng-template>
             </e-column>
-            <e-column headerText="Involvement" minWidth="140" [allowSorting]="false">
+            <e-column headerText="Involvement" minWidth="140"
+                      field="involvement" [sortComparer]="involvementSortComparer">
                 <ng-template #template let-data>
                     @for (role of involvementBadges(data); track role) {
                         <span class="badge bg-primary-subtle text-primary-emphasis me-1">{{ role }}</span>
