@@ -26,6 +26,7 @@ import { ChartAllModule, ChartComponent, MultiLevelLabelService } from '@syncfus
 import { AuthService } from '../../../infrastructure/services/auth.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { JobService } from '@infrastructure/services/job.service';
+import { Workbook } from '@syncfusion/ej2-excel-export';
 import { AdminNavPillComponent } from '@shared-ui/components/admin-nav-pill.component';
 import type { RevenueRollupResponseDto } from '@core/api';
 import type { JobPaymentRecordDto } from '@core/api';
@@ -500,6 +501,76 @@ export class CustomerJobRevenueComponent {
 	 */
 	printYoyChart(): void {
 		this.yoyChartRef()?.print('yoy-print-area');
+	}
+
+	/**
+	 * The Year-over-Year numbers as a spreadsheet — EVERY event in the report, not just the one
+	 * on screen, because filtering in Excel is trivial and re-running per event is not.
+	 *
+	 * Built from the response rather than from the chart. ej2's own chart export writes one
+	 * sheet per series with two columns each (ej2-charts export.js:149), keyed on the synthetic
+	 * category string this component builds — so it carries neither Billed nor the adjustment,
+	 * refund and settled/owing figures the response already holds. It exports what the chart
+	 * draws; this exports what the chart is drawn FROM.
+	 */
+	exportYoyExcel(): void {
+		const groups = this.yoy()?.groups ?? [];
+		if (groups.length === 0) {
+			return;
+		}
+
+		const money = { numberFormat: '$#,##0.00' };
+		const head = { bold: true, backColor: '#F2F2F2' };
+		const headers = [
+			'Event', 'Season', 'Cut at', 'Billed', 'Adj', 'Collected', 'Refunds', 'Owed',
+			'Teams', 'Players', 'Charged', 'Settled', 'Still owing', 'Jobs'
+		];
+
+		const rows: object[] = [{
+			index: 1,
+			cells: headers.map((h, i) => ({ index: i + 1, value: h, style: head }))
+		}];
+
+		for (const g of groups) {
+			for (const y of g.years) {
+				// Charged is paid + owing, and is NOT teams + players: the count columns are the
+				// whole population, free registrations included. Spelled out so a reader cannot
+				// take Settled as a fraction of Players.
+				const charged = y.paidCount + y.owingCount;
+				const cells = [
+					{ index: 1, value: g.groupLabel },
+					{ index: 2, value: y.year },
+					{ index: 3, value: y.asOf.slice(0, 10) },
+					{ index: 4, value: y.billed, style: money },
+					{ index: 5, value: y.adj, style: money },
+					{ index: 6, value: y.collected, style: money },
+					{ index: 7, value: y.refunds, style: money },
+					{ index: 8, value: y.owed, style: money },
+					{ index: 9, value: y.teamCount },
+					{ index: 10, value: y.playerCount },
+					{ index: 11, value: charged },
+					{ index: 12, value: y.paidCount },
+					{ index: 13, value: y.owingCount },
+					{ index: 14, value: y.jobNames.join('; ') }
+				];
+				rows.push({ index: rows.length + 1, cells });
+			}
+		}
+
+		const book = new Workbook({
+			worksheets: [{
+				name: 'Year-over-Year',
+				rows,
+				columns: [
+					{ index: 1, width: 260 }, { index: 2, width: 70 }, { index: 3, width: 90 },
+					{ index: 4, width: 110 }, { index: 5, width: 100 }, { index: 6, width: 110 },
+					{ index: 7, width: 100 }, { index: 8, width: 110 }, { index: 9, width: 70 },
+					{ index: 10, width: 80 }, { index: 11, width: 80 }, { index: 12, width: 80 },
+					{ index: 13, width: 90 }, { index: 14, width: 320 }
+				]
+			}]
+		}, 'xlsx');
+		book.save(`Year-over-Year-as-of-${this.asOfToday()}.xlsx`);
 	}
 
 	constructor() {

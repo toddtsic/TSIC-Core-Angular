@@ -684,6 +684,12 @@
 						</div>
 					}
 
+					<!-- Excel carries EVERY event in the report, not just the one charted — see
+					     exportYoyExcel. -->
+					<button type="button" class="btn btn-sm btn-outline-secondary yoy-print"
+						(click)="exportYoyExcel()">
+						<i class="bi bi-file-earmark-excel me-1" aria-hidden="true"></i>Excel
+					</button>
 					<button type="button" class="btn btn-sm btn-outline-secondary yoy-print"
 						(click)="printYoyChart()">
 						<i class="bi bi-printer me-1" aria-hidden="true"></i>Print
