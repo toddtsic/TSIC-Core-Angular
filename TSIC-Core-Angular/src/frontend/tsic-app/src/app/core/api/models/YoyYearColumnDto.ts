@@ -12,5 +12,7 @@ export type YoyYearColumnDto = {
     adj: number;
     refunds: number;
     owed: number;
+    paidCount: number;
+    owingCount: number;
 };
 

@@ -118,4 +118,18 @@ public record YoyYearColumnDto
     /// column measured in the past.
     /// </summary>
     public required decimal Owed { get; init; }
+
+    /// <summary>
+    /// Money-bearing entities that were SETTLED as of this column's cutoff — a registration on
+    /// the player route, a team on the club-rep route.
+    /// </summary>
+    /// <remarks>
+    /// Rebuilt from the ledger at the pin, never read from owed_total: that column is today's
+    /// balance and would contradict a bar measured in the past. Paid + Owing is the whole
+    /// population behind the bar.
+    /// </remarks>
+    public required int PaidCount { get; init; }
+
+    /// <summary>Money-bearing entities still carrying a balance as of this column's cutoff.</summary>
+    public required int OwingCount { get; init; }
 }

@@ -1167,6 +1167,12 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         // payment query, which is precisely why it is a memo that adds to nothing.
         var adjByJob = new Dictionary<Guid, decimal>();
 
+        // Entity counts as of the pin: the whole population behind a bar, and how much of it
+        // was still owing. Paid is the difference — see the queries for why it is derived
+        // rather than counted, and why neither can come from owed_total.
+        var populationByJob = new Dictionary<Guid, int>();
+        var owingCountByJob = new Dictionary<Guid, int>();
+
         // Classified on the METHOD ID, never the display name — PaymentMethodIds is the single
         // classifier the payment resolver sums on, and its own header warns that a text test
         // drifts across method-name variants.
@@ -1233,6 +1239,103 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                     + c.LateFee - (c.Discount + c.DiscountMp);
             }
 
+            // --- Entity COUNTS, classified at the SAME cutoff as the money.
+            //
+            //     Deliberately NOT read from owed_total. That column is the balance as it stands
+            //     TODAY, and this report is as-of: on Girls Elite Players 2025-2026 all 184 of 184
+            //     registrations read owed_total = 0 while the bar for that season is mostly red,
+            //     because Owed here is Billed - Collected at the pin. Labelling the segments from
+            //     the stored balance would print "184 paid / 0 owing" on a bar that is mostly
+            //     owing — a contradiction the reader can see.
+            //
+            //     Shaped as POPULATION + STILL-OWING, with paid derived by subtraction, rather
+            //     than as a left join to a payments-per-entity subquery. The join form reads
+            //     better and does not translate: EF cannot build a GROUP BY over the transparent
+            //     identifier a GroupJoin/DefaultIfEmpty produces, and throws at runtime. A
+            //     correlated SUM in the WHERE is plain SQL, and the counts still sum to the
+            //     population by construction — paid is whatever is not owing.
+            var playerPopulation = await (
+                from r in _context.Registrations
+                join t in _context.Teams on r.AssignedTeamId equals t.TeamId
+                where batchIds.Contains(t.JobId)
+                    && t.Active == true
+                    && (r.FeeTotal != 0m || r.FeeDiscount != 0m)
+                    && r.RegistrationTs < pinEx
+                group r by t.JobId into g
+                select new { JobId = g.Key, Count = g.Count() })
+                .AsNoTracking()
+                .ToListAsync(ct);
+
+            var playerOwing = await (
+                from r in _context.Registrations
+                join t in _context.Teams on r.AssignedTeamId equals t.TeamId
+                where batchIds.Contains(t.JobId)
+                    && t.Active == true
+                    && (r.FeeTotal != 0m || r.FeeDiscount != 0m)
+                    && r.RegistrationTs < pinEx
+                    // Player ledger rows never carry a TeamId — that is the route discriminator
+                    // the Adjustments tab established, verified disjoint on Top Threat.
+                    && r.FeeTotal > _context.RegistrationAccounting
+                        .Where(ra => ra.RegistrationId == r.RegistrationId
+                            && ra.TeamId == null
+                            && ra.Active == true
+                            && ra.Createdate != null
+                            && ra.Createdate < pinEx)
+                        .Sum(ra => ra.Payamt ?? 0m)
+                group r by t.JobId into g
+                select new { JobId = g.Key, Count = g.Count() })
+                .AsNoTracking()
+                .ToListAsync(ct);
+
+            // The club-rep route counts the TEAM, because the team is what was charged — the
+            // players on it carry no fee of their own. Teams charged nothing are excluded: they
+            // are roster containers, not money, and counting them would inflate the population
+            // on jobs like STEPS where every team carries a zero fee.
+            var teamPopulation = await (
+                from t in _context.Teams
+                where batchIds.Contains(t.JobId)
+                    && t.Active == true
+                    && t.Createdate < pinEx
+                    && (t.FeeTotal ?? 0m) != 0m
+                group t by t.JobId into g
+                select new { JobId = g.Key, Count = g.Count() })
+                .AsNoTracking()
+                .ToListAsync(ct);
+
+            var teamOwing = await (
+                from t in _context.Teams
+                where batchIds.Contains(t.JobId)
+                    && t.Active == true
+                    && t.Createdate < pinEx
+                    && (t.FeeTotal ?? 0m) != 0m
+                    && (t.FeeTotal ?? 0m) > _context.RegistrationAccounting
+                        .Where(ra => ra.TeamId == t.TeamId
+                            && ra.Active == true
+                            && ra.Createdate != null
+                            && ra.Createdate < pinEx)
+                        .Sum(ra => ra.Payamt ?? 0m)
+                group t by t.JobId into g
+                select new { JobId = g.Key, Count = g.Count() })
+                .AsNoTracking()
+                .ToListAsync(ct);
+
+            foreach (var p in playerPopulation)
+            {
+                populationByJob[p.JobId] = populationByJob.GetValueOrDefault(p.JobId) + p.Count;
+            }
+            foreach (var p in teamPopulation)
+            {
+                populationByJob[p.JobId] = populationByJob.GetValueOrDefault(p.JobId) + p.Count;
+            }
+            foreach (var p in playerOwing)
+            {
+                owingCountByJob[p.JobId] = owingCountByJob.GetValueOrDefault(p.JobId) + p.Count;
+            }
+            foreach (var p in teamOwing)
+            {
+                owingCountByJob[p.JobId] = owingCountByJob.GetValueOrDefault(p.JobId) + p.Count;
+            }
+
             // Receipts. No payment-method filter — summing every active row is what reproduces
             // the stored paid_total to the cent. Corrections and Refunds are broken out as
             // SUBSETS of Collected, never added to it.
@@ -1289,6 +1392,8 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 var pin = pinByCell[cell.Key];
                 var pinEx = pin.AddDays(1);
                 decimal billed = 0m, collected = 0m, adj = 0m, refunds = 0m;
+                var population = 0;
+                var owingCount = 0;
 
                 foreach (var m in cell.Value)
                 {
@@ -1296,6 +1401,8 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                     collected += collectedByJob.GetValueOrDefault(m.JobId);
                     adj += adjByJob.GetValueOrDefault(m.JobId);
                     refunds += refundsByJob.GetValueOrDefault(m.JobId);
+                    population += populationByJob.GetValueOrDefault(m.JobId);
+                    owingCount += owingCountByJob.GetValueOrDefault(m.JobId);
                 }
 
                 columns.Add(new YoyYearColumnDto
@@ -1315,7 +1422,9 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                     Refunds = Math.Round(refunds, 2, MidpointRounding.AwayFromZero),
                     // Computed, never read from teams.owed_total — that column is the balance
                     // right now and would contradict a column measured in the past.
-                    Owed = Math.Round(billed - collected, 2, MidpointRounding.AwayFromZero)
+                    Owed = Math.Round(billed - collected, 2, MidpointRounding.AwayFromZero),
+                    PaidCount = Math.Max(0, population - owingCount),
+                    OwingCount = owingCount
                 });
             }
 
@@ -1364,32 +1473,48 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
     }
 
     /// <summary>
-    /// The event lineage key: the job name with its own <c>Jobs.year</c> token removed, so
-    /// "Top Threat Tournaments:Fall Draw 2026" and "…Fall Draw 2025" collapse to one group.
+    /// The lineage key: the job name with its SEASON DESIGNATOR removed, so every year of one
+    /// event collapses to a single group.
     /// </summary>
     /// <remarks>
-    /// Only the job's OWN year is removed, and only where it stands alone — never a bare
-    /// 4-digit match, which would maul a name like "Class of 2026 Showcase 2027" or an event
-    /// numbered "1996". The customer prefix is left intact, which is what keeps a group key
-    /// from ever reaching across customers.
+    /// This used to strip only the job's OWN <c>Jobs.year</c> where it stood alone, and that was
+    /// wrong twice over on real data (found on STEPS Lacrosse California, 2026-09-02):
+    ///
+    ///   JobName                          Jobs.year
+    ///   Girls Elite Players 2020-2021    2021
+    ///   Girls Elite Players 2026-2027    2027
+    ///
+    /// The name carries a SPAN, and Jobs.year is the SECOND year of it. "2021" inside "2020-2021"
+    /// is not standalone — a digit precedes it — so nothing was stripped and every single season
+    /// became its own lineage. Twenty-two "events" for what are really a handful, no history under
+    /// any of them, and worse: a lineage whose only member had expired was no longer live at the
+    /// range start, so it was dropped from the report altogether. That is why seasons through
+    /// 2024 were missing rather than merely uncompared.
+    ///
+    /// So the rule is now about the SHAPE of a season designator, not about one job's stored year:
+    /// a standalone four-digit year, or a span of two joined by a dash or slash, with the second
+    /// half written either way ("2024-2025", "2024-25"). Jobs.year is still what places a job in
+    /// its column — it is only no longer trusted to describe the name.
+    ///
+    /// Deliberately NOT a regex: this runs over every job in a customer group on every request,
+    /// and the boundary rules (no digit or letter either side) are the whole correctness argument
+    /// — worth reading as code rather than hiding in a pattern.
     /// </remarks>
     private static string BuildGroupKey(string jobName, int year)
     {
-        var token = year.ToString(CultureInfo.InvariantCulture);
+        // `year` is no longer used to choose what to strip — see the remarks. It stays in the
+        // signature because the caller has it and a future rule may want it.
+        _ = year;
+
         var stripped = new StringBuilder(jobName.Length);
 
         var i = 0;
         while (i < jobName.Length)
         {
-            var isStandaloneToken =
-                i + token.Length <= jobName.Length
-                && string.CompareOrdinal(jobName, i, token, 0, token.Length) == 0
-                && (i == 0 || !char.IsDigit(jobName[i - 1]))
-                && (i + token.Length == jobName.Length || !char.IsDigit(jobName[i + token.Length]));
-
-            if (isStandaloneToken)
+            var len = SeasonTokenLength(jobName, i);
+            if (len > 0)
             {
-                i += token.Length;
+                i += len;
                 continue;
             }
             stripped.Append(jobName[i]);
@@ -1415,9 +1540,88 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         }
 
         var key = collapsed.ToString().Trim(' ', '-', '–', '—', ',', ':', '/');
-        // A name that was NOTHING but its year leaves nothing to group on — keep the original
+        // A name that was NOTHING but its season leaves nothing to group on — keep the original
         // rather than emit an empty key that would swallow every other such job.
         return key.Length == 0 ? jobName.Trim() : key;
+    }
+
+    /// <summary>
+    /// Length of the season designator starting at <paramref name="start"/>, or 0 if there is
+    /// none. Matches "2026" and "2026-2027" / "2026-27" / "2026/27" and the dash variants.
+    /// </summary>
+    private static int SeasonTokenLength(string s, int start)
+    {
+        // A designator never begins mid-token: a preceding digit means we are inside a longer
+        // number, a preceding letter means it is part of a word ("U2026" is not a season).
+        if (start > 0 && (char.IsDigit(s[start - 1]) || char.IsLetter(s[start - 1])))
+        {
+            return 0;
+        }
+
+        if (!IsYearAt(s, start))
+        {
+            return 0;
+        }
+
+        var end = start + 4;
+
+        // Optional second half: a separator, then two OR four digits. Spaces are allowed around
+        // the separator because "2026 - 2027" is written that way often enough to matter.
+        var probe = end;
+        while (probe < s.Length && s[probe] == ' ')
+        {
+            probe++;
+        }
+        if (probe < s.Length && (s[probe] == '-' || s[probe] == '/' || s[probe] == '–' || s[probe] == '—'))
+        {
+            probe++;
+            while (probe < s.Length && s[probe] == ' ')
+            {
+                probe++;
+            }
+            if (IsYearAt(s, probe))
+            {
+                end = probe + 4;
+            }
+            else if (probe + 2 <= s.Length && char.IsDigit(s[probe]) && char.IsDigit(s[probe + 1])
+                && (probe + 2 == s.Length || !char.IsDigit(s[probe + 2])))
+            {
+                end = probe + 2;
+            }
+        }
+
+        // And it never ends mid-token either.
+        if (end < s.Length && (char.IsDigit(s[end]) || char.IsLetter(s[end])))
+        {
+            return 0;
+        }
+
+        return end - start;
+    }
+
+    /// <summary>
+    /// Four digits at <paramref name="at"/> forming a plausible season year. Bounded so a street
+    /// number or a jersey number cannot be mistaken for one.
+    /// </summary>
+    private static bool IsYearAt(string s, int at)
+    {
+        if (at + 4 > s.Length)
+        {
+            return false;
+        }
+        for (var k = at; k < at + 4; k++)
+        {
+            if (!char.IsDigit(s[k]))
+            {
+                return false;
+            }
+        }
+        if (at + 4 < s.Length && char.IsDigit(s[at + 4]))
+        {
+            return false;
+        }
+        var value = ((s[at] - '0') * 1000) + ((s[at + 1] - '0') * 100) + ((s[at + 2] - '0') * 10) + (s[at + 3] - '0');
+        return value is >= 1990 and <= 2100;
     }
 
     // =====================================================================

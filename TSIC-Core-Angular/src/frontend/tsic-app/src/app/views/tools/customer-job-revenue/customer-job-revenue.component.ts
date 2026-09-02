@@ -104,6 +104,9 @@ interface YoyChartPoint {
 	billed: number;
 	collected: number;
 	owed: number;
+	/** Entities settled at this bar's cutoff, and entities still carrying a balance. */
+	paidCount: number;
+	owingCount: number;
 	adj: number;
 	refunds: number;
 	asOf: string;
@@ -145,14 +148,25 @@ function cssVar(name: string, fallback: string): string {
  */
 const YOY_FONT_FAMILY = cssVar('--font-family-sans', 'system-ui, -apple-system, sans-serif');
 
+/** The part of a job name before the last colon — the organisation that owns the event. */
+function orgPrefix(groupLabel: string): string {
+	const cut = groupLabel.lastIndexOf(':');
+	return cut >= 0 ? groupLabel.slice(0, cut) : '';
+}
+
 /**
- * The tournament, without the customer that owns it.
+ * The event, without the organisation that owns it.
  *
- * Job names are "Signature Sports:Lax Clash 2027" — the customer, then the event. Every row on
- * this report belongs to one customer, so the prefix is the same on every group and spends the
- * width that the event name needs. Stripped for DISPLAY only: the group key keeps the full
- * name, and the "Events on this chart" list prints jobs unabridged, which is where a reader
- * checks that a lineage was assembled correctly.
+ * Job names are "Signature Sports:Lax Clash 2027" — the org, then the event. When every group
+ * carries the SAME org the prefix is pure repetition and spends the width the event name needs.
+ *
+ * It is only dropped when it is unambiguous, and it often is not: a customer group can span
+ * several orgs — STEPS Lacrosse, STEPS Lacrosse California and STEPS Elite AIM each run a
+ * "Girls Elite Players", and stripping there would print three different lineages under one
+ * identical label. See the caller, which strips only when one org is present.
+ *
+ * Display only either way: the group key keeps the full name, and the "Events on this chart"
+ * list prints jobs unabridged, which is where a reader checks a lineage was assembled right.
  */
 function eventLabel(groupLabel: string): string {
 	const cut = groupLabel.lastIndexOf(':');
@@ -709,23 +723,31 @@ export class CustomerJobRevenueComponent {
 		// an ellipsis.
 		const BAND = 0.5;
 
+		// One org across the whole report means the prefix is repetition; more than one means
+		// it is the only thing telling two same-named lineages apart.
+		const singleOrg = new Set(groups.map(g => orgPrefix(g.label))).size === 1;
+
 		for (const g of groups) {
 			if (g.points.length === 0) {
 				continue;
 			}
 			const start = points.length;
 			for (const p of g.points) {
+				// The cutoff, and how many entities stand behind the bar. The segments split
+				// that population into settled and still-owing; this is the whole of it, which
+				// is what the reader needs when one of the two is zero and suppressed.
+				const population = p.paidCount + p.owingCount;
 				pinLevel.push({
 					start: points.length - BAND,
 					end: points.length + BAND,
-					text: p.pinLabel
+					text: population > 0 ? `${p.pinLabel} (${population})` : p.pinLabel
 				});
 				points.push(p);
 			}
 			groupLevel.push({
 				start: start - BAND,
 				end: points.length - 1 + BAND,
-				text: eventLabel(g.label)
+				text: singleOrg ? eventLabel(g.label) : g.label
 			});
 		}
 
@@ -769,6 +791,8 @@ export class CustomerJobRevenueComponent {
 			billed: y.billed,
 			collected: y.collected,
 			owed: y.owed,
+			paidCount: y.paidCount,
+			owingCount: y.owingCount,
 			adj: y.adj,
 			refunds: y.refunds,
 			asOf: y.asOf,
@@ -886,6 +910,17 @@ export class CustomerJobRevenueComponent {
 	 * ej2's number formatter, so this picks up currency and the grouping separator instead of
 	 * printing a bare 1420512.5. Whole dollars — cents above a bar are noise at this scale.
 	 */
+	/**
+	 * Counts INSIDE the segments they describe: how many are settled, how many still owe, as of
+	 * that bar's cutoff. Rendered through onYoySegmentLabel, which reads the count off the point
+	 * rather than the plotted value — the bar is dollars, the label is people.
+	 */
+	readonly yoySegmentLabel = {
+		visible: true,
+		position: 'Middle' as const,
+		font: { fontFamily: YOY_FONT_FAMILY, size: '11px', fontWeight: '600', color: '#ffffff' }
+	};
+
 	readonly yoyStackLabels = {
 		visible: true,
 		format: 'C0',
@@ -923,17 +958,63 @@ export class CustomerJobRevenueComponent {
 	}
 
 	/**
+	 * The count that belongs to a segment, drawn inside it. ej2 hands the data label its own
+	 * plotted value, which here is money; the reader needs the population instead, so the text
+	 * is replaced from the point's own record.
+	 *
+	 * Suppressed when the count is zero — a settled season would otherwise carry a "0" in a
+	 * segment of no height — and when the segment is too short to hold the text, since a label
+	 * spilling out of its bar reads as belonging to the neighbouring one.
+	 */
+	onYoySegmentLabel(args: {
+		text?: string;
+		point?: { index?: number };
+		series?: { name?: string; dataSource?: YoyChartPoint[] };
+		cancel?: boolean;
+	}): void {
+		const i = args.point?.index;
+		const rows = args.series?.dataSource;
+		if (i == null || !rows || i >= rows.length) {
+			return;
+		}
+		const row = rows[i];
+		const count = args.series?.name === 'Owed' ? row.owingCount : row.paidCount;
+		if (count <= 0) {
+			args.cancel = true;
+			return;
+		}
+		args.text = `${count}`;
+	}
+
+	/**
 	 * Full dollars in the tooltip — the axis is abbreviated and the stack label is rounded to
 	 * whole dollars, so this is the only place the exact figure appears.
 	 */
-	onYoyTooltip(args: { text?: string; point?: { y?: number }; series?: { name?: string } }): void {
+	onYoyTooltip(args: {
+		text?: string;
+		headerText?: string;
+		point?: { y?: number; index?: number };
+		series?: { name?: string; dataSource?: YoyChartPoint[] };
+	}): void {
+		// The header is the raw category, so it carries the lineage prefix that keeps categories
+		// unique — "21|2025*" reached the screen. Stripped here as well as in the axis handler:
+		// ej2 builds the two independently, so anywhere the category is rendered has to strip it.
+		if (args.headerText) {
+			args.headerText = args.headerText.slice(args.headerText.indexOf('|') + 1);
+		}
 		if (args.point?.y == null) {
 			return;
 		}
 		const amount = args.point.y.toLocaleString('en-US', {
 			style: 'currency', currency: 'USD', minimumFractionDigits: 2
 		});
-		args.text = `${args.series?.name ?? ''}: ${amount}`;
+		const i = args.point.index;
+		const rows = args.series?.dataSource;
+		const row = i != null && rows && i < rows.length ? rows[i] : null;
+		const count = row === null ? null : args.series?.name === 'Owed' ? row.owingCount : row.paidCount;
+		args.text = count === null
+			? `${args.series?.name ?? ''}: ${amount}`
+			: `${args.series?.name ?? ''}: ${amount} (${count})`;
 	}
 
 	/** Accent Credit Card Credit rows so they jump out when scanning the CC grid. */
