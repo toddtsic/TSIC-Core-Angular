@@ -88,17 +88,23 @@
 
 @if (rows().length > 0) {
     <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
-        <button class="btn btn-outline-secondary btn-sm"
+        <button class="btn btn-outline-primary btn-sm"
+                [disabled]="rows().length === 0 || showCompose()"
+                (click)="emailAll()"
+                title="Select every row in the grid and open the compose panel. Rows already in good standing are skipped when the batch sends.">
+            <i class="bi bi-envelope-fill me-1"></i>Email All ({{ rows().length }})
+        </button>
+        <button class="btn btn-outline-primary btn-sm"
                 [disabled]="rowsNeedingAction().length === 0 || showCompose()"
-                (click)="selectRowsNeedingAction()"
-                title="Check every row the Email column marks 'Would send'">
-            <i class="bi bi-check2-square me-1"></i>Select rows needing email ({{ rowsNeedingAction().length }})
+                (click)="emailThoseNeedingEmail()"
+                title="Select every row marked in the Email? column and open the compose panel">
+            <i class="bi bi-envelope-exclamation me-1"></i>Email Those Needing Email ({{ rowsNeedingAction().length }})
         </button>
         <button class="btn btn-outline-primary btn-sm"
                 [disabled]="effectiveRecipientCount() === 0 || showCompose()"
                 (click)="openCompose()"
-                [title]="emailDisabledReason() ?? 'Compose email for selected recipients'">
-            <i class="bi bi-envelope me-1"></i>Email selected ({{ effectiveRecipientCount() }})
+                [title]="emailDisabledReason() ?? 'Compose email for the rows you have checked'">
+            <i class="bi bi-envelope me-1"></i>Email Selected ({{ effectiveRecipientCount() }})
         </button>
         @if (selectedHealthy().length > 0 && selectedRows().length > 0) {
             <span class="text-body-secondary small">
@@ -206,6 +212,7 @@
     <ejs-grid width="100%" #grid tsicRowNumbers [dataSource]="rows()" [allowSorting]="true"
               [sortSettings]="{ columns: [{ field: 'lastName', direction: 'Ascending' }] }"
               [allowExcelExport]="true"
+              [allowResizing]="true"
               [toolbar]="gridToolbar"
               [selectionSettings]="selectionSettings"
               (rowSelected)="onSelectionChanged(grid)"
@@ -219,42 +226,38 @@
             <!-- Row number (unbound — stamped by tsicRowNumbers, survives sort) -->
             <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"
                       [customAttributes]="{ class: 'row-number-cell' }"></e-column>
-            <!-- This is the EMAIL selector, not a health verdict: it says whether the reminder
-                 email would go to this family. The reason a member has a problem lives in
-                 Details. Nothing sends automatically — you still select and send. -->
-            <e-column headerText="Email" width="110" textAlign="Center"
+            <!-- This is the EMAIL selector, not a health verdict: it says whether the reminder email
+                 would go to this family. The reason lives in Details. Nothing sends automatically.
+                 A mark means "needs email"; blank means it doesn't — the marked rows are the
+                 exception, so leaving the healthy majority blank is what makes them scannable.
+                 The glyph carries a title + aria-label because colour alone must not convey it. -->
+            <e-column headerText="Email?" width="92" textAlign="Center"
                       field="eligibilityReason" [sortComparer]="emailSortComparer">
                 <ng-template #template let-data>
                     @if (needsAction(data)) {
-                        <span class="badge bg-warning-subtle text-warning-emphasis"
-                              title="This family would receive the reminder email — see Details for why">
-                            <i class="bi bi-envelope-fill me-1"></i>Would send
-                        </span>
-                    } @else {
-                        <span class="badge bg-secondary-subtle text-body-secondary"
-                              title="Active membership, expiry at or past this event's valid-through date — no email needed">
-                            <i class="bi bi-dash me-1"></i>Not needed
-                        </span>
+                        <i class="bi bi-check2 text-danger fw-bold"
+                           title="This family would receive the reminder email — see Details for why"
+                           aria-label="Needs email"></i>
                     }
                 </ng-template>
             </e-column>
-            <e-column field="lastName" headerText="Name" minWidth="160">
+            <e-column field="lastName" headerText="Name" width="195" minWidth="170" clipMode="EllipsisWithTooltip">
                 <ng-template #template let-data>
                     <span class="fw-semibold" [ngClass]="rowClass(data)">
                         {{ data.lastName }}, {{ data.firstName }}
                     </span>
                 </ng-template>
             </e-column>
-            <e-column field="membershipId" headerText="Member ID" width="120">
+            <e-column field="membershipId" headerText="Member ID" width="142">
                 <ng-template #template let-data>
                     {{ padMembershipId(data.membershipId) }}
                 </ng-template>
             </e-column>
-            <e-column field="teamName" headerText="Team" minWidth="160"></e-column>
+            <e-column field="teamName" headerText="Team" width="180" minWidth="140" clipMode="EllipsisWithTooltip"></e-column>
             <!-- USA Lacrosse membership status, verbatim. NOT a validation verdict and NOT a
                  transport outcome — a failed call is reported in Details, not here, and the
                  vendor's own wording is shown rather than being folded into Active/Unknown. -->
-            <e-column field="memStatus" headerText="Status" width="110" textAlign="Center">
+            <e-column field="memStatus" headerText="Status" width="96" textAlign="Center">
                 <ng-template #template let-data>
                     @if (data.memStatus) {
                         <span class="badge"
@@ -270,12 +273,12 @@
                     }
                 </ng-template>
             </e-column>
-            <e-column field="ageVerified" headerText="Age Verified" width="110" textAlign="Center">
+            <e-column field="ageVerified" headerText="Verified" width="128" clipMode="EllipsisWithTooltip">
                 <ng-template #template let-data>
                     {{ ageVerifiedDisplay(data) }}
                 </ng-template>
             </e-column>
-            <e-column headerText="Involvement" minWidth="140"
+            <e-column headerText="Involvement" width="158" minWidth="140"
                       field="involvement" [sortComparer]="involvementSortComparer">
                 <ng-template #template let-data>
                     @for (role of involvementBadges(data); track role) {
@@ -283,15 +286,15 @@
                     }
                 </ng-template>
             </e-column>
-            <e-column field="previousExpiryDate" headerText="Previous Expiry" width="130" type="date" format="MMM d, y">
+            <e-column field="previousExpiryDate" headerText="Expiry-Old" width="114" textAlign="Center" type="date" format="MM/dd/yyyy">
                 <ng-template #template let-data>
-                    {{ data.previousExpiryDate ? (data.previousExpiryDate | date:'mediumDate') : '—' }}
+                    {{ data.previousExpiryDate ? (data.previousExpiryDate | date:'MM/dd/yyyy') : '—' }}
                 </ng-template>
             </e-column>
-            <e-column field="newExpiryDate" headerText="New Expiry" width="130" type="date" format="MMM d, y">
+            <e-column field="newExpiryDate" headerText="Expiry-New" width="114" textAlign="Center" type="date" format="MM/dd/yyyy">
                 <ng-template #template let-data>
                     <span [class.updated-cell]="data.expiryDateUpdated">
-                        {{ data.newExpiryDate ? (data.newExpiryDate | date:'mediumDate') : '—' }}
+                        {{ data.newExpiryDate ? (data.newExpiryDate | date:'MM/dd/yyyy') : '—' }}
                         @if (data.expiryDateUpdated) {
                             <i class="bi bi-check-circle-fill text-success ms-1" title="Updated this run"></i>
                         }
@@ -302,17 +305,22 @@
                  dates and values in it. Same UsLaxEligibilityPolicy the wizard runs, so the
                  director sees the verdict the front door would give. Reporting only — the
                  expiry write above is unaffected by it. -->
-            <e-column field="eligibilityDetail" headerText="Details" minWidth="260">
+            <!-- A pass is a bare checkmark — "Passes validation" restated the same thing in words on
+                 every healthy row, which is most of them. A failure keeps its text AND repeats it as
+                 a title, because the reason is the one thing here that gets truncated and it is
+                 exactly what the director needs to read. -->
+            <e-column field="eligibilityDetail" headerText="Details" minWidth="240" clipMode="EllipsisWithTooltip">
                 <ng-template #template let-data>
                     @if (data.eligibilityDetail) {
                         <span [class.text-danger]="!data.eligible"
-                              [class.text-body-secondary]="data.eligible">{{ data.eligibilityDetail }}</span>
+                              [class.text-body-secondary]="data.eligible"
+                              [title]="data.eligibilityDetail">{{ data.eligibilityDetail }}</span>
                     } @else if (data.errorMessage) {
-                        <span class="text-danger">{{ data.errorMessage }}</span>
+                        <span class="text-danger" [title]="data.errorMessage">{{ data.errorMessage }}</span>
                     } @else if (data.eligible) {
-                        <span class="text-success-emphasis">
-                            <i class="bi bi-check2 me-1"></i>Passes validation
-                        </span>
+                        <i class="bi bi-check2 text-success-emphasis"
+                           title="Passes validation"
+                           aria-label="Passes validation"></i>
                     }
                 </ng-template>
             </e-column>

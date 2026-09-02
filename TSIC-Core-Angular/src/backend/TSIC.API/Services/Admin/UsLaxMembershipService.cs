@@ -469,20 +469,16 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         // judge, so nothing to claim.
         if (reg is null || candidate is null) return (UsLaxEmailDisposition.Unverifiable, "NotACandidate");
 
-        if (reg.RoleId != RoleConstants.Player)
-        {
-            if (ping is null || ping.StatusCode == 0) return (UsLaxEmailDisposition.Unverifiable, "Coach:VendorUnavailable");
-            var status = ping.Output?.MemStatus?.Trim();
-            if (string.IsNullOrEmpty(status)) return (UsLaxEmailDisposition.Send, "Coach:NoStatus");
-            if (!string.Equals(status, "Active", StringComparison.OrdinalIgnoreCase)) return (UsLaxEmailDisposition.Send, "Coach:NotActive");
-            if (!DateTime.TryParse(ping.Output?.ExpDate, out var coachExpiry)) return (UsLaxEmailDisposition.Send, "Coach:NoExpiry");
-            if (jobValidThrough.HasValue && coachExpiry.Date < jobValidThrough.Value.Date) return (UsLaxEmailDisposition.Send, "Coach:ExpiresBeforeCutoff");
-            return (UsLaxEmailDisposition.Healthy, "Coach:Eligible");
-        }
+        // Coaches run the SAME policy with Coach involvement, not the weaker status-and-expiry rule
+        // they used to. The grid judges them with the policy now, so anything less here would let
+        // the batch call a coach the grid flagged "healthy" and silently skip them — precisely the
+        // false-negative that was fixed for players and must not be reintroduced on the coach side.
+        var isCoach = reg.RoleId != RoleConstants.Player;
 
         var verdict = UsLaxEligibilityPolicy.Evaluate(new UsLaxEligibilityInput
         {
             MembershipNumber = candidate.SportAssnId,
+            RequiredInvolvement = isCoach ? UsLaxInvolvement.Coach : UsLaxInvolvement.Player,
             ValidThrough = candidate.ValidThrough,
             TeamValidationDisabled = candidate.TeamValidationDisabled,
             VendorStatusCode = ping?.StatusCode ?? 0,
@@ -590,9 +586,12 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
     ///
     /// REPORTING ONLY. Nothing here gates the expiry write, which is unchanged.
     ///
-    /// Player role only. The policy is the player gate — it requires Player involvement — so
-    /// running it over coaches would flag every one of them NotAPlayer. Coach rows are reported
-    /// as-was until there is a ruling on what a coach's eligibility even means.
+    /// BOTH ROLES. The policy takes the required involvement as a parameter — Player for players,
+    /// Coach for the adult audience — because legacy ran two validators (ValidationRemoteController
+    /// and ValidationCoachRemoteController) whose rules differ in nothing else. Coach rows were
+    /// previously hardcoded Eligible, which meant this grid could not report a coach whose
+    /// membership had lapsed, was registered under a different name, or was never a coach
+    /// membership at all.
     /// </summary>
     private static (bool Eligible, string Reason, string? Detail) EvaluateForDisplay(
         UsLaxReconciliationCandidateRow c,
@@ -600,14 +599,12 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         UsLaxMembershipRole role,
         UsLaxMemberPingOutput? output)
     {
-        if (role != UsLaxMembershipRole.Player)
-        {
-            return (true, nameof(UsLaxEligibilityReason.Eligible), null);
-        }
-
         var verdict = UsLaxEligibilityPolicy.Evaluate(new UsLaxEligibilityInput
         {
             MembershipNumber = c.SportAssnId,
+            RequiredInvolvement = role == UsLaxMembershipRole.Coach
+                ? UsLaxInvolvement.Coach
+                : UsLaxInvolvement.Player,
             ValidThrough = c.ValidThrough,
             TeamValidationDisabled = c.TeamValidationDisabled,
             VendorStatusCode = statusCode,
@@ -620,42 +617,8 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
             RegistrantDob = c.Dob
         });
 
-        return (verdict.Valid, verdict.Reason.ToString(), DescribeVerdict(c, verdict, output));
-    }
-
-    /// <summary>
-    /// One plain-English line for the grid's Details column, with the real values in it so the
-    /// director can act without cross-referencing another screen. The policy's own MessageFor()
-    /// is the parent-facing HTML checklist — deliberately not reused here; this audience is the
-    /// director, who needs the specific discrepancy, not the remediation steps.
-    /// </summary>
-    private static string? DescribeVerdict(
-        UsLaxReconciliationCandidateRow c,
-        UsLaxEligibilityVerdict verdict,
-        UsLaxMemberPingOutput? output)
-    {
-        static string D(DateTime? d) => d?.ToString("MMM d, yyyy", CultureInfo.InvariantCulture) ?? "—";
-
-        return verdict.Reason switch
-        {
-            UsLaxEligibilityReason.Eligible => null,
-            UsLaxEligibilityReason.TestNumber => "Test membership number — validation bypassed.",
-            UsLaxEligibilityReason.TeamBypass => "USA Lacrosse validation is turned off for this team.",
-            UsLaxEligibilityReason.NoCutoffConfigured =>
-                "No USA Lacrosse valid-through date is set for this event, so memberships can't be checked against a cutoff.",
-            UsLaxEligibilityReason.VendorUnavailable => "Couldn't reach USA Lacrosse — try again.",
-            UsLaxEligibilityReason.NotFound => "USA Lacrosse has no membership record for this number.",
-            UsLaxEligibilityReason.NotActive =>
-                $"USA Lacrosse membership status is {output?.MemStatus ?? "unknown"}, not Active.",
-            UsLaxEligibilityReason.NotAPlayer =>
-                "Membership is not registered as a Player at USA Lacrosse.",
-            UsLaxEligibilityReason.ExpiresBeforeCutoff =>
-                $"Expires {D(verdict.ExpDate)} — before this event's {D(c.ValidThrough)} cutoff.",
-            UsLaxEligibilityReason.LastNameMismatch =>
-                $"Last name doesn't match USA Lacrosse (we have \"{c.LastName}\", they have \"{output?.LastName ?? "nothing"}\").",
-            UsLaxEligibilityReason.DobMismatch =>
-                $"Date of birth doesn't match USA Lacrosse (we have {D(c.Dob)}, they have {output?.Birthdate ?? "nothing"}).",
-            _ => null
-        };
+        return (verdict.Valid, verdict.Reason.ToString(), UsLaxEligibilityPolicy.DetailFor(
+            verdict, c.ValidThrough, c.LastName, c.Dob,
+            output?.MemStatus, output?.LastName, output?.Birthdate));
     }
 }

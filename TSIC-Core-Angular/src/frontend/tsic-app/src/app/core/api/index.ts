@@ -877,6 +877,7 @@ export type { UserProfileUpdateRequest } from './models/UserProfileUpdateRequest
 export type { UserSearchResponseDto } from './models/UserSearchResponseDto';
 export type { UserSearchResultDto } from './models/UserSearchResultDto';
 export type { UserWidgetEntryDto } from './models/UserWidgetEntryDto';
+export type { UsLaxCheckRowDto } from './models/UsLaxCheckRowDto';
 export type { UsLaxEmailRecipientDto } from './models/UsLaxEmailRecipientDto';
 export type { UsLaxEmailRequest } from './models/UsLaxEmailRequest';
 export type { UsLaxEmailStartResponse } from './models/UsLaxEmailStartResponse';

@@ -237,6 +237,33 @@ public record RevalidateUsLaxResultDto
     public string? MemStatus { get; init; }
     public string? ExpDate { get; init; }
     public string? Message { get; init; }
+
+    /// <summary>Verdict from <c>UsLaxEligibilityPolicy</c> — the SAME rule the registration form
+    /// applies, run with the involvement this registration's role requires. Null when the caller
+    /// refreshed currency without judging eligibility (the coach-approval-queue path), so a null
+    /// here means "not assessed", never "passed".</summary>
+    public bool? Eligible { get; init; }
+
+    /// <summary>The policy's reason name, e.g. <c>ExpiresBeforeCutoff</c>. Null when not assessed.</summary>
+    public string? EligibilityReason { get; init; }
+
+    /// <summary>Admin-facing one-liner naming the specific discrepancy, with the real values in it.
+    /// Null when eligible or not assessed.</summary>
+    public string? EligibilityDetail { get; init; }
+
+    /// <summary>Every criterion judged independently, for the checklist panel. Empty when the caller
+    /// refreshed currency without assessing eligibility.</summary>
+    public List<UsLaxCheckRowDto> Checks { get; init; } = new();
+}
+
+/// <summary>One row of the eligibility checklist — mirrors <c>UsLaxCheckRow</c>.</summary>
+public record UsLaxCheckRowDto
+{
+    public required string Key { get; init; }
+    public required string Label { get; init; }
+    /// <summary>true = passed, false = failed, null = not assessable. Never render null as a pass.</summary>
+    public bool? Passed { get; init; }
+    public string? Detail { get; init; }
 }
 
 /// <summary>

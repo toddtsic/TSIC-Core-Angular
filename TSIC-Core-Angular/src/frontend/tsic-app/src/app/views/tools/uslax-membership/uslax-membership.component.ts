@@ -144,6 +144,7 @@ export class UsLaxMembershipComponent implements OnInit {
 		this.rows().filter(r => this.needsAction(r))
 	);
 
+
 	readonly recipientsWithEmail = computed(() => this.selectedRows().filter(r => !!r.email));
 	readonly selectedMissingEmail = computed(() => this.selectedRows().length - this.recipientsWithEmail().length);
 	/** Selected rows that the server will skip because they're already in good standing. */
@@ -401,13 +402,43 @@ export class UsLaxMembershipComponent implements OnInit {
 	}
 
 	// Quick-select ---------------------------------------------------------------------
+	/**
+	 * Select EVERY row and open compose.
+	 *
+	 * Note what this does and does not do: it checks all rows, but the batch still sends only to
+	 * those needing action — the server runs UsLaxEligibilityPolicy over its own data and skips
+	 * anyone in good standing, deliberately, so a valid member is never told their membership is
+	 * broken. So this is "put everyone in front of me", not "mail everyone".
+	 */
+	emailAll(): void {
+		this.selectRowsWhere(() => true, () => {
+			if (this.effectiveRecipientCount() > 0) this.openCompose();
+		});
+	}
 
-	selectRowsNeedingAction(): void {
+	/**
+	 * Select every row marked Needs Email and go straight to compose — the one-click version of
+	 * select-then-compose, and the common case. Shares `needsAction` with the column itself, so the
+	 * button and the marks can never disagree. Compose opens only after the selection mirror has
+	 * settled, or it would read the previous selection's recipient count.
+	 */
+	emailThoseNeedingEmail(): void {
+		this.selectRowsWhere(row => this.needsAction(row), () => {
+			if (this.effectiveRecipientCount() > 0) this.openCompose();
+		});
+	}
+
+	/** Shared selection mechanic — the quick-selects differ only in their predicate, and the
+	 *  index mapping / mirror-sync below is fiddly enough that a second copy would drift. */
+	private selectRowsWhere(
+		predicate: (row: UsLaxReconciliationRowDto) => boolean,
+		afterSelection?: () => void
+	): void {
 		const grid = this.gridRef;
 		if (!grid) return;
 		const view = (grid.getCurrentViewRecords() as UsLaxReconciliationRowDto[]) ?? [];
 		const indices = view
-			.map((row, i) => this.needsAction(row) ? i : -1)
+			.map((row, i) => predicate(row) ? i : -1)
 			.filter(i => i >= 0);
 		grid.clearSelection();
 		if (indices.length > 0) grid.selectRows(indices);
@@ -415,6 +446,7 @@ export class UsLaxMembershipComponent implements OnInit {
 		Promise.resolve().then(() => {
 			const selected = (grid.getSelectedRecords() as UsLaxReconciliationRowDto[]) ?? [];
 			this.selectedRows.set([...selected]);
+			afterSelection?.();
 		});
 	}
 
@@ -508,8 +540,8 @@ export class UsLaxMembershipComponent implements OnInit {
 				args.value = view.findIndex(r => r.registrationId === d.registrationId) + 1;
 				break;
 			}
-			case 'Email':
-				args.value = this.needsAction(d) ? 'Would send' : 'Not needed';
+			case 'Email?':
+				args.value = this.needsAction(d) ? 'Yes' : '';
 				break;
 			case 'Name':
 				args.value = `${d.lastName}, ${d.firstName}`;
@@ -524,16 +556,16 @@ export class UsLaxMembershipComponent implements OnInit {
 			case 'Details':
 				args.value = d.eligibilityDetail ?? d.errorMessage ?? (d.eligible ? 'Passes validation' : '');
 				break;
-			case 'Age Verified':
+			case 'Verified':
 				args.value = this.ageVerifiedDisplay(d);
 				break;
 			case 'Involvement':
 				args.value = this.involvementBadges(d).join(', ');
 				break;
-			case 'Previous Expiry':
+			case 'Expiry-Old':
 				args.value = d.previousExpiryDate ? new Date(d.previousExpiryDate).toLocaleDateString() : '';
 				break;
-			case 'New Expiry':
+			case 'Expiry-New':
 				args.value = d.newExpiryDate ? new Date(d.newExpiryDate).toLocaleDateString() : '';
 				break;
 		}

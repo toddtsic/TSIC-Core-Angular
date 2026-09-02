@@ -3794,7 +3794,7 @@ public class RegistrationRepository : IRegistrationRepository
     {
         var roleId = role == UsLaxMembershipRole.Coach ? RoleConstants.UnassignedAdult : RoleConstants.Player;
 
-        return await (
+        var rows = await (
             from r in _context.Registrations
             join u in _context.AspNetUsers on r.UserId equals u.Id
             join j in _context.Jobs on r.JobId equals j.JobId
@@ -3818,6 +3818,7 @@ public class RegistrationRepository : IRegistrationRepository
                 TeamName = r.AssignedTeam != null && r.AssignedTeam.Agegroup != null
                     ? r.AssignedTeam.Agegroup.AgegroupName + ":" + r.AssignedTeam.TeamName
                     : r.AssignedTeam != null ? r.AssignedTeam.TeamName : null,
+                UserId = r.UserId,
                 // Same two inputs the wizard's validation context supplies, so the reconcile can
                 // run the identical eligibility policy rather than a weaker involvement-only check.
                 ValidThrough = j.UslaxNumberValidThroughDate,
@@ -3825,6 +3826,80 @@ public class RegistrationRepository : IRegistrationRepository
                     && (r.AssignedTeam.BDoNotValidateUslaxNumber ?? false)
             }
         ).AsNoTracking().ToListAsync(ct);
+
+        // COACH TEAMS live on the Staff rows, not on the row above. A coach's USLax number is
+        // carried by the UnassignedAdult ANCHOR, which has no AssignedTeamId — verified in the dev
+        // data: 49 anchors, 0 of them with a team, against 53 Staff rows that ALL have one. So the
+        // grid's Team column rendered empty for every coach.
+        //
+        // Fetched as a SECOND query rather than a correlated sub-select in the projection above:
+        // a conditional collection projection is the kind of thing EF either translates or throws
+        // on at runtime, and this path has no test covering it. One extra round-trip, in coach mode
+        // only, buys a shape that cannot surprise us in front of a director.
+        if (role == UsLaxMembershipRole.Coach && rows.Count > 0)
+        {
+            var userIds = rows.Where(x => x.UserId != null).Select(x => x.UserId!).Distinct().ToList();
+
+            var staffTeams = await (
+                from s in _context.Registrations
+                where s.JobId == jobId
+                      && s.RoleId == RoleConstants.Staff
+                      && s.BActive == true
+                      && s.AssignedTeamId != null
+                      && s.UserId != null
+                      && userIds.Contains(s.UserId)
+                select new
+                {
+                    s.UserId,
+                    TeamName = s.AssignedTeam!.Agegroup != null
+                        ? s.AssignedTeam.Agegroup.AgegroupName + ":" + s.AssignedTeam.TeamName
+                        : s.AssignedTeam.TeamName
+                }
+            ).AsNoTracking().ToListAsync(ct);
+
+            var teamsByUser = staffTeams
+                .Where(x => !string.IsNullOrWhiteSpace(x.TeamName))
+                .GroupBy(x => x.UserId!)
+                .ToDictionary(
+                    g => g.Key,
+                    g => string.Join(", ", g.Select(x => x.TeamName!.Trim())
+                        .Distinct()
+                        .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)));
+
+            foreach (var row in rows)
+            {
+                if (row.TeamName is not null || row.UserId is null) continue;
+                if (teamsByUser.TryGetValue(row.UserId, out var joined)) row.TeamName = joined;
+            }
+        }
+
+        return rows;
+    }
+
+    public async Task<UsLaxEligibilityContextRow?> GetUsLaxEligibilityContextAsync(
+        Guid jobId, Guid registrationId, CancellationToken ct = default)
+    {
+        // One query, one shape: the policy is primitive-in, so everything it judges is projected
+        // here rather than assembled from three round-trips in the service.
+        return await (
+            from r in _context.Registrations
+            join u in _context.AspNetUsers on r.UserId equals u.Id
+            join j in _context.Jobs on r.JobId equals j.JobId
+            where r.RegistrationId == registrationId && r.JobId == jobId
+            select new UsLaxEligibilityContextRow
+            {
+                RegistrationId = r.RegistrationId,
+                RoleId = r.RoleId!,
+                UserId = r.UserId,
+                SportAssnId = r.SportAssnId,
+                LastName = u.LastName,
+                Dob = u.Dob,
+                SportAssnIdexpDate = r.SportAssnIdexpDate,
+                ValidThrough = j.UslaxNumberValidThroughDate,
+                TeamValidationDisabled = r.AssignedTeam != null
+                    && (r.AssignedTeam.BDoNotValidateUslaxNumber ?? false)
+            }
+        ).AsNoTracking().FirstOrDefaultAsync(ct);
     }
 
     public async Task<List<PlayerIdentityRow>> GetPlayerIdentitiesAsync(

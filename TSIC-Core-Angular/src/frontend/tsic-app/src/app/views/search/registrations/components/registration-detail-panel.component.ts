@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, input, output, signal, linkedSignal
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
-import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto, ClubAffectedJob } from '@core/api';
+import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto, ClubAffectedJob, RevalidateUsLaxResultDto } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ClubService } from '@infrastructure/services/club.service';
 import { displayRoleName } from '@infrastructure/constants/roles.constants';
@@ -244,9 +244,16 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   // USA Lacrosse live re-validation (records SportAssnIdexpDate server-side)
   revalidating = signal<boolean>(false);
 
+  /** Last re-validate result — drives the criteria checklist panel. Null = nothing run yet, or
+   *  dismissed. Cleared when a different registrant loads (see ngOnChanges) so one registrant's
+   *  verdict can never be read as another's. */
+  usLaxResult = signal<RevalidateUsLaxResultDto | null>(null);
+  /** Transport-level failure, shown in the same panel rather than a toast. */
+  usLaxError = signal<string | null>(null);
+
   /** This is a Lacrosse job (USLax membership applies). */
   readonly isLacrosse = computed(() => this.detail()?.sportName?.toLowerCase() === 'lacrosse');
-  /** Show the "Live update" link only for a Lacrosse job with a number on file. */
+  /** Show the Re-Validate/Update Expiry action only for a Lacrosse job with a number on file. */
   readonly canRevalidateUsLax = computed(() => this.isLacrosse() && !!this.profileValues()['SportAssnId']);
 
   // Email draft — cleared whenever a new registrant loads (a transient draft, never carried across).
@@ -424,6 +431,10 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (!changes['detail']) return;
     const d = this.detail();
+    // A verdict belongs to the registrant it was run for. Clear it the moment a different one
+    // loads, or the panel would show the previous person's checklist under this person's name.
+    this.usLaxResult.set(null);
+    this.usLaxError.set(null);
     // Family players are excluded: their card(s) live inside app-family-payment, which does
     // its own per-registration live refresh — this panel's card is hidden for them.
     if (d && this.isProdEnv && d.hasSubscription && !this.isFamilyPlayer()) this.loadSubscription();
@@ -515,9 +526,17 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   }
 
   /**
-   * Live-refresh the registrant's USA Lacrosse membership. The backend re-pings USA Lacrosse and
-   * records the returned expiry onto this registration's SportAssnIdexpDate. We mirror the new date
-   * locally (and re-snapshot so the profile zone doesn't read as dirty — the server already saved it).
+   * Re-validate the registrant's USA Lacrosse membership AND refresh the stored expiry.
+   *
+   * The server runs the same UsLaxEligibilityPolicy the registration form applies — with the
+   * involvement this registration's role requires (Player for players, Coach for adults) — and
+   * records the returned expiry either way, exactly as the registration submit path does. So a
+   * failing member still gets an accurate date on file; the verdict is reported, not enforced.
+   * This previously only pinged and stamped, which is why the panel could show a healthy-looking
+   * membership that registration would have rejected.
+   *
+   * We mirror the new date locally (and re-snapshot so the profile zone doesn't read as dirty —
+   * the server already saved it).
    *
    * Deliberately does NOT emit `saved`: that fires the parent's full refresh (re-run the grid search +
    * re-fetch the entire detail), which flashes the panel and yanks the tab back to Accounting. The
@@ -529,28 +548,36 @@ export class RegistrationDetailPanelComponent implements OnChanges {
     if (!d || this.revalidating()) return;
 
     this.revalidating.set(true);
+    this.usLaxError.set(null);
     this.searchService.revalidateUsLax(d.registrationId).subscribe({
       next: (res) => {
         this.revalidating.set(false);
-        if (res.found) {
-          if (res.expDate) {
-            this.applyExpiryDate(res.expDate);
-            const exp = new Date(res.expDate + 'T00:00:00').toLocaleDateString();
-            this.toast.show(`${res.memStatus ?? 'Active'} · expires ${exp}`, 'success', 4000, 'USA Lacrosse');
-          } else {
-            // Membership is valid but USA Lacrosse returned no parseable expiration — the server didn't
-            // record a date, so don't imply we did. Surface it plainly rather than a "success · n/a".
-            this.toast.show(`${res.memStatus ?? 'Active'} — USA Lacrosse returned no expiration date`, 'warning', 5000, 'USA Lacrosse');
-          }
-        } else {
-          this.toast.show(res.message || 'Membership not found.', 'warning', 5000, 'USA Lacrosse');
-        }
+        if (res.expDate) this.applyExpiryDate(res.expDate);
+        // The panel IS the report — no toast. Six criteria don't fit in one, and a director
+        // comparing a last name against USA Lacrosse's copy needs the answer to stay on screen.
+        this.usLaxResult.set(res);
       },
       error: (err) => {
         this.revalidating.set(false);
-        this.toast.show(err?.error?.message || 'Could not re-validate — try again.', 'danger', 4000, 'USA Lacrosse');
+        this.usLaxResult.set(null);
+        this.usLaxError.set(err?.error?.message || 'Could not re-validate — try again.');
       }
     });
+  }
+
+  /** Dismiss the checklist panel. */
+  clearUsLaxChecks(): void {
+    this.usLaxResult.set(null);
+    this.usLaxError.set(null);
+  }
+
+  /** A bare `yyyy-MM-dd` rendered as a local date. Parsed with an explicit midnight so the string
+   *  is not read as UTC and shown a day early for any negative offset. */
+  formatUsLaxDate(d: string | null | undefined): string {
+    if (!d) return '';
+    const iso = /^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T00:00:00` : d;
+    const parsed = new Date(iso);
+    return isNaN(parsed.getTime()) ? d : parsed.toLocaleDateString();
   }
 
   /**

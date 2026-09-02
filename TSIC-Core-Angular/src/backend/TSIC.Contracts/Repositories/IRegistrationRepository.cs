@@ -689,6 +689,10 @@ public interface IRegistrationRepository
     /// </summary>
     Task<List<UsLaxReconciliationCandidateRow>> GetUsLaxReconciliationCandidatesAsync(Guid jobId, UsLaxMembershipRole role, CancellationToken ct = default);
 
+    /// <summary>Policy inputs for a single registration — see <see cref="UsLaxEligibilityContextRow"/>.
+    /// Null when the registration doesn't exist or belongs to another job.</summary>
+    Task<UsLaxEligibilityContextRow?> GetUsLaxEligibilityContextAsync(Guid jobId, Guid registrationId, CancellationToken ct = default);
+
     /// <summary>
     /// Lastname + DOB for a set of player user ids, from AspNetUsers. These are the two facts the
     /// USA Lacrosse identity match compares against the member record — they live on the user, not
@@ -785,6 +789,23 @@ public interface IRegistrationRepository
     Task<List<MobileOwnershipTeamDto>?> GetMobileOwnershipTeamsAsync(string userId, Guid registrationId, CancellationToken ct = default);
 }
 
+/// <summary>Everything <c>UsLaxEligibilityPolicy</c> needs for ONE registration, joined in a single
+/// query: the registrant's identity, the job's cutoff, the assigned team's bypass flag, and the
+/// role that decides which involvement is required. Used by the registration-search detail panel's
+/// re-validate action, which judges a single row rather than a whole job.</summary>
+public record UsLaxEligibilityContextRow
+{
+    public required Guid RegistrationId { get; init; }
+    public required string RoleId { get; init; }
+    public string? UserId { get; init; }
+    public string? SportAssnId { get; init; }
+    public string? LastName { get; init; }
+    public DateTime? Dob { get; init; }
+    public DateTime? SportAssnIdexpDate { get; init; }
+    public DateTime? ValidThrough { get; init; }
+    public bool TeamValidationDisabled { get; init; }
+}
+
 public record UsLaxReconciliationCandidateRow
 {
     public required Guid RegistrationId { get; init; }
@@ -794,7 +815,14 @@ public record UsLaxReconciliationCandidateRow
     public DateTime? Dob { get; init; }
     public required string SportAssnId { get; init; }
     public DateTime? SportAssnIdexpDate { get; init; }
-    public string? TeamName { get; init; }
+    /// <summary>The Team cell. For a player this is their assigned team; for a COACH it is filled
+    /// from <see cref="CoachTeamNames"/>, because the coach row this query returns is the
+    /// UnassignedAdult anchor, which carries the USLax number but no team.</summary>
+    public string? TeamName { get; set; }
+
+    /// <summary>Key for the coach team lookup — a coach's placements are the Staff rows for this
+    /// same user in the same job, stitched into <see cref="TeamName"/> before the row is returned.</summary>
+    public string? UserId { get; init; }
 
     /// <summary>Jobs.USLaxNumberValidThroughDate — the director's cutoff. Carried here so the
     /// reconcile can run the same UsLaxEligibilityPolicy the registration wizard runs, instead

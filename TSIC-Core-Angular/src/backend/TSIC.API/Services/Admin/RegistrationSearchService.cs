@@ -22,6 +22,7 @@ using TSIC.Contracts.Services;
 using TSIC.Domain.Adults;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
+using TSIC.Domain.UsLax;
 
 namespace TSIC.API.Services.Admin;
 
@@ -290,14 +291,17 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     public async Task<RevalidateUsLaxResultDto> RevalidateUsLaxAsync(
         Guid jobId, Guid registrationId, CancellationToken ct = default)
     {
-        var reg = await _registrationRepo.GetByIdAsync(registrationId, ct);
-        if (reg is null || reg.JobId != jobId)
+        // One query for every policy input — identity, cutoff, team bypass, role. The old path read
+        // only the registration, which is why this action could refresh an expiry but never say
+        // whether the membership actually passes: it had no last name, DOB or cutoff to judge with.
+        var ctx = await _registrationRepo.GetUsLaxEligibilityContextAsync(jobId, registrationId, ct);
+        if (ctx is null)
             return new RevalidateUsLaxResultDto { Found = false, Message = "Registration not found for this job." };
 
-        if (string.IsNullOrWhiteSpace(reg.SportAssnId))
+        if (string.IsNullOrWhiteSpace(ctx.SportAssnId))
             return new RevalidateUsLaxResultDto { Found = false, Message = "No USA Lacrosse number on file." };
 
-        var member = await _usLax.GetMemberAsync(reg.SportAssnId, ct);
+        var member = await _usLax.GetMemberAsync(ctx.SportAssnId, ct);
 
         // Vendor unreachable / transient → leave the stored value untouched, just report.
         if (member is null || member.StatusCode == 0)
@@ -306,15 +310,59 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         var expDate = DateTime.TryParse(member.Output?.ExpDate, out var dt) ? dt : (DateTime?)null;
 
         // Definitive membership hit with a parseable expiry → record it on this registration.
+        // Written REGARDLESS of the verdict below, exactly as the registration submit path does:
+        // an accurate expiry on file is what makes the lapsed-membership backlog reportable, and
+        // suppressing it for a failing member would hide the very rows a director needs to see.
         if (member.StatusCode == 200 && expDate.HasValue)
             await _registrationRepo.UpdateSportAssnIdExpDateAsync(registrationId, expDate.Value, ct);
+
+        // Same policy the registration form runs, with the involvement this role requires: a Player
+        // registration must carry a Player involvement, every adult role a Coach one. Legacy ran two
+        // validators that differed in nothing else (ValidationRemoteController /
+        // ValidationCoachRemoteController), which is why one call covers both here.
+        var involvement = ctx.RoleId == RoleConstants.Player
+            ? UsLaxInvolvement.Player
+            : UsLaxInvolvement.Coach;
+
+        var policyInput = new UsLaxEligibilityInput
+        {
+            MembershipNumber = ctx.SportAssnId,
+            RequiredInvolvement = involvement,
+            ValidThrough = ctx.ValidThrough,
+            TeamValidationDisabled = ctx.TeamValidationDisabled,
+            VendorStatusCode = member.StatusCode,
+            VendorMemStatus = member.Output?.MemStatus,
+            VendorExpDate = member.Output?.ExpDate,
+            VendorLastName = member.Output?.LastName,
+            VendorBirthdate = member.Output?.Birthdate,
+            VendorInvolvement = member.Output?.Involvement,
+            RegistrantLastName = ctx.LastName,
+            RegistrantDob = ctx.Dob
+        };
+
+        // Verdict for the gate-shaped answer, checklist for the panel — same input, same predicates.
+        var verdict = UsLaxEligibilityPolicy.Evaluate(policyInput);
 
         return new RevalidateUsLaxResultDto
         {
             Found = member.StatusCode == 200,
             MemStatus = member.Output?.MemStatus ?? (member.StatusCode == 404 ? "Not found" : null),
             ExpDate = expDate?.ToString("yyyy-MM-dd"),
-            Message = member.StatusCode == 200 ? null : (member.ErrorMessage ?? "Membership not found.")
+            Message = member.StatusCode == 200 ? null : (member.ErrorMessage ?? "Membership not found."),
+            Eligible = verdict.Valid,
+            EligibilityReason = verdict.Reason.ToString(),
+            EligibilityDetail = UsLaxEligibilityPolicy.DetailFor(
+                verdict, ctx.ValidThrough, ctx.LastName, ctx.Dob,
+                member.Output?.MemStatus, member.Output?.LastName, member.Output?.Birthdate),
+            Checks = UsLaxEligibilityPolicy.Describe(policyInput)
+                .Select(r => new UsLaxCheckRowDto
+                {
+                    Key = r.Key,
+                    Label = r.Label,
+                    Passed = r.Passed,
+                    Detail = r.Detail
+                })
+                .ToList()
         };
     }
 

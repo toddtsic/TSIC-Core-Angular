@@ -373,10 +373,10 @@
                       <div class="form-group">
                         <label [for]="'profile-' + field.key" class="form-label">{{ getFieldLabel(field) }}</label>
                         @if (isDerivedReadOnlyField(field)) {
-                          <!-- USA Lacrosse expiry is USLax-authoritative — read-only; changes only via "Live update". -->
+                          <!-- USA Lacrosse expiry is USLax-authoritative — read-only; changes only via "Re-Validate/Update Expiry". -->
                           <input [id]="'profile-' + field.key" type="date" class="form-control form-control-sm"
                             [value]="profileValues()[field.key] || ''" disabled
-                            title="Set automatically from USA Lacrosse — use Live update on the number to refresh">
+                            title="Set automatically from USA Lacrosse — use Re-Validate/Update Expiry on the number to refresh">
                         } @else if (field.type === 'select' && field.options?.length) {
                           <select [id]="'profile-' + field.key" class="form-select form-select-sm"
                             [ngModel]="profileValues()[field.key]" (ngModelChange)="updateProfileValue(field.key, $event)"
@@ -411,14 +411,15 @@
                             <span class="uslax-link"><span class="spinner-border spinner-border-sm"></span> Checking…</span>
                           } @else {
                             <button type="button" class="uslax-link" (click)="revalidateUsLax()"
-                                    title="Re-check USA Lacrosse and record the current expiration">
-                              <i class="bi bi-arrow-repeat"></i> Live update
+                                    title="Re-run the same USA Lacrosse validation the registration form applies, and record the current expiration">
+                              <i class="bi bi-arrow-repeat"></i> Re-Validate/Update Expiry
                             </button>
                           }
                         }
                       </div>
                     }
                   </div>
+                  <ng-container [ngTemplateOutlet]="usLaxChecksPanel"></ng-container>
                   <div class="contact-actions" [class.is-dirty]="isProfileDirty()">
                     @if (isProfileDirty()) {
                       <span class="unsaved-hint small text-warning-emphasis">
@@ -495,8 +496,8 @@
                             <span class="uslax-link"><span class="spinner-border spinner-border-sm"></span></span>
                           } @else {
                             <button type="button" class="uslax-link" (click)="revalidateUsLax()"
-                                    title="Re-check USA Lacrosse and record the current expiration">
-                              <i class="bi bi-arrow-repeat"></i> Live update
+                                    title="Re-run the same USA Lacrosse validation the registration form applies, and record the current expiration">
+                              <i class="bi bi-arrow-repeat"></i> Re-Validate/Update Expiry
                             </button>
                           }
                         }
@@ -504,6 +505,7 @@
                     </div>
                   }
                 </div>
+                <ng-container [ngTemplateOutlet]="usLaxChecksPanel"></ng-container>
               </div>
             }
           }
@@ -821,3 +823,82 @@
     }
   }
 </div>
+
+<!-- ── USA Lacrosse eligibility checklist ──
+     Rendered under whichever USA Lacrosse field is on screen (editable card or read-only info
+     grid) via ngTemplateOutlet, so the markup exists once. Replaces the old toast: six criteria
+     don't fit in one, and an admin comparing a name or a birthdate against USA Lacrosse's copy
+     needs the answer to stay put. `passed` is TRISTATE — null means not assessable (validation
+     bypassed, no cutoff configured, vendor unreachable) and must never render as a pass. -->
+<ng-template #usLaxChecksPanel>
+  @if (usLaxError(); as err) {
+    <div class="uslax-checks uslax-checks--error">
+      <div class="uslax-checks__head">
+        <span class="uslax-checks__verdict">
+          <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i> Couldn't check
+        </span>
+        <button type="button" class="uslax-checks__close" (click)="clearUsLaxChecks()" aria-label="Dismiss">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+      </div>
+      <p class="uslax-checks__foot">{{ err }}</p>
+    </div>
+  } @else if (usLaxResult(); as res) {
+    <div class="uslax-checks"
+         [class.uslax-checks--pass]="res.eligible === true"
+         [class.uslax-checks--fail]="res.eligible === false">
+      <div class="uslax-checks__head">
+        <span class="uslax-checks__verdict">
+          @if (res.eligible === true) {
+            <i class="bi bi-check-circle-fill" aria-hidden="true"></i> Passes USA Lacrosse validation
+          } @else if (res.eligible === false) {
+            <i class="bi bi-x-circle-fill" aria-hidden="true"></i> Does not pass USA Lacrosse validation
+          } @else {
+            <i class="bi bi-dash-circle" aria-hidden="true"></i> Not assessed
+          }
+        </span>
+        <button type="button" class="uslax-checks__close" (click)="clearUsLaxChecks()" aria-label="Dismiss">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+      </div>
+
+      <ul class="uslax-checks__list">
+        @for (c of res.checks; track c.key) {
+          <li class="uslax-check"
+              [class.uslax-check--pass]="c.passed === true"
+              [class.uslax-check--fail]="c.passed === false"
+              [class.uslax-check--na]="c.passed === null || c.passed === undefined">
+            <span class="uslax-check__icon" aria-hidden="true">
+              @if (c.passed === true) {
+                <i class="bi bi-check-lg"></i>
+              } @else if (c.passed === false) {
+                <i class="bi bi-x-lg"></i>
+              } @else {
+                <i class="bi bi-dash"></i>
+              }
+            </span>
+            <span class="uslax-check__body">
+              <span class="uslax-check__label">
+                {{ c.label }}
+                <span class="visually-hidden">
+                  @if (c.passed === true) { — passed }
+                  @else if (c.passed === false) { — failed }
+                  @else { — not checked }
+                </span>
+              </span>
+              @if (c.detail) {
+                <span class="uslax-check__detail">{{ c.detail }}</span>
+              }
+            </span>
+          </li>
+        }
+      </ul>
+
+      @if (res.expDate) {
+        <p class="uslax-checks__foot">
+          Expiry on file updated to {{ formatUsLaxDate(res.expDate) }}.
+        </p>
+      }
+    </div>
+  }
+</ng-template>

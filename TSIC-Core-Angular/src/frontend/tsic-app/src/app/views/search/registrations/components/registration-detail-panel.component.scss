@@ -1145,3 +1145,134 @@
     word-break: break-word;
   }
 }
+
+// ── USA Lacrosse eligibility checklist ─────────────────────────────────────
+// Replaces the old single-line toast: the verdict is six criteria, and an admin comparing a name
+// or a DOB against USA Lacrosse's record needs it to stay on screen. Colour NEVER carries the
+// result on its own — every row has a check/cross/dash glyph and a visually-hidden word, because
+// pass and fail otherwise differ only by hue (WCAG 1.4.1).
+.uslax-checks {
+    margin-top: var(--space-3);
+    border: 1px solid var(--bs-border-color);
+    border-left: 3px solid var(--bs-secondary);
+    border-radius: var(--radius-md, 6px);
+    background: var(--bs-body-bg);
+    padding: var(--space-3);
+    box-shadow: var(--shadow-sm);
+
+    &--pass { border-left-color: var(--bs-success); }
+    &--fail { border-left-color: var(--bs-danger); }
+    &--error { border-left-color: var(--bs-warning); }
+
+    &__head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2);
+        margin-bottom: var(--space-2);
+    }
+
+    &__verdict {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--brand-text);
+
+        .bi-check-circle-fill { color: var(--bs-success); }
+        .bi-x-circle-fill { color: var(--bs-danger); }
+        .bi-exclamation-triangle-fill { color: var(--bs-warning); }
+        .bi-dash-circle { color: var(--bs-secondary); }
+    }
+
+    &__close {
+        border: none;
+        background: none;
+        padding: var(--space-1);
+        line-height: 1;
+        color: var(--bs-secondary);
+        cursor: pointer;
+        border-radius: var(--radius-sm, 4px);
+
+        &:hover { color: var(--brand-text); }
+
+        &:focus-visible {
+            outline: none;
+            box-shadow: var(--shadow-focus);
+        }
+    }
+
+    &__list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+    }
+
+    &__foot {
+        margin: var(--space-2) 0 0;
+        font-size: 0.72rem;
+        color: var(--bs-secondary-color, var(--bs-secondary));
+    }
+}
+
+.uslax-check {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    font-size: 0.76rem;
+
+    &__icon {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.05rem;
+        height: 1.05rem;
+        margin-top: 0.05rem;
+        border-radius: 50%;
+        font-size: 0.66rem;
+        color: var(--bs-body-bg);
+        background: var(--bs-secondary);
+    }
+
+    &--pass &__icon { background: var(--bs-success); }
+    &--fail &__icon { background: var(--bs-danger); }
+
+    // Not assessable — an outlined dash, never a filled glyph that could read as a result.
+    &--na &__icon {
+        background: transparent;
+        border: 1px solid var(--bs-border-color);
+        color: var(--bs-secondary);
+    }
+
+    &__body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        min-width: 0;
+    }
+
+    &__label {
+        color: var(--brand-text);
+        font-weight: 500;
+    }
+
+    &--fail &__label { font-weight: 600; }
+
+    &__detail {
+        color: var(--bs-secondary-color, var(--bs-secondary));
+        overflow-wrap: anywhere;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .uslax-checks,
+    .uslax-checks__close {
+        animation: none !important;
+        transition: none !important;
+    }
+}

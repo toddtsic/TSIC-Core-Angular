@@ -18,6 +18,12 @@ import { UsLaxValidationService, type UsLaxMember } from '@infrastructure/servic
  * a membership expiring exactly ON the cutoff read as expired — the same class of defect as
  * 308b41219 and db2edcfed. All of it is gone rather than repaired: this page has no business
  * holding rules at all.
+ *
+ * Where the verdict DOES live, for anyone sent here looking for one: the reconciliation tool
+ * (views/tools/uslax-membership) for a whole job, and Re-Validate/Update Expiry on a single
+ * registrant in Registration Search. Both run UsLaxEligibilityPolicy server-side against the
+ * registrant's stored identity — Player involvement for players, Coach for adults — so they can
+ * answer the question this page structurally cannot.
  */
 @Component({
 	selector: 'app-uslax-test',
