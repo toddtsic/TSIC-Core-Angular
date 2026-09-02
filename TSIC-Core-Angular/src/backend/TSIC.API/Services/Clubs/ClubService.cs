@@ -152,6 +152,23 @@ public sealed class ClubService : IClubService
                 };
             }
 
+            // The submitted name must BE the club's name, not merely normalize to it. Filler
+            // words ("lacrosse", "lc", "club") collapse under normalization, so "True Lacrosse"
+            // normalizes identically to "True" — without this, a shell named "True" would be
+            // offered to everyone who types the longer name. Knowing the club's real name is
+            // the weak proof of intent that keeps a claim deliberate rather than incidental.
+            if (!string.Equals(
+                    (chosenClub.ClubName ?? string.Empty).Trim(),
+                    request.ClubName.Trim(),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return new ClubRepRegistrationResponse
+                {
+                    Success = false, ClubId = null, UserId = null,
+                    Message = $"To claim this club, enter its name exactly as \"{chosenClub.ClubName}\"."
+                };
+            }
+
             clubId = chosenClub.ClubId;
         }
         else
@@ -165,7 +182,13 @@ public sealed class ClubService : IClubService
                 // contact, and telling her to find one would be a dead end. Point her at the
                 // claim instead. Still a refusal — claiming is an explicit second action, never
                 // something the server does for her off a name collision.
-                var claimable = similarClubs.FirstOrDefault(c => c.IsExactMatch && c.IsClaimable);
+                // Same rule as the claim itself: only advertise a shell to someone who typed
+                // its actual name, or the whole normalize-equal population gets invited.
+                var claimable = similarClubs.FirstOrDefault(c =>
+                    c.IsExactMatch
+                    && c.IsClaimable
+                    && string.Equals(c.ClubName.Trim(), request.ClubName.Trim(),
+                        StringComparison.OrdinalIgnoreCase));
 
                 return new ClubRepRegistrationResponse
                 {
