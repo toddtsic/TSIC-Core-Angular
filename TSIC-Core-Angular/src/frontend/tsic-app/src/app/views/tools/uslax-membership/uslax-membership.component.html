@@ -111,11 +111,6 @@
                 {{ selectedHealthy().length }} selected in good standing (will be skipped)
             </span>
         }
-        @if (selectedMissingEmail() > 0) {
-            <span class="text-body-secondary small">
-                {{ selectedMissingEmail() }} selected without email on file
-            </span>
-        }
     </div>
 
     @if (showCompose()) {
@@ -143,13 +138,16 @@
             </div>
 
             <div class="compose-recipients">
-                Sending to <strong>{{ recipientsWithEmail().length }}</strong>
-                {{ recipientsWithEmail().length === 1 ? 'recipient' : 'recipients' }}.
-                @if (selectedMissingEmail() > 0) {
-                    <span class="text-warning-emphasis">
-                        ({{ selectedMissingEmail() }} selected {{ selectedMissingEmail() === 1 ? 'row has' : 'rows have' }} no email and will be skipped.)
-                    </span>
-                }
+                Sending to <strong>{{ effectiveRecipientCount() }}</strong>
+                {{ effectiveRecipientCount() === 1 ? 'registrant' : 'registrants' }}.
+                <span class="text-body-secondary">
+                    @if (isCoachRole()) {
+                        Each coach is emailed at their own address.
+                    } @else {
+                        Each player's email goes to every address the family has on file &mdash; mom,
+                        dad, and the player's own.
+                    }
+                </span>
             </div>
 
             <div class="compose-field">
@@ -189,7 +187,7 @@
                         </span>
                         Sending
                     } @else {
-                        <i class="bi bi-send me-1"></i>Send to {{ recipientsWithEmail().length }}
+                        <i class="bi bi-send me-1"></i>Send to {{ effectiveRecipientCount() }}
                     }
                 </button>
                 <button class="btn btn-outline-secondary btn-sm" type="button"

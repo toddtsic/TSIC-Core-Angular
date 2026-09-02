@@ -145,27 +145,33 @@ export class UsLaxMembershipComponent implements OnInit {
 	);
 
 
-	readonly recipientsWithEmail = computed(() => this.selectedRows().filter(r => !!r.email));
-	readonly selectedMissingEmail = computed(() => this.selectedRows().length - this.recipientsWithEmail().length);
 	/** Selected rows that the server will skip because they're already in good standing. */
 	readonly selectedHealthy = computed(() =>
 		this.selectedRows().filter(r => !this.needsAction(r))
 	);
-	/** Selected rows that actually will get an email (selected AND has email AND needs action). */
+	/**
+	 * Selected rows that will get an email: selected AND needing action.
+	 *
+	 * Deliberately NOT filtered on the row's own address. That column is the PLAYER's account
+	 * email, and a player who has none almost always still has a mom and a dad on file. Filtering
+	 * here dropped those rows before they were ever posted, so the server never got the chance to
+	 * resolve the family — which made the whole screen player-addressed no matter what the send
+	 * path did. Addressing is the server's job (player → mom + dad + own), and it reports what it
+	 * could not reach as `missingEmail` on the start response, which the result toast prints.
+	 */
 	readonly effectiveRecipientCount = computed(() =>
-		this.recipientsWithEmail().filter(r => this.needsAction(r)).length
+		this.selectedRows().filter(r => this.needsAction(r)).length
 	);
 
 	readonly emailDisabledReason = computed(() => {
 		if (this.selectedRows().length === 0) return 'Select one or more rows to email.';
-		if (this.recipientsWithEmail().length === 0) return 'Selected rows have no email address on file.';
 		if (this.effectiveRecipientCount() === 0) return 'All selected rows are already in good standing — nothing to send.';
 		return null;
 	});
 
 	readonly canSendEmail = computed(() =>
 		!this.isSending() &&
-		this.recipientsWithEmail().length > 0 &&
+		this.effectiveRecipientCount() > 0 &&
 		this.subject().trim().length > 0 &&
 		this.body().trim().length > 0
 	);
@@ -249,7 +255,7 @@ export class UsLaxMembershipComponent implements OnInit {
 	// Compose panel --------------------------------------------------------------------
 
 	openCompose(): void {
-		if (this.recipientsWithEmail().length === 0) return;
+		if (this.effectiveRecipientCount() === 0) return;
 		if (!this.subject().trim() && !this.body().trim()) this.loadDefaultTemplate();
 		this.showCompose.set(true);
 		// After render, focus the subject field so the panel is visible and actionable.
@@ -276,7 +282,7 @@ export class UsLaxMembershipComponent implements OnInit {
 
 	/** Row → recipient snapshot, shared by the real send and the test send. */
 	private buildRecipients(): UsLaxEmailRecipientDto[] {
-		return this.recipientsWithEmail()
+		return this.selectedRows()
 			.filter(r => this.needsAction(r))
 			.map(r => ({
 				registrationId: r.registrationId,
