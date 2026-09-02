@@ -180,8 +180,18 @@
 			</li>
 		</ul>
 
-		<!-- Shared tab toolbar: exports identical on every tab; rollup adds its own tools -->
+	<!-- Shared tab toolbar: exports identical on every tab; rollup adds its own tools -->
 		<div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+			<!-- The two AS-OF tabs cut at their own date, defaulting to today, rather than at the
+			     scope's end date — which is the last COMPLETE month and so describes the world as
+			     it stood up to a month ago. Deliberately not the scope control: that one also
+			     drives the Revenue Rollup. -->
+			@if (activeTab() === 'yoy' || activeTab() === 'teamBilling') {
+				<label class="cjr-asof-label" for="cjr-asof">As of</label>
+				<input id="cjr-asof" type="date" class="form-control form-control-sm cjr-asof"
+					[value]="asOfDate()"
+					(change)="onAsOfChange($any($event.target).value)">
+			}
 			@if (activeTab() === 'rollup' || activeTab() === 'teamBilling') {
 				<button class="btn btn-sm btn-outline-secondary" (click)="expandAll()">Expand All</button>
 				<button class="btn btn-sm btn-outline-secondary" (click)="collapseAll()">Collapse All</button>
@@ -379,8 +389,9 @@
 							<br>
 							<strong>These rows carry no date.</strong> Discounts and late fees are stored as a
 							balance on the record, not as dated events, so there is no month to file them
-							under. Your dates still choose which events are included, and cut the correction
-							records at your end date.
+							under. Your date range still chooses which events are included, and the
+							<em>As of</em> date above cuts the correction records — it defaults to today, so
+							what came in this morning is in.
 						</span>
 					}
 				</span>
@@ -569,11 +580,16 @@
 					</button>
 					@if (yoyHelpOpen()) {
 						<span class="cjr-help-detail">
-							<strong>Every season is cut at the same point in the calendar</strong> — your end
-							date, shifted back a whole year at a time. Ask on 8/31/2026 and the 2025 bars show
-							where 2025 stood on 8/31/2025, not what it finished with. That is what makes a
-							season still selling comparable to one that has already run, and each bar prints
-							its own cutoff beneath it so you can see the same date repeating.
+							<strong>Every season is cut at the same point in the calendar</strong> — the
+							<em>As of</em> date above, shifted back a whole year at a time. Ask as of 9/2/2026
+							and the 2025 bars show where 2025 stood on 9/2/2025, not what it finished with.
+							That is what makes a season still selling comparable to one that has already run,
+							and each bar prints its own cutoff beneath it so you can see the same date
+							repeating.
+							<br>
+							<strong>As of defaults to today</strong>, not to the end of your date range. The
+							range picks which events are compared; this picks the moment they are all measured
+							at. Move it back to ask where every season stood on some earlier date.
 							<br>
 							<strong>The cutoff travels with the date you ask, so older seasons are not
 							frozen.</strong> Run this a month from now and last season's bars advance a month
