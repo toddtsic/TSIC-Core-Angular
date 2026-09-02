@@ -610,10 +610,11 @@
 							<em>Fall Draw 2026</em> and <em>Fall Draw 2025</em> sit under one heading. The jobs
 							behind the chart are listed underneath — check them if a comparison looks wrong.
 							<br>
-							<strong>Pick a single event from the selector to give it the whole axis.</strong>
-							All the events share one dollar scale so they can be compared with each other,
-							which means a small event next to a large one is a sliver. Choosing it on its own
-							rescales both axes to fit it, and its seasons then read at full height.
+							<strong>The chart shows one event at a time — use the selector to change
+							which.</strong> It opens on the event you are signed into. Every event gets the
+							whole axis to itself so its own seasons read at full height; showing several at
+							once meant sharing one dollar scale, which turned anything next to a large event
+							into a sliver.
 						</span>
 					}
 				</span>
@@ -649,16 +650,16 @@
 					}
 
 					<!-- Shown only when there is more than one event to choose between: a picker with a
-					     single option is furniture. Narrowing to one lineage is not just navigation —
-					     it is the only way to give a small event a readable dollar scale, because every
-					     bar shares one axis and ej2 will not rescale y to the panned x window. -->
+					     single option is furniture. There is deliberately NO "all events" entry — the
+					     chart shows exactly one lineage at a time, because every bar shares one dollar
+					     axis and ej2 will not rescale y to a panned x window, so an all-events view
+					     drew every small event as an unreadable sliver. -->
 					@if (yoyGroupOptions().length > 1) {
 						<div class="yoy-picker">
 							<label class="yoy-picker-label" for="yoy-event">Event</label>
 							<select id="yoy-event" class="form-select form-select-sm"
 								[value]="yoySelectedGroup()"
 								(change)="onYoyGroupChange($any($event.target).value)">
-								<option value="">All events ({{ yoyGroupOptions().length }})</option>
 								@for (opt of yoyGroupOptions(); track opt.value) {
 									<option [value]="opt.value">{{ opt.text }}</option>
 								}
@@ -745,7 +746,7 @@
 									name="Collected"
 									stackingGroup="money"
 									[fill]="yoyCollectedColor()"
-									[columnWidth]="0.7">
+									[columnWidthInPixel]="yoyBarWidth">
 								</e-series>
 								<e-series
 									[dataSource]="view.points"
@@ -755,7 +756,7 @@
 									name="Owed"
 									stackingGroup="money"
 									[fill]="yoyOwedColor()"
-									[columnWidth]="0.7"
+									[columnWidthInPixel]="yoyBarWidth"
 									[cornerRadius]="yoyTopCorner"
 									[marker]="yoyTotalMarker">
 								</e-series>
@@ -793,7 +794,7 @@
 									stackingGroup="count"
 									yAxisName="count"
 									[fill]="yoyTeamColor()"
-									[columnWidth]="0.7"
+									[columnWidthInPixel]="yoyBarWidth"
 									[marker]="yoyTotalMarker">
 								</e-series>
 								<e-series
@@ -805,7 +806,7 @@
 									stackingGroup="count"
 									yAxisName="count"
 									[fill]="yoyPlayerColor()"
-									[columnWidth]="0.7"
+									[columnWidthInPixel]="yoyBarWidth"
 									[cornerRadius]="yoyTopCorner"
 									[marker]="yoyTotalMarker">
 								</e-series>

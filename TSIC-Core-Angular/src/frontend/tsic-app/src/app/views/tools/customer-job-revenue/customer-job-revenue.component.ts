@@ -25,6 +25,7 @@ import { MultiSelectAllModule } from '@syncfusion/ej2-angular-dropdowns';
 import { ChartAllModule, MultiLevelLabelService } from '@syncfusion/ej2-angular-charts';
 import { AuthService } from '../../../infrastructure/services/auth.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
+import { JobService } from '@infrastructure/services/job.service';
 import { AdminNavPillComponent } from '@shared-ui/components/admin-nav-pill.component';
 import type { RevenueRollupResponseDto } from '@core/api';
 import type { JobPaymentRecordDto } from '@core/api';
@@ -258,6 +259,7 @@ export class CustomerJobRevenueComponent {
 	private readonly http = inject(HttpClient);
 	private readonly auth = inject(AuthService);
 	private readonly pulseService = inject(JobPulseService);
+	private readonly jobService = inject(JobService);
 	private readonly apiUrl = `${environment.apiUrl}/customer-job-revenue`;
 
 	/**
@@ -793,22 +795,36 @@ export class CustomerJobRevenueComponent {
 			.map(g => ({ value: g.label, text: this.yoyGroupLabels().get(g.label) ?? g.label })));
 
 	/**
-	 * Which lineage the chart is showing, '' for all of them (Todd, 2026-09-02).
+	 * Which lineage the chart is showing. ALWAYS exactly one — there is no "all events" option
+	 * (Todd, 2026-09-02).
 	 *
 	 * Scrolling could already reach an off-screen event, but reaching it is not the same as
-	 * reading it: every bar shares one dollar axis, so on a customer whose events span two
-	 * orders of magnitude the small ones are slivers no matter where the window sits. ej2
+	 * reading it: every bar shared one dollar axis, so on a customer whose events span two
+	 * orders of magnitude the small ones were slivers no matter where the window sat. ej2
 	 * cannot rescale y to the visible x range — enableAutoIntervalOnBothAxis only recalculates
-	 * tick intervals, not the range — so the only way to give a small event its own scale is to
-	 * show it alone. Filtering does that AND removes the need to scroll, since one lineage is
-	 * almost always inside the visible-bar window.
+	 * tick intervals, not the range — so the only way to give an event a readable scale is to
+	 * show it alone. That also removes the need to scroll, since one lineage is almost always
+	 * inside the visible-bar window.
+	 *
+	 * Defaults to the lineage the CURRENT JOB belongs to, matched on the job names the response
+	 * itself carries rather than by re-deriving the season-stripping rule the server grouped by
+	 * — two ways of spelling the same lineage is one way too many. Falls back to the first
+	 * group when the current job is not in the report at all, which is normal: the report is
+	 * scoped by date, and the job you are signed into may have closed before the start date.
 	 *
 	 * linkedSignal, not a plain signal: a fresh report can retire the selected lineage
-	 * entirely, and reseeding on `yoy` clears the selection with the data that justified it.
+	 * entirely, and reseeding on `yoy` re-picks with the data that justifies the pick.
 	 */
 	readonly yoySelectedGroup = linkedSignal<YoyRevenueResponseDto | null, string>({
 		source: this.yoy,
-		computation: () => ''
+		computation: () => {
+			const groups = this.yoyGroups().filter(g => g.points.length > 0);
+			const current = this.jobService.currentJob()?.jobName;
+			const mine = current
+				? groups.find(g => g.points.some(p => p.jobNames.includes(current)))
+				: undefined;
+			return (mine ?? groups[0])?.label ?? '';
+		}
 	});
 
 	onYoyGroupChange(value: string): void {
@@ -816,13 +832,14 @@ export class CustomerJobRevenueComponent {
 	}
 
 	/**
-	 * Everything on ONE chart (Todd, 2026-09-01): lineages as groups along a shared axis,
-	 * their seasons as the bars inside each group. A chart per event made the reader compare
-	 * across cards with a different y-scale on each; one axis makes the events comparable to
-	 * each other as well as to their own history.
+	 * ONE lineage at a time, its seasons as the bars (Todd, 2026-09-02). This started as every
+	 * lineage on a shared axis, which made the events comparable to each other — but that is
+	 * not the question the tab asks. It asks how an event is doing against its OWN prior
+	 * seasons, and a shared dollar axis charged the small events the whole cost of a comparison
+	 * nobody was making. Cross-event comparison is what the Revenue Rollup is for.
 	 *
-	 * The picker narrows that to one lineage without refetching — the response already holds
-	 * every season of every event, so this is a filter over data in hand, not a new request.
+	 * Filtered without refetching — the response already holds every season of every event,
+	 * so the picker is a filter over data in hand, not a new request.
 	 */
 	readonly yoyChart = computed<YoyChartView>(() => {
 		const selected = this.yoySelectedGroup();
@@ -991,9 +1008,14 @@ export class CustomerJobRevenueComponent {
 				trackColor: this.yoyBorder(),
 				scrollbarColor: this.yoyMuted()
 			},
-			// Present only when there is more than fits; a full view must not open zoomed, or
-			// the newest lineage looks like the only one.
-			...(view.needsScroll ? { zoomFactor: view.zoomFactor, zoomPosition: 1 } : {})
+			// ALWAYS stated, never omitted. ej2 holds zoom state on the axis instance and a
+			// missing zoomFactor leaves the previous one in force — so switching from a
+			// 19-event report to one lineage kept the old window and drew two categories
+			// across the whole plot as absurdly wide bars. Reset to the full range whenever
+			// everything fits; a full view must never open zoomed, or the newest lineage
+			// looks like the only one.
+			zoomFactor: view.needsScroll ? view.zoomFactor : 1,
+			zoomPosition: view.needsScroll ? 1 : 0
 		};
 	});
 
@@ -1117,6 +1139,20 @@ export class CustomerJobRevenueComponent {
 	 */
 	readonly yoyTotalMarker = { dataLabel: this.yoyTotalLabel };
 	readonly yoyTopCorner = { topLeft: 3, topRight: 3 };
+
+	/**
+	 * Bar width in PIXELS, not as a fraction of the category band (Todd, 2026-09-02).
+	 *
+	 * columnWidth is a proportion, so the same 0.7 that reads well across sixteen seasons
+	 * becomes a ~430px slab across two — the bar grows to fill whatever room the axis has,
+	 * which makes the same event look different depending on how many seasons happen to sit
+	 * beside it. A pixel width is the same bar every time, and the axis absorbs the difference
+	 * as whitespace, which is what empty space is for.
+	 *
+	 * Sixteen seasons is the most the window shows: 16 x 2 groups x 28px = 896px of bar, which
+	 * still leaves gaps at the ~1450px plot width the card gives it.
+	 */
+	readonly yoyBarWidth = 28;
 	readonly yoyChartArea = { border: { width: 0 } };
 	// Bottom carries the season labels, the cutoff row and the braced event row.
 	readonly yoyMargin = { left: 8, right: 16, top: 4, bottom: 12 };
