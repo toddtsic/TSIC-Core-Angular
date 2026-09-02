@@ -1349,16 +1349,27 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             // Plus 2028 Black" three times — while all 32 on LI Yellow Jackets:Players 2027
             // carry 18 to 32 players each and ARE the event. Requiring a fee alone drew that
             // job as zero teams; requiring nothing at all would draw 45 duplicates as entries.
-            var teamPopulation = await (
+            //
+            // Asked as TWO disjoint queries — charged, and free-but-populated — rather than as
+            // one OR. The OR reads better and cost 4.0 SECONDS per pin against 71ms, enough to
+            // time the endpoint out on Top Threat's 125 jobs: Jobs.Registrations has no index on
+            // assigned_teamID (nor on JobId, on 667K rows), so `Any(r => r.AssignedTeamId ==
+            // t.TeamId ...)` becomes a correlated scan per candidate team. Phrased as
+            // `Contains` over a subquery it is one hash semi-join — 204ms warm, and the two
+            // halves cannot double-count because a team's fee is either zero or it is not.
+            var populatedTeamIds = _context.Registrations
+                .Where(r => r.BActive == true
+                    && r.RoleId == RoleConstants.Player
+                    && r.RegistrationTs < pinEx)
+                .Select(r => r.AssignedTeamId);
+
+            var teamPopulatedFree = await (
                 from t in _context.Teams
                 where batchIds.Contains(t.JobId)
                     && t.Active == true
                     && t.Createdate < pinEx
-                    && ((t.FeeTotal ?? 0m) != 0m
-                        || _context.Registrations.Any(r => r.AssignedTeamId == t.TeamId
-                            && r.BActive == true
-                            && r.RoleId == RoleConstants.Player
-                            && r.RegistrationTs < pinEx))
+                    && (t.FeeTotal ?? 0m) == 0m
+                    && populatedTeamIds.Contains(t.TeamId)
                 group t by t.JobId into g
                 select new { JobId = g.Key, Count = g.Count() })
                 .AsNoTracking()
@@ -1397,7 +1408,7 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             {
                 playerCountByJob[p.JobId] = playerCountByJob.GetValueOrDefault(p.JobId) + p.Count;
             }
-            foreach (var p in teamPopulation)
+            foreach (var p in teamPopulatedFree)
             {
                 teamCountByJob[p.JobId] = teamCountByJob.GetValueOrDefault(p.JobId) + p.Count;
             }
@@ -1405,8 +1416,11 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             {
                 chargedByJob[p.JobId] = chargedByJob.GetValueOrDefault(p.JobId) + p.Count;
             }
+            // Charged teams count BOTH ways: they are teams, and they are the billed
+            // population. The free-but-populated half above is teams only — nothing to settle.
             foreach (var p in teamCharged)
             {
+                teamCountByJob[p.JobId] = teamCountByJob.GetValueOrDefault(p.JobId) + p.Count;
                 chargedByJob[p.JobId] = chargedByJob.GetValueOrDefault(p.JobId) + p.Count;
             }
             foreach (var p in playerOwing)
