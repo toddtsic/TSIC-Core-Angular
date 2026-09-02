@@ -545,7 +545,7 @@
 					[height]="pivotHeight()"
 					[allowExcelExport]="true"
 					[allowPdfExport]="true"
-					[gridSettings]="pivotGridSettings">
+					[gridSettings]="teamBillingGridSettings">
 				</ejs-pivotview>
 			}
 		}
@@ -795,7 +795,7 @@
 									yAxisName="count"
 									[fill]="yoyTeamColor()"
 									[columnWidthInPixel]="yoyBarWidth"
-									[marker]="yoyTotalMarker">
+									[marker]="yoyCountMarker">
 								</e-series>
 								<e-series
 									[dataSource]="view.points"
@@ -808,7 +808,7 @@
 									[fill]="yoyPlayerColor()"
 									[columnWidthInPixel]="yoyBarWidth"
 									[cornerRadius]="yoyTopCorner"
-									[marker]="yoyTotalMarker">
+									[marker]="yoyCountMarker">
 								</e-series>
 							</e-series-collection>
 						</ejs-chart>

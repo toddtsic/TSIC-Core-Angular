@@ -385,9 +385,9 @@ export class CustomerJobRevenueComponent {
 		// nowhere except at the totals.
 		values: [
 			{ name: 'billed', caption: 'Billed', type: 'Sum' },
-			{ name: 'adj', caption: 'of which Adj', type: 'Sum' },
+			{ name: 'adj', caption: 'Adj', type: 'Sum' },
 			{ name: 'collected', caption: 'Collected', type: 'Sum' },
-			{ name: 'refunds', caption: 'of which Refunds', type: 'Sum' },
+			{ name: 'refunds', caption: 'Refunds', type: 'Sum' },
 			{ name: 'owed', caption: 'Owed', type: 'Sum' }
 		],
 		formatSettings: [
@@ -429,6 +429,18 @@ export class CustomerJobRevenueComponent {
 		columnWidth: 120,
 		allowTextWrap: true,
 		columnRender: this.onPivotColumnRender as unknown as (args: ColumnRenderEventArgs) => void
+	};
+
+	/**
+	 * Teams/Players carries its own settings rather than sharing the Revenue Rollup's, because
+	 * it additionally rewrites the header text — and the Rollup is not to be touched. Same
+	 * sizing behaviour, one extra step.
+	 */
+	private readonly onTeamBillingColumnRender = new EventEmitter<ColumnRenderEventArgs>();
+	readonly teamBillingGridSettings = {
+		columnWidth: 120,
+		allowTextWrap: true,
+		columnRender: this.onTeamBillingColumnRender as unknown as (args: ColumnRenderEventArgs) => void
 	};
 
 	// Pivot config
@@ -477,23 +489,22 @@ export class CustomerJobRevenueComponent {
 
 	constructor() {
 		// Emitter and subscriber share this component's lifetime — no teardown needed.
-		this.onPivotColumnRender.subscribe((args: ColumnRenderEventArgs) => {
-			if (args.columns.length === 0) {
-				return;
-			}
-			args.columns[0].width = this.rowHeaderWidth;
-			// The pivot pre-stretched the value columns to fill the container using its
-			// DEFAULT first-column width; widening col 0 after that overflows the total
-			// by the difference and shows a phantom h-scrollbar. Re-stretch the value
-			// columns against the real row-header width (120px floor — below that the
-			// scrollbar is legitimate).
-			const host = document.querySelector<HTMLElement>('ejs-pivotview');
-			const valueCols = args.columns.length - 1;
-			if (host && valueCols > 0) {
-				const avail = host.clientWidth - this.rowHeaderWidth - 20; // v-scrollbar + borders
-				const width = Math.max(120, Math.floor(avail / valueCols));
-				for (let i = 1; i < args.columns.length; i++) {
-					args.columns[i].width = width;
+		this.onPivotColumnRender.subscribe((args: ColumnRenderEventArgs) => this.sizePivotColumns(args));
+
+		this.onTeamBillingColumnRender.subscribe((args: ColumnRenderEventArgs) => {
+			this.sizePivotColumns(args);
+			// ej2 builds a value column's header as "Total Sum of " + the field caption, which
+			// gave "Total Sum of of which Adj" (Todd, 2026-09-02). The captions dropped their
+			// "of which", and this strips the prefix, which carries no information either:
+			// every column on this tab is a sum, and the grand-total scope is already stated
+			// by the tab. What is left is "Billed  Adj  Collected  Refunds  Owed".
+			//
+			// Adj and Refunds are SUBSETS of Billed and Collected, not columns to add to the
+			// row. That is said in the reading guide rather than in the header.
+			for (const column of args.columns) {
+				const header = column.headerText;
+				if (header) {
+					column.headerText = header.replace(/^(?:Total\s+)?Sum of\s+/, '');
 				}
 			}
 		});
@@ -504,6 +515,30 @@ export class CustomerJobRevenueComponent {
 			this.selectedEndDate = this.monthOptions[0].endDate;
 		}
 		this.loadAvailableJobs();
+	}
+
+	/**
+	 * Shared by both pivots: widen the row-header column, then re-stretch the value columns.
+	 *
+	 * The pivot pre-stretched the value columns to fill the container using its DEFAULT
+	 * first-column width; widening column 0 after that overflows the total by the difference
+	 * and shows a phantom horizontal scrollbar. Re-stretching against the real row-header width
+	 * fixes it (120px floor — below that the scrollbar is legitimate).
+	 */
+	private sizePivotColumns(args: ColumnRenderEventArgs): void {
+		if (args.columns.length === 0) {
+			return;
+		}
+		args.columns[0].width = this.rowHeaderWidth;
+		const host = document.querySelector<HTMLElement>('ejs-pivotview');
+		const valueCols = args.columns.length - 1;
+		if (host && valueCols > 0) {
+			const avail = host.clientWidth - this.rowHeaderWidth - 20; // v-scrollbar + borders
+			const width = Math.max(120, Math.floor(avail / valueCols));
+			for (let i = 1; i < args.columns.length; i++) {
+				args.columns[i].width = width;
+			}
+		}
 	}
 
 	private buildMonthOptions(): void {
@@ -1129,7 +1164,35 @@ export class CustomerJobRevenueComponent {
 		fill: this.yoySurface(),
 		rx: 3,
 		ry: 3,
-		margin: { left: 5, right: 5, top: 1, bottom: 1 },
+		// bottom margin LIFTS an Outer label (data-label.js:838 subtracts it from the label's
+		// y), and the lift is what keeps the two totals apart. The pair of bars is ~30px
+		// centre-to-centre while a seven-figure chip is ~85px wide, so the money total always
+		// reaches across the registrations bar; when both bars also happen to top out at a
+		// similar fraction of their own axis — which is exactly what happens on an event's
+		// best season — the two labels want the same pixels. ej2 resolves that by DROPPING the
+		// one drawn later, which is the count, so the tallest bar was the one bar with no
+		// count over it (Todd, 2026-09-02). Staggering them vertically means they can never
+		// contend, whatever the two bars do. A label lifted past the top of the plot is
+		// clamped back by ej2 (data-label.js:606), so the lift cannot push it out of sight.
+		margin: { left: 5, right: 5, top: 1, bottom: 20 },
+		font: { fontFamily: YOY_FONT_FAMILY, size: '12px', fontWeight: '600', color: this.yoyText() }
+	};
+
+	/**
+	 * The registrations total. Sits at its bar rather than lifted, so it clears the money
+	 * total above it, and carries no chip — it is short enough not to reach across anything.
+	 *
+	 * labelIntersectAction 'None' is the belt to the stagger's braces: it is the one setting
+	 * that makes ej2 draw a label it believes collides (data-label.js:215). The count series
+	 * render last, so in any contention they are the ones ej2 silently drops — and a missing
+	 * count reads as "no registrations", which is a different statement from "the label did
+	 * not fit".
+	 */
+	readonly yoyCountLabel = {
+		visible: true,
+		position: 'Outer' as const,
+		labelIntersectAction: 'None' as const,
+		margin: { left: 3, right: 3, top: 1, bottom: 1 },
 		font: { fontFamily: YOY_FONT_FAMILY, size: '12px', fontWeight: '600', color: this.yoyText() }
 	};
 	/**
@@ -1138,6 +1201,7 @@ export class CustomerJobRevenueComponent {
 	 * that as a changed input, and the chart rebuilds under the user's cursor.
 	 */
 	readonly yoyTotalMarker = { dataLabel: this.yoyTotalLabel };
+	readonly yoyCountMarker = { dataLabel: this.yoyCountLabel };
 	readonly yoyTopCorner = { topLeft: 3, topRight: 3 };
 
 	/**
