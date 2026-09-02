@@ -7,22 +7,6 @@
     max-width: 640px;
 }
 
-// ── Context row ──
-
-.context-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
-    background: var(--bg-elevated);
-    border-radius: var(--radius-sm);
-    font-size: var(--font-size-sm);
-}
-
-.context-label {
-    color: var(--bs-secondary-color);
-}
-
 // ── Result panel ──
 
 .result-panel {
@@ -31,21 +15,13 @@
     overflow: hidden;
 }
 
+// No .result-active / .result-inactive variants: this page reports USA Lacrosse's answer and
+// does not render a pass/fail verdict. See the component docblock.
 .result-header {
     padding: var(--space-3) var(--space-4);
     font-size: var(--font-size-sm);
-
-    &.result-active {
-        background: rgba(var(--bs-success-rgb), 0.1);
-        color: var(--bs-success);
-        border-bottom: 2px solid var(--bs-success);
-    }
-
-    &.result-inactive {
-        background: rgba(var(--bs-danger-rgb), 0.1);
-        color: var(--bs-danger);
-        border-bottom: 2px solid var(--bs-danger);
-    }
+    background: var(--bs-tertiary-bg);
+    border-bottom: 1px solid var(--bs-border-color);
 }
 
 .expiry-text {

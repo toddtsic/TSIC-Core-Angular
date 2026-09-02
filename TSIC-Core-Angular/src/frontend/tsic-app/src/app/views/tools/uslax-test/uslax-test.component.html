@@ -1,16 +1,21 @@
 <!-- Page Header -->
 <div class="page-header">
-    <h2 class="page-title"><i class="bi bi-patch-check page-title-icon"></i> USA Lacrosse Validation Test</h2>
+    <h2 class="page-title"><i class="bi bi-search page-title-icon"></i> USA Lacrosse Number Tester</h2>
 </div>
 
+<!--
+    A LOOKUP, not a validator. It reports what USA Lacrosse holds for a membership number and
+    nothing more: no comparison against this event's cutoff, no last-name or date-of-birth match.
+    Those checks belong where a real registrant's identity exists — the registration form and
+    "Live update" on a registration — not against values typed in by hand here, which would only
+    test what the operator already believes.
+
+    It used to imply otherwise: a job-cutoff line, a pass/fail header, a "Before job date" badge
+    and help text promising a name/DOB match it never performed. All removed. See uslax-membership
+    for the reconciliation grid that does run the real UsLaxEligibilityPolicy.
+-->
 <div class="test-card card shadow-sm">
     <div class="card-body">
-        <!-- Job Valid Through Context -->
-        <div class="context-row mb-4">
-            <span class="context-label">Job Valid Through Date:</span>
-            <span class="context-value fw-medium">{{ jobValidThroughDisplay() }}</span>
-        </div>
-
         <!-- Input Row -->
         <div class="input-row mb-4">
             <div class="input-group">
@@ -19,22 +24,22 @@
                     class="form-control"
                     placeholder="Enter membership number"
                     [ngModel]="membershipNumber()"
-                    (ngModelChange)="membershipNumber.set($event)"
+                    (ngModelChange)="onNumberChange($event)"
                     (keydown)="onKeydown($event)"
                     [disabled]="isLoading()"
                     aria-label="USA Lacrosse membership number" />
                 <button
                     class="btn btn-primary"
-                    (click)="verify()"
+                    (click)="lookup()"
                     [disabled]="isLoading() || !membershipNumber().trim()">
                     @if (isLoading()) {
                         <span class="spinner-border spinner-border-sm me-1" role="status">
-                            <span class="visually-hidden">Verifying...</span>
+                            <span class="visually-hidden">Looking up...</span>
                         </span>
-                        Verifying
+                        Looking up
                     } @else {
                         <i class="bi bi-search me-1"></i>
-                        Verify
+                        Look up
                     }
                 </button>
             </div>
@@ -56,19 +61,15 @@
         <!-- Result -->
         @if (result(); as member) {
             <div class="result-panel">
-                <!-- Status Header -->
-                <div class="result-header" [class.result-active]="isActive()" [class.result-inactive]="!isActive()">
+                <!-- Status header. Reports USA Lacrosse's own words — it is NOT a verdict, so no
+                     pass/fail icon and no comparison against this event's dates. -->
+                <div class="result-header">
                     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                         <div class="d-flex align-items-center gap-2">
-                            <i class="bi" [class.bi-check-circle-fill]="isActive()" [class.bi-x-circle-fill]="!isActive()"></i>
+                            <span class="detail-key">USA Lacrosse status</span>
                             <span class="fw-semibold">{{ member.mem_status || 'Unknown' }}</span>
                         </div>
-                        <span class="expiry-text">
-                            Expires: {{ member.exp_date || 'N/A' }}
-                            @if (isExpiredForJob()) {
-                                <span class="badge bg-warning text-dark ms-1">Before job date</span>
-                            }
-                        </span>
+                        <span class="expiry-text">Expires: {{ member.exp_date || 'N/A' }}</span>
                     </div>
                 </div>
 
@@ -101,7 +102,11 @@
                         </div>
                         <div class="detail-row">
                             <span class="detail-key">Age Verified</span>
-                            <span class="detail-val">{{ member.age_verified === 'true' ? 'Yes' : 'No' }}</span>
+                            <!-- USA Lacrosse answers with a vocabulary ("Approved", "Not Initiated",
+                                 "Pending Review", "Failed Verification"), never a boolean. Comparing
+                                 to 'true' rendered "No" for every verified member — the same defect
+                                 fixed in 927860ed2. Show their word. -->
+                            <span class="detail-val">{{ member.age_verified || 'N/A' }}</span>
                         </div>
                         <div class="detail-row">
                             <span class="detail-key">Involvement</span>
@@ -123,8 +128,10 @@
         <!-- Help Links -->
         <div class="help-section mt-4">
             <p class="text-body-secondary mb-2">
-                The membership must be valid through the event dates.
-                Last name and date of birth must match what USA Lacrosse has on file.
+                Shows what USA Lacrosse currently holds for a membership number. It does not check
+                the number against this event's dates or against anyone's registration — to do that,
+                use <strong>Live update</strong> on a registration, or the USA Lacrosse
+                reconciliation tool.
             </p>
             <ul class="help-links list-unstyled mb-0">
                 <li>

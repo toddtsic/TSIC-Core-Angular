@@ -1,8 +1,24 @@
-import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { JobService } from '@infrastructure/services/job.service';
 import { UsLaxValidationService, type UsLaxMember } from '@infrastructure/services/uslax-validation.service';
 
+/**
+ * USA Lacrosse Number Tester — a LOOKUP, deliberately not a validator.
+ *
+ * It answers one question: what does USA Lacrosse currently hold for this membership number?
+ * It does NOT decide whether the number is acceptable for an event. That decision is
+ * UsLaxEligibilityPolicy's, it runs server-side, and it needs a real registrant's last name and
+ * date of birth — which this page has no honest way to obtain. Typing them in by hand would only
+ * test what the operator already assumes.
+ *
+ * This component previously carried its own partial copy of the rules (an Active check and an
+ * expiry-vs-job-cutoff comparison), making it a third dialect alongside the registration form and
+ * the reconciliation grid. Worse, its date comparison was raw `Date` objects: `exp_date` arrives
+ * as a bare `2026-12-31` (UTC midnight) while the job cutoff arrives zoneless (LOCAL midnight), so
+ * a membership expiring exactly ON the cutoff read as expired — the same class of defect as
+ * 308b41219 and db2edcfed. All of it is gone rather than repaired: this page has no business
+ * holding rules at all.
+ */
 @Component({
 	selector: 'app-uslax-test',
 	standalone: true,
@@ -13,7 +29,6 @@ import { UsLaxValidationService, type UsLaxMember } from '@infrastructure/servic
 })
 export class UsLaxTestComponent {
 	private readonly usLaxService = inject(UsLaxValidationService);
-	private readonly jobService = inject(JobService);
 
 	readonly membershipNumber = signal('');
 	readonly isLoading = signal(false);
@@ -21,36 +36,17 @@ export class UsLaxTestComponent {
 	readonly errorMessage = signal<string | null>(null);
 	readonly hasSearched = signal(false);
 
-	readonly jobValidThrough = computed(() => {
-		const job = this.jobService.currentJob();
-		const raw = job?.usLaxNumberValidThroughDate;
-		if (!raw) return null;
-		const d = new Date(raw);
-		return isNaN(d.getTime()) ? null : d;
-	});
+	/**
+	 * Editing the number invalidates whatever the last attempt said. Without this the format
+	 * error outlived the input that caused it — type "12345", get "must be 6 to 12 digits",
+	 * finish typing a valid 12-digit number, and the rejection stayed on screen next to it.
+	 */
+	onNumberChange(value: string): void {
+		this.membershipNumber.set(value);
+		this.errorMessage.set(null);
+	}
 
-	readonly jobValidThroughDisplay = computed(() => {
-		const d = this.jobValidThrough();
-		return d ? d.toLocaleDateString('en-US') : 'Not set';
-	});
-
-	readonly isActive = computed(() => this.result()?.mem_status === 'Active');
-
-	readonly expiryDate = computed(() => {
-		const raw = this.result()?.exp_date;
-		if (!raw) return null;
-		const d = new Date(raw);
-		return isNaN(d.getTime()) ? null : d;
-	});
-
-	readonly isExpiredForJob = computed(() => {
-		const expiry = this.expiryDate();
-		const jobDate = this.jobValidThrough();
-		if (!expiry || !jobDate) return false;
-		return expiry < jobDate;
-	});
-
-	verify(): void {
+	lookup(): void {
 		const num = this.membershipNumber().trim();
 		if (!num) return;
 		if (!/^\d{6,12}$/.test(num)) {
@@ -90,7 +86,7 @@ export class UsLaxTestComponent {
 
 	onKeydown(event: KeyboardEvent): void {
 		if (event.key === 'Enter') {
-			this.verify();
+			this.lookup();
 		}
 	}
 }
