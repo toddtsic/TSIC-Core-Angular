@@ -1171,10 +1171,17 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         // are different things, and the chart names the one it is actually drawing rather than
         // summing them into a "registrations" figure that is teams on every tournament event.
         // Owing stays combined — it is a state of whatever population is there, not a route.
-        // Paid is the difference; see the queries for why it is derived rather than counted,
-        // and why neither can come from owed_total.
+        //
+        // CHARGED is tracked separately from the two route counts, and is not their sum. The
+        // route counts are the POPULATION — everyone present at the pin, free or not — because
+        // that is what the registrations bar draws. Settled-versus-owing is a statement about
+        // money, so its denominator has to be the part of that population which was actually
+        // billed; on a tournament those are wildly different numbers. Paid is charged minus
+        // owing; see the queries for why it is derived rather than counted, and why neither can
+        // come from owed_total.
         var playerCountByJob = new Dictionary<Guid, int>();
         var teamCountByJob = new Dictionary<Guid, int>();
+        var chargedByJob = new Dictionary<Guid, int>();
         var owingCountByJob = new Dictionary<Guid, int>();
 
         // Classified on the METHOD ID, never the display name — PaymentMethodIds is the single
@@ -1271,7 +1278,33 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             //     identifier a GroupJoin/DefaultIfEmpty produces, and throws at runtime. A
             //     correlated SUM in the WHERE is plain SQL, and the counts still sum to the
             //     population by construction — paid is whatever is not owing.
+            //     The population carries NO fee test. A free self-rostered player is the
+            //     population on a tournament, not the absence of one: Lax For The Cure:Fall
+            //     Showcase 2026 holds 538 active players, every one of them free, 400 of them
+            //     before that season's pin — and the fee test this replaced drew all 538 as
+            //     zero, in every season the customer has run (Todd, 2026-09-02).
+            //
+            //     Filtered to the PLAYER role, which the fee test was doing by accident: a
+            //     roster also carries coaches and club reps, and without this the series
+            //     labelled Players reported 426 on that job against 400 actual players, and
+            //     3,356 against 3,267 on Top Threat Championship 2026.
             var playerPopulation = await (
+                from r in _context.Registrations
+                join t in _context.Teams on r.AssignedTeamId equals t.TeamId
+                where batchIds.Contains(t.JobId)
+                    && t.Active == true
+                    && r.BActive == true
+                    && r.RoleId == RoleConstants.Player
+                    && r.RegistrationTs < pinEx
+                group r by t.JobId into g
+                select new { JobId = g.Key, Count = g.Count() })
+                .AsNoTracking()
+                .ToListAsync(ct);
+
+            // Billed players only — the denominator settled/owing is measured against. Kept
+            // apart from the population above rather than derived from it, because on a
+            // free-roster job the two differ by the whole roster.
+            var playerCharged = await (
                 from r in _context.Registrations
                 join t in _context.Teams on r.AssignedTeamId equals t.TeamId
                 where batchIds.Contains(t.JobId)
@@ -1307,10 +1340,32 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 .ToListAsync(ct);
 
             // The club-rep route counts the TEAM, because the team is what was charged — the
-            // players on it carry no fee of their own. Teams charged nothing are excluded: they
-            // are roster containers, not money, and counting them would inflate the population
-            // on jobs like STEPS where every team carries a zero fee.
+            // players on it carry no fee of their own.
+            //
+            // A team is counted if it was CHARGED, or if anyone is ON it at the pin. Zero-fee
+            // teams split cleanly along that line and the split is not close: all 45 free teams
+            // on Lax For The Cure:Fall Showcase 2026 and all 40 on Top Threat Championship 2026
+            // are abandoned shells holding nobody — LFTC's include "Blue Star" twice and "Lax
+            // Plus 2028 Black" three times — while all 32 on LI Yellow Jackets:Players 2027
+            // carry 18 to 32 players each and ARE the event. Requiring a fee alone drew that
+            // job as zero teams; requiring nothing at all would draw 45 duplicates as entries.
             var teamPopulation = await (
+                from t in _context.Teams
+                where batchIds.Contains(t.JobId)
+                    && t.Active == true
+                    && t.Createdate < pinEx
+                    && ((t.FeeTotal ?? 0m) != 0m
+                        || _context.Registrations.Any(r => r.AssignedTeamId == t.TeamId
+                            && r.BActive == true
+                            && r.RoleId == RoleConstants.Player
+                            && r.RegistrationTs < pinEx))
+                group t by t.JobId into g
+                select new { JobId = g.Key, Count = g.Count() })
+                .AsNoTracking()
+                .ToListAsync(ct);
+
+            // Billed teams only — the other half of the settled/owing denominator.
+            var teamCharged = await (
                 from t in _context.Teams
                 where batchIds.Contains(t.JobId)
                     && t.Active == true
@@ -1345,6 +1400,14 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             foreach (var p in teamPopulation)
             {
                 teamCountByJob[p.JobId] = teamCountByJob.GetValueOrDefault(p.JobId) + p.Count;
+            }
+            foreach (var p in playerCharged)
+            {
+                chargedByJob[p.JobId] = chargedByJob.GetValueOrDefault(p.JobId) + p.Count;
+            }
+            foreach (var p in teamCharged)
+            {
+                chargedByJob[p.JobId] = chargedByJob.GetValueOrDefault(p.JobId) + p.Count;
             }
             foreach (var p in playerOwing)
             {
@@ -1413,6 +1476,7 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 decimal billed = 0m, collected = 0m, adj = 0m, refunds = 0m;
                 var playerCount = 0;
                 var teamCount = 0;
+                var chargedCount = 0;
                 var owingCount = 0;
 
                 foreach (var m in cell.Value)
@@ -1423,6 +1487,7 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                     refunds += refundsByJob.GetValueOrDefault(m.JobId);
                     playerCount += playerCountByJob.GetValueOrDefault(m.JobId);
                     teamCount += teamCountByJob.GetValueOrDefault(m.JobId);
+                    chargedCount += chargedByJob.GetValueOrDefault(m.JobId);
                     owingCount += owingCountByJob.GetValueOrDefault(m.JobId);
                 }
 
@@ -1446,7 +1511,10 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                     Owed = Math.Round(billed - collected, 2, MidpointRounding.AwayFromZero),
                     TeamCount = teamCount,
                     PlayerCount = playerCount,
-                    PaidCount = Math.Max(0, playerCount + teamCount - owingCount),
+                    // Of the CHARGED population, not of everyone: a free roster owes nothing
+                    // and settles nothing, and folding it in here would report a tournament
+                    // as fully settled on the strength of players who were never billed.
+                    PaidCount = Math.Max(0, chargedCount - owingCount),
                     OwingCount = owingCount
                 });
             }

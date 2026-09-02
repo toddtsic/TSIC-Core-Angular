@@ -932,6 +932,19 @@ export class CustomerJobRevenueComponent {
 					textStyle: { color: this.yoyText(), size: '12px', fontFamily: YOY_FONT_FAMILY }
 				}
 			],
+			// The scrollbar's arrows and end-circles are RESIZE handles, not step-scroll
+			// buttons: ej2 reads them as `isResizeLeft = isExist(id, '_leftArrow_')`, so
+			// clicking one widens or narrows the zoom window and silently rescales the chart.
+			// A reader reaching for them to move sideways gets a different chart instead, which
+			// is why they are off (Todd, 2026-09-02). enableZoom gates the arrows AND the
+			// circles, leaving a plain drag-to-pan thumb — taller than the default hairline,
+			// and coloured from the palette so it survives the dark theme.
+			scrollbarSettings: {
+				enableZoom: false,
+				height: 14,
+				trackColor: this.yoyBorder(),
+				scrollbarColor: this.yoyMuted()
+			},
 			// Present only when there is more than fits; a full view must not open zoomed, or
 			// the newest lineage looks like the only one.
 			...(view.needsScroll ? { zoomFactor: view.zoomFactor, zoomPosition: 1 } : {})
@@ -1195,9 +1208,17 @@ export class CustomerJobRevenueComponent {
 		// Settled/owing lives in the HEADER, because it spans both routes and so belongs to no
 		// single series row. "Settled" means a zero balance, which reads correctly in words and
 		// misled as a coloured fraction of a bar.
+		//
+		// Stated as a fraction OF THE CHARGED population, which is paid + owing and is not the
+		// height of the bar beside it. On a tournament the two are nowhere near each other —
+		// Lax For The Cure's Fall Showcase bills its teams and rosters 538 players for free —
+		// so naming the denominator is what stops the reader reading it off the bar.
+		const charged = row.paidCount + row.owingCount;
 		args.headerText =
 			`${span ? `${span.text} · ` : ''}${row.rawYear} season, as of ${row.pinLabel}` +
-			` — ${row.paidCount} settled, ${row.owingCount} still owing`;
+			(charged > 0
+				? ` — ${row.paidCount} of ${charged} charged settled, ${row.owingCount} still owing`
+				: ' — nothing charged yet');
 
 		// EXACTLY one entry per series, in series order: ej2 walks this array against its own
 		// point list to place the colour chips, and treats an empty string as "drop this
@@ -1210,8 +1231,8 @@ export class CustomerJobRevenueComponent {
 				// ej2's chip list while staying in the text list, so the colour chips below it
 				// shift up by one — and "Players: 0" is itself the answer to which route an
 				// event runs on.
-				case YOY_SERIES.teams: return `Teams charged: ${row.teamCount}`;
-				case YOY_SERIES.players: return `Players charged: ${row.playerCount}`;
+				case YOY_SERIES.teams: return `Teams: ${row.teamCount}`;
+				case YOY_SERIES.players: return `Players: ${row.playerCount}`;
 				default: return args.text?.[k] ?? '';
 			}
 		});

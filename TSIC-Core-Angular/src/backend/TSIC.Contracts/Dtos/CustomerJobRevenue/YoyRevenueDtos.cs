@@ -133,9 +133,14 @@ public record YoyYearColumnDto
     /// <summary>Money-bearing entities still carrying a balance as of this column's cutoff.</summary>
     public required int OwingCount { get; init; }
 
+    // NOTE: PaidCount + OwingCount is the CHARGED population, which is not TeamCount +
+    // PlayerCount and on a free-roster event is nowhere near it. Present the pair as
+    // "N of M charged", never as a fraction of the registrations bar.
+
     /// <summary>
-    /// Teams charged as of this column's cutoff — the club-rep route, where the TEAM is what
-    /// carries the fee and its players carry none.
+    /// Teams present as of this column's cutoff — the club-rep route, where the TEAM is what
+    /// carries the fee and its players carry none. Counted if charged OR populated, so a
+    /// player-route job's free roster containers are not reported as zero teams.
     /// </summary>
     /// <remarks>
     /// Reported SEPARATELY from <see cref="PlayerCount"/> rather than summed, because the two
@@ -147,8 +152,10 @@ public record YoyYearColumnDto
     public required int TeamCount { get; init; }
 
     /// <summary>
-    /// Player registrations charged as of this column's cutoff — the player route. See
-    /// <see cref="TeamCount"/> for why the two are not added together.
+    /// Player registrations present as of this column's cutoff — the player route, free ones
+    /// included, because on a tournament the free self-rostered players ARE the population.
+    /// See <see cref="TeamCount"/> for why the two are not added together, and
+    /// <see cref="PaidCount"/> for why neither is the settled/owing denominator.
     /// </summary>
     public required int PlayerCount { get; init; }
 }
