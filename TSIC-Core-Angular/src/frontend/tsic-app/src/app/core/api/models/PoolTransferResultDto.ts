@@ -6,6 +6,7 @@ export type PoolTransferResultDto = {
     teamsMoved: number;
     feesRecalculated: number;
     teamsDeactivated: number;
+    teamsReactivated: number;
     scheduleRecordsUpdated: number;
     message: string;
 };

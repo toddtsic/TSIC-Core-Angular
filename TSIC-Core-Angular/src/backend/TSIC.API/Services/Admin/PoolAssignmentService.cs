@@ -140,6 +140,8 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
 
             if (IsDroppedTeams(targetAgegroup))
                 warning = "Team will be deactivated (moved to Dropped Teams).";
+            else if (IsDroppedTeams(sourceAgegroup) && !(team.Active ?? true))
+                warning = "Team will be reactivated (moved out of Dropped Teams).";
 
             if (team.ClubrepRegistrationid.HasValue)
                 affectedClubRepIds.Add(team.ClubrepRegistrationid.Value);
@@ -188,6 +190,8 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
 
             if (IsDroppedTeams(sourceAgegroup))
                 warning = "Team will be deactivated (moved to Dropped Teams).";
+            else if (IsDroppedTeams(targetAgegroup) && !(team.Active ?? true))
+                warning = "Team will be reactivated (moved out of Dropped Teams).";
 
             if (team.ClubrepRegistrationid.HasValue)
                 affectedClubRepIds.Add(team.ClubrepRegistrationid.Value);
@@ -285,6 +289,7 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         int teamsMoved = 0;
         int feesRecalculated = 0;
         int teamsDeactivated = 0;
+        int teamsReactivated = 0;
         int scheduleRecordsUpdated = 0;
         var affectedClubRepIds = new HashSet<Guid>();
 
@@ -362,6 +367,15 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                 team.Active = false;
                 teamsDeactivated++;
             }
+            else if (isSourceDropped && !isTargetDropped && !(team.Active ?? true))
+            {
+                // The exact reverse of the drop: a team leaving Dropped Teams for a live
+                // agegroup comes back on. Gated on the SOURCE being dropped, not merely on the
+                // target being live — a team a director deactivated by hand inside a normal
+                // agegroup must keep that state when it is shuffled between pools.
+                team.Active = true;
+                teamsReactivated++;
+            }
 
             if (agegroupChanges && targetAgegroup != null)
             {
@@ -412,6 +426,13 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                 {
                     team.Active = false;
                     teamsDeactivated++;
+                }
+                else if (isTargetDropped && !isSourceDropped && !(team.Active ?? true))
+                {
+                    // Same reactivation rule as the source-to-target leg above, with the two
+                    // agegroups swapped: this team's ORIGIN is the target agegroup.
+                    team.Active = true;
+                    teamsReactivated++;
                 }
 
                 if (agegroupChanges && sourceAgegroup != null)
@@ -483,6 +504,7 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         if (teamsMoved > 0) parts.Add($"{teamsMoved} team(s) moved");
         if (feesRecalculated > 0) parts.Add($"{feesRecalculated} fee(s) recalculated");
         if (teamsDeactivated > 0) parts.Add($"{teamsDeactivated} team(s) deactivated");
+        if (teamsReactivated > 0) parts.Add($"{teamsReactivated} team(s) reactivated");
         if (scheduleRecordsUpdated > 0) parts.Add($"{scheduleRecordsUpdated} schedule record(s) updated");
 
         return new PoolTransferResultDto
@@ -490,6 +512,7 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
             TeamsMoved = teamsMoved,
             FeesRecalculated = feesRecalculated,
             TeamsDeactivated = teamsDeactivated,
+            TeamsReactivated = teamsReactivated,
             ScheduleRecordsUpdated = scheduleRecordsUpdated,
             Message = parts.Count > 0 ? string.Join(", ", parts) + "." : "No changes made."
         };

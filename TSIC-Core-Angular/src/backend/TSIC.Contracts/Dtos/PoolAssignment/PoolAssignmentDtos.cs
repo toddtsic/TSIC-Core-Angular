@@ -118,6 +118,7 @@ public record PoolTransferResultDto
     public required int TeamsMoved { get; init; }
     public required int FeesRecalculated { get; init; }
     public required int TeamsDeactivated { get; init; }
+    public required int TeamsReactivated { get; init; }
     public required int ScheduleRecordsUpdated { get; init; }
     public required string Message { get; init; }
 }
