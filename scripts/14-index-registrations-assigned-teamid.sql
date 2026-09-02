@@ -50,12 +50,28 @@
 
    RUNNING IT
    ----------
-   Dev (TSIC-SEDONA\SS2016) is SQL Server 2019 Developer Edition, so
-   ONLINE = ON is available. CHECK THE EDITION ON PROD before running --
-   ONLINE index builds are Enterprise/Developer only, and on Standard this
-   statement fails outright rather than falling back. The offline build takes
-   a schema-modification lock on Jobs.Registrations for its duration
-   (seconds at this row count, but it blocks readers): run it in a window.
+   Dev (TSIC-SEDONA\SS2016) is SQL Server 2019 Developer Edition. PROD IS
+   STANDARD -- confirmed 2026-09-02 by running the Developer-shaped version
+   there:
+
+       Msg 1712, Level 16, State 3
+       Online index operations can only be performed in Enterprise edition
+
+   Two options in this statement are edition-gated and BOTH fail outright
+   rather than degrading, so the script now detects support and builds the
+   statement to match:
+
+     ONLINE = ON          Enterprise/Developer only, any version.
+     DATA_COMPRESSION     Enterprise only before SQL Server 2016 SP1; any
+                          edition from 2016 SP1 (13.0.4001) onward.
+
+   On Standard the build is OFFLINE: it takes a schema-modification lock on
+   Jobs.Registrations for its whole duration, which blocks readers AND
+   writers -- registration, payment and roster traffic included. Expect
+   seconds at 668,672 rows, but "seconds" is not "none". RUN IT IN A QUIET
+   WINDOW. There is no Standard-edition way to avoid the lock; if the window
+   is unacceptable the honest answer is to skip the index, not to reach for
+   a workaround.
 
    Idempotent -- safe to re-run, does nothing if the index already exists.
    ============================================================================= */
@@ -74,17 +90,44 @@ BEGIN
 END
 ELSE
 BEGIN
-    PRINT 'Creating IX_Registrations_AssignedTeamId on Jobs.Registrations...';
-
     /* ---------------------------------------------------------------------
-       ONLINE = ON requires Enterprise or Developer edition.
-       On Standard, delete the WITH clause below (or set ONLINE = OFF) and
-       run it in a maintenance window -- it will lock the table.
+       EngineEdition 3 is Enterprise -- and also Developer and Evaluation,
+       which is why dev accepted ONLINE = ON and prod did not.
+       Compression: Enterprise at any version, or 2016 SP1 (13.0.4001) and
+       later on any edition.
        --------------------------------------------------------------------- */
-    CREATE NONCLUSTERED INDEX IX_Registrations_AssignedTeamId
-        ON Jobs.Registrations (assigned_teamID)
-        INCLUDE (bActive, RoleId, RegistrationTS)
-        WITH (ONLINE = ON, DATA_COMPRESSION = PAGE, FILLFACTOR = 90);
+    DECLARE @enterprise bit =
+        CASE WHEN SERVERPROPERTY('EngineEdition') = 3 THEN 1 ELSE 0 END;
+
+    DECLARE @major int = TRY_CAST(SERVERPROPERTY('ProductMajorVersion') AS int);
+    DECLARE @build int = TRY_CAST(PARSENAME(CAST(SERVERPROPERTY('ProductVersion') AS nvarchar(64)), 2) AS int);
+
+    DECLARE @canCompress bit =
+        CASE WHEN @enterprise = 1
+                  OR @major >= 14
+                  OR (@major = 13 AND @build >= 4001)
+             THEN 1 ELSE 0 END;
+
+    DECLARE @with nvarchar(200) =
+        'FILLFACTOR = 90, SORT_IN_TEMPDB = ON'
+        + CASE WHEN @enterprise  = 1 THEN ', ONLINE = ON'          ELSE '' END
+        + CASE WHEN @canCompress = 1 THEN ', DATA_COMPRESSION = PAGE' ELSE '' END;
+
+    DECLARE @sql nvarchar(max) =
+        'CREATE NONCLUSTERED INDEX IX_Registrations_AssignedTeamId'
+        + ' ON Jobs.Registrations (assigned_teamID)'
+        + ' INCLUDE (bActive, RoleId, RegistrationTS)'
+        + ' WITH (' + @with + ');';
+
+    PRINT 'Edition: ' + CAST(SERVERPROPERTY('Edition') AS nvarchar(128))
+        + '  (' + CAST(SERVERPROPERTY('ProductVersion') AS nvarchar(64)) + ')';
+    PRINT CASE WHEN @enterprise = 1
+               THEN 'ONLINE build - readers and writers continue.'
+               ELSE 'OFFLINE build - Jobs.Registrations is LOCKED until it finishes.'
+          END;
+    PRINT @sql;
+
+    EXEC sys.sp_executesql @sql;
 
     PRINT 'Created.';
 END
