@@ -672,6 +672,11 @@
 							</select>
 						</div>
 					}
+
+					<button type="button" class="btn btn-sm btn-outline-secondary yoy-print"
+						(click)="printYoyChart()">
+						<i class="bi bi-printer me-1" aria-hidden="true"></i>Print
+					</button>
 				</div>
 
 				@if (yoyUngrouped().length > 0) {
@@ -690,7 +695,7 @@
 				}
 
 				@if (yoyChart(); as view) {
-					<section class="yoy-card">
+					<section class="yoy-card" id="yoy-print-area">
 						<header class="yoy-card__head">
 							<h3 class="yoy-card__title">
 								Revenue and registrations at
@@ -713,7 +718,7 @@
 						     event against its own history. A shared axis makes both readings available at
 						     once, with the lineage carried by the grouping row under the axis rather than
 						     by a card heading. -->
-						<ejs-chart
+						<ejs-chart #yoyChartRef
 							[primaryXAxis]="yoyXAxis()"
 							[primaryYAxis]="yoyYAxis()"
 							[axes]="yoyAxes()"

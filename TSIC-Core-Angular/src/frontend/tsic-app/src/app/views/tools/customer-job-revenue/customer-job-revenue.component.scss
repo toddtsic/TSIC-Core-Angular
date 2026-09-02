@@ -338,6 +338,27 @@
 	}
 }
 
+.yoy-print {
+	flex: 0 0 auto;
+	white-space: nowrap;
+}
+
+/* The print window is a fresh document carrying copies of this page's stylesheets, so these
+   rules apply there. The card is the whole printout — drop the chrome that only makes sense
+   on screen, and let the card sit flat rather than floating on a shadow. */
+@media print {
+	.yoy-print,
+	.yoy-card__scrollhint {
+		display: none !important;
+	}
+
+	.yoy-card {
+		border: none;
+		box-shadow: none;
+		overflow: visible;
+	}
+}
+
 .yoy-picker-label {
 	color: var(--brand-text-muted);
 	font-size: 0.8125rem;

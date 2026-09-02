@@ -22,7 +22,7 @@ import {
 	ExcelExportService
 } from '@syncfusion/ej2-angular-pivotview';
 import { MultiSelectAllModule } from '@syncfusion/ej2-angular-dropdowns';
-import { ChartAllModule, MultiLevelLabelService } from '@syncfusion/ej2-angular-charts';
+import { ChartAllModule, ChartComponent, MultiLevelLabelService } from '@syncfusion/ej2-angular-charts';
 import { AuthService } from '../../../infrastructure/services/auth.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { JobService } from '@infrastructure/services/job.service';
@@ -486,6 +486,21 @@ export class CustomerJobRevenueComponent {
 	readonly checkGrid = viewChild.required<GridComponent>('checkGrid');
 	readonly echeckGrid = viewChild.required<GridComponent>('echeckGrid');
 	readonly adjustmentsGrid = viewChild<GridComponent>('adjustmentsGrid');
+	readonly yoyChartRef = viewChild<ChartComponent>('yoyChartRef');
+
+	/**
+	 * Prints the whole YoY card, not just the chart: ej2's print clones the element you name
+	 * and copies every <link> and <style> off the page into the new window
+	 * (ej2-base/src/util.js:348), so the card's heading and season count come along styled and
+	 * the printout says what it is. The chart alone would be a picture of bars with the event
+	 * named only in the axis brace.
+	 *
+	 * The id is passed rather than the chart element because print(id) resolves it with
+	 * document.getElementById (ej2-charts helper.js:1674).
+	 */
+	printYoyChart(): void {
+		this.yoyChartRef()?.print('yoy-print-area');
+	}
 
 	constructor() {
 		// Emitter and subscriber share this component's lifetime — no teardown needed.
