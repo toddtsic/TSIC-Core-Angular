@@ -96,8 +96,7 @@ const YOY_VISIBLE_BARS = 16;
 const YOY_SERIES = {
 	collected: 'Collected',
 	owed: 'Owed',
-	paidCount: 'Paid (regs)',
-	owingCount: 'Owing (regs)'
+	count: 'Registrations'
 } as const;
 
 /** Whole dollars. The stack label is a headline figure; cents there are noise. */
@@ -137,7 +136,11 @@ interface YoyChartPoint {
 	/** The money stack, bottom then top. */
 	collected: number;
 	owed: number;
-	/** The registrations stack: settled at this bar's cutoff, and still carrying a balance. */
+	/**
+	 * The registrations bar plots the population. The settled/owing split rides along for the
+	 * tooltip only — see the count series in the template for why it is NOT drawn as a stack.
+	 */
+	population: number;
 	paidCount: number;
 	owingCount: number;
 	jobNames: string[];
@@ -724,6 +727,15 @@ export class CustomerJobRevenueComponent {
 	 */
 	readonly yoyCollectedColor = signal(cssVar('--brand-success', '#22c55e'));
 	readonly yoyOwedColor = signal(cssVar('--brand-danger', '#ef4444'));
+	/**
+	 * The registrations bar. A THIRD hue, not a reuse of the money pair (Todd, 2026-09-02):
+	 * green/red on both bars invited the reader to compare the red fraction of the dollars
+	 * against the red fraction of the people, and those two reds are not the same quantity.
+	 * Red-dollars is money not yet received; red-people was people not yet FINISHED — someone
+	 * who has paid 95% of a $3,500 fee counted fully red. On Players 2027 that gap held 532 of
+	 * 685 registrations, so the comparison the shared palette invited was one that never held.
+	 */
+	readonly yoyCountColor = signal(cssVar('--bs-primary', '#0ea5e9'));
 	private readonly yoyMuted = signal(cssVar('--brand-text-muted', '#78716c'));
 	private readonly yoyText = signal(cssVar('--brand-text', '#1c1917'));
 	private readonly yoyBorder = signal(cssVar('--brand-border', '#e7e5e4'));
@@ -835,6 +847,7 @@ export class CustomerJobRevenueComponent {
 			billed: y.billed,
 			collected: y.collected,
 			owed: y.owed,
+			population: y.paidCount + y.owingCount,
 			paidCount: y.paidCount,
 			owingCount: y.owingCount,
 			jobNames: y.jobNames
@@ -944,11 +957,13 @@ export class CustomerJobRevenueComponent {
 			opposedPosition: true,
 			minimum: 0,
 			title: 'Registrations',
-			titleStyle: { color: this.yoyMuted(), size: '11px', fontFamily: YOY_FONT_FAMILY },
+			// Tinted to the count bar, now that the bar has a colour of its own: the axis says
+			// which of the two scales it belongs to without the reader having to work it out.
+			titleStyle: { color: this.yoyCountColor(), size: '11px', fontFamily: YOY_FONT_FAMILY },
 			majorGridLines: { width: 0 },
 			majorTickLines: { width: 0 },
 			lineStyle: { width: 0 },
-			labelStyle: { color: this.yoyMuted(), size: '11px', fontFamily: YOY_FONT_FAMILY }
+			labelStyle: { color: this.yoyCountColor(), size: '11px', fontFamily: YOY_FONT_FAMILY }
 		}
 	]);
 
@@ -1085,13 +1100,13 @@ export class CustomerJobRevenueComponent {
 		}
 		const row = rows[i];
 
-		// Each stack's TOP series carries that stack's TOTAL, because its label is the one that
-		// sits above the whole bar: Owed prints Billed for the money stack, Owing prints the
-		// headcount for the count stack. The bottom series carry no marker at all, so nothing
-		// else reaches this handler.
+		// Owed is the money stack's TOP series, so its label is the one sitting above that bar
+		// and it prints Billed rather than its own segment. The count bar is a single series,
+		// so its label is already its total. Collected carries no marker, so nothing else
+		// reaches this handler.
 		const value =
 			name === YOY_SERIES.owed ? row.billed
-			: name === YOY_SERIES.owingCount ? row.paidCount + row.owingCount
+			: name === YOY_SERIES.count ? row.population
 			: 0;
 
 		if (value <= 0) {
@@ -1129,10 +1144,8 @@ export class CustomerJobRevenueComponent {
 		// The lineage label, taken from the axis's own group spans rather than re-derived — so
 		// the popup can never name an event differently from the brace under the bar.
 		const span = this.yoyChart().groupLevel.find(s => i >= s.start && i <= s.end);
-		const total = row.paidCount + row.owingCount;
 		args.headerText =
-			`${span ? `${span.text} · ` : ''}${row.rawYear} season, as of ${row.pinLabel}` +
-			` — ${regs(total)}`;
+			`${span ? `${span.text} · ` : ''}${row.rawYear} season, as of ${row.pinLabel}`;
 
 		// EXACTLY one entry per series, in series order: ej2 walks this array against its own
 		// point list to place the colour chips, and treats an empty string as "drop this
@@ -1141,8 +1154,11 @@ export class CustomerJobRevenueComponent {
 			switch (s?.name) {
 				case YOY_SERIES.collected: return `Collected: ${usd2(row.collected)}`;
 				case YOY_SERIES.owed: return `Owed: ${usd2(row.owed)}`;
-				case YOY_SERIES.paidCount: return `Paid: ${regs(row.paidCount)}`;
-				case YOY_SERIES.owingCount: return `Owing: ${regs(row.owingCount)}`;
+				// The settled/owing split is stated HERE and drawn nowhere: "settled" means a
+				// zero balance, so a registration 95% paid is owing — a distinction that reads
+				// correctly in words and misleads as a coloured fraction of a bar.
+				case YOY_SERIES.count:
+					return `${regs(row.population)} — ${row.paidCount} settled, ${row.owingCount} still owing`;
 				default: return args.text?.[k] ?? '';
 			}
 		});

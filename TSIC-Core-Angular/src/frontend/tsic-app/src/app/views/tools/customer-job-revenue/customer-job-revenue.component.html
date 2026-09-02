@@ -118,7 +118,7 @@
 	@if (!rollup() && !isLoading()) {
 		<div class="list-empty-state">
 			<i class="bi bi-funnel"></i>
-			<div>Pick a scope above and run the report.</div>
+			<div>Pick a date range above and run the report.</div>
 		</div>
 	}
 
@@ -592,10 +592,11 @@
 							<strong>Owed</strong>. Owed is computed as Billed less Collected at that cutoff —
 							it is not the balance as it stands today.
 							<br>
-							<strong>The registrations bar splits the same way.</strong> Green is how many were
-							fully paid at that cutoff, red how many still carried a balance, and each part
-							carries its own count. Comparing the red fraction of the two bars tells you
-							whether the money still out matches the people still owing.
+							<strong>The registrations bar is one colour, on purpose.</strong> It is a count,
+							not a second view of the money, and it is not split settled-versus-owing:
+							"settled" means a zero balance, so someone who has paid most of their fee still
+							counts as owing, and colouring that like the money bar would invite a comparison
+							that does not hold. Hover a bar for the split in words.
 							<br>
 							<strong>Events are grouped by name with the season removed</strong>, so
 							<em>Fall Draw 2026</em> and <em>Fall Draw 2025</em> sit under one heading. The jobs
@@ -737,32 +738,24 @@
 								     axes start at zero, so the two heights stay honestly comparable
 								     season to season.
 
-								     Split paid/owing in the SAME two colours as the money bar, and in the
-								     same order, deliberately: the question this pairing answers is whether
-								     the red fraction of the dollars matches the red fraction of the people
-								     — which is a comparison the eye makes directly only if both bars are
-								     drawn in one visual language. What separates them is position, the
-								     axis each is measured against, and the units on their labels. -->
+								     ONE colour, NOT split settled/owing in the money bar's green and red
+								     (Todd, 2026-09-02). Sharing the palette invited the reader to compare
+								     the red fraction of the dollars with the red fraction of the people,
+								     and those two reds are not the same quantity: red-dollars is money not
+								     yet received, red-people was people not yet FINISHED. A registration
+								     95% paid counted fully red — 532 of 685 on Players 2027 sat in exactly
+								     that gap, holding 43% of every dollar collected. So the bar says the
+								     one thing it can say honestly, how many registrations, and the
+								     settled/owing split is stated in the tooltip in words instead. -->
 								<e-series
 									[dataSource]="view.points"
 									type="StackingColumn"
 									xName="key"
-									yName="paidCount"
-									name="Paid (regs)"
+									yName="population"
+									name="Registrations"
 									stackingGroup="count"
 									yAxisName="count"
-									[fill]="yoyCollectedColor()"
-									[columnWidth]="0.7">
-								</e-series>
-								<e-series
-									[dataSource]="view.points"
-									type="StackingColumn"
-									xName="key"
-									yName="owingCount"
-									name="Owing (regs)"
-									stackingGroup="count"
-									yAxisName="count"
-									[fill]="yoyOwedColor()"
+									[fill]="yoyCountColor()"
 									[columnWidth]="0.7"
 									[cornerRadius]="yoyTopCorner"
 									[marker]="yoyTotalMarker">
