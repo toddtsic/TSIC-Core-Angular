@@ -91,6 +91,24 @@ const ADJUSTMENTS_BASIS = 'who carries a fee adjustment, and how much';
 const YOY_VISIBLE_BARS = 16;
 
 /**
+ * The width the chart is rendered at for printing, in pixels.
+ *
+ * A US Letter page in portrait with 12mm margins leaves roughly 750px of printable width at
+ * 96dpi. The chart is sized to its container on screen — around 1450px — and the SVG carries
+ * that as literal width and height attributes with no viewBox, so nothing scales it: the clone
+ * lands on the sheet at full size and the right-hand seasons simply fall off the edge.
+ *
+ * ej2 does try to help and cannot: chart.print() shrinks a PERCENTAGE width to 80% before
+ * cloning (chart.js:1062), but 80% of a 1450px container is still 1160px of paper it does not
+ * have. Setting an explicit pixel width bypasses that branch and sizes the chart to the sheet.
+ *
+ * 720 rather than something larger because the printout should not depend on the reader picking
+ * landscape in a dialog. It comfortably fits the bars too: the chart shows one event at a time,
+ * so 7 seasons is a long lineage, and 7 x 2 bars x 28px is 392px.
+ */
+const YOY_PRINT_WIDTH = 720;
+
+/**
  * Series names. The name is what tells every formatter which SCALE a value came from, so they
  * live in one place — a rename made in the template alone would leave a formatter silently
  * printing registrations as dollars.
@@ -500,7 +518,25 @@ export class CustomerJobRevenueComponent {
 	 * document.getElementById (ej2-charts helper.js:1674).
 	 */
 	printYoyChart(): void {
-		this.yoyChartRef()?.print('yoy-print-area');
+		const chart = this.yoyChartRef();
+		if (!chart) {
+			return;
+		}
+		// Render to the paper's width, clone, then put it back. ej2's own print does exactly
+		// this dance for percentage widths (chart.js:1060-1070) — the width it picks is just
+		// the wrong one. dataBind() re-renders synchronously, which is what makes the clone see
+		// the resized chart; see YOY_PRINT_WIDTH.
+		const onScreen = chart.width;
+		chart.width = `${YOY_PRINT_WIDTH}px`;
+		chart.dataBind();
+		try {
+			chart.print('yoy-print-area');
+		} finally {
+			// A blocked pop-up or a throw inside the print window must not strand the chart at
+			// half its width on screen.
+			chart.width = onScreen;
+			chart.dataBind();
+		}
 	}
 
 	/**

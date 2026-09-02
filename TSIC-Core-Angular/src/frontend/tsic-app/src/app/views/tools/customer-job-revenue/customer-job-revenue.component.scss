@@ -345,7 +345,15 @@
 
 /* The print window is a fresh document carrying copies of this page's stylesheets, so these
    rules apply there. The card is the whole printout — drop the chrome that only makes sense
-   on screen, and let the card sit flat rather than floating on a shadow. */
+   on screen, and let the card sit flat rather than floating on a shadow.
+
+   The chart itself is sized for the page in TypeScript before the clone is taken, because the
+   SVG carries pixel width and height with no viewBox and so cannot be scaled by CSS from here
+   — see YOY_PRINT_WIDTH. */
+@page {
+	margin: 12mm;
+}
+
 @media print {
 	.yoy-print,
 	.yoy-card__scrollhint {
@@ -356,6 +364,18 @@
 		border: none;
 		box-shadow: none;
 		overflow: visible;
+		padding: 0;
+		/* The card is the page. Left to its own devices it keeps the on-screen width and
+		   pushes the heading off the sheet alongside the chart. */
+		width: auto;
+		max-width: 100%;
+	}
+
+	/* Keep the heading and the season count on one line with the chart beneath, rather than
+	   letting a page break land between a chart and the title that says what it is. */
+	.yoy-card,
+	.yoy-card__head {
+		break-inside: avoid;
 	}
 }
 
