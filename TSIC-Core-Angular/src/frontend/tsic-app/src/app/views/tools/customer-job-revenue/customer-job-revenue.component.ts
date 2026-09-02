@@ -989,20 +989,6 @@ export class CustomerJobRevenueComponent {
 	 * printing a bare 1420512.5. Whole dollars — cents above a bar are noise at this scale.
 	 */
 	/**
-	 * Counts INSIDE the segments they describe: how many are settled, how many still owe, as of
-	 * that bar's cutoff.
-	 *
-	 * On the REGISTRATIONS bar only (Todd, 2026-09-02). They used to sit inside the money
-	 * segments, which meant reading a headcount off a dollar bar; now each segment is labelled
-	 * with its own units.
-	 */
-	readonly yoySegmentLabel = {
-		visible: true,
-		position: 'Middle' as const,
-		font: { fontFamily: YOY_FONT_FAMILY, size: '11px', fontWeight: '600', color: '#ffffff' }
-	};
-
-	/**
 	 * The bar's total, above it. Carried by the stack's TOP series as an ordinary data label —
 	 * NOT by the chart's `stackLabels`, which is unusable here (Todd caught the numbers,
 	 * 2026-09-02). Two defects in ej2 33.1.44's calculateStackLabel:
@@ -1026,7 +1012,6 @@ export class CustomerJobRevenueComponent {
 	 * object literal in a binding is a new reference every change-detection pass, ej2 reads
 	 * that as a changed input, and the chart rebuilds under the user's cursor.
 	 */
-	readonly yoySegmentMarker = { dataLabel: this.yoySegmentLabel };
 	readonly yoyTotalMarker = { dataLabel: this.yoyTotalLabel };
 	readonly yoyTopCorner = { topLeft: 3, topRight: 3 };
 	readonly yoyChartArea = { border: { width: 0 } };
@@ -1072,15 +1057,18 @@ export class CustomerJobRevenueComponent {
 	}
 
 	/**
-	 * Every piece of text ej2 draws on the plot: the dollar total above the money bar, and the
-	 * two counts inside the registrations segments.
+	 * Every piece of text ej2 draws on the plot: one total above each of the two bars, in that
+	 * bar's own units. Nothing is written inside a segment (Todd, 2026-09-02) — ej2 allows one
+	 * data label per series, so labelling a segment could only ever reach ONE side of a stack,
+	 * and a lone number inside one colour reads as arbitrary rather than as a pair. The
+	 * proportion is what the fill is for; the exact split is in the tooltip.
 	 *
 	 * The value is ALWAYS taken from the point's own row, never parsed back out of args.text —
 	 * with useGroupingSeparator on, a four-figure count arrives as "1,234" and Number() of that
 	 * is NaN, which would have blanked the label on exactly the biggest events.
 	 *
 	 * Suppressed when the value is zero: a season that sold nothing before its cutoff would
-	 * otherwise carry a "$0" on the baseline, and a settled one a "0" in a segment of no height.
+	 * otherwise carry a "$0" floating on the baseline.
 	 */
 	onYoySegmentLabel(args: {
 		text?: string;
@@ -1097,17 +1085,13 @@ export class CustomerJobRevenueComponent {
 		}
 		const row = rows[i];
 
-		// Each stack's TOP series carries that stack's TOTAL, because its label sits above the
-		// whole bar: Owed prints Billed for the money stack, Owing prints the registration
-		// count for the count stack. Only the bottom series labels its own segment.
-		//
-		// A consequence of ej2 allowing ONE dataLabel per series: the owing count cannot be
-		// printed inside its segment as well as the total above it. It is the red remainder of
-		// a bar whose total and paid part are both labelled, and the tooltip names it outright.
+		// Each stack's TOP series carries that stack's TOTAL, because its label is the one that
+		// sits above the whole bar: Owed prints Billed for the money stack, Owing prints the
+		// headcount for the count stack. The bottom series carry no marker at all, so nothing
+		// else reaches this handler.
 		const value =
 			name === YOY_SERIES.owed ? row.billed
 			: name === YOY_SERIES.owingCount ? row.paidCount + row.owingCount
-			: name === YOY_SERIES.paidCount ? row.paidCount
 			: 0;
 
 		if (value <= 0) {
