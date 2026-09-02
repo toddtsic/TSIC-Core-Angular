@@ -1241,6 +1241,19 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
 
             // --- Entity COUNTS, classified at the SAME cutoff as the money.
             //
+            //     These filter r.BActive; the MONEY queries above deliberately do not. That
+            //     asymmetry is the ruling, not an oversight (Todd, 2026-09-02): bActive says
+            //     whether a registration still counts as a registration, and it has no bearing
+            //     on money that actually moved. LI Yellow Jackets:Players 2027 carries a
+            //     deactivated registration whose fee was zeroed on drop but which took $875 on
+            //     a card and gave $850 back — both real transactions, both listed on the CC
+            //     Records tab. Filtering receipts on bActive would delete them and put this tab
+            //     at odds with the one showing the transactions themselves.
+            //
+            //     Filtering the counts also puts them in step with the roster headcount Q2 in
+            //     GetTeamBillingAsync, which has always filtered BActive — before this, the same
+            //     job reported 696 registrations here and 685 there.
+            //
             //     Deliberately NOT read from owed_total. That column is the balance as it stands
             //     TODAY, and this report is as-of: on Girls Elite Players 2025-2026 all 184 of 184
             //     registrations read owed_total = 0 while the bar for that season is mostly red,
@@ -1259,6 +1272,7 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 join t in _context.Teams on r.AssignedTeamId equals t.TeamId
                 where batchIds.Contains(t.JobId)
                     && t.Active == true
+                    && r.BActive == true
                     && (r.FeeTotal != 0m || r.FeeDiscount != 0m)
                     && r.RegistrationTs < pinEx
                 group r by t.JobId into g
@@ -1271,6 +1285,7 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 join t in _context.Teams on r.AssignedTeamId equals t.TeamId
                 where batchIds.Contains(t.JobId)
                     && t.Active == true
+                    && r.BActive == true
                     && (r.FeeTotal != 0m || r.FeeDiscount != 0m)
                     && r.RegistrationTs < pinEx
                     // Player ledger rows never carry a TeamId — that is the route discriminator

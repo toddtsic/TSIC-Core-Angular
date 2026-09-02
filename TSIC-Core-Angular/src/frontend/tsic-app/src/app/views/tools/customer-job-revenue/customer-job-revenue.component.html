@@ -553,52 +553,56 @@
 		@if (activeTab() === 'yoy') {
 			<!-- Same "say what this is" contract as Teams/Players: two tabs on this page use the
 			     word "owed" pointing in opposite directions, so the basis is stated, not inferred. -->
-			<div class="alert alert-info yoy-basis d-flex align-items-start gap-2">
-				<i class="bi bi-graph-up-arrow mt-1"></i>
-				<div class="flex-grow-1">
+			<div class="cjr-info-panel tsic-callout tsic-callout--warning tsic-callout--block" role="note">
+				<i class="bi bi-info-circle" aria-hidden="true"></i>
+				<span>
 					<strong>This tab is {{ yoyBasis }}.</strong>
-					<button type="button" class="btn btn-link btn-sm p-0 ms-2 align-baseline"
-						(click)="toggleYoyHelp()"
-						[attr.aria-expanded]="yoyHelpOpen()">
-						<i class="bi"
+					It paces each event against where the same event stood at this point in prior
+					seasons, rather than against what those seasons finished with.
+					<button type="button" class="cjr-help-toggle"
+						[attr.aria-expanded]="yoyHelpOpen()"
+						(click)="toggleYoyHelp()">
+						<i class="bi" aria-hidden="true"
 							[class.bi-chevron-right]="!yoyHelpOpen()"
 							[class.bi-chevron-down]="yoyHelpOpen()"></i>
-						How to read it
+						How to read this
 					</button>
 					@if (yoyHelpOpen()) {
-						<div class="yoy-help mt-2">
-							<p class="mb-2">
-								Every season is measured at the <strong>same point in the calendar</strong> —
-								your end date, shifted back a whole year at a time. Ask on 8/31/2026 and the
-								2025 bars show where 2025 stood on <strong>8/31/2025</strong>, not what it
-								finished with. That is what makes a season still selling comparable to one
-								that has already run.
-							</p>
-							<p class="mb-2">
-								Because the cutoff travels with the date you ask, older seasons are not frozen.
-								Run this a month from now and last season's bars advance a month too.
-							</p>
-							<p class="mb-2">
-								<strong>One bar per season.</strong> The whole bar is <strong>Billed</strong> — what was charged,
-								already net of adjustments — printed above it. The green part is <strong>Collected</strong>,
-								what came in; the red part on top is <strong>Owed</strong>, the gap still out at that cutoff.
-								Owed is computed as Billed less Collected there, not the balance as it stands today.
-							</p>
-							<p class="mb-2">
-								<strong>Each bar is labelled with its own cutoff</strong>, not just its year, so you can
-								see at a glance that you are comparing the same date every season.
-								<strong>Collected</strong> is what came in, all methods, refunds netted out.
-								<strong>Owed</strong> is Billed less Collected at that cutoff — computed here,
-								not the balance as it stands today.
-							</p>
-							<p class="mb-0">
-								Events are grouped by name with the year removed, so <em>Fall Draw 2026</em> and
-								<em>Fall Draw 2025</em> land on one chart. The jobs behind each chart are listed
-								underneath — check them if a comparison looks wrong.
-							</p>
-						</div>
+						<span class="cjr-help-detail">
+							<strong>Every season is cut at the same point in the calendar</strong> — your end
+							date, shifted back a whole year at a time. Ask on 8/31/2026 and the 2025 bars show
+							where 2025 stood on 8/31/2025, not what it finished with. That is what makes a
+							season still selling comparable to one that has already run, and each bar prints
+							its own cutoff beneath it so you can see the same date repeating.
+							<br>
+							<strong>The cutoff travels with the date you ask, so older seasons are not
+							frozen.</strong> Run this a month from now and last season's bars advance a month
+							too. A season that had not opened yet by its cutoff shows an empty bar — that is
+							an answer, not a gap: the event was selling by this date last year and is not
+							this year.
+							<br>
+							<strong>Two bars per season, on two scales.</strong> The left bar is money, read
+							against the left axis; the right bar is registrations, read against the right.
+							They are separate measures on purpose — a fee increase raises the money bar with
+							no more people in the event, and only a pair of bars shows you which one moved.
+							<br>
+							<strong>The money bar's full height is Billed</strong>, what was charged, already
+							net of adjustments, printed above it. The green part is <strong>Collected</strong>,
+							what came in across all methods with refunds netted out; the red part on top is
+							<strong>Owed</strong>. Owed is computed as Billed less Collected at that cutoff —
+							it is not the balance as it stands today.
+							<br>
+							<strong>The registrations bar splits the same way.</strong> Green is how many were
+							fully paid at that cutoff, red how many still carried a balance, and each part
+							carries its own count. Comparing the red fraction of the two bars tells you
+							whether the money still out matches the people still owing.
+							<br>
+							<strong>Events are grouped by name with the season removed</strong>, so
+							<em>Fall Draw 2026</em> and <em>Fall Draw 2025</em> sit under one heading. The jobs
+							behind the chart are listed underneath — check them if a comparison looks wrong.
+						</span>
 					}
-				</div>
+				</span>
 			</div>
 
 			@if (yoyNeedsDateScope()) {
@@ -620,12 +624,12 @@
 					— and their prior seasons are pulled in regardless of age.
 				</div>
 			} @else {
-				@if (yoyAsOfDate(); as asOf) {
+				@if (yoyAsOfMmDd(); as mmdd) {
 					<p class="yoy-asof">
 						<i class="bi bi-pin-angle me-1"></i>
-						Newest season measured as of <strong>{{ asOf | date:'MMM d, y' }}</strong>; each earlier season the same date a
-						whole number of years before that — one step back per season, so a bar's cutoff
-						need not land in the season's own year.
+						Every season cut at <strong>{{ mmdd }}</strong> — the newest at
+						{{ yoyAsOfDate() | date:'MMM d, y' }}, each earlier one at {{ mmdd }} a whole
+						number of years before that.
 					</p>
 				}
 
@@ -647,7 +651,11 @@
 				@if (yoyChart(); as view) {
 					<section class="yoy-card">
 						<header class="yoy-card__head">
-							<h3 class="yoy-card__title">Revenue by event and season</h3>
+							<h3 class="yoy-card__title">
+								Revenue and registrations at
+								@if (yoyAsOfMmDd(); as mmdd) { <strong>{{ mmdd }}</strong> } @else { the same date }
+								each season
+							</h3>
 							<span class="yoy-card__meta">
 								{{ view.groups.length }} event{{ view.groups.length === 1 ? '' : 's' }},
 								{{ view.points.length }} season{{ view.points.length === 1 ? '' : 's' }}
@@ -665,21 +673,21 @@
 						     once, with the lineage carried by the grouping row under the axis rather than
 						     by a card heading. -->
 						<ejs-chart
-							[primaryXAxis]="yoyXAxis(view)"
+							[primaryXAxis]="yoyXAxis()"
 							[primaryYAxis]="yoyYAxis()"
-							[zoomSettings]="yoyZoom(view)"
+							[axes]="yoyAxes()"
+							[zoomSettings]="yoyZoom()"
 							[tooltip]="yoyTooltip"
 							[legendSettings]="yoyLegend"
 							[chartArea]="yoyChartArea"
 							[margin]="yoyMargin"
-							[stackLabels]="yoyStackLabels"
 							[useGroupingSeparator]="true"
 							[width]="'100%'"
 							[height]="'460'"
 							[background]="'transparent'"
 							(axisLabelRender)="onYoyAxisLabel($event)"
 							(textRender)="onYoySegmentLabel($event)"
-							(tooltipRender)="onYoyTooltip($event)">
+							(sharedTooltipRender)="onYoySharedTooltip($event)">
 							<e-series-collection>
 								<!-- ONE bar per season, not three. The bar's full height is what was billed,
 								     split into the part that came in and the part still out — so the eye
@@ -701,9 +709,9 @@
 									xName="key"
 									yName="collected"
 									name="Collected"
+									stackingGroup="money"
 									[fill]="yoyCollectedColor()"
-									[columnWidth]="0.6"
-									[marker]="{ dataLabel: yoySegmentLabel }">
+									[columnWidth]="0.7">
 								</e-series>
 								<e-series
 									[dataSource]="view.points"
@@ -711,10 +719,54 @@
 									xName="key"
 									yName="owed"
 									name="Owed"
+									stackingGroup="money"
 									[fill]="yoyOwedColor()"
-									[columnWidth]="0.6"
-									[cornerRadius]="{ topLeft: 3, topRight: 3 }"
-									[marker]="{ dataLabel: yoySegmentLabel }">
+									[columnWidth]="0.7"
+									[cornerRadius]="yoyTopCorner"
+									[marker]="yoyTotalMarker">
+								</e-series>
+
+								<!-- The PAIRED bar: how many registrations stand behind the money, on its
+								     own scale at the right (Todd, 2026-09-02). Dollars and registrations
+								     are different measures — a fee increase raises the money bar with no
+								     more people in the event — so plotting both against one axis would
+								     bury the divergence that makes a revenue trend worth reading.
+
+								     Its own stackingGroup is what puts it BESIDE the money stack rather
+								     than on top of it; yAxisName binds it to the right-hand scale. Both
+								     axes start at zero, so the two heights stay honestly comparable
+								     season to season.
+
+								     Split paid/owing in the SAME two colours as the money bar, and in the
+								     same order, deliberately: the question this pairing answers is whether
+								     the red fraction of the dollars matches the red fraction of the people
+								     — which is a comparison the eye makes directly only if both bars are
+								     drawn in one visual language. What separates them is position, the
+								     axis each is measured against, and the units on their labels. -->
+								<e-series
+									[dataSource]="view.points"
+									type="StackingColumn"
+									xName="key"
+									yName="paidCount"
+									name="Paid (regs)"
+									stackingGroup="count"
+									yAxisName="count"
+									[fill]="yoyCollectedColor()"
+									[columnWidth]="0.7"
+									[marker]="yoySegmentMarker">
+								</e-series>
+								<e-series
+									[dataSource]="view.points"
+									type="StackingColumn"
+									xName="key"
+									yName="owingCount"
+									name="Owing (regs)"
+									stackingGroup="count"
+									yAxisName="count"
+									[fill]="yoyOwedColor()"
+									[columnWidth]="0.7"
+									[cornerRadius]="yoyTopCorner"
+									[marker]="yoyTotalMarker">
 								</e-series>
 							</e-series-collection>
 						</ejs-chart>
@@ -735,13 +787,6 @@
 							}
 						</details>
 					</section>
-				}
-
-				@if (yoyHasActiveColumn()) {
-					<p class="yoy-footnote">
-						<strong>*</strong> Season still open at that cutoff — it has not finished taking
-						money yet, so it is expected to sit below a completed one.
-					</p>
 				}
 			}
 		}

@@ -88,29 +88,58 @@ const ADJUSTMENTS_BASIS = 'who carries a fee adjustment, and how much';
  */
 const YOY_VISIBLE_BARS = 16;
 
+/**
+ * Series names. The name is what tells every formatter which SCALE a value came from, so they
+ * live in one place — a rename made in the template alone would leave a formatter silently
+ * printing registrations as dollars.
+ */
+const YOY_SERIES = {
+	collected: 'Collected',
+	owed: 'Owed',
+	paidCount: 'Paid (regs)',
+	owingCount: 'Owing (regs)'
+} as const;
+
+/** Whole dollars. The stack label is a headline figure; cents there are noise. */
+function usd0(v: number): string {
+	return v.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+}
+
+/** To the cent. The tooltip is the only place the exact figure appears. */
+function usd2(v: number): string {
+	return v.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
+}
+
+/** "180 registrations" / "1 registration". */
+function regs(n: number): string {
+	return `${n} registration${n === 1 ? '' : 's'}`;
+}
+
 /** One season of one lineage, shaped for the chart. */
 interface YoyChartPoint {
 	/**
 	 * The category VALUE, and it must be unique across the whole chart. A Category axis keys
 	 * points by their x value, so two lineages both showing a 2025 season would collapse into
 	 * one bar. Prefixed with the lineage index; onYoyAxisLabel strips the prefix back off, so
-	 * what remains IS the axis label and everything the reader must see has to be in here —
-	 * the season and its in-flight asterisk both.
+	 * what remains IS the axis label, so everything the reader must see has to be in here.
 	 */
 	key: string;
 	/** The cutoff this bar was measured at, printed on its own row under the axis. */
 	pinLabel: string;
+	/** The season, named in the tooltip header — the axis shows it via the key. */
 	rawYear: number;
+	/**
+	 * The bar's full height, printed above it. Taken from the backend rather than re-derived
+	 * as collected + owed: the two agree by construction today, and if they ever stop the
+	 * label should show what the report computed, not what the chart happened to stack.
+	 */
 	billed: number;
+	/** The money stack, bottom then top. */
 	collected: number;
 	owed: number;
-	/** Entities settled at this bar's cutoff, and entities still carrying a balance. */
+	/** The registrations stack: settled at this bar's cutoff, and still carrying a balance. */
 	paidCount: number;
 	owingCount: number;
-	adj: number;
-	refunds: number;
-	asOf: string;
-	active: boolean;
 	jobNames: string[];
 }
 
@@ -700,6 +729,21 @@ export class CustomerJobRevenueComponent {
 	private readonly yoyBorder = signal(cssVar('--brand-border', '#e7e5e4'));
 
 	readonly yoyAsOfDate = computed(() => this.yoy()?.asOfDate ?? null);
+
+	/**
+	 * The month and day every bar is cut at — "8/31". This IS the year-over-year idea: the
+	 * comparison is only honest because each season is measured at the same point in its own
+	 * cycle, and a reader who does not see that reads a season still selling as a season that
+	 * sold badly. Named in the heading, repeated under every bar.
+	 */
+	readonly yoyAsOfMmDd = computed<string | null>(() => {
+		const iso = this.yoyAsOfDate();
+		if (!iso) {
+			return null;
+		}
+		const [, m, d] = iso.slice(0, 10).split('-').map(Number);
+		return Number.isFinite(m) && Number.isFinite(d) ? `${m}/${d}` : null;
+	});
 	readonly yoyUngrouped = computed(() => this.yoy()?.ungroupedJobNames ?? []);
 	readonly yoyGroups = computed<YoyChartGroup[]>(() =>
 		(this.yoy()?.groups ?? []).map((g, i) => this.toChartGroup(g, i)));
@@ -733,14 +777,13 @@ export class CustomerJobRevenueComponent {
 			}
 			const start = points.length;
 			for (const p of g.points) {
-				// The cutoff, and how many entities stand behind the bar. The segments split
-				// that population into settled and still-owing; this is the whole of it, which
-				// is what the reader needs when one of the two is zero and suppressed.
-				const population = p.paidCount + p.owingCount;
+				// The cutoff. The population used to be printed here in parentheses; it is a bar
+				// of its own now — stacked paid over owing, against its own scale — so repeating
+				// it under the axis would be the same number twice.
 				pinLevel.push({
 					start: points.length - BAND,
 					end: points.length + BAND,
-					text: population > 0 ? `${p.pinLabel} (${population})` : p.pinLabel
+					text: p.pinLabel
 				});
 				points.push(p);
 			}
@@ -771,17 +814,18 @@ export class CustomerJobRevenueComponent {
 	 */
 	readonly yoyNeedsDateScope = computed(() => this.submittedScope()?.mode === 'jobs');
 
-	/** Any season still open at its own cutoff — drives whether the footnote is worth printing. */
-	readonly yoyHasActiveColumn = computed(() =>
-		this.yoyChart().points.some(p => p.active));
-
+	/** One lineage's seasons, shaped for the chart. */
 	private toChartGroup(g: YoyEventGroupDto, index: number): YoyChartGroup {
 		const points: YoyChartPoint[] = g.years.map(y => ({
-			// The asterisk is the in-flight marker, and it is TEXT on purpose — a season that
-			// has not finished must not be distinguished by colour alone. It rides INSIDE the
-			// key: the axis renders the key, so a marker held anywhere else never reaches the
-			// screen while the footnote explaining it still prints.
-			key: y.isActive ? `${index}|${y.year}*` : `${index}|${y.year}`,
+			// Unique across the whole chart, because a Category axis keys points by their x
+			// value and two lineages both showing a 2025 season would otherwise collapse into
+			// one bar. onYoyAxisLabel strips the lineage prefix back off.
+			//
+			// No in-flight asterisk (Todd, 2026-09-02). It marked seasons still taking money,
+			// which was worth saying when a bar could be read as a finished total — but every
+			// bar is now cut at the same month and day and labelled with that date, so a
+			// partial view is the premise of the chart rather than a caveat on some bars.
+			key: `${index}|${y.year}`,
 			// The pin is a SECOND row, never the axis label itself. It is offset from the
 			// lineage's anchor, not from the season's own calendar year, so a 2024 season can
 			// legitimately be measured at 8/31/23 — a label showing only the cutoff would put
@@ -793,10 +837,6 @@ export class CustomerJobRevenueComponent {
 			owed: y.owed,
 			paidCount: y.paidCount,
 			owingCount: y.owingCount,
-			adj: y.adj,
-			refunds: y.refunds,
-			asOf: y.asOf,
-			active: y.isActive,
 			jobNames: y.jobNames
 		}));
 
@@ -835,8 +875,15 @@ export class CustomerJobRevenueComponent {
 	/**
 	 * Category axis — seasons, with two label rows beneath: each bar's cutoff, then the event
 	 * it belongs to. The lineage row is what turns one long axis back into readable groups.
+	 *
+	 * COMPUTED, never a method called from the template. A method hands ej2 a brand-new object
+	 * on every change-detection pass; ej2 sees a changed input and rebuilds the chart. Mouse
+	 * movement is itself what triggers change detection, so the rebuild landed precisely while
+	 * the user was interacting — killing an open tooltip about a second after it appeared and
+	 * snapping the scroll position back to the top. Same defect, two symptoms.
 	 */
-	yoyXAxis(view: YoyChartView): object {
+	readonly yoyXAxis = computed<object>(() => {
+		const view = this.yoyChart();
 		return {
 			valueType: 'Category',
 			majorGridLines: { width: 0 },
@@ -863,24 +910,55 @@ export class CustomerJobRevenueComponent {
 			// the newest lineage looks like the only one.
 			...(view.needsScroll ? { zoomFactor: view.zoomFactor, zoomPosition: 1 } : {})
 		};
-	}
+	});
 
-	/** Value axis — dollars, abbreviated by onYoyAxisLabel. */
-	yoyYAxis(): object {
-		return {
-			majorGridLines: { width: 0.5, color: this.yoyBorder() },
+	/**
+	 * Value axis — dollars, abbreviated by onYoyAxisLabel.
+	 *
+	 * Anchored at zero, as is the count axis opposite it. Two scales side by side can be made to
+	 * tell almost any story by where their baselines sit; both starting at zero is what keeps
+	 * the comparison this chart exists for — do fees and headcount move together? — honest.
+	 */
+	readonly yoyYAxis = computed<object>(() => ({
+		minimum: 0,
+		title: 'Dollars',
+		titleStyle: { color: this.yoyMuted(), size: '11px', fontFamily: YOY_FONT_FAMILY },
+		majorGridLines: { width: 0.5, color: this.yoyBorder() },
+		majorTickLines: { width: 0 },
+		lineStyle: { width: 0 },
+		labelStyle: { color: this.yoyMuted(), size: '11px', fontFamily: YOY_FONT_FAMILY }
+	}));
+
+	/**
+	 * The second scale: registrations, on the right (Todd, 2026-09-02). Dollars and
+	 * registrations are different measures and move independently — fees rise without headcount
+	 * rising — so one axis for both would hide exactly the divergence worth seeing. The count
+	 * series bind to this axis by name.
+	 *
+	 * No gridlines: the money axis already rules the plot, and a second set at different
+	 * intervals reads as a moiré rather than as a scale.
+	 */
+	readonly yoyAxes = computed<object[]>(() => [
+		{
+			name: 'count',
+			opposedPosition: true,
+			minimum: 0,
+			title: 'Registrations',
+			titleStyle: { color: this.yoyMuted(), size: '11px', fontFamily: YOY_FONT_FAMILY },
+			majorGridLines: { width: 0 },
 			majorTickLines: { width: 0 },
 			lineStyle: { width: 0 },
 			labelStyle: { color: this.yoyMuted(), size: '11px', fontFamily: YOY_FONT_FAMILY }
-		};
-	}
+		}
+	]);
 
 	/**
 	 * Pan-only. Mouse-wheel zooming is OFF deliberately: this tab is a vertical stack of
 	 * charts, and a wheel handler on each one would hijack page scrolling. Selection zooming
 	 * and the toolbar are off for the same reason — the scrollbar is the whole interaction.
 	 */
-	yoyZoom(view: YoyChartView): object {
+	readonly yoyZoom = computed<object>(() => {
+		const view = this.yoyChart();
 		return {
 			enableScrollbar: view.needsScroll,
 			enablePan: view.needsScroll,
@@ -891,7 +969,7 @@ export class CustomerJobRevenueComponent {
 			enableDeferredZooming: false,
 			toolbarItems: []
 		};
-	}
+	});
 
 	readonly yoyLegend = {
 		visible: true, position: 'Top' as const, alignment: 'Far' as const, padding: 8,
@@ -912,8 +990,11 @@ export class CustomerJobRevenueComponent {
 	 */
 	/**
 	 * Counts INSIDE the segments they describe: how many are settled, how many still owe, as of
-	 * that bar's cutoff. Rendered through onYoySegmentLabel, which reads the count off the point
-	 * rather than the plotted value — the bar is dollars, the label is people.
+	 * that bar's cutoff.
+	 *
+	 * On the REGISTRATIONS bar only (Todd, 2026-09-02). They used to sit inside the money
+	 * segments, which meant reading a headcount off a dollar bar; now each segment is labelled
+	 * with its own units.
 	 */
 	readonly yoySegmentLabel = {
 		visible: true,
@@ -921,21 +1002,47 @@ export class CustomerJobRevenueComponent {
 		font: { fontFamily: YOY_FONT_FAMILY, size: '11px', fontWeight: '600', color: '#ffffff' }
 	};
 
-	readonly yoyStackLabels = {
+	/**
+	 * The bar's total, above it. Carried by the stack's TOP series as an ordinary data label —
+	 * NOT by the chart's `stackLabels`, which is unusable here (Todd caught the numbers,
+	 * 2026-09-02). Two defects in ej2 33.1.44's calculateStackLabel:
+	 *
+	 *   1. For each stacking group it walks seriesIndex from that group's last series DOWN TO
+	 *      ZERO, sweeping in series that belong to other groups — so the registrations stack's
+	 *      label can be sourced from a money series' stackedValues, and vice versa.
+	 *   2. In the negative pass, a category matching neither branch redraws using the PREVIOUS
+	 *      category's totalValue at the previous category's location.
+	 *
+	 * A per-series data label has none of that machinery: one point, one series, one value,
+	 * and the text is computed from the point's own row.
+	 */
+	readonly yoyTotalLabel = {
 		visible: true,
-		format: 'C0',
+		position: 'Outer' as const,
 		font: { fontFamily: YOY_FONT_FAMILY, size: '12px', fontWeight: '600', color: this.yoyText() }
 	};
+	/**
+	 * Bound straight into the template. Held as fields, NOT written inline in the markup: an
+	 * object literal in a binding is a new reference every change-detection pass, ej2 reads
+	 * that as a changed input, and the chart rebuilds under the user's cursor.
+	 */
+	readonly yoySegmentMarker = { dataLabel: this.yoySegmentLabel };
+	readonly yoyTotalMarker = { dataLabel: this.yoyTotalLabel };
+	readonly yoyTopCorner = { topLeft: 3, topRight: 3 };
 	readonly yoyChartArea = { border: { width: 0 } };
 	// Bottom carries the season labels, the cutoff row and the braced event row.
 	readonly yoyMargin = { left: 8, right: 16, top: 4, bottom: 12 };
 
 	/**
-	 * Both axes. Horizontal: strip the lineage prefix that keeps categories unique, so the
-	 * reader sees the season and never the key. Vertical: abbreviate dollars so six-figure
-	 * labels do not crowd the plot.
+	 * Every axis. Horizontal: strip the lineage prefix that keeps categories unique, so the
+	 * reader sees the season and never the key. Vertical: abbreviate dollars on the left, and
+	 * print plain whole people on the right.
 	 */
-	onYoyAxisLabel(args: { axis?: { orientation?: string }; value?: number; text?: string }): void {
+	onYoyAxisLabel(args: {
+		axis?: { orientation?: string; name?: string };
+		value?: number;
+		text?: string;
+	}): void {
 		if (args.axis?.orientation !== 'Vertical') {
 			if (args.text) {
 				args.text = args.text.slice(args.text.indexOf('|') + 1);
@@ -943,6 +1050,13 @@ export class CustomerJobRevenueComponent {
 			return;
 		}
 		if (args.value == null) {
+			return;
+		}
+		// BOTH vertical axes come through here, and orientation cannot tell them apart — which
+		// is how the registrations scale was printing "$180". The axis name is the only
+		// discriminator, and it is set on the count axis for exactly this.
+		if (args.axis?.name === 'count') {
+			args.text = `${Math.round(args.value)}`;
 			return;
 		}
 		const v = args.value;
@@ -958,13 +1072,15 @@ export class CustomerJobRevenueComponent {
 	}
 
 	/**
-	 * The count that belongs to a segment, drawn inside it. ej2 hands the data label its own
-	 * plotted value, which here is money; the reader needs the population instead, so the text
-	 * is replaced from the point's own record.
+	 * Every piece of text ej2 draws on the plot: the dollar total above the money bar, and the
+	 * two counts inside the registrations segments.
 	 *
-	 * Suppressed when the count is zero — a settled season would otherwise carry a "0" in a
-	 * segment of no height — and when the segment is too short to hold the text, since a label
-	 * spilling out of its bar reads as belonging to the neighbouring one.
+	 * The value is ALWAYS taken from the point's own row, never parsed back out of args.text —
+	 * with useGroupingSeparator on, a four-figure count arrives as "1,234" and Number() of that
+	 * is NaN, which would have blanked the label on exactly the biggest events.
+	 *
+	 * Suppressed when the value is zero: a season that sold nothing before its cutoff would
+	 * otherwise carry a "$0" on the baseline, and a settled one a "0" in a segment of no height.
 	 */
 	onYoySegmentLabel(args: {
 		text?: string;
@@ -972,49 +1088,80 @@ export class CustomerJobRevenueComponent {
 		series?: { name?: string; dataSource?: YoyChartPoint[] };
 		cancel?: boolean;
 	}): void {
+		const name = args.series?.name ?? '';
 		const i = args.point?.index;
 		const rows = args.series?.dataSource;
 		if (i == null || !rows || i >= rows.length) {
-			return;
-		}
-		const row = rows[i];
-		const count = args.series?.name === 'Owed' ? row.owingCount : row.paidCount;
-		if (count <= 0) {
 			args.cancel = true;
 			return;
 		}
-		args.text = `${count}`;
+		const row = rows[i];
+
+		// Each stack's TOP series carries that stack's TOTAL, because its label sits above the
+		// whole bar: Owed prints Billed for the money stack, Owing prints the registration
+		// count for the count stack. Only the bottom series labels its own segment.
+		//
+		// A consequence of ej2 allowing ONE dataLabel per series: the owing count cannot be
+		// printed inside its segment as well as the total above it. It is the red remainder of
+		// a bar whose total and paid part are both labelled, and the tooltip names it outright.
+		const value =
+			name === YOY_SERIES.owed ? row.billed
+			: name === YOY_SERIES.owingCount ? row.paidCount + row.owingCount
+			: name === YOY_SERIES.paidCount ? row.paidCount
+			: 0;
+
+		if (value <= 0) {
+			args.cancel = true;
+			return;
+		}
+		args.text = name === YOY_SERIES.owed ? usd0(value) : `${value}`;
 	}
 
 	/**
-	 * Full dollars in the tooltip — the axis is abbreviated and the stack label is rounded to
-	 * whole dollars, so this is the only place the exact figure appears.
+	 * The hover popup. Bound to sharedTooltipRender, NOT tooltipRender: ej2 gates tooltipRender
+	 * behind `!tooltip.shared && !tooltip.split`, so with a shared tooltip that handler never
+	 * runs and the popup renders ej2's raw defaults — the lineage-prefixed key as its header and
+	 * unformatted numbers as its rows. Shared mode fires this event instead, once, with arrays.
+	 *
+	 * What it says is chosen to be worth opening. The bars already carry their own totals and
+	 * counts, so repeating them is the popup's failure mode; what is NOT on the plot is which
+	 * lineage a bar belongs to when the reader has scrolled away from its braced group label,
+	 * and the exact figure behind a stack label rounded to whole dollars. Both are here.
 	 */
-	onYoyTooltip(args: {
-		text?: string;
+	onYoySharedTooltip(args: {
+		text?: string[];
 		headerText?: string;
-		point?: { y?: number; index?: number };
-		series?: { name?: string; dataSource?: YoyChartPoint[] };
+		point?: ({ index?: number } | undefined)[];
+		series?: ({ name?: string; dataSource?: YoyChartPoint[] } | undefined)[];
 	}): void {
-		// The header is the raw category, so it carries the lineage prefix that keeps categories
-		// unique — "21|2025*" reached the screen. Stripped here as well as in the axis handler:
-		// ej2 builds the two independently, so anywhere the category is rendered has to strip it.
-		if (args.headerText) {
-			args.headerText = args.headerText.slice(args.headerText.indexOf('|') + 1);
-		}
-		if (args.point?.y == null) {
+		const series = args.series;
+		const rows = series?.[0]?.dataSource;
+		const i = args.point?.[0]?.index;
+		if (!args.text || !series || !rows || i == null || i >= rows.length) {
 			return;
 		}
-		const amount = args.point.y.toLocaleString('en-US', {
-			style: 'currency', currency: 'USD', minimumFractionDigits: 2
+		const row = rows[i];
+
+		// The lineage label, taken from the axis's own group spans rather than re-derived — so
+		// the popup can never name an event differently from the brace under the bar.
+		const span = this.yoyChart().groupLevel.find(s => i >= s.start && i <= s.end);
+		const total = row.paidCount + row.owingCount;
+		args.headerText =
+			`${span ? `${span.text} · ` : ''}${row.rawYear} season, as of ${row.pinLabel}` +
+			` — ${regs(total)}`;
+
+		// EXACTLY one entry per series, in series order: ej2 walks this array against its own
+		// point list to place the colour chips, and treats an empty string as "drop this
+		// series". A different length silently misaligns every chip below the change.
+		args.text = series.map((s, k) => {
+			switch (s?.name) {
+				case YOY_SERIES.collected: return `Collected: ${usd2(row.collected)}`;
+				case YOY_SERIES.owed: return `Owed: ${usd2(row.owed)}`;
+				case YOY_SERIES.paidCount: return `Paid: ${regs(row.paidCount)}`;
+				case YOY_SERIES.owingCount: return `Owing: ${regs(row.owingCount)}`;
+				default: return args.text?.[k] ?? '';
+			}
 		});
-		const i = args.point.index;
-		const rows = args.series?.dataSource;
-		const row = i != null && rows && i < rows.length ? rows[i] : null;
-		const count = row === null ? null : args.series?.name === 'Owed' ? row.owingCount : row.paidCount;
-		args.text = count === null
-			? `${args.series?.name ?? ''}: ${amount}`
-			: `${args.series?.name ?? ''}: ${amount} (${count})`;
 	}
 
 	/** Accent Credit Card Credit rows so they jump out when scanning the CC grid. */
