@@ -657,9 +657,15 @@
 					@if (yoyGroupOptions().length > 1) {
 						<div class="yoy-picker">
 							<label class="yoy-picker-label" for="yoy-event">Event</label>
+							<!-- ngModel, NOT [value]: a plain [value] binding on a select assigns the DOM
+							     property before @for has rendered the options, the browser drops a value
+							     that matches no option yet, and the control silently falls back to the
+							     first one. The chart stayed correct because it reads the signal, so the
+							     picker disagreed with the chart it was driving. Angular's select value
+							     accessor re-applies the value as options register. -->
 							<select id="yoy-event" class="form-select form-select-sm"
-								[value]="yoySelectedGroup()"
-								(change)="onYoyGroupChange($any($event.target).value)">
+								[ngModel]="yoySelectedGroup()"
+								(ngModelChange)="onYoyGroupChange($event)">
 								@for (opt of yoyGroupOptions(); track opt.value) {
 									<option [value]="opt.value">{{ opt.text }}</option>
 								}
