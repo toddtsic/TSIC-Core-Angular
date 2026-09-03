@@ -584,14 +584,22 @@ public class JobRepository : IJobRepository
     public async Task<List<Contracts.Dtos.RegistrationSearch.JobOptionDto>> GetInviteTargetJobsForCustomerAsync(
         Guid jobId, Contracts.Dtos.RegistrationSearch.InviteRegistrationKind kind, CancellationToken cancellationToken = default)
     {
-        var customerId = await _context.Jobs
+        var current = await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => j.CustomerId)
+            .Select(j => new { j.CustomerId, j.ExpiryUsers })
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (customerId == Guid.Empty)
+        if (current == null || current.CustomerId == Guid.Empty)
             return [];
+
+        // Invites are a post-event re-engagement tool: while the CURRENT job is still live to
+        // users (now < ExpiryUsers, the JobExpiry.NotExpiredForUsers door), offer NO targets.
+        // The empty list is what hides the Invite button client-side for both roles.
+        if (DateTime.Now < current.ExpiryUsers)
+            return [];
+
+        var customerId = current.CustomerId;
 
         // Any non-expired event under the same customer, excluding the current job. Job type is
         // intentionally NOT required — a director may invite reps/players across event kinds.
