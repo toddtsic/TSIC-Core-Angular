@@ -181,14 +181,16 @@
         <div class="email-form">
           <div class="form-group">
             <label for="email-subject">Subject</label>
-            <input type="text" id="email-subject" class="form-control"
+            <input type="text" id="email-subject" class="form-control" #subjectInput
               [ngModel]="subject()" (ngModelChange)="subject.set($event)"
+              (focus)="tokenTarget.set('subject')"
               placeholder="Enter email subject" [disabled]="isSending()" />
           </div>
           <div class="form-group">
             <label>Body</label>
             <app-email-body-editor
               [(body)]="bodyTemplate"
+              (focusin)="tokenTarget.set('body')"
               [disabled]="isSending()"
               placeholder="Enter email body (use tokens below to personalize)" />
           </div>
@@ -210,7 +212,7 @@
                 [disabled]="isSending()" [title]="tokenInfo.description">{{ tokenInfo.token }}</button>
             }
           </div>
-          <small class="form-text text-muted">Click a token to insert it at the cursor position.</small>
+          <small class="form-text text-muted">Click a token to insert it at the cursor — into the subject or the body, whichever you focused last.</small>
         </div>
         }
 

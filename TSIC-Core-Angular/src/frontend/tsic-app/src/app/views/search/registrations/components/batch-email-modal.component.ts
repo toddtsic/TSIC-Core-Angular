@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, computed, input, output, inject, viewChild, OnInit, OnDestroy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, ElementRef, signal, computed, input, output, inject, viewChild, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { EmailBodyEditorComponent } from '@shared-ui/components/email-body-editor/email-body-editor.component';
@@ -301,8 +301,26 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
   close(): void { this.closed.emit(); this.resetForm(); }
 
   private readonly bodyEditor = viewChild.required(EmailBodyEditorComponent);
+  private readonly subjectInput = viewChild.required<ElementRef<HTMLInputElement>>('subjectInput');
+
+  /** Which compose field a token chip inserts into — whichever the user focused LAST. Clicking a
+   *  chip moves focus onto the chip button itself, so the click handler can't read the active
+   *  element; the subject input and body editor each stamp this on focus instead. */
+  readonly tokenTarget = signal<'subject' | 'body'>('body');
 
   insertToken(token: string): void {
+    if (this.tokenTarget() === 'subject') {
+      const el = this.subjectInput().nativeElement;
+      const start = el.selectionStart ?? el.value.length;
+      const end = el.selectionEnd ?? start;
+      // Plain space separator (the body path uses NBSP for contenteditable normalization; a real
+      // input keeps its spaces, and an NBSP would ship invisibly in the subject line).
+      el.setRangeText(token + ' ', start, end, 'end');
+      // Route through the input event so ngModel syncs without a writeValue echo moving the caret.
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.focus();
+      return;
+    }
     this.bodyEditor().insertToken(token);
   }
 
