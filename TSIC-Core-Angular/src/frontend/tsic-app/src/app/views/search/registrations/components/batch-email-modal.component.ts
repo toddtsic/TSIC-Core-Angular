@@ -10,6 +10,7 @@ import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import {
   EMAIL_TEMPLATE_CATEGORIES, isTemplateAvailable, EMAIL_BASE_TOKENS, USLAX_VALID_THROUGH_TOKEN, SUBSCRIPTION_TOKENS,
+  CLUBREP_USERNAME_TOKEN, isClubRepRoleFilter,
   type EmailTemplate, type JobFlagsForTemplates
 } from '../email-templates';
 import { DraggableModalDirective } from '@shared-ui/directives/draggable-modal.directive';
@@ -155,6 +156,10 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
     // AM-059 re-open: subscription tokens are JOB-level (ARB site → offered for all
     // registrants, both surfaces; non-subscribers render blank) — not per-registrant.
     const tokens = [...EMAIL_BASE_TOKENS];
+    // !USERNAME only for a club-rep-scoped search — for players it is the child record's
+    // username, not the family login, so it stays off every other audience's palette.
+    const roleIds = this.searchRequest()?.roleIds ?? [];
+    if (roleIds.length === 1 && isClubRepRoleFilter(roleIds[0])) tokens.push(CLUBREP_USERNAME_TOKEN);
     if (this.jobFlags()?.usLaxMembershipValidated) tokens.push(USLAX_VALID_THROUGH_TOKEN);
     if (this.jobFlags()?.adnArb) tokens.push(...SUBSCRIPTION_TOKENS);
     return tokens;

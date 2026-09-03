@@ -51,6 +51,15 @@ export const EMAIL_BASE_TOKENS: readonly EmailTokenInfo[] = [
   { token: '!CUSTOMERNAME', description: 'Customer name' }
 ];
 
+/** Offered only when the search is scoped to Club Reps. A club rep's registration IS their login
+ *  account, so !USERNAME resolves to the rep's own login username. For players it resolves to the
+ *  child record's username — NOT the family login (!FAMILYUSERNAME) — so offering it to player
+ *  audiences invites "login with !USERNAME" mistakes; hence gated, not on the base list. */
+export const CLUBREP_USERNAME_TOKEN: EmailTokenInfo = {
+  token: '!USERNAME',
+  description: 'Club rep\'s login username'
+};
+
 /** Offered only when the job validates USA Lacrosse membership. */
 export const USLAX_VALID_THROUGH_TOKEN: EmailTokenInfo = {
   token: '!USLAXVALIDTHROUGHDATE',
