@@ -141,12 +141,16 @@ public sealed class JobClonePlanner
         var adminRegs = await _repo.GetSourceAdminRegistrationsAsync(req.SourceJobId, ct);
         var sourceFees = await _feeRepo.GetJobFeesByJobAsync(req.SourceJobId, ct);
 
-        // Retargeting the owner means the source's admins belong to a DIFFERENT company. They
-        // would land inactive, but release panel 3 lists inactive admins as activation candidates
-        // — one wrong click hands another customer's staff a way in. Drop them; the executor's
-        // "no actor row" branch mints a fresh Superuser registration, which is all a new owner
-        // should start with.
-        if (isCrossCustomer) adminRegs = [];
+        // Retargeting the owner means the source's Directors/SuperDirectors belong to a
+        // DIFFERENT company. They would land inactive, but Configure → Administrators lists
+        // inactive admins one Activate click from access — drop them. Superusers are
+        // TSIC-central staff, not the customer's, so their rows DO carry (and stay active,
+        // per CloneAdminRegistrations). If the actor isn't among them, the executor's
+        // "no actor row" branch still mints a fresh Superuser registration.
+        if (isCrossCustomer)
+            adminRegs = adminRegs
+                .Where(r => string.Equals(r.RoleId, RoleConstants.Superuser, StringComparison.OrdinalIgnoreCase))
+                .ToList();
 
         var actorHasSourceReg = adminRegs.Any(r =>
             string.Equals(r.UserId, actorUserId, StringComparison.OrdinalIgnoreCase));
@@ -378,7 +382,8 @@ public sealed class JobClonePlanner
                     Notes = navs.Count > 0 ? $"{navItemCount} nav items" : null },
             new() { StepKey = JobCloneStepOrder.AdminRegistrations, Count = plannedAdminRegs,
                     Notes = isCrossCustomer
-                        ? "new owner — source admins NOT copied; 1 fresh Superuser row for you"
+                        ? "new owner — Superusers carry; source directors NOT copied"
+                          + (actorHasSourceReg ? string.Empty : "; +1 fresh Superuser row for you")
                         : $"{adminsToDeactivate} director(s) land inactive"
                           + (actorHasSourceReg ? string.Empty : "; +1 fresh Superuser row for you") },
             new() { StepKey = JobCloneStepOrder.Leagues, Count = leagueUnits.Count },
