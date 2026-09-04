@@ -1,5 +1,6 @@
 using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Infrastructure.Data.Identity;
+using TSIC.Infrastructure.Data.LogsDbContext;
 using TSIC.Infrastructure.Repositories;
 using TSIC.Domain.Constants;
 using Microsoft.EntityFrameworkCore;
@@ -55,6 +56,7 @@ using TSIC.API.Services.Store;
 using TSIC.API.Services.Fees;
 using TSIC.API.Services.Widgets;
 using TSIC.API.Authorization;
+using TSIC.API.Services.Usage;
 using Amazon.SimpleEmail;
 using Amazon.Runtime;
 using Amazon;
@@ -531,7 +533,28 @@ if (!builder.Environment.IsEnvironment("Testing"))
     // Separate DbContext for Identity operations only
     builder.Services.AddDbContext<TsicIdentityDbContext>(options =>
         options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+    // Usage telemetry lives in its own database (TSICLogs), read side only --
+    // the write path is the usage filter and does not go through EF.
+    //
+    // Guarded because UseSqlServer(null) throws at REGISTRATION, not on first
+    // use: one overlay missing the key would take the whole site down at boot.
+    // Telemetry is never worth that, so an absent key skips registration and is
+    // reported by the [STARTUP-CONFIG] audit below. Serilog's static logger is
+    // not configured until later in this file, so nothing useful can be logged
+    // from here -- the audit is the one place this failure is actually visible.
+    var logsConnection = builder.Configuration.GetConnectionString("LogsConnection");
+    if (!string.IsNullOrWhiteSpace(logsConnection))
+    {
+        builder.Services.AddDbContext<LogsDbContext>(options =>
+            options.UseSqlServer(logsConnection));
+    }
 }
+
+// Usage logging write path. The queue is a singleton because middleware and the writer
+// must share one buffer; the writer holds no DbContext and opens its own connection.
+builder.Services.AddSingleton<UsageQueue>();
+builder.Services.AddHostedService<UsageWriterBackgroundService>();
 
 //PASSWORD RESTRICTIONS
 builder.Services.Configure<IdentityOptions>(options =>
@@ -881,7 +904,19 @@ builder.Services.AddCors(options =>
                   "X-Iif-Reg-Trns-Source",
                   "X-Iif-Reg-Trns-Consolidated",
                   "X-Iif-Merch-Trns-Source",
-                  "X-Iif-Merch-Trns-Consolidated");
+                  "X-Iif-Merch-Trns-Consolidated")
+              // NOT for usage logging. Client identity was going to ride as a custom
+              // X-Client header, which makes an otherwise "simple" GET non-simple and
+              // buys a preflight OPTIONS per distinct URL -- worst on the anonymous,
+              // GET-heavy Events traffic over stadium networks. Rev 3 moved that
+              // identity into the ?xc= query parameter instead, so the feature now
+              // creates ZERO new preflights and needs no mitigation at all.
+              //
+              // The line stays on its own merits: every authenticated request already
+              // preflights (Authorization is not a simple header), and without this
+              // browsers re-ask every ~5 seconds. 2h is Chrome's ceiling; larger
+              // values are clamped, not rejected. Safari clamps to ~600s regardless.
+              .SetPreflightMaxAge(TimeSpan.FromHours(2));
     });
 });
 
@@ -937,11 +972,31 @@ builder.Host.UseSerilog();
         "[STARTUP-CONFIG] db: server={Server} database={Database}",
         dbServer, dbName);
 
+    // logsDatabase=(none) means LogsConnection is missing from this environment's
+    // overlay and LogsDbContext was NOT registered. The site runs fine; usage
+    // reporting does not. This line is the only signal that happened.
+    var (logsServer, logsDb) = ParseConnStr(cfg.GetConnectionString("LogsConnection"));
+    bootLog.Information(
+        "[STARTUP-CONFIG] logsDb: server={LogsServer} database={LogsDatabase} registered={LogsRegistered}",
+        logsServer, logsDb, logsDb != "(none)");
+
     bootLog.Information(
         "[STARTUP-CONFIG] jwt: issuer={Issuer} audience={Audience} signingKey={KeyFp}",
         cfg["JwtSettings:Issuer"] ?? "(unset)",
         cfg["JwtSettings:Audience"] ?? "(unset)",
         Fp4(cfg["JwtSettings:SecretKey"]));
+
+    // MapInboundClaims = true (set on the JWT bearer options above) remaps the
+    // "sub" claim onto ClaimTypes.NameIdentifier. Anything reading FindFirst("sub")
+    // gets null. Usage logging reads UserId from this claim, so if that setting is
+    // ever flipped, every signed-in request silently logs as anonymous and the
+    // primary metric quietly becomes wrong -- no error, no exception, just a
+    // dataset that says nobody is logged in. Audited so the flip is visible on
+    // the boot that causes it, rather than inferred from a report months later.
+    // Deliberately not a throw: telemetry must never be able to stop the site.
+    bootLog.Information(
+        "[STARTUP-CONFIG] jwtClaims: mapInboundClaims={MapInboundClaims} usageUserIdClaim={UsageUserIdClaim}",
+        true, "ClaimTypes.NameIdentifier");
 
     // Where the Data Protection key ring lives. This is audited because the failure it replaces was
     // SILENT: an in-memory ring is rebuilt on every pool recycle, invalidating every password-reset
@@ -1112,11 +1167,31 @@ app.UseSerilogRequestLogging(options =>
     options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
     {
         diagnosticContext.Set("StatusCode", httpContext.Response.StatusCode);
+
+        // Client identity on every Seq line: which app, which version, which platform.
+        // Reads the SAME query key through the SAME parser as UsageLoggingMiddleware --
+        // if Seq and logs.AppUsage ever disagreed about who called, neither would be
+        // usable for the question they both exist to answer. Only stamped when the
+        // client actually sent it, so pre-rollout traffic stays unannotated rather
+        // than filling Seq with "unknown".
+        var clientTag = httpContext.Request.Query[UsageClassifier.ClientTagQueryKey].ToString();
+        if (clientTag.Length > 0)
+        {
+            var (appClientId, platformId, appVersion) = UsageClassifier.ParseClientTag(clientTag);
+            diagnosticContext.Set("ClientApp", UsageClassifier.AppClientName(appClientId));
+            diagnosticContext.Set("ClientPlatform", UsageClassifier.PlatformName(platformId));
+            diagnosticContext.Set("ClientVersion", appVersion);
+        }
     };
 });
 app.UseCors("AllowAngularApp");
 app.UseAuthentication();
 app.UseAuthorization();
+
+// After authentication so HttpContext.User is populated, and before MapControllers so
+// the endpoint runs inside this middleware -- which is the only way to read the final
+// response status. An action filter cannot: its next() returns before result execution.
+app.UseMiddleware<TSIC.API.Middleware.UsageLoggingMiddleware>();
 // NOTE: no OPTIONS catch-all endpoint here. UseCors terminates preflights itself
 // (verified: preflight → 204 from the middleware). A previous "{*path}" OPTIONS
 // catch-all made every unknown route return 405 (path matched, method didn't)

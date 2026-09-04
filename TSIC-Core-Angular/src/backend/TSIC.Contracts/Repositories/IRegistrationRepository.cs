@@ -6,6 +6,7 @@ using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Dtos.Stp;
 using TSIC.Contracts.Dtos.ThirdPartyAccess;
+using TSIC.Contracts.Dtos.Usage;
 using TSIC.Contracts.Dtos.UsLax;
 using TSIC.Domain.Entities;
 
@@ -339,6 +340,18 @@ public interface IRegistrationRepository
     /// </summary>
     Task<Guid?> GetRegistrationJobIdAsync(
         Guid registrationId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Batched registration dimensions for usage logging (logs.AppUsage.TeamId).
+    ///
+    /// Deliberately set-based: the usage writer resolves a whole batch of requests at
+    /// once, so this replaces one round-trip per logged row with one per batch. Callers
+    /// pass distinct ids; missing ids are simply absent from the result, which the
+    /// writer records as the fact table's explicit unknown member rather than a null.
+    /// </summary>
+    Task<IReadOnlyList<RegistrationUsageDimensionsDto>> GetRegistrationUsageDimensionsAsync(
+        IReadOnlyCollection<Guid> registrationIds,
         CancellationToken cancellationToken = default);
 
     /// <summary>

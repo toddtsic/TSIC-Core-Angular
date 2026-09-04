@@ -10,6 +10,7 @@ using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Dtos.Stp;
 using TSIC.Contracts.Dtos.ThirdPartyAccess;
+using TSIC.Contracts.Dtos.Usage;
 using TSIC.Contracts.Dtos.UsLax;
 using TSIC.Contracts.Payments;
 using TSIC.Contracts.Extensions;
@@ -884,6 +885,23 @@ public class RegistrationRepository : IRegistrationRepository
             .Where(r => r.RegistrationId == registrationId)
             .Select(r => (Guid?)r.JobId)
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<RegistrationUsageDimensionsDto>> GetRegistrationUsageDimensionsAsync(
+        IReadOnlyCollection<Guid> registrationIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (registrationIds.Count == 0) return [];
+
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => registrationIds.Contains(r.RegistrationId))
+            .Select(r => new RegistrationUsageDimensionsDto
+            {
+                RegId = r.RegistrationId,
+                AssignedTeamId = r.AssignedTeamId,
+            })
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<Dictionary<Guid, int>> GetRosterCountsByTeamAsync(
