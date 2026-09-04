@@ -230,6 +230,10 @@ public sealed class RosterSwapperService : IRosterSwapperService
         var movedIds = new List<Guid>();
         var blocked = new List<RosterTransferBlockedDto>();
 
+        // Moved, but carrying a consequence the operator must act on — today only the ARB plan
+        // that cannot follow the player. Separate from `blocked`: these registrants DID move.
+        var warnings = new List<RosterTransferBlockedDto>();
+
         // FLOW 2: Unassigned Adult → Team (staff creation)
         if (isSourceUnassigned && !isTargetUnassigned)
         {
@@ -318,10 +322,11 @@ public sealed class RosterSwapperService : IRosterSwapperService
                 StaffDeleted = 0,
                 FeesRecalculated = 0,
                 Message = $"{staffCreated} staff registration(s) created.",
-                // Staff creation mints rows; it never moves a paying registrant, so the ARB guard
+                // Staff creation mints rows; it never moves a paying registrant, so the ARB warning
                 // cannot fire here. Empty, not absent — the client always has a list to iterate.
                 MovedRegistrationIds = new List<Guid>(),
-                Blocked = new List<RosterTransferBlockedDto>()
+                Blocked = new List<RosterTransferBlockedDto>(),
+                Warnings = new List<RosterTransferBlockedDto>()
             };
         }
 
@@ -357,10 +362,11 @@ public sealed class RosterSwapperService : IRosterSwapperService
                 StaffDeleted = staffDeleted,
                 FeesRecalculated = 0,
                 Message = $"{staffDeleted} staff registration(s) removed.",
-                // Staff removal deletes rows; no paying registrant moves, so the ARB guard cannot
+                // Staff removal deletes rows; no paying registrant moves, so the ARB warning cannot
                 // fire here. Empty, not absent — the client always has a list to iterate.
                 MovedRegistrationIds = new List<Guid>(),
-                Blocked = new List<RosterTransferBlockedDto>()
+                Blocked = new List<RosterTransferBlockedDto>(),
+                Warnings = new List<RosterTransferBlockedDto>()
             };
         }
 
@@ -384,17 +390,17 @@ public sealed class RosterSwapperService : IRosterSwapperService
             {
                 var roleName = reg.Role?.Name ?? "";
 
-                // ARB plan guard — BEFORE the first mutation below, deliberately.
+                // ARB plan check — WARN, do not refuse. Ruled 09-04 (Todd, with Ann): moving a
+                // player who holds a subscription is routine work, and refusing it stopped that
+                // work dead. This used to `continue` and report the registrant as blocked.
                 //
-                // A player mid-plan is the case: having paid past the deposit forces the full-payment
-                // phase in StampSwapFeeBase, so FeeBase snaps to the NEW team's price and any rate
-                // difference at all opens a gap. The Authorize.Net subscription cannot follow — this
-                // stack has no ARBUpdateSubscription, only create/get/cancel — so it would keep
-                // drafting the old amount forever against the new bill.
-                //
-                // Skip, never throw: the other selections are independent moves and there is no
-                // reason to punish them. The blocked registrant stays put in the source panel, which
-                // is the durable half of the report; the reason text is the other half.
+                // What is still true, and why the warning survives the guard: a player mid-plan
+                // has paid past the deposit, which forces the full-payment phase in
+                // StampSwapFeeBase, so FeeBase snaps to the NEW team's price and any rate
+                // difference opens a gap. NOTHING REPRICES THE PLAN — the subscription keeps
+                // drafting the old amount against the new bill until an operator cancels or
+                // adjusts it. Computed BEFORE the mutation below, because the conflict is a
+                // comparison against the fees the move is about to overwrite.
                 if (roleName != RoleConstants.Names.StaffName)
                 {
                     var conflict = await _feeService.DetectArbPlanConflictAsync(
@@ -403,13 +409,12 @@ public sealed class RosterSwapperService : IRosterSwapperService
                     if (conflict != null)
                     {
                         var who = GetPlayerName(reg);
-                        blocked.Add(new RosterTransferBlockedDto
+                        warnings.Add(new RosterTransferBlockedDto
                         {
                             RegistrationId = reg.RegistrationId,
                             PlayerName = who,
-                            Reason = BuildArbBlockReason(who, targetTeam.TeamName, conflict)
+                            Reason = BuildArbWarningReason(who, targetTeam.TeamName, conflict)
                         });
-                        continue;
                     }
                 }
 
@@ -474,12 +479,14 @@ public sealed class RosterSwapperService : IRosterSwapperService
             if (playersTransferred > 0) parts.Add($"{playersTransferred} transferred");
             if (feesRecalculated > 0) parts.Add($"{feesRecalculated} fees recalculated");
 
-            // A summary only — the WHY of each refusal rides in Blocked, one alert per registrant.
-            // Counting alone here also keeps the empty-parts case ("." on its own) from reaching the
-            // director when every selected registrant was blocked.
+            // A summary only — the WHY of each refusal rides in Blocked and each consequence in
+            // Warnings, one alert per registrant. Counting alone here also keeps the empty-parts
+            // case ("." on its own) from reaching the director when nothing moved.
             var summary = parts.Count > 0 ? string.Join(", ", parts) + "." : "No players were moved.";
             if (blocked.Count > 0)
                 summary += $" {blocked.Count} not moved — see the alert{(blocked.Count == 1 ? "" : "s")}.";
+            if (warnings.Count > 0)
+                summary += $" {warnings.Count} moved with a payment plan that did NOT follow — see the alert{(warnings.Count == 1 ? "" : "s")}.";
 
             return new RosterTransferResultDto
             {
@@ -489,7 +496,8 @@ public sealed class RosterSwapperService : IRosterSwapperService
                 FeesRecalculated = feesRecalculated,
                 Message = summary,
                 MovedRegistrationIds = movedIds,
-                Blocked = blocked
+                Blocked = blocked,
+                Warnings = warnings
             };
         }
     }
@@ -598,16 +606,16 @@ public sealed class RosterSwapperService : IRosterSwapperService
     /// collapse into a run-on line.
     /// </para>
     /// </summary>
-    private static string BuildArbBlockReason(string playerName, string? targetTeamName, ArbPlanConflict c)
+    private static string BuildArbWarningReason(string playerName, string? targetTeamName, ArbPlanConflict c)
     {
         var team = string.IsNullOrWhiteSpace(targetTeamName) ? "this team" : targetTeamName;
         var draft = c.OccurrencesRemaining == 1 ? "draft" : "drafts";
 
-        return $"{playerName} is on an active payment plan — {c.OccurrencesToDate} of "
+        return $"{playerName} MOVED, and the payment plan did NOT follow. {c.OccurrencesToDate} of "
              + $"{c.TotalOccurrences} payments taken, {c.OccurrencesRemaining} {draft} still to come at "
-             + $"{c.AmountPerOccurrence:C} each. Moving to {team} changes this registration from "
-             + $"{c.CurrentFeeTotal:C} to {c.NewFeeTotal:C}, but the payment plan would keep drafting "
-             + $"{c.AmountPerOccurrence:C} against the old amount and the balance would never settle. "
-             + $"Cancel the payment plan first, then move {playerName}.";
+             + $"{c.AmountPerOccurrence:C} each. The move to {team} changed this registration from "
+             + $"{c.CurrentFeeTotal:C} to {c.NewFeeTotal:C}, but the plan keeps drafting "
+             + $"{c.AmountPerOccurrence:C} against the old amount, so the balance will not settle "
+             + $"on its own. Cancel or adjust {playerName}'s payment plan.";
     }
 }

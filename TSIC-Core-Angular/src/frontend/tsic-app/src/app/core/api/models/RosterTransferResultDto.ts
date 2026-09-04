@@ -11,5 +11,6 @@ export type RosterTransferResultDto = {
     message: string;
     movedRegistrationIds: Array<string>;
     blocked: Array<RosterTransferBlockedDto>;
+    warnings: Array<RosterTransferBlockedDto>;
 };
 

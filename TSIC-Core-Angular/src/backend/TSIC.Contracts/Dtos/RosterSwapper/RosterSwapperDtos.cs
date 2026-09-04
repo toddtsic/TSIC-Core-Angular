@@ -108,6 +108,19 @@ public record RosterTransferResultDto
     /// can, then report precisely who it could not serve and why.
     /// </summary>
     public required List<RosterTransferBlockedDto> Blocked { get; init; }
+
+    /// <summary>
+    /// Registrants that DID move but carry a consequence the operator has to act on — today, a
+    /// live recurring-billing plan whose per-draft amount no longer matches the new fee total.
+    /// <para>
+    /// This used to be a refusal (the registrant landed in <see cref="Blocked"/> and stayed put).
+    /// Ruled 09-04: the move proceeds and the operator is warned instead — moving a subscribed
+    /// player is routine, and refusing it stopped ordinary work. NOTHING REPRICES THE PLAN: the
+    /// subscription keeps drafting the old amount until someone cancels or adjusts it, which is
+    /// exactly what the warning says.
+    /// </para>
+    /// </summary>
+    public required List<RosterTransferBlockedDto> Warnings { get; init; }
 }
 
 /// <summary>

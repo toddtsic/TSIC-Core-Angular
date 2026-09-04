@@ -336,12 +336,14 @@ export class RosterSwapperComponent {
             targetPoolId
         }).subscribe({
             next: result => {
-                // A transfer can succeed for SOME of the selection: a registrant on an active
-                // recurring-billing plan is refused when the target team prices differently,
-                // because the plan cannot follow them. So drive everything below off what the
-                // server says actually moved — never off regIds, which is only what was asked.
+                // A transfer can succeed for SOME of the selection, so drive everything below off
+                // what the server says actually moved — never off regIds, which is only what was
+                // asked. `warnings` is the opposite case: those registrants DID move, and carry a
+                // consequence (a recurring-billing plan that could not follow them to a
+                // differently-priced team).
                 const moved = result.movedRegistrationIds ?? [];
                 const blocked = result.blocked ?? [];
+                const warnings = result.warnings ?? [];
 
                 if (moved.length > 0) {
                     this.toast.show(playerName ? `${playerName} swapped. ${result.message}` : result.message, 'success', 3000);
@@ -353,6 +355,14 @@ export class RosterSwapperComponent {
                 // ten blocked players means ten alerts, which is the honest picture.
                 for (const b of blocked) {
                     this.toast.show(b.reason, 'danger', undefined, `${b.playerName} — not moved`);
+                }
+
+                // The player MOVED; the payment plan did not follow. 'warning' resolves to
+                // timeout 0 in ToastService, so this stays until the director dismisses it —
+                // the money consequence outlives the swap that caused it, and an alert that
+                // auto-scrolls away is an alert nobody acted on.
+                for (const w of warnings) {
+                    this.toast.show(w.reason, 'warning', undefined, `${w.playerName} — payment plan needs attention`);
                 }
 
                 this.justMovedIds.set(new Set(moved));
