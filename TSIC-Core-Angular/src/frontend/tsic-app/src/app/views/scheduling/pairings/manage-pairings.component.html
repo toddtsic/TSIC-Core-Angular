@@ -35,7 +35,9 @@
                 [agegroups]="agegroups()"
                 [selectedScope]="navScope()"
                 [isLoading]="isNavLoading()"
-                (divisionSelected)="onDivisionSelected($event)" />
+                (eventSelected)="onEventSelected()"
+                (divisionSelected)="onDivisionSelected($event)"
+                (colorChanged)="onAgegroupColorChanged($event)" />
 
             <!-- Who Plays Who (collapsible, collapsed by default) -->
             @if (teamCount() > 0) {

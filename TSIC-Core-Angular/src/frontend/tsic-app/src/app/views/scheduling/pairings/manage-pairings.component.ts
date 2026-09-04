@@ -17,6 +17,7 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
 import { ToastService } from '@shared-ui/toast.service';
 import type { ScheduleScope } from '../shared/utils/scheduling-helpers';
 import { ChecklistBackLinkComponent } from '../shared/components/checklist-back-link/checklist-back-link.component';
+import { LadtService } from '../../ladt/editor/services/ladt.service';
 
 /** Team-type code legend for tooltips. */
 const TYPE_LABELS: Record<string, string> = {
@@ -46,6 +47,7 @@ const BRACKET_OPTIONS = [
 })
 export class ManagePairingsComponent implements OnInit {
     private readonly svc = inject(PairingsService);
+    private readonly ladtSvc = inject(LadtService);
     private readonly toast = inject(ToastService);
     private readonly navigator = viewChild(DivisionNavigatorComponent);
 
@@ -177,6 +179,34 @@ export class ManagePairingsComponent implements OnInit {
                 }
             },
             error: () => this.isNavLoading.set(false)
+        });
+    }
+
+    /** Navigator root row: drop back to event scope — collapses the tree and returns the
+     *  grid panel to its "Select a division" state. */
+    onEventSelected(): void {
+        this.selectedDivision.set(null);
+        this.selectedAgegroupId.set(null);
+        this.editingAi.set(null);
+        this.divisionResponse.set(null);
+        this.pairings.set([]);
+        this.whoPlaysWhoMatrix.set(null);
+        this.divisionTeams.set([]);
+        this.wpwOpen.set(false);
+        this.teamsOpen.set(false);
+    }
+
+    /** Agegroup color swatch. Same PUT + local-mirror the schedule hub does — without this
+     *  the picker closed on the pick and threw it away. */
+    onAgegroupColorChanged(event: { agegroupId: string; color: string | null }): void {
+        this.ladtSvc.updateAgegroupColor(event.agegroupId, event.color).subscribe({
+            next: () => {
+                this.agegroups.set(this.agegroups().map(ag =>
+                    ag.agegroupId === event.agegroupId ? { ...ag, color: event.color } : ag
+                ));
+                this.toast.show('Color updated', 'success');
+            },
+            error: () => this.toast.show('Failed to update color', 'danger')
         });
     }
 
