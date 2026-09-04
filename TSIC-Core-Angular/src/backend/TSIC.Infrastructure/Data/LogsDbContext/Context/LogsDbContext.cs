@@ -50,7 +50,7 @@ public partial class LogsDbContext : DbContext
                 .HasMaxLength(60)
                 .IsUnicode(false);
             entity.Property(e => e.AppVersion)
-                .HasMaxLength(20)
+                .HasMaxLength(32)
                 .IsUnicode(false);
             entity.Property(e => e.Controller)
                 .HasMaxLength(50)
