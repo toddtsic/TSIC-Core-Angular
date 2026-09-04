@@ -364,14 +364,19 @@ public sealed class UsageWriterBackgroundService : BackgroundService
     }
 
     /// <summary>
-    /// Both registration-derived dimensions -- JobId and TeamId -- for the SIGNED-IN
-    /// rows of this batch, in one query.
+    /// The authoritative JobId for the SIGNED-IN rows of this batch, in one query --
+    /// read from the registration's own foreign key rather than a string claim, so the
+    /// two cannot drift.
     ///
-    /// JobId rides along because it is on the same row: fetching it here costs nothing
-    /// beyond a column, and it is the authoritative job for authenticated traffic.
-    /// Nothing is cached. TeamId must not be (a player's team assignment changes, and a
-    /// remembered value would record stale attribution), and JobId need not be, since
-    /// it arrives free in a query already being made.
+    /// The DTO also carries AssignedTeamId, which this writer deliberately does NOT
+    /// use. That column names the team the CALLER belongs to; logs.AppUsage.TeamId
+    /// names the team a REQUEST concerned, and those coincide only for players and
+    /// parents, who can see nothing but their own team. It is left on the DTO because
+    /// it costs nothing (same row, same query) and a second consumer wanting caller
+    /// attribution would want exactly this -- in its own column, never in TeamId.
+    ///
+    /// Nothing is cached: a job assignment is cheap to re-read and a remembered one
+    /// would record stale attribution.
     /// </summary>
     private async Task<Dictionary<Guid, RegistrationUsageDimensionsDto>> ResolveRegistrationDimensionsAsync(
         List<UsageCapture> batch,
@@ -434,13 +439,16 @@ public sealed class UsageWriterBackgroundService : BackgroundService
             // scoped to, read from the row's own foreign key rather than from a string
             // claim, so the two cannot drift; jobPath is what anonymous traffic has
             // INSTEAD, not a second opinion to reconcile.
+            // TeamId is NOT resolved here. It was captured on the request path from the
+            // route (or the action's own HttpContext.Items) and travels on the row
+            // untouched -- see UsageCapture. The registration's AssignedTeamId is
+            // deliberately not consulted: it names the team the CALLER belongs to, which
+            // is a different fact and silently wrong on any request about another team.
             var jobId = Guid.Empty;
-            Guid? teamId = null;
 
             if (row.RegId is { } regId && registrations.TryGetValue(regId, out var dimensions))
             {
                 jobId = dimensions.JobId;
-                teamId = dimensions.AssignedTeamId;
             }
             else if (!string.IsNullOrWhiteSpace(row.JobPath)
                      && jobIds.TryGetValue(row.JobPath, out var resolvedJobId))
@@ -470,7 +478,7 @@ public sealed class UsageWriterBackgroundService : BackgroundService
             record["UserId"] = row.UserId is { } userId ? Truncate(userId, 450) : DBNull.Value;
             record["RegId"] = (object?)row.RegId ?? DBNull.Value;
             record["JobId"] = jobId;
-            record["TeamId"] = (object?)teamId ?? DBNull.Value;
+            record["TeamId"] = (object?)row.TeamId ?? DBNull.Value;
             record["IsBot"] = isBot;
             record["BrowserId"] = browserId;
             record["DeviceClassId"] = deviceClassId;
