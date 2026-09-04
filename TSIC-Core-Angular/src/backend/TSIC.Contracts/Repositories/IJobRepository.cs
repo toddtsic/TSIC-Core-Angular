@@ -1,3 +1,4 @@
+using TSIC.Contracts.Dtos.Usage;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
@@ -164,6 +165,23 @@ public interface IJobRepository
     /// Find job by JobPath (case-insensitive).
     /// </summary>
     Task<Guid?> GetJobIdByPathAsync(string jobPath, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Batched jobPath to JobId, for usage logging's ANONYMOUS rows -- the only traffic
+    /// with no regId to resolve a job from.
+    ///
+    /// Set-based so a flush costs ONE round-trip instead of one per distinct path. The
+    /// per-query work is trivial either way (unique index UI_JOBPATH over ~1,100 rows,
+    /// permanently in buffer cache); it is the round-trips that add up, which is also
+    /// why this replaces a hand-rolled cache rather than complementing one.
+    ///
+    /// Paths that do not resolve are simply absent from the result. The caller records
+    /// those as the fact table's explicit "no job context" member, so a bad or retired
+    /// path costs nothing and is not remembered.
+    /// </summary>
+    Task<IReadOnlyList<JobPathIdDto>> GetJobIdsByPathsAsync(
+        IReadOnlyCollection<string> jobPaths,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get job URL path by JobId. Used to construct invite links.

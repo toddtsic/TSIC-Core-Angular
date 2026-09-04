@@ -11,6 +11,17 @@ public record RegistrationUsageDimensionsDto
 {
     public required Guid RegId { get; init; }
 
+    /// <summary>
+    /// The job this registration belongs to. NOT NULL on the entity, so every resolved
+    /// registration carries one.
+    ///
+    /// This is the AUTHORITATIVE job for an authenticated request, and it is why the
+    /// jobPath lookup is not needed for that traffic: jobPath is a string claim minted
+    /// at login, while this is the row's own foreign key. Reading both and hoping they
+    /// agree is strictly worse than reading the one that cannot be stale.
+    /// </summary>
+    public required Guid JobId { get; init; }
+
     /// <summary>Null when the registration is not rostered to a team.</summary>
     public Guid? AssignedTeamId { get; init; }
 }

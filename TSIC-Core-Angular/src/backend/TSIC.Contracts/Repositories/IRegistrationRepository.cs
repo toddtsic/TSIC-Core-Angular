@@ -343,12 +343,20 @@ public interface IRegistrationRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Batched registration dimensions for usage logging (logs.AppUsage.TeamId).
+    /// Batched registration dimensions for usage logging: logs.AppUsage.JobId and
+    /// .TeamId, both from the registration row in ONE query.
     ///
     /// Deliberately set-based: the usage writer resolves a whole batch of requests at
     /// once, so this replaces one round-trip per logged row with one per batch. Callers
     /// pass distinct ids; missing ids are simply absent from the result, which the
     /// writer records as the fact table's explicit unknown member rather than a null.
+    ///
+    /// JobId belongs here rather than in a separate jobPath lookup: for an
+    /// authenticated request the registration row already knows its job, so resolving
+    /// a jobPath claim to a JobId is a second query for something this one returns for
+    /// free -- and a less authoritative answer, since the claim was minted at login and
+    /// the foreign key cannot be stale. jobPath resolution remains necessary only for
+    /// anonymous traffic, which carries no regId at all.
     /// </summary>
     Task<IReadOnlyList<RegistrationUsageDimensionsDto>> GetRegistrationUsageDimensionsAsync(
         IReadOnlyCollection<Guid> registrationIds,

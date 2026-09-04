@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.Usage;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
@@ -117,6 +118,36 @@ public class JobRepository : IJobRepository
             .Where(j => j.JobPath != null && EF.Functions.Collate(j.JobPath!, "SQL_Latin1_General_CP1_CI_AS") == jobPath)
             .Select(j => (Guid?)j.JobId)
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<JobPathIdDto>> GetJobIdsByPathsAsync(
+        IReadOnlyCollection<string> jobPaths,
+        CancellationToken cancellationToken = default)
+    {
+        if (jobPaths.Count == 0) return [];
+
+        // NO EF.Functions.Collate here, unlike the single-path lookup above. Two
+        // reasons, in order:
+        //
+        //   1. Case-insensitivity is already guaranteed by the column. Jobs.JobPath is
+        //      varchar(80) collated SQL_Latin1_General_CP1_CI_AS -- CI, and the same as
+        //      the database default -- so a plain comparison matches case-insensitively
+        //      on its own. Checked against the query plan: forcing the collation changes
+        //      nothing, the optimizer discards it and seeks UI_JOBPATH either way.
+        //   2. Collate INSIDE a Contains is a translation this cannot afford to get
+        //      wrong. A failure to translate throws at query time, and every failure on
+        //      this path is swallowed into a discarded batch -- so it would surface as
+        //      silently missing telemetry, not as an error anyone sees. A plain
+        //      Contains always translates to IN.
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobPath != null && jobPaths.Contains(j.JobPath))
+            .Select(j => new JobPathIdDto
+            {
+                JobPath = j.JobPath!,
+                JobId = j.JobId,
+            })
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<string?> GetJobPathAsync(Guid jobId, CancellationToken cancellationToken = default)

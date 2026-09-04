@@ -899,6 +899,7 @@ public class RegistrationRepository : IRegistrationRepository
             .Select(r => new RegistrationUsageDimensionsDto
             {
                 RegId = r.RegistrationId,
+                JobId = r.JobId,
                 AssignedTeamId = r.AssignedTeamId,
             })
             .ToListAsync(cancellationToken);

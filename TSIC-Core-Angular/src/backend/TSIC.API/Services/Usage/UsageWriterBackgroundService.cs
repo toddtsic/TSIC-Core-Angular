@@ -1,6 +1,7 @@
 using System.Data;
 using System.Threading.Channels;
 using Microsoft.Data.SqlClient;
+using TSIC.Contracts.Dtos.Usage;
 using TSIC.Contracts.Repositories;
 
 namespace TSIC.API.Services.Usage;
@@ -51,19 +52,26 @@ public sealed class UsageWriterBackgroundService : BackgroundService
     private const int MinLingerSeconds = 1;
     private const int MaxLingerSeconds = 300;
 
-    // A job's path never changes and there are ~1100 of them, so this warms once and
-    // then serves every request for free. The cap exists because unresolved paths are
-    // cached too (as Guid.Empty) -- without a ceiling, a bot spraying random paths
-    // would grow this without limit.
-    private const int MaxCachedJobPaths = 5_000;
-
+    // NO CACHE HERE, deliberately. An earlier version kept a process-lifetime
+    // Dictionary<jobPath, JobId> with negative entries and a 5,000 cap. It was removed:
+    //
+    //   * It bought nothing. The lookup is an Index Seek on UI_JOBPATH over ~1,100 rows
+    //     that live permanently in buffer cache -- verified against the actual plan.
+    //     Batching the round-trips is the whole saving; remembering answers between
+    //     batches is not.
+    //   * It was the one thing in this subsystem an anonymous stranger could degrade.
+    //     Misses had to be cached too (or one junk path costs a query forever), and
+    //     misses are attacker-supplied: ~1,100 real paths left ~3,900 slots for garbage
+    //     from any crawler walking /api/jobs/{made-up}. Once full it accepted nothing
+    //     further -- real jobs included -- and never evicted, so the cost it existed to
+    //     remove came back permanently.
+    //
+    // Do not reintroduce it. Per-batch dedup below gives the same benefit with no state
+    // to size, expire, or attack.
     private readonly UsageQueue _queue;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConfiguration _configuration;
     private readonly ILogger<UsageWriterBackgroundService> _logger;
-
-    private readonly Dictionary<string, Guid> _jobIdByPath =
-        new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Resolved once in ExecuteAsync, before the loop. Not re-read per batch: a linger
@@ -219,10 +227,14 @@ public sealed class UsageWriterBackgroundService : BackgroundService
         string connectionString,
         CancellationToken cancellationToken)
     {
+        // Two lookups for one mixed batch: signed-in rows resolve from their
+        // registration, anonymous rows from their jobPath. Sequential awaits, never
+        // Task.WhenAll -- each opens its own scope, and concurrent DbContext use is the
+        // failure this codebase has a standing rule against.
+        var registrations = await ResolveRegistrationDimensionsAsync(batch, cancellationToken).ConfigureAwait(false);
         var jobIds = await ResolveJobIdsAsync(batch, cancellationToken).ConfigureAwait(false);
-        var teamIds = await ResolveTeamIdsAsync(batch, cancellationToken).ConfigureAwait(false);
 
-        using var table = BuildTable(batch, jobIds, teamIds);
+        using var table = BuildTable(batch, jobIds, registrations);
 
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -243,8 +255,17 @@ public sealed class UsageWriterBackgroundService : BackgroundService
     }
 
     /// <summary>
-    /// jobPath to JobId, cache first. Unresolved paths are cached as Guid.Empty so a
-    /// bad or retired path costs one lookup rather than one per request forever.
+    /// jobPath to JobId, for the ANONYMOUS rows of this batch only.
+    ///
+    /// Rows carrying a regId are excluded: their JobId comes back from the registration
+    /// lookup, which is both already happening and more authoritative -- the token is
+    /// job-scoped, so the registration's own foreign key names the job in use, while
+    /// jobPath is a string claim minted at login. Asking about them here would be a
+    /// second query for something already in hand.
+    ///
+    /// One round-trip per batch, not one per path. Paths that do not resolve are absent
+    /// from the dictionary and land as Guid.Empty at projection -- not remembered, so a
+    /// crawler spraying invented paths costs one row in one query and nothing after.
     /// </summary>
     private async Task<Dictionary<string, Guid>> ResolveJobIdsAsync(
         List<UsageCapture> batch,
@@ -253,30 +274,39 @@ public sealed class UsageWriterBackgroundService : BackgroundService
         var wanted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var row in batch)
         {
-            if (!string.IsNullOrWhiteSpace(row.JobPath) && !_jobIdByPath.ContainsKey(row.JobPath))
+            if (row.RegId is null && !string.IsNullOrWhiteSpace(row.JobPath))
                 wanted.Add(row.JobPath);
         }
 
-        if (wanted.Count > 0)
-        {
-            using var scope = _scopeFactory.CreateScope();
-            var jobs = scope.ServiceProvider.GetRequiredService<IJobRepository>();
+        if (wanted.Count == 0) return new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
 
-            // Sequential awaits, never Task.WhenAll: these share one scoped DbContext.
-            foreach (var path in wanted)
-            {
-                var jobId = await jobs.GetJobIdByPathAsync(path, cancellationToken)
-                    .ConfigureAwait(false);
+        using var scope = _scopeFactory.CreateScope();
+        var jobs = scope.ServiceProvider.GetRequiredService<IJobRepository>();
 
-                if (_jobIdByPath.Count < MaxCachedJobPaths)
-                    _jobIdByPath[path] = jobId ?? Guid.Empty;
-            }
-        }
+        var rows = await jobs.GetJobIdsByPathsAsync(wanted, cancellationToken)
+            .ConfigureAwait(false);
 
-        return _jobIdByPath;
+        // Keyed the same way the captures are matched -- case-insensitively, because
+        // jobPath comparison is case-insensitive everywhere else in the system and the
+        // database may return a different casing than the request supplied.
+        var resolved = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows)
+            resolved[row.JobPath] = row.JobId;
+
+        return resolved;
     }
 
-    private async Task<Dictionary<Guid, Guid?>> ResolveTeamIdsAsync(
+    /// <summary>
+    /// Both registration-derived dimensions -- JobId and TeamId -- for the SIGNED-IN
+    /// rows of this batch, in one query.
+    ///
+    /// JobId rides along because it is on the same row: fetching it here costs nothing
+    /// beyond a column, and it is the authoritative job for authenticated traffic.
+    /// Nothing is cached. TeamId must not be (a player's team assignment changes, and a
+    /// remembered value would record stale attribution), and JobId need not be, since
+    /// it arrives free in a query already being made.
+    /// </summary>
+    private async Task<Dictionary<Guid, RegistrationUsageDimensionsDto>> ResolveRegistrationDimensionsAsync(
         List<UsageCapture> batch,
         CancellationToken cancellationToken)
     {
@@ -295,7 +325,7 @@ public sealed class UsageWriterBackgroundService : BackgroundService
             .GetRegistrationUsageDimensionsAsync(regIds, cancellationToken)
             .ConfigureAwait(false);
 
-        return rows.ToDictionary(r => r.RegId, r => r.AssignedTeamId);
+        return rows.ToDictionary(r => r.RegId);
     }
 
     // ── Projection ────────────────────────────────────────────────────────────
@@ -303,7 +333,7 @@ public sealed class UsageWriterBackgroundService : BackgroundService
     private static DataTable BuildTable(
         List<UsageCapture> batch,
         Dictionary<string, Guid> jobIds,
-        Dictionary<Guid, Guid?> teamIds)
+        Dictionary<Guid, RegistrationUsageDimensionsDto> registrations)
     {
         var table = new DataTable();
         table.Columns.Add("OccurredAt", typeof(DateTime));
@@ -332,14 +362,24 @@ public sealed class UsageWriterBackgroundService : BackgroundService
             // Guid.Empty is the fact table's explicit "no job context" member, not a
             // null and not a missing row. An unresolvable path lands here the same way
             // an absent one does -- by design, so JobId can stay NOT NULL.
+            //
+            // The registration wins when there is one. It is the same job the token was
+            // scoped to, read from the row's own foreign key rather than from a string
+            // claim, so the two cannot drift; jobPath is what anonymous traffic has
+            // INSTEAD, not a second opinion to reconcile.
             var jobId = Guid.Empty;
-            if (!string.IsNullOrWhiteSpace(row.JobPath)
-                && jobIds.TryGetValue(row.JobPath, out var resolved))
-                jobId = resolved;
-
             Guid? teamId = null;
-            if (row.RegId is { } regId && teamIds.TryGetValue(regId, out var resolvedTeam))
-                teamId = resolvedTeam;
+
+            if (row.RegId is { } regId && registrations.TryGetValue(regId, out var dimensions))
+            {
+                jobId = dimensions.JobId;
+                teamId = dimensions.AssignedTeamId;
+            }
+            else if (!string.IsNullOrWhiteSpace(row.JobPath)
+                     && jobIds.TryGetValue(row.JobPath, out var resolvedJobId))
+            {
+                jobId = resolvedJobId;
+            }
 
             table.Rows.Add(
                 row.OccurredAt,
