@@ -22,6 +22,13 @@ public record RegistrationUsageDimensionsDto
     /// </summary>
     public required Guid JobId { get; init; }
 
-    /// <summary>Null when the registration is not rostered to a team.</summary>
+    /// <summary>
+    /// The team this registration is rostered to; null when it is not rostered to one.
+    ///
+    /// Fallback source for logs.AppUsage.TeamId: used only when the request's route
+    /// named no team. It answers "the team the CALLER belongs to", which is not always
+    /// the team the request concerned -- see the writer for why that is acceptable and
+    /// how the two stay separable in SQL.
+    /// </summary>
     public Guid? AssignedTeamId { get; init; }
 }

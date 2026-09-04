@@ -43,22 +43,6 @@ public sealed class UsageLoggingMiddleware
     /// <summary>logs.AppUsage.QueryString is NVARCHAR(400).</summary>
     private const int MaxQueryStringLength = 400;
 
-    /// <summary>
-    /// <c>HttpContext.Items</c> key an action sets to name the team its request
-    /// concerned, when the team is NOT on the route.
-    ///
-    /// This is the ONLY way to reach a teamId that arrived in a request BODY --
-    /// <c>POST /api/device/subscribe-team</c> is one. The middleware runs after the
-    /// response is written, by which point model binding has consumed the body;
-    /// buffering every request body on the hot path to recover it is the exact cost
-    /// this design refuses to pay. The action already holds the bound value, so it
-    /// hands it over in one line instead.
-    ///
-    /// A constant because the middleware and every action that opts in must agree on
-    /// the key. A literal mistyped on either side fails silently, as a missing team.
-    /// </summary>
-    public const string TeamIdItemKey = "UsageTeamId";
-
     public UsageLoggingMiddleware(
         RequestDelegate next,
         UsageQueue queue,
@@ -111,29 +95,22 @@ public sealed class UsageLoggingMiddleware
             : null;
         jobPath ??= user?.FindFirst("jobPath")?.Value;
 
-        // The team this request was ABOUT. Never the caller's own team.
+        // The team this request was ABOUT, read from the route -- "…/{teamId:guid}" on
+        // 15 controllers, which covers the roster, LADT, check-in and club-roster
+        // traffic. This is the FIRST of two sources; when it finds nothing the writer
+        // falls back to the caller's own AssignedTeamId during enrichment.
         //
-        // Explicit first (an action that knows, including one whose teamId came in the
-        // body), then the route -- "…/{teamId:guid}" on 15 controllers, which covers
-        // the roster, LADT, check-in and club-roster traffic without any action change.
-        //
-        // There is deliberately NO fallback to the registration's AssignedTeamId. That
-        // answers a DIFFERENT question -- which team the CALLER belongs to -- and the
-        // two only coincide for players and parents, who can just see their own team.
-        // A superuser has no assignment at all, and a club rep running a bulk fee update
-        // across forty teams would have the row stamped with the one team they happen to
-        // belong to, indistinguishable from a real subject. A create has no team yet; a
-        // division read is about many. NULL is the honest answer for all of them.
-        Guid? teamId = null;
-        if (context.Items.TryGetValue(TeamIdItemKey, out var itemTeamId) && itemTeamId is Guid itemGuid)
-        {
-            teamId = itemGuid;
-        }
-        else if (context.Request.RouteValues.TryGetValue("teamId", out var routeTeamId)
-                 && Guid.TryParse(routeTeamId?.ToString(), out var parsedTeamId))
-        {
-            teamId = parsedTeamId;
-        }
+        // A teamId carried in a request BODY is deliberately not read here. Recovering
+        // it means Request.EnableBuffering() before _next -- the one thing in this
+        // subsystem that would sit in the live request path -- plus re-parsing a body
+        // MVC already parsed. That would fire on 341 of the 360 write endpoints to
+        // answer the question on 8 of them. The two query-string teamIds (fee
+        // affected-count, uslax validation) are skipped with it, to keep the rule one
+        // sentence long rather than three.
+        Guid? teamId = context.Request.RouteValues.TryGetValue("teamId", out var routeTeamId)
+                       && Guid.TryParse(routeTeamId?.ToString(), out var parsedTeamId)
+            ? parsedTeamId
+            : null;
 
         // MapInboundClaims = true remaps "sub" onto NameIdentifier. Reading "sub"
         // directly returns null and would log every signed-in request as anonymous.

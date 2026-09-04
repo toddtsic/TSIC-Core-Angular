@@ -368,12 +368,9 @@ public sealed class UsageWriterBackgroundService : BackgroundService
     /// read from the registration's own foreign key rather than a string claim, so the
     /// two cannot drift.
     ///
-    /// The DTO also carries AssignedTeamId, which this writer deliberately does NOT
-    /// use. That column names the team the CALLER belongs to; logs.AppUsage.TeamId
-    /// names the team a REQUEST concerned, and those coincide only for players and
-    /// parents, who can see nothing but their own team. It is left on the DTO because
-    /// it costs nothing (same row, same query) and a second consumer wanting caller
-    /// attribution would want exactly this -- in its own column, never in TeamId.
+    /// The DTO also carries AssignedTeamId, which is the FALLBACK source for
+    /// logs.AppUsage.TeamId when the route named no team. It costs nothing to fetch --
+    /// same row, same query.
     ///
     /// Nothing is cached: a job assignment is cheap to re-read and a remembered one
     /// would record stale attribution.
@@ -439,16 +436,24 @@ public sealed class UsageWriterBackgroundService : BackgroundService
             // scoped to, read from the row's own foreign key rather than from a string
             // claim, so the two cannot drift; jobPath is what anonymous traffic has
             // INSTEAD, not a second opinion to reconcile.
-            // TeamId is NOT resolved here. It was captured on the request path from the
-            // route (or the action's own HttpContext.Items) and travels on the row
-            // untouched -- see UsageCapture. The registration's AssignedTeamId is
-            // deliberately not consulted: it names the team the CALLER belongs to, which
-            // is a different fact and silently wrong on any request about another team.
+            // TeamId has two sources, in order. The ROUTE wins: a "…/{teamId:guid}" path
+            // segment names the team the REQUEST was about, and it was captured on the
+            // request path (see UsageCapture). Only when the route named none does the
+            // caller's own AssignedTeamId fill in.
+            //
+            // Those are different facts -- the team a request concerned versus the team
+            // its caller belongs to -- and mixing them is a deliberate, reversible
+            // choice, not an accident. They stay separable afterwards: a fallback row is
+            // exactly one whose TeamId equals its own RegId's AssignedTeamId, which is a
+            // WHERE clause. A superuser or club rep acting on someone else's team is
+            // therefore attributed to THEIR team, and that is what the fallback means.
             var jobId = Guid.Empty;
+            var teamId = row.TeamId;
 
             if (row.RegId is { } regId && registrations.TryGetValue(regId, out var dimensions))
             {
                 jobId = dimensions.JobId;
+                teamId ??= dimensions.AssignedTeamId;
             }
             else if (!string.IsNullOrWhiteSpace(row.JobPath)
                      && jobIds.TryGetValue(row.JobPath, out var resolvedJobId))
@@ -478,7 +483,7 @@ public sealed class UsageWriterBackgroundService : BackgroundService
             record["UserId"] = row.UserId is { } userId ? Truncate(userId, 450) : DBNull.Value;
             record["RegId"] = (object?)row.RegId ?? DBNull.Value;
             record["JobId"] = jobId;
-            record["TeamId"] = (object?)row.TeamId ?? DBNull.Value;
+            record["TeamId"] = (object?)teamId ?? DBNull.Value;
             record["IsBot"] = isBot;
             record["BrowserId"] = browserId;
             record["DeviceClassId"] = deviceClassId;
