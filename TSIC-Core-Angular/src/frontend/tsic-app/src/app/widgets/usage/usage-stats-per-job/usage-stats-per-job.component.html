@@ -120,7 +120,7 @@
 								name="Signed in"
 								[fill]="primaryColor()"
 								[border]="{ width: 2, color: surfaceColor() }"
-								[columnWidth]="0.65">
+								[columnWidthInPixel]="barThickness">
 							</e-series>
 							<e-series
 								[dataSource]="chartData()"
@@ -130,7 +130,7 @@
 								name="Anonymous"
 								[fill]="accentColor()"
 								[border]="{ width: 2, color: surfaceColor() }"
-								[columnWidth]="0.65">
+								[columnWidthInPixel]="barThickness">
 							</e-series>
 						</e-series-collection>
 					</ejs-chart>

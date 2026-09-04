@@ -81,10 +81,28 @@ export class UsageStatsPerJobComponent implements OnInit {
 			+ `(${d.otherRequests.toLocaleString()} requests) not charted`;
 	});
 
-	/** Bars need vertical room; job names are long and the axis is categorical. */
+	/**
+	 * Bar thickness in PIXELS, not a fraction of the category slot.
+	 *
+	 * ej2 sizes a proportional `columnWidth` against the slot, and the slot is chart
+	 * height divided by category count — so one event drew a single enormous bar and
+	 * twelve drew thin ones. Thickness carries no information here; bar LENGTH does.
+	 * Pinning it keeps the chart reading the same at every row count and across a
+	 * 24h/7d/30d switch that changes how many events qualify.
+	 *
+	 * The property is `columnWidthInPixel`, SINGULAR. `columnWidthInPixels` does not
+	 * exist in ej2 33.x and fails silently — unknown series properties are ignored.
+	 */
+	readonly barThickness = 18;
+
+	/**
+	 * One slot per event, sized to the bar plus its gap, so rows stay evenly spaced
+	 * however many there are. The floor covers the chrome (legend, axis labels,
+	 * margins) without stranding a single-row chart in whitespace.
+	 */
 	readonly chartHeight = computed(() => {
 		const count = this.chartData().length;
-		return `${Math.max(220, count * 34 + 70)}px`;
+		return `${Math.max(130, count * 34 + 70)}px`;
 	});
 
 	readonly primaryXAxis = computed(() => ({
