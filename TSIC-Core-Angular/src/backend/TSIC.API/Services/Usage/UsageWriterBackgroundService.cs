@@ -1,4 +1,5 @@
 using System.Data;
+using System.Diagnostics;
 using System.Threading.Channels;
 using Microsoft.Data.SqlClient;
 using TSIC.Contracts.Dtos.Usage;
@@ -79,7 +80,29 @@ public sealed class UsageWriterBackgroundService : BackgroundService
     /// </summary>
     private TimeSpan _lingerWindow = TimeSpan.FromSeconds(DefaultLingerSeconds);
 
+    /// <summary>
+    /// How often the writer says it is alive. Everything else this service logs is an
+    /// exception: a failed batch, or the queue shedding rows. Without a routine line,
+    /// silence in Seq means both "healthy" and "stalled" and there is no way to tell
+    /// them apart without querying logs.AppUsage by hand.
+    ///
+    /// Traffic-driven on purpose -- it fires after a flush, not on a timer, so an idle
+    /// night is silent rather than filling Seq with zeroes. Absence of this line WHILE
+    /// requests are being logged by Serilog is the signal worth alerting on.
+    /// </summary>
+    private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromMinutes(15);
+
+    // Stopwatch, not a clock: this is elapsed time, so it must not move when the system
+    // clock does.
+    private readonly Stopwatch _sinceHeartbeat = Stopwatch.StartNew();
+
     private long _written;
+    private long _batches;
+    private long _failedBatches;
+
+    private long _heartbeatWritten;
+    private long _heartbeatBatches;
+    private long _heartbeatFailed;
     private long _lastReportedDrops;
 
     public UsageWriterBackgroundService(
@@ -138,6 +161,8 @@ public sealed class UsageWriterBackgroundService : BackgroundService
             if (batch.Count < MaxBatchSize && !stoppingToken.IsCancellationRequested)
                 await LingerAsync(batch, stoppingToken).ConfigureAwait(false);
 
+            _batches++;
+
             try
             {
                 await FlushAsync(batch, connectionString, stoppingToken).ConfigureAwait(false);
@@ -149,16 +174,19 @@ public sealed class UsageWriterBackgroundService : BackgroundService
                 // default. Usage logging must never be able to do that, so the batch is
                 // reported and dropped rather than retried -- a poison batch would
                 // otherwise loop forever.
+                _failedBatches++;
                 _logger.LogError(ex,
                     "Usage batch of {Count} rows discarded after a write failure.", batch.Count);
             }
 
             ReportDropsIfChanged();
+            ReportHeartbeatIfDue();
         }
 
         _logger.LogInformation(
-            "UsageWriterBackgroundService stopped. Rows written={Written}, dropped={Dropped}.",
-            _written, _queue.DroppedCount);
+            "UsageWriterBackgroundService stopped. Rows written={Written}, dropped={Dropped}, " +
+            "batches={Batches}, failedBatches={FailedBatches}.",
+            _written, _queue.DroppedCount, _batches, _failedBatches);
     }
 
     private async Task LingerAsync(List<UsageCapture> batch, CancellationToken stoppingToken)
@@ -206,6 +234,35 @@ public sealed class UsageWriterBackgroundService : BackgroundService
         }
 
         return TimeSpan.FromSeconds(clamped);
+    }
+
+    /// <summary>
+    /// The routine "still here" line. Reports the DELTA since the last heartbeat first,
+    /// because that is the number that answers "is it working now"; running totals
+    /// follow for context.
+    ///
+    /// failed=0 in a healthy report is worth having explicitly: a batch failure already
+    /// logs an error, but errors get filtered out of dashboards, and a zero here says
+    /// the writer itself agrees nothing went wrong.
+    /// </summary>
+    private void ReportHeartbeatIfDue()
+    {
+        if (_sinceHeartbeat.Elapsed < HeartbeatInterval) return;
+
+        _logger.LogInformation(
+            "Usage writer alive: {Rows} row(s) in {Batches} batch(es) over the last {Minutes:0}m " +
+            "(failed={Failed}; totals written={TotalWritten}, dropped={TotalDropped}).",
+            _written - _heartbeatWritten,
+            _batches - _heartbeatBatches,
+            _sinceHeartbeat.Elapsed.TotalMinutes,
+            _failedBatches - _heartbeatFailed,
+            _written,
+            _queue.DroppedCount);
+
+        _heartbeatWritten = _written;
+        _heartbeatBatches = _batches;
+        _heartbeatFailed = _failedBatches;
+        _sinceHeartbeat.Restart();
     }
 
     private void ReportDropsIfChanged()
