@@ -1,4 +1,4 @@
-import { Component, input, output, signal, computed, ChangeDetectionStrategy, HostListener, ElementRef, inject } from '@angular/core';
+import { Component, input, output, signal, linkedSignal, ChangeDetectionStrategy, HostListener, ElementRef, inject } from '@angular/core';
 import type { AgegroupWithDivisionsDto, AgegroupCanvasReadinessDto, DivisionSummaryDto } from '@core/api';
 import { contrastText, agTeamCount, AGEGROUP_COLORS } from '../../utils/scheduling-helpers';
 import type { ScheduleScope } from '../../utils/scheduling-helpers';
@@ -29,14 +29,13 @@ export class DivisionNavigatorComponent {
     // ── Internal state ──
     readonly colorPickerAgId = signal<string | null>(null);
 
-    /** Tree expansion is purely a function of selectedScope: the parent agegroup
-     * of the current scope is expanded; everything else is collapsed. No external
-     * mutation needed — callers just update scope and the tree follows. */
-    private readonly expandedAgegroupId = computed(() => {
-        const s = this.selectedScope();
-        if (s.level === 'agegroup') return s.agegroupId;
-        if (s.level === 'division') return s.agegroupId;
-        return null;
+    /** Tree expansion is *seeded* from selectedScope — the parent agegroup of the
+     * current scope opens whenever scope changes — but the header click can also
+     * toggle it directly. A plain computed() made the chevron inert on any host
+     * that does not move scope on agegroup click (Manage Pairings). */
+    private readonly expandedAgegroupId = linkedSignal<ScheduleScope, string | null>({
+        source: () => this.selectedScope(),
+        computation: (s) => (s.level === 'agegroup' || s.level === 'division') ? s.agegroupId : null
     });
 
     // ── Helpers (bound as readonly for template) ──
@@ -54,7 +53,11 @@ export class DivisionNavigatorComponent {
 
     // ── Methods ──
 
+    /** Header click both toggles the branch and reports the agegroup. Hosts that
+     * move scope on agegroupSelected reseed the branch open (existing behaviour);
+     * hosts that ignore the event get a working expand/collapse. */
     selectAgegroup(agId: string): void {
+        this.expandedAgegroupId.set(this.expandedAgegroupId() === agId ? null : agId);
         this.agegroupSelected.emit({ agegroupId: agId });
     }
 
