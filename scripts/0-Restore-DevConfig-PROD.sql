@@ -9,7 +9,7 @@
 --
 -- ============================================================================
 --
--- Generated: 2026-08-10 15:26:54
+-- Generated: 2026-08-26 07:49:55
 -- Source:    0-Restore-DevConfig-DEV.ps1 (widgets/store from dev DB, nav from route manifest)
 --
 -- WHAT THIS DOES:
@@ -23,7 +23,7 @@
 --   * Data targets ONLY: widgets.*, nav.*, logs.*, stores.StoreItemImage
 --   * ZERO writes to legacy tables
 --
--- Snapshot: 2 widget categories, 7 widgets, 30 defaults, 0 job overrides
+-- Snapshot: 3 widget categories, 8 widgets, 30 defaults, 3 job overrides
 --           10 navs, 180 nav items [from route manifest]
 --           20 store images
 --
@@ -35,7 +35,7 @@ SET NOCOUNT ON;
 PRINT '';
 PRINT '==========================================================';
 PRINT '  0-Restore-DevConfig-PROD.sql';
-PRINT '  Generated: 2026-08-10 15:26:54';
+PRINT '  Generated: 2026-08-26 07:49:55';
 PRINT '==========================================================';
 PRINT '';
 
@@ -288,8 +288,10 @@ INSERT INTO widgets.WidgetCategory (CategoryId, Name, Workspace, Icon, DefaultOr
 VALUES (1, N'Public Content', N'public', NULL, 0);
 INSERT INTO widgets.WidgetCategory (CategoryId, Name, Workspace, Icon, DefaultOrder)
 VALUES (3, N'Dashboard Charts', N'dashboard', NULL, 1);
+INSERT INTO widgets.WidgetCategory (CategoryId, Name, Workspace, Icon, DefaultOrder)
+VALUES (4, N'Financial', N'dashboard', N'bi-heart-pulse', 0);
 SET IDENTITY_INSERT widgets.WidgetCategory OFF;
-PRINT '  Loaded 2 categories';
+PRINT '  Loaded 3 categories';
 
 SET IDENTITY_INSERT widgets.Widget ON;
 INSERT INTO widgets.Widget (WidgetId, Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
@@ -306,8 +308,10 @@ INSERT INTO widgets.Widget (WidgetId, Name, WidgetType, ComponentKey, CategoryId
 VALUES (21, N'Event Contact', N'content', N'event-contact', 1, NULL, N'{"label":"Event Contact","icon":"bi-person-fill","displayStyle":"block"}');
 INSERT INTO widgets.Widget (WidgetId, Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
 VALUES (23, N'Year-over-Year Comparison', N'chart-tile', N'year-over-year', 3, N'Registration comparison between current and prior year', N'{"label":"Year-over-Year Comparison","icon":"bi-arrow-repeat"}');
+INSERT INTO widgets.Widget (WidgetId, Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
+VALUES (24, N'Financial Health', N'content', N'financial-health', 4, N'DIRECTOR ONLY - expiring cards, subscription drift, and balances owed', N'{"displayStyle":"panel"}');
 SET IDENTITY_INSERT widgets.Widget OFF;
-PRINT '  Loaded 7 widgets';
+PRINT '  Loaded 8 widgets';
 
 SET IDENTITY_INSERT widgets.WidgetDefault ON;
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
@@ -373,7 +377,15 @@ VALUES (497, 2, N'', 21, 1, 3, N'{"label":"Event Contact","icon":"bi-person-fill
 SET IDENTITY_INSERT widgets.WidgetDefault OFF;
 PRINT '  Loaded 30 defaults';
 
-PRINT '  Loaded 0 job overrides';
+SET IDENTITY_INSERT widgets.JobWidget ON;
+INSERT INTO widgets.JobWidget (JobWidgetId, JobId, WidgetId, RoleId, CategoryId, DisplayOrder, IsEnabled, Config)
+VALUES (1, 'ee511caa-37fe-49d1-a2b7-1b9660f75f4f', 24, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 4, 0, 1, NULL);
+INSERT INTO widgets.JobWidget (JobWidgetId, JobId, WidgetId, RoleId, CategoryId, DisplayOrder, IsEnabled, Config)
+VALUES (2, 'ee511caa-37fe-49d1-a2b7-1b9660f75f4f', 24, N'7B9EB503-53C9-44FA-94A0-17760C512440', 4, 0, 1, NULL);
+INSERT INTO widgets.JobWidget (JobWidgetId, JobId, WidgetId, RoleId, CategoryId, DisplayOrder, IsEnabled, Config)
+VALUES (3, 'ee511caa-37fe-49d1-a2b7-1b9660f75f4f', 24, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 4, 0, 1, NULL);
+SET IDENTITY_INSERT widgets.JobWidget OFF;
+PRINT '  Loaded 3 job overrides';
 PRINT '  2A complete';
 GO
 
