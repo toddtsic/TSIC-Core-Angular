@@ -669,4 +669,33 @@ public class WidgetRepository : IWidgetRepository
         };
     }
 
+    public async Task<Dictionary<Guid, string>> GetCustomerJobNamesAsync(
+        Guid currentJobId,
+        IReadOnlyCollection<Guid> jobIds,
+        CancellationToken ct = default)
+    {
+        if (jobIds.Count == 0) return [];
+
+        // Scope = the customer owning the job the caller is standing in, the same key the
+        // portfolio widget uses. customerID is the scope AND the security boundary: the
+        // job ids arriving here came from TSICLogs, which knows nothing about customers,
+        // so this join is the only thing preventing one customer's dashboard from naming
+        // -- and therefore revealing -- another customer's events.
+        var customerId = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == currentJobId)
+            .Select(j => j.CustomerId)
+            .FirstOrDefaultAsync(ct);
+
+        if (customerId == Guid.Empty) return [];
+
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.CustomerId == customerId
+                     && jobIds.Contains(j.JobId)
+                     && j.JobName != null)
+            .Select(j => new { j.JobId, JobName = j.JobName! })
+            .ToDictionaryAsync(x => x.JobId, x => x.JobName, ct);
+    }
+
 }

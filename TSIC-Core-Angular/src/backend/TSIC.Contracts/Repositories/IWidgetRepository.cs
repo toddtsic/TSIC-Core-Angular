@@ -87,4 +87,23 @@ public interface IWidgetRepository
         Guid currentJobId,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Names for the jobs owned by the same customer as <paramref name="currentJobId"/>,
+    /// restricted to <paramref name="jobIds"/>.
+    ///
+    /// This is the SCOPE GATE for the UsageStatsPerJob widget, not a convenience lookup.
+    /// The usage aggregate comes from TSICLogs and is not customer-filtered -- it cannot
+    /// be, the two databases do not join -- so a job id that survives this call is a job
+    /// the caller is entitled to see, and one that does not is silently dropped. Do not
+    /// "helpfully" fall back to naming ids outside the customer.
+    ///
+    /// Unlike the portfolio widget this does NOT filter on ExpiryUsers: usage is a
+    /// historical record, and a window that reaches back before an event ended should
+    /// still show the traffic that event received.
+    /// </summary>
+    Task<Dictionary<Guid, string>> GetCustomerJobNamesAsync(
+        Guid currentJobId,
+        IReadOnlyCollection<Guid> jobIds,
+        CancellationToken ct = default);
+
 }

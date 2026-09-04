@@ -56,6 +56,7 @@ using TSIC.API.Services.Store;
 using TSIC.API.Services.Fees;
 using TSIC.API.Services.Widgets;
 using TSIC.API.Authorization;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using TSIC.API.Services.Usage;
 using Amazon.SimpleEmail;
 using Amazon.Runtime;
@@ -547,8 +548,19 @@ if (!builder.Environment.IsEnvironment("Testing"))
     {
         builder.Services.AddDbContext<LogsDbContext>(options =>
             options.UseSqlServer(logsConnection));
+
+        builder.Services.AddScoped<IUsageStatsRepository, UsageStatsRepository>();
     }
 }
+
+// Fallback for every case the block above did not cover: LogsConnection absent, and the
+// Testing environment, which skips all DbContext registration. TryAdd, so it fills a gap
+// and never displaces the real one.
+//
+// Without this the widget would fail DEPENDENCY RESOLUTION and return 500. The stand-in
+// reports "not configured", which the UI can say out loud -- an empty result would read
+// as "nobody used anything", which is a worse answer than an honest unavailable.
+builder.Services.TryAddScoped<IUsageStatsRepository, UnavailableUsageStatsRepository>();
 
 // Usage logging write path. The queue is a singleton because middleware and the writer
 // must share one buffer; the writer holds no DbContext and opens its own connection.

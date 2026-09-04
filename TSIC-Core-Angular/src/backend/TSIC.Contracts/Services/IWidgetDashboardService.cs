@@ -94,4 +94,18 @@ public interface IWidgetDashboardService
         Guid currentJobId,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Usage per job for the UsageStatsPerJob widget: the top jobs by request count over
+    /// a window, scoped to the caller current customer.
+    ///
+    /// Two databases, two queries, merged here -- TSICLogs for the counts, TSICV5 for the
+    /// names and the customer scope. They are deliberately not joined in SQL.
+    /// </summary>
+    Task<UsageStatsPerJobDto> GetUsageStatsPerJobAsync(
+        Guid currentJobId,
+        int windowDays,
+        bool excludeBots,
+        int topN,
+        CancellationToken ct = default);
+
 }

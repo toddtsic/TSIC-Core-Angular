@@ -9,6 +9,7 @@ import { AgegroupDistributionWidgetComponent } from '@widgets/registration/agegr
 import { YearOverYearWidgetComponent } from '@widgets/scheduling/year-over-year-widget/year-over-year-widget.component';
 import { FinancialHealthComponent } from '@widgets/financial/financial-health/financial-health.component';
 import { JobRegCountsAndDollarsComponent } from '@widgets/portfolio/job-reg-counts-dollars/job-reg-counts-dollars.component';
+import { UsageStatsPerJobComponent } from '@widgets/usage/usage-stats-per-job/usage-stats-per-job.component';
 import { Workspaces, type WorkspaceKey } from '@widgets/workspace.constants';
 
 // ════════════════════════════════════════════════════════════
@@ -132,6 +133,18 @@ export const WIDGET_MANIFEST: Record<string, WidgetManifestEntry> = {
 		workspace:    Workspaces.Dashboard,
 		description:  'Live events across the customer with registration counts and ledger dollars',
 		displayStyle: 'table',
+	},
+
+	// widgetType 'content' for the same reason as the widget above: it carries its own
+	// controls and a variable-height chart, which the small-chart grid would crush.
+	'usage-stats-per-job': {
+		component:    UsageStatsPerJobComponent,
+		label:        'UsageStatsPerJob',
+		icon:         'bi-activity',
+		widgetType:   'content',
+		workspace:    Workspaces.Dashboard,
+		description:  'Requests per event over a rolling window, split signed-in vs anonymous',
+		displayStyle: 'chart',
 	},
 
 };

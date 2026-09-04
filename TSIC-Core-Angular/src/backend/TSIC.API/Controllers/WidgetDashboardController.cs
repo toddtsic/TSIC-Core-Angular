@@ -281,4 +281,37 @@ public class WidgetDashboardController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// UsageStatsPerJob widget: requests per job over a window, from logs.AppUsage in
+    /// TSICLogs, scoped to the customer owning the caller current job.
+    ///
+    /// Gated CanCrossCustomerJobs (Superuser + SuperDirector) — the same policy as the
+    /// portfolio widget, and for the same reason: this reaches across the jobs of a
+    /// customer. Scope is resolved server-side from the token job; the request supplies
+    /// only presentation parameters, never identity.
+    /// </summary>
+    [HttpGet("usage-stats-per-job")]
+    [Authorize(Policy = "CanCrossCustomerJobs")]
+    public async Task<ActionResult<UsageStatsPerJobDto>> GetUsageStatsPerJob(
+        CancellationToken ct,
+        [FromQuery] int windowDays = 7,
+        [FromQuery] bool excludeBots = true,
+        [FromQuery] int topN = 12)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Job context required" });
+
+        // Clamped, not trusted. These are the only caller-supplied values on this
+        // endpoint, and an unbounded windowDays would turn a dashboard load into a scan
+        // of the entire fact table.
+        windowDays = Math.Clamp(windowDays, 1, 365);
+        topN = Math.Clamp(topN, 1, 50);
+
+        var result = await _dashboardService.GetUsageStatsPerJobAsync(
+            jobId.Value, windowDays, excludeBots, topN, ct);
+
+        return Ok(result);
+    }
+
 }

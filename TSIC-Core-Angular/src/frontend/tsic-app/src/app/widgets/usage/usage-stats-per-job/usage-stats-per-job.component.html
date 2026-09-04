@@ -1,0 +1,147 @@
+<div class="usg">
+
+	<div class="usg__head">
+		<i class="bi bi-activity" aria-hidden="true"></i>
+		<h3 class="usg__title">Usage by Event</h3>
+	</div>
+
+	@if (isUnavailable()) {
+		<!-- NOT the same as no traffic. Say which: an empty chart would read as
+		     nobody having used anything, which is a worse answer than a missing
+		     data source. -->
+		<div class="usg__state">
+			<i class="bi bi-plug" aria-hidden="true"></i>
+			<span>Usage logging is not configured on this server.</span>
+		</div>
+	} @else if (hasError()) {
+		<div class="usg__state usg__state--error">
+			<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+			<span>Unable to load usage statistics</span>
+			<button type="button" class="btn btn-sm btn-outline-secondary" (click)="load()">Retry</button>
+		</div>
+	} @else if (!data()) {
+		<!-- First load only. A window change keeps the chart on screen and merely
+		     disables the controls, so the reader never loses their place. -->
+		<div class="usg__state">
+			<div class="spinner-border spinner-border-sm" role="status"></div>
+			<span>Loading usage…</span>
+		</div>
+	} @else {
+
+		<div class="widget-summary">
+			<div class="summary-stat primary">
+				<span class="stat-value">{{ totalRequestsDisplay() }}</span>
+				<span class="stat-label">Requests</span>
+			</div>
+			<div class="summary-stat accent">
+				<span class="stat-value">{{ totalJobsDisplay() }}</span>
+				<span class="stat-label">{{ data()!.totalJobs === 1 ? 'Event' : 'Events' }}</span>
+			</div>
+			<div class="summary-stat muted">
+				<span class="stat-value">{{ data()!.windowDays === 1 ? '24h' : data()!.windowDays + 'd' }}</span>
+				<span class="stat-label">Window</span>
+			</div>
+		</div>
+
+		<!-- Open by default: this widget has exactly one thing to show, and hiding it
+		     behind a click made the card a wide empty band. The toggle stays so a
+		     reader who wants the summary line alone can have it. -->
+		<button
+			type="button"
+			class="usg__panel-head"
+			[attr.aria-expanded]="isChartOpen()"
+			aria-controls="usg-chart"
+			(click)="toggleChart()">
+
+			<i class="bi usg__chev" [class.bi-chevron-right]="!isChartOpen()"
+				[class.bi-chevron-down]="isChartOpen()" aria-hidden="true"></i>
+			<span class="usg__panel-label">Requests by Event</span>
+			<!-- States the fold rather than letting the chart quietly omit events. -->
+			@if (remainderNote()) {
+				<span class="usg__panel-note">{{ remainderNote() }}</span>
+			}
+		</button>
+
+		@if (isChartOpen()) {
+			<div class="usg__chart" id="usg-chart">
+
+				<div class="usg__controls">
+					<div class="usg__window-group" role="group" aria-label="Time window">
+						@for (w of windows; track w.days) {
+							<button type="button"
+								class="usg__btn"
+								[class.active]="windowDays() === w.days"
+								[attr.aria-pressed]="windowDays() === w.days"
+								[disabled]="isLoading()"
+								(click)="setWindow(w.days)">{{ w.label }}</button>
+						}
+					</div>
+
+					<button type="button"
+						class="usg__btn"
+						[class.active]="!excludeBots()"
+						[attr.aria-pressed]="!excludeBots()"
+						[disabled]="isLoading()"
+						(click)="toggleBots()">
+						<i class="bi bi-robot" aria-hidden="true"></i>
+						{{ excludeBots() ? 'Bots hidden' : 'Bots included' }}
+					</button>
+				</div>
+
+				@if (hasNoTraffic()) {
+					<div class="usg__state">
+						<i class="bi bi-hourglass-split" aria-hidden="true"></i>
+						<span>No recorded activity in this window.</span>
+					</div>
+				} @else {
+					<ejs-chart
+						[primaryXAxis]="primaryXAxis()"
+						[primaryYAxis]="primaryYAxis()"
+						[tooltip]="tooltipSettings"
+						[legendSettings]="legendSettings"
+						[chartArea]="chartArea"
+						[margin]="margin"
+						[width]="'100%'"
+						[height]="chartHeight()"
+						[background]="'transparent'">
+
+						<e-series-collection>
+							<!-- Two hues, not one at two steps: signed-in and anonymous are two
+							     identities, not part-to-whole of one measure. Fills are SOLID —
+							     ej2 builds legend swatches from `fill` and ignores series
+							     opacity, so a translucent bar would not match its own key.
+							     The 2px border in the card colour is the gap between segments,
+							     not an outline around them. -->
+							<e-series
+								[dataSource]="chartData()"
+								type="StackingBar"
+								xName="jobName"
+								yName="signedInRequests"
+								name="Signed in"
+								[fill]="primaryColor()"
+								[border]="{ width: 2, color: surfaceColor() }"
+								[columnWidth]="0.65">
+							</e-series>
+							<e-series
+								[dataSource]="chartData()"
+								type="StackingBar"
+								xName="jobName"
+								yName="anonymousRequests"
+								name="Anonymous"
+								[fill]="accentColor()"
+								[border]="{ width: 2, color: surfaceColor() }"
+								[columnWidth]="0.65">
+							</e-series>
+						</e-series-collection>
+					</ejs-chart>
+				}
+			</div>
+		}
+
+		<p class="usg__footnote">
+			Counts are API requests, not page views. <strong>Anonymous</strong> means the request
+			carried no signed-in user. Automated traffic is excluded unless bots are included above.
+		</p>
+	}
+
+</div>

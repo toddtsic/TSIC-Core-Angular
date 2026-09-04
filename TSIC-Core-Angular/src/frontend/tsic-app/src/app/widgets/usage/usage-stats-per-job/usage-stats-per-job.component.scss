@@ -1,0 +1,191 @@
+// UsageStatsPerJob — requests per event, from logs.AppUsage.
+// Tokens only; no hardcoded colour, spacing or shadow.
+//
+// Shape mirrors the JobRegCountsAndDollars card deliberately: both are full-width
+// 'content' widgets in the same category, and a second, different card shell in the
+// same column reads as two unrelated products stacked on one page.
+@use '../../shared/widget-summary' as *;
+
+:host {
+	display: block;
+}
+
+.usg {
+	// --brand-surface, NOT --bs-body-bg: the latter resolves through --brand-bg to the
+	// PAGE colour, which paints the card the same grey as the background behind it.
+	background: var(--brand-surface);
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-sm);
+	padding: var(--space-4);
+}
+
+.usg__head {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	margin-bottom: var(--space-3);
+
+	i {
+		color: var(--bs-primary);
+	}
+}
+
+.usg__title {
+	font-size: var(--font-size-lg);
+	font-weight: 600;
+	margin: 0;
+	color: var(--brand-text);
+}
+
+// ── States ──────────────────────────────────────────────
+
+.usg__state {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-6) var(--space-4);
+	color: var(--brand-text-muted);
+
+	&--error {
+		color: var(--bs-warning-text-emphasis);
+	}
+}
+
+// ── Summary strip ───────────────────────────────────────
+// The shared sheet pads horizontally for the tile shell, which has no padding of its
+// own. This card does, so that inset is removed here rather than double-applied.
+
+.usg .widget-summary {
+	padding-left: 0;
+	padding-right: 0;
+}
+
+// ── Chart accordion ─────────────────────────────────────
+
+.usg__panel-head {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	width: 100%;
+	margin-top: var(--space-2);
+	padding: var(--space-2);
+	border: 0;
+	// The border IS this box-shadow, so :focus-visible must re-declare it or the
+	// outline replaces the border instead of joining it.
+	box-shadow: inset 0 0 0 1px var(--bs-border-color);
+	border-radius: var(--radius-md);
+	background: var(--bs-tertiary-bg);
+	color: var(--brand-text);
+	text-align: left;
+	cursor: pointer;
+	transition: background-color 0.12s ease;
+
+	&:hover {
+		background: var(--bs-secondary-bg);
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: inset 0 0 0 1px var(--bs-border-color), var(--shadow-focus);
+	}
+}
+
+.usg__chev {
+	color: var(--brand-text-muted);
+	flex: 0 0 auto;
+}
+
+.usg__panel-label {
+	font-size: var(--font-size-sm);
+	font-weight: 700;
+}
+
+// "plus 12 more events (3,401 requests) not charted" — states the fold rather than
+// letting the chart quietly omit events.
+.usg__panel-note {
+	margin-left: auto;
+	font-size: var(--font-size-xs);
+	color: var(--brand-text-muted);
+	text-align: right;
+}
+
+.usg__chart {
+	margin-top: var(--space-2);
+	// ej2 sizes its SVG to the container; without this the chart can report a width
+	// one frame before the panel has one.
+	min-width: 0;
+}
+
+// ── Window selector + bot toggle ────────────────────────
+
+.usg__controls {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2);
+	margin-bottom: var(--space-2);
+}
+
+.usg__window-group {
+	display: inline-flex;
+	gap: var(--space-1);
+}
+
+.usg__btn {
+	background: var(--brand-surface);
+	border: 1px solid var(--brand-border);
+	border-radius: var(--radius-sm);
+	color: var(--brand-text-muted);
+	cursor: pointer;
+	font-size: var(--font-size-xs);
+	line-height: 1.2;
+	padding: var(--space-1) var(--space-2);
+	transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+
+	&:hover:not(:disabled) {
+		border-color: var(--bs-primary);
+		color: var(--brand-text);
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+
+	&:disabled {
+		cursor: default;
+		opacity: 0.55;
+	}
+
+	// Selected state carries a filled background AND weight, not colour alone —
+	// colour by itself is not an accessible way to say "selected".
+	&.active {
+		background: var(--bs-primary);
+		border-color: var(--bs-primary);
+		color: var(--bs-primary-contrast, #fff);
+		font-weight: 600;
+	}
+
+	i {
+		margin-right: var(--space-1);
+	}
+}
+
+.usg__footnote {
+	margin: var(--space-3) 0 0;
+	font-size: var(--font-size-xs);
+	color: var(--brand-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.usg__panel-head,
+	.usg__btn {
+		transition: none !important;
+		animation: none !important;
+	}
+}
+
+// Syncfusion chart chrome (transparent surface, no border, muted legend) is global
+// in styles/_syncfusion-charts.scss.

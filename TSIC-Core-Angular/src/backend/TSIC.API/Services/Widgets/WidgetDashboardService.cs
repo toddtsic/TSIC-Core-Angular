@@ -48,15 +48,19 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
         ["Anonymous"] = RoleConstants.Anonymous,
     };
 
+    private readonly IUsageStatsRepository _usageRepo;
+
     public WidgetDashboardService(
         IWidgetRepository widgetRepo,
         IUserWidgetRepository userWidgetRepo,
         ISchedulingDashboardService schedulingSvc,
+        IUsageStatsRepository usageRepo,
         ILogger<WidgetDashboardService> logger)
     {
         _widgetRepo = widgetRepo;
         _userWidgetRepo = userWidgetRepo;
         _schedulingSvc = schedulingSvc;
+        _usageRepo = usageRepo;
         _logger = logger;
     }
 
@@ -381,5 +385,80 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
     {
         return await _widgetRepo.GetJobRegCountsAndDollarsAsync(currentJobId, ct);
     }
+
+    public async Task<UsageStatsPerJobDto> GetUsageStatsPerJobAsync(
+        Guid currentJobId,
+        int windowDays,
+        bool excludeBots,
+        int topN,
+        CancellationToken ct = default)
+    {
+        // Not configured on this box: say so. An empty chart would read as "nobody used
+        // anything", which is a worse answer than "no data source".
+        if (!_usageRepo.IsAvailable)
+            return EmptyUsageStats(windowDays, excludeBots, available: false);
+
+        // Server-local, matching AppUsage.OccurredAt. UtcNow here would silently shift the
+        // window seven hours and quietly change what "last 7 days" means.
+        var since = DateTime.Now.AddDays(-windowDays);
+
+        var usage = await _usageRepo.GetUsageByJobAsync(since, excludeBots, ct);
+        if (usage.Count == 0)
+            return EmptyUsageStats(windowDays, excludeBots, available: true);
+
+        // SCOPE GATE. The aggregate spans every customer -- TSICLogs has no notion of one
+        // -- so anything this lookup does not name is dropped rather than shown. Applying
+        // scope here, at the join, is what keeps one customer's dashboard from counting
+        // another's traffic.
+        var names = await _widgetRepo.GetCustomerJobNamesAsync(
+            currentJobId, usage.Select(u => u.JobId).ToList(), ct);
+
+        var scoped = usage
+            .Where(u => names.ContainsKey(u.JobId))
+            .OrderByDescending(u => u.TotalRequests)
+            .ToList();
+
+        if (scoped.Count == 0)
+            return EmptyUsageStats(windowDays, excludeBots, available: true);
+
+        var shown = scoped.Take(topN).ToList();
+        var others = scoped.Skip(topN).ToList();
+
+        return new UsageStatsPerJobDto
+        {
+            Rows = shown.Select(u => new UsageStatsPerJobRowDto
+            {
+                JobId = u.JobId,
+                JobName = names[u.JobId],
+                TotalRequests = u.TotalRequests,
+                SignedInRequests = u.SignedInRequests,
+                AnonymousRequests = u.TotalRequests - u.SignedInRequests,
+                DistinctUsers = u.DistinctUsers,
+                LastActivity = u.LastActivity,
+            }).ToList(),
+            WindowDays = windowDays,
+            BotsExcluded = excludeBots,
+            // Totals cover every scoped job, not just the charted ones -- a truncated
+            // chart whose rollup only added up the visible bars would understate reality.
+            TotalRequests = scoped.Sum(u => u.TotalRequests),
+            TotalJobs = scoped.Count,
+            OtherJobCount = others.Count,
+            OtherRequests = others.Sum(u => u.TotalRequests),
+            UsageLoggingAvailable = true,
+        };
+    }
+
+    private static UsageStatsPerJobDto EmptyUsageStats(int windowDays, bool excludeBots, bool available) =>
+        new()
+        {
+            Rows = [],
+            WindowDays = windowDays,
+            BotsExcluded = excludeBots,
+            TotalRequests = 0,
+            TotalJobs = 0,
+            OtherJobCount = 0,
+            OtherRequests = 0,
+            UsageLoggingAvailable = available,
+        };
 
 }

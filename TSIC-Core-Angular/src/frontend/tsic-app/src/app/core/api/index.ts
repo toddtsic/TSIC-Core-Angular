@@ -869,6 +869,8 @@ export type { UpdateUniformNumberRequest } from './models/UpdateUniformNumberReq
 export type { UpdateUserContactRequest } from './models/UpdateUserContactRequest';
 export type { UpdateUserDemographicsRequest } from './models/UpdateUserDemographicsRequest';
 export type { UpdateWidgetRequest } from './models/UpdateWidgetRequest';
+export type { UsageStatsPerJobDto } from './models/UsageStatsPerJobDto';
+export type { UsageStatsPerJobRowDto } from './models/UsageStatsPerJobRowDto';
 export type { UserContactInfoDto } from './models/UserContactInfoDto';
 export type { UserDemographicsDto } from './models/UserDemographicsDto';
 export type { UsernameAvailabilityResponse } from './models/UsernameAvailabilityResponse';

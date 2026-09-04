@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
-import type { AgegroupDistributionDto, AvailableWidgetDto, DashboardMetricsDto, EventContactDto, JobRegCountsAndDollarsDto, RegistrationTimeSeriesDto, SaveUserWidgetsRequest, UserWidgetEntryDto, WidgetDashboardResponse, YearOverYearComparisonDto } from '@core/api';
+import type { AgegroupDistributionDto, AvailableWidgetDto, DashboardMetricsDto, EventContactDto, JobRegCountsAndDollarsDto, RegistrationTimeSeriesDto, SaveUserWidgetsRequest, UsageStatsPerJobDto, UserWidgetEntryDto, WidgetDashboardResponse, YearOverYearComparisonDto } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
 export class WidgetDashboardService {
@@ -56,6 +56,25 @@ export class WidgetDashboardService {
 	 */
 	getJobRegCountsAndDollars(): Observable<JobRegCountsAndDollarsDto> {
 		return this.http.get<JobRegCountsAndDollarsDto>(`${this.apiUrl}/job-reg-counts-dollars`);
+	}
+
+	/**
+	 * Usage per job over a window, from logs.AppUsage. Scope is resolved server-side
+	 * from the token job — the params below are presentation only, and the server
+	 * clamps them regardless of what is sent.
+	 */
+	getUsageStatsPerJob(
+		windowDays = 7,
+		excludeBots = true,
+		topN = 12,
+	): Observable<UsageStatsPerJobDto> {
+		const params = new HttpParams()
+			.set('windowDays', windowDays)
+			.set('excludeBots', excludeBots)
+			.set('topN', topN);
+
+		return this.http.get<UsageStatsPerJobDto>(
+			`${this.apiUrl}/usage-stats-per-job`, { params });
 	}
 
 	// ── User Widget Customization ──
