@@ -1,0 +1,247 @@
+/*
+================================================================================
+  TSIC-TEAMS  ::  Team Chat  ::  01 - Create teamchat schema
+================================================================================
+  Drafted by    : Claude (DDL text only -- not applied, not scaffolded)
+  Applied by    : Todd, by hand
+  Target        : TSICV5
+  Drafted       : 2026-08-27
+  Apply order   : dev (.\SS2016) first, then PHOENIX
+
+  WHAT THIS DOES
+    Creates a NEW, isolated `teamchat` schema for the ground-up TSIC-TEAMS chat
+    service:  1 sequence, 2 tables, 3 indexes, 9 foreign keys.
+
+  WHAT THIS DOES NOT DO
+    Nothing existing is altered, dropped, renamed or read.  In particular the
+    legacy `chat.ChatMessages` table -- still written by the legacy Unify API
+    (TSIC-Unify-Api/HubConfig/ChatHub.cs) -- is left completely untouched and
+    keeps working exactly as it does today.
+
+  WHY A NEW SCHEMA INSTEAD OF ALTERING chat.ChatMessages
+    Probed on dev 2026-08-27:  134 rows, 27 teams, oldest 2023-04-11, newest
+    2024-06-15.  Nothing posted in over 14 months.  There is no history worth
+    migrating, so isolating is strictly cheaper than altering:  it removes the
+    Seq backfill, the nvarchar widening, the datetimeoffset retype, and any
+    risk to the deployed legacy client.
+
+    >>> RE-RUN THAT COUNT ON PHOENIX BEFORE RELYING ON IT. <<<
+        SELECT COUNT(*) AS Rows_Total, MIN(Created) AS Oldest, MAX(Created) AS Newest
+        FROM chat.ChatMessages;
+    If prod shows recent rows, the legacy writer is live and the cutover plan
+    needs revisiting before this lands.
+
+  AFTER APPLYING
+    Re-scaffold EF entities by hand:  scripts/3) RE-Scaffold-Db-Entities.ps1
+    Do not hand-author entities or SqlDbContext mappings -- the scaffold owns
+    those and will clobber hand edits.
+================================================================================
+*/
+
+SET XACT_ABORT ON;
+SET NOCOUNT ON;
+GO
+
+/*------------------------------------------------------------------------------
+  1. Schema
+------------------------------------------------------------------------------*/
+IF SCHEMA_ID('teamchat') IS NULL
+    EXEC ('CREATE SCHEMA teamchat');
+GO
+
+/*------------------------------------------------------------------------------
+  2. Sequence -- hands out message ordering numbers.
+
+     A SEQUENCE, not IDENTITY:  a soft-delete also draws a value from it (see
+     DeletedSeq below), and an identity column can only be allocated by
+     inserting a row.  Global rather than per-team is fine -- gaps inside a
+     team are irrelevant because every read is `Seq > @cursor`.
+
+     NOTE FOR THE WRITE PATH -- not enforceable in DDL:
+     NEXT VALUE FOR allocates OUTSIDE the transaction, so two concurrent posts
+     can commit in the opposite order to their Seq values.  A reader that
+     advances its cursor in between will never see the lower-numbered message
+     again -- a silently vanished message.  The insert must therefore take an
+     exclusive app lock on the team and hold it across allocate + commit:
+
+         EXEC sp_getapplock @Resource   = 'teamchat:<teamId>',
+                            @LockMode   = 'Exclusive',
+                            @LockOwner  = 'Transaction',
+                            @LockTimeout = 5000;
+
+     Only concurrent posts to the SAME team serialize; different teams never
+     contend.
+------------------------------------------------------------------------------*/
+IF OBJECT_ID('teamchat.MessageSequence') IS NULL
+    CREATE SEQUENCE teamchat.MessageSequence AS bigint START WITH 1 INCREMENT BY 1;
+GO
+
+/*------------------------------------------------------------------------------
+  3. teamchat.Messages -- one row per chat message.
+
+     Seq              The message's permanent position in the team thread.
+                      This is the cursor:  the phone remembers the highest
+                      value it holds and asks for everything above it.
+
+     RegId            The registration the message was sent FROM.  Distinct
+                      from CreatorUserId (the login) because a family account
+                      posts on behalf of a child.  Two different facts, and it
+                      cannot be backfilled later.
+
+     ClientMessageId  Phone-generated idempotency key.  Makes a retry over a
+                      flaky connection safe;  UX_teamchat_Messages_Idem is the
+                      backstop for the concurrent-retry race.
+
+     Created          datetimeoffset, stamped UTC.  Rendered on phones in other
+                      timezones, so it must carry its offset -- this is the
+                      defect the alerts feed already paid for once with a
+                      hardcoded SERVER_UTC_OFFSET_HOURS = -7 on the client.
+
+     DeletedSeq       A NEW sequence value stamped at delete time.  A
+                      soft-deleted row keeps its original Seq, so nothing in
+                      `Seq > cursor` would ever mention it again and a phone
+                      that already fetched the message would show it forever.
+                      A fresh number puts the row back inside a new cursor
+                      window as a tombstone.
+
+     DeletedByUserId  Durable moderation record.  Kept alongside lebUserID on
+                      purpose:  lebUserID is row audit and is overwritten by
+                      the next edit;  this is the permanent "who took it down".
+
+     modified /
+     lebUserID        House housekeeping columns.  modified is datetime2 per
+                      house style -- it is row audit that nothing renders,
+                      unlike Created above.
+------------------------------------------------------------------------------*/
+IF OBJECT_ID('teamchat.Messages') IS NULL
+BEGIN
+    CREATE TABLE teamchat.Messages
+    (
+        MessageId        uniqueidentifier  NOT NULL CONSTRAINT DF_teamchat_Messages_MessageId DEFAULT (newid()),
+        TeamId           uniqueidentifier  NOT NULL,
+        JobId            uniqueidentifier  NOT NULL,
+        Seq              bigint            NOT NULL CONSTRAINT DF_teamchat_Messages_Seq
+                                                    DEFAULT (NEXT VALUE FOR teamchat.MessageSequence),
+        Message          nvarchar(2000)    NOT NULL,
+        CreatorUserId    nvarchar(450)     NOT NULL,
+        RegId            uniqueidentifier  NOT NULL,
+        ClientMessageId  uniqueidentifier  NOT NULL,
+        Created          datetimeoffset(7) NOT NULL CONSTRAINT DF_teamchat_Messages_Created
+                                                    DEFAULT (SYSUTCDATETIME()),
+        DeletedSeq       bigint            NULL,
+        DeletedByUserId  nvarchar(450)     NULL,
+
+        modified         datetime2(7)      NOT NULL CONSTRAINT DF_teamchat_Messages_modified
+                                                    DEFAULT (sysutcdatetime()),
+        lebUserID        nvarchar(450)     NULL,
+
+        CONSTRAINT PK_teamchat_Messages     PRIMARY KEY NONCLUSTERED (MessageId),
+        CONSTRAINT UQ_teamchat_Messages_Seq UNIQUE      NONCLUSTERED (Seq),
+
+        CONSTRAINT FK_teamchat_Messages_Team
+            FOREIGN KEY (TeamId)          REFERENCES Leagues.teams      (teamID),
+        CONSTRAINT FK_teamchat_Messages_Job
+            FOREIGN KEY (JobId)           REFERENCES Jobs.Jobs          (jobID),
+        CONSTRAINT FK_teamchat_Messages_Creator
+            FOREIGN KEY (CreatorUserId)   REFERENCES dbo.AspNetUsers    (Id),
+        CONSTRAINT FK_teamchat_Messages_Reg
+            FOREIGN KEY (RegId)           REFERENCES Jobs.Registrations (RegistrationID),
+        CONSTRAINT FK_teamchat_Messages_DeletedBy
+            FOREIGN KEY (DeletedByUserId) REFERENCES dbo.AspNetUsers    (Id),
+        CONSTRAINT FK_teamchat_Messages_leb
+            FOREIGN KEY (lebUserID)       REFERENCES dbo.AspNetUsers    (Id)
+    );
+END
+GO
+
+/*  Clustered on (TeamId, Seq) -- every read is "this team, above this number".
+    The PK stays NONCLUSTERED on purpose:  clustering on a newid() GUID would
+    fragment the table on every insert.                                       */
+IF NOT EXISTS (SELECT 1 FROM sys.indexes
+               WHERE name = 'IX_teamchat_Messages_Team_Seq'
+                 AND object_id = OBJECT_ID('teamchat.Messages'))
+    CREATE CLUSTERED INDEX IX_teamchat_Messages_Team_Seq
+        ON teamchat.Messages (TeamId, Seq);
+GO
+
+/*  Tombstone lookups for the catch-up cursor.                                */
+IF NOT EXISTS (SELECT 1 FROM sys.indexes
+               WHERE name = 'IX_teamchat_Messages_Team_Deleted'
+                 AND object_id = OBJECT_ID('teamchat.Messages'))
+    CREATE NONCLUSTERED INDEX IX_teamchat_Messages_Team_Deleted
+        ON teamchat.Messages (TeamId, DeletedSeq)
+        WHERE DeletedSeq IS NOT NULL;
+GO
+
+/*  Idempotency backstop.  The write path looks this key up first and returns
+    the existing row on a hit;  this index catches the concurrent retry, so
+    the service must catch its violation and return the existing row rather
+    than throwing a 500.                                                      */
+IF NOT EXISTS (SELECT 1 FROM sys.indexes
+               WHERE name = 'UX_teamchat_Messages_Idem'
+                 AND object_id = OBJECT_ID('teamchat.Messages'))
+    CREATE UNIQUE NONCLUSTERED INDEX UX_teamchat_Messages_Idem
+        ON teamchat.Messages (TeamId, CreatorUserId, ClientMessageId);
+GO
+
+/*------------------------------------------------------------------------------
+  4. teamchat.ReadState -- per-registration read position, one row per
+     (registration, team).
+
+     LastReadSeq drives the unread badge, which is DERIVED, never stored:
+
+         SELECT COUNT(*) FROM teamchat.Messages
+         WHERE TeamId = @t AND Seq > @lastReadSeq AND DeletedSeq IS NULL;
+
+     The upsert must take MAX(existing, incoming) -- never move the cursor
+     backwards, since pushes and fetches land out of order.
+------------------------------------------------------------------------------*/
+IF OBJECT_ID('teamchat.ReadState') IS NULL
+BEGIN
+    CREATE TABLE teamchat.ReadState
+    (
+        RegId        uniqueidentifier NOT NULL,
+        TeamId       uniqueidentifier NOT NULL,
+        LastReadSeq  bigint           NOT NULL CONSTRAINT DF_teamchat_ReadState_LastReadSeq DEFAULT (0),
+
+        modified     datetime2(7)     NOT NULL CONSTRAINT DF_teamchat_ReadState_modified
+                                               DEFAULT (sysutcdatetime()),
+        lebUserID    nvarchar(450)    NULL,
+
+        CONSTRAINT PK_teamchat_ReadState PRIMARY KEY CLUSTERED (RegId, TeamId),
+
+        CONSTRAINT FK_teamchat_ReadState_Reg
+            FOREIGN KEY (RegId)     REFERENCES Jobs.Registrations (RegistrationID),
+        CONSTRAINT FK_teamchat_ReadState_Team
+            FOREIGN KEY (TeamId)    REFERENCES Leagues.teams      (teamID),
+        CONSTRAINT FK_teamchat_ReadState_leb
+            FOREIGN KEY (lebUserID) REFERENCES dbo.AspNetUsers    (Id)
+    );
+END
+GO
+
+/*------------------------------------------------------------------------------
+  5. Verification -- read-only, safe to re-run.
+     Expect:  1 sequence, 2 user tables, 3 named indexes + 2 PKs + 1 unique
+     constraint, 9 foreign keys, all NO_ACTION on delete.
+------------------------------------------------------------------------------*/
+SELECT o.type_desc, SCHEMA_NAME(o.schema_id) + '.' + o.name AS ObjectName
+FROM   sys.objects o
+WHERE  SCHEMA_NAME(o.schema_id) = 'teamchat'
+ORDER  BY o.type_desc, o.name;
+
+SELECT i.name AS IndexName, i.type_desc, i.is_unique, i.has_filter
+FROM   sys.indexes i
+WHERE  i.object_id IN (OBJECT_ID('teamchat.Messages'), OBJECT_ID('teamchat.ReadState'))
+   AND i.name IS NOT NULL
+ORDER  BY i.name;
+
+SELECT fk.name AS ForeignKey,
+       SCHEMA_NAME(pt.schema_id) + '.' + pt.name AS ReferencedTable,
+       fk.delete_referential_action_desc AS OnDelete
+FROM   sys.foreign_keys fk
+JOIN   sys.tables ct ON ct.object_id = fk.parent_object_id
+JOIN   sys.tables pt ON pt.object_id = fk.referenced_object_id
+WHERE  SCHEMA_NAME(ct.schema_id) = 'teamchat'
+ORDER  BY fk.name;
+GO
