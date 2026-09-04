@@ -8,7 +8,7 @@ import {
   signal,
   output
 } from '@angular/core';
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe, NgTemplateOutlet } from '@angular/common';
 import { Subject, Subscription, interval, takeUntil } from 'rxjs';
 import type { GameClockAvailableGameTimesDto, GameClockConfigDto } from '@core/api';
 import { ViewScheduleService } from '../services/view-schedule.service';
@@ -32,53 +32,66 @@ interface InlineActiveGame {
 @Component({
     selector: 'app-inline-game-clock',
     standalone: true,
-    imports: [DatePipe, DecimalPipe],
+    imports: [DatePipe, DecimalPipe, NgTemplateOutlet],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         @if (status() !== 'hidden') {
-            <button type="button" class="inline-clock"
-                    (click)="onClick()" aria-label="Open game clock">
-                @if (status() === 'active' && activeGame(); as ag) {
-                    <div class="clock-left">
-                        <div class="state-chip" [attr.data-state]="stateKey(ag.activeIntervalLabel)">
-                            <span class="state-dot"></span>
-                            <span class="state-text">{{ stateLabel(ag.activeIntervalLabel) }}</span>
-                        </div>
-                        <div class="slot-label">
-                            {{ ag.gameStart | date: 'EEE M/d h:mm a' }} Game
-                        </div>
-                    </div>
-                    <div class="clock-right">
-                        @if (ag.remainingDays > 0) {
-                            <div class="time-unit">
-                                <div class="time-value">{{ ag.remainingDays }}</div>
-                                <div class="time-label">DAYS</div>
-                            </div>
-                            <span class="sep">:</span>
-                        }
-                        <div class="time-unit">
-                            <div class="time-value">{{ ag.remainingHours | number: '2.0-0' }}</div>
-                            <div class="time-label">HRS</div>
-                        </div>
-                        <span class="sep">:</span>
-                        <div class="time-unit">
-                            <div class="time-value">{{ ag.remainingMinutes | number: '2.0-0' }}</div>
-                            <div class="time-label">MIN</div>
-                        </div>
-                        <span class="sep">:</span>
-                        <div class="time-unit seconds" [class.tick]="tickFlash()">
-                            <div class="time-value">{{ ag.remainingSeconds | number: '2.0-0' }}</div>
-                            <div class="time-label">SEC</div>
-                        </div>
-                    </div>
-                } @else if (status() === 'loading') {
-                    <div class="state-chip" data-state="upcoming">
-                        <span class="state-dot"></span>
-                        <span class="state-text">LOADING</span>
-                    </div>
-                }
-            </button>
+            @if (interactive()) {
+                <button type="button" class="inline-clock"
+                        (click)="onClick()" aria-label="Open game clock">
+                    <ng-container [ngTemplateOutlet]="clockBody" />
+                </button>
+            } @else {
+                <!-- Readout only. A host with nowhere to expand to (Smart Bulletins, which is
+                     also the public/anonymous surface) renders a plain element: no hover, no
+                     tab stop, and no screen-reader "Open game clock" promise nothing fulfils. -->
+                <div class="inline-clock inline-clock--static">
+                    <ng-container [ngTemplateOutlet]="clockBody" />
+                </div>
+            }
         }
+
+        <ng-template #clockBody>
+            @if (status() === 'active' && activeGame(); as ag) {
+                <div class="clock-left">
+                    <div class="state-chip" [attr.data-state]="stateKey(ag.activeIntervalLabel)">
+                        <span class="state-dot"></span>
+                        <span class="state-text">{{ stateLabel(ag.activeIntervalLabel) }}</span>
+                    </div>
+                    <div class="slot-label">
+                        {{ ag.gameStart | date: 'EEE M/d h:mm a' }} Game
+                    </div>
+                </div>
+                <div class="clock-right">
+                    @if (ag.remainingDays > 0) {
+                        <div class="time-unit">
+                            <div class="time-value">{{ ag.remainingDays }}</div>
+                            <div class="time-label">DAYS</div>
+                        </div>
+                        <span class="sep">:</span>
+                    }
+                    <div class="time-unit">
+                        <div class="time-value">{{ ag.remainingHours | number: '2.0-0' }}</div>
+                        <div class="time-label">HRS</div>
+                    </div>
+                    <span class="sep">:</span>
+                    <div class="time-unit">
+                        <div class="time-value">{{ ag.remainingMinutes | number: '2.0-0' }}</div>
+                        <div class="time-label">MIN</div>
+                    </div>
+                    <span class="sep">:</span>
+                    <div class="time-unit seconds" [class.tick]="tickFlash()">
+                        <div class="time-value">{{ ag.remainingSeconds | number: '2.0-0' }}</div>
+                        <div class="time-label">SEC</div>
+                    </div>
+                </div>
+            } @else if (status() === 'loading') {
+                <div class="state-chip" data-state="upcoming">
+                    <span class="state-dot"></span>
+                    <span class="state-text">LOADING</span>
+                </div>
+            }
+        </ng-template>
     `,
     styles: [`
         :host {
@@ -101,12 +114,16 @@ interface InlineActiveGame {
             color: inherit;
             transition: background 150ms ease-out;
         }
-        .inline-clock:hover {
+        /* Affordances belong to the button form only — the readout must not look clickable. */
+        button.inline-clock:hover {
             background: color-mix(in srgb, var(--bs-body-color) 5%, transparent);
         }
-        .inline-clock:focus-visible {
+        button.inline-clock:focus-visible {
             outline: none;
             box-shadow: var(--shadow-focus);
+        }
+        .inline-clock--static {
+            cursor: default;
         }
 
         .clock-left {
@@ -225,6 +242,10 @@ interface InlineActiveGame {
 })
 export class InlineGameClockComponent implements OnInit, OnDestroy {
     jobId = input.required<string>();
+
+    /** True (default) = the clock is the affordance that opens the full clock panel, and the
+     *  host MUST handle (expand). False = readout only, for a host with no panel to open. */
+    readonly interactive = input(true);
 
     readonly expand = output<void>();
 

@@ -5,7 +5,7 @@
 		     on phones via its own media query. -->
 		@if (showClock() && jobId()) {
 			<div class="sb__clock-row">
-				<app-inline-game-clock class="sb__clock" [jobId]="jobId()" />
+				<app-inline-game-clock class="sb__clock" [jobId]="jobId()" [interactive]="false" />
 			</div>
 		}
 
