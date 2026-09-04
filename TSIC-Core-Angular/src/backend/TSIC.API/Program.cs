@@ -369,7 +369,6 @@ builder.Services.AddScoped<ITeamAttendanceRepository, TeamAttendanceRepository>(
 builder.Services.AddScoped<ITeamAttendanceService, TeamAttendanceService>();
 builder.Services.AddScoped<IChatRepository, ChatRepository>();
 builder.Services.AddScoped<IFileUploadService, TSIC.API.Services.Shared.Files.FileUploadService>();
-builder.Services.AddSignalR();
 // Uniform Number Upload (admin bulk update)
 builder.Services.AddScoped<IUniformUploadService, UniformUploadService>();
 // Camp Day/Night Groups admin
@@ -1198,7 +1197,6 @@ app.UseMiddleware<TSIC.API.Middleware.UsageLoggingMiddleware>();
 // instead of 404, disguising missing-route errors as CORS/method problems.
 
 app.MapControllers();
-app.MapHub<TSIC.API.Hubs.ChatHub>("/hubs/chat");
 
 // ── Payment-phase materialization guard ─────────────────────────────
 // The code resolves payment phase ONLY from per-scope fees.JobFees.bFullPaymentRequired

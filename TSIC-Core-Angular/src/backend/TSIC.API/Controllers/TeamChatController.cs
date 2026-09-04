@@ -11,7 +11,11 @@ namespace TSIC.API.Controllers;
 
 /// <summary>
 /// REST endpoint for retrieving team chat messages (history).
-/// Real-time send/receive is handled by the ChatHub SignalR hub.
+///
+/// REST only. The SignalR hub that once served real-time send/receive was removed
+/// along with AddSignalR/MapHub -- nothing injected IHubContext, no client dialled
+/// /hubs/chat, and the teamchat rebuild does not use SignalR. Do not reintroduce a
+/// hub here on the assumption that one is expected.
 /// </summary>
 [ApiController]
 [Authorize]
