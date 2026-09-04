@@ -239,7 +239,17 @@ public sealed class UsageWriterBackgroundService : BackgroundService
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        using var bulk = new SqlBulkCopy(connection)
+        // CheckConstraints is NOT the default. Without it SqlBulkCopy bypasses the four
+        // lookup foreign keys entirely, so the "id 0 is the explicit unknown member"
+        // invariant the classifier rests on would never actually be tested -- a bad id
+        // would land silently as fact. Bypassed constraints also leave SQL Server
+        // marking them NOT TRUSTED, which degrades plans for anything that later joins
+        // these tables.
+        //
+        // The cost is per-row validation against four tiny seeded tables, which is
+        // nothing at this volume, and the benefit is that a classifier bug fails a batch
+        // instead of quietly poisoning the dataset.
+        using var bulk = new SqlBulkCopy(connection, SqlBulkCopyOptions.CheckConstraints, null)
         {
             DestinationTableName = "logs.AppUsage",
             BatchSize = table.Rows.Count,
@@ -381,22 +391,33 @@ public sealed class UsageWriterBackgroundService : BackgroundService
                 jobId = resolvedJobId;
             }
 
-            table.Rows.Add(
-                row.OccurredAt,
-                appClientId,
-                platformId,
-                appVersion,
-                Truncate(row.Controller, 50),
-                Truncate(row.Action, 60),
-                (object?)row.QueryString ?? DBNull.Value,
-                row.StatusCode,
-                (object?)row.UserId ?? DBNull.Value,
-                (object?)row.RegId ?? DBNull.Value,
-                jobId,
-                (object?)teamId ?? DBNull.Value,
-                isBot,
-                browserId,
-                deviceClassId);
+            // BY NAME, never Rows.Add(params object[]). The positional overload lines the
+            // values up against the column list by ORDER alone, and the columns next to
+            // each other share types -- AppClientId/PlatformId and BrowserId/
+            // DeviceClassId are both int, and Controller/Action/QueryString/UserId are
+            // four strings in a row. Insert a column mid-list or reorder the values and
+            // nothing throws: the insert succeeds and the table records iOS traffic as
+            // Android, or an action name as a controller. Silent, plausible, wrong.
+            //
+            // Assigning by name makes order irrelevant, and a misspelled column throws
+            // immediately instead of writing to its neighbour.
+            var record = table.NewRow();
+            record["OccurredAt"] = row.OccurredAt;
+            record["AppClientId"] = appClientId;
+            record["PlatformId"] = platformId;
+            record["AppVersion"] = appVersion;
+            record["Controller"] = Truncate(row.Controller, 50);
+            record["Action"] = Truncate(row.Action, 60);
+            record["QueryString"] = (object?)row.QueryString ?? DBNull.Value;
+            record["StatusCode"] = row.StatusCode;
+            record["UserId"] = row.UserId is { } userId ? Truncate(userId, 450) : DBNull.Value;
+            record["RegId"] = (object?)row.RegId ?? DBNull.Value;
+            record["JobId"] = jobId;
+            record["TeamId"] = (object?)teamId ?? DBNull.Value;
+            record["IsBot"] = isBot;
+            record["BrowserId"] = browserId;
+            record["DeviceClassId"] = deviceClassId;
+            table.Rows.Add(record);
         }
 
         return table;
