@@ -43,15 +43,34 @@ public class AdnReversalService : IAdnReversalService
         var (status, rawStatus, error) = LookUpStatus(env, creds, transactionId);
 
         if (error != null)
+        {
+            // A refund can die here rather than at the refund itself — an archived or unknown
+            // transaction fails the LOOKUP. Logged so the two are distinguishable afterwards.
+            _logger.LogWarning(
+                "ADN reversal FAILED at status lookup: OriginalTx={OriginalTx}, JobId={JobId}, Amount={Amount}, Reason={Reason}",
+                transactionId, request.JobId, request.RequestedAmount, error);
+
             return AdnReversalResult.Failed(error);
+        }
 
         return status switch
         {
             AdnChargeStatus.Unsettled => Void(request, transactionId, env, creds),
             AdnChargeStatus.Settled => Refund(request, transactionId, env, creds),
-            _ => AdnReversalResult.Failed(
-                $"Transaction status '{rawStatus}' does not support refund/void.")
+            _ => NotReversible(request, transactionId, rawStatus)
         };
+    }
+
+    /// <summary>The gateway holds the charge in a state neither a void nor a refund can act on.</summary>
+    private AdnReversalResult NotReversible(
+        AdnReversalRequest request, string transactionId, string? rawStatus)
+    {
+        _logger.LogWarning(
+            "ADN reversal FAILED — status not reversible: OriginalTx={OriginalTx}, JobId={JobId}, Amount={Amount}, GatewayStatus={GatewayStatus}",
+            transactionId, request.JobId, request.RequestedAmount, rawStatus);
+
+        return AdnReversalResult.Failed(
+            $"Transaction status '{rawStatus}' does not support refund/void.");
     }
 
     public async Task<AdnChargeStatus> GetChargeStatusAsync(
@@ -116,7 +135,15 @@ public class AdnReversalService : IAdnReversalService
         });
 
         if (!result.Success)
+        {
+            // The gateway's own code is the only thing that says WHY. The message handed back to
+            // the caller is flattened for the operator, so log the raw verdict here or it is lost.
+            _logger.LogWarning(
+                "ADN void FAILED: OriginalTx={OriginalTx}, Amount={Amount}, GatewayCode={GatewayCode}, ResponseCode={ResponseCode}, Reason={Reason}",
+                transactionId, request.OriginalPaidAmount, result.GatewayCode, result.ResponseCode, result.MessageForUser);
+
             return AdnReversalResult.Failed($"CC Void failed: {result.MessageForUser}");
+        }
 
         _logger.LogInformation(
             "ADN void succeeded: OriginalTx={OriginalTx}, VoidTx={VoidTx}, Amount={Amount}",
@@ -150,7 +177,17 @@ public class AdnReversalService : IAdnReversalService
         });
 
         if (!result.Success)
+        {
+            // Same reason as the void path: without the gateway code, a failed refund is
+            // undiagnosable after the fact — "General Error" in the ADN portal is a category,
+            // not a reason. Card last-4 and invoice are logged so the transaction can be found.
+            _logger.LogWarning(
+                "ADN refund FAILED: OriginalTx={OriginalTx}, Amount={Amount}, CardLast4={CardLast4}, Invoice={Invoice}, GatewayCode={GatewayCode}, ResponseCode={ResponseCode}, Reason={Reason}",
+                transactionId, request.RequestedAmount, request.CardLast4, request.InvoiceNumber,
+                result.GatewayCode, result.ResponseCode, result.MessageForUser);
+
             return AdnReversalResult.Failed($"CC Refund failed: {result.MessageForUser}");
+        }
 
         _logger.LogInformation(
             "ADN refund succeeded: OriginalTx={OriginalTx}, RefundTx={RefundTx}, Amount={Amount}",
