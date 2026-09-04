@@ -25,8 +25,31 @@ public sealed class UsageWriterBackgroundService : BackgroundService
     // queries, not about insert throughput. A long linger means more rows share one
     // lookup; the cost is that rows sit in memory a little longer before landing, which
     // for usage telemetry is not a cost at all.
+    //
+    // MaxBatchSize stays a const on purpose: it is a memory-safety ceiling, not a
+    // tuning dial, and at this volume it never fires.
     private const int MaxBatchSize = 500;
-    private static readonly TimeSpan LingerWindow = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Usage:LingerSeconds. Configurable ONLY because the linger is the whole
+    /// feedback loop when testing: at 30s a developer hits an endpoint, queries
+    /// logs.AppUsage, sees nothing, and concludes the feature is broken. Dev runs
+    /// short so the row lands while the tester is still looking at it.
+    ///
+    /// The trade, stated so it is not discovered later: a short linger flushes
+    /// batches of one, so a dev box never exercises the multi-row enrichment path
+    /// (distinct-path dedup, the JobId cache, the batched TeamId lookup) -- which is
+    /// exactly where an enrichment bug would live. Fire a burst of requests to test
+    /// that path, or raise the value.
+    /// </summary>
+    private const string LingerConfigKey = "Usage:LingerSeconds";
+    private const int DefaultLingerSeconds = 30;
+
+    // Clamped, not trusted. A typo'd 0 would turn this into a per-row hot loop
+    // against TSICV5 -- the enrichment queries are the expensive part, and firing
+    // them once per row is the exact failure this whole design exists to avoid.
+    private const int MinLingerSeconds = 1;
+    private const int MaxLingerSeconds = 300;
 
     // A job's path never changes and there are ~1100 of them, so this warms once and
     // then serves every request for free. The cap exists because unresolved paths are
@@ -41,6 +64,12 @@ public sealed class UsageWriterBackgroundService : BackgroundService
 
     private readonly Dictionary<string, Guid> _jobIdByPath =
         new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Resolved once in ExecuteAsync, before the loop. Not re-read per batch: a linger
+    /// that changed underneath a running drain would be a moving target for no gain.
+    /// </summary>
+    private TimeSpan _lingerWindow = TimeSpan.FromSeconds(DefaultLingerSeconds);
 
     private long _written;
     private long _lastReportedDrops;
@@ -78,9 +107,11 @@ public sealed class UsageWriterBackgroundService : BackgroundService
             return;
         }
 
+        _lingerWindow = ResolveLingerWindow();
+
         _logger.LogInformation(
             "UsageWriterBackgroundService started (batch<={Batch}, linger={Linger}s).",
-            MaxBatchSize, LingerWindow.TotalSeconds);
+            MaxBatchSize, _lingerWindow.TotalSeconds);
 
         var reader = _queue.Reader;
         var batch = new List<UsageCapture>(MaxBatchSize);
@@ -125,7 +156,7 @@ public sealed class UsageWriterBackgroundService : BackgroundService
     private async Task LingerAsync(List<UsageCapture> batch, CancellationToken stoppingToken)
     {
         using var linger = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-        linger.CancelAfter(LingerWindow);
+        linger.CancelAfter(_lingerWindow);
 
         try
         {
@@ -144,6 +175,29 @@ public sealed class UsageWriterBackgroundService : BackgroundService
         {
             // Queue completed during shutdown; flush what we have.
         }
+    }
+
+    /// <summary>
+    /// Reads Usage:LingerSeconds and clamps it into range. An absent key is normal and
+    /// silent -- the default is the production value. An out-of-range or unparseable
+    /// value is NOT silent: it is a typo in an overlay, and a linger silently different
+    /// from the one written in the file is exactly the kind of thing that gets
+    /// diagnosed as "the writer is broken" months later.
+    /// </summary>
+    private TimeSpan ResolveLingerWindow()
+    {
+        var configured = _configuration.GetValue<int?>(LingerConfigKey);
+        if (configured is null) return TimeSpan.FromSeconds(DefaultLingerSeconds);
+
+        var clamped = Math.Clamp(configured.Value, MinLingerSeconds, MaxLingerSeconds);
+        if (clamped != configured.Value)
+        {
+            _logger.LogWarning(
+                "{Key}={Configured} is outside {Min}-{Max}s; using {Clamped}s.",
+                LingerConfigKey, configured.Value, MinLingerSeconds, MaxLingerSeconds, clamped);
+        }
+
+        return TimeSpan.FromSeconds(clamped);
     }
 
     private void ReportDropsIfChanged()

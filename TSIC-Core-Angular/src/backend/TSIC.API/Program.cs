@@ -979,6 +979,13 @@ builder.Host.UseSerilog();
         "[STARTUP-CONFIG] logsDb: server={LogsServer} database={LogsDatabase} registered={LogsRegistered}",
         logsServer, logsDb, logsDb != "(none)");
 
+    // How long a usage batch is held before it lands. Audited because it is the first
+    // thing to check when "I hit the endpoint and logs.AppUsage is empty" -- the row is
+    // usually just still in the buffer. "(default)" means the overlay omits the key.
+    bootLog.Information(
+        "[STARTUP-CONFIG] usage: lingerSeconds={LingerSeconds}",
+        cfg["Usage:LingerSeconds"] ?? "(default)");
+
     bootLog.Information(
         "[STARTUP-CONFIG] jwt: issuer={Issuer} audience={Audience} signingKey={KeyFp}",
         cfg["JwtSettings:Issuer"] ?? "(unset)",
