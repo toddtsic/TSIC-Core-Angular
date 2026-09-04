@@ -95,36 +95,29 @@ public record RosterTransferResultDto
     public required string Message { get; init; }
 
     /// <summary>
-    /// The registrations that ACTUALLY moved. Never assume this equals the requested id list — a
-    /// registrant whose recurring-billing plan the move would break is skipped (see <see cref="Blocked"/>).
-    /// The UI keys its "just moved" highlight and scroll off THIS list, never off the request:
-    /// highlighting a player who stayed put is a lie the roster panel tells until the next reload.
+    /// The registrations that ACTUALLY moved. The UI keys its "just moved" highlight and scroll
+    /// off THIS list, never off the request: highlighting a player who stayed put is a lie the
+    /// roster panel tells until the next reload.
     /// </summary>
     public required List<Guid> MovedRegistrationIds { get; init; }
 
     /// <summary>
-    /// Registrants deliberately NOT moved, each with a director-readable reason. Same
-    /// skip-with-reason shape as <c>ArbNotifyResultDto.Skips</c>: serve everyone the operation
-    /// can, then report precisely who it could not serve and why.
-    /// </summary>
-    public required List<RosterTransferBlockedDto> Blocked { get; init; }
-
-    /// <summary>
-    /// Registrants that DID move but carry a consequence the operator has to act on — today, a
+    /// Registrants that moved but carry a consequence the operator has to act on — today, a
     /// live recurring-billing plan whose per-draft amount no longer matches the new fee total.
     /// <para>
-    /// This used to be a refusal (the registrant landed in <see cref="Blocked"/> and stayed put).
-    /// Ruled 09-04: the move proceeds and the operator is warned instead — moving a subscribed
+    /// This was a REFUSAL until 09-04 (the registrant was skipped and reported as blocked).
+    /// Ruled with Ann: the move proceeds and the operator is warned instead — moving a subscribed
     /// player is routine, and refusing it stopped ordinary work. NOTHING REPRICES THE PLAN: the
     /// subscription keeps drafting the old amount until someone cancels or adjusts it, which is
-    /// exactly what the warning says.
+    /// exactly what the warning says. Nothing refuses a transfer any more, so there is no
+    /// blocked list — a transfer either throws or moves everyone asked for.
     /// </para>
     /// </summary>
-    public required List<RosterTransferBlockedDto> Warnings { get; init; }
+    public required List<RosterTransferWarningDto> Warnings { get; init; }
 }
 
 /// <summary>
-/// One registrant the transfer refused to move, and a reason the director can act on.
+/// One registrant that moved carrying a consequence, and a reason the director can act on.
 /// <para>
 /// The reason is composed SERVER-SIDE and passed through verbatim. It carries live money figures
 /// (plan position, per-draft amount, both fee totals) that only fee + plan resolution has in hand,
@@ -132,7 +125,7 @@ public record RosterTransferResultDto
 /// re-derives nothing.
 /// </para>
 /// </summary>
-public record RosterTransferBlockedDto
+public record RosterTransferWarningDto
 {
     public required Guid RegistrationId { get; init; }
     public required string PlayerName { get; init; }

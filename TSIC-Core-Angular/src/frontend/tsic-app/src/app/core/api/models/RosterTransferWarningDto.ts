@@ -2,7 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type RosterTransferBlockedDto = {
+export type RosterTransferWarningDto = {
     registrationId: string;
     playerName: string;
     reason: string;

@@ -2,7 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { RosterTransferBlockedDto } from './RosterTransferBlockedDto';
+import type { RosterTransferWarningDto } from './RosterTransferWarningDto';
 export type RosterTransferResultDto = {
     playersTransferred: number;
     staffCreated: number;
@@ -10,7 +10,6 @@ export type RosterTransferResultDto = {
     feesRecalculated: number;
     message: string;
     movedRegistrationIds: Array<string>;
-    blocked: Array<RosterTransferBlockedDto>;
-    warnings: Array<RosterTransferBlockedDto>;
+    warnings: Array<RosterTransferWarningDto>;
 };
 

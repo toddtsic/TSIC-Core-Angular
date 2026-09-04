@@ -336,31 +336,22 @@ export class RosterSwapperComponent {
             targetPoolId
         }).subscribe({
             next: result => {
-                // A transfer can succeed for SOME of the selection, so drive everything below off
-                // what the server says actually moved — never off regIds, which is only what was
-                // asked. `warnings` is the opposite case: those registrants DID move, and carry a
-                // consequence (a recurring-billing plan that could not follow them to a
-                // differently-priced team).
+                // Drive everything below off what the server says actually moved — never off
+                // regIds, which is only what was asked. `warnings` names registrants that DID
+                // move but carry a consequence: a recurring-billing plan that could not follow
+                // them to a differently-priced team.
                 const moved = result.movedRegistrationIds ?? [];
-                const blocked = result.blocked ?? [];
                 const warnings = result.warnings ?? [];
 
                 if (moved.length > 0) {
                     this.toast.show(playerName ? `${playerName} swapped. ${result.message}` : result.message, 'success', 3000);
                 }
 
-                // One alert per refusal, each naming its player. 'danger' resolves to timeout 0 in
-                // ToastService, so these stack and stay until the director dismisses each one — a
-                // refusal that auto-scrolls away is a refusal nobody acted on. Uncapped on purpose:
-                // ten blocked players means ten alerts, which is the honest picture.
-                for (const b of blocked) {
-                    this.toast.show(b.reason, 'danger', undefined, `${b.playerName} — not moved`);
-                }
-
                 // The player MOVED; the payment plan did not follow. 'warning' resolves to
-                // timeout 0 in ToastService, so this stays until the director dismisses it —
-                // the money consequence outlives the swap that caused it, and an alert that
-                // auto-scrolls away is an alert nobody acted on.
+                // timeout 0 in ToastService, so these stack and stay until the director dismisses
+                // each one — the money consequence outlives the swap that caused it, and an alert
+                // that auto-scrolls away is an alert nobody acted on. Uncapped on purpose: ten
+                // affected players means ten alerts, which is the honest picture.
                 for (const w of warnings) {
                     this.toast.show(w.reason, 'warning', undefined, `${w.playerName} — payment plan needs attention`);
                 }

@@ -228,11 +228,9 @@ public sealed class RosterSwapperService : IRosterSwapperService
         // Who actually moved, and who was deliberately left behind. Reported per registrant rather
         // than as counts: the UI highlights exactly the movers and raises one alert per refusal.
         var movedIds = new List<Guid>();
-        var blocked = new List<RosterTransferBlockedDto>();
-
         // Moved, but carrying a consequence the operator must act on — today only the ARB plan
-        // that cannot follow the player. Separate from `blocked`: these registrants DID move.
-        var warnings = new List<RosterTransferBlockedDto>();
+        // that cannot follow the player. Every registrant in here DID move.
+        var warnings = new List<RosterTransferWarningDto>();
 
         // FLOW 2: Unassigned Adult → Team (staff creation)
         if (isSourceUnassigned && !isTargetUnassigned)
@@ -325,8 +323,7 @@ public sealed class RosterSwapperService : IRosterSwapperService
                 // Staff creation mints rows; it never moves a paying registrant, so the ARB warning
                 // cannot fire here. Empty, not absent — the client always has a list to iterate.
                 MovedRegistrationIds = new List<Guid>(),
-                Blocked = new List<RosterTransferBlockedDto>(),
-                Warnings = new List<RosterTransferBlockedDto>()
+                Warnings = new List<RosterTransferWarningDto>()
             };
         }
 
@@ -365,8 +362,7 @@ public sealed class RosterSwapperService : IRosterSwapperService
                 // Staff removal deletes rows; no paying registrant moves, so the ARB warning cannot
                 // fire here. Empty, not absent — the client always has a list to iterate.
                 MovedRegistrationIds = new List<Guid>(),
-                Blocked = new List<RosterTransferBlockedDto>(),
-                Warnings = new List<RosterTransferBlockedDto>()
+                Warnings = new List<RosterTransferWarningDto>()
             };
         }
 
@@ -409,7 +405,7 @@ public sealed class RosterSwapperService : IRosterSwapperService
                     if (conflict != null)
                     {
                         var who = GetPlayerName(reg);
-                        warnings.Add(new RosterTransferBlockedDto
+                        warnings.Add(new RosterTransferWarningDto
                         {
                             RegistrationId = reg.RegistrationId,
                             PlayerName = who,
@@ -479,12 +475,10 @@ public sealed class RosterSwapperService : IRosterSwapperService
             if (playersTransferred > 0) parts.Add($"{playersTransferred} transferred");
             if (feesRecalculated > 0) parts.Add($"{feesRecalculated} fees recalculated");
 
-            // A summary only — the WHY of each refusal rides in Blocked and each consequence in
-            // Warnings, one alert per registrant. Counting alone here also keeps the empty-parts
-            // case ("." on its own) from reaching the director when nothing moved.
+            // A summary only — each consequence rides in Warnings, one alert per registrant.
+            // Counting alone here also keeps the empty-parts case ("." on its own) from reaching
+            // the director when nothing moved.
             var summary = parts.Count > 0 ? string.Join(", ", parts) + "." : "No players were moved.";
-            if (blocked.Count > 0)
-                summary += $" {blocked.Count} not moved — see the alert{(blocked.Count == 1 ? "" : "s")}.";
             if (warnings.Count > 0)
                 summary += $" {warnings.Count} moved with a payment plan that did NOT follow — see the alert{(warnings.Count == 1 ? "" : "s")}.";
 
@@ -496,7 +490,6 @@ public sealed class RosterSwapperService : IRosterSwapperService
                 FeesRecalculated = feesRecalculated,
                 Message = summary,
                 MovedRegistrationIds = movedIds,
-                Blocked = blocked,
                 Warnings = warnings
             };
         }
