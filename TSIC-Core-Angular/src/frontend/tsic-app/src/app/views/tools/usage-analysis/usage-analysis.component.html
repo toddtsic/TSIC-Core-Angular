@@ -8,15 +8,13 @@
 		<h2 class="page-title"><i class="bi bi-activity page-title-icon"></i> Usage Analysis</h2>
 	</div>
 
-	<!-- Controls: report · scope · window · bots. The report picks the question; the
-	     other three are shared by every report. -->
+	<!-- Controls: report · scope · window · bots. Four dropdowns. The report picks the
+	     question; the other three are shared by every report. -->
 	<div class="ua-controls">
 
 		<div class="ua-control">
 			<label class="ua-control-label" for="ua-report">Report</label>
-			<select id="ua-report"
-				class="form-select form-select-sm ua-select"
-				(change)="onReportChange($event)">
+			<select id="ua-report" class="form-select form-select-sm ua-select" (change)="onReportChange($event)">
 				@for (r of state.reports(); track r.key) {
 					<option [value]="r.key" [selected]="activeReport().key === r.key">{{ r.label }}</option>
 				}
@@ -24,23 +22,19 @@
 		</div>
 
 		<div class="ua-control">
-			<span class="ua-control-label">Scope</span>
 			@if (state.scopeOptions().length > 1) {
-				<div class="ua-group" role="group" aria-label="Report scope">
+				<label class="ua-control-label" for="ua-scope">Scope</label>
+				<select id="ua-scope"
+					class="form-select form-select-sm ua-select"
+					[disabled]="state.isLoadingScope()"
+					(change)="onScopeChange($event)">
 					@for (o of state.scopeOptions(); track o.scope) {
-						<button type="button"
-							class="ua-btn"
-							[class.active]="state.scope() === o.scope"
-							[attr.aria-pressed]="state.scope() === o.scope"
-							[title]="o.description"
-							[disabled]="state.isLoadingScope()"
-							(click)="setScope(o.scope)">
-							<i class="bi" [class]="'bi ' + o.icon" aria-hidden="true"></i>{{ o.label }}
-						</button>
+						<option [value]="o.scope" [selected]="state.scope() === o.scope" [title]="o.description">{{ o.label }}</option>
 					}
-				</div>
+				</select>
 			} @else {
-				<!-- One scope only (Director): a label, not a one-button segment. -->
+				<!-- One scope only (Director): a label, not a one-option dropdown. -->
+				<span class="ua-control-label">Scope</span>
 				<span class="ua-scope-fixed">
 					<i class="bi bi-bullseye" aria-hidden="true"></i> This event
 				</span>
@@ -48,26 +42,21 @@
 		</div>
 
 		<div class="ua-control">
-			<span class="ua-control-label">Window</span>
-			<div class="ua-group" role="group" aria-label="Time window">
+			<label class="ua-control-label" for="ua-window">Window</label>
+			<select id="ua-window" class="form-select form-select-sm ua-select ua-select--narrow" (change)="onWindowChange($event)">
 				@for (w of windows; track w.days) {
-					<button type="button"
-						class="ua-btn"
-						[class.active]="state.windowDays() === w.days"
-						[attr.aria-pressed]="state.windowDays() === w.days"
-						(click)="state.setWindow(w.days)">{{ w.label }}</button>
+					<option [value]="w.days" [selected]="state.windowDays() === w.days">{{ w.label }}</option>
 				}
-			</div>
+			</select>
 		</div>
 
-		<button type="button"
-			class="ua-btn ua-bots"
-			[class.active]="!state.excludeBots()"
-			[attr.aria-pressed]="!state.excludeBots()"
-			(click)="state.toggleBots()">
-			<i class="bi bi-robot" aria-hidden="true"></i>
-			{{ state.excludeBots() ? 'Bots hidden' : 'Bots included' }}
-		</button>
+		<div class="ua-control">
+			<label class="ua-control-label" for="ua-bots">Bots</label>
+			<select id="ua-bots" class="form-select form-select-sm ua-select ua-select--narrow" (change)="onBotsChange($event)">
+				<option value="hidden" [selected]="state.excludeBots()">Hidden</option>
+				<option value="included" [selected]="!state.excludeBots()">Included</option>
+			</select>
+		</div>
 	</div>
 
 	@if (state.isLoadingScope()) {
@@ -98,6 +87,8 @@
 		<!-- Audit stamp: what every number on this page was fetched with. -->
 		<div class="ua-stamp" role="status">
 			<i class="bi bi-funnel-fill" aria-hidden="true"></i>
+			<strong>{{ activeReport().label }}</strong>
+			<span class="ua-stamp-sep">·</span>
 			<strong>{{ state.scopeLabel() }}</strong>
 			<span class="ua-stamp-sep">·</span>
 			<span class="ua-stamp-jobs" [title]="state.jobNames().join('\n')">
@@ -109,26 +100,11 @@
 			<span>{{ state.excludeBots() ? 'bots hidden' : 'bots included' }}</span>
 		</div>
 
-		<!-- One case per slot. Claim a slot by replacing its placeholder with the real
-		     report component; the case, the report def and the role gate stay where they are. -->
+		<!-- Every slot is a dummy for now. Claim one by adding a case for its key ahead
+		     of the default with the real report component; the default keeps the rest. -->
 		@switch (activeReport().key) {
-			@case ('activity') {
-				<app-usage-report-placeholder [report]="activeReport()" [query]="state.query()" [jobCount]="state.jobCount()" />
-			}
-			@case ('audience') {
-				<app-usage-report-placeholder [report]="activeReport()" [query]="state.query()" [jobCount]="state.jobCount()" />
-			}
-			@case ('clients') {
-				<app-usage-report-placeholder [report]="activeReport()" [query]="state.query()" [jobCount]="state.jobCount()" />
-			}
-			@case ('endpoints') {
-				<app-usage-report-placeholder [report]="activeReport()" [query]="state.query()" [jobCount]="state.jobCount()" />
-			}
-			@case ('events') {
-				<app-usage-report-placeholder [report]="activeReport()" [query]="state.query()" [jobCount]="state.jobCount()" />
-			}
-			@case ('health') {
-				<app-usage-report-placeholder [report]="activeReport()" [query]="state.query()" [jobCount]="state.jobCount()" />
+			@default {
+				<app-usage-report-debug [report]="activeReport()" />
 			}
 		}
 	}

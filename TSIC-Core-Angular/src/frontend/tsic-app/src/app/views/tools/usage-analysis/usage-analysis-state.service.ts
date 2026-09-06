@@ -20,7 +20,7 @@ import {
  * every report. Owns the three controls every report fetches with (scope, window, bots) and
  * the resolved scope the server answered with.
  *
- * The role ceiling is mirrored here ONLY to decide what the segment offers. The server
+ * The role ceiling is mirrored here ONLY to decide what the scope dropdown offers. The server
  * enforces it: a scope above the ceiling is 403, never narrowed.
  */
 @Injectable()
@@ -40,7 +40,7 @@ export class UsageAnalysisStateService {
 		}
 	});
 
-	/** Segments the caller may pick — every scope up to the ceiling. */
+	/** Scopes the caller may pick — every scope up to the ceiling. */
 	readonly scopeOptions = computed<readonly UsageScopeOption[]>(() => {
 		const max = USAGE_SCOPE_ORDER.indexOf(this.ceiling());
 		return USAGE_SCOPE_OPTIONS.filter(o => USAGE_SCOPE_ORDER.indexOf(o.scope) <= max);
@@ -136,7 +136,7 @@ export class UsageAnalysisStateService {
 		this.windowDays.set(days);
 	}
 
-	toggleBots(): void {
-		this.excludeBots.set(!this.excludeBots());
+	setBots(exclude: boolean): void {
+		this.excludeBots.set(exclude);
 	}
 }

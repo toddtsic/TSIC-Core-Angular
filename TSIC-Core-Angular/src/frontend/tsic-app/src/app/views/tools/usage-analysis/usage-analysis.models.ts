@@ -4,7 +4,7 @@ import { Roles } from '@infrastructure/constants/roles.constants';
  * Usage analysis page — the scaffold's shared vocabulary.
  *
  * Scope words are the wire values (`UsageAnalysisScopes` on the server): the same word
- * the segment shows, the URL carries, and every report endpoint receives. The server
+ * the dropdown shows, the URL carries, and every report endpoint receives. The server
  * resolves a word to a live-job set from the token and refuses anything above the
  * caller's ceiling; nothing here ever names a job or customer id.
  */
@@ -40,16 +40,13 @@ export interface UsageQuery {
 	readonly excludeBots: boolean;
 }
 
-export type UsageReportKey = 'activity' | 'audience' | 'clients' | 'endpoints' | 'events' | 'health';
+export type UsageReportKey = 'report-01' | 'report-02' | 'report-03' | 'report-04' | 'report-05' | 'report-06';
 
 export interface UsageReportDef {
 	readonly key: UsageReportKey;
 	readonly label: string;
-	readonly icon: string;
 	/** Roles that see the report. Nested by design: Director ⊂ SuperDirector ⊂ Superuser. */
 	readonly roles: readonly string[];
-	/** The question the slot is reserved for — provisional until a chart lands on it. */
-	readonly hint: string;
 }
 
 const ALL_ADMINS = [Roles.Superuser, Roles.SuperDirector, Roles.Director] as const;
@@ -57,15 +54,15 @@ const CROSS_JOB = [Roles.Superuser, Roles.SuperDirector] as const;
 const SUPERUSER = [Roles.Superuser] as const;
 
 /**
- * Report slots, in dropdown order. Six for Superuser, five for SuperDirector, four for
- * Director. Labels and hints are provisional: a slot is claimed by replacing its
- * placeholder in the shell template with a real report component, and renamed then.
+ * DUMMY report slots, in dropdown order: four for a Director, five for a SuperDirector,
+ * six for a Superuser. Every slot is the same report; what differs is the scope it is
+ * queried with. Names are placeholders until the role/scope plumbing is trusted.
  */
 export const USAGE_REPORTS: readonly UsageReportDef[] = [
-	{ key: 'activity',  label: 'Activity',  icon: 'bi-graph-up',        roles: ALL_ADMINS, hint: 'Requests over time' },
-	{ key: 'audience',  label: 'Audience',  icon: 'bi-people',          roles: ALL_ADMINS, hint: 'Who: roles, signed-in vs anonymous' },
-	{ key: 'clients',   label: 'Clients',   icon: 'bi-phone',           roles: ALL_ADMINS, hint: 'App client, platform, device, browser' },
-	{ key: 'endpoints', label: 'Endpoints', icon: 'bi-diagram-3',       roles: ALL_ADMINS, hint: 'Controller and action, by volume' },
-	{ key: 'events',    label: 'Events',    icon: 'bi-calendar3-range', roles: CROSS_JOB,  hint: 'Event-to-event comparison' },
-	{ key: 'health',    label: 'Health',    icon: 'bi-heart-pulse',     roles: SUPERUSER,  hint: 'Status codes, app versions, bot share' },
+	{ key: 'report-01', label: 'Report-01', roles: ALL_ADMINS },
+	{ key: 'report-02', label: 'Report-02', roles: ALL_ADMINS },
+	{ key: 'report-03', label: 'Report-03', roles: ALL_ADMINS },
+	{ key: 'report-04', label: 'Report-04', roles: ALL_ADMINS },
+	{ key: 'report-05', label: 'Report-05', roles: CROSS_JOB },
+	{ key: 'report-06', label: 'Report-06', roles: SUPERUSER },
 ];
