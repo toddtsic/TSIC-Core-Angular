@@ -74,9 +74,9 @@ interface FetchKey {
  *
  * Two surfaces from one scope-wide fetch:
  *  - The CHART follows the Event dropdown. "All events" (the default): the whole scope
- *    rolled up into one cluster, from the server's scope-wide distinct counts (a family
- *    using two events is one person, so this can be smaller than the table's column
- *    sums). One event picked: that event's roles, one column each — a Director's one
+ *    rolled up into one cluster, from the server's scope-wide distinct-registration
+ *    counts. A registration is per event, so a family in two events counts in each; the
+ *    rollup only dedups a registration that made requests about more than one event. One event picked: that event's roles, one column each — a Director's one
  *    event and a Superuser's chosen one are the same chart. Twelve clusters side by side
  *    were unreadable; one is not. Counts sit above the columns.
  *  - The TABLE is the whole scope: every live event, every role across by name, and a
@@ -147,8 +147,9 @@ export class UsersByRoleComponent implements OnInit {
 	});
 
 	/**
-	 * The whole scope rolled up, from the server's distinct-per-role totals: distinct people
-	 * per role, distinct people overall. NOT a sum of the event rows.
+	 * The whole scope rolled up, from the server's distinct-per-role totals: distinct
+	 * REGISTRATIONS per role and overall. Registrations are per event, so this is close to
+	 * the column sums and only differs where one registration touched several events.
 	 */
 	readonly allRow = computed<EventTotal | null>(() => {
 		const d = this.data();
@@ -161,10 +162,10 @@ export class UsersByRoleComponent implements OnInit {
 		return { jobId: '', jobName, total: d.customerUsers + d.adminUsers, byRole };
 	});
 
-	/** Distinct people across the scope, every role. */
+	/** Distinct registrations across the scope, every role. */
 	readonly totalPeople = computed(() => this.allRow()?.total ?? 0);
 
-	/** Distinct Directors who used anything in the scope in the window — vital, so it gets a tile. */
+	/** Distinct Director registrations that used anything in the scope in the window — vital, so it gets a tile. */
 	readonly directors = computed(() => this.allRow()?.byRole.get(DIRECTOR_ROLE) ?? 0);
 
 	/** The All row leads the table wherever All is a choice — wherever there is a set of events to pick from. */

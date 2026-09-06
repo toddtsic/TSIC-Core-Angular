@@ -33,7 +33,7 @@
 				<div class="ubr-chart-title">
 					{{ t.label }}
 					@if (isRollup() && canDrill()) {
-						<span class="ubr-chart-sub">distinct people across the scope — someone using two events counts once</span>
+						<span class="ubr-chart-sub">counted by registration — a registration is per event, so a family in two events counts in each</span>
 					}
 				</div>
 				@if (chartRoles().length > 0) {
