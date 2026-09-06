@@ -63,14 +63,14 @@ export class UsageAnalysisStateService {
 		USAGE_REPORTS.filter(t => t.roles.includes(this.role())));
 
 	/**
-	 * Every role lands on the event it is standing in (Todd, 2026-09-06). The wider
-	 * scopes are one pick away for those who hold them. Kept as a linkedSignal on the
-	 * ceiling so a role change mid-session reseeds rather than leaving a scope the new
-	 * role may not hold.
+	 * Every role lands on the BROADEST scope it may hold (Todd, 2026-09-06): Superuser on
+	 * All TSIC, SuperDirector on Customer, Director on This event. Narrower is one pick
+	 * away. A linkedSignal on the ceiling, so a role change mid-session reseeds rather
+	 * than leaving a scope the new role may not hold.
 	 */
 	readonly scope = linkedSignal<UsageScope, UsageScope>({
 		source: this.ceiling,
-		computation: () => 'job',
+		computation: ceiling => ceiling,
 	});
 
 	readonly windowDays = signal<number>(7);
