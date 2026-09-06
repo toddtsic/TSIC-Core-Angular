@@ -64,11 +64,19 @@ export class UsageAnalysisStateService {
 	readonly windowDays = signal<number>(7);
 	readonly excludeBots = signal(true);
 
+	/**
+	 * The event lens. Null = every live event in the scope. Only meaningful above job
+	 * scope; reset to null whenever the scope changes so a job from the old scope cannot
+	 * linger. The server refuses an id outside the resolved set, so this can only narrow.
+	 */
+	readonly eventId = signal<string | null>(null);
+
 	/** What every report fetches with. A report refetches when this changes and never otherwise. */
 	readonly query = computed<UsageQuery>(() => ({
 		scope: this.scope(),
 		windowDays: this.windowDays(),
 		excludeBots: this.excludeBots(),
+		eventId: this.eventId(),
 	}));
 
 	// Resolved scope — null while (re)loading, so nothing on screen can claim a scope
@@ -83,6 +91,18 @@ export class UsageAnalysisStateService {
 	readonly jobCount = computed(() => this.scopeInfo()?.jobs.length ?? 0);
 
 	readonly jobNames = computed(() => (this.scopeInfo()?.jobs ?? []).map(j => j.jobName));
+
+	/** Live events the lens can pick from -- the resolved scope's list. */
+	readonly eventOptions = computed(() => this.scopeInfo()?.jobs ?? []);
+
+	/** A Director has one event; the picker exists only where there is a set to narrow. */
+	readonly showEventPicker = computed(() => this.scope() !== 'job' && this.eventOptions().length > 0);
+
+	readonly eventLabel = computed(() => {
+		const id = this.eventId();
+		if (!id) return 'All events';
+		return this.eventOptions().find(j => j.jobId === id)?.jobName ?? 'All events';
+	});
 
 	/** TSICLogs not configured on this server — a missing data source, not "no traffic". */
 	readonly isUnavailable = computed(() => {
@@ -130,7 +150,12 @@ export class UsageAnalysisStateService {
 	setScope(scope: UsageScope): void {
 		if (this.scope() === scope) return;
 		this.scope.set(scope);
+		this.eventId.set(null);
 		this.loadScope();
+	}
+
+	setEvent(jobId: string | null): void {
+		this.eventId.set(jobId);
 	}
 
 	setWindow(days: number): void {

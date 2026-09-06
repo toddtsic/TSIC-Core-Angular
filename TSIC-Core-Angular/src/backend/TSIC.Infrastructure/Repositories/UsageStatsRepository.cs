@@ -51,7 +51,7 @@ public class UsageStatsRepository : IUsageStatsRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Guid>> GetDistinctRegistrationIdsAsync(
+    public async Task<IReadOnlyList<UsageRegistrationByJobDto>> GetDistinctRegistrationsByJobAsync(
         IReadOnlyList<Guid> jobIds,
         DateTime since,
         bool excludeBots,
@@ -68,8 +68,9 @@ public class UsageStatsRepository : IUsageStatsRepository
             query = query.Where(u => !u.IsBot);
 
         return await query
-            .Select(u => u.RegId!.Value)
+            .Select(u => new { u.JobId, RegId = u.RegId!.Value })
             .Distinct()
+            .Select(x => new UsageRegistrationByJobDto { JobId = x.JobId, RegistrationId = x.RegId })
             .ToListAsync(cancellationToken);
     }
 }
@@ -92,10 +93,10 @@ public class UnavailableUsageStatsRepository : IUsageStatsRepository
         CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<JobUsageAggregateDto>>([]);
 
-    public Task<IReadOnlyList<Guid>> GetDistinctRegistrationIdsAsync(
+    public Task<IReadOnlyList<UsageRegistrationByJobDto>> GetDistinctRegistrationsByJobAsync(
         IReadOnlyList<Guid> jobIds,
         DateTime since,
         bool excludeBots,
         CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<Guid>>([]);
+        Task.FromResult<IReadOnlyList<UsageRegistrationByJobDto>>([]);
 }

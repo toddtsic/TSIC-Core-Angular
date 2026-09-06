@@ -6,8 +6,9 @@ namespace TSIC.API.Services.Usage;
 
 /// <summary>
 /// The usage-analysis reports. Each takes an already-resolved scope (the controller ran
-/// IUsageScopeResolver) and answers one question from TSICLogs, pairing with TSICV5 in
-/// memory where a name or role is needed. Nothing here joins the two databases in SQL.
+/// IUsageScopeResolver, event lens included) and answers one question from TSICLogs,
+/// pairing with TSICV5 in memory where a name or role is needed. Nothing here joins the
+/// two databases in SQL.
 /// </summary>
 public interface IUsageAnalysisService
 {
@@ -47,30 +48,46 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
         // Server-local, like OccurredAt. UtcNow would shift the window by the AZ offset.
         var since = DateTime.Now.AddDays(-windowDays);
 
-        // Step 1 (TSICLogs): who -- distinct registration ids that made a request about
-        // any job in the scope. Bots are almost never signed in, but the toggle is honoured
-        // everywhere so the audit stamp is never a lie.
-        var regIds = await _usageRepo.GetDistinctRegistrationIdsAsync(scope.JobIds, since, excludeBots, ct);
-        if (regIds.Count == 0)
+        // Step 1 (TSICLogs): who, about which event -- distinct (event, registration) pairs.
+        // Bots are almost never signed in, but the toggle is honoured everywhere so the
+        // audit stamp is never a lie.
+        var pairs = await _usageRepo.GetDistinctRegistrationsByJobAsync(scope.JobIds, since, excludeBots, ct);
+        if (pairs.Count == 0)
             return Empty(scope, windowDays, excludeBots, available: true);
 
         // Step 2 (TSICV5): which role each registration holds. A registration id the
         // application no longer knows (deleted since the request) simply drops out.
-        var roles = new List<UsageRegistrationRoleDto>(regIds.Count);
+        var regIds = pairs.Select(p => p.RegistrationId).Distinct().ToList();
+        var roleByReg = new Dictionary<Guid, UsageRegistrationRoleDto>(regIds.Count);
         foreach (var chunk in regIds.Chunk(LookupBatchSize))
-            roles.AddRange(await _registrationRepo.GetRolesByRegistrationIdsAsync(chunk, ct));
+        {
+            foreach (var r in await _registrationRepo.GetRolesByRegistrationIdsAsync(chunk, ct))
+                roleByReg[r.RegistrationId] = r;
+        }
 
-        var rows = roles
-            .GroupBy(r => new { r.RoleId, r.RoleName })
+        var jobNames = scope.Jobs.ToDictionary(j => j.JobId, j => j.JobName);
+
+        var joined = pairs
+            .Where(p => roleByReg.ContainsKey(p.RegistrationId))
+            .Select(p => new
+            {
+                p.JobId,
+                p.RegistrationId,
+                Role = roleByReg[p.RegistrationId],
+                IsAdmin = AdminRoleIds.Contains(roleByReg[p.RegistrationId].RoleId),
+            })
+            .ToList();
+
+        var rows = joined
+            .GroupBy(x => new { x.JobId, x.Role.RoleId, x.Role.RoleName, x.IsAdmin })
             .Select(g => new UsersByRoleRowDto
             {
+                JobId = g.Key.JobId,
+                JobName = jobNames.TryGetValue(g.Key.JobId, out var name) ? name : string.Empty,
                 RoleName = g.Key.RoleName,
-                Users = g.Select(r => r.RegistrationId).Distinct().Count(),
-                IsAdmin = AdminRoleIds.Contains(g.Key.RoleId),
+                Users = g.Select(x => x.RegistrationId).Distinct().Count(),
+                IsAdmin = g.Key.IsAdmin,
             })
-            .OrderBy(r => r.IsAdmin)
-            .ThenByDescending(r => r.Users)
-            .ThenBy(r => r.RoleName)
             .ToList();
 
         return new UsersByRoleDto
@@ -79,8 +96,9 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
             BotsExcluded = excludeBots,
             JobCount = scope.Jobs.Count,
             Rows = rows,
-            CustomerUsers = rows.Where(r => !r.IsAdmin).Sum(r => r.Users),
-            AdminUsers = rows.Where(r => r.IsAdmin).Sum(r => r.Users),
+            // Distinct people, not a sum of per-event rows.
+            CustomerUsers = joined.Where(x => !x.IsAdmin).Select(x => x.RegistrationId).Distinct().Count(),
+            AdminUsers = joined.Where(x => x.IsAdmin).Select(x => x.RegistrationId).Distinct().Count(),
             UsageLoggingAvailable = true,
         };
     }

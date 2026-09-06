@@ -38,6 +38,8 @@ export interface UsageQuery {
 	readonly scope: UsageScope;
 	readonly windowDays: number;
 	readonly excludeBots: boolean;
+	/** The event lens: one live job id inside the scope, or null for all of them. */
+	readonly eventId: string | null;
 }
 
 export type UsageReportKey = 'report-01' | 'report-02' | 'report-03' | 'report-04' | 'report-05' | 'report-06';

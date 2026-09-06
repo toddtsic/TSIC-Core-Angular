@@ -38,11 +38,12 @@ public interface IUsageStatsRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Distinct registration ids that made at least one request about any of <paramref name="jobIds"/>
-    /// since <paramref name="since"/>. Anonymous rows (no RegId) contribute nothing. Scope-bounded:
-    /// rides IX_AppUsage_JobId_OccurredAt with the resolved live-job list.
+    /// Distinct (event, registration) pairs: each registration that made at least one request
+    /// about one of <paramref name="jobIds"/> since <paramref name="since"/>, keyed by that event.
+    /// Anonymous rows (no RegId) contribute nothing. Scope-bounded: rides
+    /// IX_AppUsage_JobId_OccurredAt with the resolved live-job list.
     /// </summary>
-    Task<IReadOnlyList<Guid>> GetDistinctRegistrationIdsAsync(
+    Task<IReadOnlyList<UsageRegistrationByJobDto>> GetDistinctRegistrationsByJobAsync(
         IReadOnlyList<Guid> jobIds,
         DateTime since,
         bool excludeBots,

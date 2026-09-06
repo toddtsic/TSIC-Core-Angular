@@ -57,6 +57,11 @@
 	min-width: 6rem;
 }
 
+.ua-select--wide {
+	min-width: 14rem;
+	max-width: 26rem;
+}
+
 // A Director has exactly one scope, so the dropdown is replaced by a static label
 // rather than a one-option select.
 .ua-scope-fixed {

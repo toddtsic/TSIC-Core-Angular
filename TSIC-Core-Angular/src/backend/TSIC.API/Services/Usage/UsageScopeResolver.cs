@@ -25,6 +25,9 @@ public enum UsageScopeFailure
 
     /// <summary>The requested scope is wider than the caller's role allows.</summary>
     AboveCeiling,
+
+    /// <summary>An event lens was given that is not one of the live events the scope resolved to.</summary>
+    EventNotInScope,
 }
 
 /// <summary>
@@ -70,8 +73,12 @@ public interface IUsageScopeResolver
     /// Resolves the live job set for <paramref name="requested"/>. Above-ceiling requests
     /// are refused, never quietly narrowed -- a caller that asked for more than it may
     /// have gets a 403, not a smaller answer that looks like the one it asked for.
+    ///
+    /// <paramref name="eventId"/> is the page's event lens: narrows the resolved set to that
+    /// one live event. It can only ever NARROW -- an id outside the resolved set is refused,
+    /// so the lens never widens what the scope word and ceiling allowed.
     /// </summary>
-    Task<UsageScopeResult> ResolveAsync(ClaimsPrincipal user, UsageScope requested, CancellationToken ct = default);
+    Task<UsageScopeResult> ResolveAsync(ClaimsPrincipal user, UsageScope requested, Guid? eventId = null, CancellationToken ct = default);
 }
 
 public sealed class UsageScopeResolver : IUsageScopeResolver
@@ -113,7 +120,7 @@ public sealed class UsageScopeResolver : IUsageScopeResolver
         };
     }
 
-    public async Task<UsageScopeResult> ResolveAsync(ClaimsPrincipal user, UsageScope requested, CancellationToken ct = default)
+    public async Task<UsageScopeResult> ResolveAsync(ClaimsPrincipal user, UsageScope requested, Guid? eventId = null, CancellationToken ct = default)
     {
         var ceiling = CeilingFor(user);
         if (requested > ceiling)
@@ -136,6 +143,14 @@ public sealed class UsageScopeResolver : IUsageScopeResolver
         var jobs = requested == UsageScope.Job
             ? live.Where(j => j.JobId == currentJobId.Value).ToList()
             : live;
+
+        if (eventId is Guid lens)
+        {
+            var one = jobs.Where(j => j.JobId == lens).ToList();
+            if (one.Count == 0)
+                return new UsageScopeResult { Failure = UsageScopeFailure.EventNotInScope };
+            jobs = one;
+        }
 
         return new UsageScopeResult
         {

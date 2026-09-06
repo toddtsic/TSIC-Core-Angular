@@ -41,6 +41,22 @@
 			}
 		</div>
 
+		@if (state.showEventPicker()) {
+			<!-- The event lens: narrows every report to one live event in the scope. -->
+			<div class="ua-control">
+				<label class="ua-control-label" for="ua-event">Event</label>
+				<select id="ua-event"
+					class="form-select form-select-sm ua-select ua-select--wide"
+					[disabled]="state.isLoadingScope()"
+					(change)="onEventChange($event)">
+					<option value="" [selected]="state.eventId() === null">All events</option>
+					@for (j of state.eventOptions(); track j.jobId) {
+						<option [value]="j.jobId" [selected]="state.eventId() === j.jobId">{{ j.jobName }}</option>
+					}
+				</select>
+			</div>
+		}
+
 		<div class="ua-control">
 			<label class="ua-control-label" for="ua-window">Window</label>
 			<select id="ua-window" class="form-select form-select-sm ua-select ua-select--narrow" (change)="onWindowChange($event)">
@@ -91,9 +107,13 @@
 			<span class="ua-stamp-sep">·</span>
 			<strong>{{ state.scopeLabel() }}</strong>
 			<span class="ua-stamp-sep">·</span>
-			<span class="ua-stamp-jobs" [title]="state.jobNames().join('\n')">
-				{{ state.jobCount() }} live {{ state.jobCount() === 1 ? 'event' : 'events' }}
-			</span>
+			@if (state.eventId()) {
+				<span class="ua-stamp-jobs">{{ state.eventLabel() }}</span>
+			} @else {
+				<span class="ua-stamp-jobs" [title]="state.jobNames().join('\n')">
+					{{ state.jobCount() }} live {{ state.jobCount() === 1 ? 'event' : 'events' }}
+				</span>
+			}
 			<span class="ua-stamp-sep">·</span>
 			<span>{{ windowLabel() }}</span>
 			<span class="ua-stamp-sep">·</span>

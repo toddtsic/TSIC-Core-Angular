@@ -1,0 +1,93 @@
+@if (isLoading()) {
+	<div class="ubr-state" role="status">
+		<div class="spinner-border spinner-border-sm"></div>
+		<span>Counting users…</span>
+	</div>
+} @else if (error()) {
+	<div class="ubr-state ubr-state--error" role="alert">
+		<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+		<span>{{ error() }}</span>
+	</div>
+} @else if (data(); as d) {
+	@if (d.rows.length === 0) {
+		<div class="ubr-state">
+			<i class="bi bi-person-slash" aria-hidden="true"></i>
+			<span>No signed-in users in this window.</span>
+		</div>
+	} @else {
+		<div class="ubr-tiles">
+			<div class="ubr-tile ubr-tile--primary">
+				<div class="ubr-tile-value">{{ d.customerUsers.toLocaleString() }}</div>
+				<div class="ubr-tile-label">People using {{ eventWord() }}</div>
+			</div>
+			<div class="ubr-tile">
+				<div class="ubr-tile-value">{{ d.adminUsers.toLocaleString() }}</div>
+				<div class="ubr-tile-label">Admin &amp; staff</div>
+			</div>
+		</div>
+
+		@if (roles().length > 0) {
+			<div class="ubr-chart" [class.ubr-chart--drill]="canDrill()">
+				<ejs-chart
+					[primaryXAxis]="primaryXAxis()"
+					[primaryYAxis]="primaryYAxis()"
+					[series]="chartSeries()"
+					[tooltip]="tooltipSettings"
+					[legendSettings]="legendSettings"
+					[chartArea]="chartArea"
+					[margin]="margin"
+					[width]="'100%'"
+					[height]="chartHeight()"
+					[background]="'transparent'"
+					(pointClick)="onPointClick($event)">
+				</ejs-chart>
+				@if (foldedCount() > 0) {
+					<div class="ubr-chart-note">
+						Top {{ chartEvents().length - 1 }} events charted; {{ foldedCount() }} more folded into Other. Every event is in the table below.
+					</div>
+				} @else if (canDrill()) {
+					<div class="ubr-chart-note">Click an event's columns to focus on it.</div>
+				}
+			</div>
+		}
+
+		<div class="ubr-table-wrap">
+			<table class="ubr-table">
+				<thead>
+					<tr>
+						<th scope="col">Event</th>
+						@for (role of roles(); track role) {
+							<th scope="col" class="ubr-num">{{ role }}</th>
+						}
+						<th scope="col" class="ubr-num ubr-total">Total</th>
+						<th scope="col" class="ubr-num ubr-admin">Admin &amp; staff</th>
+					</tr>
+				</thead>
+				<tbody>
+					@for (e of events(); track e.jobId) {
+						<tr>
+							<td class="ubr-event">
+								@if (canDrill()) {
+									<button type="button" class="ubr-event-btn" (click)="state.setEvent(e.jobId)" [title]="'Focus on ' + e.jobName">{{ e.jobName }}</button>
+								} @else {
+									{{ e.jobName }}
+								}
+							</td>
+							@for (role of roles(); track role) {
+								<td class="ubr-num">{{ cell(e, role) === 0 ? '·' : cell(e, role).toLocaleString() }}</td>
+							}
+							<td class="ubr-num ubr-total">{{ e.customer.toLocaleString() }}</td>
+							<td class="ubr-num ubr-admin">{{ e.admin === 0 ? '·' : e.admin.toLocaleString() }}</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+
+		<p class="ubr-note">
+			A user is a registration that made at least one request about the event in the window. Someone
+			holding two roles counts once under each. Public visitors who never sign in are not people this
+			data can count and are not included.
+		</p>
+	}
+}

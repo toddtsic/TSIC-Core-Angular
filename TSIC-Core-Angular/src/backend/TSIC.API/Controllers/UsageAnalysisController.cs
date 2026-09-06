@@ -47,7 +47,7 @@ public class UsageAnalysisController : ControllerBase
         CancellationToken ct)
     {
         var requested = _scopeResolver.Parse(scope);
-        var result = await _scopeResolver.ResolveAsync(User, requested, ct);
+        var result = await _scopeResolver.ResolveAsync(User, requested, ct: ct);
 
         switch (result.Failure)
         {
@@ -78,15 +78,18 @@ public class UsageAnalysisController : ControllerBase
         [FromQuery] string? scope,
         [FromQuery] int windowDays = 7,
         [FromQuery] bool excludeBots = true,
+        [FromQuery] Guid? eventId = null,
         CancellationToken ct = default)
     {
-        var result = await _scopeResolver.ResolveAsync(User, _scopeResolver.Parse(scope), ct);
+        var result = await _scopeResolver.ResolveAsync(User, _scopeResolver.Parse(scope), eventId, ct);
         switch (result.Failure)
         {
             case UsageScopeFailure.NoJobContext:
                 return BadRequest(new { message = "Job context required" });
             case UsageScopeFailure.AboveCeiling:
                 return Forbid();
+            case UsageScopeFailure.EventNotInScope:
+                return BadRequest(new { message = "Event is not in scope" });
         }
 
         var days = Math.Clamp(windowDays, 1, 365);

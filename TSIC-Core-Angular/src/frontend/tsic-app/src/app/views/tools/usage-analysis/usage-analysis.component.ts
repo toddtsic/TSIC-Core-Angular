@@ -11,7 +11,7 @@ import { UsersByRoleComponent } from './reports/users-by-role.component';
 /**
  * Usage Analysis — the drill behind the UsageStatsPerJob widget's glance.
  *
- * SCAFFOLD. The shell owns four dropdowns (report, scope, window, bots) and the audit
+ * SCAFFOLD. The shell owns the dropdowns (report, scope, event lens, window, bots) and the audit
  * stamp; every report is a dummy slot rendered by the debug component. To claim one,
  * add a case for its key in the template with a real report component that injects
  * UsageAnalysisStateService and fetches from `query()`.
@@ -71,6 +71,10 @@ export class UsageAnalysisComponent implements OnInit {
 
 	onScopeChange(event: Event): void {
 		this.state.setScope(selected(event) as UsageScope);
+	}
+
+	onEventChange(event: Event): void {
+		this.state.setEvent(selected(event) || null);
 	}
 
 	onWindowChange(event: Event): void {
