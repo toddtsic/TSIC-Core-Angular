@@ -15,13 +15,19 @@ function cssVar(v: string, fallback: string): string {
 }
 
 /**
- * Customer-facing roles in a FIXED order, so a role keeps its colour and its column
- * position in every chart, every window, and every later report. Roles not listed
- * follow alphabetically.
+ * Every role by its exact name, in a FIXED order, so a role keeps its colour and its
+ * column position in every chart, every window, and every later report: the customer's
+ * people first, then the roles that run an event. No bucket — how much Directors are
+ * using is vital information (Todd, 2026-09-06), and "Staff" is itself a role. Roles not
+ * listed follow alphabetically.
  */
 const ROLE_ORDER: readonly string[] = [
 	'Family', 'Player', 'Staff', 'Club Rep', 'Unassigned Adult', 'Referee', 'Scorer', 'Recruiter', 'Guest',
+	'Director', 'SuperDirector', 'Superuser', 'Ref Assignor', 'Store Admin', 'STPAdmin', 'ApiAuthorized',
 ];
+
+/** The role whose usage gets its own tile. Exact AspNetRoles name. */
+const DIRECTOR_ROLE = 'Director';
 
 /** Series palette, by ROLE_ORDER position. Palette-responsive: resolved from :root at init. */
 const PALETTE_VARS: readonly [string, string][] = [
@@ -32,14 +38,19 @@ const PALETTE_VARS: readonly [string, string][] = [
 	['--bs-info', '#0dcaf0'],
 	['--bs-danger', '#dc3545'],
 	['--bs-secondary', '#6c757d'],
+	['--bs-indigo', '#6610f2'],
+	['--bs-pink', '#d63384'],
+	['--bs-orange', '#fd7e14'],
+	['--bs-teal', '#20c997'],
+	['--bs-dark', '#212529'],
 ];
 
 /** One table row: an event, or the All rollup (jobId empty). */
 interface EventTotal {
 	readonly jobId: string;
 	readonly jobName: string;
-	readonly customer: number;
-	readonly admin: number;
+	/** Distinct people across every role. */
+	readonly total: number;
 	readonly byRole: ReadonlyMap<string, number>;
 }
 
@@ -47,7 +58,6 @@ interface EventTotal {
 interface ChartTarget {
 	readonly label: string;
 	readonly byRole: ReadonlyMap<string, number>;
-	readonly admin: number;
 }
 
 /** What this report fetches with. The event lens is NOT in it: the table is the whole scope. */
@@ -69,10 +79,14 @@ interface FetchKey {
  *    sums). One event picked: that event's roles, one column each — a Director's one
  *    event and a Superuser's chosen one are the same chart. Twelve clusters side by side
  *    were unreadable; one is not. Counts sit above the columns.
- *  - The TABLE is the whole scope: every live event, roles across, a Total, and Admin &
- *    staff as a muted last column so setup clicks never pad the people count. Where All
- *    is a choice, an All row (the same distinct rollup) leads the table. The charted row
- *    is highlighted. Clicking a row name moves the dropdown and the chart to it.
+ *  - The TABLE is the whole scope: every live event, every role across by name, and a
+ *    Total. Where All is a choice, an All row (the same distinct rollup) leads the table.
+ *    The charted row is highlighted. Clicking a row name moves the dropdown and the
+ *    chart to it.
+ *
+ * Every role is first-class. The server still flags the admin tier on each row, but the
+ * page does not fold it away: Director usage is one of the vital numbers here, so it is a
+ * named column like any other, plus its own tile.
  *
  * People only. Anonymous traffic is requests, not people — nothing in the log can turn
  * an anonymous request into a visitor, and a registered user browsing before sign-in is
@@ -106,9 +120,9 @@ export class UsersByRoleComponent implements OnInit {
 
 	private readonly rows = computed<readonly UsersByRoleRowDto[]>(() => this.data()?.rows ?? []);
 
-	/** Customer-facing roles present anywhere in the scope, in ROLE_ORDER then alphabetical. */
+	/** Every role present anywhere in the scope, in ROLE_ORDER then alphabetical. */
 	readonly roles = computed<readonly string[]>(() => {
-		const present = new Set(this.rows().filter(r => !r.isAdmin).map(r => r.roleName));
+		const present = new Set(this.rows().map(r => r.roleName));
 		const ordered = ROLE_ORDER.filter(r => present.has(r));
 		const rest = [...present].filter(r => !ROLE_ORDER.includes(r)).sort((a, b) => a.localeCompare(b));
 		return [...ordered, ...rest];
@@ -116,23 +130,20 @@ export class UsersByRoleComponent implements OnInit {
 
 	/** Every event in the answer with its totals, busiest first. The table lists all of these. */
 	readonly events = computed<readonly EventTotal[]>(() => {
-		const byJob = new Map<string, { jobName: string; customer: number; admin: number; byRole: Map<string, number> }>();
+		const byJob = new Map<string, { jobName: string; total: number; byRole: Map<string, number> }>();
 		for (const r of this.rows()) {
 			let e = byJob.get(r.jobId);
 			if (!e) {
-				e = { jobName: r.jobName, customer: 0, admin: 0, byRole: new Map() };
+				e = { jobName: r.jobName, total: 0, byRole: new Map() };
 				byJob.set(r.jobId, e);
 			}
-			if (r.isAdmin) {
-				e.admin += r.users;
-			} else {
-				e.customer += r.users;
-				e.byRole.set(r.roleName, (e.byRole.get(r.roleName) ?? 0) + r.users);
-			}
+			// A registration holds ONE role, so summing role counts within an event is still distinct people.
+			e.total += r.users;
+			e.byRole.set(r.roleName, (e.byRole.get(r.roleName) ?? 0) + r.users);
 		}
 		return [...byJob.entries()]
 			.map(([jobId, e]) => ({ jobId, ...e }))
-			.sort((a, b) => b.customer - a.customer || a.jobName.localeCompare(b.jobName));
+			.sort((a, b) => b.total - a.total || a.jobName.localeCompare(b.jobName));
 	});
 
 	/**
@@ -143,15 +154,18 @@ export class UsersByRoleComponent implements OnInit {
 		const d = this.data();
 		if (!d) return null;
 		const byRole = new Map<string, number>();
-		let admin = 0;
-		for (const t of d.totals) {
-			if (t.isAdmin) admin += t.users;
-			else byRole.set(t.roleName, (byRole.get(t.roleName) ?? 0) + t.users);
-		}
+		for (const t of d.totals) byRole.set(t.roleName, (byRole.get(t.roleName) ?? 0) + t.users);
 		const n = this.state.jobCount();
 		const jobName = n === 1 ? (this.events()[0]?.jobName ?? 'This event') : `All ${n} live events`;
-		return { jobId: '', jobName, customer: d.customerUsers, admin, byRole };
+		// The two server totals are each distinct, and a registration is in exactly one tier, so their sum is distinct too.
+		return { jobId: '', jobName, total: d.customerUsers + d.adminUsers, byRole };
 	});
+
+	/** Distinct people across the scope, every role. */
+	readonly totalPeople = computed(() => this.allRow()?.total ?? 0);
+
+	/** Distinct Directors who used anything in the scope in the window — vital, so it gets a tile. */
+	readonly directors = computed(() => this.allRow()?.byRole.get(DIRECTOR_ROLE) ?? 0);
 
 	/** The All row leads the table wherever All is a choice — wherever there is a set of events to pick from. */
 	readonly showAllRow = computed(() => this.state.showEventPicker());
@@ -173,10 +187,10 @@ export class UsersByRoleComponent implements OnInit {
 	readonly chartTarget = computed<ChartTarget | null>(() => {
 		if (this.state.eventId()) {
 			const e = this.lensEvent();
-			return e ? { label: e.jobName, byRole: e.byRole, admin: e.admin } : null;
+			return e ? { label: e.jobName, byRole: e.byRole } : null;
 		}
 		const all = this.allRow();
-		return all ? { label: all.jobName, byRole: all.byRole, admin: all.admin } : null;
+		return all ? { label: all.jobName, byRole: all.byRole } : null;
 	});
 
 	/** Roles present in the charted target, in the same fixed order as the table columns. */

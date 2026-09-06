@@ -134,10 +134,6 @@
 	font-weight: 600;
 }
 
-.ubr-admin {
-	color: var(--brand-text-muted);
-}
-
 // The charted event (or, at All events, the one the caller stands in): tint plus a marker, never colour alone.
 .ubr-row--current td {
 	background: var(--bs-primary-bg-subtle, transparent);

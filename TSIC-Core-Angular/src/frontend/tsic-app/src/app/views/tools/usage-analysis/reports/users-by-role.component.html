@@ -17,12 +17,12 @@
 	} @else {
 		<div class="ubr-tiles">
 			<div class="ubr-tile ubr-tile--primary">
-				<div class="ubr-tile-value">{{ d.customerUsers.toLocaleString() }}</div>
+				<div class="ubr-tile-value">{{ totalPeople().toLocaleString() }}</div>
 				<div class="ubr-tile-label">People using {{ eventWord() }}</div>
 			</div>
 			<div class="ubr-tile">
-				<div class="ubr-tile-value">{{ d.adminUsers.toLocaleString() }}</div>
-				<div class="ubr-tile-label">Admin &amp; staff</div>
+				<div class="ubr-tile-value">{{ directors().toLocaleString() }}</div>
+				<div class="ubr-tile-label">Directors using {{ eventWord() }}</div>
 			</div>
 		</div>
 
@@ -51,7 +51,7 @@
 					</ejs-chart>
 				} @else {
 					<div class="ubr-chart-empty">
-						No customer-facing users in the window@if (t.admin > 0) { — {{ t.admin }} admin &amp; staff only }.
+						No users in the window.
 					</div>
 				}
 			} @else {
@@ -71,7 +71,6 @@
 							<th scope="col" class="ubr-num">{{ role }}</th>
 						}
 						<th scope="col" class="ubr-num ubr-total">Total</th>
-						<th scope="col" class="ubr-num ubr-admin">Admin &amp; staff</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -86,8 +85,7 @@
 							@for (role of roles(); track role) {
 								<td class="ubr-num">{{ cell(all, role) === 0 ? '·' : cell(all, role).toLocaleString() }}</td>
 							}
-							<td class="ubr-num ubr-total">{{ all.customer.toLocaleString() }}</td>
-							<td class="ubr-num ubr-admin">{{ all.admin === 0 ? '·' : all.admin.toLocaleString() }}</td>
+							<td class="ubr-num ubr-total">{{ all.total.toLocaleString() }}</td>
 						</tr>
 					}
 					@for (e of events(); track e.jobId) {
@@ -105,8 +103,7 @@
 							@for (role of roles(); track role) {
 								<td class="ubr-num">{{ cell(e, role) === 0 ? '·' : cell(e, role).toLocaleString() }}</td>
 							}
-							<td class="ubr-num ubr-total">{{ e.customer.toLocaleString() }}</td>
-							<td class="ubr-num ubr-admin">{{ e.admin === 0 ? '·' : e.admin.toLocaleString() }}</td>
+							<td class="ubr-num ubr-total">{{ e.total.toLocaleString() }}</td>
 						</tr>
 					}
 				</tbody>
