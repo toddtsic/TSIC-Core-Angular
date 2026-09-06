@@ -206,6 +206,10 @@
         </div>
     </div>
 } @else if (rows().length > 0) {
+    <!-- The wrapper carries the AR-079 checkbox rules. It is a WRAPPER and not another entry in
+         the grid's `cssClass` because Syncfusion passes that value to classList.add() verbatim —
+         a second, space-separated class throws InvalidCharacterError and takes the grid down. -->
+    <div class="uslax-membership-grid">
     <ejs-grid width="100%" #grid tsicRowNumbers [dataSource]="rows()" [allowSorting]="true"
               [sortSettings]="{ columns: [{ field: 'lastName', direction: 'Ascending' }] }"
               [allowExcelExport]="true"
@@ -219,7 +223,7 @@
               (dataBound)="onGridDataBound(grid)"
               (toolbarClick)="onGridToolbarClick($event, grid)"
               (excelQueryCellInfo)="onExcelQueryCellInfo($event)"
-              cssClass="tsic-grid-tight uslax-membership-grid">
+              cssClass="tsic-grid-tight">
         <e-columns>
             <e-column type="checkbox" width="40" [allowSorting]="false"></e-column>
             <!-- Row number (unbound — stamped by tsicRowNumbers, survives sort) -->
@@ -325,6 +329,7 @@
             </e-column>
         </e-columns>
     </ejs-grid>
+    </div>
 } @else if (!isLoadingCandidates() && candidates().length === 0 && !errorMessage()) {
     <div class="text-center py-5">
         <i class="bi bi-award fs-1 text-body-secondary"></i>
