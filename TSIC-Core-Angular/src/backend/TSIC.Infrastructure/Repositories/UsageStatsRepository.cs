@@ -50,6 +50,28 @@ public class UsageStatsRepository : IUsageStatsRepository
             })
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<Guid>> GetDistinctRegistrationIdsAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        bool excludeBots,
+        CancellationToken cancellationToken = default)
+    {
+        if (jobIds.Count == 0)
+            return [];
+
+        var query = _context.AppUsage
+            .AsNoTracking()
+            .Where(u => u.OccurredAt >= since && u.RegId != null && jobIds.Contains(u.JobId));
+
+        if (excludeBots)
+            query = query.Where(u => !u.IsBot);
+
+        return await query
+            .Select(u => u.RegId!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+    }
 }
 
 /// <summary>
@@ -69,4 +91,11 @@ public class UnavailableUsageStatsRepository : IUsageStatsRepository
         bool excludeBots,
         CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<JobUsageAggregateDto>>([]);
+
+    public Task<IReadOnlyList<Guid>> GetDistinctRegistrationIdsAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        bool excludeBots,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Guid>>([]);
 }

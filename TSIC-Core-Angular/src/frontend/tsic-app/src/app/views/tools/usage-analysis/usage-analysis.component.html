@@ -103,6 +103,9 @@
 		<!-- Every slot is a dummy for now. Claim one by adding a case for its key ahead
 		     of the default with the real report component; the default keeps the rest. -->
 		@switch (activeReport().key) {
+			@case ('report-01') {
+				<app-usage-users-by-role />
+			}
 			@default {
 				<app-usage-report-debug [report]="activeReport()" />
 			}

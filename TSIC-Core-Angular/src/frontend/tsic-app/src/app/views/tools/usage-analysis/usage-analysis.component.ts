@@ -6,6 +6,7 @@ import { AdminNavPillComponent } from '@shared-ui/components/admin-nav-pill.comp
 import { UsageAnalysisStateService } from './usage-analysis-state.service';
 import { USAGE_WINDOWS, type UsageReportKey, type UsageScope } from './usage-analysis.models';
 import { UsageReportDebugComponent } from './reports/usage-report-debug.component';
+import { UsersByRoleComponent } from './reports/users-by-role.component';
 
 /**
  * Usage Analysis — the drill behind the UsageStatsPerJob widget's glance.
@@ -26,7 +27,7 @@ import { UsageReportDebugComponent } from './reports/usage-report-debug.componen
 @Component({
 	selector: 'app-usage-analysis',
 	standalone: true,
-	imports: [AdminNavPillComponent, UsageReportDebugComponent],
+	imports: [AdminNavPillComponent, UsageReportDebugComponent, UsersByRoleComponent],
 	providers: [UsageAnalysisStateService],
 	templateUrl: './usage-analysis.component.html',
 	styleUrl: './usage-analysis.component.scss',

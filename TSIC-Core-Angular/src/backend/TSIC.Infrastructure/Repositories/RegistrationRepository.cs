@@ -4258,4 +4258,25 @@ public class RegistrationRepository : IRegistrationRepository
             .AsNoTracking()
             .ToListAsync(ct);
     }
+
+    public async Task<List<UsageRegistrationRoleDto>> GetRolesByRegistrationIdsAsync(
+        IReadOnlyList<Guid> registrationIds,
+        CancellationToken ct = default)
+    {
+        if (registrationIds.Count == 0)
+            return [];
+
+        return await (
+            from r in _context.Registrations
+            join role in _context.AspNetRoles on r.RoleId equals role.Id
+            where registrationIds.Contains(r.RegistrationId)
+            select new UsageRegistrationRoleDto
+            {
+                RegistrationId = r.RegistrationId,
+                RoleId = role.Id,
+                RoleName = role.Name ?? string.Empty,
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
+    }
 }

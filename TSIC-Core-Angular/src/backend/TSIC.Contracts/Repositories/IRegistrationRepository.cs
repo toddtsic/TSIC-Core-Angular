@@ -808,6 +808,14 @@ public interface IRegistrationRepository
     /// user, is inactive, or is not an ownership registration — caller maps that to 403/400.
     /// </summary>
     Task<List<MobileOwnershipTeamDto>?> GetMobileOwnershipTeamsAsync(string userId, Guid registrationId, CancellationToken ct = default);
+    /// <summary>
+    /// Role of each registration in <paramref name="registrationIds"/>. Ids the table no longer
+    /// holds are simply absent. Usage analysis maps TSICLogs registration ids back to roles with it.
+    /// </summary>
+    Task<List<UsageRegistrationRoleDto>> GetRolesByRegistrationIdsAsync(
+        IReadOnlyList<Guid> registrationIds,
+        CancellationToken ct = default);
+
 }
 
 /// <summary>Everything <c>UsLaxEligibilityPolicy</c> needs for ONE registration, joined in a single

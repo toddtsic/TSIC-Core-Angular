@@ -59,7 +59,7 @@ const SUPERUSER = [Roles.Superuser] as const;
  * queried with. Names are placeholders until the role/scope plumbing is trusted.
  */
 export const USAGE_REPORTS: readonly UsageReportDef[] = [
-	{ key: 'report-01', label: 'Report-01', roles: ALL_ADMINS },
+	{ key: 'report-01', label: '01 · Users by Role', roles: ALL_ADMINS },
 	{ key: 'report-02', label: 'Report-02', roles: ALL_ADMINS },
 	{ key: 'report-03', label: 'Report-03', roles: ALL_ADMINS },
 	{ key: 'report-04', label: 'Report-04', roles: ALL_ADMINS },

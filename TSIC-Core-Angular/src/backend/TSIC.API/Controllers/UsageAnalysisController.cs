@@ -24,11 +24,16 @@ public class UsageAnalysisController : ControllerBase
 {
     private readonly IUsageScopeResolver _scopeResolver;
     private readonly IUsageStatsRepository _usageRepo;
+    private readonly IUsageAnalysisService _reports;
 
-    public UsageAnalysisController(IUsageScopeResolver scopeResolver, IUsageStatsRepository usageRepo)
+    public UsageAnalysisController(
+        IUsageScopeResolver scopeResolver,
+        IUsageStatsRepository usageRepo,
+        IUsageAnalysisService reports)
     {
         _scopeResolver = scopeResolver;
         _usageRepo = usageRepo;
+        _reports = reports;
     }
 
     /// <summary>
@@ -61,5 +66,30 @@ public class UsageAnalysisController : ControllerBase
             CurrentJobIsLive = r.CurrentJobIsLive,
             Jobs = r.Jobs.ToList(),
         });
+    }
+
+    /// <summary>
+    /// Report 01 -- Users by Role. Distinct registrations that used the scoped live events
+    /// in the window, grouped by role, admin tier flagged. People only; anonymous traffic
+    /// is not a person and is not here.
+    /// </summary>
+    [HttpGet("users-by-role")]
+    public async Task<ActionResult<UsersByRoleDto>> GetUsersByRole(
+        [FromQuery] string? scope,
+        [FromQuery] int windowDays = 7,
+        [FromQuery] bool excludeBots = true,
+        CancellationToken ct = default)
+    {
+        var result = await _scopeResolver.ResolveAsync(User, _scopeResolver.Parse(scope), ct);
+        switch (result.Failure)
+        {
+            case UsageScopeFailure.NoJobContext:
+                return BadRequest(new { message = "Job context required" });
+            case UsageScopeFailure.AboveCeiling:
+                return Forbid();
+        }
+
+        var days = Math.Clamp(windowDays, 1, 365);
+        return Ok(await _reports.GetUsersByRoleAsync(result.Resolution!, days, excludeBots, ct));
     }
 }
