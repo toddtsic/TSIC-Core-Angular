@@ -75,7 +75,7 @@ interface FetchKey {
  * Two surfaces from one scope-wide fetch:
  *  - The CHART follows the Event dropdown. "All events" (the default): the whole scope
  *    rolled up into one cluster, from the server's scope-wide distinct-registration
- *    counts. A registration is per event, so a family in two events counts in each; the
+ *    counts. A registration is per event, so a user in two events counts in each; the
  *    rollup only dedups a registration that made requests about more than one event. One event picked: that event's roles, one column each — a Director's one
  *    event and a Superuser's chosen one are the same chart. Twelve clusters side by side
  *    were unreadable; one is not. Counts sit above the columns.

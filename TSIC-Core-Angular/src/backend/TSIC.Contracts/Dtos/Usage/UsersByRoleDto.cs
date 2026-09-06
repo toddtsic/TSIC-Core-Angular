@@ -45,7 +45,7 @@ public record UsersByRoleDto
     /// One row per role across the WHOLE resolved scope: distinct registrations under that
     /// role with a request about ANY event in the set. This is what an "All events" chart
     /// shows. Distinct REGISTRATIONS, not a sum of Rows -- but a registration is per job, so
-    /// a family in two events is two registrations and counts in each. Totals differs from
+    /// a user in two events is two registrations and counts in each. Totals differs from
     /// the column sum only where one registration made requests about several jobs.
     /// </summary>
     public required List<UsersByRoleTotalDto> Totals { get; init; }
