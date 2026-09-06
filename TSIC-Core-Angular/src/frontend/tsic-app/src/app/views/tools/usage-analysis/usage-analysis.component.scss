@@ -2,22 +2,9 @@
 	display: block;
 }
 
-.nav-tabs .nav-link {
-	font-size: var(--font-size-sm);
-
-	i {
-		margin-right: var(--space-1);
-	}
-
-	&:focus-visible {
-		outline: none;
-		box-shadow: var(--shadow-focus);
-	}
-}
-
-// ── Control bar: scope segment · window · bots ──────────────
-// One row, wrapping. Scope on the left because it changes the most; the window and
-// bot toggle are the same controls the widget carries, in the same idiom.
+// ── Control bar: report dropdown · scope segment · window · bots ──
+// One row, wrapping. The report first because it is the question being asked; the
+// window and bot toggle are the same controls the widget carries, in the same idiom.
 
 .ua-controls {
 	display: flex;
@@ -49,6 +36,21 @@
 .ua-group {
 	display: inline-flex;
 	gap: var(--space-1);
+}
+
+// The report picker. A native select: one question at a time, no strip to scan.
+.ua-select {
+	width: auto;
+	min-width: 10rem;
+	font-size: var(--font-size-sm);
+	color: var(--brand-text);
+	background-color: var(--brand-surface);
+	border-color: var(--brand-border);
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
 }
 
 // A Director has exactly one scope, so the segment is replaced by a static label

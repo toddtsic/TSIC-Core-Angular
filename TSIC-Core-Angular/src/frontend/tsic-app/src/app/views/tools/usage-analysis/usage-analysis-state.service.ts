@@ -8,16 +8,16 @@ import type { UsageAnalysisScopeDto } from '@core/api';
 import {
 	USAGE_SCOPE_OPTIONS,
 	USAGE_SCOPE_ORDER,
-	USAGE_TABS,
+	USAGE_REPORTS,
 	type UsageQuery,
 	type UsageScope,
 	type UsageScopeOption,
-	type UsageTabDef,
+	type UsageReportDef,
 } from './usage-analysis.models';
 
 /**
  * Page-scoped state for Usage Analysis — provided by the shell component, injected by
- * every tab. Owns the three controls every tab fetches with (scope, window, bots) and
+ * every report. Owns the three controls every report fetches with (scope, window, bots) and
  * the resolved scope the server answered with.
  *
  * The role ceiling is mirrored here ONLY to decide what the segment offers. The server
@@ -46,9 +46,9 @@ export class UsageAnalysisStateService {
 		return USAGE_SCOPE_OPTIONS.filter(o => USAGE_SCOPE_ORDER.indexOf(o.scope) <= max);
 	});
 
-	/** Tab slots this role sees, in display order. */
-	readonly tabs = computed<readonly UsageTabDef[]>(() =>
-		USAGE_TABS.filter(t => t.roles.includes(this.role())));
+	/** Report slots this role sees, in dropdown order. */
+	readonly reports = computed<readonly UsageReportDef[]>(() =>
+		USAGE_REPORTS.filter(t => t.roles.includes(this.role())));
 
 	/**
 	 * Lands on the customer view for anyone who may hold it, and on the one event for
@@ -63,7 +63,7 @@ export class UsageAnalysisStateService {
 	readonly windowDays = signal<number>(7);
 	readonly excludeBots = signal(true);
 
-	/** What every tab fetches with. A tab refetches when this changes and never otherwise. */
+	/** What every report fetches with. A report refetches when this changes and never otherwise. */
 	readonly query = computed<UsageQuery>(() => ({
 		scope: this.scope(),
 		windowDays: this.windowDays(),
@@ -98,7 +98,7 @@ export class UsageAnalysisStateService {
 		return info !== null && this.scope() === 'job' && !info.currentJobIsLive;
 	});
 
-	/** True when a tab may run: scope resolved, data source present, at least one live event. */
+	/** True when a report may run: scope resolved, data source present, at least one live event. */
 	readonly canQuery = computed(() =>
 		this.scopeInfo() !== null && !this.isUnavailable() && !this.isConcludedEvent() && this.jobCount() > 0);
 

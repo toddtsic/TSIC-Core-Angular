@@ -4,7 +4,7 @@ import { Roles } from '@infrastructure/constants/roles.constants';
  * Usage analysis page — the scaffold's shared vocabulary.
  *
  * Scope words are the wire values (`UsageAnalysisScopes` on the server): the same word
- * the segment shows, the URL carries, and every tab endpoint receives. The server
+ * the segment shows, the URL carries, and every report endpoint receives. The server
  * resolves a word to a live-job set from the token and refuses anything above the
  * caller's ceiling; nothing here ever names a job or customer id.
  */
@@ -33,20 +33,20 @@ export const USAGE_WINDOWS = [
 	{ days: 30, label: '30d' },
 ] as const;
 
-/** The parameters every tab fetches with. Changing any of them invalidates every tab. */
+/** The parameters every report fetches with. Changing any of them invalidates every report. */
 export interface UsageQuery {
 	readonly scope: UsageScope;
 	readonly windowDays: number;
 	readonly excludeBots: boolean;
 }
 
-export type UsageTabKey = 'activity' | 'audience' | 'clients' | 'endpoints' | 'events' | 'health';
+export type UsageReportKey = 'activity' | 'audience' | 'clients' | 'endpoints' | 'events' | 'health';
 
-export interface UsageTabDef {
-	readonly key: UsageTabKey;
+export interface UsageReportDef {
+	readonly key: UsageReportKey;
 	readonly label: string;
 	readonly icon: string;
-	/** Roles that see the tab. Nested by design: Director ⊂ SuperDirector ⊂ Superuser. */
+	/** Roles that see the report. Nested by design: Director ⊂ SuperDirector ⊂ Superuser. */
 	readonly roles: readonly string[];
 	/** The question the slot is reserved for — provisional until a chart lands on it. */
 	readonly hint: string;
@@ -57,11 +57,11 @@ const CROSS_JOB = [Roles.Superuser, Roles.SuperDirector] as const;
 const SUPERUSER = [Roles.Superuser] as const;
 
 /**
- * Tab slots, in display order. Six for Superuser, five for SuperDirector, four for
+ * Report slots, in dropdown order. Six for Superuser, five for SuperDirector, four for
  * Director. Labels and hints are provisional: a slot is claimed by replacing its
- * placeholder in the shell template with a real tab component, and renamed then.
+ * placeholder in the shell template with a real report component, and renamed then.
  */
-export const USAGE_TABS: readonly UsageTabDef[] = [
+export const USAGE_REPORTS: readonly UsageReportDef[] = [
 	{ key: 'activity',  label: 'Activity',  icon: 'bi-graph-up',        roles: ALL_ADMINS, hint: 'Requests over time' },
 	{ key: 'audience',  label: 'Audience',  icon: 'bi-people',          roles: ALL_ADMINS, hint: 'Who: roles, signed-in vs anonymous' },
 	{ key: 'clients',   label: 'Clients',   icon: 'bi-phone',           roles: ALL_ADMINS, hint: 'App client, platform, device, browser' },

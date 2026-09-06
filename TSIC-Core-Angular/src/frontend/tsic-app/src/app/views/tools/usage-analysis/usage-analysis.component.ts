@@ -4,15 +4,15 @@ import { AuthService } from '@infrastructure/services/auth.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { AdminNavPillComponent } from '@shared-ui/components/admin-nav-pill.component';
 import { UsageAnalysisStateService } from './usage-analysis-state.service';
-import { USAGE_WINDOWS, type UsageScope, type UsageTabKey } from './usage-analysis.models';
-import { UsageTabPlaceholderComponent } from './tabs/usage-tab-placeholder.component';
+import { USAGE_WINDOWS, type UsageReportKey, type UsageScope } from './usage-analysis.models';
+import { UsageReportPlaceholderComponent } from './reports/usage-report-placeholder.component';
 
 /**
  * Usage Analysis — the drill behind the UsageStatsPerJob widget's glance.
  *
- * SCAFFOLD. The shell owns the controls (scope segment, window, bots), the audit
- * stamp, and the tab strip; every tab is an unclaimed slot. To claim one, replace its
- * placeholder in the template with a real tab component that injects
+ * SCAFFOLD. The shell owns the controls (report dropdown, scope segment, window,
+ * bots) and the audit stamp; every report is an unclaimed slot. To claim one, replace
+ * its placeholder in the template with a real report component that injects
  * UsageAnalysisStateService and fetches from `query()`.
  *
  * Rules the shell encodes:
@@ -25,7 +25,7 @@ import { UsageTabPlaceholderComponent } from './tabs/usage-tab-placeholder.compo
 @Component({
 	selector: 'app-usage-analysis',
 	standalone: true,
-	imports: [AdminNavPillComponent, UsageTabPlaceholderComponent],
+	imports: [AdminNavPillComponent, UsageReportPlaceholderComponent],
 	providers: [UsageAnalysisStateService],
 	templateUrl: './usage-analysis.component.html',
 	styleUrl: './usage-analysis.component.scss',
@@ -45,12 +45,12 @@ export class UsageAnalysisComponent implements OnInit {
 	readonly dashboardLink = computed(() =>
 		['/', this.auth.currentUser()?.jobPath ?? '', 'dashboard']);
 
-	private readonly requestedTab = signal<UsageTabKey>('activity');
+	private readonly requestedReport = signal<UsageReportKey>('activity');
 
-	/** The requested tab if this role has it, else the first slot — never an empty pane. */
-	readonly activeTab = computed(() => {
-		const tabs = this.state.tabs();
-		return tabs.find(t => t.key === this.requestedTab()) ?? tabs[0];
+	/** The requested report if this role has it, else the first slot — never an empty pane. */
+	readonly activeReport = computed(() => {
+		const reports = this.state.reports();
+		return reports.find(r => r.key === this.requestedReport()) ?? reports[0];
 	});
 
 	readonly windowLabel = computed(() =>
@@ -60,8 +60,9 @@ export class UsageAnalysisComponent implements OnInit {
 		this.state.loadScope();
 	}
 
-	setTab(key: UsageTabKey): void {
-		this.requestedTab.set(key);
+	/** Native select handler; the value is one of this role's report keys by construction. */
+	onReportChange(event: Event): void {
+		this.requestedReport.set((event.target as HTMLSelectElement).value as UsageReportKey);
 	}
 
 	setScope(scope: UsageScope): void {

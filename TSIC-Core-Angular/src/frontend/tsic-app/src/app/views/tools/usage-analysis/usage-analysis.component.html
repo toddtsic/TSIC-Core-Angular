@@ -8,8 +8,20 @@
 		<h2 class="page-title"><i class="bi bi-activity page-title-icon"></i> Usage Analysis</h2>
 	</div>
 
-	<!-- Controls: scope · window · bots. Shared by every tab. -->
+	<!-- Controls: report · scope · window · bots. The report picks the question; the
+	     other three are shared by every report. -->
 	<div class="ua-controls">
+
+		<div class="ua-control">
+			<label class="ua-control-label" for="ua-report">Report</label>
+			<select id="ua-report"
+				class="form-select form-select-sm ua-select"
+				(change)="onReportChange($event)">
+				@for (r of state.reports(); track r.key) {
+					<option [value]="r.key" [selected]="activeReport().key === r.key">{{ r.label }}</option>
+				}
+			</select>
+		</div>
 
 		<div class="ua-control">
 			<span class="ua-control-label">Scope</span>
@@ -97,41 +109,26 @@
 			<span>{{ state.excludeBots() ? 'bots hidden' : 'bots included' }}</span>
 		</div>
 
-		<ul class="nav nav-tabs mb-3" role="tablist">
-			@for (t of state.tabs(); track t.key) {
-				<li class="nav-item" role="presentation">
-					<button type="button"
-						class="nav-link"
-						role="tab"
-						[class.active]="activeTab().key === t.key"
-						[attr.aria-selected]="activeTab().key === t.key"
-						(click)="setTab(t.key)">
-						<i class="bi" [class]="'bi ' + t.icon" aria-hidden="true"></i>{{ t.label }}
-					</button>
-				</li>
-			}
-		</ul>
-
 		<!-- One case per slot. Claim a slot by replacing its placeholder with the real
-		     tab component; the case, the tab def and the role gate stay where they are. -->
-		@switch (activeTab().key) {
+		     report component; the case, the report def and the role gate stay where they are. -->
+		@switch (activeReport().key) {
 			@case ('activity') {
-				<app-usage-tab-placeholder [tab]="activeTab()" [query]="state.query()" [jobCount]="state.jobCount()" />
+				<app-usage-report-placeholder [report]="activeReport()" [query]="state.query()" [jobCount]="state.jobCount()" />
 			}
 			@case ('audience') {
-				<app-usage-tab-placeholder [tab]="activeTab()" [query]="state.query()" [jobCount]="state.jobCount()" />
+				<app-usage-report-placeholder [report]="activeReport()" [query]="state.query()" [jobCount]="state.jobCount()" />
 			}
 			@case ('clients') {
-				<app-usage-tab-placeholder [tab]="activeTab()" [query]="state.query()" [jobCount]="state.jobCount()" />
+				<app-usage-report-placeholder [report]="activeReport()" [query]="state.query()" [jobCount]="state.jobCount()" />
 			}
 			@case ('endpoints') {
-				<app-usage-tab-placeholder [tab]="activeTab()" [query]="state.query()" [jobCount]="state.jobCount()" />
+				<app-usage-report-placeholder [report]="activeReport()" [query]="state.query()" [jobCount]="state.jobCount()" />
 			}
 			@case ('events') {
-				<app-usage-tab-placeholder [tab]="activeTab()" [query]="state.query()" [jobCount]="state.jobCount()" />
+				<app-usage-report-placeholder [report]="activeReport()" [query]="state.query()" [jobCount]="state.jobCount()" />
 			}
 			@case ('health') {
-				<app-usage-tab-placeholder [tab]="activeTab()" [query]="state.query()" [jobCount]="state.jobCount()" />
+				<app-usage-report-placeholder [report]="activeReport()" [query]="state.query()" [jobCount]="state.jobCount()" />
 			}
 		}
 	}

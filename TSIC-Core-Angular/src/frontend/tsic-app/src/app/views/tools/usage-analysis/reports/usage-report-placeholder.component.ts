@@ -1,23 +1,23 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
-import type { UsageQuery, UsageTabDef } from '../usage-analysis.models';
+import type { UsageQuery, UsageReportDef } from '../usage-analysis.models';
 import { USAGE_SCOPE_OPTIONS } from '../usage-analysis.models';
 
 /**
- * An unclaimed tab slot. States what the slot is reserved for and the exact query a
- * real tab would run with, so the scope/window/bot controls can be exercised before
- * any chart exists. Replace the `<app-usage-tab-placeholder>` for a slot in the shell
- * template with the real tab component to claim it.
+ * An unclaimed report slot. States what the slot is reserved for and the exact query a
+ * real report would run with, so the scope/window/bot controls can be exercised before
+ * any chart exists. Replace the `<app-usage-report-placeholder>` for a slot in the shell
+ * template with the real report component to claim it.
  */
 @Component({
-	selector: 'app-usage-tab-placeholder',
+	selector: 'app-usage-report-placeholder',
 	standalone: true,
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	template: `
 		<div class="list-empty-state">
-			<i class="bi" [class]="'bi ' + tab().icon"></i>
-			<div class="slot-title">{{ tab().label }} — nothing here yet</div>
-			<div class="slot-hint">{{ tab().hint }}</div>
+			<i class="bi" [class]="'bi ' + report().icon"></i>
+			<div class="slot-title">{{ report().label }} — nothing here yet</div>
+			<div class="slot-hint">{{ report().hint }}</div>
 			<div class="slot-query">
 				Would run as: <strong>{{ scopeLabel() }}</strong>
 				· {{ jobCount() }} live {{ jobCount() === 1 ? 'event' : 'events' }}
@@ -41,8 +41,8 @@ import { USAGE_SCOPE_OPTIONS } from '../usage-analysis.models';
 		}
 	`,
 })
-export class UsageTabPlaceholderComponent {
-	readonly tab = input.required<UsageTabDef>();
+export class UsageReportPlaceholderComponent {
+	readonly report = input.required<UsageReportDef>();
 	readonly query = input.required<UsageQuery>();
 	readonly jobCount = input.required<number>();
 
