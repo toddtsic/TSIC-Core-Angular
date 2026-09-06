@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { UsersByRoleRowDto } from './UsersByRoleRowDto';
+import type { UsersByRoleTotalDto } from './UsersByRoleTotalDto';
 export type UsersByRoleDto = {
     windowDays: number;
     botsExcluded: boolean;
@@ -10,6 +11,7 @@ export type UsersByRoleDto = {
     rows: Array<UsersByRoleRowDto>;
     customerUsers: number;
     adminUsers: number;
+    totals: Array<UsersByRoleTotalDto>;
     usageLoggingAvailable: boolean;
 };
 

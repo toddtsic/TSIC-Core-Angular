@@ -6,6 +6,7 @@ import { catchError, distinctUntilChanged, map, switchMap } from 'rxjs/operators
 
 import { environment } from '@environments/environment';
 import { AuthService } from '@infrastructure/services/auth.service';
+import { JobService } from '@infrastructure/services/job.service';
 import { Roles } from '@infrastructure/constants/roles.constants';
 import type { UsageAnalysisScopeDto, UsageClientFacetDto, UsageClientsDto } from '@core/api';
 import {
@@ -38,6 +39,7 @@ interface FacetQuery {
 export class UsageAnalysisStateService {
 	private readonly http = inject(HttpClient);
 	private readonly auth = inject(AuthService);
+	private readonly jobService = inject(JobService);
 	private readonly destroyRef = inject(DestroyRef);
 	private readonly apiUrl = `${environment.apiUrl}/usage-analysis`;
 
@@ -76,12 +78,35 @@ export class UsageAnalysisStateService {
 	readonly windowDays = signal<number>(7);
 	readonly excludeBots = signal(true);
 
+	// Resolved scope — null while (re)loading, so nothing on screen can claim a scope
+	// it was not fetched with.
+	readonly scopeInfo = signal<UsageAnalysisScopeDto | null>(null);
+	readonly isLoadingScope = signal(false);
+	readonly scopeError = signal<string | null>(null);
+
+	/** The job the caller is standing in, lower-cased for id comparison. */
+	readonly currentJobId = computed(() =>
+		this.jobService.currentJob()?.jobId?.toLowerCase() ?? null);
+
+	/** Live events the lens can pick from — the resolved scope's list. */
+	readonly eventOptions = computed(() => this.scopeInfo()?.jobs ?? []);
+
 	/**
-	 * The event lens. Null = every live event in the scope. Only meaningful above job
-	 * scope; reset to null whenever the scope changes so a job from the old scope cannot
-	 * linger. The server refuses an id outside the resolved set, so this can only narrow.
+	 * The event lens. Null = every live event in the scope. Seeded whenever the scope
+	 * resolves: the event the caller is STANDING IN if it is live and inside the scope
+	 * (Todd, 2026-09-06 — a Superuser or SuperDirector opens on their own event, with the
+	 * rest of the scope one pick away), else All events. Reseeding on scopeInfo also means
+	 * a job from the old scope can never linger. The server refuses an id outside the
+	 * resolved set, so this can only narrow.
 	 */
-	readonly eventId = signal<string | null>(null);
+	readonly eventId = linkedSignal<UsageAnalysisScopeDto | null, string | null>({
+		source: this.scopeInfo,
+		computation: info => {
+			const current = this.currentJobId();
+			if (!info || !current) return null;
+			return info.jobs.find(j => j.jobId.toLowerCase() === current)?.jobId ?? null;
+		},
+	});
 
 	/**
 	 * The client lens. Null = every client. Offered only from the facet below — the clients
@@ -100,21 +125,12 @@ export class UsageAnalysisStateService {
 		clientId: this.clientId(),
 	}));
 
-	// Resolved scope — null while (re)loading, so nothing on screen can claim a scope
-	// it was not fetched with.
-	readonly scopeInfo = signal<UsageAnalysisScopeDto | null>(null);
-	readonly isLoadingScope = signal(false);
-	readonly scopeError = signal<string | null>(null);
-
 	readonly scopeLabel = computed(() =>
 		USAGE_SCOPE_OPTIONS.find(o => o.scope === this.scope())?.label ?? this.scope());
 
 	readonly jobCount = computed(() => this.scopeInfo()?.jobs.length ?? 0);
 
 	readonly jobNames = computed(() => (this.scopeInfo()?.jobs ?? []).map(j => j.jobName));
-
-	/** Live events the lens can pick from — the resolved scope's list. */
-	readonly eventOptions = computed(() => this.scopeInfo()?.jobs ?? []);
 
 	/** A Director has one event; the picker exists only where there is a set to narrow. */
 	readonly showEventPicker = computed(() => this.scope() !== 'job' && this.eventOptions().length > 0);
@@ -123,6 +139,17 @@ export class UsageAnalysisStateService {
 		const id = this.eventId();
 		if (!id) return 'All events';
 		return this.eventOptions().find(j => j.jobId === id)?.jobName ?? 'All events';
+	});
+
+	/**
+	 * The row a scope-wide table should single out, lower-cased: the lens if set, else the
+	 * event the caller is standing in — so at "All events" the reader can still find
+	 * themselves in the list.
+	 */
+	readonly highlightJobId = computed(() => {
+		const lens = this.eventId();
+		if (lens) return lens.toLowerCase();
+		return this.currentJobId();
 	});
 
 	// Client facet: what the Client dropdown may offer. Reloaded whenever the facet query
@@ -224,7 +251,7 @@ export class UsageAnalysisStateService {
 	setScope(scope: UsageScope): void {
 		if (this.scope() === scope) return;
 		this.scope.set(scope);
-		this.eventId.set(null);
+		// eventId reseeds itself when the new scope resolves; the client lens has no such anchor.
 		this.clientId.set(null);
 		this.loadScope();
 	}

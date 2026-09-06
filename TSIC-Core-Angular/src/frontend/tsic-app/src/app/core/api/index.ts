@@ -882,6 +882,7 @@ export type { UserProfileDto } from './models/UserProfileDto';
 export type { UserProfileUpdateRequest } from './models/UserProfileUpdateRequest';
 export type { UsersByRoleDto } from './models/UsersByRoleDto';
 export type { UsersByRoleRowDto } from './models/UsersByRoleRowDto';
+export type { UsersByRoleTotalDto } from './models/UsersByRoleTotalDto';
 export type { UserSearchResponseDto } from './models/UserSearchResponseDto';
 export type { UserSearchResultDto } from './models/UserSearchResultDto';
 export type { UserWidgetEntryDto } from './models/UserWidgetEntryDto';

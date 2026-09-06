@@ -3,12 +3,11 @@ import { HttpClient } from '@angular/common/http';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { distinctUntilChanged, filter, map, switchMap } from 'rxjs/operators';
 import { catchError, of } from 'rxjs';
-import { ChartAllModule, type IPointEventArgs, type SeriesModel } from '@syncfusion/ej2-angular-charts';
+import { ChartAllModule, type SeriesModel } from '@syncfusion/ej2-angular-charts';
 
 import { environment } from '@environments/environment';
 import type { UsersByRoleDto, UsersByRoleRowDto } from '@core/api';
 import { UsageAnalysisStateService } from '../usage-analysis-state.service';
-import type { UsageQuery } from '../usage-analysis.models';
 
 /** Read a CSS custom property from :root, with fallback. */
 function cssVar(v: string, fallback: string): string {
@@ -17,7 +16,7 @@ function cssVar(v: string, fallback: string): string {
 
 /**
  * Customer-facing roles in a FIXED order, so a role keeps its colour and its column
- * position in every cluster, every window, and every later report. Roles not listed
+ * position in every chart, every window, and every later report. Roles not listed
  * follow alphabetically.
  */
 const ROLE_ORDER: readonly string[] = [
@@ -35,10 +34,6 @@ const PALETTE_VARS: readonly [string, string][] = [
 	['--bs-secondary', '#6c757d'],
 ];
 
-/** Most events charted before the rest fold into one "Other" cluster. The pivot always lists every event. */
-const CHART_EVENT_CAP = 12;
-const OTHER_KEY = '__other__';
-
 interface EventTotal {
 	readonly jobId: string;
 	readonly jobName: string;
@@ -47,18 +42,35 @@ interface EventTotal {
 	readonly byRole: ReadonlyMap<string, number>;
 }
 
-/** One chart point: the event on x, one field per customer-facing role (r0, r1, ...). */
-type ChartPoint = { readonly event: string; readonly jobId: string } & Record<string, string | number>;
+/** What the chart draws: one label, one count per role. An event, or the whole scope rolled up. */
+interface ChartTarget {
+	readonly label: string;
+	readonly byRole: ReadonlyMap<string, number>;
+	readonly admin: number;
+}
+
+/** What this report fetches with. The event lens is NOT in it: the table is the whole scope. */
+interface FetchKey {
+	readonly scope: string;
+	readonly windowDays: number;
+	readonly excludeBots: boolean;
+	readonly clientId: number | null;
+}
 
 /**
  * Report 01 — Users by Role. Distinct people who used the scoped live events in the
  * window, counted by registration, keyed by event, grouped by role.
  *
- * Clustered column chart: x = event, one column per role in each cluster. A Director
- * sees one cluster; Customer and All TSIC scope show one per live event, or one when
- * the shell's event lens is set. Same chart, every role. Clicking a cluster sets the
- * lens. Below it, a pivot mirrors the chart with every event, roles across, a Total,
- * and Admin & staff as a muted last column so setup clicks never pad the people count.
+ * Two surfaces from one scope-wide fetch:
+ *  - The CHART follows the Event dropdown. One event picked: that event's roles, one
+ *    column each — a Director's one event and a Superuser's chosen one are the same
+ *    chart. "All events": the whole scope rolled up into one cluster, using the server's
+ *    scope-wide distinct counts (a family using two events is one person, so this can be
+ *    smaller than the table's column sums). Twelve clusters side by side were unreadable.
+ *  - The TABLE is the whole scope: every live event, roles across, a Total, and Admin &
+ *    staff as a muted last column so setup clicks never pad the people count. The row of
+ *    the charted event — or, at All events, the event the caller is standing in — is
+ *    highlighted. Clicking an event name moves the dropdown and the chart to it.
  *
  * People only. Anonymous traffic is requests, not people — nothing in the log can turn
  * an anonymous request into a visitor, and a registered user browsing before sign-in is
@@ -91,7 +103,7 @@ export class UsersByRoleComponent implements OnInit {
 
 	private readonly rows = computed<readonly UsersByRoleRowDto[]>(() => this.data()?.rows ?? []);
 
-	/** Customer-facing roles present, in ROLE_ORDER then alphabetical. */
+	/** Customer-facing roles present anywhere in the scope, in ROLE_ORDER then alphabetical. */
 	readonly roles = computed<readonly string[]>(() => {
 		const present = new Set(this.rows().filter(r => !r.isAdmin).map(r => r.roleName));
 		const ordered = ROLE_ORDER.filter(r => present.has(r));
@@ -99,7 +111,7 @@ export class UsersByRoleComponent implements OnInit {
 		return [...ordered, ...rest];
 	});
 
-	/** Every event in the answer with its totals, busiest first. The pivot lists all of these. */
+	/** Every event in the answer with its totals, busiest first. The table lists all of these. */
 	readonly events = computed<readonly EventTotal[]>(() => {
 		const byJob = new Map<string, { jobName: string; customer: number; admin: number; byRole: Map<string, number> }>();
 		for (const r of this.rows()) {
@@ -120,55 +132,83 @@ export class UsersByRoleComponent implements OnInit {
 			.sort((a, b) => b.customer - a.customer || a.jobName.localeCompare(b.jobName));
 	});
 
-	/** Events the chart shows: all of them, or the top CHART_EVENT_CAP plus one folded "Other". */
-	readonly chartEvents = computed<readonly EventTotal[]>(() => {
-		const all = this.events();
-		if (all.length <= CHART_EVENT_CAP) return all;
-		const shown = all.slice(0, CHART_EVENT_CAP);
-		const rest = all.slice(CHART_EVENT_CAP);
-		const byRole = new Map<string, number>();
-		for (const e of rest) {
-			for (const [role, n] of e.byRole) byRole.set(role, (byRole.get(role) ?? 0) + n);
-		}
-		return [...shown, {
-			jobId: OTHER_KEY,
-			jobName: `Other (${rest.length} events)`,
-			customer: rest.reduce((s, e) => s + e.customer, 0),
-			admin: rest.reduce((s, e) => s + e.admin, 0),
-			byRole,
-		}];
+	/** Lower-cased id of the table row to single out: the lens, else the event the caller stands in. */
+	readonly highlightId = computed(() => this.state.highlightJobId());
+
+	/** The lens event's totals, when a lens is set and the event had any users at all. */
+	private readonly lensEvent = computed<EventTotal | null>(() => {
+		const id = this.state.eventId()?.toLowerCase();
+		if (!id) return null;
+		return this.events().find(e => e.jobId.toLowerCase() === id) ?? null;
 	});
 
-	readonly foldedCount = computed(() => Math.max(0, this.events().length - CHART_EVENT_CAP));
+	/**
+	 * What the chart draws. Lens set: that event. No lens: the scope rolled up from the
+	 * server's distinct-per-role totals. Null when a lens is set but the event had no users.
+	 */
+	readonly chartTarget = computed<ChartTarget | null>(() => {
+		if (this.state.eventId()) {
+			const e = this.lensEvent();
+			return e ? { label: e.jobName, byRole: e.byRole, admin: e.admin } : null;
+		}
+		const d = this.data();
+		if (!d) return null;
+		const byRole = new Map<string, number>();
+		let admin = 0;
+		for (const t of d.totals) {
+			if (t.isAdmin) admin += t.users;
+			else byRole.set(t.roleName, (byRole.get(t.roleName) ?? 0) + t.users);
+		}
+		const n = this.state.jobCount();
+		const label = n === 1 ? (this.events()[0]?.jobName ?? 'This event') : `All ${n} live events`;
+		return { label, byRole, admin };
+	});
 
-	readonly chartData = computed<readonly ChartPoint[]>(() => {
-		const roles = this.roles();
-		return this.chartEvents().map(e => {
-			const p: Record<string, string | number> = { event: e.jobName, jobId: e.jobId };
-			roles.forEach((role, i) => { p[`r${i}`] = e.byRole.get(role) ?? 0; });
-			return p as ChartPoint;
-		});
+	/** Whether the chart is the scope rollup rather than one event. */
+	readonly isRollup = computed(() => !this.state.eventId());
+
+	/** Roles present in the charted target, in the same fixed order as the table columns. */
+	readonly chartRoles = computed<readonly string[]>(() => {
+		const t = this.chartTarget();
+		return t ? this.roles().filter(r => (t.byRole.get(r) ?? 0) > 0) : [];
+	});
+
+	/** One point, one field per charted role (r0, r1, ...). */
+	readonly chartData = computed<Record<string, string | number>[]>(() => {
+		const t = this.chartTarget();
+		if (!t) return [];
+		const p: Record<string, string | number> = { x: t.label };
+		this.chartRoles().forEach((role, i) => { p['r' + i] = t.byRole.get(role) ?? 0; });
+		return [p];
 	});
 
 	/** One column series per role, bound as a whole so the series count can change with the data. */
 	readonly chartSeries = computed<SeriesModel[]>(() => {
-		const data = this.chartData() as ChartPoint[];
-		return this.roles().map((role, i) => ({
+		const data = this.chartData();
+		const roles = this.roles();
+		return this.chartRoles().map((role, i) => ({
 			type: 'Column',
 			dataSource: data,
-			xName: 'event',
-			yName: `r${i}`,
+			xName: 'x',
+			yName: 'r' + i,
 			name: role,
-			fill: this.palette[i % this.palette.length],
+			// Colour by the role's position in the SCOPE-wide order, so Player is the same colour
+			// whichever event is charted.
+			fill: this.palette[roles.indexOf(role) % this.palette.length],
 			opacity: 0.85,
-			// Fixed width. A proportional width lets one lone column fill the whole band (a Director
-			// with one event and one role saw a 500px slab); pixels keep a column a column.
-			columnWidthInPixel: 28,
+			// Fixed width: a proportional width lets one lone column fill the whole band.
+			columnWidthInPixel: 36,
 			cornerRadius: { topLeft: 3, topRight: 3 },
 		}));
 	});
 
-	readonly chartHeight = computed(() => `${this.chartEvents().length > 6 ? 340 : 300}px`);
+	/** Tallest column — drives the y-axis step. */
+	private readonly maxCell = computed(() => {
+		const t = this.chartTarget();
+		let max = 0;
+		if (t) for (const n of t.byRole.values()) if (n > max) max = n;
+		return max;
+	});
 
 	readonly primaryXAxis = computed(() => ({
 		valueType: 'Category' as const,
@@ -176,8 +216,6 @@ export class UsersByRoleComponent implements OnInit {
 		majorTickLines: { width: 0 },
 		lineStyle: { width: 0 },
 		labelStyle: { color: this.mutedColor, size: '11px', fontFamily: this.fontFamily },
-		labelIntersectAction: 'Trim' as const,
-		maximumLabelWidth: 110,
 	}));
 
 	readonly primaryYAxis = computed(() => ({
@@ -193,54 +231,50 @@ export class UsersByRoleComponent implements OnInit {
 		labelFormat: 'n0',
 	}));
 
-	/** Tallest customer-facing cell on the chart -- drives the y-axis step. */
-	private readonly maxCell = computed(() => {
-		let max = 0;
-		for (const e of this.chartEvents()) for (const n of e.byRole.values()) if (n > max) max = n;
-		return max;
-	});
-
 	readonly tooltipSettings = { enable: true, shared: true };
 
-	readonly legendSettings = {
+	readonly legendSettings = computed(() => ({
 		visible: true,
 		position: 'Top' as const,
 		alignment: 'Far' as const,
 		textStyle: { size: '11px', fontFamily: this.fontFamily },
 		padding: 4,
 		margin: { top: 0, bottom: 4, left: 0, right: 0 },
-	};
+	}));
 
 	readonly chartArea = { border: { width: 0 } };
 	readonly margin = { left: 8, right: 8, top: 4, bottom: 4 };
 
-	/** Clicking a cluster is a shortcut for the shell's Event dropdown. "Other" is not an event. */
-	readonly canDrill = computed(() => this.state.showEventPicker() && this.state.eventId() === null);
+	/** Event names in the table are links to the lens wherever there is a set to pick from. */
+	readonly canDrill = computed(() => this.state.showEventPicker());
 
 	readonly eventWord = computed(() => {
-		if (this.state.eventId()) return this.state.eventLabel();
 		const n = this.state.jobCount();
 		return n === 1 ? 'this event' : `${n} live events`;
 	});
 
 	/**
-	 * The query to run: the shell's query whenever the scope is resolved and non-empty,
-	 * else null. Emitting null clears the report, so nothing lingers under a scope it was
-	 * not fetched with.
+	 * What to fetch: the shell's query minus the event lens, whenever the scope is resolved
+	 * and non-empty; null otherwise. Emitting null clears the report, so nothing lingers
+	 * under a scope it was not fetched with. The lens only moves the chart and the
+	 * highlight, both derived from the same scope-wide answer — no refetch on a row click.
 	 */
-	private readonly runnable = computed<UsageQuery | null>(() =>
-		this.state.canQuery() ? this.state.query() : null);
+	private readonly fetchKey = computed<FetchKey | null>(() => {
+		if (!this.state.canQuery()) return null;
+		const q = this.state.query();
+		return { scope: q.scope, windowDays: q.windowDays, excludeBots: q.excludeBots, clientId: q.clientId };
+	});
 
 	// Created here, in the injection context; subscribed in ngOnInit.
-	private readonly runnable$ = toObservable(this.runnable);
+	private readonly fetchKey$ = toObservable(this.fetchKey);
 
 	ngOnInit(): void {
-		this.runnable$
+		this.fetchKey$
 			.pipe(
 				map(q => q ? JSON.stringify(q) : null),
 				distinctUntilChanged(),
-				map(key => key ? (JSON.parse(key) as UsageQuery) : null),
-				filter((q): q is UsageQuery => {
+				map(key => key ? (JSON.parse(key) as FetchKey) : null),
+				filter((q): q is FetchKey => {
 					if (q) return true;
 					this.data.set(null);
 					return false;
@@ -251,7 +285,6 @@ export class UsersByRoleComponent implements OnInit {
 					const params: Record<string, string | number | boolean> = {
 						scope: q.scope, windowDays: q.windowDays, excludeBots: q.excludeBots,
 					};
-					if (q.eventId) params['eventId'] = q.eventId;
 					if (q.clientId !== null) params['clientId'] = q.clientId;
 					return this.http.get<UsersByRoleDto>(`${environment.apiUrl}/usage-analysis/users-by-role`, { params }).pipe(
 						catchError(err => {
@@ -270,11 +303,8 @@ export class UsersByRoleComponent implements OnInit {
 			});
 	}
 
-	onPointClick(args: IPointEventArgs): void {
-		if (!this.canDrill()) return;
-		const point = this.chartData()[args.pointIndex ?? -1];
-		if (!point || point.jobId === OTHER_KEY) return;
-		this.state.setEvent(point.jobId);
+	isHighlighted(e: EventTotal): boolean {
+		return e.jobId.toLowerCase() === this.highlightId();
 	}
 
 	cell(e: EventTotal, role: string): number {

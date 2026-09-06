@@ -129,12 +129,24 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
             })
             .ToList();
 
+        // Scope-wide, per role, distinct people -- the "All events" cluster. Not a sum of rows.
+        var totals = joined
+            .GroupBy(x => new { x.Role.RoleId, x.Role.RoleName, x.IsAdmin })
+            .Select(g => new UsersByRoleTotalDto
+            {
+                RoleName = g.Key.RoleName,
+                Users = g.Select(x => x.RegistrationId).Distinct().Count(),
+                IsAdmin = g.Key.IsAdmin,
+            })
+            .ToList();
+
         return new UsersByRoleDto
         {
             WindowDays = windowDays,
             BotsExcluded = excludeBots,
             JobCount = scope.Jobs.Count,
             Rows = rows,
+            Totals = totals,
             // Distinct people, not a sum of per-event rows.
             CustomerUsers = joined.Where(x => !x.IsAdmin).Select(x => x.RegistrationId).Distinct().Count(),
             AdminUsers = joined.Where(x => x.IsAdmin).Select(x => x.RegistrationId).Distinct().Count(),
@@ -151,6 +163,7 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
         BotsExcluded = excludeBots,
         JobCount = scope.Jobs.Count,
         Rows = [],
+        Totals = [],
         CustomerUsers = 0,
         AdminUsers = 0,
         UsageLoggingAvailable = available,

@@ -26,30 +26,41 @@
 			</div>
 		</div>
 
-		@if (roles().length > 0) {
-			<div class="ubr-chart" [class.ubr-chart--drill]="canDrill()">
-				<ejs-chart
-					[primaryXAxis]="primaryXAxis()"
-					[primaryYAxis]="primaryYAxis()"
-					[series]="chartSeries()"
-					[tooltip]="tooltipSettings"
-					[legendSettings]="legendSettings"
-					[chartArea]="chartArea"
-					[margin]="margin"
-					[width]="'100%'"
-					[height]="chartHeight()"
-					[background]="'transparent'"
-					(pointClick)="onPointClick($event)">
-				</ejs-chart>
-				@if (foldedCount() > 0) {
-					<div class="ubr-chart-note">
-						Top {{ chartEvents().length - 1 }} events charted; {{ foldedCount() }} more folded into Other. Every event is in the table below.
+		<!-- The chart follows the Event dropdown: one event, or the whole scope rolled up.
+		     The table below is always the whole scope. -->
+		<div class="ubr-chart">
+			@if (chartTarget(); as t) {
+				<div class="ubr-chart-title">
+					{{ t.label }}
+					@if (isRollup() && canDrill()) {
+						<span class="ubr-chart-sub">distinct people across the scope — someone using two events counts once</span>
+					}
+				</div>
+				@if (chartRoles().length > 0) {
+					<ejs-chart
+						[primaryXAxis]="primaryXAxis()"
+						[primaryYAxis]="primaryYAxis()"
+						[series]="chartSeries()"
+						[tooltip]="tooltipSettings"
+						[legendSettings]="legendSettings()"
+						[chartArea]="chartArea"
+						[margin]="margin"
+						[width]="'100%'"
+						[height]="'280px'"
+						[background]="'transparent'">
+					</ejs-chart>
+				} @else {
+					<div class="ubr-chart-empty">
+						No customer-facing users in the window@if (t.admin > 0) { — {{ t.admin }} admin &amp; staff only }.
 					</div>
-				} @else if (canDrill()) {
-					<div class="ubr-chart-note">Click an event's columns to focus on it.</div>
 				}
-			</div>
-		}
+			} @else {
+				<div class="ubr-chart-title">{{ state.eventLabel() }}</div>
+				<div class="ubr-chart-empty">
+					No signed-in users of this event in the window. Pick another event above, or a row below.
+				</div>
+			}
+		</div>
 
 		<div class="ubr-table-wrap">
 			<table class="ubr-table">
@@ -65,10 +76,13 @@
 				</thead>
 				<tbody>
 					@for (e of events(); track e.jobId) {
-						<tr>
+						<tr [class.ubr-row--current]="isHighlighted(e)">
 							<td class="ubr-event">
+								@if (isHighlighted(e)) {
+									<i class="bi bi-caret-right-fill ubr-row-marker" aria-hidden="true"></i>
+								}
 								@if (canDrill()) {
-									<button type="button" class="ubr-event-btn" (click)="state.setEvent(e.jobId)" [title]="'Focus on ' + e.jobName">{{ e.jobName }}</button>
+									<button type="button" class="ubr-event-btn" (click)="state.setEvent(e.jobId)" [title]="'Chart ' + e.jobName">{{ e.jobName }}</button>
 								} @else {
 									{{ e.jobName }}
 								}

@@ -41,8 +41,27 @@ public record UsersByRoleDto
     /// <summary>Distinct registrations across the admin tier: the director's own staff doing setup, plus TSIC.</summary>
     public required int AdminUsers { get; init; }
 
+    /// <summary>
+    /// One row per role across the WHOLE resolved scope: distinct registrations under that
+    /// role with a request about ANY event in the set. This is what an "All events" chart
+    /// shows. Distinct, not a sum of Rows: a family using two events is one person here,
+    /// so a Totals figure can be smaller than the column sum in a per-event table.
+    /// </summary>
+    public required List<UsersByRoleTotalDto> Totals { get; init; }
+
     /// <summary>False when TSICLogs is not configured on this server -- a missing source, not zero traffic.</summary>
     public required bool UsageLoggingAvailable { get; init; }
+}
+
+/// <summary>A scope-wide role total for UsersByRoleDto.Totals.</summary>
+public record UsersByRoleTotalDto
+{
+    public required string RoleName { get; init; }
+
+    /// <summary>Distinct registrations under this role with at least one request about any event in the scope.</summary>
+    public required int Users { get; init; }
+
+    public required bool IsAdmin { get; init; }
 }
 
 public record UsersByRoleRowDto
