@@ -1,3 +1,5 @@
+using TSIC.Contracts.Dtos.RosterSwapper;
+
 namespace TSIC.Contracts.Dtos.UsLax;
 
 /// <summary>Audience scope for USLax membership reconciliation.</summary>
@@ -65,6 +67,24 @@ public record UsLaxReconciliationRowDto
     /// grid's Details column. Null when the member is eligible and there is nothing to explain.
     /// </summary>
     public string? EligibilityDetail { get; init; }
+
+    /// <summary>
+    /// EVERY criterion, judged independently — <c>UsLaxEligibilityPolicy.Describe</c>.
+    /// <para>
+    /// AR-071 (Ann, 09-02): <see cref="EligibilityReason"/> and <see cref="EligibilityDetail"/>
+    /// come from <c>Evaluate</c>, an ordered chain that returns on the FIRST failure and carries a
+    /// single reason. That is right for a gate and wrong for a report: a player whose last name
+    /// AND birthdate both disagree was shown one error, so the director fixed it, resubmitted, and
+    /// failed on the one never displayed.
+    /// </para>
+    /// <para>
+    /// Both come from the same private predicates, so this list can never claim something the gate
+    /// does not enforce. <c>Passed</c> is nullable: null means NOT ASSESSABLE (vendor unreachable,
+    /// no cutoff configured, validation bypassed) — never "passed". Reporting only; eligibility and
+    /// therefore who receives an email still come from the verdict.
+    /// </para>
+    /// </summary>
+    public List<UsLaxCheckRowDto> Checks { get; init; } = new();
 }
 
 /// <summary>Batch reconciliation request. Empty list = reconcile every eligible candidate.</summary>

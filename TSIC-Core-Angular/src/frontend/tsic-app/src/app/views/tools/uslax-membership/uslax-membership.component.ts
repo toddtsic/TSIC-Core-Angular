@@ -22,6 +22,36 @@ import type {
 const MEMBERSHIP_ROLE = { Player: 0, Coach: 1 } as const satisfies Record<'Player' | 'Coach', UsLaxMembershipRole>;
 
 /**
+ * Keys from `UsLaxEligibilityPolicy.Describe` that back the three Yes/No columns. A key is absent
+ * from a row whenever the checklist stopped before reaching it (vendor unreachable, no record
+ * found, validation bypassed) — that reads as NOT ASSESSED, never as a No.
+ *
+ * `validThrough` carries two keys because the policy emits `NoCutoffConfigured` in place of
+ * `ExpiresBeforeCutoff` when the event has no USA Lacrosse cutoff date set.
+ */
+const CHECK_KEYS: Record<'dob' | 'lastName' | 'validThrough', readonly string[]> = {
+	dob: ['DobMismatch'],
+	lastName: ['LastNameMismatch'],
+	validThrough: ['ExpiresBeforeCutoff', 'NoCutoffConfigured']
+};
+
+/**
+ * The grid's row: the reconciliation DTO plus four PRE-RESOLVED display strings.
+ *
+ * AR-071 parts 1 and 3 are the same problem. ej2 filters and sorts a column by its `field`, and
+ * these four verdicts are derived — three of them out of the `checks` ARRAY, which no column can
+ * filter. Projecting them onto real string fields is what makes those headers filterable at all,
+ * and it drops two hand-written sort comparers that existed only because the columns had no field
+ * worth ordering by.
+ */
+type UsLaxGridRow = UsLaxReconciliationRowDto & {
+	needsEmail: string;
+	lastNameMatch: string;
+	dobMatch: string;
+	meetsValidThrough: string;
+};
+
+/**
  * Default email subject/body for the USLax reconciliation page. Tokens are substituted
  * server-side per recipient through the global TextSubstitutionService engine (same
  * engine as search/registrations email and the confirmation flows). !PERSON is the
@@ -134,6 +164,25 @@ export class UsLaxMembershipComponent implements OnInit {
 		this.isCoachRole()
 			? 'Active unassigned adults with a USA Lacrosse number on file'
 			: 'Active Lacrosse Players with a membership ID on file'
+	);
+
+	readonly filterSettings = { type: 'Excel' as const };
+
+	/** What a Yes/No column shows for a criterion that was never assessed. NEVER "No" — see AR-044. */
+	private static readonly NOT_ASSESSED = '—';
+
+	/**
+	 * What the grid actually binds: every row with its derived verdicts resolved to plain strings
+	 * so ej2 can filter and sort them. Pure projection — the signal `rows()` stays the source.
+	 */
+	readonly gridRows = computed<UsLaxGridRow[]>(() =>
+		this.rows().map(r => ({
+			...r,
+			needsEmail: this.needsAction(r) ? 'Yes' : 'No',
+			lastNameMatch: this.verdictOf(r, CHECK_KEYS.lastName),
+			dobMatch: this.verdictOf(r, CHECK_KEYS.dob),
+			meetsValidThrough: this.verdictOf(r, CHECK_KEYS.validThrough)
+		}))
 	);
 
 	readonly gridToolbar: ToolbarItems[] = ['ExcelExport'];
@@ -494,27 +543,76 @@ export class UsLaxMembershipComponent implements OnInit {
 		return '';
 	}
 
-	// Sort comparers for the two TEMPLATE columns -------------------------------------
+	// Eligibility checklist (AR-071) -----------------------------------------------------
 	//
-	// Email and Involvement render from derived values, not from a single field, so ej2 has
-	// nothing to order them by and both were left unsortable. A column still needs a real
-	// `field` to be sortable at all, so each is pointed at a genuine row property and given a
-	// comparer that orders by what the cell actually DISPLAYS. ej2 hands the comparer the two
-	// row objects as its 3rd/4th arguments, which is where the derived value comes from.
-	// Arrow properties, not methods — they are passed by reference into the grid and would
-	// otherwise lose `this`.
+	// `checks` is UsLaxEligibilityPolicy.Describe — EVERY criterion judged independently. The
+	// row's `eligibilityReason` / `eligibilityDetail` come from Evaluate, an ordered chain that
+	// returns on the FIRST failure. That is right for a gate and wrong for a report: a player
+	// whose last name AND birthdate both disagreed was shown one problem, so the director fixed
+	// it, resubmitted, and failed again on the one that was never displayed.
 
-	/** Orders the Email column by its badge: "Not needed" before "Would send" ascending. */
-	readonly emailSortComparer = (
-		_x: unknown,
-		_y: unknown,
-		xRow?: UsLaxReconciliationRowDto,
-		yRow?: UsLaxReconciliationRowDto
-	): number => {
-		const a = xRow && this.needsAction(xRow) ? 1 : 0;
-		const b = yRow && this.needsAction(yRow) ? 1 : 0;
-		return a - b;
-	};
+	private checkFor(row: UsLaxReconciliationRowDto, keys: readonly string[]) {
+		return row.checks?.find(c => keys.includes(c.key));
+	}
+
+	/**
+	 * Yes / No / — for one criterion. A MISSING check and a null `passed` both read as NOT
+	 * ASSESSED: the checklist stops early when USA Lacrosse is unreachable, returns no record, or
+	 * validation is bypassed for the team, and none of those are a No. AR-044 shipped exactly
+	 * that mistake on this table — a confident No to a question nobody had asked.
+	 */
+	private verdictOf(row: UsLaxReconciliationRowDto, keys: readonly string[]): string {
+		const c = this.checkFor(row, keys);
+		if (!c || c.passed === null || c.passed === undefined) return UsLaxMembershipComponent.NOT_ASSESSED;
+		return c.passed ? 'Yes' : 'No';
+	}
+
+	/** Colour for a Yes/No cell. A dash is MUTED, not red — it is an unanswered question. */
+	checkClass(verdict: string): string {
+		if (verdict === 'No') return 'text-danger fw-semibold';
+		if (verdict === 'Yes') return 'text-success-emphasis';
+		return 'text-body-secondary';
+	}
+
+	/** Hover text for a Yes/No cell — the policy's own words, so cell and tooltip cannot drift. */
+	checkTitle(row: UsLaxGridRow, which: 'dob' | 'lastName' | 'validThrough'): string {
+		const c = this.checkFor(row, CHECK_KEYS[which]);
+		if (!c) return 'Not checked — there was no USA Lacrosse record to check against.';
+		// Ann asked that the birthdate itself not appear on this screen, and the policy's detail
+		// line prints both dates. The DOB cell therefore never borrows it.
+		if (which === 'dob') {
+			if (c.passed === true) return 'Matches the birthdate USA Lacrosse has on file.';
+			if (c.passed === false) return 'Does not match the birthdate USA Lacrosse has on file.';
+			return 'Not checked.';
+		}
+		return c.detail ?? c.label;
+	}
+
+	/**
+	 * Every criterion this row did NOT pass, in words — the Details column, one line each.
+	 *
+	 * Not-assessable criteria are included: "no valid-through date is set for this event" is the
+	 * most actionable line on the page and it is not a failure. Falls back to the single Evaluate
+	 * sentence only if a row somehow arrives with no checklist at all.
+	 */
+	detailLines(row: UsLaxReconciliationRowDto): string[] {
+		const checks = row.checks ?? [];
+		if (checks.length === 0) return row.eligibilityDetail ? [row.eligibilityDetail] : [];
+		return checks
+			.filter(c => c.passed !== true)
+			.map(c => CHECK_KEYS.dob.includes(c.key)
+				? 'Date of birth does not match USA Lacrosse.'
+				: (c.detail ?? c.label));
+	}
+
+	// Sort comparer for the Involvement TEMPLATE column ---------------------------------
+	//
+	// Involvement renders from a derived value rather than a single field, so ej2 has nothing to
+	// order it by. A column still needs a real `field` to be sortable at all, so it is pointed at
+	// a genuine row property and given a comparer that orders by what the cell actually DISPLAYS.
+	// ej2 hands the comparer the two row objects as its 3rd/4th arguments, which is where the
+	// derived value comes from. An arrow property, not a method — it is passed by reference into
+	// the grid and would otherwise lose `this`.
 
 	/** Orders the Involvement column by its badge text, e.g. "Player" before "Player, Official". */
 	readonly involvementSortComparer = (
@@ -575,9 +673,15 @@ export class UsLaxMembershipComponent implements OnInit {
 				// Vendor status verbatim — a failed call is reported under Details, not here.
 				args.value = d.memStatus ?? '';
 				break;
-			case 'Details':
-				args.value = d.eligibilityDetail ?? d.errorMessage ?? (d.eligible ? 'Passes validation' : '');
+			case 'Details': {
+				// Every unmet criterion, same as the cell — an export that carried only the first
+				// failure is what made "export it" the workaround for this screen in the first place.
+				const lines = this.detailLines(d);
+				args.value = lines.length > 0
+					? lines.join(' ')
+					: (d.errorMessage ?? (d.eligible ? 'Passes validation' : ''));
 				break;
+			}
 			case 'Verified':
 				args.value = this.ageVerifiedDisplay(d);
 				break;

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using TSIC.API.Services.Shared.Email;
 using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.API.Services.Shared.UsLax;
+using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.UsLax;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -564,7 +565,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         UsLaxMembershipRole role,
         UsLaxMemberPingOutput? output = null)
     {
-        var (eligible, reason, detail) = EvaluateForDisplay(c, statusCode, role, output);
+        var (eligible, reason, detail, checks) = EvaluateForDisplay(c, statusCode, role, output);
 
         return new UsLaxReconciliationRowDto
         {
@@ -584,7 +585,8 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
             ExpiryDateUpdated = updated,
             Eligible = eligible,
             EligibilityReason = reason,
-            EligibilityDetail = detail
+            EligibilityDetail = detail,
+            Checks = checks
         };
     }
 
@@ -604,13 +606,23 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
     /// membership had lapsed, was registered under a different name, or was never a coach
     /// membership at all.
     /// </summary>
-    private static (bool Eligible, string Reason, string? Detail) EvaluateForDisplay(
+    private static (bool Eligible, string Reason, string? Detail, List<UsLaxCheckRowDto> Checks) EvaluateForDisplay(
         UsLaxReconciliationCandidateRow c,
         int statusCode,
         UsLaxMembershipRole role,
         UsLaxMemberPingOutput? output)
     {
-        var verdict = UsLaxEligibilityPolicy.Evaluate(new UsLaxEligibilityInput
+        // AR-071 (Ann, 09-02): "a player had more than one error but only one was populated in
+        // Details." Correct, and by construction — Evaluate is an ordered chain that RETURNS on
+        // the first failure and carries a single Reason, which is what a gate needs and what this
+        // grid was reporting. A director then fixes the one error shown, resubmits, and fails on
+        // one that was never displayed.
+        //
+        // Describe answers the same question without short-circuiting: every criterion judged
+        // independently, off the SAME private predicates Evaluate uses, so a row can never claim
+        // something the gate does not enforce. Built one input, read two ways — the verdict still
+        // drives eligibility (and therefore who gets an email), the checklist only reports.
+        var input = new UsLaxEligibilityInput
         {
             MembershipNumber = c.SportAssnId,
             RequiredInvolvement = role == UsLaxMembershipRole.Coach
@@ -626,10 +638,22 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
             VendorInvolvement = output?.Involvement,
             RegistrantLastName = c.LastName,
             RegistrantDob = c.Dob
-        });
+        };
+
+        var verdict = UsLaxEligibilityPolicy.Evaluate(input);
+
+        var checks = UsLaxEligibilityPolicy.Describe(input)
+            .Select(r => new UsLaxCheckRowDto
+            {
+                Key = r.Key,
+                Label = r.Label,
+                Passed = r.Passed,
+                Detail = r.Detail
+            })
+            .ToList();
 
         return (verdict.Valid, verdict.Reason.ToString(), UsLaxEligibilityPolicy.DetailFor(
             verdict, c.ValidThrough, c.LastName, c.Dob,
-            output?.MemStatus, output?.LastName, output?.Birthdate));
+            output?.MemStatus, output?.LastName, output?.Birthdate), checks);
     }
 }

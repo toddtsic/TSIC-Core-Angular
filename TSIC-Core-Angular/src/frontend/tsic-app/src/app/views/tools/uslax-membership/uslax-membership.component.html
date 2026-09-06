@@ -210,10 +210,12 @@
          the grid's `cssClass` because Syncfusion passes that value to classList.add() verbatim —
          a second, space-separated class throws InvalidCharacterError and takes the grid down. -->
     <div class="uslax-membership-grid">
-    <ejs-grid width="100%" #grid tsicRowNumbers [dataSource]="rows()" [allowSorting]="true"
+    <ejs-grid width="100%" #grid tsicRowNumbers [dataSource]="gridRows()" [allowSorting]="true"
               [sortSettings]="{ columns: [{ field: 'lastName', direction: 'Ascending' }] }"
               [allowExcelExport]="true"
               [allowResizing]="true"
+              [allowFiltering]="true"
+              [filterSettings]="filterSettings"
               [toolbar]="gridToolbar"
               [selectionSettings]="selectionSettings"
               (rowSelecting)="onRowSelecting($event)"
@@ -225,17 +227,16 @@
               (excelQueryCellInfo)="onExcelQueryCellInfo($event)"
               cssClass="tsic-grid-tight">
         <e-columns>
-            <e-column type="checkbox" width="40" [allowSorting]="false"></e-column>
+            <e-column type="checkbox" width="40" [allowSorting]="false" [allowFiltering]="false"></e-column>
             <!-- Row number (unbound — stamped by tsicRowNumbers, survives sort) -->
-            <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"
+            <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false" [allowFiltering]="false"
                       [customAttributes]="{ class: 'row-number-cell' }"></e-column>
             <!-- This is the EMAIL selector, not a health verdict: it says whether the reminder email
                  would go to this family. The reason lives in Details. Nothing sends automatically.
                  A mark means "needs email"; blank means it doesn't — the marked rows are the
                  exception, so leaving the healthy majority blank is what makes them scannable.
                  The glyph carries a title + aria-label because colour alone must not convey it. -->
-            <e-column headerText="Email?" width="92" textAlign="Center"
-                      field="eligibilityReason" [sortComparer]="emailSortComparer">
+            <e-column headerText="Email?" width="92" textAlign="Center" field="needsEmail">
                 <ng-template #template let-data>
                     @if (needsAction(data)) {
                         <i class="bi bi-check2 text-danger fw-bold"
@@ -281,12 +282,34 @@
                     {{ ageVerifiedDisplay(data) }}
                 </ng-template>
             </e-column>
-            <e-column headerText="Involvement" width="158" minWidth="140"
+            <e-column headerText="Involvement" width="158" minWidth="140" [allowFiltering]="false"
                       field="involvement" [sortComparer]="involvementSortComparer">
                 <ng-template #template let-data>
                     @for (role of involvementBadges(data); track role) {
                         <span class="badge bg-primary-subtle text-primary-emphasis me-1">{{ role }}</span>
                     }
+                </ng-template>
+            </e-column>
+            <!-- AR-071 (Ann, 09-02): the three criteria the columns above do NOT already show.
+                 Status covers "membership is Active", Involvement covers Player/Coach, and a
+                 missing record shows up as a failed call — these three had nowhere to live but
+                 the Details sentence, which reports only the FIRST thing that went wrong.
+                 Each reads its own entry from the server's full checklist, so a player who fails
+                 two of them now fails two of them visibly.
+                 A dash is NOT a No: it means the checklist never got to this question (USA
+                 Lacrosse unreachable, no record returned, validation bypassed for the team, or —
+                 for the cutoff column — no valid-through date set on the event). AR-044 shipped
+                 a confident No to an unasked question on this same table; this does not. -->
+            <e-column field="lastNameMatch" headerText="LN Match?" width="106" textAlign="Center">
+                <ng-template #template let-data>
+                    <span [ngClass]="checkClass(data.lastNameMatch)" [title]="checkTitle(data, 'lastName')">{{ data.lastNameMatch }}</span>
+                </ng-template>
+            </e-column>
+            <!-- The birthdate VALUE is deliberately absent here and in the tooltip — Ann asked for
+                 the verdict only. The registrant's own DOB is on the registration record. -->
+            <e-column field="dobMatch" headerText="DOB Match?" width="112" textAlign="Center">
+                <ng-template #template let-data>
+                    <span [ngClass]="checkClass(data.dobMatch)" [title]="checkTitle(data, 'dob')">{{ data.dobMatch }}</span>
                 </ng-template>
             </e-column>
             <e-column field="previousExpiryDate" headerText="Expiry-Old" width="114" textAlign="Center" type="date" format="MM/dd/yyyy">
@@ -304,20 +327,27 @@
                     </span>
                 </ng-template>
             </e-column>
-            <!-- Why this member would fail at the registration door, in words, with the actual
-                 dates and values in it. Same UsLaxEligibilityPolicy the wizard runs, so the
-                 director sees the verdict the front door would give. Reporting only — the
-                 expiry write above is unaffected by it. -->
-            <!-- A pass is a bare checkmark — "Passes validation" restated the same thing in words on
-                 every healthy row, which is most of them. A failure keeps its text AND repeats it as
-                 a title, because the reason is the one thing here that gets truncated and it is
-                 exactly what the director needs to read. -->
+            <e-column field="meetsValidThrough" headerText="Meets Valid Thru?" width="150" textAlign="Center">
+                <ng-template #template let-data>
+                    <span [ngClass]="checkClass(data.meetsValidThrough)" [title]="checkTitle(data, 'validThrough')">{{ data.meetsValidThrough }}</span>
+                </ng-template>
+            </e-column>
+            <!-- EVERY criterion this member did not meet, one line each — not just the first.
+                 Same UsLaxEligibilityPolicy the wizard runs, so the director sees what the front
+                 door would say. Reporting only — the expiry write above is unaffected by it.
+                 A pass is a bare checkmark: "Passes validation" restated the same thing in words
+                 on every healthy row, which is most of them. Each failure repeats its own text as
+                 a title, because this is the column that gets truncated and it is exactly what the
+                 director needs to read. The birthdate line names no dates — Ann asked for the
+                 verdict without the value, and the DOB Match? column carries it. -->
             <e-column field="eligibilityDetail" headerText="Details" minWidth="240" clipMode="EllipsisWithTooltip">
                 <ng-template #template let-data>
-                    @if (data.eligibilityDetail) {
-                        <span [class.text-danger]="!data.eligible"
-                              [class.text-body-secondary]="data.eligible"
-                              [title]="data.eligibilityDetail">{{ data.eligibilityDetail }}</span>
+                    @if (detailLines(data).length > 0) {
+                        @for (line of detailLines(data); track line) {
+                            <div [class.text-danger]="!data.eligible"
+                                 [class.text-body-secondary]="data.eligible"
+                                 [title]="line">{{ line }}</div>
+                        }
                     } @else if (data.errorMessage) {
                         <span class="text-danger" [title]="data.errorMessage">{{ data.errorMessage }}</span>
                     } @else if (data.eligible) {
