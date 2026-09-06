@@ -200,3 +200,21 @@
 .arb-contact__party {
   margin-top: var(--space-1);
 }
+
+/* USA Lacrosse Reconciliation grid (AR-079) — a row that cannot be mailed offers no checkbox.
+   Rows already in good standing are refused by the server (UsLaxEligibilityPolicy), so a
+   checkbox on one is a control with no effect; the component also cancels `rowSelecting` for
+   these rows, which is what actually enforces it. Grid chrome is not style-encapsulated, so
+   this cannot live in the component's scoped styles. */
+.uslax-membership-grid {
+  .uslax-row-not-mailable .e-rowcell.e-gridchkbox .e-checkbox-wrapper {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  /* Header select-all would claim to reach every row while only mailable ones can be selected.
+     "Email Those Needing Email" is the honest version of that gesture and is already a button. */
+  .e-headerchkcelldiv {
+    display: none;
+  }
+}

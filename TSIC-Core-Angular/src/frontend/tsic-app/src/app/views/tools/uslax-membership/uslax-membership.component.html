@@ -88,12 +88,11 @@
 
 @if (rows().length > 0) {
     <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
-        <button class="btn btn-outline-primary btn-sm"
-                [disabled]="rows().length === 0 || showCompose()"
-                (click)="emailAll()"
-                title="Select every row in the grid and open the compose panel. Rows already in good standing are skipped when the batch sends.">
-            <i class="bi bi-envelope-fill me-1"></i>Email All ({{ rows().length }})
-        </button>
+        <!-- AR-079 (Ann, 09-06): "Email All" was DELETED, not renamed. It selected every row and
+             then sent to the same set as the button beside it, because the server skips anyone in
+             good standing — so it promised a send the system forbids, which is what sent Ann to
+             the checkboxes looking for a way to force it. With checkboxes now offered only on
+             mailable rows, "select everything selectable" IS "those needing email". -->
         <button class="btn btn-outline-primary btn-sm"
                 [disabled]="rowsNeedingAction().length === 0 || showCompose()"
                 (click)="emailThoseNeedingEmail()"
@@ -213,12 +212,14 @@
               [allowResizing]="true"
               [toolbar]="gridToolbar"
               [selectionSettings]="selectionSettings"
+              (rowSelecting)="onRowSelecting($event)"
               (rowSelected)="onSelectionChanged(grid)"
               (rowDeselected)="onSelectionChanged(grid)"
+              (rowDataBound)="onRowDataBound($event)"
               (dataBound)="onGridDataBound(grid)"
               (toolbarClick)="onGridToolbarClick($event, grid)"
               (excelQueryCellInfo)="onExcelQueryCellInfo($event)"
-              cssClass="tsic-grid-tight">
+              cssClass="tsic-grid-tight uslax-membership-grid">
         <e-columns>
             <e-column type="checkbox" width="40" [allowSorting]="false"></e-column>
             <!-- Row number (unbound — stamped by tsicRowNumbers, survives sort) -->

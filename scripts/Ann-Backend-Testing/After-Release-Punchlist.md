@@ -1435,7 +1435,28 @@ Proposed replacement columns:
 - **⛔ Do not re-propose the editable price field, gated or otherwise.** The objection is not where the field sits; it is that **entering a price there creates an override**, which is true on any screen.
 - **Status**: ⛔ **CLOSED 09-06 — WON'T FIX. Premise refuted by the data; the requested fix would create team-level overrides at scale. Remedy for the 26 affected jobs stays as-is: set the price on the team afterwards.**
 
-### AR-079: 🟡 [USA Lacrosse Reconciliation / Email] Let the checkboxes send to ANY selected player, not just "Needing Email" — and make the recipient count and the Email Log tell the truth
+### AR-079: 🟡 PART 1 BUILT (Todd, 09-06) — parts 2–3 still open · [USA Lacrosse Reconciliation / Email] Let the checkboxes send to ANY selected player, not just "Needing Email" — and make the recipient count and the Email Log tell the truth
+
+**✅ PART 1 — INVESTIGATED AND BUILT 09-06. Ann's premise was WRONG, and the fix is the opposite of what she asked for.**
+
+**1. The checkboxes were never inert.** Selection is live (`selectedRows`), and the send builds its recipient list straight off it (`buildRecipients`). What it then does is drop the selected rows **already in good standing** — `.filter(r => this.needsAction(r))`.
+
+**2. `needsAction` was reviewed and does what it claims.** It does not re-derive a verdict; it reads the one the server computed with `UsLaxEligibilityPolicy` (`row.eligible` / `row.eligibilityReason`), excluding only **our own** failures (`VendorUnavailable`, `NoCutoffConfigured`) — never the family's. **The `Email?` column calls the SAME function**, so the marks, the button count and the actual send cannot disagree.
+
+**3. The server enforces it independently.** `UsLaxMembershipService` re-runs `UsLaxEligibilityPolicy` over its own data and refuses anyone eligible **whatever the client posts** — so no hand-crafted request can mail a healthy player either. **And it does not skip quietly:** the response carries `SkippedHealthy`, `SkippedNames`, `Unverifiable` and `MissingEmail`, which the result toast prints.
+
+**4. ⛔ The rule stands: a valid member is NEVER told their membership is broken.** That is the reason the filter exists, and it is not being relaxed.
+
+**5. ⚠ WHAT WAS ACTUALLY WRONG — and Ann's report is what surfaced it.** The screen enforced the rule **silently**. Ticking a healthy row and watching nothing happen **is indistinguishable from a dead control**, which is exactly the conclusion she reached. Worse, there was a button labelled **"Email All"** on a screen where mailing all is forbidden — it selected every row and then sent to the same set as the button beside it. **A label promising a send the system refuses is what sent her to the checkboxes looking for a way to force it.**
+
+**✅ BUILT — the UI now STATES the rule instead of enforcing it invisibly. Frontend only; no policy change, no send-path change, no backend change.**
+- **A row that cannot be mailed offers no checkbox.** Hidden in CSS (`.uslax-row-not-mailable`, in `styles/_syncfusion-cell-utils.scss` — grid chrome is not style-encapsulated) **and** `rowSelecting` is cancelled for those rows. **Belt and braces on purpose:** hiding alone would still let a click on the row body select it, and ej2 class names can drift on a Syncfusion upgrade — **the cancel is what holds.** The server filter remains the real backstop.
+- **Header select-all is hidden** — it would claim to reach every row when only mailable ones can be selected. *"Email Those Needing Email"* is the honest version of that gesture and is already a button.
+- **⛔ "Email All" was DELETED, not renamed.** With checkboxes offered only on mailable rows, *"select everything selectable"* **is** *"those needing email"* — the two buttons were one button.
+- **Left in place deliberately:** the *"N selected in good standing (will be skipped)"* notice and the *"all selected rows are in good standing"* disabled-reason. **Both are now unreachable — that is the point.** If the selection guard ever fails, the screen still tells the truth rather than going silent again.
+- **Angular build clean.** ⚠ **Runtime NOT observed** — the checkbox-hiding depends on ej2 class names (`.e-gridchkbox`, `.e-headerchkcelldiv`); if those are wrong the checkbox stays visible but **still cannot be ticked**, because the cancel is independent of the CSS. **Worth an eye on first look.**
+
+**FOR ANN:** the boxes always worked — what you hit was the good-standing filter, which is deliberate. The screen was wrong to hide that from you, and that is what changed: healthy rows no longer offer a box to tick, and the "Email All" button that promised something the system forbids is gone.
 - **Topic**: **USA Lacrosse Membership Reconciliation** — the **email send**, the **selection checkboxes**, the **recipient count on the tab**, and the **Email Log**
 - **Reported by**: Ann, 09-06. **Filed as reported — NO research requested, NOT diagnosed.** Nothing below has been checked against code or data.
 

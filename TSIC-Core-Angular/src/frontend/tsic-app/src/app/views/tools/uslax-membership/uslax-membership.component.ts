@@ -407,21 +407,37 @@ export class UsLaxMembershipComponent implements OnInit {
 		return !row.eligible;
 	}
 
-	// Quick-select ---------------------------------------------------------------------
+	// Selectability ---------------------------------------------------------------------
 	/**
-	 * Select EVERY row and open compose.
+	 * AR-079 (Ann, 09-06): a row that CANNOT be mailed does not offer a checkbox.
 	 *
-	 * Note what this does and does not do: it checks all rows, but the batch still sends only to
-	 * those needing action — the server runs UsLaxEligibilityPolicy over its own data and skips
-	 * anyone in good standing, deliberately, so a valid member is never told their membership is
-	 * broken. So this is "put everyone in front of me", not "mail everyone".
+	 * Ann reported the checkboxes as inert — "the boxes are there just need them to function".
+	 * They were never inert: they fed the send, which then dropped the rows already in good
+	 * standing, because the server runs UsLaxEligibilityPolicy over its own data and refuses to
+	 * tell a valid member their membership is broken. Ticking a healthy row and watching nothing
+	 * happen is indistinguishable from a dead control, so the control is withdrawn where it has
+	 * no effect. The rule is unchanged; the UI now states it instead of enforcing it silently.
+	 *
+	 * Belt AND braces, deliberately: the checkbox is hidden (cosmetic) and `rowSelecting` is
+	 * cancelled (behavioral). Hiding alone would still let a click on the row body select it, and
+	 * the ej2 class names hiding depends on could drift on a Syncfusion upgrade — the cancel is
+	 * what actually holds. The server keeps its own independent filter as the real backstop.
 	 */
-	emailAll(): void {
-		this.selectRowsWhere(() => true, () => {
-			if (this.effectiveRecipientCount() > 0) this.openCompose();
-		});
+	onRowSelecting(args: { data?: unknown; cancel?: boolean }): void {
+		// Header select-all hands us an ARRAY. It is hidden in CSS, but if it ever fires, let it
+		// through: every row it can reach is already a mailable one.
+		if (Array.isArray(args.data)) return;
+		const row = args.data as UsLaxReconciliationRowDto | undefined;
+		if (row && !this.needsAction(row)) args.cancel = true;
 	}
 
+	/** Marks non-mailable rows so the stylesheet can withdraw their checkbox. */
+	onRowDataBound(args: { data?: unknown; row?: Element }): void {
+		const row = args.data as UsLaxReconciliationRowDto | undefined;
+		if (row && !this.needsAction(row)) args.row?.classList.add('uslax-row-not-mailable');
+	}
+
+	// Quick-select ---------------------------------------------------------------------
 	/**
 	 * Select every row marked Needs Email and go straight to compose — the one-click version of
 	 * select-then-compose, and the common case. Shares `needsAction` with the column itself, so the
