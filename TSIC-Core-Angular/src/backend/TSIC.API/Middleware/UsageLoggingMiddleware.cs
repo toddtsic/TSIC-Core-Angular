@@ -86,14 +86,35 @@ public sealed class UsageLoggingMiddleware
 
         var user = context.User;
 
-        // jobPath resolves from the route first, then the token. Public endpoints take
-        // it as a route value and carry no token at all; authenticated requests carry
-        // it as a claim. Checking the route first is what keeps anonymous traffic
-        // attributable to a job instead of collapsing into Guid.Empty.
+        // The job this request was ABOUT, read from a "…/{jobId:guid}" route segment --
+        // 17 endpoints: the Events app's event browse and device subscriptions, and the
+        // cross-job admin consoles (job clone, widget editor, admin expiry, third-party
+        // access). Same rule as teamId below: the route names what the request
+        // concerned and wins over the caller's own registration in the writer, which
+        // is what keeps a Superuser cloning job B while standing in job A attributed
+        // to B. Not validated here: a guid that names no job lands as-is in the fact
+        // table (separate database, no FK). Accepted -- the analysis page only ever
+        // reads by an explicit live-job id list, so a stray guid can never surface.
+        Guid? jobId = context.Request.RouteValues.TryGetValue("jobId", out var routeJobId)
+                      && Guid.TryParse(routeJobId?.ToString(), out var parsedJobId)
+            ? parsedJobId
+            : null;
+
+        // jobPath resolves from the route first, then the token, then the query string.
+        // Public endpoints take it as a route value and carry no token at all;
+        // authenticated requests carry it as a claim. The Events app and the public
+        // roster/schedule readers pass it as "?jobPath=" -- 17 endpoints -- which is the
+        // same already-parsed Request.Query this middleware reads the client tag from,
+        // so it costs nothing on the request path. Checking the request before the
+        // token is what keeps anonymous traffic attributable to a job instead of
+        // collapsing into Guid.Empty.
         var jobPath = context.Request.RouteValues.TryGetValue("jobPath", out var routeJobPath)
             ? routeJobPath as string
             : null;
         jobPath ??= user?.FindFirst("jobPath")?.Value;
+        jobPath ??= context.Request.Query["jobPath"].ToString() is { Length: > 0 } queryJobPath
+            ? queryJobPath
+            : null;
 
         // The team this request was ABOUT, read from the route -- "…/{teamId:guid}" on
         // 15 controllers, which covers the roster, LADT, check-in and club-roster
@@ -122,6 +143,7 @@ public sealed class UsageLoggingMiddleware
 
         var capture = new UsageCapture(
             OccurredAt: occurredAt,
+            JobId: jobId,
             JobPath: jobPath,
             TeamId: teamId,
             RegId: regId,

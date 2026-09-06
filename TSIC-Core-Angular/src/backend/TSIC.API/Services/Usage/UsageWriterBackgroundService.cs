@@ -432,10 +432,17 @@ public sealed class UsageWriterBackgroundService : BackgroundService
             // null and not a missing row. An unresolvable path lands here the same way
             // an absent one does -- by design, so JobId can stay NOT NULL.
             //
-            // The registration wins when there is one. It is the same job the token was
-            // scoped to, read from the row's own foreign key rather than from a string
-            // claim, so the two cannot drift; jobPath is what anonymous traffic has
-            // INSTEAD, not a second opinion to reconcile.
+            // JobId has three sources, in order. The ROUTE wins: a "…/{jobId:guid}" path
+            // segment names the job the REQUEST was about, captured on the request path
+            // (see UsageCapture) -- the same rule as TeamId below, and for the same
+            // reason: a Superuser working on job B from job A is attributed to B, and
+            // the two stay separable afterwards (a row whose JobId differs from its
+            // RegId's job IS cross-job traffic, a WHERE clause). Then the registration:
+            // the same job the token was scoped to, read from the row's own foreign key
+            // rather than from a string claim, so the two cannot drift. Then jobPath,
+            // which is what anonymous traffic has INSTEAD, not a second opinion to
+            // reconcile. For every endpoint that is not a cross-job admin console the
+            // first two agree, so the order only ever matters where it should.
             // TeamId has two sources, in order. The ROUTE wins: a "…/{teamId:guid}" path
             // segment names the team the REQUEST was about, and it was captured on the
             // request path (see UsageCapture). Only when the route named none does the
@@ -450,10 +457,22 @@ public sealed class UsageWriterBackgroundService : BackgroundService
             var jobId = Guid.Empty;
             var teamId = row.TeamId;
 
-            if (row.RegId is { } regId && registrations.TryGetValue(regId, out var dimensions))
+            // The team fallback is independent of which job source wins: a signed-in
+            // caller's own team still fills in when the route named none.
+            RegistrationUsageDimensionsDto? dimensions = null;
+            if (row.RegId is { } regId && registrations.TryGetValue(regId, out var found))
+            {
+                dimensions = found;
+                teamId ??= found.AssignedTeamId;
+            }
+
+            if (row.JobId is { } routeJobId)
+            {
+                jobId = routeJobId;
+            }
+            else if (dimensions is not null)
             {
                 jobId = dimensions.JobId;
-                teamId ??= dimensions.AssignedTeamId;
             }
             else if (!string.IsNullOrWhiteSpace(row.JobPath)
                      && jobIds.TryGetValue(row.JobPath, out var resolvedJobId))
