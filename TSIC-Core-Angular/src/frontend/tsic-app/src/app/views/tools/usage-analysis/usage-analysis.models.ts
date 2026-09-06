@@ -51,6 +51,8 @@ export interface UsageReportDef {
 	readonly label: string;
 	/** Roles that see the report. Nested by design: Director ⊂ SuperDirector ⊂ Superuser. */
 	readonly roles: readonly string[];
+	/** False for a reserved slot with no report behind it yet. Hidden from the dropdown; the key stays reserved. */
+	readonly built: boolean;
 }
 
 const ALL_ADMINS = [Roles.Superuser, Roles.SuperDirector, Roles.Director] as const;
@@ -58,15 +60,15 @@ const CROSS_JOB = [Roles.Superuser, Roles.SuperDirector] as const;
 const SUPERUSER = [Roles.Superuser] as const;
 
 /**
- * DUMMY report slots, in dropdown order: four for a Director, five for a SuperDirector,
- * six for a Superuser. Every slot is the same report; what differs is the scope it is
- * queried with. Names are placeholders until the role/scope plumbing is trusted.
+ * Report slots, in dropdown order. Only BUILT reports are offered (Todd, 2026-09-06: hide
+ * the placeholders so the page can be published). Reserved slots keep their key so the
+ * numbering never shifts: four for a Director, five for a SuperDirector, six for a Superuser.
  */
 export const USAGE_REPORTS: readonly UsageReportDef[] = [
-	{ key: 'report-01', label: '01 · Users by Role', roles: ALL_ADMINS },
-	{ key: 'report-02', label: 'Report-02', roles: ALL_ADMINS },
-	{ key: 'report-03', label: 'Report-03', roles: ALL_ADMINS },
-	{ key: 'report-04', label: 'Report-04', roles: ALL_ADMINS },
-	{ key: 'report-05', label: 'Report-05', roles: CROSS_JOB },
-	{ key: 'report-06', label: 'Report-06', roles: SUPERUSER },
+	{ key: 'report-01', label: '01 · Users by Role', roles: ALL_ADMINS, built: true },
+	{ key: 'report-02', label: 'Report-02', roles: ALL_ADMINS, built: false },
+	{ key: 'report-03', label: 'Report-03', roles: ALL_ADMINS, built: false },
+	{ key: 'report-04', label: 'Report-04', roles: ALL_ADMINS, built: false },
+	{ key: 'report-05', label: 'Report-05', roles: CROSS_JOB, built: false },
+	{ key: 'report-06', label: 'Report-06', roles: SUPERUSER, built: false },
 ];

@@ -60,9 +60,9 @@ export class UsageAnalysisStateService {
 		return USAGE_SCOPE_OPTIONS.filter(o => USAGE_SCOPE_ORDER.indexOf(o.scope) <= max);
 	});
 
-	/** Report slots this role sees, in dropdown order. */
+	/** Built reports this role sees, in dropdown order. Reserved slots are not offered. */
 	readonly reports = computed<readonly UsageReportDef[]>(() =>
-		USAGE_REPORTS.filter(t => t.roles.includes(this.role())));
+		USAGE_REPORTS.filter(t => t.built && t.roles.includes(this.role())));
 
 	/**
 	 * Every role lands on the BROADEST scope it may hold (Todd, 2026-09-06): Superuser on
