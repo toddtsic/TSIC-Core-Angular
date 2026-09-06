@@ -86,6 +86,8 @@ export class UsersByRoleComponent implements OnInit {
 	private readonly palette = PALETTE_VARS.map(([v, fb]) => cssVar(v, fb));
 	readonly mutedColor = cssVar('--brand-text-muted', '#6c757d');
 	readonly borderColor = cssVar('--brand-border', 'rgba(0,0,0,0.1)');
+	// ej2 draws SVG text in its own default face; hand it the page font so the axes match the table.
+	private readonly fontFamily = cssVar('--bs-body-font-family', 'system-ui, sans-serif');
 
 	private readonly rows = computed<readonly UsersByRoleRowDto[]>(() => this.data()?.rows ?? []);
 
@@ -159,7 +161,9 @@ export class UsersByRoleComponent implements OnInit {
 			name: role,
 			fill: this.palette[i % this.palette.length],
 			opacity: 0.85,
-			columnWidth: 0.7,
+			// Fixed width. A proportional width lets one lone column fill the whole band (a Director
+			// with one event and one role saw a 500px slab); pixels keep a column a column.
+			columnWidthInPixel: 28,
 			cornerRadius: { topLeft: 3, topRight: 3 },
 		}));
 	});
@@ -171,7 +175,7 @@ export class UsersByRoleComponent implements OnInit {
 		majorGridLines: { width: 0 },
 		majorTickLines: { width: 0 },
 		lineStyle: { width: 0 },
-		labelStyle: { color: this.mutedColor, size: '11px' },
+		labelStyle: { color: this.mutedColor, size: '11px', fontFamily: this.fontFamily },
 		labelIntersectAction: 'Trim' as const,
 		maximumLabelWidth: 110,
 	}));
@@ -181,10 +185,20 @@ export class UsersByRoleComponent implements OnInit {
 		majorGridLines: { width: 0.5, color: this.borderColor, dashArray: '3,3' },
 		majorTickLines: { width: 0 },
 		lineStyle: { width: 0 },
-		labelStyle: { color: this.mutedColor, size: '11px' },
+		labelStyle: { color: this.mutedColor, size: '11px', fontFamily: this.fontFamily },
 		minimum: 0,
-		interval: undefined as number | undefined,
+		// People are whole. Step by 1 while the tallest column is small; let ej2 pick above that,
+		// with the n0 format so it never labels 1.2 people.
+		interval: this.maxCell() <= 10 ? 1 : undefined,
+		labelFormat: 'n0',
 	}));
+
+	/** Tallest customer-facing cell on the chart -- drives the y-axis step. */
+	private readonly maxCell = computed(() => {
+		let max = 0;
+		for (const e of this.chartEvents()) for (const n of e.byRole.values()) if (n > max) max = n;
+		return max;
+	});
 
 	readonly tooltipSettings = { enable: true, shared: true };
 
@@ -192,7 +206,7 @@ export class UsersByRoleComponent implements OnInit {
 		visible: true,
 		position: 'Top' as const,
 		alignment: 'Far' as const,
-		textStyle: { size: '11px' },
+		textStyle: { size: '11px', fontFamily: this.fontFamily },
 		padding: 4,
 		margin: { top: 0, bottom: 4, left: 0, right: 0 },
 	};
