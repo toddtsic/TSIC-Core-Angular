@@ -317,6 +317,10 @@ $adminManifest = @(
     (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Widget Editor'     'grid'        'configure/widget-editor'   4 0 0 1)
     (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Job Clone'         'copy'        'configure/job-clone'       5 0 0 1)
     (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Admin Expiry'      'calendar-x'  'tools/admin-expiry'        6 0 0 1)
+    # Usage Analysis (logs.AppUsage): SU-only while every tab is an empty slot. The ROUTE
+    # admits Director/SuperDirector and the page hands each role its own scope ceiling,
+    # so widening is a flag flip here + rows for the other roles — when the first tab lands.
+    (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Usage Analysis'    'activity'    'tools/usage'               7 0 0 1)
     # Profile Migration: REMOVED 2026-08-23. NEVER RE-ADD.
     # The tool bulk-rewrote PlayerProfileMetadataJson across every job carrying a profile
     # type. Running it against live data is destructive. Deprecated post-go-live in

@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-08-23 11:25:03 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-09-06 07:25:34 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -179,6 +179,7 @@ INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Nav Edit
 INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Widget Editor', N'grid', N'configure/widget-editor', 4, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Job Clone', N'copy', N'configure/job-clone', 5, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Admin Expiry', N'calendar-x', N'tools/admin-expiry', 6, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Usage Analysis', N'activity', N'tools/usage', 7, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Change Password', N'key', N'tools/change-password', 8, 0, 0, 1, NULL, NULL);
 
 -- Standalone top-level leaves (direct links, no section dropdown)
