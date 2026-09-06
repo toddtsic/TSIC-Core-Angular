@@ -374,6 +374,20 @@ public class AdultRegistrationService : IAdultRegistrationService
             throw new InvalidOperationException("You must select at least one team to coach.");
         }
 
+        // AR-070: same guard as PreSubmitAsync, and for the same reason — see the long note
+        // there. No client calls this method (the Angular service method has zero callers and
+        // the wizard goes through pre-submit), but the endpoint is live to anyone holding a
+        // token, so it must not be the one door left open. Before the deactivate, as there.
+        var account = await _userManager.FindByIdAsync(userId)
+            ?? throw new KeyNotFoundException("Account not found.");
+
+        if (string.IsNullOrWhiteSpace(account.FirstName) && string.IsNullOrWhiteSpace(account.LastName))
+        {
+            throw new InvalidOperationException(
+                "This account has no first or last name on file, so it cannot be registered. "
+                + "Please sign in with a different account, or create a new account to register.");
+        }
+
         // Edit semantics: soft-delete any existing active registrations for
         // (user, job, role) before creating fresh rows. Matches legacy
         // EditLoggedInStaff pattern so returning users can add/remove teams.
@@ -907,6 +921,39 @@ public class AdultRegistrationService : IAdultRegistrationService
 
         if (userId != null)
         {
+            // AR-070 (Ann, 09-02): an account with NO NAME cannot be registered against.
+            //
+            // This is the write chokepoint for every coach self-registration — login-mode
+            // creates the rows right here from `userId` alone, and NOTHING on this path
+            // captures a name: PreSubmitAdultRegRequestDto has no name field, and the account
+            // is never touched. So a coach signed into a nameless account produces a
+            // registration for a person the system cannot name, which is what Ann saw as a
+            // bare "," in Search → Registrations (the grid renders "{LastName}, {FirstName}"
+            // over two NULLs). Every blank-name registration in the database — 46 accounts,
+            // Staff and Unassigned Adult only — came through here; no player, club rep or
+            // referee path can produce one, because they all require or write a name.
+            //
+            // REFUSE, do not backfill (Todd, 09-06). Writing the registrant's name onto the
+            // account would turn an anonymous record into a confident identity, and that
+            // identity then feeds USA Lacrosse matching and rosters. The account is bankrupt
+            // without a name whoever owns it, so the answer is a different account or a new
+            // one — not a name typed into this one.
+            //
+            // MUST run BEFORE DeactivateActiveByRoleAsync: that call soft-deletes the user's
+            // existing rows for this role, so throwing after it would strand a returning coach
+            // with their registrations switched off and nothing created in their place.
+            var account = await _userManager.FindByIdAsync(userId)
+                ?? throw new KeyNotFoundException("Account not found.");
+
+            if (string.IsNullOrWhiteSpace(account.FirstName) && string.IsNullOrWhiteSpace(account.LastName))
+            {
+                // Reaches the coach verbatim: BadRequest(new { message }) → formatHttpError
+                // reads err.error.message → the review step's alert.
+                throw new InvalidOperationException(
+                    "This account has no first or last name on file, so it cannot be registered. "
+                    + "Please sign in with a different account, or create a new account to register.");
+            }
+
             // Login-mode: create/recreate the registrations NOW (user exists).
             //
             // Edit semantics (matches legacy EditLoggedInStaff pattern):
