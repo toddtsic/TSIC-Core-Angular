@@ -589,26 +589,41 @@ public sealed class RosterSwapperService : IRosterSwapperService
     }
 
     /// <summary>
-    /// The director-facing reason one registrant was not moved. Composed here, in ONE place,
+    /// The director-facing consequence of a move that DID happen. Composed here, in ONE place,
     /// because it must say the same thing wherever it surfaces and because every figure in it is
     /// live money the client has no business re-deriving.
     /// <para>
-    /// Written to answer the three questions a director actually has, in order: why is this
-    /// refused, what exactly is the mismatch, and what do I do now. It renders through
+    /// AR-077 (Ann, 09-06): wording supplied by her and built verbatim. The reprice arithmetic
+    /// came OUT — it explained what went wrong instead of saying what is true — and the third
+    /// sentence went IN, because correcting the player's accounting on the new team is the move
+    /// an operator makes next and it does not touch the subscription. Her word "future" is a
+    /// precision, not filler: already-drafted installments were never in question.
+    /// </para>
+    /// <para>
+    /// Every figure is read off the SUBSCRIPTION mirror (<c>AdnSubscription*</c>), per Ann's
+    /// ruling — never off either registration total, and never recomputed as amount × count.
+    /// No plan total is printed because none exists on <see cref="ArbPlanConflict"/>.
+    /// </para>
+    /// <para>
+    /// Asserts NO past draft and NO future draft. The guard fires on schedule POSITION, not
+    /// <c>AdnSubscriptionStatus</c>, so it also fires for an already-CANCELED plan; the only
+    /// forward-looking claim here is scoped by Ann's own "on an active subscription".
+    /// </para>
+    /// <para>
+    /// It renders through
     /// <c>{{ t.message }}</c> interpolation, so it is flowing prose — newlines and markup would
-    /// collapse into a run-on line.
+    /// collapse into a run-on line. The header ("Last, First — payment plan needs attention") is
+    /// built client-side from <c>PlayerName</c>, which is why this string does not repeat it.
     /// </para>
     /// </summary>
     private static string BuildArbWarningReason(string playerName, string? targetTeamName, ArbPlanConflict c)
     {
-        var team = string.IsNullOrWhiteSpace(targetTeamName) ? "this team" : targetTeamName;
-        var draft = c.OccurrencesRemaining == 1 ? "draft" : "drafts";
-
-        return $"{playerName} MOVED, and the payment plan did NOT follow. {c.OccurrencesToDate} of "
-             + $"{c.TotalOccurrences} payments taken, {c.OccurrencesRemaining} {draft} still to come at "
-             + $"{c.AmountPerOccurrence:C} each. The move to {team} changed this registration from "
-             + $"{c.CurrentFeeTotal:C} to {c.NewFeeTotal:C}, but the plan keeps drafting "
-             + $"{c.AmountPerOccurrence:C} against the old amount, so the balance will not settle "
-             + $"on its own. Cancel or adjust {playerName}'s payment plan.";
+        return "Player MOVED to a different team, and the payment plan did NOT follow. The payment "
+             + $"plan is unchanged — {c.AmountPerOccurrence:C} per installment, {c.TotalOccurrences} "
+             + "installments, on its original schedule. Adjusting this player's accounting on the "
+             + "new team will not change the plan. You can cancel the payment plan and have them "
+             + "return to subscribe for a new one, or adjust the amount owed as needed with "
+             + "Correction Records — although Correction Records do NOT affect future installments "
+             + "on an active subscription.";
     }
 }

@@ -1302,7 +1302,7 @@ Proposed replacement columns:
   - **Correction to a code comment, for anyone reading the old reasoning:** the guard's comment claimed *"this stack has no ARBUpdateSubscription, only create/get/cancel."* **That is wrong** — the wrapper exists and carries an amount. The substance of the concern (nobody reprices) stands; the stated reason for it did not.
 - **Status**: ✅ **VERIFIED (Ann, 09-06) — CLOSED.** The move now proceeds with a warning instead of a refusal, as asked. **Ann verified the BEHAVIOR and accepted it; she then asked for the toast WORDING to change — filed as AR-077, which does not reopen this item.** Todd's standing caveat still applies and is the fact AR-077's new copy has to convey: **nothing reprices a live plan.**
 
-### AR-077: 🟡 [Player Moves / ARB] Rewrite the post-move warning toast — drop the reprice arithmetic, say the plan is unchanged and that fixing accounting will not fix it
+### AR-077: 🟡 BUILT (Todd, 09-06), awaiting Ann verify · [Player Moves / ARB] Rewrite the post-move warning toast — drop the reprice arithmetic, say the plan is unchanged and that fixing accounting will not fix it
 - **Topic**: The **warning toast** shipped for **AR-076** (moving a player who holds an ARB subscription)
 - **Requested by**: Ann, 09-06, **on verifying AR-076**. **Filed as reported — NO research requested.** This is a **copy change to a toast that already works**, not a new defect.
 
@@ -1346,7 +1346,14 @@ Proposed replacement columns:
 
 - **Related**: **AR-076** — the item this toast came from, verified by Ann 09-06. **The behavior is accepted; only the words are in question.** Todd's AR-076 note that **nothing reprices a live plan** is the underlying fact this copy has to convey.
 - **Severity**: 🟡 **carried forward.** Copy change on a shipped feature — **but it closes an operator trap**, so it is not purely cosmetic.
-- **Status**: 🔴 **OPEN — for Todd. Filed 09-06. **✅ THE ACTIVE-PLAN WORDING IS FINAL — Ann supplied it verbatim 09-06 and it is above. BUILD IT AS WRITTEN.** **Nothing is outstanding: the canceled-plan variant was withdrawn by Ann the same day. One toast, one wording, ready to build.****
+
+**🟡 BUILT 09-06 — `BuildArbWarningReason` in `RosterSwapperService.cs`, that one method and nothing else.** No DTO change, no regen, no frontend change, no signature change, no call-site change. Backend builds clean.
+- **⚠ ONE SUBSTITUTION, RULED BY TODD (09-06): `{plan total}` DOES NOT EXIST and the DTO was NOT changed to make it.** `ArbPlanConflict` carries `OccurrencesToDate`, `TotalOccurrences`, `OccurrencesRemaining`, `AmountPerOccurrence`, `CurrentFeeTotal`, `NewFeeTotal` — **no plan total**, and the only way to produce one is `amount × count`, **the exact recompute Ann ruled out.** Todd: *"WE WILL NOT CHANGE DTO, THIS MUST BE SOLVED WITH TEXT ONLY."*
+- **What shipped instead: the plan's own terms, not a total.** *"{AmountPerOccurrence:C} per installment, {TotalOccurrences} installments, on its original schedule."* Both figures are read off the **subscription mirror** (`AdnSubscriptionAmountPerOccurence` / `AdnSubscriptionBillingOccurences`), so Ann's source rule is honored: **no registration total is used and no total is printed.**
+- **Everything else is Ann verbatim** — header (built client-side, untouched), her revised first line, the accounting sentence, her closing line with the two agreed mechanical edits, and **"future"** installments.
+- **✅ The single-toast decision is now also technically safe.** The guard fires on **schedule POSITION, not `AdnSubscriptionStatus`** (`FeeResolutionService.DetectArbPlanConflictAsync`), so it fires for an already-**canceled** plan too. The shipped toast's *"2 of 3 payments taken… 1 draft still to come"* was **false** in that case. The new text asserts **no past draft and no future draft**; the only forward-looking claim sits inside Ann's own *"on an active subscription."* **The withdrawn canceled-plan variant is not needed — one toast is true either way.**
+- **Uses FEWER fields than what it replaces** — `targetTeamName`, `OccurrencesToDate`, `OccurrencesRemaining`, `CurrentFeeTotal` and `NewFeeTotal` are no longer printed. Less to resolve, not more.
+- **Status**: 🟡 **BUILT + PUSHED 09-06 — awaiting Ann verify. Runtime not observed. **✅ THE ACTIVE-PLAN WORDING IS FINAL — Ann supplied it verbatim 09-06 and it is above. BUILD IT AS WRITTEN.** **Nothing is outstanding: the canceled-plan variant was withdrawn by Ann the same day. One toast, one wording, ready to build.****
 
 ### AR-078: 🟡 [Team Clone] Pricing cannot be set anywhere in the clone flow — even with "clone fees" unchecked you must KNOW to go back in afterwards. Put it on one screen
 - **Topic**: **Cloning a team** — the clone screens, the **clone fees** checkbox, and where **pricing** can be entered
