@@ -75,6 +75,21 @@
 					</tr>
 				</thead>
 				<tbody>
+					@if (showAllRow() && allRow(); as all) {
+						<tr class="ubr-row--all" [class.ubr-row--current]="isRollup()">
+							<td class="ubr-event">
+								@if (isRollup()) {
+									<i class="bi bi-caret-right-fill ubr-row-marker" aria-hidden="true"></i>
+								}
+								<button type="button" class="ubr-event-btn" (click)="state.setEvent(null)" title="Chart every live event rolled up">{{ all.jobName }}</button>
+							</td>
+							@for (role of roles(); track role) {
+								<td class="ubr-num">{{ cell(all, role) === 0 ? '·' : cell(all, role).toLocaleString() }}</td>
+							}
+							<td class="ubr-num ubr-total">{{ all.customer.toLocaleString() }}</td>
+							<td class="ubr-num ubr-admin">{{ all.admin === 0 ? '·' : all.admin.toLocaleString() }}</td>
+						</tr>
+					}
 					@for (e of events(); track e.jobId) {
 						<tr [class.ubr-row--current]="isHighlighted(e)">
 							<td class="ubr-event">

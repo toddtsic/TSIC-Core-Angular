@@ -149,6 +149,11 @@
 	color: var(--bs-primary);
 }
 
+// The rollup row: distinct people, so its cells can read below the column sums beneath it. Ruled off.
+.ubr-row--all td {
+	border-bottom: 2px solid var(--brand-border);
+}
+
 .ubr-note {
 	max-width: 48rem;
 	margin: var(--space-3) 0 0;

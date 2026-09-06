@@ -34,6 +34,7 @@ const PALETTE_VARS: readonly [string, string][] = [
 	['--bs-secondary', '#6c757d'],
 ];
 
+/** One table row: an event, or the All rollup (jobId empty). */
 interface EventTotal {
 	readonly jobId: string;
 	readonly jobName: string;
@@ -62,15 +63,16 @@ interface FetchKey {
  * window, counted by registration, keyed by event, grouped by role.
  *
  * Two surfaces from one scope-wide fetch:
- *  - The CHART follows the Event dropdown. One event picked: that event's roles, one
- *    column each — a Director's one event and a Superuser's chosen one are the same
- *    chart. "All events": the whole scope rolled up into one cluster, using the server's
- *    scope-wide distinct counts (a family using two events is one person, so this can be
- *    smaller than the table's column sums). Twelve clusters side by side were unreadable.
+ *  - The CHART follows the Event dropdown. "All events" (the default): the whole scope
+ *    rolled up into one cluster, from the server's scope-wide distinct counts (a family
+ *    using two events is one person, so this can be smaller than the table's column
+ *    sums). One event picked: that event's roles, one column each — a Director's one
+ *    event and a Superuser's chosen one are the same chart. Twelve clusters side by side
+ *    were unreadable; one is not. Counts sit above the columns.
  *  - The TABLE is the whole scope: every live event, roles across, a Total, and Admin &
- *    staff as a muted last column so setup clicks never pad the people count. The row of
- *    the charted event — or, at All events, the event the caller is standing in — is
- *    highlighted. Clicking an event name moves the dropdown and the chart to it.
+ *    staff as a muted last column so setup clicks never pad the people count. Where All
+ *    is a choice, an All row (the same distinct rollup) leads the table. The charted row
+ *    is highlighted. Clicking a row name moves the dropdown and the chart to it.
  *
  * People only. Anonymous traffic is requests, not people — nothing in the log can turn
  * an anonymous request into a visitor, and a registered user browsing before sign-in is
@@ -98,6 +100,7 @@ export class UsersByRoleComponent implements OnInit {
 	private readonly palette = PALETTE_VARS.map(([v, fb]) => cssVar(v, fb));
 	readonly mutedColor = cssVar('--brand-text-muted', '#6c757d');
 	readonly borderColor = cssVar('--brand-border', 'rgba(0,0,0,0.1)');
+	private readonly labelColor = cssVar('--brand-text', '#212529');
 	// ej2 draws SVG text in its own default face; hand it the page font so the axes match the table.
 	private readonly fontFamily = cssVar('--bs-body-font-family', 'system-ui, sans-serif');
 
@@ -132,25 +135,11 @@ export class UsersByRoleComponent implements OnInit {
 			.sort((a, b) => b.customer - a.customer || a.jobName.localeCompare(b.jobName));
 	});
 
-	/** Lower-cased id of the table row to single out: the lens, else the event the caller stands in. */
-	readonly highlightId = computed(() => this.state.highlightJobId());
-
-	/** The lens event's totals, when a lens is set and the event had any users at all. */
-	private readonly lensEvent = computed<EventTotal | null>(() => {
-		const id = this.state.eventId()?.toLowerCase();
-		if (!id) return null;
-		return this.events().find(e => e.jobId.toLowerCase() === id) ?? null;
-	});
-
 	/**
-	 * What the chart draws. Lens set: that event. No lens: the scope rolled up from the
-	 * server's distinct-per-role totals. Null when a lens is set but the event had no users.
+	 * The whole scope rolled up, from the server's distinct-per-role totals: distinct people
+	 * per role, distinct people overall. NOT a sum of the event rows.
 	 */
-	readonly chartTarget = computed<ChartTarget | null>(() => {
-		if (this.state.eventId()) {
-			const e = this.lensEvent();
-			return e ? { label: e.jobName, byRole: e.byRole, admin: e.admin } : null;
-		}
+	readonly allRow = computed<EventTotal | null>(() => {
 		const d = this.data();
 		if (!d) return null;
 		const byRole = new Map<string, number>();
@@ -160,12 +149,35 @@ export class UsersByRoleComponent implements OnInit {
 			else byRole.set(t.roleName, (byRole.get(t.roleName) ?? 0) + t.users);
 		}
 		const n = this.state.jobCount();
-		const label = n === 1 ? (this.events()[0]?.jobName ?? 'This event') : `All ${n} live events`;
-		return { label, byRole, admin };
+		const jobName = n === 1 ? (this.events()[0]?.jobName ?? 'This event') : `All ${n} live events`;
+		return { jobId: '', jobName, customer: d.customerUsers, admin, byRole };
 	});
 
+	/** The All row leads the table wherever All is a choice — wherever there is a set of events to pick from. */
+	readonly showAllRow = computed(() => this.state.showEventPicker());
+
 	/** Whether the chart is the scope rollup rather than one event. */
-	readonly isRollup = computed(() => !this.state.eventId());
+	readonly isRollup = computed(() => this.state.eventId() === null);
+
+	/** The lens event's totals, when a lens is set and the event had any users at all. */
+	private readonly lensEvent = computed<EventTotal | null>(() => {
+		const id = this.state.eventId()?.toLowerCase();
+		if (!id) return null;
+		return this.events().find(e => e.jobId.toLowerCase() === id) ?? null;
+	});
+
+	/**
+	 * What the chart draws. Lens set: that event. No lens: the rollup. Null when a lens is
+	 * set but the event had no users.
+	 */
+	readonly chartTarget = computed<ChartTarget | null>(() => {
+		if (this.state.eventId()) {
+			const e = this.lensEvent();
+			return e ? { label: e.jobName, byRole: e.byRole, admin: e.admin } : null;
+		}
+		const all = this.allRow();
+		return all ? { label: all.jobName, byRole: all.byRole, admin: all.admin } : null;
+	});
 
 	/** Roles present in the charted target, in the same fixed order as the table columns. */
 	readonly chartRoles = computed<readonly string[]>(() => {
@@ -199,6 +211,16 @@ export class UsersByRoleComponent implements OnInit {
 			// Fixed width: a proportional width lets one lone column fill the whole band.
 			columnWidthInPixel: 36,
 			cornerRadius: { topLeft: 3, topRight: 3 },
+			// The count sits ABOVE each column (Outer): a 36px column holding 2 people is too short
+			// to carry a label inside, and a reader should never need the tooltip for the number.
+			marker: {
+				dataLabel: {
+					visible: true,
+					position: 'Outer',
+					format: 'n0',
+					font: { color: this.labelColor, size: '11px', fontWeight: '600', fontFamily: this.fontFamily },
+				},
+			},
 		}));
 	});
 
@@ -303,8 +325,10 @@ export class UsersByRoleComponent implements OnInit {
 			});
 	}
 
+	/** The one highlighted event row is the charted one: the lens event. (The All row highlights itself at All.) */
 	isHighlighted(e: EventTotal): boolean {
-		return e.jobId.toLowerCase() === this.highlightId();
+		const lens = this.state.eventId();
+		return lens !== null && e.jobId.toLowerCase() === lens.toLowerCase();
 	}
 
 	cell(e: EventTotal, role: string): number {
