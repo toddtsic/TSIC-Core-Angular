@@ -1,20 +1,24 @@
 ﻿# =============================================================================
 # __Restore-DevTSICLogsDb-From-Prod.ps1
 # =============================================================================
-# Restores the local dev TSICLogs (.\SS2016) from a DAILY prod backup in
-# C:\DBBackups\TSIC-DAILY -- the TSICLogs twin of __Restore-DevDb-From-Prod.ps1.
+# Restores the local dev TSICLogs (.\SS2016) from an hourly prod backup in
+# C:\DBBackups\TSIC-Single -- the TSICLogs twin of __Restore-DevDb-From-Prod.ps1.
+#
+# TSICLogs is in the SAME hourly maintenance plan as TSICV5 and lands in the
+# SAME share folder, so the existing mirror task (\Mirror_PROD_Backups) pulls it
+# with no changes and the existing 2-day cleanup prunes it. The one consequence
+# is that the folder holds two databases' backups, which is why this script
+# filters on the file name where the TSICV5 script can just take the newest.
 #
 #   .\scripts\__Restore-DevTSICLogsDb-From-Prod.ps1          # latest, asks to confirm
 #   .\scripts\__Restore-DevTSICLogsDb-From-Prod.ps1 -Yes     # latest, no prompt
-#   .\scripts\__Restore-DevTSICLogsDb-From-Prod.ps1 -BackupFile C:\DBBackups\TSIC-DAILY\TSICLogs_backup_2026_09_05_010000_1234567.bak
+#   .\scripts\__Restore-DevTSICLogsDb-From-Prod.ps1 -BackupFile C:\DBBackups\TSIC-Single\TSICLogs_backup_2026_09_05_173329_0885925.bak
 #
 # Differences from the TSICV5 script, all deliberate:
-#   * DAILY, not hourly. A 24-30h old backup is NORMAL here and is not warned
-#     about; only one older than -MaxAgeHours (default 48) warns.
-#   * Searches RECURSIVELY and filters on 'TSICLogs*.bak'. The DAILY folder is
-#     shared with other databases' daily backups, and a maintenance plan may or
-#     may not write per-database subfolders. Newest-file-wins alone would pick a
-#     TSICV5 backup and then die at the FILELISTONLY guard.
+#   * Filters on 'TSICLogs*.bak'. Newest-file-wins alone would pick whichever
+#     database backed up last and then die at the FILELISTONLY guard.
+#   * Warns (does not stop) when the newest backup is older than -MaxAgeHours,
+#     default 24 -- prod's plan has a nightly gap, so a few hours is normal.
 #   * Post-restore grant is SELECT + INSERT ON SCHEMA::logs -- NOT
 #     db_datareader/db_datawriter. See the .sql for why.
 #   * No index re-creation step. TSICLogs indexes are created by
@@ -29,7 +33,7 @@
 # is not reversible.
 #
 # What it does:
-#   1. Picks the newest settled TSICLogs*.bak under C:\DBBackups\TSIC-DAILY
+#   1. Picks the newest settled TSICLogs*.bak in C:\DBBackups\TSIC-Single
 #   2. Sanity-checks its size against the previous one (catches a truncated copy
 #      that FILELISTONLY still accepts -- the backup header sits at the FRONT of
 #      the file, so a half-copied .bak reads as valid)
@@ -44,8 +48,8 @@
 
 param(
     [string]$BackupFile,
-    [string]$BackupDir   = 'C:\DBBackups\TSIC-DAILY',
-    [int]   $MaxAgeHours = 48,
+    [string]$BackupDir   = 'C:\DBBackups\TSIC-Single',
+    [int]   $MaxAgeHours = 24,
     [switch]$Yes
 )
 
@@ -88,25 +92,14 @@ if ($BackupFile) {
         throw "Backup file is locked by another process -- it is most likely still being copied in from prod. Wait and re-run: $($bak.FullName)"
     }
 } else {
-    if (-not (Test-Path $BackupDir)) {
-        throw (
-            "Backup directory not found: $BackupDir`n`n" +
-            "Nothing is mirroring prod's DAILY backups to this box yet. The hourly`n" +
-            "mirror task (\Mirror_PROD_Backups -> Documents\Backups\Scripts\Sync-Backups.ps1)`n" +
-            "copies only root-level *.bak into C:\DBBackups\TSIC-Single -- it has no /S,`n" +
-            "so a TSIC-DAILY subfolder on the share is never pulled. Add a second`n" +
-            "robocopy for it, and give that folder its own retention rule; the existing`n" +
-            "cleanup only prunes TSIC-Single."
-        )
-    }
+    if (-not (Test-Path $BackupDir)) { throw "Backup directory not found: $BackupDir" }
 
-    # -Recurse handles both a flat TSIC-DAILY and a per-database subfolder layout.
-    # The TSICLogs* filter matters: this folder holds other databases' daily
-    # backups too, and picking newest-overall would select a TSICV5 backup.
-    $candidates = @(Get-ChildItem -Path $BackupDir -Filter 'TSICLogs*.bak' -File -Recurse |
+    # The TSICLogs* filter matters: this folder also holds the hourly TSICV5
+    # backups, and picking newest-overall would select one of those.
+    $candidates = @(Get-ChildItem -Path $BackupDir -Filter 'TSICLogs*.bak' -File |
                     Sort-Object LastWriteTime -Descending)
     if (-not $candidates) {
-        throw "No TSICLogs*.bak files found under $BackupDir (searched recursively). Check the maintenance plan's output folder and file naming on prod."
+        throw "No TSICLogs*.bak files in $BackupDir. The mirror task (\Mirror_PROD_Backups) runs hourly at :10 -- if prod's plan just ran, the copy has not happened yet."
     }
 
     $bak = $candidates | Where-Object { Test-BakSettled $_ } | Select-Object -First 1
@@ -138,7 +131,7 @@ Write-Host "Backup : $($bak.FullName)" -ForegroundColor Cyan
 Write-Host "Taken  : $($bak.LastWriteTime)  ($ageHours h ago, $sizeMb MB)" -ForegroundColor Cyan
 Write-Host "Target : $DbName on $SqlInstance  ->  $DataFile" -ForegroundColor Cyan
 if ($ageHours -gt $MaxAgeHours) {
-    Write-Host "WARNING: this backup is older than $MaxAgeHours h -- the daily plan or the mirror may have stopped." -ForegroundColor Yellow
+    Write-Host "WARNING: this backup is older than $MaxAgeHours h -- prod's hourly plan or the mirror task may have stopped." -ForegroundColor Yellow
 }
 Write-Host ""
 
