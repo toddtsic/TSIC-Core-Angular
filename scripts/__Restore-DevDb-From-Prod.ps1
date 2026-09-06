@@ -9,7 +9,9 @@
 #   .\scripts\__Restore-DevDb-From-Prod.ps1 -BackupFile C:\DBBackups\TSIC-Single\TSICV5_backup_2026_07_25_235901_2309265.bak
 #
 # What it does:
-#   1. Picks the newest .bak in C:\DBBackups\TSIC-Single (or the one you name)
+#   1. Picks the newest TSICV5*.bak in C:\DBBackups\TSIC-Single (or the one you
+#      name). The folder also holds TSICLogs backups; the name filter is what
+#      keeps them apart.
 #   2. Verifies it is a TSICV5 backup (expected logical file names) before
 #      touching anything
 #   3. In ONE sqlcmd connection: SINGLE_USER WITH ROLLBACK IMMEDIATE (kicks the
@@ -59,10 +61,13 @@ if ($BackupFile) {
         throw "Backup file is locked by another process -- it is most likely still being copied in from prod. Wait ~1 min and re-run: $($bak.FullName)"
     }
 } else {
-    $all = @(Get-ChildItem (Join-Path $BackupDir '*.bak') | Sort-Object LastWriteTime -Descending)
-    if (-not $all) { throw "No .bak files found in $BackupDir" }
+    # The TSICV5* filter matters: this folder also holds the hourly TSICLogs
+    # backups (same maintenance plan, same share). Newest-overall would pick
+    # whichever database backed up last and then die at the FILELISTONLY guard.
+    $all = @(Get-ChildItem (Join-Path $BackupDir 'TSICV5*.bak') | Sort-Object LastWriteTime -Descending)
+    if (-not $all) { throw "No TSICV5*.bak files found in $BackupDir" }
     $bak = $all | Where-Object { Test-BakSettled $_ } | Select-Object -First 1
-    if (-not $bak) { throw "Every .bak in $BackupDir is locked -- a copy from prod is in flight. Wait ~1 min and re-run." }
+    if (-not $bak) { throw "Every TSICV5*.bak in $BackupDir is locked -- a copy from prod is in flight. Wait ~1 min and re-run." }
     if ($bak.FullName -ne $all[0].FullName) {
         Write-Host "NOTE: $($all[0].Name) is still being copied in -- falling back to the previous backup." -ForegroundColor Yellow
     }
