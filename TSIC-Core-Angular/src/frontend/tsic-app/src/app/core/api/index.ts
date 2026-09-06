@@ -871,6 +871,8 @@ export type { UpdateUserDemographicsRequest } from './models/UpdateUserDemograph
 export type { UpdateWidgetRequest } from './models/UpdateWidgetRequest';
 export type { UsageAnalysisJobDto } from './models/UsageAnalysisJobDto';
 export type { UsageAnalysisScopeDto } from './models/UsageAnalysisScopeDto';
+export type { UsageClientFacetDto } from './models/UsageClientFacetDto';
+export type { UsageClientsDto } from './models/UsageClientsDto';
 export type { UsageStatsPerJobDto } from './models/UsageStatsPerJobDto';
 export type { UsageStatsPerJobRowDto } from './models/UsageStatsPerJobRowDto';
 export type { UserContactInfoDto } from './models/UserContactInfoDto';

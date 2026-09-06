@@ -8,8 +8,8 @@
 		<h2 class="page-title"><i class="bi bi-activity page-title-icon"></i> Usage Analysis</h2>
 	</div>
 
-	<!-- Controls: report · scope · window · bots. Four dropdowns. The report picks the
-	     question; the other three are shared by every report. -->
+	<!-- Controls: report · scope · event · client · window · bots. Dropdowns, all of them.
+	     The report picks the question; the rest are shared by every report. -->
 	<div class="ua-controls">
 
 		<div class="ua-control">
@@ -52,6 +52,22 @@
 					<option value="" [selected]="state.eventId() === null">All events</option>
 					@for (j of state.eventOptions(); track j.jobId) {
 						<option [value]="j.jobId" [selected]="state.eventId() === j.jobId">{{ j.jobName }}</option>
+					}
+				</select>
+			</div>
+		}
+
+		@if (state.showClientPicker()) {
+			<!-- The client lens: offered only for clients that have rows in the current query. -->
+			<div class="ua-control">
+				<label class="ua-control-label" for="ua-client">Client</label>
+				<select id="ua-client"
+					class="form-select form-select-sm ua-select"
+					[disabled]="state.isLoadingClients()"
+					(change)="onClientChange($event)">
+					<option value="" [selected]="state.clientId() === null">All clients</option>
+					@for (c of state.clients(); track c.appClientId) {
+						<option [value]="c.appClientId" [selected]="state.clientId() === c.appClientId">{{ c.appClientName }}</option>
 					}
 				</select>
 			</div>
@@ -114,14 +130,17 @@
 					{{ state.jobCount() }} live {{ state.jobCount() === 1 ? 'event' : 'events' }}
 				</span>
 			}
+			@if (state.clientId() !== null) {
+				<span class="ua-stamp-sep">·</span>
+				<span class="ua-stamp-jobs">{{ state.clientLabel() }}</span>
+			}
 			<span class="ua-stamp-sep">·</span>
 			<span>{{ windowLabel() }}</span>
 			<span class="ua-stamp-sep">·</span>
 			<span>{{ state.excludeBots() ? 'bots hidden' : 'bots included' }}</span>
 		</div>
 
-		<!-- Every slot is a dummy for now. Claim one by adding a case for its key ahead
-		     of the default with the real report component; the default keeps the rest. -->
+		<!-- One case per claimed slot; the default keeps the unclaimed ones on the debug panel. -->
 		@switch (activeReport().key) {
 			@case ('report-01') {
 				<app-usage-users-by-role />

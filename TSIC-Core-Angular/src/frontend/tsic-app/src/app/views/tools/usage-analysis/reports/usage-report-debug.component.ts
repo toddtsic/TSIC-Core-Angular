@@ -41,6 +41,9 @@ import { USAGE_SCOPE_OPTIONS, type UsageReportDef } from '../usage-analysis.mode
 				<dt>Event (lens)</dt>
 				<dd><code>{{ state.eventId() ?? '(all)' }}</code> — {{ state.eventLabel() }}</dd>
 
+				<dt>Client (lens)</dt>
+				<dd><code>{{ state.clientId() ?? '(all)' }}</code> — {{ state.clientLabel() }}</dd>
+
 				<dt>Window</dt>
 				<dd>{{ state.windowDays() }} {{ state.windowDays() === 1 ? 'day' : 'days' }}</dd>
 
@@ -143,7 +146,7 @@ export class UsageReportDebugComponent {
 	/** The request a real report would make: report key as the path, the query as params. */
 	readonly url = computed(() => {
 		const q = this.state.query();
-		const lens = q.eventId ? `&eventId=${q.eventId}` : '';
+		const lens = (q.eventId ? `&eventId=${q.eventId}` : '') + (q.clientId !== null ? `&clientId=${q.clientId}` : '');
 		return `GET ${environment.apiUrl}/usage-analysis/${this.report().key}`
 			+ `?scope=${q.scope}&windowDays=${q.windowDays}&excludeBots=${q.excludeBots}${lens}`;
 	});

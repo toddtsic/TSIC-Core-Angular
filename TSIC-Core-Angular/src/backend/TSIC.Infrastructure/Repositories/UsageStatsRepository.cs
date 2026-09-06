@@ -55,6 +55,7 @@ public class UsageStatsRepository : IUsageStatsRepository
         IReadOnlyList<Guid> jobIds,
         DateTime since,
         bool excludeBots,
+        int? appClientId,
         CancellationToken cancellationToken = default)
     {
         if (jobIds.Count == 0)
@@ -67,10 +68,40 @@ public class UsageStatsRepository : IUsageStatsRepository
         if (excludeBots)
             query = query.Where(u => !u.IsBot);
 
+        if (appClientId is int client)
+            query = query.Where(u => u.AppClientId == client);
+
         return await query
             .Select(u => new { u.JobId, RegId = u.RegId!.Value })
             .Distinct()
             .Select(x => new UsageRegistrationByJobDto { JobId = x.JobId, RegistrationId = x.RegId })
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<UsageClientFacetDto>> GetClientsPresentAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        bool excludeBots,
+        CancellationToken cancellationToken = default)
+    {
+        if (jobIds.Count == 0)
+            return [];
+
+        var query = _context.AppUsage
+            .AsNoTracking()
+            .Where(u => u.OccurredAt >= since && jobIds.Contains(u.JobId));
+
+        if (excludeBots)
+            query = query.Where(u => !u.IsBot);
+
+        return await query
+            .GroupBy(u => new { u.AppClientId, u.AppClient.AppClientName })
+            .Select(g => new UsageClientFacetDto
+            {
+                AppClientId = g.Key.AppClientId,
+                AppClientName = g.Key.AppClientName,
+                Requests = g.Count(),
+            })
             .ToListAsync(cancellationToken);
     }
 }
@@ -97,6 +128,14 @@ public class UnavailableUsageStatsRepository : IUsageStatsRepository
         IReadOnlyList<Guid> jobIds,
         DateTime since,
         bool excludeBots,
+        int? appClientId,
         CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<UsageRegistrationByJobDto>>([]);
+
+    public Task<IReadOnlyList<UsageClientFacetDto>> GetClientsPresentAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        bool excludeBots,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<UsageClientFacetDto>>([]);
 }

@@ -1,10 +1,13 @@
-import { Injectable, computed, inject, linkedSignal, signal } from '@angular/core';
+import { DestroyRef, Injectable, computed, inject, linkedSignal, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { of } from 'rxjs';
+import { catchError, distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 
 import { environment } from '@environments/environment';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { Roles } from '@infrastructure/constants/roles.constants';
-import type { UsageAnalysisScopeDto } from '@core/api';
+import type { UsageAnalysisScopeDto, UsageClientFacetDto, UsageClientsDto } from '@core/api';
 import {
 	USAGE_SCOPE_OPTIONS,
 	USAGE_SCOPE_ORDER,
@@ -15,18 +18,27 @@ import {
 	type UsageReportDef,
 } from './usage-analysis.models';
 
+/** Everything the client facet depends on: the query minus the client itself. */
+interface FacetQuery {
+	readonly scope: UsageScope;
+	readonly windowDays: number;
+	readonly excludeBots: boolean;
+	readonly eventId: string | null;
+}
+
 /**
  * Page-scoped state for Usage Analysis — provided by the shell component, injected by
- * every report. Owns the three controls every report fetches with (scope, window, bots) and
- * the resolved scope the server answered with.
+ * every report. Owns the controls every report fetches with (scope, event lens, client
+ * lens, window, bots) and the resolved scope the server answered with.
  *
- * The role ceiling is mirrored here ONLY to decide what the scope dropdown offers. The server
- * enforces it: a scope above the ceiling is 403, never narrowed.
+ * The role ceiling is mirrored here ONLY to decide what the scope dropdown offers. The
+ * server enforces it: a scope above the ceiling is 403, never narrowed.
  */
 @Injectable()
 export class UsageAnalysisStateService {
 	private readonly http = inject(HttpClient);
 	private readonly auth = inject(AuthService);
+	private readonly destroyRef = inject(DestroyRef);
 	private readonly apiUrl = `${environment.apiUrl}/usage-analysis`;
 
 	readonly role = computed(() => this.auth.currentUser()?.role ?? '');
@@ -71,12 +83,21 @@ export class UsageAnalysisStateService {
 	 */
 	readonly eventId = signal<string | null>(null);
 
+	/**
+	 * The client lens. Null = every client. Offered only from the facet below — the clients
+	 * that actually have rows in the current scope/window/bots/event — and snapped back to
+	 * null the moment the chosen client drops out of it, so the stamp never names a client
+	 * that contributed nothing.
+	 */
+	readonly clientId = signal<number | null>(null);
+
 	/** What every report fetches with. A report refetches when this changes and never otherwise. */
 	readonly query = computed<UsageQuery>(() => ({
 		scope: this.scope(),
 		windowDays: this.windowDays(),
 		excludeBots: this.excludeBots(),
 		eventId: this.eventId(),
+		clientId: this.clientId(),
 	}));
 
 	// Resolved scope — null while (re)loading, so nothing on screen can claim a scope
@@ -92,7 +113,7 @@ export class UsageAnalysisStateService {
 
 	readonly jobNames = computed(() => (this.scopeInfo()?.jobs ?? []).map(j => j.jobName));
 
-	/** Live events the lens can pick from -- the resolved scope's list. */
+	/** Live events the lens can pick from — the resolved scope's list. */
 	readonly eventOptions = computed(() => this.scopeInfo()?.jobs ?? []);
 
 	/** A Director has one event; the picker exists only where there is a set to narrow. */
@@ -102,6 +123,20 @@ export class UsageAnalysisStateService {
 		const id = this.eventId();
 		if (!id) return 'All events';
 		return this.eventOptions().find(j => j.jobId === id)?.jobName ?? 'All events';
+	});
+
+	// Client facet: what the Client dropdown may offer. Reloaded whenever the facet query
+	// (everything but the client itself) changes.
+	readonly clients = signal<readonly UsageClientFacetDto[]>([]);
+	readonly isLoadingClients = signal(false);
+
+	/** The dropdown appears only when at least one client has rows to offer. */
+	readonly showClientPicker = computed(() => this.clients().length > 0);
+
+	readonly clientLabel = computed(() => {
+		const id = this.clientId();
+		if (id === null) return 'All clients';
+		return this.clients().find(c => c.appClientId === id)?.appClientName ?? 'All clients';
 	});
 
 	/** TSICLogs not configured on this server — a missing data source, not "no traffic". */
@@ -122,6 +157,45 @@ export class UsageAnalysisStateService {
 	/** True when a report may run: scope resolved, data source present, at least one live event. */
 	readonly canQuery = computed(() =>
 		this.scopeInfo() !== null && !this.isUnavailable() && !this.isConcludedEvent() && this.jobCount() > 0);
+
+	private readonly facetQuery = computed<FacetQuery | null>(() => {
+		if (!this.canQuery()) return null;
+		const q = this.query();
+		return { scope: q.scope, windowDays: q.windowDays, excludeBots: q.excludeBots, eventId: q.eventId };
+	});
+
+	constructor() {
+		// Facet subscription lives as long as the page. Created here, in the injection context.
+		toObservable(this.facetQuery)
+			.pipe(
+				map(q => q ? JSON.stringify(q) : null),
+				distinctUntilChanged(),
+				switchMap(key => {
+					if (!key) {
+						this.clients.set([]);
+						this.clientId.set(null);
+						return of(null);
+					}
+					const q = JSON.parse(key) as FacetQuery;
+					const params: Record<string, string | number | boolean> = {
+						scope: q.scope, windowDays: q.windowDays, excludeBots: q.excludeBots,
+					};
+					if (q.eventId) params['eventId'] = q.eventId;
+					this.isLoadingClients.set(true);
+					return this.http.get<UsageClientsDto>(`${this.apiUrl}/clients`, { params })
+						.pipe(catchError(() => of(null)));
+				}),
+				takeUntilDestroyed(this.destroyRef),
+			)
+			.subscribe(res => {
+				this.isLoadingClients.set(false);
+				if (res === null) return;
+				this.clients.set(res.clients);
+				// Snap back: a chosen client that no longer has rows is not a choice.
+				const chosen = this.clientId();
+				if (chosen !== null && !res.clients.some(c => c.appClientId === chosen)) this.clientId.set(null);
+			});
+	}
 
 	loadScope(): void {
 		this.isLoadingScope.set(true);
@@ -151,11 +225,16 @@ export class UsageAnalysisStateService {
 		if (this.scope() === scope) return;
 		this.scope.set(scope);
 		this.eventId.set(null);
+		this.clientId.set(null);
 		this.loadScope();
 	}
 
 	setEvent(jobId: string | null): void {
 		this.eventId.set(jobId);
+	}
+
+	setClient(appClientId: number | null): void {
+		this.clientId.set(appClientId);
 	}
 
 	setWindow(days: number): void {

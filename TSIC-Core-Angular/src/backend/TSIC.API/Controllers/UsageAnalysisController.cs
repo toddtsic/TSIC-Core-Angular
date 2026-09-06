@@ -15,6 +15,10 @@ namespace TSIC.API.Controllers;
 /// enforces the role ceiling: Director = job, SuperDirector = customer, Superuser = tsic.
 /// A request above the ceiling is 403, never narrowed.
 ///
+/// Two lenses narrow a report inside the resolved set and can only ever narrow:
+///   eventId  -- one live job of the set (an id outside it is refused);
+///   clientId -- one logs.AppClients id, offered by GET clients.
+///
 /// Controller gate is the admin floor; the per-scope check inside is what actually decides.
 /// </summary>
 [ApiController]
@@ -39,7 +43,7 @@ public class UsageAnalysisController : ControllerBase
     /// <summary>
     /// Resolves a scope for the page shell: the caller's ceiling, whether the current
     /// event is live, and the live jobs the scope covers. The page calls this on load
-    /// and on every segment change; tabs then query with the same scope word.
+    /// and on every segment change; reports then query with the same scope word.
     /// </summary>
     [HttpGet("scope")]
     public async Task<ActionResult<UsageAnalysisScopeDto>> GetScope(
@@ -69,9 +73,28 @@ public class UsageAnalysisController : ControllerBase
     }
 
     /// <summary>
+    /// The client facet: which app clients have rows in the scope/window/event lens. The
+    /// page's Client dropdown offers exactly these and nothing else.
+    /// </summary>
+    [HttpGet("clients")]
+    public async Task<ActionResult<UsageClientsDto>> GetClients(
+        [FromQuery] string? scope,
+        [FromQuery] int windowDays = 7,
+        [FromQuery] bool excludeBots = true,
+        [FromQuery] Guid? eventId = null,
+        CancellationToken ct = default)
+    {
+        var (failure, resolution) = await ResolveForReportAsync(scope, eventId, ct);
+        if (failure is not null) return failure;
+
+        var days = Math.Clamp(windowDays, 1, 365);
+        return Ok(await _reports.GetClientsAsync(resolution!, days, excludeBots, ct));
+    }
+
+    /// <summary>
     /// Report 01 -- Users by Role. Distinct registrations that used the scoped live events
-    /// in the window, grouped by role, admin tier flagged. People only; anonymous traffic
-    /// is not a person and is not here.
+    /// in the window, per event, grouped by role, admin tier flagged. People only;
+    /// anonymous traffic is not a person and is not here.
     /// </summary>
     [HttpGet("users-by-role")]
     public async Task<ActionResult<UsersByRoleDto>> GetUsersByRole(
@@ -79,20 +102,27 @@ public class UsageAnalysisController : ControllerBase
         [FromQuery] int windowDays = 7,
         [FromQuery] bool excludeBots = true,
         [FromQuery] Guid? eventId = null,
+        [FromQuery] int? clientId = null,
         CancellationToken ct = default)
     {
-        var result = await _scopeResolver.ResolveAsync(User, _scopeResolver.Parse(scope), eventId, ct);
-        switch (result.Failure)
-        {
-            case UsageScopeFailure.NoJobContext:
-                return BadRequest(new { message = "Job context required" });
-            case UsageScopeFailure.AboveCeiling:
-                return Forbid();
-            case UsageScopeFailure.EventNotInScope:
-                return BadRequest(new { message = "Event is not in scope" });
-        }
+        var (failure, resolution) = await ResolveForReportAsync(scope, eventId, ct);
+        if (failure is not null) return failure;
 
         var days = Math.Clamp(windowDays, 1, 365);
-        return Ok(await _reports.GetUsersByRoleAsync(result.Resolution!, days, excludeBots, ct));
+        return Ok(await _reports.GetUsersByRoleAsync(resolution!, days, excludeBots, clientId, ct));
+    }
+
+    /// <summary>Resolve scope + event lens for a report, or the ActionResult that refuses it.</summary>
+    private async Task<(ActionResult? Failure, UsageScopeResolution? Resolution)> ResolveForReportAsync(
+        string? scope, Guid? eventId, CancellationToken ct)
+    {
+        var result = await _scopeResolver.ResolveAsync(User, _scopeResolver.Parse(scope), eventId, ct);
+        return result.Failure switch
+        {
+            UsageScopeFailure.NoJobContext => (BadRequest(new { message = "Job context required" }), null),
+            UsageScopeFailure.AboveCeiling => (Forbid(), null),
+            UsageScopeFailure.EventNotInScope => (BadRequest(new { message = "Event is not in scope" }), null),
+            _ => (null, result.Resolution),
+        };
     }
 }

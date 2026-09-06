@@ -47,5 +47,17 @@ public interface IUsageStatsRepository
         IReadOnlyList<Guid> jobIds,
         DateTime since,
         bool excludeBots,
+        int? appClientId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Which app clients have at least one row about any of <paramref name="jobIds"/> since
+    /// <paramref name="since"/>, with a row count each. Feeds the page's client lens, which
+    /// offers a client only if it is present here.
+    /// </summary>
+    Task<IReadOnlyList<UsageClientFacetDto>> GetClientsPresentAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        bool excludeBots,
         CancellationToken cancellationToken = default);
 }

@@ -238,6 +238,7 @@ export class UsersByRoleComponent implements OnInit {
 						scope: q.scope, windowDays: q.windowDays, excludeBots: q.excludeBots,
 					};
 					if (q.eventId) params['eventId'] = q.eventId;
+					if (q.clientId !== null) params['clientId'] = q.clientId;
 					return this.http.get<UsersByRoleDto>(`${environment.apiUrl}/usage-analysis/users-by-role`, { params }).pipe(
 						catchError(err => {
 							this.error.set(err?.status === 403

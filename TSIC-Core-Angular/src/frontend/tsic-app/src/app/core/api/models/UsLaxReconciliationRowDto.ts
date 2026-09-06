@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UsLaxCheckRowDto } from './UsLaxCheckRowDto';
 export type UsLaxReconciliationRowDto = {
     registrationId: string;
     firstName: string;
@@ -20,5 +21,6 @@ export type UsLaxReconciliationRowDto = {
     eligible: boolean;
     eligibilityReason: string;
     eligibilityDetail?: string | null;
+    checks?: Array<UsLaxCheckRowDto>;
 };
 

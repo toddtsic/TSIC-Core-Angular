@@ -9,13 +9,24 @@ namespace TSIC.API.Services.Usage;
 /// IUsageScopeResolver, event lens included) and answers one question from TSICLogs,
 /// pairing with TSICV5 in memory where a name or role is needed. Nothing here joins the
 /// two databases in SQL.
+///
+/// <paramref name="appClientId"/> on a report is the page's client lens: null = every
+/// client. It is a plain filter on the fact rows, never a grouping.
 /// </summary>
 public interface IUsageAnalysisService
 {
+    /// <summary>Which clients have rows in the scope/window -- what the client lens may offer.</summary>
+    Task<UsageClientsDto> GetClientsAsync(
+        UsageScopeResolution scope,
+        int windowDays,
+        bool excludeBots,
+        CancellationToken ct = default);
+
     Task<UsersByRoleDto> GetUsersByRoleAsync(
         UsageScopeResolution scope,
         int windowDays,
         bool excludeBots,
+        int? appClientId,
         CancellationToken ct = default);
 }
 
@@ -36,22 +47,50 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
         _registrationRepo = registrationRepo;
     }
 
-    public async Task<UsersByRoleDto> GetUsersByRoleAsync(
+    public async Task<UsageClientsDto> GetClientsAsync(
         UsageScopeResolution scope,
         int windowDays,
         bool excludeBots,
         CancellationToken ct = default)
     {
         if (!_usageRepo.IsAvailable)
-            return Empty(scope, windowDays, excludeBots, available: false);
+        {
+            return new UsageClientsDto
+            {
+                WindowDays = windowDays,
+                BotsExcluded = excludeBots,
+                JobCount = scope.Jobs.Count,
+                Clients = [],
+                UsageLoggingAvailable = false,
+            };
+        }
 
-        // Server-local, like OccurredAt. UtcNow would shift the window by the AZ offset.
-        var since = DateTime.Now.AddDays(-windowDays);
+        var clients = await _usageRepo.GetClientsPresentAsync(scope.JobIds, Since(windowDays), excludeBots, ct);
+        return new UsageClientsDto
+        {
+            WindowDays = windowDays,
+            BotsExcluded = excludeBots,
+            JobCount = scope.Jobs.Count,
+            Clients = clients.OrderByDescending(c => c.Requests).ThenBy(c => c.AppClientName).ToList(),
+            UsageLoggingAvailable = true,
+        };
+    }
+
+    public async Task<UsersByRoleDto> GetUsersByRoleAsync(
+        UsageScopeResolution scope,
+        int windowDays,
+        bool excludeBots,
+        int? appClientId,
+        CancellationToken ct = default)
+    {
+        if (!_usageRepo.IsAvailable)
+            return Empty(scope, windowDays, excludeBots, available: false);
 
         // Step 1 (TSICLogs): who, about which event -- distinct (event, registration) pairs.
         // Bots are almost never signed in, but the toggle is honoured everywhere so the
         // audit stamp is never a lie.
-        var pairs = await _usageRepo.GetDistinctRegistrationsByJobAsync(scope.JobIds, since, excludeBots, ct);
+        var pairs = await _usageRepo.GetDistinctRegistrationsByJobAsync(
+            scope.JobIds, Since(windowDays), excludeBots, appClientId, ct);
         if (pairs.Count == 0)
             return Empty(scope, windowDays, excludeBots, available: true);
 
@@ -102,6 +141,9 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
             UsageLoggingAvailable = true,
         };
     }
+
+    /// <summary>Server-local, like OccurredAt. UtcNow would shift the window by the AZ offset.</summary>
+    private static DateTime Since(int windowDays) => DateTime.Now.AddDays(-windowDays);
 
     private static UsersByRoleDto Empty(UsageScopeResolution scope, int windowDays, bool excludeBots, bool available) => new()
     {
