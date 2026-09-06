@@ -404,6 +404,15 @@ export const routes: Routes = [
 						canActivate: [authGuard],
 						data: { roles: [Roles.Superuser, Roles.SuperDirector], helpKey: 'third-party-access' },
 						loadComponent: () => import('./views/tools/third-party-access/third-party-access.component').then(m => m.ThirdPartyAccessComponent)
+					},
+					{
+						// Usage analysis (logs.AppUsage) — the drill behind the UsageStatsPerJob widget.
+						// Every admin role reaches the page; the scope each may hold (job / customer /
+						// tsic) is a server-side ceiling, and always live jobs only.
+						path: 'usage',
+						canActivate: [authGuard],
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'usage-analysis' },
+						loadComponent: () => import('./views/tools/usage-analysis/usage-analysis.component').then(m => m.UsageAnalysisComponent)
 					}
 				]
 			},

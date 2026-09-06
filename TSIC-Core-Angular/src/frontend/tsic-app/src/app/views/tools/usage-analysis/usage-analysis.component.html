@@ -1,0 +1,139 @@
+<div class="container-fluid py-3">
+
+	@if (showDashboardLink()) {
+		<app-admin-nav-pill icon="bi-speedometer2" label="Dashboard" [link]="dashboardLink()" />
+	}
+
+	<div class="page-header">
+		<h2 class="page-title"><i class="bi bi-activity page-title-icon"></i> Usage Analysis</h2>
+	</div>
+
+	<!-- Controls: scope · window · bots. Shared by every tab. -->
+	<div class="ua-controls">
+
+		<div class="ua-control">
+			<span class="ua-control-label">Scope</span>
+			@if (state.scopeOptions().length > 1) {
+				<div class="ua-group" role="group" aria-label="Report scope">
+					@for (o of state.scopeOptions(); track o.scope) {
+						<button type="button"
+							class="ua-btn"
+							[class.active]="state.scope() === o.scope"
+							[attr.aria-pressed]="state.scope() === o.scope"
+							[title]="o.description"
+							[disabled]="state.isLoadingScope()"
+							(click)="setScope(o.scope)">
+							<i class="bi" [class]="'bi ' + o.icon" aria-hidden="true"></i>{{ o.label }}
+						</button>
+					}
+				</div>
+			} @else {
+				<!-- One scope only (Director): a label, not a one-button segment. -->
+				<span class="ua-scope-fixed">
+					<i class="bi bi-bullseye" aria-hidden="true"></i> This event
+				</span>
+			}
+		</div>
+
+		<div class="ua-control">
+			<span class="ua-control-label">Window</span>
+			<div class="ua-group" role="group" aria-label="Time window">
+				@for (w of windows; track w.days) {
+					<button type="button"
+						class="ua-btn"
+						[class.active]="state.windowDays() === w.days"
+						[attr.aria-pressed]="state.windowDays() === w.days"
+						(click)="state.setWindow(w.days)">{{ w.label }}</button>
+				}
+			</div>
+		</div>
+
+		<button type="button"
+			class="ua-btn ua-bots"
+			[class.active]="!state.excludeBots()"
+			[attr.aria-pressed]="!state.excludeBots()"
+			(click)="state.toggleBots()">
+			<i class="bi bi-robot" aria-hidden="true"></i>
+			{{ state.excludeBots() ? 'Bots hidden' : 'Bots included' }}
+		</button>
+	</div>
+
+	@if (state.isLoadingScope()) {
+		<div class="ua-state" role="status">
+			<div class="spinner-border spinner-border-sm"></div>
+			<span>Resolving scope…</span>
+		</div>
+	} @else if (state.scopeError()) {
+		<div class="ua-state ua-state--error" role="alert">
+			<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+			<span>{{ state.scopeError() }}</span>
+			<button type="button" class="btn btn-sm btn-outline-secondary" (click)="state.loadScope()">Retry</button>
+		</div>
+	} @else if (state.isUnavailable()) {
+		<!-- NOT the same as no traffic: the data source is missing. -->
+		<div class="ua-state">
+			<i class="bi bi-plug" aria-hidden="true"></i>
+			<span>Usage logging is not configured on this server.</span>
+		</div>
+	} @else if (state.isConcludedEvent()) {
+		<!-- The live-jobs rule makes this scope empty by definition. Say why. -->
+		<div class="ua-state">
+			<i class="bi bi-calendar-x" aria-hidden="true"></i>
+			<span>This event has concluded. Usage analysis covers live events only.</span>
+		</div>
+	} @else if (state.scopeInfo()) {
+
+		<!-- Audit stamp: what every number on this page was fetched with. -->
+		<div class="ua-stamp" role="status">
+			<i class="bi bi-funnel-fill" aria-hidden="true"></i>
+			<strong>{{ state.scopeLabel() }}</strong>
+			<span class="ua-stamp-sep">·</span>
+			<span class="ua-stamp-jobs" [title]="state.jobNames().join('\n')">
+				{{ state.jobCount() }} live {{ state.jobCount() === 1 ? 'event' : 'events' }}
+			</span>
+			<span class="ua-stamp-sep">·</span>
+			<span>{{ windowLabel() }}</span>
+			<span class="ua-stamp-sep">·</span>
+			<span>{{ state.excludeBots() ? 'bots hidden' : 'bots included' }}</span>
+		</div>
+
+		<ul class="nav nav-tabs mb-3" role="tablist">
+			@for (t of state.tabs(); track t.key) {
+				<li class="nav-item" role="presentation">
+					<button type="button"
+						class="nav-link"
+						role="tab"
+						[class.active]="activeTab().key === t.key"
+						[attr.aria-selected]="activeTab().key === t.key"
+						(click)="setTab(t.key)">
+						<i class="bi" [class]="'bi ' + t.icon" aria-hidden="true"></i>{{ t.label }}
+					</button>
+				</li>
+			}
+		</ul>
+
+		<!-- One case per slot. Claim a slot by replacing its placeholder with the real
+		     tab component; the case, the tab def and the role gate stay where they are. -->
+		@switch (activeTab().key) {
+			@case ('activity') {
+				<app-usage-tab-placeholder [tab]="activeTab()" [query]="state.query()" [jobCount]="state.jobCount()" />
+			}
+			@case ('audience') {
+				<app-usage-tab-placeholder [tab]="activeTab()" [query]="state.query()" [jobCount]="state.jobCount()" />
+			}
+			@case ('clients') {
+				<app-usage-tab-placeholder [tab]="activeTab()" [query]="state.query()" [jobCount]="state.jobCount()" />
+			}
+			@case ('endpoints') {
+				<app-usage-tab-placeholder [tab]="activeTab()" [query]="state.query()" [jobCount]="state.jobCount()" />
+			}
+			@case ('events') {
+				<app-usage-tab-placeholder [tab]="activeTab()" [query]="state.query()" [jobCount]="state.jobCount()" />
+			}
+			@case ('health') {
+				<app-usage-tab-placeholder [tab]="activeTab()" [query]="state.query()" [jobCount]="state.jobCount()" />
+			}
+		}
+	}
+
+</div>

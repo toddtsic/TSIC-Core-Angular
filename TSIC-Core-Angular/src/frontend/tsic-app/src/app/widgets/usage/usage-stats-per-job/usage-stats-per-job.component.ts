@@ -1,6 +1,8 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { ChartAllModule } from '@syncfusion/ej2-angular-charts';
 
+import { AuthService } from '@infrastructure/services/auth.service';
 import { WidgetDashboardService } from '@widgets/services/widget-dashboard.service';
 import type { UsageStatsPerJobDto } from '@core/api';
 
@@ -19,13 +21,24 @@ const WINDOWS = [
 @Component({
 	selector: 'app-usage-stats-per-job',
 	standalone: true,
-	imports: [ChartAllModule],
+	imports: [ChartAllModule, RouterLink],
 	templateUrl: './usage-stats-per-job.component.html',
 	styleUrl: './usage-stats-per-job.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UsageStatsPerJobComponent implements OnInit {
 	private readonly svc = inject(WidgetDashboardService);
+	private readonly auth = inject(AuthService);
+
+	/**
+	 * The drill behind this glance: tools/usage. Segment array naming the jobPath
+	 * explicitly, the same shape the portfolio widget uses — a relative link would
+	 * resolve under the dashboard route instead of the job root.
+	 */
+	readonly detailLink = computed(() => {
+		const jobPath = this.auth.currentUser()?.jobPath ?? '';
+		return ['/', jobPath, 'tools', 'usage'];
+	});
 
 	readonly data = signal<UsageStatsPerJobDto | null>(null);
 	readonly hasError = signal(false);

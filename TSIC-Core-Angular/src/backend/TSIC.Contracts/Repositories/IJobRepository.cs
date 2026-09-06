@@ -356,6 +356,13 @@ public interface IJobRepository
     Task<List<Guid>> GetCustomerJobIdsAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Live jobs (ExpiryUsers > now) with names, ordered by name. Null
+    /// <paramref name="sameCustomerAsJobId"/> = every live job on the platform; otherwise
+    /// the live jobs of the customer owning that job. Usage-analysis scope resolution.
+    /// </summary>
+    Task<List<UsageAnalysisJobDto>> GetLiveJobsAsync(Guid? sameCustomerAsJobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Cross-customer sweep for the SuperUser Admin Expiry tool: every job whose admin
     /// door has closed (ExpiryAdmin &lt;= now), grouped by owning customer. Customers and
     /// jobs are each ordered by name.

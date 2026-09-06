@@ -567,6 +567,10 @@ builder.Services.TryAddScoped<IUsageStatsRepository, UnavailableUsageStatsReposi
 builder.Services.AddSingleton<UsageQueue>();
 builder.Services.AddHostedService<UsageWriterBackgroundService>();
 
+// Usage analysis read side: the one resolver that turns a scope word + token into a
+// live-job set. Scoped -- it reads TSICV5 through the job repository.
+builder.Services.AddScoped<IUsageScopeResolver, UsageScopeResolver>();
+
 //PASSWORD RESTRICTIONS
 builder.Services.Configure<IdentityOptions>(options =>
 {

@@ -3,6 +3,12 @@
 	<div class="usg__head">
 		<i class="bi bi-activity" aria-hidden="true"></i>
 		<h3 class="usg__title">Usage by Event</h3>
+
+		<!-- Header, not footer, for the same reason as the portfolio widget: a footer
+		     link sits below the fold exactly when the chart is tall enough to need it. -->
+		<a class="usg__detail-link" [routerLink]="detailLink()">
+			Usage Analysis <i class="bi bi-arrow-right" aria-hidden="true"></i>
+		</a>
 	</div>
 
 	@if (isUnavailable()) {

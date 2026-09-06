@@ -711,6 +711,37 @@ public class JobRepository : IJobRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<UsageAnalysisJobDto>> GetLiveJobsAsync(Guid? sameCustomerAsJobId, CancellationToken cancellationToken = default)
+    {
+        // LIVE = ExpiryUsers > now -- the canonical "is the event over?" test. Never
+        // ExpiryAdmin: the admin door stays open about a year past the event.
+        var now = DateTime.Now;
+        var query = _context.Jobs.AsNoTracking().Where(j => j.ExpiryUsers > now);
+
+        if (sameCustomerAsJobId is Guid jobId)
+        {
+            var customerId = await _context.Jobs
+                .AsNoTracking()
+                .Where(j => j.JobId == jobId)
+                .Select(j => j.CustomerId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (customerId == Guid.Empty)
+                return [];
+
+            query = query.Where(j => j.CustomerId == customerId);
+        }
+
+        return await query
+            .OrderBy(j => j.JobName)
+            .Select(j => new UsageAnalysisJobDto
+            {
+                JobId = j.JobId,
+                JobName = j.JobName ?? "(unnamed)",
+            })
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<Contracts.Dtos.JobPulseDto?> GetJobPulseAsync(string jobPath, CancellationToken cancellationToken = default)
     {
         var now = DateTime.Now;
