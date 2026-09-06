@@ -83,7 +83,18 @@ public sealed class ArbNotificationService : IArbNotificationService
         {
             var accepted = await _email.SendAsync(new EmailMessageDto
             {
-                FromName = director?.Name ?? jobName,
+                // AR-068 (Ann, 09-02): the JOB, never the person. This used to be
+                // `director?.Name ?? jobName`, which put a club director's own name on an
+                // automated 2nd/15th send — Ann: "they don't know they're sending this."
+                // Every other email path in the codebase names a system, a club or a store;
+                // this was the only one that named a human. The `?? jobName` fallback was
+                // already the right answer, so the normal case now behaves like the
+                // no-director case and matches the club's own bulletins on the same log.
+                FromName = jobName,
+                // Reply-to stays the DIRECTOR, deliberately (Todd, 09-06). The complaint was
+                // about appearing to send as a person, not about where replies go: a family
+                // asking about their card must reach the CLUB, not TSIC. Do not point this at
+                // support@ — the club owns its own money conversations.
                 ReplyToName = director?.Name,
                 ReplyToAddress = director?.Email,
                 ToAddresses = recipients,
