@@ -1,0 +1,51 @@
+<h3>Usage Analysis</h3>
+<p>
+  How the platform is actually being used — every API request, by event, over a window you choose. This is
+  the drill behind the <strong>Usage by Event</strong> dashboard widget: the widget shows the glance, this page
+  lets you take it apart.
+</p>
+
+<h4>Scope</h4>
+<p>
+  The segment at the top decides which events the numbers cover. What you can pick depends on your role:
+</p>
+<ul>
+  <li><strong>This event</strong> — the event you are signed into. A Director sees only this; the segment
+    is replaced by a label.</li>
+  <li><strong>Customer</strong> — every live event belonging to the same customer as this one. SuperDirector
+    and above.</li>
+  <li><strong>All TSIC</strong> — every live event on the platform. Superuser only.</li>
+</ul>
+
+<div class="help-callout help-callout--info">
+  <i class="bi bi-calendar-check" aria-hidden="true"></i>
+  <div>
+    <strong>Live events only.</strong>
+    <p class="help-callout__body">
+      Every scope covers events whose registration window is still open. A concluded event never appears here,
+      and if the event you are standing in has concluded, the page says so instead of showing an empty chart.
+    </p>
+  </div>
+</div>
+
+<h4>Window and bots</h4>
+<ul>
+  <li><strong>24h / 7d / 30d</strong> — the time window every tab reports on.</li>
+  <li><strong>Bots hidden / included</strong> — automated traffic (crawlers, monitors) is excluded by default.
+    Include it when you are looking at load rather than people.</li>
+</ul>
+
+<h4>Reading it well</h4>
+<ul>
+  <li>The banner under the controls states exactly what the numbers on screen were fetched with — scope, how
+    many live events that is, window, and whether bots are in. Hover the event count to see which events.</li>
+  <li>Counts are <em>API requests</em>, not page views. One screen in the app may make several.</li>
+  <li><strong>Anonymous</strong> means the request carried no signed-in user — public schedules, rosters and
+    event browsing. It is not a count of distinct visitors; nothing in the data can identify one.</li>
+</ul>
+
+<h4>Tabs</h4>
+<p>
+  Each tab is one question about the same scope and window. Tabs are being added as the questions are
+  settled; a tab that shows only its name and the query it would run is a slot not yet filled in.
+</p>
