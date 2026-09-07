@@ -157,15 +157,15 @@ public class UsageStatsRepository : IUsageStatsRepository
         // use DATEDIFF(week), whose boundary is Sunday regardless of DATEFIRST.
         var indexed = bucket switch
         {
-            UsageBucket.Day => query.Select(u => new { Index = EF.Functions.DateDiffDay(since, u.OccurredAt), RegId = u.RegId!.Value }),
-            UsageBucket.Week => query.Select(u => new { Index = EF.Functions.DateDiffDay(since, u.OccurredAt) / 7, RegId = u.RegId!.Value }),
-            UsageBucket.Month => query.Select(u => new { Index = EF.Functions.DateDiffMonth(since, u.OccurredAt), RegId = u.RegId!.Value }),
+            UsageBucket.Day => query.Select(u => new { Index = EF.Functions.DateDiffDay(since, u.OccurredAt), u.JobId, RegId = u.RegId!.Value }),
+            UsageBucket.Week => query.Select(u => new { Index = EF.Functions.DateDiffDay(since, u.OccurredAt) / 7, u.JobId, RegId = u.RegId!.Value }),
+            UsageBucket.Month => query.Select(u => new { Index = EF.Functions.DateDiffMonth(since, u.OccurredAt), u.JobId, RegId = u.RegId!.Value }),
             _ => throw new ArgumentOutOfRangeException(nameof(bucket)),
         };
 
         return await indexed
             .Distinct()
-            .Select(x => new UsageRegistrationByBucketDto { BucketIndex = x.Index, RegistrationId = x.RegId })
+            .Select(x => new UsageRegistrationByBucketDto { BucketIndex = x.Index, JobId = x.JobId, RegistrationId = x.RegId })
             .ToListAsync(cancellationToken);
     }
 }

@@ -5,5 +5,6 @@
 export type UsageAnalysisJobDto = {
     jobId: string;
     jobName: string;
+    expiryUsers: string;
 };
 

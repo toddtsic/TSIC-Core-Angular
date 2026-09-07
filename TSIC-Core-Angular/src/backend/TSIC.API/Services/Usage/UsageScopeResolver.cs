@@ -78,8 +78,13 @@ public interface IUsageScopeResolver
     /// <paramref name="eventId"/> is the page's event lens: narrows the resolved set to that
     /// one live event. It can only ever NARROW -- an id outside the resolved set is refused,
     /// so the lens never widens what the scope word and ceiling allowed.
+    ///
+    /// <paramref name="liveAsOf"/>: LIVE means ExpiryUsers after this moment. Null = now,
+    /// the summary reports. A report spanning back in time passes the start of its span,
+    /// so an event that was live during the span is in the set; the report then counts it
+    /// only in the buckets it was live in (its ExpiryUsers travels on the job).
     /// </summary>
-    Task<UsageScopeResult> ResolveAsync(ClaimsPrincipal user, UsageScope requested, Guid? eventId = null, CancellationToken ct = default);
+    Task<UsageScopeResult> ResolveAsync(ClaimsPrincipal user, UsageScope requested, Guid? eventId = null, DateTime? liveAsOf = null, CancellationToken ct = default);
 }
 
 public sealed class UsageScopeResolver : IUsageScopeResolver
@@ -121,7 +126,7 @@ public sealed class UsageScopeResolver : IUsageScopeResolver
         };
     }
 
-    public async Task<UsageScopeResult> ResolveAsync(ClaimsPrincipal user, UsageScope requested, Guid? eventId = null, CancellationToken ct = default)
+    public async Task<UsageScopeResult> ResolveAsync(ClaimsPrincipal user, UsageScope requested, Guid? eventId = null, DateTime? liveAsOf = null, CancellationToken ct = default)
     {
         var ceiling = CeilingFor(user);
         if (requested > ceiling)
@@ -131,13 +136,14 @@ public sealed class UsageScopeResolver : IUsageScopeResolver
         if (currentJobId == null)
             return new UsageScopeResult { Failure = UsageScopeFailure.NoJobContext };
 
-        // LIVE = ExpiryUsers > now, every scope, no exceptions. The customer's live list
-        // serves both the job and customer scopes: for job it is filtered to the one job,
-        // which also answers "is the event I am standing in still live?" in the same
-        // round-trip.
+        // LIVE = ExpiryUsers > the moment asked about (now unless a spanning report says
+        // otherwise), every scope, no exceptions. The customer's live list serves both the
+        // job and customer scopes: for job it is filtered to the one job, which also
+        // answers "is the event I am standing in still live?" in the same round-trip.
+        var asOf = liveAsOf ?? DateTime.Now;
         var live = requested == UsageScope.Tsic
-            ? await _jobRepo.GetLiveJobsAsync(sameCustomerAsJobId: null, ct)
-            : await _jobRepo.GetLiveJobsAsync(sameCustomerAsJobId: currentJobId.Value, ct);
+            ? await _jobRepo.GetLiveJobsAsync(sameCustomerAsJobId: null, asOf, ct)
+            : await _jobRepo.GetLiveJobsAsync(sameCustomerAsJobId: currentJobId.Value, asOf, ct);
 
         var currentJobIsLive = live.Any(j => j.JobId == currentJobId.Value);
 

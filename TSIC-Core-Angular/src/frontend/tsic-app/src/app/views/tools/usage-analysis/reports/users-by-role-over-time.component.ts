@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import type { SeriesModel } from '@syncfusion/ej2-angular-charts';
+import type { IPointRenderEventArgs, SeriesModel } from '@syncfusion/ej2-angular-charts';
 
 import type { UsersByRoleOverTimeDto } from '@core/api';
 import { UsageAnalysisStateService } from '../usage-analysis-state.service';
@@ -39,12 +39,15 @@ function nextStart(unit: UsageBucket, start: Date): Date {
 }
 
 /**
- * One bucket of the span: its start (the row id), its label, and report 01's numbers for
+ * One bucket of the span: its start (the row id), its labels, and report 01's numbers for
  * it. `noData` marks a bucket that ended before the log existed: not zero, unknown.
+ * `label` is the bare date for the x axis; `name` is the table's row name, which has room
+ * to say the current bucket is still filling.
  */
 interface BucketRow {
 	readonly start: string;
 	readonly label: string;
+	readonly name: string;
 	readonly noData: boolean;
 	total: number;
 	readonly cells: Map<string, number>;
@@ -70,7 +73,12 @@ interface BucketRow {
  *  - a role with no users in a bucket is 0 and the line drops to the axis;
  *  - a bucket that ended before the log existed is NO DATA: null, drawn as a gap in every
  *    line and as the words "no data" in the table, never as 0;
- *  - the newest bucket is the current one, still filling, and its label says "so far".
+ *  - the newest bucket is the current one, still filling: its point is drawn hollow and
+ *    its table row says "so far" (the axis label stays a bare date so it never crowds
+ *    its neighbour);
+ *  - an event counts only in the buckets it was live in. The server resolves the scope
+ *    live-as-of the START of the span, so the title says "live during the span", and
+ *    that set can be wider than the page's Event dropdown, which lists events live now.
  */
 @Component({
 	selector: 'app-usage-users-by-role-over-time',
@@ -117,8 +125,9 @@ export class UsersByRoleOverTimeComponent {
 			// No data = the whole bucket ended before the first row the log has. A bucket the log
 			// began inside is partial and keeps its number, like the current one.
 			const noData = firstRecorded !== null && end <= firstRecorded;
-			const label = fmt.format(startDate) + (i === last ? ' · so far' : '');
-			byStart.set(start, { start, label, noData, total: 0, cells: new Map() });
+			const label = fmt.format(startDate);
+			const name = i === last ? `${label} · so far` : label;
+			byStart.set(start, { start, label, name, noData, total: 0, cells: new Map() });
 		});
 		for (const r of d.rows) {
 			const b = byStart.get(r.bucketStart);
@@ -132,7 +141,7 @@ export class UsersByRoleOverTimeComponent {
 
 	/** The table: newest bucket on top. */
 	readonly rows = computed<readonly UsagePivotRow[]>(() =>
-		[...this.buckets()].reverse().map(b => ({ id: b.start, name: b.label, total: b.total, cells: b.cells, noData: b.noData })));
+		[...this.buckets()].reverse().map(b => ({ id: b.start, name: b.name, total: b.total, cells: b.cells, noData: b.noData })));
 
 	readonly tiles = computed<readonly UsageTile[]>(() => {
 		const unit = this.unit();
@@ -144,18 +153,29 @@ export class UsersByRoleOverTimeComponent {
 		];
 	});
 
-	/** The chart draws the whole span; its title is what the span covers. */
+	/**
+	 * The chart draws the whole span; its title is what the span covers. The count is the
+	 * ANSWER's (events live at any point in the span), not the page's (events live now).
+	 */
 	readonly chartTitle = computed(() => {
 		if (this.state.eventId()) return this.state.eventLabel();
-		const n = this.state.jobCount();
-		return n === 1 ? (this.state.jobNames()[0] ?? 'This event') : `All ${n} live events`;
+		const n = this.fetch.data()?.jobCount ?? 0;
+		if (n === 1 && this.state.jobCount() === 1) return this.state.jobNames()[0] ?? 'This event';
+		return n === 1 ? '1 event live during the span' : `All ${n} events live during the span`;
 	});
 
 	readonly chartSubtitle = computed(() => {
 		const unit = this.unit();
 		const gap = this.buckets().some(b => b.noData) ? ' — a gap is before the log began, not zero' : '';
-		return `distinct registrations per ${unit} — active in three ${unit}s counts in each${gap}`;
+		return `distinct registrations per ${unit} — hollow point: the current ${unit}, still filling${gap}`;
 	});
+
+	/** ej2 draws the newest bucket's markers hollow: the series colour as a ring around the card's surface. */
+	readonly pointRender = (args: IPointRenderEventArgs): void => {
+		if (args.point.index !== this.buckets().length - 1) return;
+		args.fill = this.theme.surface;
+		args.border = { width: 2, color: args.series.interior };
+	};
 
 	/**
 	 * One line per role over every bucket, all on the same baseline, plus a heavier neutral
@@ -219,5 +239,5 @@ function peak(buckets: readonly BucketRow[], pick: (b: BucketRow) => number): { 
 		const v = pick(b);
 		if (v > value) { value = v; best = b; }
 	}
-	return { value, when: best ? ` · ${best.label}` : '' };
+	return { value, when: best ? ` · ${best.name}` : '' };
 }

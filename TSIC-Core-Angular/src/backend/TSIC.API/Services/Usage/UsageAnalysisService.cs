@@ -39,10 +39,16 @@ public interface IUsageAnalysisService
         int? appClientId,
         CancellationToken ct = default);
 
-    /// <summary>Report 03: report 01's count once per bucket over the bucket's span. A registration counts in every bucket it was active in.</summary>
+    /// <summary>
+    /// Report 03: report 01's count once per bucket over the bucket's span. A registration
+    /// counts in every bucket it was active in. <paramref name="scope"/> must have been
+    /// resolved live-as-of <paramref name="since"/>; an event counts only in the buckets it
+    /// was live in.
+    /// </summary>
     Task<UsersByRoleOverTimeDto> GetUsersByRoleOverTimeAsync(
         UsageScopeResolution scope,
         UsageBucket bucket,
+        DateTime since,
         int? appClientId,
         CancellationToken ct = default);
 }
@@ -211,11 +217,12 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
     public async Task<UsersByRoleOverTimeDto> GetUsersByRoleOverTimeAsync(
         UsageScopeResolution scope,
         UsageBucket bucket,
+        DateTime since,
         int? appClientId,
         CancellationToken ct = default)
     {
-        var since = UsageBuckets.SinceFor(bucket, DateTime.Now);
         var starts = UsageBuckets.Starts(bucket, since);
+        var expiryByJob = scope.Jobs.ToDictionary(j => j.JobId, j => j.ExpiryUsers);
 
         // Step 1 (TSICLogs): who, in which bucket -- distinct (bucket, registration) pairs.
         // Event and client lenses are already inside `scope` / `appClientId`; rows need no job key.
@@ -228,8 +235,13 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
         // Step 2 (TSICV5): which role each registration holds.
         var roleByReg = await LookupRolesAsync(pairs.Select(p => p.RegistrationId), ct);
 
+        // An event counts only in the buckets it was live in: ExpiryUsers after the bucket's
+        // start. Usage of an event after it concluded (a director tidying up) is not "a live
+        // event being used" and is left out, the same rule as the summary reports apply at now.
         var rows = pairs
-            .Where(p => roleByReg.ContainsKey(p.RegistrationId) && p.BucketIndex >= 0 && p.BucketIndex < starts.Count)
+            .Where(p => roleByReg.ContainsKey(p.RegistrationId)
+                        && p.BucketIndex >= 0 && p.BucketIndex < starts.Count
+                        && expiryByJob.TryGetValue(p.JobId, out var expiry) && expiry > starts[p.BucketIndex])
             .Select(p => new { p.BucketIndex, p.RegistrationId, Role = roleByReg[p.RegistrationId] })
             .GroupBy(x => new { x.BucketIndex, x.Role.RoleId, x.Role.RoleName })
             .Select(g => new UsersByRoleBucketRowDto

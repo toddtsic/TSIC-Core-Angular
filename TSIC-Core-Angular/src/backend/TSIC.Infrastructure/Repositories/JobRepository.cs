@@ -711,12 +711,11 @@ public class JobRepository : IJobRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<List<UsageAnalysisJobDto>> GetLiveJobsAsync(Guid? sameCustomerAsJobId, CancellationToken cancellationToken = default)
+    public async Task<List<UsageAnalysisJobDto>> GetLiveJobsAsync(Guid? sameCustomerAsJobId, DateTime liveAsOf, CancellationToken cancellationToken = default)
     {
-        // LIVE = ExpiryUsers > now -- the canonical "is the event over?" test. Never
-        // ExpiryAdmin: the admin door stays open about a year past the event.
-        var now = DateTime.Now;
-        var query = _context.Jobs.AsNoTracking().Where(j => j.ExpiryUsers > now);
+        // LIVE = ExpiryUsers > the moment asked about -- the canonical "is the event over?"
+        // test. Never ExpiryAdmin: the admin door stays open about a year past the event.
+        var query = _context.Jobs.AsNoTracking().Where(j => j.ExpiryUsers > liveAsOf);
 
         if (sameCustomerAsJobId is Guid jobId)
         {
@@ -738,6 +737,7 @@ public class JobRepository : IJobRepository
             {
                 JobId = j.JobId,
                 JobName = j.JobName ?? "(unnamed)",
+                ExpiryUsers = j.ExpiryUsers,
             })
             .ToListAsync(cancellationToken);
     }

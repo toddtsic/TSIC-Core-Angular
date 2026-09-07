@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { ChartAllModule, type SeriesModel } from '@syncfusion/ej2-angular-charts';
+import { ChartAllModule, type IPointRenderEventArgs, type SeriesModel } from '@syncfusion/ej2-angular-charts';
 
 import { UsageAnalysisStateService } from '../usage-analysis-state.service';
 import type { UsagePivotRow, UsageTile } from './usage-report-shared';
@@ -68,6 +68,8 @@ export class UsagePivotReportComponent {
 	readonly chartMargin = input<object>({ left: 8, right: 8, top: 4, bottom: 4 });
 	readonly chartEmptyMessage = input('Nothing in the window.');
 	readonly lensEmptyMessage = input('Nothing about this event in the window. Pick another event above, or a row below.');
+	/** ej2's per-point render hook, for a report that styles one point differently (03 hollows the current bucket). */
+	readonly pointRender = input<((args: IPointRenderEventArgs) => void) | null>(null);
 
 	readonly chartArea = { border: { width: 0 } };
 
@@ -88,6 +90,10 @@ export class UsagePivotReportComponent {
 
 	/** True when the chart has at least one bar to draw. */
 	readonly hasChart = computed(() => this.chartSeries().some(s => (s.dataSource as unknown[] | undefined)?.length));
+
+	onPointRender(args: IPointRenderEventArgs): void {
+		this.pointRender()?.(args);
+	}
 
 	isHighlighted(row: UsagePivotRow): boolean {
 		const lens = this.state.eventId();

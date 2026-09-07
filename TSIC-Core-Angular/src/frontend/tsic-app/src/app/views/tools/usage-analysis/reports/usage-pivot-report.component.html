@@ -45,7 +45,8 @@
 				[margin]="chartMargin()"
 				[width]="'100%'"
 				[height]="chartHeight()"
-				[background]="'transparent'">
+				[background]="'transparent'"
+				(pointRender)="onPointRender($event)">
 			</ejs-chart>
 		} @else {
 			<div class="ubr-chart-empty">{{ chartEmptyMessage() }}</div>

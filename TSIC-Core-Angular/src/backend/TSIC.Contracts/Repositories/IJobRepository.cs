@@ -356,11 +356,13 @@ public interface IJobRepository
     Task<List<Guid>> GetCustomerJobIdsAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Live jobs (ExpiryUsers > now) with names, ordered by name. Null
+    /// Live jobs (ExpiryUsers > <paramref name="liveAsOf"/>) with names, ordered by name. Null
     /// <paramref name="sameCustomerAsJobId"/> = every live job on the platform; otherwise
     /// the live jobs of the customer owning that job. Usage-analysis scope resolution.
+    /// <paramref name="liveAsOf"/> is now for a summary report; for a report spanning back in
+    /// time it is the start of the span, so events that were live during the span count.
     /// </summary>
-    Task<List<UsageAnalysisJobDto>> GetLiveJobsAsync(Guid? sameCustomerAsJobId, CancellationToken cancellationToken = default);
+    Task<List<UsageAnalysisJobDto>> GetLiveJobsAsync(Guid? sameCustomerAsJobId, DateTime liveAsOf, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Cross-customer sweep for the SuperUser Admin Expiry tool: every job whose admin

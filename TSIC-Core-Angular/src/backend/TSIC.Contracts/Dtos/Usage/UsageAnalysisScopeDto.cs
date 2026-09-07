@@ -58,4 +58,11 @@ public record UsageAnalysisJobDto
     public required Guid JobId { get; init; }
 
     public required string JobName { get; init; }
+
+    /// <summary>
+    /// When the event stops being live. A bucketed report uses it to count an event only
+    /// in the buckets it was live in, so a span reaching back a year does not attribute
+    /// last spring's usage to "events live today".
+    /// </summary>
+    public required DateTime ExpiryUsers { get; init; }
 }

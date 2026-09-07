@@ -69,8 +69,11 @@
     links never inflate the routes the public came for. Requests, not people: nothing in the log can turn an anonymous
     request into a visitor. Routes are the API endpoint, not the page, so one page fires several.</li>
   <li><strong>03 · Users by Role over Time</strong> — report 01 asked once per day, week or month, so the answer is
-    a series instead of a number: one stacked column per bucket, height is people, segments are roles in the same
-    colours as 01, with the newest bucket still filling. The table beneath lists every bucket, newest first. A user
-    counts in every bucket they were active in, so the buckets do not add up to report 01's total for the span:
-    01 is distinct over the whole span, 03 is distinct per slice.</li>
+    a series instead of a number: one line per role in the same colours as 01, plus a heavier Total line, every
+    line on the same baseline. The newest point is hollow: the current bucket, still filling. A gap in a line is a
+    bucket from before the log began, which is unknown rather than zero. The table beneath lists every bucket,
+    newest first. A user counts in every bucket they were active in, so the buckets do not add up to report 01's
+    total for the span: 01 is distinct over the whole span, 03 is distinct per slice. An event counts only in the
+    buckets it was live in, so this report also covers events that concluded during the span, in the buckets
+    before they concluded; the chart title says how many events that is.</li>
 </ul>

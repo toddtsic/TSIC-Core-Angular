@@ -83,6 +83,8 @@ export interface UsageChartTheme {
 	readonly muted: string;
 	readonly border: string;
 	readonly text: string;
+	/** The chart card's background — what a hollow marker is filled with. */
+	readonly surface: string;
 	readonly fontFamily: string;
 }
 
@@ -91,6 +93,7 @@ export function resolveChartTheme(): UsageChartTheme {
 		muted: cssVar('--brand-text-muted', '#6c757d'),
 		border: cssVar('--brand-border', 'rgba(0,0,0,0.1)'),
 		text: cssVar('--brand-text', '#212529'),
+		surface: cssVar('--brand-surface', '#ffffff'),
 		// ej2 draws SVG text in its own default face; hand it the page font so the axes match the table.
 		fontFamily: cssVar('--bs-body-font-family', 'system-ui, sans-serif'),
 	};

@@ -69,11 +69,14 @@ public record UsersByRoleBucketRowDto
     public required bool IsAdmin { get; init; }
 }
 
-/// <summary>A (bucket, registration) pair from TSICLogs: this registration made at least one request in this bucket.</summary>
+/// <summary>A (bucket, event, registration) triple from TSICLogs: this registration made at least one request about this event in this bucket.</summary>
 public record UsageRegistrationByBucketDto
 {
     /// <summary>Whole buckets from the aligned <c>since</c>: 0 is the oldest.</summary>
     public required int BucketIndex { get; init; }
+
+    /// <summary>The event the request was about -- so the report can count it only in buckets the event was live in.</summary>
+    public required Guid JobId { get; init; }
 
     public required Guid RegistrationId { get; init; }
 }

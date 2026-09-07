@@ -16,10 +16,12 @@
 	[primaryYAxis]="primaryYAxis()"
 	[legendSettings]="legendSettings"
 	[tooltip]="tooltip"
+	[pointRender]="pointRender"
 	chartHeight="300px"
 	chartEmptyMessage="No signed-in users in the span.">
 	Report 01 asked once per bucket. A user is a registration that made at least one request about the
 	event in that day, week or month, and counts again in every other bucket it was active in — so the
 	buckets do not add up to report 01's total for the span. Someone holding two roles counts once under
-	each. The newest bucket is the current one, still filling.
+	each. An event counts only in the buckets it was live in, so an event that concluded during the span
+	is in the older buckets and not the newer ones. The newest bucket is the current one, still filling.
 </app-usage-pivot-report>

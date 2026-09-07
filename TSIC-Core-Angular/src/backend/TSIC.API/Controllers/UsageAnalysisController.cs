@@ -147,18 +147,21 @@ public class UsageAnalysisController : ControllerBase
         [FromQuery] int? clientId = null,
         CancellationToken ct = default)
     {
-        var (failure, resolution) = await ResolveForReportAsync(scope, eventId, ct);
+        // LIVE as of the START of the span: an event that was open during any of it is in the
+        // set, and the report counts it only in the buckets it was live in.
+        var unit = UsageBuckets.Parse(bucket) ?? UsageBucket.Day;
+        var since = UsageBuckets.SinceFor(unit, DateTime.Now);
+        var (failure, resolution) = await ResolveForReportAsync(scope, eventId, ct, liveAsOf: since);
         if (failure is not null) return failure;
 
-        var unit = UsageBuckets.Parse(bucket) ?? UsageBucket.Day;
-        return Ok(await _reports.GetUsersByRoleOverTimeAsync(resolution!, unit, clientId, ct));
+        return Ok(await _reports.GetUsersByRoleOverTimeAsync(resolution!, unit, since, clientId, ct));
     }
 
-    /// <summary>Resolve scope + event lens for a report, or the ActionResult that refuses it.</summary>
+    /// <summary>Resolve scope + event lens for a report, or the ActionResult that refuses it. <paramref name="liveAsOf"/> null = live now.</summary>
     private async Task<(ActionResult? Failure, UsageScopeResolution? Resolution)> ResolveForReportAsync(
-        string? scope, Guid? eventId, CancellationToken ct)
+        string? scope, Guid? eventId, CancellationToken ct, DateTime? liveAsOf = null)
     {
-        var result = await _scopeResolver.ResolveAsync(User, _scopeResolver.Parse(scope), eventId, ct);
+        var result = await _scopeResolver.ResolveAsync(User, _scopeResolver.Parse(scope), eventId, liveAsOf, ct);
         return result.Failure switch
         {
             UsageScopeFailure.NoJobContext => (BadRequest(new { message = "Job context required" }), null),
