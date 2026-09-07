@@ -148,10 +148,14 @@ export class RegistrationDetailPanelComponent implements OnChanges {
 
 
   // Tab state — Accounting is the default/first tab; resets to it only when a DIFFERENT registrant
-  // opens. Keyed on registrationId (not the whole detail object) so an in-place refresh of the SAME
-  // registrant — e.g. after "Live update" / a profile save re-fetches the detail — preserves the tab
-  // the user is on instead of yanking them back to Accounting.
-  activeTab = linkedSignal({ source: () => this.detail()?.registrationId, computation: () => 'accounting' as TabType });
+  // opens. NOTE: linkedSignal re-runs `computation` whenever anything `source` READ changes — it does
+  // not compare the source's VALUE — so keying the source on registrationId alone did nothing: every
+  // post-save re-fetch (new detail object, same id) yanked the user back to Accounting. The
+  // `previous` argument is the real same-registrant guard.
+  activeTab = linkedSignal<string | undefined, TabType>({
+    source: () => this.detail()?.registrationId,
+    computation: (id, previous) => previous && previous.source === id ? previous.value : 'accounting'
+  });
 
   // Parsed profile metadata (fields, with option sets resolved). Pure derivation of the detail input —
   // recomputes only when a new registrant loads.
