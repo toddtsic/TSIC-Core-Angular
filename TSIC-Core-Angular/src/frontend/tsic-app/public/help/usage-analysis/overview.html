@@ -54,8 +54,13 @@
   settled; a report that shows only its name and the query it would run is a slot not yet filled in.
 </p>
 <ul>
-  <li><strong>01 · Users by Role</strong> — how many people used the event, counted by registration and grouped by role.
-    One cluster of columns per event, one column per role; the table beneath lists every event with a Total and
-    an Admin &amp; staff column kept apart. Public visitors who never sign in are not people this data can
-    count, so they are not here.</li>
+  <li><strong>01 · Users by Role</strong> — how many people used the event, counted by registration and grouped by role,
+    every role by its own name, Directors included. One column per role for the event picked in the Event dropdown, or
+    the whole scope rolled up at All events; the table beneath lists every event with a Total, an All row on top where
+    All is a choice. A registration is per event, so a user in two events counts in each. Public visitors who never
+    sign in are not people this data can count, so they are not here — what they asked for is report 02.</li>
+  <li><strong>02 · Public Requests by Route</strong> — what the public asked for without signing in: anonymous requests
+    per event, grouped by the API route they hit, with failed requests (4xx / 5xx) counted apart so scanners and stale
+    links never inflate the routes the public came for. Requests, not people: nothing in the log can turn an anonymous
+    request into a visitor. Routes are the API endpoint, not the page, so one page fires several.</li>
 </ul>
