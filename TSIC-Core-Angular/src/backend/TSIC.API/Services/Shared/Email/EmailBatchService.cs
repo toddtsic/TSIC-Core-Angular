@@ -379,7 +379,12 @@ public sealed class EmailBatchService : IEmailBatchService
             if (snap is null) return;
             using var scope = _scopeFactory.CreateScope();
             var repo = scope.ServiceProvider.GetRequiredService<IEmailLogRepository>();
-            await repo.UpdateProgressAsync(emailId, snap.Sent, string.Join(";", sentAddresses), ct);
+            // Count is EMAILS SENT, not registrants (AR-086). snap.Sent ticks once per message, and
+            // one message carries a whole family's addresses, so it under-reported every fan-out;
+            // sentAddresses is what fills SendTo on the same row, so the two columns now agree.
+            // The registry still counts registrants for the progress bar and completion receipt.
+            var addresses = string.Join(";", sentAddresses);
+            await repo.UpdateProgressAsync(emailId, sentAddresses.Count, addresses, ct);
         }
         catch (Exception ex)
         {
