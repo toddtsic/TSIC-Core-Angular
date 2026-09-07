@@ -35,11 +35,14 @@ const CHECK_KEYS: Record<'dob' | 'lastName' | 'validThrough', readonly string[]>
 	validThrough: ['ExpiresBeforeCutoff', 'NoCutoffConfigured']
 };
 
+/** Every criterion that has a column of its own. Anything else the checklist fails on is "Other". */
+const NAMED_CHECK_KEYS: ReadonlySet<string> = new Set(Object.values(CHECK_KEYS).flat());
+
 /**
- * The grid's row: the reconciliation DTO plus four PRE-RESOLVED display strings.
+ * The grid's row: the reconciliation DTO plus five PRE-RESOLVED display strings.
  *
  * AR-071 parts 1 and 3 are the same problem. ej2 filters and sorts a column by its `field`, and
- * these four verdicts are derived — three of them out of the `checks` ARRAY, which no column can
+ * these verdicts are derived — four of them out of the `checks` ARRAY, which no column can
  * filter. Projecting them onto real string fields is what makes those headers filterable at all,
  * and it drops two hand-written sort comparers that existed only because the columns had no field
  * worth ordering by.
@@ -49,6 +52,7 @@ type UsLaxGridRow = UsLaxReconciliationRowDto & {
 	lastNameMatch: string;
 	dobMatch: string;
 	meetsValidThrough: string;
+	otherIssue: string;
 };
 
 /**
@@ -181,7 +185,8 @@ export class UsLaxMembershipComponent implements OnInit {
 			needsEmail: this.needsAction(r) ? 'Yes' : 'No',
 			lastNameMatch: this.verdictOf(r, CHECK_KEYS.lastName),
 			dobMatch: this.verdictOf(r, CHECK_KEYS.dob),
-			meetsValidThrough: this.verdictOf(r, CHECK_KEYS.validThrough)
+			meetsValidThrough: this.verdictOf(r, CHECK_KEYS.validThrough),
+			otherIssue: this.otherIssueOf(r)
 		}))
 	);
 
@@ -588,8 +593,65 @@ export class UsLaxMembershipComponent implements OnInit {
 		return c.detail ?? c.label;
 	}
 
+	// "Other issue?" (AR-085) — the fourth verdict, replacing the prose Details column ------
+	//
+	// Three of the policy's six criteria have no column of their own: no record returned, status
+	// not Active, and not registered as a Player/Coach — plus a failed USA Lacrosse call. Deleting
+	// Details outright would have shown those players three dashes and no explanation, which is
+	// the AR-071 defect again. This column answers "did anything ELSE fail?" in the same Yes/No/—
+	// language as its three neighbours, with the policy's own sentence as the hover.
+
+	/** The checklist entries that no named column already shows. */
+	private otherChecks(row: UsLaxReconciliationRowDto) {
+		return (row.checks ?? []).filter(c => !NAMED_CHECK_KEYS.has(c.key));
+	}
+
 	/**
-	 * Every criterion this row did NOT pass, in words — the Details column, one line each.
+	 * Yes when any un-columned criterion failed; No when they were all assessed and passed; — when
+	 * none was assessed (validation bypassed for the team or a test number — the policy returns
+	 * a single null-passed row for those). A row with no checklist at all answers from its
+	 * transport outcome: a failed call is a Yes, because it IS the reason nothing else was checked.
+	 */
+	private otherIssueOf(row: UsLaxReconciliationRowDto): string {
+		const others = this.otherChecks(row);
+		if (others.length === 0) {
+			if (!row.checks?.length && row.statusCode !== 200) return 'Yes';
+			return UsLaxMembershipComponent.NOT_ASSESSED;
+		}
+		if (others.some(c => c.passed === false)) return 'Yes';
+		if (others.some(c => c.passed === true)) return 'No';
+		return UsLaxMembershipComponent.NOT_ASSESSED;
+	}
+
+	/** Colour for the Other issue? cell — inverted from checkClass, because here Yes is the bad answer. */
+	otherIssueClass(verdict: string): string {
+		if (verdict === 'Yes') return 'text-danger fw-semibold';
+		if (verdict === 'No') return 'text-success-emphasis';
+		return 'text-body-secondary';
+	}
+
+	/** Hover text for the Other issue? cell — every un-columned criterion that did not pass, in the policy's words. */
+	otherIssueTitle(row: UsLaxReconciliationRowDto): string {
+		const lines = this.otherIssueLines(row);
+		if (lines.length > 0) return lines.join(' ');
+		if (this.otherChecks(row).some(c => c.passed === true)) return 'No other criteria failed.';
+		return 'Not checked.';
+	}
+
+	/** The un-columned criteria this row did NOT pass, one sentence each. Bypass rows contribute their reason. */
+	otherIssueLines(row: UsLaxReconciliationRowDto): string[] {
+		const others = this.otherChecks(row);
+		if (others.length === 0) {
+			if (!row.checks?.length && row.errorMessage) return [row.errorMessage];
+			return [];
+		}
+		return others.filter(c => c.passed !== true).map(c => c.detail ?? c.label);
+	}
+
+	/**
+	 * Every criterion this row did NOT pass, in words, one line each. No longer a grid column
+	 * (AR-085 — Ann: "we don't need Details if we have the other info"); kept for the Excel export,
+	 * where a prose column costs nothing and "export it" was once this screen's only workaround.
 	 *
 	 * Not-assessable criteria are included: "no valid-through date is set for this event" is the
 	 * most actionable line on the page and it is not a failure. Falls back to the single Evaluate
@@ -648,7 +710,8 @@ export class UsLaxMembershipComponent implements OnInit {
 	onGridToolbarClick(args: { item?: { id?: string } }, grid: GridComponent): void {
 		if (args.item?.id?.endsWith('_excelexport')) {
 			const roleWord = this.isCoachRole() ? 'Coaches' : 'Players';
-			grid.excelExport({ fileName: `USLaxMembershipReconciliation_${roleWord}.xlsx` });
+			// Details is a hidden column on screen (AR-085) and a real one in the spreadsheet.
+			grid.excelExport({ fileName: `USLaxMembershipReconciliation_${roleWord}.xlsx`, includeHiddenColumn: true });
 		}
 	}
 
@@ -688,10 +751,16 @@ export class UsLaxMembershipComponent implements OnInit {
 			case 'Involvement':
 				args.value = this.involvementBadges(d).join(', ');
 				break;
-			case 'Expiry-Old':
+			case 'Other issue?': {
+				// The verdict plus its reasons — the spreadsheet has no hover.
+				const lines = this.otherIssueLines(d);
+				args.value = lines.length > 0 ? `Yes — ${lines.join(' ')}` : this.otherIssueOf(d);
+				break;
+			}
+			case 'Expiry Old':
 				args.value = d.previousExpiryDate ? new Date(d.previousExpiryDate).toLocaleDateString() : '';
 				break;
-			case 'Expiry-New':
+			case 'Expiry New':
 				args.value = d.newExpiryDate ? new Date(d.newExpiryDate).toLocaleDateString() : '';
 				break;
 		}

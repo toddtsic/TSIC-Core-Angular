@@ -163,3 +163,24 @@
 }
 
 
+
+// Grid viewport (AR-085). The wrapper is sized to the screen and the grid fills it, so rows
+// scroll INSIDE the grid and its horizontal scrollbar is always visible — Ann had to scroll
+// to the foot of a long list to reach it, and columns off the right edge read as missing.
+.uslax-membership-grid {
+    height: calc(100vh - 21rem);
+    min-height: 22rem;
+}
+
+// Header wrap. ej2 wrapMode:'Header' applies word-wrap:break-word, which splits header words
+// mid-word, and the theme's own rules re-apply nowrap + ellipsis one layer deeper. Same fix
+// as the LADT sibling grid (AM-038): wrap at spaces only, and !important because ej2's
+// .e-grid.e-wrap selector out-specifies this one.
+:host ::ng-deep .uslax-membership-grid .e-grid .e-headercelldiv,
+:host ::ng-deep .uslax-membership-grid .e-grid .e-headercelldiv .e-headertext {
+    white-space: normal !important;
+    word-wrap: normal !important;
+    overflow-wrap: normal !important;
+    word-break: keep-all !important;
+    line-height: 1.2;
+}

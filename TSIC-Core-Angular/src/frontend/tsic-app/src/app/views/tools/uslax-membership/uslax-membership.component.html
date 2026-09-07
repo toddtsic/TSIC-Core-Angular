@@ -210,8 +210,14 @@
          the grid's `cssClass` because Syncfusion passes that value to classList.add() verbatim —
          a second, space-separated class throws InvalidCharacterError and takes the grid down. -->
     <div class="uslax-membership-grid">
-    <ejs-grid width="100%" #grid tsicRowNumbers [dataSource]="gridRows()" [allowSorting]="true"
+    <!-- height="100%" fills the wrapper's viewport-sized box, so the grid scrolls INSIDE itself and
+         its horizontal scrollbar is always on screen — not at the foot of a 300-row page (AR-085).
+         Header wrap lets "Meets Valid Thru?" stack instead of truncating; the SCSS below stops
+         ej2 breaking mid-word. -->
+    <ejs-grid width="100%" height="100%" #grid tsicRowNumbers [dataSource]="gridRows()" [allowSorting]="true"
               [sortSettings]="{ columns: [{ field: 'lastName', direction: 'Ascending' }] }"
+              [allowTextWrap]="true"
+              [textWrapSettings]="{ wrapMode: 'Header' }"
               [allowExcelExport]="true"
               [allowResizing]="true"
               [allowFiltering]="true"
@@ -232,36 +238,36 @@
             <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false" [allowFiltering]="false"
                       [customAttributes]="{ class: 'row-number-cell' }"></e-column>
             <!-- This is the EMAIL selector, not a health verdict: it says whether the reminder email
-                 would go to this family. The reason lives in Details. Nothing sends automatically.
+                 would go to this family. The reason is in the verdict columns. Nothing sends automatically.
                  A mark means "needs email"; blank means it doesn't — the marked rows are the
                  exception, so leaving the healthy majority blank is what makes them scannable.
                  The glyph carries a title + aria-label because colour alone must not convey it. -->
-            <e-column headerText="Email?" width="92" textAlign="Center" field="needsEmail">
+            <e-column headerText="Email?" width="104" textAlign="Center" field="needsEmail">
                 <ng-template #template let-data>
                     @if (needsAction(data)) {
                         <i class="bi bi-check2 text-danger fw-bold"
-                           title="This family would receive the reminder email — see Details for why"
+                           title="This family would receive the reminder email — the verdict columns say why"
                            aria-label="Needs email"></i>
                     }
                 </ng-template>
             </e-column>
-            <e-column field="lastName" headerText="Name" width="195" minWidth="170" clipMode="EllipsisWithTooltip">
+            <e-column field="lastName" headerText="Name" width="170" minWidth="150" clipMode="EllipsisWithTooltip">
                 <ng-template #template let-data>
                     <span class="fw-semibold" [ngClass]="rowClass(data)">
                         {{ data.lastName }}, {{ data.firstName }}
                     </span>
                 </ng-template>
             </e-column>
-            <e-column field="membershipId" headerText="Member ID" width="142">
+            <e-column field="membershipId" headerText="Member ID" width="110">
                 <ng-template #template let-data>
                     {{ padMembershipId(data.membershipId) }}
                 </ng-template>
             </e-column>
-            <e-column field="teamName" headerText="Team" width="180" minWidth="140" clipMode="EllipsisWithTooltip"></e-column>
+            <e-column field="teamName" headerText="Team" width="150" minWidth="120" clipMode="EllipsisWithTooltip"></e-column>
             <!-- USA Lacrosse membership status, verbatim. NOT a validation verdict and NOT a
                  transport outcome — a failed call is reported in Details, not here, and the
                  vendor's own wording is shown rather than being folded into Active/Unknown. -->
-            <e-column field="memStatus" headerText="Status" width="96" textAlign="Center">
+            <e-column field="memStatus" headerText="Status" width="108" textAlign="Center">
                 <ng-template #template let-data>
                     @if (data.memStatus) {
                         <span class="badge"
@@ -273,21 +279,25 @@
                         </span>
                     } @else {
                         <span class="badge bg-secondary-subtle text-body-secondary"
-                              title="USA Lacrosse returned no membership status — see Details">—</span>
+                              title="USA Lacrosse returned no membership status — see Other issue?">—</span>
                     }
                 </ng-template>
             </e-column>
-            <e-column field="ageVerified" headerText="Verified" width="128" clipMode="EllipsisWithTooltip">
+            <e-column field="ageVerified" headerText="Verified" width="100" clipMode="EllipsisWithTooltip">
                 <ng-template #template let-data>
                     {{ ageVerifiedDisplay(data) }}
                 </ng-template>
             </e-column>
-            <e-column headerText="Involvement" width="158" minWidth="140" [allowFiltering]="false"
+            <!-- Badges wrap onto a second line rather than the column growing to fit
+                 "Player, Official" — Ann named this column as where the room was (AR-085). -->
+            <e-column headerText="Involvement" width="112" minWidth="96" [allowFiltering]="false"
                       field="involvement" [sortComparer]="involvementSortComparer">
                 <ng-template #template let-data>
-                    @for (role of involvementBadges(data); track role) {
-                        <span class="badge bg-primary-subtle text-primary-emphasis me-1">{{ role }}</span>
-                    }
+                    <div class="d-flex flex-wrap gap-1">
+                        @for (role of involvementBadges(data); track role) {
+                            <span class="badge bg-primary-subtle text-primary-emphasis">{{ role }}</span>
+                        }
+                    </div>
                 </ng-template>
             </e-column>
             <!-- AR-071 (Ann, 09-02): the three criteria the columns above do NOT already show.
@@ -299,25 +309,42 @@
                  A dash is NOT a No: it means the checklist never got to this question (USA
                  Lacrosse unreachable, no record returned, validation bypassed for the team, or —
                  for the cutoff column — no valid-through date set on the event). AR-044 shipped
-                 a confident No to an unasked question on this same table; this does not. -->
-            <e-column field="lastNameMatch" headerText="LN Match?" width="106" textAlign="Center">
+                 a confident No to an unasked question on this same table; this does not.
+                 AR-085 (Ann, 09-07): the four verdicts sit together, THEN the dates. Widths
+                 budget ej2's header chrome — cell padding + sort icon + FILTER icon, ~60px on this grid — so no header word truncates. -->
+            <e-column field="lastNameMatch" headerText="LN Match?" width="110" textAlign="Center">
                 <ng-template #template let-data>
                     <span [ngClass]="checkClass(data.lastNameMatch)" [title]="checkTitle(data, 'lastName')">{{ data.lastNameMatch }}</span>
                 </ng-template>
             </e-column>
             <!-- The birthdate VALUE is deliberately absent here and in the tooltip — Ann asked for
                  the verdict only. The registrant's own DOB is on the registration record. -->
-            <e-column field="dobMatch" headerText="DOB Match?" width="112" textAlign="Center">
+            <e-column field="dobMatch" headerText="DOB Match?" width="114" textAlign="Center">
                 <ng-template #template let-data>
                     <span [ngClass]="checkClass(data.dobMatch)" [title]="checkTitle(data, 'dob')">{{ data.dobMatch }}</span>
                 </ng-template>
             </e-column>
-            <e-column field="previousExpiryDate" headerText="Expiry-Old" width="114" textAlign="Center" type="date" format="MM/dd/yyyy">
+            <e-column field="meetsValidThrough" headerText="Meets Valid Thru?" width="92" textAlign="Center">
+                <ng-template #template let-data>
+                    <span [ngClass]="checkClass(data.meetsValidThrough)" [title]="checkTitle(data, 'validThrough')">{{ data.meetsValidThrough }}</span>
+                </ng-template>
+            </e-column>
+            <!-- "Did anything ELSE fail?" — the criteria with no column of their own (no record,
+                 not Active, not a Player/Coach, USA Lacrosse unreachable). Replaces the prose
+                 Details column, which was the widest thing on the page and sat off the right
+                 edge where it read as missing data (AR-085). Ann: "we don't need Details if we
+                 have the other info." Yes is the BAD answer here, so the colours are inverted. -->
+            <e-column field="otherIssue" headerText="Other issue?" width="92" textAlign="Center">
+                <ng-template #template let-data>
+                    <span [ngClass]="otherIssueClass(data.otherIssue)" [title]="otherIssueTitle(data)">{{ data.otherIssue }}</span>
+                </ng-template>
+            </e-column>
+            <e-column field="previousExpiryDate" headerText="Expiry Old" width="92" textAlign="Center" type="date" format="MM/dd/yyyy">
                 <ng-template #template let-data>
                     {{ data.previousExpiryDate ? (data.previousExpiryDate | date:'MM/dd/yyyy') : '—' }}
                 </ng-template>
             </e-column>
-            <e-column field="newExpiryDate" headerText="Expiry-New" width="114" textAlign="Center" type="date" format="MM/dd/yyyy">
+            <e-column field="newExpiryDate" headerText="Expiry New" width="108" textAlign="Center" type="date" format="MM/dd/yyyy">
                 <ng-template #template let-data>
                     <span [class.updated-cell]="data.expiryDateUpdated">
                         {{ data.newExpiryDate ? (data.newExpiryDate | date:'MM/dd/yyyy') : '—' }}
@@ -327,34 +354,13 @@
                     </span>
                 </ng-template>
             </e-column>
-            <e-column field="meetsValidThrough" headerText="Meets Valid Thru?" width="150" textAlign="Center">
-                <ng-template #template let-data>
-                    <span [ngClass]="checkClass(data.meetsValidThrough)" [title]="checkTitle(data, 'validThrough')">{{ data.meetsValidThrough }}</span>
-                </ng-template>
-            </e-column>
             <!-- EVERY criterion this member did not meet, one line each — not just the first.
-                 Same UsLaxEligibilityPolicy the wizard runs, so the director sees what the front
-                 door would say. Reporting only — the expiry write above is unaffected by it.
-                 A pass is a bare checkmark: "Passes validation" restated the same thing in words
-                 on every healthy row, which is most of them. Each failure repeats its own text as
-                 a title, because this is the column that gets truncated and it is exactly what the
-                 director needs to read. The birthdate line names no dates — Ann asked for the
-                 verdict without the value, and the DOB Match? column carries it. -->
-            <e-column field="eligibilityDetail" headerText="Details" minWidth="240" clipMode="EllipsisWithTooltip">
+                 HIDDEN on screen since AR-085 (the four verdict columns carry the answers; this
+                 carried the prose) but still exported: the toolbar's Excel export passes
+                 includeHiddenColumn, and a spreadsheet has no hover to fall back on. -->
+            <e-column field="eligibilityDetail" headerText="Details" width="240" [visible]="false" [allowFiltering]="false">
                 <ng-template #template let-data>
-                    @if (detailLines(data).length > 0) {
-                        @for (line of detailLines(data); track line) {
-                            <div [class.text-danger]="!data.eligible"
-                                 [class.text-body-secondary]="data.eligible"
-                                 [title]="line">{{ line }}</div>
-                        }
-                    } @else if (data.errorMessage) {
-                        <span class="text-danger" [title]="data.errorMessage">{{ data.errorMessage }}</span>
-                    } @else if (data.eligible) {
-                        <i class="bi bi-check2 text-success-emphasis"
-                           title="Passes validation"
-                           aria-label="Passes validation"></i>
-                    }
+                    {{ detailLines(data).join(' ') }}
                 </ng-template>
             </e-column>
         </e-columns>
