@@ -2745,6 +2745,8 @@ public class RegistrationRepository : IRegistrationRepository
             FamilyAccountDemographics = familyAccountDemographics,
             UserDemographics = reg.User != null ? new UserDemographicsDto
             {
+                FirstName = reg.User.FirstName,
+                LastName = reg.User.LastName,
                 Email = reg.User.Email,
                 Cellphone = reg.User.Cellphone,
                 Gender = reg.User.Gender,
