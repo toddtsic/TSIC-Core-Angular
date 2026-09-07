@@ -133,6 +133,9 @@ public class UsageStatsRepository : IUsageStatsRepository
             .ToListAsync(cancellationToken);
     }
 
+    public Task<DateTime?> GetFirstRecordedAtAsync(CancellationToken cancellationToken = default) =>
+        Admitted().MinAsync(u => (DateTime?)u.OccurredAt, cancellationToken);
+
     public async Task<IReadOnlyList<UsageRegistrationByBucketDto>> GetDistinctRegistrationsByBucketAsync(
         IReadOnlyList<Guid> jobIds,
         DateTime since,
@@ -203,6 +206,9 @@ public class UnavailableUsageStatsRepository : IUsageStatsRepository
         int? appClientId,
         CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<UsageRouteCountDto>>([]);
+
+    public Task<DateTime?> GetFirstRecordedAtAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<DateTime?>(null);
 
     public Task<IReadOnlyList<UsageRegistrationByBucketDto>> GetDistinctRegistrationsByBucketAsync(
         IReadOnlyList<Guid> jobIds,

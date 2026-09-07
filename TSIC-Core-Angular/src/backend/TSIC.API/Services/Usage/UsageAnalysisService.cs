@@ -222,6 +222,8 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
         var pairs = _usageRepo.IsAvailable
             ? await _usageRepo.GetDistinctRegistrationsByBucketAsync(scope.GetJobIds(), since, bucket, appClientId, ct)
             : [];
+        // Sequential await, same scoped context: never Task.WhenAll with the call above.
+        var firstRecordedAt = _usageRepo.IsAvailable ? await _usageRepo.GetFirstRecordedAtAsync(ct) : null;
 
         // Step 2 (TSICV5): which role each registration holds.
         var roleByReg = await LookupRolesAsync(pairs.Select(p => p.RegistrationId), ct);
@@ -244,6 +246,7 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
             Bucket = UsageBuckets.ToWord(bucket),
             Since = since,
             Buckets = starts,
+            FirstRecordedAt = firstRecordedAt,
             JobCount = scope.Jobs.Count,
             Rows = rows,
             UsageLoggingAvailable = _usageRepo.IsAvailable,

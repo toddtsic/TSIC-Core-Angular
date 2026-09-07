@@ -38,6 +38,13 @@ public record UsersByRoleOverTimeDto
     /// <summary>Every bucket start in the span, oldest first, including buckets with no rows. The x axis.</summary>
     public required List<DateTime> Buckets { get; init; }
 
+    /// <summary>
+    /// When the log begins -- the earliest admitted row on this server, null for an empty
+    /// log. A bucket that ENDS before this has no data, which is not zero users: the page
+    /// draws it as a gap and says "no data", never 0.
+    /// </summary>
+    public required DateTime? FirstRecordedAt { get; init; }
+
     /// <summary>Live events the numbers cover -- the resolved scope (after any event lens), restated for the audit stamp.</summary>
     public required int JobCount { get; init; }
 

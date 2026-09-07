@@ -13,13 +13,15 @@ import type { UsageBucket, UsageTimeAxis } from '../usage-analysis.models';
  * plumbing every report runs, and the palette helpers the charts colour with.
  */
 
-/** One table row: an event, or the All rollup (id empty). Cells are keyed by column. */
+/** One table row: an event, the All rollup (id empty), or a time bucket. Cells are keyed by column. */
 export interface UsagePivotRow {
 	readonly id: string;
 	readonly name: string;
 	/** The Total column. */
 	readonly total: number;
 	readonly cells: ReadonlyMap<string, number>;
+	/** True for a bucket the log did not exist for yet: not zero, no data. Rendered as such. */
+	readonly noData?: boolean;
 }
 
 /** A headline number above the chart. */

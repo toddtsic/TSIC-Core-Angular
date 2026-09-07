@@ -81,7 +81,7 @@
 					}
 				}
 				@for (row of rows(); track row.id) {
-					<tr [class.ubr-row--current]="isHighlighted(row)">
+					<tr [class.ubr-row--current]="isHighlighted(row)" [class.ubr-row--nodata]="row.noData">
 						<td class="ubr-event">
 							@if (isHighlighted(row)) {
 								<i class="bi bi-caret-right-fill ubr-row-marker" aria-hidden="true"></i>
@@ -95,7 +95,7 @@
 						@for (col of columns(); track col) {
 							<td class="ubr-num">{{ cell(row, col) }}</td>
 						}
-						<td class="ubr-num ubr-total">{{ row.total.toLocaleString() }}</td>
+						<td class="ubr-num ubr-total">{{ total(row) }}</td>
 					</tr>
 				}
 			</tbody>

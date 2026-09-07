@@ -75,6 +75,13 @@ public interface IUsageStatsRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// When the log begins: the earliest admitted row, or null for an empty table. A report
+    /// spanning further back than this has buckets with NO DATA, which is not the same as
+    /// zero users, and must say so.
+    /// </summary>
+    Task<DateTime?> GetFirstRecordedAtAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Report 03: distinct (bucket, registration) pairs for signed-in requests about the
     /// given jobs since <paramref name="since"/>, which MUST be aligned to the bucket
     /// (midnight, a Monday, the 1st) -- the index is whole buckets from it. A registration

@@ -151,6 +151,13 @@
 	border-bottom: 2px solid var(--brand-border);
 }
 
+// A bucket the log did not exist for: said in words, muted, never a row of zeros.
+.ubr-row--nodata td {
+	color: var(--brand-text-muted);
+	font-style: italic;
+	font-weight: 400;
+}
+
 .ubr-note {
 	max-width: 48rem;
 	margin: var(--space-3) 0 0;

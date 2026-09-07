@@ -29,10 +29,23 @@ const BUCKET_LABEL: Record<UsageBucket, Intl.DateTimeFormatOptions> = {
 
 const ROW_HEADER: Record<UsageBucket, string> = { day: 'Day', week: 'Week of', month: 'Month' };
 
-/** One bucket of the span: its start (the row id), its label, and report 01's numbers for it. */
+/** The bucket after `start`, for the end of the last bucket in the span. */
+function nextStart(unit: UsageBucket, start: Date): Date {
+	const d = new Date(start);
+	if (unit === 'day') d.setDate(d.getDate() + 1);
+	else if (unit === 'week') d.setDate(d.getDate() + 7);
+	else d.setMonth(d.getMonth() + 1);
+	return d;
+}
+
+/**
+ * One bucket of the span: its start (the row id), its label, and report 01's numbers for
+ * it. `noData` marks a bucket that ended before the log existed: not zero, unknown.
+ */
 interface BucketRow {
 	readonly start: string;
 	readonly label: string;
+	readonly noData: boolean;
 	total: number;
 	readonly cells: Map<string, number>;
 }
@@ -48,9 +61,16 @@ interface BucketRow {
  * window total: 01 is distinct over the span, this is distinct per slice.
  *
  * Rows are buckets, newest on top; columns are the same roles in the same order and
- * colours as 01. The chart is the whole table, oldest to newest, one stacked column per
- * bucket — height is people that bucket, segments are who. The Event and Client lenses
- * narrow the fetch, since a per-bucket table has nowhere to keep the other events.
+ * colours as 01. The chart is the whole table, oldest to newest, one LINE per role so
+ * every role sits on the same baseline and its trend reads on its own; the Total column
+ * carries "people that bucket". The Event and Client lenses narrow the fetch, since a
+ * per-bucket table has nowhere to keep the other events.
+ *
+ * Honesty rules the chart keeps:
+ *  - a role with no users in a bucket is 0 and the line drops to the axis;
+ *  - a bucket that ended before the log existed is NO DATA: null, drawn as a gap in every
+ *    line and as the words "no data" in the table, never as 0;
+ *  - the newest bucket is the current one, still filling, and its label says "so far".
  */
 @Component({
 	selector: 'app-usage-users-by-role-over-time',
@@ -82,15 +102,24 @@ export class UsersByRoleOverTimeComponent {
 	readonly columns = computed<readonly string[]>(() =>
 		orderRoles(new Set((this.fetch.data()?.rows ?? []).map(r => r.roleName))));
 
-	/** Every bucket in the span, oldest first, quiet buckets as zero rows — the chart's order. */
+	/** Every bucket in the span, oldest first: quiet buckets as zero rows, pre-log buckets as no data. The chart's order. */
 	private readonly buckets = computed<readonly BucketRow[]>(() => {
 		const d = this.fetch.data();
 		if (!d) return [];
-		const fmt = new Intl.DateTimeFormat(undefined, BUCKET_LABEL[this.unit()]);
+		const unit = this.unit();
+		const fmt = new Intl.DateTimeFormat(undefined, BUCKET_LABEL[unit]);
+		const firstRecorded = d.firstRecordedAt ? new Date(d.firstRecordedAt) : null;
+		const last = d.buckets.length - 1;
 		const byStart = new Map<string, BucketRow>();
-		for (const start of d.buckets) {
-			byStart.set(start, { start, label: fmt.format(new Date(start)), total: 0, cells: new Map() });
-		}
+		d.buckets.forEach((start, i) => {
+			const startDate = new Date(start);
+			const end = i < last ? new Date(d.buckets[i + 1]) : nextStart(unit, startDate);
+			// No data = the whole bucket ended before the first row the log has. A bucket the log
+			// began inside is partial and keeps its number, like the current one.
+			const noData = firstRecorded !== null && end <= firstRecorded;
+			const label = fmt.format(startDate) + (i === last ? ' · so far' : '');
+			byStart.set(start, { start, label, noData, total: 0, cells: new Map() });
+		});
 		for (const r of d.rows) {
 			const b = byStart.get(r.bucketStart);
 			if (!b) continue;
@@ -103,7 +132,7 @@ export class UsersByRoleOverTimeComponent {
 
 	/** The table: newest bucket on top. */
 	readonly rows = computed<readonly UsagePivotRow[]>(() =>
-		[...this.buckets()].reverse().map(b => ({ id: b.start, name: b.label, total: b.total, cells: b.cells })));
+		[...this.buckets()].reverse().map(b => ({ id: b.start, name: b.label, total: b.total, cells: b.cells, noData: b.noData })));
 
 	readonly tiles = computed<readonly UsageTile[]>(() => {
 		const unit = this.unit();
@@ -122,34 +151,39 @@ export class UsersByRoleOverTimeComponent {
 		return n === 1 ? (this.state.jobNames()[0] ?? 'This event') : `All ${n} live events`;
 	});
 
-	readonly chartSubtitle = computed(() =>
-		`distinct registrations per ${this.unit()} — active in three ${this.unit()}s counts in each`);
+	readonly chartSubtitle = computed(() => {
+		const unit = this.unit();
+		const gap = this.buckets().some(b => b.noData) ? ' — a gap is before the log began, not zero' : '';
+		return `distinct registrations per ${unit} — active in three ${unit}s counts in each${gap}`;
+	});
 
-	/** One stacked-column series per role over every bucket, so a column is one bucket's people and its segments are who. */
+	/** One line per role over every bucket, all on the same baseline. A no-data bucket is null: a gap, not a drop to zero. */
 	readonly chartSeries = computed<SeriesModel[]>(() => {
 		const columns = this.columns();
 		const data = this.buckets().map(b => {
-			const point: Record<string, string | number> = { x: b.label };
-			columns.forEach((role, i) => { point['r' + i] = b.cells.get(role) ?? 0; });
+			const point: Record<string, string | number | null> = { x: b.label };
+			columns.forEach((role, i) => { point['r' + i] = b.noData ? null : (b.cells.get(role) ?? 0); });
 			return point;
 		});
 		if (data.length === 0) return [];
 		return columns.map((role, i) => ({
-			type: 'StackingColumn',
+			type: 'Line',
 			dataSource: data,
 			xName: 'x',
 			yName: 'r' + i,
 			name: role,
 			fill: this.palette[i % this.palette.length],
-			opacity: 0.85,
-			columnWidth: 0.7,
+			width: 2,
+			marker: { visible: true, width: 6, height: 6, shape: 'Circle' },
+			emptyPointSettings: { mode: 'Gap' },
 		}));
 	});
 
-	private readonly maxTotal = computed(() => Math.max(0, ...this.buckets().map(b => b.total)));
+	private readonly maxCell = computed(() =>
+		Math.max(0, ...this.buckets().flatMap(b => [...b.cells.values()])));
 
 	readonly primaryXAxis = computed(() => categoryAxis(this.theme, { labelIntersectAction: 'Rotate45' }));
-	readonly primaryYAxis = computed(() => countAxis(this.theme, this.maxTotal()));
+	readonly primaryYAxis = computed(() => countAxis(this.theme, this.maxCell()));
 	readonly legendSettings = {
 		visible: true,
 		position: 'Top' as const,

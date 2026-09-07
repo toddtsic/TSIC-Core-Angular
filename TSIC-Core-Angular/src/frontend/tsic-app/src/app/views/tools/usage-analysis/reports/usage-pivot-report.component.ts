@@ -95,7 +95,13 @@ export class UsagePivotReportComponent {
 	}
 
 	cell(row: UsagePivotRow, column: string): string {
+		if (row.noData) return '';
 		const n = row.cells.get(column) ?? 0;
 		return n === 0 ? '·' : n.toLocaleString();
+	}
+
+	/** The Total cell: the number, or the words "no data" for a bucket the log did not exist for. */
+	total(row: UsagePivotRow): string {
+		return row.noData ? 'no data' : row.total.toLocaleString();
 	}
 }
