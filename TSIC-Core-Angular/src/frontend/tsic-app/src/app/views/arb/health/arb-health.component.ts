@@ -96,9 +96,10 @@ export class ArbHealthComponent {
     readonly isSuperuser = this.auth.isSuperuser;
 
     // Lookup state. activeTab is the flag type the UI is oriented to (drives templates,
-    // action bar, table shape); loadedTab is which lookup has actually RUN — null until
-    // the director clicks one. Nothing loads on init: Expiring Cards queries live
-    // production Authorize.Net, so it must only run on a deliberate click (PL-055).
+    // action bar, table shape); loadedTab is which lookup has actually RUN. Behind in
+    // Payment — a stored-status DB read, and what directors open this screen for — loads on
+    // arrival (AR-084). Expiring Cards queries live production Authorize.Net, so it only
+    // runs on a deliberate click (PL-055).
     readonly activeTab = signal<number>(FLAG_TYPE.BehindInPayment);
     readonly loadedTab = signal<number | null>(null);
     readonly FLAG_TYPE = FLAG_TYPE;
@@ -155,8 +156,9 @@ export class ArbHealthComponent {
     });
 
     constructor() {
-        // Deliberately NO lookup here — the page opens neutral; see runLookup.
         this.loadSubstitutionVars();
+        // Land on the money. Only the DB-backed lookup runs unprompted; see activeTab.
+        this.loadTab(FLAG_TYPE.BehindInPayment);
     }
 
     /**

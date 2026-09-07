@@ -19,3 +19,61 @@
 .action-bar {
     padding: var(--space-2) 0;
 }
+
+// Segmented lookup control (AR-084). Sits on the body surface, so it is styled off the brand
+// palette rather than the white-on-gradient .btn-segment-group used inside page headers.
+.lookup-segment {
+    display: inline-flex;
+    border: 1px solid var(--brand-border);
+    border-radius: var(--radius-sm);
+    background: var(--brand-surface);
+    overflow: hidden;
+}
+
+.lookup-segment__btn {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    white-space: nowrap;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: var(--brand-text-muted);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+
+    & + & {
+        border-left: 1px solid var(--brand-border);
+    }
+
+    &:hover:not(:disabled) {
+        background: rgba(var(--bs-primary-rgb), 0.08);
+        color: var(--brand-text);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+        position: relative;
+        z-index: 1;
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    &--active {
+        background: var(--bs-primary);
+        color: var(--bs-white);
+
+        &:hover:not(:disabled) {
+            background: var(--bs-primary);
+            color: var(--bs-white);
+        }
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lookup-segment__btn { transition: none !important; }
+}

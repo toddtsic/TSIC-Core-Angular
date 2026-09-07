@@ -25,23 +25,28 @@
         </div>
     </div>
 
-    <!-- Explicit lookups - NOTHING loads on page open. Behind in Payment is a stored-status
-         DB read; Expiring Cards queries LIVE production Authorize.Net, so it must only ever
-         run on a deliberate click (PL-055 rework). Re-clicking the active lookup re-runs it. -->
-    <div class="lookup-actions d-flex flex-wrap gap-2 mb-3">
-        <button class="btn btn-outline-primary"
-                [class.active]="loadedTab() !== null && activeTab() === FLAG_TYPE.BehindInPayment"
+    <!-- Segmented lookup. Behind in Payment is a stored-status DB read and is what directors
+         open this screen for, so it loads on arrival (AR-084). Expiring Cards queries LIVE
+         production Authorize.Net, so it only ever runs on a deliberate click (PL-055).
+         Re-clicking the active segment re-runs its lookup. -->
+    <div class="lookup-segment mb-3" role="group" aria-label="ARB lookup">
+        <button type="button"
+                class="lookup-segment__btn"
+                [class.lookup-segment__btn--active]="activeTab() === FLAG_TYPE.BehindInPayment"
+                [attr.aria-pressed]="activeTab() === FLAG_TYPE.BehindInPayment"
                 [disabled]="isLoading() || isRefreshing()"
                 (click)="runLookup(FLAG_TYPE.BehindInPayment)">
             <i class="bi bi-exclamation-triangle me-1"></i>
-            Lookup Behind in Payment
+            Behind in Payment
         </button>
-        <button class="btn btn-outline-primary"
-                [class.active]="loadedTab() !== null && activeTab() === FLAG_TYPE.ExpiringCard"
+        <button type="button"
+                class="lookup-segment__btn"
+                [class.lookup-segment__btn--active]="activeTab() === FLAG_TYPE.ExpiringCard"
+                [attr.aria-pressed]="activeTab() === FLAG_TYPE.ExpiringCard"
                 [disabled]="isLoading() || isRefreshing()"
                 (click)="runLookup(FLAG_TYPE.ExpiringCard)">
             <i class="bi bi-credit-card-2-front me-1"></i>
-            Lookup Expiring Cards
+            Expiring Cards
         </button>
     </div>
 
@@ -260,14 +265,6 @@
                 <e-column field="registrationId" headerText="Registration Id" [isPrimaryKey]="true" [visible]="false"></e-column>
             </e-columns>
         </ejs-grid>
-    }
-
-    <!-- Initial state - no lookup run yet -->
-    @if (!isLoading() && loadedTab() === null && !errorMessage()) {
-        <div class="text-center py-5">
-            <i class="bi bi-search text-body-secondary" style="font-size: 2rem;"></i>
-            <p class="text-muted mt-2">Choose a lookup to check your ARB subscriptions.</p>
-        </div>
     }
 
     <!-- Empty state - lookup ran, nothing flagged -->
