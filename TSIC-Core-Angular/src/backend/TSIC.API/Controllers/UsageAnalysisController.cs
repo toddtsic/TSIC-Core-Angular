@@ -82,13 +82,15 @@ public class UsageAnalysisController : ControllerBase
         [FromQuery] int windowDays = 7,
         [FromQuery] bool excludeBots = true,
         [FromQuery] Guid? eventId = null,
+        [FromQuery] string? bucket = null,
         CancellationToken ct = default)
     {
         var (failure, resolution) = await ResolveForReportAsync(scope, eventId, ct);
         if (failure is not null) return failure;
 
+        // A bucket word (a bucketed report is on screen) makes the facet cover that bucket's span instead of the window.
         var days = Math.Clamp(windowDays, 1, 365);
-        return Ok(await _reports.GetClientsAsync(resolution!, days, excludeBots, ct));
+        return Ok(await _reports.GetClientsAsync(resolution!, days, excludeBots, UsageBuckets.Parse(bucket), ct));
     }
 
     /// <summary>
@@ -132,6 +134,28 @@ public class UsageAnalysisController : ControllerBase
 
         var days = Math.Clamp(windowDays, 1, 365);
         return Ok(await _reports.GetPublicRequestsByRouteAsync(resolution!, days, excludeBots, clientId, ct));
+    }
+
+    /// <summary>
+    /// Report 03 -- Users by Role over Time. Report 01's count, once per bucket: daily over
+    /// the last 30 days, weekly over the last 12 weeks, monthly over the last 12 months. The
+    /// bucket IS the window; there is no windowDays here. A registration counts in every
+    /// bucket it was active in.
+    /// </summary>
+    [HttpGet("users-by-role-over-time")]
+    public async Task<ActionResult<UsersByRoleOverTimeDto>> GetUsersByRoleOverTime(
+        [FromQuery] string? scope,
+        [FromQuery] string? bucket = null,
+        [FromQuery] bool excludeBots = true,
+        [FromQuery] Guid? eventId = null,
+        [FromQuery] int? clientId = null,
+        CancellationToken ct = default)
+    {
+        var (failure, resolution) = await ResolveForReportAsync(scope, eventId, ct);
+        if (failure is not null) return failure;
+
+        var unit = UsageBuckets.Parse(bucket) ?? UsageBucket.Day;
+        return Ok(await _reports.GetUsersByRoleOverTimeAsync(resolution!, unit, excludeBots, clientId, ct));
     }
 
     /// <summary>Resolve scope + event lens for a report, or the ActionResult that refuses it.</summary>

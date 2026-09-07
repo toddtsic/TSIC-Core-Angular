@@ -6,6 +6,7 @@ import { catchError, of } from 'rxjs';
 
 import { environment } from '@environments/environment';
 import { UsageAnalysisStateService } from '../usage-analysis-state.service';
+import type { UsageBucket, UsageTimeAxis } from '../usage-analysis.models';
 
 /**
  * Shared by every usage report: the pivot row shape the layout renders, the fetch
@@ -26,6 +27,28 @@ export interface UsageTile {
 	readonly value: number;
 	readonly label: string;
 	readonly primary?: boolean;
+}
+
+/**
+ * Every role by its exact name, in a FIXED order, so a role keeps its colour and its
+ * column position in every chart, every window, and every report: the customer's
+ * people first, then the roles that run an event. No bucket — how much Directors are
+ * using is vital information (Todd, 2026-09-06), and "Staff" is itself a role. Roles not
+ * listed follow alphabetically.
+ */
+export const ROLE_ORDER: readonly string[] = [
+	'Family', 'Player', 'Staff', 'Club Rep', 'Unassigned Adult', 'Referee', 'Scorer', 'Recruiter', 'Guest',
+	'Director', 'SuperDirector', 'Superuser', 'Ref Assignor', 'Store Admin', 'STPAdmin', 'ApiAuthorized',
+];
+
+/** The role whose usage gets its own tile. Exact AspNetRoles name. */
+export const DIRECTOR_ROLE = 'Director';
+
+/** The roles present, in ROLE_ORDER then alphabetical — the column order every role report shares. */
+export function orderRoles(present: ReadonlySet<string>): readonly string[] {
+	const ordered = ROLE_ORDER.filter(r => present.has(r));
+	const rest = [...present].filter(r => !ROLE_ORDER.includes(r)).sort((a, b) => a.localeCompare(b));
+	return [...ordered, ...rest];
 }
 
 /** Read a CSS custom property from :root, with fallback. */
@@ -131,11 +154,18 @@ export function allRowName(jobCount: number, rows: readonly UsagePivotRow[]): st
 	return jobCount === 1 ? (rows[0]?.name ?? 'This event') : `All ${jobCount} live events`;
 }
 
-/** What every report fetches with. The event lens is NOT in it: the table is always the whole scope. */
+/**
+ * What a report fetches with. The time span is the window OR the bucket, per the report's
+ * axis. The event lens is in it only for a report whose rows are not events (03): a
+ * per-event table is always the whole scope and the lens just moves the chart, but a
+ * per-bucket table has nowhere to keep the other events, so the lens must narrow the fetch.
+ */
 interface FetchKey {
 	readonly scope: string;
-	readonly windowDays: number;
+	readonly windowDays: number | null;
+	readonly bucket: UsageBucket | null;
 	readonly excludeBots: boolean;
+	readonly eventId: string | null;
 	readonly clientId: number | null;
 }
 
@@ -145,15 +175,26 @@ export interface UsageReportFetch<T> {
 	readonly error: Signal<string | null>;
 }
 
+export interface UsageReportFetchOptions {
+	/** Which control spans the report: 'window' (default) or 'bucket'. */
+	readonly timeAxis?: UsageTimeAxis;
+	/** True when the event lens must narrow the FETCH, not just the chart — rows are not events. */
+	readonly lensNarrowsFetch?: boolean;
+}
+
 /**
  * The fetch every report runs. Call from a field initializer or constructor (it injects).
  *
- * Refetches when scope, window, bots or client change and never otherwise; the event lens
- * only moves the chart and the highlight, both derived from the same scope-wide answer.
- * Emits null (clearing the report) whenever the scope is unresolved or empty, so nothing
- * lingers under a scope it was not fetched with.
+ * Refetches when scope, the time span, bots or client change and never otherwise; by
+ * default the event lens only moves the chart and the highlight, both derived from the
+ * same scope-wide answer. Emits null (clearing the report) whenever the scope is
+ * unresolved or empty, so nothing lingers under a scope it was not fetched with.
  */
-export function useUsageReportFetch<T>(endpoint: string, failureMessage: string): UsageReportFetch<T> {
+export function useUsageReportFetch<T>(
+	endpoint: string,
+	failureMessage: string,
+	options: UsageReportFetchOptions = {},
+): UsageReportFetch<T> {
 	const http = inject(HttpClient);
 	const destroyRef = inject(DestroyRef);
 	const state = inject(UsageAnalysisStateService);
@@ -162,10 +203,19 @@ export function useUsageReportFetch<T>(endpoint: string, failureMessage: string)
 	const isLoading = signal(false);
 	const error = signal<string | null>(null);
 
+	const bucketed = options.timeAxis === 'bucket';
+
 	const fetchKey = computed<FetchKey | null>(() => {
 		if (!state.canQuery()) return null;
 		const q = state.query();
-		return { scope: q.scope, windowDays: q.windowDays, excludeBots: q.excludeBots, clientId: q.clientId };
+		return {
+			scope: q.scope,
+			windowDays: bucketed ? null : q.windowDays,
+			bucket: bucketed ? q.bucket : null,
+			excludeBots: q.excludeBots,
+			eventId: options.lensNarrowsFetch ? q.eventId : null,
+			clientId: q.clientId,
+		};
 	});
 
 	toObservable(fetchKey)
@@ -181,9 +231,10 @@ export function useUsageReportFetch<T>(endpoint: string, failureMessage: string)
 			switchMap(q => {
 				isLoading.set(true);
 				error.set(null);
-				const params: Record<string, string | number | boolean> = {
-					scope: q.scope, windowDays: q.windowDays, excludeBots: q.excludeBots,
-				};
+				const params: Record<string, string | number | boolean> = { scope: q.scope, excludeBots: q.excludeBots };
+				if (q.windowDays !== null) params['windowDays'] = q.windowDays;
+				if (q.bucket !== null) params['bucket'] = q.bucket;
+				if (q.eventId !== null) params['eventId'] = q.eventId;
 				if (q.clientId !== null) params['clientId'] = q.clientId;
 				return http.get<T>(`${environment.apiUrl}/usage-analysis/${endpoint}`, { params }).pipe(
 					catchError(err => {

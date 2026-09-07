@@ -71,4 +71,18 @@ public interface IUsageStatsRepository
         bool excludeBots,
         int? appClientId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Report 03: distinct (bucket, registration) pairs for signed-in requests about the
+    /// given jobs since <paramref name="since"/>, which MUST be aligned to the bucket
+    /// (midnight, a Monday, the 1st) -- the index is whole buckets from it. A registration
+    /// active in three buckets is three pairs; that is the point.
+    /// </summary>
+    Task<IReadOnlyList<UsageRegistrationByBucketDto>> GetDistinctRegistrationsByBucketAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        UsageBucket bucket,
+        bool excludeBots,
+        int? appClientId,
+        CancellationToken cancellationToken = default);
 }

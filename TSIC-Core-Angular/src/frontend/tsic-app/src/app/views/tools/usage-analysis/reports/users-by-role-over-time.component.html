@@ -1,0 +1,25 @@
+<app-usage-pivot-report
+	[isLoading]="fetch.isLoading()"
+	[error]="fetch.error()"
+	[isEmpty]="isEmpty()"
+	loadingMessage="Counting users…"
+	emptyMessage="No signed-in users in this span."
+	[tiles]="tiles()"
+	[columns]="columns()"
+	[rows]="rows()"
+	[rowsAreEvents]="false"
+	[rowHeader]="rowHeader()"
+	[chartTitle]="chartTitle()"
+	[chartSubtitle]="chartSubtitle()"
+	[chartSeries]="chartSeries()"
+	[primaryXAxis]="primaryXAxis()"
+	[primaryYAxis]="primaryYAxis()"
+	[legendSettings]="legendSettings"
+	[tooltip]="tooltip"
+	chartHeight="300px"
+	chartEmptyMessage="No signed-in users in the span.">
+	Report 01 asked once per bucket. A user is a registration that made at least one request about the
+	event in that day, week or month, and counts again in every other bucket it was active in — so the
+	buckets do not add up to report 01's total for the span. Someone holding two roles counts once under
+	each. The newest bucket is the current one, still filling.
+</app-usage-pivot-report>

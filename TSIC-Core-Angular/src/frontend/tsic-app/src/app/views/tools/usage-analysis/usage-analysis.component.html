@@ -73,14 +73,26 @@
 			</div>
 		}
 
-		<div class="ua-control">
-			<label class="ua-control-label" for="ua-window">Window</label>
-			<select id="ua-window" class="form-select form-select-sm ua-select ua-select--narrow" (change)="onWindowChange($event)">
-				@for (w of windows; track w.days) {
-					<option [value]="w.days" [selected]="state.windowDays() === w.days">{{ w.label }}</option>
-				}
-			</select>
-		</div>
+		@if (state.timeAxis() === 'bucket') {
+			<!-- A bucketed report: the bucket is its window. Each unit carries its own span. -->
+			<div class="ua-control">
+				<label class="ua-control-label" for="ua-bucket">Bucket</label>
+				<select id="ua-bucket" class="form-select form-select-sm ua-select" (change)="onBucketChange($event)">
+					@for (b of buckets; track b.bucket) {
+						<option [value]="b.bucket" [selected]="state.bucket() === b.bucket" [title]="b.span">{{ b.label }} · {{ b.span }}</option>
+					}
+				</select>
+			</div>
+		} @else {
+			<div class="ua-control">
+				<label class="ua-control-label" for="ua-window">Window</label>
+				<select id="ua-window" class="form-select form-select-sm ua-select ua-select--narrow" (change)="onWindowChange($event)">
+					@for (w of windows; track w.days) {
+						<option [value]="w.days" [selected]="state.windowDays() === w.days">{{ w.label }}</option>
+					}
+				</select>
+			</div>
+		}
 
 		<div class="ua-control">
 			<label class="ua-control-label" for="ua-bots">Bots</label>
@@ -135,7 +147,7 @@
 				<span class="ua-stamp-jobs">{{ state.clientLabel() }}</span>
 			}
 			<span class="ua-stamp-sep">·</span>
-			<span>{{ windowLabel() }}</span>
+			<span>{{ state.spanLabel() }}</span>
 			<span class="ua-stamp-sep">·</span>
 			<span>{{ state.excludeBots() ? 'bots hidden' : 'bots included' }}</span>
 		</div>
@@ -147,6 +159,9 @@
 			}
 			@case ('report-02') {
 				<app-usage-public-requests-by-route />
+			}
+			@case ('report-03') {
+				<app-usage-users-by-role-over-time />
 			}
 			@default {
 				<app-usage-report-debug [report]="activeReport()" />

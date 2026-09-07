@@ -5,10 +5,12 @@ import type { UsersByRoleDto } from '@core/api';
 import { UsageAnalysisStateService } from '../usage-analysis-state.service';
 import { UsagePivotReportComponent } from './usage-pivot-report.component';
 import {
+	DIRECTOR_ROLE,
 	allRowName,
 	categoryAxis,
 	chartRowFor,
 	countAxis,
+	orderRoles,
 	outerDataLabel,
 	resolveChartTheme,
 	resolvePalette,
@@ -16,21 +18,6 @@ import {
 	type UsagePivotRow,
 	type UsageTile,
 } from './usage-report-shared';
-
-/**
- * Every role by its exact name, in a FIXED order, so a role keeps its colour and its
- * column position in every chart, every window, and every later report: the customer's
- * people first, then the roles that run an event. No bucket — how much Directors are
- * using is vital information (Todd, 2026-09-06), and "Staff" is itself a role. Roles not
- * listed follow alphabetically.
- */
-const ROLE_ORDER: readonly string[] = [
-	'Family', 'Player', 'Staff', 'Club Rep', 'Unassigned Adult', 'Referee', 'Scorer', 'Recruiter', 'Guest',
-	'Director', 'SuperDirector', 'Superuser', 'Ref Assignor', 'Store Admin', 'STPAdmin', 'ApiAuthorized',
-];
-
-/** The role whose usage gets its own tile. Exact AspNetRoles name. */
-const DIRECTOR_ROLE = 'Director';
 
 /**
  * Report 01 — Users by Role. Distinct registrations that used the scoped live events in
@@ -60,12 +47,8 @@ export class UsersByRoleComponent {
 	readonly isEmpty = computed(() => (this.fetch.data()?.rows.length ?? 0) === 0);
 
 	/** Every role present anywhere in the scope, in ROLE_ORDER then alphabetical. */
-	readonly columns = computed<readonly string[]>(() => {
-		const present = new Set((this.fetch.data()?.rows ?? []).map(r => r.roleName));
-		const ordered = ROLE_ORDER.filter(r => present.has(r));
-		const rest = [...present].filter(r => !ROLE_ORDER.includes(r)).sort((a, b) => a.localeCompare(b));
-		return [...ordered, ...rest];
-	});
+	readonly columns = computed<readonly string[]>(() =>
+		orderRoles(new Set((this.fetch.data()?.rows ?? []).map(r => r.roleName))));
 
 	/** Every event in the answer, busiest first. */
 	readonly rows = computed<readonly UsagePivotRow[]>(() => {

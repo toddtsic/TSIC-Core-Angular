@@ -23,34 +23,32 @@
 		}
 	</div>
 
-	<!-- The chart follows the Event dropdown: one event, or the whole scope. The table is always the whole scope. -->
+	<!-- Rows are events: the chart follows the Event dropdown (one event, or the whole scope) and the
+	     table is always the whole scope. Rows are buckets: the chart draws the whole table. -->
 	<div class="ubr-chart">
-		@if (chartRow(); as row) {
-			<div class="ubr-chart-title">
-				{{ row.name }}
-				@if (chartSubtitle()) {
-					<span class="ubr-chart-sub">{{ chartSubtitle() }}</span>
-				}
-			</div>
-			@if (hasChart()) {
-				<ejs-chart
-					[primaryXAxis]="primaryXAxis()"
-					[primaryYAxis]="primaryYAxis()"
-					[series]="chartSeries()"
-					[tooltip]="tooltip()"
-					[legendSettings]="legendSettings()"
-					[chartArea]="chartArea"
-					[margin]="chartMargin()"
-					[width]="'100%'"
-					[height]="chartHeight()"
-					[background]="'transparent'">
-				</ejs-chart>
-			} @else {
-				<div class="ubr-chart-empty">{{ chartEmptyMessage() }}</div>
+		<div class="ubr-chart-title">
+			{{ chartHeading() }}
+			@if (chartSubtitle() && !lensIsEmpty()) {
+				<span class="ubr-chart-sub">{{ chartSubtitle() }}</span>
 			}
-		} @else {
-			<div class="ubr-chart-title">{{ state.eventLabel() }}</div>
+		</div>
+		@if (lensIsEmpty()) {
 			<div class="ubr-chart-empty">{{ lensEmptyMessage() }}</div>
+		} @else if (hasChart()) {
+			<ejs-chart
+				[primaryXAxis]="primaryXAxis()"
+				[primaryYAxis]="primaryYAxis()"
+				[series]="chartSeries()"
+				[tooltip]="tooltip()"
+				[legendSettings]="legendSettings()"
+				[chartArea]="chartArea"
+				[margin]="chartMargin()"
+				[width]="'100%'"
+				[height]="chartHeight()"
+				[background]="'transparent'">
+			</ejs-chart>
+		} @else {
+			<div class="ubr-chart-empty">{{ chartEmptyMessage() }}</div>
 		}
 	</div>
 
@@ -58,7 +56,7 @@
 		<table class="ubr-table">
 			<thead>
 				<tr>
-					<th scope="col">Event</th>
+					<th scope="col">{{ rowHeader() }}</th>
 					@for (col of columns(); track col) {
 						<th scope="col" class="ubr-num">{{ col }}</th>
 					}

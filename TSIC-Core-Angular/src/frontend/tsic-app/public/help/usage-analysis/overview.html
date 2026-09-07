@@ -30,6 +30,9 @@
 <h4>Window and bots</h4>
 <ul>
   <li><strong>24h / 7d / 30d</strong> — the time window every report covers.</li>
+  <li><strong>Bucket</strong> — stands in for Window while a report that shows change through time is on screen.
+    Daily covers the last 30 days, Weekly the last 12 weeks, Monthly the last 12 months; the bucket is the
+    window, so the two are never picked separately.</li>
   <li><strong>Event</strong> — shown at Customer and All TSIC scope: narrows every report to one live event
     in the scope, or <em>All events</em> for the whole set. A Director has one event and never sees it.</li>
   <li><strong>Client</strong> — narrows every report to one app: the web app, TSIC Teams, TSIC Events, or
@@ -63,4 +66,9 @@
     per event, grouped by the API route they hit, with failed requests (4xx / 5xx) counted apart so scanners and stale
     links never inflate the routes the public came for. Requests, not people: nothing in the log can turn an anonymous
     request into a visitor. Routes are the API endpoint, not the page, so one page fires several.</li>
+  <li><strong>03 · Users by Role over Time</strong> — report 01 asked once per day, week or month, so the answer is
+    a series instead of a number: one stacked column per bucket, height is people, segments are roles in the same
+    colours as 01, with the newest bucket still filling. The table beneath lists every bucket, newest first. A user
+    counts in every bucket they were active in, so the buckets do not add up to report 01's total for the span:
+    01 is distinct over the whole span, 03 is distinct per slice.</li>
 </ul>

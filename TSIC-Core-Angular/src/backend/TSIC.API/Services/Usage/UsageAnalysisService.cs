@@ -15,11 +15,16 @@ namespace TSIC.API.Services.Usage;
 /// </summary>
 public interface IUsageAnalysisService
 {
-    /// <summary>Which clients have rows in the scope/window -- what the client lens may offer.</summary>
+    /// <summary>
+    /// Which clients have rows in the scope/window -- what the client lens may offer. With a
+    /// <paramref name="bucket"/> the window is that bucket's span (report 03), so the facet
+    /// covers exactly what the bucketed report covers.
+    /// </summary>
     Task<UsageClientsDto> GetClientsAsync(
         UsageScopeResolution scope,
         int windowDays,
         bool excludeBots,
+        UsageBucket? bucket,
         CancellationToken ct = default);
 
     Task<UsersByRoleDto> GetUsersByRoleAsync(
@@ -33,6 +38,14 @@ public interface IUsageAnalysisService
     Task<PublicRequestsByRouteDto> GetPublicRequestsByRouteAsync(
         UsageScopeResolution scope,
         int windowDays,
+        bool excludeBots,
+        int? appClientId,
+        CancellationToken ct = default);
+
+    /// <summary>Report 03: report 01's count once per bucket over the bucket's span. A registration counts in every bucket it was active in.</summary>
+    Task<UsersByRoleOverTimeDto> GetUsersByRoleOverTimeAsync(
+        UsageScopeResolution scope,
+        UsageBucket bucket,
         bool excludeBots,
         int? appClientId,
         CancellationToken ct = default);
@@ -59,13 +72,18 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
         UsageScopeResolution scope,
         int windowDays,
         bool excludeBots,
+        UsageBucket? bucket,
         CancellationToken ct = default)
     {
+        // A bucketed report's window is its span, so the facet is stamped with the days that span actually covers.
+        var since = bucket is UsageBucket b ? UsageBuckets.SinceFor(b, DateTime.Now) : Since(windowDays);
+        var days = bucket is null ? windowDays : (int)Math.Ceiling((DateTime.Now - since).TotalDays);
+
         if (!_usageRepo.IsAvailable)
         {
             return new UsageClientsDto
             {
-                WindowDays = windowDays,
+                WindowDays = days,
                 BotsExcluded = excludeBots,
                 JobCount = scope.Jobs.Count,
                 Clients = [],
@@ -73,10 +91,10 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
             };
         }
 
-        var clients = await _usageRepo.GetClientsPresentAsync(scope.JobIds, Since(windowDays), excludeBots, ct);
+        var clients = await _usageRepo.GetClientsPresentAsync(scope.GetJobIds(), since, excludeBots, ct);
         return new UsageClientsDto
         {
-            WindowDays = windowDays,
+            WindowDays = days,
             BotsExcluded = excludeBots,
             JobCount = scope.Jobs.Count,
             Clients = clients.OrderByDescending(c => c.Requests).ThenBy(c => c.AppClientName).ToList(),
@@ -98,19 +116,12 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
         // Bots are almost never signed in, but the toggle is honoured everywhere so the
         // audit stamp is never a lie.
         var pairs = await _usageRepo.GetDistinctRegistrationsByJobAsync(
-            scope.JobIds, Since(windowDays), excludeBots, appClientId, ct);
+            scope.GetJobIds(), Since(windowDays), excludeBots, appClientId, ct);
         if (pairs.Count == 0)
             return Empty(scope, windowDays, excludeBots, available: true);
 
-        // Step 2 (TSICV5): which role each registration holds. A registration id the
-        // application no longer knows (deleted since the request) simply drops out.
-        var regIds = pairs.Select(p => p.RegistrationId).Distinct().ToList();
-        var roleByReg = new Dictionary<Guid, UsageRegistrationRoleDto>(regIds.Count);
-        foreach (var chunk in regIds.Chunk(LookupBatchSize))
-        {
-            foreach (var r in await _registrationRepo.GetRolesByRegistrationIdsAsync(chunk, ct))
-                roleByReg[r.RegistrationId] = r;
-        }
+        // Step 2 (TSICV5): which role each registration holds.
+        var roleByReg = await LookupRolesAsync(pairs.Select(p => p.RegistrationId), ct);
 
         var jobNames = scope.Jobs.ToDictionary(j => j.JobId, j => j.JobName);
 
@@ -170,7 +181,7 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
         CancellationToken ct = default)
     {
         var counts = _usageRepo.IsAvailable
-            ? await _usageRepo.GetAnonymousRequestsByRouteAsync(scope.JobIds, Since(windowDays), excludeBots, appClientId, ct)
+            ? await _usageRepo.GetAnonymousRequestsByRouteAsync(scope.GetJobIds(), Since(windowDays), excludeBots, appClientId, ct)
             : [];
 
         var jobNames = scope.Jobs.ToDictionary(j => j.JobId, j => j.JobName);
@@ -208,6 +219,66 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
             FailedRequests = rows.Sum(r => r.FailedRequests),
             UsageLoggingAvailable = _usageRepo.IsAvailable,
         };
+    }
+
+    public async Task<UsersByRoleOverTimeDto> GetUsersByRoleOverTimeAsync(
+        UsageScopeResolution scope,
+        UsageBucket bucket,
+        bool excludeBots,
+        int? appClientId,
+        CancellationToken ct = default)
+    {
+        var since = UsageBuckets.SinceFor(bucket, DateTime.Now);
+        var starts = UsageBuckets.Starts(bucket, since);
+
+        // Step 1 (TSICLogs): who, in which bucket -- distinct (bucket, registration) pairs.
+        // Event and client lenses are already inside `scope` / `appClientId`; rows need no job key.
+        var pairs = _usageRepo.IsAvailable
+            ? await _usageRepo.GetDistinctRegistrationsByBucketAsync(scope.GetJobIds(), since, bucket, excludeBots, appClientId, ct)
+            : [];
+
+        // Step 2 (TSICV5): which role each registration holds.
+        var roleByReg = await LookupRolesAsync(pairs.Select(p => p.RegistrationId), ct);
+
+        var rows = pairs
+            .Where(p => roleByReg.ContainsKey(p.RegistrationId) && p.BucketIndex >= 0 && p.BucketIndex < starts.Count)
+            .Select(p => new { p.BucketIndex, p.RegistrationId, Role = roleByReg[p.RegistrationId] })
+            .GroupBy(x => new { x.BucketIndex, x.Role.RoleId, x.Role.RoleName })
+            .Select(g => new UsersByRoleBucketRowDto
+            {
+                BucketStart = starts[g.Key.BucketIndex],
+                RoleName = g.Key.RoleName,
+                Users = g.Select(x => x.RegistrationId).Distinct().Count(),
+                IsAdmin = AdminRoleIds.Contains(g.Key.RoleId),
+            })
+            .ToList();
+
+        return new UsersByRoleOverTimeDto
+        {
+            Bucket = UsageBuckets.ToWord(bucket),
+            Since = since,
+            Buckets = starts,
+            BotsExcluded = excludeBots,
+            JobCount = scope.Jobs.Count,
+            Rows = rows,
+            UsageLoggingAvailable = _usageRepo.IsAvailable,
+        };
+    }
+
+    /// <summary>
+    /// TSICV5: the role each registration holds, in slices. A registration id the
+    /// application no longer knows (deleted since the request) is simply absent.
+    /// </summary>
+    private async Task<Dictionary<Guid, UsageRegistrationRoleDto>> LookupRolesAsync(IEnumerable<Guid> registrationIds, CancellationToken ct)
+    {
+        var regIds = registrationIds.Distinct().ToList();
+        var roleByReg = new Dictionary<Guid, UsageRegistrationRoleDto>(regIds.Count);
+        foreach (var chunk in regIds.Chunk(LookupBatchSize))
+        {
+            foreach (var r in await _registrationRepo.GetRolesByRegistrationIdsAsync(chunk, ct))
+                roleByReg[r.RegistrationId] = r;
+        }
+        return roleByReg;
     }
 
     /// <summary>Server-local, like OccurredAt. UtcNow would shift the window by the AZ offset.</summary>

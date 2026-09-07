@@ -33,10 +33,28 @@ export const USAGE_WINDOWS = [
 	{ days: 30, label: '30d' },
 ] as const;
 
+/**
+ * The time unit a bucketed report groups by. The wire word the server parses. A bucket is
+ * the grouping AND the window (Todd, 2026-09-07): the server owns each bucket's span, and
+ * the description here only says it out loud in the dropdown.
+ */
+export type UsageBucket = 'day' | 'week' | 'month';
+
+export const USAGE_BUCKETS: readonly { readonly bucket: UsageBucket; readonly label: string; readonly span: string }[] = [
+	{ bucket: 'day',   label: 'Daily',   span: 'last 30 days' },
+	{ bucket: 'week',  label: 'Weekly',  span: 'last 12 weeks' },
+	{ bucket: 'month', label: 'Monthly', span: 'last 12 months' },
+];
+
+/** Which control sets a report's time span: the Window dropdown, or the Bucket dropdown that stands in for it. */
+export type UsageTimeAxis = 'window' | 'bucket';
+
 /** The parameters every report fetches with. Changing any of them invalidates every report. */
 export interface UsageQuery {
 	readonly scope: UsageScope;
 	readonly windowDays: number;
+	/** The bucket a bucketed report groups by. Ignored by reports on the window axis. */
+	readonly bucket: UsageBucket;
 	readonly excludeBots: boolean;
 	/** The event lens: one live job id inside the scope, or null for all of them. */
 	readonly eventId: string | null;
@@ -53,6 +71,8 @@ export interface UsageReportDef {
 	readonly roles: readonly string[];
 	/** False for a reserved slot with no report behind it yet. Hidden from the dropdown; the key stays reserved. */
 	readonly built: boolean;
+	/** 'bucket' swaps the Window dropdown for the Bucket dropdown while the report is on screen. */
+	readonly timeAxis: UsageTimeAxis;
 }
 
 const ALL_ADMINS = [Roles.Superuser, Roles.SuperDirector, Roles.Director] as const;
@@ -65,10 +85,10 @@ const SUPERUSER = [Roles.Superuser] as const;
  * numbering never shifts: four for a Director, five for a SuperDirector, six for a Superuser.
  */
 export const USAGE_REPORTS: readonly UsageReportDef[] = [
-	{ key: 'report-01', label: '01 · Users by Role', roles: ALL_ADMINS, built: true },
-	{ key: 'report-02', label: '02 · Public Requests by Route', roles: ALL_ADMINS, built: true },
-	{ key: 'report-03', label: 'Report-03', roles: ALL_ADMINS, built: false },
-	{ key: 'report-04', label: 'Report-04', roles: ALL_ADMINS, built: false },
-	{ key: 'report-05', label: 'Report-05', roles: CROSS_JOB, built: false },
-	{ key: 'report-06', label: 'Report-06', roles: SUPERUSER, built: false },
+	{ key: 'report-01', label: '01 · Users by Role', roles: ALL_ADMINS, built: true, timeAxis: 'window' },
+	{ key: 'report-02', label: '02 · Public Requests by Route', roles: ALL_ADMINS, built: true, timeAxis: 'window' },
+	{ key: 'report-03', label: '03 · Users by Role over Time', roles: ALL_ADMINS, built: true, timeAxis: 'bucket' },
+	{ key: 'report-04', label: 'Report-04', roles: ALL_ADMINS, built: false, timeAxis: 'window' },
+	{ key: 'report-05', label: 'Report-05', roles: CROSS_JOB, built: false, timeAxis: 'window' },
+	{ key: 'report-06', label: 'Report-06', roles: SUPERUSER, built: false, timeAxis: 'window' },
 ];

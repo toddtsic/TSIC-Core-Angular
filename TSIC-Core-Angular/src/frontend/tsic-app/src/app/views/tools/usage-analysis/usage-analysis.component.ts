@@ -1,21 +1,24 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject } from '@angular/core';
 
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { AdminNavPillComponent } from '@shared-ui/components/admin-nav-pill.component';
 import { UsageAnalysisStateService } from './usage-analysis-state.service';
-import { USAGE_WINDOWS, type UsageReportKey, type UsageScope } from './usage-analysis.models';
+import { USAGE_BUCKETS, USAGE_WINDOWS, type UsageBucket, type UsageReportKey, type UsageScope } from './usage-analysis.models';
 import { UsageReportDebugComponent } from './reports/usage-report-debug.component';
 import { UsersByRoleComponent } from './reports/users-by-role.component';
 import { PublicRequestsByRouteComponent } from './reports/public-requests-by-route.component';
+import { UsersByRoleOverTimeComponent } from './reports/users-by-role-over-time.component';
 
 /**
  * Usage Analysis — the drill behind the UsageStatsPerJob widget's glance.
  *
- * SCAFFOLD. The shell owns the dropdowns (report, scope, event lens, client lens, window, bots) and the audit
- * stamp; every report is a dummy slot rendered by the debug component. To claim one,
- * add a case for its key in the template with a real report component that injects
- * UsageAnalysisStateService and fetches from `query()`.
+ * The shell owns the dropdowns (report, scope, event lens, client lens, window OR bucket,
+ * bots) and the audit stamp; an unclaimed slot is rendered by the debug component. To
+ * claim one, add a case for its key in the template with a real report component that
+ * injects UsageAnalysisStateService and fetches from `query()`. A report on the bucket
+ * axis (03) swaps the Window dropdown for the Bucket dropdown while it is on screen: the
+ * bucket is its window.
  *
  * Rules the shell encodes:
  *  - Scope is a WORD sent to the server; the job set is resolved from the token and
@@ -28,7 +31,7 @@ import { PublicRequestsByRouteComponent } from './reports/public-requests-by-rou
 @Component({
 	selector: 'app-usage-analysis',
 	standalone: true,
-	imports: [AdminNavPillComponent, UsageReportDebugComponent, UsersByRoleComponent, PublicRequestsByRouteComponent],
+	imports: [AdminNavPillComponent, UsageReportDebugComponent, UsersByRoleComponent, PublicRequestsByRouteComponent, UsersByRoleOverTimeComponent],
 	providers: [UsageAnalysisStateService],
 	templateUrl: './usage-analysis.component.html',
 	styleUrl: './usage-analysis.component.scss',
@@ -40,6 +43,7 @@ export class UsageAnalysisComponent implements OnInit {
 	private readonly pulseService = inject(JobPulseService);
 
 	readonly windows = USAGE_WINDOWS;
+	readonly buckets = USAGE_BUCKETS;
 
 	/** Reciprocal of the widget's link out. Same pulse gate as the other dashboard doors. */
 	readonly showDashboardLink = computed(() =>
@@ -48,16 +52,7 @@ export class UsageAnalysisComponent implements OnInit {
 	readonly dashboardLink = computed(() =>
 		['/', this.auth.currentUser()?.jobPath ?? '', 'dashboard']);
 
-	private readonly requestedReport = signal<UsageReportKey>('report-01');
-
-	/** The requested report if this role has it, else the first slot — never an empty pane. */
-	readonly activeReport = computed(() => {
-		const reports = this.state.reports();
-		return reports.find(r => r.key === this.requestedReport()) ?? reports[0];
-	});
-
-	readonly windowLabel = computed(() =>
-		this.state.windowDays() === 1 ? '24h' : `${this.state.windowDays()}d`);
+	readonly activeReport = this.state.activeReport;
 
 	ngOnInit(): void {
 		this.state.loadScope();
@@ -67,7 +62,11 @@ export class UsageAnalysisComponent implements OnInit {
 	// construction, so the casts narrow what the DOM already guarantees.
 
 	onReportChange(event: Event): void {
-		this.requestedReport.set(selected(event) as UsageReportKey);
+		this.state.setReport(selected(event) as UsageReportKey);
+	}
+
+	onBucketChange(event: Event): void {
+		this.state.setBucket(selected(event) as UsageBucket);
 	}
 
 	onScopeChange(event: Event): void {

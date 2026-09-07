@@ -9,19 +9,27 @@ import { AuthService } from '@infrastructure/services/auth.service';
 import { Roles } from '@infrastructure/constants/roles.constants';
 import type { UsageAnalysisScopeDto, UsageClientFacetDto, UsageClientsDto } from '@core/api';
 import {
+	USAGE_BUCKETS,
 	USAGE_SCOPE_OPTIONS,
 	USAGE_SCOPE_ORDER,
 	USAGE_REPORTS,
+	type UsageBucket,
 	type UsageQuery,
+	type UsageReportKey,
 	type UsageScope,
 	type UsageScopeOption,
 	type UsageReportDef,
 } from './usage-analysis.models';
 
-/** Everything the client facet depends on: the query minus the client itself. */
+/**
+ * Everything the client facet depends on: the query minus the client itself. The time
+ * span is the window OR the bucket, whichever the report on screen runs on, so the facet
+ * covers exactly what that report covers.
+ */
 interface FacetQuery {
 	readonly scope: UsageScope;
-	readonly windowDays: number;
+	readonly windowDays: number | null;
+	readonly bucket: UsageBucket | null;
 	readonly excludeBots: boolean;
 	readonly eventId: string | null;
 }
@@ -62,6 +70,17 @@ export class UsageAnalysisStateService {
 	readonly reports = computed<readonly UsageReportDef[]>(() =>
 		USAGE_REPORTS.filter(t => t.built && t.roles.includes(this.role())));
 
+	private readonly requestedReport = signal<UsageReportKey>('report-01');
+
+	/** The requested report if this role has it, else the first slot — never an empty pane. */
+	readonly activeReport = computed<UsageReportDef>(() => {
+		const reports = this.reports();
+		return reports.find(r => r.key === this.requestedReport()) ?? reports[0];
+	});
+
+	/** Whether the report on screen spans by the Window dropdown or by the Bucket dropdown. */
+	readonly timeAxis = computed(() => this.activeReport().timeAxis);
+
 	/**
 	 * Every role lands on the BROADEST scope it may hold (Todd, 2026-09-06): Superuser on
 	 * All TSIC, SuperDirector on Customer, Director on This event. Narrower is one pick
@@ -74,6 +93,9 @@ export class UsageAnalysisStateService {
 	});
 
 	readonly windowDays = signal<number>(7);
+
+	/** The bucket a bucketed report groups by. Daily first: the only unit with more than a few bars until the log ages. */
+	readonly bucket = signal<UsageBucket>('day');
 	readonly excludeBots = signal(true);
 
 	/**
@@ -96,6 +118,7 @@ export class UsageAnalysisStateService {
 	readonly query = computed<UsageQuery>(() => ({
 		scope: this.scope(),
 		windowDays: this.windowDays(),
+		bucket: this.bucket(),
 		excludeBots: this.excludeBots(),
 		eventId: this.eventId(),
 		clientId: this.clientId(),
@@ -109,6 +132,15 @@ export class UsageAnalysisStateService {
 
 	readonly scopeLabel = computed(() =>
 		USAGE_SCOPE_OPTIONS.find(o => o.scope === this.scope())?.label ?? this.scope());
+
+	/** The stamp's time span: the window, or the bucket and the span it carries. */
+	readonly spanLabel = computed(() => {
+		if (this.timeAxis() === 'bucket') {
+			const b = USAGE_BUCKETS.find(o => o.bucket === this.bucket());
+			return b ? `${b.label.toLowerCase()} · ${b.span}` : this.bucket();
+		}
+		return this.windowDays() === 1 ? '24h' : `${this.windowDays()}d`;
+	});
 
 	readonly jobCount = computed(() => this.scopeInfo()?.jobs.length ?? 0);
 
@@ -162,7 +194,14 @@ export class UsageAnalysisStateService {
 	private readonly facetQuery = computed<FacetQuery | null>(() => {
 		if (!this.canQuery()) return null;
 		const q = this.query();
-		return { scope: q.scope, windowDays: q.windowDays, excludeBots: q.excludeBots, eventId: q.eventId };
+		const bucketed = this.timeAxis() === 'bucket';
+		return {
+			scope: q.scope,
+			windowDays: bucketed ? null : q.windowDays,
+			bucket: bucketed ? q.bucket : null,
+			excludeBots: q.excludeBots,
+			eventId: q.eventId,
+		};
 	});
 
 	constructor() {
@@ -178,9 +217,9 @@ export class UsageAnalysisStateService {
 						return of(null);
 					}
 					const q = JSON.parse(key) as FacetQuery;
-					const params: Record<string, string | number | boolean> = {
-						scope: q.scope, windowDays: q.windowDays, excludeBots: q.excludeBots,
-					};
+					const params: Record<string, string | number | boolean> = { scope: q.scope, excludeBots: q.excludeBots };
+					if (q.windowDays !== null) params['windowDays'] = q.windowDays;
+					if (q.bucket !== null) params['bucket'] = q.bucket;
 					if (q.eventId) params['eventId'] = q.eventId;
 					this.isLoadingClients.set(true);
 					return this.http.get<UsageClientsDto>(`${this.apiUrl}/clients`, { params })
@@ -238,8 +277,16 @@ export class UsageAnalysisStateService {
 		this.clientId.set(appClientId);
 	}
 
+	setReport(key: UsageReportKey): void {
+		this.requestedReport.set(key);
+	}
+
 	setWindow(days: number): void {
 		this.windowDays.set(days);
+	}
+
+	setBucket(bucket: UsageBucket): void {
+		this.bucket.set(bucket);
 	}
 
 	setBots(exclude: boolean): void {

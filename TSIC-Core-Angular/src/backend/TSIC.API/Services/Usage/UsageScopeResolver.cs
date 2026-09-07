@@ -31,7 +31,7 @@ public enum UsageScopeFailure
 }
 
 /// <summary>
-/// The job set a usage-analysis query runs against. <see cref="JobIds"/> is what the
+/// The job set a usage-analysis query runs against. <see cref="GetJobIds"/> is what the
 /// TSICLogs query filters on; <see cref="Jobs"/> is the same set with names, for the page.
 /// </summary>
 public sealed record UsageScopeResolution
@@ -46,7 +46,8 @@ public sealed record UsageScopeResolution
 
     public required IReadOnlyList<UsageAnalysisJobDto> Jobs { get; init; }
 
-    public IReadOnlyList<Guid> JobIds => Jobs.Select(j => j.JobId).ToList();
+    /// <summary>The <see cref="Jobs"/> ids -- what the TSICLogs query filters on.</summary>
+    public IReadOnlyList<Guid> GetJobIds() => [.. Jobs.Select(j => j.JobId)];
 }
 
 public sealed record UsageScopeResult

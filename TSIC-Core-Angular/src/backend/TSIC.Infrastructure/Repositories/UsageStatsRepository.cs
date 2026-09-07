@@ -139,6 +139,44 @@ public class UsageStatsRepository : IUsageStatsRepository
             })
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<UsageRegistrationByBucketDto>> GetDistinctRegistrationsByBucketAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        UsageBucket bucket,
+        bool excludeBots,
+        int? appClientId,
+        CancellationToken cancellationToken = default)
+    {
+        if (jobIds.Count == 0)
+            return [];
+
+        var query = _context.AppUsage
+            .AsNoTracking()
+            .Where(u => u.OccurredAt >= since && u.RegId != null && jobIds.Contains(u.JobId));
+
+        if (excludeBots)
+            query = query.Where(u => !u.IsBot);
+
+        if (appClientId is int client)
+            query = query.Where(u => u.AppClientId == client);
+
+        // DATEDIFF counts unit BOUNDARIES crossed from `since`, so with `since` aligned to
+        // the unit the result is the whole-bucket index. Weeks divide days by 7 rather than
+        // use DATEDIFF(week), whose boundary is Sunday regardless of DATEFIRST.
+        var indexed = bucket switch
+        {
+            UsageBucket.Day => query.Select(u => new { Index = EF.Functions.DateDiffDay(since, u.OccurredAt), RegId = u.RegId!.Value }),
+            UsageBucket.Week => query.Select(u => new { Index = EF.Functions.DateDiffDay(since, u.OccurredAt) / 7, RegId = u.RegId!.Value }),
+            UsageBucket.Month => query.Select(u => new { Index = EF.Functions.DateDiffMonth(since, u.OccurredAt), RegId = u.RegId!.Value }),
+            _ => throw new ArgumentOutOfRangeException(nameof(bucket)),
+        };
+
+        return await indexed
+            .Distinct()
+            .Select(x => new UsageRegistrationByBucketDto { BucketIndex = x.Index, RegistrationId = x.RegId })
+            .ToListAsync(cancellationToken);
+    }
 }
 
 /// <summary>
@@ -181,4 +219,13 @@ public class UnavailableUsageStatsRepository : IUsageStatsRepository
         int? appClientId,
         CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<UsageRouteCountDto>>([]);
+
+    public Task<IReadOnlyList<UsageRegistrationByBucketDto>> GetDistinctRegistrationsByBucketAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        UsageBucket bucket,
+        bool excludeBots,
+        int? appClientId,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<UsageRegistrationByBucketDto>>([]);
 }
