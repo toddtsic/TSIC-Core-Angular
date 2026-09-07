@@ -5,7 +5,6 @@
 import type { UsageClientFacetDto } from './UsageClientFacetDto';
 export type UsageClientsDto = {
     windowDays: number;
-    botsExcluded: boolean;
     jobCount: number;
     clients: Array<UsageClientFacetDto>;
     usageLoggingAvailable: boolean;

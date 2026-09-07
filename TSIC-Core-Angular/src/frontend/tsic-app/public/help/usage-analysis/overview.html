@@ -35,17 +35,19 @@
     window, so the two are never picked separately.</li>
   <li><strong>Event</strong> — shown at Customer and All TSIC scope: narrows every report to one live event
     in the scope, or <em>All events</em> for the whole set. A Director has one event and never sees it.</li>
-  <li><strong>Client</strong> — narrows every report to one app: the web app, TSIC Teams, TSIC Events, or
-    <em>unknown</em> (an app build that does not identify itself). Only clients that actually have activity in
-    the current selection are offered; if the one you chose drops out, the choice returns to All clients.</li>
-  <li><strong>Bots hidden / included</strong> — automated traffic (crawlers, monitors) is excluded by default.
-    Include it when you are looking at load rather than people.</li>
+  <li><strong>Client</strong> — narrows every report to one app: the web app, TSIC Teams or TSIC Events. Only
+    clients that actually have activity in the current selection are offered; if the one you chose drops out,
+    the choice returns to All clients. Requests from a build that does not identify itself count under
+    All clients and cannot be picked out.</li>
+  <li><strong>What is counted at all</strong> — only requests from TSIC's own apps, driven by people. A request
+    with no recognisable app tag, or from a caller that announces itself as a crawler or a script, is never
+    recorded here. Usage analysis describes how clients use the system, not how machines interrogate it.</li>
 </ul>
 
 <h4>Reading it well</h4>
 <ul>
   <li>The banner under the controls states exactly what the numbers on screen were fetched with — scope, how
-    many live events that is, window, and whether bots are in. Hover the event count to see which events.</li>
+    many live events that is, and the window or bucket. Hover the event count to see which events.</li>
   <li>Counts are <em>API requests</em>, not page views. One screen in the app may make several.</li>
   <li><strong>Anonymous</strong> means the request carried no signed-in user — public schedules, rosters and
     event browsing. It is not a count of distinct visitors; nothing in the data can identify one.</li>

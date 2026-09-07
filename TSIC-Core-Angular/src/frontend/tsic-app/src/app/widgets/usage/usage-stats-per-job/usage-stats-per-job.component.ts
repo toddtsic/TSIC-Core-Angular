@@ -50,7 +50,6 @@ export class UsageStatsPerJobComponent implements OnInit {
 
 	readonly windows = WINDOWS;
 	readonly windowDays = signal<number>(7);
-	readonly excludeBots = signal(true);
 
 	// Resolved eagerly so the chart never receives post-init property changes.
 	readonly primaryColor = signal(cssVar('--bs-primary', '#0d6efd'));
@@ -163,11 +162,6 @@ export class UsageStatsPerJobComponent implements OnInit {
 		this.load();
 	}
 
-	toggleBots(): void {
-		this.excludeBots.set(!this.excludeBots());
-		this.load();
-	}
-
 	/**
 	 * Explicit callback, never an effect(): the load is an action taken in response to
 	 * a user choice, not a derivation of state.
@@ -176,7 +170,7 @@ export class UsageStatsPerJobComponent implements OnInit {
 		this.isLoading.set(true);
 		this.hasError.set(false);
 
-		this.svc.getUsageStatsPerJob(this.windowDays(), this.excludeBots()).subscribe({
+		this.svc.getUsageStatsPerJob(this.windowDays()).subscribe({
 			next: (d) => {
 				this.data.set(d);
 				this.isLoading.set(false);

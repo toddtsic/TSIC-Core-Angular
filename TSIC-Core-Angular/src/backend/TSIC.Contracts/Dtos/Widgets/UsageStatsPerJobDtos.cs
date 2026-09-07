@@ -42,9 +42,6 @@ public record UsageStatsPerJobDto
     /// <summary>Days of history the window covers.</summary>
     public required int WindowDays { get; init; }
 
-    /// <summary>Whether bot traffic was excluded from these numbers.</summary>
-    public required bool BotsExcluded { get; init; }
-
     /// <summary>Requests across ALL jobs in scope, including those not shown as rows.</summary>
     public required int TotalRequests { get; init; }
 

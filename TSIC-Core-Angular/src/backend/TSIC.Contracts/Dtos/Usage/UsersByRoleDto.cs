@@ -23,8 +23,6 @@ public record UsersByRoleDto
 {
     public required int WindowDays { get; init; }
 
-    public required bool BotsExcluded { get; init; }
-
     /// <summary>Live events the numbers cover -- the resolved scope (after any event lens), restated for the audit stamp.</summary>
     public required int JobCount { get; init; }
 

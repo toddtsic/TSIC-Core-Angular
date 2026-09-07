@@ -13,6 +13,12 @@ namespace TSIC.Contracts.Repositories;
 /// </summary>
 public interface IUsageStatsRepository
 {
+    // ADMISSION RULE (Todd, 2026-09-07). This table records how OUR CLIENTS use the
+    // system. Every query here counts only rows with a recognised client tag and a
+    // User-Agent that did not declare itself a machine -- the same test the writer now
+    // applies before a row exists. Rows from before the rule stay as evidence and are
+    // excluded by the same test. There is no switch: bots and untagged traffic are Seq's.
+
     /// <summary>
     /// True when TSICLogs is actually configured on this box. False means LogsConnection
     /// was absent at startup, so there is no context to query -- callers should report
@@ -34,7 +40,6 @@ public interface IUsageStatsRepository
     /// </summary>
     Task<IReadOnlyList<JobUsageAggregateDto>> GetUsageByJobAsync(
         DateTime since,
-        bool excludeBots,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -46,7 +51,6 @@ public interface IUsageStatsRepository
     Task<IReadOnlyList<UsageRegistrationByJobDto>> GetDistinctRegistrationsByJobAsync(
         IReadOnlyList<Guid> jobIds,
         DateTime since,
-        bool excludeBots,
         int? appClientId,
         CancellationToken cancellationToken = default);
 
@@ -58,7 +62,6 @@ public interface IUsageStatsRepository
     Task<IReadOnlyList<UsageClientFacetDto>> GetClientsPresentAsync(
         IReadOnlyList<Guid> jobIds,
         DateTime since,
-        bool excludeBots,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -68,7 +71,6 @@ public interface IUsageStatsRepository
     Task<IReadOnlyList<UsageRouteCountDto>> GetAnonymousRequestsByRouteAsync(
         IReadOnlyList<Guid> jobIds,
         DateTime since,
-        bool excludeBots,
         int? appClientId,
         CancellationToken cancellationToken = default);
 
@@ -82,7 +84,6 @@ public interface IUsageStatsRepository
         IReadOnlyList<Guid> jobIds,
         DateTime since,
         UsageBucket bucket,
-        bool excludeBots,
         int? appClientId,
         CancellationToken cancellationToken = default);
 }

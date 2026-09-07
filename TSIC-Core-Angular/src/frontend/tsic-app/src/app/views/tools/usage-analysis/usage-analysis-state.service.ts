@@ -30,7 +30,6 @@ interface FacetQuery {
 	readonly scope: UsageScope;
 	readonly windowDays: number | null;
 	readonly bucket: UsageBucket | null;
-	readonly excludeBots: boolean;
 	readonly eventId: string | null;
 }
 
@@ -96,7 +95,6 @@ export class UsageAnalysisStateService {
 
 	/** The bucket a bucketed report groups by. Daily first: the only unit with more than a few bars until the log ages. */
 	readonly bucket = signal<UsageBucket>('day');
-	readonly excludeBots = signal(true);
 
 	/**
 	 * The event lens. Null = every live event in the scope, which is where every role
@@ -119,7 +117,6 @@ export class UsageAnalysisStateService {
 		scope: this.scope(),
 		windowDays: this.windowDays(),
 		bucket: this.bucket(),
-		excludeBots: this.excludeBots(),
 		eventId: this.eventId(),
 		clientId: this.clientId(),
 	}));
@@ -199,7 +196,6 @@ export class UsageAnalysisStateService {
 			scope: q.scope,
 			windowDays: bucketed ? null : q.windowDays,
 			bucket: bucketed ? q.bucket : null,
-			excludeBots: q.excludeBots,
 			eventId: q.eventId,
 		};
 	});
@@ -217,7 +213,7 @@ export class UsageAnalysisStateService {
 						return of(null);
 					}
 					const q = JSON.parse(key) as FacetQuery;
-					const params: Record<string, string | number | boolean> = { scope: q.scope, excludeBots: q.excludeBots };
+					const params: Record<string, string | number | boolean> = { scope: q.scope };
 					if (q.windowDays !== null) params['windowDays'] = q.windowDays;
 					if (q.bucket !== null) params['bucket'] = q.bucket;
 					if (q.eventId) params['eventId'] = q.eventId;
@@ -287,9 +283,5 @@ export class UsageAnalysisStateService {
 
 	setBucket(bucket: UsageBucket): void {
 		this.bucket.set(bucket);
-	}
-
-	setBots(exclude: boolean): void {
-		this.excludeBots.set(exclude);
 	}
 }

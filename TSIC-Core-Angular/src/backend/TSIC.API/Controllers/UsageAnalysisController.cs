@@ -80,7 +80,6 @@ public class UsageAnalysisController : ControllerBase
     public async Task<ActionResult<UsageClientsDto>> GetClients(
         [FromQuery] string? scope,
         [FromQuery] int windowDays = 7,
-        [FromQuery] bool excludeBots = true,
         [FromQuery] Guid? eventId = null,
         [FromQuery] string? bucket = null,
         CancellationToken ct = default)
@@ -90,7 +89,7 @@ public class UsageAnalysisController : ControllerBase
 
         // A bucket word (a bucketed report is on screen) makes the facet cover that bucket's span instead of the window.
         var days = Math.Clamp(windowDays, 1, 365);
-        return Ok(await _reports.GetClientsAsync(resolution!, days, excludeBots, UsageBuckets.Parse(bucket), ct));
+        return Ok(await _reports.GetClientsAsync(resolution!, days, UsageBuckets.Parse(bucket), ct));
     }
 
     /// <summary>
@@ -102,7 +101,6 @@ public class UsageAnalysisController : ControllerBase
     public async Task<ActionResult<UsersByRoleDto>> GetUsersByRole(
         [FromQuery] string? scope,
         [FromQuery] int windowDays = 7,
-        [FromQuery] bool excludeBots = true,
         [FromQuery] Guid? eventId = null,
         [FromQuery] int? clientId = null,
         CancellationToken ct = default)
@@ -111,7 +109,7 @@ public class UsageAnalysisController : ControllerBase
         if (failure is not null) return failure;
 
         var days = Math.Clamp(windowDays, 1, 365);
-        return Ok(await _reports.GetUsersByRoleAsync(resolution!, days, excludeBots, clientId, ct));
+        return Ok(await _reports.GetUsersByRoleAsync(resolution!, days, clientId, ct));
     }
 
     /// <summary>
@@ -124,7 +122,6 @@ public class UsageAnalysisController : ControllerBase
     public async Task<ActionResult<PublicRequestsByRouteDto>> GetPublicRequestsByRoute(
         [FromQuery] string? scope,
         [FromQuery] int windowDays = 7,
-        [FromQuery] bool excludeBots = true,
         [FromQuery] Guid? eventId = null,
         [FromQuery] int? clientId = null,
         CancellationToken ct = default)
@@ -133,7 +130,7 @@ public class UsageAnalysisController : ControllerBase
         if (failure is not null) return failure;
 
         var days = Math.Clamp(windowDays, 1, 365);
-        return Ok(await _reports.GetPublicRequestsByRouteAsync(resolution!, days, excludeBots, clientId, ct));
+        return Ok(await _reports.GetPublicRequestsByRouteAsync(resolution!, days, clientId, ct));
     }
 
     /// <summary>
@@ -146,7 +143,6 @@ public class UsageAnalysisController : ControllerBase
     public async Task<ActionResult<UsersByRoleOverTimeDto>> GetUsersByRoleOverTime(
         [FromQuery] string? scope,
         [FromQuery] string? bucket = null,
-        [FromQuery] bool excludeBots = true,
         [FromQuery] Guid? eventId = null,
         [FromQuery] int? clientId = null,
         CancellationToken ct = default)
@@ -155,7 +151,7 @@ public class UsageAnalysisController : ControllerBase
         if (failure is not null) return failure;
 
         var unit = UsageBuckets.Parse(bucket) ?? UsageBucket.Day;
-        return Ok(await _reports.GetUsersByRoleOverTimeAsync(resolution!, unit, excludeBots, clientId, ct));
+        return Ok(await _reports.GetUsersByRoleOverTimeAsync(resolution!, unit, clientId, ct));
     }
 
     /// <summary>Resolve scope + event lens for a report, or the ActionResult that refuses it.</summary>

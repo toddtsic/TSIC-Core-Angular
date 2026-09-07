@@ -38,8 +38,6 @@ public record UsersByRoleOverTimeDto
     /// <summary>Every bucket start in the span, oldest first, including buckets with no rows. The x axis.</summary>
     public required List<DateTime> Buckets { get; init; }
 
-    public required bool BotsExcluded { get; init; }
-
     /// <summary>Live events the numbers cover -- the resolved scope (after any event lens), restated for the audit stamp.</summary>
     public required int JobCount { get; init; }
 

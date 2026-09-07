@@ -7,7 +7,6 @@ export type UsersByRoleOverTimeDto = {
     bucket: string;
     since: string;
     buckets: Array<string>;
-    botsExcluded: boolean;
     jobCount: number;
     rows: Array<UsersByRoleBucketRowDto>;
     usageLoggingAvailable: boolean;

@@ -23,14 +23,12 @@ public interface IUsageAnalysisService
     Task<UsageClientsDto> GetClientsAsync(
         UsageScopeResolution scope,
         int windowDays,
-        bool excludeBots,
         UsageBucket? bucket,
         CancellationToken ct = default);
 
     Task<UsersByRoleDto> GetUsersByRoleAsync(
         UsageScopeResolution scope,
         int windowDays,
-        bool excludeBots,
         int? appClientId,
         CancellationToken ct = default);
 
@@ -38,7 +36,6 @@ public interface IUsageAnalysisService
     Task<PublicRequestsByRouteDto> GetPublicRequestsByRouteAsync(
         UsageScopeResolution scope,
         int windowDays,
-        bool excludeBots,
         int? appClientId,
         CancellationToken ct = default);
 
@@ -46,7 +43,6 @@ public interface IUsageAnalysisService
     Task<UsersByRoleOverTimeDto> GetUsersByRoleOverTimeAsync(
         UsageScopeResolution scope,
         UsageBucket bucket,
-        bool excludeBots,
         int? appClientId,
         CancellationToken ct = default);
 }
@@ -71,7 +67,6 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
     public async Task<UsageClientsDto> GetClientsAsync(
         UsageScopeResolution scope,
         int windowDays,
-        bool excludeBots,
         UsageBucket? bucket,
         CancellationToken ct = default)
     {
@@ -84,18 +79,16 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
             return new UsageClientsDto
             {
                 WindowDays = days,
-                BotsExcluded = excludeBots,
                 JobCount = scope.Jobs.Count,
                 Clients = [],
                 UsageLoggingAvailable = false,
             };
         }
 
-        var clients = await _usageRepo.GetClientsPresentAsync(scope.GetJobIds(), since, excludeBots, ct);
+        var clients = await _usageRepo.GetClientsPresentAsync(scope.GetJobIds(), since, ct);
         return new UsageClientsDto
         {
             WindowDays = days,
-            BotsExcluded = excludeBots,
             JobCount = scope.Jobs.Count,
             Clients = clients.OrderByDescending(c => c.Requests).ThenBy(c => c.AppClientName).ToList(),
             UsageLoggingAvailable = true,
@@ -105,20 +98,17 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
     public async Task<UsersByRoleDto> GetUsersByRoleAsync(
         UsageScopeResolution scope,
         int windowDays,
-        bool excludeBots,
         int? appClientId,
         CancellationToken ct = default)
     {
         if (!_usageRepo.IsAvailable)
-            return Empty(scope, windowDays, excludeBots, available: false);
+            return Empty(scope, windowDays, available: false);
 
         // Step 1 (TSICLogs): who, about which event -- distinct (event, registration) pairs.
-        // Bots are almost never signed in, but the toggle is honoured everywhere so the
-        // audit stamp is never a lie.
         var pairs = await _usageRepo.GetDistinctRegistrationsByJobAsync(
-            scope.GetJobIds(), Since(windowDays), excludeBots, appClientId, ct);
+            scope.GetJobIds(), Since(windowDays), appClientId, ct);
         if (pairs.Count == 0)
-            return Empty(scope, windowDays, excludeBots, available: true);
+            return Empty(scope, windowDays, available: true);
 
         // Step 2 (TSICV5): which role each registration holds.
         var roleByReg = await LookupRolesAsync(pairs.Select(p => p.RegistrationId), ct);
@@ -162,7 +152,6 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
         return new UsersByRoleDto
         {
             WindowDays = windowDays,
-            BotsExcluded = excludeBots,
             JobCount = scope.Jobs.Count,
             Rows = rows,
             Totals = totals,
@@ -176,12 +165,11 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
     public async Task<PublicRequestsByRouteDto> GetPublicRequestsByRouteAsync(
         UsageScopeResolution scope,
         int windowDays,
-        bool excludeBots,
         int? appClientId,
         CancellationToken ct = default)
     {
         var counts = _usageRepo.IsAvailable
-            ? await _usageRepo.GetAnonymousRequestsByRouteAsync(scope.GetJobIds(), Since(windowDays), excludeBots, appClientId, ct)
+            ? await _usageRepo.GetAnonymousRequestsByRouteAsync(scope.GetJobIds(), Since(windowDays), appClientId, ct)
             : [];
 
         var jobNames = scope.Jobs.ToDictionary(j => j.JobId, j => j.JobName);
@@ -211,7 +199,6 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
         return new PublicRequestsByRouteDto
         {
             WindowDays = windowDays,
-            BotsExcluded = excludeBots,
             JobCount = scope.Jobs.Count,
             Rows = rows,
             Totals = totals,
@@ -224,7 +211,6 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
     public async Task<UsersByRoleOverTimeDto> GetUsersByRoleOverTimeAsync(
         UsageScopeResolution scope,
         UsageBucket bucket,
-        bool excludeBots,
         int? appClientId,
         CancellationToken ct = default)
     {
@@ -234,7 +220,7 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
         // Step 1 (TSICLogs): who, in which bucket -- distinct (bucket, registration) pairs.
         // Event and client lenses are already inside `scope` / `appClientId`; rows need no job key.
         var pairs = _usageRepo.IsAvailable
-            ? await _usageRepo.GetDistinctRegistrationsByBucketAsync(scope.GetJobIds(), since, bucket, excludeBots, appClientId, ct)
+            ? await _usageRepo.GetDistinctRegistrationsByBucketAsync(scope.GetJobIds(), since, bucket, appClientId, ct)
             : [];
 
         // Step 2 (TSICV5): which role each registration holds.
@@ -258,7 +244,6 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
             Bucket = UsageBuckets.ToWord(bucket),
             Since = since,
             Buckets = starts,
-            BotsExcluded = excludeBots,
             JobCount = scope.Jobs.Count,
             Rows = rows,
             UsageLoggingAvailable = _usageRepo.IsAvailable,
@@ -284,10 +269,9 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
     /// <summary>Server-local, like OccurredAt. UtcNow would shift the window by the AZ offset.</summary>
     private static DateTime Since(int windowDays) => DateTime.Now.AddDays(-windowDays);
 
-    private static UsersByRoleDto Empty(UsageScopeResolution scope, int windowDays, bool excludeBots, bool available) => new()
+    private static UsersByRoleDto Empty(UsageScopeResolution scope, int windowDays, bool available) => new()
     {
         WindowDays = windowDays,
-        BotsExcluded = excludeBots,
         JobCount = scope.Jobs.Count,
         Rows = [],
         Totals = [],

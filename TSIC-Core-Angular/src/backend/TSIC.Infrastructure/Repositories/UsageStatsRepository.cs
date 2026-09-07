@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos.Usage;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.LogEntities;
 using TSIC.Infrastructure.Data.LogsDbContext;
 
 namespace TSIC.Infrastructure.Repositories;
@@ -8,9 +9,17 @@ namespace TSIC.Infrastructure.Repositories;
 /// <summary>
 /// Queries logs.AppUsage in TSICLogs. Registered only when LogsConnection is present;
 /// see UnavailableUsageStatsRepository for the other case.
+///
+/// Every query starts from <see cref="Admitted"/>: rows with a recognised client tag whose
+/// User-Agent did not declare itself a machine. The writer applies the same test before a
+/// row exists (Todd, 2026-09-07: the table records how our clients use the system, not how
+/// machines interrogate it); rows written before that rule stay as evidence and fall out here.
 /// </summary>
 public class UsageStatsRepository : IUsageStatsRepository
 {
+    /// <summary>logs.AppClients id 0: no recognised client tag on the request.</summary>
+    private const int AppClientUnknown = 0;
+
     private readonly LogsDbContext _context;
 
     public UsageStatsRepository(LogsDbContext context)
@@ -20,17 +29,18 @@ public class UsageStatsRepository : IUsageStatsRepository
 
     public bool IsAvailable => true;
 
+    /// <summary>The admission rule as a query: our clients, driven by people.</summary>
+    private IQueryable<AppUsage> Admitted() =>
+        _context.AppUsage
+            .AsNoTracking()
+            .Where(u => u.AppClientId != AppClientUnknown && !u.IsBot);
+
     public async Task<IReadOnlyList<JobUsageAggregateDto>> GetUsageByJobAsync(
         DateTime since,
-        bool excludeBots,
         CancellationToken cancellationToken = default)
     {
-        var query = _context.AppUsage
-            .AsNoTracking()
+        var query = Admitted()
             .Where(u => u.OccurredAt >= since && u.JobId != Guid.Empty);
-
-        if (excludeBots)
-            query = query.Where(u => !u.IsBot);
 
         // One grouped pass. SignedInRequests counts rows carrying a UserId; anonymous is
         // left to the caller as Total - SignedIn so the two cannot disagree.
@@ -54,19 +64,14 @@ public class UsageStatsRepository : IUsageStatsRepository
     public async Task<IReadOnlyList<UsageRegistrationByJobDto>> GetDistinctRegistrationsByJobAsync(
         IReadOnlyList<Guid> jobIds,
         DateTime since,
-        bool excludeBots,
         int? appClientId,
         CancellationToken cancellationToken = default)
     {
         if (jobIds.Count == 0)
             return [];
 
-        var query = _context.AppUsage
-            .AsNoTracking()
+        var query = Admitted()
             .Where(u => u.OccurredAt >= since && u.RegId != null && jobIds.Contains(u.JobId));
-
-        if (excludeBots)
-            query = query.Where(u => !u.IsBot);
 
         if (appClientId is int client)
             query = query.Where(u => u.AppClientId == client);
@@ -81,20 +86,13 @@ public class UsageStatsRepository : IUsageStatsRepository
     public async Task<IReadOnlyList<UsageClientFacetDto>> GetClientsPresentAsync(
         IReadOnlyList<Guid> jobIds,
         DateTime since,
-        bool excludeBots,
         CancellationToken cancellationToken = default)
     {
         if (jobIds.Count == 0)
             return [];
 
-        var query = _context.AppUsage
-            .AsNoTracking()
-            .Where(u => u.OccurredAt >= since && jobIds.Contains(u.JobId));
-
-        if (excludeBots)
-            query = query.Where(u => !u.IsBot);
-
-        return await query
+        return await Admitted()
+            .Where(u => u.OccurredAt >= since && jobIds.Contains(u.JobId))
             .GroupBy(u => new { u.AppClientId, u.AppClient.AppClientName })
             .Select(g => new UsageClientFacetDto
             {
@@ -108,7 +106,6 @@ public class UsageStatsRepository : IUsageStatsRepository
     public async Task<IReadOnlyList<UsageRouteCountDto>> GetAnonymousRequestsByRouteAsync(
         IReadOnlyList<Guid> jobIds,
         DateTime since,
-        bool excludeBots,
         int? appClientId,
         CancellationToken cancellationToken = default)
     {
@@ -117,12 +114,8 @@ public class UsageStatsRepository : IUsageStatsRepository
 
         // Anonymous = no registration on the request. A registered user browsing before
         // sign-in is anonymous here too; that is the definition, not a gap.
-        var query = _context.AppUsage
-            .AsNoTracking()
+        var query = Admitted()
             .Where(u => u.OccurredAt >= since && jobIds.Contains(u.JobId) && u.RegId == null);
-
-        if (excludeBots)
-            query = query.Where(u => !u.IsBot);
 
         if (appClientId is not null)
             query = query.Where(u => u.AppClientId == appClientId.Value);
@@ -144,19 +137,14 @@ public class UsageStatsRepository : IUsageStatsRepository
         IReadOnlyList<Guid> jobIds,
         DateTime since,
         UsageBucket bucket,
-        bool excludeBots,
         int? appClientId,
         CancellationToken cancellationToken = default)
     {
         if (jobIds.Count == 0)
             return [];
 
-        var query = _context.AppUsage
-            .AsNoTracking()
+        var query = Admitted()
             .Where(u => u.OccurredAt >= since && u.RegId != null && jobIds.Contains(u.JobId));
-
-        if (excludeBots)
-            query = query.Where(u => !u.IsBot);
 
         if (appClientId is int client)
             query = query.Where(u => u.AppClientId == client);
@@ -193,14 +181,12 @@ public class UnavailableUsageStatsRepository : IUsageStatsRepository
 
     public Task<IReadOnlyList<JobUsageAggregateDto>> GetUsageByJobAsync(
         DateTime since,
-        bool excludeBots,
         CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<JobUsageAggregateDto>>([]);
 
     public Task<IReadOnlyList<UsageRegistrationByJobDto>> GetDistinctRegistrationsByJobAsync(
         IReadOnlyList<Guid> jobIds,
         DateTime since,
-        bool excludeBots,
         int? appClientId,
         CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<UsageRegistrationByJobDto>>([]);
@@ -208,14 +194,12 @@ public class UnavailableUsageStatsRepository : IUsageStatsRepository
     public Task<IReadOnlyList<UsageClientFacetDto>> GetClientsPresentAsync(
         IReadOnlyList<Guid> jobIds,
         DateTime since,
-        bool excludeBots,
         CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<UsageClientFacetDto>>([]);
 
     public Task<IReadOnlyList<UsageRouteCountDto>> GetAnonymousRequestsByRouteAsync(
         IReadOnlyList<Guid> jobIds,
         DateTime since,
-        bool excludeBots,
         int? appClientId,
         CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<UsageRouteCountDto>>([]);
@@ -224,7 +208,6 @@ public class UnavailableUsageStatsRepository : IUsageStatsRepository
         IReadOnlyList<Guid> jobIds,
         DateTime since,
         UsageBucket bucket,
-        bool excludeBots,
         int? appClientId,
         CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<UsageRegistrationByBucketDto>>([]);

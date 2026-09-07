@@ -104,7 +104,6 @@ public interface IWidgetDashboardService
     Task<UsageStatsPerJobDto> GetUsageStatsPerJobAsync(
         Guid currentJobId,
         int windowDays,
-        bool excludeBots,
         int topN,
         CancellationToken ct = default);
 

@@ -55,7 +55,6 @@ export interface UsageQuery {
 	readonly windowDays: number;
 	/** The bucket a bucketed report groups by. Ignored by reports on the window axis. */
 	readonly bucket: UsageBucket;
-	readonly excludeBots: boolean;
 	/** The event lens: one live job id inside the scope, or null for all of them. */
 	readonly eventId: string | null;
 	/** The client lens: a logs.AppClients id offered by the facet, or null for every client. */

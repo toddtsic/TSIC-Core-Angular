@@ -65,12 +65,10 @@ export class WidgetDashboardService {
 	 */
 	getUsageStatsPerJob(
 		windowDays = 7,
-		excludeBots = true,
 		topN = 12,
 	): Observable<UsageStatsPerJobDto> {
 		const params = new HttpParams()
 			.set('windowDays', windowDays)
-			.set('excludeBots', excludeBots)
 			.set('topN', topN);
 
 		return this.http.get<UsageStatsPerJobDto>(

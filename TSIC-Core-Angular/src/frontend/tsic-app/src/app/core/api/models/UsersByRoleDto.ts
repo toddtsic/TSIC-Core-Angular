@@ -6,7 +6,6 @@ import type { UsersByRoleRowDto } from './UsersByRoleRowDto';
 import type { UsersByRoleTotalDto } from './UsersByRoleTotalDto';
 export type UsersByRoleDto = {
     windowDays: number;
-    botsExcluded: boolean;
     jobCount: number;
     rows: Array<UsersByRoleRowDto>;
     customerUsers: number;

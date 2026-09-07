@@ -6,7 +6,6 @@ import type { UsageStatsPerJobRowDto } from './UsageStatsPerJobRowDto';
 export type UsageStatsPerJobDto = {
     rows: Array<UsageStatsPerJobRowDto>;
     windowDays: number;
-    botsExcluded: boolean;
     totalRequests: number;
     totalJobs: number;
     otherJobCount: number;

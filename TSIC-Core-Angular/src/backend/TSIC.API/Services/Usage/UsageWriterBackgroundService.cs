@@ -97,6 +97,8 @@ public sealed class UsageWriterBackgroundService : BackgroundService
     private readonly Stopwatch _sinceHeartbeat = Stopwatch.StartNew();
 
     private long _written;
+    /// <summary>Captures refused by the admission rule (no recognised client tag, or a self-declared machine). Never rows.</summary>
+    private long _refused;
     private long _batches;
     private long _failedBatches;
 
@@ -165,8 +167,9 @@ public sealed class UsageWriterBackgroundService : BackgroundService
 
             try
             {
-                await FlushAsync(batch, connectionString, stoppingToken).ConfigureAwait(false);
-                _written += batch.Count;
+                var written = await FlushAsync(batch, connectionString, stoppingToken).ConfigureAwait(false);
+                _written += written;
+                _refused += batch.Count - written;
             }
             catch (Exception ex)
             {
@@ -184,9 +187,9 @@ public sealed class UsageWriterBackgroundService : BackgroundService
         }
 
         _logger.LogInformation(
-            "UsageWriterBackgroundService stopped. Rows written={Written}, dropped={Dropped}, " +
+            "UsageWriterBackgroundService stopped. Rows written={Written}, refused={Refused}, dropped={Dropped}, " +
             "batches={Batches}, failedBatches={FailedBatches}.",
-            _written, _queue.DroppedCount, _batches, _failedBatches);
+            _written, _refused, _queue.DroppedCount, _batches, _failedBatches);
     }
 
     private async Task LingerAsync(List<UsageCapture> batch, CancellationToken stoppingToken)
@@ -251,12 +254,13 @@ public sealed class UsageWriterBackgroundService : BackgroundService
 
         _logger.LogInformation(
             "Usage writer alive: {Rows} row(s) in {Batches} batch(es) over the last {Minutes:0}m " +
-            "(failed={Failed}; totals written={TotalWritten}, dropped={TotalDropped}).",
+            "(failed={Failed}; totals written={TotalWritten}, refused={TotalRefused}, dropped={TotalDropped}).",
             _written - _heartbeatWritten,
             _batches - _heartbeatBatches,
             _sinceHeartbeat.Elapsed.TotalMinutes,
             _failedBatches - _heartbeatFailed,
             _written,
+            _refused,
             _queue.DroppedCount);
 
         _heartbeatWritten = _written;
@@ -279,7 +283,8 @@ public sealed class UsageWriterBackgroundService : BackgroundService
 
     // ── Enrichment ────────────────────────────────────────────────────────────
 
-    private async Task FlushAsync(
+    /// <summary>Enriches and bulk-writes one batch. Returns the rows actually written: captures the admission rule refused are not rows.</summary>
+    private async Task<int> FlushAsync(
         List<UsageCapture> batch,
         string connectionString,
         CancellationToken cancellationToken)
@@ -292,6 +297,8 @@ public sealed class UsageWriterBackgroundService : BackgroundService
         var jobIds = await ResolveJobIdsAsync(batch, cancellationToken).ConfigureAwait(false);
 
         using var table = BuildTable(batch, jobIds, registrations);
+        if (table.Rows.Count == 0)
+            return 0;
 
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -319,6 +326,7 @@ public sealed class UsageWriterBackgroundService : BackgroundService
             bulk.ColumnMappings.Add(column.ColumnName, column.ColumnName);
 
         await bulk.WriteToServerAsync(table, cancellationToken).ConfigureAwait(false);
+        return table.Rows.Count;
     }
 
     /// <summary>
@@ -427,6 +435,16 @@ public sealed class UsageWriterBackgroundService : BackgroundService
                 UsageClassifier.ParseClientTag(row.ClientTag);
             var (isBot, browserId, deviceClassId) =
                 UsageClassifier.ClassifyUserAgent(row.UserAgent);
+
+            // ADMISSION RULE (Todd, 2026-09-07): TSICLogs records how OUR CLIENTS use the
+            // system, not how machines interrogate it. A request is written only if it
+            // carries a client tag we recognise AND its User-Agent does not declare itself
+            // a machine. Untagged traffic (a build older than the tag, a script, a direct
+            // hit) and self-declared crawlers are Seq's business -- Seq keeps the
+            // User-Agent, this table deliberately does not. Rows written before this rule
+            // stay as evidence; the readers exclude them with the same test.
+            if (appClientId == UsageClassifier.AppClientUnknown || isBot)
+                continue;
 
             // Guid.Empty is the fact table's explicit "no job context" member, not a
             // null and not a missing row. An unresolvable path lands here the same way

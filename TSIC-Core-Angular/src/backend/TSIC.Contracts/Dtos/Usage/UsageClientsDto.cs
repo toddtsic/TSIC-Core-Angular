@@ -6,15 +6,13 @@ namespace TSIC.Contracts.Dtos.Usage;
 /// it is here -- a dropdown of clients with no data would let the stamp name a client
 /// that contributed nothing.
 ///
-/// Names are the log's own (logs.AppClients): tsic-web, tsic-teams, tsic-events,
-/// unknown. "unknown" is real data -- the App Store Events build sends no client tag --
-/// and stays offered when present.
+/// Names are the log's own (logs.AppClients): tsic-web, tsic-teams, tsic-events. Client 0
+/// ("unknown": a build that sent no X-Client) is never offered (Todd, 2026-09-07); its
+/// rows still count under All clients.
 /// </summary>
 public record UsageClientsDto
 {
     public required int WindowDays { get; init; }
-
-    public required bool BotsExcluded { get; init; }
 
     /// <summary>Live events the facet covers -- the resolved scope after any event lens.</summary>
     public required int JobCount { get; init; }

@@ -13,8 +13,8 @@ import { UsersByRoleOverTimeComponent } from './reports/users-by-role-over-time.
 /**
  * Usage Analysis — the drill behind the UsageStatsPerJob widget's glance.
  *
- * The shell owns the dropdowns (report, scope, event lens, client lens, window OR bucket,
- * bots) and the audit stamp; an unclaimed slot is rendered by the debug component. To
+ * The shell owns the dropdowns (report, scope, event lens, client lens, window OR bucket)
+ * and the audit stamp; an unclaimed slot is rendered by the debug component. To
  * claim one, add a case for its key in the template with a real report component that
  * injects UsageAnalysisStateService and fetches from `query()`. A report on the bucket
  * axis (03) swaps the Window dropdown for the Bucket dropdown while it is on screen: the
@@ -84,10 +84,6 @@ export class UsageAnalysisComponent implements OnInit {
 
 	onWindowChange(event: Event): void {
 		this.state.setWindow(Number(selected(event)));
-	}
-
-	onBotsChange(event: Event): void {
-		this.state.setBots(selected(event) === 'hidden');
 	}
 }
 

@@ -295,7 +295,6 @@ public class WidgetDashboardController : ControllerBase
     public async Task<ActionResult<UsageStatsPerJobDto>> GetUsageStatsPerJob(
         CancellationToken ct,
         [FromQuery] int windowDays = 7,
-        [FromQuery] bool excludeBots = true,
         [FromQuery] int topN = 12)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
@@ -309,7 +308,7 @@ public class WidgetDashboardController : ControllerBase
         topN = Math.Clamp(topN, 1, 50);
 
         var result = await _dashboardService.GetUsageStatsPerJobAsync(
-            jobId.Value, windowDays, excludeBots, topN, ct);
+            jobId.Value, windowDays, topN, ct);
 
         return Ok(result);
     }

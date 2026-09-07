@@ -47,9 +47,6 @@ import { USAGE_SCOPE_OPTIONS, type UsageReportDef } from '../usage-analysis.mode
 				<dt>Window</dt>
 				<dd>{{ state.windowDays() }} {{ state.windowDays() === 1 ? 'day' : 'days' }}</dd>
 
-				<dt>Bots</dt>
-				<dd>{{ state.excludeBots() ? 'hidden (excludeBots=true)' : 'included (excludeBots=false)' }}</dd>
-
 				<dt>Would call</dt>
 				<dd><code>{{ url() }}</code></dd>
 			</dl>
@@ -148,6 +145,6 @@ export class UsageReportDebugComponent {
 		const q = this.state.query();
 		const lens = (q.eventId ? `&eventId=${q.eventId}` : '') + (q.clientId !== null ? `&clientId=${q.clientId}` : '');
 		return `GET ${environment.apiUrl}/usage-analysis/${this.report().key}`
-			+ `?scope=${q.scope}&windowDays=${q.windowDays}&excludeBots=${q.excludeBots}${lens}`;
+			+ `?scope=${q.scope}&windowDays=${q.windowDays}${lens}`;
 	});
 }

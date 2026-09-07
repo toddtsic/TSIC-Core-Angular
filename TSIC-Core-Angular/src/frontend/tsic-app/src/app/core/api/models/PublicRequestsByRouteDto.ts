@@ -6,7 +6,6 @@ import type { PublicRouteRowDto } from './PublicRouteRowDto';
 import type { PublicRouteTotalDto } from './PublicRouteTotalDto';
 export type PublicRequestsByRouteDto = {
     windowDays: number;
-    botsExcluded: boolean;
     jobCount: number;
     rows: Array<PublicRouteRowDto>;
     totals: Array<PublicRouteTotalDto>;

@@ -164,7 +164,6 @@ interface FetchKey {
 	readonly scope: string;
 	readonly windowDays: number | null;
 	readonly bucket: UsageBucket | null;
-	readonly excludeBots: boolean;
 	readonly eventId: string | null;
 	readonly clientId: number | null;
 }
@@ -212,7 +211,6 @@ export function useUsageReportFetch<T>(
 			scope: q.scope,
 			windowDays: bucketed ? null : q.windowDays,
 			bucket: bucketed ? q.bucket : null,
-			excludeBots: q.excludeBots,
 			eventId: options.lensNarrowsFetch ? q.eventId : null,
 			clientId: q.clientId,
 		};
@@ -231,7 +229,7 @@ export function useUsageReportFetch<T>(
 			switchMap(q => {
 				isLoading.set(true);
 				error.set(null);
-				const params: Record<string, string | number | boolean> = { scope: q.scope, excludeBots: q.excludeBots };
+				const params: Record<string, string | number | boolean> = { scope: q.scope };
 				if (q.windowDays !== null) params['windowDays'] = q.windowDays;
 				if (q.bucket !== null) params['bucket'] = q.bucket;
 				if (q.eventId !== null) params['eventId'] = q.eventId;
