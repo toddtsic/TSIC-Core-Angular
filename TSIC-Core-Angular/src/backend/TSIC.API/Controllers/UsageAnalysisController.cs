@@ -112,6 +112,28 @@ public class UsageAnalysisController : ControllerBase
         return Ok(await _reports.GetUsersByRoleAsync(resolution!, days, excludeBots, clientId, ct));
     }
 
+    /// <summary>
+    /// Report 02 -- Public Requests by Route. Anonymous requests (no registration on the
+    /// request) against the scoped live events in the window, per event, grouped by the
+    /// API route they hit, split into succeeded and failed. Requests, not people: nothing
+    /// in the log can turn an anonymous request into a visitor.
+    /// </summary>
+    [HttpGet("public-requests-by-route")]
+    public async Task<ActionResult<PublicRequestsByRouteDto>> GetPublicRequestsByRoute(
+        [FromQuery] string? scope,
+        [FromQuery] int windowDays = 7,
+        [FromQuery] bool excludeBots = true,
+        [FromQuery] Guid? eventId = null,
+        [FromQuery] int? clientId = null,
+        CancellationToken ct = default)
+    {
+        var (failure, resolution) = await ResolveForReportAsync(scope, eventId, ct);
+        if (failure is not null) return failure;
+
+        var days = Math.Clamp(windowDays, 1, 365);
+        return Ok(await _reports.GetPublicRequestsByRouteAsync(resolution!, days, excludeBots, clientId, ct));
+    }
+
     /// <summary>Resolve scope + event lens for a report, or the ActionResult that refuses it.</summary>
     private async Task<(ActionResult? Failure, UsageScopeResolution? Resolution)> ResolveForReportAsync(
         string? scope, Guid? eventId, CancellationToken ct)

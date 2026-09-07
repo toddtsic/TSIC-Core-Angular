@@ -1,119 +1,23 @@
-@if (isLoading()) {
-	<div class="ubr-state" role="status">
-		<div class="spinner-border spinner-border-sm"></div>
-		<span>Counting users…</span>
-	</div>
-} @else if (error()) {
-	<div class="ubr-state ubr-state--error" role="alert">
-		<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
-		<span>{{ error() }}</span>
-	</div>
-} @else if (data(); as d) {
-	@if (d.rows.length === 0) {
-		<div class="ubr-state">
-			<i class="bi bi-person-slash" aria-hidden="true"></i>
-			<span>No signed-in users in this window.</span>
-		</div>
-	} @else {
-		<div class="ubr-tiles">
-			<div class="ubr-tile ubr-tile--primary">
-				<div class="ubr-tile-value">{{ totalPeople().toLocaleString() }}</div>
-				<div class="ubr-tile-label">People using {{ eventWord() }}</div>
-			</div>
-			<div class="ubr-tile">
-				<div class="ubr-tile-value">{{ directors().toLocaleString() }}</div>
-				<div class="ubr-tile-label">Directors using {{ eventWord() }}</div>
-			</div>
-		</div>
-
-		<!-- The chart follows the Event dropdown: one event, or the whole scope rolled up.
-		     The table below is always the whole scope. -->
-		<div class="ubr-chart">
-			@if (chartTarget(); as t) {
-				<div class="ubr-chart-title">
-					{{ t.label }}
-					@if (isRollup() && canDrill()) {
-						<span class="ubr-chart-sub">counted by registration — a registration is per event, so a user in two events counts in each</span>
-					}
-				</div>
-				@if (chartRoles().length > 0) {
-					<ejs-chart
-						[primaryXAxis]="primaryXAxis()"
-						[primaryYAxis]="primaryYAxis()"
-						[series]="chartSeries()"
-						[tooltip]="tooltipSettings"
-						[legendSettings]="legendSettings()"
-						[chartArea]="chartArea"
-						[margin]="margin"
-						[width]="'100%'"
-						[height]="'280px'"
-						[background]="'transparent'">
-					</ejs-chart>
-				} @else {
-					<div class="ubr-chart-empty">
-						No users in the window.
-					</div>
-				}
-			} @else {
-				<div class="ubr-chart-title">{{ state.eventLabel() }}</div>
-				<div class="ubr-chart-empty">
-					No signed-in users of this event in the window. Pick another event above, or a row below.
-				</div>
-			}
-		</div>
-
-		<div class="ubr-table-wrap">
-			<table class="ubr-table">
-				<thead>
-					<tr>
-						<th scope="col">Event</th>
-						@for (role of roles(); track role) {
-							<th scope="col" class="ubr-num">{{ role }}</th>
-						}
-						<th scope="col" class="ubr-num ubr-total">Total</th>
-					</tr>
-				</thead>
-				<tbody>
-					@if (showAllRow() && allRow(); as all) {
-						<tr class="ubr-row--all" [class.ubr-row--current]="isRollup()">
-							<td class="ubr-event">
-								@if (isRollup()) {
-									<i class="bi bi-caret-right-fill ubr-row-marker" aria-hidden="true"></i>
-								}
-								<button type="button" class="ubr-event-btn" (click)="state.setEvent(null)" title="Chart every live event rolled up">{{ all.jobName }}</button>
-							</td>
-							@for (role of roles(); track role) {
-								<td class="ubr-num">{{ cell(all, role) === 0 ? '·' : cell(all, role).toLocaleString() }}</td>
-							}
-							<td class="ubr-num ubr-total">{{ all.total.toLocaleString() }}</td>
-						</tr>
-					}
-					@for (e of events(); track e.jobId) {
-						<tr [class.ubr-row--current]="isHighlighted(e)">
-							<td class="ubr-event">
-								@if (isHighlighted(e)) {
-									<i class="bi bi-caret-right-fill ubr-row-marker" aria-hidden="true"></i>
-								}
-								@if (canDrill()) {
-									<button type="button" class="ubr-event-btn" (click)="state.setEvent(e.jobId)" [title]="'Chart ' + e.jobName">{{ e.jobName }}</button>
-								} @else {
-									{{ e.jobName }}
-								}
-							</td>
-							@for (role of roles(); track role) {
-								<td class="ubr-num">{{ cell(e, role) === 0 ? '·' : cell(e, role).toLocaleString() }}</td>
-							}
-							<td class="ubr-num ubr-total">{{ e.total.toLocaleString() }}</td>
-						</tr>
-					}
-				</tbody>
-			</table>
-		</div>
-
-		<p class="ubr-note">
-			A user is a registration that made at least one request about the event in the window. Someone
-			holding two roles counts once under each. Public visitors who never sign in are not people this
-			data can count and are not included.
-		</p>
-	}
-}
+<app-usage-pivot-report
+	[isLoading]="fetch.isLoading()"
+	[error]="fetch.error()"
+	[isEmpty]="isEmpty()"
+	loadingMessage="Counting users…"
+	emptyMessage="No signed-in users in this window."
+	[tiles]="tiles()"
+	[columns]="columns()"
+	[rows]="rows()"
+	[allRow]="allRow()"
+	[chartRow]="chartRow()"
+	[chartSubtitle]="chartSubtitle()"
+	[chartSeries]="chartSeries()"
+	[primaryXAxis]="primaryXAxis()"
+	[primaryYAxis]="primaryYAxis()"
+	[legendSettings]="legendSettings"
+	[tooltip]="tooltip"
+	chartEmptyMessage="No signed-in users in the window."
+	lensEmptyMessage="No signed-in users of this event in the window. Pick another event above, or a row below.">
+	A user is a registration that made at least one request about the event in the window. Someone
+	holding two roles counts once under each. Public visitors who never sign in are not people this
+	data can count; what they asked for is report 02.
+</app-usage-pivot-report>

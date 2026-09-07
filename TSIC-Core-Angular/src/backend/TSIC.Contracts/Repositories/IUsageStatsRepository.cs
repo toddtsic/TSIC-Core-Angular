@@ -60,4 +60,15 @@ public interface IUsageStatsRepository
         DateTime since,
         bool excludeBots,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Report 02: anonymous requests (RegId null) per (job, controller, action) in the window,
+    /// split into succeeded (status below 400) and failed. Requests are counted, never people.
+    /// </summary>
+    Task<IReadOnlyList<UsageRouteCountDto>> GetAnonymousRequestsByRouteAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        bool excludeBots,
+        int? appClientId,
+        CancellationToken cancellationToken = default);
 }

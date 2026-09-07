@@ -104,6 +104,41 @@ public class UsageStatsRepository : IUsageStatsRepository
             })
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<UsageRouteCountDto>> GetAnonymousRequestsByRouteAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        bool excludeBots,
+        int? appClientId,
+        CancellationToken cancellationToken = default)
+    {
+        if (jobIds.Count == 0)
+            return [];
+
+        // Anonymous = no registration on the request. A registered user browsing before
+        // sign-in is anonymous here too; that is the definition, not a gap.
+        var query = _context.AppUsage
+            .AsNoTracking()
+            .Where(u => u.OccurredAt >= since && jobIds.Contains(u.JobId) && u.RegId == null);
+
+        if (excludeBots)
+            query = query.Where(u => !u.IsBot);
+
+        if (appClientId is not null)
+            query = query.Where(u => u.AppClientId == appClientId.Value);
+
+        return await query
+            .GroupBy(u => new { u.JobId, u.Controller, u.Action })
+            .Select(g => new UsageRouteCountDto
+            {
+                JobId = g.Key.JobId,
+                Controller = g.Key.Controller,
+                Action = g.Key.Action,
+                Requests = g.Sum(u => u.StatusCode < 400 ? 1 : 0),
+                FailedRequests = g.Sum(u => u.StatusCode >= 400 ? 1 : 0),
+            })
+            .ToListAsync(cancellationToken);
+    }
 }
 
 /// <summary>
@@ -138,4 +173,12 @@ public class UnavailableUsageStatsRepository : IUsageStatsRepository
         bool excludeBots,
         CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<UsageClientFacetDto>>([]);
+
+    public Task<IReadOnlyList<UsageRouteCountDto>> GetAnonymousRequestsByRouteAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        bool excludeBots,
+        int? appClientId,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<UsageRouteCountDto>>([]);
 }

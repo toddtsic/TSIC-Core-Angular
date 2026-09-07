@@ -7,6 +7,7 @@ import { UsageAnalysisStateService } from './usage-analysis-state.service';
 import { USAGE_WINDOWS, type UsageReportKey, type UsageScope } from './usage-analysis.models';
 import { UsageReportDebugComponent } from './reports/usage-report-debug.component';
 import { UsersByRoleComponent } from './reports/users-by-role.component';
+import { PublicRequestsByRouteComponent } from './reports/public-requests-by-route.component';
 
 /**
  * Usage Analysis — the drill behind the UsageStatsPerJob widget's glance.
@@ -27,7 +28,7 @@ import { UsersByRoleComponent } from './reports/users-by-role.component';
 @Component({
 	selector: 'app-usage-analysis',
 	standalone: true,
-	imports: [AdminNavPillComponent, UsageReportDebugComponent, UsersByRoleComponent],
+	imports: [AdminNavPillComponent, UsageReportDebugComponent, UsersByRoleComponent, PublicRequestsByRouteComponent],
 	providers: [UsageAnalysisStateService],
 	templateUrl: './usage-analysis.component.html',
 	styleUrl: './usage-analysis.component.scss',

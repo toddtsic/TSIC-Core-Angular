@@ -1,0 +1,28 @@
+<app-usage-pivot-report
+	[isLoading]="fetch.isLoading()"
+	[error]="fetch.error()"
+	[isEmpty]="isEmpty()"
+	loadingMessage="Counting requests…"
+	emptyMessage="No anonymous requests in this window."
+	[tiles]="tiles()"
+	[columns]="columns()"
+	[rows]="rows()"
+	[allRow]="allRow()"
+	[chartRow]="chartRow()"
+	chartSubtitle="anonymous requests by API route, succeeded only"
+	[chartSeries]="chartSeries()"
+	[primaryXAxis]="primaryXAxis()"
+	[primaryYAxis]="primaryYAxis()"
+	[tooltip]="tooltip"
+	[chartHeight]="chartHeight()"
+	[chartMargin]="chartMargin"
+	chartEmptyMessage="No anonymous requests in the window."
+	lensEmptyMessage="No anonymous requests about this event in the window. Pick another event above, or a row below.">
+	A request is one API call made with no registration on it — the public, and anyone browsing
+	before they sign in. Routes are the API endpoint (Controller/Action), not the page: one page
+	fires several, and every page load fires the chrome. Requests that failed are counted in the
+	tile and nowhere else.
+	@if (foldedCount() > 0) {
+		{{ foldedCount() }} quieter routes are folded into Other.
+	}
+</app-usage-pivot-report>

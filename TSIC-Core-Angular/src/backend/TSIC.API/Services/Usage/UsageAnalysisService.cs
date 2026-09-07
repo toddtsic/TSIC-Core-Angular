@@ -28,6 +28,14 @@ public interface IUsageAnalysisService
         bool excludeBots,
         int? appClientId,
         CancellationToken ct = default);
+
+    /// <summary>Report 02: anonymous requests per event per API route, split by outcome. Requests, never people.</summary>
+    Task<PublicRequestsByRouteDto> GetPublicRequestsByRouteAsync(
+        UsageScopeResolution scope,
+        int windowDays,
+        bool excludeBots,
+        int? appClientId,
+        CancellationToken ct = default);
 }
 
 public sealed class UsageAnalysisService : IUsageAnalysisService
@@ -151,6 +159,54 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
             CustomerUsers = joined.Where(x => !x.IsAdmin).Select(x => x.RegistrationId).Distinct().Count(),
             AdminUsers = joined.Where(x => x.IsAdmin).Select(x => x.RegistrationId).Distinct().Count(),
             UsageLoggingAvailable = true,
+        };
+    }
+
+    public async Task<PublicRequestsByRouteDto> GetPublicRequestsByRouteAsync(
+        UsageScopeResolution scope,
+        int windowDays,
+        bool excludeBots,
+        int? appClientId,
+        CancellationToken ct = default)
+    {
+        var counts = _usageRepo.IsAvailable
+            ? await _usageRepo.GetAnonymousRequestsByRouteAsync(scope.JobIds, Since(windowDays), excludeBots, appClientId, ct)
+            : [];
+
+        var jobNames = scope.Jobs.ToDictionary(j => j.JobId, j => j.JobName);
+
+        var rows = counts
+            .Select(c => new PublicRouteRowDto
+            {
+                JobId = c.JobId,
+                JobName = jobNames.TryGetValue(c.JobId, out var name) ? name : string.Empty,
+                Route = c.Controller + "/" + c.Action,
+                Requests = c.Requests,
+                FailedRequests = c.FailedRequests,
+            })
+            .ToList();
+
+        // Requests are additive: the scope total for a route is the sum of its event rows.
+        var totals = rows
+            .GroupBy(r => r.Route)
+            .Select(g => new PublicRouteTotalDto
+            {
+                Route = g.Key,
+                Requests = g.Sum(r => r.Requests),
+                FailedRequests = g.Sum(r => r.FailedRequests),
+            })
+            .ToList();
+
+        return new PublicRequestsByRouteDto
+        {
+            WindowDays = windowDays,
+            BotsExcluded = excludeBots,
+            JobCount = scope.Jobs.Count,
+            Rows = rows,
+            Totals = totals,
+            TotalRequests = rows.Sum(r => r.Requests),
+            FailedRequests = rows.Sum(r => r.FailedRequests),
+            UsageLoggingAvailable = _usageRepo.IsAvailable,
         };
     }
 

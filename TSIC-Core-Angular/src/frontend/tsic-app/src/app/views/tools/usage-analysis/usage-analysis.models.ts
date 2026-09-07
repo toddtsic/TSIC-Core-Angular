@@ -66,7 +66,7 @@ const SUPERUSER = [Roles.Superuser] as const;
  */
 export const USAGE_REPORTS: readonly UsageReportDef[] = [
 	{ key: 'report-01', label: '01 · Users by Role', roles: ALL_ADMINS, built: true },
-	{ key: 'report-02', label: 'Report-02', roles: ALL_ADMINS, built: false },
+	{ key: 'report-02', label: '02 · Public Requests by Route', roles: ALL_ADMINS, built: true },
 	{ key: 'report-03', label: 'Report-03', roles: ALL_ADMINS, built: false },
 	{ key: 'report-04', label: 'Report-04', roles: ALL_ADMINS, built: false },
 	{ key: 'report-05', label: 'Report-05', roles: CROSS_JOB, built: false },
