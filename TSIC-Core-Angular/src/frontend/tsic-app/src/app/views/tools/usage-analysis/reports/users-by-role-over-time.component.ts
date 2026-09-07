@@ -157,16 +157,20 @@ export class UsersByRoleOverTimeComponent {
 		return `distinct registrations per ${unit} — active in three ${unit}s counts in each${gap}`;
 	});
 
-	/** One line per role over every bucket, all on the same baseline. A no-data bucket is null: a gap, not a drop to zero. */
+	/**
+	 * One line per role over every bucket, all on the same baseline, plus a heavier neutral
+	 * Total line: people that bucket. A no-data bucket is null: a gap, not a drop to zero.
+	 */
 	readonly chartSeries = computed<SeriesModel[]>(() => {
 		const columns = this.columns();
 		const data = this.buckets().map(b => {
 			const point: Record<string, string | number | null> = { x: b.label };
 			columns.forEach((role, i) => { point['r' + i] = b.noData ? null : (b.cells.get(role) ?? 0); });
+			point['total'] = b.noData ? null : b.total;
 			return point;
 		});
 		if (data.length === 0) return [];
-		return columns.map((role, i) => ({
+		const roles: SeriesModel[] = columns.map((role, i) => ({
 			type: 'Line',
 			dataSource: data,
 			xName: 'x',
@@ -177,13 +181,25 @@ export class UsersByRoleOverTimeComponent {
 			marker: { visible: true, width: 6, height: 6, shape: 'Circle' },
 			emptyPointSettings: { mode: 'Gap' },
 		}));
+		// Total in the page's text colour, not a palette slot, so it never reads as one more role.
+		const total: SeriesModel = {
+			type: 'Line',
+			dataSource: data,
+			xName: 'x',
+			yName: 'total',
+			name: 'Total',
+			fill: this.theme.text,
+			width: 3,
+			marker: { visible: true, width: 7, height: 7, shape: 'Diamond' },
+			emptyPointSettings: { mode: 'Gap' },
+		};
+		return [...roles, total];
 	});
 
-	private readonly maxCell = computed(() =>
-		Math.max(0, ...this.buckets().flatMap(b => [...b.cells.values()])));
+	private readonly maxTotal = computed(() => Math.max(0, ...this.buckets().map(b => b.total)));
 
 	readonly primaryXAxis = computed(() => categoryAxis(this.theme, { labelIntersectAction: 'Rotate45' }));
-	readonly primaryYAxis = computed(() => countAxis(this.theme, this.maxCell()));
+	readonly primaryYAxis = computed(() => countAxis(this.theme, this.maxTotal()));
 	readonly legendSettings = {
 		visible: true,
 		position: 'Top' as const,
