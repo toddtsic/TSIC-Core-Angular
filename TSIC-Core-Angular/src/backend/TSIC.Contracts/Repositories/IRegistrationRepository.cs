@@ -575,9 +575,10 @@ public interface IRegistrationRepository
     Task UpdateFamilyContactAsync(Guid jobId, string userId, UpdateFamilyContactRequest request, CancellationToken ct = default);
 
     /// <summary>
-    /// Update user demographics on the AspNetUsers entity linked to a registration.
+    /// Update user demographics on the AspNetUsers entity linked to a registration. Returns the
+    /// identity delta (name/DOB) when one of those moved, for the caller to audit; null otherwise.
     /// </summary>
-    Task UpdateUserDemographicsAsync(Guid jobId, string userId, UpdateUserDemographicsRequest request, CancellationToken ct = default);
+    Task<UserIdentityChange?> UpdateUserDemographicsAsync(Guid jobId, string userId, UpdateUserDemographicsRequest request, CancellationToken ct = default);
 
     /// <summary>
     /// Check whether a registration has any RegistrationAccounting records.

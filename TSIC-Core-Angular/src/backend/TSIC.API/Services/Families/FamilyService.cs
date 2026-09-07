@@ -619,7 +619,7 @@ public sealed class FamilyService : IFamilyService
         {
             var regs = await _registrationRepo.GetRegistrationsByUserIdsAsync(new List<string> { childUserId });
             if (regs.Count > 0)
-                return new ChildOperationResponse { Success = false, Message = "Cannot change the name, gender, or date of birth of a child who has registrations. Contact your administrator." };
+                return new ChildOperationResponse { Success = false, Message = "Cannot change the name, gender, or date of birth of a child who has registrations. To correct them, contact the event director." };
         }
 
         childUser.FirstName = request.FirstName;

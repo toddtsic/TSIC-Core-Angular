@@ -590,7 +590,17 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     public async Task UpdateUserDemographicsAsync(
         Guid jobId, string userId, UpdateUserDemographicsRequest request, CancellationToken ct = default)
     {
-        await _registrationRepo.UpdateUserDemographicsAsync(jobId, userId, request, ct);
+        var change = await _registrationRepo.UpdateUserDemographicsAsync(jobId, userId, request, ct);
+        if (change is null) return;
+
+        // Identity edits fan out to every job the user is registered in (one AspNetUsers row, one
+        // shared DB), so the who/what/when goes to Seq. Contact-only saves are not logged.
+        _logger.LogInformation(
+            "Registrant identity changed by {ActorUserId} in job {JobId} (reg {RegistrationId}, user {TargetUserId}): "
+            + "name {OldFirst} {OldLast} -> {NewFirst} {NewLast}; dob {OldDob} -> {NewDob}",
+            userId, jobId, request.RegistrationId, change.UserId,
+            change.OldFirstName, change.OldLastName, change.NewFirstName, change.NewLastName,
+            change.OldDob?.ToString("yyyy-MM-dd"), change.NewDob?.ToString("yyyy-MM-dd"));
     }
 
     public async Task UpdateFamilyAccountDemographicsAsync(

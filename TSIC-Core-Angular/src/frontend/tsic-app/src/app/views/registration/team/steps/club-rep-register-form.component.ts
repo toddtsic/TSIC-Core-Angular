@@ -948,8 +948,6 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
 
         const v = this.form.getRawValue();
         const request: ClubRepProfileUpdateRequest = {
-            firstName: (v.firstName ?? '').trim(),
-            lastName: (v.lastName ?? '').trim(),
             email: (v.email ?? '').trim(),
             cellphone: (v.cellphone ?? '').trim(),
             streetAddress: (v.streetAddress ?? '').trim(),

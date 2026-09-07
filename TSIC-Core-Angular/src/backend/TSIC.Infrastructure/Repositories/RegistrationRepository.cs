@@ -2976,7 +2976,7 @@ public class RegistrationRepository : IRegistrationRepository
         await _context.SaveChangesAsync(ct);
     }
 
-    public async Task UpdateUserDemographicsAsync(
+    public async Task<UserIdentityChange?> UpdateUserDemographicsAsync(
         Guid jobId, string userId, UpdateUserDemographicsRequest request, CancellationToken ct = default)
     {
         var reg = await _context.Registrations
@@ -2993,11 +2993,26 @@ public class RegistrationRepository : IRegistrationRepository
 
         var demo = request.Demographics;
 
+        // Name correction is admin-only — the family wizard locks identity once any registration
+        // exists, and this is the one in-product way to fix a prior-season typo (USA Lacrosse
+        // matches on last name + DOB). Null = caller didn't send it; blank is a caller bug.
+        var newFirst = demo.FirstName?.Trim();
+        var newLast = demo.LastName?.Trim();
+        if ((demo.FirstName is not null && string.IsNullOrEmpty(newFirst))
+            || (demo.LastName is not null && string.IsNullOrEmpty(newLast)))
+            throw new InvalidOperationException("First and last name cannot be blank.");
+
+        var oldFirst = user.FirstName;
+        var oldLast = user.LastName;
+        var oldDob = user.Dob;
+
         // NOT the UserManager path — this is SqlDbContext.AspNetUsers, so nothing normalizes for us.
         // `user.Email = …` alone leaves NormalizedEmail stale, and NormalizedEmail is the column
         // FindByEmailAsync searches for forgot-password. See AspNetUserEmail.
         AspNetUserEmail.Set(user, demo.Email);
 
+        if (newFirst is not null) user.FirstName = newFirst;
+        if (newLast is not null) user.LastName = newLast;
         user.Cellphone = demo.Cellphone;
         user.Gender = demo.Gender;
         user.Dob = demo.DateOfBirth;
@@ -3007,6 +3022,22 @@ public class RegistrationRepository : IRegistrationRepository
         user.PostalCode = demo.PostalCode;
 
         await _context.SaveChangesAsync(ct);
+
+        var identityMoved = !string.Equals(oldFirst, user.FirstName, StringComparison.Ordinal)
+            || !string.Equals(oldLast, user.LastName, StringComparison.Ordinal)
+            || oldDob?.Date != user.Dob?.Date;
+        if (!identityMoved) return null;
+
+        return new UserIdentityChange
+        {
+            UserId = user.Id,
+            OldFirstName = oldFirst,
+            NewFirstName = user.FirstName,
+            OldLastName = oldLast,
+            NewLastName = user.LastName,
+            OldDob = oldDob,
+            NewDob = user.Dob
+        };
     }
 
     public async Task UpdateFamilyAccountDemographicsAsync(

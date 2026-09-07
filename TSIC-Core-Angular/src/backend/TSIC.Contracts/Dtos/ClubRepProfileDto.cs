@@ -20,12 +20,11 @@ public record ClubRepProfileDto
 
 /// <summary>
 /// Request to update the authenticated user's profile fields.
-/// Excludes username/password/clubName (handled via dedicated flows).
+/// Excludes username/password/clubName (handled via dedicated flows) and first/last name —
+/// self-service rename is closed; see <see cref="UserProfileUpdateRequest"/>.
 /// </summary>
 public record ClubRepProfileUpdateRequest
 {
-    public required string FirstName { get; init; }
-    public required string LastName { get; init; }
     public required string Email { get; init; }
     public required string Cellphone { get; init; }
     public required string StreetAddress { get; init; }
@@ -38,14 +37,6 @@ public class ClubRepProfileUpdateRequestValidator : AbstractValidator<ClubRepPro
 {
     public ClubRepProfileUpdateRequestValidator()
     {
-        RuleFor(x => x.FirstName)
-            .NotEmpty().WithMessage("First name is required")
-            .MaximumLength(100).WithMessage("First name cannot exceed 100 characters");
-
-        RuleFor(x => x.LastName)
-            .NotEmpty().WithMessage("Last name is required")
-            .MaximumLength(100).WithMessage("Last name cannot exceed 100 characters");
-
         RuleFor(x => x.Email)
             .NotEmpty().WithMessage("Email is required")
             .EmailAddress().WithMessage("Invalid email format")

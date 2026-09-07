@@ -466,8 +466,6 @@ public sealed class ClubService : IClubService
     {
         return _userProfileService.UpdateSelfProfileAsync(userId, new UserProfileUpdateRequest
         {
-            FirstName = request.FirstName,
-            LastName = request.LastName,
             Email = request.Email,
             Cellphone = request.Cellphone,
             StreetAddress = request.StreetAddress,

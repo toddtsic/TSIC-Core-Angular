@@ -58,8 +58,8 @@ public sealed class UserProfileService : IUserProfileService
             }
         }
 
-        user.FirstName = request.FirstName;
-        user.LastName = request.LastName;
+        // Name is intentionally not written here: self-service rename is closed. Corrections are
+        // admin-only via the registrant detail panel (RegistrationRepository.UpdateUserDemographicsAsync).
         user.Cellphone = request.Cellphone;
         user.Phone = request.Cellphone;
         user.StreetAddress = request.StreetAddress;

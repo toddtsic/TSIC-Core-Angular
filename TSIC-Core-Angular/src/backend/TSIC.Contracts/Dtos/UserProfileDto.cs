@@ -24,14 +24,14 @@ public record UserProfileDto
 /// Request to update the authenticated user's profile fields. Excludes
 /// username/password (handled via dedicated flows). Field set is a 1:1 match of
 /// <see cref="ClubRepProfileUpdateRequest"/> so the club-rep flow can delegate
-/// here with no behavior change. Identity fields (first/last name) are carried
-/// for that parity but are locked on the self-service edit surfaces — see the
-/// hand-off rationale on the club-rep edit form.
+/// here with no behavior change.
+///
+/// First/last name are deliberately NOT here. Self-service rename would let a parent or coach
+/// turn a registered person into a different one (rosters, waivers, background checks are all
+/// keyed to the user). Name corrections are admin-only — Search → Registrations detail panel.
 /// </summary>
 public record UserProfileUpdateRequest
 {
-    public required string FirstName { get; init; }
-    public required string LastName { get; init; }
     public required string Email { get; init; }
     public required string Cellphone { get; init; }
     public required string StreetAddress { get; init; }
@@ -44,14 +44,6 @@ public class UserProfileUpdateRequestValidator : AbstractValidator<UserProfileUp
 {
     public UserProfileUpdateRequestValidator()
     {
-        RuleFor(x => x.FirstName)
-            .NotEmpty().WithMessage("First name is required")
-            .MaximumLength(100).WithMessage("First name cannot exceed 100 characters");
-
-        RuleFor(x => x.LastName)
-            .NotEmpty().WithMessage("Last name is required")
-            .MaximumLength(100).WithMessage("Last name cannot exceed 100 characters");
-
         RuleFor(x => x.Email)
             .NotEmpty().WithMessage("Email is required")
             .EmailAddress().WithMessage("Invalid email format")

@@ -152,10 +152,15 @@ public record FamilyContactDto
 }
 
 /// <summary>
-/// User demographics from AspNetUsers.
+/// User demographics from AspNetUsers. FirstName/LastName ride here so the registrant detail
+/// panel can correct a misspelled name — USA Lacrosse matches on last name + DOB, and a
+/// prior-season typo otherwise blocks every USLax event with no in-product remedy (the family
+/// wizard locks identity once any registration exists). Admin-only, current job only.
 /// </summary>
 public record UserDemographicsDto
 {
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
     public string? Email { get; init; }
     public string? Cellphone { get; init; }
     public string? Gender { get; init; }
@@ -182,6 +187,22 @@ public record UpdateUserDemographicsRequest
 {
     public required Guid RegistrationId { get; init; }
     public required UserDemographicsDto Demographics { get; init; }
+}
+
+/// <summary>
+/// What an admin demographics save changed about WHO the user is (name, DOB) — returned by the
+/// repository so the service can write the audit line. Not an API shape. Null from the repository
+/// means no identity field moved; contact-only edits are not audited.
+/// </summary>
+public record UserIdentityChange
+{
+    public required string UserId { get; init; }
+    public string? OldFirstName { get; init; }
+    public string? NewFirstName { get; init; }
+    public string? OldLastName { get; init; }
+    public string? NewLastName { get; init; }
+    public DateTime? OldDob { get; init; }
+    public DateTime? NewDob { get; init; }
 }
 
 /// <summary>

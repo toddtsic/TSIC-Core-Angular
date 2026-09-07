@@ -3,8 +3,6 @@
 /* tslint:disable */
 /* eslint-disable */
 export type ClubRepProfileUpdateRequest = {
-    firstName: string;
-    lastName: string;
     email: string;
     cellphone: string;
     streetAddress: string;

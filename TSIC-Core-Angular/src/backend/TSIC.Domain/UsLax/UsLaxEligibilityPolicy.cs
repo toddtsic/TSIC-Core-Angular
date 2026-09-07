@@ -46,6 +46,7 @@ public static class UsLaxEligibilityPolicy
         + "<li>The member has completed the USA Lacrosse <strong>age verification process</strong>*</li></ol>"
         + "*Beginning July 1, 2025, all USA Lacrosse player members are required to complete a one-time age verification process to maintain an active membership. "
         + "(<a href='https://www.usalacrosse.com/age-verification' target='_blank'>Learn more</a>)<br><br>"
+        + "If the last name or date of birth on this account is misspelled, contact the event director to correct it.<br><br>"
         + "<strong>Helpful Links:</strong><ul>"
         + "<li>Look up your USA Lacrosse Number - <a href='https://account.usalacrosse.com/login/lookup' target='_blank'>CLICK HERE</a></li>"
         + "<li>Register for a USA Lacrosse Number - <a href='https://www.usalacrosse.com/membership' target='_blank'>CLICK HERE</a></li></ul>"

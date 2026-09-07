@@ -816,11 +816,27 @@ export class RegistrationDetailPanelComponent implements OnChanges {
     const d = this.detail();
     if (!d) return;
 
+    const demo = this.demographics();
+    const firstName = demo.firstName?.trim() ?? '';
+    const lastName = demo.lastName?.trim() ?? '';
+    if (!firstName || !lastName) {
+      this.toast.show('First and last name are required.', 'warning', 4000);
+      return;
+    }
+
+    // USA Lacrosse matches on last name + DOB. If either moved and a membership number is on
+    // file, the stored verdict is for the OLD identity — tell the director to re-check. Nothing
+    // is re-validated automatically; the Re-validate link below the number is the one action.
+    const before = seedDemographics(d);
+    const usLaxIdentityChanged = this.canRevalidateUsLax()
+      && ((before.lastName?.trim() ?? '') !== lastName
+        || (before.dateOfBirth ?? null) !== (demo.dateOfBirth || null));
+
     this.isSavingContact.set(true);
     const calls: Record<string, any> = {};
 
     // Save player/registrant demographics — strip phone to digits for storage
-    const demoToSave = { ...this.demographics(), cellphone: stripPhoneToDigits(this.demographics().cellphone) };
+    const demoToSave = { ...demo, firstName, lastName, cellphone: stripPhoneToDigits(demo.cellphone) };
     calls['demographics'] = this.searchService.updateDemographics(d.registrationId, {
       registrationId: d.registrationId,
       demographics: demoToSave
@@ -852,7 +868,13 @@ export class RegistrationDetailPanelComponent implements OnChanges {
       next: () => {
         this.isSavingContact.set(false);
         this.snapshotContact.set(this.serializeContact());   // saved → zone is clean again
-        this.toast.show('Contact info saved', 'success', 3000);
+        if (usLaxIdentityChanged) {
+          this.toast.show(
+            'Last name / date of birth changed — click Re-validate / Update Expiry under the USA Lacrosse number to confirm against USA Lacrosse.',
+            'warning', 0, 'Contact info saved');
+        } else {
+          this.toast.show('Contact info saved', 'success', 3000);
+        }
         this.saved.emit();
       },
       error: (err) => {

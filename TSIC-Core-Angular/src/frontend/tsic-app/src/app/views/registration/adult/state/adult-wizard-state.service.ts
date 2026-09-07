@@ -418,16 +418,14 @@ export class AdultWizardStateService {
     }
 
     /**
-     * Persist edits to the signed-in user's profile. Identity fields (name) are
-     * carried unchanged for contract parity but locked in the UI.
+     * Persist edits to the signed-in user's profile. Name is not part of the contract —
+     * self-service rename is closed; corrections are admin-only (registrant detail panel).
      */
     async saveSelfProfile(): Promise<boolean> {
         this._selfProfileSaving.set(true);
         this._selfProfileError.set(null);
         try {
             await firstValueFrom(this.account.updateMyProfile({
-                firstName: this._firstName(),
-                lastName: this._lastName(),
                 email: this._email().trim(),
                 cellphone: this._phone(),
                 streetAddress: this._streetAddress().trim(),

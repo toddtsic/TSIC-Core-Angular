@@ -28,7 +28,7 @@ import type { ChildDto } from '@core/api';
           @if (identityLocked()) {
             <div class="alert alert-info py-2 small d-flex align-items-start gap-2 mb-3">
               <i class="bi bi-lock-fill mt-1"></i>
-              <span>This player is already registered, so their name, gender, and date of birth are locked. You can still update contact details below. To correct identity details, contact your administrator.</span>
+              <span>This player is already registered, so their name, gender, and date of birth are locked. You can still update contact details below. To correct a misspelled name or date of birth, contact the event director.</span>
             </div>
           }
           <div class="row g-2">
