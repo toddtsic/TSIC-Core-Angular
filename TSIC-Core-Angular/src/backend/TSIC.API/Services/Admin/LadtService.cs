@@ -780,6 +780,12 @@ public sealed class LadtService : ILadtService
             // mirrors with it).
             MaxTeams = 1000,
             MaxTeamsPerClub = 0,   // enforcement retired 2026-07-22 (PL-041) — dormant field
+            // Self-rostering is enabled at the AGEGROUP level in practice — the flag is an OR
+            // across agegroup and team (TeamSelfRosterAvailability), and the agegroup side is
+            // what carries it: 85% of live agegroups have it on, and it decides 44,249 teams
+            // versus one decided by the team flag alone. A stub landing null is the odd one
+            // out, and it silently blocks self-rostering on everything beneath it.
+            BAllowSelfRostering = true,
             SortAge = 0,
             LebUserId = userId,
             Modified = DateTime.Now
