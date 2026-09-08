@@ -1523,7 +1523,7 @@ public class AdultRegistrationService : IAdultRegistrationService
     /// and the wizard behavior the frontend should render. Enforces the minor-PII
     /// security model:
     /// <list type="bullet">
-    /// <item>coach + Club → UnassignedAdult (director approves/places via Roster Swapper)</item>
+    /// <item>coach + Club/Camp → UnassignedAdult (director approves/places via Roster Swapper)</item>
     /// <item>coach + Tournament/League → Staff, placed directly on selected teams
     ///   (see <see cref="ResolveCoach"/> for why the regimes differ)</item>
     /// <item>coach + other types → reject</item>
@@ -1552,11 +1552,21 @@ public class AdultRegistrationService : IAdultRegistrationService
                 // Player-site self-roster — UNCONDITIONALLY UnassignedAdult, regardless of
                 // any flag. Director must approve before promotion. URL itself is the
                 // security contract: this key cannot resolve to Staff or any role with
-                // team access. Only valid on Club/League jobs.
-                if (job.JobTypeId != JobConstants.JobTypeClub && job.JobTypeId != JobConstants.JobTypeLeague)
+                // team access. Only valid on Club/Camp/League jobs.
+                //
+                // Camp is in the set for the same reason it rides with Club in ResolveCoach:
+                // it is an individual-sign-up site whose director vets its own coaches. This
+                // is the key legacy bulletin links land on for every non-competitive site
+                // (TranslateLegacyUrlsPipe.adultRoleKey), so leaving Camp out left those
+                // links dead on camps. Widening it grants NO privilege — the branch resolves
+                // unconditionally to UnassignedAdult, which carries no roster or PII access
+                // until a director approves.
+                if (job.JobTypeId != JobConstants.JobTypeClub
+                    && job.JobTypeId != JobConstants.JobTypeCamp
+                    && job.JobTypeId != JobConstants.JobTypeLeague)
                 {
                     throw new InvalidOperationException(
-                        "Unassigned-adult self-registration is only available on Club/League sites.");
+                        "Unassigned-adult self-registration is only available on Club/Camp/League sites.");
                 }
                 // Same release gate as the Coach key — both produce a coach/volunteer
                 // UnassignedAdult, so both honor BRegistrationAllowStaff.
@@ -1613,7 +1623,7 @@ public class AdultRegistrationService : IAdultRegistrationService
     /// Coach role resolution — TWO regimes, split by WHO CAN VOUCH for the coach
     /// (ruling 2026-08-14, replacing the prior universal-UA firewall):
     /// <list type="bullet">
-    /// <item><b>Club (player-registration sites)</b> — minors register individually with
+    /// <item><b>Club / Camp (individual-sign-up sites)</b> — minors register individually with
     ///   the director's own org, so the director is the only party who can vet a coach.
     ///   Coaches land as <see cref="RoleConstants.UnassignedAdult"/> with non-binding team
     ///   REQUESTS (no AssignedTeamId, no roster/PII access); the director approves each
@@ -1638,6 +1648,16 @@ public class AdultRegistrationService : IAdultRegistrationService
         switch (job.JobTypeId)
         {
             case JobConstants.JobTypeClub:
+            case JobConstants.JobTypeCamp:
+                // Camp rides with Club: a camp/clinic takes INDIVIDUAL sign-ups with the
+                // director's own org, so — exactly as on a player-registration site — the
+                // director is the only party who can vet a coach. Same UA firewall, same
+                // approval queue. (Added 2026-09-08: the resolver recognised three job types
+                // and threw on Camp, while the landing panel's "Register Coach" CTA is gated
+                // on the pulse flag alone with no job-type term — so a camp director who
+                // switched the flag on published a link that dead-ended on
+                // "not supported for this event type".)
+                //
                 // UnassignedAdult firewall. AllowTeamRequests lets the coach multi-select
                 // teams they'd LIKE to coach — captured as a non-binding REQUEST (codified
                 // into SpecialRequests as structured JSON), NOT an AssignedTeamId.
@@ -1669,7 +1689,7 @@ public class AdultRegistrationService : IAdultRegistrationService
                     Icon: "bi-person-badge");
 
             default:
-                // Root, Camp, Sales, or anything else — adult coach self-reg not supported.
+                // Root, Sales, or anything else — adult coach self-reg not supported.
                 throw new InvalidOperationException(
                     "Adult coach registration is not supported for this event type.");
         }
