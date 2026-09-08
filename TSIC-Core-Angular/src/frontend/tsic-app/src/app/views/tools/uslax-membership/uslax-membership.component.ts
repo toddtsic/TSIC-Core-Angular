@@ -756,10 +756,7 @@ export class UsLaxMembershipComponent implements OnInit {
 				args.value = view.findIndex(r => r.registrationId === d.registrationId) + 1;
 				break;
 			}
-			// Keyed on headerText, so it MUST track the column's heading. The heading became a ✓
-			// glyph on screen (AR-085) and the header text went with it; a spreadsheet has no
-			// glyph, so the export still writes the words.
-			case 'Needs email':
+			case 'Email?':
 				args.value = this.needsAction(d) ? 'Yes' : '';
 				break;
 			case 'Name':
