@@ -3,6 +3,11 @@
     Reports Library groups by: Rosters, Schedules, Registrations, Financials, Camp,
     Recruiting, Administration.
 
+    ONE-SHOT. Paste the whole thing into a query window connected to the target server
+    and execute once. No transaction to remember -- it commits itself on success and
+    rolls itself back on any error. It ABORTS BEFORE WRITING ANYTHING if either guard
+    trips (an unmatched map key, or a unique-index collision).
+
     WHY: GroupLabel holds legacy MENU HEADINGS imported verbatim from the old site
     ('Reports', 'Scheduling', 'Docs', 'Player Stats', 'Search'). normalizeReportCategory()
     matches the code exactly, so every non-matching heading falls into the "Other" tab.
@@ -21,16 +26,21 @@
     Registrations (not Financials). TournamentRecruitingReportUSL stays Rosters despite
     its action name -- it is the LSN TV broadcast roster, not a recruiting report.
 
-    Rows already carrying a valid code are untouched. Safe to re-run.
+    Touches ONE column (plus Modified). No inserts, no deletes, no change to Active,
+    Title, Action, SortOrder or RoleId. Rows already carrying a valid code are untouched.
+    Idempotent -- re-running changes nothing further.
+
+    Dev (TSIC-SEDONA) run 2026-09-08: 0 unmatched, 0 collisions, 1643 rows.
 */
 
-USE TSICV5;
-GO
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
 
--- WHERE AM I? This script carries no server name -- USE TSICV5 resolves against whatever
--- instance the query window is connected to. Dev (SEDONA) is a RESTORED BACKUP of prod, a
--- different database on a different box; prod lives on TSIC-PHOENIX's own local .SS2016.
--- READ THIS BEFORE THE PRE-CHECK. Running it on the wrong box gives no other signal.
+USE TSICV5;
+
+-- WHERE AM I? This script names no server -- USE TSICV5 resolves against whatever instance
+-- the query window is connected to, and BOTH boxes have a TSICV5. Dev (SEDONA) is a RESTORED
+-- BACKUP of prod; prod lives on TSIC-PHOENIX's own local .SS2016. CHECK THIS FIRST GRID.
 SELECT @@SERVERNAME AS Server_, DB_NAME() AS Database_, SYSDATETIME() AS RunAt;
 
 -- Report key -> category. One row per distinct report.
@@ -101,27 +111,18 @@ SELECT r.JobReportId,
 INTO #keyed
 FROM reporting.JobReports r;
 
--- 1. PRE-CHECK -------------------------------------------------------------
--- How many rows this will change, and from what.
-SELECT m.NewLabel, ISNULL(r.GroupLabel, '<NULL>') AS CurrentLabel, COUNT(*) AS Rows_
-FROM   reporting.JobReports r
-JOIN   #keyed k ON k.JobReportId = r.JobReportId
-JOIN   #map   m ON m.ReportKey   = k.ReportKey
-WHERE  ISNULL(r.GroupLabel, '') <> m.NewLabel
-GROUP BY m.NewLabel, r.GroupLabel
-ORDER BY m.NewLabel, CurrentLabel;
+DECLARE @unmatched int, @collisions int, @toChange int, @changed int;
 
--- Any report in the map that matched nothing (typo / renamed action).
-SELECT m.ReportKey AS UnmatchedMapEntry
+-- GUARD 1: any report in the map that matched nothing (typo / renamed action).
+SELECT @unmatched = COUNT(*)
 FROM   #map m
 WHERE  NOT EXISTS (SELECT 1 FROM #keyed k WHERE k.ReportKey = m.ReportKey);
--- expect ZERO rows. Anything listed means the key is wrong -- stop.
 
--- Unique-index collision guard. UX_JobReports_JobRoleActionGroup is UNIQUE on
+-- GUARD 2: unique-index collisions. UX_JobReports_JobRoleActionGroup is UNIQUE on
 -- (JobId, RoleId, Controller, Action, GroupLabel) -- GroupLabel is PART OF THE KEY. If a job
 -- lists the same report twice under two headings, normalizing both to one label collides and
--- the UPDATE aborts. Computes the post-update label for EVERY row and looks for duplicates.
-SELECT COUNT(*) AS CollidingKeyGroups FROM (
+-- the UPDATE aborts partway. Computes the post-update label for EVERY row, looks for dupes.
+SELECT @collisions = COUNT(*) FROM (
     SELECT a.JobId, a.RoleId, a.Controller, a.Action, a.FinalLabel
     FROM (SELECT r.JobId, r.RoleId, r.Controller, r.Action,
                  ISNULL(m.NewLabel, r.GroupLabel) AS FinalLabel
@@ -130,22 +131,57 @@ SELECT COUNT(*) AS CollidingKeyGroups FROM (
           LEFT JOIN #map m ON m.ReportKey = k.ReportKey) a
     GROUP BY a.JobId, a.RoleId, a.Controller, a.Action, a.FinalLabel
     HAVING COUNT(*) > 1) x;
--- expect ZERO. Anything above zero means a report is double-listed under two headings --
--- STOP and decide which copy survives before mapping it.
 
-BEGIN TRAN;
-
--- 2. UPDATE ----------------------------------------------------------------
-UPDATE r
-SET    r.GroupLabel = m.NewLabel,
-       r.Modified   = GETDATE()
+SELECT @toChange = COUNT(*)
 FROM   reporting.JobReports r
 JOIN   #keyed k ON k.JobReportId = r.JobReportId
 JOIN   #map   m ON m.ReportKey   = k.ReportKey
 WHERE  ISNULL(r.GroupLabel, '') <> m.NewLabel;
 
--- 3. VERIFY ----------------------------------------------------------------
--- Every remaining label across the ACTIVE catalogue, flagged valid or not.
+-- What is about to change, and from what.
+SELECT m.NewLabel, ISNULL(r.GroupLabel, '<NULL>') AS CurrentLabel, COUNT(*) AS Rows_
+FROM   reporting.JobReports r
+JOIN   #keyed k ON k.JobReportId = r.JobReportId
+JOIN   #map   m ON m.ReportKey   = k.ReportKey
+WHERE  ISNULL(r.GroupLabel, '') <> m.NewLabel
+GROUP BY m.NewLabel, r.GroupLabel
+ORDER BY m.NewLabel, CurrentLabel;
+
+IF @unmatched > 0 OR @collisions > 0
+BEGIN
+    SELECT '*** ABORTED -- NOTHING WAS CHANGED ***' AS Result,
+           @unmatched  AS UnmatchedMapEntries,
+           @collisions AS CollidingKeyGroups;
+    -- Unmatched: an Action was renamed -- fix the map key.
+    -- Collisions: a report is double-listed under two headings -- decide which copy survives.
+    RETURN;
+END
+
+BEGIN TRY
+    BEGIN TRAN;
+
+    UPDATE r
+    SET    r.GroupLabel = m.NewLabel,
+           r.Modified   = GETDATE()
+    FROM   reporting.JobReports r
+    JOIN   #keyed k ON k.JobReportId = r.JobReportId
+    JOIN   #map   m ON m.ReportKey   = k.ReportKey
+    WHERE  ISNULL(r.GroupLabel, '') <> m.NewLabel;
+
+    SET @changed = @@ROWCOUNT;
+
+    COMMIT;
+END TRY
+BEGIN CATCH
+    IF @@TRANCOUNT > 0 ROLLBACK;
+    SELECT '*** FAILED -- ROLLED BACK, NOTHING CHANGED ***' AS Result,
+           ERROR_NUMBER() AS ErrNo, ERROR_MESSAGE() AS ErrMsg;
+    THROW;   -- re-raise: ends the batch, so the "COMMITTED" line below cannot print
+END CATCH
+
+SELECT 'COMMITTED' AS Result, @toChange AS RowsExpected, @changed AS RowsChanged;
+
+-- VERIFY: every remaining label across the ACTIVE catalogue, flagged valid or not.
 SELECT ISNULL(r.GroupLabel, '<NULL>') AS GroupLabel,
        CASE WHEN r.GroupLabel IN ('Rosters','Schedules','Registrations','Financials',
                                   'Camp','Recruiting','Administration')
@@ -158,5 +194,3 @@ ORDER BY Status, COUNT(*) DESC;
 -- EXPECT EXACTLY TWO '*** OTHER TAB ***' rows, both PlayerStats_E120 (obsolete, deliberately
 -- omitted above): 'Player Stats' and 'Reports'. Anything ELSE in that bucket is a miss.
 -- To retire it later: DELETE the redundant copy in the 36 double-listed jobs, then map it.
-
--- COMMIT;   -- or ROLLBACK;
