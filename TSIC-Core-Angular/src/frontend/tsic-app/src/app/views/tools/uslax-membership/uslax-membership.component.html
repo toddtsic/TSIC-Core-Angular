@@ -209,6 +209,12 @@
     <!-- The wrapper carries the AR-079 checkbox rules. It is a WRAPPER and not another entry in
          the grid's `cssClass` because Syncfusion passes that value to classList.add() verbatim —
          a second, space-separated class throws InvalidCharacterError and takes the grid down. -->
+    <!-- Height comes from the flex chain in the SCSS, not from a viewport constant. AR-085 verify
+         failed because `calc(100vh - 21rem)` was measured on one developer's screen: on Ann's it
+         overflowed, so the PAGE scrolled instead of the grid and the horizontal scrollbar sat at the
+         foot of a 300-row list where she could not see it. Ann, 09-08: "scroll should be adjustable
+         based on screen type." Flexbox measures the leftover space on every screen; a constant
+         cannot. Same chain the search grids use. -->
     <div class="uslax-membership-grid">
     <!-- height="100%" fills the wrapper's viewport-sized box, so the grid scrolls INSIDE itself and
          its horizontal scrollbar is always on screen — not at the foot of a 300-row page (AR-085).
@@ -235,14 +241,14 @@
         <e-columns>
             <e-column type="checkbox" width="40" [allowSorting]="false" [allowFiltering]="false"></e-column>
             <!-- Row number (unbound — stamped by tsicRowNumbers, survives sort) -->
-            <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false" [allowFiltering]="false"
+            <e-column headerText="#" width="44" textAlign="Center" [allowSorting]="false" [allowFiltering]="false"
                       [customAttributes]="{ class: 'row-number-cell' }"></e-column>
             <!-- This is the EMAIL selector, not a health verdict: it says whether the reminder email
                  would go to this family. The reason is in the verdict columns. Nothing sends automatically.
                  A mark means "needs email"; blank means it doesn't — the marked rows are the
                  exception, so leaving the healthy majority blank is what makes them scannable.
                  The glyph carries a title + aria-label because colour alone must not convey it. -->
-            <e-column headerText="Email?" width="104" textAlign="Center" field="needsEmail">
+            <e-column headerText="Email?" width="104" minWidth="96" textAlign="Center" field="needsEmail">
                 <ng-template #template let-data>
                     @if (needsAction(data)) {
                         <i class="bi bi-check2 text-danger fw-bold"
@@ -251,23 +257,23 @@
                     }
                 </ng-template>
             </e-column>
-            <e-column field="lastName" headerText="Name" width="170" minWidth="150" clipMode="EllipsisWithTooltip">
+            <e-column field="lastName" headerText="Name" width="150" minWidth="120" clipMode="EllipsisWithTooltip">
                 <ng-template #template let-data>
                     <span class="fw-semibold" [ngClass]="rowClass(data)">
                         {{ data.lastName }}, {{ data.firstName }}
                     </span>
                 </ng-template>
             </e-column>
-            <e-column field="membershipId" headerText="Member ID" width="110">
+            <e-column field="membershipId" headerText="Member ID" width="134" minWidth="120">
                 <ng-template #template let-data>
                     {{ padMembershipId(data.membershipId) }}
                 </ng-template>
             </e-column>
-            <e-column field="teamName" headerText="Team" width="150" minWidth="120" clipMode="EllipsisWithTooltip"></e-column>
+            <e-column field="teamName" headerText="Team" width="120" minWidth="104" clipMode="EllipsisWithTooltip"></e-column>
             <!-- USA Lacrosse membership status, verbatim. NOT a validation verdict and NOT a
                  transport outcome — a failed call is reported in Details, not here, and the
                  vendor's own wording is shown rather than being folded into Active/Unknown. -->
-            <e-column field="memStatus" headerText="Status" width="108" textAlign="Center">
+            <e-column field="memStatus" headerText="Status" width="102" minWidth="96" textAlign="Center">
                 <ng-template #template let-data>
                     @if (data.memStatus) {
                         <span class="badge"
@@ -283,14 +289,14 @@
                     }
                 </ng-template>
             </e-column>
-            <e-column field="ageVerified" headerText="Verified" width="100" clipMode="EllipsisWithTooltip">
+            <e-column field="ageVerified" headerText="Verified" width="116" minWidth="104" clipMode="EllipsisWithTooltip">
                 <ng-template #template let-data>
                     {{ ageVerifiedDisplay(data) }}
                 </ng-template>
             </e-column>
             <!-- Badges wrap onto a second line rather than the column growing to fit
                  "Player, Official" — Ann named this column as where the room was (AR-085). -->
-            <e-column headerText="Involvement" width="112" minWidth="96" [allowFiltering]="false"
+            <e-column headerText="Involvement" width="140" minWidth="128" [allowFiltering]="false"
                       field="involvement" [sortComparer]="involvementSortComparer">
                 <ng-template #template let-data>
                     <div class="d-flex flex-wrap gap-1">
@@ -310,41 +316,61 @@
                  Lacrosse unreachable, no record returned, validation bypassed for the team, or —
                  for the cutoff column — no valid-through date set on the event). AR-044 shipped
                  a confident No to an unasked question on this same table; this does not.
-                 AR-085 (Ann, 09-07): the four verdicts sit together, THEN the dates. Widths
-                 budget ej2's header chrome — cell padding + sort icon + FILTER icon, ~60px on this grid — so no header word truncates. -->
-            <e-column field="lastNameMatch" headerText="LN Match?" width="110" textAlign="Center">
+                 AR-085 (Ann, 09-07): the four verdicts sit together, THEN the dates.
+                 AR-085 verify (Ann, 09-08): widths alone did NOT stop the truncation — five headers
+                 and, worse, the DATA (`0100303208…`, `08/31/20…`) were still clipped.
+
+                 ⚠ DO NOT RE-EYEBALL THESE NUMBERS — that is what failed twice. Every width below
+                 clears a MEASURED budget:
+                   chrome = 16px cell padding (the SCSS halves it to --space-2 for this grid)
+                          + 22px `.e-sortfilterdiv` (18px wide + 2px padding each side)
+                          + ~20px `.e-filtermenudiv` — the filter affordance AR-071 part 1 added
+                          ≈ 58px spent before one character is drawn.
+                 Header wrap breaks at spaces only, so the binding constraint is the LONGEST WORD,
+                 not the whole heading — "Involvement" is one word and needs 134px on its own.
+                 Text was measured in the app's real font (Inter, --font-size-xs, 700, 0.04em
+                 tracking); Member ID is 12 digits because padMembershipId pads it.
+
+                 ⚠ THE TABLE IS ~1646px AND STILL WIDER THAN A 1366px LAPTOP. Nothing is truncated
+                 and the scrollbar is always on screen, but 15 columns each carrying sort+filter
+                 chrome cannot fit that width. Making it FIT means removing columns or filters —
+                 Ann's call, not a width to shave. -->
+            <e-column field="lastNameMatch" headerText="LN Match?" width="108" minWidth="100" textAlign="Center">
                 <ng-template #template let-data>
                     <span [ngClass]="checkClass(data.lastNameMatch)" [title]="checkTitle(data, 'lastName')">{{ data.lastNameMatch }}</span>
                 </ng-template>
             </e-column>
             <!-- The birthdate VALUE is deliberately absent here and in the tooltip — Ann asked for
                  the verdict only. The registrant's own DOB is on the registration record. -->
-            <e-column field="dobMatch" headerText="DOB Match?" width="114" textAlign="Center">
+            <e-column field="dobMatch" headerText="DOB Match?" width="108" minWidth="100" textAlign="Center">
                 <ng-template #template let-data>
                     <span [ngClass]="checkClass(data.dobMatch)" [title]="checkTitle(data, 'dob')">{{ data.dobMatch }}</span>
                 </ng-template>
             </e-column>
-            <e-column field="meetsValidThrough" headerText="Meets Valid Thru?" width="92" textAlign="Center">
+            <e-column field="meetsValidThrough" headerText="Meets Valid Thru?" width="102" minWidth="96" textAlign="Center">
                 <ng-template #template let-data>
                     <span [ngClass]="checkClass(data.meetsValidThrough)" [title]="checkTitle(data, 'validThrough')">{{ data.meetsValidThrough }}</span>
                 </ng-template>
             </e-column>
-            <!-- "Did anything ELSE fail?" — the criteria with no column of their own (no record,
-                 not Active, not a Player/Coach, USA Lacrosse unreachable). Replaces the prose
-                 Details column, which was the widest thing on the page and sat off the right
-                 edge where it read as missing data (AR-085). Ann: "we don't need Details if we
-                 have the other info." Yes is the BAD answer here, so the colours are inverted. -->
-            <e-column field="otherIssue" headerText="Other issue?" width="92" textAlign="Center">
+            <!-- "What ELSE failed?" — the criteria with no column of their own (no record, not
+                 Active, not a Player/Coach, USA Lacrosse unreachable). Replaces the prose Details
+                 column, which was the widest thing on the page and sat off the right edge where it
+                 read as missing data (AR-085). Ann: "we don't need Details if we have the other info."
+                 AR-085 verify (Ann, 09-08): *"Other Issue where is that information if it says yes"* —
+                 a bare red "Yes" put the reason in a hover and the export only, and she did not find
+                 it. The cell now NAMES the reason ("No record", "Not active", "Not a player",
+                 "Unreachable", "+N" when several failed). Anything but "No" or a dash reads red. -->
+            <e-column field="otherIssue" headerText="Other issue?" width="142" minWidth="128" textAlign="Center">
                 <ng-template #template let-data>
                     <span [ngClass]="otherIssueClass(data.otherIssue)" [title]="otherIssueTitle(data)">{{ data.otherIssue }}</span>
                 </ng-template>
             </e-column>
-            <e-column field="previousExpiryDate" headerText="Expiry Old" width="92" textAlign="Center" type="date" format="MM/dd/yyyy">
+            <e-column field="previousExpiryDate" headerText="Expiry Old" width="112" minWidth="104" textAlign="Center" [customAttributes]="{ class: 'uslax-date-cell' }" type="date" format="MM/dd/yyyy">
                 <ng-template #template let-data>
                     {{ data.previousExpiryDate ? (data.previousExpiryDate | date:'MM/dd/yyyy') : '—' }}
                 </ng-template>
             </e-column>
-            <e-column field="newExpiryDate" headerText="Expiry New" width="108" textAlign="Center" type="date" format="MM/dd/yyyy">
+            <e-column field="newExpiryDate" headerText="Expiry New" width="124" minWidth="112" textAlign="Center" [customAttributes]="{ class: 'uslax-date-cell' }" type="date" format="MM/dd/yyyy">
                 <ng-template #template let-data>
                     <span [class.updated-cell]="data.expiryDateUpdated">
                         {{ data.newExpiryDate ? (data.newExpiryDate | date:'MM/dd/yyyy') : '—' }}

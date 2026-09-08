@@ -164,12 +164,53 @@
 
 
 
-// Grid viewport (AR-085). The wrapper is sized to the screen and the grid fills it, so rows
-// scroll INSIDE the grid and its horizontal scrollbar is always visible — Ann had to scroll
-// to the foot of a long list to reach it, and columns off the right edge read as missing.
+// ── Grid height: measured by flexbox, never by a viewport constant (AR-085) ─────────────────
+// What shipped first was `height: calc(100vh - 21rem)`, where 21rem stood for "however much
+// chrome sits above the grid" — measured on one developer's screen. On Ann's it was wrong, the
+// grid overflowed, the PAGE scrolled instead of the grid, and the horizontal scrollbar ended up
+// at the foot of a 300-row list where she never saw it. Off-screen columns then read as missing
+// data. Ann, 09-08: "scroll should be adjustable based on screen type."
+//
+// Re-cutting the constant would only move the failure to the next screen, so there is no constant
+// now. The shell already offers the chain: `.layout-wrapper` is 100dvh, <main> is the scroll
+// container, and `main > .row` carries height:100% precisely so a routed component can hand its
+// leftover height to a self-scrolling child. This is the same chain the Search grids use — see
+// search-registrations.component.scss, "no viewport math, no reserved-px guess".
+:host {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+// flex:1 claims whatever is left after the page header, context panel, alerts, toolbar and (when
+// open) the compose panel — all of which are natural-height siblings above. min-height:0 is what
+// lets this shrink instead of growing the page, so the grid scrolls INSIDE its own body and its
+// horizontal scrollbar stays on screen. The grid fills this box via height="100%".
 .uslax-membership-grid {
-    height: calc(100vh - 21rem);
-    min-height: 22rem;
+    flex: 1;
+    // 0, NOT a floor. A floor is a constant, and a constant taller than the leftover space is
+    // exactly how the page starts scrolling again on a short screen — the bug being fixed.
+    min-height: 0;
+}
+
+// ── Header/cell chrome (AR-085 verify failure) ──────────────────────────────────────────────
+// Why five headers still truncated after widths were increased once: every column on this grid
+// spends ~70px before a single character is drawn — 32px of horizontal cell padding from
+// `tsic-grid-tight`, plus a sort icon, plus a FILTER icon (AR-071 part 1 put filters on these
+// headers). At 100px, `Verified` had under 30px left and rendered `Verif…`; the 92px date
+// columns had under 60px and cut the YEAR off a date, which on a screen that exists to answer
+// "does this membership cover the event" is the one character that matters.
+//
+// Halving the horizontal padding hands ~16px back to EVERY column — ~240px across the table —
+// without hiding the filter affordance Ann asked for. Scoped to this grid, not to the shared
+// `tsic-grid-tight` class, which email-log and push-notification also use.
+:host ::ng-deep .uslax-membership-grid .e-grid .e-gridheader .e-headercell {
+    padding-inline: var(--space-2);
+}
+
+:host ::ng-deep .uslax-membership-grid .e-grid .e-gridcontent .e-rowcell {
+    padding-inline: var(--space-2);
 }
 
 // Header wrap. ej2 wrapMode:'Header' applies word-wrap:break-word, which splits header words
@@ -183,4 +224,10 @@
     overflow-wrap: normal !important;
     word-break: keep-all !important;
     line-height: 1.2;
+}
+
+// Dates must never ellipsize — a date whose year is cut off is not a date (Ann's screenshot
+// showed `08/31/20…` in BOTH expiry columns). Belt and braces alongside the widths below.
+:host ::ng-deep .uslax-membership-grid .e-grid .uslax-date-cell {
+    white-space: nowrap;
 }

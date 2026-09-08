@@ -607,27 +607,60 @@ export class UsLaxMembershipComponent implements OnInit {
 	}
 
 	/**
-	 * Yes when any un-columned criterion failed; No when they were all assessed and passed; — when
-	 * none was assessed (validation bypassed for the team or a test number — the policy returns
-	 * a single null-passed row for those). A row with no checklist at all answers from its
-	 * transport outcome: a failed call is a Yes, because it IS the reason nothing else was checked.
+	 * The un-columned criteria, in two or three words each. AR-085 verify (Ann, 09-08): *"Other
+	 * Issue where is that information if it says yes"* — under the previous build a bare red "Yes"
+	 * was the whole answer, and the reason lived only in a hover and the Excel export. She did not
+	 * find it, which means for her it was not there: a column that says something is wrong and
+	 * refuses to say what is AR-071's own defect in new clothes.
+	 *
+	 * So the cell NAMES the reason instead of asserting one exists. The policy's full sentence is
+	 * still the hover, and still the export — this is the short form, on screen, no interaction.
+	 */
+	private static readonly OTHER_ISSUE_LABELS: Readonly<Record<string, string>> = {
+		VendorUnavailable: 'Unreachable',
+		NotFound: 'No record',
+		NotActive: 'Not active',
+		NotAPlayer: 'Not a player',
+		NotACoach: 'Not a coach'
+	};
+
+	/**
+	 * The short reason when any un-columned criterion failed; No when they were all assessed and
+	 * passed; — when none was assessed (validation bypassed for the team or a test number — the
+	 * policy returns a single null-passed row for those). A row with no checklist at all answers
+	 * from its transport outcome: a failed call IS the reason nothing else was checked.
+	 *
+	 * Returning the reason as the FIELD VALUE, not just as cell markup, is deliberate: this column
+	 * is filtered and sorted by its field (AR-071 part 1), so naming the reason here also lets Ann
+	 * filter the table down to one kind of problem. A bare Yes could only ever filter to "something".
 	 */
 	private otherIssueOf(row: UsLaxReconciliationRowDto): string {
 		const others = this.otherChecks(row);
 		if (others.length === 0) {
-			if (!row.checks?.length && row.statusCode !== 200) return 'Yes';
+			if (!row.checks?.length && row.statusCode !== 200) return 'Unreachable';
 			return UsLaxMembershipComponent.NOT_ASSESSED;
 		}
-		if (others.some(c => c.passed === false)) return 'Yes';
+
+		const failed = others.filter(c => c.passed === false);
+		if (failed.length > 0) {
+			const first = UsLaxMembershipComponent.OTHER_ISSUE_LABELS[failed[0].key] ?? 'Yes';
+			// More than one thing wrong: name the first and count the rest, rather than silently
+			// showing one of them. The hover lists every one, in the policy's own words.
+			return failed.length > 1 ? `${first} +${failed.length - 1}` : first;
+		}
 		if (others.some(c => c.passed === true)) return 'No';
 		return UsLaxMembershipComponent.NOT_ASSESSED;
 	}
 
-	/** Colour for the Other issue? cell — inverted from checkClass, because here Yes is the bad answer. */
+	/**
+	 * Colour for the Other issue? cell — inverted from checkClass, because here anything other than
+	 * "No" is the bad answer. Matched on the two GOOD values rather than on a list of reason words,
+	 * so a criterion added to the policy later cannot quietly render as if it were fine.
+	 */
 	otherIssueClass(verdict: string): string {
-		if (verdict === 'Yes') return 'text-danger fw-semibold';
 		if (verdict === 'No') return 'text-success-emphasis';
-		return 'text-body-secondary';
+		if (verdict === UsLaxMembershipComponent.NOT_ASSESSED) return 'text-body-secondary';
+		return 'text-danger fw-semibold';
 	}
 
 	/** Hover text for the Other issue? cell — every un-columned criterion that did not pass, in the policy's words. */
@@ -752,9 +785,10 @@ export class UsLaxMembershipComponent implements OnInit {
 				args.value = this.involvementBadges(d).join(', ');
 				break;
 			case 'Other issue?': {
-				// The verdict plus its reasons — the spreadsheet has no hover.
+				// The short reason plus the policy's full sentences — the spreadsheet has no hover.
 				const lines = this.otherIssueLines(d);
-				args.value = lines.length > 0 ? `Yes — ${lines.join(' ')}` : this.otherIssueOf(d);
+				const verdict = this.otherIssueOf(d);
+				args.value = lines.length > 0 ? `${verdict} — ${lines.join(' ')}` : verdict;
 				break;
 			}
 			case 'Expiry Old':
