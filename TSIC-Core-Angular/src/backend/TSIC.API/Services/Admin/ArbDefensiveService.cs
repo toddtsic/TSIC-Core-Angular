@@ -190,7 +190,9 @@ public class ArbDefensiveService : IArbDefensiveService
     public async Task<EmailBatchHandle> StartDefensiveEmailsAsync(
         ArbSendEmailsRequest request, CancellationToken ct = default)
     {
-        var senderInfo = await _arbRepo.GetSenderInfoAsync(request.SenderUserId, ct);
+        // The person who PRESSED the button. Used for their completion summary and nothing else --
+        // it is deliberately NOT the identity on the family's email. See the director lookup below.
+        var operatorInfo = await _arbRepo.GetSenderInfoAsync(request.SenderUserId, ct);
 
         // Load flagged registrations + narrow to the selected subset. The ADN calls happen HERE,
         // before fan-out — same up-front cost the synchronous version paid, then sends go background.
@@ -201,8 +203,19 @@ public class ArbDefensiveService : IArbDefensiveService
         // Capture ONLY plain data for the engine closures — this request scope (and its DbContext /
         // _arbRepo) is disposed the instant we return the handle. The completion hook resolves every
         // service it needs from the fresh scope the engine hands it.
-        var senderName = senderInfo?.DisplayName ?? "TEAMSPORTSINFO.COM";
-        var senderEmail = senderInfo?.Email;
+        // WHO THIS COMES FROM -- the SAME resolver the unattended 2nd/15th and failed-draft passes
+        // use (ArbNotificationService), so a family sees one identity from a club no matter which of
+        // the three paths mailed them: From = the JOB (AR-068 -- never a human's name on an ARB
+        // notice), Reply-To = the job's starred primary contact, else its earliest-registered active
+        // Director. It used to be whoever pressed the button, which put a TSIC staffer's name and
+        // gmail on a club's money conversation and ignored the star entirely.
+        var director = (await _arbRepo.GetDefaultDirectorsForJobsAsync([request.JobId], ct))
+            .FirstOrDefault();
+        var senderName = allFlagged.FirstOrDefault()?.JobName ?? "TEAMSPORTSINFO.COM";
+        var directorName = director?.Name;
+        var senderEmail = director?.Email;
+        var operatorName = operatorInfo?.DisplayName ?? "TEAMSPORTSINFO.COM";
+        var operatorEmail = operatorInfo?.Email;
         var subject = request.EmailSubject;
         var bodyTemplate = request.EmailBody;
         var flagType = request.FlagType;
@@ -229,7 +242,7 @@ public class ArbDefensiveService : IArbDefensiveService
                     Message = new EmailMessageDto
                     {
                         FromName = senderName,
-                        ReplyToName = senderName,
+                        ReplyToName = directorName,
                         ReplyToAddress = senderEmail,
                         ToAddresses = toAddresses,
                         Subject = subject,
@@ -252,8 +265,10 @@ public class ArbDefensiveService : IArbDefensiveService
             {
                 var email = sp.GetRequiredService<IEmailService>();
 
-                // Sender completion summary (automatic for ARB — unlike Search Reg's opt-in summary).
-                if (!string.IsNullOrWhiteSpace(senderEmail))
+                // Completion summary goes to the OPERATOR, not the sender identity: it is a receipt for
+                // the person who pressed the button. Keying it off senderEmail would now mail it to the
+                // club's director instead, which is the one person who did not press anything.
+                if (!string.IsNullOrWhiteSpace(operatorEmail))
                 {
                     var confirmBody = $@"Batch Email Complete
                         <br /><strong>Type:</strong> ARB Defensive ({flagType})
@@ -268,7 +283,7 @@ public class ArbDefensiveService : IArbDefensiveService
                     await email.SendAsync(new EmailMessageDto
                     {
                         FromName = "TEAMSPORTSINFO.COM",
-                        ToAddresses = new List<string> { senderEmail },
+                        ToAddresses = new List<string> { operatorEmail },
                         Subject = $"ARB Defensive Email Batch Complete — {status.Sent} sent",
                         HtmlBody = confirmBody
                     }, cancellationToken: token);
@@ -289,11 +304,14 @@ public class ArbDefensiveService : IArbDefensiveService
                             <h3>Registrants:</h3><ul>{string.Join("", names)}</ul>
                             <p>No action required from you at this time.</p>";
 
+                        // Reply-To stays the OPERATOR here, unlike the family email above: this is an
+                        // internal "here is what just went out" notice, so a director answering it must
+                        // reach the person who sent it -- not, as senderEmail would now do, themselves.
                         await email.SendAsync(new EmailMessageDto
                         {
                             FromName = senderName,
-                            ReplyToName = senderName,
-                            ReplyToAddress = senderEmail,
+                            ReplyToName = operatorName,
+                            ReplyToAddress = operatorEmail,
                             ToAddresses = new List<string> { director.Email },
                             Subject = $"ARB {flagType} Notifications Sent",
                             HtmlBody = dirBody
