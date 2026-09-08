@@ -40,7 +40,11 @@ INSERT INTO #map (ReportKey, NewLabel) VALUES
 ,('AmericanSelectEvaluation',                                               'Rosters')
 ,('AmericanSelectMainEventRosters',                                         'Rosters')
 ,('Job_Rosters_NoMedical',                                                  'Rosters')
-,('PlayerStats_E120',                                                       'Rosters')
+-- PlayerStats_E120 DELIBERATELY OMITTED: obsolete report (Todd 2026-09-08), and it is
+-- listed TWICE in 36 jobs for the same role -- 'Entry Form (pdf)' under 'Player Stats' and
+-- 'Player Stats Entry Form (pdf)' under 'Reports'. Mapping both to Rosters would violate
+-- UX_JobReports_JobRoleActionGroup (JobId, RoleId, Controller, Action, GroupLabel) and abort
+-- the UPDATE. Left untouched: both copies stay exactly where the Director sees them today.
 ,('Job_Club_Rosters',                                                       'Rosters')
 ,('[reporting].[RefAssignmentQA]',                                          'Schedules')
 ,('clubrostersNoMedicalII',                                                 'Rosters')
@@ -107,6 +111,22 @@ FROM   #map m
 WHERE  NOT EXISTS (SELECT 1 FROM #keyed k WHERE k.ReportKey = m.ReportKey);
 -- expect ZERO rows. Anything listed means the key is wrong -- stop.
 
+-- Unique-index collision guard. UX_JobReports_JobRoleActionGroup is UNIQUE on
+-- (JobId, RoleId, Controller, Action, GroupLabel) -- GroupLabel is PART OF THE KEY. If a job
+-- lists the same report twice under two headings, normalizing both to one label collides and
+-- the UPDATE aborts. Computes the post-update label for EVERY row and looks for duplicates.
+SELECT COUNT(*) AS CollidingKeyGroups FROM (
+    SELECT a.JobId, a.RoleId, a.Controller, a.Action, a.FinalLabel
+    FROM (SELECT r.JobId, r.RoleId, r.Controller, r.Action,
+                 ISNULL(m.NewLabel, r.GroupLabel) AS FinalLabel
+          FROM reporting.JobReports r
+          JOIN #keyed k ON k.JobReportId = r.JobReportId
+          LEFT JOIN #map m ON m.ReportKey = k.ReportKey) a
+    GROUP BY a.JobId, a.RoleId, a.Controller, a.Action, a.FinalLabel
+    HAVING COUNT(*) > 1) x;
+-- expect ZERO. Anything above zero means a report is double-listed under two headings --
+-- STOP and decide which copy survives before mapping it.
+
 BEGIN TRAN;
 
 -- 2. UPDATE ----------------------------------------------------------------
@@ -129,6 +149,8 @@ FROM   reporting.JobReports r
 WHERE  r.Active = 1
 GROUP BY r.GroupLabel
 ORDER BY Status, COUNT(*) DESC;
--- expect NO '*** OTHER TAB ***' rows.
+-- EXPECT EXACTLY TWO '*** OTHER TAB ***' rows, both PlayerStats_E120 (obsolete, deliberately
+-- omitted above): 'Player Stats' and 'Reports'. Anything ELSE in that bucket is a miss.
+-- To retire it later: DELETE the redundant copy in the 36 double-listed jobs, then map it.
 
 -- COMMIT;   -- or ROLLBACK;
