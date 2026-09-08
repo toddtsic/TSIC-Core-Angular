@@ -260,6 +260,22 @@ public interface IJobRepository
     Task<JobSeasonYear?> GetJobSeasonYearAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// The job entity, TRACKED, for the rare caller that writes a job-level column outside
+    /// Configure → Job (first-league create fills a never-set Jobs.SportId). Read-only
+    /// callers must keep using the projected accessors — this one exists to be mutated.
+    /// </summary>
+    Task<Jobs?> GetJobTrackedAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The job's sport (Jobs.SportId) — the tier that TextSubstitution tokens and related-job
+    /// matching actually read. Guid.Empty when never set; null when the job is missing.
+    /// </summary>
+    Task<Guid?> GetSportIdAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>Persists tracked Jobs mutations (see <see cref="GetJobTrackedAsync"/>).</summary>
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get job name by job ID.
     /// <summary>
     /// Job type discriminator for a job — see <see cref="TSIC.Domain.Constants.JobConstants"/>.

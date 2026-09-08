@@ -22,8 +22,10 @@ import {
 import type { ParentBreadcrumb } from './components/ladt-sibling-grid.component';
 import type {
   LadtTreeNodeDto, DivisionNameSyncPreview, JobFeeDto,
-  LadtFeeResolutionMapDto, LadtFeeNodeResolutionDto, LadtFeeRoleResolutionDto
+  LadtFeeResolutionMapDto, LadtFeeNodeResolutionDto, LadtFeeRoleResolutionDto,
+  SportOptionDto
 } from '../../../core/api';
+import { AuthService } from '@infrastructure/services/auth.service';
 import type { DescendantOverrideInfo, PhaseContext } from './components/fee-card.component';
 import { RoleIds } from '@infrastructure/constants/roles.constants';
 import { AGEGROUP_COLORS } from '../../scheduling/shared/utils/scheduling-helpers';
@@ -87,6 +89,21 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   // Tree data (all nodes, flat)
   flatNodes = signal<LadtFlatNode[]>([]);
   private rawTree = signal<LadtTreeNodeDto[]>([]);
+
+  // ── Empty-state "Create League" mini-form ──
+  // Only reachable on a job with NO leagues — the door out of a clone taken with LadtScope
+  // "none". SuperUser-only: job build-out, never a director action (the server enforces it
+  // with [Authorize(Policy = "SuperUserOnly")]; this signal only decides what renders).
+  readonly isSuperuser = inject(AuthService).isSuperuser;
+  newLeagueName = signal('');
+  newLeagueSportId = signal<string>('');
+  creatingLeague = signal(false);
+  sports = signal<SportOptionDto[]>([]);
+
+  readonly canCreateLeague = computed(() =>
+    this.newLeagueName().trim().length > 0
+    && this.newLeagueSportId().length > 0
+    && !this.creatingLeague());
 
   // Scheduled team IDs (raw data from backend, used for KPI computation)
   scheduledTeamIds = signal<Set<string>>(new Set());
@@ -357,6 +374,20 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
         this.totalPlayers.set(root.totalPlayers);
         this.scheduledTeamIds.set(new Set(root.scheduledTeamIds ?? []));
 
+        // Leagueless job → the empty state offers the Create League form (superuser only).
+        // Seed its sport from the JOB's sport and load the options once. Null means the job
+        // never had one set, so the dropdown opens unselected.
+        if (root.leagues.length === 0 && this.isSuperuser()) {
+          if (!this.newLeagueSportId() && root.jobSportId) {
+            this.newLeagueSportId.set(root.jobSportId);
+          }
+          if (this.sports().length === 0) {
+            this.ladtService.getSports().subscribe({
+              next: (list) => this.sports.set(list)
+            });
+          }
+        }
+
         const flat = this.flattenTree(root.leagues as LadtTreeNodeDto[]);
         this.flatNodes.set(flat);
 
@@ -552,6 +583,32 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
       case 3: return 'bi-person-badge';
       default: return 'bi-circle';
     }
+  }
+
+  /**
+   * Empty-state Create League. The server builds the whole scaffold in one transaction and
+   * returns the new league, so a plain tree reload lands on a usable job.
+   */
+  createLeague(): void {
+    if (!this.canCreateLeague()) return;
+
+    this.creatingLeague.set(true);
+    this.errorMessage.set(null);
+
+    this.ladtService.createLeague({
+      leagueName: this.newLeagueName().trim(),
+      sportId: this.newLeagueSportId()
+    }).subscribe({
+      next: (league) => {
+        this.creatingLeague.set(false);
+        this.newLeagueName.set('');
+        this.loadTree(league.leagueId);
+      },
+      error: (err) => {
+        this.creatingLeague.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to create league');
+      }
+    });
   }
 
   // ── Inline Creation (Phantom Node) ──

@@ -19,6 +19,19 @@ public record LadtTreeRootDto
     /// </summary>
     public required bool BPlayersFullPaymentRequired { get; init; }
     public required bool BTeamsFullPaymentRequired { get; init; }
+
+    /// <summary>
+    /// The job's own sport (Jobs.SportId), or NULL when the job has never had one set.
+    /// Seeds the sport dropdown on the empty-state Create League form so the first league
+    /// inherits the job's sport rather than asking the operator to re-pick it; null opens
+    /// the dropdown unselected. Carried on the tree because the tree is already loaded when
+    /// that form renders.
+    ///
+    /// The storage column is a non-nullable Guid that reads Guid.Empty when unset — an
+    /// absence spelled as a value. That translation happens once, here at the boundary, so
+    /// no consumer has to recognise a magic GUID.
+    /// </summary>
+    public required Guid? JobSportId { get; init; }
 }
 
 /// <summary>

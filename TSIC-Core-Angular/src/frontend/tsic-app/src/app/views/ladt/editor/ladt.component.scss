@@ -853,3 +853,41 @@
   font-size: var(--font-size-xs);
   font-weight: 600;
 }
+
+// ── Empty-state "Create League" mini-form ──
+// Shown only on a leagueless job, only to superusers. Sized to the tree column, so it uses
+// the same rhythm as the tree's own controls rather than dialog proportions.
+.new-league-form {
+    display: block;
+    padding: var(--space-4);
+    margin: var(--space-2) var(--space-1);
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+
+    .new-league-title {
+        font-weight: 600;
+        color: var(--brand-text);
+        margin-bottom: var(--space-3);
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: var(--space-1);
+        color: var(--bs-secondary-color);
+    }
+
+    .form-control:focus-visible,
+    .form-select:focus-visible,
+    .btn:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .new-league-form .spinner-border {
+        animation: none !important;
+    }
+}

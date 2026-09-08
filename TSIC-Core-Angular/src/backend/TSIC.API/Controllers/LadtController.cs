@@ -93,6 +93,31 @@ public class LadtController : ControllerBase
         catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
     }
 
+    /// <summary>
+    /// Creates the first league on a leagueless job, with the scaffold that makes the job
+    /// usable (see <see cref="ILadtService.CreateLeagueAsync"/>).
+    ///
+    /// SuperUserOnly on the ENDPOINT, not just the form: league creation is job build-out,
+    /// which directors never do, and the call back-fills Jobs.SportId — a field Configure →
+    /// Job already gates to superusers. Hiding the button would not be a gate.
+    /// </summary>
+    [HttpPost("leagues")]
+    [Authorize(Policy = "SuperUserOnly")]
+    public async Task<ActionResult<LeagueDetailDto>> CreateLeague(
+        [FromBody] CreateLeagueRequest request, CancellationToken cancellationToken)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        try
+        {
+            var detail = await _ladtService.CreateLeagueAsync(request, jobId!.Value, userId!, cancellationToken);
+            return Ok(detail);
+        }
+        catch (KeyNotFoundException) { return NotFound(); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
     [HttpPut("leagues/{leagueId:guid}")]
     public async Task<ActionResult<LeagueDetailDto>> UpdateLeague(
         Guid leagueId, [FromBody] UpdateLeagueRequest request, CancellationToken cancellationToken)

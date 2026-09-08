@@ -37,3 +37,20 @@ public record SportOptionDto
     public required Guid SportId { get; init; }
     public required string SportName { get; init; }
 }
+
+/// <summary>
+/// Create the FIRST league on a job that has none — the empty-state mini-form in the LADT
+/// editor. SuperUser-only: league creation is a job build-out step (a clone taken with
+/// LadtScope "none" lands leagueless), never a director action.
+///
+/// The sport is the JOB's sport, not a per-league choice: <c>Jobs.SportId</c> is what
+/// TextSubstitution tokens and related-job matching read, while <c>Leagues.SportId</c> is
+/// read only to display and edit itself in the league pane. The form preselects the job's
+/// value and the create writes the operator's selection to BOTH, so a job whose sport was
+/// never set gets it filled in here.
+/// </summary>
+public record CreateLeagueRequest
+{
+    public required string LeagueName { get; init; }
+    public required Guid SportId { get; init; }
+}

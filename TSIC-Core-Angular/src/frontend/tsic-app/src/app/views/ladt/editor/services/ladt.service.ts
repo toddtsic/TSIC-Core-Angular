@@ -5,6 +5,7 @@ import { environment } from '../../../../../environments/environment';
 import type {
   LadtTreeRootDto,
   LeagueDetailDto,
+  CreateLeagueRequest,
   UpdateLeagueRequest,
   AgegroupDetailDto,
   CreateAgegroupRequest,
@@ -55,6 +56,15 @@ export class LadtService {
 
   updateLeague(leagueId: string, request: UpdateLeagueRequest): Observable<LeagueDetailDto> {
     return this.http.put<LeagueDetailDto>(`${this.apiUrl}/leagues/${leagueId}`, request);
+  }
+
+  /**
+   * Creates the first league on a leagueless job, with the scaffold that makes the job
+   * usable (stub agegroup + Unassigned division + stub team, $0 fees at every tier,
+   * Dropped Teams bucket, Store Merch anchor). SuperUser-only on the server.
+   */
+  createLeague(request: CreateLeagueRequest): Observable<LeagueDetailDto> {
+    return this.http.post<LeagueDetailDto>(`${this.apiUrl}/leagues`, request);
   }
 
   // ── Agegroup ──

@@ -45,5 +45,20 @@ public interface ILeagueRepository
 
     void Add(Leagues league);
     void Remove(Leagues league);
+
+    /// <summary>Adds a Jobs.JobLeagues row (the league → job link).</summary>
+    void AddJobLeague(JobLeagues jobLeague);
+
+    /// <summary>
+    /// Opens an explicit transaction on the shared context so a multi-step build can roll
+    /// back as a unit. Needed because the LADT stub helpers each SaveChanges internally —
+    /// without this, a first-league create commits in pieces and a mid-way failure strands
+    /// a half-built league whose empty-state form is already gone.
+    /// </summary>
+    Task<IAsyncDisposable> BeginTransactionAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Commits the transaction opened by <see cref="BeginTransactionAsync"/>.</summary>
+    Task CommitTransactionAsync(CancellationToken cancellationToken = default);
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos.Ladt;
+using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Constants;
@@ -200,7 +201,15 @@ public sealed class LadtService : ILadtService
             // explicit per-scope JobFees stamps (6a §8P materialized legacy full-payment
             // jobs). DTO fields retained so the frontend model is unchanged.
             BPlayersFullPaymentRequired = false,
-            BTeamsFullPaymentRequired = false
+            BTeamsFullPaymentRequired = false,
+            // Seeds the sport dropdown on the empty-state Create League form. The column is
+            // non-nullable and reads Guid.Empty when the job never had a sport set; normalise
+            // that to null HERE so the wire contract says "absent" instead of making every
+            // consumer know the magic value.
+            JobSportId = await _jobRepo.GetSportIdAsync(jobId, cancellationToken) is { } sport
+                         && sport != Guid.Empty
+                ? sport
+                : null
         };
     }
 
@@ -276,6 +285,166 @@ public sealed class LadtService : ILadtService
         await ValidateLeagueOwnershipAsync(leagueId, jobId, cancellationToken);
         return await _leagueRepo.GetByIdWithSportAsync(leagueId, cancellationToken)
             ?? throw new KeyNotFoundException($"League {leagueId} not found.");
+    }
+
+    /// <summary>
+    /// First-league create. See <see cref="ILadtService.CreateLeagueAsync"/>.
+    ///
+    /// Everything runs inside ONE explicit transaction. That is not belt-and-braces: the stub
+    /// helpers reused below (<see cref="AddStubAgegroupAsync"/>, <see cref="AddStubTeamAsync"/>,
+    /// FindOrCreateDroppedTeams*) each SaveChanges internally, and AddStubTeamAsync's placement
+    /// resolution QUERIES for the agegroup and division — so the rows must be written before it
+    /// runs. Without the outer transaction a mid-way failure would commit a partial league, and
+    /// the empty state that offers the retry form would already be gone.
+    /// </summary>
+    public async Task<LeagueDetailDto> CreateLeagueAsync(
+        CreateLeagueRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default)
+    {
+        var leagueName = request.LeagueName?.Trim();
+        if (string.IsNullOrWhiteSpace(leagueName))
+            throw new InvalidOperationException("League name is required.");
+
+        // Scope guard: this is the leagueless-job door, not a multi-league create. The UI only
+        // renders the form on an empty tree; enforce the same rule server-side.
+        var existing = await _leagueRepo.GetJobLeaguesAsync(jobId, cancellationToken);
+        if (existing.Count > 0)
+            throw new InvalidOperationException(
+                "This job already has a league. Create League is only available on a job with none.");
+
+        var now = DateTime.Now;
+        await using var tx = await _leagueRepo.BeginTransactionAsync(cancellationToken);
+
+        // ── League ──
+        // Built from nothing, so every column is set deliberately. The seven booleans have no
+        // "copy the source" answer here the way JobCloneResetRules.CloneLeague had one, and the
+        // C# default of false is not a decision: BHideContacts=false would publish staff contacts
+        // on the public schedule view (ViewScheduleController respects it), so contacts start
+        // hidden. Standings start VISIBLE — that is the normal posture for a league, and hiding
+        // them is the exception a director opts into.
+        var league = new Leagues
+        {
+            LeagueId = Guid.NewGuid(),
+            LeagueName = leagueName,
+            SportId = request.SportId,
+            BHideContacts = true,    // Todd 2026-09-08: staff contacts stay private by default
+            BHideStandings = false,  // Todd 2026-09-08: standings visible by default
+            BAllowCoachScoreEntry = false,
+            BShowScheduleToTeamMembers = false,
+            BTakeAttendance = false,
+            BTrackPenaltyMinutes = false,
+            BTrackSportsmanshipScores = false,
+            LebUserId = userId,
+            Modified = now
+        };
+        _leagueRepo.Add(league);
+
+        _leagueRepo.AddJobLeague(new JobLeagues
+        {
+            JobLeagueId = Guid.NewGuid(),
+            JobId = jobId,
+            LeagueId = league.LeagueId,
+            BIsPrimary = true,   // guarded by the "already has a league" check above
+            LebUserId = userId,
+            Modified = now
+        });
+        await _leagueRepo.SaveChangesAsync(cancellationToken);
+
+        // ── Job sport back-fill ──
+        // Jobs.SportId is the one that does real work (TextSubstitution tokens, related-job
+        // matching); Leagues.SportId is read only by the league pane. Superuser-gated endpoint,
+        // and Configure → Job gates this same field to superusers, so writing it here crosses
+        // no boundary.
+        var job = await _jobRepo.GetJobTrackedAsync(jobId, cancellationToken);
+        if (job != null && job.SportId != request.SportId)
+        {
+            job.SportId = request.SportId;
+            job.Modified = now;
+            await _jobRepo.SaveChangesAsync(cancellationToken);
+        }
+
+        // ── Scaffold: agegroup (+ its Unassigned division) → team ──
+        var agegroupId = await AddStubAgegroupAsync(league.LeagueId, jobId, userId, null, cancellationToken);
+        var divisions = await _divisionRepo.GetByAgegroupIdAsync(agegroupId, cancellationToken);
+        var unassigned = divisions.Find(d =>
+            string.Equals(d.DivName, UnassignedDivisionName, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException(
+                "Stub agegroup did not receive its Unassigned division.");
+        var teamId = await AddStubTeamAsync(unassigned.DivId, jobId, userId, null, cancellationToken);
+
+        // ── $0 fees at every cascade tier, both roles ──
+        // League is the TOP tier and job-level rows are never a base-fee source, so without
+        // these a registration against the stub team throws FeeNotConfiguredException. An
+        // explicit (0,0) row resolves as FeeConfigured=true — free, but configured. Same
+        // device as TeamPlacementService.EnsureWaitlistTeamFeeAsync.
+        foreach (var roleId in new[] { RoleConstants.Player, RoleConstants.ClubRep })
+        {
+            AddZeroFee(jobId, roleId, leagueId: league.LeagueId, agegroupId: null, teamId: null, userId, now);
+            AddZeroFee(jobId, roleId, leagueId: null, agegroupId: agegroupId, teamId: null, userId, now);
+            AddZeroFee(jobId, roleId, leagueId: null, agegroupId: agegroupId, teamId: teamId, userId, now);
+        }
+        await _feeRepo.SaveChangesAsync(cancellationToken);
+
+        // ── Dropped Teams graveyard (per league) ──
+        var droppedAgId = await FindOrCreateDroppedTeamsAgegroupAsync(league.LeagueId, userId, cancellationToken);
+        var droppedDivId = await FindOrCreateDroppedTeamsDivisionAsync(droppedAgId, userId, cancellationToken);
+
+        // ── Store Merch anchor (per JOB, not per league) ──
+        // The clone skips it entirely when no league clones — "no bucket can exist to hold it" —
+        // so a leagueless job has none. Find-or-create at job scope: a second league must never
+        // mint a second anchor.
+        var merchTeamId = await _teamRepo.GetStoreMerchTeamIdAsync(jobId, cancellationToken);
+        if (merchTeamId == null)
+        {
+            var customerId = await _jobRepo.GetCustomerIdAsync(jobId, cancellationToken);
+            var jobSY = await _jobRepo.GetJobSeasonYearAsync(jobId, cancellationToken);
+            var merch = new TSIC.Domain.Entities.Teams
+            {
+                TeamId = Guid.NewGuid(),
+                JobId = jobId,
+                LeagueId = league.LeagueId,
+                AgegroupId = droppedAgId,
+                DivId = droppedDivId,
+                TeamName = TeamConstants.StoreMerch,
+                Active = false,        // never competes, never lists
+                DivRank = 1,
+                MaxCount = 100000,     // legacy parity — capacity must never block a sale
+                CustomerId = customerId,
+                Season = jobSY?.Season,
+                Year = jobSY?.Year,
+                Effectiveasofdate = now.Date,
+                Createdate = now,
+                Modified = now,
+                LebUserId = userId,
+                FeeBase = 0m, FeeProcessing = 0m, FeeDiscount = 0m, FeeDiscountMp = 0m,
+                FeeDonation = 0m, FeeLatefee = 0m, PaidTotal = 0m
+            };
+            merch.RecalcTotals();
+            _teamRepo.Add(merch);
+            await _teamRepo.SaveChangesAsync(cancellationToken);
+        }
+
+        await _leagueRepo.CommitTransactionAsync(cancellationToken);
+
+        return await _leagueRepo.GetByIdWithSportAsync(league.LeagueId, cancellationToken)
+            ?? throw new InvalidOperationException("League was created but could not be read back.");
+    }
+
+    private void AddZeroFee(
+        Guid jobId, string roleId, Guid? leagueId, Guid? agegroupId, Guid? teamId, string userId, DateTime now)
+    {
+        _feeRepo.Add(new JobFees
+        {
+            JobFeeId = Guid.NewGuid(),
+            JobId = jobId,
+            RoleId = roleId,
+            LeagueId = leagueId,
+            AgegroupId = agegroupId,
+            TeamId = teamId,
+            Deposit = 0m,
+            BalanceDue = 0m,
+            Modified = now,
+            LebUserId = userId
+        });
     }
 
     public async Task<LeagueDetailDto> UpdateLeagueAsync(Guid leagueId, UpdateLeagueRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default)
@@ -603,8 +772,14 @@ public sealed class LadtService : ILadtService
             LeagueId = leagueId,
             AgegroupName = string.IsNullOrWhiteSpace(name) ? "New Age Group" : name.Trim(),
             Season = jobSY?.Season,
-            MaxTeams = 0,
-            MaxTeamsPerClub = 0,
+            // MaxTeams 0 CLOSES an agegroup — placement compares registeredCount < MaxTeams,
+            // so 0 sends every team to the waitlist. That is a deliberate director lever, not
+            // a bug, which is exactly why a freshly-minted stub must not be born holding it:
+            // the agegroup would silently waitlist its first real team. 1000 is the codebase's
+            // established "no practical cap" sentinel (TeamPlacementService mints waitlist
+            // mirrors with it).
+            MaxTeams = 1000,
+            MaxTeamsPerClub = 0,   // enforcement retired 2026-07-22 (PL-041) — dormant field
             SortAge = 0,
             LebUserId = userId,
             Modified = DateTime.Now

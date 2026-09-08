@@ -29,6 +29,15 @@ public interface ILadtService
     Task<LeagueDetailDto> GetLeagueDetailAsync(Guid leagueId, Guid jobId, CancellationToken cancellationToken = default);
     Task<LeagueDetailDto> UpdateLeagueAsync(Guid leagueId, UpdateLeagueRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Creates the FIRST league on a job that has none, with the scaffold that makes the job
+    /// structurally complete and able to resolve a fee: a stub agegroup, its Unassigned division, a stub team, $0 fee rows
+    /// at all three cascade tiers for both roles, the Dropped Teams bucket, and the Store Merch
+    /// anchor. Refuses when the job already has a league — this closes the leagueless-clone
+    /// dead end (LadtScope "none"), it is not a general multi-league create.
+    /// </summary>
+    Task<LeagueDetailDto> CreateLeagueAsync(CreateLeagueRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default);
+
     // ── Agegroup ──
 
     Task<AgegroupDetailDto> GetAgegroupDetailAsync(Guid agegroupId, Guid jobId, CancellationToken cancellationToken = default);

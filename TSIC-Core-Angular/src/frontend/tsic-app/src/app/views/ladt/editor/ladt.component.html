@@ -94,10 +94,54 @@
         </div>
       </div>
     } @else if (flatNodes().length === 0) {
-      <div class="text-center py-4 text-body-secondary">
-        <i class="bi bi-folder2-open fs-3 d-block mb-2"></i>
-        No leagues found for this job.
-      </div>
+      @if (isSuperuser()) {
+        <!-- Job build-out: the door out of a clone taken with LadtScope "none". Creates the
+             league plus the scaffold that makes the job usable. SuperUser only — directors
+             see the notice below instead, and the endpoint is gated server-side. -->
+        <form class="new-league-form" (ngSubmit)="createLeague()">
+          <div class="new-league-title">New League</div>
+
+          <label class="form-label form-label-sm" for="new-league-name">Name</label>
+          <input id="new-league-name"
+                 class="form-control form-control-sm"
+                 type="text"
+                 autocomplete="off"
+                 placeholder="League name"
+                 [ngModel]="newLeagueName()"
+                 (ngModelChange)="newLeagueName.set($event)"
+                 name="newLeagueName"
+                 [disabled]="creatingLeague()" />
+
+          <label class="form-label form-label-sm mt-2" for="new-league-sport">Sport</label>
+          <select id="new-league-sport"
+                  class="form-select form-select-sm"
+                  [ngModel]="newLeagueSportId()"
+                  (ngModelChange)="newLeagueSportId.set($event)"
+                  name="newLeagueSportId"
+                  [disabled]="creatingLeague()">
+            <option value="">Select a sport…</option>
+            @for (sport of sports(); track sport.sportId) {
+              <option [value]="sport.sportId">{{ sport.sportName }}</option>
+            }
+          </select>
+
+          <button type="submit"
+                  class="btn btn-primary btn-sm w-100 mt-3"
+                  [disabled]="!canCreateLeague()">
+            @if (creatingLeague()) {
+              <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+              Creating…
+            } @else {
+              Create
+            }
+          </button>
+        </form>
+      } @else {
+        <div class="text-center py-4 text-body-secondary">
+          <i class="bi bi-folder2-open fs-3 d-block mb-2"></i>
+          No leagues found for this job.
+        </div>
+      }
     } @else {
       <div class="tree-column-headers" aria-hidden="true">
         <span class="tree-col-head teams">Teams</span>

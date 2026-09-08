@@ -115,6 +115,17 @@ public class LeagueRepository : ILeagueRepository
 
     public void Remove(Leagues league) => _context.Leagues.Remove(league);
 
+    public void AddJobLeague(JobLeagues jobLeague) => _context.JobLeagues.Add(jobLeague);
+
+    public async Task<IAsyncDisposable> BeginTransactionAsync(CancellationToken cancellationToken = default)
+        => await _context.Database.BeginTransactionAsync(cancellationToken);
+
+    public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
+    {
+        if (_context.Database.CurrentTransaction is { } tx)
+            await tx.CommitAsync(cancellationToken);
+    }
+
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         => await _context.SaveChangesAsync(cancellationToken);
 }

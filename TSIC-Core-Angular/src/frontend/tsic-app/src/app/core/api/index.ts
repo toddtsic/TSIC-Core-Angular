@@ -228,6 +228,7 @@ export type { CreateCustomerGroupRequest } from './models/CreateCustomerGroupReq
 export type { CreateCustomerRequest } from './models/CreateCustomerRequest';
 export type { CreateDivisionRequest } from './models/CreateDivisionRequest';
 export type { CreateFieldRequest } from './models/CreateFieldRequest';
+export type { CreateLeagueRequest } from './models/CreateLeagueRequest';
 export type { CreateMenuItemRequest } from './models/CreateMenuItemRequest';
 export type { CreateMobileScorerRequest } from './models/CreateMobileScorerRequest';
 export type { CreateNavItemRequest } from './models/CreateNavItemRequest';

@@ -440,6 +440,24 @@ public class JobRepository : IJobRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<Jobs?> GetJobTrackedAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .FirstOrDefaultAsync(j => j.JobId == jobId, cancellationToken);
+    }
+
+    public async Task<Guid?> GetSportIdAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => (Guid?)j.SportId)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        => await _context.SaveChangesAsync(cancellationToken);
+
     public async Task<int?> GetJobTypeIdAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
         return await _context.Jobs

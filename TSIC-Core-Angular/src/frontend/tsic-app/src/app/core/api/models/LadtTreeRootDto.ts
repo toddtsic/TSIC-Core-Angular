@@ -10,5 +10,6 @@ export type LadtTreeRootDto = {
     scheduledTeamIds: Array<string>;
     bPlayersFullPaymentRequired: boolean;
     bTeamsFullPaymentRequired: boolean;
+    jobSportId: string | null;
 };
 
