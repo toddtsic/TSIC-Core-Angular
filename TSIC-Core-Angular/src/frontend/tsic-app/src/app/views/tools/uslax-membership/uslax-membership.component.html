@@ -247,8 +247,26 @@
                  would go to this family. The reason is in the verdict columns. Nothing sends automatically.
                  A mark means "needs email"; blank means it doesn't — the marked rows are the
                  exception, so leaving the healthy majority blank is what makes them scannable.
-                 The glyph carries a title + aria-label because colour alone must not convey it. -->
-            <e-column headerText="Email?" width="104" minWidth="96" textAlign="Center" field="needsEmail">
+                 The glyph carries a title + aria-label because colour alone must not convey it.
+
+                 ⚠ THIS COLUMN CANNOT BE FOLDED INTO THE SELECTION CHECKBOX, though it looks like it
+                 could. The checkbox in column 1 is withdrawn by exactly the same predicate
+                 (`needsAction` → `.uslax-row-not-mailable` → the checkbox is `visibility:hidden`), so
+                 its PRESENCE already carries this fact. But ej2 only sorts a column that has a
+                 `field`, and giving the `type="checkbox"` column one flips it into bound-checkbox
+                 mode — `RowRenderer` then drives `row.isSelected` from that field's value, so every
+                 row needing email would arrive PRE-SELECTED and arm "Email Selected" on load. On a
+                 screen that mails families that is not a trade worth 100px. So the sortable column
+                 stays and carries a ✓ for its heading instead of the word.
+
+                 Sorting it is the point: it brings every row that has a checkbox to the top, which
+                 is the gesture this screen is used for. -->
+            <e-column headerText="Needs email" width="80" minWidth="72" textAlign="Center" field="needsEmail">
+                <ng-template #headerTemplate>
+                    <i class="bi bi-check2"
+                       title="Needs email — sort to bring every row with a checkbox to the top"
+                       aria-label="Needs email"></i>
+                </ng-template>
                 <ng-template #template let-data>
                     @if (needsAction(data)) {
                         <i class="bi bi-check2 text-danger fw-bold"
