@@ -83,13 +83,17 @@ if (-not $apiRunning) {
     
     Set-Location $apiPath
     
-    # Start API in a new PowerShell window
+    # Start API in a new PowerShell window. Plain `dotnet run`, NOT `dotnet watch`: a watcher
+    # left behind rebuilds bin\Debug on every later source edit and races a debugger build,
+    # which once left the bin missing Microsoft.IdentityModel.Abstractions.dll and the
+    # deps.json (login died with FileNotFoundException). The process is stopped in `finally`.
     $startInfo = New-Object System.Diagnostics.ProcessStartInfo
     $startInfo.FileName = "powershell.exe"
-    $startInfo.Arguments = "-NoExit -Command `"dotnet watch run --launch-profile https --non-interactive`""
+    $startInfo.Arguments = "-NoExit -Command `"dotnet run --launch-profile https`""
     $startInfo.WorkingDirectory = $apiPath
     $startInfo.UseShellExecute = $true
     $process = [System.Diagnostics.Process]::Start($startInfo)
+    $script:startedApiPid = $process.Id
     
     Set-Location $projectRoot
     

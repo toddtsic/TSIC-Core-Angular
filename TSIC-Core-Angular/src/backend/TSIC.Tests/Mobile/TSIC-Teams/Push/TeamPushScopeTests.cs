@@ -121,8 +121,7 @@ public class TeamPushScopeTests
         var result = await h.Svc.SendPushAsync(teamA, "director-1", jobId, false, callerHasJobWideReach: true, callerTeamId: null, Push(true));
 
         result.Should().NotBeNull();
-        h.Sent.Should().BeEquivalentTo(
-            new[] { "phone-team-a", "phone-team-b", "phone-job-only" });
+        h.Sent.Should().BeEquivalentTo("phone-team-a", "phone-team-b", "phone-job-only");
         result!.TeamId.Should().BeNull("a job-wide send is not team-scoped");
     }
 
