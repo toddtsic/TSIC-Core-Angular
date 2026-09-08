@@ -17,6 +17,15 @@ public interface IEmailBatchJobRegistry
     /// <summary>Atomically fold one send outcome into the job's running totals.</summary>
     void RecordResult(Guid jobId, bool success, IEnumerable<string> failedAddresses);
 
+    /// <summary>
+    /// Atomically fold the MAILBOX count of one successfully-sent message into the job's address tally.
+    /// Deliberately separate from <see cref="RecordResult"/>: that call's Sent counter ticks once per
+    /// MESSAGE (one per registrant) and drives the progress bar, which stays on registrants. This is the
+    /// count of mailboxes those messages actually reached — the unit the EmailLogs row records (AR-086)
+    /// and therefore the unit every sender-facing summary must quote (AR-087).
+    /// </summary>
+    void RecordSentAddresses(Guid jobId, int addressCount);
+
     /// <summary>Mark the job finished (all items processed).</summary>
     void Complete(Guid jobId);
 
@@ -34,6 +43,16 @@ public sealed record EmailBatchJobStatus
     public required int OptedOut { get; init; }
     public required bool Done { get; init; }
     public required IReadOnlyList<string> FailedAddresses { get; init; }
+
+    /// <summary>
+    /// Mailboxes actually mailed. <see cref="Sent"/> counts MESSAGES (one per registrant); this counts
+    /// the addresses those messages carried, so it exceeds Sent whenever a family fans out to two parent
+    /// mailboxes. It is the same figure the EmailLogs audit row stores in Count/SendTo (AR-086), which is
+    /// why the sender-facing summaries quote this and not Sent (AR-087).
+    /// Not <c>required</c> on purpose: only the registry snapshot sets it, and a hand-built status
+    /// (tests, a plan constructing one) legitimately defaults it to 0.
+    /// </summary>
+    public int EmailsSent { get; init; }
 
     /// <summary>Recipients processed so far (sent + failed) — drives the progress bar.</summary>
     public int Processed => Sent + Failed;

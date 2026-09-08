@@ -16,6 +16,8 @@ public sealed class EmailBatchJobRegistry : IEmailBatchJobRegistry
         public required int Total { get; init; }
         public int OptedOut { get; set; }
         public int Sent { get; set; }
+        // Mailboxes reached, as opposed to Sent's messages — see IEmailBatchJobRegistry.RecordSentAddresses.
+        public int SentAddresses { get; set; }
         public int Failed { get; set; }
         public bool Done { get; set; }
         public readonly List<string> FailedAddresses = new();
@@ -49,6 +51,16 @@ public sealed class EmailBatchJobRegistry : IEmailBatchJobRegistry
         }
     }
 
+    public void RecordSentAddresses(Guid jobId, int addressCount)
+    {
+        if (addressCount <= 0) return;
+        if (!_jobs.TryGetValue(jobId, out var e)) return;
+        lock (e.Gate)
+        {
+            e.SentAddresses += addressCount;
+        }
+    }
+
     public void Complete(Guid jobId)
     {
         if (_jobs.TryGetValue(jobId, out var e))
@@ -67,6 +79,7 @@ public sealed class EmailBatchJobRegistry : IEmailBatchJobRegistry
                 JobId = e.JobId,
                 TotalRecipients = e.Total,
                 Sent = e.Sent,
+                EmailsSent = e.SentAddresses,
                 Failed = e.Failed,
                 OptedOut = e.OptedOut,
                 Done = e.Done,

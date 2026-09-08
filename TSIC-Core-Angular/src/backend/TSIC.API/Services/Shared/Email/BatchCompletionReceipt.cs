@@ -61,12 +61,17 @@ public static class BatchCompletionReceipt
             ? $"<br /><strong>Emails NOT sent:</strong> {string.Join("; ", status.FailedAddresses)}"
             : "";
 
+        // AR-087: the headline is EMAILS SENT — mailboxes, the same unit the EmailLogs row for this send
+        // records (AR-086). "#Recipients" used to head a REGISTRANT count, so one send reported two
+        // different figures depending on whether you read the log or this receipt. Every line now names
+        // its own unit instead of leaving the reader to guess which one a bare number is in.
         var body = $@"Batch Email Complete
             <br /><strong>Subject:</strong> {System.Net.WebUtility.HtmlEncode(subject)}
-            <br /><strong>#Recipients:</strong> {status.TotalRecipients}
-            <br /><strong>#Sent:</strong> {status.Sent}
-            <br /><strong>#Failed:</strong> {status.Failed}
-            <br /><strong>#Opted out:</strong> {status.OptedOut}{failed}
+            <br /><strong>#Emails sent:</strong> {status.EmailsSent}
+            <br /><strong>#Registrants selected:</strong> {status.TotalRecipients}
+            <br /><strong>#Registrants mailed:</strong> {status.Sent}
+            <br /><strong>#Registrants failed:</strong> {status.Failed}
+            <br /><strong>#Registrants opted out:</strong> {status.OptedOut}{failed}
             <hr />{messageHtml}";
 
         var email = sp.GetRequiredService<IEmailService>();
@@ -75,7 +80,7 @@ public static class BatchCompletionReceipt
             FromName = string.IsNullOrWhiteSpace(fromName) ? "TEAMSPORTSINFO.COM" : fromName,
             ToAddresses = to,
             CcAddresses = cc,
-            Subject = $"Batch Email Complete — {status.Sent} sent: {subject}",
+            Subject = $"Batch Email Complete — {status.EmailsSent} email(s) sent: {subject}",
             HtmlBody = body
         }, cancellationToken: ct);
     }
