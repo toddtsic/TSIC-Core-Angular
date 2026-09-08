@@ -648,6 +648,12 @@ public class ReportingRepository : IReportingRepository
             join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
             join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
             from t in _context.Teams.AsNoTracking().Where(x => x.TeamId == r.AssignedTeamId)
+            // Home town is the FAMILY user's city, not the player's: AspNetUsers.City is populated on
+            // the family login (389/389 on STEPS Girls) and effectively empty on the player row
+            // (9/389). Registrations.FamilyUser navigates to Families, which has no address, so the
+            // family's AspNetUsers row needs an explicit LEFT JOIN (DefaultIfEmpty) on FamilyUserId.
+            from fu in _context.AspNetUsers.AsNoTracking()
+                .Where(x => x.Id == r.FamilyUserId).DefaultIfEmpty()
             where (allCustomerJobs ? r.Job.CustomerId == customerId : r.JobId == jobId)
                 && r.BActive == true
                 && t.Active == true
@@ -667,6 +673,8 @@ public class ReportingRepository : IReportingRepository
                 TeamName = t.TeamName,
                 ClubName = r.ClubName,
 
+                UniformNo = r.UniformNo,
+
                 FirstName = u.FirstName,
                 LastName = u.LastName,
                 Email = u.Email,
@@ -676,6 +684,7 @@ public class ReportingRepository : IReportingRepository
 
                 Cellphone = u.Cellphone,
                 SchoolName = r.SchoolName,
+                City = fu != null ? fu.City : null,
 
                 OwedTotal = r.OwedTotal,
                 PaidTotal = r.PaidTotal,

@@ -38,14 +38,18 @@ public sealed class ClubRosterPdfService : IClubRosterPdfService
     private const float MaxContentY = (PageH - MarginTop - MarginBottom) - FooterH - 2f;
 
     // ── Column x-offsets within ContentW ──
+    // The row number is right-aligned in NumW and PlayerX leaves a gap after it — without one,
+    // a two-digit number runs straight into the name ("10Nora O'Connor").
     private const float NumX = 0f, NumW = 14f;
-    private const float PlayerX = 14f, PlayerW = 116f;
-    private const float DobX = 130f, DobW = 56f;
-    private const float PhoneX = 186f, PhoneW = 96f;
-    private const float AmtX = 282f, AmtW = 44f;
-    private const float ContactLabelX = 330f, ContactLabelW = 46f;
-    private const float ContactNameX = 376f, ContactNameW = 116f;
-    private const float ContactEmailX = 492f, ContactEmailW = 62f;
+    private const float PlayerX = 18f, PlayerW = 110f;
+    private const float DobX = 128f, DobW = 52f;
+    private const float PhoneX = 180f, PhoneW = 88f;
+    private const float AmtX = 268f, AmtW = 42f;
+    private const float ContactLabelX = 312f, ContactLabelW = 40f;
+    private const float ContactNameX = 352f, ContactNameW = 96f;
+    // Contact emails are the widest content on the row; at the previous 62pt every address
+    // truncated mid-domain. Everything left of here was tightened to fund this column.
+    private const float ContactEmailX = 448f, ContactEmailW = ContentW - ContactEmailX;
 
     public async Task<ReportExportResult> GenerateAsync(
         Guid jobId,

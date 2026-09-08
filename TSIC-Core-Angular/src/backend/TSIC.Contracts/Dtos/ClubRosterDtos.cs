@@ -27,6 +27,9 @@ public record ClubRosterRowDto
     /// <summary>Club-rep club name (denormalized on the registration), shown in the team header when present.</summary>
     public string? ClubName { get; init; }
 
+    // ── UNo column (uniform number; the legacy "Rosters for Coaches" lead column) ──
+    public string? UniformNo { get; init; }
+
     // ── Player (Player column: name + email) ──
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
@@ -39,6 +42,9 @@ public record ClubRosterRowDto
     // ── Phone/Sch column ──
     public string? Cellphone { get; init; }
     public string? SchoolName { get; init; }
+    /// <summary>Home town — the legacy School/HomeTown column's second line. Sourced from the
+    /// FAMILY user's city, not the player's (the player row is almost always null).</summary>
+    public string? City { get; init; }
 
     // ── Amt Due column (sensitive pay status) ──
     public decimal OwedTotal { get; init; }

@@ -30,6 +30,7 @@ public class ReportingController : ControllerBase
     private readonly IRosterTablePdfService _rosterTableService;
     private readonly IShowcaseScheduleReportService _showcaseScheduleService;
     private readonly IClubRosterPdfService _clubRosterService;
+    private readonly ICoachRosterPdfService _coachRosterService;
     private readonly IThirdPartyRosterExportService _thirdPartyRosterExportService;
     private readonly IStoreFulfillmentPdfService _storeFulfillmentService;
 
@@ -64,6 +65,7 @@ public class ReportingController : ControllerBase
         IRosterTablePdfService rosterTableService,
         IShowcaseScheduleReportService showcaseScheduleService,
         IClubRosterPdfService clubRosterService,
+        ICoachRosterPdfService coachRosterService,
         IThirdPartyRosterExportService thirdPartyRosterExportService,
         IStoreFulfillmentPdfService storeFulfillmentService)
     {
@@ -79,6 +81,7 @@ public class ReportingController : ControllerBase
         _rosterTableService = rosterTableService;
         _showcaseScheduleService = showcaseScheduleService;
         _clubRosterService = clubRosterService;
+        _coachRosterService = coachRosterService;
         _thirdPartyRosterExportService = thirdPartyRosterExportService;
         _storeFulfillmentService = storeFulfillmentService;
     }
@@ -766,14 +769,15 @@ public class ReportingController : ControllerBase
     public Task<ActionResult> GetTeamFieldDistribution([FromQuery] int exportFormat = 3)
         => CrystalReportAsync("teamfielddistribution", exportFormat);
 
-    // Legacy "No Medical (II)" coaches-roster variant → same EF render, per-job, no medical.
+    // "Rosters for Coaches (pdf)" — the coach's field copy. This is its OWN legacy .rpt layout, not
+    // the "Coaches Eyes Only" club roster with a flag flipped: UNo leads, School/HomeTown gets its
+    // own column, there is no DOB/email/medical, NO financial column, and one team per page.
     [HttpGet("clubrostersNoMedicalII")]
     [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult> ClubrostersNoMedicalII(CancellationToken cancellationToken)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
-        var result = await _clubRosterService.GenerateAsync(
-            jobId ?? Guid.Empty, allCustomerJobs: false, includeMedical: false, cancellationToken);
+        var result = await _coachRosterService.GenerateAsync(jobId ?? Guid.Empty, cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 
