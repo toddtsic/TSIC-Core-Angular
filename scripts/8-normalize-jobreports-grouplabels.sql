@@ -27,6 +27,12 @@
 USE TSICV5;
 GO
 
+-- WHERE AM I? This script carries no server name -- USE TSICV5 resolves against whatever
+-- instance the query window is connected to. Dev (SEDONA) is a RESTORED BACKUP of prod, a
+-- different database on a different box; prod lives on TSIC-PHOENIX's own local .SS2016.
+-- READ THIS BEFORE THE PRE-CHECK. Running it on the wrong box gives no other signal.
+SELECT @@SERVERNAME AS Server_, DB_NAME() AS Database_, SYSDATETIME() AS RunAt;
+
 -- Report key -> category. One row per distinct report.
 IF OBJECT_ID('tempdb..#map') IS NOT NULL DROP TABLE #map;
 CREATE TABLE #map (ReportKey nvarchar(400) NOT NULL PRIMARY KEY, NewLabel nvarchar(50) NOT NULL);
