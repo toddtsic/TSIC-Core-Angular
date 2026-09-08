@@ -1256,128 +1256,131 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             var pinEx = batch.Key;
             var batchIds = batch.Select(kv => kv.Key).ToList();
 
-            // Team fees — the club-rep route, dated at teams.createdate.
-            var teamCharges = await (
+            // --- Team pass: fees, adjustment and the three team counts in ONE query. ---
+            //
+            // Grouped in memory rather than server-side, deliberately. The two facts a team
+            // needs beyond its own row -- paid-to-date and whether anyone is on it -- can only
+            // reach a server-side GROUP BY through a left join to an aggregate subquery, and
+            // EF cannot translate an aggregate over that (verified: it throws
+            // "RelationalGroupByShaperExpression could not be translated"). Teams are the
+            // small side -- 7,998 ACROSS ALL YEARS on Top Threat, so a couple of thousand per
+            // pin -- so materialising them costs nothing and the grouping is a dictionary
+            // walk. The player side, which is 101,049 rows, stays server-side below.
+            //
+            // The two subqueries are correlated, which was a 4.0s shape before 44efa9bcf. Both
+            // now seek: teamID and RegistrationID are covered. MEASURED post-index, one pin:
+            // teamOwing 247ms -> 25ms.
+            var teamRows = await (
                 from t in _context.Teams
                 where batchIds.Contains(t.JobId)
                     && t.Active == true
                     && t.Createdate < pinEx
-                group new { t.FeeTotal, t.FeeDiscount, t.FeeDiscountMp, t.FeeLatefee } by t.JobId into g
                 select new
                 {
-                    JobId = g.Key,
-                    Billed = g.Sum(x => x.FeeTotal),
-                    Discount = g.Sum(x => x.FeeDiscount),
-                    DiscountMp = g.Sum(x => x.FeeDiscountMp),
-                    LateFee = g.Sum(x => x.FeeLatefee)
+                    t.JobId,
+                    t.FeeTotal,
+                    t.FeeDiscount,
+                    t.FeeDiscountMp,
+                    t.FeeLatefee,
+                    Paid = _context.RegistrationAccounting
+                        .Where(ra => ra.TeamId == t.TeamId
+                            && ra.Active == true
+                            && ra.Createdate != null
+                            && ra.Createdate < pinEx)
+                        .Sum(ra => ra.Payamt ?? 0m),
+                    // Role-filtered: a roster also holds coaches and club reps, and counting
+                    // those reported 426 players on a job with 400.
+                    Populated = _context.Registrations
+                        .Any(r => r.AssignedTeamId == t.TeamId
+                            && r.BActive == true
+                            && r.RoleId == RoleConstants.Player
+                            && r.RegistrationTs < pinEx)
                 })
                 .AsNoTracking()
                 .ToListAsync(ct);
 
-            foreach (var c in teamCharges)
+            foreach (var g in teamRows.GroupBy(x => x.JobId))
             {
-                billedByJob[c.JobId] = billedByJob.GetValueOrDefault(c.JobId) + (c.Billed ?? 0m);
-                adjByJob[c.JobId] = adjByJob.GetValueOrDefault(c.JobId)
-                    + (c.LateFee ?? 0m) - ((c.Discount ?? 0m) + (c.DiscountMp ?? 0m));
+                decimal billed = 0m, adj = 0m;
+                int charged = 0, populatedFree = 0, owing = 0;
+
+                foreach (var t in g)
+                {
+                    var fee = t.FeeTotal ?? 0m;
+                    billed += fee;
+                    adj += (t.FeeLatefee ?? 0m) - ((t.FeeDiscount ?? 0m) + (t.FeeDiscountMp ?? 0m));
+
+                    if (fee != 0m)
+                    {
+                        // Charged teams count BOTH ways: they are teams, and they are the
+                        // billed population.
+                        charged++;
+                        if (fee > t.Paid)
+                        {
+                            owing++;
+                        }
+                    }
+                    else if (t.Populated)
+                    {
+                        // A zero-fee team counts only if someone is actually on it. All 45
+                        // free teams on LFTC:Fall Showcase 2026 are abandoned shells holding
+                        // nobody, while all 32 on LI Yellow Jackets:Players 2027 carry 18-32
+                        // players each and ARE the event -- requiring a fee drew that job as
+                        // zero teams. Teams only: nothing to settle, so not charged.
+                        populatedFree++;
+                    }
+                }
+
+                billedByJob[g.Key] = billedByJob.GetValueOrDefault(g.Key) + billed;
+                adjByJob[g.Key] = adjByJob.GetValueOrDefault(g.Key) + adj;
+                teamCountByJob[g.Key] = teamCountByJob.GetValueOrDefault(g.Key) + charged + populatedFree;
+                chargedByJob[g.Key] = chargedByJob.GetValueOrDefault(g.Key) + charged;
+                owingCountByJob[g.Key] = owingCountByJob.GetValueOrDefault(g.Key) + owing;
             }
 
-            // Player fees — the assigned-team route, dated at the registration. The
-            // `|| FeeDiscount != 0` half of the guard is load-bearing: a fully comped
-            // registration is charged to zero, and a fee-only guard drops 4,022 registrations
-            // carrying $3,396,848.43 of routed discount money. Self-rostering still falls out.
-            var playerCharges = await (
+            // --- Player pass: fees, adjustment, population and charged count in ONE query. ---
+            //
+            // Server-side: 101,049 registrations on Top Threat is too many to materialise.
+            // It needs nothing beyond each registration's own row, so it groups cleanly.
+            //
+            // The fee terms deliberately do NOT test BActive and the count terms do. That
+            // asymmetry is carried forward from the queries this replaces, not introduced here.
+            var playerPass = await (
                 from r in _context.Registrations
                 join t in _context.Teams on r.AssignedTeamId equals t.TeamId
                 where batchIds.Contains(t.JobId)
                     && t.Active == true
-                    && (r.FeeTotal != 0m || r.FeeDiscount != 0m)
                     && r.RegistrationTs < pinEx
-                group new { r.FeeTotal, r.FeeDiscount, r.FeeDiscountMp, r.FeeLatefee } by t.JobId into g
+                group r by t.JobId into g
                 select new
                 {
                     JobId = g.Key,
-                    Billed = g.Sum(x => x.FeeTotal),
-                    Discount = g.Sum(x => x.FeeDiscount),
-                    DiscountMp = g.Sum(x => x.FeeDiscountMp),
-                    LateFee = g.Sum(x => x.FeeLatefee)
+                    // `|| FeeDiscount != 0` is load-bearing: a fully comped registration is
+                    // charged to zero, and a fee-only guard drops 4,022 registrations carrying
+                    // $3,396,848.43 of routed discount money. Self-rostering still falls out.
+                    Billed = g.Sum(x => (x.FeeTotal != 0m || x.FeeDiscount != 0m) ? x.FeeTotal : 0m),
+                    LateFee = g.Sum(x => (x.FeeTotal != 0m || x.FeeDiscount != 0m) ? x.FeeLatefee : 0m),
+                    Discount = g.Sum(x => (x.FeeTotal != 0m || x.FeeDiscount != 0m) ? x.FeeDiscount : 0m),
+                    DiscountMp = g.Sum(x => (x.FeeTotal != 0m || x.FeeDiscount != 0m) ? x.FeeDiscountMp : 0m),
+                    Population = g.Sum(x => x.BActive == true && x.RoleId == RoleConstants.Player ? 1 : 0),
+                    Charged = g.Sum(x => x.BActive == true && (x.FeeTotal != 0m || x.FeeDiscount != 0m) ? 1 : 0)
                 })
                 .AsNoTracking()
                 .ToListAsync(ct);
 
-            foreach (var c in playerCharges)
+            foreach (var c in playerPass)
             {
                 billedByJob[c.JobId] = billedByJob.GetValueOrDefault(c.JobId) + c.Billed;
                 adjByJob[c.JobId] = adjByJob.GetValueOrDefault(c.JobId)
                     + c.LateFee - (c.Discount + c.DiscountMp);
+                playerCountByJob[c.JobId] = playerCountByJob.GetValueOrDefault(c.JobId) + c.Population;
+                chargedByJob[c.JobId] = chargedByJob.GetValueOrDefault(c.JobId) + c.Charged;
             }
 
-            // --- Entity COUNTS, classified at the SAME cutoff as the money.
-            //
-            //     These filter r.BActive; the MONEY queries above deliberately do not. That
-            //     asymmetry is the ruling, not an oversight (Todd, 2026-09-02): bActive says
-            //     whether a registration still counts as a registration, and it has no bearing
-            //     on money that actually moved. LI Yellow Jackets:Players 2027 carries a
-            //     deactivated registration whose fee was zeroed on drop but which took $875 on
-            //     a card and gave $850 back — both real transactions, both listed on the CC
-            //     Records tab. Filtering receipts on bActive would delete them and put this tab
-            //     at odds with the one showing the transactions themselves.
-            //
-            //     Filtering the counts also puts them in step with the roster headcount Q2 in
-            //     GetTeamBillingAsync, which has always filtered BActive — before this, the same
-            //     job reported 696 registrations here and 685 there.
-            //
-            //     Deliberately NOT read from owed_total. That column is the balance as it stands
-            //     TODAY, and this report is as-of: on Girls Elite Players 2025-2026 all 184 of 184
-            //     registrations read owed_total = 0 while the bar for that season is mostly red,
-            //     because Owed here is Billed - Collected at the pin. Labelling the segments from
-            //     the stored balance would print "184 paid / 0 owing" on a bar that is mostly
-            //     owing — a contradiction the reader can see.
-            //
-            //     Shaped as POPULATION + STILL-OWING, with paid derived by subtraction, rather
-            //     than as a left join to a payments-per-entity subquery. The join form reads
-            //     better and does not translate: EF cannot build a GROUP BY over the transparent
-            //     identifier a GroupJoin/DefaultIfEmpty produces, and throws at runtime. A
-            //     correlated SUM in the WHERE is plain SQL, and the counts still sum to the
-            //     population by construction — paid is whatever is not owing.
-            //     The population carries NO fee test. A free self-rostered player is the
-            //     population on a tournament, not the absence of one: Lax For The Cure:Fall
-            //     Showcase 2026 holds 538 active players, every one of them free, 400 of them
-            //     before that season's pin — and the fee test this replaced drew all 538 as
-            //     zero, in every season the customer has run (Todd, 2026-09-02).
-            //
-            //     Filtered to the PLAYER role, which the fee test was doing by accident: a
-            //     roster also carries coaches and club reps, and without this the series
-            //     labelled Players reported 426 on that job against 400 actual players, and
-            //     3,356 against 3,267 on Top Threat Championship 2026.
-            var playerPopulation = await (
-                from r in _context.Registrations
-                join t in _context.Teams on r.AssignedTeamId equals t.TeamId
-                where batchIds.Contains(t.JobId)
-                    && t.Active == true
-                    && r.BActive == true
-                    && r.RoleId == RoleConstants.Player
-                    && r.RegistrationTs < pinEx
-                group r by t.JobId into g
-                select new { JobId = g.Key, Count = g.Count() })
-                .AsNoTracking()
-                .ToListAsync(ct);
-
-            // Billed players only — the denominator settled/owing is measured against. Kept
-            // apart from the population above rather than derived from it, because on a
-            // free-roster job the two differ by the whole roster.
-            var playerCharged = await (
-                from r in _context.Registrations
-                join t in _context.Teams on r.AssignedTeamId equals t.TeamId
-                where batchIds.Contains(t.JobId)
-                    && t.Active == true
-                    && r.BActive == true
-                    && (r.FeeTotal != 0m || r.FeeDiscount != 0m)
-                    && r.RegistrationTs < pinEx
-                group r by t.JobId into g
-                select new { JobId = g.Key, Count = g.Count() })
-                .AsNoTracking()
-                .ToListAsync(ct);
-
+            // Players still owing. Kept as its own query: the comparison is per registration
+            // against that registration's payments, which is the one thing the merged pass
+            // above cannot carry without a join EF will not aggregate over. Correlated, and a
+            // seek since 44efa9bcf -- MEASURED 265ms -> 105ms on one pin.
             var playerOwing = await (
                 from r in _context.Registrations
                 join t in _context.Teams on r.AssignedTeamId equals t.TeamId
@@ -1386,8 +1389,8 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                     && r.BActive == true
                     && (r.FeeTotal != 0m || r.FeeDiscount != 0m)
                     && r.RegistrationTs < pinEx
-                    // Player ledger rows never carry a TeamId — that is the route discriminator
-                    // the Adjustments tab established, verified disjoint on Top Threat.
+                    // Player ledger rows never carry a TeamId -- the route discriminator,
+                    // verified disjoint on Top Threat.
                     && r.FeeTotal > _context.RegistrationAccounting
                         .Where(ra => ra.RegistrationId == r.RegistrationId
                             && ra.TeamId == null
@@ -1400,95 +1403,7 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 .AsNoTracking()
                 .ToListAsync(ct);
 
-            // The club-rep route counts the TEAM, because the team is what was charged — the
-            // players on it carry no fee of their own.
-            //
-            // A team is counted if it was CHARGED, or if anyone is ON it at the pin. Zero-fee
-            // teams split cleanly along that line and the split is not close: all 45 free teams
-            // on Lax For The Cure:Fall Showcase 2026 and all 40 on Top Threat Championship 2026
-            // are abandoned shells holding nobody — LFTC's include "Blue Star" twice and "Lax
-            // Plus 2028 Black" three times — while all 32 on LI Yellow Jackets:Players 2027
-            // carry 18 to 32 players each and ARE the event. Requiring a fee alone drew that
-            // job as zero teams; requiring nothing at all would draw 45 duplicates as entries.
-            //
-            // Asked as TWO disjoint queries — charged, and free-but-populated — rather than as
-            // one OR. The OR reads better and cost 4.0 SECONDS per pin against 71ms, enough to
-            // time the endpoint out on Top Threat's 125 jobs: Jobs.Registrations has no index on
-            // assigned_teamID (nor on JobId, on 667K rows), so `Any(r => r.AssignedTeamId ==
-            // t.TeamId ...)` becomes a correlated scan per candidate team. Phrased as
-            // `Contains` over a subquery it is one hash semi-join — 204ms warm, and the two
-            // halves cannot double-count because a team's fee is either zero or it is not.
-            var populatedTeamIds = _context.Registrations
-                .Where(r => r.BActive == true
-                    && r.RoleId == RoleConstants.Player
-                    && r.RegistrationTs < pinEx)
-                .Select(r => r.AssignedTeamId);
-
-            var teamPopulatedFree = await (
-                from t in _context.Teams
-                where batchIds.Contains(t.JobId)
-                    && t.Active == true
-                    && t.Createdate < pinEx
-                    && (t.FeeTotal ?? 0m) == 0m
-                    && populatedTeamIds.Contains(t.TeamId)
-                group t by t.JobId into g
-                select new { JobId = g.Key, Count = g.Count() })
-                .AsNoTracking()
-                .ToListAsync(ct);
-
-            // Billed teams only — the other half of the settled/owing denominator.
-            var teamCharged = await (
-                from t in _context.Teams
-                where batchIds.Contains(t.JobId)
-                    && t.Active == true
-                    && t.Createdate < pinEx
-                    && (t.FeeTotal ?? 0m) != 0m
-                group t by t.JobId into g
-                select new { JobId = g.Key, Count = g.Count() })
-                .AsNoTracking()
-                .ToListAsync(ct);
-
-            var teamOwing = await (
-                from t in _context.Teams
-                where batchIds.Contains(t.JobId)
-                    && t.Active == true
-                    && t.Createdate < pinEx
-                    && (t.FeeTotal ?? 0m) != 0m
-                    && (t.FeeTotal ?? 0m) > _context.RegistrationAccounting
-                        .Where(ra => ra.TeamId == t.TeamId
-                            && ra.Active == true
-                            && ra.Createdate != null
-                            && ra.Createdate < pinEx)
-                        .Sum(ra => ra.Payamt ?? 0m)
-                group t by t.JobId into g
-                select new { JobId = g.Key, Count = g.Count() })
-                .AsNoTracking()
-                .ToListAsync(ct);
-
-            foreach (var p in playerPopulation)
-            {
-                playerCountByJob[p.JobId] = playerCountByJob.GetValueOrDefault(p.JobId) + p.Count;
-            }
-            foreach (var p in teamPopulatedFree)
-            {
-                teamCountByJob[p.JobId] = teamCountByJob.GetValueOrDefault(p.JobId) + p.Count;
-            }
-            foreach (var p in playerCharged)
-            {
-                chargedByJob[p.JobId] = chargedByJob.GetValueOrDefault(p.JobId) + p.Count;
-            }
-            // Charged teams count BOTH ways: they are teams, and they are the billed
-            // population. The free-but-populated half above is teams only — nothing to settle.
-            foreach (var p in teamCharged)
-            {
-                teamCountByJob[p.JobId] = teamCountByJob.GetValueOrDefault(p.JobId) + p.Count;
-                chargedByJob[p.JobId] = chargedByJob.GetValueOrDefault(p.JobId) + p.Count;
-            }
             foreach (var p in playerOwing)
-            {
-                owingCountByJob[p.JobId] = owingCountByJob.GetValueOrDefault(p.JobId) + p.Count;
-            }
-            foreach (var p in teamOwing)
             {
                 owingCountByJob[p.JobId] = owingCountByJob.GetValueOrDefault(p.JobId) + p.Count;
             }
