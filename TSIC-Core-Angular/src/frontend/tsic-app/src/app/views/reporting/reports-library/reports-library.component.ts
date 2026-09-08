@@ -64,6 +64,23 @@ const RECENTS_KEY_PREFIX = 'tsic-reports-recents';
 // still holds legacy Crystal rows that TYPE1 intentionally retired.
 const NATIVE_DB_ACTIONS = new Set<string>([
     'ThirdPartyRosterExport',
+    // "Rosters for Coaches (pdf)" — owned by 27 jobs, EF-rendered by CoachRosterPdfService,
+    // and until now reachable by NOBODY but a SuperUser. The TYPE1 catalog shrank from ~56
+    // entries to 6 as reports were migrated, but the "skip Crystal-kind DB rows, TYPE1 covers
+    // them" guard below did not shrink with it, so every migrated action TYPE1 no longer lists
+    // fell into the gap. Row existence still gates it per job.
+    //
+    // SEVEN MORE ACTIONS SIT IN THAT SAME GAP AND ARE DELIBERATELY *NOT* LISTED HERE:
+    //   Club_AllJobs_Rosters_NoMedical (5 jobs), TournamentRecruitingReportASL (3) / USL (5),
+    //   ScheduleByClubAgTPerPage (3), FieldUtilizationWithNominations (3),
+    //   camp_excelexport_summer_pdf (2), Schedule_Gamecards (1).
+    // They are built and they run, but no client has ever seen their output and none of it was
+    // diffed against the legacy .rpt. The migration that produced them folded four distinct
+    // .rpt files onto one render and got THIS report wrong (wrong columns, financial data on a
+    // coach's copy, no page break) — Club_AllJobs_Rosters_NoMedical still calls that same folded
+    // ClubRosterPdfService and would ship the identical defect to 5 jobs. Add each one only
+    // after its output is compared against a legacy render.
+    'clubrostersNoMedicalII',
 ]);
 
 const MIGRATED_EF_ACTIONS = new Set<string>([
