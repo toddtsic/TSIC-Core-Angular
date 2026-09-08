@@ -113,6 +113,19 @@ FROM reporting.JobReports r;
 
 DECLARE @unmatched int, @collisions int, @toChange int, @changed int;
 
+-- GUARD 0: this window must have NO transaction already open. T-SQL transactions NEST:
+-- an outer BEGIN TRAN left over from an earlier run makes this script's COMMIT merely
+-- decrement @@TRANCOUNT instead of committing, so the UPDATE looks like it worked, reports
+-- "COMMITTED", and is silently discarded when the window closes. Cost us two runs on dev.
+-- Fix: run ROLLBACK; in this window (it unwinds ALL levels, unlike COMMIT), then re-run.
+IF @@TRANCOUNT > 0
+BEGIN
+    SELECT '*** ABORTED -- a transaction is already open in this window ***' AS Result,
+           @@TRANCOUNT AS OpenTranCount,
+           'Run ROLLBACK; in THIS window, then re-run this script.' AS Fix;
+    RETURN;
+END
+
 -- GUARD 1: any report in the map that matched nothing (typo / renamed action).
 SELECT @unmatched = COUNT(*)
 FROM   #map m
