@@ -812,10 +812,29 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         var correctionMethodIds = PaymentMethodIds.Correction.ToArray();
         var creditCardCreditId = PaymentMethodIds.CreditCardCredit;
 
-        var payments = await (
+        // SPLIT INTO THE TWO ROUTES RATHER THAN COALESCING THEM (2026-09-08). The single
+        // query joined `(ra.TeamId ?? r.AssignedTeamId) equals t.TeamId`, and no index can
+        // serve a coalesce — it is only fast when the optimizer happens to pick a hash join.
+        // Prod did not: MEASURED 15,608ms and 7,610,826 logical reads on PHOENIX against
+        // 142ms and 33,402 reads on dev, for the same 578 rows, on the same data with the
+        // same indexes (dev is a restore of prod). Zero physical reads both sides, both
+        // parallel — purely a plan difference, one statistics refresh away from flipping
+        // either way. The two routes are already disjoint on `ra.TeamId IS NULL`, so
+        // splitting them makes both joins plain indexed equality and removes the guess:
+        // MEASURED 93ms on PROD, 94ms on dev, identical row counts.
+        //
+        // Same technique as 0a5840ed9, and for the same reason: express the alternation as
+        // two uncorrelated queries instead of one predicate the optimizer has to see through.
+        //
+        // Both halves group by t.TeamId (not the joined-from column) so they share one
+        // anonymous shape and concatenate. Overlap on (team, year, month) is fine and
+        // expected — Accrue() below accumulates rather than assigns.
+
+        // --- Q4a: ledger rows that CARRY a teamID. The Registrations join is not needed
+        //          at all on this route, which is why it is the cheaper half. ---
+        var paymentsByTeam = await (
             from ra in _context.RegistrationAccounting
-            join r in _context.Registrations on ra.RegistrationId equals r.RegistrationId
-            join t in _context.Teams on (ra.TeamId ?? r.AssignedTeamId) equals t.TeamId
+            join t in _context.Teams on ra.TeamId equals t.TeamId
             join j in _context.Jobs on t.JobId equals j.JobId
             where customerIds.Contains(j.CustomerId)
                 // The date range picks the EVENTS, not the transactions: a job qualifies when
@@ -828,6 +847,7 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 && (startDate == null || j.ExpiryUsers >= startDate)
                 && t.Active == true
                 && ra.Active == true
+                && ra.TeamId != null
                 && ra.Createdate != null
                 && (endEx == null || ra.Createdate < endEx)
                 && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
@@ -861,6 +881,47 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             })
             .AsNoTracking()
             .ToListAsync(ct);
+
+        // --- Q4b: ledger rows with NO teamID, routed through the registration. Same shape,
+        //          same filters, plain equality on AssignedTeamId. The `ra.TeamId == null`
+        //          guard is what makes this disjoint from Q4a, so nothing double counts. ---
+        var paymentsByRegistration = await (
+            from ra in _context.RegistrationAccounting
+            join r in _context.Registrations on ra.RegistrationId equals r.RegistrationId
+            join t in _context.Teams on r.AssignedTeamId equals t.TeamId
+            join j in _context.Jobs on t.JobId equals j.JobId
+            where customerIds.Contains(j.CustomerId)
+                && (startDate == null || j.ExpiryUsers >= startDate)
+                && t.Active == true
+                && ra.Active == true
+                && ra.TeamId == null
+                && ra.Createdate != null
+                && (endEx == null || ra.Createdate < endEx)
+                && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
+            group new
+            {
+                ra.Payamt,
+                IsCorrection = correctionMethodIds.Contains(ra.PaymentMethodId),
+                IsRefund = ra.PaymentMethodId == creditCardCreditId
+            } by new
+            {
+                t.TeamId,
+                Year = ra.Createdate!.Value.Year,
+                Month = ra.Createdate.Value.Month
+            } into g
+            select new
+            {
+                g.Key.TeamId,
+                g.Key.Year,
+                g.Key.Month,
+                Collected = g.Sum(x => x.Payamt ?? 0m),
+                Corrections = g.Sum(x => x.IsCorrection ? (x.Payamt ?? 0m) : 0m),
+                Refunds = g.Sum(x => x.IsRefund ? (x.Payamt ?? 0m) : 0m)
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        var payments = paymentsByTeam.Concat(paymentsByRegistration);
 
         // --- Assemble. Key is (team, year, month); a charge and a payment landing in the
         //     same month collapse onto one row, which is what a reader expects to see. ---
@@ -1435,13 +1496,18 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             // Receipts. No payment-method filter — summing every active row is what reproduces
             // the stored paid_total to the cent. Corrections and Refunds are broken out as
             // SUBSETS of Collected, never added to it.
-            var payments = await (
+            // Split on the teamID route rather than coalescing — see GetTeamBillingAsync's Q4a
+            // for the measurement. A coalesce join cannot be served by an index, so it is only
+            // fast if the optimizer picks a hash join; prod picked otherwise and paid 15.6s
+            // and 7.6M logical reads for what dev did in 142ms. This one sits INSIDE the
+            // per-pin loop, so it carried that cost once per year column.
+            var paymentsByTeam = await (
                 from ra in _context.RegistrationAccounting
-                join r in _context.Registrations on ra.RegistrationId equals r.RegistrationId
-                join t in _context.Teams on (ra.TeamId ?? r.AssignedTeamId) equals t.TeamId
+                join t in _context.Teams on ra.TeamId equals t.TeamId
                 where batchIds.Contains(t.JobId)
                     && t.Active == true
                     && ra.Active == true
+                    && ra.TeamId != null
                     && ra.Createdate != null
                     && ra.Createdate < pinEx
                 group new
@@ -1459,6 +1525,36 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 })
                 .AsNoTracking()
                 .ToListAsync(ct);
+
+            var paymentsByRegistration = await (
+                from ra in _context.RegistrationAccounting
+                join r in _context.Registrations on ra.RegistrationId equals r.RegistrationId
+                join t in _context.Teams on r.AssignedTeamId equals t.TeamId
+                where batchIds.Contains(t.JobId)
+                    && t.Active == true
+                    && ra.Active == true
+                    && ra.TeamId == null
+                    && ra.Createdate != null
+                    && ra.Createdate < pinEx
+                group new
+                {
+                    ra.Payamt,
+                    IsCorrection = correctionMethodIds.Contains(ra.PaymentMethodId),
+                    IsRefund = ra.PaymentMethodId == creditCardCreditId
+                } by t.JobId into g
+                select new
+                {
+                    JobId = g.Key,
+                    Collected = g.Sum(x => x.Payamt ?? 0m),
+                    Corrections = g.Sum(x => x.IsCorrection ? (x.Payamt ?? 0m) : 0m),
+                    Refunds = g.Sum(x => x.IsRefund ? (x.Payamt ?? 0m) : 0m)
+                })
+                .AsNoTracking()
+                .ToListAsync(ct);
+
+            // Both halves key on JobId, and the loop below accumulates, so a job appearing in
+            // both is summed rather than overwritten.
+            var payments = paymentsByTeam.Concat(paymentsByRegistration);
 
             foreach (var p in payments)
             {
@@ -1832,15 +1928,19 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         //         entity that owns it: club-rep ledger rows always carry a TeamId and player
         //         rows never do (verified on Top Threat: 13,389 vs 457 rows, disjoint), so the
         //         presence of TeamId IS the route discriminator. ---
-        var corrections = await (
+        // Split on the teamID route rather than coalescing — see GetTeamBillingAsync's Q4a for
+        // the measurement. The `ra.TeamId` route discriminator the comment above describes is
+        // exactly what makes the two halves disjoint, so this costs nothing to express as two
+        // queries and takes the unseekable coalesce join out of the plan.
+        var correctionsByTeam = await (
             from ra in _context.RegistrationAccounting
-            join r in _context.Registrations on ra.RegistrationId equals r.RegistrationId
-            join t in _context.Teams on (ra.TeamId ?? r.AssignedTeamId) equals t.TeamId
+            join t in _context.Teams on ra.TeamId equals t.TeamId
             join j in _context.Jobs on t.JobId equals j.JobId
             where customerIds.Contains(j.CustomerId)
                 && (startDate == null || j.ExpiryUsers >= startDate)
                 && t.Active == true
                 && ra.Active == true
+                && ra.TeamId != null
                 && ra.Createdate != null
                 && (endEx == null || ra.Createdate < endEx)
                 && correctionMethodIds.Contains(ra.PaymentMethodId)
@@ -1854,6 +1954,34 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             })
             .AsNoTracking()
             .ToListAsync(ct);
+
+        var correctionsByRegistration = await (
+            from ra in _context.RegistrationAccounting
+            join r in _context.Registrations on ra.RegistrationId equals r.RegistrationId
+            join t in _context.Teams on r.AssignedTeamId equals t.TeamId
+            join j in _context.Jobs on t.JobId equals j.JobId
+            where customerIds.Contains(j.CustomerId)
+                && (startDate == null || j.ExpiryUsers >= startDate)
+                && t.Active == true
+                && ra.Active == true
+                && ra.TeamId == null
+                && ra.Createdate != null
+                && (endEx == null || ra.Createdate < endEx)
+                && correctionMethodIds.Contains(ra.PaymentMethodId)
+                && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
+            group ra.Payamt by new { ra.TeamId, ra.RegistrationId } into g
+            select new
+            {
+                g.Key.TeamId,
+                g.Key.RegistrationId,
+                Amount = g.Sum(x => x ?? 0m)
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        // Disjoint by the TeamId null test, and the loop below accumulates into its two
+        // dictionaries, so concatenating cannot double count.
+        var corrections = correctionsByTeam.Concat(correctionsByRegistration);
 
         var correctionByTeam = new Dictionary<Guid, decimal>();
         var correctionByReg = new Dictionary<Guid, decimal>();
