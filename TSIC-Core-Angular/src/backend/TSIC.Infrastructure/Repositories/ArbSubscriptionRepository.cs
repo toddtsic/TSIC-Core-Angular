@@ -230,8 +230,8 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
     public async Task<List<ArbDirectorProjection>> GetDefaultDirectorsForJobsAsync(
         List<Guid> jobIds, CancellationToken ct = default)
     {
-        // Pull every candidate, then pick in memory: the "primary contact, else earliest" rule is a
-        // per-group ordering, and the set is tiny (a handful of directors per job).
+        // Pull every candidate, then pick in memory: the "primary contact, else earliest REGISTERED"
+        // rule is a per-group ordering, and the set is tiny (a handful of directors per job).
         var candidates = await _context.Registrations
             .AsNoTracking()
             .Where(r =>
@@ -241,7 +241,7 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
             .Select(r => new
             {
                 r.JobId,
-                r.RegistrationAi,
+                r.RegistrationTs,
                 IsPrimary = r.Job!.PrimaryContactRegistrationId == r.RegistrationId,
                 Name = $"{r.User!.FirstName} {r.User.LastName}",
                 Email = r.User.Email ?? string.Empty
@@ -255,7 +255,16 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
             .GroupBy(c => c.JobId)
             .Select(g => g
                 .OrderByDescending(c => c.IsPrimary)
-                .ThenBy(c => c.RegistrationAi)
+                // RegistrationTs, NEVER RegistrationAi. Three reasons, and the third is the one that
+                // decides it. (1) RegistrationAi is an IDENTITY column, so it is the one value in this
+                // table nobody can UPDATE -- IDENTITY_INSERT permits INSERT only. A fallback sender you
+                // cannot correct in a pinch is a fallback with no escape hatch. (2) It does not track
+                // registration order: on STEPS Boys Elite 2026-2027 the LOWEST id (1069722) belongs to
+                // the LATEST registrant (2026-12-19) and the earliest (2026-04-19) sits at 1069731, so
+                // the pick was near-inverted. (3) Configure -> Admin shows RegistrationTs in its
+                // "Registered" column, so sorting on it is the only way "who will this send as?" is
+                // answerable from the screen a director actually looks at.
+                .ThenBy(c => c.RegistrationTs)
                 .First())
             .Select(c => new ArbDirectorProjection
             {

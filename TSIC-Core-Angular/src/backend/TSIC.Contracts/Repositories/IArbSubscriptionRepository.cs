@@ -23,10 +23,13 @@ public interface IArbSubscriptionRepository
     /// <summary>
     /// ONE director per job - the job's default sender. Jobs.PrimaryContactRegistrationId wins when
     /// that registration is an active Director with a usable email; otherwise the earliest-registered
-    /// active Director (Registrations.RegistrationAi - the only reliable "joined first" ordering key,
-    /// as Jobs.Registrations carries no create date). Directors with no email are dropped BEFORE the
-    /// pick, so a starred primary contact missing an address falls through instead of yielding none.
-    /// Jobs with no usable director are simply absent from the result.
+    /// active Director by Registrations.RegistrationTs - the SAME value Configure -> Admin shows in
+    /// its "Registered" column, so the fallback is predictable from that screen and correctable with
+    /// an UPDATE when a club needs a different sender. (It was RegistrationAi until 09-07: an IDENTITY
+    /// column, therefore un-UPDATE-able, invisible in the UI, and not in registration order - it sent
+    /// STEPS Boys Elite's 09-02 notice as the job's LATEST-registered director.) Directors with no
+    /// email are dropped BEFORE the pick, so a starred primary contact missing an address falls
+    /// through instead of yielding none. Jobs with no usable director are simply absent.
     /// </summary>
     Task<List<ArbDirectorProjection>> GetDefaultDirectorsForJobsAsync(
         List<Guid> jobIds, CancellationToken ct = default);
