@@ -4,12 +4,10 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ChecklistBackLinkComponent } from '../../scheduling/shared/components/checklist-back-link/checklist-back-link.component';
 import { ReportingService } from '@infrastructure/services/reporting.service';
 import { JobService } from '@infrastructure/services/job.service';
-import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
 import type { JobReportEntryDto } from '@core/api';
 import { TYPE1_REPORT_CATALOG } from '@core/reporting/type1-report-catalog';
-import { buildJobVisibilityContext, passesVisibilityRules } from '@core/reporting/visibility-rules';
 import {
     REPORT_CATEGORIES,
     UNCATEGORIZED_META,
@@ -51,38 +49,22 @@ const SP_RUN_DEFAULTS: SpRunParams = { bUseJobId: true, bUseDateUnscheduled: fal
 const RECENTS_LIMIT = 5;
 const RECENTS_KEY_PREFIX = 'tsic-reports-recents';
 
+// Actions that were BORN native — Kind='CrystalReport' (the named-endpoint routing bucket)
+// but never served by Crystal, so they earn neither the "Crystal" badge nor the "SF" migrated
+// marker and render neutral like SP rows.
+//
+// This set NO LONGER GATES ANYTHING. It was previously the allow-list that let a handful of
+// DB rows past the "skip Crystal-kind rows, TYPE1 covers them" guard; that guard is gone and
+// reporting.JobReports is now the sole entitlement, so the set is cosmetic only.
+const NATIVE_DB_ACTIONS = new Set<string>([
+    'ThirdPartyRosterExport',
+]);
+
 // TEMP (CR retirement): Crystal-kind catalogue actions that are actually rendered
 // natively by EF + Syncfusion — the controller action calls our *PdfService, not the
 // Crystal engine. They intentionally keep Kind='CrystalReport' (the named-endpoint
 // routing bucket), so dispatch is unchanged; this set only drives the distinct "SF"
 // badge + tint. Remove this set + the badge markup once every report is off Crystal.
-// Native endpoints dispatched purely from reporting.JobReports rows (Kind='CrystalReport',
-// Action = bare endpoint name) with NO TYPE1 catalog entry. The non-SU branch below drops
-// Crystal-kind DB rows to avoid duplicating TYPE1 — this explicit allow-list is the
-// pass-through for DB-only native reports (deny-by-default per job via row existence).
-// Deliberately NOT a blanket "any action missing from TYPE1" rule: reporting.JobReports
-// still holds legacy Crystal rows that TYPE1 intentionally retired.
-const NATIVE_DB_ACTIONS = new Set<string>([
-    'ThirdPartyRosterExport',
-    // "Rosters for Coaches (pdf)" — owned by 27 jobs, EF-rendered by CoachRosterPdfService,
-    // and until now reachable by NOBODY but a SuperUser. The TYPE1 catalog shrank from ~56
-    // entries to 6 as reports were migrated, but the "skip Crystal-kind DB rows, TYPE1 covers
-    // them" guard below did not shrink with it, so every migrated action TYPE1 no longer lists
-    // fell into the gap. Row existence still gates it per job.
-    //
-    // SEVEN MORE ACTIONS SIT IN THAT SAME GAP AND ARE DELIBERATELY *NOT* LISTED HERE:
-    //   Club_AllJobs_Rosters_NoMedical (5 jobs), TournamentRecruitingReportASL (3) / USL (5),
-    //   ScheduleByClubAgTPerPage (3), FieldUtilizationWithNominations (3),
-    //   camp_excelexport_summer_pdf (2), Schedule_Gamecards (1).
-    // They are built and they run, but no client has ever seen their output and none of it was
-    // diffed against the legacy .rpt. The migration that produced them folded four distinct
-    // .rpt files onto one render and got THIS report wrong (wrong columns, financial data on a
-    // coach's copy, no page break) — Club_AllJobs_Rosters_NoMedical still calls that same folded
-    // ClubRosterPdfService and would ship the identical defect to 5 jobs. Add each one only
-    // after its output is compared against a legacy render.
-    'clubrostersNoMedicalII',
-]);
-
 const MIGRATED_EF_ACTIONS = new Set<string>([
     'AmericanSelectEvaluation',
     'AmericanSelectMainEventRosters',
@@ -160,7 +142,6 @@ function parseBoldReportAction(action: string | null | undefined): { reportName:
 export class ReportsLibraryComponent implements OnInit {
     private readonly reportingService = inject(ReportingService);
     private readonly jobService = inject(JobService);
-    private readonly pulseService = inject(JobPulseService);
     private readonly authService = inject(AuthService);
     private readonly toast = inject(ToastService);
     private readonly router = inject(Router);
@@ -186,7 +167,9 @@ export class ReportsLibraryComponent implements OnInit {
     private readonly allEntries = computed<readonly LibraryEntry[]>(() => {
         const user = this.authService.currentUser();
         const callerRoles = user?.roles ?? (user?.role ? [user.role] : []);
-        const ctx = buildJobVisibilityContext(this.jobService.currentJob(), this.pulseService.pulse(), callerRoles);
+        // No job-visibility context is built any more: entitlement is a reporting.JobReports
+        // row for this (job, role), full stop. Nothing is granted or withheld by job type,
+        // job phase or pulse state.
 
         // SuperUser: source BOTH kinds from the DB catalogue (all roles), deduped by
         // report identity with role chips. The global hard-coded Type-1 catalog is
@@ -196,101 +179,73 @@ export class ReportsLibraryComponent implements OnInit {
             return this.buildSuperuserEntries(this.type2Entries());
         }
 
-        const type1: LibraryEntry[] = TYPE1_REPORT_CATALOG
-            .filter(e => passesVisibilityRules(e.visibilityRules, ctx))
-            .map(e => ({
-                isCrystal: true,
-                isMigrated: MIGRATED_EF_ACTIONS.has(e.endpointPath ?? ''),
-                roles: [],
-                id: e.id,
-                title: e.title,
-                description: e.description,
-                iconName: e.iconName,
-                category: e.category,
-                sortOrder: e.sortOrder,
-                endpointPath: e.endpointPath
-            }));
+        // Every non-SU role: the library IS reporting.JobReports for this job and this
+        // caller's roles. Row existence is the entitlement, for EVERY Kind — that table was
+        // imported job-by-job from each legacy menu, so it is the record of what this job's
+        // director has always seen. A role with no rows correctly shows an empty library.
+        //
+        // TYPE1_REPORT_CATALOG is NO LONGER an entitlement source. It granted by job TYPE
+        // rather than job ownership, which cut both ways: 725 of 817 Camp/ClubSport/Tournament
+        // jobs were shown two roster reports they never owned, while 8 actions those jobs DID
+        // own were discarded by the "skip Crystal-kind rows, TYPE1 covers them" guard and
+        // reached no Director at all. That guard was correct when TYPE1 held ~56 entries; it
+        // held 6. All 6 also exist as JobReports rows, so sourcing from the DB alone removes
+        // no report from the estate — it only stops one reaching a job that never owned it.
+        //
+        // TYPE1 survives ONLY as a lookup, keyed by Action, for the description/icon/category
+        // that JobReports rows don't carry. Its visibilityRules are deliberately not consulted.
+        const type1ByAction = new Map(
+            TYPE1_REPORT_CATALOG
+                .filter(e => !!e.endpointPath)
+                .map(e => [e.endpointPath as string, e] as const));
 
-        // Stored-proc entries from reporting.JobReports — Crystal Reports are skipped
-        // here because TYPE1_REPORT_CATALOG already covers them (avoids duplicates
-        // until the full FE rewire retires the hardcoded TYPE1 source).
-        // Categories: GroupLabel from legacy menus doesn't yet map to REPORT_CATEGORIES
-        // codes — most rows fall into 'Other' until the category bridge lands.
-        const type2: LibraryEntry[] = this.type2Entries()
-            .filter(e => e.kind === 'StoredProcedure')
-            .map(e => {
+        const entries: LibraryEntry[] = this.type2Entries().map(e => {
+            const meta = type1ByAction.get(e.action);
+            // GroupLabel holds legacy menu headings ('Reports', 'Scheduling') that aren't
+            // category codes; fall back to TYPE1's category before giving up to 'Other'.
+            const base = {
+                roles: [] as readonly string[],
+                title: e.title,
+                description: meta?.description ?? null,
+                iconName: e.iconName ?? meta?.iconName ?? null,
+                category: normalizeReportCategory(e.groupLabel) ?? meta?.category ?? null,
+                sortOrder: e.sortOrder,
+            };
+
+            if (e.kind === 'StoredProcedure') {
                 const parsed = parseStoredProcAction(e.action);
                 return {
-                    isCrystal: false,
-                    roles: [],
-                    id: `t2-${e.jobReportId}`,
-                    title: e.title,
-                    description: null,
-                    iconName: e.iconName,
-                    category: normalizeReportCategory(e.groupLabel),
-                    sortOrder: e.sortOrder,
+                    ...base, isCrystal: false, id: `t2-${e.jobReportId}`,
                     storedProcName: parsed?.spName ?? '',
                     parametersJson: parsed?.parametersJson ?? null,
                 };
-            });
-
-        // Bold Reports (RDL → PDF) — the Crystal replacement target. Same
-        // (Job, Role) gating as the SP rows; differs only in dispatcher branch.
-        const bold: LibraryEntry[] = this.type2Entries()
-            .filter(e => e.kind === 'BoldReport')
-            .map(e => {
-                const parsed = parseBoldReportAction(e.action);
+            }
+            if (e.kind === 'BoldReport') {
                 return {
-                    isCrystal: false,
-                    roles: [],
-                    id: `bold-${e.jobReportId}`,
-                    title: e.title,
-                    description: null,
-                    iconName: e.iconName,
-                    category: normalizeReportCategory(e.groupLabel),
-                    sortOrder: e.sortOrder,
-                    boldReportName: parsed?.reportName ?? '',
+                    ...base, isCrystal: false, id: `bold-${e.jobReportId}`,
+                    boldReportName: parseBoldReportAction(e.action)?.reportName ?? '',
                 };
-            });
-
-        // Native DB-row endpoints (e.g. Third-Party Roster Export) — Crystal-kind rows
-        // whose Action is a bare native endpoint with no TYPE1 entry. Without this branch
-        // the TYPE1-duplication guard above would hide them from every non-SU role.
-        // isCrystal stays FALSE: these were never Crystal-served, so they get neither the
-        // "SF" migrated marker nor the "Crystal" badge/tint — they render neutral like SP
-        // rows. Dispatch rides endpointPath, which runEntry checks directly.
-        const nativeDb: LibraryEntry[] = this.type2Entries()
-            .filter(e => e.kind === 'CrystalReport' && NATIVE_DB_ACTIONS.has(e.action))
-            .map(e => ({
-                isCrystal: false,
-                roles: [],
-                id: `ndb-${e.jobReportId}`,
-                title: e.title,
-                description: null,
-                iconName: e.iconName,
-                category: normalizeReportCategory(e.groupLabel),
-                sortOrder: e.sortOrder,
+            }
+            if (e.kind === 'SpaComponent') {
+                // Action is an in-app route; dispatched via router.navigate, not a download.
+                return { ...base, isCrystal: false, id: `spa-${e.jobReportId}`, spaRoute: e.action ?? '' };
+            }
+            // Crystal-kind: Action is a bare controller action. Every active one now renders
+            // natively, so isCrystal (the "Crystal" badge/tint) is reserved for anything that
+            // still doesn't. NATIVE_DB_ACTIONS no longer gates anything — it only marks rows
+            // that were BORN native and so earn neither badge.
+            const bornNative = NATIVE_DB_ACTIONS.has(e.action);
+            const migrated = MIGRATED_EF_ACTIONS.has(e.action);
+            return {
+                ...base,
+                isCrystal: !bornNative && !migrated,
+                isMigrated: migrated,
+                id: `cr-${e.jobReportId}`,
                 endpointPath: e.action,
-            }));
+            };
+        });
 
-        // SpaComponent (interactive tools) — Action is an in-app route (jobPath-relative
-        // path). Dispatched via router.navigate, not a download. Lets interactive features
-        // (PackedRoster Designer, check-in, …) live in the same role-gated catalogue.
-        const spa: LibraryEntry[] = this.type2Entries()
-            .filter(e => e.kind === 'SpaComponent')
-            .map(e => ({
-                isCrystal: false,
-                roles: [],
-                id: `spa-${e.jobReportId}`,
-                title: e.title,
-                description: null,
-                iconName: e.iconName,
-                category: normalizeReportCategory(e.groupLabel),
-                sortOrder: e.sortOrder,
-                spaRoute: e.action ?? '',
-            }));
-
-        return [...type1, ...type2, ...nativeDb, ...bold, ...spa];
+        return entries;
     });
 
     /**
