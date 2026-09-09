@@ -14,7 +14,7 @@
 				<!-- Tournaments get the full intent panel below, so this would only repeat it. -->
 				@if (!canMatch()) {
 					<p class="title-desc">
-						Browse published national rankings for club lacrosse teams.
+						Available for tournament events.
 					</p>
 				}
 			</div>
@@ -78,7 +78,7 @@
 				<li>
 					<span class="intent-num" aria-hidden="true">2</span>
 					<span class="intent-body">
-						<strong>Then pick a season and the national group to match against.</strong>
+						<strong>Then pick a season and the national group to look them up in.</strong>
 						The published groups are by <em>graduation class</em> — "Girls 2029" is the
 						class of 2029 — so choose the one holding the same players as your age
 						group. Seeding a new event? Use the most recently <em>completed</em>
@@ -88,11 +88,13 @@
 				<li>
 					<span class="intent-num" aria-hidden="true">3</span>
 					<span class="intent-body">
-						<strong>Review every match, not just the weak ones.</strong>
-						Teams are paired by comparing club name, colour, graduation year and state —
-						it is a best guess, and clubs rename teams between seasons. Anything left
-						over appears on the right; use <strong>Match</strong> on a team to pair it
-						by hand, or <strong>Change</strong> to correct one the matcher got wrong.
+						<strong>Review every pairing, not just the weak ones.</strong>
+						<strong>Look Up Rankings</strong> proposes pairings by comparing club name,
+						colour, graduation year and state — it is a best guess, and clubs rename teams
+						between seasons. Anything left over appears on the right; use
+						<strong>Match</strong> on a team to pair it by hand, or <strong>Change</strong>
+						to correct one the lookup got wrong. Running <strong>Look Up Again</strong>
+						starts over — it replaces everything on screen, hand pairings included.
 						If a team is misnamed in your event, the
 						<i class="bi bi-pencil" aria-hidden="true"></i> pencil renames it here only
 						— and we re-check that one team against the rankings still unmatched, which
@@ -133,32 +135,54 @@
 					</select>
 				</div>
 			}
+			<!--
+				Both national controls stay disabled until an age group of ours is chosen. There is
+				nothing to match against without one, and enabling them first is what let a
+				director scrape before they could see — or fix — the teams they were matching.
+			-->
 			<div class="selector-field selector-field-season">
-				<label class="form-label fw-bold"><i class="bi bi-calendar3 me-1 text-primary"></i>Season</label>
+				<label class="form-label fw-bold"><i class="bi bi-calendar3 me-1 text-primary"></i>National Rankings Season</label>
 				<select class="form-select form-select-sm"
 					[ngModel]="selectedSeason()" (ngModelChange)="onSeasonChange($event)"
-					[disabled]="seasons().length === 0">
+					[disabled]="!canPickSeason() || seasons().length === 0"
+					title="Pick your event's age group first">
 					@for (s of seasons(); track s.value) { <option [value]="s.value">{{ s.text }}</option> }
 				</select>
 			</div>
 			<div class="selector-field">
 				<label class="form-label fw-bold"><i class="bi bi-globe2 me-1 text-primary"></i>National Rankings Agegroups</label>
 				<select class="form-select form-select-sm"
-					[ngModel]="selectedScrapedAg()" (ngModelChange)="onScrapedAgChange($event)">
+					[ngModel]="selectedScrapedAg()" (ngModelChange)="onScrapedAgChange($event)"
+					[disabled]="!canPickNationalAg()"
+					title="Pick your event's age group first">
 					<option value="">Select ranking age group...</option>
 					@for (ag of scrapedAgeGroups(); track ag.value) { <option [value]="ag.value">{{ ag.text }}</option> }
 				</select>
 			</div>
 			@if (canMatch()) {
 				<div class="selector-actions">
+					<!--
+						"Look Up", not "Match": this reads usclublax.com and proposes pairings — it
+						decides nothing. "Re-Match" also read as though it refined what was on screen,
+						when in fact it discards the whole set and starts over, hand corrections
+						included. The title says so before the click, not after.
+					-->
 					<button class="btn btn-primary btn-sm btn-find"
-						(click)="align()" [disabled]="isLoading() || !selectedScrapedAg() || !selectedRegisteredAg()">
-						@if (isLoading()) { <span class="spinner-border spinner-border-sm me-1"></span>Matching... }
-						@else if (hasResults()) { <i class="bi bi-arrow-repeat me-1"></i>Re-Match }
-						@else { <i class="bi bi-stars me-1"></i>Find Matches }
+						(click)="align()" [disabled]="isLoading() || !selectedScrapedAg() || !selectedRegisteredAg()"
+						[title]="hasResults()
+							? 'Looks the rankings up again and replaces everything on screen, including any pairings you set by hand'
+							: 'Look these teams up against the national rankings'">
+						@if (isLoading()) { <span class="spinner-border spinner-border-sm me-1"></span>Looking up... }
+						@else if (hasResults()) { <i class="bi bi-arrow-repeat me-1"></i>Look Up Again }
+						@else { <i class="bi bi-search me-1"></i>Look Up Rankings }
 					</button>
+					<!-- Scoped to the selected age group by the endpoint (jobId + agegroupId); it cannot
+					     reach another age group or another job. The tooltip says so, because "Clear all
+					     ranking data" read as if it wiped the event. -->
 					<button class="btn btn-outline-danger btn-sm" (click)="confirmClearRankings()"
-						[disabled]="isLoading() || !selectedRegisteredAg()" title="Clear all ranking data">
+						[disabled]="isLoading() || !selectedRegisteredAg()"
+						[attr.aria-label]="'Remove every saved national ranking in ' + (selectedAgName() || 'this age group')"
+						[title]="'Remove every saved national ranking in ' + (selectedAgName() || 'this age group')">
 						<i class="bi bi-trash"></i>
 					</button>
 				</div>
@@ -166,9 +190,11 @@
 		</div>
 		@if (!canMatch()) {
 			<p class="selector-note">
-				<i class="bi bi-info-circle me-1"></i>Matching rankings to your registered teams is
-				available for <strong>tournament</strong> events — it exists to seed pools. You can
-				browse the published rankings here for any event.
+				<i class="bi bi-info-circle me-1"></i>This tool is for <strong>tournament</strong>
+				events — it exists to seed pools by attaching national rankings to your registered
+				teams, and there are no pools to seed here. To read the published rankings
+				themselves, visit
+				<a href="https://www.usclublax.com/rankings" target="_blank" rel="noopener noreferrer">usclublax.com</a>.
 			</p>
 		}
 
@@ -201,29 +227,38 @@
 							<strong>{{ savedCount() }}</strong> of <strong>{{ savedTotalTeams() || savedCount() }}</strong>
 							teams have a saved national ranking
 							@if (savedAsOf()) { <span class="saved-meta">· last saved {{ savedAsOf() }}</span> }
-							@if (savedSeasons().length === 1) {
-								<span class="saved-meta">· from {{ savedSeasons()[0] }}</span>
-							} @else if (savedSeasons().length > 1) {
-								<!-- Mixed seasons are not comparable. Say so where it can still be fixed. -->
-								<span class="saved-mixed">
-									<i class="bi bi-exclamation-triangle-fill me-1"></i>mixed seasons:
-									{{ savedSeasons().join(', ') }} — re-save to put them all on one season
-								</span>
-							}
 						</span>
 					</button>
 
 					@if (showSavedList()) {
+						<!-- Two columns, in the order the scheduler reads: their own team, then the
+						     national team it was matched to with its rank on the badge. Rank and name
+						     are ONE statement, not two columns. -->
+						<div class="saved-list-head" aria-hidden="true">
+							<span>Team</span>
+							<span>National Ranked Team</span>
+							<span class="saved-list-actions">Remove</span>
+						</div>
 						<ul id="saved-rankings-list" class="saved-list">
 							@for (row of savedRows(); track row.teamId) {
 								<li>
-									<!-- Same badge classes Pool Assignment uses for Nat'l Rank, so the
-									     same number reads identically on both screens. -->
-									<span class="badge bg-primary-subtle text-primary-emphasis"
-										[title]="row.tooltip">{{ row.rank }}</span>
+									<!-- Our name leads: that is what the scheduler is looking up. The badge
+									     wears the same classes Pool Assignment uses for Nat'l Rank, so the
+									     number reads identically on both screens. -->
 									<span class="saved-list-team">{{ row.teamName }}</span>
-									<span class="saved-list-as">{{ row.rankedAs }}</span>
-									<span class="saved-meta saved-list-season">{{ row.season }}</span>
+									<span class="saved-list-as" [title]="row.tooltip">
+										<span class="badge bg-primary-subtle text-primary-emphasis">{{ row.rank }}</span>
+										<span class="saved-list-as-name">{{ row.matchedTo }}</span>
+									</span>
+									<button type="button" class="btn-remove-pairing saved-list-actions"
+										(click)="removeStoredPairing(row.teamId)"
+										[disabled]="removingTeamId() !== null"
+										[attr.aria-label]="'Remove the national ranking saved for ' + row.teamName"
+										[title]="'Remove the national ranking saved for ' + row.teamName">
+										<i class="bi" [class.bi-trash]="removingTeamId() !== row.teamId"
+											[class.bi-hourglass-split]="removingTeamId() === row.teamId"
+											aria-hidden="true"></i>
+									</button>
 								</li>
 							}
 						</ul>
@@ -233,57 +268,26 @@
 		}
 	</div>
 
-	<!-- Browse: published rankings on their own, before any age group is matched -->
-	@if (isBrowsing()) {
+	<!--
+		The table exists as soon as an age group is picked — it starts as your roster and becomes
+		the match sheet once a scrape has run. It is NOT gated on an alignment: that was what made
+		the rename pencil unreachable until after the match it was meant to fix.
+	-->
+	@if (hasTeams()) {
+
+		<!-- Results Summary -->
 		<div class="results-bar">
-			<strong>{{ browseRankings().length }}</strong> published rankings for
-			<strong>{{ browseLabel() }}</strong>
-			@if (canMatch()) {
-				— pick your event's age group above to match them to your teams
-			}
-		</div>
-
-		<div class="browse-panel">
-			<div class="sidebar-search">
-				<input type="text" class="form-control form-control-sm" placeholder="Filter..."
-					[ngModel]="sidebarSearch()" (ngModelChange)="sidebarSearch.set($event)">
-			</div>
-			<div class="sidebar-col-headers">
-				<span class="sidebar-col sortable-col" (click)="toggleSidebarSort('rank')"># <i class="bi" [class]="sidebarSortIcon('rank')"></i></span>
-				<span class="sidebar-col sidebar-col-team sortable-col" (click)="toggleSidebarSort('team')">Team <i class="bi" [class]="sidebarSortIcon('team')"></i></span>
-				<span class="sidebar-col sidebar-col-state sortable-col" (click)="toggleSidebarSort('state')">St <i class="bi" [class]="sidebarSortIcon('state')"></i></span>
-				<span class="sidebar-col sidebar-col-stat">W-L</span>
-				<span class="sidebar-col sidebar-col-stat sortable-col" (click)="toggleSidebarSort('rating')">Rtg <i class="bi" [class]="sidebarSortIcon('rating')"></i></span>
-				<span class="sidebar-col sidebar-col-stat">AGD</span>
-				<span class="sidebar-col sidebar-col-stat">Sch</span>
-			</div>
-			<div class="sidebar-list browse-list">
-				@for (r of filteredBrowseRankings(); track r.rank) {
-					<div class="sidebar-item sidebar-item-static">
-						<span class="sidebar-rank">#{{ r.rank }}</span>
-						<span class="sidebar-team">{{ r.team }}</span>
-						<span class="sidebar-state">{{ r.state }}</span>
-						<span class="sidebar-stat">{{ r.record }}</span>
-						<span class="sidebar-stat">{{ r.rating | number:'1.1-1' }}</span>
-						<span class="sidebar-stat">{{ r.agd | number:'1.1-1' }}</span>
-						<span class="sidebar-stat">{{ r.sched | number:'1.1-1' }}</span>
-					</div>
-				}
-			</div>
-		</div>
-	}
-
-	<!-- Results -->
-	@if (alignment(); as result) {
-		@if (result.success) {
-
-			<!-- Results Summary -->
-			<div class="results-bar">
+			@if (alignment()) {
 				Of <strong>{{ totalTeamsInAgeGroup() }}</strong> teams in <strong>{{ jobName() }}:{{ selectedAgName() }}</strong>,
 				<strong class="text-success">{{ matchedCount() }}</strong> matched by AI
 				(<strong class="text-primary">{{ formatPercent(matchRate()) }}</strong>),
 				<strong [class.text-warning]="unmatchedTeamCount() > 0">{{ unmatchedTeamCount() }}</strong> unmatched
-			</div>
+			} @else {
+				<strong>{{ totalTeamsInAgeGroup() }}</strong> teams in
+				<strong>{{ jobName() }}:{{ selectedAgName() }}</strong>. Rename any that are wrong,
+				then pick a national ranking group above to match them.
+			}
+		</div>
 
 			<!-- Action Bar -->
 			<div class="action-bar">
@@ -296,27 +300,40 @@
 						Unmatched @if (unmatchedTeamCount() > 0) { <span class="filter-badge">{{ unmatchedTeamCount() }}</span> }
 					</button>
 				</div>
-				@if (hasDirtyMatches()) {
-					<div class="save-dropdown-wrapper">
-						<button class="btn btn-success btn-sm save-btn" (click)="toggleSaveDropdown()" [disabled]="isSaving()">
-							@if (isSaving()) { <span class="spinner-border spinner-border-sm me-1"></span>Saving... }
-							@else { <i class="bi bi-cloud-upload me-1"></i>Save Rankings <i class="bi bi-chevron-down ms-1"></i> }
-						</button>
-						@if (showSaveDropdown()) {
-							<div class="save-dropdown" (click)="$event.stopPropagation()">
-								<button class="save-option" (click)="saveWithThreshold('high')">
-									<span class="badge confidence-high me-2">75%+</span>High confidence<span class="text-muted ms-auto">{{ saveCountByThreshold().high }}</span>
-								</button>
-								<button class="save-option" (click)="saveWithThreshold('medium')">
-									<span class="badge confidence-medium me-2">50%+</span>Medium+<span class="text-muted ms-auto">{{ saveCountByThreshold().medium }}</span>
-								</button>
-								<button class="save-option" (click)="saveWithThreshold('all')">
-									<span class="badge bg-secondary me-2">All</span>Every match<span class="text-muted ms-auto">{{ saveCountByThreshold().all }}</span>
-								</button>
-							</div>
-						}
-					</div>
-				}
+				<!--
+					Always present, flush right on the filter row. It used to appear only when there
+					were unsaved changes, so the right half of this bar sat empty and the one control
+					that commits anything blinked in and out of existence. Now it holds its place and
+					says WHY it is unavailable instead of vanishing.
+				-->
+				<!-- The reason sits on the WRAPPER, not the button: a disabled button swallows
+				     mouse events in Chrome, so its own `title` never appears. -->
+				<div class="save-dropdown-wrapper"
+					[title]="isSaving() ? 'Saving...'
+						: hasDirtyMatches() ? 'Choose which pairings to write to your teams'
+						: 'Nothing to save — pair some teams first, or you have already saved everything on screen'">
+					<button class="btn btn-success btn-sm save-btn" (click)="toggleSaveDropdown()"
+						[disabled]="isSaving() || !hasDirtyMatches()"
+						[attr.aria-expanded]="showSaveDropdown()">
+						@if (isSaving()) { <span class="spinner-border spinner-border-sm me-1"></span>Saving... }
+						@else { <i class="bi bi-cloud-upload me-1"></i>Save Rankings <i class="bi bi-chevron-down ms-1"></i> }
+					</button>
+					@if (showSaveDropdown()) {
+						<!-- The same boundaries the Show filter uses, in the same words — one
+						     vocabulary for confidence across the screen. -->
+						<div class="save-dropdown" (click)="$event.stopPropagation()">
+							<button class="save-option" (click)="saveWithThreshold('high')">
+								<span class="badge confidence-high me-2">75%+</span>High confidence<span class="text-muted ms-auto">{{ saveCountByThreshold().high }}</span>
+							</button>
+							<button class="save-option" (click)="saveWithThreshold('medium')">
+								<span class="badge confidence-medium me-2">50%+</span>Medium and up<span class="text-muted ms-auto">{{ saveCountByThreshold().medium }}</span>
+							</button>
+							<button class="save-option" (click)="saveWithThreshold('all')">
+								<span class="badge bg-secondary me-2">All</span>Every pairing<span class="text-muted ms-auto">{{ saveCountByThreshold().all }}</span>
+							</button>
+						</div>
+					}
+				</div>
 			</div>
 
 			<!-- Table + Sidebar -->
@@ -325,12 +342,12 @@
 					<div class="table-responsive">
 						<table class="table table-sm table-striped table-hover align-middle mb-0">
 							<thead><tr>
-								<th style="width:40px">#</th>
-								<th class="sortable-th" (click)="toggleSort('team')">Registered Team <i class="bi" [class]="sortIcon('team')"></i></th>
-								<th class="sortable-th" style="width:55px" (click)="toggleSort('rank')">Rank <i class="bi" [class]="sortIcon('rank')"></i></th>
-								<th class="sortable-th" (click)="toggleSort('rankedAs')">Ranked As <i class="bi" [class]="sortIcon('rankedAs')"></i></th>
-								<th class="sortable-th" style="width:80px" (click)="toggleSort('conf')">Conf. <i class="bi" [class]="sortIcon('conf')"></i></th>
-								<th style="width:70px">Action</th>
+								<th class="col-num">#</th>
+								<th class="sortable-th col-team" (click)="toggleSort('team')">Registered Team <i class="bi" [class]="sortIcon('team')"></i></th>
+								<th class="sortable-th col-rank" (click)="toggleSort('rank')">Rank <i class="bi" [class]="sortIcon('rank')"></i></th>
+								<th class="sortable-th col-ranked-as" (click)="toggleSort('rankedAs')">Ranked As <i class="bi" [class]="sortIcon('rankedAs')"></i></th>
+								<th class="sortable-th col-conf" (click)="toggleSort('conf')">Conf. <i class="bi" [class]="sortIcon('conf')"></i></th>
+								<th class="col-action">Action</th>
 							</tr></thead>
 							<tbody>
 								@for (row of filteredTableRows(); track row.team.teamId; let idx = $index) {
@@ -343,14 +360,17 @@
 											row background then fails to paint behind it — which showed up as a
 											white block under any team name long enough to wrap.
 										-->
-										<td class="fw-medium">
+										<!-- Not bold: weight on every row is not emphasis, it just competes with the
+										     rank and confidence badges, which are what the eye should catch. -->
+										<td class="col-team">
 											<div class="team-name-cell">
-												<span>{{ row.team.clubName ? row.team.clubName + ':' : '' }}{{ row.team.teamName }}</span>
 												<!--
-													Renames THIS EVENT's copy only. Sits in the name cell, not the
-													Action column — that column's pencil reassigns a ranking, and two
-													pencils meaning different things in one row is how a director
-													renames a team when they meant to re-match it.
+													Leads the cell, at a fixed width, so the pencils form one column the
+													eye can run down instead of chasing the ragged end of each name.
+													Renames THIS EVENT's copy only — it is deliberately NOT in the Action
+													column, whose pencil reassigns a ranking; two pencils meaning
+													different things in one row is how a director renames a team when
+													they meant to re-match it.
 												-->
 												<button type="button" class="btn btn-link btn-rename"
 													(click)="openRename(row.team)"
@@ -364,23 +384,38 @@
 														<i class="bi bi-pencil" aria-hidden="true"></i>
 													}
 												</button>
+												<span class="team-name-text" [title]="displayTeamName(row.team)">{{ displayTeamName(row.team) }}</span>
+												@if (reassessedTeamIds().has(row.team.teamId)) {
+													<!-- Icon + tooltip rather than a second line of text — the row is one
+													     line now. Never colour alone: this says the pairing came from the
+													     rename, not from the original match run. -->
+													<i class="bi bi-magic reassessed-note"
+														title="This pairing came from re-checking the team after it was renamed"
+														aria-label="Matched after rename"></i>
+												}
 											</div>
-											@if (reassessedTeamIds().has(row.team.teamId)) {
-												<!-- Icon + text, never colour alone: this says the pairing below
-												     came from the rename, not from the original match run. -->
-												<span class="reassessed-note">
-													<i class="bi bi-magic me-1" aria-hidden="true"></i>matched after rename
-												</span>
-											}
 										</td>
 										@if (row.match) {
-											<td class="fw-medium">
-												#{{ row.match.ranking.rank }}
+											<!-- One badge for a rank, everywhere. This column used to print "#94" as
+											     plain text here and a badge in the saved-only branch below — the same
+											     fact in two visual languages, one column apart. -->
+											<td>
 												@if (getSavedDrift(row); as drift) {
-													<span class="rank-drift" title="Previously saved rank">was #{{ drift.savedRank }} on {{ drift.savedDate }}</span>
+													<!-- Drift is an icon plus the badge's title, not a second line of text:
+													     this column is 58px wide and a wrapped "was #94 on 9/9" was being
+													     clipped. Icon + tooltip, never colour alone. -->
+													<span class="badge bg-primary-subtle text-primary-emphasis"
+														[title]="'Now #' + row.match.ranking.rank + ' — was #' + drift.savedRank + ' when saved on ' + drift.savedDate">
+														{{ row.match.ranking.rank }}
+													</span>
+													<i class="bi bi-arrow-left-right rank-drift"
+														[title]="'Rank changed since the last save: was #' + drift.savedRank + ' on ' + drift.savedDate"
+														[attr.aria-label]="'Rank changed since the last save: was number ' + drift.savedRank"></i>
+												} @else {
+													<span class="badge bg-primary-subtle text-primary-emphasis">{{ row.match.ranking.rank }}</span>
 												}
 											</td>
-											<td>{{ row.match.ranking.team }}</td>
+											<td [title]="row.match.ranking.team">{{ row.match.ranking.team }}</td>
 											<td>
 												@if (isManualMatch(row.match)) { <span class="text-muted">—</span> }
 												@else { <span class="badge" [class]="confidenceClass(row.match.matchScore)">{{ formatPercent(row.match.matchScore) }}</span> }
@@ -396,6 +431,24 @@
 														title="Remove match"><i class="bi bi-x-circle"></i></button>
 												}
 											</td>
+										} @else if (storedOnly(row); as saved) {
+											<!--
+												Unpaired here, but already stamped in the database — either
+												before any scrape has run, or because this scrape did not
+												re-find it. Show the stored rank rather than an em-dash, in
+												Pool Assignment's badge so it reads as the same fact.
+											-->
+											<td>
+												<span class="badge bg-primary-subtle text-primary-emphasis"
+													[title]="'Previously saved: ' + saved.team + ' (' + saved.record + ')'">
+													{{ saved.rank }}
+												</span>
+											</td>
+											<td class="text-muted" [title]="saved.team">{{ saved.team }}</td>
+											<td><span class="saved-flag"><i class="bi bi-bookmark-check-fill me-1"></i>saved</span></td>
+											<td><button class="btn btn-outline-primary btn-sm btn-action" (click)="startMatch(row.team.teamId)"
+												[class.active]="activeMatchTeamId() === row.team.teamId" [disabled]="unmatchedRankings().length === 0">
+												<i class="bi bi-link-45deg me-1"></i>Match</button></td>
 										} @else {
 											<td class="text-muted">—</td><td class="text-muted">—</td><td class="text-muted">—</td>
 											<td><button class="btn btn-outline-primary btn-sm btn-action" (click)="startMatch(row.team.teamId)"
@@ -451,11 +504,10 @@
 				}
 			</div>
 
-			@if (activeMatchTeamId()) {
-				<div class="match-hint">
-					<i class="bi bi-arrow-right-circle-fill me-2"></i>Select a ranking from the sidebar — <kbd>Esc</kbd> to cancel
-				</div>
-			}
+		@if (activeMatchTeamId()) {
+			<div class="match-hint">
+				<i class="bi bi-arrow-right-circle-fill me-2"></i>Select a ranking from the sidebar — <kbd>Esc</kbd> to cancel
+			</div>
 		}
 	}
 
@@ -463,9 +515,11 @@
 
 <!-- Dialogs -->
 @if (showClearConfirm()) {
-	<confirm-dialog title="Clear All Ranking Data"
-		message="This will clear ranking data from <strong>every team</strong> in the selected age group. This cannot be undone."
-		confirmLabel="Clear All Rankings" confirmVariant="danger"
+	<confirm-dialog [title]="'Remove All Rankings in ' + (selectedAgName() || 'This Age Group')"
+		[message]="'This removes the saved national ranking from <strong>every team</strong> in '
+			+ (selectedAgName() || 'this age group')
+			+ '. Your other age groups are not touched. This cannot be undone.'"
+		confirmLabel="Remove All Rankings" confirmVariant="danger"
 		(confirmed)="clearRankings()" (cancelled)="showClearConfirm.set(false)">
 	</confirm-dialog>
 }

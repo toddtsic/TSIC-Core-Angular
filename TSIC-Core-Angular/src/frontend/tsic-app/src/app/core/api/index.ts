@@ -678,7 +678,6 @@ export type { ScheduleListRequestDto } from './models/ScheduleListRequestDto';
 export type { SchedulingChecklistDto } from './models/SchedulingChecklistDto';
 export type { SchedulingMetrics } from './models/SchedulingMetrics';
 export type { ScorerLoginRequest } from './models/ScorerLoginRequest';
-export type { ScrapeResultDto } from './models/ScrapeResultDto';
 export type { SeedTestRefsRequest } from './models/SeedTestRefsRequest';
 export type { SeedWavesRequest } from './models/SeedWavesRequest';
 export type { SelfRosterPlayerDto } from './models/SelfRosterPlayerDto';

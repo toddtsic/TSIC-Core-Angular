@@ -225,7 +225,15 @@
 	.active & { background: rgba(255,255,255,0.25); color: var(--neutral-0); }
 }
 
-.save-btn { font-weight: 600; border-radius: var(--radius-full); padding: 2px var(--space-3); }
+.save-btn {
+	font-weight: 600;
+	border-radius: var(--radius-full);
+	padding: 2px var(--space-3);
+	white-space: nowrap;
+
+	/* Disabled still reads as a control holding its place, not as chrome. */
+	&:disabled { opacity: 0.55; cursor: not-allowed; }
+}
 
 .save-dropdown-wrapper { position: relative; }
 .save-dropdown {
@@ -316,50 +324,101 @@
 
 // ═══════════════════ Table ═══════════════════
 
+/* The table and the rankings sidebar sit side by side, so they are ONE design: same type
+   scale, same 3px row padding, one line per row. A wrapping name is what made the left half
+   look like a different screen from the right — three-line rows cannot read as compact at
+   any font size, so the fix is fixed columns and ellipsis, not smaller text. */
 .table {
-	th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--bs-secondary-color); border-bottom-width: 2px; }
-	td { font-size: var(--font-size-sm); }
+	table-layout: fixed;
+	width: 100%;
+	font-size: var(--font-size-xs);
+
+	th, td {
+		padding: 3px var(--space-2);
+		vertical-align: middle;
+	}
+
+	/* Every cell is a single line that trims. The full value is on the cell's title. */
+	td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+	th {
+		font-size: var(--font-size-2xs);
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		color: var(--bs-body-color);
+		border-bottom-width: 2px;
+		white-space: nowrap;
+	}
 }
+
+/* Fixed tracks — without them `table-layout: fixed` splits the width evenly and the name
+   column, the one that needs the room, gets the same share as the 40px action column. */
+.col-num { width: 34px; }
+.col-team { width: 34%; }
+.col-rank { width: 58px; }
+.col-ranked-as { width: 30%; }
+.col-conf { width: 62px; }
+.col-action { width: 74px; }
 
 .sortable-th {
 	cursor: pointer;
 	user-select: none;
 	white-space: nowrap;
 	&:hover { color: var(--bs-primary); }
-	.bi { font-size: 9px; opacity: 0.5; margin-left: 2px; }
+	.bi { font-size: var(--font-size-2xs); opacity: 0.5; margin-left: 2px; }
 }
 
 .row-num {
-	font-size: var(--font-size-xs);
+	font-size: var(--font-size-2xs);
 	color: var(--bs-secondary-color);
 	text-align: center;
 }
 
 .rank-drift {
-	display: block;
-	font-size: 9px;
-	font-weight: 400;
+	margin-left: 2px;
+	font-size: var(--font-size-2xs);
 	color: var(--bs-warning);
-	white-space: nowrap;
 }
 
 // Pencil sits at the end of the name and stays out of the way until the row is approached.
 // It keeps a visible focus ring at all times — a keyboard user must never lose the caret.
+/* The name is the one column allowed to wrap — it is what the director reads the row BY, and
+   a trimmed "Hero's Tournament Lacrosse ..." tells them nothing. Every other cell still trims.
+   The pencil aligns to the first line, not the middle of a two-line name. */
+.table td.col-team { white-space: normal; }
+
 .team-name-cell {
 	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--space-2);
+	align-items: flex-start;
+	gap: var(--space-1);
+	min-width: 0;
 }
 
+.team-name-text {
+	min-width: 0;
+	overflow-wrap: anywhere;
+	line-height: 1.3;
+}
+
+/* Row controls sit on the first line of a wrapped name, not adrift beside its middle. */
+.btn-rename,
+.reassessed-note { margin-top: 1px; }
+
 .btn-rename {
+	/* Fixed width so the names all start at the same x — a pencil that sizes to its own
+	   content puts every name on a different left edge. */
 	flex: 0 0 auto;
-	padding: 0 var(--space-1);
+	width: 14px;
+	padding: 0;
+	font-size: var(--font-size-2xs);
 	line-height: 1;
 	color: var(--bs-secondary-color);
 	text-decoration: none;
 	opacity: 0;
 	transition: opacity var(--transition-fast, 120ms) ease, color var(--transition-fast, 120ms) ease;
+
+	.spinner-border-sm { width: 10px; height: 10px; border-width: 1px; }
 
 	&:hover { color: var(--bs-primary); }
 
@@ -376,12 +435,21 @@ tr:hover .btn-rename { opacity: 1; }
 /* A spinner in the pencil's place must not vanish when the row is not hovered. */
 .btn-rename:disabled { opacity: 1; }
 
-.reassessed-note {
-	display: block;
-	font-size: 9px;
-	font-weight: 400;
-	color: var(--bs-info);
+/* Marks a row whose rank comes from the database rather than this scrape. Icon + word, never
+   colour alone. */
+.saved-flag {
+	display: inline-flex;
+	align-items: center;
+	font-size: var(--font-size-2xs);
+	font-weight: 600;
+	color: var(--bs-secondary-color);
 	white-space: nowrap;
+}
+
+.reassessed-note {
+	flex: 0 0 auto;
+	font-size: var(--font-size-2xs);
+	color: var(--bs-info);
 }
 
 // Touch and reduced-motion users get no hover reveal, so the control is simply always visible.
@@ -397,7 +465,15 @@ tr:hover .btn-rename { opacity: 1; }
 .row-manual { background: color-mix(in srgb, var(--bs-info) 8%, transparent); }
 .row-active { background: color-mix(in srgb, var(--bs-primary) 12%, transparent) !important; outline: 2px solid var(--bs-primary); outline-offset: -2px; }
 
-.btn-action { padding: 1px var(--space-2); font-size: 11px; white-space: nowrap; &.active { background: var(--bs-primary); color: var(--neutral-0); border-color: var(--bs-primary); } }
+/* Row controls must not set the row height — they sit inside cells whose padding is already
+   the row's rhythm. */
+.btn-action {
+	padding: 0 var(--space-1);
+	font-size: var(--font-size-2xs);
+	line-height: 1.5;
+	white-space: nowrap;
+	&.active { background: var(--bs-primary); color: var(--neutral-0); border-color: var(--bs-primary); }
+}
 
 .match-hint {
 	display: flex; align-items: center; padding: var(--space-1) var(--space-3); margin: 0 var(--space-4);
@@ -435,7 +511,9 @@ tr:hover .btn-rename { opacity: 1; }
 }
 
 /* ── Season selector ── */
-.selector-field-season { flex: 0 0 auto; min-width: 130px; }
+/* Wide enough for the "National Rankings Season" label to sit on one line; the control itself
+   only ever holds a short "2025-26". */
+.selector-field-season { flex: 0 0 auto; min-width: 190px; }
 
 .selector-note {
 	margin: var(--space-3) 0 0;
@@ -493,62 +571,100 @@ tr:hover .btn-rename { opacity: 1; }
 	}
 }
 
-.saved-list {
+/* The header and the rows share one column track definition — they must line up, so the
+   grid is declared once and both wear it. */
+.saved-list-head,
+.saved-list li {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto;
+	align-items: center;
+	gap: var(--space-2);
+	padding: 2px 0;
+}
+
+.saved-list-head {
 	margin: var(--space-2) 0 0;
-	padding: var(--space-2) 0 0;
+	padding-top: var(--space-2);
 	border-top: 1px solid var(--bs-border-color-translucent);
+	color: var(--bs-secondary-color);
+	font-size: var(--font-size-xs);
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.saved-list {
+	margin: 0;
+	padding: 0;
 	list-style: none;
 	max-height: 260px;
 	overflow-y: auto;
-
-	li {
-		display: grid;
-		grid-template-columns: 48px minmax(0, 1.4fr) minmax(0, 1.4fr) auto;
-		align-items: center;
-		gap: var(--space-2);
-		padding: 2px 0;
-	}
-
-	.badge { justify-self: start; }
 }
 
-.saved-list-team { font-weight: 600; }
-.saved-list-team,
-.saved-list-as { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.saved-list-as { color: var(--bs-secondary-color); }
-.saved-list-season { justify-self: end; white-space: nowrap; }
+.saved-list-team { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* One column on narrow screens — four ellipsised columns is unreadable on a tablet. */
+/* Badge + name are one cell, not two columns — the rank belongs to the national team, so it
+   travels with it. The badge holds its width; only the name ellipsises. */
+.saved-list-as {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	min-width: 0;
+	color: var(--bs-secondary-color);
+
+	.badge { flex: 0 0 auto; }
+}
+
+.saved-list-as-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.saved-list-actions { justify-self: end; white-space: nowrap; }
+
+.btn-remove-pairing {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 2px var(--space-1);
+	border: none;
+	background: transparent;
+	color: var(--bs-secondary-color);
+	cursor: pointer;
+	border-radius: var(--radius-sm);
+	transition: color 0.15s ease, background 0.15s ease;
+
+	&:hover:not(:disabled) {
+		color: var(--bs-danger);
+		background: color-mix(in srgb, var(--bs-danger) 10%, transparent);
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+
+	&:disabled { opacity: 0.5; cursor: default; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.btn-remove-pairing { transition: none; }
+}
+
+/* Narrow screens stack: our team on the first line, the ranked team under it. Two ellipsised
+   columns side by side is unreadable on a tablet, and the header goes with them — labels over
+   a stack read as a second row of data. */
 @media (max-width: 720px) {
+	.saved-list-head { display: none; }
 	.saved-list li {
-		grid-template-columns: 48px minmax(0, 1fr);
+		grid-template-columns: minmax(0, 1fr) auto;
 		row-gap: 0;
 	}
-	.saved-list-as,
-	.saved-list-season { grid-column: 2; justify-self: start; }
+	.saved-list-team { grid-column: 1; grid-row: 1; }
+	.saved-list-as { grid-column: 1; grid-row: 2; }
+	/* The trash keeps its own column when the row stacks — it must stay reachable, and a
+	   destructive control tucked under the text is easy to hit by accident. */
+	.saved-list-actions { grid-column: 2; grid-row: 1 / span 2; justify-self: end; }
 }
 
 .saved-meta { color: var(--bs-secondary-color); }
-
-/* Mixed seasons carry an icon as well as colour — colour alone must never be the signal. */
-.saved-mixed {
-	display: inline-flex;
-	align-items: center;
-	color: var(--bs-warning);
-	font-weight: 600;
-}
-
-/* ── Browse panel: the sidebar ranking list, full width and read-only ── */
-.browse-panel {
-	display: flex; flex-direction: column;
-	border: 1px solid var(--bs-border-color);
-	border-radius: var(--radius-md);
-	background: var(--bs-card-bg);
-	box-shadow: var(--shadow-sm);
-	overflow: hidden;
-}
-.browse-list { max-height: 62vh; }
-.sidebar-item-static { cursor: default; }
 
 /* ── Experimental-tool disclaimer ── */
 .experimental-note {

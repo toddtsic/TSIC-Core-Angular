@@ -49,10 +49,9 @@ public class USLaxRankingsController : ControllerBase
     }
 
     /// <summary>
-    /// National-ranking matching exists to seed tournament pools, so the half of this
-    /// controller that touches job data is tournament-only. The scrape endpoints above
-    /// stay open: browsing published rankings is useful to any director, and reads
-    /// nothing but usclublax.com.
+    /// National-ranking matching exists to seed tournament pools, so every endpoint that touches
+    /// job data is tournament-only. The usclublax.com lookups above stay open — they read nothing
+    /// of ours.
     /// </summary>
     private async Task<ActionResult?> RejectIfNotTournamentAsync(Guid jobId, CancellationToken ct)
     {
@@ -66,10 +65,11 @@ public class USLaxRankingsController : ControllerBase
         });
     }
 
-    // ── Scrape endpoints (browse) ──
+    // ── usclublax.com lookups ──
     //
-    // These read usclublax.com only — no job data, no writes — so they are open to any
-    // authorised director. The matching half below is gated to tournaments.
+    // These read usclublax.com only — no job data, no writes — so they carry no tournament gate;
+    // there is nothing of ours to leak and nothing to protect. They feed the two national
+    // dropdowns, which the screen only enables once an age group of your own is chosen.
 
     /// <summary>
     /// Get the seasons usclublax.com publishes, newest first, with the season the site
@@ -132,11 +132,16 @@ public class USLaxRankingsController : ControllerBase
     }
 
     /// <summary>
-    /// Get teams with saved NationalRankingData for a specific age group.
-    /// Returns only teams that have ranking data persisted.
+    /// Every team in an age group, each carrying whatever ranking stamp it already holds.
+    ///
+    /// This is what the screen loads the moment an age group is picked, before anything is
+    /// scraped: the director sees their own teams first, can correct a name, and can tell at a
+    /// glance which teams are already ranked. It deliberately returns ALL teams -- an earlier
+    /// version filtered to those with NationalRankingData, which made it impossible to show the
+    /// roster before a match had been run.
     /// </summary>
-    [HttpGet("saved-rankings/{agegroupId:guid}")]
-    public async Task<ActionResult<List<RankingsTeamDto>>> GetSavedRankings(
+    [HttpGet("age-group-teams/{agegroupId:guid}")]
+    public async Task<ActionResult<List<RankingsTeamDto>>> GetAgeGroupTeams(
         Guid agegroupId,
         CancellationToken ct)
     {
@@ -147,27 +152,13 @@ public class USLaxRankingsController : ControllerBase
         if (gate is not null) return gate;
 
         var teams = await _teamRepo.GetTeamsForRankingsAsync(jobId.Value, agegroupId, ct);
-        var withRankings = teams.Where(t => t.NationalRankingData != null).ToList();
-        return Ok(withRankings);
+        return Ok(teams);
     }
 
-    /// <summary>
-    /// Scrape rankings from usclublax.com for a specific age group.
-    /// v = ranking version (20=Overall, 21=National), alpha = sort, yr = grad year
-    /// </summary>
-    [HttpGet("scrape")]
-    public async Task<ActionResult<ScrapeResultDto>> ScrapeRankings(
-        [FromQuery] string v,
-        [FromQuery] string yr,
-        [FromQuery] string alpha = "",
-        CancellationToken ct = default)
-    {
-        if (string.IsNullOrWhiteSpace(v) || string.IsNullOrWhiteSpace(yr))
-            return BadRequest(new { message = "Parameters v and yr are required." });
-
-        var result = await _scrapingService.ScrapeRankingsAsync(v, alpha, yr, ct);
-        return Ok(result);
-    }
+    // The former GET scrape endpoint lived here. It backed a browse mode that showed the
+    // published rankings on their own, for events that cannot match against them. That mode is
+    // gone -- this tool exists to seed tournament pools, and anyone who just wants to read the
+    // rankings can read them at usclublax.com. Align does its own scraping server-side.
 
     // ── Align endpoint ──
 

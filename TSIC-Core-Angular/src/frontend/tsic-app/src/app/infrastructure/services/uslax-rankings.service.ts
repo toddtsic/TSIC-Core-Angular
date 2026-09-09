@@ -4,7 +4,6 @@ import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
 import type {
 	AgeGroupOptionDto,
-	ScrapeResultDto,
 	AlignmentResultDto,
 	ReassessTeamRequest,
 	ReassessTeamResultDto,
@@ -35,15 +34,12 @@ export class UsLaxRankingsService {
 		return this.http.get<AgeGroupOptionDto[]>(`${this.base}/registered-age-groups`);
 	}
 
-	/** Get teams with saved ranking data for an age group */
-	getSavedRankings(agegroupId: string): Observable<RankingsTeamDto[]> {
-		return this.http.get<RankingsTeamDto[]>(`${this.base}/saved-rankings/${agegroupId}`);
-	}
-
-	/** Scrape rankings for specific parameters */
-	scrapeRankings(v: string, alpha: string, yr: string): Observable<ScrapeResultDto> {
-		const params = new HttpParams().set('v', v).set('alpha', alpha).set('yr', yr);
-		return this.http.get<ScrapeResultDto>(`${this.base}/scrape`, { params });
+	/**
+	 * Every team in an age group with whatever ranking stamp it holds — the screen's starting
+	 * point, loaded before any scrape so the roster is visible and renameable on its own.
+	 */
+	getAgeGroupTeams(agegroupId: string): Observable<RankingsTeamDto[]> {
+		return this.http.get<RankingsTeamDto[]>(`${this.base}/age-group-teams/${agegroupId}`);
 	}
 
 	/** Scrape + align rankings with registered teams */

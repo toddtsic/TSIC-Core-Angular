@@ -78,11 +78,6 @@ export class UsLaxRankingsComponent {
 	readonly selectedScrapedAg = signal('');
 	readonly selectedRegisteredAg = signal('');
 
-	/** Browse mode: rankings shown on their own, with no registered age group picked. */
-	readonly browseRankings = signal<RankingEntryDto[]>([]);
-	readonly browseLabel = signal('');
-	readonly isBrowsing = computed(() => !this.alignment() && this.browseRankings().length > 0);
-
 	// ── Loading / messages ──
 	readonly isLoading = signal(false);
 	readonly isSaving = signal(false);
@@ -90,30 +85,24 @@ export class UsLaxRankingsComponent {
 	readonly successMessage = signal<string | null>(null);
 
 	/**
-	 * What is ALREADY STAMPED on this age group's teams, read straight from our own database.
+	 * EVERY team in the selected age group, each carrying whatever stamp it already holds — read
+	 * from our own database the moment an age group is picked, before anything is scraped.
 	 *
-	 * This is the answer to "did my save take?", and the screen could not answer it before: the
-	 * only way to see your own work was to re-scrape usclublax.com and re-run the match, which
-	 * shows you a fresh guess rather than what is stored. Loaded on age-group selection, before
-	 * and independently of any scrape — a third-party site being down must never stop a director
-	 * reading their own data.
+	 * This is the screen's starting point now: your own roster, renameable, with the already-ranked
+	 * teams marked. It also answers "did my save take?", which the old design could not do without
+	 * re-scraping and re-matching — which shows a fresh guess rather than what is stored. A
+	 * third-party site being down must never stop a director reading their own data.
 	 */
-	readonly savedTeams = signal<RankingsTeamDto[]>([]);
+	readonly agegroupTeams = signal<RankingsTeamDto[]>([]);
 	readonly isLoadingSaved = signal(false);
-	/** Total teams in the selected age group, known without a scrape (denominator for "N of M"). */
-	readonly savedTotalTeams = signal(0);
 
-	readonly savedCount = computed(() => this.savedTeams().filter(t => t.nationalRankingData).length);
+	/** Denominator for "N of M", known without a scrape. */
+	readonly savedTotalTeams = computed(() => this.agegroupTeams().length);
 
-	/** Season(s) the stored stamps came from. More than one means a mixed, untrustworthy set. */
-	readonly savedSeasons = computed(() => {
-		const seasons = new Set<string>();
-		for (const t of this.savedTeams()) {
-			const d = this.parseRankingData(t.nationalRankingData);
-			if (d) seasons.add(d.season ? this.seasonLabel(d.season) : 'unknown season');
-		}
-		return [...seasons].sort();
-	});
+	readonly savedCount = computed(() => this.agegroupTeams().filter(t => t.nationalRankingData).length);
+
+	/** The roster is on screen — enough to render the table, with or without a match run. */
+	readonly hasTeams = computed(() => this.agegroupTeams().length > 0);
 
 	/** Accordion under the summary line. Collapsed by default — the count usually suffices. */
 	readonly showSavedList = signal(false);
@@ -123,7 +112,7 @@ export class UsLaxRankingsComponent {
 	 * stays right when no match has been run and when the saved set disagrees with a fresh one.
 	 */
 	readonly savedRows = computed(() =>
-		this.savedTeams()
+		this.agegroupTeams()
 			.map(t => ({ team: t, data: this.parseRankingData(t.nationalRankingData) }))
 			.filter((r): r is { team: RankingsTeamDto; data: NationalRankingDataDto } => r.data !== null)
 			.sort((a, b) => a.data.rank - b.data.rank)
@@ -131,17 +120,22 @@ export class UsLaxRankingsComponent {
 				teamId: team.teamId,
 				teamName: team.clubName ? `${team.clubName}:${team.teamName}` : team.teamName,
 				rank: data.rank,
-				rankedAs: data.team,
-				season: data.season ? this.seasonLabel(data.season) : 'season not recorded',
+				// The ranked team as usclublax.com lists it. The rank rides in the badge beside it,
+				// so it is NOT repeated here — one column, one statement: this is the national team
+				// we matched to, and this is where it sits. No record: it is frozen at save time,
+				// and a stale W-L presented as current is worse than no W-L at all.
+				matchedTo: data.team,
 				tooltip: `${data.team}\nRating: ${data.rating} | Record: ${data.record}`
 					+ `\nAGD: ${data.agd} | Sched: ${data.sched}`
-					+ `\n${data.season ? this.seasonLabel(data.season) + ' season' : 'season not recorded'}`
 			})));
+
+	/** The row whose pairing is being deleted — its trash button disables while the post is out. */
+	readonly removingTeamId = signal<string | null>(null);
 
 	/** Most recent save across the age group — the "as of" on the summary line. */
 	readonly savedAsOf = computed(() => {
 		let latest: Date | null = null;
-		for (const t of this.savedTeams()) {
+		for (const t of this.agegroupTeams()) {
 			const d = this.parseRankingData(t.nationalRankingData);
 			if (!d?.matchedAt) continue;
 			const when = new Date(d.matchedAt);
@@ -171,8 +165,11 @@ export class UsLaxRankingsComponent {
 	readonly saveThreshold = signal<SaveThreshold>('high');
 
 	// ── Sort ──
-	readonly sortCol = signal<SortCol | null>('conf');
-	readonly sortDir = signal<SortDir>('desc');
+	// Team name, ascending. The director arrives knowing a team's NAME, not its confidence
+	// score — sorting by match quality put the list in an order nothing on screen explains
+	// and made "is my team here?" a scan of every row.
+	readonly sortCol = signal<SortCol | null>('team');
+	readonly sortDir = signal<SortDir>('asc');
 
 
 	// ── Dialogs ──
@@ -240,7 +237,10 @@ export class UsLaxRankingsComponent {
 			let aVal: string | number = '';
 			let bVal: string | number = '';
 			switch (col) {
-				case 'team': aVal = a.team.teamName; bVal = b.team.teamName; break;
+				// Sort on what the cell SHOWS — "Club:Team" — not on teamName alone. Sorting by
+				// the bare team name ordered the list by "Black", "2031 Crush", "Fire", which
+				// matches nothing the eye can follow down the column.
+				case 'team': aVal = this.displayTeamName(a.team); bVal = this.displayTeamName(b.team); break;
 				case 'club': aVal = a.team.clubName ?? ''; bVal = b.team.clubName ?? ''; break;
 				case 'rank': aVal = a.match?.ranking.rank ?? 9999; bVal = b.match?.ranking.rank ?? 9999; break;
 				case 'rankedAs': aVal = a.match?.ranking.team ?? ''; bVal = b.match?.ranking.team ?? ''; break;
@@ -254,10 +254,6 @@ export class UsLaxRankingsComponent {
 	// ── Computed: filtered + sorted sidebar rankings (unmatched only) ──
 	readonly filteredSidebarRankings = computed(() =>
 		this.filterAndSortRankings(this.unmatchedRankings()));
-
-	/** Same filter/sort controls drive the browse list, which has no matching context. */
-	readonly filteredBrowseRankings = computed(() =>
-		this.filterAndSortRankings(this.browseRankings()));
 
 	private filterAndSortRankings(source: RankingEntryDto[]): RankingEntryDto[] {
 		let rankings = source;
@@ -376,6 +372,9 @@ export class UsLaxRankingsComponent {
 		this.rankingsService.getScrapedAgeGroups(yr).subscribe({
 			next: groups => {
 				this.scrapedAgeGroups.set(groups);
+				// Either loader can finish last, so both attempt the guess; it is a no-op once a
+				// national group is selected.
+				this.preselectNationalAgeGroup();
 				if (groups.length === 0) {
 					const season = this.seasons().find(s => s.value === this.selectedSeason())?.text;
 					this.errorMessage.set(season
@@ -436,76 +435,111 @@ export class UsLaxRankingsComponent {
 		// carry a selection that would scrape a URL the site does not serve.
 		this.selectedScrapedAg.set('');
 		this.scrapedAgeGroups.set([]);
-		this.clearResults();
+		this.resetToRoster();
 		this.loadScrapedAgeGroups(value);
 	}
 
 	onScrapedAgChange(value: string): void {
 		this.selectedScrapedAg.set(value);
-		this.clearResults();
-		if (!value) return;
-
-		if (this.canMatch() && this.selectedRegisteredAg()) {
-			this.align();
-		} else {
-			this.browse();
-		}
+		this.resetToRoster();
+		if (value && this.selectedRegisteredAg()) this.align();
 	}
 
 	/**
-	 * Changing the age group changes WHICH TEAMS this screen is about, so the previous group's
-	 * results must go. They did not before: the guard below was `!this.hasResults()`, so once an
-	 * alignment existed this handler did nothing at all — the table kept showing group A's teams
-	 * while every subsequent Save and Clear silently retargeted group B. That is the "I saved and
-	 * nothing saved" report, and it is a data-loss bug on Clear.
+	 * The age group is the SUBJECT of this screen, and picking it is the first thing you do.
 	 *
-	 * Loading the saved stamps here (rather than aligning) is the other half of the fix: picking an
-	 * age group now shows what is ALREADY stored, with no third-party round trip. Scraping stays
-	 * behind the explicit Find Matches button.
+	 * It loads your teams straight from our database — no scrape — so the table is your roster
+	 * before it is a match sheet: renameable, with the already-ranked teams marked. It also
+	 * enables the two usclublax dropdowns, which stay disabled until this point because there is
+	 * nothing to match against without it.
+	 *
+	 * Changing it must wipe the previous group's results. It did not before — the old guard was
+	 * `!this.hasResults()`, so once an alignment existed this handler did nothing, the table kept
+	 * showing group A while Save and Clear silently retargeted group B.
 	 */
 	onRegisteredAgChange(value: string): void {
 		if (value === this.selectedRegisteredAg()) return;
 		this.selectedRegisteredAg.set(value);
-		this.clearResults();
-		this.savedTeams.set([]);
-		this.savedTotalTeams.set(0);
-		if (value) this.loadSavedRankings(value);
+		// The national group was chosen for the OLD age group; carrying it over would match this
+		// roster against another class's rankings.
+		this.selectedScrapedAg.set('');
+		this.agegroupTeams.set([]);
+		this.resetToRoster();
+		if (value) this.loadAgeGroupTeams(value);
 	}
 
 	/**
-	 * Read our own database for what is stamped on this age group. Deliberately independent of the
-	 * scrape: a director must be able to see their saved work when usclublax.com is down.
+	 * Read this age group's teams from our own database. Deliberately independent of the scrape:
+	 * a director must be able to see and correct their own roster when usclublax.com is down.
 	 */
-	private loadSavedRankings(agegroupId: string): void {
+	private loadAgeGroupTeams(agegroupId: string): void {
 		this.isLoadingSaved.set(true);
-		this.rankingsService.getSavedRankings(agegroupId)
+		this.rankingsService.getAgeGroupTeams(agegroupId)
 			.pipe(takeUntilDestroyed(this.destroyRef))
 			.subscribe({
 				next: teams => {
 					// Guard a slow response for a group the user has since moved off.
 					if (this.selectedRegisteredAg() !== agegroupId) return;
 					this.isLoadingSaved.set(false);
-					this.savedTeams.set(teams);
-					this.savedTotalTeams.set(this.teamCountForAgegroup(agegroupId));
+					this.agegroupTeams.set(teams);
+					this.totalTeamsInAgeGroup.set(teams.length);
+					// Seeding the unmatched list is what puts the roster in the table: every team
+					// starts unpaired, and matching moves them across.
+					this.unmatchedTeams.set([...teams]);
+					this.preselectNationalAgeGroup();
 				},
 				error: (err: unknown) => {
 					if (this.selectedRegisteredAg() !== agegroupId) return;
 					this.isLoadingSaved.set(false);
-					this.savedTeams.set([]);
+					this.agegroupTeams.set([]);
 					this.errorMessage.set(extractHttpErrorMessage(
-						err, "Couldn't read the rankings already saved for this age group."));
+						err, "Couldn't read this age group's teams."));
 				}
 			});
 	}
 
 	/**
-	 * Team count for the denominator, taken from the dropdown label the API already builds
-	 * ("2030 (35 Teams)") rather than spending a second request to re-count what we were told.
+	 * Re-read the stored stamps after a save, so the summary line is the database's claim rather
+	 * than ours. Updates ONLY `agegroupTeams` — re-seeding the table here would discard the match
+	 * set the director is still working on.
 	 */
-	private teamCountForAgegroup(agegroupId: string): number {
-		const text = this.registeredAgeGroups().find(ag => ag.value === agegroupId)?.text ?? '';
-		const match = /\((\d+)\s+Teams?\)/i.exec(text);
-		return match ? Number(match[1]) : 0;
+	private refreshStoredStamps(agegroupId: string): void {
+		this.rankingsService.getAgeGroupTeams(agegroupId)
+			.pipe(takeUntilDestroyed(this.destroyRef))
+			.subscribe({
+				next: teams => {
+					if (this.selectedRegisteredAg() !== agegroupId) return;
+					this.agegroupTeams.set(teams);
+				},
+				// Silent: the save already reported its own outcome, and a failed re-read says
+				// nothing about whether it landed.
+				error: () => { /* keep the pre-save view rather than blanking it */ }
+			});
+	}
+
+	/**
+	 * Guess the national group from the age group's own name and run the match.
+	 *
+	 * Both sides are named by graduation class, so "2031" on our side belongs with "Girls 2031" on
+	 * theirs — a mechanical pairing the director should not have to make 6 times per event. Age
+	 * groups with no class year in the name ("OPEN", "Varsity") get no guess and wait for a choice.
+	 *
+	 * Called from both loaders because either can finish last; it does nothing once a national
+	 * group is selected, so it never overrides a deliberate pick.
+	 */
+	private preselectNationalAgeGroup(): void {
+		if (this.selectedScrapedAg()) return;
+		if (!this.selectedRegisteredAg() || this.scrapedAgeGroups().length === 0) return;
+		if (this.agegroupTeams().length === 0) return;
+
+		const year = /\b(20\d{2})\b/.exec(this.selectedAgName())?.[1];
+		if (!year) return;
+
+		const guess = this.scrapedAgeGroups().find(ag => ag.text.includes(year));
+		if (!guess) return;
+
+		this.selectedScrapedAg.set(guess.value);
+		this.align();
 	}
 
 	/** Splits the dropdown value, which the API hands us as "v|alpha|yr". */
@@ -518,13 +552,15 @@ export class UsLaxRankingsComponent {
 		};
 	}
 
-	private clearResults(): void {
+	/**
+	 * Drop the match results but KEEP the roster — the table falls back to every team unpaired,
+	 * rather than emptying. The roster belongs to the age group; the pairings belong to a scrape.
+	 */
+	private resetToRoster(): void {
 		this.alignment.set(null);
 		this.matchedTeams.set([]);
 		this.unmatchedRankings.set([]);
-		this.unmatchedTeams.set([]);
-		this.browseRankings.set([]);
-		this.browseLabel.set('');
+		this.unmatchedTeams.set([...this.agegroupTeams()]);
 		this.activeMatchTeamId.set(null);
 		this.errorMessage.set(null);
 		this.successMessage.set(null);
@@ -532,36 +568,6 @@ export class UsLaxRankingsComponent {
 		// the next one would label a row the re-check never touched.
 		this.reassessedTeamIds.set(new Set());
 		this.isReassessing.set(null);
-	}
-
-	// ── Browse: show the published rankings on their own ──
-
-	browse(): void {
-		const scraped = this.selectedScrapedAg();
-		if (!scraped) return;
-
-		const { v, alpha, yr } = this.parseAgValue(scraped);
-
-		this.isLoading.set(true);
-		this.errorMessage.set(null);
-
-		this.rankingsService.scrapeRankings(v, alpha, yr).subscribe({
-			next: result => {
-				this.isLoading.set(false);
-				if (!result.success) {
-					this.browseRankings.set([]);
-					this.errorMessage.set(result.errorMessage ?? 'Could not read rankings from usclublax.com.');
-					return;
-				}
-				this.browseRankings.set([...result.rankings]);
-				this.browseLabel.set(result.ageGroup);
-			},
-			error: (err: { error?: { message?: string } }) => {
-				this.isLoading.set(false);
-				this.browseRankings.set([]);
-				this.errorMessage.set(err.error?.message ?? 'Could not reach usclublax.com to read rankings.');
-			}
-		});
 	}
 
 	// ── Align ──
@@ -577,34 +583,32 @@ export class UsLaxRankingsComponent {
 		const { v, alpha, yr } = this.parseAgValue(scraped);
 
 		this.isLoading.set(true);
-		this.errorMessage.set(null);
-		this.successMessage.set(null);
-		this.alignment.set(null);
-		this.matchedTeams.set([]);
-		this.unmatchedRankings.set([]);
-		this.unmatchedTeams.set([]);
-		this.activeMatchTeamId.set(null);
+		// resetToRoster, not an empty table: the roster stays on screen while the scrape runs, so
+		// the director never watches their teams disappear and come back.
+		this.resetToRoster();
 		this.tableFilter.set('all');
-		this.reassessedTeamIds.set(new Set());
-		this.isReassessing.set(null);
 
-		this.rankingsService.alignRankings(v, alpha, yr, registered).subscribe({
-			next: result => {
-				this.alignment.set(result);
-				this.matchedTeams.set([...result.alignedTeams]);
-				this.unmatchedRankings.set([...result.unmatchedRankings]);
-				this.unmatchedTeams.set([...result.unmatchedTeams]);
-				this.totalTeamsInAgeGroup.set(result.totalTeamsInAgeGroup);
-				this.isLoading.set(false);
-				if (!result.success) {
-					this.errorMessage.set(result.errorMessage ?? 'Alignment failed.');
+		this.rankingsService.alignRankings(v, alpha, yr, registered)
+			.pipe(takeUntilDestroyed(this.destroyRef))
+			.subscribe({
+				next: result => {
+					this.isLoading.set(false);
+					if (!result.success) {
+						// Keep the roster visible — a failed scrape says nothing about our teams.
+						this.errorMessage.set(result.errorMessage ?? 'Alignment failed.');
+						return;
+					}
+					this.alignment.set(result);
+					this.matchedTeams.set([...result.alignedTeams]);
+					this.unmatchedRankings.set([...result.unmatchedRankings]);
+					this.unmatchedTeams.set([...result.unmatchedTeams]);
+					this.totalTeamsInAgeGroup.set(result.totalTeamsInAgeGroup);
+				},
+				error: (err: unknown) => {
+					this.isLoading.set(false);
+					this.errorMessage.set(extractHttpErrorMessage(err, 'Failed to align rankings.'));
 				}
-			},
-			error: (err: { error?: { message?: string } }) => {
-				this.isLoading.set(false);
-				this.errorMessage.set(err.error?.message ?? 'Failed to align rankings.');
-			}
-		});
+			});
 	}
 
 	// ── Manual match (unified: always from team → sidebar ranking) ──
@@ -657,6 +661,45 @@ export class UsLaxRankingsComponent {
 		this.unmatchedTeams.set([...this.unmatchedTeams(), match.registeredTeam]);
 	}
 
+	/**
+	 * Delete ONE team's stored national ranking, from the accordion. A single-entry save with
+	 * `ranking: null` — omission means "leave alone", so the null is what makes it a clear.
+	 *
+	 * It also undoes the match on screen if that team is currently paired: without that the row
+	 * still reads as matched and the next Save writes the stamp straight back.
+	 */
+	removeStoredPairing(teamId: string): void {
+		const registered = this.selectedRegisteredAg();
+		if (!registered || this.removingTeamId()) return;
+
+		this.removingTeamId.set(teamId);
+		this.errorMessage.set(null);
+		this.successMessage.set(null);
+
+		this.rankingsService.saveRankings({
+			registeredTeamAgeGroupId: registered,
+			teams: [{ teamId, ranking: null }]
+		})
+			.pipe(takeUntilDestroyed(this.destroyRef))
+			.subscribe({
+				next: result => {
+					this.removingTeamId.set(null);
+					if (!result.success) {
+						this.errorMessage.set(result.message ?? 'Could not remove the ranking.');
+						return;
+					}
+					const match = this.matchedTeams().find(m => m.registeredTeam.teamId === teamId);
+					if (match) this.undoMatch(match);
+					this.successMessage.set('National ranking removed.');
+					this.refreshStoredStamps(registered);
+				},
+				error: (err: unknown) => {
+					this.removingTeamId.set(null);
+					this.errorMessage.set(extractHttpErrorMessage(err, 'Could not remove the ranking.'));
+				}
+			});
+	}
+
 	isManualMatch(match: AlignedTeamDto): boolean {
 		return match.matchScore === MANUAL_MATCH_SCORE;
 	}
@@ -685,7 +728,7 @@ export class UsLaxRankingsComponent {
 			return;
 		}
 		if (!this.hasResults()) {
-			this.errorMessage.set('Run Find Matches first.');
+			this.errorMessage.set('Run Look Up Rankings first.');
 			return;
 		}
 
@@ -736,7 +779,7 @@ export class UsLaxRankingsComponent {
 					this.applySavedLocally(teams);
 					// Re-read from the database rather than trusting the local patch — this is the
 					// screen's claim that the save landed, so it should be the database's claim.
-					this.loadSavedRankings(registered);
+					this.refreshStoredStamps(registered);
 				},
 				error: (err: unknown) => {
 					this.isSaving.set(false);
@@ -797,14 +840,14 @@ export class UsLaxRankingsComponent {
 					({ ...m, registeredTeam: { ...m.registeredTeam, nationalRankingData: null } })));
 				this.unmatchedTeams.set(this.unmatchedTeams().map(t =>
 					({ ...t, nationalRankingData: null })));
-				// The saved-state line is the screen's claim about the database, so it has to
-				// follow the database here too — otherwise it keeps reporting the stamps we
-				// just deleted.
-				this.savedTeams.set([]);
+				// Strip the stamps but KEEP the roster: clearing rankings deletes ranking data,
+				// not teams. Emptying this signal would blank the table itself.
+				this.agegroupTeams.set(this.agegroupTeams().map(t =>
+					({ ...t, nationalRankingData: null })));
 			},
-			error: (err: { error?: { message?: string } }) => {
+			error: (err: unknown) => {
 				this.isLoading.set(false);
-				this.errorMessage.set(err.error?.message ?? 'Failed to clear rankings.');
+				this.errorMessage.set(extractHttpErrorMessage(err, 'Failed to clear rankings.'));
 			}
 		});
 	}
@@ -877,6 +920,11 @@ export class UsLaxRankingsComponent {
 		return 'confidence-low';
 	}
 
+	/** The team as the table and the accordion both print it: "Club:Team", or bare when clubless. */
+	displayTeamName(team: RankingsTeamDto): string {
+		return team.clubName ? `${team.clubName}:${team.teamName}` : team.teamName;
+	}
+
 	formatPercent(score: number): string {
 		if (score === MANUAL_MATCH_SCORE) return '—';
 		if (isNaN(score)) return '—';
@@ -901,14 +949,8 @@ export class UsLaxRankingsComponent {
 
 	/** The stamp currently in the database for this team, from the saved-state read. */
 	private storedRankingFor(teamId: string): NationalRankingDataDto | null {
-		const team = this.savedTeams().find(t => t.teamId === teamId);
+		const team = this.agegroupTeams().find(t => t.teamId === teamId);
 		return this.parseRankingData(team?.nationalRankingData);
-	}
-
-	/** "2025" is the 2025-26 season — the yr is the season's opening year, not the class. */
-	seasonLabel(yr: string): string {
-		const y = Number(yr);
-		return Number.isFinite(y) && yr ? `${y}-${String((y + 1) % 100).padStart(2, '0')}` : yr;
 	}
 
 	private parseRankingData(json: string | null | undefined): NationalRankingDataDto | null {
@@ -932,6 +974,20 @@ export class UsLaxRankingsComponent {
 	isSaved(row: MasterRow): boolean {
 		return !!row.team.nationalRankingData;
 	}
+
+	/**
+	 * The stamp stored on an UNPAIRED row, so the table can show a previously saved rank before
+	 * any scrape has run — and keep showing it for a team this scrape failed to re-match. Returns
+	 * null for matched rows, where the live pairing is what the columns should be reporting.
+	 */
+	storedOnly(row: MasterRow): NationalRankingDataDto | null {
+		return row.match ? null : this.parseRankingData(row.team.nationalRankingData);
+	}
+
+	/** Which dropdowns are live. The national pair means nothing without an age group of ours. */
+	readonly canPickSeason = computed(() => !!this.selectedRegisteredAg());
+	readonly canPickNationalAg = computed(() =>
+		!!this.selectedRegisteredAg() && !!this.selectedSeason() && this.scrapedAgeGroups().length > 0);
 
 	// ── Rename a local team (pencil) ──
 
@@ -1042,7 +1098,7 @@ export class UsLaxRankingsComponent {
 				this.isReassessing.set(null);
 				this.successMessage.set(
 					`Renamed to ${newName} for this event only. `
-					+ "Couldn't re-check it against the rankings — use Re-Match when you're ready.");
+					+ "Couldn't re-check it against the rankings — use Look Up Again when you're ready.");
 			}
 		});
 	}
@@ -1057,7 +1113,7 @@ export class UsLaxRankingsComponent {
 				? { ...m, registeredTeam: rename(m.registeredTeam) }
 				: m));
 		this.unmatchedTeams.set(this.unmatchedTeams().map(rename));
-		this.savedTeams.set(this.savedTeams().map(rename));
+		this.agegroupTeams.set(this.agegroupTeams().map(rename));
 	}
 
 }
