@@ -123,6 +123,37 @@ public record AlignmentResultDto
 }
 
 /// <summary>
+/// Re-run the matcher for ONE team against the rankings still unpaired on the director's screen.
+///
+/// Renaming a team in this event changes the matcher's primary input, and the usual reason to
+/// rename here is that the registered name was hiding a pairing. Rather than make the director
+/// re-scrape and lose every hand correction, this re-checks the single team they just edited.
+///
+/// The candidate rankings come from the client because they are what is still unpaired ON SCREEN
+/// — the server has no session and no memory of the alignment. They are matched against the
+/// caller's own team and never persisted, so they are inputs to a scoring call, not trusted data.
+/// </summary>
+public record ReassessTeamRequest
+{
+    public required Guid TeamId { get; init; }
+    public required Guid RegisteredTeamAgeGroupId { get; init; }
+    public required List<RankingEntryDto> CandidateRankings { get; init; }
+    public int ClubWeight { get; init; } = 75;
+    public int TeamWeight { get; init; } = 25;
+}
+
+/// <summary>
+/// Outcome of a single-team re-assessment. <see cref="Match"/> is null when nothing cleared the
+/// matcher's own 50% floor — a distinct and useful answer, not a failure.
+/// </summary>
+public record ReassessTeamResultDto
+{
+    public required bool Success { get; init; }
+    public string? Message { get; init; }
+    public AlignedTeamDto? Match { get; init; }
+}
+
+/// <summary>
 /// One team's disposition in a save. The distinction between "omitted" and "present with a null
 /// Ranking" is the whole contract, and it is deliberate:
 ///

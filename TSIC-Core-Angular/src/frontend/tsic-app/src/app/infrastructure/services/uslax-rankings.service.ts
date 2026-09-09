@@ -6,6 +6,8 @@ import type {
 	AgeGroupOptionDto,
 	ScrapeResultDto,
 	AlignmentResultDto,
+	ReassessTeamRequest,
+	ReassessTeamResultDto,
 	SaveRankingsRequest,
 	SaveRankingsResultDto,
 	RankingsTeamDto,
@@ -64,6 +66,14 @@ export class UsLaxRankingsService {
 	 */
 	saveRankings(request: SaveRankingsRequest): Observable<SaveRankingsResultDto> {
 		return this.http.post<SaveRankingsResultDto>(`${this.base}/save-rankings`, request);
+	}
+
+	/**
+	 * Re-check ONE team against the rankings still unpaired on screen — used after a rename,
+	 * where the old name was usually what hid the pairing. Scores nothing else and writes nothing.
+	 */
+	reassessTeam(request: ReassessTeamRequest): Observable<ReassessTeamResultDto> {
+		return this.http.post<ReassessTeamResultDto>(`${this.base}/reassess-team`, request);
 	}
 
 	/** Clear all national ranking data for an age group */

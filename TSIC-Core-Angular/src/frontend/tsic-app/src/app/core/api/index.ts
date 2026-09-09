@@ -566,6 +566,8 @@ export type { RankingEntryDto } from './models/RankingEntryDto';
 export type { RankingSeasonDto } from './models/RankingSeasonDto';
 export type { RankingsTeamDto } from './models/RankingsTeamDto';
 export type { ReadinessClauseDto } from './models/ReadinessClauseDto';
+export type { ReassessTeamRequest } from './models/ReassessTeamRequest';
+export type { ReassessTeamResultDto } from './models/ReassessTeamResultDto';
 export type { RecalculateTeamFeesRequest } from './models/RecalculateTeamFeesRequest';
 export type { RecalculateTeamFeesResponse } from './models/RecalculateTeamFeesResponse';
 export type { ReconciliationStackSummary } from './models/ReconciliationStackSummary';

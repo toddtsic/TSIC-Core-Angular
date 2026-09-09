@@ -115,6 +115,29 @@ export class UsLaxRankingsComponent {
 		return [...seasons].sort();
 	});
 
+	/** Accordion under the summary line. Collapsed by default — the count usually suffices. */
+	readonly showSavedList = signal(false);
+
+	/**
+	 * The stamped teams, ranked first. This reads the DATABASE, not the current scrape, so it
+	 * stays right when no match has been run and when the saved set disagrees with a fresh one.
+	 */
+	readonly savedRows = computed(() =>
+		this.savedTeams()
+			.map(t => ({ team: t, data: this.parseRankingData(t.nationalRankingData) }))
+			.filter((r): r is { team: RankingsTeamDto; data: NationalRankingDataDto } => r.data !== null)
+			.sort((a, b) => a.data.rank - b.data.rank)
+			.map(({ team, data }) => ({
+				teamId: team.teamId,
+				teamName: team.clubName ? `${team.clubName}:${team.teamName}` : team.teamName,
+				rank: data.rank,
+				rankedAs: data.team,
+				season: data.season ? this.seasonLabel(data.season) : 'season not recorded',
+				tooltip: `${data.team}\nRating: ${data.rating} | Record: ${data.record}`
+					+ `\nAGD: ${data.agd} | Sched: ${data.sched}`
+					+ `\n${data.season ? this.seasonLabel(data.season) + ' season' : 'season not recorded'}`
+			})));
+
 	/** Most recent save across the age group — the "as of" on the summary line. */
 	readonly savedAsOf = computed(() => {
 		let latest: Date | null = null;
@@ -160,6 +183,11 @@ export class UsLaxRankingsComponent {
 	readonly renamingTeam = signal<RankingsTeamDto | null>(null);
 	readonly renameBusy = signal(false);
 	readonly renameError = signal<string | null>(null);
+
+	/** Team currently being re-scored after a rename, so its row can show it. */
+	readonly isReassessing = signal<string | null>(null);
+	/** Teams whose current pairing came from a post-rename re-check — flagged in the table. */
+	readonly reassessedTeamIds = signal<ReadonlySet<string>>(new Set());
 
 	// ── Computed: master table rows (matched + unmatched in one list) ──
 	readonly masterTableRows = computed<MasterRow[]>(() => {
@@ -500,6 +528,10 @@ export class UsLaxRankingsComponent {
 		this.activeMatchTeamId.set(null);
 		this.errorMessage.set(null);
 		this.successMessage.set(null);
+		// "matched after rename" describes a pairing in THIS result set. Carrying the flag into
+		// the next one would label a row the re-check never touched.
+		this.reassessedTeamIds.set(new Set());
+		this.isReassessing.set(null);
 	}
 
 	// ── Browse: show the published rankings on their own ──
@@ -553,6 +585,8 @@ export class UsLaxRankingsComponent {
 		this.unmatchedTeams.set([]);
 		this.activeMatchTeamId.set(null);
 		this.tableFilter.set('all');
+		this.reassessedTeamIds.set(new Set());
+		this.isReassessing.set(null);
 
 		this.rankingsService.alignRankings(v, alpha, yr, registered).subscribe({
 			next: result => {
@@ -940,20 +974,77 @@ export class UsLaxRankingsComponent {
 				next: () => {
 					this.applyRenameLocally(team.teamId, name);
 					this.closeRename();
-					// The team name is the fuzzy matcher's input, so the stored stamp and the
-					// on-screen match were both made against the OLD name. Neither is invalidated
-					// — the stamp records a national ranking, not our name for the team — but the
-					// next Find Matches may pair this team differently, and that should not be a
-					// surprise.
-					this.successMessage.set(
-						`Renamed to ${name} for this event only. `
-						+ 'Run Find Matches again if you want the match re-checked against the new name.');
+					this.successMessage.set(`Renamed to ${name} for this event only.`);
+					// The name is the matcher's main input, and fixing it is usually how a
+					// director unblocks a pairing the old name was hiding. Re-check this one
+					// team rather than making them re-run the whole match and lose their
+					// hand corrections.
+					this.reassessAfterRename(team.teamId, name);
 				},
 				error: (err: unknown) => {
 					this.renameBusy.set(false);
 					this.renameError.set(extractHttpErrorMessage(err, 'Failed to rename team.'));
 				}
 			});
+	}
+
+	/**
+	 * Re-score the renamed team against the rankings still unpaired, and take the result if the
+	 * matcher finds one. Applied rather than proposed: every row on this screen is already
+	 * reviewable and undoable before Save, and a confirm on every rename would wear thin fast.
+	 * The row is flagged `reassigned` so it is obvious which pairing the rename produced.
+	 *
+	 * Only meaningful once a match has been run — with nothing scraped there is nothing to score
+	 * against, so the rename simply stands on its own.
+	 */
+	private reassessAfterRename(teamId: string, newName: string): void {
+		const registered = this.selectedRegisteredAg();
+		const candidates = this.unmatchedRankings();
+		if (!registered || !this.hasResults() || candidates.length === 0) return;
+
+		// Only teams with no pairing are worth re-checking. Re-scoring a team the director has
+		// already matched would silently overwrite a decision they made.
+		const isUnmatched = this.unmatchedTeams().some(t => t.teamId === teamId);
+		if (!isUnmatched) return;
+
+		this.isReassessing.set(teamId);
+
+		this.rankingsService.reassessTeam({
+			teamId,
+			registeredTeamAgeGroupId: registered,
+			candidateRankings: candidates,
+			clubWeight: 75,
+			teamWeight: 25
+		}).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+			next: result => {
+				this.isReassessing.set(null);
+				const match = result.match;
+				if (!match) {
+					this.successMessage.set(
+						`Renamed to ${newName} for this event only. `
+						+ 'No ranking matched the new name — pair it by hand if you know the right one.');
+					return;
+				}
+				// Move the team out of the unmatched list and claim its ranking, exactly as a
+				// hand match does.
+				this.matchedTeams.set([...this.matchedTeams(), match]);
+				this.unmatchedTeams.set(this.unmatchedTeams().filter(t => t.teamId !== teamId));
+				this.unmatchedRankings.set(
+					this.unmatchedRankings().filter(r => r.rank !== match.ranking.rank));
+				this.reassessedTeamIds.set(new Set([...this.reassessedTeamIds(), teamId]));
+				this.successMessage.set(
+					`Renamed to ${newName} — now matched to #${match.ranking.rank} `
+					+ `${match.ranking.team} at ${this.formatPercent(match.matchScore)}. `
+					+ 'Save to keep it.');
+			},
+			// A failed re-check must not read as a failed rename: the rename already committed.
+			error: () => {
+				this.isReassessing.set(null);
+				this.successMessage.set(
+					`Renamed to ${newName} for this event only. `
+					+ "Couldn't re-check it against the rankings — use Re-Match when you're ready.");
+			}
+		});
 	}
 
 	/** Patch every in-memory copy of the row — matched, unmatched, and the saved-state read. */

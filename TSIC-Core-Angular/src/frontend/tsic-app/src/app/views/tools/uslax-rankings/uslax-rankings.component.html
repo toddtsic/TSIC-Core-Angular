@@ -69,31 +69,46 @@
 				<li>
 					<span class="intent-num" aria-hidden="true">1</span>
 					<span class="intent-body">
-						<strong>Pick a season, then two age groups.</strong>
-						The published groups are by <em>graduation class</em> — "Girls 2029" is the
-						class of 2029 — so pair each one with the age group in your event that holds
-						those players. Seeding a new event? Use the most recently
-						<em>completed</em> season; it has a full year of results behind it.
+						<strong>Start with your own age group.</strong>
+						Pick it first and you will see straight away how many of its teams already
+						carry a national ranking, and which ones — open that line to check them
+						before you change anything.
 					</span>
 				</li>
 				<li>
 					<span class="intent-num" aria-hidden="true">2</span>
 					<span class="intent-body">
-						<strong>Review every match, not just the weak ones.</strong>
-						Teams are paired by comparing club name, colour, graduation year and state —
-						it is a best guess, and clubs rename teams between seasons. Anything left
-						over appears on the right; use <strong>Match</strong> on a team to pair it by
-						hand, or <strong>Change</strong> to correct one the matcher got wrong.
+						<strong>Then pick a season and the national group to match against.</strong>
+						The published groups are by <em>graduation class</em> — "Girls 2029" is the
+						class of 2029 — so choose the one holding the same players as your age
+						group. Seeding a new event? Use the most recently <em>completed</em>
+						season; it has a full year of results behind it.
 					</span>
 				</li>
 				<li>
 					<span class="intent-num" aria-hidden="true">3</span>
 					<span class="intent-body">
+						<strong>Review every match, not just the weak ones.</strong>
+						Teams are paired by comparing club name, colour, graduation year and state —
+						it is a best guess, and clubs rename teams between seasons. Anything left
+						over appears on the right; use <strong>Match</strong> on a team to pair it
+						by hand, or <strong>Change</strong> to correct one the matcher got wrong.
+						If a team is misnamed in your event, the
+						<i class="bi bi-pencil" aria-hidden="true"></i> pencil renames it here only
+						— and we re-check that one team against the rankings still unmatched, which
+						often finds the pairing the old name was hiding.
+					</span>
+				</li>
+				<li>
+					<span class="intent-num" aria-hidden="true">4</span>
+					<span class="intent-body">
 						<strong>Save at a confidence level you trust.</strong>
-						75%+ is the safe default; anything you paired by hand is always saved. Then
-						sort by <strong>Nat'l Rank</strong> in Pool Assignment and snake the top
-						teams across pools so the strong ones do not stack up in one bracket.
-						Re-run this any time — saving again just overwrites.
+						75%+ is the safe default; anything you paired by hand is always saved, and
+						anything you removed is cleared. Matches below the level you pick are left
+						exactly as they are. Then sort by <strong>Nat'l Rank</strong> in Pool
+						Assignment and snake the top teams across pools so the strong ones do not
+						stack up in one bracket. Re-run this any time — saving again just
+						overwrites.
 					</span>
 				</li>
 			</ol>
@@ -102,7 +117,22 @@
 
 	<!-- Selector -->
 	<div class="selector-panel">
+		<!--
+			Your age group comes FIRST: it is the subject of the work, and picking it is what
+			reveals the teams and their saved rankings. Season + National are the reference data
+			and stay adjacent, because the season only ever constrains the national list.
+		-->
 		<div class="selector-row">
+			@if (canMatch()) {
+				<div class="selector-field">
+					<label class="form-label fw-bold"><i class="bi bi-people me-1 text-primary"></i>{{ jobName() }} Agegroups</label>
+					<select class="form-select form-select-sm"
+						[ngModel]="selectedRegisteredAg()" (ngModelChange)="onRegisteredAgChange($event)">
+						<option value="">Select your event's age group...</option>
+						@for (ag of registeredAgeGroups(); track ag.value) { <option [value]="ag.value">{{ ag.text }}</option> }
+					</select>
+				</div>
+			}
 			<div class="selector-field selector-field-season">
 				<label class="form-label fw-bold"><i class="bi bi-calendar3 me-1 text-primary"></i>Season</label>
 				<select class="form-select form-select-sm"
@@ -120,14 +150,6 @@
 				</select>
 			</div>
 			@if (canMatch()) {
-				<div class="selector-field">
-					<label class="form-label fw-bold"><i class="bi bi-people me-1 text-primary"></i>{{ jobName() }} Agegroups</label>
-					<select class="form-select form-select-sm"
-						[ngModel]="selectedRegisteredAg()" (ngModelChange)="onRegisteredAgChange($event)">
-						<option value="">Select your event's age group...</option>
-						@for (ag of registeredAgeGroups(); track ag.value) { <option [value]="ag.value">{{ ag.text }}</option> }
-					</select>
-				</div>
 				<div class="selector-actions">
 					<button class="btn btn-primary btn-sm btn-find"
 						(click)="align()" [disabled]="isLoading() || !selectedScrapedAg() || !selectedRegisteredAg()">
@@ -155,29 +177,59 @@
 			answer to "did my save take?", and it stays readable when the ranking site is down.
 		-->
 		@if (canMatch() && selectedRegisteredAg()) {
-			<p class="saved-state" [class.saved-state-empty]="savedCount() === 0">
+			<div class="saved-state" [class.saved-state-empty]="savedCount() === 0">
 				@if (isLoadingSaved()) {
-					<span class="spinner-border spinner-border-sm me-1"></span>Reading saved rankings...
+					<p class="saved-summary mb-0">
+						<span class="spinner-border spinner-border-sm me-1"></span>Reading saved rankings...
+					</p>
 				} @else if (savedCount() === 0) {
-					<i class="bi bi-circle me-1"></i>
-					<strong>No national rankings saved yet</strong> for
-					{{ selectedAgName() }}{{ savedTotalTeams() ? ' (' + savedTotalTeams() + ' teams)' : '' }}.
+					<p class="saved-summary mb-0">
+						<i class="bi bi-circle me-1"></i>
+						<strong>No national rankings saved yet</strong> for
+						{{ selectedAgName() }}{{ savedTotalTeams() ? ' (' + savedTotalTeams() + ' teams)' : '' }}.
+					</p>
 				} @else {
-					<i class="bi bi-check-circle-fill me-1 text-success"></i>
-					<strong>{{ savedCount() }}</strong> of <strong>{{ savedTotalTeams() || savedCount() }}</strong>
-					teams have a saved national ranking
-					@if (savedAsOf()) { <span class="saved-meta">· last saved {{ savedAsOf() }}</span> }
-					@if (savedSeasons().length === 1) {
-						<span class="saved-meta">· from {{ savedSeasons()[0] }}</span>
-					} @else if (savedSeasons().length > 1) {
-						<!-- Mixed seasons are not comparable. Say so where it can still be fixed. -->
-						<span class="saved-mixed">
-							<i class="bi bi-exclamation-triangle-fill me-1"></i>mixed seasons:
-							{{ savedSeasons().join(', ') }} — re-save to put them all on one season
+					<!-- Header is the toggle. Collapsed by default: the count answers the question
+					     most of the time, and the list is for when it does not. -->
+					<button type="button" class="saved-summary saved-toggle"
+						(click)="showSavedList.set(!showSavedList())"
+						[attr.aria-expanded]="showSavedList()" aria-controls="saved-rankings-list">
+						<i class="bi" [class.bi-chevron-right]="!showSavedList()"
+							[class.bi-chevron-down]="showSavedList()" aria-hidden="true"></i>
+						<i class="bi bi-check-circle-fill mx-1 text-success" aria-hidden="true"></i>
+						<span>
+							<strong>{{ savedCount() }}</strong> of <strong>{{ savedTotalTeams() || savedCount() }}</strong>
+							teams have a saved national ranking
+							@if (savedAsOf()) { <span class="saved-meta">· last saved {{ savedAsOf() }}</span> }
+							@if (savedSeasons().length === 1) {
+								<span class="saved-meta">· from {{ savedSeasons()[0] }}</span>
+							} @else if (savedSeasons().length > 1) {
+								<!-- Mixed seasons are not comparable. Say so where it can still be fixed. -->
+								<span class="saved-mixed">
+									<i class="bi bi-exclamation-triangle-fill me-1"></i>mixed seasons:
+									{{ savedSeasons().join(', ') }} — re-save to put them all on one season
+								</span>
+							}
 						</span>
+					</button>
+
+					@if (showSavedList()) {
+						<ul id="saved-rankings-list" class="saved-list">
+							@for (row of savedRows(); track row.teamId) {
+								<li>
+									<!-- Same badge classes Pool Assignment uses for Nat'l Rank, so the
+									     same number reads identically on both screens. -->
+									<span class="badge bg-primary-subtle text-primary-emphasis"
+										[title]="row.tooltip">{{ row.rank }}</span>
+									<span class="saved-list-team">{{ row.teamName }}</span>
+									<span class="saved-list-as">{{ row.rankedAs }}</span>
+									<span class="saved-meta saved-list-season">{{ row.season }}</span>
+								</li>
+							}
+						</ul>
 					}
 				}
-			</p>
+			</div>
 		}
 	</div>
 
@@ -285,20 +337,41 @@
 									<tr [class.row-unmatched]="row.type === 'unmatched'" [class.row-manual]="row.type === 'manual'"
 										[class.row-active]="activeMatchTeamId() === row.team.teamId">
 										<td class="row-num">{{ idx + 1 }}</td>
-										<td class="fw-medium team-name-cell">
-											<span>{{ row.team.clubName ? row.team.clubName + ':' : '' }}{{ row.team.teamName }}</span>
-											<!--
-												Renames THIS EVENT's copy only. Sits in the name cell, not the
-												Action column — that column's pencil reassigns a ranking, and two
-												pencils meaning different things in one row is how a director
-												renames a team when they meant to re-match it.
-											-->
-											<button type="button" class="btn btn-link btn-rename"
-												(click)="openRename(row.team)"
-												[attr.aria-label]="'Rename ' + row.team.teamName + ' for this event'"
-												title="Rename this team for this event only">
-												<i class="bi bi-pencil" aria-hidden="true"></i>
-											</button>
+										<!--
+											The flex lives on an inner wrapper, never on the <td> itself:
+											`display:flex` on a table cell takes it out of table layout, and the
+											row background then fails to paint behind it — which showed up as a
+											white block under any team name long enough to wrap.
+										-->
+										<td class="fw-medium">
+											<div class="team-name-cell">
+												<span>{{ row.team.clubName ? row.team.clubName + ':' : '' }}{{ row.team.teamName }}</span>
+												<!--
+													Renames THIS EVENT's copy only. Sits in the name cell, not the
+													Action column — that column's pencil reassigns a ranking, and two
+													pencils meaning different things in one row is how a director
+													renames a team when they meant to re-match it.
+												-->
+												<button type="button" class="btn btn-link btn-rename"
+													(click)="openRename(row.team)"
+													[disabled]="isReassessing() === row.team.teamId"
+													[attr.aria-label]="'Rename ' + row.team.teamName + ' for this event'"
+													title="Rename this team for this event only">
+													@if (isReassessing() === row.team.teamId) {
+														<span class="spinner-border spinner-border-sm" role="status"
+															aria-label="Re-checking this team against the rankings"></span>
+													} @else {
+														<i class="bi bi-pencil" aria-hidden="true"></i>
+													}
+												</button>
+											</div>
+											@if (reassessedTeamIds().has(row.team.teamId)) {
+												<!-- Icon + text, never colour alone: this says the pairing below
+												     came from the rename, not from the original match run. -->
+												<span class="reassessed-note">
+													<i class="bi bi-magic me-1" aria-hidden="true"></i>matched after rename
+												</span>
+											}
 										</td>
 										@if (row.match) {
 											<td class="fw-medium">

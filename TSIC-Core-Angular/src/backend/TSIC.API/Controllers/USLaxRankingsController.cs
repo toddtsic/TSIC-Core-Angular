@@ -221,6 +221,61 @@ public class USLaxRankingsController : ControllerBase
         return Ok(alignment);
     }
 
+    /// <summary>
+    /// Re-run the matcher for one team against the rankings the director still has unpaired.
+    ///
+    /// Exists because renaming a team in this event changes the matcher's main input, and the
+    /// reason to rename here is usually that the old name was hiding a pairing. A full re-align
+    /// would find it too, but would also discard every hand correction already made — so this
+    /// re-checks exactly the one team that changed and leaves the rest of the screen alone.
+    ///
+    /// Reuses the same scoring path as align, so a match found here is scored identically to one
+    /// found there. No writes: the caller saves it with everything else.
+    /// </summary>
+    [HttpPost("reassess-team")]
+    public async Task<ActionResult<ReassessTeamResultDto>> ReassessTeam(
+        [FromBody] ReassessTeamRequest request,
+        CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null) return BadRequest(new { message = "Unable to resolve job from token." });
+
+        var gate = await RejectIfNotTournamentAsync(jobId.Value, ct);
+        if (gate is not null) return gate;
+
+        // Re-read the team from the database rather than trusting a name in the payload: this runs
+        // right after a rename, and the whole point is to match against the name that was actually
+        // committed. It also scopes the team to this job and age group.
+        var teams = await _teamRepo.GetTeamsForRankingsAsync(
+            jobId.Value, request.RegisteredTeamAgeGroupId, ct);
+
+        var team = teams.FirstOrDefault(t => t.TeamId == request.TeamId);
+        if (team is null)
+            return BadRequest(new { message = "That team is not in this event's selected age group." });
+
+        if (request.CandidateRankings.Count == 0)
+            return Ok(new ReassessTeamResultDto
+            {
+                Success = true,
+                Message = "No unmatched rankings left to check against.",
+                Match = null
+            });
+
+        var alignment = _matchingService.AlignRankingsWithTeams(
+            request.CandidateRankings, [team], request.ClubWeight, request.TeamWeight);
+
+        var match = alignment.AlignedTeams.FirstOrDefault();
+
+        return Ok(new ReassessTeamResultDto
+        {
+            Success = true,
+            Message = match is null
+                ? $"No ranking matched {team.TeamName} above the confidence floor."
+                : $"{team.TeamName} now matches #{match.Ranking.Rank} {match.Ranking.Team}.",
+            Match = match
+        });
+    }
+
     // ── Save / update endpoints ──
 
     /// <summary>

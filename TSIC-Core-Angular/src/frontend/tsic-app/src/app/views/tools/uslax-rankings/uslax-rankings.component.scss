@@ -373,6 +373,17 @@
 
 tr:hover .btn-rename { opacity: 1; }
 
+/* A spinner in the pencil's place must not vanish when the row is not hovered. */
+.btn-rename:disabled { opacity: 1; }
+
+.reassessed-note {
+	display: block;
+	font-size: 9px;
+	font-weight: 400;
+	color: var(--bs-info);
+	white-space: nowrap;
+}
+
 // Touch and reduced-motion users get no hover reveal, so the control is simply always visible.
 @media (hover: none) {
 	.btn-rename { opacity: 1; }
@@ -440,10 +451,6 @@ tr:hover .btn-rename { opacity: 1; }
 
 /* ── Saved state: what our own database holds, independent of any scrape ── */
 .saved-state {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: var(--space-1) var(--space-2);
 	margin: var(--space-3) 0 0;
 	padding: var(--space-2) var(--space-3);
 	border: 1px solid var(--bs-border-color-translucent);
@@ -459,6 +466,66 @@ tr:hover .btn-rename { opacity: 1; }
 		background: var(--bs-card-bg);
 		color: var(--bs-secondary-color);
 	}
+}
+
+.saved-summary {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-1);
+	font-size: var(--font-size-xs);
+	color: inherit;
+}
+
+/* The summary line doubles as the disclosure control, so it has to look and focus like one. */
+.saved-toggle {
+	width: 100%;
+	padding: 0;
+	border: 0;
+	background: none;
+	text-align: left;
+	cursor: pointer;
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+		border-radius: var(--radius-sm);
+	}
+}
+
+.saved-list {
+	margin: var(--space-2) 0 0;
+	padding: var(--space-2) 0 0;
+	border-top: 1px solid var(--bs-border-color-translucent);
+	list-style: none;
+	max-height: 260px;
+	overflow-y: auto;
+
+	li {
+		display: grid;
+		grid-template-columns: 48px minmax(0, 1.4fr) minmax(0, 1.4fr) auto;
+		align-items: center;
+		gap: var(--space-2);
+		padding: 2px 0;
+	}
+
+	.badge { justify-self: start; }
+}
+
+.saved-list-team { font-weight: 600; }
+.saved-list-team,
+.saved-list-as { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.saved-list-as { color: var(--bs-secondary-color); }
+.saved-list-season { justify-self: end; white-space: nowrap; }
+
+/* One column on narrow screens — four ellipsised columns is unreadable on a tablet. */
+@media (max-width: 720px) {
+	.saved-list li {
+		grid-template-columns: 48px minmax(0, 1fr);
+		row-gap: 0;
+	}
+	.saved-list-as,
+	.saved-list-season { grid-column: 2; justify-self: start; }
 }
 
 .saved-meta { color: var(--bs-secondary-color); }
