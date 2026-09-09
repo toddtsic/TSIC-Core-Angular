@@ -216,7 +216,7 @@
             <label class="field-label" [class.is-disabled]="!adnArb() || !adnArbTrial()">Balance Bill Date</label>
             <input type="date" class="field-input"
               [ngModel]="adnStartDateAfterTrial()"
-              (ngModelChange)="adnStartDateAfterTrial.set($event); onFieldChange()"
+              (ngModelChange)="adnStartDateAfterTrial.set(fromDateInput($event)); onFieldChange()"
               [disabled]="!adnArb() || !adnArbTrial()" />
           </div>
         </div>

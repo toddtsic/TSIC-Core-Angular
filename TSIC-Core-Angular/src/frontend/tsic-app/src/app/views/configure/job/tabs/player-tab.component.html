@@ -50,7 +50,7 @@
           <label class="field-label">USLax Membership Valid Through</label>
           <input type="date" class="field-input"
             [ngModel]="uslaxNumberValidThroughDate()"
-            (ngModelChange)="uslaxNumberValidThroughDate.set($event); onFieldChange()" />
+            (ngModelChange)="uslaxNumberValidThroughDate.set(fromDateInput($event)); onFieldChange()" />
         </div>
       </div>
     </div>

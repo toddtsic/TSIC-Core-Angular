@@ -2,7 +2,7 @@ import { Component, inject, ChangeDetectionStrategy, computed, linkedSignal, OnI
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JobConfigService } from '../job-config.service';
-import { toDateOnly } from '../shared/rte-config';
+import { toDateOnly, fromDateInput } from '../shared/rte-config';
 import type { UpdateJobConfigSchedulingRequest } from '@core/api';
 
 @Component({
@@ -14,6 +14,9 @@ import type { UpdateJobConfigSchedulingRequest } from '@core/api';
 })
 export class SchedulingTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
+
+  /** Template helper — a cleared date input emits '' and must post as null. See AR-088. */
+  protected readonly fromDateInput = fromDateInput;
 
   eventStartDate = linkedSignal(() => toDateOnly(this.svc.scheduling()?.eventStartDate) ?? null);
   eventEndDate = linkedSignal(() => toDateOnly(this.svc.scheduling()?.eventEndDate) ?? null);

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RichTextEditorAllModule } from '@syncfusion/ej2-angular-richtexteditor';
 import { JobConfigService } from '../job-config.service';
-import { JOB_CONFIG_RTE_HEIGHT, toDateOnly } from '../shared/rte-config';
+import { JOB_CONFIG_RTE_HEIGHT, toDateOnly, fromDateInput } from '../shared/rte-config';
 import { TsicRteDirective } from '@shared-ui/rte.directive';
 import { RegistrationReadinessComponent } from '../components/registration-readiness.component';
 import type { UpdateJobConfigPlayerRequest } from '@core/api';
@@ -17,6 +17,9 @@ import type { UpdateJobConfigPlayerRequest } from '@core/api';
 })
 export class PlayerTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
+
+  /** Template helper — a cleared date input emits '' and must post as null. See AR-088. */
+  protected readonly fromDateInput = fromDateInput;
 
   readonly rteHeight = JOB_CONFIG_RTE_HEIGHT;
 

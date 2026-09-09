@@ -91,7 +91,7 @@
             <label class="field-label">Admin Expiry</label>
             <input type="date" class="field-input"
               [ngModel]="expiryAdmin()"
-              (ngModelChange)="expiryAdmin.set($event); onFieldChange()" />
+              (ngModelChange)="expiryAdmin.set(fromDateInput($event)); onFieldChange()" />
           </div>
           <div class="col-md-2">
             <label class="field-label">Job Code</label>

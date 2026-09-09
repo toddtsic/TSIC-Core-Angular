@@ -58,13 +58,13 @@
           <label class="field-label">Event Start Date</label>
           <input type="date" class="field-input"
             [ngModel]="eventStartDate()"
-            (ngModelChange)="eventStartDate.set($event); onFieldChange()" />
+            (ngModelChange)="eventStartDate.set(fromDateInput($event)); onFieldChange()" />
         </div>
         <div class="col-md-3">
           <label class="field-label">Event End Date</label>
           <input type="date" class="field-input"
             [ngModel]="eventEndDate()"
-            (ngModelChange)="eventEndDate.set($event); onFieldChange()" />
+            (ngModelChange)="eventEndDate.set(fromDateInput($event)); onFieldChange()" />
         </div>
         <div class="col-md-3">
           <label class="field-label">Half Minutes</label>

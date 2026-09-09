@@ -2,7 +2,7 @@ import { Component, inject, ChangeDetectionStrategy, OnInit, computed, linkedSig
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JobConfigService } from '../job-config.service';
-import { toDateOnly } from '../shared/rte-config';
+import { toDateOnly, fromDateInput } from '../shared/rte-config';
 import { JobDeletePanelComponent } from '../components/job-delete-panel.component';
 import type { UpdateJobConfigGeneralRequest } from '@core/api';
 
@@ -44,6 +44,9 @@ import type { UpdateJobConfigGeneralRequest } from '@core/api';
 })
 export class GeneralTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
+
+  /** Template helper — a cleared date input emits '' and must post as null. See AR-088. */
+  protected readonly fromDateInput = fromDateInput;
 
   /** Key of the read-only chip most recently copied (transient "Copied!" state, SuperUser-only). */
   readonly copiedChip = signal<string | null>(null);
