@@ -86,16 +86,14 @@
 								}
 							</div>
 							<figcaption class="image-actions">
-								<label class="photo-action" [class.disabled]="isBusy(group.storeItemId)">
+								<button
+									type="button"
+									class="photo-action"
+									[disabled]="isBusy(group.storeItemId)"
+									(click)="openReplace(image)">
 									<i class="bi bi-arrow-repeat"></i>
 									<span>Replace</span>
-									<input
-										type="file"
-										class="visually-hidden"
-										accept="image/jpeg,image/png,image/webp"
-										[disabled]="isBusy(group.storeItemId)"
-										(change)="onReplaceFile($event, image)" />
-								</label>
+								</button>
 								<button
 									type="button"
 									class="photo-action photo-action-danger"
@@ -114,7 +112,11 @@
 							<span>Limit of {{ maxImagesPerItem }} reached</span>
 						</div>
 					} @else {
-						<label class="image-add" [class.disabled]="isBusy(group.storeItemId)">
+						<button
+							type="button"
+							class="image-add"
+							[disabled]="isBusy(group.storeItemId)"
+							(click)="openAdd(group)">
 							@if (isBusy(group.storeItemId)) {
 								<span class="spinner-border spinner-border-sm" role="status"></span>
 								<span>Uploading...</span>
@@ -122,13 +124,7 @@
 								<i class="bi bi-plus-lg"></i>
 								<span>{{ group.images.length === 0 ? 'Add a photo' : 'Add another' }}</span>
 							}
-							<input
-								type="file"
-								class="visually-hidden"
-								accept="image/jpeg,image/png,image/webp"
-								[disabled]="isBusy(group.storeItemId)"
-								(change)="onAddFile($event, group)" />
-						</label>
+						</button>
 					}
 				</div>
 			</section>
@@ -139,6 +135,137 @@
 		JPG, PNG, or WebP, up to 5&nbsp;MB. Photos are converted to JPEG and scaled to
 		1200&nbsp;px wide. The first photo is the one shoppers see on the item card.
 	</p>
+}
+
+<!-- ══════════════════════════════════════ -->
+<!-- UPLOAD MODAL — add and replace         -->
+<!-- ══════════════════════════════════════ -->
+@if (uploadMode(); as mode) {
+	<tsic-dialog [open]="true" size="sm" (requestClose)="closeUpload()">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title">
+					<i class="bi" [class.bi-plus-lg]="mode === 'add'"
+						[class.bi-arrow-repeat]="mode === 'replace'"></i>
+					{{ uploadTitle() }}
+				</h5>
+				<button
+					type="button"
+					class="btn-close"
+					[disabled]="isUploading()"
+					(click)="closeUpload()"
+					aria-label="Close"></button>
+			</div>
+
+			<div class="modal-body">
+				<p class="upload-target">
+					{{ mode === 'replace' ? 'On' : 'For' }} <strong>{{ uploadItemName() }}</strong>
+				</p>
+
+				<div class="upload-lane">
+					@if (mode === 'replace' && uploadImage(); as current) {
+						<figure class="upload-current">
+							<div class="upload-thumb">
+								<img [src]="current.imageUrl" [alt]="uploadItemName()" />
+							</div>
+							<figcaption>Photo {{ current.instance }} now</figcaption>
+						</figure>
+						<i class="bi bi-arrow-right upload-arrow" aria-hidden="true"></i>
+					}
+
+					<div
+						class="drop-zone"
+						[class.is-dragover]="isDragOver()"
+						[class.has-file]="pendingFile() !== null"
+						[class.is-uploading]="isUploading()"
+						(click)="openPicker(picker)"
+						(dragenter)="onDragEnter($event)"
+						(dragover)="onDragOver($event)"
+						(dragleave)="onDragLeave($event)"
+						(drop)="onDrop($event)">
+
+						@if (pendingFile(); as file) {
+							<div class="drop-preview">
+								<div class="upload-thumb">
+									<img [src]="pendingPreviewUrl()" alt="The photo you chose" />
+								</div>
+								<div class="drop-filename" [title]="file.name">{{ file.name }}</div>
+							</div>
+							<button
+								type="button"
+								class="btn btn-outline-secondary btn-sm"
+								[disabled]="isUploading()"
+								(click)="openPicker(picker, $event)">
+								Choose a different file
+							</button>
+						} @else {
+							<i class="bi bi-cloud-arrow-up drop-icon" aria-hidden="true"></i>
+							<div class="drop-headline">Drag a photo here</div>
+							<div class="drop-or">or</div>
+							<button
+								type="button"
+								class="btn btn-outline-primary btn-sm"
+								[disabled]="isUploading()"
+								(click)="openPicker(picker, $event)">
+								Choose a file
+							</button>
+						}
+					</div>
+				</div>
+
+				<!--
+					Outside the drop zone on purpose: picker.click() dispatches a click on this
+					input, and from inside the zone that click would bubble straight back into the
+					zone's own open-the-picker handler.
+				-->
+				<input
+					#picker
+					type="file"
+					class="visually-hidden"
+					[accept]="acceptTypes"
+					[disabled]="isUploading()"
+					(change)="onPickFile($event)" />
+
+				@if (uploadError()) {
+					<div class="upload-error" role="alert">
+						<i class="bi bi-exclamation-triangle-fill me-2"></i>
+						<span>{{ uploadError() }}</span>
+					</div>
+				}
+
+				<p class="upload-hint">
+					JPG, PNG, or WebP, up to 5&nbsp;MB. One photo at a time.
+					@if (mode === 'replace') {
+						The photo it replaces cannot be recovered.
+					}
+				</p>
+			</div>
+
+			<div class="modal-footer">
+				<button
+					type="button"
+					class="btn btn-outline-secondary btn-sm"
+					[disabled]="isUploading()"
+					(click)="closeUpload()">
+					Cancel
+				</button>
+				<button
+					type="button"
+					class="btn btn-sm"
+					[class.btn-primary]="mode === 'add'"
+					[class.btn-warning]="mode === 'replace'"
+					[disabled]="pendingFile() === null || isUploading()"
+					(click)="executeUpload()">
+					@if (isUploading()) {
+						<span class="spinner-border spinner-border-sm me-1" role="status"></span>
+						<span>{{ mode === 'replace' ? 'Replacing...' : 'Uploading...' }}</span>
+					} @else {
+						<span>{{ mode === 'replace' ? 'Replace photo' : 'Add photo' }}</span>
+					}
+				</button>
+			</div>
+		</div>
+	</tsic-dialog>
 }
 
 @if (showDeleteConfirm() && deleteTarget()) {
