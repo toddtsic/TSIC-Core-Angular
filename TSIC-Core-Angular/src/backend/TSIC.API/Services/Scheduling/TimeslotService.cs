@@ -797,24 +797,67 @@ public sealed class TimeslotService : ITimeslotService
 
         var sourceDates = await _tsRepo.GetDatesByAgegroupAsync(request.SourceAgegroupId, season, year, ct);
 
-        foreach (var src in sourceDates)
+        // Play dates are normally agegroup-grain (DivId IS NULL) and carry across untouched.
+        // A pool-specific date must be re-pointed at the target's own pools for the same reason
+        // field timeslots must — see CloneFieldsAsync. Carrying src.DivId would write a date
+        // the target agegroup can never resolve.
+        var targetDivIds = await _tsRepo.GetActiveDivisionIdsAsync(
+            request.TargetAgegroupId, jobId, ct);
+
+        var written = 0;
+
+        foreach (var src in sourceDates.Where(d => d.DivId == null))
         {
             _tsRepo.AddDate(new TimeslotsLeagueSeasonDates
             {
                 AgegroupId = request.TargetAgegroupId,
                 GDate = src.GDate,
                 Rnd = src.Rnd,
-                DivId = src.DivId,
+                DivId = null,
                 Season = season,
                 Year = year,
                 LebUserId = userId,
                 Modified = DateTime.Now
             });
+            written++;
+        }
+
+        var poolDates = sourceDates
+            .Where(d => d.DivId != null)
+            .GroupBy(d => new { d.GDate, d.Rnd })
+            .Select(g => g.Key)
+            .ToList();
+
+        foreach (var pd in poolDates)
+        {
+            foreach (var divId in targetDivIds)
+            {
+                _tsRepo.AddDate(new TimeslotsLeagueSeasonDates
+                {
+                    AgegroupId = request.TargetAgegroupId,
+                    GDate = pd.GDate,
+                    Rnd = pd.Rnd,
+                    DivId = divId,
+                    Season = season,
+                    Year = year,
+                    LebUserId = userId,
+                    Modified = DateTime.Now
+                });
+                written++;
+            }
+        }
+
+        if (poolDates.Count > 0 && targetDivIds.Count == 0)
+        {
+            _logger.LogWarning(
+                "Clone dates to AG {Tgt}: the target has no active pools, so {Count} pool-specific "
+                + "date(s) from AG {Src} could not be written.",
+                request.TargetAgegroupId, poolDates.Count, request.SourceAgegroupId);
         }
 
         await _tsRepo.SaveChangesAsync(ct);
         _logger.LogInformation("Cloned {Count} dates from AG {Src} to AG {Tgt}",
-            sourceDates.Count, request.SourceAgegroupId, request.TargetAgegroupId);
+            written, request.SourceAgegroupId, request.TargetAgegroupId);
     }
 
     // ── Cloning: Fields agegroup→agegroup ──
@@ -833,20 +876,81 @@ public sealed class TimeslotService : ITimeslotService
         var sourceFields = await _tsRepo.GetFieldTimeslotsByFilterAsync(
             request.SourceAgegroupId, season, year, ct: ct);
 
-        var clones = sourceFields.Select(src => new TimeslotsLeagueSeasonFields
+        // Rows are per POOL, so the clone has to re-point them at the TARGET's pools. Copying
+        // src.DivId verbatim stamped the source agegroup's divIDs onto the target: the target's
+        // own pools ended up with no rows at all, the scheduling checklist flagged every one of
+        // them, and a build would have silently placed nothing for the whole agegroup. Pool
+        // names repeat across agegroups ("Red", "Trust"), so nothing looked wrong on screen.
+        var targetDivIds = await _tsRepo.GetActiveDivisionIdsAsync(
+            request.TargetAgegroupId, jobId, ct);
+
+        // What "clone A to B" copies is the layout — the distinct (field, day, time) shapes.
+        // The source's pool count is irrelevant to the target, which fans that layout across
+        // however many pools it has of its own.
+        var shapes = sourceFields
+            .Where(f => f.DivId != null)
+            .GroupBy(f => new
+            {
+                f.FieldId,
+                f.Dow,
+                f.StartTime,
+                f.GamestartInterval,
+                f.MaxGamesPerField
+            })
+            .Select(g => g.Key)
+            .ToList();
+
+        var clones = new List<TimeslotsLeagueSeasonFields>();
+
+        foreach (var shape in shapes)
         {
-            AgegroupId = request.TargetAgegroupId,
-            FieldId = src.FieldId,
-            DivId = src.DivId,
-            StartTime = src.StartTime,
-            GamestartInterval = src.GamestartInterval,
-            MaxGamesPerField = src.MaxGamesPerField,
-            Dow = src.Dow,
-            Season = season,
-            Year = year,
-            LebUserId = userId,
-            Modified = DateTime.Now
-        }).ToList();
+            foreach (var divId in targetDivIds)
+            {
+                clones.Add(new TimeslotsLeagueSeasonFields
+                {
+                    AgegroupId = request.TargetAgegroupId,
+                    FieldId = shape.FieldId,
+                    DivId = divId,
+                    StartTime = shape.StartTime,
+                    GamestartInterval = shape.GamestartInterval,
+                    MaxGamesPerField = shape.MaxGamesPerField,
+                    Dow = shape.Dow,
+                    Season = season,
+                    Year = year,
+                    LebUserId = userId,
+                    Modified = DateTime.Now
+                });
+            }
+        }
+
+        // Agegroup-level rows (DivId IS NULL) already apply to every pool, so they carry across
+        // untouched. No current write path creates them; legacy data still can.
+        clones.AddRange(sourceFields
+            .Where(f => f.DivId == null)
+            .Select(src => new TimeslotsLeagueSeasonFields
+            {
+                AgegroupId = request.TargetAgegroupId,
+                FieldId = src.FieldId,
+                DivId = null,
+                StartTime = src.StartTime,
+                GamestartInterval = src.GamestartInterval,
+                MaxGamesPerField = src.MaxGamesPerField,
+                Dow = src.Dow,
+                Season = season,
+                Year = year,
+                LebUserId = userId,
+                Modified = DateTime.Now
+            }));
+
+        // Loud, because the target is now empty and the caller asked for a copy. Same stance as
+        // SaveTimeslotSetupAsync, which also writes nothing when an agegroup has no pools.
+        if (shapes.Count > 0 && targetDivIds.Count == 0)
+        {
+            _logger.LogWarning(
+                "Clone fields to AG {Tgt}: the target has no active pools, so none of the {Shapes} "
+                + "timeslot shape(s) from AG {Src} could be written. Assign teams to pools first.",
+                request.TargetAgegroupId, shapes.Count, request.SourceAgegroupId);
+        }
 
         if (clones.Count > 0)
         {
@@ -856,8 +960,11 @@ public sealed class TimeslotService : ITimeslotService
         // Unconditional: the delete above still has to be committed when the source is empty.
         await _tsRepo.SaveChangesAsync(ct);
 
-        _logger.LogInformation("Cloned {Count} field timeslots from AG {Src} to AG {Tgt}",
-            clones.Count, request.SourceAgegroupId, request.TargetAgegroupId);
+        _logger.LogInformation(
+            "Cloned {Shapes} field timeslot shape(s) from AG {Src} across {Pools} pool(s) of "
+            + "AG {Tgt}: {Count} row(s)",
+            shapes.Count, request.SourceAgegroupId, targetDivIds.Count,
+            request.TargetAgegroupId, clones.Count);
     }
 
     // ── Cloning: by field within agegroup ──
