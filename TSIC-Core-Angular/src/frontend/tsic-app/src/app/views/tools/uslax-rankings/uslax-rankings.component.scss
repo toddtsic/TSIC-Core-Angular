@@ -381,8 +381,6 @@
 	color: var(--bs-warning);
 }
 
-// Pencil sits at the end of the name and stays out of the way until the row is approached.
-// It keeps a visible focus ring at all times — a keyboard user must never lose the caret.
 /* The name is the one column allowed to wrap — it is what the director reads the row BY, and
    a trimmed "Hero's Tournament Lacrosse ..." tells them nothing. Every other cell still trims.
    The pencil aligns to the first line, not the middle of a two-line name. */
@@ -405,6 +403,14 @@
 .btn-rename,
 .reassessed-note { margin-top: 1px; }
 
+/*
+	Always visible — NOT revealed on hover. A hover-only control does not exist on a touch
+	device (`npm run verify:mobile` check 1), and the `@media (hover: none)` escape this used
+	to carry never counted: the guard recognises a mobile escape only as `max-width < 768px`.
+	It reads better this way regardless — now that the pencils form a fixed column, hiding
+	them made that column look empty. Hover changes COLOUR only, which is styling, not an
+	affordance gate.
+*/
 .btn-rename {
 	/* Fixed width so the names all start at the same x — a pencil that sizes to its own
 	   content puts every name on a different left edge. */
@@ -415,25 +421,18 @@
 	line-height: 1;
 	color: var(--bs-secondary-color);
 	text-decoration: none;
-	opacity: 0;
-	transition: opacity var(--transition-fast, 120ms) ease, color var(--transition-fast, 120ms) ease;
+	transition: color var(--transition-fast, 120ms) ease;
 
 	.spinner-border-sm { width: 10px; height: 10px; border-width: 1px; }
 
 	&:hover { color: var(--bs-primary); }
 
 	&:focus-visible {
-		opacity: 1;
 		outline: none;
 		box-shadow: var(--shadow-focus);
 		border-radius: var(--radius-sm);
 	}
 }
-
-tr:hover .btn-rename { opacity: 1; }
-
-/* A spinner in the pencil's place must not vanish when the row is not hovered. */
-.btn-rename:disabled { opacity: 1; }
 
 /* Marks a row whose rank comes from the database rather than this scrape. Icon + word, never
    colour alone. */
@@ -452,13 +451,8 @@ tr:hover .btn-rename { opacity: 1; }
 	color: var(--bs-info);
 }
 
-// Touch and reduced-motion users get no hover reveal, so the control is simply always visible.
-@media (hover: none) {
-	.btn-rename { opacity: 1; }
-}
-
 @media (prefers-reduced-motion: reduce) {
-	.btn-rename { opacity: 1; transition: none !important; }
+	.btn-rename { transition: none !important; }
 }
 
 .row-unmatched { background: color-mix(in srgb, var(--bs-warning) 6%, transparent); }
