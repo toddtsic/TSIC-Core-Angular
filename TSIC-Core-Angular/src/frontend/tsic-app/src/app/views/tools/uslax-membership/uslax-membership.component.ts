@@ -778,7 +778,9 @@ export class UsLaxMembershipComponent implements OnInit {
 					: (d.errorMessage ?? (d.eligible ? 'Passes validation' : ''));
 				break;
 			}
-			case 'Verified':
+			// AR-092: must track the column's headerText EXACTLY — this switch keys on it, so a
+			// header rename silently blanks the cell in the spreadsheet if it is not changed here too.
+			case 'Age Verified':
 				args.value = this.ageVerifiedDisplay(d);
 				break;
 			case 'Involvement':
