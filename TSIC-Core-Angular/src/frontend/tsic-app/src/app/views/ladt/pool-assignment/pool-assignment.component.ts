@@ -12,16 +12,7 @@ import {
 } from './services/pool-assignment.service';
 import { contrastText } from '../../scheduling/shared/utils/scheduling-helpers';
 import { ChecklistBackLinkComponent } from '../../scheduling/shared/components/checklist-back-link/checklist-back-link.component';
-
-/** Client-side shape for the NationalRankingData JSON blob stored on teams */
-interface NationalRankingDataDto {
-    rank: number | null;
-    team: string;
-    rating: number;
-    record: string;
-    agd: number;
-    sched: number;
-}
+import type { NationalRankingDataDto } from '@core/api';
 
 interface AgegroupGroup {
     label: string;
@@ -599,12 +590,20 @@ export class PoolAssignmentComponent {
         } catch { return null; }
     }
 
-    /** Build a tooltip string from ranking JSON (rating, record, AGD, schedule) */
+    /**
+     * Tooltip for a national rank (rating, record, AGD, schedule) — plus the SEASON it was
+     * stamped from. Ranks from different seasons are not comparable, and this column is sorted
+     * to seed pools, so which season a number came from has to be visible at the point of use.
+     * Stamps written before the season was recorded say so rather than guessing one.
+     */
     getRankingTooltip(team: PoolTeamDto): string {
         if (!team.nationalRankingData) return '';
         try {
             const d = JSON.parse(team.nationalRankingData) as NationalRankingDataDto;
-            return `${d.team}\nRating: ${d.rating} | Record: ${d.record}\nAGD: ${d.agd} | Sched: ${d.sched}`;
+            const season = d.season
+                ? `${d.season}-${String((Number(d.season) + 1) % 100).padStart(2, '0')} season`
+                : 'season not recorded';
+            return `${d.team}\nRating: ${d.rating} | Record: ${d.record}\nAGD: ${d.agd} | Sched: ${d.sched}\n${season}`;
         } catch { return ''; }
     }
 

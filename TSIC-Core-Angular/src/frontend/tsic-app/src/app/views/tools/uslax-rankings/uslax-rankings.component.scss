@@ -343,6 +343,45 @@
 	white-space: nowrap;
 }
 
+// Pencil sits at the end of the name and stays out of the way until the row is approached.
+// It keeps a visible focus ring at all times — a keyboard user must never lose the caret.
+.team-name-cell {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2);
+}
+
+.btn-rename {
+	flex: 0 0 auto;
+	padding: 0 var(--space-1);
+	line-height: 1;
+	color: var(--bs-secondary-color);
+	text-decoration: none;
+	opacity: 0;
+	transition: opacity var(--transition-fast, 120ms) ease, color var(--transition-fast, 120ms) ease;
+
+	&:hover { color: var(--bs-primary); }
+
+	&:focus-visible {
+		opacity: 1;
+		outline: none;
+		box-shadow: var(--shadow-focus);
+		border-radius: var(--radius-sm);
+	}
+}
+
+tr:hover .btn-rename { opacity: 1; }
+
+// Touch and reduced-motion users get no hover reveal, so the control is simply always visible.
+@media (hover: none) {
+	.btn-rename { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.btn-rename { opacity: 1; transition: none !important; }
+}
+
 .row-unmatched { background: color-mix(in srgb, var(--bs-warning) 6%, transparent); }
 .row-manual { background: color-mix(in srgb, var(--bs-info) 8%, transparent); }
 .row-active { background: color-mix(in srgb, var(--bs-primary) 12%, transparent) !important; outline: 2px solid var(--bs-primary); outline-offset: -2px; }
@@ -397,6 +436,39 @@
 	font-size: var(--font-size-xs);
 	color: var(--bs-secondary-color);
 	.bi { color: var(--bs-primary); }
+}
+
+/* ── Saved state: what our own database holds, independent of any scrape ── */
+.saved-state {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-1) var(--space-2);
+	margin: var(--space-3) 0 0;
+	padding: var(--space-2) var(--space-3);
+	border: 1px solid var(--bs-border-color-translucent);
+	border-left: 3px solid var(--bs-success);
+	border-radius: var(--radius-sm);
+	background: color-mix(in srgb, var(--bs-success) 6%, var(--bs-card-bg));
+	font-size: var(--font-size-xs);
+	color: var(--bs-body-color);
+
+	/* Nothing saved is neutral, not a problem — it is the normal start of the job. */
+	&.saved-state-empty {
+		border-left-color: var(--bs-secondary-color);
+		background: var(--bs-card-bg);
+		color: var(--bs-secondary-color);
+	}
+}
+
+.saved-meta { color: var(--bs-secondary-color); }
+
+/* Mixed seasons carry an icon as well as colour — colour alone must never be the signal. */
+.saved-mixed {
+	display: inline-flex;
+	align-items: center;
+	color: var(--bs-warning);
+	font-weight: 600;
 }
 
 /* ── Browse panel: the sidebar ranking list, full width and read-only ── */

@@ -6,11 +6,10 @@ import type {
 	AgeGroupOptionDto,
 	ScrapeResultDto,
 	AlignmentResultDto,
-	ImportRankingsRequest,
-	ImportRankingsResultDto,
+	SaveRankingsRequest,
+	SaveRankingsResultDto,
 	RankingsTeamDto,
-	RankingSeasonDto,
-	UpdateTeamRankingRequest
+	RankingSeasonDto
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -59,15 +58,12 @@ export class UsLaxRankingsService {
 		return this.http.get<AlignmentResultDto>(`${this.base}/align`, { params });
 	}
 
-	/** Bulk-import ranking data into NationalRankingData */
-	importRankings(request: ImportRankingsRequest): Observable<ImportRankingsResultDto> {
-		return this.http.post<ImportRankingsResultDto>(`${this.base}/import-rankings`, request);
-	}
-
-	/** Update a single team's national ranking data (JSON string) */
-	updateTeamRanking(teamId: string, rankingData: string): Observable<unknown> {
-		const body: UpdateTeamRankingRequest = { rankingData };
-		return this.http.put(`${this.base}/team-ranking/${teamId}`, body);
+	/**
+	 * Save the reviewed match set. Sends the decisions, not the parameters to re-derive them —
+	 * the server writes exactly what it is handed and never re-scrapes usclublax.com.
+	 */
+	saveRankings(request: SaveRankingsRequest): Observable<SaveRankingsResultDto> {
+		return this.http.post<SaveRankingsResultDto>(`${this.base}/save-rankings`, request);
 	}
 
 	/** Clear all national ranking data for an age group */

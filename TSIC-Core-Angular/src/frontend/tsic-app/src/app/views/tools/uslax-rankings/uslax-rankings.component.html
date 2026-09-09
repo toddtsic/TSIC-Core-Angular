@@ -149,6 +149,36 @@
 				browse the published rankings here for any event.
 			</p>
 		}
+
+		<!--
+			What is already saved, read from OUR database — not from usclublax.com. This is the
+			answer to "did my save take?", and it stays readable when the ranking site is down.
+		-->
+		@if (canMatch() && selectedRegisteredAg()) {
+			<p class="saved-state" [class.saved-state-empty]="savedCount() === 0">
+				@if (isLoadingSaved()) {
+					<span class="spinner-border spinner-border-sm me-1"></span>Reading saved rankings...
+				} @else if (savedCount() === 0) {
+					<i class="bi bi-circle me-1"></i>
+					<strong>No national rankings saved yet</strong> for
+					{{ selectedAgName() }}{{ savedTotalTeams() ? ' (' + savedTotalTeams() + ' teams)' : '' }}.
+				} @else {
+					<i class="bi bi-check-circle-fill me-1 text-success"></i>
+					<strong>{{ savedCount() }}</strong> of <strong>{{ savedTotalTeams() || savedCount() }}</strong>
+					teams have a saved national ranking
+					@if (savedAsOf()) { <span class="saved-meta">· last saved {{ savedAsOf() }}</span> }
+					@if (savedSeasons().length === 1) {
+						<span class="saved-meta">· from {{ savedSeasons()[0] }}</span>
+					} @else if (savedSeasons().length > 1) {
+						<!-- Mixed seasons are not comparable. Say so where it can still be fixed. -->
+						<span class="saved-mixed">
+							<i class="bi bi-exclamation-triangle-fill me-1"></i>mixed seasons:
+							{{ savedSeasons().join(', ') }} — re-save to put them all on one season
+						</span>
+					}
+				}
+			</p>
+		}
 	</div>
 
 	<!-- Browse: published rankings on their own, before any age group is matched -->
@@ -255,7 +285,21 @@
 									<tr [class.row-unmatched]="row.type === 'unmatched'" [class.row-manual]="row.type === 'manual'"
 										[class.row-active]="activeMatchTeamId() === row.team.teamId">
 										<td class="row-num">{{ idx + 1 }}</td>
-										<td class="fw-medium">{{ row.team.clubName ? row.team.clubName + ':' : '' }}{{ row.team.teamName }}</td>
+										<td class="fw-medium team-name-cell">
+											<span>{{ row.team.clubName ? row.team.clubName + ':' : '' }}{{ row.team.teamName }}</span>
+											<!--
+												Renames THIS EVENT's copy only. Sits in the name cell, not the
+												Action column — that column's pencil reassigns a ranking, and two
+												pencils meaning different things in one row is how a director
+												renames a team when they meant to re-match it.
+											-->
+											<button type="button" class="btn btn-link btn-rename"
+												(click)="openRename(row.team)"
+												[attr.aria-label]="'Rename ' + row.team.teamName + ' for this event'"
+												title="Rename this team for this event only">
+												<i class="bi bi-pencil" aria-hidden="true"></i>
+											</button>
+										</td>
 										@if (row.match) {
 											<td class="fw-medium">
 												#{{ row.match.ranking.rank }}
@@ -351,4 +395,25 @@
 		confirmLabel="Clear All Rankings" confirmVariant="danger"
 		(confirmed)="clearRankings()" (cancelled)="showClearConfirm.set(false)">
 	</confirm-dialog>
+}
+
+<!--
+	THE shared team-name dialog — the same one the Registered Teams pencil opens. `audience` and
+	`origin` are left at their defaults ('admin' / 'event'), which is what this screen needs: the
+	director edits this event's name only, with no carry-across checkbox, because the club's
+	library is not theirs to write. `libraryName` is omitted for the same reason it is null here —
+	the rankings projection carries the club NAME, not the library team entry — so the dialog
+	renders its plain-rename mode. No level-of-play: that belongs to the Registered Teams pencil.
+-->
+@if (renamingTeam(); as team) {
+	<team-rename-confirm
+		[currentName]="team.teamName"
+		[newName]="team.teamName"
+		[editable]="true"
+		[eventLabel]="jobName()"
+		[busy]="renameBusy()"
+		[errorMessage]="renameError()"
+		(confirmed)="confirmRename($event)"
+		(cancelled)="closeRename()">
+	</team-rename-confirm>
 }

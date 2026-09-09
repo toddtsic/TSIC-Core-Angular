@@ -1,33 +1,30 @@
-import { Component, inject, signal, computed, ChangeDetectionStrategy, HostListener } from '@angular/core';
+import { Component, inject, signal, computed, ChangeDetectionStrategy, DestroyRef, HostListener } from '@angular/core';
+import { toObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { filter, take, switchMap } from 'rxjs/operators';
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { UsLaxRankingsService } from '@infrastructure/services/uslax-rankings.service';
 import { JobService } from '@infrastructure/services/job.service';
+import { TeamSearchService } from '@views/search/teams/services/team-search.service';
 import { isTournament } from '@infrastructure/constants/job-type.constants';
+import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error-utils';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
+import {
+	TeamRenameConfirmComponent,
+	type TeamRenameConfirmation,
+} from '@shared/teams/team-rename-confirm.component';
 import type {
 	AgeGroupOptionDto,
 	AlignmentResultDto,
 	AlignedTeamDto,
+	NationalRankingDataDto,
 	RankingEntryDto,
 	RankingsTeamDto,
 	RankingSeasonDto,
-	ImportRankingsResultDto,
+	SaveRankingEntry,
+	SaveRankingsResultDto,
 } from '@core/api';
-
-/** Client-side shape for the NationalRankingData JSON blob stored on teams */
-interface NationalRankingDataDto {
-	rank: number;
-	team: string;
-	state: string;
-	record: string;
-	rating: number;
-	agd: number;
-	sched: number;
-	matchScore: number;
-	matchedAt: string;
-}
 
 /** Row type for the unified master table */
 interface MasterRow {
@@ -48,7 +45,7 @@ const MANUAL_MATCH_SCORE = -1;
 @Component({
 	selector: 'app-uslax-rankings',
 	standalone: true,
-	imports: [DecimalPipe, FormsModule, RouterLink, ConfirmDialogComponent],
+	imports: [DecimalPipe, FormsModule, RouterLink, ConfirmDialogComponent, TeamRenameConfirmComponent],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './uslax-rankings.component.html',
 	styleUrl: './uslax-rankings.component.scss'
@@ -56,6 +53,9 @@ const MANUAL_MATCH_SCORE = -1;
 export class UsLaxRankingsComponent {
 	private readonly rankingsService = inject(UsLaxRankingsService);
 	private readonly jobService = inject(JobService);
+	/** Reused for the local-team pencil — the admin door, gated AdminOnly. See renameTeam(). */
+	private readonly teamSearchService = inject(TeamSearchService);
+	private readonly destroyRef = inject(DestroyRef);
 
 	readonly jobName = computed(() => this.jobService.currentJob()?.jobName ?? 'your event');
 
@@ -89,6 +89,45 @@ export class UsLaxRankingsComponent {
 	readonly errorMessage = signal<string | null>(null);
 	readonly successMessage = signal<string | null>(null);
 
+	/**
+	 * What is ALREADY STAMPED on this age group's teams, read straight from our own database.
+	 *
+	 * This is the answer to "did my save take?", and the screen could not answer it before: the
+	 * only way to see your own work was to re-scrape usclublax.com and re-run the match, which
+	 * shows you a fresh guess rather than what is stored. Loaded on age-group selection, before
+	 * and independently of any scrape — a third-party site being down must never stop a director
+	 * reading their own data.
+	 */
+	readonly savedTeams = signal<RankingsTeamDto[]>([]);
+	readonly isLoadingSaved = signal(false);
+	/** Total teams in the selected age group, known without a scrape (denominator for "N of M"). */
+	readonly savedTotalTeams = signal(0);
+
+	readonly savedCount = computed(() => this.savedTeams().filter(t => t.nationalRankingData).length);
+
+	/** Season(s) the stored stamps came from. More than one means a mixed, untrustworthy set. */
+	readonly savedSeasons = computed(() => {
+		const seasons = new Set<string>();
+		for (const t of this.savedTeams()) {
+			const d = this.parseRankingData(t.nationalRankingData);
+			if (d) seasons.add(d.season ? this.seasonLabel(d.season) : 'unknown season');
+		}
+		return [...seasons].sort();
+	});
+
+	/** Most recent save across the age group — the "as of" on the summary line. */
+	readonly savedAsOf = computed(() => {
+		let latest: Date | null = null;
+		for (const t of this.savedTeams()) {
+			const d = this.parseRankingData(t.nationalRankingData);
+			if (!d?.matchedAt) continue;
+			const when = new Date(d.matchedAt);
+			if (isNaN(when.getTime())) continue;
+			if (!latest || when > latest) latest = when;
+		}
+		return latest ? `${latest.getMonth() + 1}/${latest.getDate()}/${latest.getFullYear()}` : '';
+	});
+
 	// ── Alignment results ──
 	readonly alignment = signal<AlignmentResultDto | null>(null);
 
@@ -116,6 +155,11 @@ export class UsLaxRankingsComponent {
 	// ── Dialogs ──
 	readonly showClearConfirm = signal(false);
 	readonly showSaveDropdown = signal(false);
+
+	/** Team whose name the pencil is editing, or null when the rename dialog is closed. */
+	readonly renamingTeam = signal<RankingsTeamDto | null>(null);
+	readonly renameBusy = signal(false);
+	readonly renameError = signal<string | null>(null);
 
 	// ── Computed: master table rows (matched + unmatched in one list) ──
 	readonly masterTableRows = computed<MasterRow[]>(() => {
@@ -262,6 +306,7 @@ export class UsLaxRankingsComponent {
 	onEscape(): void {
 		this.activeMatchTeamId.set(null);
 		this.showSaveDropdown.set(false);
+		if (this.renamingTeam() && !this.renameBusy()) this.closeRename();
 	}
 
 
@@ -318,12 +363,41 @@ export class UsLaxRankingsComponent {
 		});
 	}
 
+	/**
+	 * Job metadata arrives from an async GET and this route has no resolver, so at construction
+	 * `currentJob()` is routinely still null — `isTournament(undefined)` is false. The previous
+	 * version read the signal once, returned on that false, and never looked again: on a cold load
+	 * (a hard refresh straight onto this URL) the matching UI would then render with a permanently
+	 * empty age-group dropdown. It self-healed on an in-app navigation, which is exactly why it was
+	 * reported as age groups "occasionally" dropping.
+	 *
+	 * `toObservable` + `filter` + `take(1)` waits for the job to actually arrive instead of
+	 * sampling once. `take(1)` because this only ever needs to fire on the first tournament job
+	 * this component instance sees — a cross-job switch destroys and rebuilds the view.
+	 */
 	private loadRegisteredAgeGroups(): void {
-		if (!this.canMatch()) return;
-		this.rankingsService.getRegisteredAgeGroups().subscribe({
-			next: groups => this.registeredAgeGroups.set(groups),
-			error: () => this.registeredAgeGroups.set([])
-		});
+		toObservable(this.jobService.currentJob)
+			.pipe(
+				filter(job => isTournament(job?.jobTypeId)),
+				take(1),
+				switchMap(() => this.rankingsService.getRegisteredAgeGroups()),
+				takeUntilDestroyed(this.destroyRef))
+			.subscribe({
+				next: groups => {
+					this.registeredAgeGroups.set(groups);
+					if (groups.length === 0) {
+						this.errorMessage.set(
+							'No age groups with active teams were found for this event.');
+					}
+				},
+				// Say so. Silently emptying the list is indistinguishable from an event that
+				// genuinely has no age groups, and it is the same reported symptom.
+				error: (err: unknown) => {
+					this.registeredAgeGroups.set([]);
+					this.errorMessage.set(extractHttpErrorMessage(
+						err, "Couldn't load this event's age groups. Refresh to try again."));
+				}
+			});
 	}
 
 	// ── Dropdown change handlers ──
@@ -350,11 +424,60 @@ export class UsLaxRankingsComponent {
 		}
 	}
 
+	/**
+	 * Changing the age group changes WHICH TEAMS this screen is about, so the previous group's
+	 * results must go. They did not before: the guard below was `!this.hasResults()`, so once an
+	 * alignment existed this handler did nothing at all — the table kept showing group A's teams
+	 * while every subsequent Save and Clear silently retargeted group B. That is the "I saved and
+	 * nothing saved" report, and it is a data-loss bug on Clear.
+	 *
+	 * Loading the saved stamps here (rather than aligning) is the other half of the fix: picking an
+	 * age group now shows what is ALREADY stored, with no third-party round trip. Scraping stays
+	 * behind the explicit Find Matches button.
+	 */
 	onRegisteredAgChange(value: string): void {
+		if (value === this.selectedRegisteredAg()) return;
 		this.selectedRegisteredAg.set(value);
-		if (this.selectedScrapedAg() && value && !this.hasResults()) {
-			this.align();
-		}
+		this.clearResults();
+		this.savedTeams.set([]);
+		this.savedTotalTeams.set(0);
+		if (value) this.loadSavedRankings(value);
+	}
+
+	/**
+	 * Read our own database for what is stamped on this age group. Deliberately independent of the
+	 * scrape: a director must be able to see their saved work when usclublax.com is down.
+	 */
+	private loadSavedRankings(agegroupId: string): void {
+		this.isLoadingSaved.set(true);
+		this.rankingsService.getSavedRankings(agegroupId)
+			.pipe(takeUntilDestroyed(this.destroyRef))
+			.subscribe({
+				next: teams => {
+					// Guard a slow response for a group the user has since moved off.
+					if (this.selectedRegisteredAg() !== agegroupId) return;
+					this.isLoadingSaved.set(false);
+					this.savedTeams.set(teams);
+					this.savedTotalTeams.set(this.teamCountForAgegroup(agegroupId));
+				},
+				error: (err: unknown) => {
+					if (this.selectedRegisteredAg() !== agegroupId) return;
+					this.isLoadingSaved.set(false);
+					this.savedTeams.set([]);
+					this.errorMessage.set(extractHttpErrorMessage(
+						err, "Couldn't read the rankings already saved for this age group."));
+				}
+			});
+	}
+
+	/**
+	 * Team count for the denominator, taken from the dropdown label the API already builds
+	 * ("2030 (35 Teams)") rather than spending a second request to re-count what we were told.
+	 */
+	private teamCountForAgegroup(agegroupId: string): number {
+		const text = this.registeredAgeGroups().find(ag => ag.value === agegroupId)?.text ?? '';
+		const match = /\((\d+)\s+Teams?\)/i.exec(text);
+		return match ? Number(match[1]) : 0;
 	}
 
 	/** Splits the dropdown value, which the API hands us as "v|alpha|yr". */
@@ -475,7 +598,9 @@ export class UsLaxRankingsComponent {
 				m.registeredTeam.teamId === teamId
 					? { ranking, registeredTeam: m.registeredTeam, matchScore: MANUAL_MATCH_SCORE, matchReason: 'Manual reassignment by user' }
 					: m));
-			this.persistRanking(teamId, ranking, MANUAL_MATCH_SCORE);
+			// Screen state only. A hand match is committed by Save, exactly like every other row —
+			// the old code wrote it to the database on the click, so half the table was already
+			// committed and half was not, and un-matching had no way to take that write back.
 		} else if (unmatchedTeam) {
 			// New manual match
 			this.matchedTeams.set([...this.matchedTeams(), {
@@ -483,7 +608,9 @@ export class UsLaxRankingsComponent {
 			}]);
 			this.unmatchedRankings.set(this.unmatchedRankings().filter(r => r.rank !== ranking.rank));
 			this.unmatchedTeams.set(this.unmatchedTeams().filter(t => t.teamId !== teamId));
-			this.persistRanking(teamId, ranking, MANUAL_MATCH_SCORE);
+			// Screen state only. A hand match is committed by Save, exactly like every other row —
+			// the old code wrote it to the database on the click, so half the table was already
+			// committed and half was not, and un-matching had no way to take that write back.
 		}
 
 		this.activeMatchTeamId.set(null);
@@ -500,131 +627,114 @@ export class UsLaxRankingsComponent {
 		return match.matchScore === MANUAL_MATCH_SCORE;
 	}
 
-	// ── Persist ──
-
-	private persistRanking(teamId: string, ranking: RankingEntryDto, matchScore: number): void {
-		const json = this.buildRankingJson(ranking, matchScore);
-		this.rankingsService.updateTeamRanking(teamId, json).subscribe({
-			next: () => this.updateLocalRankingData(teamId, json),
-			error: (err: { error?: { message?: string } }) =>
-				this.errorMessage.set(err.error?.message ?? 'Failed to save ranking.')
-		});
-	}
-
-	private updateLocalRankingData(teamId: string, json: string): void {
-		this.matchedTeams.set(this.matchedTeams().map(m =>
-			m.registeredTeam.teamId === teamId
-				? { ...m, registeredTeam: { ...m.registeredTeam, nationalRankingData: json } }
-				: m));
-	}
-
-	// ── Save (merged from old tab 2) ──
+	// ── Save ──
 
 	toggleSaveDropdown(): void {
 		this.showSaveDropdown.set(!this.showSaveDropdown());
 	}
 
+	/**
+	 * Save what is on the screen. One request, carrying the reviewed decisions themselves.
+	 *
+	 * The threshold picks which matches are WRITTEN; it never decides what is erased. Matches below
+	 * it are simply omitted from the payload and keep whatever they already have — a director
+	 * saving at "75%+" must not silently wipe the medium-confidence stamps they chose to keep.
+	 * The only rows that clear are the ones they explicitly un-matched.
+	 */
 	saveWithThreshold(threshold: SaveThreshold): void {
 		this.saveThreshold.set(threshold);
 		this.showSaveDropdown.set(false);
 
-		const scraped = this.selectedScrapedAg();
 		const registered = this.selectedRegisteredAg();
-		if (!scraped || !registered) {
-			this.errorMessage.set('Run alignment first.');
+		if (!registered) {
+			this.errorMessage.set('Select an age group first.');
+			return;
+		}
+		if (!this.hasResults()) {
+			this.errorMessage.set('Run Find Matches first.');
 			return;
 		}
 
-		const importParts = scraped.split('|');
-		const v = importParts[0];
-		const alpha = importParts.length > 2 ? importParts[1] : '';
-		const yr = importParts.length > 2 ? importParts[2] : importParts[1];
+		const minScore = threshold === 'high' ? 0.75 : threshold === 'medium' ? 0.50 : 0;
+		const teams: SaveRankingEntry[] = [];
 
-		// Map threshold to confidence category for the backend
-		const confidenceCategory = threshold === 'high' ? 'high' : 'medium';
+		// Writes. Manual matches carry the sentinel score and are always included: the director
+		// chose them by hand, which outranks any threshold.
+		for (const match of this.matchedTeams()) {
+			if (match.matchScore !== MANUAL_MATCH_SCORE && match.matchScore < minScore) continue;
+			teams.push({
+				teamId: match.registeredTeam.teamId,
+				ranking: this.buildRankingData(match.ranking, match.matchScore)
+			});
+		}
+
+		// Clears. A team that is unmatched on screen but still carries a stored stamp is an
+		// un-match the director performed — the one thing the old save could never persist,
+		// because the server re-derived the match and wrote it straight back.
+		for (const team of this.unmatchedTeams()) {
+			if (this.storedRankingFor(team.teamId)) {
+				teams.push({ teamId: team.teamId, ranking: null });
+			}
+		}
+
+		if (teams.length === 0) {
+			this.errorMessage.set('Nothing to save at this confidence level.');
+			return;
+		}
 
 		this.isSaving.set(true);
 		this.errorMessage.set(null);
 		this.successMessage.set(null);
 
-		if (threshold === 'all') {
-			// Save all matched — use saveAllMatchedRankings approach
-			this.saveAllMatchedSequential();
-			return;
-		}
-
-		this.rankingsService.importRankings({
-			registeredTeamAgeGroupId: registered,
-			confidenceCategory,
-			v, alpha, yr,
-			clubWeight: 75,
-			teamWeight: 25
-		}).subscribe({
-			next: result => {
-				const manualOnes = this.manualMatches();
-				if (manualOnes.length > 0) {
-					this.saveManualMatchesBatch(manualOnes, result);
-				} else {
+		this.rankingsService.saveRankings({ registeredTeamAgeGroupId: registered, teams })
+			.pipe(takeUntilDestroyed(this.destroyRef))
+			.subscribe({
+				next: result => {
 					this.isSaving.set(false);
-					if (result.success) {
-						this.successMessage.set(result.message ?? `Saved ${result.updatedCount} team rankings.`);
-					} else {
+					// Report the server's verdict, both ways. The previous version checked
+					// `success` on only one of its two branches, so a failed save with any manual
+					// match on screen announced itself in green.
+					if (!result.success) {
 						this.errorMessage.set(result.message ?? 'Save failed.');
+						return;
 					}
+					this.successMessage.set(result.message ?? this.describeSave(result));
+					this.applySavedLocally(teams);
+					// Re-read from the database rather than trusting the local patch — this is the
+					// screen's claim that the save landed, so it should be the database's claim.
+					this.loadSavedRankings(registered);
+				},
+				error: (err: unknown) => {
+					this.isSaving.set(false);
+					this.errorMessage.set(extractHttpErrorMessage(err, 'Save failed.'));
 				}
-			},
-			error: (err: { error?: { message?: string } }) => {
-				this.isSaving.set(false);
-				this.errorMessage.set(err.error?.message ?? 'Save failed.');
-			}
-		});
+			});
 	}
 
-	private saveManualMatchesBatch(matches: AlignedTeamDto[], importResult: ImportRankingsResultDto): void {
-		let saved = 0;
-		let failed = 0;
-		const total = matches.length;
-
-		const saveNext = (index: number): void => {
-			if (index >= total) {
-				this.isSaving.set(false);
-				const autoCount = importResult.updatedCount;
-				this.successMessage.set(
-					`Saved ${autoCount} auto-matched + ${saved} manual team rankings.` +
-					(failed > 0 ? ` (${failed} manual saves failed)` : ''));
-				return;
-			}
-			const match = matches[index];
-			const json = this.buildRankingJson(match.ranking, match.matchScore);
-			this.rankingsService.updateTeamRanking(match.registeredTeam.teamId, json).subscribe({
-				next: () => { saved++; this.updateLocalRankingData(match.registeredTeam.teamId, json); saveNext(index + 1); },
-				error: () => { failed++; saveNext(index + 1); }
-			});
-		};
-		saveNext(0);
+	private describeSave(result: SaveRankingsResultDto): string {
+		return result.clearedCount > 0
+			? `Saved ${result.updatedCount} team rankings, cleared ${result.clearedCount}.`
+			: `Saved ${result.updatedCount} team rankings.`;
 	}
 
-	private saveAllMatchedSequential(): void {
-		const matches = this.matchedTeams();
-		if (matches.length === 0) { this.isSaving.set(false); return; }
-		let saved = 0;
-		let failed = 0;
-
-		const saveNext = (index: number): void => {
-			if (index >= matches.length) {
-				this.isSaving.set(false);
-				this.successMessage.set(
-					`Saved ${saved} team rankings.` + (failed > 0 ? ` (${failed} failed)` : ''));
-				return;
-			}
-			const match = matches[index];
-			const json = this.buildRankingJson(match.ranking, match.matchScore);
-			this.rankingsService.updateTeamRanking(match.registeredTeam.teamId, json).subscribe({
-				next: () => { saved++; this.updateLocalRankingData(match.registeredTeam.teamId, json); saveNext(index + 1); },
-				error: () => { failed++; saveNext(index + 1); }
-			});
-		};
-		saveNext(0);
+	/** Mirror the committed payload onto the in-memory rows so the table reflects it immediately. */
+	private applySavedLocally(entries: SaveRankingEntry[]): void {
+		const byTeam = new Map(entries.map(e => [e.teamId, e.ranking]));
+		this.matchedTeams.set(this.matchedTeams().map(m => {
+			if (!byTeam.has(m.registeredTeam.teamId)) return m;
+			const ranking = byTeam.get(m.registeredTeam.teamId);
+			return {
+				...m,
+				registeredTeam: {
+					...m.registeredTeam,
+					nationalRankingData: ranking ? JSON.stringify(ranking) : null
+				}
+			};
+		}));
+		this.unmatchedTeams.set(this.unmatchedTeams().map(t =>
+			byTeam.has(t.teamId) && !byTeam.get(t.teamId)
+				? { ...t, nationalRankingData: null }
+				: t));
 	}
 
 	// ── Clear rankings ──
@@ -651,6 +761,12 @@ export class UsLaxRankingsComponent {
 				this.successMessage.set('Team rankings cleared.');
 				this.matchedTeams.set(this.matchedTeams().map(m =>
 					({ ...m, registeredTeam: { ...m.registeredTeam, nationalRankingData: null } })));
+				this.unmatchedTeams.set(this.unmatchedTeams().map(t =>
+					({ ...t, nationalRankingData: null })));
+				// The saved-state line is the screen's claim about the database, so it has to
+				// follow the database here too — otherwise it keeps reporting the stamps we
+				// just deleted.
+				this.savedTeams.set([]);
 			},
 			error: (err: { error?: { message?: string } }) => {
 				this.isLoading.set(false);
@@ -733,13 +849,32 @@ export class UsLaxRankingsComponent {
 		return `${Math.round(score * 100)}%`;
 	}
 
-	private buildRankingJson(ranking: RankingEntryDto, matchScore: number): string {
-		const dto: NationalRankingDataDto = {
+	/**
+	 * Build the stamp. `season` and `rankingSource` come from the age-group dropdown value the
+	 * scrape was run against, so a stored rank records WHICH season it came from — without that,
+	 * a rank carried over from last season is indistinguishable from this season's on the team
+	 * row, and Pool Assignment sorts the two as if they were comparable.
+	 */
+	private buildRankingData(ranking: RankingEntryDto, matchScore: number): NationalRankingDataDto {
+		const { v, yr } = this.parseAgValue(this.selectedScrapedAg());
+		return {
 			rank: ranking.rank, team: ranking.team, state: ranking.state,
 			record: ranking.record, rating: ranking.rating, agd: ranking.agd,
-			sched: ranking.sched, matchScore, matchedAt: new Date().toISOString()
+			sched: ranking.sched, matchScore, matchedAt: new Date().toISOString(),
+			season: yr || null, rankingSource: v || null
 		};
-		return JSON.stringify(dto);
+	}
+
+	/** The stamp currently in the database for this team, from the saved-state read. */
+	private storedRankingFor(teamId: string): NationalRankingDataDto | null {
+		const team = this.savedTeams().find(t => t.teamId === teamId);
+		return this.parseRankingData(team?.nationalRankingData);
+	}
+
+	/** "2025" is the 2025-26 season — the yr is the season's opening year, not the class. */
+	seasonLabel(yr: string): string {
+		const y = Number(yr);
+		return Number.isFinite(y) && yr ? `${y}-${String((y + 1) % 100).padStart(2, '0')}` : yr;
 	}
 
 	private parseRankingData(json: string | null | undefined): NationalRankingDataDto | null {
@@ -762,6 +897,76 @@ export class UsLaxRankingsComponent {
 	/** True if this row has saved data (regardless of drift) */
 	isSaved(row: MasterRow): boolean {
 		return !!row.team.nationalRankingData;
+	}
+
+	// ── Rename a local team (pencil) ──
+
+	openRename(team: RankingsTeamDto): void {
+		this.renameError.set(null);
+		this.renamingTeam.set(team);
+	}
+
+	closeRename(): void {
+		this.renamingTeam.set(null);
+		this.renameBusy.set(false);
+		this.renameError.set(null);
+	}
+
+	/**
+	 * Renames THIS EVENT's copy only — `EditTeamRequest.TeamName` on the AdminOnly team-search
+	 * endpoint. The club's library entry and every other job the team plays in keep their name;
+	 * there is no fan-out and no option to ask for one.
+	 *
+	 * Deliberately NOT the rep's `PUT /teams/{teamId}/rename`: that route is `IsClubRepRole()`-gated
+	 * and would 403 every director, SuperDirector and SuperUser — i.e. everyone who can reach this
+	 * screen.
+	 *
+	 * The dialog stays open on failure so the director can fix the name they typed rather than
+	 * watch it disappear behind a toast.
+	 */
+	confirmRename(confirmation: TeamRenameConfirmation): void {
+		const team = this.renamingTeam();
+		if (!team) return;
+
+		const name = confirmation.name.trim();
+		if (!name || name === team.teamName) { this.closeRename(); return; }
+
+		this.renameBusy.set(true);
+		this.renameError.set(null);
+
+		this.teamSearchService.editTeam(team.teamId, { teamName: name })
+			.pipe(takeUntilDestroyed(this.destroyRef))
+			.subscribe({
+				next: () => {
+					this.applyRenameLocally(team.teamId, name);
+					this.closeRename();
+					// The team name is the fuzzy matcher's input, so the stored stamp and the
+					// on-screen match were both made against the OLD name. Neither is invalidated
+					// — the stamp records a national ranking, not our name for the team — but the
+					// next Find Matches may pair this team differently, and that should not be a
+					// surprise.
+					this.successMessage.set(
+						`Renamed to ${name} for this event only. `
+						+ 'Run Find Matches again if you want the match re-checked against the new name.');
+				},
+				error: (err: unknown) => {
+					this.renameBusy.set(false);
+					this.renameError.set(extractHttpErrorMessage(err, 'Failed to rename team.'));
+				}
+			});
+	}
+
+	/** Patch every in-memory copy of the row — matched, unmatched, and the saved-state read. */
+	private applyRenameLocally(teamId: string, teamName: string): void {
+		const rename = <T extends RankingsTeamDto>(t: T): T =>
+			t.teamId === teamId ? { ...t, teamName } : t;
+
+		this.matchedTeams.set(this.matchedTeams().map(m =>
+			m.registeredTeam.teamId === teamId
+				? { ...m, registeredTeam: rename(m.registeredTeam) }
+				: m));
+		this.unmatchedTeams.set(this.unmatchedTeams().map(rename));
+		this.savedTeams.set(this.savedTeams().map(rename));
 	}
 
 }

@@ -2,13 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type ImportRankingsRequest = {
+import type { SaveRankingEntry } from './SaveRankingEntry';
+export type SaveRankingsRequest = {
     registeredTeamAgeGroupId: string;
-    confidenceCategory: string;
-    'v': string;
-    alpha: string;
-    yr: string;
-    clubWeight?: number;
-    teamWeight?: number;
+    teams: Array<SaveRankingEntry>;
 };
 

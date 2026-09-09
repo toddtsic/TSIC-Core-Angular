@@ -2,11 +2,10 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type ImportRankingsResultDto = {
+export type SaveRankingsResultDto = {
     success: boolean;
     message?: string | null;
     updatedCount: number;
-    totalMatches: number;
-    confidenceCategory: string;
+    clearedCount: number;
 };
 

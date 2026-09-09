@@ -77,6 +77,21 @@ public record NationalRankingDataDto
     public required decimal Sched { get; init; }
     public required double MatchScore { get; init; }
     public required DateTime MatchedAt { get; init; }
+
+    /// <summary>
+    /// The SEASON this rank came from -- the usclublax `yr`, e.g. "2025" for the 2025-26 season.
+    /// Without it a rank stamped last season and one stamped this season are indistinguishable on
+    /// the team row, and Pool Assignment sorts them side by side as if they were comparable.
+    /// Nullable: blobs written before this field existed carry no season, and a blank reads
+    /// honestly as "unknown" rather than being back-filled with a season we cannot verify.
+    /// </summary>
+    public string? Season { get; init; }
+
+    /// <summary>
+    /// The ranking family the row came from -- the usclublax `v`, e.g. "2030" = girls overall
+    /// class of 2030, "2130" = girls national. Same nullability reasoning as <see cref="Season"/>.
+    /// </summary>
+    public string? RankingSource { get; init; }
 }
 
 /// <summary>
@@ -108,35 +123,47 @@ public record AlignmentResultDto
 }
 
 /// <summary>
-/// Request to bulk-import ranking data into NationalRankingData
+/// One team's disposition in a save. The distinction between "omitted" and "present with a null
+/// Ranking" is the whole contract, and it is deliberate:
+///
+///   omitted from the list  -> leave this team's stamp exactly as it is (below the chosen
+///                             confidence threshold, or simply not part of this save)
+///   present, Ranking null  -> CLEAR this team's stamp (the director un-matched it)
+///   present, Ranking set   -> write this stamp
+///
+/// Absence must never mean "clear", or saving at "75%+" would silently wipe every medium-confidence
+/// stamp the director deliberately kept.
 /// </summary>
-public record ImportRankingsRequest
+public record SaveRankingEntry
 {
-    public required Guid RegisteredTeamAgeGroupId { get; init; }
-    public required string ConfidenceCategory { get; init; }
-    public required string V { get; init; }
-    public required string Alpha { get; init; }
-    public required string Yr { get; init; }
-    public int ClubWeight { get; init; } = 75;
-    public int TeamWeight { get; init; } = 25;
+    public required Guid TeamId { get; init; }
+    public NationalRankingDataDto? Ranking { get; init; }
 }
 
 /// <summary>
-/// Result of a bulk import operation
+/// Save the rankings the director actually reviewed on screen.
+///
+/// This carries the decisions themselves, NOT the parameters to go re-derive them. The previous
+/// contract sent the scrape parameters and had the server re-fetch usclublax.com and re-run the
+/// whole fuzzy match at save time -- so an un-match never stuck (the server just re-matched it),
+/// a hand correction raced the server's own answer, and the save failed outright whenever the
+/// third-party site was slow or had changed. What the director sees is now what gets stored.
 /// </summary>
-public record ImportRankingsResultDto
+public record SaveRankingsRequest
+{
+    /// <summary>Scopes the save: every TeamId must belong to this job AND this age group.</summary>
+    public required Guid RegisteredTeamAgeGroupId { get; init; }
+    public required List<SaveRankingEntry> Teams { get; init; }
+}
+
+/// <summary>
+/// Result of a save. Writes and clears are reported separately -- "saved 12" when the director
+/// also un-matched 3 hides half of what happened.
+/// </summary>
+public record SaveRankingsResultDto
 {
     public required bool Success { get; init; }
     public string? Message { get; init; }
     public required int UpdatedCount { get; init; }
-    public required int TotalMatches { get; init; }
-    public required string ConfidenceCategory { get; init; }
-}
-
-/// <summary>
-/// Request to update a single team's national ranking data (JSON string)
-/// </summary>
-public record UpdateTeamRankingRequest
-{
-    public required string RankingData { get; init; }
+    public required int ClearedCount { get; init; }
 }

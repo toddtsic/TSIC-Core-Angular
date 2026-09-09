@@ -221,15 +221,23 @@ public class USLaxRankingsController : ControllerBase
         return Ok(alignment);
     }
 
-    // ── Import / update endpoints ──
+    // ── Save / update endpoints ──
 
     /// <summary>
-    /// Bulk-import aligned ranking data into NationalRankingData (JSON) for all matches above
-    /// the specified confidence category threshold.
+    /// Persist the rankings the director reviewed on screen.
+    ///
+    /// This writes the decisions it is handed. It does NOT re-scrape usclublax.com and re-run the
+    /// match: that is what the previous version did, and it meant the stored result was the
+    /// server's fresh guess rather than the reviewed one -- an un-match never stuck, a hand
+    /// correction raced the server, and a save could fail because a third-party site happened to
+    /// be down at that moment. Matching is a read; saving is a write; they no longer share a call.
+    ///
+    /// Omitted teams are left alone and null-Ranking teams are cleared -- see
+    /// <see cref="SaveRankingEntry"/> for why absence must not mean "clear".
     /// </summary>
-    [HttpPost("import-rankings")]
-    public async Task<ActionResult<ImportRankingsResultDto>> ImportRankings(
-        [FromBody] ImportRankingsRequest request,
+    [HttpPost("save-rankings")]
+    public async Task<ActionResult<SaveRankingsResultDto>> SaveRankings(
+        [FromBody] SaveRankingsRequest request,
         CancellationToken ct)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
@@ -238,90 +246,63 @@ public class USLaxRankingsController : ControllerBase
         var gate = await RejectIfNotTournamentAsync(jobId.Value, ct);
         if (gate is not null) return gate;
 
-        // Scrape + align
-        var scrapeResult = await _scrapingService.ScrapeRankingsAsync(
-            request.V, request.Alpha, request.Yr, ct);
-
-        if (!scrapeResult.Success)
-            return Ok(new ImportRankingsResultDto
-            {
-                Success = false,
-                Message = scrapeResult.ErrorMessage ?? "Scrape failed.",
-                UpdatedCount = 0,
-                TotalMatches = 0,
-                ConfidenceCategory = request.ConfidenceCategory
-            });
-
-        var registeredTeams = await _teamRepo.GetTeamsForRankingsAsync(
-            jobId.Value, request.RegisteredTeamAgeGroupId, ct);
-
-        var alignment = _matchingService.AlignRankingsWithTeams(
-            scrapeResult.Rankings, registeredTeams, request.ClubWeight, request.TeamWeight);
-
-        // Filter by confidence category
-        double minScore = request.ConfidenceCategory switch
-        {
-            "high" => 0.75,
-            "medium" => 0.50,
-            _ => 0.50
-        };
-
-        var now = DateTime.Now;
-        var teamsToUpdate = alignment.AlignedTeams
-            .Where(a => a.MatchScore >= minScore)
-            .ToDictionary(
-                a => a.RegisteredTeam.TeamId,
-                a => (string?)SerializeRankingData(a.Ranking, a.MatchScore, now));
-
-        if (teamsToUpdate.Count == 0)
-            return Ok(new ImportRankingsResultDto
+        if (request.Teams.Count == 0)
+            return Ok(new SaveRankingsResultDto
             {
                 Success = true,
-                Message = "No matches met the confidence threshold.",
+                Message = "Nothing to save.",
                 UpdatedCount = 0,
-                TotalMatches = alignment.TotalMatches,
-                ConfidenceCategory = request.ConfidenceCategory
+                ClearedCount = 0
             });
 
-        var updatedCount = await _teamRepo.BulkUpdateNationalRankingDataAsync(teamsToUpdate, ct);
+        // Authoritative team set for this job + age group. Every posted TeamId is checked against
+        // it, so a client cannot stamp a team in another job, or in another age group of this one,
+        // by editing the payload. Reject the whole batch rather than silently writing the subset
+        // that passes -- a partial write here is indistinguishable from a successful one.
+        var allowedTeamIds = (await _teamRepo.GetTeamsForRankingsAsync(
+                jobId.Value, request.RegisteredTeamAgeGroupId, ct))
+            .Select(t => t.TeamId)
+            .ToHashSet();
 
-        return Ok(new ImportRankingsResultDto
+        var unknown = request.Teams.Select(t => t.TeamId).Where(id => !allowedTeamIds.Contains(id)).ToList();
+        if (unknown.Count > 0)
+            return BadRequest(new
+            {
+                message = $"{unknown.Count} team(s) do not belong to this event's selected age group."
+            });
+
+        var updates = new Dictionary<Guid, string?>();
+        foreach (var entry in request.Teams)
+        {
+            // Last write wins on a duplicated TeamId -- an indexer assignment, not ToDictionary,
+            // which would throw on a payload the client can trivially produce.
+            updates[entry.TeamId] = entry.Ranking is null
+                ? null
+                : JsonSerializer.Serialize(entry.Ranking, JsonOpts);
+        }
+
+        await _teamRepo.BulkUpdateNationalRankingDataAsync(updates, ct);
+
+        // Counted from the request, not from SaveChangesAsync's row count: re-saving an unchanged
+        // stamp is a no-op to EF but is not a failure, and reporting 0 there reads as one.
+        var cleared = updates.Values.Count(v => v is null);
+        var updated = updates.Count - cleared;
+
+        return Ok(new SaveRankingsResultDto
         {
             Success = true,
-            Message = $"Updated {updatedCount} team rankings.",
-            UpdatedCount = updatedCount,
-            TotalMatches = alignment.TotalMatches,
-            ConfidenceCategory = request.ConfidenceCategory
+            Message = cleared > 0
+                ? $"Saved {updated} team ranking(s), cleared {cleared}."
+                : $"Saved {updated} team ranking(s).",
+            UpdatedCount = updated,
+            ClearedCount = cleared
         });
     }
 
-    /// <summary>
-    /// Update a single team's national ranking data (JSON string).
-    /// </summary>
-    [HttpPut("team-ranking/{teamId:guid}")]
-    public async Task<IActionResult> UpdateTeamRanking(
-        Guid teamId,
-        [FromBody] UpdateTeamRankingRequest request,
-        CancellationToken ct)
-    {
-        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
-        if (jobId == null) return BadRequest(new { message = "Unable to resolve job from token." });
-
-        var gate = await RejectIfNotTournamentAsync(jobId.Value, ct);
-        if (gate is not null) return gate;
-
-        var team = await _teamRepo.GetTeamFromTeamId(teamId, ct);
-        if (team == null) return NotFound(new { message = "Team not found." });
-
-        // Verify team belongs to this job
-        if (team.JobId != jobId.Value)
-            return BadRequest(new { message = "Team does not belong to the current job." });
-
-        var update = new Dictionary<Guid, string?> { [teamId] = request.RankingData };
-        await _teamRepo.BulkUpdateNationalRankingDataAsync(update, ct);
-
-        return Ok(new { message = "Team ranking updated." });
-    }
+    // The former PUT team-ranking/{teamId} lived here. It existed so a hand match could write
+    // itself the instant it was clicked — which meant half a reviewed table was already committed
+    // and half was not, and un-matching a row had no way to take that write back. SaveRankings is
+    // now the single commit point for every row, hand-matched ones included.
 
     /// <summary>
     /// Clear all NationalRankingData for teams in the specified age group.
@@ -381,23 +362,6 @@ public class USLaxRankingsController : ControllerBase
     }
 
     // ── Private helpers ──
-
-    private static string SerializeRankingData(RankingEntryDto ranking, double matchScore, DateTime matchedAt)
-    {
-        var dto = new NationalRankingDataDto
-        {
-            Rank = ranking.Rank,
-            Team = ranking.Team,
-            State = ranking.State,
-            Record = ranking.Record,
-            Rating = ranking.Rating,
-            Agd = ranking.Agd,
-            Sched = ranking.Sched,
-            MatchScore = matchScore,
-            MatchedAt = matchedAt
-        };
-        return JsonSerializer.Serialize(dto, JsonOpts);
-    }
 
     private static string BuildCsv(AlignmentResultDto alignment)
     {
