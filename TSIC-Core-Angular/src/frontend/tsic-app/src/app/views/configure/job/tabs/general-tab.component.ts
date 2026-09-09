@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { JobConfigService } from '../job-config.service';
 import { toDateOnly, fromDateInput } from '../shared/rte-config';
 import { JobDeletePanelComponent } from '../components/job-delete-panel.component';
+import { ToastService } from '@shared-ui/toast.service';
 import type { UpdateJobConfigGeneralRequest } from '@core/api';
 
 @Component({
@@ -44,6 +45,7 @@ import type { UpdateJobConfigGeneralRequest } from '@core/api';
 })
 export class GeneralTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
+  private readonly toast = inject(ToastService);
 
   /** Template helper — a cleared date input emits '' and must post as null. See AR-088. */
   protected readonly fromDateInput = fromDateInput;
@@ -115,7 +117,19 @@ export class GeneralTabComponent implements OnInit {
     }
   }
 
+  /**
+   * User Expiry is REQUIRED — it is non-nullable server-side and it is what picks events by
+   * date, so a job without it is not a supported state (AR-088, Todd 09-09). Blocked HERE
+   * rather than left to the server: an empty date input posts '' and fails deserialization
+   * before any handler runs, so the director got a generic "the request could not be
+   * completed" with nothing naming the field. Unlike the nullable dates on this screen, the
+   * fix is NOT to send null — null does not deserialize into a non-nullable DateTime either.
+   */
   save(): void {
+    if (!this.expiryUsers()) {
+      this.toast.show('User Expiry is required — enter a date before saving.', 'danger');
+      return;
+    }
     this.svc.saveGeneral(this.buildPayload());
   }
 

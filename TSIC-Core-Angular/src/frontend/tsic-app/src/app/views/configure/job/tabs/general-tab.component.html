@@ -27,9 +27,19 @@
       <div class="row g-2 mt-1">
         <div class="col-md-2">
           <label class="field-label">User Expiry</label>
-          <input type="date" class="field-input"
+          <input type="date" class="field-input" required
+            [class.is-required]="!expiryUsers()"
+            [attr.aria-invalid]="!expiryUsers() ? 'true' : null"
+            [attr.aria-describedby]="!expiryUsers() ? 'expiry-users-help' : null"
             [ngModel]="expiryUsers()"
             (ngModelChange)="expiryUsers.set($event); onFieldChange()" />
+          @if (!expiryUsers()) {
+            <!-- Text, not just the red accent: the accent alone conveys nothing to a
+                 screen reader or to anyone who cannot distinguish it. -->
+            <small id="expiry-users-help" class="field-help text-danger">
+              Required — User Expiry cannot be empty.
+            </small>
+          }
         </div>
       </div>
     </div>
