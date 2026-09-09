@@ -1670,146 +1670,150 @@ public sealed class LadtService : ILadtService
             || name.Contains("DROPPED", StringComparison.OrdinalIgnoreCase);
     }
 
-    public async Task<List<DivisionNameSyncPreview>> PreviewDivisionNameSyncAsync(
-        Guid jobId, List<string> themeNames, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// The division names in use across the job's age groups, with the age-group count for each
+    /// and whether the name is free of teams everywhere (the only case in which removal is offered).
+    /// Unassigned/WAITLIST/DROPPED are filtered out upstream and never appear.
+    /// </summary>
+    public async Task<List<CommonDivisionDto>> GetCommonDivisionsAsync(
+        Guid jobId, CancellationToken cancellationToken = default)
     {
         var agegroupDivisions = await GetSyncableDivisionsAsync(jobId, cancellationToken);
-        var previews = new List<DivisionNameSyncPreview>();
+        var agegroupTotal = agegroupDivisions.Count;
 
-        foreach (var (agName, agId, divisions) in agegroupDivisions)
+        var allDivIds = agegroupDivisions.SelectMany(ag => ag.Divisions).Select(d => d.DivId).ToList();
+        var divIdsWithTeams = await _divisionRepo.GetDivIdsWithTeamsAsync(allDivIds, cancellationToken);
+
+        // Group by name across age groups. The name is the unit of work here, not the division row.
+        var byName = new Dictionary<string, (string Display, HashSet<Guid> Agegroups, bool AnyTeams)>(
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (_, agId, divisions) in agegroupDivisions)
         {
-            // Alpha-sort the syncable divisions by current name
-            var sorted = divisions.OrderBy(d => d.DivName, StringComparer.OrdinalIgnoreCase).ToList();
-
-            var entries = new List<DivisionRenameEntry>();
-
-            // Rename existing divisions up to theme count
-            var renameLimit = Math.Min(sorted.Count, themeNames.Count);
-            for (var i = 0; i < renameLimit; i++)
+            foreach (var div in divisions)
             {
-                entries.Add(new DivisionRenameEntry
-                {
-                    DivId = sorted[i].DivId,
-                    CurrentName = sorted[i].DivName ?? "(unnamed)",
-                    ProposedName = themeNames[i]
-                });
+                var name = div.DivName?.Trim();
+                if (string.IsNullOrEmpty(name)) continue;
+
+                if (!byName.TryGetValue(name, out var entry))
+                    entry = (name, new HashSet<Guid>(), false);
+
+                entry.Agegroups.Add(agId);
+                entry.AnyTeams |= divIdsWithTeams.Contains(div.DivId);
+                byName[name] = entry;
             }
-
-            // New divisions to be created (theme names beyond existing count)
-            for (var i = sorted.Count; i < themeNames.Count; i++)
-            {
-                entries.Add(new DivisionRenameEntry
-                {
-                    DivId = Guid.Empty,
-                    CurrentName = "(new)",
-                    ProposedName = themeNames[i],
-                    IsNew = true
-                });
-            }
-
-            // Existing divisions beyond theme count — will be deleted (if no teams)
-            for (var i = themeNames.Count; i < sorted.Count; i++)
-            {
-                var hasTeams = await _divisionRepo.HasTeamsAsync(sorted[i].DivId, cancellationToken);
-                entries.Add(new DivisionRenameEntry
-                {
-                    DivId = sorted[i].DivId,
-                    CurrentName = sorted[i].DivName ?? "(unnamed)",
-                    ProposedName = "",
-                    IsDeleted = true,
-                    HasTeams = hasTeams
-                });
-            }
-
-            previews.Add(new DivisionNameSyncPreview
-            {
-                AgegroupName = agName,
-                AgegroupId = agId,
-                DivisionCount = themeNames.Count,
-                Divisions = entries
-            });
         }
 
-        return previews;
+        return byName.Values
+            .Select(e => new CommonDivisionDto
+            {
+                DivName = e.Display,
+                AgegroupCount = e.Agegroups.Count,
+                AgegroupTotal = agegroupTotal,
+                CanRemove = !e.AnyTeams
+            })
+            .OrderBy(d => d.DivName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
-    public async Task<DivisionNameSyncResult> ApplyDivisionNameSyncAsync(
-        Guid jobId, List<string> themeNames, string userId, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Creates a division with this name in every age group that does not already have one.
+    /// Age groups that already carry the name are left untouched — re-adding is a no-op, never a rename.
+    /// </summary>
+    public async Task<CommonDivisionMutationResult> AddCommonDivisionAsync(
+        Guid jobId, string divName, string userId, CancellationToken cancellationToken = default)
     {
+        var name = (divName ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(name))
+            throw new InvalidOperationException("Division name is required.");
+        if (IsExcludedDivision(name) || IsSpecialAgegroup(name))
+            throw new InvalidOperationException($"'{name}' is a reserved division name.");
+
         var agegroupDivisions = await GetSyncableDivisionsAsync(jobId, cancellationToken);
         var errors = new List<string>();
-        var renamed = 0;
-        var created = 0;
-        var deleted = 0;
+        var affected = 0;
 
-        foreach (var (agName, agId, divisions) in agegroupDivisions)
+        foreach (var (agName, agId, _) in agegroupDivisions)
         {
-            var sorted = divisions.OrderBy(d => d.DivName, StringComparer.OrdinalIgnoreCase).ToList();
+            // Check every division in the age group, not just the syncable ones — a reserved
+            // division carrying this name would still collide on the unique-name rule.
+            var existing = await _divisionRepo.GetByAgegroupIdAsync(agId, cancellationToken);
+            if (existing.Any(d => string.Equals(d.DivName?.Trim(), name, StringComparison.OrdinalIgnoreCase)))
+                continue;
 
-            // Rename existing divisions
-            var renameLimit = Math.Min(sorted.Count, themeNames.Count);
-            for (var i = 0; i < renameLimit; i++)
+            try
             {
-                var newName = themeNames[i];
-                var div = sorted[i];
-
-                if (string.Equals(div.DivName, newName, StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                var tracked = await _divisionRepo.GetByIdAsync(div.DivId, cancellationToken);
-                if (tracked == null)
-                {
-                    errors.Add($"Division {div.DivId} not found in {agName}.");
-                    continue;
-                }
-
-                tracked.DivName = newName;
-                tracked.LebUserId = userId;
-                tracked.Modified = DateTime.Now;
-                renamed++;
-
-                await _scheduleRepo.RecomposeAcrossJobsAsync(
-                    new[] { jobId }, div: (div.DivId, newName), ct: cancellationToken);
+                await CreateDivisionAsync(
+                    new CreateDivisionRequest { AgegroupId = agId, DivName = name },
+                    jobId, userId, cancellationToken);
+                affected++;
             }
-
-            // Create new divisions for theme names beyond existing count
-            for (var i = sorted.Count; i < themeNames.Count; i++)
+            catch (InvalidOperationException ex)
             {
-                var request = new CreateDivisionRequest
-                {
-                    AgegroupId = agId,
-                    DivName = themeNames[i]
-                };
-                await CreateDivisionAsync(request, jobId, userId, cancellationToken);
-                created++;
-            }
-
-            // Delete extra divisions beyond theme count (only if no teams)
-            for (var i = themeNames.Count; i < sorted.Count; i++)
-            {
-                try
-                {
-                    await DeleteDivisionAsync(sorted[i].DivId, jobId, cancellationToken);
-                    deleted++;
-                }
-                catch (InvalidOperationException ex)
-                {
-                    errors.Add($"{agName}: {sorted[i].DivName} — {ex.Message}");
-                }
+                errors.Add($"{agName}: {ex.Message}");
             }
         }
 
-        // CreateDivisionAsync/DeleteDivisionAsync save per-call; flush any remaining renames
-        if (renamed > 0)
-            await _divisionRepo.SaveChangesAsync(cancellationToken);
+        return new CommonDivisionMutationResult { AgegroupsAffected = affected, Errors = errors };
+    }
 
-        return new DivisionNameSyncResult
+    /// <summary>
+    /// Removes the division with this name from every age group. Refuses outright if the name
+    /// holds a team anywhere — a partial removal would leave the age groups inconsistent, which
+    /// is the state this dialog exists to prevent.
+    /// </summary>
+    public async Task<CommonDivisionMutationResult> RemoveCommonDivisionAsync(
+        Guid jobId, string divName, CancellationToken cancellationToken = default)
+    {
+        var name = (divName ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(name))
+            throw new InvalidOperationException("Division name is required.");
+        if (IsExcludedDivision(name) || IsSpecialAgegroup(name))
+            throw new InvalidOperationException($"'{name}' is a reserved division and cannot be removed.");
+
+        var agegroupDivisions = await GetSyncableDivisionsAsync(jobId, cancellationToken);
+
+        var targets = agegroupDivisions
+            .SelectMany(ag => ag.Divisions.Select(d => (ag.AgName, Div: d)))
+            .Where(x => string.Equals(x.Div.DivName?.Trim(), name, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (targets.Count == 0)
+            throw new InvalidOperationException($"No division named '{name}' was found.");
+
+        // Re-check server-side: the dialog hides the control, but teams may have landed since it loaded.
+        var divIdsWithTeams = await _divisionRepo.GetDivIdsWithTeamsAsync(
+            targets.Select(t => t.Div.DivId).ToList(), cancellationToken);
+
+        if (divIdsWithTeams.Count > 0)
         {
-            DivisionsRenamed = renamed,
-            DivisionsCreated = created,
-            DivisionsDeleted = deleted,
-            Errors = errors
-        };
+            var blocked = targets
+                .Where(t => divIdsWithTeams.Contains(t.Div.DivId))
+                .Select(t => t.AgName)
+                .OrderBy(n => n, StringComparer.OrdinalIgnoreCase);
+
+            throw new InvalidOperationException(
+                $"'{name}' still has teams in {string.Join(", ", blocked)}. " +
+                "Move those teams out first, or edit that age group in the tree.");
+        }
+
+        var errors = new List<string>();
+        var affected = 0;
+
+        foreach (var (agName, div) in targets)
+        {
+            try
+            {
+                await DeleteDivisionAsync(div.DivId, jobId, cancellationToken);
+                affected++;
+            }
+            catch (InvalidOperationException ex)
+            {
+                errors.Add($"{agName}: {ex.Message}");
+            }
+        }
+
+        return new CommonDivisionMutationResult { AgegroupsAffected = affected, Errors = errors };
     }
 
     /// <summary>

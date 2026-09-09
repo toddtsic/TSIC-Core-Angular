@@ -79,7 +79,7 @@
         </button>
         @if (actionsOpen()) {
           <ul class="dropdown-menu dropdown-menu-end show">
-            <li><button class="dropdown-item" (click)="openSyncDialog()">
+            <li><button class="dropdown-item" (click)="openDivisionsDialog()">
               <i class="bi bi-palette me-2"></i>Theme Division Names
             </button></li>
           </ul>
@@ -490,160 +490,102 @@
 }
 
 <!-- Theme Division Names dialog -->
-@if (showSyncDialog()) {
-  <tsic-dialog [open]="true" size="sm" (requestClose)="closeSyncDialog()">
+@if (showDivisionsDialog()) {
+  <tsic-dialog [open]="true" size="sm" (requestClose)="closeDivisionsDialog()">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">
           <i class="bi bi-palette me-2"></i>Theme Division Names
         </h5>
-        <button type="button" class="btn-close" (click)="closeSyncDialog()"></button>
+        <button type="button" class="btn-close" (click)="closeDivisionsDialog()"></button>
       </div>
 
       <div class="modal-body">
-        @if (syncLoading() && syncPreviews().length === 0) {
-          <div class="text-center py-4">
-            <div class="spinner-border spinner-border-sm text-primary"></div>
-            <p class="mt-2 text-body-secondary">Loading divisions...</p>
-          </div>
-        } @else if (!syncHasAgegroups()) {
-          <div class="text-center py-4 text-body-secondary">
-            <i class="bi bi-info-circle fs-3 d-block mb-2"></i>
-            No divisions found to theme.
-          </div>
-        } @else {
+        <div class="alert alert-info py-2 mb-3" style="font-size: var(--font-size-sm);">
+          <i class="bi bi-info-circle me-1"></i>
+          Add one division name at a time — it is created in every age group. Nothing else is
+          renamed or removed. To change a single age group, edit it in the tree.
+        </div>
 
-          <!-- How it works -->
-          <div class="alert alert-info py-2 mb-3" style="font-size: var(--font-size-sm);">
-            <i class="bi bi-info-circle me-1"></i>
-            Each name you add becomes a division in every age group. Existing divisions are
-            renamed to match; if an age group has fewer divisions than names, new ones are created.
-          </div>
+        <!-- Add a division -->
+        <div class="sync-name-row">
+          <input class="form-control form-control-sm"
+                 placeholder="Division name..."
+                 [disabled]="commonBusy()"
+                 [ngModel]="newDivisionName()"
+                 (ngModelChange)="newDivisionName.set($event)"
+                 (keydown.enter)="submitNewDivision()" />
+          <button type="button"
+                  class="btn btn-sm btn-primary sync-add-btn"
+                  title="Add to every age group"
+                  [disabled]="!canSubmitDivision() || commonBusy()"
+                  (click)="submitNewDivision()">
+            @if (commonBusy()) {
+              <span class="spinner-border spinner-border-sm"></span>
+            } @else {
+              <i class="bi bi-plus-lg"></i>
+            }
+          </button>
+        </div>
 
-          <!-- Inspiration hint -->
-          @if (!syncHasNames()) {
-            <div class="sync-inspiration">
-              <i class="bi bi-lightbulb"></i>
-              <span>Try a theme like <strong>Pumpkins, Ghosts, Witches</strong>
-              or classic names like <strong>Pool A, Pool B, Pool C</strong></span>
+        @if (commonNotice()) {
+          <div class="alert alert-success py-2 mt-3 mb-0">
+            <i class="bi bi-check-circle me-2"></i>{{ commonNotice() }}
+          </div>
+        }
+        @if (commonError()) {
+          <div class="alert alert-warning py-2 mt-3 mb-0">
+            <i class="bi bi-exclamation-triangle me-2"></i>{{ commonError() }}
+          </div>
+        }
+
+        <!-- Current divisions -->
+        <div class="sync-preview-section mt-3">
+          <h6 class="sync-preview-title">
+            <i class="bi bi-diagram-3 me-1"></i>Current Divisions
+            @if (commonLoading()) {
+              <span class="spinner-border spinner-border-sm ms-2"></span>
+            }
+          </h6>
+
+          @if (!commonLoading() && commonDivisions().length === 0) {
+            <div class="text-center py-3 text-body-secondary">
+              <i class="bi bi-info-circle me-1"></i>
+              No divisions yet. Add one above.
             </div>
           }
 
-          <!-- Theme name inputs -->
-          @for (name of syncThemeNames(); track $index; let last = $last) {
-            <div class="sync-name-row">
-              <span class="sync-name-num">{{ $index + 1 }}</span>
-              <input class="form-control form-control-sm"
-                     [ngModel]="name"
-                     (ngModelChange)="updateThemeName($index, $event)"
-                     (blur)="onThemeNameBlur()"
-                     (keydown.enter)="addThemeName()"
-                     [placeholder]="$index === 0 ? 'First division name...' : 'Next name...'" />
-              @if (last && name.trim()) {
-                <button type="button"
-                        class="btn btn-sm btn-outline-primary sync-add-btn"
-                        title="Add"
-                        (click)="addThemeName()">
-                  <i class="bi bi-plus-lg"></i>
-                </button>
-              } @else if (name.trim()) {
-                <i class="bi bi-check-lg sync-name-check"></i>
+          @for (div of commonDivisions(); track div.divName) {
+            <div class="sync-common-row">
+              <span class="sync-common-name">{{ div.divName }}</span>
+
+              @if (div.agegroupCount < div.agegroupTotal) {
+                <span class="sync-common-partial"
+                      [title]="'Present in ' + div.agegroupCount + ' of ' + div.agegroupTotal + ' age groups'">
+                  {{ div.agegroupCount }}/{{ div.agegroupTotal }}
+                </span>
               }
-              @if (syncThemeNames().length > 1) {
+
+              @if (div.canRemove) {
                 <button type="button"
                         class="btn btn-sm sync-theme-remove"
-                        title="Remove"
-                        (click)="removeThemeName($index)">
-                  <i class="bi bi-x-lg"></i>
+                        [title]="'Remove ' + div.divName + ' from every age group'"
+                        [disabled]="commonBusy()"
+                        (click)="removeCommonDivision(div.divName)">
+                  <i class="bi bi-trash"></i>
                 </button>
+              } @else {
+                <span class="sync-common-inuse" title="Has teams — edit this division in the tree">
+                  <i class="bi bi-people me-1"></i>in use
+                </span>
               }
             </div>
           }
-
-          <!-- Current divisions / Preview -->
-          @if (syncPreviews().length > 0) {
-            <div class="sync-preview-section mt-3">
-              <h6 class="sync-preview-title">
-                @if (syncHasNames()) {
-                  <i class="bi bi-eye me-1"></i>Preview
-                } @else {
-                  <i class="bi bi-diagram-3 me-1"></i>Current Divisions
-                }
-                @if (syncLoading()) {
-                  <span class="spinner-border spinner-border-sm ms-2"></span>
-                }
-              </h6>
-              @for (preview of syncPreviews(); track preview.agegroupId) {
-                <div class="sync-preview-ag">
-                  <div class="sync-preview-ag-header">
-                    {{ preview.agegroupName }}
-                  </div>
-                  <div class="sync-preview-renames">
-                    @for (entry of preview.divisions; track $index) {
-                      <div class="sync-preview-rename"
-                           [class.sync-unchanged]="!entry.isNew && !entry.isDeleted && entry.currentName === entry.proposedName"
-                           [class.sync-new]="entry.isNew"
-                           [class.sync-deleted]="entry.isDeleted">
-                        @if (entry.isNew) {
-                          <span class="sync-rename-current text-success">
-                            <i class="bi bi-plus-circle me-1"></i>new
-                          </span>
-                          <i class="bi bi-arrow-right sync-rename-arrow"></i>
-                          <span class="sync-rename-proposed fw-semibold">
-                            {{ entry.proposedName }}
-                          </span>
-                        } @else if (entry.isDeleted) {
-                          <span class="sync-rename-current">{{ entry.currentName }}</span>
-                          <i class="bi bi-arrow-right sync-rename-arrow"></i>
-                          @if (entry.hasTeams) {
-                            <span class="sync-rename-blocked">
-                              <i class="bi bi-lock me-1"></i>has teams
-                            </span>
-                          } @else {
-                            <span class="sync-rename-removed">
-                              <i class="bi bi-trash me-1"></i>remove
-                            </span>
-                          }
-                        } @else {
-                          <span class="sync-rename-current">{{ entry.currentName }}</span>
-                          @if (syncHasNames()) {
-                            <i class="bi bi-arrow-right sync-rename-arrow"></i>
-                            <span class="sync-rename-proposed"
-                                  [class.fw-semibold]="entry.currentName !== entry.proposedName">
-                              {{ entry.proposedName }}
-                            </span>
-                          }
-                        }
-                      </div>
-                    }
-                  </div>
-                </div>
-              }
-            </div>
-          }
-
-          <!-- Result message -->
-          @if (syncResult()) {
-            <div class="alert alert-success mt-3 mb-0">
-              <i class="bi bi-check-circle me-2"></i>{{ syncResult() }}
-            </div>
-          }
-        }
+        </div>
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn-outline-secondary" (click)="closeSyncDialog()">
-          {{ syncResult() ? 'Close' : 'Cancel' }}
-        </button>
-        @if (!syncResult() && syncHasAgegroups()) {
-          <button class="btn btn-primary" (click)="applySyncNames()"
-                  [disabled]="syncApplying() || syncLoading() || !syncHasNames()">
-            @if (syncApplying()) {
-              <span class="spinner-border spinner-border-sm me-1"></span>
-            }
-            Apply Theme
-          </button>
-        }
+        <button class="btn btn-outline-secondary" (click)="closeDivisionsDialog()">Close</button>
       </div>
     </div>
   </tsic-dialog>

@@ -21,7 +21,7 @@ import {
 } from './configs/ladt-grid-columns';
 import type { ParentBreadcrumb } from './components/ladt-sibling-grid.component';
 import type {
-  LadtTreeNodeDto, DivisionNameSyncPreview, JobFeeDto,
+  LadtTreeNodeDto, CommonDivisionDto, JobFeeDto,
   LadtFeeResolutionMapDto, LadtFeeNodeResolutionDto, LadtFeeRoleResolutionDto,
   SportOptionDto
 } from '../../../core/api';
@@ -1559,105 +1559,116 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     this.drawerOpen.set(!this.drawerOpen());
   }
 
-  // ── Division Name Sync ──
+  // ── Common Divisions (Theme Division Names dialog) ──
+  //
+  // Works on division NAMES across the whole job, not on individual division rows. Adding a
+  // name creates it in every age group that lacks it; an age group that already has the name
+  // is left alone, so re-adding is a no-op and nothing is ever renamed. Removal is offered
+  // only when the name holds no teams anywhere — otherwise the control is absent rather than
+  // disabled, because an icon that refuses to work is the defect this dialog was rebuilt to fix.
 
-  showSyncDialog = signal(false);
-  syncThemeNames = signal<string[]>([]);
-  syncPreviews = signal<DivisionNameSyncPreview[]>([]);
-  syncLoading = signal(false);
-  syncApplying = signal(false);
-  syncResult = signal<string | null>(null);
+  showDivisionsDialog = signal(false);
+  commonDivisions = signal<CommonDivisionDto[]>([]);
+  commonLoading = signal(false);
+  commonBusy = signal(false);
+  newDivisionName = signal('');
+  commonError = signal<string | null>(null);
+  commonNotice = signal<string | null>(null);
 
-  /** Whether at least one theme name has content */
-  syncHasNames = computed(() => this.syncThemeNames().some(n => n.trim().length > 0));
+  /** Trimmed name, empty when there is nothing to submit */
+  private get pendingDivisionName(): string {
+    return this.newDivisionName().trim();
+  }
 
-  /** Whether any agegroups exist to theme */
-  syncHasAgegroups = computed(() => this.syncPreviews().length > 0);
+  canSubmitDivision = computed(() => {
+    const name = this.newDivisionName().trim().toUpperCase();
+    if (name.length === 0) return false;
+    // Already present in every age group — adding would do nothing.
+    return !this.commonDivisions().some(
+      d => d.divName.toUpperCase() === name && d.agegroupCount === d.agegroupTotal
+    );
+  });
 
-  openSyncDialog(): void {
+  openDivisionsDialog(): void {
     this.actionsOpen.set(false);
-    this.syncLoading.set(true);
-    this.syncResult.set(null);
-    this.syncThemeNames.set(['']);
-    this.showSyncDialog.set(true);
+    this.newDivisionName.set('');
+    this.commonError.set(null);
+    this.commonNotice.set(null);
+    this.commonDivisions.set([]);
+    this.showDivisionsDialog.set(true);
+    this.loadCommonDivisions();
+  }
 
-    // Fetch current state to show what exists now
-    this.ladtService.previewDivisionNameSync([]).subscribe({
-      next: (previews) => {
-        this.syncPreviews.set(previews);
-        this.syncLoading.set(false);
+  closeDivisionsDialog(): void {
+    this.showDivisionsDialog.set(false);
+    this.commonDivisions.set([]);
+    this.newDivisionName.set('');
+    this.commonError.set(null);
+    this.commonNotice.set(null);
+  }
+
+  private loadCommonDivisions(): void {
+    this.commonLoading.set(true);
+    this.ladtService.getCommonDivisions().subscribe({
+      next: (divisions) => {
+        this.commonDivisions.set(divisions);
+        this.commonLoading.set(false);
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to load divisions');
-        this.showSyncDialog.set(false);
-        this.syncLoading.set(false);
+        this.commonError.set(err.error?.message || 'Failed to load divisions.');
+        this.commonLoading.set(false);
       }
     });
   }
 
-  closeSyncDialog(): void {
-    this.showSyncDialog.set(false);
-    this.syncPreviews.set([]);
-    this.syncThemeNames.set([]);
-    this.syncResult.set(null);
-  }
+  submitNewDivision(): void {
+    const name = this.pendingDivisionName;
+    if (name.length === 0 || this.commonBusy() || !this.canSubmitDivision()) return;
 
-  addThemeName(): void {
-    this.syncThemeNames.update(names => [...names, '']);
-  }
+    this.commonBusy.set(true);
+    this.commonError.set(null);
+    this.commonNotice.set(null);
 
-  updateThemeName(index: number, value: string): void {
-    this.syncThemeNames.update(names => {
-      const updated = [...names];
-      updated[index] = value;
-      return updated;
-    });
-  }
-
-  removeThemeName(index: number): void {
-    if (this.syncThemeNames().length <= 1) return;
-    this.syncThemeNames.update(names => names.filter((_, i) => i !== index));
-    this.refreshSyncPreview();
-  }
-
-  onThemeNameBlur(): void {
-    this.refreshSyncPreview();
-  }
-
-  private refreshSyncPreview(): void {
-    this.syncLoading.set(true);
-    this.ladtService.previewDivisionNameSync(this.syncThemeNames()).subscribe({
-      next: (previews) => {
-        this.syncPreviews.set(previews);
-        this.syncLoading.set(false);
-      },
-      error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to refresh preview');
-        this.syncLoading.set(false);
-      }
-    });
-  }
-
-  applySyncNames(): void {
-    this.syncApplying.set(true);
-    this.ladtService.applyDivisionNameSync(this.syncThemeNames()).subscribe({
+    this.ladtService.addCommonDivision(name).subscribe({
       next: (result) => {
-        this.syncApplying.set(false);
-        const parts: string[] = [];
-        if (result.divisionsRenamed > 0) parts.push(`${result.divisionsRenamed} renamed`);
-        if (result.divisionsCreated > 0) parts.push(`${result.divisionsCreated} created`);
-        if (result.divisionsDeleted > 0) parts.push(`${result.divisionsDeleted} removed`);
-        const summary = parts.length > 0 ? parts.join(', ') : 'No changes needed';
-        if (result.errors.length > 0) {
-          this.syncResult.set(`${summary}. Errors: ${result.errors.join(', ')}`);
-        } else {
-          this.syncResult.set(`Done! ${summary}.`);
-        }
+        this.commonBusy.set(false);
+        this.newDivisionName.set('');
+        this.commonNotice.set(
+          result.agegroupsAffected > 0
+            ? `Added "${name}" to ${result.agegroupsAffected} age group${result.agegroupsAffected === 1 ? '' : 's'}.`
+            : `"${name}" was already in every age group.`
+        );
+        if (result.errors.length > 0) this.commonError.set(result.errors.join(' '));
+        this.loadCommonDivisions();
         this.loadTree();
       },
       error: (err) => {
-        this.syncApplying.set(false);
-        this.syncResult.set(err.error?.message || 'Failed to apply division name sync');
+        this.commonBusy.set(false);
+        this.commonError.set(err.error?.message || 'Failed to add division.');
+      }
+    });
+  }
+
+  removeCommonDivision(divName: string): void {
+    if (this.commonBusy()) return;
+
+    this.commonBusy.set(true);
+    this.commonError.set(null);
+    this.commonNotice.set(null);
+
+    this.ladtService.removeCommonDivision(divName).subscribe({
+      next: (result) => {
+        this.commonBusy.set(false);
+        this.commonNotice.set(
+          `Removed "${divName}" from ${result.agegroupsAffected} age group${result.agegroupsAffected === 1 ? '' : 's'}.`
+        );
+        if (result.errors.length > 0) this.commonError.set(result.errors.join(' '));
+        this.loadCommonDivisions();
+        this.loadTree();
+      },
+      error: (err) => {
+        this.commonBusy.set(false);
+        this.commonError.set(err.error?.message || 'Failed to remove division.');
       }
     });
   }

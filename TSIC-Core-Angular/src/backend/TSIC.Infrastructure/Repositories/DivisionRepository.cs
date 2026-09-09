@@ -42,6 +42,21 @@ public class DivisionRepository : IDivisionRepository
             .AnyAsync(t => t.DivId == divId, cancellationToken);
     }
 
+    public async Task<HashSet<Guid>> GetDivIdsWithTeamsAsync(
+        IReadOnlyCollection<Guid> divIds, CancellationToken cancellationToken = default)
+    {
+        if (divIds.Count == 0) return new HashSet<Guid>();
+
+        var ids = await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.DivId != null && divIds.Contains(t.DivId.Value))
+            .Select(t => t.DivId!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return ids.ToHashSet();
+    }
+
     public async Task<bool> BelongsToJobAsync(Guid divId, Guid jobId, CancellationToken cancellationToken = default)
     {
         return await _context.Divisions

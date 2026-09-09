@@ -2,10 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type DivisionNameSyncResult = {
-    divisionsRenamed: number;
-    divisionsCreated: number;
-    divisionsDeleted: number;
+export type CommonDivisionMutationResult = {
+    agegroupsAffected: number;
     errors: Array<string>;
 };
 

@@ -79,8 +79,9 @@ public interface ILadtService
     Task<List<DivisionDetailDto>> GetDivisionsByAgegroupAsync(Guid agegroupId, Guid jobId, CancellationToken cancellationToken = default);
     Task<List<TeamDetailDto>> GetTeamsByDivisionAsync(Guid divId, Guid jobId, CancellationToken cancellationToken = default);
 
-    // ── Division Name Sync ──
+    // ── Common Divisions ──
 
-    Task<List<DivisionNameSyncPreview>> PreviewDivisionNameSyncAsync(Guid jobId, List<string> themeNames, CancellationToken cancellationToken = default);
-    Task<DivisionNameSyncResult> ApplyDivisionNameSyncAsync(Guid jobId, List<string> themeNames, string userId, CancellationToken cancellationToken = default);
+    Task<List<CommonDivisionDto>> GetCommonDivisionsAsync(Guid jobId, CancellationToken cancellationToken = default);
+    Task<CommonDivisionMutationResult> AddCommonDivisionAsync(Guid jobId, string divName, string userId, CancellationToken cancellationToken = default);
+    Task<CommonDivisionMutationResult> RemoveCommonDivisionAsync(Guid jobId, string divName, CancellationToken cancellationToken = default);
 }

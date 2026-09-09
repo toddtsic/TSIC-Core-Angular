@@ -2,7 +2,10 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type DivisionNameSyncRequest = {
-    themeNames: Array<string>;
+export type CommonDivisionDto = {
+    divName: string;
+    agegroupCount: number;
+    agegroupTotal: number;
+    canRemove: boolean;
 };
 

@@ -28,6 +28,11 @@ public interface IDivisionRepository
     Task<bool> HasTeamsAsync(Guid divId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Of the given divisions, which ones hold at least one team. One query instead of N.
+    /// </summary>
+    Task<HashSet<Guid>> GetDivIdsWithTeamsAsync(IReadOnlyCollection<Guid> divIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Check if a division belongs to a job (via Agegroup → League → JobLeagues).
     /// </summary>
     Task<bool> BelongsToJobAsync(Guid divId, Guid jobId, CancellationToken cancellationToken = default);

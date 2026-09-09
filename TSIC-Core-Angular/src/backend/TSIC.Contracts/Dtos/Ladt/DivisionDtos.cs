@@ -21,35 +21,34 @@ public record UpdateDivisionRequest
     public int? MaxRoundNumberToShow { get; init; }
 }
 
-// ── Division Name Sync ──
 
-public record DivisionNameSyncRequest
+// ── Common Divisions (Theme Division Names dialog) ──
+
+/// <summary>
+/// One division name as it exists across the job's age groups. The dialog works on names,
+/// not on individual divisions — adding a name creates it in every age group that lacks it.
+/// </summary>
+public record CommonDivisionDto
 {
-    public required List<string> ThemeNames { get; init; }
+    public required string DivName { get; init; }
+
+    /// <summary>How many age groups currently carry a division with this name.</summary>
+    public required int AgegroupCount { get; init; }
+
+    /// <summary>Total age groups in scope, so the UI can show a name that is not yet universal.</summary>
+    public required int AgegroupTotal { get; init; }
+
+    /// <summary>True when no division with this name holds a team anywhere — only then is removal offered.</summary>
+    public required bool CanRemove { get; init; }
 }
 
-public record DivisionNameSyncPreview
+public record CommonDivisionNameRequest
 {
-    public required string AgegroupName { get; init; }
-    public required Guid AgegroupId { get; init; }
-    public required int DivisionCount { get; init; }
-    public required List<DivisionRenameEntry> Divisions { get; init; }
+    public required string DivName { get; init; }
 }
 
-public record DivisionRenameEntry
+public record CommonDivisionMutationResult
 {
-    public required Guid DivId { get; init; }
-    public required string CurrentName { get; init; }
-    public required string ProposedName { get; init; }
-    public bool IsNew { get; init; }
-    public bool IsDeleted { get; init; }
-    public bool HasTeams { get; init; }
-}
-
-public record DivisionNameSyncResult
-{
-    public required int DivisionsRenamed { get; init; }
-    public required int DivisionsCreated { get; init; }
-    public required int DivisionsDeleted { get; init; }
+    public required int AgegroupsAffected { get; init; }
     public required List<string> Errors { get; init; }
 }

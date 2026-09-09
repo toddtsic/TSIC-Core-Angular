@@ -542,36 +542,51 @@ public class LadtController : ControllerBase
     }
 
     // ═══════════════════════════════════════════
-    // Division Name Sync
+    // Common Divisions
     // ═══════════════════════════════════════════
 
-    [HttpPost("divisions/sync-names/preview")]
-    public async Task<ActionResult<List<DivisionNameSyncPreview>>> PreviewDivisionNameSync(
-        [FromBody] DivisionNameSyncRequest request, CancellationToken cancellationToken)
+    [HttpGet("divisions/common")]
+    public async Task<ActionResult<List<CommonDivisionDto>>> GetCommonDivisions(
+        CancellationToken cancellationToken)
     {
         var (jobId, _, error) = await ResolveContext();
         if (error != null) return error;
 
         try
         {
-            var previews = await _ladtService.PreviewDivisionNameSyncAsync(
-                jobId!.Value, request.ThemeNames, cancellationToken);
-            return Ok(previews);
+            var divisions = await _ladtService.GetCommonDivisionsAsync(jobId!.Value, cancellationToken);
+            return Ok(divisions);
         }
         catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
     }
 
-    [HttpPost("divisions/sync-names/apply")]
-    public async Task<ActionResult<DivisionNameSyncResult>> ApplyDivisionNameSync(
-        [FromBody] DivisionNameSyncRequest request, CancellationToken cancellationToken)
+    [HttpPost("divisions/common/add")]
+    public async Task<ActionResult<CommonDivisionMutationResult>> AddCommonDivision(
+        [FromBody] CommonDivisionNameRequest request, CancellationToken cancellationToken)
     {
         var (jobId, userId, error) = await ResolveContext();
         if (error != null) return error;
 
         try
         {
-            var result = await _ladtService.ApplyDivisionNameSyncAsync(
-                jobId!.Value, request.ThemeNames, userId!, cancellationToken);
+            var result = await _ladtService.AddCommonDivisionAsync(
+                jobId!.Value, request.DivName, userId!, cancellationToken);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    [HttpPost("divisions/common/remove")]
+    public async Task<ActionResult<CommonDivisionMutationResult>> RemoveCommonDivision(
+        [FromBody] CommonDivisionNameRequest request, CancellationToken cancellationToken)
+    {
+        var (jobId, _, error) = await ResolveContext();
+        if (error != null) return error;
+
+        try
+        {
+            var result = await _ladtService.RemoveCommonDivisionAsync(
+                jobId!.Value, request.DivName, cancellationToken);
             return Ok(result);
         }
         catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
