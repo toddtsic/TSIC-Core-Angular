@@ -593,11 +593,24 @@ public sealed class RosterSwapperService : IRosterSwapperService
     /// because it must say the same thing wherever it surfaces and because every figure in it is
     /// live money the client has no business re-deriving.
     /// <para>
-    /// AR-077 (Ann, 09-06): wording supplied by her and built verbatim. The reprice arithmetic
-    /// came OUT — it explained what went wrong instead of saying what is true — and the third
-    /// sentence went IN, because correcting the player's accounting on the new team is the move
-    /// an operator makes next and it does not touch the subscription. Her word "future" is a
-    /// precision, not filler: already-drafted installments were never in question.
+    /// AR-089 (Ann, 09-08) SUPERSEDES the AR-077 wording below. She withdrew her own text because
+    /// it offered Correction Records, "which the client can't use here". Both remedies are GONE by
+    /// her ruling — Correction Records AND cancel-and-resubscribe — and neither is to be
+    /// reinstated as a helpful addition. The toast now names WHO TO ASK rather than WHAT TO DO.
+    /// Her four confirmations, all answered 09-08: it stays PAST tense and after-the-fact (so
+    /// AR-076's behaviour is untouched — this is not a pre-move prompt), the plan figures stay,
+    /// the name stays in the client-side header, and "Support" is spelled out as an address.
+    /// <para>
+    /// The address is a TSIC one, and that is a DELIBERATE divergence from AR-068, where the
+    /// expiring-card email's reply-to stays the club director because a family asking about their
+    /// card is a club money conversation. The audience HERE is the DIRECTOR, not a family — a
+    /// director stuck on a subscription they cannot adjust is asking TSIC, not themselves.
+    /// </para>
+    /// <para>
+    /// AR-077 (Ann, 09-06), now superseded: wording supplied by her and built verbatim. The
+    /// reprice arithmetic came OUT — it explained what went wrong instead of saying what is true —
+    /// and the third sentence went IN, because correcting the player's accounting on the new team
+    /// is the move an operator makes next and it does not touch the subscription.
     /// </para>
     /// <para>
     /// Every figure is read off the SUBSCRIPTION mirror (<c>AdnSubscription*</c>), per Ann's
@@ -606,8 +619,9 @@ public sealed class RosterSwapperService : IRosterSwapperService
     /// </para>
     /// <para>
     /// Asserts NO past draft and NO future draft. The guard fires on schedule POSITION, not
-    /// <c>AdnSubscriptionStatus</c>, so it also fires for an already-CANCELED plan; the only
-    /// forward-looking claim here is scoped by Ann's own "on an active subscription".
+    /// <c>AdnSubscriptionStatus</c>, so it also fires for an already-CANCELED plan. Under AR-089
+    /// the text makes no forward-looking claim at all — the "future installments" clause that
+    /// needed that scoping went out with Correction Records.
     /// </para>
     /// <para>
     /// It renders through
@@ -618,12 +632,11 @@ public sealed class RosterSwapperService : IRosterSwapperService
     /// </summary>
     private static string BuildArbWarningReason(string playerName, string? targetTeamName, ArbPlanConflict c)
     {
-        return "Player MOVED to a different team, and the payment plan did NOT follow. The payment "
-             + $"plan is unchanged — {c.AmountPerOccurrence:C} per installment, {c.TotalOccurrences} "
-             + "installments, on its original schedule. Adjusting this player's accounting on the "
-             + "new team will not change the plan. You can cancel the payment plan and have them "
-             + "return to subscribe for a new one, or adjust the amount owed as needed with "
-             + "Correction Records — although Correction Records do NOT affect future installments "
-             + "on an active subscription.";
+        return "This player has an active installment subscription plan and has been moved to a "
+             + "team with a different balance due. The plan is unchanged — "
+             + $"{c.AmountPerOccurrence:C} per installment, {c.TotalOccurrences} installments, on "
+             + "its original schedule. Adjusting this player's accounting will not change the "
+             + $"installment plan. Please contact {TsicConstants.SupportEmail} if you have "
+             + "questions on how to adjust this account.";
     }
 }
