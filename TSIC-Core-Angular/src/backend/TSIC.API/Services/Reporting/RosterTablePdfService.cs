@@ -195,9 +195,9 @@ public sealed class RosterTablePdfService : IRosterTablePdfService
         // for the selected field isn't in any bucket, so drop them rather than show a "(No …)" group.
         rows = groupBy switch
         {
-            "DayGroup"   => rows.Where(r => !string.IsNullOrWhiteSpace(r.DayGroup)).ToList(),
+            "DayGroup" => rows.Where(r => !string.IsNullOrWhiteSpace(r.DayGroup)).ToList(),
             "NightGroup" => rows.Where(r => !string.IsNullOrWhiteSpace(r.NightGroup)).ToList(),
-            "Roommate"   => rows.Where(r => !string.IsNullOrWhiteSpace(r.Roommate)).ToList(),
+            "Roommate" => rows.Where(r => !string.IsNullOrWhiteSpace(r.Roommate)).ToList(),
             _ => rows,
         };
 

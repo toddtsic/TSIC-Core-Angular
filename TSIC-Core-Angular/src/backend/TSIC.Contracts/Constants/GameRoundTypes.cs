@@ -28,7 +28,12 @@ public static class GameRoundTypes
     public static readonly IReadOnlyDictionary<string, int> LadderRoundSize =
         new Dictionary<string, int>
         {
-            ["Z"] = 64, ["Y"] = 32, ["X"] = 16, ["Q"] = 8, ["S"] = 4, ["F"] = 2
+            ["Z"] = 64,
+            ["Y"] = 32,
+            ["X"] = 16,
+            ["Q"] = 8,
+            ["S"] = 4,
+            ["F"] = 2
         };
 
     /// <summary>

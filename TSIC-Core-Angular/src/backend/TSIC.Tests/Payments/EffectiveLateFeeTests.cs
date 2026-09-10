@@ -27,8 +27,14 @@ public class EffectiveLateFeeTests
     private static PaymentState Paid(decimal check = 0m, decimal cc = 0m, decimal ccRate = 0.038m) =>
         new()
         {
-            CcGrossPaid = cc, EcheckGrossPaid = 0m, CheckPaid = check, CashPaid = 0m, CorrectionApplied = 0m,
-            BAddProcessingFees = true, CcRate = ccRate, EcheckRate = 0.01m,
+            CcGrossPaid = cc,
+            EcheckGrossPaid = 0m,
+            CheckPaid = check,
+            CashPaid = 0m,
+            CorrectionApplied = 0m,
+            BAddProcessingFees = true,
+            CcRate = ccRate,
+            EcheckRate = 0.01m,
         };
 
     [Fact(DisplayName = "New reg, in window, owes everything → full late fee applies")]

@@ -57,22 +57,22 @@ public class ClubRegistrationGateTests
         string clubName,
         bool confirmedNewClub = false,
         bool acceptedTos = true) => new()
-    {
-        ClubName = clubName,
-        FirstName = "Test",
-        LastName = "User",
-        Gender = "M",
-        Email = "test@example.com",
-        Username = "testuser_" + Guid.NewGuid().ToString("N")[..8],
-        Password = "Password123!",
-        StreetAddress = "123 Main St",
-        City = "Anytown",
-        State = "NC",
-        PostalCode = "28205",
-        Cellphone = "5551234567",
-        ConfirmedNewClub = confirmedNewClub,
-        AcceptedTos = acceptedTos
-    };
+        {
+            ClubName = clubName,
+            FirstName = "Test",
+            LastName = "User",
+            Gender = "M",
+            Email = "test@example.com",
+            Username = "testuser_" + Guid.NewGuid().ToString("N")[..8],
+            Password = "Password123!",
+            StreetAddress = "123 Main St",
+            City = "Anytown",
+            State = "NC",
+            PostalCode = "28205",
+            Cellphone = "5551234567",
+            ConfirmedNewClub = confirmedNewClub,
+            AcceptedTos = acceptedTos
+        };
 
     // ── Service factory ─────────────────────────────────────────────
 
@@ -329,8 +329,12 @@ public class ClubRegistrationGateTests
     {
         var vaClub = new ClubSearchCandidate
         {
-            ClubId = 10, ClubName = "3 Point Lacrosse - VA", State = "VA",
-            TeamCount = 8, RepName = "Rep VA", RepEmail = "va@3point.com"
+            ClubId = 10,
+            ClubName = "3 Point Lacrosse - VA",
+            State = "VA",
+            TeamCount = 8,
+            RepName = "Rep VA",
+            RepEmail = "va@3point.com"
         };
         var (svc, _) = CreateService(vaClub);
 

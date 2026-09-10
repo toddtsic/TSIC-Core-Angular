@@ -926,8 +926,13 @@ public static class JobCloneResetRules
             Createdate = now,
             Modified = now,
             LebUserId = userId,
-            FeeBase = 0m, FeeProcessing = 0m, FeeDiscount = 0m, FeeDiscountMp = 0m,
-            FeeDonation = 0m, FeeLatefee = 0m, PaidTotal = 0m,
+            FeeBase = 0m,
+            FeeProcessing = 0m,
+            FeeDiscount = 0m,
+            FeeDiscountMp = 0m,
+            FeeDonation = 0m,
+            FeeLatefee = 0m,
+            PaidTotal = 0m,
         };
         t.RecalcTotals();
         return t;

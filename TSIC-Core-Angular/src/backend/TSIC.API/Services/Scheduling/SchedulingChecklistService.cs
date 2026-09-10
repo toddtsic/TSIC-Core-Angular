@@ -259,7 +259,14 @@ public sealed class SchedulingChecklistService : ISchedulingChecklistService
     /// <summary>Earliest rounds first — the order the seeds page lists games.</summary>
     private static readonly Dictionary<string, int> RoundOrder = new()
     {
-        ["Z"] = 0, ["Y"] = 1, ["X"] = 2, ["Q"] = 3, ["S"] = 4, ["F"] = 5, ["B"] = 6, ["C"] = 7
+        ["Z"] = 0,
+        ["Y"] = 1,
+        ["X"] = 2,
+        ["Q"] = 3,
+        ["S"] = 4,
+        ["F"] = 5,
+        ["B"] = 6,
+        ["C"] = 7
     };
 
     public async Task<ScheduleDashboardDto> GetDashboardAsync(Guid jobId, CancellationToken ct = default)

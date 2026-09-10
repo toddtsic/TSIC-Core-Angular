@@ -660,8 +660,10 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
                         && s.T1Type == "T" && s.T2Type == "T")
             .Select(s => new
             {
-                s.T1Id, T1Name = s.T1Name ?? "",
-                s.T2Id, T2Name = s.T2Name ?? "",
+                s.T1Id,
+                T1Name = s.T1Name ?? "",
+                s.T2Id,
+                T2Name = s.T2Name ?? "",
                 s.GDate,
                 FieldName = s.FName ?? "",
                 AgegroupName = s.AgegroupName ?? "",
@@ -722,8 +724,10 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
                         && s.T1Type == "T" && s.T2Type == "T")
             .Select(s => new
             {
-                s.T1Id, T1Name = s.T1Name ?? "",
-                s.T2Id, T2Name = s.T2Name ?? "",
+                s.T1Id,
+                T1Name = s.T1Name ?? "",
+                s.T2Id,
+                T2Name = s.T2Name ?? "",
                 AgegroupName = s.AgegroupName ?? "",
                 DivName = s.DivName ?? ""
             })
@@ -761,8 +765,10 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
                         && s.T1Type == "T" && s.T2Type == "T")
             .Select(s => new
             {
-                s.T1Id, T1Name = s.T1Name ?? "",
-                s.T2Id, T2Name = s.T2Name ?? "",
+                s.T1Id,
+                T1Name = s.T1Name ?? "",
+                s.T2Id,
+                T2Name = s.T2Name ?? "",
                 s.GDate,
                 AgegroupName = s.AgegroupName ?? "",
                 DivName = s.DivName ?? ""
@@ -822,8 +828,12 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
                         && s.T1Id != null && s.T2Id != null)
             .Select(s => new
             {
-                s.T1Id, s.T1No, T1Name = s.T1Name ?? "",
-                s.T2Id, T2No = (int?)s.T2No, T2Name = s.T2Name ?? "",
+                s.T1Id,
+                s.T1No,
+                T1Name = s.T1Name ?? "",
+                s.T2Id,
+                T2No = (int?)s.T2No,
+                T2Name = s.T2Name ?? "",
                 s.GDate,
                 FieldName = s.FName ?? "",
                 AgegroupName = s.AgegroupName ?? "",
@@ -891,8 +901,10 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
                         && s.T1Id != null && s.T2Id != null)
             .Select(s => new
             {
-                s.T1Id, T1Name = s.T1Name ?? "",
-                s.T2Id, T2Name = s.T2Name ?? "",
+                s.T1Id,
+                T1Name = s.T1Name ?? "",
+                s.T2Id,
+                T2Name = s.T2Name ?? "",
                 AgegroupName = s.AgegroupName ?? "",
                 DivName = s.DivName ?? ""
             })
@@ -997,8 +1009,10 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
             .Where(s => s.JobId == jobId && s.GDate != null)
             .Select(s => new
             {
-                s.T1Id, T1Name = s.T1Name ?? "",
-                s.T2Id, T2Name = s.T2Name ?? "",
+                s.T1Id,
+                T1Name = s.T1Name ?? "",
+                s.T2Id,
+                T2Name = s.T2Name ?? "",
                 s.GDate,
                 AgegroupName = s.AgegroupName ?? "",
                 DivName = s.DivName ?? ""
@@ -1189,7 +1203,8 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
             .Select(s => new
             {
                 s.JobId,
-                s.T1Id, s.T2Id,
+                s.T1Id,
+                s.T2Id,
                 T1Name = s.T1Name ?? "",
                 T2Name = s.T2Name ?? "",
                 AgegroupName = s.AgegroupName ?? ""
@@ -1218,15 +1233,19 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
             matchups.Add(new CrossEventMatchupRaw
             {
                 Agegroup = g.AgegroupName,
-                TeamClub = t1Club, TeamName = g.T1Name,
-                OpponentClub = t2Club, OpponentName = g.T2Name,
+                TeamClub = t1Club,
+                TeamName = g.T1Name,
+                OpponentClub = t2Club,
+                OpponentName = g.T2Name,
                 JobId = g.JobId
             });
             matchups.Add(new CrossEventMatchupRaw
             {
                 Agegroup = g.AgegroupName,
-                TeamClub = t2Club, TeamName = g.T2Name,
-                OpponentClub = t1Club, OpponentName = g.T1Name,
+                TeamClub = t2Club,
+                TeamName = g.T2Name,
+                OpponentClub = t1Club,
+                OpponentName = g.T1Name,
                 JobId = g.JobId
             });
         }

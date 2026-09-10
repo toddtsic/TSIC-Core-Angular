@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using AuthorizeNet.Api.Contracts.V1;
 using Microsoft.Extensions.Options;
 using TSIC.API.Configuration;
@@ -274,69 +274,69 @@ public sealed class AdnSweepService : IAdnSweepService
             // withhold them, and skipping them cost the dry run two genuine findings it could report.
             if (!_dryRun)
             {
-            // 3) Process eCheck Pending → Settled transitions.
-            // Walk batch txs that settled successfully and match against our pending Settlement
-            // rows. No per-tx API call is needed — presence in a settled batch is the proof of
-            // settlement. Status-only: the money booked at submit (optimistic); this stamp records
-            // that the draft entered the banking network, which the return handler and watchdog
-            // key on. subscription == null excludes ARB drafts, which book their RA in step 2
-            // (ImportArbTransactionAsync) — see the ARB/eCheck split there.
-            var settledTxIds = allTxs
-                .Where(t => t.transactionStatus == "settledSuccessfully" && t.subscription == null && !string.IsNullOrEmpty(t.transId))
-                .Select(t => t.transId)
-                .Distinct()
-                .ToList();
-            if (settledTxIds.Count > 0)
-            {
-                var pendingSettlements = (await _settleRepo.GetByAdnTransactionIdsAsync(settledTxIds, ct))
-                    .Where(s => s.Status == "Pending")
+                // 3) Process eCheck Pending → Settled transitions.
+                // Walk batch txs that settled successfully and match against our pending Settlement
+                // rows. No per-tx API call is needed — presence in a settled batch is the proof of
+                // settlement. Status-only: the money booked at submit (optimistic); this stamp records
+                // that the draft entered the banking network, which the return handler and watchdog
+                // key on. subscription == null excludes ARB drafts, which book their RA in step 2
+                // (ImportArbTransactionAsync) — see the ARB/eCheck split there.
+                var settledTxIds = allTxs
+                    .Where(t => t.transactionStatus == "settledSuccessfully" && t.subscription == null && !string.IsNullOrEmpty(t.transId))
+                    .Select(t => t.transId)
+                    .Distinct()
                     .ToList();
-                foreach (var settlement in pendingSettlements)
+                if (settledTxIds.Count > 0)
+                {
+                    var pendingSettlements = (await _settleRepo.GetByAdnTransactionIdsAsync(settledTxIds, ct))
+                        .Where(s => s.Status == "Pending")
+                        .ToList();
+                    foreach (var settlement in pendingSettlements)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        try
+                        {
+                            // Each call owns its transaction (status flip + RA Active flip + recompute
+                            // commit together), so there is no batch save after the loop — a batch
+                            // re-save could re-commit a rolled-back in-memory status without its money.
+                            var row = await MarkEcheckSettled(settlement, ct);
+                            if (row != null)
+                            {
+                                counts.EcheckSettled++;
+                                settledRows.Add(row);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "eCheck settled processing failed for settlement {Id}",
+                                settlement.SettlementId);
+                            counts.Errored++;
+                        }
+                    }
+                }
+
+                // 4) Process eCheck returns.
+                foreach (var tx in allTxs.Where(t => t.transactionStatus == "returnedItem"))
                 {
                     ct.ThrowIfCancellationRequested();
                     try
                     {
-                        // Each call owns its transaction (status flip + RA Active flip + recompute
-                        // commit together), so there is no batch save after the loop — a batch
-                        // re-save could re-commit a rolled-back in-memory status without its money.
-                        var row = await MarkEcheckSettled(settlement, ct);
+                        var row = await ProcessEcheckReturnAsync(tx, env, creds, ct);
                         if (row != null)
                         {
-                            counts.EcheckSettled++;
-                            settledRows.Add(row);
+                            counts.EcheckReturnsProcessed++;
+                            ecRows.Add(row);
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "eCheck settled processing failed for settlement {Id}",
-                            settlement.SettlementId);
+                        _logger.LogError(ex, "eCheck return processing failed for tx {TxId}", tx.transId);
                         counts.Errored++;
                     }
                 }
-            }
-
-            // 4) Process eCheck returns.
-            foreach (var tx in allTxs.Where(t => t.transactionStatus == "returnedItem"))
-            {
-                ct.ThrowIfCancellationRequested();
-                try
-                {
-                    var row = await ProcessEcheckReturnAsync(tx, env, creds, ct);
-                    if (row != null)
-                    {
-                        counts.EcheckReturnsProcessed++;
-                        ecRows.Add(row);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "eCheck return processing failed for tx {TxId}", tx.transId);
-                    counts.Errored++;
-                }
-            }
-            _logger.LogInformation(
-                "ADN sweep steps 3-4 (eCheck): settled={Settled} returnsProcessed={Returns}",
-                counts.EcheckSettled, counts.EcheckReturnsProcessed);
+                _logger.LogInformation(
+                    "ADN sweep steps 3-4 (eCheck): settled={Settled} returnsProcessed={Returns}",
+                    counts.EcheckSettled, counts.EcheckReturnsProcessed);
             } // end steps 3-4 (live runs only)
 
             // 5) Detect orphan charges: one-time txs that settled at ADN but have no local
@@ -367,27 +367,27 @@ public sealed class AdnSweepService : IAdnSweepService
 
             if (!_dryRun)
             {
-            // 6) Stale-Pending watchdog: drafts that went silent. Healthy drafts settle in 1–2
-            // business days; a Settlement still Pending past the threshold gets its status
-            // queried at ADN directly and is settled, reversed, or flagged. This is the only
-            // detector for a draft that died before origination — that failure produces no
-            // batch transaction and no return, ever.
-            var staleCutoff = DateTime.Now.AddDays(-_options.WatchdogStalePendingDays);
-            foreach (var stale in await _settleRepo.GetStalePendingAsync(staleCutoff, ct))
-            {
-                ct.ThrowIfCancellationRequested();
-                try
+                // 6) Stale-Pending watchdog: drafts that went silent. Healthy drafts settle in 1–2
+                // business days; a Settlement still Pending past the threshold gets its status
+                // queried at ADN directly and is settled, reversed, or flagged. This is the only
+                // detector for a draft that died before origination — that failure produces no
+                // batch transaction and no return, ever.
+                var staleCutoff = DateTime.Now.AddDays(-_options.WatchdogStalePendingDays);
+                foreach (var stale in await _settleRepo.GetStalePendingAsync(staleCutoff, ct))
                 {
-                    var row = await ProcessStalePendingAsync(stale, env, creds, ct);
-                    if (row != null) watchdogRows.Add(row);
+                    ct.ThrowIfCancellationRequested();
+                    try
+                    {
+                        var row = await ProcessStalePendingAsync(stale, env, creds, ct);
+                        if (row != null) watchdogRows.Add(row);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Watchdog processing failed for settlement {Id}", stale.SettlementId);
+                        counts.Errored++;
+                    }
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Watchdog processing failed for settlement {Id}", stale.SettlementId);
-                    counts.Errored++;
-                }
-            }
-            _logger.LogInformation("ADN sweep step 6 (watchdog): staleHandled={Stale}", watchdogRows.Count);
+                _logger.LogInformation("ADN sweep step 6 (watchdog): staleHandled={Stale}", watchdogRows.Count);
             } // end step 6 (live runs only)
 
             // 7) Integrity net: booked eCheck money with no Settlement return-watcher. The atomic

@@ -37,14 +37,22 @@ public class TeamLinksTests
         // Team-scoped link
         ctx.TeamDocs.Add(new Domain.Entities.TeamDocs
         {
-            DocId = Guid.NewGuid(), TeamId = team.TeamId, Label = "Team Doc",
-            DocUrl = "https://example.com/team", UserId = MobileDataBuilder.DefaultUserId, CreateDate = DateTime.UtcNow
+            DocId = Guid.NewGuid(),
+            TeamId = team.TeamId,
+            Label = "Team Doc",
+            DocUrl = "https://example.com/team",
+            UserId = MobileDataBuilder.DefaultUserId,
+            CreateDate = DateTime.UtcNow
         });
         // Job-scoped link (visible to all teams)
         ctx.TeamDocs.Add(new Domain.Entities.TeamDocs
         {
-            DocId = Guid.NewGuid(), JobId = job.JobId, Label = "Job Doc",
-            DocUrl = "https://example.com/job", UserId = MobileDataBuilder.DefaultUserId, CreateDate = DateTime.UtcNow
+            DocId = Guid.NewGuid(),
+            JobId = job.JobId,
+            Label = "Job Doc",
+            DocUrl = "https://example.com/job",
+            UserId = MobileDataBuilder.DefaultUserId,
+            CreateDate = DateTime.UtcNow
         });
         await b.SaveAsync();
 
@@ -137,9 +145,12 @@ public class TeamLinksTests
 
         ctx.TeamDocs.Add(new Domain.Entities.TeamDocs
         {
-            DocId = Guid.NewGuid(), TeamId = victim.TeamId, Label = "Victim Doc",
+            DocId = Guid.NewGuid(),
+            TeamId = victim.TeamId,
+            Label = "Victim Doc",
             UserId = MobileDataBuilder.DefaultUserId,
-            DocUrl = "https://example.com/victim", CreateDate = DateTime.Now
+            DocUrl = "https://example.com/victim",
+            CreateDate = DateTime.Now
         });
         await b.SaveAsync();
         var victimDocId = await ctx.TeamDocs.Where(d => d.TeamId == victim.TeamId)

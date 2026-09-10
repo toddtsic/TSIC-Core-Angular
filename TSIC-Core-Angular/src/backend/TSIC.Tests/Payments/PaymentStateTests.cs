@@ -647,7 +647,8 @@ public class PaymentStateTests
     {
         // 500 proc-free + 1515 grossed at 1% (1500 + 15).
         var s = State(echeck: 2015m, ccRate: 0.035m, echeckRate: 0.01m)
-            with { ProcFreeBase = 500m, EcheckProcFreeGross = 500m };
+            with
+        { ProcFreeBase = 500m, EcheckProcFreeGross = 500m };
         s.EcheckPrincipalPaid.Should().Be(2000m);
         s.EcheckProcCollected.Should().Be(15m);
     }

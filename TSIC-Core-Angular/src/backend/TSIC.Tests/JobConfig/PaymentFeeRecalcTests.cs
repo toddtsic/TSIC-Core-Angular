@@ -105,10 +105,10 @@ public class PaymentFeeRecalcTests
     // ── Service Factory ─────────────────────────────────────────────
 
     /// <summary>
-     /// Player-flag scenario factory: builds a job + JobConfigService and returns the
-     /// Mock&lt;IPlayerRegistrationService&gt; so tests can verify whether
-     /// <c>RecalculatePlayerFeesAsync</c> is invoked under the change-detection branch.
-     /// </summary>
+    /// Player-flag scenario factory: builds a job + JobConfigService and returns the
+    /// Mock&lt;IPlayerRegistrationService&gt; so tests can verify whether
+    /// <c>RecalculatePlayerFeesAsync</c> is invoked under the change-detection branch.
+    /// </summary>
     private static async Task<(
         JobConfigService configService,
         SqlDbContext ctx,

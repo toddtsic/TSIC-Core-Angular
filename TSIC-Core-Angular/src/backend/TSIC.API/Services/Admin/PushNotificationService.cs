@@ -205,7 +205,8 @@ public class PushNotificationService : IPushNotificationService
             Message = $"Push notification sent to {owned.Count} team(s), "
                 + $"{totalDelivered} device(s)."
         };
-    }    public async Task<List<PushNotificationHistoryDto>> GetNotificationHistoryAsync(
+    }
+    public async Task<List<PushNotificationHistoryDto>> GetNotificationHistoryAsync(
         Guid jobId, CancellationToken ct = default)
     {
         return await _repo.GetNotificationHistoryAsync(jobId, ct);

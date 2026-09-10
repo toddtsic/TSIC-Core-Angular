@@ -28,16 +28,19 @@ public class NavRepositoryTests
         var b = new NavDataBuilder(context);
 
         var defaultNav = b.AddPlatformDefaultNav(Role);
-        var search     = b.AddL1Item(defaultNav.NavId, "Search");
-        /*    */          b.AddL2Item(defaultNav.NavId, search.NavItemId, "Players");
-        /*    */          b.AddL2Item(defaultNav.NavId, search.NavItemId, "Teams");
-        var reports    = b.AddL1Item(defaultNav.NavId, "Reports");
-        /*    */          b.AddL2Item(defaultNav.NavId, reports.NavItemId, "Summary");
+        var search = b.AddL1Item(defaultNav.NavId, "Search");
+        /*    */
+        b.AddL2Item(defaultNav.NavId, search.NavItemId, "Players");
+        /*    */
+        b.AddL2Item(defaultNav.NavId, search.NavItemId, "Teams");
+        var reports = b.AddL1Item(defaultNav.NavId, "Reports");
+        /*    */
+        b.AddL2Item(defaultNav.NavId, reports.NavItemId, "Summary");
 
         await b.SaveAsync();
 
         // Act — no override nav exists for this job
-        var repo   = new NavRepository(context, new VisibilityRulesEvaluator(context));
+        var repo = new NavRepository(context, new VisibilityRulesEvaluator(context));
         var result = await repo.GetMergedNavAsync(Role, JobId, Array.Empty<string>());
 
         // Assert
@@ -63,9 +66,10 @@ public class NavRepositoryTests
         var b = new NavDataBuilder(context);
 
         var defaultNav = b.AddPlatformDefaultNav(Role);
-        var search     = b.AddL1Item(defaultNav.NavId, "Search");
-        /*    */          b.AddL2Item(defaultNav.NavId, search.NavItemId, "Players");
-        var teams      = b.AddL2Item(defaultNav.NavId, search.NavItemId, "Teams");
+        var search = b.AddL1Item(defaultNav.NavId, "Search");
+        /*    */
+        b.AddL2Item(defaultNav.NavId, search.NavItemId, "Players");
+        var teams = b.AddL2Item(defaultNav.NavId, search.NavItemId, "Teams");
 
         var overrideNav = b.AddJobOverrideNav(JobId, Role);
         b.AddHideRow(overrideNav.NavId, teams.NavItemId);
@@ -73,7 +77,7 @@ public class NavRepositoryTests
         await b.SaveAsync();
 
         // Act
-        var repo   = new NavRepository(context, new VisibilityRulesEvaluator(context));
+        var repo = new NavRepository(context, new VisibilityRulesEvaluator(context));
         var result = await repo.GetMergedNavAsync(Role, JobId, Array.Empty<string>());
 
         // Assert
@@ -111,7 +115,7 @@ public class NavRepositoryTests
         await b.SaveAsync();
 
         // Act
-        var repo   = new NavRepository(context, new VisibilityRulesEvaluator(context));
+        var repo = new NavRepository(context, new VisibilityRulesEvaluator(context));
         var result = await repo.GetMergedNavAsync(Role, JobId, Array.Empty<string>());
 
         // Assert

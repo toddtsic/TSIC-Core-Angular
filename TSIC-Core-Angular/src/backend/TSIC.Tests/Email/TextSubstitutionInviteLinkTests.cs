@@ -59,7 +59,10 @@ public class TextSubstitutionInviteLinkTests
         job.JobCode = "SC26";
         ctx.JobDisplayOptions.Add(new JobDisplayOptions
         {
-            JobId = job.JobId, LogoHeader = "logo.png", LebUserId = "seed", Modified = DateTime.UtcNow
+            JobId = job.JobId,
+            LogoHeader = "logo.png",
+            LebUserId = "seed",
+            Modified = DateTime.UtcNow
         });
         return job;
     }

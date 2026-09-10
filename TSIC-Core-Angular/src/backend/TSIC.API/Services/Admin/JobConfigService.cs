@@ -606,9 +606,9 @@ public class JobConfigService : IJobConfigService
 
         charge.ChargeTypeId = req.ChargeTypeId;
         charge.ChargeAmount = req.ChargeAmount;
-        charge.Comment      = req.Comment;
-        charge.Year         = req.Year;
-        charge.Month        = req.Month;
+        charge.Comment = req.Comment;
+        charge.Year = req.Year;
+        charge.Month = req.Month;
         // JobId + CreateDate deliberately untouched — server-scoped / not surfaced.
 
         await _repo.SaveChangesAsync(ct);

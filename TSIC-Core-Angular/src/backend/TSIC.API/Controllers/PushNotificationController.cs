@@ -154,8 +154,8 @@ public class PushNotificationController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }    /// <summary>
-    /// Get the history of all push notifications sent for the current job.
-    /// </summary>
+         /// Get the history of all push notifications sent for the current job.
+         /// </summary>
     [HttpGet("history")]
     [ProducesResponseType(typeof(List<PushNotificationHistoryDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

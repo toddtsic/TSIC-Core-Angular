@@ -215,8 +215,13 @@ public sealed class JobCloneService : IJobCloneService
                 CustomerId = req.TargetCustomerId,   // the NEW job's owner, not the source's
                 LebUserId = userId,
                 Modified = now,
-                FeeBase = 0, FeeProcessing = 0, FeeDiscount = 0, FeeDiscountMp = 0,
-                FeeDonation = 0, FeeLatefee = 0, PaidTotal = 0,
+                FeeBase = 0,
+                FeeProcessing = 0,
+                FeeDiscount = 0,
+                FeeDiscountMp = 0,
+                FeeDonation = 0,
+                FeeLatefee = 0,
+                PaidTotal = 0,
             };
             clonedRegs.Add(actorReg);
             actorRegId = actorReg.RegistrationId;

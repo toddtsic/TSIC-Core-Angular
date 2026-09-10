@@ -907,8 +907,12 @@ public class AdultRegistrationService : IAdultRegistrationService
                 RegistrationId = null,
                 Fees = new AdultFeeBreakdownDto
                 {
-                    FeeBase = 0m, FeeProcessing = 0m, FeeDiscount = 0m,
-                    FeeLateFee = 0m, FeeTotal = 0m, OwedTotal = 0m
+                    FeeBase = 0m,
+                    FeeProcessing = 0m,
+                    FeeDiscount = 0m,
+                    FeeLateFee = 0m,
+                    FeeTotal = 0m,
+                    OwedTotal = 0m
                 },
                 JobUsesAmex = jobUsesAmex
             };
@@ -1487,12 +1491,12 @@ public class AdultRegistrationService : IAdultRegistrationService
         decimal baseTotal = 0, processingTotal = 0, discountTotal = 0, lateTotal = 0, feeTotal = 0, owedTotal = 0;
         foreach (var r in registrations)
         {
-            baseTotal       += r.FeeBase;
+            baseTotal += r.FeeBase;
             processingTotal += r.FeeProcessing;
-            discountTotal   += r.TotalDiscount();
-            lateTotal       += r.FeeLatefee;
-            feeTotal        += r.FeeTotal;
-            owedTotal       += r.OwedTotal;
+            discountTotal += r.TotalDiscount();
+            lateTotal += r.FeeLatefee;
+            feeTotal += r.FeeTotal;
+            owedTotal += r.OwedTotal;
         }
         return new AdultFeeBreakdownDto
         {

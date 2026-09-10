@@ -407,7 +407,12 @@ public class ScheduleCascadeRepository : IScheduleCascadeRepository
     // Bracket type hierarchy: Z (deepest) > Y > X > Q > S > F (shallowest)
     private static readonly Dictionary<string, int> BracketTypeDepth = new()
     {
-        ["F"] = 1, ["S"] = 2, ["Q"] = 3, ["X"] = 4, ["Y"] = 5, ["Z"] = 6
+        ["F"] = 1,
+        ["S"] = 2,
+        ["Q"] = 3,
+        ["X"] = 4,
+        ["Y"] = 5,
+        ["Z"] = 6
     };
 
     public async Task<Dictionary<Guid, string>> GetBracketDepthsByAgegroupAsync(

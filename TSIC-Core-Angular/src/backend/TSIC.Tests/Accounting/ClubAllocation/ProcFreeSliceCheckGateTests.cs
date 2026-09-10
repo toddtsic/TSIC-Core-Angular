@@ -198,15 +198,23 @@ public class ProcFreeSliceCheckGateTests
         ctx.RegistrationAccounting.AddRange(
             new Domain.Entities.RegistrationAccounting
             {
-                TeamId = teamId, Payamt = Deposit, Dueamt = Deposit,                 // proc-free deposit charge
+                TeamId = teamId,
+                Payamt = Deposit,
+                Dueamt = Deposit,                 // proc-free deposit charge
                 PaymentMethodId = AccountingDataBuilder.CcPaymentMethodId,
-                Active = true, Createdate = new DateTime(2026, 1, 1), Modified = DateTime.UtcNow
+                Active = true,
+                Createdate = new DateTime(2026, 1, 1),
+                Modified = DateTime.UtcNow
             },
             new Domain.Entities.RegistrationAccounting
             {
-                TeamId = teamId, Payamt = -Deposit, Dueamt = -Deposit,               // full refund
+                TeamId = teamId,
+                Payamt = -Deposit,
+                Dueamt = -Deposit,               // full refund
                 PaymentMethodId = AccountingDataBuilder.CcCreditMethodId,
-                Active = true, Createdate = new DateTime(2026, 1, 2), Modified = DateTime.UtcNow
+                Active = true,
+                Createdate = new DateTime(2026, 1, 2),
+                Modified = DateTime.UtcNow
             });
         await ctx.SaveChangesAsync();
 

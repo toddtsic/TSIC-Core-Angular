@@ -84,7 +84,9 @@ public sealed class ClubService : IClubService
                 var privilegeName = PrivilegeNameMapper.GetPrivilegeName(existingPrivilege);
                 return new ClubRepRegistrationResponse
                 {
-                    Success = false, ClubId = null, UserId = null,
+                    Success = false,
+                    ClubId = null,
+                    UserId = null,
                     Message = $"This account is locked to {privilegeName} privilege level. To protect player data, one account can only be used for one privilege level. Please use a different email address and username for Club Rep registration."
                 };
             }
@@ -94,7 +96,9 @@ public sealed class ClubService : IClubService
             {
                 return new ClubRepRegistrationResponse
                 {
-                    Success = false, ClubId = null, UserId = null,
+                    Success = false,
+                    ClubId = null,
+                    UserId = null,
                     Message = "Invalid password for existing account."
                 };
             }
@@ -137,7 +141,9 @@ public sealed class ClubService : IClubService
             {
                 return new ClubRepRegistrationResponse
                 {
-                    Success = false, ClubId = null, UserId = null,
+                    Success = false,
+                    ClubId = null,
+                    UserId = null,
                     Message = "Selected club not found."
                 };
             }
@@ -146,7 +152,9 @@ public sealed class ClubService : IClubService
             {
                 return new ClubRepRegistrationResponse
                 {
-                    Success = false, ClubId = null, UserId = null,
+                    Success = false,
+                    ClubId = null,
+                    UserId = null,
                     Message = $"\"{chosenClub.ClubName}\" is already in use. "
                             + "If this is your club, please contact its representative to be added."
                 };
@@ -164,7 +172,9 @@ public sealed class ClubService : IClubService
             {
                 return new ClubRepRegistrationResponse
                 {
-                    Success = false, ClubId = null, UserId = null,
+                    Success = false,
+                    ClubId = null,
+                    UserId = null,
                     Message = $"To claim this club, enter its name exactly as \"{chosenClub.ClubName}\"."
                 };
             }
@@ -192,7 +202,9 @@ public sealed class ClubService : IClubService
 
                 return new ClubRepRegistrationResponse
                 {
-                    Success = false, ClubId = null, UserId = null,
+                    Success = false,
+                    ClubId = null,
+                    UserId = null,
                     Message = claimable != null
                         ? $"\"{claimable.ClubName}\" is set up but has no representative and no teams yet. "
                         + "If this is your club, select it below to become its rep."
@@ -210,7 +222,9 @@ public sealed class ClubService : IClubService
             {
                 return new ClubRepRegistrationResponse
                 {
-                    Success = false, ClubId = null, UserId = null,
+                    Success = false,
+                    ClubId = null,
+                    UserId = null,
                     Message = "We found clubs with similar names. If none of these are yours, confirm below to create a new club.",
                     SimilarClubs = nearMatches
                 };

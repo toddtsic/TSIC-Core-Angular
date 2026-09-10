@@ -25,7 +25,11 @@ public record PaymentMethodTotals
 
     public static readonly PaymentMethodTotals Zero = new()
     {
-        CreditCard = 0m, Echeck = 0m, Check = 0m, Cash = 0m, Correction = 0m,
+        CreditCard = 0m,
+        Echeck = 0m,
+        Check = 0m,
+        Cash = 0m,
+        Correction = 0m,
     };
 }
 

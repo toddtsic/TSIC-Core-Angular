@@ -4,5 +4,5 @@ namespace TSIC.Contracts.Services;
 
 public interface IStoreWalkUpService
 {
-	Task<StoreWalkUpRegisterResponse> RegisterAsync(StoreWalkUpRegisterRequest request);
+    Task<StoreWalkUpRegisterResponse> RegisterAsync(StoreWalkUpRegisterRequest request);
 }

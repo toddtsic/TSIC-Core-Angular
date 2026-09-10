@@ -520,7 +520,13 @@ public sealed class ViewScheduleService : IViewScheduleService
             var rec = computed.GetValueOrDefault(teamId)
                 ?? new TeamRecordAggregate
                 {
-                    TeamId = teamId, Games = 0, Wins = 0, Losses = 0, Ties = 0, GoalsFor = 0, GoalsVs = 0
+                    TeamId = teamId,
+                    Games = 0,
+                    Wins = 0,
+                    Losses = 0,
+                    Ties = 0,
+                    GoalsFor = 0,
+                    GoalsVs = 0
                 };
             if (points.TryGetValue(teamId, out var p))
                 rec = rec.WithPoints(p.WinPts, p.DrawPts, p.LossPts);
@@ -799,7 +805,7 @@ public sealed class ViewScheduleService : IViewScheduleService
                     rules.Add(new(t => Math.Clamp(t.GoalsFor - t.GoalsAgainst, -cap, cap), true, false)); break;
                 case SortRuleNames.GoalsFor:
                     rules.Add(new(t => t.GoalsFor, true, false)); break;
-                // Unknown → skip.
+                    // Unknown → skip.
             }
         }
         // Guarantee a deterministic primary key if a profile resolved to nothing usable.

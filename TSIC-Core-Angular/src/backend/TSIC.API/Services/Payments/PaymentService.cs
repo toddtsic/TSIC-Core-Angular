@@ -1187,9 +1187,9 @@ public class PaymentService : IPaymentService
         {
             if (!failedRegIds.Contains(reg.RegistrationId)) continue;
             if (!pifSnapshot.TryGetValue(reg.RegistrationId, out var snap)) continue;
-            reg.FeeBase       = snap.FeeBase;
+            reg.FeeBase = snap.FeeBase;
             reg.FeeProcessing = snap.FeeProcessing;
-            reg.FeeDonation   = snap.FeeDonation;
+            reg.FeeDonation = snap.FeeDonation;
             // PIF mutates FeeBase/FeeProcessing; a payment-time donation mutates FeeDonation
             // (+ FeeProcessing) on the primary reg. Restoring those three lets RecalcTotals
             // reproduce snap.FeeTotal/OwedTotal exactly (discount/latefee untouched by both).

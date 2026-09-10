@@ -1301,8 +1301,8 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         return await _jobRepo.GetOtherJobsForCustomerAsync(jobId, ct);
     }
 
-public async Task<ChangeJobResponse> ChangeRegistrationJobAsync(
-        Guid jobId, string userId, Guid registrationId, ChangeJobRequest request, CancellationToken ct = default)
+    public async Task<ChangeJobResponse> ChangeRegistrationJobAsync(
+            Guid jobId, string userId, Guid registrationId, ChangeJobRequest request, CancellationToken ct = default)
     {
         // Load the registration (tracked for update)
         var reg = await _registrationRepo.GetByIdAsync(registrationId, ct);

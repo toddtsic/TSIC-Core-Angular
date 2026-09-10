@@ -443,22 +443,33 @@ public sealed class USLaxMatchingService : IUSLaxMatchingService
 
         return new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
         {
-            ["Senior"] = seniorGrad, ["Sr"] = seniorGrad,
-            ["12"] = seniorGrad, ["12th"] = seniorGrad,
-            ["Varsity"] = seniorGrad, ["V"] = seniorGrad,
+            ["Senior"] = seniorGrad,
+            ["Sr"] = seniorGrad,
+            ["12"] = seniorGrad,
+            ["12th"] = seniorGrad,
+            ["Varsity"] = seniorGrad,
+            ["V"] = seniorGrad,
 
-            ["Junior"] = seniorGrad + 1, ["Jr"] = seniorGrad + 1,
-            ["11"] = seniorGrad + 1, ["11th"] = seniorGrad + 1,
-            ["JV"] = seniorGrad + 1, ["JV1"] = seniorGrad + 1,
+            ["Junior"] = seniorGrad + 1,
+            ["Jr"] = seniorGrad + 1,
+            ["11"] = seniorGrad + 1,
+            ["11th"] = seniorGrad + 1,
+            ["JV"] = seniorGrad + 1,
+            ["JV1"] = seniorGrad + 1,
 
-            ["Sophomore"] = seniorGrad + 2, ["Soph"] = seniorGrad + 2,
-            ["10"] = seniorGrad + 2, ["10th"] = seniorGrad + 2,
+            ["Sophomore"] = seniorGrad + 2,
+            ["Soph"] = seniorGrad + 2,
+            ["10"] = seniorGrad + 2,
+            ["10th"] = seniorGrad + 2,
             ["JV2"] = seniorGrad + 2,
 
-            ["Freshman"] = seniorGrad + 3, ["Fresh"] = seniorGrad + 3,
+            ["Freshman"] = seniorGrad + 3,
+            ["Fresh"] = seniorGrad + 3,
             ["Frosh"] = seniorGrad + 3,
-            ["9"] = seniorGrad + 3, ["9th"] = seniorGrad + 3,
-            ["F/S"] = seniorGrad + 3, ["FS"] = seniorGrad + 3
+            ["9"] = seniorGrad + 3,
+            ["9th"] = seniorGrad + 3,
+            ["F/S"] = seniorGrad + 3,
+            ["FS"] = seniorGrad + 3
         };
     }
 

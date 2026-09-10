@@ -35,17 +35,17 @@ public class AdultRoleResolutionTests
     private static AdultRegJobData Job(
         int jobTypeId = JobConstants.JobTypeClub,
         bool staff = true, bool referee = true, bool recruiter = true) => new()
-    {
-        JobId = Guid.NewGuid(),
-        JobName = "Test Job",
-        JobAi = 1,
-        JobTypeId = jobTypeId,
-        BAllowRosterViewAdult = false,
-        BAddProcessingFees = false,
-        BRegistrationAllowStaff = staff,
-        BRegistrationAllowReferee = referee,
-        BRegistrationAllowRecruiter = recruiter,
-    };
+        {
+            JobId = Guid.NewGuid(),
+            JobName = "Test Job",
+            JobAi = 1,
+            JobTypeId = jobTypeId,
+            BAllowRosterViewAdult = false,
+            BAddProcessingFees = false,
+            BRegistrationAllowStaff = staff,
+            BRegistrationAllowReferee = referee,
+            BRegistrationAllowRecruiter = recruiter,
+        };
 
     private static string RoleIdOf(object resolution) =>
         (string)resolution.GetType().GetProperty("RoleId")!.GetValue(resolution)!;

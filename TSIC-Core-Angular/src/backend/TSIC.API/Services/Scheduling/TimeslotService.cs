@@ -1487,8 +1487,13 @@ public sealed class TimeslotService : ITimeslotService
     /// <summary>Normalize abbreviated DOW (e.g. "Sat") to full name ("Saturday").</summary>
     private static readonly Dictionary<string, string> DowAbbrevToFull = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["sun"] = "sunday", ["mon"] = "monday", ["tue"] = "tuesday", ["wed"] = "wednesday",
-        ["thu"] = "thursday", ["fri"] = "friday", ["sat"] = "saturday"
+        ["sun"] = "sunday",
+        ["mon"] = "monday",
+        ["tue"] = "tuesday",
+        ["wed"] = "wednesday",
+        ["thu"] = "thursday",
+        ["fri"] = "friday",
+        ["sat"] = "saturday"
     };
 
     private static string NormalizeDow(string dow)

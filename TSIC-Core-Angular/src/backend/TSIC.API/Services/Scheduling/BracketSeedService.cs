@@ -19,8 +19,13 @@ public class BracketSeedService : IBracketSeedService
     /// </summary>
     private static readonly Dictionary<string, int> BracketTypeOrder = new()
     {
-        ["C"] = 0, ["F"] = 1, ["S"] = 2, ["Q"] = 3,
-        ["X"] = 4, ["Y"] = 5, ["Z"] = 6
+        ["C"] = 0,
+        ["F"] = 1,
+        ["S"] = 2,
+        ["Q"] = 3,
+        ["X"] = 4,
+        ["Y"] = 5,
+        ["Z"] = 6
     };
 
     /// <summary>
@@ -29,8 +34,12 @@ public class BracketSeedService : IBracketSeedService
     /// </summary>
     private static readonly Dictionary<string, string> ParentTypeMap = new()
     {
-        ["C"] = "T", ["F"] = "S", ["S"] = "Q", ["Q"] = "X",
-        ["X"] = "Y", ["Y"] = "Z"
+        ["C"] = "T",
+        ["F"] = "S",
+        ["S"] = "Q",
+        ["Q"] = "X",
+        ["X"] = "Y",
+        ["Y"] = "Z"
     };
 
     public BracketSeedService(

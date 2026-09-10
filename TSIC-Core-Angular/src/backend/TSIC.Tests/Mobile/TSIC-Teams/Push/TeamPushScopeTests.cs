@@ -60,7 +60,11 @@ public class TeamPushScopeTests
 
     private static Devices Device(string token) => new()
     {
-        Id = token, Token = token, Type = "ios", Active = true, Modified = DateTime.Now
+        Id = token,
+        Token = token,
+        Type = "ios",
+        Active = true,
+        Modified = DateTime.Now
     };
 
     /// <summary>

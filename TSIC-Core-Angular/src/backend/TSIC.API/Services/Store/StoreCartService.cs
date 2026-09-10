@@ -60,7 +60,8 @@ public sealed class StoreCartService : IStoreCartService
             return EmptyCart();
 
         return (await BuildCartBatchDto(batch.StoreCartBatchId))
-            with { JobUsesAmex = await _paymentFeatures.UsesAmexAsync(jobId) };
+            with
+        { JobUsesAmex = await _paymentFeatures.UsesAmexAsync(jobId) };
     }
 
     public async Task<StoreCartBatchDto> AddToCartAsync(
@@ -139,7 +140,8 @@ public sealed class StoreCartService : IStoreCartService
         await _cartRepo.SaveChangesAsync();
 
         return (await BuildCartBatchDto(batch.StoreCartBatchId))
-            with { JobUsesAmex = await _paymentFeatures.UsesAmexAsync(jobId) };
+            with
+        { JobUsesAmex = await _paymentFeatures.UsesAmexAsync(jobId) };
     }
 
     public async Task<StoreCartBatchDto> UpdateQuantityAsync(
@@ -188,7 +190,8 @@ public sealed class StoreCartService : IStoreCartService
         await _cartRepo.SaveChangesAsync();
 
         return (await BuildCartBatchDto(lineItem.StoreCartBatchId))
-            with { JobUsesAmex = await _paymentFeatures.UsesAmexAsync(jobId) };
+            with
+        { JobUsesAmex = await _paymentFeatures.UsesAmexAsync(jobId) };
     }
 
     public async Task<StoreCartBatchDto> RemoveFromCartAsync(
@@ -208,7 +211,8 @@ public sealed class StoreCartService : IStoreCartService
         await _cartRepo.SaveChangesAsync();
 
         return (await BuildCartBatchDto(batchId))
-            with { JobUsesAmex = await _paymentFeatures.UsesAmexAsync(jobId) };
+            with
+        { JobUsesAmex = await _paymentFeatures.UsesAmexAsync(jobId) };
     }
 
     public async Task<SkuAvailabilityDto> CheckAvailabilityAsync(Guid jobId, int storeSkuId)
@@ -296,7 +300,8 @@ public sealed class StoreCartService : IStoreCartService
             cart.StoreCartId, batch.StoreCartBatchId, config, userId);
 
         var dto = (await BuildCartBatchDto(batch.StoreCartBatchId))
-            with { JobUsesAmex = await _paymentFeatures.UsesAmexAsync(jobId) };
+            with
+        { JobUsesAmex = await _paymentFeatures.UsesAmexAsync(jobId) };
 
         return new StoreCheckoutPrepareDto
         {
