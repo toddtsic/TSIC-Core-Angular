@@ -48,7 +48,13 @@ export const EMAIL_BASE_TOKENS: readonly EmailTokenInfo[] = [
   { token: '!AMTOWED', description: 'Amount owed' },
   { token: '!SEASON', description: 'Season name' },
   { token: '!SPORT', description: 'Sport name' },
-  { token: '!CUSTOMERNAME', description: 'Customer name' }
+  { token: '!CUSTOMERNAME', description: 'Customer name' },
+  { token: '!TEAMNAME', description: 'Assigned team (blank if unassigned)' },
+  { token: '!AGEGROUPNAME', description: 'Assigned age group (blank if unassigned)' },
+  { token: '!UNIFORM_NO', description: 'Uniform number (blank if none)' },
+  { token: '!JERSEY_SIZE', description: 'Jersey size (? if none)' },
+  { token: '!SHORTS_SIZE', description: 'Shorts size (? if none)' },
+  { token: '!TSHIRT_SIZE', description: 'T-shirt size (? if none)' }
 ];
 
 /** Offered only when the search is scoped to Club Reps. A club rep's registration IS their login
