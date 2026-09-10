@@ -33,6 +33,8 @@ public partial class Customers
 
     public virtual AspNetUsers? LebUser { get; set; }
 
+    public virtual ICollection<ReportLibrary> ReportLibrary { get; set; } = new List<ReportLibrary>();
+
     public virtual ICollection<Teams> Teams { get; set; } = new List<Teams>();
 
     public virtual Themes? ThemeNavigation { get; set; }

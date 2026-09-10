@@ -102,6 +102,16 @@ public class ReportingController : ControllerBase
     // Helpers — derive all context from JWT claims, never from params
     // ──────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Every report run leaves a row in Jobs.JobReportExportHistory (who / which / when) —
+    /// that table feeds the Director-facing [reporting].[ExportReportsHistory] report, the
+    /// answer to "who has accessed this data". Proc exports record their spName; everything
+    /// else records its library ReportKey (the bare endpoint or route). Anonymous callers
+    /// carry no registration and are skipped inside the service.
+    /// </summary>
+    private Task RecordReportAccessAsync(string reportKey, CancellationToken cancellationToken)
+        => _reportingService.RecordExportHistoryAsync(User.GetRegistrationId(), null, reportKey, cancellationToken);
+
     private async Task<ActionResult> CrystalReportAsync(string reportName, int exportFormat, string? strGids = null)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
@@ -122,9 +132,17 @@ public class ReportingController : ControllerBase
     // Reports library — sourced from reporting.JobReports
     // ──────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// The caller's SHELF: the reporting.JobReports rows for (JWT job, caller's role). Row
+    /// existence IS the entitlement. Shelves are per job AND per role (Todd 2026-09-09), so a
+    /// Superuser sees the Superuser shelf by default; <paramref name="allRoles"/> (Superuser
+    /// only) swaps in the read-only union of every role's rows, each tagged with RoleName.
+    /// </summary>
     [HttpGet("catalogue")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<ActionResult<List<JobReportEntryDto>>> GetCatalogue(CancellationToken cancellationToken)
+    public async Task<ActionResult<List<JobReportEntryDto>>> GetCatalogue(
+        [FromQuery] bool allRoles = false,
+        CancellationToken cancellationToken = default)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null)
@@ -132,13 +150,90 @@ public class ReportingController : ControllerBase
             return new List<JobReportEntryDto>();
         }
 
-        // SuperUser sees every role's reports (each tagged with RoleName) so role
-        // assignment is visible in the library; everyone else gets exactly the rows
-        // their own roles entitle them to. Row existence IS the entitlement.
-        var rows = User.IsInRole("Superuser")
+        var rows = allRoles && User.IsInRole("Superuser")
             ? await _reportingService.GetAllJobReportsAsync(jobId.Value, cancellationToken)
             : await _reportingService.GetJobReportsAsync(jobId.Value, GetCallerRoleIds(), cancellationToken);
         return rows;
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Reports LIBRARY — browse / add / remove on the caller's own shelf
+    // ──────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The one admin role the JWT carries (two-phase auth selects a single role). This is
+    /// the shelf the caller browses for, adds to and removes from. Null = not an admin role.
+    /// </summary>
+    private string? GetCallerShelfRoleId()
+        => GetCallerRoleIds().FirstOrDefault(id => ReportLibraryGate.Rank(id) != ReportLibraryGate.RankRetired);
+
+    /// <summary>
+    /// Library entries the caller's (job, role) shelf may be stocked from, each flagged with
+    /// whether it already is. Visibility gates applied server-side; the add endpoint re-checks.
+    /// </summary>
+    [HttpGet("library")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<ActionResult<List<ReportLibraryEntryDto>>> GetLibrary(CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null) return BadRequest("Job ID could not be determined from user token");
+
+        var roleId = GetCallerShelfRoleId();
+        if (roleId == null) return Forbid();
+
+        return await _reportingService.GetReportLibraryAsync(
+            jobId.Value, roleId, User.IsInRole("Superuser"), cancellationToken);
+    }
+
+    /// <summary>
+    /// Adds one library entry to the caller's own shelf. 403 when any gate refuses (retired,
+    /// minimum role above the caller's, another customer's report, job type not applicable);
+    /// 404 unknown entry; 409 already on the shelf.
+    /// </summary>
+    [HttpPost("library/{reportLibraryId:guid}/add")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<ActionResult<JobReportEntryDto>> AddLibraryReportToShelf(
+        Guid reportLibraryId,
+        CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null) return BadRequest("Job ID could not be determined from user token");
+
+        var roleId = GetCallerShelfRoleId();
+        if (roleId == null) return Forbid();
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID not found in token");
+
+        var (row, outcome) = await _reportingService.AddLibraryReportToShelfAsync(
+            jobId.Value, roleId, User.IsInRole("Superuser"), reportLibraryId, userId, cancellationToken);
+
+        return outcome switch
+        {
+            ShelfAddOutcome.Added => row!,
+            ShelfAddOutcome.LibraryEntryNotFound => NotFound(),
+            ShelfAddOutcome.Forbidden => Forbid(),
+            ShelfAddOutcome.AlreadyOnShelf => Conflict(new { message = "That report is already on your shelf." }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError),
+        };
+    }
+
+    /// <summary>
+    /// Removes one row from the caller's own shelf — the row is DELETED (re-addable from the
+    /// library). 404 when the row is not on exactly this (job, role) shelf.
+    /// </summary>
+    [HttpDelete("library/shelf/{jobReportId:guid}")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<ActionResult> RemoveFromShelf(Guid jobReportId, CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null) return BadRequest("Job ID could not be determined from user token");
+
+        var roleId = GetCallerShelfRoleId();
+        if (roleId == null) return Forbid();
+
+        var removed = await _reportingService.RemoveFromShelfAsync(jobReportId, jobId.Value, roleId, cancellationToken);
+        return removed ? NoContent() : NotFound();
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -379,7 +474,7 @@ public class ReportingController : ControllerBase
     // ──────────────────────────────────────────────────────────────
 
     [HttpPost("schedule-ical")]
-    [AllowAnonymous]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult> ScheduleExportIcal([FromBody] ScheduleICalExportRequest model)
     {
         var gameIds = JsonSerializer.Deserialize<List<int>>(model.StrListGidsIcal) ?? new List<int>();
@@ -394,6 +489,7 @@ public class ReportingController : ControllerBase
     // Daily registration counts — EF + Syncfusion replacement for the legacy Crystal
     // "JobPlayers_TSICDaily" (proc reporting.Get_Registrations_TSIC_Today). Cross-job, public.
     [HttpGet("Get_JobPlayers_TSICDAILY")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult> GetJobPlayersTsicDaily(CancellationToken cancellationToken)
     {
         var result = await _dailyRegCountsService.GenerateAsync(cancellationToken);
@@ -401,6 +497,7 @@ public class ReportingController : ControllerBase
     }
 
     [HttpGet("Score_Input")]
+    [Authorize(Policy = "AdminOnly")]
     public Task<ActionResult> ScoreInput()
         => CrystalReportAsync("Score_Input", 1);
 
@@ -411,71 +508,79 @@ public class ReportingController : ControllerBase
     // is shown for Job_Club_Rosters and withheld for the No-Medical variants.
 
     [HttpGet("Job_Rosters_NoMedical")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult> JobRostersNoMedical(CancellationToken cancellationToken)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         var result = await _clubRosterService.GenerateAsync(
             jobId ?? Guid.Empty, allCustomerJobs: false, includeMedical: false, cancellationToken);
+        await RecordReportAccessAsync("Job_Rosters_NoMedical", cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 
     [HttpGet("Club_AllJobs_Rosters_NoMedical")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult> ClubAllJobsRostersNoMedical(CancellationToken cancellationToken)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         var result = await _clubRosterService.GenerateAsync(
             jobId ?? Guid.Empty, allCustomerJobs: true, includeMedical: false, cancellationToken);
+        await RecordReportAccessAsync("Club_AllJobs_Rosters_NoMedical", cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 
     [HttpGet("Job_Club_Rosters")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult> JobClubRosters(CancellationToken cancellationToken)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         var result = await _clubRosterService.GenerateAsync(
             jobId ?? Guid.Empty, allCustomerJobs: false, includeMedical: true, cancellationToken);
+        await RecordReportAccessAsync("Job_Club_Rosters", cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 
     [HttpGet("JobRosters_TryoutsCheckReport")]
+    [Authorize(Policy = "AdminOnly")]
     public Task<ActionResult> JobRostersTryoutsCheckReport([FromQuery] int exportFormat = 1)
         => CrystalReportAsync("JobRosters_TryoutsCheckReport", exportFormat);
 
     [HttpGet("League_StandingsExcel")]
+    [Authorize(Policy = "AdminOnly")]
     public Task<ActionResult> LeagueStandingsExcel([FromQuery] int exportFormat = 3)
         => CrystalReportAsync("League_StandingsExcel", exportFormat);
 
     // ──────────────────────────────────────────────────────────────
-    // Crystal Reports — AllowAnonymous
+    // Crystal Reports — were AllowAnonymous; every report endpoint is Director-and-above (Todd 2026-09-10)
     // ──────────────────────────────────────────────────────────────
 
     [HttpGet("Schedule_Export")]
-    [AllowAnonymous]
+    [Authorize(Policy = "AdminOnly")]
     public Task<ActionResult> ScheduleExport([FromQuery] int exportFormat = 3)
         => CrystalReportAsync("Schedule_Export", exportFormat);
 
     [HttpPost("Schedule_Export_Public")]
-    [AllowAnonymous]
+    [Authorize(Policy = "AdminOnly")]
     public Task<ActionResult> ScheduleExportPublic([FromBody] ScheduleExportRequest model)
         => CrystalReportAsync("Schedule_Export_Public", int.Parse(model.ExportFormat), model.StrListGids);
 
     [HttpGet("FieldUtilizationAcrossLeaguesByDate")]
-    [AllowAnonymous]
+    [Authorize(Policy = "AdminOnly")]
     public Task<ActionResult> FieldUtilizationAcrossLeaguesByDate([FromQuery] int exportFormat = 1)
         => CrystalReportAsync("FieldUtilizationAcrossLeaguesByDate", exportFormat);
 
     [HttpGet("TournyCheckin")]
-    [AllowAnonymous]
+    [Authorize(Policy = "AdminOnly")]
     public Task<ActionResult> TournyCheckin([FromQuery] int exportFormat = 1)
         => CrystalReportAsync("tournycheckin", exportFormat);
 
     [HttpGet("CovidTournyCheckin")]
-    [AllowAnonymous]
+    [Authorize(Policy = "AdminOnly")]
     public Task<ActionResult> CovidTournyCheckin([FromQuery] int exportFormat = 1)
         => CrystalReportAsync("covidtournycheckin", exportFormat);
 
     [HttpGet("AmericanSelectTournyCheckin")]
-    [AllowAnonymous]
+    [Authorize(Policy = "AdminOnly")]
     public Task<ActionResult> AmericanSelectTournyCheckin([FromQuery] int exportFormat = 1)
         => CrystalReportAsync("americanselecttournycheckin", exportFormat);
 
@@ -485,7 +590,7 @@ public class ReportingController : ControllerBase
     // includes the offer teams (which play no scheduled games; the schedule gate would exclude
     // them) and the engine's job/agegroup scope drops the "Registration" (tryout) teams. Job from JWT.
     [HttpGet("AmericanSelectMainEventRosters")]
-    [AllowAnonymous]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult> AmericanSelectMainEventRosters(CancellationToken cancellationToken)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
@@ -508,78 +613,81 @@ public class ReportingController : ControllerBase
             RequiresSchedule = false,
         };
         var result = await _packedRosterService.GenerateAsync(request, jobId ?? Guid.Empty, cancellationToken);
+        await RecordReportAccessAsync("AmericanSelectMainEventRosters", cancellationToken);
         return File(result.FileBytes, result.ContentType, "AmericanSelectMainEventRosters.pdf");
     }
 
     // American Select tryout evaluation — EF + Syncfusion replacement for Crystal
     // "americanselectevaluation" (proc reporting.AmericanSelectPlayerData). Job from JWT.
     [HttpGet("AmericanSelectEvaluation")]
-    [AllowAnonymous]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult> AmericanSelectEvaluation(CancellationToken cancellationToken)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         var result = await _americanSelectReportService.GenerateEvaluationAsync(jobId ?? Guid.Empty, cancellationToken);
+        await RecordReportAccessAsync("AmericanSelectEvaluation", cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 
     [HttpGet("FieldUtilizationAcrossLeaguesByDateTournament")]
-    [AllowAnonymous]
+    [Authorize(Policy = "AdminOnly")]
     public Task<ActionResult> FieldUtilizationAcrossLeaguesByDateTournament([FromQuery] int exportFormat = 1)
         => CrystalReportAsync("FieldUtilizationAcrossLeaguesByDateTournament", exportFormat);
 
     [HttpGet("FieldUtilizationAcrossLeaguesTournament")]
-    [AllowAnonymous]
+    [Authorize(Policy = "AdminOnly")]
     public Task<ActionResult> FieldUtilizationAcrossLeaguesTournament([FromQuery] int exportFormat = 1)
         => CrystalReportAsync("FieldUtilizationAcrossLeaguesTournament", exportFormat);
 
     [HttpGet("TournamentRosterPacked")]
-    [AllowAnonymous]
+    [Authorize(Policy = "AdminOnly")]
     public Task<ActionResult> TournamentRosterPacked([FromQuery] int exportFormat = 1)
         => CrystalReportAsync("TournamentRosterPacked", exportFormat);
 
     [HttpGet("TournamentRosterPacked_PositionSchool_Public")]
-    [AllowAnonymous]
+    [Authorize(Policy = "AdminOnly")]
     public Task<ActionResult> TournamentRosterPackedPositionSchoolPublic([FromQuery] int exportFormat = 1)
         => CrystalReportAsync("TournamentRosterPacked_PositionSchool_Public", exportFormat);
 
     [HttpGet("Job_ClubRep_And_Coaches")]
-    [AllowAnonymous]
+    [Authorize(Policy = "AdminOnly")]
     public Task<ActionResult> JobClubRepAndCoaches([FromQuery] int exportFormat = 3)
         => CrystalReportAsync("Job_ClubRep_And_Coaches", exportFormat);
 
     [HttpGet("Get_JobRosters_RecruitingReport_Public_DumpExcel")]
-    [AllowAnonymous]
+    [Authorize(Policy = "AdminOnly")]
     public Task<ActionResult> GetJobRostersRecruitingReportPublicDumpExcel([FromQuery] int exportFormat = 3)
         => CrystalReportAsync("JobRosters_RecruitingReport_Public_DumpExcel", exportFormat);
 
     [HttpGet("Get_JobRosters_PackedByPositionAGNoClubPlayers")]
-    [AllowAnonymous]
+    [Authorize(Policy = "AdminOnly")]
     public Task<ActionResult> GetJobRostersPackedByPositionAgNoClubPlayers([FromQuery] int exportFormat = 1)
         => CrystalReportAsync("JobRosters_PackedByPositionAGNoClub", exportFormat);
 
     [HttpGet("Get_JobRosters_PackedByPosition_XPO")]
-    [AllowAnonymous]
+    [Authorize(Policy = "AdminOnly")]
     public Task<ActionResult> GetJobRostersPackedByPositionXpo([FromQuery] int exportFormat = 1)
         => CrystalReportAsync("JobRosters_PackedByPosition_XPO", exportFormat);
 
     [HttpGet("Schedule_ExportExcel")]
-    [AllowAnonymous]
+    [Authorize(Policy = "AdminOnly")]
     public Task<ActionResult> ScheduleExportExcel([FromQuery] int exportFormat = 3)
         => CrystalReportAsync("Schedule_ExportExcel", exportFormat);
 
     // Game Cards — EF + Syncfusion replacement for Crystal "Schedule_Gamecards": 2-up blank
     // score cards grouped by field. Job from JWT.
     [HttpGet("Schedule_Gamecards")]
-    [AllowAnonymous]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult> ScheduleGamecards(CancellationToken cancellationToken)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         var result = await _showcaseScheduleService.GenerateGameCardsAsync(jobId ?? Guid.Empty, cancellationToken);
+        await RecordReportAccessAsync("Schedule_Gamecards", cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 
     [HttpGet("Schedule_ExportExcel_Unscored")]
-    [AllowAnonymous]
+    [Authorize(Policy = "AdminOnly")]
     public Task<ActionResult> ScheduleExportExcelUnscored([FromQuery] int exportFormat = 3)
         => CrystalReportAsync("Schedule_ExportExcel_Unscored", exportFormat);
 
@@ -746,6 +854,7 @@ public class ReportingController : ControllerBase
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         var result = await _playerStatsReportService.GenerateE120Async(jobId ?? Guid.Empty, cancellationToken);
+        await RecordReportAccessAsync("PlayerStats_E120", cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 
@@ -778,6 +887,7 @@ public class ReportingController : ControllerBase
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         var result = await _coachRosterService.GenerateAsync(jobId ?? Guid.Empty, cancellationToken);
+        await RecordReportAccessAsync("clubrostersNoMedicalII", cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 
@@ -835,6 +945,7 @@ public class ReportingController : ControllerBase
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         var result = await _showcaseScheduleService.GenerateScheduleByTeamAsync(jobId ?? Guid.Empty, cancellationToken);
+        await RecordReportAccessAsync("ScheduleByClubAgTPerPage", cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 
@@ -872,6 +983,7 @@ public class ReportingController : ControllerBase
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         var result = await _showcaseScheduleService.GenerateFieldUtilizationNominationsAsync(jobId ?? Guid.Empty, cancellationToken);
+        await RecordReportAccessAsync("FieldUtilizationWithNominations", cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 
@@ -894,6 +1006,7 @@ public class ReportingController : ControllerBase
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         var result = await _packedRosterService.GenerateRecruiterAslAsync(jobId ?? Guid.Empty, cancellationToken);
+        await RecordReportAccessAsync("TournamentRecruitingReportASL", cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 
@@ -906,6 +1019,7 @@ public class ReportingController : ControllerBase
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         var result = await _packedRosterService.GenerateRecruiterUslAsync(jobId ?? Guid.Empty, cancellationToken);
+        await RecordReportAccessAsync("TournamentRecruitingReportUSL", cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 
@@ -974,6 +1088,7 @@ public class ReportingController : ControllerBase
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         var result = await _gameBoardsPdfService.GenerateAsync(jobId ?? Guid.Empty, cancellationToken);
+        await RecordReportAccessAsync("Schedule_ByAgegroup", cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 
@@ -1101,6 +1216,7 @@ public class ReportingController : ControllerBase
             },
         };
         var result = await _rosterTableService.GenerateAsync(request, jobId ?? Guid.Empty, cancellationToken);
+        await RecordReportAccessAsync("camp_excelexport_summer_pdf", cancellationToken);
         return File(result.FileBytes, result.ContentType, "camp_excelexport_summer.pdf");
     }
 

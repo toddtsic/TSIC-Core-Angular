@@ -31,9 +31,13 @@ public partial class JobReports
 
     public string? LebUserId { get; set; }
 
+    public Guid? ReportLibraryId { get; set; }
+
     public virtual Jobs Job { get; set; } = null!;
 
     public virtual AspNetUsers? LebUser { get; set; }
+
+    public virtual ReportLibrary? ReportLibrary { get; set; }
 
     public virtual AspNetRoles Role { get; set; } = null!;
 }

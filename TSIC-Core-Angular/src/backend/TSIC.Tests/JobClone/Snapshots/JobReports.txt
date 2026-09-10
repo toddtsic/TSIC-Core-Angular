@@ -8,6 +8,7 @@ JobReportId
 Kind
 LebUserId
 Modified
+ReportLibraryId
 RoleId
 SortOrder
 Title

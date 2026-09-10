@@ -6,8 +6,7 @@ import { ReportingService } from '@infrastructure/services/reporting.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
-import type { JobReportEntryDto } from '@core/api';
-import { TYPE1_REPORT_CATALOG } from '@core/reporting/type1-report-catalog';
+import type { JobReportEntryDto, ReportLibraryEntryDto } from '@core/api';
 import {
     REPORT_CATEGORIES,
     UNCATEGORIZED_META,
@@ -16,6 +15,11 @@ import {
     normalizeReportCategory
 } from '@core/reporting/report-categories';
 
+/**
+ * One row on screen, in either mode.
+ *   shelf  — a reporting.JobReports row for (this job, the caller's role): runnable, removable.
+ *   browse — a reporting.ReportLibrary entry the caller's shelf may be stocked from: addable.
+ */
 interface LibraryEntry {
     readonly isCrystal: boolean;          // true = still served by Crystal (CR); false = SP-Excel or Bold
     readonly isMigrated?: boolean;        // TEMP: Crystal-kind action actually rendered natively (EF + Syncfusion); drives the "SF" badge. Remove once all reports are off Crystal.
@@ -23,6 +27,7 @@ interface LibraryEntry {
     readonly id: string;
     readonly title: string;
     readonly description?: string | null;
+    readonly tags?: string | null;        // library search terms ('excel,roster,medical'); never shown
     readonly iconName?: string | null;
     readonly category: string | null;
     readonly sortOrder: number;
@@ -31,6 +36,11 @@ interface LibraryEntry {
     readonly parametersJson?: string | null; // sp-excel run params
     readonly boldReportName?: string;     // bold (RDL → PDF) run target — RDL filestem
     readonly spaRoute?: string;           // SpaComponent: in-app route (jobPath-relative path) to navigate to instead of downloading
+    readonly jobReportId?: string;        // shelf rows: the row Remove deletes
+    readonly reportLibraryId?: string | null; // both modes: the library entry (shelf rows: what it was stocked from)
+    readonly onShelf?: boolean;           // browse rows: already on the caller's shelf
+    readonly scope?: string;              // browse rows: JobOnly | CrossJob | CrossWebsite — a fact about the query
+    readonly minRoleName?: string;        // browse rows: the minimum role that may hold it
 }
 
 interface CategoryGroup {
@@ -39,6 +49,7 @@ interface CategoryGroup {
 }
 
 type CategoryTab = 'all' | string; // 'all' | ReportCategory code | '__other__'
+type LibraryMode = 'shelf' | 'browse';
 
 interface SpRunParams {
     bUseJobId: boolean;
@@ -51,11 +62,7 @@ const RECENTS_KEY_PREFIX = 'tsic-reports-recents';
 
 // Actions that were BORN native — Kind='CrystalReport' (the named-endpoint routing bucket)
 // but never served by Crystal, so they earn neither the "Crystal" badge nor the "SF" migrated
-// marker and render neutral like SP rows.
-//
-// This set NO LONGER GATES ANYTHING. It was previously the allow-list that let a handful of
-// DB rows past the "skip Crystal-kind rows, TYPE1 covers them" guard; that guard is gone and
-// reporting.JobReports is now the sole entitlement, so the set is cosmetic only.
+// marker and render neutral like SP rows. Cosmetic only; reporting.JobReports is the entitlement.
 const NATIVE_DB_ACTIONS = new Set<string>([
     'ThirdPartyRosterExport',
 ]);
@@ -131,6 +138,27 @@ function parseBoldReportAction(action: string | null | undefined): { reportName:
     return reportName ? { reportName } : null;
 }
 
+/** Run-target fields for a row of the given Kind + Action (shared by shelf and SU union rows). */
+function runTargets(kind: string, action: string): Pick<LibraryEntry, 'isCrystal' | 'isMigrated' | 'endpointPath' | 'storedProcName' | 'parametersJson' | 'boldReportName' | 'spaRoute'> {
+    if (kind === 'StoredProcedure') {
+        const parsed = parseStoredProcAction(action);
+        return { isCrystal: false, storedProcName: parsed?.spName ?? '', parametersJson: parsed?.parametersJson ?? null };
+    }
+    if (kind === 'BoldReport') {
+        return { isCrystal: false, boldReportName: parseBoldReportAction(action)?.reportName ?? '' };
+    }
+    if (kind === 'SpaComponent') {
+        // Action is an in-app route; dispatched via router.navigate, not a download.
+        return { isCrystal: false, spaRoute: action ?? '' };
+    }
+    // Crystal-kind: Action is a bare controller action. Every active one now renders
+    // natively, so isCrystal (the "Crystal" badge/tint) is reserved for anything that
+    // still doesn't. NATIVE_DB_ACTIONS marks rows that were BORN native (no badge at all).
+    const bornNative = NATIVE_DB_ACTIONS.has(action);
+    const migrated = MIGRATED_EF_ACTIONS.has(action);
+    return { isCrystal: !bornNative && !migrated, isMigrated: migrated, endpointPath: action };
+}
+
 @Component({
     selector: 'app-reports-library',
     standalone: true,
@@ -147,113 +175,74 @@ export class ReportsLibraryComponent implements OnInit {
     private readonly router = inject(Router);
     private readonly route = inject(ActivatedRoute);
 
+    // ── Shelf (reporting.JobReports for this job + the caller's role) ──
     readonly type2Entries = signal<JobReportEntryDto[]>([]);
     readonly catalogueLoading = signal(false);
     readonly catalogueError = signal<string | null>(null);
+
+    // ── Library (reporting.ReportLibrary, gated to what this shelf may hold) ──
+    readonly libraryEntries = signal<ReportLibraryEntryDto[]>([]);
+    readonly libraryLoading = signal(false);
+    readonly libraryLoaded = signal(false);
+    readonly libraryError = signal<string | null>(null);
+
+    /** 'shelf' = what I have (run / remove); 'browse' = what I could add. */
+    readonly mode = signal<LibraryMode>('shelf');
+
+    /** Superuser only: swap the SU shelf for the read-only union of every role's rows. */
+    readonly showAllRoles = signal(false);
+
     readonly runningId = signal<string | null>(null);
+    /** Row with an add / remove in flight (one at a time — the buttons disable on it). */
+    readonly busyId = signal<string | null>(null);
     readonly runError = signal<string | null>(null);
     readonly searchText = signal('');
     readonly selectedTab = signal<CategoryTab>('all');
     readonly recentIds = signal<readonly string[]>([]);
 
-    /** SuperUser sees every role's reports + role-assignment chips (drives the all-roles view). */
+    /** The last row removed from the shelf — drives the Undo banner. Cleared on undo, dismiss, or the next remove. */
+    readonly lastRemoved = signal<{ readonly title: string; readonly reportLibraryId: string | null } | null>(null);
+
     readonly isSuperuser = computed(() => {
         const user = this.authService.currentUser();
         const roles = user?.roles ?? (user?.role ? [user.role] : []);
         return roles.includes('Superuser');
     });
 
-    /** Visible-to-this-user reports, unfiltered. */
-    private readonly allEntries = computed<readonly LibraryEntry[]>(() => {
-        const user = this.authService.currentUser();
-        const callerRoles = user?.roles ?? (user?.role ? [user.role] : []);
-        // No job-visibility context is built any more: entitlement is a reporting.JobReports
-        // row for this (job, role), full stop. Nothing is granted or withheld by job type,
-        // job phase or pulse state.
+    /** The SU all-roles union: role chips, no Add / Remove (it is not one shelf). */
+    readonly isUnionView = computed(() => this.isSuperuser() && this.showAllRoles());
 
-        // SuperUser: source BOTH kinds from the DB catalogue (all roles), deduped by
-        // report identity with role chips. The global hard-coded Type-1 catalog is
-        // suppressed for SU to avoid duplicating the DB's Crystal rows (and to preview
-        // retiring that hard-coded source).
-        if (callerRoles.includes('Superuser')) {
-            return this.buildSuperuserEntries(this.type2Entries());
+    readonly isBrowsing = computed(() => this.mode() === 'browse');
+
+    /** Shelf rows as they render. The library row behind each one supplies its description. */
+    private readonly shelfEntries = computed<readonly LibraryEntry[]>(() => {
+        if (this.isUnionView()) {
+            return this.buildUnionEntries(this.type2Entries());
         }
 
-        // Every non-SU role: the library IS reporting.JobReports for this job and this
-        // caller's roles. Row existence is the entitlement, for EVERY Kind — that table was
-        // imported job-by-job from each legacy menu, so it is the record of what this job's
-        // director has always seen. A role with no rows correctly shows an empty library.
-        //
-        // TYPE1_REPORT_CATALOG is NO LONGER an entitlement source. It granted by job TYPE
-        // rather than job ownership, which cut both ways: 725 of 817 Camp/ClubSport/Tournament
-        // jobs were shown two roster reports they never owned, while 8 actions those jobs DID
-        // own were discarded by the "skip Crystal-kind rows, TYPE1 covers them" guard and
-        // reached no Director at all. That guard was correct when TYPE1 held ~56 entries; it
-        // held 6. All 6 also exist as JobReports rows, so sourcing from the DB alone removes
-        // no report from the estate — it only stops one reaching a job that never owned it.
-        //
-        // TYPE1 survives ONLY as a lookup, keyed by Action, for the description/icon/category
-        // that JobReports rows don't carry. Its visibilityRules are deliberately not consulted.
-        const type1ByAction = new Map(
-            TYPE1_REPORT_CATALOG
-                .filter(e => !!e.endpointPath)
-                .map(e => [e.endpointPath as string, e] as const));
-
-        const entries: LibraryEntry[] = this.type2Entries().map(e => {
-            const meta = type1ByAction.get(e.action);
-            // GroupLabel holds legacy menu headings ('Reports', 'Scheduling') that aren't
-            // category codes; fall back to TYPE1's category before giving up to 'Other'.
-            const base = {
-                roles: [] as readonly string[],
-                title: e.title,
-                description: meta?.description ?? null,
-                iconName: e.iconName ?? meta?.iconName ?? null,
-                category: normalizeReportCategory(e.groupLabel) ?? meta?.category ?? null,
-                sortOrder: e.sortOrder,
-            };
-
-            if (e.kind === 'StoredProcedure') {
-                const parsed = parseStoredProcAction(e.action);
-                return {
-                    ...base, isCrystal: false, id: `t2-${e.jobReportId}`,
-                    storedProcName: parsed?.spName ?? '',
-                    parametersJson: parsed?.parametersJson ?? null,
-                };
-            }
-            if (e.kind === 'BoldReport') {
-                return {
-                    ...base, isCrystal: false, id: `bold-${e.jobReportId}`,
-                    boldReportName: parseBoldReportAction(e.action)?.reportName ?? '',
-                };
-            }
-            if (e.kind === 'SpaComponent') {
-                // Action is an in-app route; dispatched via router.navigate, not a download.
-                return { ...base, isCrystal: false, id: `spa-${e.jobReportId}`, spaRoute: e.action ?? '' };
-            }
-            // Crystal-kind: Action is a bare controller action. Every active one now renders
-            // natively, so isCrystal (the "Crystal" badge/tint) is reserved for anything that
-            // still doesn't. NATIVE_DB_ACTIONS no longer gates anything — it only marks rows
-            // that were BORN native and so earn neither badge.
-            const bornNative = NATIVE_DB_ACTIONS.has(e.action);
-            const migrated = MIGRATED_EF_ACTIONS.has(e.action);
-            return {
-                ...base,
-                isCrystal: !bornNative && !migrated,
-                isMigrated: migrated,
-                id: `cr-${e.jobReportId}`,
-                endpointPath: e.action,
-            };
-        });
-
-        return entries;
+        // The library IS reporting.JobReports for this job and this caller's role. Row
+        // existence is the entitlement, for EVERY Kind. A role with no rows correctly shows
+        // an empty shelf — and Browse is where it goes to fill it.
+        return this.type2Entries().map(e => ({
+            roles: [] as readonly string[],
+            id: `t2-${e.jobReportId}`,
+            title: e.title,
+            description: e.description ?? null,
+            iconName: e.iconName ?? null,
+            category: normalizeReportCategory(e.groupLabel),
+            sortOrder: e.sortOrder,
+            jobReportId: e.jobReportId,
+            reportLibraryId: e.reportLibraryId ?? null,
+            ...runTargets(e.kind, e.action),
+        }));
     });
 
     /**
-     * SuperUser view: collapse the all-roles catalogue (both kinds) into one entry per
-     * report, keyed by Controller+Action, aggregating assigned role names into `roles`
-     * for chip display. Lowest SortOrder wins for placement + display metadata.
+     * SuperUser union view: collapse the all-roles catalogue into one entry per report,
+     * keyed by Controller+Action, aggregating assigned role names into `roles` for chip
+     * display. Lowest SortOrder wins for placement + display metadata. Read-only.
      */
-    private buildSuperuserEntries(rows: readonly JobReportEntryDto[]): readonly LibraryEntry[] {
+    private buildUnionEntries(rows: readonly JobReportEntryDto[]): readonly LibraryEntry[] {
         const byReport = new Map<string, { base: JobReportEntryDto; roles: Set<string> }>();
         for (const r of rows) {
             const key = `${r.controller}::${r.action}`.toLowerCase();
@@ -270,43 +259,54 @@ export class ReportsLibraryComponent implements OnInit {
 
         const entries: LibraryEntry[] = [];
         for (const { base, roles } of byReport.values()) {
-            const isBold = base.kind === 'BoldReport';
-            const isSp = base.kind === 'StoredProcedure';
-            const isSpa = base.kind === 'SpaComponent';
-            const isCrystalKind = !isBold && !isSp && !isSpa;
-            // Born-native DB reports ride the Crystal dispatch bucket but were never
-            // Crystal-served — no "SF"/"Crystal" badge or tint (those track CR retirement).
-            const isCrystal = isCrystalKind && !NATIVE_DB_ACTIONS.has(base.action);
-            const spParsed = isSp ? parseStoredProcAction(base.action) : null;
-            const boldParsed = isBold ? parseBoldReportAction(base.action) : null;
             entries.push({
-                isCrystal,
-                isMigrated: isCrystal && MIGRATED_EF_ACTIONS.has(base.action),
                 roles: [...roles].sort(),
                 id: `su-${base.jobReportId}`,
                 title: base.title,
-                description: null,
+                description: base.description ?? null,
                 iconName: base.iconName,
                 category: normalizeReportCategory(base.groupLabel),
                 sortOrder: base.sortOrder,
-                endpointPath: isCrystalKind ? base.action : undefined,
-                storedProcName: spParsed?.spName ?? undefined,
-                parametersJson: spParsed?.parametersJson ?? null,
-                boldReportName: boldParsed?.reportName ?? undefined,
-                spaRoute: isSpa ? base.action : undefined,
+                reportLibraryId: base.reportLibraryId ?? null,
+                ...runTargets(base.kind, base.action),
             });
         }
         return entries;
     }
 
-    /** Search-filtered flat list across ALL entries (search ignores tab). */
+    /** Library rows as they render in Browse: addable, or already on the shelf. Never runnable from here. */
+    private readonly browseEntries = computed<readonly LibraryEntry[]>(() =>
+        this.libraryEntries().map((l, i) => ({
+            isCrystal: false,
+            roles: [] as readonly string[],
+            id: `lib-${l.reportLibraryId}`,
+            title: l.title,
+            description: l.description ?? null,
+            tags: l.tags ?? null,
+            iconName: l.iconName ?? null,
+            category: normalizeReportCategory(l.categoryCode),
+            sortOrder: i,   // server order: category, SortOrder, title
+            reportLibraryId: l.reportLibraryId,
+            jobReportId: l.shelfJobReportId ?? undefined,
+            onShelf: !!l.shelfJobReportId,
+            scope: l.scope,
+            minRoleName: l.minRoleName,
+        })));
+
+    /** Whichever list the current mode shows. Tabs, groups and search all derive from this. */
+    private readonly activeEntries = computed<readonly LibraryEntry[]>(() =>
+        this.isBrowsing() ? this.browseEntries() : this.shelfEntries());
+
+    /** Search-filtered flat list across ALL entries of the current mode (search ignores tab). Wildcard = substring over name, description, function (category + tags). */
     readonly searchResults = computed<readonly LibraryEntry[]>(() => {
         const needle = this.searchText().trim().toLowerCase();
         if (!needle) return [];
-        return this.allEntries()
+        return this.activeEntries()
             .filter(e =>
                 e.title.toLowerCase().includes(needle)
                 || (e.description?.toLowerCase().includes(needle) ?? false)
+                || (e.tags?.toLowerCase().includes(needle) ?? false)
+                || getCategoryMeta(e.category).label.toLowerCase().includes(needle)
             )
             .slice()
             .sort((a, b) => a.sortOrder - b.sortOrder);
@@ -315,10 +315,10 @@ export class ReportsLibraryComponent implements OnInit {
     /** Search active flag — replaces tab content when true. */
     readonly isSearching = computed(() => this.searchText().trim().length > 0);
 
-    /** Counts per tab (for badges). 'all' = total visible to user. */
+    /** Counts per tab (for badges). 'all' = total in the current mode. */
     readonly tabCounts = computed<ReadonlyMap<CategoryTab, number>>(() => {
         const counts = new Map<CategoryTab, number>();
-        const all = this.allEntries();
+        const all = this.activeEntries();
         counts.set('all', all.length);
         for (const e of all) {
             const key = e.category ?? '__other__';
@@ -326,6 +326,9 @@ export class ReportsLibraryComponent implements OnInit {
         }
         return counts;
     });
+
+    /** How many library entries are not yet on the shelf — the Browse control's badge. */
+    readonly addableCount = computed(() => this.browseEntries().filter(e => !e.onShelf).length);
 
     /** Tab strip definitions in canonical order; only categories with >0 entries. */
     readonly availableTabs = computed<readonly { tab: CategoryTab; meta: ReportCategoryMeta | null; label: string; iconName: string; count: number }[]>(() => {
@@ -344,11 +347,11 @@ export class ReportsLibraryComponent implements OnInit {
         return tabs;
     });
 
-    /** Recents row, derived from recentIds + currently-visible entries. */
+    /** Recents row, derived from recentIds + the shelf (never Browse — you run from the shelf). */
     readonly recentEntries = computed<readonly LibraryEntry[]>(() => {
         const ids = this.recentIds();
-        if (ids.length === 0) return [];
-        const byId = new Map(this.allEntries().map(e => [e.id, e] as const));
+        if (ids.length === 0 || this.isBrowsing()) return [];
+        const byId = new Map(this.shelfEntries().map(e => [e.id, e] as const));
         return ids
             .map(id => byId.get(id))
             .filter((e): e is LibraryEntry => e !== undefined);
@@ -357,7 +360,7 @@ export class ReportsLibraryComponent implements OnInit {
     /** Entries within the currently-selected tab (ignores search). */
     readonly tabEntries = computed<readonly LibraryEntry[]>(() => {
         const tab = this.selectedTab();
-        const all = this.allEntries();
+        const all = this.activeEntries();
         const filtered = tab === 'all'
             ? all
             : all.filter(e => (e.category ?? '__other__') === tab);
@@ -397,9 +400,8 @@ export class ReportsLibraryComponent implements OnInit {
      * construction, and a subscription would fight the user's own tab clicks.
      *
      * Held rather than applied here: the tab strip only shows categories with entries, and the
-     * catalogue has not loaded at construction. Applying it now could select a tab that turns
-     * out to be empty and is therefore missing from the strip, leaving no tab lit and no way
-     * back but "All". It is applied in loadCatalogue once the counts are real.
+     * catalogue has not loaded at construction. It is applied in loadCatalogue once the counts
+     * are real.
      */
     private pendingTab: CategoryTab | null = (() => {
         const requested = this.route.snapshot.queryParamMap.get('tab');
@@ -415,6 +417,10 @@ export class ReportsLibraryComponent implements OnInit {
 
     retryCatalogue(): void {
         this.loadCatalogue();
+    }
+
+    retryLibrary(): void {
+        this.loadLibrary();
     }
 
     onSearchInput(value: string): void {
@@ -433,8 +439,33 @@ export class ReportsLibraryComponent implements OnInit {
         if (this.searchText()) this.searchText.set('');
     }
 
+    /** Switch between the shelf and the library. The library loads on first visit only; adds keep it current after that. */
+    setMode(mode: LibraryMode): void {
+        if (this.mode() === mode) return;
+        this.mode.set(mode);
+        this.selectedTab.set('all');
+        if (this.searchText()) this.searchText.set('');
+        if (mode === 'browse' && !this.libraryLoaded() && !this.libraryLoading()) {
+            this.loadLibrary();
+        }
+    }
+
+    /** Superuser: flip between the SU shelf and the read-only all-roles union. */
+    toggleAllRoles(): void {
+        if (!this.isSuperuser()) return;
+        this.showAllRoles.set(!this.showAllRoles());
+        this.loadCatalogue();
+    }
+
     categoryMeta(code: string | null | undefined): ReportCategoryMeta {
         return getCategoryMeta(code);
+    }
+
+    /** Short label for a non-job-scoped library entry, so a reader sees what "cross-job" means before adding it. */
+    scopeLabel(scope: string | undefined): string | null {
+        if (scope === 'CrossJob') return 'All jobs of this customer';
+        if (scope === 'CrossWebsite') return 'Across the whole site';
+        return null;
     }
 
     runEntry(entry: LibraryEntry): void {
@@ -491,6 +522,83 @@ export class ReportsLibraryComponent implements OnInit {
         });
     }
 
+    // ── Add / Remove — the caller's own shelf only ────────────────────────────
+
+    /** Browse: stock the shelf with this library entry. The server re-checks every gate. */
+    addEntry(entry: LibraryEntry): void {
+        if (!entry.reportLibraryId || entry.onShelf || this.busyId()) return;
+        this.addToShelf(entry.reportLibraryId, entry.id, entry.title);
+    }
+
+    /** Undo banner: the removed row goes back on the shelf as a fresh add. */
+    undoRemove(): void {
+        const removed = this.lastRemoved();
+        if (!removed?.reportLibraryId || this.busyId()) return;
+        this.addToShelf(removed.reportLibraryId, `lib-${removed.reportLibraryId}`, removed.title);
+    }
+
+    dismissUndo(): void {
+        this.lastRemoved.set(null);
+    }
+
+    private addToShelf(reportLibraryId: string, busyId: string, title: string): void {
+        this.busyId.set(busyId);
+        this.reportingService.addLibraryReportToShelf(reportLibraryId).subscribe({
+            next: row => {
+                this.busyId.set(null);
+                this.type2Entries.set([...this.type2Entries(), row]);
+                this.markOnShelf(reportLibraryId, row.jobReportId);
+                if (this.lastRemoved()?.reportLibraryId === reportLibraryId) this.lastRemoved.set(null);
+                this.toast.show(`${title} added to your shelf`, 'success');
+            },
+            error: err => {
+                this.busyId.set(null);
+                if (err?.status === 409) {
+                    // Already there (a second tab, or a race). Reconcile rather than argue.
+                    this.toast.show(`${title} is already on your shelf`, 'info');
+                    this.loadCatalogue();
+                    this.loadLibrary();
+                    return;
+                }
+                const msg = err?.status === 403 ? `You are not permitted to add ${title} to this shelf.`
+                    : err?.status === 404 ? `${title} is no longer in the library.`
+                    : `Could not add ${title}. Please try again.`;
+                this.toast.show(msg, 'danger');
+            }
+        });
+    }
+
+    /** Shelf: delete this row. Reversible from the Undo banner (it is an add again), so no confirm dialog. */
+    removeEntry(entry: LibraryEntry): void {
+        if (!entry.jobReportId || this.isUnionView() || this.busyId()) return;
+        const jobReportId = entry.jobReportId;
+        this.busyId.set(entry.id);
+        this.reportingService.removeFromShelf(jobReportId).subscribe({
+            next: () => {
+                this.busyId.set(null);
+                this.type2Entries.set(this.type2Entries().filter(r => r.jobReportId !== jobReportId));
+                this.recentIds.set(this.recentIds().filter(id => id !== entry.id));
+                if (entry.reportLibraryId) this.markOnShelf(entry.reportLibraryId, null);
+                this.lastRemoved.set({ title: entry.title, reportLibraryId: entry.reportLibraryId ?? null });
+            },
+            error: err => {
+                this.busyId.set(null);
+                const msg = err?.status === 404 ? `${entry.title} is not on your shelf any more.`
+                    : `Could not remove ${entry.title}. Please try again.`;
+                this.toast.show(msg, 'danger');
+                if (err?.status === 404) this.loadCatalogue();
+            }
+        });
+    }
+
+    /** Keep the Browse list honest after an add / remove without a round trip. New array — never mutate a signal's value. */
+    private markOnShelf(reportLibraryId: string, shelfJobReportId: string | null): void {
+        this.libraryEntries.set(this.libraryEntries().map(l =>
+            l.reportLibraryId === reportLibraryId
+                ? { ...l, shelfJobReportId, onShelf: shelfJobReportId !== null }
+                : l));
+    }
+
     /**
      * Navigates to an in-app SpaComponent route. The catalogue stores `Action` as the
      * jobPath-relative path (e.g. "reporting/packed-roster-designer"); we prepend the
@@ -510,7 +618,7 @@ export class ReportsLibraryComponent implements OnInit {
         this.catalogueLoading.set(true);
         this.catalogueError.set(null);
 
-        this.reportingService.getCatalogue().subscribe({
+        this.reportingService.getCatalogue(this.isUnionView()).subscribe({
             next: rows => {
                 this.type2Entries.set(rows);
                 this.catalogueLoading.set(false);
@@ -518,9 +626,25 @@ export class ReportsLibraryComponent implements OnInit {
             },
             error: () => {
                 this.catalogueLoading.set(false);
-                this.catalogueError.set('Could not load the dynamic report catalogue. Showing legacy reports only.');
-                // Legacy entries still populate the strip, so the deep link can still land.
+                this.catalogueError.set('Could not load your reports. Please retry.');
                 this.applyPendingTab();
+            }
+        });
+    }
+
+    private loadLibrary(): void {
+        this.libraryLoading.set(true);
+        this.libraryError.set(null);
+
+        this.reportingService.getLibrary().subscribe({
+            next: rows => {
+                this.libraryEntries.set(rows);
+                this.libraryLoading.set(false);
+                this.libraryLoaded.set(true);
+            },
+            error: () => {
+                this.libraryLoading.set(false);
+                this.libraryError.set('Could not load the report library. Please retry.');
             }
         });
     }
@@ -528,11 +652,8 @@ export class ReportsLibraryComponent implements OnInit {
     /**
      * Honour `?tab=` once the counts are real, and only if that tab actually has reports.
      * Selecting an empty category would light nothing in the strip; "All" is the honest
-     * fallback, and it still shows the Schedules group heading if any exist.
-     *
-     * Consumes the deep link either way, so a retry after a catalogue error cannot yank the
-     * user off a tab they picked in the meantime. `selectTab` consumes it too, for the same
-     * reason — a click during the load wins over the URL.
+     * fallback. Consumes the deep link either way, so a retry after a catalogue error cannot
+     * yank the user off a tab they picked in the meantime.
      */
     private applyPendingTab(): void {
         const tab = this.pendingTab;

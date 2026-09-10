@@ -206,6 +206,115 @@ public sealed class ReportingService : IReportingService
     private static bool IsUniqueKeyViolation(DbUpdateException ex)
         => ex.InnerException is SqlException sql && (sql.Number == 2627 || sql.Number == 2601);
 
+    // ── Reports LIBRARY ──────────────────────────────────────────────────────
+
+    public async Task<List<ReportLibraryEntryDto>> GetReportLibraryAsync(
+        Guid jobId,
+        string shelfRoleId,
+        bool callerIsSuperuser,
+        CancellationToken cancellationToken = default)
+    {
+        var allowed = ReportLibraryGate.AllowedMinRoleIds(shelfRoleId);
+        if (allowed.Count == 0) return new List<ReportLibraryEntryDto>();
+
+        var context = await _reportingRepository.GetShelfContextAsync(jobId, cancellationToken);
+        if (context == null) return new List<ReportLibraryEntryDto>();
+
+        return await _reportingRepository.GetReportLibraryForShelfAsync(
+            jobId, shelfRoleId, allowed, context.CustomerId, context.JobTypeId,
+            bypassApplicability: callerIsSuperuser, cancellationToken);
+    }
+
+    public async Task<(JobReportEntryDto? Row, ShelfAddOutcome Outcome)> AddLibraryReportToShelfAsync(
+        Guid jobId,
+        string shelfRoleId,
+        bool callerIsSuperuser,
+        Guid reportLibraryId,
+        string lebUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var entry = await _reportingRepository.GetReportLibraryEntryAsync(reportLibraryId, cancellationToken);
+        if (entry == null) return (null, ShelfAddOutcome.LibraryEntryNotFound);
+
+        var context = await _reportingRepository.GetShelfContextAsync(jobId, cancellationToken);
+        if (context == null) return (null, ShelfAddOutcome.LibraryEntryNotFound);
+
+        // THE security boundary: every gate the browse applied, applied again here on the
+        // entry as it is in the database now, never on what the client says it saw.
+        var reason = ReportLibraryGate.WhyNotAddable(
+            entry.MinRoleId,
+            entry.OwnerCustomerId,
+            entry.JobType.Select(jt => jt.JobTypeId).ToList(),
+            shelfRoleId,
+            callerIsSuperuser,
+            context.CustomerId,
+            context.JobTypeId);
+        if (reason != null)
+        {
+            _logger.LogWarning(
+                "Reports library add refused: job {JobId} role {RoleId} entry {ReportKey} — {Reason}",
+                jobId, shelfRoleId, entry.ReportKey, reason);
+            return (null, ShelfAddOutcome.Forbidden);
+        }
+
+        var existing = await _reportingRepository.GetShelfRowIdAsync(jobId, shelfRoleId, reportLibraryId, cancellationToken);
+        if (existing.HasValue) return (null, ShelfAddOutcome.AlreadyOnShelf);
+
+        var maxSort = await _reportingRepository.GetMaxShelfSortOrderAsync(jobId, shelfRoleId, cancellationToken);
+
+        var entity = new JobReports
+        {
+            JobReportId = Guid.NewGuid(),
+            JobId = jobId,
+            RoleId = shelfRoleId,
+            Title = entry.Title,
+            IconName = entry.IconName,
+            Controller = entry.Controller,
+            Action = entry.Action,
+            Kind = entry.Kind,
+            GroupLabel = entry.CategoryCode,
+            SortOrder = maxSort + 10,
+            Active = true,
+            Modified = DateTime.Now,
+            LebUserId = lebUserId,
+            ReportLibraryId = entry.ReportLibraryId,
+        };
+
+        try
+        {
+            await _reportingRepository.AddJobReportAsync(entity, cancellationToken);
+        }
+        catch (DbUpdateException ex) when (IsUniqueKeyViolation(ex))
+        {
+            // Two adds raced, or a legacy row with the same (job, role, controller, action,
+            // group) tuple exists but was never linked. Either way: it is on the shelf.
+            return (null, ShelfAddOutcome.AlreadyOnShelf);
+        }
+
+        var row = new JobReportEntryDto
+        {
+            JobReportId = entity.JobReportId,
+            Title = entity.Title,
+            IconName = entity.IconName,
+            Controller = entity.Controller,
+            Action = entity.Action,
+            Kind = entity.Kind,
+            GroupLabel = entity.GroupLabel,
+            SortOrder = entity.SortOrder,
+            Active = entity.Active,
+            ReportLibraryId = entity.ReportLibraryId,
+            Description = entry.Description,
+        };
+        return (row, ShelfAddOutcome.Added);
+    }
+
+    public Task<bool> RemoveFromShelfAsync(
+        Guid jobReportId,
+        Guid jobId,
+        string shelfRoleId,
+        CancellationToken cancellationToken = default)
+        => _reportingRepository.DeleteShelfRowAsync(jobReportId, jobId, shelfRoleId, cancellationToken);
+
     public async Task<ReportExportResult> ExportCrystalReportAsync(
         string reportName,
         int exportFormat,

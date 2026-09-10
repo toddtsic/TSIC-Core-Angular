@@ -50,6 +50,8 @@ public class ReportingRepository : IReportingRepository
                 GroupLabel = jr.GroupLabel,
                 SortOrder = jr.SortOrder,
                 Active = jr.Active,
+                ReportLibraryId = jr.ReportLibraryId,
+                Description = jr.ReportLibrary != null ? jr.ReportLibrary.Description : null,
             })
             .ToListAsync(cancellationToken);
     }
@@ -76,6 +78,8 @@ public class ReportingRepository : IReportingRepository
                           SortOrder = jr.SortOrder,
                           Active = jr.Active,
                           RoleName = r.Name ?? jr.RoleId,
+                          ReportLibraryId = jr.ReportLibraryId,
+                          Description = jr.ReportLibrary != null ? jr.ReportLibrary.Description : null,
                       })
             .ToListAsync(cancellationToken);
     }
@@ -240,6 +244,98 @@ public class ReportingRepository : IReportingRepository
         _context.JobReports.Add(entity);
         await _context.SaveChangesAsync(cancellationToken);
         return entity;
+    }
+
+    // ── Reports LIBRARY ──────────────────────────────────────────────────────
+
+    public async Task<ShelfContextDto?> GetShelfContextAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new ShelfContextDto { CustomerId = j.CustomerId, JobTypeId = j.JobTypeId })
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<List<ReportLibraryEntryDto>> GetReportLibraryForShelfAsync(
+        Guid jobId,
+        string roleId,
+        IReadOnlyCollection<string> allowedMinRoleIds,
+        Guid customerId,
+        int jobTypeId,
+        bool bypassApplicability,
+        CancellationToken cancellationToken = default)
+    {
+        if (allowedMinRoleIds.Count == 0) return new List<ReportLibraryEntryDto>();
+
+        // Inner join on the role drops retired entries (MinRoleId NULL) before the rank
+        // filter even runs. Applicability: no job-type rows = every job type.
+        return await (from l in _context.ReportLibrary.AsNoTracking()
+                      join r in _context.AspNetRoles.AsNoTracking() on l.MinRoleId equals r.Id
+                      where allowedMinRoleIds.Contains(l.MinRoleId!)
+                            && (l.OwnerCustomerId == null || l.OwnerCustomerId == customerId)
+                            && (bypassApplicability
+                                || !l.JobType.Any()
+                                || l.JobType.Any(jt => jt.JobTypeId == jobTypeId))
+                      orderby l.CategoryCode, l.SortOrder, l.Title
+                      select new ReportLibraryEntryDto
+                      {
+                          ReportLibraryId = l.ReportLibraryId,
+                          ReportKey = l.ReportKey,
+                          Title = l.Title,
+                          Description = l.Description,
+                          Tags = l.Tags,
+                          CategoryCode = l.CategoryCode,
+                          IconName = l.IconName,
+                          Kind = l.Kind,
+                          Controller = l.Controller,
+                          Action = l.Action,
+                          Scope = l.Scope,
+                          MinRoleName = r.Name ?? l.MinRoleId!,
+                          ShelfJobReportId = _context.JobReports
+                              .Where(jr => jr.JobId == jobId
+                                           && jr.RoleId == roleId
+                                           && jr.ReportLibraryId == l.ReportLibraryId)
+                              .Select(jr => (Guid?)jr.JobReportId)
+                              .FirstOrDefault(),
+                      })
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<ReportLibrary?> GetReportLibraryEntryAsync(Guid reportLibraryId, CancellationToken cancellationToken = default)
+    {
+        return await _context.ReportLibrary
+            .AsNoTracking()
+            .Include(l => l.JobType)
+            .FirstOrDefaultAsync(l => l.ReportLibraryId == reportLibraryId, cancellationToken);
+    }
+
+    public async Task<Guid?> GetShelfRowIdAsync(Guid jobId, string roleId, Guid reportLibraryId, CancellationToken cancellationToken = default)
+    {
+        return await _context.JobReports
+            .AsNoTracking()
+            .Where(jr => jr.JobId == jobId && jr.RoleId == roleId && jr.ReportLibraryId == reportLibraryId)
+            .Select(jr => (Guid?)jr.JobReportId)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<int> GetMaxShelfSortOrderAsync(Guid jobId, string roleId, CancellationToken cancellationToken = default)
+    {
+        return await _context.JobReports
+            .AsNoTracking()
+            .Where(jr => jr.JobId == jobId && jr.RoleId == roleId)
+            .Select(jr => (int?)jr.SortOrder)
+            .MaxAsync(cancellationToken) ?? 0;
+    }
+
+    public async Task<bool> DeleteShelfRowAsync(Guid jobReportId, Guid jobId, string roleId, CancellationToken cancellationToken = default)
+    {
+        // The (job, role) predicate IS the ownership check — a row outside the caller's own
+        // shelf matches nothing and nothing is deleted.
+        var deleted = await _context.JobReports
+            .Where(jr => jr.JobReportId == jobReportId && jr.JobId == jobId && jr.RoleId == roleId)
+            .ExecuteDeleteAsync(cancellationToken);
+        return deleted == 1;
     }
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

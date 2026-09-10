@@ -212,4 +212,40 @@ public interface IReportingService
         string? storedProcedureName,
         string? reportName,
         CancellationToken cancellationToken = default);
+
+    // ── Reports LIBRARY — browse / add / remove for the caller's own (job, role) shelf ──
+
+    /// <summary>
+    /// Library entries the caller's shelf may be stocked from, each flagged with whether it
+    /// already is. Empty when the job does not exist or the role is not an admin role.
+    /// </summary>
+    Task<List<ReportLibraryEntryDto>> GetReportLibraryAsync(
+        Guid jobId,
+        string shelfRoleId,
+        bool callerIsSuperuser,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Stocks the caller's shelf with one library entry. Re-runs every visibility gate
+    /// server-side (the browse result is never trusted), then inserts the reporting.JobReports
+    /// row: Title / Icon / Kind / Controller / canonical Action copied from the library,
+    /// GroupLabel = CategoryCode, SortOrder = shelf max + 10, Active, ReportLibraryId, audit pair.
+    /// </summary>
+    Task<(JobReportEntryDto? Row, ShelfAddOutcome Outcome)> AddLibraryReportToShelfAsync(
+        Guid jobId,
+        string shelfRoleId,
+        bool callerIsSuperuser,
+        Guid reportLibraryId,
+        string lebUserId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes one row from the caller's own shelf. False when the row is not on exactly
+    /// this (job, role) shelf — the controller answers 404 either way.
+    /// </summary>
+    Task<bool> RemoveFromShelfAsync(
+        Guid jobReportId,
+        Guid jobId,
+        string shelfRoleId,
+        CancellationToken cancellationToken = default);
 }

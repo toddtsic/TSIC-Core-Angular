@@ -159,6 +159,42 @@ public interface IReportingRepository
         string? reportName,
         CancellationToken cancellationToken = default);
 
+    // ── Reports LIBRARY (reporting.ReportLibrary) — what a (job, role) shelf may be stocked from ──
+
+    /// <summary>The job's owner customer and job type — the two facts the library gates read. Null = no such job.</summary>
+    Task<ShelfContextDto?> GetShelfContextAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Library entries visible to one (job, role) shelf, each carrying that shelf's row id when
+    /// the report is already on it. Retired entries (MinRoleId NULL) never appear. Gates:
+    /// MinRoleId in <paramref name="allowedMinRoleIds"/>; OwnerCustomerId null or the job's
+    /// customer; job-type applicability unless <paramref name="bypassApplicability"/>.
+    /// </summary>
+    Task<List<ReportLibraryEntryDto>> GetReportLibraryForShelfAsync(
+        Guid jobId,
+        string roleId,
+        IReadOnlyCollection<string> allowedMinRoleIds,
+        Guid customerId,
+        int jobTypeId,
+        bool bypassApplicability,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>One library entry with its applicable job-type ids, for the server-side add gate. Null = not found.</summary>
+    Task<ReportLibrary?> GetReportLibraryEntryAsync(Guid reportLibraryId, CancellationToken cancellationToken = default);
+
+    /// <summary>The shelf row for (job, role, library entry), or null. Any row counts — Remove deletes, so presence is the state.</summary>
+    Task<Guid?> GetShelfRowIdAsync(Guid jobId, string roleId, Guid reportLibraryId, CancellationToken cancellationToken = default);
+
+    /// <summary>Highest SortOrder on the (job, role) shelf; 0 when the shelf is empty.</summary>
+    Task<int> GetMaxShelfSortOrderAsync(Guid jobId, string roleId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes one shelf row, but only when it belongs to exactly this (job, role). Any
+    /// mismatch deletes nothing and returns false — the caller answers 404, never 403, so a
+    /// probe cannot distinguish "not yours" from "not there".
+    /// </summary>
+    Task<bool> DeleteShelfRowAsync(Guid jobReportId, Guid jobId, string roleId, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Gets schedule games with field data for iCal export.
     /// </summary>

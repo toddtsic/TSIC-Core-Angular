@@ -8,7 +8,8 @@ import type {
     JobReportEditorRoleDto,
     JobReportEditorRowDto,
     JobReportEditorUpdateDto,
-    JobReportEditorCreateDto
+    JobReportEditorCreateDto,
+    ReportLibraryEntryDto
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -17,12 +18,36 @@ export class ReportingService {
     private readonly apiUrl = environment.apiUrl;
 
     /**
-     * Fetches the reports library for the current (Job, Role) — rows from
-     * `reporting.JobReports` filtered server-side to (jobId, callerRoles, Active=1).
-     * Row existence IS the entitlement; client renders verbatim.
+     * The caller's SHELF: rows from `reporting.JobReports` for (JWT job, caller's role),
+     * Active=1. Row existence IS the entitlement; client renders verbatim. Shelves are per
+     * job AND per role, so a Superuser gets the Superuser shelf by default; `allRoles`
+     * (Superuser only, ignored otherwise) returns the read-only union of every role's rows.
      */
-    getCatalogue(): Observable<JobReportEntryDto[]> {
-        return this.http.get<JobReportEntryDto[]>(`${this.apiUrl}/reporting/catalogue`);
+    getCatalogue(allRoles = false): Observable<JobReportEntryDto[]> {
+        const params = allRoles ? new HttpParams().set('allRoles', 'true') : undefined;
+        return this.http.get<JobReportEntryDto[]>(`${this.apiUrl}/reporting/catalogue`, { params });
+    }
+
+    // ── Reports LIBRARY — what the caller's shelf may be stocked from ──
+
+    /** Library entries visible to the caller's (job, role), each flagged `onShelf` when already held. */
+    getLibrary(): Observable<ReportLibraryEntryDto[]> {
+        return this.http.get<ReportLibraryEntryDto[]>(`${this.apiUrl}/reporting/library`);
+    }
+
+    /**
+     * Adds a library entry to the caller's own shelf. 403 = a gate refused, 409 = already
+     * there. Callers report the outcome in their own words, so the global toast is skipped.
+     */
+    addLibraryReportToShelf(reportLibraryId: string): Observable<JobReportEntryDto> {
+        return this.http.post<JobReportEntryDto>(
+            `${this.apiUrl}/reporting/library/${reportLibraryId}/add`, {}, { context: skipErrorToast() });
+    }
+
+    /** Deletes a row from the caller's own shelf (re-addable from the library). 404 = not on this shelf. */
+    removeFromShelf(jobReportId: string): Observable<void> {
+        return this.http.delete<void>(
+            `${this.apiUrl}/reporting/library/shelf/${jobReportId}`, { context: skipErrorToast() });
     }
 
     // ── SuperUser editor (per-Job, per-Role) ──

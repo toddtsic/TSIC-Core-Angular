@@ -21,13 +21,16 @@ public class ScheduleListController : ControllerBase
 {
     private readonly IScheduleListReportService _scheduleListService;
     private readonly IJobLookupService _jobLookupService;
+    private readonly IReportingService _reportingService;
 
     public ScheduleListController(
         IScheduleListReportService scheduleListService,
-        IJobLookupService jobLookupService)
+        IJobLookupService jobLookupService,
+        IReportingService reportingService)
     {
         _scheduleListService = scheduleListService;
         _jobLookupService = jobLookupService;
+        _reportingService = reportingService;
     }
 
     /// <summary>
@@ -53,6 +56,10 @@ public class ScheduleListController : ControllerBase
         }
 
         var result = await _scheduleListService.GenerateAsync(request, jobId.Value, cancellationToken);
+        // Every report run leaves a who/which/when row (Jobs.JobReportExportHistory); the key is
+        // the library ReportKey for this designer.
+        await _reportingService.RecordExportHistoryAsync(
+            User.GetRegistrationId(), null, "reporting/schedule-list-designer", cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 }

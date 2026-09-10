@@ -20,13 +20,16 @@ public class PackedRosterController : ControllerBase
 {
     private readonly IPackedRosterPdfService _packedRosterService;
     private readonly IJobLookupService _jobLookupService;
+    private readonly IReportingService _reportingService;
 
     public PackedRosterController(
         IPackedRosterPdfService packedRosterService,
-        IJobLookupService jobLookupService)
+        IJobLookupService jobLookupService,
+        IReportingService reportingService)
     {
         _packedRosterService = packedRosterService;
         _jobLookupService = jobLookupService;
+        _reportingService = reportingService;
     }
 
     /// <summary>
@@ -52,6 +55,10 @@ public class PackedRosterController : ControllerBase
         }
 
         var result = await _packedRosterService.GenerateAsync(request, jobId.Value, cancellationToken);
+        // Every report run leaves a who/which/when row (Jobs.JobReportExportHistory); the key is
+        // the library ReportKey for this designer.
+        await _reportingService.RecordExportHistoryAsync(
+            User.GetRegistrationId(), null, "reporting/packed-roster-designer", cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 
@@ -69,6 +76,8 @@ public class PackedRosterController : ControllerBase
         }
 
         var result = await _packedRosterService.GenerateRecruiterAsync(jobId.Value, cancellationToken);
+        await _reportingService.RecordExportHistoryAsync(
+            User.GetRegistrationId(), null, "reporting/packed-roster-designer/recruiter", cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 }

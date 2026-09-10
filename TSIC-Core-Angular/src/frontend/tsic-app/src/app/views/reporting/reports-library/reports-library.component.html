@@ -1,3 +1,96 @@
+<!-- One row, either mode. `showCategory` adds the category chip (search results, where the
+     tab no longer says it). The action column is the only thing that differs by mode:
+       shelf  → Run / Open, then Remove (hidden in the Superuser all-roles union — not one shelf)
+       browse → Add, or an "On your shelf" mark -->
+<ng-template #reportRow let-entry let-showCategory="showCategory">
+    <li class="report-row"
+        [class.report-row--cr]="isSuperuser() && entry.isCrystal && !entry.isMigrated"
+        [class.report-row--migrated]="isSuperuser() && entry.isMigrated"
+        [class.report-row--running]="runningId() === entry.id"
+        [class.report-row--on-shelf]="isBrowsing() && entry.onShelf">
+        <i class="bi bi-{{ entry.iconName || 'file-earmark-text' }} report-row__icon" aria-hidden="true"></i>
+        <div class="report-row__body">
+            <div class="report-row__heading">
+                <h3 class="report-row__title">{{ entry.title }}</h3>
+                @if (isSuperuser() && entry.isMigrated) {
+                    <span class="report-row__migrated-badge" title="Now rendered natively — EF + Syncfusion (formerly Crystal). Temporary marker, removed once all reports are migrated."><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> SF</span>
+                } @else if (isSuperuser() && entry.isCrystal) {
+                    <span class="report-row__cr-badge" title="Still served by Crystal Reports — pending migration to Type 2">
+                        <i class="bi bi-easel" aria-hidden="true"></i> Crystal
+                    </span>
+                }
+                @if (entry.boldReportName) {
+                    <span class="report-row__bold-badge" title="Server-rendered Bold Reports RDL → PDF">
+                        <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Bold
+                    </span>
+                }
+                @if (isUnionView() && entry.roles.length) {
+                    @for (role of entry.roles; track role) {
+                        <span class="report-row__role-chip">{{ role }}</span>
+                    }
+                }
+                @if (isBrowsing() && scopeLabel(entry.scope); as scope) {
+                    <span class="report-row__scope-chip" [title]="'Minimum role: ' + entry.minRoleName">
+                        <i class="bi bi-diagram-3" aria-hidden="true"></i> {{ scope }}
+                    </span>
+                }
+                @if (showCategory) {
+                    <span class="report-row__category">
+                        <i class="bi bi-{{ categoryMeta(entry.category).iconName }}" aria-hidden="true"></i>
+                        {{ categoryMeta(entry.category).label }}
+                    </span>
+                }
+            </div>
+            @if (entry.description) {
+                <p class="report-row__desc">{{ entry.description }}</p>
+            }
+        </div>
+
+        @if (isBrowsing()) {
+            <div class="report-row__actions">
+                @if (entry.onShelf) {
+                    <span class="report-row__on-shelf" title="Already on your shelf">
+                        <i class="bi bi-check2-circle" aria-hidden="true"></i> On your shelf
+                    </span>
+                } @else {
+                    <button
+                        type="button"
+                        class="btn btn-primary btn-sm report-row__run"
+                        [disabled]="busyId() !== null"
+                        (click)="addEntry(entry)">
+                        @if (busyId() === entry.id) { Adding… } @else { <i class="bi bi-plus-lg" aria-hidden="true"></i> Add }
+                    </button>
+                }
+            </div>
+        } @else {
+            <div class="report-row__actions">
+                <button
+                    type="button"
+                    class="btn btn-primary btn-sm report-row__run"
+                    [disabled]="runningId() !== null"
+                    (click)="runEntry(entry)">
+                    @if (runningId() === entry.id) { Running… } @else if (entry.spaRoute) { Open } @else { Run }
+                </button>
+                @if (!isUnionView() && entry.jobReportId) {
+                    <button
+                        type="button"
+                        class="report-row__remove"
+                        [attr.aria-label]="'Remove ' + entry.title + ' from your shelf'"
+                        [title]="'Remove from your shelf'"
+                        [disabled]="busyId() !== null || runningId() !== null"
+                        (click)="removeEntry(entry)">
+                        @if (busyId() === entry.id) {
+                            <i class="bi bi-arrow-repeat report-row__remove-spinner" aria-hidden="true"></i>
+                        } @else {
+                            <i class="bi bi-trash3" aria-hidden="true"></i>
+                        }
+                    </button>
+                }
+            </div>
+        }
+    </li>
+</ng-template>
+
 <section class="reports-library">
     <header class="reports-library__header">
         <div class="page-header">
@@ -13,6 +106,37 @@
                 }
             </h2>
         </div>
+
+        <!-- Shelf vs library. The library is the universe of reports this job could have;
+             the shelf is what this role has chosen to keep. -->
+        <div class="reports-library__modes">
+            <div class="mode-switch" role="tablist" aria-label="Shelf or library">
+                <button type="button" role="tab" class="mode-switch__btn"
+                        [class.mode-switch__btn--active]="!isBrowsing()"
+                        [attr.aria-selected]="!isBrowsing()"
+                        (click)="setMode('shelf')">
+                    <i class="bi bi-bookshelf" aria-hidden="true"></i> My shelf
+                </button>
+                <button type="button" role="tab" class="mode-switch__btn"
+                        [class.mode-switch__btn--active]="isBrowsing()"
+                        [attr.aria-selected]="isBrowsing()"
+                        (click)="setMode('browse')">
+                    <i class="bi bi-search" aria-hidden="true"></i> Browse library
+                    @if (libraryLoaded() && addableCount() > 0) {
+                        <span class="mode-switch__count" title="Reports you could add">{{ addableCount() }}</span>
+                    }
+                </button>
+            </div>
+
+            @if (isSuperuser() && !isBrowsing()) {
+                <label class="all-roles-toggle">
+                    <input type="checkbox" [checked]="showAllRoles()" (change)="toggleAllRoles()" />
+                    <span>Show all roles</span>
+                    <span class="all-roles-toggle__hint">read-only</span>
+                </label>
+            }
+        </div>
+
         <div class="reports-library__search" role="search">
             <i class="bi bi-search reports-library__search-icon" aria-hidden="true"></i>
             <input
@@ -22,7 +146,7 @@
                 type="search"
                 autofocus
                 autocomplete="off"
-                placeholder="Search reports by name or description..."
+                [placeholder]="isBrowsing() ? 'Search the library by name, description or function...' : 'Search your shelf by name or description...'"
                 [value]="searchText()"
                 (input)="onSearchInput($any($event.target).value)" />
             @if (searchText()) {
@@ -37,16 +161,27 @@
         </div>
     </header>
 
-    @if (catalogueLoading()) {
+    @if (!isBrowsing() && catalogueLoading()) {
         <div class="reports-library__banner reports-library__banner--info">
-            Loading dynamic catalogue…
+            Loading your shelf…
+        </div>
+    }
+    @if (isBrowsing() && libraryLoading()) {
+        <div class="reports-library__banner reports-library__banner--info">
+            Loading the library…
         </div>
     }
 
-    @if (catalogueError(); as msg) {
+    @if (!isBrowsing() && catalogueError(); as msg) {
         <div class="reports-library__banner reports-library__banner--warn">
             <span>{{ msg }}</span>
             <button type="button" class="btn btn-link" (click)="retryCatalogue()">Retry</button>
+        </div>
+    }
+    @if (isBrowsing() && libraryError(); as msg) {
+        <div class="reports-library__banner reports-library__banner--warn">
+            <span>{{ msg }}</span>
+            <button type="button" class="btn btn-link" (click)="retryLibrary()">Retry</button>
         </div>
     }
 
@@ -56,7 +191,22 @@
         </div>
     }
 
-    <!-- Recently run row — always visible (handy mid-search too) -->
+    <!-- Undo banner: Remove is a delete, and Undo is simply an add again. -->
+    @if (lastRemoved(); as removed) {
+        <div class="reports-library__banner reports-library__banner--undo" role="status">
+            <span><i class="bi bi-trash3" aria-hidden="true"></i> Removed <strong>{{ removed.title }}</strong> from your shelf.</span>
+            <span class="reports-library__banner-actions">
+                @if (removed.reportLibraryId) {
+                    <button type="button" class="btn btn-link" [disabled]="busyId() !== null" (click)="undoRemove()">Undo</button>
+                }
+                <button type="button" class="reports-library__banner-close" aria-label="Dismiss" (click)="dismissUndo()">
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                </button>
+            </span>
+        </div>
+    }
+
+    <!-- Recently run row — shelf only, always visible there (handy mid-search too) -->
     @if (recentEntries().length > 0) {
         <section class="reports-library__recents">
             <h2 class="reports-library__section-title">
@@ -118,43 +268,7 @@
                 </h2>
                 <ul class="report-list">
                     @for (entry of searchResults(); track entry.id) {
-                        <li class="report-row" [class.report-row--cr]="isSuperuser() && entry.isCrystal && !entry.isMigrated" [class.report-row--migrated]="isSuperuser() && entry.isMigrated" [class.report-row--running]="runningId() === entry.id">
-                            <i class="bi bi-{{ entry.iconName || 'file-earmark-text' }} report-row__icon" aria-hidden="true"></i>
-                            <div class="report-row__body">
-                                <div class="report-row__heading">
-                                    <h3 class="report-row__title">{{ entry.title }}</h3>
-                                    @if (isSuperuser() && entry.isMigrated) { <span class="report-row__migrated-badge" title="Now rendered natively — EF + Syncfusion (formerly Crystal). Temporary marker, removed once all reports are migrated."><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> SF</span> } @else if (isSuperuser() && entry.isCrystal) {
-                                        <span class="report-row__cr-badge" title="Still served by Crystal Reports — pending migration to Type 2">
-                                            <i class="bi bi-easel" aria-hidden="true"></i> Crystal
-                                        </span>
-                                    }
-                                    @if (entry.boldReportName) {
-                                        <span class="report-row__bold-badge" title="Server-rendered Bold Reports RDL → PDF">
-                                            <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Bold
-                                        </span>
-                                    }
-                                    @if (isSuperuser() && entry.roles.length) {
-                                        @for (role of entry.roles; track role) {
-                                            <span class="report-row__role-chip">{{ role }}</span>
-                                        }
-                                    }
-                                    <span class="report-row__category">
-                                        <i class="bi bi-{{ categoryMeta(entry.category).iconName }}" aria-hidden="true"></i>
-                                        {{ categoryMeta(entry.category).label }}
-                                    </span>
-                                </div>
-                                @if (entry.description) {
-                                    <p class="report-row__desc">{{ entry.description }}</p>
-                                }
-                            </div>
-                            <button
-                                type="button"
-                                class="btn btn-primary btn-sm report-row__run"
-                                [disabled]="runningId() !== null"
-                                (click)="runEntry(entry)">
-                                @if (runningId() === entry.id) { Running… } @else if (entry.spaRoute) { Open } @else { Run }
-                            </button>
-                        </li>
+                        <ng-container *ngTemplateOutlet="reportRow; context: { $implicit: entry, showCategory: true }" />
                     }
                 </ul>
             </section>
@@ -163,7 +277,12 @@
         <!-- "All" tab: grouped by category, with section headers for structure -->
         @if (categoryGroups().length === 0) {
             <div class="reports-library__empty">
-                <p>No reports available for this job.</p>
+                @if (isBrowsing()) {
+                    @if (libraryLoaded()) { <p>Nothing in the library is available to this job and role.</p> }
+                } @else {
+                    <p>Your shelf is empty.</p>
+                    <button type="button" class="btn btn-link" (click)="setMode('browse')">Browse the library</button>
+                }
             </div>
         } @else {
             @for (group of categoryGroups(); track group.meta.code) {
@@ -175,39 +294,7 @@
                     </h2>
                     <ul class="report-list">
                         @for (entry of group.entries; track entry.id) {
-                            <li class="report-row" [class.report-row--cr]="isSuperuser() && entry.isCrystal && !entry.isMigrated" [class.report-row--migrated]="isSuperuser() && entry.isMigrated" [class.report-row--running]="runningId() === entry.id">
-                                <i class="bi bi-{{ entry.iconName || 'file-earmark-text' }} report-row__icon" aria-hidden="true"></i>
-                                <div class="report-row__body">
-                                    <div class="report-row__heading">
-                                        <h3 class="report-row__title">{{ entry.title }}</h3>
-                                        @if (isSuperuser() && entry.isMigrated) { <span class="report-row__migrated-badge" title="Now rendered natively — EF + Syncfusion (formerly Crystal). Temporary marker, removed once all reports are migrated."><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> SF</span> } @else if (isSuperuser() && entry.isCrystal) {
-                                            <span class="report-row__cr-badge" title="Still served by Crystal Reports — pending migration to Type 2">
-                                                <i class="bi bi-easel" aria-hidden="true"></i> Crystal
-                                            </span>
-                                        }
-                                        @if (entry.boldReportName) {
-                                            <span class="report-row__bold-badge" title="Server-rendered Bold Reports RDL → PDF">
-                                                <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Bold
-                                            </span>
-                                        }
-                                        @if (isSuperuser() && entry.roles.length) {
-                                            @for (role of entry.roles; track role) {
-                                                <span class="report-row__role-chip">{{ role }}</span>
-                                            }
-                                        }
-                                    </div>
-                                    @if (entry.description) {
-                                        <p class="report-row__desc">{{ entry.description }}</p>
-                                    }
-                                </div>
-                                <button
-                                    type="button"
-                                    class="btn btn-primary btn-sm report-row__run"
-                                    [disabled]="runningId() !== null"
-                                    (click)="runEntry(entry)">
-                                    @if (runningId() === entry.id) { Running… } @else if (entry.spaRoute) { Open } @else { Run }
-                                </button>
-                            </li>
+                            <ng-container *ngTemplateOutlet="reportRow; context: { $implicit: entry, showCategory: false }" />
                         }
                     </ul>
                 </section>
@@ -222,39 +309,7 @@
         } @else {
             <ul class="report-list">
                 @for (entry of tabEntries(); track entry.id) {
-                    <li class="report-row" [class.report-row--cr]="isSuperuser() && entry.isCrystal && !entry.isMigrated" [class.report-row--migrated]="isSuperuser() && entry.isMigrated" [class.report-row--running]="runningId() === entry.id">
-                        <i class="bi bi-{{ entry.iconName || 'file-earmark-text' }} report-row__icon" aria-hidden="true"></i>
-                        <div class="report-row__body">
-                            <div class="report-row__heading">
-                                <h3 class="report-row__title">{{ entry.title }}</h3>
-                                @if (isSuperuser() && entry.isMigrated) { <span class="report-row__migrated-badge" title="Now rendered natively — EF + Syncfusion (formerly Crystal). Temporary marker, removed once all reports are migrated."><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> SF</span> } @else if (isSuperuser() && entry.isCrystal) {
-                                    <span class="report-row__cr-badge" title="Still served by Crystal Reports — pending migration to Type 2">
-                                        <i class="bi bi-easel" aria-hidden="true"></i> Crystal
-                                    </span>
-                                }
-                                @if (entry.boldReportName) {
-                                    <span class="report-row__bold-badge" title="Server-rendered Bold Reports RDL → PDF">
-                                        <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Bold
-                                    </span>
-                                }
-                                @if (isSuperuser() && entry.roles.length) {
-                                    @for (role of entry.roles; track role) {
-                                        <span class="report-row__role-chip">{{ role }}</span>
-                                    }
-                                }
-                            </div>
-                            @if (entry.description) {
-                                <p class="report-row__desc">{{ entry.description }}</p>
-                            }
-                        </div>
-                        <button
-                            type="button"
-                            class="btn btn-primary btn-sm report-row__run"
-                            [disabled]="runningId() !== null"
-                            (click)="runEntry(entry)">
-                            @if (runningId() === entry.id) { Running… } @else if (entry.spaRoute) { Open } @else { Run }
-                        </button>
-                    </li>
+                    <ng-container *ngTemplateOutlet="reportRow; context: { $implicit: entry, showCategory: false }" />
                 }
             </ul>
         }

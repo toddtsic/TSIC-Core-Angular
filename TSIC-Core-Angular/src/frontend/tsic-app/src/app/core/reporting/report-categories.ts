@@ -1,13 +1,10 @@
 /**
  * Presentation-layer grouping for the reports library UI.
  *
- * The same code values live in `reporting.ReportCatalogue.CategoryCode`
- * (Type 2 / SP-driven reports, set in scripts/7-install-reporting-catalog.sql)
- * and in `Type1ReportEntry.category` (Type 1 / Crystal reports, hard-coded
- * in type1-report-catalog.ts). The library component groups by this field.
- *
- * `null` (Type 2 only) renders under the "Other" bucket. Type 1 entries are
- * required to declare a category — if you add one, pick the closest match.
+ * The same seven code values live in `reporting.ReportLibrary.CategoryCode` (CHECK-constrained,
+ * scripts/23-install-reporting-library.sql) and, as `GroupLabel`, on every shelf row in
+ * `reporting.JobReports` (normalised by scripts/8). The library component groups by this field
+ * in both modes. Anything else renders under the "Other" bucket.
  */
 
 export type ReportCategory =

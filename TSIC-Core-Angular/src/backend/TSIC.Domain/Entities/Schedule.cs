@@ -91,7 +91,7 @@ public partial class Schedule
 
     public virtual Agegroups? Agegroup { get; set; }
 
-    public virtual ICollection<BracketSeeds> BracketSeeds { get; set; } = new List<BracketSeeds>();
+    public virtual BracketSeeds? BracketSeeds { get; set; }
 
     public virtual ICollection<DeviceGids> DeviceGids { get; set; } = new List<DeviceGids>();
 

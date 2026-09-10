@@ -34,6 +34,12 @@ public record JobReportEntryDto
     /// role-filtered catalogue, where the caller's own role is implicit.
     /// </summary>
     public string? RoleName { get; init; }
+
+    /// <summary>The library entry this shelf row was stocked from. Null only for a legacy row the backfill could not key.</summary>
+    public Guid? ReportLibraryId { get; init; }
+
+    /// <summary>Library description (content pass, may be null). Shown under the title on the shelf.</summary>
+    public string? Description { get; init; }
 }
 
 /// <summary>

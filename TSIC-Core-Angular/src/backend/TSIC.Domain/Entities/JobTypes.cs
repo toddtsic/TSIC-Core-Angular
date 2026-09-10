@@ -14,4 +14,6 @@ public partial class JobTypes
     public virtual ICollection<Jobs> Jobs { get; set; } = new List<Jobs>();
 
     public virtual ICollection<WidgetDefault> WidgetDefault { get; set; } = new List<WidgetDefault>();
+
+    public virtual ICollection<ReportLibrary> ReportLibrary { get; set; } = new List<ReportLibrary>();
 }

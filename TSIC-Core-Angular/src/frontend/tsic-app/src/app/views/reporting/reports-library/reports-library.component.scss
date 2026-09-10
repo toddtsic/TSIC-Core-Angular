@@ -423,6 +423,187 @@
     white-space: nowrap;
 }
 
+// ── Shelf / Browse switch + Superuser all-roles toggle ───────────────────────
+.reports-library__modes {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.mode-switch {
+    display: inline-flex;
+    padding: 3px;
+    gap: 2px;
+    background: var(--bs-secondary-bg-subtle);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--radius-lg);
+
+    &__btn {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-4);
+        border: none;
+        border-radius: var(--radius-md);
+        background: transparent;
+        color: var(--brand-text-muted);
+        font-size: 0.9375rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 120ms ease, color 120ms ease, box-shadow 120ms ease;
+
+        &:hover:not(.mode-switch__btn--active) { color: var(--brand-text); }
+        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+        &--active {
+            background: var(--bs-body-bg);
+            color: var(--bs-primary);
+            font-weight: 600;
+            box-shadow: var(--shadow-xs);
+        }
+
+        i { font-size: 1rem; }
+    }
+
+    &__count {
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--bs-primary-bg-subtle);
+        color: var(--bs-primary-text-emphasis);
+        line-height: 1.2;
+    }
+}
+
+.all-roles-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: 0.875rem;
+    color: var(--brand-text);
+    cursor: pointer;
+
+    input { accent-color: var(--bs-primary); }
+    input:focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: var(--radius-sm); }
+
+    &__hint {
+        font-size: 0.75rem;
+        color: var(--brand-text-muted);
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--bs-secondary-bg-subtle);
+    }
+}
+
+// ── Row action column: Run + Remove (shelf) or Add / On-shelf (browse) ───────
+.report-row__actions {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: 2px;            // align with title baseline
+}
+
+.report-row__remove {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--brand-text-muted);
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+
+    &:hover:not(:disabled) {
+        background: var(--bs-danger-bg-subtle);
+        color: var(--bs-danger-text-emphasis);
+        border-color: var(--bs-danger-border-subtle);
+    }
+    &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+    &:disabled { cursor: not-allowed; opacity: 0.5; }
+
+    i { font-size: 1rem; }
+}
+
+.report-row__remove-spinner { animation: reports-spin 1s linear infinite; }
+
+// "On your shelf" — text + icon, so the state is not colour alone (WCAG).
+.report-row__on-shelf {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 80px;
+    justify-content: center;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--bs-success-bg-subtle);
+    color: var(--bs-success-text-emphasis);
+    border: 1px solid var(--bs-success-border-subtle);
+    white-space: nowrap;
+
+    i { font-size: 0.9375rem; }
+}
+
+.report-row--on-shelf {
+    // Dim via colour, never opacity (opacity breaks the stacking context for anything absolute).
+    .report-row__title { color: var(--brand-text-muted); }
+}
+
+// Scope chip — Browse only, on entries that read beyond this job. Stated in words so a
+// director sees what "cross-job" means before adding it.
+.report-row__scope-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--bs-warning-bg-subtle);
+    color: var(--bs-warning-text-emphasis);
+    border: 1px solid var(--bs-warning-border-subtle);
+    white-space: nowrap;
+
+    i { font-size: 0.75rem; }
+}
+
+// Undo banner — neutral surface; the action is the link.
+.reports-library__banner--undo {
+    background: var(--bs-secondary-bg-subtle);
+    color: var(--brand-text);
+    border-color: var(--bs-border-color);
+
+    i { margin-right: 4px; }
+}
+
+.reports-library__banner-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.reports-library__banner-close {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: var(--brand-text-muted);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+
+    &:hover { background: var(--bs-body-bg); color: var(--brand-text); }
+    &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+}
+
 @keyframes reports-spin {
     from { transform: rotate(0deg); }
     to   { transform: rotate(360deg); }
@@ -432,8 +613,11 @@
     .reports-library__search,
     .recent-chip,
     .report-row,
-    .reports-tab {
+    .reports-tab,
+    .mode-switch__btn,
+    .report-row__remove {
         transition: none;
     }
-    .recent-chip__spinner { animation: none; }
+    .recent-chip__spinner,
+    .report-row__remove-spinner { animation: none; }
 }

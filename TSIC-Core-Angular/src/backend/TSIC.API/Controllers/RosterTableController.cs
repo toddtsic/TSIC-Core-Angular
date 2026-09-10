@@ -20,13 +20,16 @@ public class RosterTableController : ControllerBase
 {
     private readonly IRosterTablePdfService _rosterTableService;
     private readonly IJobLookupService _jobLookupService;
+    private readonly IReportingService _reportingService;
 
     public RosterTableController(
         IRosterTablePdfService rosterTableService,
-        IJobLookupService jobLookupService)
+        IJobLookupService jobLookupService,
+        IReportingService reportingService)
     {
         _rosterTableService = rosterTableService;
         _jobLookupService = jobLookupService;
+        _reportingService = reportingService;
     }
 
     /// <summary>
@@ -52,6 +55,10 @@ public class RosterTableController : ControllerBase
         }
 
         var result = await _rosterTableService.GenerateAsync(request, jobId.Value, cancellationToken);
+        // Every report run leaves a who/which/when row (Jobs.JobReportExportHistory); the key is
+        // the library ReportKey for this designer (the camp preset shares the endpoint).
+        await _reportingService.RecordExportHistoryAsync(
+            User.GetRegistrationId(), null, "reporting/roster-table-designer", cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 }

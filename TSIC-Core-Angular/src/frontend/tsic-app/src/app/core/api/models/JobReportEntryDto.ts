@@ -13,5 +13,7 @@ export type JobReportEntryDto = {
     sortOrder: number;
     active: boolean;
     roleName?: string | null;
+    reportLibraryId?: string | null;
+    description?: string | null;
 };
 

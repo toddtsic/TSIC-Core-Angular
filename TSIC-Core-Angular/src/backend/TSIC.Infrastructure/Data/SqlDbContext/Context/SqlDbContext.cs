@@ -302,6 +302,8 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<ReportExportTypes> ReportExportTypes { get; set; }
 
+    public virtual DbSet<ReportLibrary> ReportLibrary { get; set; }
+
     public virtual DbSet<Reports> Reports { get; set; }
 
     public virtual DbSet<Schedule> Schedule { get; set; }
@@ -417,6 +419,10 @@ public partial class SqlDbContext : DbContext
     public virtual DbSet<WidgetDefault> WidgetDefault { get; set; }
 
     public virtual DbSet<Yn2023schedule> Yn2023schedule { get; set; }
+
+    public virtual DbSet<ZzAdultConfirmTemplatesBackup20260814> ZzAdultConfirmTemplatesBackup20260814 { get; set; }
+
+    public virtual DbSet<ZzJobConfirmTemplatesBackup20260814> ZzJobConfirmTemplatesBackup20260814 { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -1594,6 +1600,8 @@ public partial class SqlDbContext : DbContext
 
             entity.ToTable("BracketSeeds", "Leagues");
 
+            entity.HasIndex(e => e.Gid, "UX_BracketSeeds_Gid").IsUnique();
+
             entity.Property(e => e.AId).HasColumnName("aId");
             entity.Property(e => e.Gid).HasColumnName("gid");
             entity.Property(e => e.LebUserId)
@@ -1609,8 +1617,8 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.T2SeedRank).HasColumnName("t2SeedRank");
             entity.Property(e => e.WhichSide).HasColumnName("whichSide");
 
-            entity.HasOne(d => d.GidNavigation).WithMany(p => p.BracketSeeds)
-                .HasForeignKey(d => d.Gid)
+            entity.HasOne(d => d.GidNavigation).WithOne(p => p.BracketSeeds)
+                .HasForeignKey<BracketSeeds>(d => d.Gid)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__BracketSeed__gid__1C7EB0F9");
 
@@ -4506,6 +4514,8 @@ public partial class SqlDbContext : DbContext
 
             entity.HasIndex(e => new { e.JobId, e.RoleId, e.Active }, "IX_JobReports_JobRole");
 
+            entity.HasIndex(e => e.ReportLibraryId, "IX_JobReports_ReportLibraryId");
+
             entity.HasIndex(e => new { e.JobId, e.RoleId, e.Controller, e.Action, e.GroupLabel }, "UX_JobReports_JobRoleActionGroup").IsUnique();
 
             entity.Property(e => e.JobReportId).HasDefaultValueSql("(newid())");
@@ -4528,6 +4538,10 @@ public partial class SqlDbContext : DbContext
             entity.HasOne(d => d.LebUser).WithMany(p => p.JobReports)
                 .HasForeignKey(d => d.LebUserId)
                 .HasConstraintName("FK_JobReports_LebUser");
+
+            entity.HasOne(d => d.ReportLibrary).WithMany(p => p.JobReports)
+                .HasForeignKey(d => d.ReportLibraryId)
+                .HasConstraintName("FK_JobReports_ReportLibrary");
 
             entity.HasOne(d => d.Role).WithMany(p => p.JobReports)
                 .HasForeignKey(d => d.RoleId)
@@ -5674,6 +5688,10 @@ public partial class SqlDbContext : DbContext
 
             entity.ToTable("Registration_Accounting", "Jobs");
 
+            entity.HasIndex(e => new { e.RegistrationId, e.Active, e.Createdate }, "IX_RegistrationAccounting_RegistrationId").HasFillFactor(90);
+
+            entity.HasIndex(e => new { e.TeamId, e.Active, e.Createdate }, "IX_RegistrationAccounting_TeamId").HasFillFactor(90);
+
             entity.Property(e => e.AId).HasColumnName("aID");
             entity.Property(e => e.Active).HasColumnName("active");
             entity.Property(e => e.AdnCc4).HasColumnName("adnCC4");
@@ -5740,6 +5758,8 @@ public partial class SqlDbContext : DbContext
             entity.HasKey(e => e.RegistrationId).HasName("PK_Jobs.Registrations");
 
             entity.ToTable("Registrations", "Jobs", tb => tb.HasTrigger("UpdateRegistrantAssignment"));
+
+            entity.HasIndex(e => e.AssignedTeamId, "IX_Registrations_AssignedTeamId").HasFillFactor(90);
 
             entity.HasIndex(e => e.FamilyUserId, "IX_Registrations_Family_UserId");
 
@@ -6019,6 +6039,61 @@ public partial class SqlDbContext : DbContext
             entity.ToTable("ReportExportTypes", "reference");
 
             entity.Property(e => e.ReportExportTypeId).HasColumnName("ReportExportTypeID");
+        });
+
+        modelBuilder.Entity<ReportLibrary>(entity =>
+        {
+            entity.ToTable("ReportLibrary", "reporting");
+
+            entity.HasIndex(e => e.ReportKey, "UX_ReportLibrary_ReportKey").IsUnique();
+
+            entity.Property(e => e.ReportLibraryId).HasDefaultValueSql("(newid())", "DF_ReportLibrary_Id");
+            entity.Property(e => e.Action).HasMaxLength(250);
+            entity.Property(e => e.CategoryCode).HasMaxLength(50);
+            entity.Property(e => e.Controller).HasMaxLength(50);
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.IconName).HasMaxLength(50);
+            entity.Property(e => e.Kind).HasMaxLength(20);
+            entity.Property(e => e.LebUserId).HasMaxLength(450);
+            entity.Property(e => e.MinRoleId).HasMaxLength(450);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getdate())", "DF_ReportLibrary_Modified")
+                .HasColumnType("datetime");
+            entity.Property(e => e.ReportKey).HasMaxLength(250);
+            entity.Property(e => e.Scope)
+                .HasMaxLength(20)
+                .HasDefaultValue("JobOnly", "DF_ReportLibrary_Scope");
+            entity.Property(e => e.Tags).HasMaxLength(400);
+            entity.Property(e => e.Title).HasMaxLength(200);
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.ReportLibrary)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_ReportLibrary_LebUser");
+
+            entity.HasOne(d => d.MinRole).WithMany(p => p.ReportLibrary)
+                .HasForeignKey(d => d.MinRoleId)
+                .HasConstraintName("FK_ReportLibrary_MinRole");
+
+            entity.HasOne(d => d.OwnerCustomer).WithMany(p => p.ReportLibrary)
+                .HasForeignKey(d => d.OwnerCustomerId)
+                .HasConstraintName("FK_ReportLibrary_OwnerCustomer");
+
+            entity.HasMany(d => d.JobType).WithMany(p => p.ReportLibrary)
+                .UsingEntity<Dictionary<string, object>>(
+                    "ReportLibraryJobTypes",
+                    r => r.HasOne<JobTypes>().WithMany()
+                        .HasForeignKey("JobTypeId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("FK_ReportLibraryJobTypes_JobType"),
+                    l => l.HasOne<ReportLibrary>().WithMany()
+                        .HasForeignKey("ReportLibraryId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("FK_ReportLibraryJobTypes_Library"),
+                    j =>
+                    {
+                        j.HasKey("ReportLibraryId", "JobTypeId");
+                        j.ToTable("ReportLibraryJobTypes", "reporting");
+                    });
         });
 
         modelBuilder.Entity<Reports>(entity =>
@@ -8011,6 +8086,34 @@ public partial class SqlDbContext : DbContext
                 .HasMaxLength(4)
                 .IsUnicode(false)
                 .IsFixedLength();
+        });
+
+        modelBuilder.Entity<ZzAdultConfirmTemplatesBackup20260814>(entity =>
+        {
+            entity
+                .HasNoKey()
+                .ToTable("zz_AdultConfirmTemplates_Backup_20260814");
+
+            entity.Property(e => e.AdultRegConfirmationEmail).HasColumnName("AdultReg_ConfirmationEmail");
+            entity.Property(e => e.AdultRegConfirmationOnScreen).HasColumnName("AdultReg_ConfirmationOnScreen");
+            entity.Property(e => e.BackupTs).HasColumnType("datetime");
+            entity.Property(e => e.JobName).HasColumnName("jobName");
+            entity.Property(e => e.JobTypeId).HasColumnName("JobTypeID");
+        });
+
+        modelBuilder.Entity<ZzJobConfirmTemplatesBackup20260814>(entity =>
+        {
+            entity
+                .HasNoKey()
+                .ToTable("zz_JobConfirmTemplates_Backup_20260814");
+
+            entity.Property(e => e.BackupTs).HasColumnType("datetime");
+            entity.Property(e => e.CoachRegConfirmationEmail).HasColumnName("CoachReg_ConfirmationEmail");
+            entity.Property(e => e.CoachRegConfirmationOnScreen).HasColumnName("CoachReg_ConfirmationOnScreen");
+            entity.Property(e => e.RecruiterRegConfirmationEmail).HasColumnName("RecruiterReg_ConfirmationEmail");
+            entity.Property(e => e.RecruiterRegConfirmationOnScreen).HasColumnName("RecruiterReg_ConfirmationOnScreen");
+            entity.Property(e => e.RefereeRegConfirmationEmail).HasColumnName("RefereeReg_ConfirmationEmail");
+            entity.Property(e => e.RefereeRegConfirmationOnScreen).HasColumnName("RefereeReg_ConfirmationOnScreen");
         });
 
         OnModelCreatingPartial(modelBuilder);

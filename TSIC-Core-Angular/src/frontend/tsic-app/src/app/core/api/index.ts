@@ -618,6 +618,7 @@ export type { RenameToNewTeamRequest } from './models/RenameToNewTeamRequest';
 export type { RenderedEmailPreview } from './models/RenderedEmailPreview';
 export type { ReorderMenuItemsRequest } from './models/ReorderMenuItemsRequest';
 export type { ReorderNavItemsRequest } from './models/ReorderNavItemsRequest';
+export type { ReportLibraryEntryDto } from './models/ReportLibraryEntryDto';
 export type { ReschedulerGridRequest } from './models/ReschedulerGridRequest';
 export type { ResendInvoicesRequest } from './models/ResendInvoicesRequest';
 export type { ResendInvoicesResponse } from './models/ResendInvoicesResponse';
