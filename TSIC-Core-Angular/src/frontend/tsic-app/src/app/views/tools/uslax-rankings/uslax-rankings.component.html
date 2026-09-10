@@ -322,6 +322,20 @@
 						<!-- The same boundaries the Show filter uses, in the same words — one
 						     vocabulary for confidence across the screen. -->
 						<div class="save-dropdown" (click)="$event.stopPropagation()">
+							<!--
+								Deletions are announced BEFORE the click, not counted back afterwards
+								in "cleared N". Every option below carries them, so this sits above
+								the three rather than on any one of them — the threshold chooses what
+								is WRITTEN and has never had any bearing on what is cleared.
+							-->
+							@if (pendingClearCount() > 0) {
+								<p class="save-clear-note mb-0">
+									<i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>
+									Also removes the saved ranking from
+									<strong>{{ pendingClearCount() }}</strong>
+									{{ pendingClearCount() === 1 ? 'team you unpaired' : 'teams you unpaired' }}.
+								</p>
+							}
 							<button class="save-option" (click)="saveWithThreshold('high')">
 								<span class="badge confidence-high me-2">75%+</span>High confidence<span class="text-muted ms-auto">{{ saveCountByThreshold().high }}</span>
 							</button>

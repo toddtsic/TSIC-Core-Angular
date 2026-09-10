@@ -242,6 +242,16 @@
 	border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
 	z-index: 1000; min-width: 260px; overflow: hidden;
 }
+/* Sits above the three threshold options because it applies to all of them. Icon + words, never
+   colour alone — this is the only warning the director gets that a save also deletes. */
+.save-clear-note {
+	padding: var(--space-2) var(--space-3);
+	background: var(--bs-warning-bg-subtle);
+	border-bottom: 1px solid var(--bs-border-color);
+	color: var(--bs-warning-text-emphasis);
+	font-size: var(--font-size-xs);
+	line-height: 1.35;
+}
 .save-option {
 	display: flex; align-items: center; width: 100%; padding: var(--space-2) var(--space-3);
 	border: none; background: transparent; font-size: var(--font-size-sm); cursor: pointer; color: var(--bs-body-color); text-align: left;

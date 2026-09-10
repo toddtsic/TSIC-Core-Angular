@@ -157,6 +157,22 @@ export class UsLaxRankingsComponent {
 	// ── Match interaction: single signal for which team row is in "pick a ranking" mode ──
 	readonly activeMatchTeamId = signal<string | null>(null);
 
+	/**
+	 * Teams the DIRECTOR unpaired — written only by `undoMatch`, i.e. only by the red x-circle
+	 * and by the accordion's trash (which deletes on its own account anyway).
+	 *
+	 * Save clears these and ONLY these. Previously the clear loop ran over `unmatchedTeams`,
+	 * which holds two unrelated populations: teams the director unpaired, and teams the LOOKUP
+	 * failed to find (set wholesale from the align response). Nothing distinguished them, so a
+	 * saved ranking that usclublax.com simply did not return this run was deleted on the next
+	 * save — a third party going quiet is not an instruction to destroy the director's work.
+	 *
+	 * Reset wherever the screen's decisions are discarded: a new age group, and a fresh Look Up
+	 * (which replaces everything on screen, hand pairings included). Re-pairing a team removes
+	 * it again — the decision has been reversed before it was ever committed.
+	 */
+	readonly unpairedTeamIds = signal<ReadonlySet<string>>(new Set());
+
 	// ── Toolbar filters ──
 	readonly tableFilter = signal<TableFilter>('all');
 	readonly sidebarSearch = signal('');
@@ -319,11 +335,30 @@ export class UsLaxRankingsComponent {
 
 	readonly hasResults = computed(() => this.alignment() !== null);
 
+	/**
+	 * Is there anything for Save Rankings to commit? A pairing that differs from what is stored,
+	 * OR an un-match the director performed on a team that HAS something stored.
+	 *
+	 * The second half was missing, and it only ever inspected matched rows — so clicking the red
+	 * x-circle on a lone row left the button greyed out saying "Nothing to save", and the one
+	 * decision the clear path exists to persist could not be persisted unless some unrelated row
+	 * happened to be dirty and dragged it through.
+	 */
 	readonly hasDirtyMatches = computed(() =>
 		this.matchedTeams().some(m => {
 			const stored = this.parseRankingData(m.registeredTeam.nationalRankingData);
 			return !stored || stored.rank !== m.ranking.rank || stored.team !== m.ranking.team;
-		}));
+		})
+		|| this.pendingClearCount() > 0);
+
+	/** Un-matches the director has made that would actually delete something stored. */
+	readonly pendingClearCount = computed(() => {
+		let n = 0;
+		for (const teamId of this.unpairedTeamIds()) {
+			if (this.storedRankingFor(teamId)) n++;
+		}
+		return n;
+	});
 
 	constructor() {
 		this.loadSeasons();
@@ -488,8 +523,11 @@ export class UsLaxRankingsComponent {
 					this.agegroupTeams.set(teams);
 					this.totalTeamsInAgeGroup.set(teams.length);
 					// Seeding the unmatched list is what puts the roster in the table: every team
-					// starts unpaired, and matching moves them across.
+					// starts unpaired, and matching moves them across. Note these teams are NOT
+					// "unpaired by the director" — nobody has decided anything yet, which is
+					// exactly the distinction `unpairedTeamIds` exists to keep.
 					this.unmatchedTeams.set([...teams]);
+					this.unpairedTeamIds.set(new Set());
 					this.preselectNationalAgeGroup();
 				},
 				error: (err: unknown) => {
@@ -605,7 +643,10 @@ export class UsLaxRankingsComponent {
 					this.alignment.set(result);
 					this.matchedTeams.set([...result.alignedTeams]);
 					this.unmatchedRankings.set([...result.unmatchedRankings]);
+					// Teams the LOOKUP did not find. Not the director's decision — so they are
+					// not recorded as unpaired and Save will not clear what they have stored.
 					this.unmatchedTeams.set([...result.unmatchedTeams]);
+					this.unpairedTeamIds.set(new Set());
 					this.totalTeamsInAgeGroup.set(result.totalTeamsInAgeGroup);
 				},
 				error: (err: unknown) => {
@@ -655,6 +696,7 @@ export class UsLaxRankingsComponent {
 			// committed and half was not, and un-matching had no way to take that write back.
 		}
 
+		this.clearUnpaired(teamId);
 		this.activeMatchTeamId.set(null);
 	}
 
@@ -663,6 +705,16 @@ export class UsLaxRankingsComponent {
 		this.unmatchedRankings.set(
 			[...this.unmatchedRankings(), match.ranking].sort((a, b) => a.rank - b.rank));
 		this.unmatchedTeams.set([...this.unmatchedTeams(), match.registeredTeam]);
+		// The ONLY place a team is recorded as deliberately unpaired. This is what Save clears.
+		this.unpairedTeamIds.set(new Set(this.unpairedTeamIds()).add(match.registeredTeam.teamId));
+	}
+
+	/** Re-paired, so the un-match is reversed — and it was never committed. */
+	private clearUnpaired(teamId: string): void {
+		if (!this.unpairedTeamIds().has(teamId)) return;
+		const next = new Set(this.unpairedTeamIds());
+		next.delete(teamId);
+		this.unpairedTeamIds.set(next);
 	}
 
 	/**
@@ -749,12 +801,12 @@ export class UsLaxRankingsComponent {
 			});
 		}
 
-		// Clears. A team that is unmatched on screen but still carries a stored stamp is an
-		// un-match the director performed — the one thing the old save could never persist,
-		// because the server re-derived the match and wrote it straight back.
-		for (const team of this.unmatchedTeams()) {
-			if (this.storedRankingFor(team.teamId)) {
-				teams.push({ teamId: team.teamId, ranking: null });
+		// Clears. ONLY teams the director unpaired by hand — never the whole unmatched pile,
+		// which also holds every team this run's lookup failed to find. Clearing that pile
+		// deleted saved rankings nobody had asked to remove.
+		for (const teamId of this.unpairedTeamIds()) {
+			if (this.storedRankingFor(teamId)) {
+				teams.push({ teamId, ranking: null });
 			}
 		}
 
@@ -780,6 +832,9 @@ export class UsLaxRankingsComponent {
 						return;
 					}
 					this.successMessage.set(result.message ?? this.describeSave(result));
+					// Those un-matches are committed now; they must not be re-sent as clears on
+					// the next save, when the teams no longer have anything stored to clear.
+					this.unpairedTeamIds.set(new Set());
 					this.applySavedLocally(teams);
 					// Re-read from the database rather than trusting the local patch — this is the
 					// screen's claim that the save landed, so it should be the database's claim.
