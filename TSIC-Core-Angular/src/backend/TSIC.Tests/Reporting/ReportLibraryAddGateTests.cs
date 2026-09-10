@@ -72,11 +72,11 @@ public class ReportLibraryAddGateTests
     public void AllowedMinRoleIds_MirrorsRoleMayHold_ForTheBrowseQuery()
     {
         ReportLibraryGate.AllowedMinRoleIds(RoleConstants.Director)
-            .Should().BeEquivalentTo(new[] { RoleConstants.Director });
+            .Should().BeEquivalentTo(RoleConstants.Director);
         ReportLibraryGate.AllowedMinRoleIds(RoleConstants.SuperDirector)
-            .Should().BeEquivalentTo(new[] { RoleConstants.Director, RoleConstants.SuperDirector });
+            .Should().BeEquivalentTo(RoleConstants.Director, RoleConstants.SuperDirector);
         ReportLibraryGate.AllowedMinRoleIds(RoleConstants.Superuser)
-            .Should().BeEquivalentTo(new[] { RoleConstants.Director, RoleConstants.SuperDirector, RoleConstants.Superuser });
+            .Should().BeEquivalentTo(RoleConstants.Director, RoleConstants.SuperDirector, RoleConstants.Superuser);
         ReportLibraryGate.AllowedMinRoleIds(RoleConstants.Player).Should().BeEmpty();
     }
 
