@@ -8,7 +8,8 @@ import type {
     PoolTransferPreviewRequest,
     PoolTransferPreviewResponse,
     PoolTransferRequest,
-    PoolTransferResultDto
+    PoolTransferResultDto,
+    TeamSeatingResultDto
 } from '@core/api';
 
 // Re-export for consumers
@@ -46,7 +47,11 @@ export class PoolAssignmentService {
         return this.http.put<void>(`${this.apiUrl}/teams/${teamId}/active`, { active });
     }
 
-    updateTeamDivRank(teamId: string, divRank: number): Observable<void> {
-        return this.http.put<void>(`${this.apiUrl}/teams/${teamId}/divrank`, { divRank });
+    /**
+     * Changing a rank trades that team's games with whoever held the rank — the response says
+     * which two teams and how many games moved, so the screen can report it instead of going quiet.
+     */
+    updateTeamDivRank(teamId: string, divRank: number): Observable<TeamSeatingResultDto> {
+        return this.http.put<TeamSeatingResultDto>(`${this.apiUrl}/teams/${teamId}/divrank`, { divRank });
     }
 }

@@ -36,6 +36,7 @@ public class LadtStubTests
     private readonly Mock<ITeamPlacementService> _placement = new();
     private readonly Mock<IFeeRepository> _feeRepo = new();
     private readonly Mock<TSIC.API.Services.Teams.ITeamRenameService> _teamRename = new();
+    private readonly Mock<ITeamSeatingService> _teamSeating = new();
 
     private LadtService CreateService() => new(
         _leagueRepo.Object,
@@ -51,7 +52,8 @@ public class LadtStubTests
         _scheduleRepo.Object,
         _placement.Object,
         _feeRepo.Object,
-        _teamRename.Object
+        _teamRename.Object,
+        _teamSeating.Object
     );
 
     // ─── AddStubAgegroup ──────────────────────────────────────────────────

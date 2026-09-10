@@ -57,6 +57,15 @@ public interface ILeagueRepository
     /// </summary>
     Task<IAsyncDisposable> BeginTransactionAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Begins a transaction ONLY if none is already open on this context, and returns null when
+    /// one is. A null result means the caller is running inside someone else's transaction and
+    /// must neither commit nor dispose it — its work simply joins theirs and lands when they
+    /// commit. Lets a service guarantee its own atomicity standalone without breaking when a
+    /// larger operation (a pool transfer, with its fee and club-rep writes) wraps it.
+    /// </summary>
+    Task<IAsyncDisposable?> BeginTransactionIfNoneAsync(CancellationToken cancellationToken = default);
+
     /// <summary>Commits the transaction opened by <see cref="BeginTransactionAsync"/>.</summary>
     Task CommitTransactionAsync(CancellationToken cancellationToken = default);
 

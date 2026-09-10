@@ -257,7 +257,7 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
         await _scheduleRepo.SaveChangesAsync(ct);
 
         // Resolve team names from rank assignments (UpdateGameIds equivalent)
-        await _scheduleRepo.SynchronizeScheduleTeamAssignmentsForDivisionAsync(request.DivId, jobId, ct);
+        await _scheduleRepo.SynchronizeScheduleTeamAssignmentsForDivisionAsync(request.DivId, jobId, userId, ct);
 
         // Placing a bracket game changes the division's placed-game set — recompute
         // its bracket wiring (feeds/seeds). Round-robin placements don't affect it.
@@ -471,7 +471,7 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
         }
 
         // 7. Bulk resolve team names for the entire division
-        await _scheduleRepo.SynchronizeScheduleTeamAssignmentsForDivisionAsync(divId, jobId, ct);
+        await _scheduleRepo.SynchronizeScheduleTeamAssignmentsForDivisionAsync(divId, jobId, userId, ct);
 
         _logger.LogInformation(
             "AutoScheduleDiv: DivId={DivId}, Total={Total}, Scheduled={Scheduled}, Failed={Failed}",

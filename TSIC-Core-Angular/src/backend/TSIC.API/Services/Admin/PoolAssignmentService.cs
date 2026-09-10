@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos.PoolAssignment;
+using TSIC.Contracts.Dtos.Teams;
 using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -25,6 +26,8 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
     private readonly IAgeGroupRepository _agegroupRepo;
     private readonly IFeeResolutionService _feeService;
     private readonly IPaymentStateService _paymentState;
+    private readonly ITeamSeatingService _teamSeating;
+    private readonly ILeagueRepository _leagueRepo;
 
     public PoolAssignmentService(
         ITeamRepository teamRepo,
@@ -33,7 +36,9 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         IRegistrationRepository registrationRepo,
         IAgeGroupRepository agegroupRepo,
         IFeeResolutionService feeService,
-        IPaymentStateService paymentState)
+        IPaymentStateService paymentState,
+        ITeamSeatingService teamSeating,
+        ILeagueRepository leagueRepo)
     {
         _teamRepo = teamRepo;
         _divRepo = divRepo;
@@ -42,6 +47,8 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         _agegroupRepo = agegroupRepo;
         _feeService = feeService;
         _paymentState = paymentState;
+        _teamSeating = teamSeating;
+        _leagueRepo = leagueRepo;
     }
 
     public async Task<List<PoolDivisionOptionDto>> GetDivisionOptionsAsync(Guid jobId, CancellationToken ct = default)
@@ -261,6 +268,12 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         var targetDivision = await _divRepo.GetByIdReadOnlyAsync(request.TargetDivId, ct)
             ?? throw new ArgumentException("Target division not found.");
 
+        // ONE transaction over the whole transfer: the team moves, the fee recalculation, the
+        // club-rep accounting AND the schedule re-seat. Half of this landing is the worst
+        // outcome the tool can produce — a director sees teams moved and fees charged while the
+        // board still shows the old pools, with nothing on screen saying so. All of it, or none.
+        await using var tx = await _leagueRepo.BeginTransactionAsync(ct);
+
         bool agegroupChanges = sourceDivision.AgegroupId != targetDivision.AgegroupId;
         var now = DateTime.Now;
 
@@ -462,36 +475,40 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         // Persist all team changes in one transaction
         await _teamRepo.SaveChangesAsync(ct);
 
-        // Schedule sync for moved teams
+        // Schedule sync for moved teams.
+        //
+        // A game belongs to the division whose pairing matrix it was built from — NOT to whichever
+        // team happens to be sitting in it. The removed writer here retagged a game's
+        // agegroup/div to the mover's NEW division, and only on rows where the mover was T1, so a
+        // swap left one pool holding seven games and the other five, with matrix ranks pointing at
+        // a division they did not come from. A later re-seat of that division would then have
+        // dropped a stranger into the game. Games stay put; the SEATS follow the ranks.
         foreach (var team in sourceTeams.Concat(targetTeams))
         {
             if (!scheduledTeamIds.Contains(team.TeamId)) continue;
 
             // Name unchanged — the team moved divisions. Re-source its schedule name rows
-            // (club:team) via the canonical writer; the division half is handled just below.
+            // (club:team) via the canonical writer.
             await _scheduleRepo.RecomposeScheduleNamesForJobAsync(
                 jobId, team: (team.TeamId, team.TeamName ?? ""), ct: ct);
-
-            var agName = team.AgegroupId == targetDivision.AgegroupId
-                ? targetAgegroup?.AgegroupName ?? ""
-                : sourceAgegroup?.AgegroupName ?? "";
-            var divName = team.DivId == request.TargetDivId
-                ? targetDivision.DivName ?? ""
-                : sourceDivision.DivName ?? "";
-
-            var updated = await _scheduleRepo.SynchronizeScheduleDivisionForTeamAsync(
-                team.TeamId, jobId, team.AgegroupId, agName,
-                team.DivId ?? Guid.Empty, divName, ct);
-            scheduleRecordsUpdated += updated;
         }
 
-        // Renumber DivRanks: only for non-symmetrical moves (close gaps).
-        // Symmetrical swaps preserve ranks intentionally to maintain schedule
-        // pairings (T1No/T2No map to DivRank).
-        if (!request.IsSymmetricalSwap)
+        // Ranks were set above. A symmetrical swap inherits the outgoing team's rank on purpose,
+        // so renumbering it would undo the very thing that keeps the matrix intact — re-seat only.
+        // A non-symmetrical move appends at the end and leaves a gap behind, so that one compacts
+        // first. Either way the re-seat is what makes the incoming team play the games of the
+        // rank it now holds.
+        if (request.IsSymmetricalSwap)
         {
-            await _teamRepo.RenumberDivRanksAsync(request.SourceDivId, ct);
-            await _teamRepo.RenumberDivRanksAsync(request.TargetDivId, ct);
+            scheduleRecordsUpdated += await _teamSeating.ReseatDivisionsAsync(
+                jobId, new[] { request.SourceDivId, request.TargetDivId }, adminUserId, ct);
+        }
+        else
+        {
+            scheduleRecordsUpdated += await _teamSeating.RenumberAndReseatAsync(
+                request.SourceDivId, jobId, adminUserId, ct);
+            scheduleRecordsUpdated += await _teamSeating.RenumberAndReseatAsync(
+                request.TargetDivId, jobId, adminUserId, ct);
         }
 
         // Club rep financial sync
@@ -499,6 +516,8 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         {
             await _registrationRepo.SynchronizeClubRepFinancialsAsync(clubRepId, adminUserId, ct);
         }
+
+        await _leagueRepo.CommitTransactionAsync(ct);
 
         var parts = new List<string>();
         if (teamsMoved > 0) parts.Add($"{teamsMoved} team(s) moved");
@@ -527,6 +546,13 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         if (team.JobId != jobId)
             throw new ArgumentException("Team does not belong to this job.");
 
+        // Inactivating is removing: the schedule recalculation seats only ACTIVE teams, so a
+        // switched-off team's rank falls out of the map and its games resolve to nobody. Same
+        // rule as delete and drop. Switching a team back ON is always allowed — it can only
+        // return a rank to the map.
+        if (!active)
+            await _teamSeating.EnsureTeamMayLeavePoolAsync(teamId, jobId, "inactivated", ct);
+
         team.Active = active;
         team.Modified = DateTime.Now;
         team.LebUserId = adminUserId;
@@ -537,35 +563,14 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                 team.ClubrepRegistrationid.Value, adminUserId, ct);
     }
 
-    public async Task UpdateTeamDivRankAsync(
+    public async Task<TeamSeatingResultDto> UpdateTeamDivRankAsync(
         Guid teamId, Guid jobId, int divRank, string adminUserId, CancellationToken ct = default)
     {
-        var team = await _teamRepo.GetTeamFromTeamId(teamId, ct)
-            ?? throw new KeyNotFoundException("Team not found.");
-
-        if (team.JobId != jobId)
-            throw new ArgumentException("Team does not belong to this job.");
-        if (!team.DivId.HasValue)
-            throw new InvalidOperationException("Team has no division assignment.");
-
-        int oldRank = team.DivRank;
-        if (oldRank == divRank) return;
-
-        // DivRank edit is a positional swap: the team at the target rank
-        // gets the editing team's old rank. This keeps ranks contiguous
-        // (1..N) and preserves schedule pairings (T1No/T2No).
-        var swapTeam = await _teamRepo.GetTeamByDivRankAsync(team.DivId.Value, divRank, ct);
-        if (swapTeam != null)
-        {
-            swapTeam.DivRank = oldRank;
-            swapTeam.Modified = DateTime.Now;
-            swapTeam.LebUserId = adminUserId;
-        }
-
-        team.DivRank = divRank;
-        team.Modified = DateTime.Now;
-        team.LebUserId = adminUserId;
-        await _teamRepo.SaveChangesAsync(ct);
+        // Swapping two teams' ranks here IS swapping their schedules — the technique directors
+        // use to trade two teams' games. This screen used to write the rank and stop, so the
+        // ranks traded and the games did not; ITeamSeatingService owns both halves.
+        return await _teamSeating.ApplyRankChangeAsync(
+            teamId, jobId, divRank, newName: null, adminUserId, ct);
     }
 
     private static bool IsDroppedTeams(Entities.Agegroups? agegroup)

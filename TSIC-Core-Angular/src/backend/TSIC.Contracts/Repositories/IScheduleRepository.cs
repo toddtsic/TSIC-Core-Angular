@@ -9,15 +9,6 @@ namespace TSIC.Contracts.Repositories;
 public interface IScheduleRepository
 {
     /// <summary>
-    /// Update denormalized AgegroupId/AgegroupName/DivId/DivName on Schedule records
-    /// for a team that has been moved to a different division/agegroup.
-    /// Only touches round-robin games (T1Type/T2Type == "T").
-    /// </summary>
-    Task<int> SynchronizeScheduleDivisionForTeamAsync(
-        Guid teamId, Guid jobId, Guid newAgegroupId, string newAgegroupName,
-        Guid newDivId, string newDivName, CancellationToken ct = default);
-
-    /// <summary>
     /// THE canonical writer for a job's denormalized schedule names. Each supplied {id, text} pair
     /// names an entity that was renamed and its new value; the method rewrites only that entity's
     /// rows/columns in this job, checking T1 and T2 slots separately.
@@ -79,12 +70,19 @@ public interface IScheduleRepository
 
     /// <summary>
     /// Re-resolve T1Id/T1Name and T2Id/T2Name for every round-robin schedule record
-    /// in a division based on current DivRank assignments. Called after a DivRank swap
-    /// or team rename to keep denormalized fields in sync.
+    /// in a division based on current DivRank assignments.
     /// Builds a rank → (teamId, displayName) map from active teams, then updates
     /// every game where DivId matches and T1Type/T2Type == "T".
+    /// Returns the number of games whose seating actually changed.
     /// </summary>
-    Task SynchronizeScheduleTeamAssignmentsForDivisionAsync(Guid divId, Guid jobId, CancellationToken ct = default);
+    /// <remarks>
+    /// A DivRank change MUST reach this method or the seat cache goes stale — but do not call it
+    /// from a rank path directly. <c>ITeamSeatingService</c> owns "a team's rank changed": it
+    /// sequences rename → renumber → re-seat, and getting that order wrong is what shipped a
+    /// half-completed rank swap once already. Direct callers here are the game-placement paths
+    /// (auto-build, division scheduling), which seat newly created rows rather than change ranks.
+    /// </remarks>
+    Task<int> SynchronizeScheduleTeamAssignmentsForDivisionAsync(Guid divId, Guid jobId, string? userId = null, CancellationToken ct = default);
 
     /// <summary>
     /// Bracket-slot sibling of the above. Restamps the director's seed intent

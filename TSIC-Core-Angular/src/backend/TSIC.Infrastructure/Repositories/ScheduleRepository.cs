@@ -21,34 +21,6 @@ public sealed class ScheduleRepository : IScheduleRepository
         _context = context;
     }
 
-    public async Task<int> SynchronizeScheduleDivisionForTeamAsync(
-        Guid teamId, Guid jobId, Guid newAgegroupId, string newAgegroupName,
-        Guid newDivId, string newDivName, CancellationToken ct = default)
-    {
-        var schedules = await _context.Schedule
-            .Where(s => s.JobId == jobId
-                && ((s.T1Id == teamId && s.T1Type == "T")
-                 || (s.T2Id == teamId && s.T2Type == "T")))
-            .ToListAsync(ct);
-
-        foreach (var s in schedules)
-        {
-            // Update the game's grouping when this team is T1 (home)
-            if (s.T1Id == teamId)
-            {
-                s.AgegroupId = newAgegroupId;
-                s.AgegroupName = newAgegroupName;
-                s.DivId = newDivId;
-                s.DivName = newDivName;
-            }
-        }
-
-        if (schedules.Count > 0)
-            await _context.SaveChangesAsync(ct);
-
-        return schedules.Count;
-    }
-
     public async Task<bool> TeamHasScheduleRowsAsync(Guid jobId, Guid teamId, CancellationToken ct = default)
     {
         return await _context.Schedule
@@ -321,7 +293,7 @@ public sealed class ScheduleRepository : IScheduleRepository
         return (!string.IsNullOrEmpty(club) && !showTeamNameOnly) ? $"{club}:{core}" : core;
     }
 
-    public async Task SynchronizeScheduleTeamAssignmentsForDivisionAsync(Guid divId, Guid jobId, CancellationToken ct = default)
+    public async Task<int> SynchronizeScheduleTeamAssignmentsForDivisionAsync(Guid divId, Guid jobId, string? userId = null, CancellationToken ct = default)
     {
         // 1. Get active teams in the division with their DivRank and club-rep link
         var teams = await _context.Teams
@@ -372,45 +344,58 @@ public sealed class ScheduleRepository : IScheduleRepository
                 && (s.DivId == divId || s.Div2Id == divId))
             .ToListAsync(ct);
 
-        // 6. Re-resolve T1Id/T1Name and T2Id/T2Name from T1No/T2No
+        // 6. Re-resolve T1Id/T1Name and T2Id/T2Name from T1No/T2No.
+        // Count games whose SEATING moved (the team in the slot changed), not games whose
+        // display string was merely recomposed — the caller reports this to the director as
+        // "N games re-seated", and a name touch-up is not a re-seat.
+        //
+        // A slot whose rank has no ACTIVE team is LEFT ALONE, never blanked. rankMap is built
+        // from active teams only, so an inactive-but-seated team or a matrix that outlived its
+        // pool would otherwise resolve to (null, "") and silently erase both teams from a real
+        // game — destroying data on a path the director invoked to fix seating, and counting the
+        // erasure as a re-seat. Leaving the stale occupant is recoverable and Schedule QA already
+        // reports it; wiping it is not. Removing a seated team is blocked at the write chokepoint
+        // (see ITeamSeatingService.EnsureTeamMayLeavePoolAsync), so this only guards legacy rows.
+        var reseated = 0;
         foreach (var s in schedules)
         {
-            if (s.T1Type == "T" && s.T1No.HasValue && s.DivId == divId)
+            var seatChanged = false;
+
+            if (s.T1Type == "T" && s.T1No.HasValue && s.DivId == divId
+                && rankMap.TryGetValue(s.T1No.Value, out var t1))
             {
-                if (rankMap.TryGetValue(s.T1No.Value, out var t1))
-                {
-                    s.T1Id = t1.teamId;
-                    s.T1Name = t1.displayName;
-                }
-                else
-                {
-                    s.T1Id = null;
-                    s.T1Name = "";
-                }
+                if (s.T1Id != t1.teamId) seatChanged = true;
+                s.T1Id = t1.teamId;
+                s.T1Name = t1.displayName;
             }
 
             if (s.T2Type == "T" && s.T2No.HasValue)
             {
                 // T2 uses Div2Id for cross-division games, DivId for same-division
                 var t2DivId = s.Div2Id ?? s.DivId;
-                if (t2DivId == divId)
+                if (t2DivId == divId && rankMap.TryGetValue(s.T2No.Value, out var t2))
                 {
-                    if (rankMap.TryGetValue(s.T2No.Value, out var t2))
-                    {
-                        s.T2Id = t2.teamId;
-                        s.T2Name = t2.displayName;
-                    }
-                    else
-                    {
-                        s.T2Id = null;
-                        s.T2Name = "";
-                    }
+                    if (s.T2Id != t2.teamId) seatChanged = true;
+                    s.T2Id = t2.teamId;
+                    s.T2Name = t2.displayName;
                 }
+            }
+
+            // Stamp the row that actually moved. Without this a re-seat is invisible to the
+            // audit columns, which is why a job's rows can still carry their auto-build stamp
+            // days after the seating was rewritten underneath them.
+            if (seatChanged)
+            {
+                s.Modified = DateTime.Now;
+                if (!string.IsNullOrEmpty(userId)) s.LebUserId = userId;
+                reseated++;
             }
         }
 
         if (schedules.Count > 0)
             await _context.SaveChangesAsync(ct);
+
+        return reseated;
     }
 
     /// <summary>

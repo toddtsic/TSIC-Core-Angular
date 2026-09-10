@@ -796,6 +796,7 @@ export type { TeamSearchDetailDto } from './models/TeamSearchDetailDto';
 export type { TeamSearchRequest } from './models/TeamSearchRequest';
 export type { TeamSearchResponse } from './models/TeamSearchResponse';
 export type { TeamSearchResultDto } from './models/TeamSearchResultDto';
+export type { TeamSeatingResultDto } from './models/TeamSeatingResultDto';
 export type { TeamsMetadataResponse } from './models/TeamsMetadataResponse';
 export type { TestValidationRequest } from './models/TestValidationRequest';
 export type { ThirdPartyAccessOverviewDto } from './models/ThirdPartyAccessOverviewDto';

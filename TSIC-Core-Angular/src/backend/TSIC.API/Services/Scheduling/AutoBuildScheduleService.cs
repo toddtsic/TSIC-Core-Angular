@@ -458,9 +458,13 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             {
                 divisionResults.Add(new AutoBuildDivisionResult
                 {
-                    AgegroupName = div.AgegroupName, DivName = div.DivName,
-                    DivId = div.DivId, TeamCount = div.TeamCount,
-                    GamesPlaced = 0, GamesFailed = 0, Status = "excluded"
+                    AgegroupName = div.AgegroupName,
+                    DivName = div.DivName,
+                    DivId = div.DivId,
+                    TeamCount = div.TeamCount,
+                    GamesPlaced = 0,
+                    GamesFailed = 0,
+                    Status = "excluded"
                 });
                 continue;
             }
@@ -473,9 +477,13 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 {
                     divisionResults.Add(new AutoBuildDivisionResult
                     {
-                        AgegroupName = div.AgegroupName, DivName = div.DivName,
-                        DivId = div.DivId, TeamCount = div.TeamCount,
-                        GamesPlaced = 0, GamesFailed = 0, Status = "kept"
+                        AgegroupName = div.AgegroupName,
+                        DivName = div.DivName,
+                        DivId = div.DivId,
+                        TeamCount = div.TeamCount,
+                        GamesPlaced = 0,
+                        GamesFailed = 0,
+                        Status = "kept"
                     });
                     continue;
                 }
@@ -557,9 +565,12 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             {
                 divisionResults.Add(new AutoBuildDivisionResult
                 {
-                    AgegroupName = div.AgegroupName, DivName = div.DivName,
-                    DivId = div.DivId, TeamCount = 0,
-                    GamesPlaced = 0, GamesFailed = 0,
+                    AgegroupName = div.AgegroupName,
+                    DivName = div.DivName,
+                    DivId = div.DivId,
+                    TeamCount = 0,
+                    GamesPlaced = 0,
+                    GamesFailed = 0,
                     Status = "no-teams"
                 });
                 continue;
@@ -618,9 +629,12 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             {
                 divisionResults.Add(new AutoBuildDivisionResult
                 {
-                    AgegroupName = div.AgegroupName, DivName = div.DivName,
-                    DivId = div.DivId, TeamCount = teamCount,
-                    GamesPlaced = 0, GamesFailed = 0,
+                    AgegroupName = div.AgegroupName,
+                    DivName = div.DivName,
+                    DivId = div.DivId,
+                    TeamCount = teamCount,
+                    GamesPlaced = 0,
+                    GamesFailed = 0,
                     Status = "no-pairings"
                 });
                 continue;
@@ -654,16 +668,22 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     {
                         unplacedGames.Add(new UnplacedGameDto
                         {
-                            AgegroupName = div.AgegroupName, DivName = div.DivName,
-                            Round = p.Rnd, T1No = p.T1, T2No = p.T2,
+                            AgegroupName = div.AgegroupName,
+                            DivName = div.DivName,
+                            Round = p.Rnd,
+                            T1No = p.T1,
+                            T2No = p.T2,
                             Reason = "No timeslot dates or fields configured"
                         });
                     }
                     divisionResults.Add(new AutoBuildDivisionResult
                     {
-                        AgegroupName = div.AgegroupName, DivName = div.DivName,
-                        DivId = div.DivId, TeamCount = teamCount,
-                        GamesPlaced = 0, GamesFailed = missingCount,
+                        AgegroupName = div.AgegroupName,
+                        DivName = div.DivName,
+                        DivId = div.DivId,
+                        TeamCount = teamCount,
+                        GamesPlaced = 0,
+                        GamesFailed = missingCount,
                         Status = "no-timeslots"
                     });
                     continue;
@@ -739,16 +759,22 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 {
                     unplacedGames.Add(new UnplacedGameDto
                     {
-                        AgegroupName = div.AgegroupName, DivName = div.DivName,
-                        Round = p.Rnd, T1No = p.T1, T2No = p.T2,
+                        AgegroupName = div.AgegroupName,
+                        DivName = div.DivName,
+                        Round = p.Rnd,
+                        T1No = p.T1,
+                        T2No = p.T2,
                         Reason = "No timeslot dates or fields configured"
                     });
                 }
                 divisionResults.Add(new AutoBuildDivisionResult
                 {
-                    AgegroupName = div.AgegroupName, DivName = div.DivName,
-                    DivId = div.DivId, TeamCount = teamCount,
-                    GamesPlaced = 0, GamesFailed = missingCount,
+                    AgegroupName = div.AgegroupName,
+                    DivName = div.DivName,
+                    DivId = div.DivId,
+                    TeamCount = teamCount,
+                    GamesPlaced = 0,
+                    GamesFailed = missingCount,
                     Status = "no-timeslots"
                 });
                 continue;
@@ -1323,7 +1349,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             if (divPlacedCounts[ctx.Div.DivId] > 0)
             {
                 await _scheduleRepo.SynchronizeScheduleTeamAssignmentsForDivisionAsync(
-                    ctx.Div.DivId, jobId, ct);
+                    ctx.Div.DivId, jobId, userId, ct);
             }
 
             var placed = divPlacedCounts[ctx.Div.DivId];

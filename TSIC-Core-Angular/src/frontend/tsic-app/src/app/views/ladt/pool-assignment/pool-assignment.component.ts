@@ -536,10 +536,18 @@ export class PoolAssignmentComponent {
             return;
         }
         this.poolService.updateTeamDivRank(team.teamId, newRank).subscribe({
-            next: () => {
+            next: result => {
                 this.editingDivRankTeamId.set(null);
                 if (this.sourceDivId()) this.loadTeams('source', this.sourceDivId()!);
                 if (this.targetDivId()) this.loadTeams('target', this.targetDivId()!);
+
+                // Say what actually happened. A rank edit is how directors trade two teams'
+                // schedules, and this screen used to confirm it with silence — which read the
+                // same whether the games had moved or not.
+                this.toast.show(
+                    result.message,
+                    result.gamesReseated > 0 ? 'success' : 'info',
+                    6000);
             },
             error: err => {
                 this.toast.show(err?.error?.message || 'Failed to update rank.', 'danger', 4000);

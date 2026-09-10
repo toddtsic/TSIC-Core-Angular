@@ -4,6 +4,7 @@ using System.Security.Claims;
 using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Dtos.PoolAssignment;
+using TSIC.Contracts.Dtos.Teams;
 using TSIC.Contracts.Services;
 
 namespace TSIC.API.Controllers;
@@ -124,10 +125,16 @@ public class PoolAssignmentController : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+        catch (InvalidOperationException ex)
+        {
+            // Refusing to inactivate a scheduled team. The message names the sanctioned way out,
+            // so it has to reach the screen rather than becoming an unexplained 500.
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPut("teams/{teamId:guid}/divrank")]
-    public async Task<ActionResult> UpdateTeamDivRank(
+    public async Task<ActionResult<TeamSeatingResultDto>> UpdateTeamDivRank(
         Guid teamId, [FromBody] UpdateTeamDivRankRequest request, CancellationToken ct)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
@@ -140,8 +147,11 @@ public class PoolAssignmentController : ControllerBase
 
         try
         {
-            await _poolService.UpdateTeamDivRankAsync(teamId, jobId.Value, request.DivRank, userId, ct);
-            return NoContent();
+            // Returns a body now, not 204: a rank change trades two teams' games and the
+            // director has to be told which two.
+            var result = await _poolService.UpdateTeamDivRankAsync(
+                teamId, jobId.Value, request.DivRank, userId, ct);
+            return Ok(result);
         }
         catch (KeyNotFoundException)
         {

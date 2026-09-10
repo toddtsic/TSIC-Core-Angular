@@ -19,12 +19,18 @@ public sealed class PairingsService : IPairingsService
     private readonly IScheduleRepository _scheduleRepo;
     private readonly ISchedulingContextResolver _contextResolver;
     private readonly TSIC.API.Services.Teams.ITeamRenameService _teamRename;
+    private readonly ITeamSeatingService _teamSeating;
     private readonly ILogger<PairingsService> _logger;
 
     /// <summary>Ladder round type → number of teams entering that round.</summary>
     private static readonly Dictionary<string, int> RoundSize = new()
     {
-        ["Z"] = 64, ["Y"] = 32, ["X"] = 16, ["Q"] = 8, ["S"] = 4, ["F"] = 2
+        ["Z"] = 64,
+        ["Y"] = 32,
+        ["X"] = 16,
+        ["Q"] = 8,
+        ["S"] = 4,
+        ["F"] = 2
     };
 
     public PairingsService(
@@ -36,6 +42,7 @@ public sealed class PairingsService : IPairingsService
         IScheduleRepository scheduleRepo,
         ISchedulingContextResolver contextResolver,
         TSIC.API.Services.Teams.ITeamRenameService teamRename,
+        ITeamSeatingService teamSeating,
         ILogger<PairingsService> logger)
     {
         _pairingsRepo = pairingsRepo;
@@ -46,6 +53,7 @@ public sealed class PairingsService : IPairingsService
         _scheduleRepo = scheduleRepo;
         _contextResolver = contextResolver;
         _teamRename = teamRename;
+        _teamSeating = teamSeating;
         _logger = logger;
     }
 
@@ -394,45 +402,20 @@ public sealed class PairingsService : IPairingsService
             throw new InvalidOperationException("Team has no division assignment.");
 
         var divId = team.DivId.Value;
-        var rankChanged = team.DivRank != request.DivRank;
-        var nameChanged = request.TeamName != null && team.TeamName != request.TeamName;
 
         // A rename here is THIS EVENT ONLY (director's own Teams row); a club-linked team's library and
         // other jobs keep their name. Library-wide rename lives in Search Teams (SuperUser) and the rep's library.
-
-        // Rank swap: give the team at the target rank the editing team's old rank
-        if (rankChanged)
-        {
-            var swapTeam = await _teamRepo.GetTeamByDivRankAsync(divId, request.DivRank, ct);
-            if (swapTeam != null)
-            {
-                swapTeam.DivRank = team.DivRank;
-                swapTeam.LebUserId = userId;
-                swapTeam.Modified = DateTime.Now;
-            }
-
-            team.DivRank = request.DivRank;
-        }
-
-        team.LebUserId = userId;
-        team.Modified = DateTime.Now;
-        await _teamRepo.SaveChangesAsync(ct);
-
-        // Renumber to ensure contiguous 1..N
-        await _teamRepo.RenumberDivRanksAsync(divId, ct);
-
-        // Rename (name owned by TeamRenameService), this job only: Teams row + WAITLIST twin +
-        // schedule. Runs before the division re-resolve below so the seat recompute reads the
-        // updated team name.
-        if (nameChanged)
-            await _teamRename.RenameTeamAsync(request.TeamId, jobId, request.TeamName!, userId, ct);
-
-        // Re-resolve T1Id/T2Id/T1Name/T2Name in all schedule records for this division
-        await _scheduleRepo.SynchronizeScheduleTeamAssignmentsForDivisionAsync(divId, jobId, ct);
+        //
+        // Rank swap, renumber, rename and re-seat all live in ITeamSeatingService — including the
+        // ordering (rename before re-seat, so the seat recompute reads the new name) that used to
+        // be documented here and nowhere else. The pool-assignment screen ran the same edit
+        // without the second half; the sequence is no longer any caller's to remember.
+        var seating = await _teamSeating.ApplyRankChangeAsync(
+            request.TeamId, jobId, request.DivRank, request.TeamName, userId, ct);
 
         _logger.LogInformation(
-            "EditDivisionTeam: team {TeamId} in div {DivId} — rankChanged={RankChanged}, nameChanged={NameChanged}",
-            request.TeamId, divId, rankChanged, nameChanged);
+            "EditDivisionTeam: team {TeamId} in div {DivId} — {Message}",
+            request.TeamId, divId, seating.Message);
 
         // Return refreshed team list
         return await GetDivisionTeamsAsync(jobId, divId, ct);

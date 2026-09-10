@@ -69,7 +69,9 @@ public class PoolTransferGuardTests
             new Mock<IRegistrationRepository>().Object,
             agRepo.Object,
             feeSvc.Object,
-            new Mock<IPaymentStateService>().Object);
+            new Mock<IPaymentStateService>().Object,
+            new Mock<ITeamSeatingService>().Object,
+            new Mock<ILeagueRepository>().Object);
 
         var act = async () => await svc.ExecuteTransferAsync(jobId, "admin-user", new PoolTransferRequest
         {

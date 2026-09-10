@@ -120,6 +120,11 @@ public class LeagueRepository : ILeagueRepository
     public async Task<IAsyncDisposable> BeginTransactionAsync(CancellationToken cancellationToken = default)
         => await _context.Database.BeginTransactionAsync(cancellationToken);
 
+    public async Task<IAsyncDisposable?> BeginTransactionIfNoneAsync(CancellationToken cancellationToken = default)
+        => _context.Database.CurrentTransaction is null
+            ? await _context.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
     public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
     {
         if (_context.Database.CurrentTransaction is { } tx)

@@ -34,6 +34,7 @@ public sealed class LadtService : ILadtService
     private readonly ITeamPlacementService _placement;
     private readonly IFeeRepository _feeRepo;
     private readonly TSIC.API.Services.Teams.ITeamRenameService _teamRename;
+    private readonly ITeamSeatingService _teamSeating;
 
     public LadtService(
         ILeagueRepository leagueRepo,
@@ -49,7 +50,8 @@ public sealed class LadtService : ILadtService
         IScheduleRepository scheduleRepo,
         ITeamPlacementService placement,
         IFeeRepository feeRepo,
-        TSIC.API.Services.Teams.ITeamRenameService teamRename)
+        TSIC.API.Services.Teams.ITeamRenameService teamRename,
+        ITeamSeatingService teamSeating)
     {
         _leagueRepo = leagueRepo;
         _agegroupRepo = agegroupRepo;
@@ -65,6 +67,7 @@ public sealed class LadtService : ILadtService
         _placement = placement;
         _feeRepo = feeRepo;
         _teamRename = teamRename;
+        _teamSeating = teamSeating;
     }
 
     // ═══════════════════════════════════════════
@@ -415,8 +418,13 @@ public sealed class LadtService : ILadtService
                 Createdate = now,
                 Modified = now,
                 LebUserId = userId,
-                FeeBase = 0m, FeeProcessing = 0m, FeeDiscount = 0m, FeeDiscountMp = 0m,
-                FeeDonation = 0m, FeeLatefee = 0m, PaidTotal = 0m
+                FeeBase = 0m,
+                FeeProcessing = 0m,
+                FeeDiscount = 0m,
+                FeeDiscountMp = 0m,
+                FeeDonation = 0m,
+                FeeLatefee = 0m,
+                PaidTotal = 0m
             };
             merch.RecalcTotals();
             _teamRepo.Add(merch);
@@ -1079,6 +1087,8 @@ public sealed class LadtService : ILadtService
     {
         await ValidateTeamOwnershipAsync(teamId, jobId, cancellationToken);
 
+        await _teamSeating.EnsureTeamMayLeavePoolAsync(teamId, jobId, "deleted", cancellationToken);
+
         if (await _teamRepo.HasRosteredPlayersAsync(teamId, cancellationToken))
         {
             // Soft delete: set Active = false (players are still assigned)
@@ -1092,7 +1102,7 @@ public sealed class LadtService : ILadtService
 
             // Renumber remaining active teams to maintain contiguous 1..N ranking
             if (divId.HasValue)
-                await _teamRepo.RenumberDivRanksAsync(divId.Value, cancellationToken);
+                await _teamSeating.RenumberAndReseatAsync(divId.Value, jobId, userId, cancellationToken);
 
             // Active=false removes the team from the rep-aggregate sync filter; re-sync
             // so clubRep.OwedTotal stops counting this team's contribution.
@@ -1117,7 +1127,7 @@ public sealed class LadtService : ILadtService
 
         // Renumber remaining active teams to maintain contiguous 1..N ranking
         if (deletedDivId.HasValue)
-            await _teamRepo.RenumberDivRanksAsync(deletedDivId.Value, cancellationToken);
+            await _teamSeating.RenumberAndReseatAsync(deletedDivId.Value, jobId, userId, cancellationToken);
 
         // Row is gone; re-aggregate so clubRep.OwedTotal drops the removed contribution.
         if (deletedClubRepId.HasValue)
@@ -1156,7 +1166,7 @@ public sealed class LadtService : ILadtService
 
             // Renumber remaining active teams to maintain contiguous 1..N ranking
             if (sourceDivId.HasValue)
-                await _teamRepo.RenumberDivRanksAsync(sourceDivId.Value, cancellationToken);
+                await _teamSeating.RenumberAndReseatAsync(sourceDivId.Value, jobId, userId, cancellationToken);
 
             // Recalculate club rep financials since team fees were baked in
             if (clubRepRegId.HasValue)
@@ -1171,9 +1181,8 @@ public sealed class LadtService : ILadtService
             };
         }
 
-        // Soft drop: team has history — block if scheduled, otherwise move to Dropped Teams
-        if (isScheduled)
-            throw new InvalidOperationException("Cannot drop a team that is assigned to a schedule.");
+        // Soft drop: team has history — same rule as delete and inactivate, one message.
+        await _teamSeating.EnsureTeamMayLeavePoolAsync(teamId, jobId, "dropped", cancellationToken);
 
         // Find or create "Dropped Teams" agegroup + division under the same league
         var droppedAgId = await FindOrCreateDroppedTeamsAgegroupAsync(team.LeagueId, userId, cancellationToken);
@@ -1199,7 +1208,7 @@ public sealed class LadtService : ILadtService
 
         // Renumber source division to maintain contiguous 1..N ranking
         if (sourceDivId.HasValue)
-            await _teamRepo.RenumberDivRanksAsync(sourceDivId.Value, cancellationToken);
+            await _teamSeating.RenumberAndReseatAsync(sourceDivId.Value, jobId, userId, cancellationToken);
 
         // Recalculate club rep financials after fee zeroing
         if (team.ClubrepRegistrationid.HasValue)

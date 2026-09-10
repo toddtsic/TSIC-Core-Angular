@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos.PoolAssignment;
+using TSIC.Contracts.Dtos.Teams;
 
 namespace TSIC.Contracts.Services;
 
@@ -21,5 +22,9 @@ public interface IPoolAssignmentService
 
     Task ToggleTeamActiveAsync(Guid teamId, Guid jobId, bool active, string adminUserId, CancellationToken ct = default);
 
-    Task UpdateTeamDivRankAsync(Guid teamId, Guid jobId, int divRank, string adminUserId, CancellationToken ct = default);
+    /// <summary>
+    /// Moves a team to a rank — which trades that team's games with whoever held the rank.
+    /// The result carries both names and the re-seated game count so the screen can say so.
+    /// </summary>
+    Task<TeamSeatingResultDto> UpdateTeamDivRankAsync(Guid teamId, Guid jobId, int divRank, string adminUserId, CancellationToken ct = default);
 }
