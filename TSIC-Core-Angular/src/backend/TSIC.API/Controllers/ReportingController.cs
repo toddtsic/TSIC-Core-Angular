@@ -453,6 +453,7 @@ public class ReportingController : ControllerBase
     {
         var result = await _reportingService.ExportMonthlyReconciliationAsync(
             settlementMonth, settlementYear, isMerchandise: false);
+        await RecordReportAccessAsync("export-monthly-reconciliation", HttpContext.RequestAborted);
 
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
@@ -465,6 +466,7 @@ public class ReportingController : ControllerBase
     {
         var result = await _reportingService.ExportMonthlyReconciliationAsync(
             settlementMonth, settlementYear, isMerchandise: true);
+        await RecordReportAccessAsync("export-monthly-reconciliation-merch", HttpContext.RequestAborted);
 
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
@@ -479,6 +481,7 @@ public class ReportingController : ControllerBase
     {
         var gameIds = JsonSerializer.Deserialize<List<int>>(model.StrListGidsIcal) ?? new List<int>();
         var result = await _reportingService.ExportScheduleToICalAsync(gameIds);
+        await RecordReportAccessAsync("schedule-ical", HttpContext.RequestAborted);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 
@@ -493,6 +496,7 @@ public class ReportingController : ControllerBase
     public async Task<ActionResult> GetJobPlayersTsicDaily(CancellationToken cancellationToken)
     {
         var result = await _dailyRegCountsService.GenerateAsync(cancellationToken);
+        await RecordReportAccessAsync("Get_JobPlayers_TSICDAILY", cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 
@@ -710,6 +714,7 @@ public class ReportingController : ControllerBase
     public async Task<ActionResult> GetInvoicesLastMonth(CancellationToken cancellationToken)
     {
         var result = await _invoiceReportService.GenerateItemizedAsync(cancellationToken);
+        await RecordReportAccessAsync("Get_Invoices_LastMonth", cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 
@@ -718,6 +723,7 @@ public class ReportingController : ControllerBase
     public async Task<ActionResult> GetInvoicesLastMonthSummariesOnly(CancellationToken cancellationToken)
     {
         var result = await _invoiceReportService.GenerateSummaryOnlyAsync(cancellationToken);
+        await RecordReportAccessAsync("Get_Invoices_LastMonthSummariesOnly", cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 
@@ -814,6 +820,7 @@ public class ReportingController : ControllerBase
     public async Task<ActionResult> TsicFeesYtdByCustomerAndJob(CancellationToken cancellationToken)
     {
         var result = await _feeYtdReportService.GenerateByCustomerAndJobAsync(cancellationToken);
+        await RecordReportAccessAsync("TSICFeesYTDByCustomerAndJob", cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 
@@ -823,6 +830,7 @@ public class ReportingController : ControllerBase
     public async Task<ActionResult> TsicFeesYtdByCustomer(CancellationToken cancellationToken)
     {
         var result = await _feeYtdReportService.GenerateByCustomerAsync(cancellationToken);
+        await RecordReportAccessAsync("TSICFeesYTDByCustomer", cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 
