@@ -36,7 +36,7 @@ interface MasterRow {
 // Single-tab page now — TabId kept for future extensibility
 type TableFilter = 'all' | 'unmatched' | 'high' | 'medium';
 type SaveThreshold = 'high' | 'medium' | 'all';
-type SortCol = 'team' | 'club' | 'rank' | 'rankedAs' | 'conf';
+type SortCol = 'team' | 'club' | 'rank' | 'rankedAs' | 'current';
 type SortDir = 'asc' | 'desc';
 
 /** Sentinel score for manually matched teams */
@@ -244,7 +244,11 @@ export class UsLaxRankingsComponent {
 				case 'club': aVal = a.team.clubName ?? ''; bVal = b.team.clubName ?? ''; break;
 				case 'rank': aVal = a.match?.ranking.rank ?? 9999; bVal = b.match?.ranking.rank ?? 9999; break;
 				case 'rankedAs': aVal = a.match?.ranking.team ?? ''; bVal = b.match?.ranking.team ?? ''; break;
-				case 'conf': aVal = a.match?.matchScore ?? -2; bVal = b.match?.matchScore ?? -2; break;
+				// Current Match holds two different kinds of value, so it sorts on one scale:
+				// saved rows first by their STORED rank, then unsaved by confidence descending,
+				// then rows with neither. Sorting on matchScore alone put a saved team with no
+				// live match — which shows no score — at the bottom of its own column.
+				case 'current': aVal = this.currentMatchSortValue(a); bVal = this.currentMatchSortValue(b); break;
 			}
 			if (typeof aVal === 'string') return aVal.localeCompare(bVal as string) * mult;
 			return ((aVal as number) - (bVal as number)) * mult;
@@ -959,29 +963,42 @@ export class UsLaxRankingsComponent {
 		catch { return null; }
 	}
 
-	/** Returns drift info if saved rank differs from current match rank */
-	getSavedDrift(row: MasterRow): { savedRank: number; savedDate: string } | null {
-		if (!row.match) return null;
-		const saved = this.parseRankingData(row.team.nationalRankingData);
-		if (!saved) return null;
-		if (saved.rank === row.match.ranking.rank) return null;
-		const date = saved.matchedAt ? new Date(saved.matchedAt) : null;
-		const dateStr = date ? `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}` : '';
-		return { savedRank: saved.rank, savedDate: dateStr };
-	}
-
-	/** True if this row has saved data (regardless of drift) */
-	isSaved(row: MasterRow): boolean {
-		return !!row.team.nationalRankingData;
+	/**
+	 * One scale for a column showing either a stored rank or a confidence score. Saved rows keep
+	 * their rank (national ranks run into the thousands, so the unsaved bands start well clear of
+	 * them); unsaved matches follow, best confidence first; rows with neither go last.
+	 */
+	private currentMatchSortValue(row: MasterRow): number {
+		const saved = this.storedRankingFor(row.team.teamId);
+		if (saved) return saved.rank;
+		if (row.match) return 1_000_000 - Math.round(row.match.matchScore * 1000);
+		return 2_000_000;
 	}
 
 	/**
-	 * The stamp stored on an UNPAIRED row, so the table can show a previously saved rank before
-	 * any scrape has run — and keep showing it for a team this scrape failed to re-match. Returns
-	 * null for matched rows, where the live pairing is what the columns should be reporting.
+	 * What the DATABASE holds for this row, for the Current Match column — whether or not this
+	 * run's lookup also proposed something. Deliberately unconditional: the three helpers this
+	 * replaced (`getSavedDrift`, `isSaved`, `storedOnly`) between them could only report stored
+	 * state on a row the lookup had FAILED to match, so a saved team the lookup re-found showed
+	 * a bare confidence score and read as an unsaved guess. The table then disagreed with the
+	 * accordion above it, which had been counting the database correctly all along.
+	 *
+	 * No comparison against the live match, by design. The stored rank and team are printed
+	 * beside the looked-up ones and the director reads the difference directly — a rank that
+	 * moved, or a team they had paired differently — rather than having it encoded in an icon.
+	 *
+	 * Source is `agegroupTeams` (this age group's own read from our database, refreshed after
+	 * every save) and NOT `row.team`: the row's copy comes from the align response, which is a
+	 * third party's answer to a different question and need not carry our stamp at all.
 	 */
-	storedOnly(row: MasterRow): NationalRankingDataDto | null {
-		return row.match ? null : this.parseRankingData(row.team.nationalRankingData);
+	storedMatch(row: MasterRow): (NationalRankingDataDto & { savedOn: string }) | null {
+		const saved = this.storedRankingFor(row.team.teamId);
+		if (!saved) return null;
+		const when = saved.matchedAt ? new Date(saved.matchedAt) : null;
+		const savedOn = when && !isNaN(when.getTime())
+			? `${when.getMonth() + 1}/${when.getDate()}/${when.getFullYear()}`
+			: 'earlier';
+		return { ...saved, savedOn };
 	}
 
 	/** Which dropdowns are live. The national pair means nothing without an age group of ours. */

@@ -344,9 +344,15 @@
 							<thead><tr>
 								<th class="col-num">#</th>
 								<th class="sortable-th col-team" (click)="toggleSort('team')">Registered Team <i class="bi" [class]="sortIcon('team')"></i></th>
-								<th class="sortable-th col-rank" (click)="toggleSort('rank')">Rank <i class="bi" [class]="sortIcon('rank')"></i></th>
-								<th class="sortable-th col-ranked-as" (click)="toggleSort('rankedAs')">Ranked As <i class="bi" [class]="sortIcon('rankedAs')"></i></th>
-								<th class="sortable-th col-conf" (click)="toggleSort('conf')">Conf. <i class="bi" [class]="sortIcon('conf')"></i></th>
+								<!--
+									Nat'l Rank / Nat'l Team report THE LOOKUP; Current Match reports THE DATABASE.
+									"Nat'l" is Pool Assignment's own column header, and this page's instructions
+									already promise the director their save "shows up as Nat'l Rank" over there —
+									so the table says it too, instead of heading the same fact "Rank".
+								-->
+								<th class="sortable-th col-rank" (click)="toggleSort('rank')">Nat'l Rank <i class="bi" [class]="sortIcon('rank')"></i></th>
+								<th class="sortable-th col-ranked-as" (click)="toggleSort('rankedAs')">Nat'l Team <i class="bi" [class]="sortIcon('rankedAs')"></i></th>
+								<th class="sortable-th col-conf" (click)="toggleSort('current')">Current Match <i class="bi" [class]="sortIcon('current')"></i></th>
 								<th class="col-action">Action</th>
 							</tr></thead>
 							<tbody>
@@ -395,32 +401,45 @@
 												}
 											</div>
 										</td>
-										@if (row.match) {
-											<!-- One badge for a rank, everywhere. This column used to print "#94" as
-											     plain text here and a badge in the saved-only branch below — the same
-											     fact in two visual languages, one column apart. -->
-											<td>
-												@if (getSavedDrift(row); as drift) {
-													<!-- Drift is an icon plus the badge's title, not a second line of text:
-													     this column is 58px wide and a wrapped "was #94 on 9/9" was being
-													     clipped. Icon + tooltip, never colour alone. -->
-													<span class="badge bg-primary-subtle text-primary-emphasis"
-														[title]="'Now #' + row.match.ranking.rank + ' — was #' + drift.savedRank + ' when saved on ' + drift.savedDate">
-														{{ row.match.ranking.rank }}
-													</span>
-													<i class="bi bi-arrow-left-right rank-drift"
-														[title]="'Rank changed since the last save: was #' + drift.savedRank + ' on ' + drift.savedDate"
-														[attr.aria-label]="'Rank changed since the last save: was number ' + drift.savedRank"></i>
-												} @else {
-													<span class="badge bg-primary-subtle text-primary-emphasis">{{ row.match.ranking.rank }}</span>
-												}
-											</td>
-											<td [title]="row.match.ranking.team">{{ row.match.ranking.team }}</td>
-											<td>
-												@if (isManualMatch(row.match)) { <span class="text-muted">—</span> }
-												@else { <span class="badge" [class]="confidenceClass(row.match.matchScore)">{{ formatPercent(row.match.matchScore) }}</span> }
-											</td>
-											<td>
+										<!--
+											Per-COLUMN, not per-row. These two report what THIS RUN's lookup
+											proposed and nothing else; what is stored is written out beside them
+											under Current Match. The previous version branched the whole row on
+											`row.match`, which made the two facts mutually exclusive: a stored
+											team the lookup re-found could not say it was stored at all.
+										-->
+										<td>
+											@if (row.match) {
+												<span class="badge bg-primary-subtle text-primary-emphasis">{{ row.match.ranking.rank }}</span>
+											} @else { <span class="text-muted">—</span> }
+										</td>
+										<td [title]="row.match?.ranking?.team">
+											@if (row.match) { {{ row.match.ranking.team }} }
+											@else { <span class="text-muted">—</span> }
+										</td>
+										<!--
+											THE DATABASE'S ANSWER, written out — not a badge encoding a comparison.
+											Printing the stored rank and team next to the looked-up ones lets the
+											director see for themselves that the rank moved, or that they had saved
+											a different team; they can remove the match and redo it. An icon that
+											encoded "changed" hid the one thing they needed to read.
+											Read from `agegroupTeams` (the age group's own read from our database),
+											never from the row, so it is right whether or not a lookup has run and
+											regardless of what the align response carries on its team objects.
+										-->
+										<td>
+											@if (storedMatch(row); as saved) {
+												<span class="current-match" [title]="'Saved ' + saved.savedOn + ' — ' + saved.team + ' (' + saved.record + ')'">
+													<i class="bi bi-bookmark-check-fill me-1" aria-hidden="true"></i>
+													<span class="current-match-rank">#{{ saved.rank }}</span>
+													<span class="current-match-team">{{ saved.team }}</span>
+												</span>
+											} @else if (row.match && !isManualMatch(row.match)) {
+												<span class="badge" [class]="confidenceClass(row.match.matchScore)">{{ formatPercent(row.match.matchScore) }}</span>
+											} @else { <span class="text-muted">—</span> }
+										</td>
+										<td>
+											@if (row.match) {
 												@if (row.type === 'manual') {
 													<button class="btn btn-outline-danger btn-sm btn-action" (click)="undoMatch(row.match!)" title="Remove"><i class="bi bi-x-circle me-1"></i>Undo</button>
 												} @else {
@@ -430,31 +449,12 @@
 													<button class="btn btn-outline-danger btn-sm btn-action ms-1" (click)="undoMatch(row.match!)"
 														title="Remove match"><i class="bi bi-x-circle"></i></button>
 												}
-											</td>
-										} @else if (storedOnly(row); as saved) {
-											<!--
-												Unpaired here, but already stamped in the database — either
-												before any scrape has run, or because this scrape did not
-												re-find it. Show the stored rank rather than an em-dash, in
-												Pool Assignment's badge so it reads as the same fact.
-											-->
-											<td>
-												<span class="badge bg-primary-subtle text-primary-emphasis"
-													[title]="'Previously saved: ' + saved.team + ' (' + saved.record + ')'">
-													{{ saved.rank }}
-												</span>
-											</td>
-											<td class="text-muted" [title]="saved.team">{{ saved.team }}</td>
-											<td><span class="saved-flag"><i class="bi bi-bookmark-check-fill me-1"></i>saved</span></td>
-											<td><button class="btn btn-outline-primary btn-sm btn-action" (click)="startMatch(row.team.teamId)"
-												[class.active]="activeMatchTeamId() === row.team.teamId" [disabled]="unmatchedRankings().length === 0">
-												<i class="bi bi-link-45deg me-1"></i>Match</button></td>
-										} @else {
-											<td class="text-muted">—</td><td class="text-muted">—</td><td class="text-muted">—</td>
-											<td><button class="btn btn-outline-primary btn-sm btn-action" (click)="startMatch(row.team.teamId)"
-												[class.active]="activeMatchTeamId() === row.team.teamId" [disabled]="unmatchedRankings().length === 0">
-												<i class="bi bi-link-45deg me-1"></i>Match</button></td>
-										}
+											} @else {
+												<button class="btn btn-outline-primary btn-sm btn-action" (click)="startMatch(row.team.teamId)"
+													[class.active]="activeMatchTeamId() === row.team.teamId" [disabled]="unmatchedRankings().length === 0">
+													<i class="bi bi-link-45deg me-1"></i>Match</button>
+											}
+										</td>
 									</tr>
 								}
 							</tbody>

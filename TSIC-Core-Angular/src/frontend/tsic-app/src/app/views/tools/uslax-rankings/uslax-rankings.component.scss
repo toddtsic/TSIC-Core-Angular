@@ -355,10 +355,14 @@
 /* Fixed tracks — without them `table-layout: fixed` splits the width evenly and the name
    column, the one that needs the room, gets the same share as the 40px action column. */
 .col-num { width: 34px; }
-.col-team { width: 34%; }
-.col-rank { width: 58px; }
-.col-ranked-as { width: 30%; }
-.col-conf { width: 62px; }
+.col-team { width: 28%; }
+/* 58px fitted "Rank"; the header is "Nat'l Rank" now and the badge sits under it. */
+.col-rank { width: 76px; }
+.col-ranked-as { width: 22%; }
+/* Was 62px, sized for a "89%" badge. Current Match writes out a rank AND a team name, and it
+   is read side by side with Nat'l Team — a truncated "Luko Assass…" defeats the comparison the
+   column exists for, so it gets a share comparable to the column it is read against. */
+.col-conf { width: 26%; }
 .col-action { width: 74px; }
 
 .sortable-th {
@@ -373,12 +377,6 @@
 	font-size: var(--font-size-2xs);
 	color: var(--bs-secondary-color);
 	text-align: center;
-}
-
-.rank-drift {
-	margin-left: 2px;
-	font-size: var(--font-size-2xs);
-	color: var(--bs-warning);
 }
 
 /* The name is the one column allowed to wrap — it is what the director reads the row BY, and
@@ -434,15 +432,33 @@
 	}
 }
 
-/* Marks a row whose rank comes from the database rather than this scrape. Icon + word, never
-   colour alone. */
-.saved-flag {
+/* What is stored in our database, written out. The bookmark carries the "this is saved" meaning
+   so it never rests on colour alone, and the rank is emphasised because it is what the director
+   compares against Nat'l Rank two columns to the left. */
+.current-match {
 	display: inline-flex;
-	align-items: center;
+	align-items: baseline;
+	gap: var(--space-1);
+	min-width: 0;
 	font-size: var(--font-size-2xs);
-	font-weight: 600;
-	color: var(--bs-secondary-color);
+	color: var(--bs-body-color);
+}
+
+.current-match .bi {
+	flex: 0 0 auto;
+	color: var(--bs-success);
+}
+
+.current-match-rank {
+	flex: 0 0 auto;
+	font-weight: 700;
+}
+
+.current-match-team {
+	overflow: hidden;
+	text-overflow: ellipsis;
 	white-space: nowrap;
+	color: var(--bs-secondary-color);
 }
 
 .reassessed-note {
