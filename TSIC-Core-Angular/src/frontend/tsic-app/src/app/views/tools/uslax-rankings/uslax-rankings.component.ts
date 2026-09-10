@@ -969,7 +969,7 @@ export class UsLaxRankingsComponent {
 	 * them); unsaved matches follow, best confidence first; rows with neither go last.
 	 */
 	private currentMatchSortValue(row: MasterRow): number {
-		const saved = this.storedRankingFor(row.team.teamId);
+		const saved = this.parseRankingData(row.team.nationalRankingData);
 		if (saved) return saved.rank;
 		if (row.match) return 1_000_000 - Math.round(row.match.matchScore * 1000);
 		return 2_000_000;
@@ -987,12 +987,13 @@ export class UsLaxRankingsComponent {
 	 * beside the looked-up ones and the director reads the difference directly — a rank that
 	 * moved, or a team they had paired differently — rather than having it encoded in an icon.
 	 *
-	 * Source is `agegroupTeams` (this age group's own read from our database, refreshed after
-	 * every save) and NOT `row.team`: the row's copy comes from the align response, which is a
-	 * third party's answer to a different question and need not carry our stamp at all.
+	 * Read off the ROW. `align` and the age-group read call the same repository method
+	 * (`GetTeamsForRankingsAsync`), which selects NationalRankingData into the same DTO, so the
+	 * row always carries the stamp and a side lookup into `agegroupTeams` would only add a
+	 * second copy of a fact the row already holds — the exact shape of the bug this fixes.
 	 */
 	storedMatch(row: MasterRow): (NationalRankingDataDto & { savedOn: string }) | null {
-		const saved = this.storedRankingFor(row.team.teamId);
+		const saved = this.parseRankingData(row.team.nationalRankingData);
 		if (!saved) return null;
 		const when = saved.matchedAt ? new Date(saved.matchedAt) : null;
 		const savedOn = when && !isNaN(when.getTime())
