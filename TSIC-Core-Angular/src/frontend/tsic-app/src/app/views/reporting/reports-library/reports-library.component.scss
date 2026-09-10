@@ -305,6 +305,17 @@
         overflow-wrap: anywhere;
     }
 
+    // Stand-in for a missing description (Browse only): the proc / endpoint name, in the
+    // monospace stack so it reads as an identifier rather than prose.
+    &__key {
+        margin: 0;
+        font-family: var(--font-family-mono);
+        font-size: 0.75rem;
+        color: var(--brand-text-muted);
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+    }
+
     &__category {
         display: inline-flex;
         align-items: center;

@@ -41,6 +41,7 @@ interface LibraryEntry {
     readonly onShelf?: boolean;           // browse rows: already on the caller's shelf
     readonly scope?: string;              // browse rows: JobOnly | CrossJob | CrossWebsite — a fact about the query
     readonly minRoleName?: string;        // browse rows: the minimum role that may hold it
+    readonly reportKey?: string;          // browse rows: spName / endpoint / route — shown in place of a missing description so same-titled reports can be told apart
 }
 
 interface CategoryGroup {
@@ -291,6 +292,7 @@ export class ReportsLibraryComponent implements OnInit {
             onShelf: !!l.shelfJobReportId,
             scope: l.scope,
             minRoleName: l.minRoleName,
+            reportKey: l.reportKey,
         })));
 
     /** Whichever list the current mode shows. Tabs, groups and search all derive from this. */

@@ -43,6 +43,10 @@
             </div>
             @if (entry.description) {
                 <p class="report-row__desc">{{ entry.description }}</p>
+            } @else if (isBrowsing() && entry.reportKey) {
+                <!-- No description yet: the key is the one thing that tells two same-titled
+                     reports apart (two "Player Data (Excel)" rows are different procs). -->
+                <p class="report-row__key">{{ entry.reportKey }}</p>
             }
         </div>
 
