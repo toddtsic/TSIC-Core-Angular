@@ -93,8 +93,10 @@
 						colour, graduation year and state — it is a best guess, and clubs rename teams
 						between seasons. Anything left over appears on the right; use
 						<strong>Match</strong> on a team to pair it by hand, or <strong>Change</strong>
-						to correct one the lookup got wrong. Running <strong>Look Up Again</strong>
-						starts over — it replaces everything on screen, hand pairings included.
+						to correct one the lookup got wrong. A pairing you have <strong>saved</strong>
+						is kept every time you look up, with today's rank — the lookup only guesses
+						for teams with nothing saved. Pairings you have not saved yet are replaced
+						by <strong>Look Up Again</strong>, so save before you run it.
 						If a team is misnamed in your event, the
 						<i class="bi bi-pencil" aria-hidden="true"></i> pencil renames it here only
 						— and we re-check that one team against the rankings still unmatched, which
@@ -105,8 +107,8 @@
 					<span class="intent-num" aria-hidden="true">4</span>
 					<span class="intent-body">
 						<strong>Save at a confidence level you trust.</strong>
-						75%+ is the safe default; anything you paired by hand is always saved, and
-						anything you removed is cleared. Matches below the level you pick are left
+						75%+ is the safe default; anything you paired by hand or saved before is
+						always saved, and anything you removed is cleared. Matches below the level you pick are left
 						exactly as they are. Then sort by <strong>Nat'l Rank</strong> in Pool
 						Assignment and snake the top teams across pools so the strong ones do not
 						stack up in one bracket. Re-run this any time — saving again just
@@ -164,13 +166,13 @@
 					<!--
 						"Look Up", not "Match": this reads usclublax.com and proposes pairings — it
 						decides nothing. "Re-Match" also read as though it refined what was on screen,
-						when in fact it discards the whole set and starts over, hand corrections
-						included. The title says so before the click, not after.
+						when in fact it discards every UNSAVED pairing, hand corrections included (saved
+						pairings are kept — see keepSavedPairings). The title says so before the click.
 					-->
 					<button class="btn btn-primary btn-sm btn-find"
 						(click)="align()" [disabled]="isLoading() || !selectedScrapedAg() || !selectedRegisteredAg()"
 						[title]="hasResults()
-							? 'Looks the rankings up again and replaces everything on screen, including any pairings you set by hand'
+							? 'Looks the rankings up again. Saved pairings are kept; unsaved ones, including any you set by hand, are replaced'
 							: 'Look these teams up against the national rankings'">
 						@if (isLoading()) { <span class="spinner-border spinner-border-sm me-1"></span>Looking up... }
 						@else if (hasResults()) { <i class="bi bi-arrow-repeat me-1"></i>Look Up Again }

@@ -42,6 +42,10 @@ type SortDir = 'asc' | 'desc';
 /** Sentinel score for manually matched teams */
 const MANUAL_MATCH_SCORE = -1;
 
+/** National team names compare case- and whitespace-insensitively; nothing else is folded. */
+const normalizeRankedName = (name: string | null | undefined): string =>
+	(name ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+
 @Component({
 	selector: 'app-uslax-rankings',
 	standalone: true,
@@ -315,21 +319,13 @@ export class UsLaxRankingsComponent {
 	});
 
 	// ── Computed: save counts by threshold ──
-	readonly highConfMatches = computed(() =>
-		this.matchedTeams().filter(a => a.matchScore >= 0.75));
-	readonly mediumConfMatches = computed(() =>
-		this.matchedTeams().filter(a => a.matchScore >= 0.50 && a.matchScore < 0.75));
-	readonly manualMatches = computed(() =>
-		this.matchedTeams().filter(a => a.matchScore === MANUAL_MATCH_SCORE));
-
+	/** Counted with the same rule Save applies, so the number beside each option is what it writes. */
 	readonly saveCountByThreshold = computed(() => {
-		const high = this.highConfMatches().length;
-		const medium = this.mediumConfMatches().length;
-		const manual = this.manualMatches().length;
+		const matched = this.matchedTeams();
 		return {
-			high: high + manual,
-			medium: high + medium + manual,
-			all: this.matchedTeams().length
+			high: matched.filter(m => this.passesThreshold(m, 0.75)).length,
+			medium: matched.filter(m => this.passesThreshold(m, 0.50)).length,
+			all: matched.length
 		};
 	});
 
@@ -641,11 +637,12 @@ export class UsLaxRankingsComponent {
 						return;
 					}
 					this.alignment.set(result);
-					this.matchedTeams.set([...result.alignedTeams]);
-					this.unmatchedRankings.set([...result.unmatchedRankings]);
+					const kept = this.keepSavedPairings(result);
+					this.matchedTeams.set(kept.matched);
+					this.unmatchedRankings.set(kept.unmatchedRankings);
 					// Teams the LOOKUP did not find. Not the director's decision — so they are
 					// not recorded as unpaired and Save will not clear what they have stored.
-					this.unmatchedTeams.set([...result.unmatchedTeams]);
+					this.unmatchedTeams.set(kept.unmatchedTeams);
 					this.unpairedTeamIds.set(new Set());
 					this.totalTeamsInAgeGroup.set(result.totalTeamsInAgeGroup);
 				},
@@ -654,6 +651,103 @@ export class UsLaxRankingsComponent {
 					this.errorMessage.set(extractHttpErrorMessage(err, 'Failed to align rankings.'));
 				}
 			});
+	}
+
+	/**
+	 * A saved ranking is the director's decision; the matcher is a guess. The guess never wins.
+	 *
+	 * The matcher reads names only — it never looks at NationalRankingData — so every lookup used
+	 * to re-propose the very pairing the director had corrected. The row then disagreed with its
+	 * own saved value, counted as a change, and the next Save wrote the guess straight back over
+	 * the correction (Fall Rodeo 2026: "3d Garden State" re-paired to True Garden State, "Philly
+	 * Blast Power" to Philly Blast Pride, on every visit).
+	 *
+	 * So a team with a saved ranking is taken out of the guessing entirely:
+	 * - its saved national team is found in THIS lookup and paired to it, carrying today's rank
+	 *   and rating and the score it was saved with (a hand match stays a hand match);
+	 * - if the lookup no longer lists that team, it is left unpaired and its stamp untouched —
+	 *   an unpaired team is omitted from Save, and a third party going quiet is not a reason to
+	 *   guess over a decision;
+	 * - any guess that handed a saved ranking to some OTHER team is dropped, and that team is
+	 *   left unpaired for the director to pair by hand.
+	 */
+	private keepSavedPairings(result: AlignmentResultDto): {
+		matched: AlignedTeamDto[];
+		unmatchedRankings: RankingEntryDto[];
+		unmatchedTeams: RankingsTeamDto[];
+	} {
+		const allTeams = [...result.alignedTeams.map(a => a.registeredTeam), ...result.unmatchedTeams];
+		const allRankings = [...result.alignedTeams.map(a => a.ranking), ...result.unmatchedRankings];
+
+		const savedTeamIds = new Set<string>();
+		const claimedRanks = new Set<number>();
+		const savedPairs: AlignedTeamDto[] = [];
+
+		for (const team of allTeams) {
+			const stored = this.parseRankingData(team.nationalRankingData);
+			if (!stored) continue;
+			savedTeamIds.add(team.teamId);
+
+			const ranking = this.findSavedRanking(stored, allRankings, claimedRanks);
+			if (!ranking) continue;
+			claimedRanks.add(ranking.rank);
+			savedPairs.push({
+				ranking,
+				registeredTeam: team,
+				matchScore: Number.isFinite(stored.matchScore) ? stored.matchScore : MANUAL_MATCH_SCORE,
+				matchReason: 'Saved pairing'
+			});
+		}
+
+		const guesses = result.alignedTeams.filter(a =>
+			!savedTeamIds.has(a.registeredTeam.teamId) && !claimedRanks.has(a.ranking.rank));
+
+		const matched = [...savedPairs, ...guesses];
+		const pairedTeamIds = new Set(matched.map(m => m.registeredTeam.teamId));
+		const pairedRanks = new Set(matched.map(m => m.ranking.rank));
+
+		return {
+			matched,
+			unmatchedRankings: allRankings
+				.filter(r => !pairedRanks.has(r.rank))
+				.sort((a, b) => a.rank - b.rank),
+			unmatchedTeams: allTeams.filter(t => !pairedTeamIds.has(t.teamId))
+		};
+	}
+
+	/**
+	 * Find a saved national team in the current lookup. By NAME, never by rank: ranks move every
+	 * week, the national team's name is what the director actually chose. State, then the saved
+	 * rank, only break a tie between identically named entries.
+	 */
+	private findSavedRanking(
+		stored: NationalRankingDataDto,
+		rankings: RankingEntryDto[],
+		claimedRanks: ReadonlySet<number>
+	): RankingEntryDto | null {
+		const name = normalizeRankedName(stored.team);
+		const hits = rankings.filter(r => !claimedRanks.has(r.rank) && normalizeRankedName(r.team) === name);
+		if (hits.length <= 1) return hits[0] ?? null;
+		const sameState = hits.filter(r => r.state === stored.state);
+		const pool = sameState.length > 0 ? sameState : hits;
+		return pool.find(r => r.rank === stored.rank) ?? pool[0];
+	}
+
+	/** Is this row paired to exactly the national team already saved on it? */
+	private isSavedPairing(match: AlignedTeamDto): boolean {
+		const stored = this.parseRankingData(match.registeredTeam.nationalRankingData);
+		return !!stored && normalizeRankedName(stored.team) === normalizeRankedName(match.ranking.team);
+	}
+
+	/**
+	 * Does Save write this row at the chosen level? Hand matches and saved pairings always: both
+	 * are decisions, and the threshold only filters guesses. A saved pairing is still written so
+	 * a moved rank is refreshed — as the same national team, with the score it was saved with.
+	 */
+	private passesThreshold(match: AlignedTeamDto, minScore: number): boolean {
+		return match.matchScore === MANUAL_MATCH_SCORE
+			|| this.isSavedPairing(match)
+			|| match.matchScore >= minScore;
 	}
 
 	// ── Manual match (unified: always from team → sidebar ranking) ──
@@ -791,10 +885,10 @@ export class UsLaxRankingsComponent {
 		const minScore = threshold === 'high' ? 0.75 : threshold === 'medium' ? 0.50 : 0;
 		const teams: SaveRankingEntry[] = [];
 
-		// Writes. Manual matches carry the sentinel score and are always included: the director
-		// chose them by hand, which outranks any threshold.
+		// Writes. Hand matches and saved pairings are always included — both are decisions, which
+		// outrank any threshold. See passesThreshold.
 		for (const match of this.matchedTeams()) {
-			if (match.matchScore !== MANUAL_MATCH_SCORE && match.matchScore < minScore) continue;
+			if (!this.passesThreshold(match, minScore)) continue;
 			teams.push({
 				teamId: match.registeredTeam.teamId,
 				ranking: this.buildRankingData(match.ranking, match.matchScore)
@@ -1133,8 +1227,11 @@ export class UsLaxRankingsComponent {
 
 		// Only teams with no pairing are worth re-checking. Re-scoring a team the director has
 		// already matched would silently overwrite a decision they made.
-		const isUnmatched = this.unmatchedTeams().some(t => t.teamId === teamId);
-		if (!isUnmatched) return;
+		const team = this.unmatchedTeams().find(t => t.teamId === teamId);
+		if (!team) return;
+		// Nor a team with a saved ranking the lookup no longer lists: a guess here would be written
+		// over that saved ranking on the next Save — the exact overwrite keepSavedPairings prevents.
+		if (this.parseRankingData(team.nationalRankingData)) return;
 
 		this.isReassessing.set(teamId);
 
