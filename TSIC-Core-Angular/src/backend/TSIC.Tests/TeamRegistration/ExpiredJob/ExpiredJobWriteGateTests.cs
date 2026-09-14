@@ -106,6 +106,9 @@ public class ExpiredJobWriteGateTests
         feeService
             .Setup(f => f.GetEffectiveProcessingRateAsync(TestJobId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(0m);
+        teamRepo
+            .Setup(t => t.GetRegisteredTeamsForClubRepAndJobAsync(TestJobId, TestRegId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<RegisteredTeamInfo>());
         clubs
             .Setup(c => c.GetByNameAsync(TestClubName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Clubs { ClubId = 1, ClubName = TestClubName });

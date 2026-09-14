@@ -106,7 +106,11 @@ public class MaxTeamsPerClubTests
             .Setup(f => f.GetEffectiveProcessingRateAsync(TestJobId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(0m);
 
-        // 4. GetByNameAsync → returns a club
+        // 4. No teams on the registration yet → the club resolver falls back to club_name,
+        //    and GetByNameAsync returns a club
+        teamRepo
+            .Setup(t => t.GetRegisteredTeamsForClubRepAndJobAsync(TestJobId, TestRegId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<RegisteredTeamInfo>());
         clubs
             .Setup(c => c.GetByNameAsync(TestClubName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Clubs { ClubId = 1, ClubName = TestClubName });

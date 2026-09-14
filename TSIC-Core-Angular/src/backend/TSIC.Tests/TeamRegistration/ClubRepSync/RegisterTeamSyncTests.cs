@@ -87,6 +87,11 @@ public class RegisterTeamSyncTests
             .Setup(f => f.GetEffectiveProcessingRateAsync(TestJobId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(0m);
 
+        // No teams on the registration yet → the club resolver falls back to club_name.
+        teamRepo
+            .Setup(t => t.GetRegisteredTeamsForClubRepAndJobAsync(TestJobId, TestRegId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<RegisteredTeamInfo>());
+
         clubs
             .Setup(c => c.GetByNameAsync(TestClubName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Clubs { ClubId = 1, ClubName = TestClubName });

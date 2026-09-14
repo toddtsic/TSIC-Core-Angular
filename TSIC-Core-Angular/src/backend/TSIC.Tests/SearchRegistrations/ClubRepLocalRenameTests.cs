@@ -73,6 +73,14 @@ public class ClubRepLocalRenameTests
         var red = b.AddTeam(job.JobId, league.LeagueId, ag.AgegroupId, "2030 Red", clubRepRegistrationId: otherRep.RegistrationId, divId: div.DivId);
         var otherJobBlue = b.AddTeam(otherJob.JobId, league.LeagueId, ag.AgegroupId, "2030 Blue", clubRepRegistrationId: sameUserOtherJobRep.RegistrationId);
 
+        // The rep's teams come from their club's library — a rename requires that link.
+        ctx.Clubs.Add(new Clubs { ClubId = 800, ClubName = OldName });
+        ctx.ClubTeams.AddRange(
+            new ClubTeams { ClubTeamId = 8001, ClubId = 800, ClubTeamName = "Blue", ClubTeamGradYear = "2030", Active = true },
+            new ClubTeams { ClubTeamId = 8002, ClubId = 800, ClubTeamName = "White", ClubTeamGradYear = "2031", Active = true });
+        blue.ClubTeamId = 8001;
+        white.ClubTeamId = 8002;
+
         ctx.Schedule.AddRange(
             Game(GameRepVsOther, job.JobId, div.DivId, "T", blue.TeamId, $"{OldName}:2030 Blue", "T", red.TeamId, "Other Club:2030 Red"),
             Game(GameOtherVsRep, job.JobId, div.DivId, "T", red.TeamId, "Other Club:2030 Red", "T", white.TeamId, $"{OldName}:2031 White"),
@@ -83,7 +91,7 @@ public class ClubRepLocalRenameTests
 
         var svc = new ClubRepLocalRenameService(
             new RegistrationRepository(ctx), new ScheduleRepository(ctx),
-            new ClubRepository(ctx), new ClubRepRepository(ctx));
+            new ClubRepository(ctx), new ClubRepRepository(ctx), new TeamRepository(ctx));
 
         return new World
         {

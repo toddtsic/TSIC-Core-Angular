@@ -365,7 +365,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             .Select(id => id!.Value)
             .ToHashSet();
 
-        var effectiveClubId = await ResolveEffectiveClubIdAsync(regId, registeredClubTeamIds, clubName);
+        var effectiveClubId = await ResolveEffectiveClubIdAsync(jobId, regId, clubName);
 
         var suggestions = await GetHistoricalTeamSuggestionsAsync(userId, clubName ?? string.Empty, currentYear);
         var ageGroups = await GetAgeGroupsWithCountsAsync(jobId, job.Season ?? string.Empty);
@@ -630,14 +630,18 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         var processingRate = await _feeService.GetEffectiveProcessingRateAsync(jobId);
 
-        // Get club ID from ClubName
-        var club = await _clubs.GetByNameAsync(clubName ?? string.Empty);
-        if (club == null)
+        // Resolve the club by id from the registration's teams (THE ONE RESOLVER), never by
+        // re-matching club_name: a director may rename the club for this event only, and a
+        // name lookup would then find no club and block the rep from adding teams.
+        var effectiveClubId = await ResolveEffectiveClubIdAsync(jobId, regId, clubName);
+        if (effectiveClubId <= 0)
         {
-            _logger.LogWarning("Club not found: {ClubName}", clubName);
-            throw new InvalidOperationException($"Club not found: {clubName}");
+            _logger.LogWarning(
+                "RegisterTeamForEvent could not resolve a club for registration {RegId} (club_name '{ClubName}', user {UserId})",
+                regId, clubName, userId);
+            throw new InvalidOperationException(
+                "Your club could not be determined for this registration. Please contact support.");
         }
-        var effectiveClubId = club.ClubId;
 
         // Validate that user has access to this club (via ClubReps table)
         var hasAccess = await _clubReps.ExistsAsync(userId, effectiveClubId);
@@ -1057,10 +1061,21 @@ public class TeamRegistrationService : ITeamRegistrationService
     /// than one club that picked an arbitrary one, so creates landed in a library the
     /// wizard never displays (True Lacrosse / "Cleveland 2029", 2026-08-12).
     /// Returns 0 when no club can be resolved; callers decide whether that is fatal.
+    ///
+    /// The structural input is EVERY team on the registration — waitlisted, inactive and
+    /// DROPPED included — not just the active ones. A director may rename the registration's
+    /// club_name for the event (ClubRepLocalRenameService), and that rename is refused unless
+    /// one of these teams links to the library; so a renamed registration always resolves
+    /// here by id and never reaches the name fallback, even after its teams are dropped.
     /// </summary>
-    private async Task<int> ResolveEffectiveClubIdAsync(
-        Guid regId, IReadOnlyCollection<int> registeredClubTeamIds, string? clubName)
+    private async Task<int> ResolveEffectiveClubIdAsync(Guid jobId, Guid regId, string? clubName)
     {
+        var registeredClubTeamIds = (await _teams.GetRegisteredTeamsForClubRepAndJobAsync(jobId, regId))
+            .Select(t => t.ClubTeamId)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .ToHashSet();
+
         if (registeredClubTeamIds.Count > 0)
         {
             var clubIdByClubTeam = await _clubTeams.GetClubIdsForClubTeamIdsAsync(registeredClubTeamIds);
@@ -1100,14 +1115,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         var registration = await _registrations.GetRegistrationBasicInfoAsync(regId, userId)
             ?? throw new InvalidOperationException("Registration not found or access denied");
 
-        var rawRegistered = await _teams.GetRegisteredTeamsForUserAndJobAsync(registration.JobId, userId);
-        var registeredClubTeamIds = rawRegistered
-            .Select(t => t.ClubTeamId)
-            .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .ToHashSet();
-
-        var effectiveClubId = await ResolveEffectiveClubIdAsync(regId, registeredClubTeamIds, registration.ClubName);
+        var effectiveClubId = await ResolveEffectiveClubIdAsync(registration.JobId, regId, registration.ClubName);
         if (effectiveClubId <= 0)
         {
             // Fail loud instead of guessing a club — the old FirstOrDefault fallback is

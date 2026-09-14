@@ -17,17 +17,20 @@ public sealed class ClubRepLocalRenameService : IClubRepLocalRenameService
     private readonly IScheduleRepository _scheduleRepo;
     private readonly IClubRepository _clubRepo;
     private readonly IClubRepRepository _clubRepRepo;
+    private readonly ITeamRepository _teamRepo;
 
     public ClubRepLocalRenameService(
         IRegistrationRepository registrationRepo,
         IScheduleRepository scheduleRepo,
         IClubRepository clubRepo,
-        IClubRepRepository clubRepRepo)
+        IClubRepRepository clubRepRepo,
+        ITeamRepository teamRepo)
     {
         _registrationRepo = registrationRepo;
         _scheduleRepo = scheduleRepo;
         _clubRepo = clubRepo;
         _clubRepRepo = clubRepRepo;
+        _teamRepo = teamRepo;
     }
 
     public async Task<RenameClubRepClubLocalResponse> RenameAsync(
@@ -51,6 +54,15 @@ public sealed class ClubRepLocalRenameService : IClubRepLocalRenameService
             throw new InvalidOperationException("Registration does not belong to this job.");
         if (!string.Equals(reg.RoleId, RoleConstants.ClubRep, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Only a Club Rep registration carries a club name to rename.");
+
+        // Once renamed, club_name no longer matches the club, so the rep's club is resolved from
+        // the registration's teams (ClubTeamId -> ClubId; TeamRegistrationService). Require a team
+        // that links to the library — any team, dropped or waitlisted included, since the resolver
+        // counts those too — or the rep would be left with no way to reach their club.
+        var teams = await _teamRepo.GetRegisteredTeamsForClubRepAndJobAsync(jobId, reg.RegistrationId, ct);
+        if (!teams.Exists(t => t.ClubTeamId.HasValue))
+            throw new InvalidOperationException(
+                "This club has no teams registered for this event yet. A club can be renamed once it has at least one team.");
 
         // A registration's club name is also used to LOOK UP a club by exact name (the rep's library
         // fallback, LADT move-team-to-rep). Naming this rep after a club they do not represent would
