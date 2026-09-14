@@ -113,6 +113,7 @@ export class TeamWizardStateService {
      * render with populated state regardless of entry path.
      */
     applyTeamsMetadata(meta: TeamsMetadataResponse): void {
+        this.clubRep.setEventClubName(meta.clubName);
         this.teamPayment.setTeams(meta.registeredTeams || []);
         this.teamPayment.setJobPath(this._jobPath());
         this.teamPayment.setPaymentConfig(

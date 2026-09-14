@@ -124,25 +124,6 @@ public class TeamRepository : ITeamRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<List<ClubAffectedJob>> GetJobsWithTeamsForClubTeamAsync(
-        int clubTeamId, CancellationToken ct = default)
-    {
-        return await (
-            from t in _context.Teams
-            where t.ClubTeamId == clubTeamId
-            join j in _context.Jobs on t.JobId equals j.JobId
-            group j by new { t.JobId, j.JobName } into g
-            orderby g.Key.JobName
-            select new ClubAffectedJob
-            {
-                JobId = g.Key.JobId,
-                JobName = g.Key.JobName ?? string.Empty,
-                TeamCount = g.Count()
-            })
-            .AsNoTracking()
-            .ToListAsync(ct);
-    }
-
     public async Task<Teams?> GetTrackedTeamByNameInJobAsync(
         Guid jobId, string teamName, CancellationToken cancellationToken = default)
     {

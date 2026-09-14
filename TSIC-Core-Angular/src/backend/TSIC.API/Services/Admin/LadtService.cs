@@ -1510,11 +1510,15 @@ public sealed class LadtService : ILadtService
 
         // 7. Resolve target club for ClubTeamId reassignment (if any team has one) — by id through the
         //    shared resolver, never by the target registration's club_name, which may be renamed for the
-        //    event. 0 = no club resolvable; the teams then keep their library link.
+        //    event. Refuse when it can't be resolved: the moved teams would keep the source club's library
+        //    links, and the target registration would then resolve to a club its rep doesn't represent.
         var targetClubId = 0;
         if (teamsToMove.Exists(t => t.ClubTeamId.HasValue))
         {
             targetClubId = (await _clubRepRepo.ResolveClubForClubRepRegistrationAsync(targetReg.RegistrationId, ct)).ClubId;
+            if (targetClubId == 0)
+                throw new InvalidOperationException(
+                    "The target club rep's club could not be determined, so these teams can't be moved to them. Please contact support.");
         }
 
         // Snapshot source ClubTeamIds before the loop overwrites them — used in step 9.5

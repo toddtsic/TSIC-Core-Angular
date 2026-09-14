@@ -190,7 +190,8 @@ export class TeamWizardV2Component implements OnInit {
     });
 
     readonly shellConfig = computed<WizardShellConfig>(() => {
-        const club = this.state.clubRep.selectedClub();
+        // Inside the event the club reads as the registration's name; the library name only until it loads.
+        const club = this.state.clubRep.eventClubName() ?? this.state.clubRep.selectedClub();
         return {
             title: 'Team Registration',
             theme: 'team',
@@ -486,6 +487,7 @@ export class TeamWizardV2Component implements OnInit {
         // re-verifies it against the authenticated user when the event is token-gated. Absent on
         // open-enrollment events; harmless there.
         const inviteToken = this.route.snapshot.queryParamMap.get('invite');
+        this.state.clubRep.setEventClubName(null);
         this.teamReg.initializeRegistration(clubName, jobPath, inviteToken)
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({

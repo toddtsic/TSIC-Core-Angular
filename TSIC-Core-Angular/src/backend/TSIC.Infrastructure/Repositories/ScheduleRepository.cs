@@ -288,12 +288,16 @@ public sealed class ScheduleRepository : IScheduleRepository
     /// <summary>
     /// THE composition of a seated team's schedule label: "{club}:{team}", or the team name alone when
     /// there is no club or the job shows team names only. <paramref name="clubName"/> is always the
-    /// club rep registration's club_name — every writer passes that, never Clubs.ClubName.
+    /// club rep registration's club_name — every writer passes that, never Clubs.ClubName. The club name is
+    /// trimmed: ~1,200 legacy registrations carry a trailing space the library names never had.
     /// </summary>
-    private static string ComposeTeamLabel(string? clubName, string? teamName, bool showTeamNameOnly) =>
-        (!string.IsNullOrEmpty(clubName) && !showTeamNameOnly)
-            ? $"{clubName}:{teamName}"
+    private static string ComposeTeamLabel(string? clubName, string? teamName, bool showTeamNameOnly)
+    {
+        var club = clubName?.Trim();
+        return (!string.IsNullOrEmpty(club) && !showTeamNameOnly)
+            ? $"{club}:{teamName}"
             : teamName ?? string.Empty;
+    }
 
     /// <summary>
     /// Full-recompose helper for one team slot. "T" slots rebuild {club}:{team} from source; resolved
@@ -318,7 +322,8 @@ public sealed class ScheduleRepository : IScheduleRepository
         // club name, and the per-event club rename leaves bracket slots on the name they were seeded
         // with. Recognize any of those so the result is never "{club}:{oldClub}:{team}":
         //   1. exactly "{prefix}:{team}" with a colon-free prefix — the copied pool label of this team;
-        //   2. otherwise a leading registration or library club name (longest first).
+        //   2. otherwise a leading registration or library club name (longest first);
+        //   3. otherwise, a label that still carries a colon has a prefix nobody can identify — leave it.
         if (string.IsNullOrEmpty(currentName)) return null;
         var core = currentName;
         var teamName = info?.Team;
@@ -332,7 +337,8 @@ public sealed class ScheduleRepository : IScheduleRepository
         }
         else
         {
-            foreach (var prefix in new[] { club, info?.LibraryClub }
+            var stripped = false;
+            foreach (var prefix in new[] { club, club?.Trim(), info?.LibraryClub }
                          .Where(p => !string.IsNullOrEmpty(p))
                          .Distinct(StringComparer.Ordinal)
                          .OrderByDescending(p => p!.Length))
@@ -340,9 +346,11 @@ public sealed class ScheduleRepository : IScheduleRepository
                 if (core.StartsWith(prefix + ":", StringComparison.Ordinal))
                 {
                     core = core[(prefix!.Length + 1)..];
+                    stripped = true;
                     break;
                 }
             }
+            if (!stripped && core.Contains(':')) return null;
         }
         return ComposeTeamLabel(club, core, showTeamNameOnly);
     }

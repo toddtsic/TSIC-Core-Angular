@@ -57,14 +57,17 @@ public sealed class ClubRepLocalRenameService : IClubRepLocalRenameService
         if (!string.Equals(reg.RoleId, RoleConstants.ClubRep, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Only a Club Rep registration carries a club name to rename.");
 
-        // Once renamed, club_name no longer matches the club, so the rep's club is resolved from
-        // the registration's teams (ClubTeamId -> ClubId; TeamRegistrationService). Require a team
-        // that links to the library — any team, dropped or waitlisted included, since the resolver
-        // counts those too — or the rep would be left with no way to reach their club.
-        var teams = await _teamRepo.GetRegisteredTeamsForClubRepAndJobAsync(jobId, reg.RegistrationId, ct);
-        if (!teams.Exists(t => t.ClubTeamId.HasValue))
+        // A club is renamed once it has at least one team (any status).
+        if (await _teamRepo.CountTeamsByClubRepRegistrationAsync(reg.RegistrationId, ct) == 0)
             throw new InvalidOperationException(
                 "This club has no teams registered for this event yet. A club can be renamed once it has at least one team.");
+
+        // Once renamed, club_name no longer names the rep's club, so the club must be reachable without it:
+        // through a library-linked team, or because the rep represents exactly one club.
+        var resolution = await _clubRepRepo.ResolveClubForClubRepRegistrationAsync(reg.RegistrationId, ct);
+        if (!resolution.SurvivesRename)
+            throw new InvalidOperationException(
+                "This club can't be renamed for this event: its rep represents more than one club and none of its teams here are linked to a club team library, so the rename would disconnect the rep from their club.");
 
         // Inside the event this name reads as the club's identity. Naming this rep after a club they do not
         // represent would present their teams as that other club — refuse it. Renaming to one of the rep's

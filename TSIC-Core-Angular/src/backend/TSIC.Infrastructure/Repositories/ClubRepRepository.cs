@@ -81,7 +81,7 @@ public class ClubRepRepository : IClubRepRepository
                 .OrderByDescending(g => g.Count())
                 .ThenBy(g => g.Key)
                 .ToList();
-            return new ClubRepClubResolution { ClubId = byClub[0].Key, SpannedClubCount = byClub.Count };
+            return new ClubRepClubResolution { ClubId = byClub[0].Key, SpannedClubCount = byClub.Count, SurvivesRename = true };
         }
 
         // 2. No library-linked team yet: the registering user's own clubs.
@@ -105,9 +105,39 @@ public class ClubRepRepository : IClubRepRepository
             .ToList();
 
         var clubId = named.Count == 1 ? named[0].ClubId
+            : named.Count > 1 ? await MostUsedClubForUserAsync(reg.UserId, named.Select(c => c.ClubId).ToList(), cancellationToken)
             : myClubs.Count == 1 ? myClubs[0].ClubId
             : 0;
-        return new ClubRepClubResolution { ClubId = clubId, SpannedClubCount = 0 };
+        return new ClubRepClubResolution
+        {
+            ClubId = clubId,
+            SpannedClubCount = 0,
+            SurvivesRename = clubId > 0 && myClubs.Count == 1
+        };
+    }
+
+    /// <summary>
+    /// The user reps more than one club with the registration's name (e.g. two libraries both named
+    /// "True Lacrosse"): pick the candidate whose library teams the user has registered most across all
+    /// their events, counted by id. No strict winner = 0.
+    /// </summary>
+    private async Task<int> MostUsedClubForUserAsync(string userId, List<int> candidateClubIds, CancellationToken cancellationToken)
+    {
+        var usage = await (
+            from t in _context.Teams
+            join r in _context.Registrations on t.ClubrepRegistrationid equals r.RegistrationId
+            join cte in _context.ClubTeams on t.ClubTeamId equals cte.ClubTeamId
+            where r.UserId == userId && candidateClubIds.Contains(cte.ClubId)
+            group t by cte.ClubId into g
+            select new { ClubId = g.Key, Teams = g.Count() })
+            .AsNoTracking()
+            .OrderByDescending(x => x.Teams)
+            .Take(2)
+            .ToListAsync(cancellationToken);
+
+        return usage.Count == 1 || (usage.Count == 2 && usage[0].Teams > usage[1].Teams)
+            ? usage[0].ClubId
+            : 0;
     }
 
     public async Task<ClubReps?> GetClubRepForUserAndClubAsync(

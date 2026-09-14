@@ -28,14 +28,6 @@ public record ClubRenameResponse
     public string? NewClubName { get; init; }
 }
 
-/// <summary>A job that holds teams belonging to a club team — the library team-rename impact/scope unit.</summary>
-public record ClubAffectedJob
-{
-    public required Guid JobId { get; init; }
-    public required string JobName { get; init; }
-    public required int TeamCount { get; init; }
-}
-
 public class ClubRenameRequestValidator : AbstractValidator<ClubRenameRequest>
 {
     public ClubRenameRequestValidator()

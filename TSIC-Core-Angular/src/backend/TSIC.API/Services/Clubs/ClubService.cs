@@ -484,11 +484,9 @@ public sealed class ClubService : IClubService
     }
 
     /// <summary>
-    /// Rename a club the caller reps, guarded to the data-safe window. Because
-    /// IsInUse is computed by matching the club's name against Registrations.club_name,
-    /// IsInUse=false guarantees no team/registration copies reference the old name —
-    /// so renaming the single Clubs row can't orphan anything. Once a team exists the
-    /// name is locked here (a true rename then becomes a deliberate admin operation).
+    /// Rename a club the caller reps (the library name — Clubs.ClubName). Locked once the club has
+    /// registered teams (IsInUse, found by id). Inside an event the club's name is the club rep
+    /// registration's club_name, which this never touches; a Director or Superuser renames that per event.
     /// </summary>
     public async Task<ClubRenameResponse> RenameClubAsync(string userId, ClubRenameRequest request)
     {
@@ -516,8 +514,7 @@ public sealed class ClubService : IClubService
             return new ClubRenameResponse { Success = true, NewClubName = target.ClubName };
         }
 
-        // Guard: a club with registered teams is locked — renaming would strand the
-        // Registrations.club_name copies that drive usage/library matching.
+        // Guard: a club with registered teams is locked.
         if (target.IsInUse)
         {
             return new ClubRenameResponse

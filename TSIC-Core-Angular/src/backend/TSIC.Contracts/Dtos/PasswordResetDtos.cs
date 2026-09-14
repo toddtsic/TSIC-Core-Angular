@@ -21,7 +21,7 @@ public record ForgotPasswordResponse
     /// client-facing, and returning a working reset link to an anonymous caller there would be an
     /// account-takeover hole. Empty in every non-Development environment.
     /// (Non-nullable list: a nullable List&lt;T&gt;? here generates an untyped any[] on the
-    /// frontend — same reason AdminClubRenameResponse.PerJob is shaped this way.)
+    /// frontend.)
     /// </summary>
     public IReadOnlyList<DevResetLink> DevResetLinks { get; init; } = [];
 }

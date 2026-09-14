@@ -501,13 +501,6 @@ public interface ITeamRepository
     Task<TeamDetailQueryResult?> GetTeamDetailAsync(Guid teamId, CancellationToken ct = default);
 
     /// <summary>
-    /// Jobs holding an event copy of a club-team library row — the rename impact/scope list shown
-    /// before a club-linked team rename (mirrors IClubRepository.GetJobsWithTeamsForClubAsync one
-    /// level down). AsNoTracking.
-    /// </summary>
-    Task<List<ClubAffectedJob>> GetJobsWithTeamsForClubTeamAsync(int clubTeamId, CancellationToken ct = default);
-
-    /// <summary>
     /// Get full mobile roster for a team (staff + players with parent contacts and attendance counts).
     /// </summary>
     Task<Dtos.TeamRosterDetailDto> GetTeamRosterMobileAsync(Guid teamId, CancellationToken ct = default);

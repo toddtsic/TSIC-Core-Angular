@@ -17,6 +17,8 @@ export class ClubRepStateService {
     // ── Private backing signals ────────────────────────────────────────
     private readonly _availableClubs = signal<ClubRepClubDto[]>([]);
     private readonly _selectedClub = signal<string | null>(null);
+    /** The club's name inside THIS event (the registration's club_name), once the session has loaded. */
+    private readonly _eventClubName = signal<string | null>(null);
     private readonly _clubInfoCollapsed = signal(false);
     private readonly _clubRepInfoAlreadyRead = signal(false);
     private readonly _metadataError = signal<string | null>(null);
@@ -25,6 +27,7 @@ export class ClubRepStateService {
     // ── Public readonly ────────────────────────────────────────────────
     readonly availableClubs = this._availableClubs.asReadonly();
     readonly selectedClub = this._selectedClub.asReadonly();
+    readonly eventClubName = this._eventClubName.asReadonly();
     readonly clubInfoCollapsed = this._clubInfoCollapsed.asReadonly();
     readonly clubRepInfoAlreadyRead = this._clubRepInfoAlreadyRead.asReadonly();
     readonly metadataError = this._metadataError.asReadonly();
@@ -36,6 +39,7 @@ export class ClubRepStateService {
     // ── Controlled mutators ────────────────────────────────────────────
     setAvailableClubs(clubs: ClubRepClubDto[]): void { this._availableClubs.set(clubs); }
     setSelectedClub(club: string | null): void { this._selectedClub.set(club); }
+    setEventClubName(name: string | null): void { this._eventClubName.set(name?.trim() || null); }
     setMetadataError(err: string | null): void { this._metadataError.set(err); }
     setSimilarClubs(clubs: ClubSearchResult[]): void { this._similarClubs.set(clubs); }
 
@@ -60,6 +64,7 @@ export class ClubRepStateService {
     reset(): void {
         this._availableClubs.set([]);
         this._selectedClub.set(null);
+        this._eventClubName.set(null);
         this._metadataError.set(null);
         this._similarClubs.set([]);
     }
