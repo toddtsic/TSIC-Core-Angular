@@ -69,6 +69,11 @@ public sealed class ClubRepLocalRenameService : IClubRepLocalRenameService
             throw new InvalidOperationException(
                 "This club can't be renamed for this event: its rep represents more than one club and none of its teams here are linked to a club team library, so the rename would disconnect the rep from their club.");
 
+        // Inside the event teams group by this name, so another rep here already using it would merge two clubs.
+        if (await _registrationRepo.IsClubRepClubNameInUseInJobAsync(jobId, reg.RegistrationId, next, ct))
+            throw new InvalidOperationException(
+                $"Another club in this event already uses \"{next}\". Choose a different name.");
+
         // Inside the event this name reads as the club's identity. Naming this rep after a club they do not
         // represent would present their teams as that other club — refuse it. Renaming to one of the rep's
         // own clubs (including back to the library name) is allowed.

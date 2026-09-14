@@ -1232,6 +1232,20 @@ public class RegistrationRepository : IRegistrationRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<bool> IsClubRepClubNameInUseInJobAsync(Guid jobId, Guid excludeRegistrationId, string clubName, CancellationToken cancellationToken = default)
+    {
+        var name = clubName.Trim().ToLower();
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId
+                && r.RoleId == Domain.Constants.RoleConstants.ClubRep
+                && r.RegistrationId != excludeRegistrationId
+                && r.ClubName != null
+                && r.ClubName.Trim().ToLower() == name
+                && _context.Teams.Any(t => t.ClubrepRegistrationid == r.RegistrationId))
+            .AnyAsync(cancellationToken);
+    }
+
     public async Task<RegistrationBasicInfo?> GetRegistrationBasicInfoAsync(Guid registrationId, string userId, CancellationToken cancellationToken = default)
     {
         return await _context.Registrations

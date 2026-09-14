@@ -219,6 +219,13 @@ public interface IRegistrationRepository
     Task<Registrations?> GetClubRepRegistrationAsync(string userId, Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// True when a club rep registration in the job other than <paramref name="excludeRegistrationId"/>, holding
+    /// at least one team, already carries <paramref name="clubName"/> (trimmed, case-insensitive). Inside an event
+    /// teams group by that name, so a second rep with it would merge two clubs. AsNoTracking.
+    /// </summary>
+    Task<bool> IsClubRepClubNameInUseInJobAsync(Guid jobId, Guid excludeRegistrationId, string clubName, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get registration basic info (ClubName, JobId) by registration ID and user ID.
     /// Used for authorization checks.
     /// </summary>
