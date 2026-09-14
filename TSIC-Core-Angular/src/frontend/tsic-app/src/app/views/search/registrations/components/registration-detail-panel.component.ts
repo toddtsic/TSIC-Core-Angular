@@ -44,8 +44,7 @@ const PROFILE_GUARANTEED_FIELDS: FieldMetadata[] = [
 const PROFILE_EXCLUDED_KEYS = new Set(['teamid']);
 
 /** Non-player profile field display labels. ClubName is deliberately absent — a Club Rep's club
- *  renders in its own dedicated card (with the SuperUser rename control), sourced from the canonical
- *  Clubs row rather than the denormalized profile copy. */
+ *  renders in its own dedicated card, with the per-event rename control (Director or Superuser). */
 const NON_PLAYER_FIELD_LABELS: Record<string, string> = {
   'SpecialRequests': 'Special Requests',
   'SportYearsExp': 'Years of Experience',
@@ -385,7 +384,7 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   submitLocalRename(): void {
     const regId = this.detail()?.registrationId;
     const next = this.localRenameName().trim();
-    if (!regId || !next || this.isRenamingClubLocal()) return;
+    if (!regId || !next || next === this.clubName() || this.isRenamingClubLocal()) return;
 
     this.isRenamingClubLocal.set(true);
     this.localRenameError.set(null);

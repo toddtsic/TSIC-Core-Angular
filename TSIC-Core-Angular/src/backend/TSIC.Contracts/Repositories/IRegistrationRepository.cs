@@ -220,8 +220,9 @@ public interface IRegistrationRepository
 
     /// <summary>
     /// True when a club rep registration in the job other than <paramref name="excludeRegistrationId"/>, holding
-    /// at least one team, already carries <paramref name="clubName"/> (trimmed, case-insensitive). Inside an event
-    /// teams group by that name, so a second rep with it would merge two clubs. AsNoTracking.
+    /// at least one active team, already carries <paramref name="clubName"/> (trimmed, case-insensitive). Inside an
+    /// event the club tree and club filters group active teams by that name, so a second rep with it would merge two
+    /// clubs; a rep whose teams are all dropped (inactive) has no club node and can't merge. AsNoTracking.
     /// </summary>
     Task<bool> IsClubRepClubNameInUseInJobAsync(Guid jobId, Guid excludeRegistrationId, string clubName, CancellationToken cancellationToken = default);
 

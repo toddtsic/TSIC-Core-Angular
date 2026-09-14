@@ -1242,7 +1242,7 @@ public class RegistrationRepository : IRegistrationRepository
                 && r.RegistrationId != excludeRegistrationId
                 && r.ClubName != null
                 && r.ClubName.Trim().ToLower() == name
-                && _context.Teams.Any(t => t.ClubrepRegistrationid == r.RegistrationId))
+                && _context.Teams.Any(t => t.ClubrepRegistrationid == r.RegistrationId && t.Active == true))
             .AnyAsync(cancellationToken);
     }
 
