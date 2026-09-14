@@ -228,10 +228,10 @@ public class RegistrationSearchController : ControllerBase
     }
 
     /// <summary>
-    /// Director: rename the club on a Club Rep registration for THIS event only — the registration's
-    /// club name and this job's round-robin schedule slots for that rep's teams. The Clubs row, the
-    /// library, bracket slots and every other job are untouched. The Director-only rule is the
-    /// service's (AdminOnly also admits Superuser/SuperDirector), so the role travels to it.
+    /// Director / Superuser: rename the club on a Club Rep registration for THIS event only — the
+    /// registration's club name and this job's round-robin schedule slots for that rep's teams. The Clubs
+    /// row, the library, bracket slots and every other job are untouched. The role rule is the service's
+    /// (AdminOnly also admits SuperDirector), so the role travels to it.
     /// </summary>
     [HttpPut("{registrationId:guid}/club-name")]
     public async Task<ActionResult<RenameClubRepClubLocalResponse>> RenameClubRepClubLocal(

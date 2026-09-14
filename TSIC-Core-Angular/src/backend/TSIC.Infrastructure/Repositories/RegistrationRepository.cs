@@ -2656,21 +2656,6 @@ public class RegistrationRepository : IRegistrationRepository
         var clubRepTeamCount = await _context.Teams
             .CountAsync(t => t.ClubrepRegistrationid == reg.RegistrationId, ct);
 
-        // Resolve the Club this rep registration was made under, for the club-rep card + admin rename.
-        // Canonical source is Clubs; match the rep's link to the club whose name equals the stored copy.
-        // Null when the copy has drifted from every club this user reps — the card then shows name only.
-        int? clubId = null;
-        if (reg.RoleId == RoleConstants.ClubRep
-            && !string.IsNullOrWhiteSpace(reg.ClubName)
-            && reg.UserId != null)
-        {
-            clubId = await (
-                from cr in _context.ClubReps
-                join c in _context.Clubs on cr.ClubId equals c.ClubId
-                where cr.ClubRepUserId == reg.UserId && c.ClubName == reg.ClubName
-                select (int?)c.ClubId).FirstOrDefaultAsync(ct);
-        }
-
         // Project the stored ARB snapshot from the Registrations.AdnSubscription* columns so the
         // detail panel can show subscription status in every environment — the live ADN lookup only
         // works in Production (a prod subscription id can't be resolved against the sandbox gateway).
@@ -2763,7 +2748,6 @@ public class RegistrationRepository : IRegistrationRepository
             AccountingRecords = accountingRecords,
             IsClubRep = isClubRep,
             ClubRepTeamCount = clubRepTeamCount,
-            ClubId = clubId,
             ClubName = reg.RoleId == RoleConstants.ClubRep ? reg.ClubName : null
         };
     }
@@ -2865,9 +2849,9 @@ public class RegistrationRepository : IRegistrationRepository
                 && string.Equals(key, nameof(Registrations.SportAssnIdexpDate), StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            // ClubName is a denormalized display copy sourced from Clubs at registration time. Its sole
-            // writer is the admin club-rename operation (UpdateClubRepNameCopiesAsync); the generic profile
-            // editor must never touch it or the copy drifts from the one canonical name.
+            // ClubName is the club's name for THIS event — every in-event label reads it. Its sole writer
+            // after registration is the per-event club rename (ClubRepLocalRenameService), which also
+            // restamps the event's game names; the generic profile editor must never touch it.
             if (string.Equals(key, nameof(Registrations.ClubName), StringComparison.OrdinalIgnoreCase))
                 continue;
 
@@ -2922,27 +2906,6 @@ public class RegistrationRepository : IRegistrationRepository
         reg.LebUserId = userId;
 
         await _context.SaveChangesAsync(ct);
-    }
-
-    public async Task<int> UpdateClubRepNameCopiesAsync(
-        int clubId, string oldName, string newName, CancellationToken ct = default)
-    {
-        // Reps of this club, by user id.
-        var repUserIds = _context.ClubReps
-            .Where(cr => cr.ClubId == clubId)
-            .Select(cr => cr.ClubRepUserId);
-
-        // Only club-rep registrations whose display copy still holds the OLD name are rewritten.
-        // A copy naming a different club (typo/merge history) is left as the sole record of intent.
-        return await _context.Registrations
-            .Where(r => r.RoleId == RoleConstants.ClubRep
-                && r.ClubName == oldName
-                && r.UserId != null
-                && repUserIds.Contains(r.UserId))
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(r => r.ClubName, newName)
-                .SetProperty(r => r.Assignment, newName)
-                .SetProperty(r => r.RegistrationCategory, "Club Rep: " + newName), ct);
     }
 
     public async Task UpdateFamilyContactAsync(

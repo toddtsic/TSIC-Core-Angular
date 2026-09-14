@@ -2,9 +2,8 @@ import { Component, ChangeDetectionStrategy, input, output, signal, linkedSignal
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
-import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto, ClubAffectedJob, RevalidateUsLaxResultDto } from '@core/api';
+import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto, RevalidateUsLaxResultDto } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
-import { ClubService } from '@infrastructure/services/club.service';
 import { displayRoleName, Roles } from '@infrastructure/constants/roles.constants';
 import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error-utils';
 import { ToastService } from '@shared-ui/toast.service';
@@ -142,7 +141,6 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   // refundRequested removed — refunds now handled inside accounting-ledger modal
 
   private searchService = inject(RegistrationSearchService);
-  private clubService = inject(ClubService);
   private toast = inject(ToastService);
   private auth = inject(AuthService);
   private jobService = inject(JobService);
@@ -351,54 +349,21 @@ export class RegistrationDetailPanelComponent implements OnChanges {
     return noAccounting;
   });
 
-  // ── Club-rep card + admin rename ──
+  // ── Club-rep card ──
   /** The club name stored on THIS rep registration (Registrations.ClubName — not the Clubs row). */
   readonly clubName = computed(() => this.detail()?.clubName ?? null);
-  /** The Clubs row whose name matches the stored copy (null when it matches no club the user reps). */
-  readonly clubId = computed(() => this.detail()?.clubId ?? null);
-  /** Rename is a SuperUser-only, shared-data operation and needs a resolved clubId to target. */
-  readonly canRenameClub = computed(() => this.auth.isSuperuser() && this.clubId() != null);
 
   /** Change Job is a cross-job operation — Superuser/SuperDirector only, per legacy and the
    *  backend CanCrossCustomerJobs gate on both change-job endpoints. */
   readonly canChangeJob = computed(() => this.auth.isElevatedAdmin());
 
-  showRenameClubModal = signal<boolean>(false);
-  renameClubNewName = signal<string>('');
-  renameClubAffectedJobs = signal<ClubAffectedJob[]>([]);
-  isLoadingRenameImpact = signal<boolean>(false);
-  isRenamingClub = signal<boolean>(false);
-
-  openRenameClubModal(): void {
-    const id = this.clubId();
-    if (id == null) return;
-    this.renameClubNewName.set(this.clubName() ?? '');
-    this.renameClubAffectedJobs.set([]);
-    this.isLoadingRenameImpact.set(true);
-    this.showRenameClubModal.set(true);
-    this.clubService.getRenameImpact(id).subscribe({
-      next: (jobs) => {
-        this.renameClubAffectedJobs.set(jobs);
-        this.isLoadingRenameImpact.set(false);
-      },
-      error: () => {
-        this.isLoadingRenameImpact.set(false);
-        this.toast.show('Could not load affected jobs — you can still rename.', 'warning', 4000);
-      }
-    });
-  }
-
-  cancelRenameClub(): void {
-    this.showRenameClubModal.set(false);
-  }
-
-  // ── Director local rename (THIS event only) ──
-  /** Director only, and keyed on the Club Rep ROLE — never on clubId, which goes null once the local
-   *  name stops matching a Clubs row and would hide the pencil after the first rename. */
+  // ── Club rename (THIS event only) ──
+  /** Director or Superuser, keyed on the Club Rep ROLE. There is no rename that reaches past this
+   *  event: a club's name inside an event is this registration's copy, and only this rename changes it. */
   readonly canRenameClubLocal = computed(() => {
     const user = this.auth.currentUser();
     const roles = user?.roles || (user?.role ? [user.role] : []);
-    return roles.includes(Roles.Director) && this.isClubRepRole();
+    return (roles.includes(Roles.Director) || this.auth.isSuperuser()) && this.isClubRepRole();
   });
 
   showLocalRenameModal = signal<boolean>(false);
@@ -440,36 +405,6 @@ export class RegistrationDetailPanelComponent implements OnChanges {
         // Refusals stay in the dialog with the typed name intact.
         this.isRenamingClubLocal.set(false);
         this.localRenameError.set(extractHttpErrorMessage(err, 'Rename failed.'));
-      }
-    });
-  }
-
-  submitRenameClub(): void {
-    const id = this.clubId();
-    const next = this.renameClubNewName().trim();
-    if (id == null || !next || this.isRenamingClub()) return;
-
-    this.isRenamingClub.set(true);
-    this.clubService.adminRenameClub({ clubId: id, newClubName: next }).subscribe({
-      next: (res) => {
-        this.isRenamingClub.set(false);
-        if (res.success) {
-          const jobs = res.perJob?.length ?? 0;
-          const changed = (res.perJob ?? []).reduce((sum, j) => sum + (j.rowsChanged ?? 0), 0);
-          this.showRenameClubModal.set(false);
-          this.toast.show(
-            jobs > 0
-              ? `Club renamed to "${res.newClubName}" — ${changed} schedule row${changed !== 1 ? 's' : ''} across ${jobs} job${jobs !== 1 ? 's' : ''} updated.`
-              : `Club renamed to "${res.newClubName}".`,
-            'success', 5000, 'Club Renamed');
-          this.saved.emit();
-        } else {
-          this.toast.show(res.message || 'Rename failed.', 'danger', 0, 'Rename Failed');
-        }
-      },
-      error: (err) => {
-        this.isRenamingClub.set(false);
-        this.toast.show(err?.error?.message || err?.error?.Message || 'Unknown error', 'danger', 0, 'Rename Failed');
       }
     });
   }

@@ -37,10 +37,12 @@ public sealed class ClubRepLocalRenameService : IClubRepLocalRenameService
         Guid jobId, string userId, string callerRole, Guid registrationId, string clubName,
         CancellationToken ct = default)
     {
-        // Director only (Todd 2026-09-13). The endpoint's AdminOnly policy also admits Superuser and
-        // SuperDirector; neither is in scope for this operation yet.
-        if (!string.Equals(callerRole, RoleConstants.Names.DirectorName, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Only a Director can rename a club for this event.");
+        // Director or Superuser (Todd 2026-09-14: Superuser renames a club per event too — there is no
+        // rename that reaches past one event). The endpoint's AdminOnly policy also admits SuperDirector,
+        // which is not in scope.
+        if (!string.Equals(callerRole, RoleConstants.Names.DirectorName, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(callerRole, RoleConstants.Names.SuperuserName, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Only a Director or Superuser can rename a club for this event.");
 
         var next = (clubName ?? string.Empty).Trim();
         if (next.Length == 0)
@@ -64,10 +66,9 @@ public sealed class ClubRepLocalRenameService : IClubRepLocalRenameService
             throw new InvalidOperationException(
                 "This club has no teams registered for this event yet. A club can be renamed once it has at least one team.");
 
-        // A registration's club name is also used to LOOK UP a club by exact name (the rep's library
-        // fallback, LADT move-team-to-rep). Naming this rep after a club they do not represent would
-        // point those lookups at that other club — refuse it. Renaming to one of the rep's own clubs
-        // (including back to the canonical name) is allowed.
+        // Inside the event this name reads as the club's identity. Naming this rep after a club they do not
+        // represent would present their teams as that other club — refuse it. Renaming to one of the rep's
+        // own clubs (including back to the library name) is allowed.
         var sameNamedClub = await _clubRepo.GetByNameAsync(next, ct);
         if (sameNamedClub != null)
         {

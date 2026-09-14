@@ -29,7 +29,7 @@ public sealed class LadtService : ILadtService
     private readonly IJobRepository _jobRepo;
     private readonly IFeeResolutionService _feeService;
     private readonly IClubTeamRepository _clubTeamRepo;
-    private readonly IClubRepository _clubRepo;
+    private readonly IClubRepRepository _clubRepRepo;
     private readonly IScheduleRepository _scheduleRepo;
     private readonly ITeamPlacementService _placement;
     private readonly IFeeRepository _feeRepo;
@@ -46,7 +46,7 @@ public sealed class LadtService : ILadtService
         IJobRepository jobRepo,
         IFeeResolutionService feeService,
         IClubTeamRepository clubTeamRepo,
-        IClubRepository clubRepo,
+        IClubRepRepository clubRepRepo,
         IScheduleRepository scheduleRepo,
         ITeamPlacementService placement,
         IFeeRepository feeRepo,
@@ -62,7 +62,7 @@ public sealed class LadtService : ILadtService
         _jobRepo = jobRepo;
         _feeService = feeService;
         _clubTeamRepo = clubTeamRepo;
-        _clubRepo = clubRepo;
+        _clubRepRepo = clubRepRepo;
         _scheduleRepo = scheduleRepo;
         _placement = placement;
         _feeRepo = feeRepo;
@@ -1508,11 +1508,13 @@ public sealed class LadtService : ILadtService
             teamsToMove = [team];
         }
 
-        // 7. Resolve target club for ClubTeamId reassignment (if any team has one)
-        TSIC.Domain.Entities.Clubs? targetClub = null;
-        if (teamsToMove.Exists(t => t.ClubTeamId.HasValue) && !string.IsNullOrEmpty(targetReg.ClubName))
+        // 7. Resolve target club for ClubTeamId reassignment (if any team has one) — by id through the
+        //    shared resolver, never by the target registration's club_name, which may be renamed for the
+        //    event. 0 = no club resolvable; the teams then keep their library link.
+        var targetClubId = 0;
+        if (teamsToMove.Exists(t => t.ClubTeamId.HasValue))
         {
-            targetClub = await _clubRepo.GetByNameAsync(targetReg.ClubName, ct);
+            targetClubId = (await _clubRepRepo.ResolveClubForClubRepRegistrationAsync(targetReg.RegistrationId, ct)).ClubId;
         }
 
         // Snapshot source ClubTeamIds before the loop overwrites them — used in step 9.5
@@ -1530,13 +1532,13 @@ public sealed class LadtService : ILadtService
             t.ClubrepId = targetReg.UserId;
 
             // Reassign ClubTeamId if present
-            if (t.ClubTeamId.HasValue && targetClub is not null)
+            if (t.ClubTeamId.HasValue && targetClubId > 0)
             {
                 var sourceClubTeam = await _clubTeamRepo.GetByIdAsync(t.ClubTeamId.Value, ct);
-                if (sourceClubTeam != null)
+                if (sourceClubTeam != null && sourceClubTeam.ClubId != targetClubId)
                 {
                     // Find or create matching ClubTeam under target club
-                    var targetClubTeams = await _clubTeamRepo.GetByClubIdAsync(targetClub.ClubId, ct);
+                    var targetClubTeams = await _clubTeamRepo.GetByClubIdAsync(targetClubId, ct);
                     var match = targetClubTeams.Find(ct2 =>
                         ct2.ClubTeamName == sourceClubTeam.ClubTeamName
                         && ct2.ClubTeamGradYear == sourceClubTeam.ClubTeamGradYear);
@@ -1549,7 +1551,7 @@ public sealed class LadtService : ILadtService
                     {
                         var newCt = new TSIC.Domain.Entities.ClubTeams
                         {
-                            ClubId = targetClub.ClubId,
+                            ClubId = targetClubId,
                             ClubTeamName = sourceClubTeam.ClubTeamName,
                             ClubTeamGradYear = sourceClubTeam.ClubTeamGradYear,
                             ClubTeamLevelOfPlay = sourceClubTeam.ClubTeamLevelOfPlay,
@@ -1597,9 +1599,10 @@ public sealed class LadtService : ILadtService
         await _registrationRepo.SynchronizeClubRepFinancialsAsync(sourceRegistrationId, userId, ct);
         await _registrationRepo.SynchronizeClubRepFinancialsAsync(request.TargetRegistrationId, userId, ct);
 
-        // 11. Re-source the schedule's club half — these teams now belong to the target club
-        //     (ClubTeamId was reassigned above; canonical sources the club from Clubs via ClubTeamId).
-        //     Name unchanged, so this is a re-sync, not a rename — no library write, no twin.
+        // 11. Re-source the schedule's club half — these teams now belong to the target club rep
+        //     (ClubrepRegistrationid was reassigned above; the canonical writer takes the club from that
+        //     registration's club_name). Name unchanged, so this is a re-sync, not a rename — no library
+        //     write, no twin.
         foreach (var t in teamsToMove)
         {
             await _scheduleRepo.RecomposeScheduleNamesForJobAsync(

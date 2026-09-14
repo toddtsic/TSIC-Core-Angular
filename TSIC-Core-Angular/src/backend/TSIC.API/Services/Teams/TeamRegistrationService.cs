@@ -365,7 +365,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             .Select(id => id!.Value)
             .ToHashSet();
 
-        var effectiveClubId = await ResolveEffectiveClubIdAsync(jobId, regId, clubName);
+        var effectiveClubId = await ResolveEffectiveClubIdAsync(regId);
 
         var suggestions = await GetHistoricalTeamSuggestionsAsync(userId, clubName ?? string.Empty, currentYear);
         var ageGroups = await GetAgeGroupsWithCountsAsync(jobId, job.Season ?? string.Empty);
@@ -633,7 +633,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         // Resolve the club by id from the registration's teams (THE ONE RESOLVER), never by
         // re-matching club_name: a director may rename the club for this event only, and a
         // name lookup would then find no club and block the rep from adding teams.
-        var effectiveClubId = await ResolveEffectiveClubIdAsync(jobId, regId, clubName);
+        var effectiveClubId = await ResolveEffectiveClubIdAsync(regId);
         if (effectiveClubId <= 0)
         {
             _logger.LogWarning(
@@ -1062,47 +1062,26 @@ public class TeamRegistrationService : ITeamRegistrationService
     /// wizard never displays (True Lacrosse / "Cleveland 2029", 2026-08-12).
     /// Returns 0 when no club can be resolved; callers decide whether that is fatal.
     ///
-    /// The structural input is EVERY team on the registration — waitlisted, inactive and
-    /// DROPPED included — not just the active ones. A director may rename the registration's
-    /// club_name for the event (ClubRepLocalRenameService), and that rename is refused unless
-    /// one of these teams links to the library; so a renamed registration always resolves
-    /// here by id and never reaches the name fallback, even after its teams are dropped.
+    /// The resolution itself lives in IClubRepRepository.ResolveClubForClubRepRegistrationAsync, shared
+    /// with the LADT move-team-to-club: EVERY team on the registration (dropped included) by id, and only
+    /// for a registration with no library-linked team, the registering user's own clubs. A Director or
+    /// Superuser may rename club_name for the event, so it is never matched against all clubs.
     /// </summary>
-    private async Task<int> ResolveEffectiveClubIdAsync(Guid jobId, Guid regId, string? clubName)
+    private async Task<int> ResolveEffectiveClubIdAsync(Guid regId)
     {
-        var registeredClubTeamIds = (await _teams.GetRegisteredTeamsForClubRepAndJobAsync(jobId, regId))
-            .Select(t => t.ClubTeamId)
-            .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .ToHashSet();
+        var resolution = await _clubReps.ResolveClubForClubRepRegistrationAsync(regId);
 
-        if (registeredClubTeamIds.Count > 0)
+        if (resolution.SpannedClubCount > 1)
         {
-            var clubIdByClubTeam = await _clubTeams.GetClubIdsForClubTeamIdsAsync(registeredClubTeamIds);
-            var clubIdGroups = clubIdByClubTeam.Values
-                .GroupBy(cid => cid)
-                .OrderByDescending(g => g.Count())
-                .ToList();
-
-            var effectiveClubId = clubIdGroups.Count > 0 ? clubIdGroups[0].Key : 0;
-
-            if (clubIdGroups.Count > 1)
-            {
-                // Data fault: a single registration's teams point at more than one club.
-                // Flag it loudly rather than silently bury it; the dominant club still
-                // reconciles the majority so the wizard stays usable while it's chased down.
-                _logger.LogWarning(
-                    "Registration {RegId} has teams spanning {ClubCount} clubs ({Breakdown}); using dominant club {ClubId}. Investigate club linkage.",
-                    regId, clubIdGroups.Count,
-                    string.Join(", ", clubIdGroups.Select(g => $"{g.Key}:{g.Count()}")),
-                    effectiveClubId);
-            }
-
-            return effectiveClubId;
+            // Data fault: a single registration's teams point at more than one club.
+            // Flag it loudly rather than silently bury it; the dominant club still
+            // reconciles the majority so the wizard stays usable while it's chased down.
+            _logger.LogWarning(
+                "Registration {RegId} has teams spanning {ClubCount} clubs; using dominant club {ClubId}. Investigate club linkage.",
+                regId, resolution.SpannedClubCount, resolution.ClubId);
         }
 
-        var club = await _clubs.GetByNameAsync(clubName ?? string.Empty);
-        return club?.ClubId ?? 0;
+        return resolution.ClubId;
     }
 
     public async Task<ClubTeamDto> CreateClubTeamAsync(Guid regId, string userId, CreateClubTeamRequest request)
@@ -1115,7 +1094,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         var registration = await _registrations.GetRegistrationBasicInfoAsync(regId, userId)
             ?? throw new InvalidOperationException("Registration not found or access denied");
 
-        var effectiveClubId = await ResolveEffectiveClubIdAsync(registration.JobId, regId, registration.ClubName);
+        var effectiveClubId = await ResolveEffectiveClubIdAsync(regId);
         if (effectiveClubId <= 0)
         {
             // Fail loud instead of guessing a club — the old FirstOrDefault fallback is

@@ -30,15 +30,24 @@ public class ClubRepRepository : IClubRepRepository
         var result = new List<ClubWithUsageInfo>();
         foreach (var cr in clubData)
         {
-            // Check if this specific club (by name) has any teams registered
-            // Teams.ClubrepRegistrationid -> Registrations.ClubName
+            // In use = this club has registered teams, found by id:
+            //  - any team linked to this club's library (Teams.ClubTeamId → ClubTeams.ClubId), or
+            //  - a team with no library link on a Club Rep registration made by one of THIS club's reps
+            //    under this club's name (legacy teams predate the library). The name comparison is scoped
+            //    to this club's own reps and only ever LOCKS a rename — it never picks a club.
+            var clubId = cr.ClubId;
+            var clubName = cr.ClubName;
             var hasTeams = await _context.Teams
-                .Where(t => t.ClubrepRegistrationid != null)
-                .Join(_context.Registrations,
-                    t => t.ClubrepRegistrationid,
-                    r => r.RegistrationId,
-                    (t, r) => r.ClubName)
-                .AnyAsync(rcn => rcn == cr.ClubName, cancellationToken);
+                .AnyAsync(t =>
+                    (t.ClubTeamId != null
+                        && _context.ClubTeams.Any(cte => cte.ClubTeamId == t.ClubTeamId && cte.ClubId == clubId))
+                    || (t.ClubTeamId == null
+                        && t.ClubrepRegistrationid != null
+                        && _context.Registrations.Any(r =>
+                            r.RegistrationId == t.ClubrepRegistrationid
+                            && r.ClubName == clubName
+                            && _context.ClubReps.Any(rep => rep.ClubId == clubId && rep.ClubRepUserId == r.UserId))),
+                    cancellationToken);
 
             result.Add(new ClubWithUsageInfo
             {
@@ -49,6 +58,56 @@ public class ClubRepRepository : IClubRepRepository
         }
 
         return result;
+    }
+
+    public async Task<ClubRepClubResolution> ResolveClubForClubRepRegistrationAsync(
+        Guid clubRepRegistrationId,
+        CancellationToken cancellationToken = default)
+    {
+        // 1. By id: the clubs the registration's library-linked teams (any status) belong to.
+        var linked = await (
+            from t in _context.Teams
+            where t.ClubrepRegistrationid == clubRepRegistrationId && t.ClubTeamId != null
+            join cte in _context.ClubTeams on t.ClubTeamId equals cte.ClubTeamId
+            select new { cte.ClubId, cte.ClubTeamId })
+            .AsNoTracking()
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        if (linked.Count > 0)
+        {
+            var byClub = linked
+                .GroupBy(x => x.ClubId)
+                .OrderByDescending(g => g.Count())
+                .ThenBy(g => g.Key)
+                .ToList();
+            return new ClubRepClubResolution { ClubId = byClub[0].Key, SpannedClubCount = byClub.Count };
+        }
+
+        // 2. No library-linked team yet: the registering user's own clubs.
+        var reg = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.RegistrationId == clubRepRegistrationId)
+            .Select(r => new { r.UserId, r.ClubName })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (reg?.UserId == null)
+            return new ClubRepClubResolution { ClubId = 0, SpannedClubCount = 0 };
+
+        var myClubs = await _context.ClubReps
+            .AsNoTracking()
+            .Where(cr => cr.ClubRepUserId == reg.UserId)
+            .Select(cr => new { cr.ClubId, ClubName = cr.Club!.ClubName })
+            .ToListAsync(cancellationToken);
+
+        var regClubName = reg.ClubName?.Trim();
+        var named = myClubs
+            .Where(c => string.Equals(c.ClubName?.Trim(), regClubName, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var clubId = named.Count == 1 ? named[0].ClubId
+            : myClubs.Count == 1 ? myClubs[0].ClubId
+            : 0;
+        return new ClubRepClubResolution { ClubId = clubId, SpannedClubCount = 0 };
     }
 
     public async Task<ClubReps?> GetClubRepForUserAndClubAsync(

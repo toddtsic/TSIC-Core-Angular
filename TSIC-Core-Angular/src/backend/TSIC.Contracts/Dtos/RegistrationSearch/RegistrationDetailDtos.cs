@@ -129,10 +129,7 @@ public record RegistrationDetailDto
     // Distinct from IsClubRep, which is active-only and used for display.
     public int ClubRepTeamCount { get; init; }
 
-    // The Club this rep registration was made under, resolved from the rep link + the stored ClubName
-    // copy (Clubs is the canonical name). Populated only for a Club Rep role registration whose copy
-    // still resolves to a live club; null otherwise (drift). Drives the club-rep card + admin rename.
-    public int? ClubId { get; init; }
+    // The club's name for THIS event — the Club Rep registration's own club_name. Null for other roles.
     public string? ClubName { get; init; }
 }
 

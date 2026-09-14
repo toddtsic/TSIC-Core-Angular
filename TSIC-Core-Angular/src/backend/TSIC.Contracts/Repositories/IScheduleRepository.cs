@@ -15,13 +15,13 @@ public interface IScheduleRepository
     ///
     ///  • <paramref name="league"/>/<paramref name="agegroup"/>/<paramref name="div"/>/<paramref name="field"/>
     ///    — flat copies (div hits both DivName and Div2Name).
-    ///  • <paramref name="team"/> — the new team name; the club half is sourced from Clubs. "T" rows only.
-    ///  • <paramref name="club"/> — carries old + new: "T" rows rebuild {new}:{sourceTeam}; resolved
-    ///    bracket/consolation rows keep their annotation and only swap the "{old}:" prefix. Old is
-    ///    required because a bracket row's annotation can't be rebuilt from parts.
+    ///  • <paramref name="team"/> — the new team name; the club half is the team's club rep
+    ///    registration's club_name. "T" rows only.
     ///  • All pairs null → full recompose of all seven columns from source (a flag flip / drift repair).
     ///
-    /// Club is sourced from Clubs (via Teams.ClubTeamId → ClubTeams), never the registration copy.
+    /// Club is sourced from the club rep registration (Teams.ClubrepRegistrationid → club_name), the
+    /// club's name for THIS event — never from Clubs. There is no club pair: a club's in-event name
+    /// changes only through the per-event rename (<see cref="RestampClubRepTeamSlotsAsync"/>).
     /// Cross-job entities (a Fields/Leagues row backing many jobs) are the caller's loop — one call
     /// per job. Returns (rows examined, rows changed). Idempotent.
     /// </summary>
@@ -32,7 +32,6 @@ public interface IScheduleRepository
         (Guid Id, string Text)? div = null,
         (Guid Id, string Text)? field = null,
         (Guid Id, string Text)? team = null,
-        (int Id, string Old, string New)? club = null,
         CancellationToken ct = default);
 
     /// <summary>
@@ -45,9 +44,9 @@ public interface IScheduleRepository
     /// <summary>
     /// THE single home for the cross-job fan-out. Loops <see cref="RecomposeScheduleNamesForJobAsync"/>
     /// over <paramref name="jobIds"/> with the same pair, returning per-job (examined, changed). Every
-    /// rename ends here: an entity whose id is shared across jobs (club, field, league) passes all its
+    /// rename ends here: an entity whose id is shared across jobs (field, league) passes all its
     /// jobs; a single-job entity (agegroup, div) passes a one-element list — the call is identical either
-    /// way. Callers that only need a total sum the results; callers that report per job (club) map them.
+    /// way. Callers that only need a total sum the results.
     /// (Team is the one exception: its schedule id is the per-job Teams.TeamId, not the library
     /// ClubTeamId, so its fan-out loops the per-job writer with a different teamId per job — see
     /// TeamRenameService.)
@@ -59,7 +58,6 @@ public interface IScheduleRepository
         (Guid Id, string Text)? div = null,
         (Guid Id, string Text)? field = null,
         (Guid Id, string Text)? team = null,
-        (int Id, string Old, string New)? club = null,
         CancellationToken ct = default);
 
     /// <summary>

@@ -215,8 +215,7 @@ public class ClubRepLocalRenameTests
         Row(w, GameRepVsOther).T1Name.Should().Be($"{NewName}:2030 Blue");
     }
 
-    [Theory(DisplayName = "Only a Director may rename — Superuser and SuperDirector are refused and nothing is written")]
-    [InlineData(RoleConstants.Names.SuperuserName)]
+    [Theory(DisplayName = "Only a Director or Superuser may rename — SuperDirector is refused and nothing is written")]
     [InlineData(RoleConstants.Names.SuperDirectorName)]
     [InlineData("")]
     public async Task Rename_NonDirector_Refused(string callerRole)

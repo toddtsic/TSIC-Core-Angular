@@ -31,7 +31,7 @@ public class LadtStubTests
     private readonly Mock<IJobRepository> _jobRepo = new();
     private readonly Mock<IFeeResolutionService> _feeService = new();
     private readonly Mock<IClubTeamRepository> _clubTeamRepo = new();
-    private readonly Mock<IClubRepository> _clubRepo = new();
+    private readonly Mock<IClubRepRepository> _clubRepRepo = new();
     private readonly Mock<IScheduleRepository> _scheduleRepo = new();
     private readonly Mock<ITeamPlacementService> _placement = new();
     private readonly Mock<IFeeRepository> _feeRepo = new();
@@ -48,7 +48,7 @@ public class LadtStubTests
         _jobRepo.Object,
         _feeService.Object,
         _clubTeamRepo.Object,
-        _clubRepo.Object,
+        _clubRepRepo.Object,
         _scheduleRepo.Object,
         _placement.Object,
         _feeRepo.Object,

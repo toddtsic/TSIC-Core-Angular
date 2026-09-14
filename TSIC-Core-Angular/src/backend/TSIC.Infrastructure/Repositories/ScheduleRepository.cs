@@ -37,7 +37,6 @@ public sealed class ScheduleRepository : IScheduleRepository
         (Guid Id, string Text)? div = null,
         (Guid Id, string Text)? field = null,
         (Guid Id, string Text)? team = null,
-        (int Id, string Old, string New)? club = null,
         CancellationToken ct = default)
     {
         var showTeamNameOnly = await _context.Jobs
@@ -54,7 +53,7 @@ public sealed class ScheduleRepository : IScheduleRepository
 
         var changedGids = new HashSet<int>();
         var anyScoped = league.HasValue || agegroup.HasValue || div.HasValue
-            || field.HasValue || team.HasValue || club.HasValue;
+            || field.HasValue || team.HasValue;
 
         if (!anyScoped)
         {
@@ -90,22 +89,19 @@ public sealed class ScheduleRepository : IScheduleRepository
                 if (s.FieldId == fl.Id && s.FName != fl.Text)
                 { s.FName = fl.Text; changedGids.Add(s.Gid); }
 
-        // ── Team rename: the new name is supplied; the club half is sourced from Clubs (a team
-        //    rename doesn't touch the club). Round-robin rows only — a bracket/consolation row
-        //    carries the team name mid-annotation and can't be safely rebuilt, matching the
-        //    pre-existing per-team behavior. ──
+        // ── Team rename: the new name is supplied; the club half is the team's club rep registration
+        //    club_name (a team rename doesn't touch the club). Round-robin rows only — a
+        //    bracket/consolation row carries the team name mid-annotation and can't be safely
+        //    rebuilt, matching the pre-existing per-team behavior. ──
         if (team is { } tm)
         {
             var teamClub = await (
                 from t in _context.Teams
-                join cte in _context.ClubTeams on t.ClubTeamId equals cte.ClubTeamId
-                join c in _context.Clubs on cte.ClubId equals c.ClubId
+                join r in _context.Registrations on t.ClubrepRegistrationid equals r.RegistrationId
                 where t.TeamId == tm.Id
-                select c.ClubName).FirstOrDefaultAsync(ct);
+                select r.ClubName).FirstOrDefaultAsync(ct);
 
-            var display = (!string.IsNullOrEmpty(teamClub) && !showTeamNameOnly)
-                ? $"{teamClub}:{tm.Text}"
-                : tm.Text;
+            var display = ComposeTeamLabel(teamClub, tm.Text, showTeamNameOnly);
 
             foreach (var s in schedules)
             {
@@ -113,40 +109,6 @@ public sealed class ScheduleRepository : IScheduleRepository
                 { s.T1Name = display; changedGids.Add(s.Gid); }
                 if (s.T2Id == tm.Id && s.T2Type == "T" && s.T2Name != display)
                 { s.T2Name = display; changedGids.Add(s.Gid); }
-            }
-        }
-
-        // ── Club rename: only rows whose seated team belongs to this club are touched. "T" rows are
-        //    rebuilt {new}:{sourceTeam}; resolved bracket/consolation rows keep their annotation and
-        //    get only the "{old}:" prefix swapped for "{new}:". ──
-        if (club is { } cl)
-        {
-            var clubTeamNames = await (
-                from t in _context.Teams
-                join cte in _context.ClubTeams on t.ClubTeamId equals cte.ClubTeamId
-                where t.JobId == jobId && cte.ClubId == cl.Id
-                select new { t.TeamId, t.TeamName })
-                .ToDictionaryAsync(x => x.TeamId, x => x.TeamName, ct);
-
-            var oldPrefix = cl.Old + ":";
-
-            string? ClubSlot(Guid? id, string? type, string? current)
-            {
-                if (!id.HasValue || !clubTeamNames.TryGetValue(id.Value, out var teamName)) return null;
-                if (type == "T")
-                    return (!showTeamNameOnly) ? $"{cl.New}:{teamName}" : teamName ?? string.Empty;
-                return !string.IsNullOrEmpty(current) && current.StartsWith(oldPrefix, StringComparison.Ordinal)
-                    ? cl.New + ":" + current[oldPrefix.Length..]
-                    : null;
-            }
-
-            foreach (var s in schedules)
-            {
-                var n1 = ClubSlot(s.T1Id, s.T1Type, s.T1Name);
-                if (n1 is not null && s.T1Name != n1) { s.T1Name = n1; changedGids.Add(s.Gid); }
-
-                var n2 = ClubSlot(s.T2Id, s.T2Type, s.T2Name);
-                if (n2 is not null && s.T2Name != n2) { s.T2Name = n2; changedGids.Add(s.Gid); }
             }
         }
 
@@ -161,14 +123,13 @@ public sealed class ScheduleRepository : IScheduleRepository
         (Guid Id, string Text)? div = null,
         (Guid Id, string Text)? field = null,
         (Guid Id, string Text)? team = null,
-        (int Id, string Old, string New)? club = null,
         CancellationToken ct = default)
     {
         var results = new List<(Guid JobId, int Examined, int Changed)>();
         foreach (var jobId in jobIds.Distinct())
         {
             var (e, c) = await RecomposeScheduleNamesForJobAsync(
-                jobId, league, agegroup, div, field, team, club, ct);
+                jobId, league, agegroup, div, field, team, ct);
             results.Add((jobId, e, c));
         }
         return results;
@@ -197,10 +158,7 @@ public sealed class ScheduleRepository : IScheduleRepository
                  || (s.T2Type == "T" && s.T2Id != null && teamIds.Contains(s.T2Id.Value))))
             .ToListAsync(ct);
 
-        string Display(string teamName) =>
-            (!string.IsNullOrEmpty(clubName) && !showTeamNameOnly)
-                ? $"{clubName}:{teamName}"
-                : teamName;
+        string Display(string teamName) => ComposeTeamLabel(clubName, teamName, showTeamNameOnly);
 
         var changed = 0;
         foreach (var s in schedules)
@@ -248,19 +206,31 @@ public sealed class ScheduleRepository : IScheduleRepository
         Guid jobId, List<Domain.Entities.Schedule> schedules, bool showTeamNameOnly,
         HashSet<int> changedGids, CancellationToken ct)
     {
-        // Club sourced canonically: Teams.ClubTeamId → ClubTeams.ClubId → Clubs.ClubName. A team with
-        // no ClubTeamId (or an orphaned link) resolves no club and renders bare.
+        // Club sourced from the club rep registration: Teams.ClubrepRegistrationid → club_name, the
+        // club's name for THIS event. A team with no club rep renders bare. The library club name
+        // (Teams.ClubTeamId → ClubTeams → Clubs) is carried ONLY so a bracket slot labeled by the old
+        // Clubs-sourced writer has that prefix recognized and stripped, never doubled.
         var teamInfo = await (
             from t in _context.Teams.AsNoTracking()
             where t.JobId == jobId
+            join r in _context.Registrations on t.ClubrepRegistrationid equals r.RegistrationId into rg
+            from r in rg.DefaultIfEmpty()
             join ctc in (
                 from ct2 in _context.ClubTeams
                 join c in _context.Clubs on ct2.ClubId equals c.ClubId
                 select new { ct2.ClubTeamId, c.ClubName }
             ) on t.ClubTeamId equals ctc.ClubTeamId into g
             from ctc in g.DefaultIfEmpty()
-            select new { t.TeamId, t.TeamName, ClubName = ctc != null ? ctc.ClubName : null }
-        ).ToDictionaryAsync(x => x.TeamId, x => (Club: (string?)x.ClubName, Team: (string?)x.TeamName), ct);
+            select new
+            {
+                t.TeamId,
+                t.TeamName,
+                ClubName = r != null ? r.ClubName : null,
+                LibraryClubName = ctc != null ? ctc.ClubName : null
+            }
+        ).ToDictionaryAsync(
+            x => x.TeamId,
+            x => new TeamLabelSource(x.ClubName, x.LibraryClubName, x.TeamName), ct);
 
         var leagueIds = schedules.Select(s => s.LeagueId).Distinct().ToList();
         var leagueNameById = await _context.Leagues.AsNoTracking()
@@ -312,6 +282,19 @@ public sealed class ScheduleRepository : IScheduleRepository
         }
     }
 
+    /// <summary>A seated team's label parts: the registration's club name, the library club name, the team name.</summary>
+    private sealed record TeamLabelSource(string? Club, string? LibraryClub, string? Team);
+
+    /// <summary>
+    /// THE composition of a seated team's schedule label: "{club}:{team}", or the team name alone when
+    /// there is no club or the job shows team names only. <paramref name="clubName"/> is always the
+    /// club rep registration's club_name — every writer passes that, never Clubs.ClubName.
+    /// </summary>
+    private static string ComposeTeamLabel(string? clubName, string? teamName, bool showTeamNameOnly) =>
+        (!string.IsNullOrEmpty(clubName) && !showTeamNameOnly)
+            ? $"{clubName}:{teamName}"
+            : teamName ?? string.Empty;
+
     /// <summary>
     /// Full-recompose helper for one team slot. "T" slots rebuild {club}:{team} from source; resolved
     /// bracket/consolation slots keep their annotation and only have the "{club}:" prefix added/removed
@@ -319,25 +302,49 @@ public sealed class ScheduleRepository : IScheduleRepository
     /// </summary>
     private static string? RecomposeSlotFromSource(
         Guid? teamId, string? slotType, string? currentName,
-        IReadOnlyDictionary<Guid, (string? Club, string? Team)> teamInfo,
+        IReadOnlyDictionary<Guid, TeamLabelSource> teamInfo,
         bool showTeamNameOnly)
     {
         if (!teamId.HasValue) return null;
 
         teamInfo.TryGetValue(teamId.Value, out var info);
-        var club = info.Club;
+        var club = info?.Club;
 
         if (slotType == "T")
-            return (!string.IsNullOrEmpty(club) && !showTeamNameOnly)
-                ? $"{club}:{info.Team}"
-                : info.Team ?? string.Empty;
+            return ComposeTeamLabel(club, info?.Team, showTeamNameOnly);
 
         // Resolved bracket/consolation slot — add or remove the "{club}:" prefix, keep the annotation.
+        // The existing prefix may not be today's club name: the old Clubs-sourced writer used the library
+        // club name, and the per-event club rename leaves bracket slots on the name they were seeded
+        // with. Recognize any of those so the result is never "{club}:{oldClub}:{team}":
+        //   1. exactly "{prefix}:{team}" with a colon-free prefix — the copied pool label of this team;
+        //   2. otherwise a leading registration or library club name (longest first).
         if (string.IsNullOrEmpty(currentName)) return null;
-        var core = (!string.IsNullOrEmpty(club) && currentName.StartsWith(club + ":", StringComparison.Ordinal))
-            ? currentName[(club!.Length + 1)..]
-            : currentName;
-        return (!string.IsNullOrEmpty(club) && !showTeamNameOnly) ? $"{club}:{core}" : core;
+        var core = currentName;
+        var teamName = info?.Team;
+        var sep = string.IsNullOrEmpty(teamName) ? -1 : currentName.Length - teamName.Length - 1;
+        if (sep > 0
+            && currentName[sep] == ':'
+            && currentName.EndsWith(teamName!, StringComparison.Ordinal)
+            && currentName.IndexOf(':') == sep)
+        {
+            core = teamName!;
+        }
+        else
+        {
+            foreach (var prefix in new[] { club, info?.LibraryClub }
+                         .Where(p => !string.IsNullOrEmpty(p))
+                         .Distinct(StringComparer.Ordinal)
+                         .OrderByDescending(p => p!.Length))
+            {
+                if (core.StartsWith(prefix + ":", StringComparison.Ordinal))
+                {
+                    core = core[(prefix!.Length + 1)..];
+                    break;
+                }
+            }
+        }
+        return ComposeTeamLabel(club, core, showTeamNameOnly);
     }
 
     public async Task<int> SynchronizeScheduleTeamAssignmentsForDivisionAsync(Guid divId, Guid jobId, string? userId = null, CancellationToken ct = default)
@@ -378,9 +385,7 @@ public sealed class ScheduleRepository : IScheduleRepository
                 && clubNames.TryGetValue(t.ClubrepRegistrationid.Value, out var cn)
                 ? cn : null;
 
-            var displayName = (!string.IsNullOrEmpty(clubName) && !showTeamNameOnly)
-                ? $"{clubName}:{t.TeamName}"
-                : t.TeamName ?? "";
+            var displayName = ComposeTeamLabel(clubName, t.TeamName, showTeamNameOnly);
 
             rankMap[t.DivRank] = (t.TeamId, displayName);
         }
