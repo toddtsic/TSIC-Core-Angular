@@ -135,7 +135,7 @@ public class CrossJobTeamScopeTests
 
         ShouldBe403(await c.GetRoster(TeamId, ct));
         ShouldBe403(await c.GetLinks(TeamId, ct));
-        ShouldBe403(await c.AddLink(TeamId, new AddTeamLinkRequest { Label = "x", DocUrl = "y" }, ct));
+        ShouldBe403(await c.AddLink(TeamId, new AddTeamLinkRequest { Label = "x", DocUrl = "https://example.com/y" }, ct));
         ShouldBe403(await c.DeleteLink(TeamId, Guid.NewGuid(), ct));
         ShouldBe403(await c.GetPushes(TeamId, ct));
 

@@ -164,7 +164,8 @@ public class PlayerCheckTests
             {
                 RegistrationId = reg.RegistrationId,
                 Amount = 100m,
-                PaymentType = "Check"
+                PaymentType = "Check",
+                CheckNo = "1235"
             });
 
         result.Success.Should().BeTrue();
@@ -204,7 +205,8 @@ public class PlayerCheckTests
             {
                 RegistrationId = reg.RegistrationId,
                 Amount = 50m,
-                PaymentType = "Check"
+                PaymentType = "Check",
+                CheckNo = "1236"
             });
 
         result.Success.Should().BeTrue();

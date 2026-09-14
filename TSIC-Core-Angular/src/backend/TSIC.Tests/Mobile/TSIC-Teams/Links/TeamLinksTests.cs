@@ -71,15 +71,15 @@ public class TeamLinksTests
         var league = b.AddLeague(job.JobId);
         var ag = b.AddAgegroup(league.LeagueId);
         var div = b.AddDivision(ag.AgegroupId);
-        var team = b.AddTeam(div.DivId, agegroupId: ag.AgegroupId);
+        var team = b.AddTeam(div.DivId, agegroupId: ag.AgegroupId, jobId: job.JobId);
         await b.SaveAsync();
 
         var result = await svc.AddLinkAsync(team.TeamId, MobileDataBuilder.DefaultUserId,
             new AddTeamLinkRequest { Label = "Practice Schedule", DocUrl = "https://example.com/schedule", AddAllTeams = false });
 
         result.Label.Should().Be("Practice Schedule");
-        result.TeamId.Should().Be(team.TeamId);
-        result.JobId.Should().BeNull("team-scoped, not job-scoped");
+        result.TeamId.Should().Be(team.TeamId, "TeamId set is what makes the link team-scoped");
+        result.JobId.Should().Be(job.JobId, "JobId is stamped on every row so the director's job-wide list sees it");
     }
 
     [Fact(DisplayName = "Add link with AddAllTeams sets JobId instead of TeamId")]
