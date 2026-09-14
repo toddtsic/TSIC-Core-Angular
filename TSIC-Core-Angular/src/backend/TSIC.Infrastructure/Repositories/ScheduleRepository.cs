@@ -174,6 +174,53 @@ public sealed class ScheduleRepository : IScheduleRepository
         return results;
     }
 
+    public async Task<int> RestampClubRepTeamSlotsAsync(
+        Guid jobId, Guid clubRepRegistrationId, string clubName, CancellationToken ct = default)
+    {
+        var teamNames = await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId && t.ClubrepRegistrationid == clubRepRegistrationId)
+            .ToDictionaryAsync(t => t.TeamId, t => t.TeamName ?? string.Empty, ct);
+
+        if (teamNames.Count == 0) return 0;
+
+        var showTeamNameOnly = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.BShowTeamNameOnlyInSchedules)
+            .FirstOrDefaultAsync(ct);
+
+        var teamIds = teamNames.Keys.ToList();
+        var schedules = await _context.Schedule
+            .Where(s => s.JobId == jobId
+                && ((s.T1Type == "T" && s.T1Id != null && teamIds.Contains(s.T1Id.Value))
+                 || (s.T2Type == "T" && s.T2Id != null && teamIds.Contains(s.T2Id.Value))))
+            .ToListAsync(ct);
+
+        string Display(string teamName) =>
+            (!string.IsNullOrEmpty(clubName) && !showTeamNameOnly)
+                ? $"{clubName}:{teamName}"
+                : teamName;
+
+        var changed = 0;
+        foreach (var s in schedules)
+        {
+            if (s.T1Type == "T" && s.T1Id is Guid t1 && teamNames.TryGetValue(t1, out var team1))
+            {
+                var display = Display(team1);
+                if (s.T1Name != display) { s.T1Name = display; changed++; }
+            }
+
+            if (s.T2Type == "T" && s.T2Id is Guid t2 && teamNames.TryGetValue(t2, out var team2))
+            {
+                var display = Display(team2);
+                if (s.T2Name != display) { s.T2Name = display; changed++; }
+            }
+        }
+
+        return changed;
+    }
+
     public async Task<List<Guid>> GetJobIdsForFieldAsync(Guid fieldId, CancellationToken ct = default)
     {
         return await _context.Schedule.AsNoTracking()

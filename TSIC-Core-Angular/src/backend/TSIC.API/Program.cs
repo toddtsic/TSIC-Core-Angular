@@ -295,6 +295,7 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 builder.Services.AddScoped<IRosterSwapperService, RosterSwapperService>();
 builder.Services.AddScoped<IPoolAssignmentService, PoolAssignmentService>();
 builder.Services.AddScoped<IRegistrationSearchService, RegistrationSearchService>();
+builder.Services.AddScoped<IClubRepLocalRenameService, ClubRepLocalRenameService>();
 builder.Services.AddScoped<ITeamSearchService, TeamSearchService>();
 // Scheduling
 builder.Services.AddScoped<ISchedulingContextResolver, SchedulingContextResolver>();

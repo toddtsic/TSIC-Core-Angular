@@ -19,6 +19,7 @@ public class RegistrationSearchController : ControllerBase
     private const string RegistrationContextRequired = "Registration context required";
 
     private readonly IRegistrationSearchService _searchService;
+    private readonly IClubRepLocalRenameService _localClubRename;
     private readonly IJobLookupService _jobLookupService;
     private readonly IEmailBatchJobRegistry _batchJobs;
     private readonly IEmailBatchService _emailBatch;
@@ -27,6 +28,7 @@ public class RegistrationSearchController : ControllerBase
 
     public RegistrationSearchController(
         IRegistrationSearchService searchService,
+        IClubRepLocalRenameService localClubRename,
         IJobLookupService jobLookupService,
         IEmailBatchJobRegistry batchJobs,
         IEmailBatchService emailBatch,
@@ -34,6 +36,7 @@ public class RegistrationSearchController : ControllerBase
         IHostEnvironment env)
     {
         _searchService = searchService;
+        _localClubRename = localClubRename;
         _jobLookupService = jobLookupService;
         _batchJobs = batchJobs;
         _emailBatch = emailBatch;
@@ -213,6 +216,37 @@ public class RegistrationSearchController : ControllerBase
         {
             await _searchService.UpdateRegistrationProfileAsync(jobId!.Value, userId!, sanitized, ct);
             return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Director: rename the club on a Club Rep registration for THIS event only — the registration's
+    /// club name and this job's round-robin schedule slots for that rep's teams. The Clubs row, the
+    /// library, bracket slots and every other job are untouched. The Director-only rule is the
+    /// service's (AdminOnly also admits Superuser/SuperDirector), so the role travels to it.
+    /// </summary>
+    [HttpPut("{registrationId:guid}/club-name")]
+    public async Task<ActionResult<RenameClubRepClubLocalResponse>> RenameClubRepClubLocal(
+        Guid registrationId, [FromBody] RenameClubRepClubLocalRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var callerRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+
+        try
+        {
+            var result = await _localClubRename.RenameAsync(
+                jobId!.Value, userId!, callerRole, registrationId, request.ClubName, ct);
+            return Ok(result);
         }
         catch (KeyNotFoundException)
         {

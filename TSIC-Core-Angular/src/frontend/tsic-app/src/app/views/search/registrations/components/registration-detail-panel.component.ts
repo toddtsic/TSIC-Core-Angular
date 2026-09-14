@@ -5,7 +5,8 @@ import { forkJoin } from 'rxjs';
 import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto, ClubAffectedJob, RevalidateUsLaxResultDto } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ClubService } from '@infrastructure/services/club.service';
-import { displayRoleName } from '@infrastructure/constants/roles.constants';
+import { displayRoleName, Roles } from '@infrastructure/constants/roles.constants';
+import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error-utils';
 import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { AccountingLedgerComponent, CcChargeEvent, CheckOrCorrectionEvent, RefundEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
@@ -351,9 +352,9 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   });
 
   // ── Club-rep card + admin rename ──
-  /** The club this rep registration was made under, from the canonical Clubs row (null when the
-   *  stored copy has drifted from every club the user reps). */
+  /** The club name stored on THIS rep registration (Registrations.ClubName — not the Clubs row). */
   readonly clubName = computed(() => this.detail()?.clubName ?? null);
+  /** The Clubs row whose name matches the stored copy (null when it matches no club the user reps). */
   readonly clubId = computed(() => this.detail()?.clubId ?? null);
   /** Rename is a SuperUser-only, shared-data operation and needs a resolved clubId to target. */
   readonly canRenameClub = computed(() => this.auth.isSuperuser() && this.clubId() != null);
@@ -389,6 +390,58 @@ export class RegistrationDetailPanelComponent implements OnChanges {
 
   cancelRenameClub(): void {
     this.showRenameClubModal.set(false);
+  }
+
+  // ── Director local rename (THIS event only) ──
+  /** Director only, and keyed on the Club Rep ROLE — never on clubId, which goes null once the local
+   *  name stops matching a Clubs row and would hide the pencil after the first rename. */
+  readonly canRenameClubLocal = computed(() => {
+    const user = this.auth.currentUser();
+    const roles = user?.roles || (user?.role ? [user.role] : []);
+    return roles.includes(Roles.Director) && this.isClubRepRole();
+  });
+
+  showLocalRenameModal = signal<boolean>(false);
+  localRenameName = signal<string>('');
+  localRenameError = signal<string | null>(null);
+  isRenamingClubLocal = signal<boolean>(false);
+
+  openLocalRenameModal(): void {
+    this.localRenameName.set(this.clubName() ?? '');
+    this.localRenameError.set(null);
+    this.showLocalRenameModal.set(true);
+  }
+
+  cancelLocalRename(): void {
+    if (this.isRenamingClubLocal()) return;
+    this.showLocalRenameModal.set(false);
+  }
+
+  submitLocalRename(): void {
+    const regId = this.detail()?.registrationId;
+    const next = this.localRenameName().trim();
+    if (!regId || !next || this.isRenamingClubLocal()) return;
+
+    this.isRenamingClubLocal.set(true);
+    this.localRenameError.set(null);
+    this.searchService.renameClubRepClubLocal(regId, { clubName: next }).subscribe({
+      next: (res) => {
+        this.isRenamingClubLocal.set(false);
+        this.showLocalRenameModal.set(false);
+        const n = res.scheduleSlotsUpdated;
+        this.toast.show(
+          n > 0
+            ? `Club renamed to "${res.clubName}" for this event — ${n} game name${n !== 1 ? 's' : ''} updated.`
+            : `Club renamed to "${res.clubName}" for this event.`,
+          'success', 5000, 'Club Renamed');
+        this.saved.emit();
+      },
+      error: (err) => {
+        // Refusals stay in the dialog with the typed name intact.
+        this.isRenamingClubLocal.set(false);
+        this.localRenameError.set(extractHttpErrorMessage(err, 'Rename failed.'));
+      }
+    });
   }
 
   submitRenameClub(): void {

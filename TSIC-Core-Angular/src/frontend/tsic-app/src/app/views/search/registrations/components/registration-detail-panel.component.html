@@ -475,7 +475,7 @@
             </div>
           }
 
-          <!-- ── Club Rep: the club, from the canonical Clubs row (with SuperUser rename) ── -->
+          <!-- ── Club Rep: the club name stored on this registration (Director local rename; SuperUser rename) ── -->
           @if (isClubRepRole() && clubName()) {
             <div class="info-section">
               <h5 class="info-section-title">Club</h5>
@@ -484,6 +484,13 @@
                   <span class="info-label">Club Name</span>
                   <span class="info-value">{{ clubName() }}</span>
                 </div>
+                @if (canRenameClubLocal()) {
+                  <button type="button" class="btn btn-outline-primary btn-sm club-rename-btn"
+                          (click)="openLocalRenameModal()"
+                          title="Rename this club for this event only — this registration and this event's game names">
+                    <i class="bi bi-pencil"></i> Rename Club
+                  </button>
+                }
                 @if (canRenameClub()) {
                   <button type="button" class="btn btn-outline-primary btn-sm club-rename-btn"
                           (click)="openRenameClubModal()"
@@ -808,6 +815,43 @@
           <button type="button" class="btn btn-primary" (click)="submitRenameClub()"
             [disabled]="!renameClubNewName().trim() || isRenamingClub() || isLoadingRenameImpact()">
             @if (isRenamingClub()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+            Rename Club
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- ═══════════════════════ RENAME CLUB — THIS EVENT ONLY (Director) ═══════════════════════ -->
+    @if (showLocalRenameModal()) {
+      <div class="modal-backdrop" (click)="cancelLocalRename()" (keydown.escape)="cancelLocalRename()"></div>
+      <div class="change-job-modal" appDraggableModal>
+        <div class="modal-header">
+          <h4 class="modal-title">Rename Club for This Event</h4>
+          <button type="button" class="btn-close" (click)="cancelLocalRename()" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="local-rename-club-input" class="form-label">New club name</label>
+            <input id="local-rename-club-input" type="text" class="form-control"
+                   [ngModel]="localRenameName()" (ngModelChange)="localRenameName.set($event)"
+                   (keydown.enter)="submitLocalRename()"
+                   name="localRenameName" maxlength="80" autocomplete="off">
+          </div>
+          <div class="alert alert-info mt-3 mb-0 small">
+            Changes this club rep's club name and the club name in this event's pool-play game names.
+            Other events are not changed.
+          </div>
+          @if (localRenameError(); as msg) {
+            <div class="alert alert-danger mt-3 mb-0 small" role="alert">
+              <i class="bi bi-exclamation-triangle me-1"></i>{{ msg }}
+            </div>
+          }
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="cancelLocalRename()" [disabled]="isRenamingClubLocal()">Cancel</button>
+          <button type="button" class="btn btn-primary" (click)="submitLocalRename()"
+            [disabled]="!localRenameName().trim() || localRenameName().trim() === clubName() || isRenamingClubLocal()">
+            @if (isRenamingClubLocal()) { <span class="spinner-border spinner-border-sm me-1"></span> }
             Rename Club
           </button>
         </div>

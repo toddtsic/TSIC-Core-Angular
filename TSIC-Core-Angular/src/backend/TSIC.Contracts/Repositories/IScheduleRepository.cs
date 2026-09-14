@@ -62,6 +62,16 @@ public interface IScheduleRepository
         (int Id, string Old, string New)? club = null,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Director's local club rename. Restamps the round-robin ("T") slots of every team in THIS job whose
+    /// Teams.ClubrepRegistrationid is <paramref name="clubRepRegistrationId"/>, as {clubName}:{TeamName}
+    /// (TeamName alone when the job shows team names only) — the same composition the division re-seat
+    /// uses. Bracket/consolation slots and every other job are not touched. Tracks changes only and does
+    /// NOT save: the caller saves, so the registration write and this land together. Returns slots changed.
+    /// </summary>
+    Task<int> RestampClubRepTeamSlotsAsync(
+        Guid jobId, Guid clubRepRegistrationId, string clubName, CancellationToken ct = default);
+
     /// <summary>Distinct JobIds whose schedule references this field — the fan-out scope for a field rename.</summary>
     Task<List<Guid>> GetJobIdsForFieldAsync(Guid fieldId, CancellationToken ct = default);
 

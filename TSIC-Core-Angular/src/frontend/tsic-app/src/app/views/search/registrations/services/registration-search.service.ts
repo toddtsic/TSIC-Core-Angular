@@ -38,7 +38,9 @@ import type {
 	RevalidateUsLaxResultDto,
 	EmailTestSendRequest,
 	EmailTestSendResponse,
-	AdminResendConfirmationResultDto
+	AdminResendConfirmationResultDto,
+	RenameClubRepClubLocalRequest,
+	RenameClubRepClubLocalResponse
 } from '@core/api';
 
 // Re-export for consumers
@@ -125,6 +127,13 @@ export class RegistrationSearchService {
 
 	updateProfile(registrationId: string, request: UpdateRegistrationProfileRequest): Observable<void> {
 		return this.http.put<void>(`${this.apiUrl}/${registrationId}/profile`, request);
+	}
+
+	/** Director: rename a Club Rep's club for THIS event only (registration + this job's round-robin
+	 *  schedule slots). Errors are shown inside the rename dialog, so the global toast is skipped. */
+	renameClubRepClubLocal(registrationId: string, request: RenameClubRepClubLocalRequest): Observable<RenameClubRepClubLocalResponse> {
+		return this.http.put<RenameClubRepClubLocalResponse>(
+			`${this.apiUrl}/${registrationId}/club-name`, request, { context: skipErrorToast() });
 	}
 
 	updateFamilyContact(registrationId: string, request: UpdateFamilyContactRequest): Observable<void> {
