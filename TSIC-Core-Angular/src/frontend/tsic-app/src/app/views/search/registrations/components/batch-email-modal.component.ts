@@ -11,7 +11,7 @@ import { AuthService } from '@infrastructure/services/auth.service';
 import {
   EMAIL_TEMPLATE_CATEGORIES, isTemplateAvailable, EMAIL_BASE_TOKENS, USLAX_VALID_THROUGH_TOKEN, SUBSCRIPTION_TOKENS,
   CLUBREP_USERNAME_TOKEN, isClubRepRoleFilter,
-  type EmailTemplate, type JobFlagsForTemplates
+  type EmailTemplate, type EmailTokenInfo, type JobFlagsForTemplates
 } from '../email-templates';
 import { DraggableModalDirective } from '@shared-ui/directives/draggable-modal.directive';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
@@ -42,6 +42,8 @@ interface InviteKind {
   /** What the link is, for the guidance list. */
   linkDescription: string;
   targetLabel: string;
+  /** Further tokens the seed uses, listed in the guidance panel so the admin keeps them. */
+  extraTokens?: readonly EmailTokenInfo[];
 }
 
 const INVITE_KINDS: Record<InviteMode, InviteKind> = {
@@ -69,17 +71,25 @@ const INVITE_KINDS: Record<InviteMode, InviteKind> = {
   },
   // Club Reps of THIS event, before the schedule is public. The server offers exactly this event as the
   // target, re-checks the recipients at send, and re-checks the invite on every schedule request.
+  // Spells out the login and role: the link works only for this rep's account and their Club Rep role on
+  // THIS event, and any other login or role quietly doesn't show this schedule.
   'schedule-preview': {
     subject: 'Preview the schedule for !EVENT_INVITEDTO',
     body:
       '<p>Hi !PERSON,</p>' +
-      '<p>The schedule for !EVENT_INVITEDTO is not public yet, and you\'re invited to preview it. ' +
-      'Use your personalized link below and log in as Club Rep:</p>' +
+      '<p>The schedule for <strong>!EVENT_INVITEDTO</strong> is not public yet, and you\'re invited to preview it.</p>' +
+      '<p><strong>To see it:</strong></p>' +
+      '<ol>' +
+      '<li>Click your personal link below.</li>' +
+      '<li>Log in with your username: <strong>!USERNAME</strong></li>' +
+      '<li>When asked to choose a role, select <strong>Club Rep for !EVENT_INVITEDTO</strong>. Any other role will not show you this schedule.</li>' +
+      '</ol>' +
       '<p>!SCHEDULE_PREVIEW_LINK</p>' +
-      '<p>This link is unique to you. View by !INVITE_EXPIRES.</p>',
+      '<p>This link is unique to you and works only with your login. View by !INVITE_EXPIRES.</p>',
     linkToken: '!SCHEDULE_PREVIEW_LINK',
     linkDescription: 'unique schedule preview link',
     targetLabel: 'Event',
+    extraTokens: [CLUBREP_USERNAME_TOKEN],
   },
 };
 

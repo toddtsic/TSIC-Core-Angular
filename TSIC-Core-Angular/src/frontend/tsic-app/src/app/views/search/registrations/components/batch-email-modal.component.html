@@ -120,6 +120,9 @@
             <p class="invite-guide-lead">You can edit the wording around them, but don't delete these. Each is filled in automatically when the email sends:</p>
             <ul class="invite-guide-list">
               <li><code>!PERSON</code> → the recipient's name</li>
+              @for (t of inviteKind()?.extraTokens ?? []; track t.token) {
+                <li><code>{{ t.token }}</code> → {{ t.description }}</li>
+              }
               <li><code>!EVENT_INVITEDTO</code> → the name of the <strong>“{{ inviteKind()?.targetLabel }}”</strong> you pick below</li>
               <li><code>{{ inviteKind()?.linkToken }}</code> → their {{ inviteKind()?.linkDescription }} for that event. <strong>Removing this disables the invitation.</strong></li>
               <li><code>!INVITE_EXPIRES</code> → the exact expiry date &amp; time, driven by the <strong>“Invitation expires after”</strong> dropdown below — change the dropdown and this updates to match.</li>
