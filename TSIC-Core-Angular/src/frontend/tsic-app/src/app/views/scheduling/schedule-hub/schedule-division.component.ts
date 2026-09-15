@@ -1609,6 +1609,10 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
                 this.divBuildPlacement.set((div?.effectiveGamePlacement as 'H' | 'V') ?? 'H');
                 this.divBuildBrr.set(div?.effectiveBetweenRoundRows ?? 1);
 
+                // Day picker for "Delete Games Only". Cleared first so a previous scope's dates never show.
+                this.modalGameDates.set([]);
+                if (this.hasGamesInScope()) this.loadModalGameDates();
+
                 this.showDivBuildConfirm.set(true);
             },
             error: () => {
@@ -1624,6 +1628,12 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
             { config: { action: 'build', existingGameMode: 'rebuild' } },
             overrides
         );
+    }
+
+    /** "Delete Games Only" from the division build confirmation modal — delete, no rebuild. */
+    onDivDeleteConfirmed(filterDate: string | undefined): void {
+        this.showDivBuildConfirm.set(false);
+        this.executeDeleteFromModal(filterDate);
     }
 
     onEventBuildConfirmed(): void {

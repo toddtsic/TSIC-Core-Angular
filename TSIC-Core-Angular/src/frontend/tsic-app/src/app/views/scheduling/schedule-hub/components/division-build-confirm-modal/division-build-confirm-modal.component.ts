@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy, input, output, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
+import type { GameDateInfoDto } from '../../services/schedule-division.service';
 
 /** A field available for scheduling. */
 export interface FieldOption {
@@ -37,9 +38,13 @@ export class DivisionBuildConfirmModalComponent implements OnInit {
     readonly defaultPlacement = input.required<'H' | 'V'>();
     readonly defaultBrr = input.required<number>();
     readonly hasExistingGames = input(false);
+    /** Game dates in this division, for the delete day picker. */
+    readonly gameDates = input<GameDateInfoDto[]>([]);
 
     // ── Outputs ──
     readonly buildRequested = output<DivisionBuildOverrides>();
+    /** Delete this division's games without rebuilding. Payload = filter date, or undefined for all days. */
+    readonly deleteRequested = output<string | undefined>();
     readonly cancelled = output<void>();
 
     // ── Editable state ──
@@ -47,6 +52,11 @@ export class DivisionBuildConfirmModalComponent implements OnInit {
     readonly startTime = signal('8:00 AM');
     readonly placement = signal<'H' | 'V'>('H');
     readonly brr = signal<number>(1);
+
+    // ── Delete-only state ──
+    readonly deleteMode = signal(false);
+    readonly deleteFilterDate = signal('');
+    readonly deleteConfirmed = signal(false);
 
     // ── Computed ──
 
@@ -148,5 +158,29 @@ export class DivisionBuildConfirmModalComponent implements OnInit {
             placement: this.placement(),
             brr: this.brr(),
         });
+    }
+
+    enterDeleteMode(): void {
+        this.deleteFilterDate.set('');
+        this.deleteConfirmed.set(false);
+        this.deleteMode.set(true);
+    }
+
+    exitDeleteMode(): void {
+        this.deleteMode.set(false);
+    }
+
+    onDeleteFilterDateChange(value: string): void {
+        this.deleteFilterDate.set(value);
+        this.deleteConfirmed.set(false);
+    }
+
+    toggleDeleteConfirm(): void {
+        this.deleteConfirmed.set(!this.deleteConfirmed());
+    }
+
+    onDelete(): void {
+        if (!this.deleteConfirmed()) return;
+        this.deleteRequested.emit(this.deleteFilterDate() || undefined);
     }
 }

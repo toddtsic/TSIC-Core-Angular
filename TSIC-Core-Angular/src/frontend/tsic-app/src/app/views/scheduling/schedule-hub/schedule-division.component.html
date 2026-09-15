@@ -650,7 +650,9 @@
         [defaultPlacement]="divBuildPlacement()"
         [defaultBrr]="divBuildBrr()"
         [hasExistingGames]="hasGamesInScope()"
+        [gameDates]="modalGameDates()"
         (buildRequested)="onDivBuildConfirmed($event)"
+        (deleteRequested)="onDivDeleteConfirmed($event)"
         (cancelled)="showDivBuildConfirm.set(false)" />
 }
 
