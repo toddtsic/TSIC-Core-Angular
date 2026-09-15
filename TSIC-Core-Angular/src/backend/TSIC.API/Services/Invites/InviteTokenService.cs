@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
@@ -43,6 +44,18 @@ public sealed class InviteTokenService : IInviteTokenService
     public InviteTokenService(IConfiguration configuration)
     {
         _configuration = configuration;
+    }
+
+    /// <summary>
+    /// JWT bearer <c>OnTokenValidated</c> hook, wired in Program.cs. Invites share the login key, issuer
+    /// and audience, so standard validation accepts them; this refuses any token carrying the purpose claim.
+    /// Without it an emailed invite link was a login as its recipient until expiry.
+    /// </summary>
+    public static Task RefuseAsLogin(TokenValidatedContext context)
+    {
+        if (context.Principal?.FindFirst(PurposeClaim) != null)
+            context.Fail("Invite tokens are not accepted as login tokens.");
+        return Task.CompletedTask;
     }
 
     public string Create(Guid targetJobId, string invitedUserId, DateTime expires)
