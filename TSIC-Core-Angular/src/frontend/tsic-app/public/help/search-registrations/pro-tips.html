@@ -1,7 +1,335 @@
 <h3>Pro tips</h3>
 <p class="help-muted">
-  Advanced features on this screen, organized by where you find them. Click any title to expand it.
+  The invitation tools come first — everything after them is organized by where you find it on
+  screen. Click any title to expand it.
 </p>
+
+<h4 class="help-region-head"><i class="bi bi-send" aria-hidden="true"></i>Send Invitations</h4>
+
+<p>
+  This screen can email a personalized, expiring invitation link to everyone your search returns —
+  no link-building, no spreadsheet. There are three kinds, and you never choose between them:
+  <strong>there is only ever one Invite button</strong>, and it renames itself to say which kind
+  your search and your event qualify for.
+</p>
+<div class="help-surface">
+  <div class="help-flow">
+    <button type="button" class="btn btn-primary btn-sm" disabled><i class="bi bi-send"></i> Invite all Players</button>
+    <button type="button" class="btn btn-primary btn-sm" disabled><i class="bi bi-send"></i> Invite all Club Reps to preview schedule</button>
+    <button type="button" class="btn btn-primary btn-sm" disabled><i class="bi bi-send"></i> Invite all Club Reps</button>
+  </div>
+  <p class="help-muted">You will see one of these — never two, never a choice between them.</p>
+</div>
+
+<p>
+  Two conditions apply to all three. Miss either one and the button is simply <em>not there</em>:
+</p>
+<ul>
+  <li>
+    Your search is narrowed to <strong>exactly one role</strong> — Players or Club Reps. Leave Role
+    on "All", or tick two roles, and no invitation is possible.
+  </li>
+  <li>
+    Your search is filtered to <strong>Active only</strong>. Invitations never go to dropped or
+    inactive registrations, so the button stays hidden until you've excluded them.
+  </li>
+</ul>
+
+<div class="help-callout help-callout--warning">
+  <i class="bi bi-question-circle" aria-hidden="true"></i>
+  <div>
+    <strong>Don't see an Invite button?</strong>
+    <p class="help-callout__body">
+      One of the conditions isn't met. Check the two above first — they account for most cases — then
+      the extra condition listed under whichever invitation you're trying to send. Nothing on this
+      screen announces which one is missing; the button just doesn't appear.
+    </p>
+  </div>
+</div>
+
+<p>
+  Your Role filter has four qualifying choices, and both variants of each role work the same way for
+  invitations:
+</p>
+<div class="help-flow">
+  <span class="badge rounded-pill text-bg-light">Player</span>
+  <span class="badge rounded-pill text-bg-light">Player (NOT WAITLISTED)</span>
+  <span class="badge rounded-pill text-bg-light">Club Rep</span>
+  <span class="badge rounded-pill text-bg-light">Club Rep (ACTIVE, NOT WAITLISTED)</span>
+</div>
+
+<div class="help-callout help-callout--warning">
+  <i class="bi bi-link-45deg" aria-hidden="true"></i>
+  <div>
+    <strong>The link token <em>is</em> the invitation — never delete it.</strong>
+    <p class="help-callout__body">
+      Each letter below arrives with a <code>!TOKEN</code> where the personal link goes. Reword
+      everything around it as much as you like, but if you delete the token itself,
+      <strong>nothing stops the send</strong> — the batch simply goes out as an ordinary email with
+      no link in it, and every recipient gets an invitation they cannot act on. There is no warning
+      and no way to recall it. The composer lists the token your letter needs; keep whichever it
+      names.
+    </p>
+  </div>
+</div>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Invite Tryout Players Who Made The Cut</span></summary>
+  <div class="faq-a">
+    <p>
+      <strong>What it does.</strong> Emails players from a finished event a personal link to register
+      for your next one — the tryout-to-season handoff, without asking anyone to re-find your site or
+      re-type their details. It works between <em>any</em> two of your events, not just tryouts:
+      camp to league, clinic to season, all the same.
+    </p>
+    <p><strong>What has to be true:</strong></p>
+    <ul>
+      <li>Role filtered to <strong>Players</strong> (either Player choice).</li>
+      <li>Status filtered to <strong>Active only</strong>.</li>
+      <li>
+        <strong>This event is past its user-expiry date.</strong> Invitations are a
+        post-event tool — while the event you're looking at is still open to its own users, there
+        is no Invite button for players at all.
+      </li>
+      <li>
+        At least one <strong>other</strong> event under your organization is still open and
+        accepting player registrations.
+      </li>
+    </ul>
+    <p><strong>What you'll see when the search is right:</strong></p>
+    <div class="help-surface">
+      <div class="help-flow">
+        <button type="button" class="btn btn-primary btn-sm" disabled><i class="bi bi-send"></i> Invite all Players</button>
+        <span class="help-muted">&rarr; tick 3 rows &rarr;</span>
+        <button type="button" class="btn btn-primary btn-sm" disabled><i class="bi bi-send"></i> Invite 3 checked Players</button>
+      </div>
+      <p class="help-muted">
+        Nothing ticked sends to every player your search found, including rows on pages you never
+        scrolled to. Tick rows and it narrows to exactly those.
+      </p>
+    </div>
+    <p>
+      The composer then asks for the destination and how long the links stay good. It defaults to 24
+      hours; every recipient in the batch gets the same deadline:
+    </p>
+    <div class="help-form-preview">
+      <label class="form-label">Target registration event *</label>
+      <input type="text" class="form-control form-control-sm" value="2027 Spring League" disabled>
+      <label class="form-label">Invitation expires after</label>
+      <input type="text" class="form-control form-control-sm" value="24 hours" disabled>
+    </div>
+    <p><strong>The letter it writes for you</strong> — edit the wording freely, but leave the !TOKENS alone:</p>
+    <div class="help-surface">
+      <p><strong>Subject:</strong> You're invited to register for !EVENT_INVITEDTO</p>
+      <p>Hi !PERSON,</p>
+      <p>You've been invited to register for !EVENT_INVITEDTO. Use your personalized link below:</p>
+      <p>!INVITE_LINK</p>
+      <p>
+        This invitation is unique to you and expires on !INVITE_EXPIRES. Please complete your
+        registration before then.
+      </p>
+    </div>
+    <ul>
+      <li><code>!PERSON</code> &rarr; the recipient's name</li>
+      <li><code>!EVENT_INVITEDTO</code> &rarr; the target event you picked above</li>
+      <li><code>!INVITE_LINK</code> &rarr; that player's own single-use registration link</li>
+      <li><code>!INVITE_EXPIRES</code> &rarr; the exact date and time, set by the dropdown</li>
+    </ul>
+    <div class="help-callout help-callout--warning">
+      <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+      <div>
+        <strong>Deleting <code>!INVITE_LINK</code> empties the invitation — it does not stop it.</strong>
+        <p class="help-callout__body">
+          The batch still sends, with no link in it. Change the sentence around the token as much as
+          you like; keep the token itself.
+        </p>
+      </div>
+    </div>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Invite Club Reps to Preview Schedule</span></summary>
+  <div class="faq-a">
+    <p>
+      <strong>What it does.</strong> Lets your club reps see the game schedule before you release it
+      to the public — so conflicts surface while you can still fix them quietly. Each rep sees it
+      only through their own login, and only for this event.
+    </p>
+    <p><strong>What has to be true:</strong></p>
+    <ul>
+      <li>Role filtered to <strong>Club Reps</strong> (either Club Rep choice).</li>
+      <li>Status filtered to <strong>Active only</strong>.</li>
+      <li>
+        <strong>Allow Club Rep Schedule Preview</strong> is switched on, under
+        <em>Configure Job &rarr; Scheduling</em>.
+      </li>
+      <li>
+        <strong>Allow Public Schedule Access</strong> is switched <em>off</em>, same tab. If the
+        schedule is already public there is nothing to preview, and the preview switch does nothing.
+      </li>
+      <li>This event is still open to its users — the opposite of the other two invitations.</li>
+    </ul>
+    <p>
+      Both switches sit together on the Scheduling tab, with a live description under each so you can
+      confirm the state at a glance:
+    </p>
+    <div class="help-menu-list help-menu-list--compact">
+      <div class="help-menu-row">
+        <i class="bi bi-toggle-off" aria-hidden="true"></i>
+        <div class="help-menu-row__body">
+          <div class="help-menu-row__title">Allow Public Schedule Access</div>
+          <div class="help-menu-row__sub">The game schedule is hidden from the public.</div>
+        </div>
+      </div>
+      <div class="help-menu-row">
+        <i class="bi bi-toggle-on" aria-hidden="true"></i>
+        <div class="help-menu-row__body">
+          <div class="help-menu-row__title">Allow Club Rep Schedule Preview</div>
+          <div class="help-menu-row__sub">Club reps you invite can preview the schedule before it is released to the public.</div>
+        </div>
+      </div>
+    </div>
+    <div class="help-callout help-callout--tip">
+      <i class="bi bi-lightbulb" aria-hidden="true"></i>
+      <div>
+        <strong>Turning the preview switch off shuts every preview at once</strong> — including links
+        you already sent. It's the kill switch if a schedule changes mid-review.
+      </div>
+    </div>
+    <p><strong>What you'll see when the search is right:</strong></p>
+    <div class="help-surface">
+      <div class="help-flow">
+        <button type="button" class="btn btn-primary btn-sm" disabled><i class="bi bi-send"></i> Invite all Club Reps to preview schedule</button>
+      </div>
+      <p class="help-muted">
+        There's no destination to choose here — the preview is for the event you're already in, and
+        the composer fills it in for you.
+      </p>
+    </div>
+    <p>
+      <strong>The letter it writes for you.</strong> It spells out the login steps, because a rep who
+      clicks the link and picks the wrong role sees no schedule and no explanation:
+    </p>
+    <div class="help-surface">
+      <p><strong>Subject:</strong> Preview the schedule for !EVENT_INVITEDTO</p>
+      <p>Hi !PERSON,</p>
+      <p>The schedule for <strong>!EVENT_INVITEDTO</strong> is not public yet, and you're invited to preview it.</p>
+      <p><strong>To see it:</strong></p>
+      <ol>
+        <li>Click your personal link below.</li>
+        <li>Log in with your username: <strong>!USERNAME</strong></li>
+        <li>
+          When asked to choose a role, select <strong>Club Rep for !EVENT_INVITEDTO</strong>. Any
+          other role will not show you this schedule.
+        </li>
+      </ol>
+      <p>!SCHEDULE_PREVIEW_LINK</p>
+      <p>This link is unique to you and works only with your login. View by !INVITE_EXPIRES.</p>
+    </div>
+    <ul>
+      <li><code>!PERSON</code> &rarr; the recipient's name</li>
+      <li><code>!USERNAME</code> &rarr; that club rep's login username</li>
+      <li><code>!EVENT_INVITEDTO</code> &rarr; this event's name</li>
+      <li><code>!SCHEDULE_PREVIEW_LINK</code> &rarr; that rep's own preview link</li>
+      <li><code>!INVITE_EXPIRES</code> &rarr; the exact date and time, set by the dropdown</li>
+    </ul>
+    <div class="help-callout help-callout--warning">
+      <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+      <div>
+        <strong>Deleting <code>!SCHEDULE_PREVIEW_LINK</code> empties the invitation — it does not stop it.</strong>
+        <p class="help-callout__body">
+          The batch still sends, with no link in it. Keep the token; reword everything around it.
+        </p>
+      </div>
+    </div>
+    <div class="help-callout help-callout--warning">
+      <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+      <div>
+        <strong>Keep step 3 in the letter.</strong>
+        <p class="help-callout__body">
+          The link opens the schedule only for this rep's own login <em>and</em> their Club Rep role
+          on this event. Any other login, or the right login under a different role, quietly shows
+          nothing — which reads to the rep as a broken link. The seeded wording is what prevents
+          that call.
+        </p>
+      </div>
+    </div>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Invite Club Reps to Next Year's Event</span></summary>
+  <div class="faq-a">
+    <p>
+      <strong>What it does.</strong> Emails last season's club reps a personal link to register a
+      team for your next event — so returning clubs can claim their place before open enrollment,
+      and you can see who's coming back.
+    </p>
+    <p><strong>What has to be true:</strong></p>
+    <ul>
+      <li>Role filtered to <strong>Club Reps</strong> (either Club Rep choice).</li>
+      <li>Status filtered to <strong>Active only</strong>.</li>
+      <li><strong>This event is past its user-expiry date</strong>, exactly as for player invitations.</li>
+      <li>
+        At least one <strong>other</strong> event under your organization is still open and accepting
+        <em>team</em> registrations. An event taking players but not teams won't appear as a choice.
+      </li>
+    </ul>
+    <div class="help-callout help-callout--info">
+      <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+      <div>
+        This and the schedule preview above are opposites, and can never both be available. While
+        your event is live you can invite reps to <em>preview the schedule</em>; once it has expired
+        you can invite them to <em>next year's event</em>. That's why the button's wording changes
+        over the life of an event — it isn't a fault.
+      </div>
+    </div>
+    <p><strong>What you'll see when the search is right:</strong></p>
+    <div class="help-surface">
+      <div class="help-flow">
+        <button type="button" class="btn btn-primary btn-sm" disabled><i class="bi bi-send"></i> Invite all Club Reps</button>
+        <span class="help-muted">&rarr; tick 2 rows &rarr;</span>
+        <button type="button" class="btn btn-primary btn-sm" disabled><i class="bi bi-send"></i> Invite 2 checked Club Reps</button>
+      </div>
+    </div>
+    <p>Pick the event they're being invited to, and the window the links stay good for:</p>
+    <div class="help-form-preview">
+      <label class="form-label">Target registration event *</label>
+      <input type="text" class="form-control form-control-sm" value="2027 Summer Classic" disabled>
+      <label class="form-label">Invitation expires after</label>
+      <input type="text" class="form-control form-control-sm" value="24 hours" disabled>
+    </div>
+    <p><strong>The letter it writes for you:</strong></p>
+    <div class="help-surface">
+      <p><strong>Subject:</strong> You're invited to register your team for !EVENT_INVITEDTO</p>
+      <p>Hi !PERSON,</p>
+      <p>You've been invited to register your club/team for !EVENT_INVITEDTO. Use your personalized link below:</p>
+      <p>!CLUBREP_INVITE_LINK</p>
+      <p>
+        This invitation is unique to you and expires on !INVITE_EXPIRES. Please complete your
+        registration before then.
+      </p>
+    </div>
+    <ul>
+      <li><code>!PERSON</code> &rarr; the recipient's name</li>
+      <li><code>!EVENT_INVITEDTO</code> &rarr; the target event you picked above</li>
+      <li><code>!CLUBREP_INVITE_LINK</code> &rarr; that rep's own single-use registration link</li>
+      <li><code>!INVITE_EXPIRES</code> &rarr; the exact date and time, set by the dropdown</li>
+    </ul>
+    <div class="help-callout help-callout--warning">
+      <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+      <div>
+        <strong>Deleting <code>!CLUBREP_INVITE_LINK</code> empties the invitation — it does not stop it.</strong>
+        <p class="help-callout__body">
+          The batch still sends, with no link in it. Note this is a <em>different</em> token from the
+          player invitation's — the composer lists the one your letter needs, so keep whichever it
+          names.
+        </p>
+      </div>
+    </div>
+  </div>
+</details>
 
 <h4 class="help-region-head"><i class="bi bi-window" aria-hidden="true"></i>Main view</h4>
 
@@ -91,30 +419,6 @@
       So "Your balance of !AMTOWED for !JOBNAME" personalizes itself for every recipient in one send.
       Events with recurring billing or USA Lacrosse validation get extra tokens (subscription ID and
       status, membership valid-through date) — they appear in the token list only where they apply.
-    </p>
-  </div>
-</details>
-
-<details class="faq-item">
-  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Invite all Players / Invite Club Reps</span></summary>
-  <div class="faq-a">
-    <p>
-      Sends each recipient a signed, expiring invitation link into another of your events — no manual
-      link-building. The button appears when two things are true: your search is narrowed to exactly
-      <em>one</em> invitable role (Players or Club Reps), and another event under your organization
-      currently has that registration type open. With rows checked, it flips to inviting just those
-      people:
-    </p>
-    <div class="help-surface">
-      <div class="help-flow">
-        <button type="button" class="btn btn-primary btn-sm" disabled><i class="bi bi-send"></i> Invite all Players</button>
-        <span class="help-muted">&rarr; with 3 rows checked &rarr;</span>
-        <button type="button" class="btn btn-primary btn-sm" disabled><i class="bi bi-send"></i> Invite 3 checked Players</button>
-      </div>
-    </div>
-    <p>
-      You pick the target event and the invitation window; every email in the batch states the same
-      deadline.
     </p>
   </div>
 </details>
