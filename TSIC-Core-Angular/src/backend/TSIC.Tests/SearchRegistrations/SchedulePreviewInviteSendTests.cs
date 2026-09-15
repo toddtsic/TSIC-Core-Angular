@@ -10,7 +10,7 @@ using TSIC.Tests.Helpers;
 namespace TSIC.Tests.SearchRegistrations;
 
 /// <summary>
-/// SCHEDULE PREVIEW INVITE — SEND SIDE
+/// SCHEDULE PREVIEW INVITE — SEND SIDE (plus the active-recipient rule every invite kind shares)
 ///
 /// The modal offers the preview invite only while the job's preview door is open and the search is Club Reps.
 /// StartBatchEmailAsync re-checks all of it, so a hand-built request can't mail a preview link to a player, to a
@@ -71,17 +71,32 @@ public class SchedulePreviewInviteSendTests
     {
         var f = await BuildAsync();
         (await RefusalAsync(f, PreviewRequest(f, f.Rep.RegistrationId, f.Player.RegistrationId)))
-            .Should().Contain("only to active Club Reps");
+            .Should().Contain("only to Club Reps");
     }
 
-    [Fact(DisplayName = "A deactivated Club Rep → refused")]
-    public async Task InactiveRep_Refused()
+    [Theory(DisplayName = "Any invite kind with an inactive recipient → refused (schedule preview, Club Rep and Player registration)")]
+    [InlineData("!SCHEDULE_PREVIEW_LINK")]
+    [InlineData("!CLUBREP_INVITE_LINK")]
+    [InlineData("!INVITE_LINK")]
+    public async Task InactiveRecipient_AnyInvite_Refused(string linkToken)
     {
         var f = await BuildAsync();
         f.Rep.BActive = false;
         await f.Ctx.SaveChangesAsync();
 
-        (await RefusalAsync(f, PreviewRequest(f))).Should().Contain("only to active Club Reps");
+        (await RefusalAsync(f, PreviewRequest(f) with { BodyTemplate = linkToken }))
+            .Should().Contain("only to active registrations");
+    }
+
+    [Fact(DisplayName = "A plain batch email (no invite link) still reaches inactive registrations")]
+    public async Task PlainEmail_InactiveRecipient_NotRefused()
+    {
+        var f = await BuildAsync();
+        f.Rep.BActive = false;
+        await f.Ctx.SaveChangesAsync();
+
+        (await RefusalAsync(f, PreviewRequest(f) with { BodyTemplate = "Hello !PERSON", InviteLinkTargetJobId = null }))
+            .Should().NotContain("active registrations");
     }
 
     [Fact(DisplayName = "Targeting another event → refused")]
@@ -133,7 +148,7 @@ public class SchedulePreviewInviteSendTests
     {
         var f = await BuildAsync();
         var request = PreviewRequest(f, f.Player.RegistrationId) with { Subject = "!SCHEDULE_PREVIEW_LINK", BodyTemplate = "hi" };
-        (await RefusalAsync(f, request)).Should().Contain("only to active Club Reps");
+        (await RefusalAsync(f, request)).Should().Contain("only to Club Reps");
     }
 
     [Fact(DisplayName = "Filter options: the preview target is this job while the door is open, empty once shut")]

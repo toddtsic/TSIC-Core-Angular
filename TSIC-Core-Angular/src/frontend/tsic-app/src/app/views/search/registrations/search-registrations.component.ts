@@ -10,7 +10,7 @@ import { RegistrationSearchService } from './services/registration-search.servic
 import { ToastService } from '@shared-ui/toast.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
-import { ROLE_ID_PLAYER, ROLE_ID_CLUBREP, isPlayerRoleFilter, isClubRepRoleFilter, type JobFlagsForTemplates } from './email-templates';
+import { ROLE_ID_PLAYER, ROLE_ID_CLUBREP, isPlayerRoleFilter, isClubRepRoleFilter, isActiveOnlyFilter, type JobFlagsForTemplates } from './email-templates';
 import { RegistrationDetailPanelComponent } from './components/registration-detail-panel.component';
 import { RefundModalComponent } from './components/refund-modal.component';
 import { BatchEmailModalComponent, type InviteMode } from './components/batch-email-modal.component';
@@ -1114,11 +1114,13 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     };
   });
 
-  /** The invite kind the current single-role search qualifies for, or null when it doesn't
-   *  (multiple/zero roles, or no eligible target events for that role). Drives the Invite button. */
+  /** The invite kind the current single-role, Active-only search qualifies for, or null when it doesn't
+   *  (multiple/zero roles, inactive included, or no eligible target events). Drives the Invite button. */
   readonly invitableRole = computed<InviteMode | null>(() => {
     const role = this.singleRoleFilter();
-    if (!role) return null;
+    // Invites go only to ACTIVE registrations (the server refuses any inactive recipient), so every
+    // invite kind needs the search filtered to Active only.
+    if (!role || !isActiveOnlyFilter(this.searchRequest())) return null;
     const candidates: InviteMode[] = isPlayerRoleFilter(role) ? ['player']
       : isClubRepRoleFilter(role) ? ['clubrep', 'schedule-preview']
       : [];

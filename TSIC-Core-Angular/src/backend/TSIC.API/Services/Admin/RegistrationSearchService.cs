@@ -67,6 +67,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
 
     private const string SchedulePreviewLinkToken = "!SCHEDULE_PREVIEW_LINK";
     private static readonly string[] RegistrationInviteLinkTokens = ["!INVITE_LINK", "!CLUBREP_INVITE_LINK"];
+    private static readonly string[] InviteLinkTokens = [.. RegistrationInviteLinkTokens, SchedulePreviewLinkToken];
 
     public RegistrationSearchService(
         IRegistrationRepository registrationRepo,
@@ -1110,8 +1111,8 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         if (await _jobRepo.GetSchedulePreviewInviteTargetAsync(jobId, ct) == null)
             throw new InvalidOperationException(
                 "Schedule preview invites need Club Rep schedule preview on, the schedule not yet public, and the event not expired.");
-        if (registrations.Any(r => r.RoleId != RoleConstants.ClubRep || r.BActive != true))
-            throw new InvalidOperationException("Schedule preview invites go only to active Club Reps.");
+        if (registrations.Any(r => r.RoleId != RoleConstants.ClubRep))
+            throw new InvalidOperationException("Schedule preview invites go only to Club Reps.");
     }
 
     public async Task<EmailBatchHandle> StartBatchEmailAsync(
@@ -1129,6 +1130,11 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         var invalidRegs = registrations.Where(r => r.JobId != jobId).ToList();
         if (invalidRegs.Count > 0)
             throw new InvalidOperationException("Some registrations do not belong to this job.");
+
+        // Every invite kind goes only to active registrations. The Invite button needs an Active-only search;
+        // this refuses a hand-built request or a checked selection carried over from an earlier search.
+        if (InviteLinkTokens.Any(t => TemplateUses(request, t)) && registrations.Any(r => r.BActive != true))
+            throw new InvalidOperationException("Invitations go only to active registrations.");
 
         if (TemplateUses(request, SchedulePreviewLinkToken))
             await EnsureSchedulePreviewSendAllowedAsync(jobId, request, registrations, ct);

@@ -181,6 +181,11 @@ const ACTIVE_ONLY: { key: keyof RegistrationSearchRequest; value: unknown } = {
   value: ['True']
 };
 
+/** True when the search is filtered to active registrations only. */
+export function isActiveOnlyFilter(searchRequest: RegistrationSearchRequest): boolean {
+  return filterValueMatches(searchRequest[ACTIVE_ONLY.key], ACTIVE_ONLY.value);
+}
+
 /**
  * Templates adapted from ARB Health dashboard (arb-health.component.ts).
  * Tokens use batch-email-compatible names (!PERSON, !AMTOWED, etc.)
