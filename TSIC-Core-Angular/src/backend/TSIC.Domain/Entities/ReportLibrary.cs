@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace TSIC.Domain.Entities;
@@ -25,6 +25,10 @@ public partial class ReportLibrary
 
     public string Action { get; set; } = null!;
 
+    public string Scope { get; set; } = null!;
+
+    public string? MinRoleId { get; set; }
+
     public Guid? OwnerCustomerId { get; set; }
 
     public int SortOrder { get; set; }
@@ -32,10 +36,6 @@ public partial class ReportLibrary
     public DateTime Modified { get; set; }
 
     public string? LebUserId { get; set; }
-
-    public string Scope { get; set; } = null!;
-
-    public string? MinRoleId { get; set; }
 
     public virtual ICollection<JobReports> JobReports { get; set; } = new List<JobReports>();
 

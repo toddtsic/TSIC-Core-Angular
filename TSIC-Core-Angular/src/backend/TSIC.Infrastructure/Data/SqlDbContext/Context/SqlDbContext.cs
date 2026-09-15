@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Domain.Entities;
@@ -4675,6 +4675,7 @@ public partial class SqlDbContext : DbContext
                 .IsUnicode(false)
                 .HasColumnName("alwayscopyemaillist");
             entity.Property(e => e.BAddProcessingFees).HasColumnName("bAddProcessingFees");
+            entity.Property(e => e.BAllowClubRepSchedulePreview).HasColumnName("bAllowClubRepSchedulePreview");
             entity.Property(e => e.BAllowCreditAll)
                 .HasDefaultValue(false)
                 .HasColumnName("bAllowCreditAll");

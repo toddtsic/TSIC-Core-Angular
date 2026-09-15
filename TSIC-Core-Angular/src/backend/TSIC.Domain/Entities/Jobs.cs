@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace TSIC.Domain.Entities;
@@ -260,6 +260,8 @@ public partial class Jobs
     public string? CoachRegConfirmationEmail { get; set; }
 
     public string? CoachRegConfirmationOnScreen { get; set; }
+
+    public bool BAllowClubRepSchedulePreview { get; set; }
 
     public virtual BillingTypes BillingType { get; set; } = null!;
 
