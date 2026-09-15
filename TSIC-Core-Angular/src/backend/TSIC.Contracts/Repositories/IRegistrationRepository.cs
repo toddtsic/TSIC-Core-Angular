@@ -238,6 +238,13 @@ public interface IRegistrationRepository
     Task<Registrations?> GetByIdAsync(Guid registrationId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// True when <paramref name="registrationId"/> is an ACTIVE Club Rep registration on <paramref name="jobId"/>
+    /// belonging to <paramref name="userId"/>. Fails closed for a missing, inactive, other-role, other-job or
+    /// other-user row. Sibling of IAdministratorRepository.IsActiveDirectorOnJobAsync.
+    /// </summary>
+    Task<bool> IsActiveClubRepOnJobAsync(Guid jobId, Guid registrationId, string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Team on a registration, but only while the registration is live (bActive). Null when the
     /// registration is missing, inactive, or unrostered. This is the "own team" predicate the
     /// team-authoring routes gate on, and it deliberately matches GetTeamRosterMobileAsync exactly:

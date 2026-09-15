@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using TSIC.API.Services.Shared.Jobs;
-using TSIC.Contracts.Services;
 
 namespace TSIC.API.Extensions;
 
@@ -28,25 +27,6 @@ public static class ClaimsPrincipalExtensions
         }
 
         return await jobLookupService.GetJobIdByRegistrationAsync(regId.Value);
-    }
-
-    /// <summary>
-    /// Whether this caller (anonymous or logged in) may see <paramref name="jobId"/>'s schedule —
-    /// <see cref="IViewScheduleService.CanViewScheduleAsync"/> applied to the caller's own job and role.
-    /// Every endpoint serving schedule-derived data asks this, so none can drift from the rule.
-    /// </summary>
-    public static async Task<bool> CanViewScheduleAsync(
-        this ClaimsPrincipal user,
-        Guid jobId,
-        IJobLookupService jobLookupService,
-        IViewScheduleService viewScheduleService,
-        CancellationToken ct = default)
-    {
-        // Null when anonymous — no regId claim, no lookup.
-        var callerJobId = await user.GetJobIdFromRegistrationAsync(jobLookupService);
-        // Both mapped and unmapped role claim types: .NET 10's JsonWebTokenHandler may not remap "role".
-        var callerRole = user.FindFirstValue(ClaimTypes.Role) ?? user.FindFirstValue("role");
-        return await viewScheduleService.CanViewScheduleAsync(jobId, callerJobId, callerRole, ct);
     }
 
     /// <summary>

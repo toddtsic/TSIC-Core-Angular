@@ -1,9 +1,11 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using TSIC.API.Controllers;
+using TSIC.API.Extensions;
+using TSIC.API.Services.Invites;
 using TSIC.API.Services.Scheduling;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Dtos;
@@ -22,11 +24,11 @@ namespace TSIC.Tests.Scheduling;
 ///
 /// Before the gate, api/view-schedule served any job's schedule to anyone holding a jobPath, gid or
 /// teamId. The rule (ViewScheduleService.CanViewScheduleAsync): public schedule → everyone; otherwise only
-/// a caller logged in to THAT job as Superuser/Director/SuperDirector/Scorer. Every other caller — Club
-/// Rep included, whatever BAllowClubRepSchedulePreview says — gets the generic "Schedule not available"
-/// 404, identical to the response for an event, game or team that doesn't exist.
+/// a caller logged in to THAT job as Superuser/Director/SuperDirector/Scorer, or as a Club Rep holding a valid
+/// schedule-preview invite while the preview door is open. Every other caller gets the generic "Schedule not
+/// available" 404, identical to the response for an event, game or team that doesn't exist.
 ///
-/// Part 1 pins the rule. Part 2 drives the view-schedule controller, proving every data endpoint applies
+/// Part 1 pins the rule; Part 1b the preview invite. Part 2 drives the view-schedule controller, proving every data endpoint applies
 /// it — to the job that OWNS a gid/teamId, and to the jobPath's job rather than the caller's login job.
 /// Part 3 covers the other schedule-derived surfaces: active-games, the filter tree and the pulse.
 /// </summary>
@@ -46,6 +48,8 @@ public class ScheduleVisibilityGateTests
         public required int DraftGid { get; init; }
         public required Guid PublicTeamId { get; init; }
         public required Guid DraftTeamId { get; init; }
+        /// <summary>An active Club Rep registered on the unreleased job — the one a preview invite goes to.</summary>
+        public required Registrations RepReg { get; init; }
     }
 
     private static async Task<Fixture> BuildAsync(bool draftPreviewFlag = false)
@@ -59,6 +63,8 @@ public class ScheduleVisibilityGateTests
 
         var (publicGid, publicTeam) = SeedGame(b, publicJob.JobId);
         var (draftGid, draftTeam) = SeedGame(b, draftJob.JobId);
+        var rep = b.AddUser("rep1");
+        var repReg = b.AddRegistration(rep.Id, draftJob.JobId, RoleConstants.ClubRep);
         await b.SaveAsync();
 
         return new Fixture
@@ -70,7 +76,8 @@ public class ScheduleVisibilityGateTests
             PublicGid = publicGid,
             DraftGid = draftGid,
             PublicTeamId = publicTeam,
-            DraftTeamId = draftTeam
+            DraftTeamId = draftTeam,
+            RepReg = repReg
         };
     }
 
@@ -91,18 +98,21 @@ public class ScheduleVisibilityGateTests
     //  Part 1 — the rule
     // ═══════════════════════════════════════════════════════════════════
 
+    private static ScheduleViewer LoggedIn(Guid jobId, string role) =>
+        new() { JobId = jobId, RegistrationId = Guid.NewGuid(), UserId = "user-1", Role = role };
+
     [Fact(DisplayName = "Public schedule: an anonymous caller may view")]
     public async Task Public_Anonymous_Allowed()
     {
         var f = await BuildAsync();
-        (await f.Svc.CanViewScheduleAsync(f.PublicJob.JobId, null, null)).Should().BeTrue();
+        (await f.Svc.CanViewScheduleAsync(f.PublicJob.JobId, ScheduleViewer.Anonymous)).Should().BeTrue();
     }
 
     [Fact(DisplayName = "Public schedule: a caller logged in to a different job may view")]
     public async Task Public_OtherJobCaller_Allowed()
     {
         var f = await BuildAsync();
-        (await f.Svc.CanViewScheduleAsync(f.PublicJob.JobId, f.DraftJob.JobId, RoleConstants.Names.PlayerName))
+        (await f.Svc.CanViewScheduleAsync(f.PublicJob.JobId, LoggedIn(f.DraftJob.JobId, RoleConstants.Names.PlayerName)))
             .Should().BeTrue();
     }
 
@@ -110,7 +120,7 @@ public class ScheduleVisibilityGateTests
     public async Task Draft_Anonymous_Refused()
     {
         var f = await BuildAsync();
-        (await f.Svc.CanViewScheduleAsync(f.DraftJob.JobId, null, null)).Should().BeFalse();
+        (await f.Svc.CanViewScheduleAsync(f.DraftJob.JobId, ScheduleViewer.Anonymous)).Should().BeFalse();
     }
 
     [Theory(DisplayName = "Unreleased schedule: event-runner roles logged in to THAT job may view")]
@@ -121,7 +131,7 @@ public class ScheduleVisibilityGateTests
     public async Task Draft_EventRunner_SameJob_Allowed(string role)
     {
         var f = await BuildAsync();
-        (await f.Svc.CanViewScheduleAsync(f.DraftJob.JobId, f.DraftJob.JobId, role)).Should().BeTrue();
+        (await f.Svc.CanViewScheduleAsync(f.DraftJob.JobId, LoggedIn(f.DraftJob.JobId, role))).Should().BeTrue();
     }
 
     [Theory(DisplayName = "Unreleased schedule: event-runner roles of a DIFFERENT job are refused")]
@@ -131,10 +141,10 @@ public class ScheduleVisibilityGateTests
     public async Task Draft_EventRunner_OtherJob_Refused(string role)
     {
         var f = await BuildAsync();
-        (await f.Svc.CanViewScheduleAsync(f.DraftJob.JobId, f.PublicJob.JobId, role)).Should().BeFalse();
+        (await f.Svc.CanViewScheduleAsync(f.DraftJob.JobId, LoggedIn(f.PublicJob.JobId, role))).Should().BeFalse();
     }
 
-    [Theory(DisplayName = "Unreleased schedule: registrant roles of that job are refused — Club Rep included, preview flag or not")]
+    [Theory(DisplayName = "Unreleased schedule: registrant roles of that job without a preview invite are refused — Club Rep included, preview flag or not")]
     [InlineData(RoleConstants.Names.ClubRepName, false)]
     [InlineData(RoleConstants.Names.ClubRepName, true)]
     [InlineData(RoleConstants.Names.PlayerName, false)]
@@ -146,7 +156,7 @@ public class ScheduleVisibilityGateTests
     public async Task Draft_RegistrantRoles_Refused(string role, bool previewFlag)
     {
         var f = await BuildAsync(draftPreviewFlag: previewFlag);
-        (await f.Svc.CanViewScheduleAsync(f.DraftJob.JobId, f.DraftJob.JobId, role)).Should().BeFalse();
+        (await f.Svc.CanViewScheduleAsync(f.DraftJob.JobId, LoggedIn(f.DraftJob.JobId, role))).Should().BeFalse();
     }
 
     [Fact(DisplayName = "NULL BScheduleAllowPublicAccess reads as unreleased")]
@@ -156,14 +166,147 @@ public class ScheduleVisibilityGateTests
         f.DraftJob.BScheduleAllowPublicAccess = null;
         await f.Ctx.SaveChangesAsync();
 
-        (await f.Svc.CanViewScheduleAsync(f.DraftJob.JobId, null, null)).Should().BeFalse();
+        (await f.Svc.CanViewScheduleAsync(f.DraftJob.JobId, ScheduleViewer.Anonymous)).Should().BeFalse();
     }
 
     [Fact(DisplayName = "Unknown job is refused")]
     public async Task UnknownJob_Refused()
     {
         var f = await BuildAsync();
-        (await f.Svc.CanViewScheduleAsync(Guid.NewGuid(), null, null)).Should().BeFalse();
+        (await f.Svc.CanViewScheduleAsync(Guid.NewGuid(), ScheduleViewer.Anonymous)).Should().BeFalse();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Part 1b — the Club Rep schedule-preview invite
+    // ═══════════════════════════════════════════════════════════════════
+
+    private static string PreviewToken(Fixture f, InvitePurpose purpose = InvitePurpose.SchedulePreview,
+        Guid? jobId = null, string? userId = null, DateTime? expires = null) =>
+        TestInviteTokens.Build().Create(purpose, jobId ?? f.DraftJob.JobId, userId ?? f.RepReg.UserId!,
+            expires ?? DateTime.Now.AddHours(24));
+
+    /// <summary>The invited rep, logged in to the unreleased job, presenting <paramref name="token"/>.</summary>
+    private static ScheduleViewer Rep(Fixture f, string? token) => new()
+    {
+        JobId = f.DraftJob.JobId,
+        RegistrationId = f.RepReg.RegistrationId,
+        UserId = f.RepReg.UserId,
+        Role = RoleConstants.Names.ClubRepName,
+        PreviewToken = token
+    };
+
+    private static Task<bool> CanViewDraft(Fixture f, ScheduleViewer viewer) =>
+        f.Svc.CanViewScheduleAsync(f.DraftJob.JobId, viewer);
+
+    [Fact(DisplayName = "Preview: the invited Club Rep with a valid token, flag on, may view the unreleased schedule")]
+    public async Task Preview_ValidInvite_Allowed()
+    {
+        var f = await BuildAsync(draftPreviewFlag: true);
+        (await CanViewDraft(f, Rep(f, PreviewToken(f)))).Should().BeTrue();
+    }
+
+    [Fact(DisplayName = "Preview: no token → refused")]
+    public async Task Preview_NoToken_Refused()
+    {
+        var f = await BuildAsync(draftPreviewFlag: true);
+        (await CanViewDraft(f, Rep(f, null))).Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "Preview: a registration invite token is not a preview invite → refused")]
+    public async Task Preview_RegistrationPurposeToken_Refused()
+    {
+        var f = await BuildAsync(draftPreviewFlag: true);
+        (await CanViewDraft(f, Rep(f, PreviewToken(f, purpose: InvitePurpose.Registration)))).Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "Preview: a token minted for another user, logged in as the rep → refused (invite user = login user)")]
+    public async Task Preview_OtherUsersToken_Refused()
+    {
+        var f = await BuildAsync(draftPreviewFlag: true);
+        (await CanViewDraft(f, Rep(f, PreviewToken(f, userId: "someone-else")))).Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "Preview: a token minted for another job → refused")]
+    public async Task Preview_OtherJobsToken_Refused()
+    {
+        var f = await BuildAsync(draftPreviewFlag: true);
+        (await CanViewDraft(f, Rep(f, PreviewToken(f, jobId: f.PublicJob.JobId)))).Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "Preview: an expired token → refused")]
+    public async Task Preview_ExpiredToken_Refused()
+    {
+        var f = await BuildAsync(draftPreviewFlag: true);
+        (await CanViewDraft(f, Rep(f, PreviewToken(f, expires: DateTime.Now.AddMinutes(-10))))).Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "Preview: logged in to another job with a valid token → refused (login event = invite event)")]
+    public async Task Preview_LoggedInElsewhere_Refused()
+    {
+        var f = await BuildAsync(draftPreviewFlag: true);
+        (await CanViewDraft(f, Rep(f, PreviewToken(f)) with { JobId = f.PublicJob.JobId })).Should().BeFalse();
+    }
+
+    [Theory(DisplayName = "Preview: the rep's user logged in under a non-Club-Rep role with a valid token → refused")]
+    [InlineData(RoleConstants.Names.PlayerName)]
+    [InlineData(RoleConstants.Names.StaffName)]
+    [InlineData(RoleConstants.Names.FamilyName)]
+    public async Task Preview_WrongRole_Refused(string role)
+    {
+        var f = await BuildAsync(draftPreviewFlag: true);
+        (await CanViewDraft(f, Rep(f, PreviewToken(f)) with { Role = role })).Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "Preview: a valid token presented with a DIFFERENT registration of the same user → refused")]
+    public async Task Preview_OtherRegistration_Refused()
+    {
+        var f = await BuildAsync(draftPreviewFlag: true);
+        (await CanViewDraft(f, Rep(f, PreviewToken(f)) with { RegistrationId = Guid.NewGuid() })).Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "Preview kill switch: flag turned off after the invite went out → refused")]
+    public async Task Preview_FlagOff_Refused()
+    {
+        var f = await BuildAsync(draftPreviewFlag: false);
+        (await CanViewDraft(f, Rep(f, PreviewToken(f)))).Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "Preview: the rep deactivated after the invite went out → refused")]
+    public async Task Preview_InactiveRep_Refused()
+    {
+        var f = await BuildAsync(draftPreviewFlag: true);
+        f.RepReg.BActive = false;
+        await f.Ctx.SaveChangesAsync();
+
+        (await CanViewDraft(f, Rep(f, PreviewToken(f)))).Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "Preview: the event expired for users after the invite went out → refused")]
+    public async Task Preview_EventExpired_Refused()
+    {
+        var f = await BuildAsync(draftPreviewFlag: true);
+        f.DraftJob.ExpiryUsers = DateTime.Now.AddDays(-1);
+        await f.Ctx.SaveChangesAsync();
+
+        (await CanViewDraft(f, Rep(f, PreviewToken(f)))).Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "Preview: once released, the rep sees it with or without a token, like everyone")]
+    public async Task Preview_Released_EveryoneSees()
+    {
+        var f = await BuildAsync(draftPreviewFlag: true);
+        f.DraftJob.BScheduleAllowPublicAccess = true;
+        await f.Ctx.SaveChangesAsync();
+
+        (await CanViewDraft(f, Rep(f, null))).Should().BeTrue();
+        (await CanViewDraft(f, ScheduleViewer.Anonymous)).Should().BeTrue();
+    }
+
+    [Fact(DisplayName = "Preview: a token does nothing for a Director — they see the unreleased schedule regardless")]
+    public async Task Preview_DirectorUnaffected()
+    {
+        var f = await BuildAsync(draftPreviewFlag: false);
+        (await CanViewDraft(f, LoggedIn(f.DraftJob.JobId, RoleConstants.Names.DirectorName))).Should().BeTrue();
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -176,9 +319,13 @@ public class ScheduleVisibilityGateTests
         return new ViewScheduleController(f.Svc, lookup) { ControllerContext = context };
     }
 
-    /// <summary>A job lookup over the fixture plus a request context for an anonymous or logged-in caller.</summary>
+    /// <summary>
+    /// A job lookup over the fixture plus a request context for an anonymous or logged-in caller. <paramref name="asRep"/>
+    /// logs in as the fixture's Club Rep registration instead of a fresh one; <paramref name="previewToken"/> rides
+    /// the preview header.
+    /// </summary>
     private static (IJobLookupService lookup, ControllerContext context) Caller(
-        Fixture f, Guid? loggedInJobId = null, string? role = null)
+        Fixture f, Guid? loggedInJobId = null, string? role = null, bool asRep = false, string? previewToken = null)
     {
         var lookup = new Mock<IJobLookupService>();
         lookup.Setup(l => l.GetJobIdByPathAsync(f.PublicJob.JobPath)).ReturnsAsync(f.PublicJob.JobId);
@@ -190,20 +337,20 @@ public class ScheduleVisibilityGateTests
         var identity = new ClaimsIdentity();
         if (loggedInJobId.HasValue)
         {
-            var regId = Guid.NewGuid();
+            var regId = asRep ? f.RepReg.RegistrationId : Guid.NewGuid();
             lookup.Setup(l => l.GetJobIdByRegistrationAsync(regId)).ReturnsAsync(loggedInJobId.Value);
             identity = new ClaimsIdentity(
             [
-                new Claim(ClaimTypes.NameIdentifier, "user-1"),
+                new Claim(ClaimTypes.NameIdentifier, asRep ? f.RepReg.UserId! : "user-1"),
                 new Claim("regId", regId.ToString()),
                 new Claim(ClaimTypes.Role, role ?? RoleConstants.Names.PlayerName)
             ], authenticationType: "Test");
         }
 
-        return (lookup.Object, new ControllerContext
-        {
-            HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(identity) }
-        });
+        var http = new DefaultHttpContext { User = new ClaimsPrincipal(identity) };
+        if (previewToken != null)
+            http.Request.Headers[ScheduleVisibilityExtensions.SchedulePreviewHeader] = previewToken;
+        return (lookup.Object, new ControllerContext { HttpContext = http });
     }
 
     /// <summary>The one refusal: 404, "Schedule not available". No 403, nothing that says a schedule exists.</summary>
@@ -353,7 +500,23 @@ public class ScheduleVisibilityGateTests
         ShouldBeUnavailable((await c.GetStandingsByGame(f.DraftGid, default)).Result);
     }
 
-    [Fact(DisplayName = "Club Rep of the unreleased job with the preview flag ON: games and capabilities refuse")]
+    [Fact(DisplayName = "Invited Club Rep through the controller: the preview header opens games and capabilities; without it they refuse")]
+    public async Task ClubRep_PreviewHeader_ThroughController()
+    {
+        var f = await BuildAsync(draftPreviewFlag: true);
+        var path = f.DraftJob.JobPath;
+        var (lookup, withHeader) = Caller(f, f.DraftJob.JobId, RoleConstants.Names.ClubRepName, asRep: true, previewToken: PreviewToken(f));
+        var (lookup2, noHeader) = Caller(f, f.DraftJob.JobId, RoleConstants.Names.ClubRepName, asRep: true);
+        var invited = new ViewScheduleController(f.Svc, lookup) { ControllerContext = withHeader };
+        var uninvited = new ViewScheduleController(f.Svc, lookup2) { ControllerContext = noHeader };
+
+        ShouldBeOk((await invited.GetGames(new ScheduleFilterRequest(), path, default)).Result);
+        ((OkObjectResult)(await invited.GetCapabilities(path, default)).Result!).Value
+            .Should().BeOfType<ScheduleCapabilitiesDto>().Which.CanView.Should().BeTrue();
+        ShouldBeUnavailable((await uninvited.GetGames(new ScheduleFilterRequest(), path, default)).Result);
+    }
+
+    [Fact(DisplayName = "Club Rep of the unreleased job with the preview flag ON but no invite: games and capabilities refuse")]
     public async Task ClubRep_DraftJob_FlagOn_Forbidden()
     {
         var f = await BuildAsync(draftPreviewFlag: true);

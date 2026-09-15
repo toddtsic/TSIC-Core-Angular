@@ -84,7 +84,7 @@ public class RegistrationInviteController : ControllerBase
         if (string.IsNullOrEmpty(userId))
             return Ok(new InviteValidationResult { Allowed = false });
 
-        var allowed = _inviteTokens.IsValidFor(token, targetJobId.Value, userId);
+        var allowed = _inviteTokens.IsValidFor(InvitePurpose.Registration, token, targetJobId.Value, userId);
         return Ok(new InviteValidationResult { Allowed = allowed });
     }
 }

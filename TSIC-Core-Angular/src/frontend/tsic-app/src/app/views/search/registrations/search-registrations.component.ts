@@ -1103,28 +1103,32 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     return ids.length === 1 ? ids[0] : null;
   });
 
-  readonly eligiblePlayerInviteTargetJobs = computed<JobOptionDto[]>(
-    () => this.filterOptions()?.eligiblePlayerInviteTargetJobs ?? []);
-  readonly eligibleClubRepInviteTargetJobs = computed<JobOptionDto[]>(
-    () => this.filterOptions()?.eligibleClubRepInviteTargetJobs ?? []);
+  /** Eligible target events per invite kind. A Club Rep search has two kinds that can never both have
+   *  targets: pre-registration invites need this event past its user expiry, schedule preview needs it not. */
+  private readonly inviteTargetJobsByMode = computed<Record<InviteMode, JobOptionDto[]>>(() => {
+    const o = this.filterOptions();
+    return {
+      player: o?.eligiblePlayerInviteTargetJobs ?? [],
+      clubrep: o?.eligibleClubRepInviteTargetJobs ?? [],
+      'schedule-preview': o?.eligibleSchedulePreviewInviteTargetJobs ?? [],
+    };
+  });
 
-  /** The invite role the current single-role search qualifies for, or null when it doesn't
+  /** The invite kind the current single-role search qualifies for, or null when it doesn't
    *  (multiple/zero roles, or no eligible target events for that role). Drives the Invite button. */
   readonly invitableRole = computed<InviteMode | null>(() => {
     const role = this.singleRoleFilter();
     if (!role) return null;
-    if (isPlayerRoleFilter(role) && this.eligiblePlayerInviteTargetJobs().length > 0) return 'player';
-    if (isClubRepRoleFilter(role) && this.eligibleClubRepInviteTargetJobs().length > 0) return 'clubrep';
-    return null;
+    const candidates: InviteMode[] = isPlayerRoleFilter(role) ? ['player']
+      : isClubRepRoleFilter(role) ? ['clubrep', 'schedule-preview']
+      : [];
+    return candidates.find(mode => this.inviteTargetJobsByMode()[mode].length > 0) ?? null;
   });
 
   /** Eligible target events for the active invitable role — passed straight to the modal. */
   readonly activeInviteTargetJobs = computed<JobOptionDto[]>(() => {
-    switch (this.invitableRole()) {
-      case 'player': return this.eligiblePlayerInviteTargetJobs();
-      case 'clubrep': return this.eligibleClubRepInviteTargetJobs();
-      default: return [];
-    }
+    const mode = this.invitableRole();
+    return mode ? this.inviteTargetJobsByMode()[mode] : [];
   });
 
   /** Role-aware button label that flips on selection: "Invite all Players" ↔ "Invite 3 checked Players". */
@@ -1132,8 +1136,9 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     const mode = this.invitableRole();
     if (!mode) return '';
     const noun = mode === 'player' ? 'Players' : 'Club Reps';
+    const purpose = mode === 'schedule-preview' ? ' to preview schedule' : '';
     const checked = this.selectedRegistrations().size;
-    return checked > 0 ? `Invite ${checked} checked ${noun}` : `Invite all ${noun}`;
+    return (checked > 0 ? `Invite ${checked} checked ${noun}` : `Invite all ${noun}`) + purpose;
   });
 
   onInvite(): void {

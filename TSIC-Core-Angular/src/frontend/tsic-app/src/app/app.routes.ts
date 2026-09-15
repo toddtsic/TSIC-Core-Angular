@@ -3,6 +3,7 @@ import { authGuard, unselectedRoleMatch } from './infrastructure/guards/auth.gua
 import { storeGuard } from './infrastructure/guards/store.guard';
 import { unsavedChangesGuard } from './infrastructure/guards/unsaved-changes.guard';
 import { playerInviteGuard, teamInviteGuard, adultRegistrationGuard } from './infrastructure/guards/registration-invite.guard';
+import { schedulePreviewGuard } from './infrastructure/guards/schedule-preview.guard';
 import { LayoutComponent } from './layouts/client-layout/layout.component';
 import { Roles } from './infrastructure/constants/roles.constants';
 import { aslRostersMatcher } from './views/rosters/asl-rosters/asl-rosters.matcher';
@@ -671,6 +672,7 @@ export const routes: Routes = [
 			{
 				path: 'schedule',
 				data: { publicMode: true },
+				canActivate: [schedulePreviewGuard],
 				loadComponent: () => import('./views/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
 			},
 			// Rosters — unified parent segment. Children handle role-specific views.

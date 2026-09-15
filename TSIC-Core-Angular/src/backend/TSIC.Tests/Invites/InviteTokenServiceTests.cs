@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using TSIC.API.Services.Invites;
+using TSIC.Tests.Helpers;
 using Xunit;
 
 namespace TSIC.Tests.Invites;
@@ -13,15 +14,7 @@ namespace TSIC.Tests.Invites;
 /// </summary>
 public class InviteTokenServiceTests
 {
-    private static InviteTokenService Build() =>
-        new(new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["JwtSettings:SecretKey"] = "invite-token-tests-secret-key-0123456789abcdef",
-                ["JwtSettings:Issuer"] = "TSIC.API",
-                ["JwtSettings:Audience"] = "TSIC.Client"
-            })
-            .Build());
+    private static InviteTokenService Build() => TestInviteTokens.Build();
 
     private static readonly Guid Job = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid OtherJob = Guid.Parse("22222222-2222-2222-2222-222222222222");
@@ -32,43 +25,43 @@ public class InviteTokenServiceTests
     public void Valid_SameUserSameJob_Accepted()
     {
         var svc = Build();
-        var token = svc.Create(Job, User, DateTime.Now.AddHours(24));
-        svc.IsValidFor(token, Job, User).Should().BeTrue();
+        var token = svc.Create(InvitePurpose.Registration, Job, User, DateTime.Now.AddHours(24));
+        svc.IsValidFor(InvitePurpose.Registration, token, Job, User).Should().BeTrue();
     }
 
     [Fact(DisplayName = "Token minted for a different user is rejected (forward-proof)")]
     public void WrongUser_Rejected()
     {
         var svc = Build();
-        var token = svc.Create(Job, User, DateTime.Now.AddHours(24));
-        svc.IsValidFor(token, Job, OtherUser).Should().BeFalse();
+        var token = svc.Create(InvitePurpose.Registration, Job, User, DateTime.Now.AddHours(24));
+        svc.IsValidFor(InvitePurpose.Registration, token, Job, OtherUser).Should().BeFalse();
     }
 
     [Fact(DisplayName = "Token minted for a different job is rejected")]
     public void WrongJob_Rejected()
     {
         var svc = Build();
-        var token = svc.Create(Job, User, DateTime.Now.AddHours(24));
-        svc.IsValidFor(token, OtherJob, User).Should().BeFalse();
+        var token = svc.Create(InvitePurpose.Registration, Job, User, DateTime.Now.AddHours(24));
+        svc.IsValidFor(InvitePurpose.Registration, token, OtherJob, User).Should().BeFalse();
     }
 
     [Fact(DisplayName = "Expired token is rejected (past the clock-skew allowance)")]
     public void Expired_Rejected()
     {
         var svc = Build();
-        var token = svc.Create(Job, User, DateTime.Now.AddMinutes(-5));
-        svc.IsValidFor(token, Job, User).Should().BeFalse();
+        var token = svc.Create(InvitePurpose.Registration, Job, User, DateTime.Now.AddMinutes(-5));
+        svc.IsValidFor(InvitePurpose.Registration, token, Job, User).Should().BeFalse();
     }
 
     [Fact(DisplayName = "Tampered signature is rejected")]
     public void Tampered_Rejected()
     {
         var svc = Build();
-        var token = svc.Create(Job, User, DateTime.Now.AddHours(24));
+        var token = svc.Create(InvitePurpose.Registration, Job, User, DateTime.Now.AddHours(24));
         // Flip the last character of the signature segment.
         var last = token[^1] == 'A' ? 'B' : 'A';
         var tampered = token[..^1] + last;
-        svc.IsValidFor(tampered, Job, User).Should().BeFalse();
+        svc.IsValidFor(InvitePurpose.Registration, tampered, Job, User).Should().BeFalse();
     }
 
     [Fact(DisplayName = "A token signed with a different key is rejected")]
@@ -82,9 +75,20 @@ public class InviteTokenServiceTests
                 ["JwtSettings:Audience"] = "TSIC.Client"
             })
             .Build());
-        var forged = attacker.Create(Job, User, DateTime.Now.AddHours(24));
+        var forged = attacker.Create(InvitePurpose.Registration, Job, User, DateTime.Now.AddHours(24));
 
-        Build().IsValidFor(forged, Job, User).Should().BeFalse();
+        Build().IsValidFor(InvitePurpose.Registration, forged, Job, User).Should().BeFalse();
+    }
+
+    [Theory(DisplayName = "A token minted for one purpose is rejected for the other (a registration invite can't preview a schedule, and back)")]
+    [InlineData(InvitePurpose.Registration, InvitePurpose.SchedulePreview)]
+    [InlineData(InvitePurpose.SchedulePreview, InvitePurpose.Registration)]
+    public void WrongPurpose_Rejected(InvitePurpose minted, InvitePurpose checkedFor)
+    {
+        var svc = Build();
+        var token = svc.Create(minted, Job, User, DateTime.Now.AddHours(24));
+        svc.IsValidFor(checkedFor, token, Job, User).Should().BeFalse();
+        svc.IsValidFor(minted, token, Job, User).Should().BeTrue("the control: the same token passes for its own purpose");
     }
 
     [Theory(DisplayName = "Missing/blank token or user is rejected")]
@@ -94,6 +98,6 @@ public class InviteTokenServiceTests
     [InlineData("not-a-jwt")]
     public void MissingOrGarbage_Rejected(string? token)
     {
-        Build().IsValidFor(token, Job, User).Should().BeFalse();
+        Build().IsValidFor(InvitePurpose.Registration, token, Job, User).Should().BeFalse();
     }
 }

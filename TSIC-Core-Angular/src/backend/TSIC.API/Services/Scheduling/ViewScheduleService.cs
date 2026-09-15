@@ -1,3 +1,4 @@
+using TSIC.API.Services.Invites;
 using TSIC.API.Services.Shared.Firebase;
 using TSIC.Contracts.Constants;
 using TSIC.Contracts.Dtos.Scheduling;
@@ -22,6 +23,8 @@ public sealed class ViewScheduleService : IViewScheduleService
     private readonly IJobRepository _jobRepo;
     private readonly IGameResultPushService _gameResultPush;
     private readonly IDeviceRepository _deviceRepo;
+    private readonly IRegistrationRepository _registrationRepo;
+    private readonly IInviteTokenService _inviteTokens;
 
     public ViewScheduleService(
         IScheduleRepository scheduleRepo,
@@ -31,8 +34,12 @@ public sealed class ViewScheduleService : IViewScheduleService
         IBracketSeedResolutionService bracketResolution,
         IJobRepository jobRepo,
         IGameResultPushService gameResultPush,
-        IDeviceRepository deviceRepo)
+        IDeviceRepository deviceRepo,
+        IRegistrationRepository registrationRepo,
+        IInviteTokenService inviteTokens)
     {
+        _registrationRepo = registrationRepo;
+        _inviteTokens = inviteTokens;
         _scheduleRepo = scheduleRepo;
         _teamRepo = teamRepo;
         _bracketRepo = bracketRepo;
@@ -71,22 +78,29 @@ public sealed class ViewScheduleService : IViewScheduleService
         return await _scheduleRepo.GetScheduleFilterOptionsAsync(jobId, ct);
     }
 
-    public async Task<bool> CanViewScheduleAsync(
-        Guid jobId, Guid? callerJobId, string? callerRole, CancellationToken ct = default)
+    public async Task<bool> CanViewScheduleAsync(Guid jobId, ScheduleViewer viewer, CancellationToken ct = default)
     {
-        var (allowPublicAccess, _) = await _scheduleRepo.GetScheduleVisibilityFlagsAsync(jobId, ct);
-        if (allowPublicAccess) return true;
+        if (await _scheduleRepo.IsSchedulePublicAsync(jobId, ct)) return true;
 
-        // Unreleased: a role only counts for the job the caller's token is for, so a
-        // Director of job A never reaches job B's draft through a gid/teamId route.
-        if (callerJobId != jobId) return false;
+        // Unreleased: a login only counts for the job it is for, so a Director or Club Rep of
+        // job A never reaches job B's draft through a jobPath, gid or teamId route.
+        if (viewer.JobId != jobId) return false;
 
-        // Club Reps are deliberately absent: a role alone never grants a preview. That comes
-        // only from a per-rep schedule-preview invite (BAllowClubRepSchedulePreview is its kill switch).
-        return callerRole is RoleConstants.Names.SuperuserName
+        if (viewer.Role is RoleConstants.Names.SuperuserName
             or RoleConstants.Names.DirectorName
             or RoleConstants.Names.SuperDirectorName
-            or RoleConstants.Names.ScorerName;
+            or RoleConstants.Names.ScorerName)
+            return true;
+
+        // Club Rep preview: the role alone grants nothing. Every clause is re-checked on every request,
+        // cheapest first — the signed invite (this purpose, this job, this login user, unexpired), then
+        // the job's preview door (director's kill switch), then the rep's own registration still active.
+        return viewer.Role == RoleConstants.Names.ClubRepName
+            && viewer.RegistrationId is Guid regId
+            && viewer.UserId is { Length: > 0 } userId
+            && _inviteTokens.IsValidFor(InvitePurpose.SchedulePreview, viewer.PreviewToken, jobId, userId)
+            && await _jobRepo.GetSchedulePreviewInviteTargetAsync(jobId, ct) != null
+            && await _registrationRepo.IsActiveClubRepOnJobAsync(jobId, regId, userId, ct);
     }
 
     public async Task<Guid?> GetGameJobIdAsync(int gid, CancellationToken ct = default)

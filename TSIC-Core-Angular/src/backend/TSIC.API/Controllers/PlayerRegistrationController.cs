@@ -96,7 +96,7 @@ public class PlayerRegistrationController : ControllerBase
         // this exact job, within the window, gets a wizard token. Authoritative; the guard is a pre-check.
         var regStatus = await _jobRepo.GetRegistrationStatusAsync(jobId.Value);
         if (regStatus?.BPlayerRegRequiresToken == true
-            && !_inviteTokens.IsValidFor(request.InviteToken, jobId.Value, userId))
+            && !_inviteTokens.IsValidFor(TSIC.API.Services.Invites.InvitePurpose.Registration, request.InviteToken, jobId.Value, userId))
         {
             return BadRequest(new { message = "This event requires a valid invitation to register. Please use the invitation link from your email." });
         }

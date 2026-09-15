@@ -65,6 +65,9 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     /// <summary>Longest invite lifetime a batch send may request — the top of the modal's expiry list.</summary>
     private const int MaxInviteExpiryHours = 72;
 
+    private const string SchedulePreviewLinkToken = "!SCHEDULE_PREVIEW_LINK";
+    private static readonly string[] RegistrationInviteLinkTokens = ["!INVITE_LINK", "!CLUBREP_INVITE_LINK"];
+
     public RegistrationSearchService(
         IRegistrationRepository registrationRepo,
         IRegistrationAccountingRepository accountingRepo,
@@ -181,11 +184,13 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             jobId, Contracts.Dtos.RegistrationSearch.InviteRegistrationKind.Player, ct);
         var clubRepTargets = await _jobRepo.GetInviteTargetJobsForCustomerAsync(
             jobId, Contracts.Dtos.RegistrationSearch.InviteRegistrationKind.Team, ct);
+        var schedulePreviewTarget = await _jobRepo.GetSchedulePreviewInviteTargetAsync(jobId, ct);
 
         return options with
         {
             EligiblePlayerInviteTargetJobs = playerTargets,
-            EligibleClubRepInviteTargetJobs = clubRepTargets
+            EligibleClubRepInviteTargetJobs = clubRepTargets,
+            EligibleSchedulePreviewInviteTargetJobs = schedulePreviewTarget is null ? [] : [schedulePreviewTarget]
         };
     }
 
@@ -1086,6 +1091,29 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         throw new InvalidOperationException("Batch email requires either explicit recipients or search criteria.");
     }
 
+    private static bool TemplateUses(BatchEmailRequest request, string token) =>
+        (request.Subject ?? "").Contains(token, StringComparison.OrdinalIgnoreCase)
+        || (request.BodyTemplate ?? "").Contains(token, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// A schedule-preview invite goes only to active Club Reps of THIS job, for THIS job, while its preview door is
+    /// open. The modal offers it only then; this refuses a hand-built request. The view check re-applies the door,
+    /// the role and the rep's active status on every request, so a later change still shuts the preview.
+    /// </summary>
+    private async Task EnsureSchedulePreviewSendAllowedAsync(
+        Guid jobId, BatchEmailRequest request, IEnumerable<Registrations> registrations, CancellationToken ct)
+    {
+        if (RegistrationInviteLinkTokens.Any(t => TemplateUses(request, t)))
+            throw new InvalidOperationException("A schedule preview invite can't be combined with a registration invite.");
+        if (request.InviteLinkTargetJobId != jobId)
+            throw new InvalidOperationException("A schedule preview invite must be for this event.");
+        if (await _jobRepo.GetSchedulePreviewInviteTargetAsync(jobId, ct) == null)
+            throw new InvalidOperationException(
+                "Schedule preview invites need Club Rep schedule preview on, the schedule not yet public, and the event not expired.");
+        if (registrations.Any(r => r.RoleId != RoleConstants.ClubRep || r.BActive != true))
+            throw new InvalidOperationException("Schedule preview invites go only to active Club Reps.");
+    }
+
     public async Task<EmailBatchHandle> StartBatchEmailAsync(
         Guid jobId, string userId, BatchEmailRequest request, CancellationToken ct = default)
     {
@@ -1101,6 +1129,9 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         var invalidRegs = registrations.Where(r => r.JobId != jobId).ToList();
         if (invalidRegs.Count > 0)
             throw new InvalidOperationException("Some registrations do not belong to this job.");
+
+        if (TemplateUses(request, SchedulePreviewLinkToken))
+            await EnsureSchedulePreviewSendAllowedAsync(jobId, request, registrations, ct);
 
         var jobConfirmation = await _jobRepo.GetConfirmationEmailInfoAsync(jobId, ct);
         var jobPath = jobConfirmation?.JobPath ?? "";

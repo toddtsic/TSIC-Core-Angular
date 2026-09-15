@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Moq;
+using TSIC.API.Services.Invites;
 using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.API.Services.Shared.Utilities;
 using TSIC.Contracts.Services;
@@ -27,12 +28,19 @@ public class TextSubstitutionInviteLinkTests
     private const string PlayerBody = "Register: !INVITE_LINK";
 
     private static (TextSubstitutionService svc, List<string> capturedSubjects) BuildService(
-        Infrastructure.Data.SqlDbContext.SqlDbContext ctx)
+        Infrastructure.Data.SqlDbContext.SqlDbContext ctx) => BuildService(ctx, []);
+
+    private static (TextSubstitutionService svc, List<string> capturedSubjects) BuildService(
+        Infrastructure.Data.SqlDbContext.SqlDbContext ctx, List<InvitePurpose> capturedPurposes)
     {
         var captured = new List<string>();
-        var tokens = new Mock<TSIC.API.Services.Invites.IInviteTokenService>();
-        tokens.Setup(t => t.Create(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<DateTime>()))
-            .Callback<Guid, string, DateTime>((_, invitedUserId, _) => captured.Add(invitedUserId))
+        var tokens = new Mock<IInviteTokenService>();
+        tokens.Setup(t => t.Create(It.IsAny<InvitePurpose>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<DateTime>()))
+            .Callback<InvitePurpose, Guid, string, DateTime>((purpose, _, invitedUserId, _) =>
+            {
+                capturedPurposes.Add(purpose);
+                captured.Add(invitedUserId);
+            })
             .Returns("TOK-SIGNED");
 
         var repo = new TextSubstitutionRepository(ctx);
@@ -122,5 +130,32 @@ public class TextSubstitutionInviteLinkTests
         result.Body.Should().Contain("/clubcup/registration/player?invite=TOK-SIGNED");
         captured.Should().ContainSingle().Which.Should().Be(parent.Id,
             "for a player the token subject is the parent (FamilyUserId), not the child's UserId");
+    }
+
+    [Fact(DisplayName = "Schedule preview invite renders a schedule link, token minted for the SchedulePreview purpose and bound to the rep's UserId")]
+    public async Task SchedulePreview_RendersScheduleLink_WithPreviewPurpose()
+    {
+        var ctx = DbContextFactory.Create();
+        var b = new SearchDataBuilder(ctx);
+        var job = SeedJob(b, ctx);
+        var role = b.AddRole(RoleConstants.ClubRep, "Club Rep");
+        var clubRepUser = b.AddUser("Tierney", "Ahearn", email: "rep@x.com");
+        var reg = b.AddRegistration(job.JobId, clubRepUser.Id, role.Id);
+        await b.SaveAsync();
+
+        var purposes = new List<InvitePurpose>();
+        var (svc, captured) = BuildService(ctx, purposes);
+        var jobFields = await svc.LoadJobInvariantFieldsAsync(job.JobId);
+
+        var result = await svc.SubstituteSubjectAndBodyAsync(
+            "seg", job.JobId, Guid.NewGuid(), reg.RegistrationId, "", "S", "Preview: !SCHEDULE_PREVIEW_LINK",
+            inviteTargetJobPath: "clubcup", inviteTargetJobName: "Club Cup",
+            inviteTargetJobId: job.JobId, inviteExpires: DateTime.Now.AddHours(24), jobFields: jobFields);
+
+        result.Body.Should().Contain("/clubcup/schedule#preview=TOK-SIGNED",
+            "the token rides in the fragment, which the browser never sends to the server");
+        result.Body.Should().NotContain("not configured");
+        purposes.Should().ContainSingle().Which.Should().Be(InvitePurpose.SchedulePreview);
+        captured.Should().ContainSingle().Which.Should().Be(clubRepUser.Id);
     }
 }

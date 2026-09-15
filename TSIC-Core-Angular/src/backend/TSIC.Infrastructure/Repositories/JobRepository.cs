@@ -674,6 +674,23 @@ public class JobRepository : IJobRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<Contracts.Dtos.RegistrationSearch.JobOptionDto?> GetSchedulePreviewInviteTargetAsync(
+        Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId
+                && j.BAllowClubRepSchedulePreview
+                && j.BScheduleAllowPublicAccess != true)
+            .Where(JobExpiry.NotExpiredForUsers)
+            .Select(j => new Contracts.Dtos.RegistrationSearch.JobOptionDto
+            {
+                JobId = j.JobId,
+                JobName = j.JobName ?? "(unnamed)"
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<List<Contracts.Dtos.AdminExpiry.AdminExpiryCustomerDto>> GetAdminExpiredJobsByCustomerAsync(
         CancellationToken cancellationToken = default)
     {

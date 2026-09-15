@@ -120,8 +120,8 @@
             <p class="invite-guide-lead">You can edit the wording around them, but don't delete these. Each is filled in automatically when the email sends:</p>
             <ul class="invite-guide-list">
               <li><code>!PERSON</code> → the recipient's name</li>
-              <li><code>!EVENT_INVITEDTO</code> → the name of the <strong>“Target registration event”</strong> you pick below</li>
-              <li><code>{{ inviteLinkToken() }}</code> → their <em>unique, single-use</em> registration link for that event. <strong>Removing this disables the invitation.</strong></li>
+              <li><code>!EVENT_INVITEDTO</code> → the name of the <strong>“{{ inviteKind()?.targetLabel }}”</strong> you pick below</li>
+              <li><code>{{ inviteKind()?.linkToken }}</code> → their {{ inviteKind()?.linkDescription }} for that event. <strong>Removing this disables the invitation.</strong></li>
               <li><code>!INVITE_EXPIRES</code> → the exact expiry date &amp; time, driven by the <strong>“Invitation expires after”</strong> dropdown below — change the dropdown and this updates to match.</li>
             </ul>
           </div>
@@ -130,7 +130,7 @@
             <legend class="invite-inputs-legend">Invitation settings</legend>
 
             <div class="form-group invite-target-group">
-              <label for="invite-target-job">Target registration event <span class="text-danger">*</span></label>
+              <label for="invite-target-job">{{ inviteKind()?.targetLabel }} <span class="text-danger">*</span></label>
               @if (targetJobOptions().length === 0) {
                 <div class="alert alert-warning py-2 mb-0">
                   No eligible events found for invite links. An invitation needs at least one other event under the same customer.

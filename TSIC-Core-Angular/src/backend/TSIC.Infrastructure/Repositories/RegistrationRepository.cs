@@ -1265,6 +1265,18 @@ public class RegistrationRepository : IRegistrationRepository
         return await _context.Registrations.FindAsync(registrationId);
     }
 
+    public async Task<bool> IsActiveClubRepOnJobAsync(
+        Guid jobId, Guid registrationId, string userId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .AnyAsync(r => r.RegistrationId == registrationId
+                        && r.JobId == jobId
+                        && r.UserId == userId
+                        && r.RoleId == RoleConstants.ClubRep
+                        && r.BActive == true, cancellationToken);
+    }
+
     public async Task<Guid?> GetActiveAssignedTeamIdAsync(
         Guid registrationId, CancellationToken cancellationToken = default)
     {

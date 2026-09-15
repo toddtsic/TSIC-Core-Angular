@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
@@ -67,7 +67,7 @@ public class JobFilterTreeController : ControllerBase
         }
 
         var tree = await _repo.GetForJobAsync(jobId.Value, ct);
-        if (!await User.CanViewScheduleAsync(jobId.Value, _jobLookupService, _viewScheduleService, ct))
+        if (!await HttpContext.CanViewScheduleAsync(jobId.Value, _jobLookupService, _viewScheduleService, ct))
             tree = WithoutScheduleFlags(tree);
         return Ok(tree);
     }

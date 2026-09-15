@@ -23,14 +23,15 @@ public interface IViewScheduleService
 
     /// <summary>
     /// THE schedule visibility rule. A released schedule (BScheduleAllowPublicAccess) is open to
-    /// everyone. An unreleased one is open only to a caller logged in to THAT job as Superuser,
-    /// Director, SuperDirector or Scorer. Anonymous, Club Rep, Player, Staff, Family and every other
-    /// role see nothing until release. Every surface that serves schedule-derived data uses this rule.
+    /// everyone. An unreleased one is open only to a caller logged in to THAT job as:
+    ///   - Superuser, Director, SuperDirector or Scorer; or
+    ///   - Club Rep holding a schedule-preview invite for THIS job and THIS user, unexpired, while the
+    ///     job's preview door is open (flag on, not public, not expired) and the rep's registration is active.
+    /// Everyone else sees nothing until release. Every surface serving schedule-derived data uses this rule.
     /// </summary>
     /// <param name="jobId">The job whose schedule data would be served.</param>
-    /// <param name="callerJobId">The job the caller's token is for; null when anonymous.</param>
-    /// <param name="callerRole">The caller's role name; null when anonymous.</param>
-    Task<bool> CanViewScheduleAsync(Guid jobId, Guid? callerJobId, string? callerRole, CancellationToken ct = default);
+    /// <param name="viewer">Who is asking — anonymous is <see cref="ScheduleViewer.Anonymous"/>.</param>
+    Task<bool> CanViewScheduleAsync(Guid jobId, ScheduleViewer viewer, CancellationToken ct = default);
 
     /// <summary>The job that owns a game. Null = game not found.</summary>
     Task<Guid?> GetGameJobIdAsync(int gid, CancellationToken ct = default);

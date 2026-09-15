@@ -13,6 +13,7 @@ using TSIC.Application.Services.Players;
 using TSIC.Application.Services.Shared.Html;
 using TSIC.Application.Services.Shared.Text;
 using TSIC.API.Services.Shared.Utilities;
+using TSIC.API.Services.Invites;
 
 namespace TSIC.API.Services.Shared.TextSubstitution;
 
@@ -493,25 +494,35 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             && inviteExpires.HasValue
             && !string.IsNullOrEmpty(recipientUserId);
 
-        string BuildInviteLink(string wizardSegment, string linkText)
+        // pathAndQuery is everything after the target job path; the token is appended to it.
+        string BuildInviteLink(InvitePurpose purpose, string pathAndQuery, string linkText)
         {
-            var token = _inviteTokens.Create(inviteTargetJobId!.Value, recipientUserId!, inviteExpires!.Value);
-            var url = $"{_frontendBaseUrl}/{inviteTargetJobPath}/registration/{wizardSegment}?invite={WebUtility.UrlEncode(token)}";
+            var token = _inviteTokens.Create(purpose, inviteTargetJobId!.Value, recipientUserId!, inviteExpires!.Value);
+            var url = $"{_frontendBaseUrl}/{inviteTargetJobPath}/{pathAndQuery}{WebUtility.UrlEncode(token)}";
             return $"<a href=\"{url}\">{linkText}{forTargetJob}</a>";
         }
 
         if (template.Contains("!CLUBREP_INVITE_LINK", StringComparison.OrdinalIgnoreCase))
         {
             tokens["!CLUBREP_INVITE_LINK"] = canBuildInvite
-                ? BuildInviteLink("team", "Click here to register by invitation as Club Rep")
+                ? BuildInviteLink(InvitePurpose.Registration, "registration/team?invite=", "Click here to register by invitation as Club Rep")
                 : "[CLUBREP INVITE LINK — target job not configured]";
         }
 
         if (template.Contains("!INVITE_LINK", StringComparison.OrdinalIgnoreCase))
         {
             tokens["!INVITE_LINK"] = canBuildInvite
-                ? BuildInviteLink("player", "Click here to register by invitation as Player")
+                ? BuildInviteLink(InvitePurpose.Registration, "registration/player?invite=", "Click here to register by invitation as Player")
                 : "[INVITE LINK — target job not configured]";
+        }
+
+        // Schedule preview: the token rides in the URL FRAGMENT, which browsers never send to a server,
+        // so it stays out of IIS logs. The page captures it and presents it as a request header.
+        if (template.Contains("!SCHEDULE_PREVIEW_LINK", StringComparison.OrdinalIgnoreCase))
+        {
+            tokens["!SCHEDULE_PREVIEW_LINK"] = canBuildInvite
+                ? BuildInviteLink(InvitePurpose.SchedulePreview, "schedule#preview=", "Click here to preview the schedule")
+                : "[SCHEDULE PREVIEW LINK — not configured]";
         }
 
         // Expiry text — sourced from the SAME instant that stamps the token's exp, so the email can

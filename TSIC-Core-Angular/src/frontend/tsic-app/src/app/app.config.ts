@@ -3,6 +3,7 @@ import { provideRouter, withInMemoryScrolling, withNavigationErrorHandler, withR
 import { provideHttpClient, withInterceptors, withXhr } from '@angular/common/http';
 import { authInterceptor } from './infrastructure/interceptors/auth.interceptor';
 import { clientTagInterceptor } from './infrastructure/interceptors/client-tag.interceptor';
+import { schedulePreviewInterceptor } from './infrastructure/interceptors/schedule-preview.interceptor';
 
 import { routes } from './app.routes';
 import { chunkLoadRecoveryHandler } from './infrastructure/navigation/chunk-load-recovery';
@@ -29,7 +30,8 @@ export const appConfig: ApplicationConfig = {
       // clientTag FIRST: it stamps ?xc= before auth clones the request, so the tag is
       // present on every path through the auth interceptor -- including the login and
       // refresh short-circuits, which are exactly the calls worth attributing to a client.
-      withInterceptors([clientTagInterceptor, authInterceptor])
+      // schedulePreview also ahead of auth, so a refresh-and-retry keeps the preview header.
+      withInterceptors([clientTagInterceptor, schedulePreviewInterceptor, authInterceptor])
     ),
     // "After I deploy, users get the new code": compare the served build stamp to ours on every
     // URL change and reload once when it differs. See infrastructure/services/app-version.service.

@@ -197,7 +197,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         // may enter. This is the authoritative enforcement; the frontend guard is only a pre-check.
         var regStatus = await _jobs.GetRegistrationStatusAsync(jobId.Value);
         if (regStatus?.BTeamRegRequiresToken == true
-            && !_inviteTokens.IsValidFor(inviteToken, jobId.Value, userId))
+            && !_inviteTokens.IsValidFor(TSIC.API.Services.Invites.InvitePurpose.Registration, inviteToken, jobId.Value, userId))
         {
             _logger.LogWarning("Initialize-registration blocked for job {JobPath}: missing/invalid invitation for user {UserId}.", jobPath, userId);
             throw new InvalidOperationException("This event requires a valid invitation to register a team. Please use the invitation link from your email.");

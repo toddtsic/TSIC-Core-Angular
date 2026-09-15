@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, ElementRef, signal, computed, input, output, inject, viewChild, OnInit, OnDestroy } from '@angular/core';
+﻿import { Component, ChangeDetectionStrategy, ElementRef, signal, computed, input, output, inject, viewChild, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { EmailBodyEditorComponent } from '@shared-ui/components/email-body-editor/email-body-editor.component';
@@ -19,7 +19,7 @@ import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/con
 // Invite tokens are NEVER hand-picked from the palette — they are SEEDED by the "Invite" action,
 // which knows the role and pre-places the correct personalized link + expiry text. Offering them in
 // the palette let an admin drop the wrong invitation (or an invite into a plain email) by hand.
-export type InviteMode = 'player' | 'clubrep';
+export type InviteMode = 'player' | 'clubrep' | 'schedule-preview';
 
 // Selectable lifetimes (hours) for the signed invite token. Short by design — magic-link style.
 const INVITE_EXPIRY_OPTIONS = [6, 12, 24, 48, 72] as const;
@@ -31,11 +31,20 @@ const DEFAULT_INVITE_EXPIRY_HOURS = 24;
 // to the admin's CURRENT job) keeps the copy honest about which event the recipient is invited to.
 const EVENT_INVITED_TO_TOKEN = '!EVENT_INVITEDTO';
 
-/** Seed content for an invite send. The link (!INVITE_LINK / !CLUBREP_INVITE_LINK) and the expiry
+/** One invite kind: seed content plus the words the modal uses for it. The link token and the expiry
  *  (!INVITE_EXPIRES) are resolved per recipient server-side; !EVENT_INVITEDTO is filled client-side
  *  from the target-event dropdown. The admin can edit the surrounding copy but must keep the link
  *  token (a send-time guard enforces this). */
-const INVITE_TEMPLATES: Record<InviteMode, { subject: string; body: string }> = {
+interface InviteKind {
+  subject: string;
+  body: string;
+  linkToken: string;
+  /** What the link is, for the guidance list. */
+  linkDescription: string;
+  targetLabel: string;
+}
+
+const INVITE_KINDS: Record<InviteMode, InviteKind> = {
   player: {
     subject: 'You\'re invited to register for !EVENT_INVITEDTO',
     body:
@@ -43,6 +52,9 @@ const INVITE_TEMPLATES: Record<InviteMode, { subject: string; body: string }> = 
       '<p>You\'ve been invited to register for !EVENT_INVITEDTO. Use your personalized link below:</p>' +
       '<p>!INVITE_LINK</p>' +
       '<p>This invitation is unique to you and expires on !INVITE_EXPIRES. Please complete your registration before then.</p>',
+    linkToken: '!INVITE_LINK',
+    linkDescription: 'unique, single-use registration link',
+    targetLabel: 'Target registration event',
   },
   clubrep: {
     subject: 'You\'re invited to register your team for !EVENT_INVITEDTO',
@@ -51,8 +63,27 @@ const INVITE_TEMPLATES: Record<InviteMode, { subject: string; body: string }> = 
       '<p>You\'ve been invited to register your club/team for !EVENT_INVITEDTO. Use your personalized link below:</p>' +
       '<p>!CLUBREP_INVITE_LINK</p>' +
       '<p>This invitation is unique to you and expires on !INVITE_EXPIRES. Please complete your registration before then.</p>',
+    linkToken: '!CLUBREP_INVITE_LINK',
+    linkDescription: 'unique, single-use registration link',
+    targetLabel: 'Target registration event',
+  },
+  // Club Reps of THIS event, before the schedule is public. The server offers exactly this event as the
+  // target, re-checks the recipients at send, and re-checks the invite on every schedule request.
+  'schedule-preview': {
+    subject: 'Preview the schedule for !EVENT_INVITEDTO',
+    body:
+      '<p>Hi !PERSON,</p>' +
+      '<p>The schedule for !EVENT_INVITEDTO is not public yet, and you\'re invited to preview it. ' +
+      'Use your personalized link below and log in as Club Rep:</p>' +
+      '<p>!SCHEDULE_PREVIEW_LINK</p>' +
+      '<p>This link is unique to you. View by !INVITE_EXPIRES.</p>',
+    linkToken: '!SCHEDULE_PREVIEW_LINK',
+    linkDescription: 'unique schedule preview link',
+    targetLabel: 'Event',
   },
 };
+
+const INVITE_LINK_TOKENS = [...new Set(Object.values(INVITE_KINDS).map(k => k.linkToken))];
 
 @Component({
   selector: 'app-batch-email-modal',
@@ -167,7 +198,7 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
 
   readonly requiresInviteLink = computed(() => {
     const body = this.bodyTemplate();
-    return body.includes('!INVITE_LINK') || body.includes('!CLUBREP_INVITE_LINK');
+    return INVITE_LINK_TOKENS.some(t => body.includes(t));
   });
 
   /** Body of the send-confirmation dialog. Built here rather than in the template so the
@@ -186,11 +217,11 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
    *  it has to be self-contained. */
   readonly confirmSendLabel = computed(() => `Yes, Send to ${this.recipientCount().toLocaleString()} Recipient(s)`);
 
-  /** The link token the active invite mode uses — surfaced in the guidance panel so the admin
-   *  keeps the right one in the body. Club reps register teams; players register themselves. */
-  readonly inviteLinkToken = computed(() =>
-    this.inviteMode() === 'clubrep' ? '!CLUBREP_INVITE_LINK' : '!INVITE_LINK'
-  );
+  /** The active invite kind — its link token and wording feed the guidance panel and pickers. */
+  readonly inviteKind = computed(() => {
+    const mode = this.inviteMode();
+    return mode ? INVITE_KINDS[mode] : null;
+  });
 
   /** Display name of the selected target event — the value !EVENT_INVITEDTO is filled with. */
   private selectedInviteTargetJobName(): string {
@@ -224,9 +255,8 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     // Invite send: seed the role's template and default the pickers. The eligible target list is
     // passed in from the job-scoped init load (no per-open fetch). Auto-select when there's exactly one.
-    const mode = this.inviteMode();
-    if (mode) {
-      const seed = INVITE_TEMPLATES[mode];
+    const seed = this.inviteKind();
+    if (seed) {
       this.subject.set(seed.subject);
       this.bodyTemplate.set(seed.body);
       this.lastAppliedTemplate.set({ subject: seed.subject, body: seed.body });
@@ -246,7 +276,7 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
   }
 
   /** Eligible target events for the active invite role — supplied by the parent from the
-   *  job-scoped init load (RegistrationFilterOptionsDto.eligible{Player,ClubRep}InviteTargetJobs). */
+   *  job-scoped init load (RegistrationFilterOptionsDto.eligible{Player,ClubRep,SchedulePreview}InviteTargetJobs). */
   readonly targetJobOptions = computed(() => this.inviteTargetJobs());
 
   applyTemplate(template: EmailTemplate): void {

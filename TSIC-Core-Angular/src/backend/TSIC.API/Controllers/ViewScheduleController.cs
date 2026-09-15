@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TSIC.API.Extensions;
@@ -73,7 +73,7 @@ public class ViewScheduleController : ControllerBase
 
     /// <summary>Whether the caller may see <paramref name="jobId"/>'s schedule.</summary>
     private Task<bool> CallerCanViewAsync(Guid jobId, CancellationToken ct) =>
-        User.CanViewScheduleAsync(jobId, _jobLookupService, _service, ct);
+        HttpContext.CanViewScheduleAsync(jobId, _jobLookupService, _service, ct);
 
     /// <summary>
     /// THE refusal for schedule data. Unreleased, not permitted, unknown event, unknown game or team: all

@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Dtos;
@@ -87,7 +87,7 @@ public class EventBrowseController : ControllerBase
         [FromQuery] DateTime? preferredGameDate,
         CancellationToken ct)
     {
-        if (!await User.CanViewScheduleAsync(jobId, _jobLookupService, _viewScheduleService, ct))
+        if (!await HttpContext.CanViewScheduleAsync(jobId, _jobLookupService, _viewScheduleService, ct))
             return ViewScheduleController.ScheduleNotAvailable();
 
         var result = await _eventBrowseService.GetActiveGamesAsync(jobId, preferredGameDate, ct);

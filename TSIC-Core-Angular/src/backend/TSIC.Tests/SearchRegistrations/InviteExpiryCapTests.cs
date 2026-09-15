@@ -37,14 +37,21 @@ public class InviteExpiryCapTests
         var reg = b.AddRegistration(job.JobId, user.Id, role.Id, feeTotal: 0m);
         await b.SaveAsync();
 
+        return (BuildService(ctx, new Mock<IJobRepository>().Object), job.JobId, reg.RegistrationId);
+    }
+
+    /// <summary>The batch-send service over <paramref name="ctx"/>; everything the invite checks don't read is mocked.</summary>
+    internal static RegistrationSearchService BuildService(
+        Infrastructure.Data.SqlDbContext.SqlDbContext ctx, IJobRepository jobRepo)
+    {
         var deviceRepo = new Mock<IDeviceRepository>();
         deviceRepo.Setup(d => d.GetDeviceRegistrationIdsByRegistrationAsync(
                 It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<DeviceRegistrationIds>());
 
-        var svc = new RegistrationSearchService(
+        return new RegistrationSearchService(
             new RegistrationRepository(ctx), new RegistrationAccountingRepository(ctx),
-            new Mock<IJobRepository>().Object, new FamiliesRepository(ctx), deviceRepo.Object,
+            jobRepo, new FamiliesRepository(ctx), deviceRepo.Object,
             new TeamRepository(ctx), new Mock<IAdnApiService>().Object,
             new Mock<IAdnReversalService>().Object, new Mock<IArbSubscriptionRepository>().Object,
             new Mock<ITextSubstitutionService>().Object,
@@ -59,8 +66,6 @@ public class InviteExpiryCapTests
             new Mock<IAdultRegistrationService>().Object,
             new Mock<TSIC.API.Services.Teams.ITeamRegistrationService>().Object,
             new Mock<ILogger<RegistrationSearchService>>().Object);
-
-        return (svc, job.JobId, reg.RegistrationId);
     }
 
     private static BatchEmailRequest InviteRequest(Guid regId, int? hours) => new()

@@ -366,6 +366,15 @@ public interface IJobRepository
         Guid jobId, Dtos.RegistrationSearch.InviteRegistrationKind kind, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// THE schedule-preview door: the job as a preview-invite target, or null when preview invites are
+    /// closed — BAllowClubRepSchedulePreview off (the director's kill switch), schedule already public, or
+    /// the event expired for users. Offering the Invite button, sending the invite and honoring it on every
+    /// schedule request all ask this one question.
+    /// </summary>
+    Task<Dtos.RegistrationSearch.JobOptionDto?> GetSchedulePreviewInviteTargetAsync(
+        Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get all job IDs belonging to the same customer as the specified job.
     /// Used for Director field scoping — Directors see fields historically used by any of their customer's jobs.
     /// </summary>

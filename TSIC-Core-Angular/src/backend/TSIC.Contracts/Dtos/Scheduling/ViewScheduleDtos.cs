@@ -546,6 +546,23 @@ public record FieldDisplayDto
 // ══════════════════════════════════════════════════════════════════════
 
 /// <summary>
+/// Who is asking to see a schedule — the input to IViewScheduleService.CanViewScheduleAsync. Built from the
+/// caller's login claims plus the schedule-preview invite token the page presents. Server-side only.
+/// </summary>
+public record ScheduleViewer
+{
+    /// <summary>The job the caller's login is for; null when anonymous or Phase 1.</summary>
+    public Guid? JobId { get; init; }
+    public Guid? RegistrationId { get; init; }
+    public string? UserId { get; init; }
+    public string? Role { get; init; }
+    /// <summary>A schedule-preview invite token, when the page presents one.</summary>
+    public string? PreviewToken { get; init; }
+
+    public static readonly ScheduleViewer Anonymous = new();
+}
+
+/// <summary>
 /// Capability flags returned alongside filter options — tells the frontend
 /// what features are available for this job/user combination.
 /// </summary>

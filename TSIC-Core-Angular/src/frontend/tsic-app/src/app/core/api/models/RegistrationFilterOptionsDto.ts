@@ -23,5 +23,6 @@ export type RegistrationFilterOptionsDto = {
     clubRepClubs: Array<FilterOption>;
     eligiblePlayerInviteTargetJobs?: Array<JobOptionDto>;
     eligibleClubRepInviteTargetJobs?: Array<JobOptionDto>;
+    eligibleSchedulePreviewInviteTargetJobs?: Array<JobOptionDto>;
 };
 

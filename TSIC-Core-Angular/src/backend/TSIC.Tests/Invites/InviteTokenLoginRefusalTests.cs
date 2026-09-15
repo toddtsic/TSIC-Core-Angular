@@ -84,8 +84,8 @@ public class InviteTokenLoginRefusalTests
         return await client.SendAsync(request);
     }
 
-    private static string InviteToken() =>
-        new InviteTokenService(Config()).Create(Guid.NewGuid(), UserId, DateTime.Now.AddHours(24));
+    private static string InviteToken(InvitePurpose purpose = InvitePurpose.Registration) =>
+        new InviteTokenService(Config()).Create(purpose, Guid.NewGuid(), UserId, DateTime.Now.AddHours(24));
 
     private static string LoginToken() =>
         new TokenService(Config()).GenerateMinimalJwtToken(new ApplicationUser { Id = UserId, UserName = "rep@test.com" });
@@ -103,13 +103,15 @@ public class InviteTokenLoginRefusalTests
         (await response.Content.ReadAsStringAsync()).Should().Be(UserId);
     }
 
-    [Fact(DisplayName = "With the refusal hook, an invite token used as a Bearer login is rejected (401)")]
-    public async Task WithRefusal_InviteTokenRejected()
+    [Theory(DisplayName = "With the refusal hook, an invite token of any purpose used as a Bearer login is rejected (401)")]
+    [InlineData(InvitePurpose.Registration)]
+    [InlineData(InvitePurpose.SchedulePreview)]
+    public async Task WithRefusal_InviteTokenRejected(InvitePurpose purpose)
     {
         var (app, client) = await StartApiAsync(withRefusal: true);
         await using var _ = app;
 
-        var response = await CallWithBearerAsync(client, InviteToken());
+        var response = await CallWithBearerAsync(client, InviteToken(purpose));
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -145,8 +147,8 @@ public class InviteTokenLoginRefusalTests
     {
         var svc = new InviteTokenService(Config());
         var job = Guid.NewGuid();
-        var token = svc.Create(job, UserId, DateTime.Now.AddHours(24));
+        var token = svc.Create(InvitePurpose.Registration, job, UserId, DateTime.Now.AddHours(24));
 
-        svc.IsValidFor(token, job, UserId).Should().BeTrue();
+        svc.IsValidFor(InvitePurpose.Registration, token, job, UserId).Should().BeTrue();
     }
 }

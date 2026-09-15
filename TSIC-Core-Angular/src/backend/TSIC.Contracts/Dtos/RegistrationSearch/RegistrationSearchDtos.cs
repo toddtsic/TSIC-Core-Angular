@@ -200,6 +200,8 @@ public record RegistrationFilterOptionsDto
     // and the service layers these on via `with`.
     public List<JobOptionDto> EligiblePlayerInviteTargetJobs { get; init; } = [];
     public List<JobOptionDto> EligibleClubRepInviteTargetJobs { get; init; } = [];
+    // This job alone while its Club Rep schedule-preview door is open (flag on, not public, not expired); else empty.
+    public List<JobOptionDto> EligibleSchedulePreviewInviteTargetJobs { get; init; } = [];
 }
 
 public record FilterOption

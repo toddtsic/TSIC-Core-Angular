@@ -328,11 +328,8 @@ public interface IScheduleRepository
     /// </summary>
     Task<(bool allowPublicAccess, bool hideContacts, string sportName)> GetScheduleFlagsAsync(Guid jobId, CancellationToken ct = default);
 
-    /// <summary>
-    /// Schedule visibility flags for a job: BScheduleAllowPublicAccess (NULL reads as off) and
-    /// BAllowClubRepSchedulePreview. Both false for an unknown job.
-    /// </summary>
-    Task<(bool allowPublicAccess, bool allowClubRepPreview)> GetScheduleVisibilityFlagsAsync(Guid jobId, CancellationToken ct = default);
+    /// <summary>Whether the job's schedule is released to the public (BScheduleAllowPublicAccess; NULL reads as off). False for an unknown job.</summary>
+    Task<bool> IsSchedulePublicAsync(Guid jobId, CancellationToken ct = default);
 
     /// <summary>
     /// Return the subset of agegroup IDs where BChampionsByDivision = true.
