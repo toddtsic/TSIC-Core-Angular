@@ -1216,6 +1216,11 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
     }
 
     placeGame(row: ScheduleGridRow, colIndex: number): void {
+        // One placement at a time. The empty-cell and time-clash checks below read the grid,
+        // which only updates when the save returns, so a second trigger before then would
+        // place the same pairing again (seen in prod: 2-3 identical POSTs in one millisecond).
+        if (this.isPlacing()) return;
+
         const pairing = this.selectedPairing();
         const div = this.selectedDivision();
         const agId = this.selectedAgegroupId();
@@ -2310,6 +2315,10 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
     }
 
     rapidPlaceGame(): void {
+        // One placement at a time — see placeGame(). The Place button is disabled while saving,
+        // but Enter in the time input reaches here too.
+        if (this.isPlacing()) return;
+
         const pairing = this.rapidPairing();
         const field = this.rapidSelectedField();
         const time = this.rapidSelectedTime();

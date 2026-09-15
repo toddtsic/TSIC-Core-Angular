@@ -175,6 +175,13 @@ public interface IScheduleRepository
     void AddGame(Schedule game);
 
     /// <summary>
+    /// Insert a manually placed game ONLY if its job + field + G_Date slot is empty, and save it.
+    /// Returns false (nothing written) when the slot already holds a game. The check and the
+    /// insert are serialized per slot, so two simultaneous placements cannot both succeed.
+    /// </summary>
+    Task<bool> TryAddGameToOpenSlotAsync(Schedule game, CancellationToken ct = default);
+
+    /// <summary>
     /// Delete a single game and its cascade dependents (DeviceGids, BracketSeeds).
     /// </summary>
     Task DeleteGameAsync(int gid, CancellationToken ct = default);

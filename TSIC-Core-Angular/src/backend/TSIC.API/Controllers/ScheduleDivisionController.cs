@@ -123,8 +123,15 @@ public class ScheduleDivisionController : ControllerBase
         var (jobId, userId, error) = await ResolveContext();
         if (error != null) return error;
 
-        var result = await _service.PlaceGameAsync(jobId!.Value, userId!, request, ct);
-        return Ok(result);
+        try
+        {
+            var result = await _service.PlaceGameAsync(jobId!.Value, userId!, request, ct);
+            return Ok(result);
+        }
+        catch (ScheduleSlotTakenException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     /// <summary>POST /api/schedule-division/move-game — Move or swap a game to a new slot.</summary>

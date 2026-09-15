@@ -253,8 +253,17 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
             Modified = DateTime.Now
         };
 
-        _scheduleRepo.AddGame(game);
-        await _scheduleRepo.SaveChangesAsync(ct);
+        // One game per slot: refuse (409) rather than stack a second game on an occupied
+        // job + field + time. The grid already refuses an occupied cell, but only from its own
+        // copy of the grid, which a second request fired before the first returns never sees.
+        if (!await _scheduleRepo.TryAddGameToOpenSlotAsync(game, ct))
+        {
+            _logger.LogWarning(
+                "PlaceGame refused: slot taken — pairing {PairingAi} at {GDate} on field {FieldId}, job {JobId}",
+                request.PairingAi, request.GDate, request.FieldId, jobId);
+            throw new ScheduleSlotTakenException(
+                $"{field?.FName ?? "That field"} already has a game at {request.GDate:ddd M/d h:mm tt}. Refresh the grid to see it.");
+        }
 
         // Resolve team names from rank assignments (UpdateGameIds equivalent)
         await _scheduleRepo.SynchronizeScheduleTeamAssignmentsForDivisionAsync(request.DivId, jobId, userId, ct);

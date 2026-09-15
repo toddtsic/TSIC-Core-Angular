@@ -632,6 +632,57 @@ public sealed class ScheduleRepository : IScheduleRepository
         _context.Schedule.Add(game);
     }
 
+    public async Task<bool> TryAddGameToOpenSlotAsync(Domain.Entities.Schedule game, CancellationToken ct = default)
+    {
+        // One game per job + field + G_Date. Two placements into the same slot arriving together
+        // (a doubled click was seen in prod: 2-3 POSTs in the same millisecond) must not both see
+        // the slot empty, so the check and the insert run under an app lock keyed on that slot:
+        // the second waits for the first to commit, then sees its row and gets false.
+        //
+        // An app lock, NOT Serializable (as ExecuteWeatherAdjustmentAsync / TryCommitSeatAsync use):
+        // Leagues.schedule has no index on jobID/fieldID/G_Date, so a Serializable check scans and
+        // range-locks the whole table, escalates to a table lock, and blocks every other schedule
+        // writer — score entry, moves, legacy — for the length of the transaction. The app lock
+        // serializes only placements into this one slot; the check itself runs at the default
+        // isolation and locks no more than any other schedule read. No other code takes this
+        // lock, so it cannot deadlock with them.
+        if (game.FieldId is not { } fieldId || game.GDate is not { } gDate)
+            throw new ArgumentException("A placed game must have a field and a game date.", nameof(game));
+
+        await using var tx = await _context.Database.BeginTransactionAsync(ct);
+
+        var resource = new Microsoft.Data.SqlClient.SqlParameter("@resource", System.Data.SqlDbType.NVarChar, 255)
+        {
+            Value = $"schedule-slot|{game.JobId:N}|{fieldId:N}|{gDate:yyyyMMddHHmmss}"
+        };
+        var status = new Microsoft.Data.SqlClient.SqlParameter("@status", System.Data.SqlDbType.Int)
+        {
+            Direction = System.Data.ParameterDirection.Output
+        };
+        await _context.Database.ExecuteSqlRawAsync(
+            "EXEC @status = sp_getapplock @Resource = @resource, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 15000;",
+            new object[] { resource, status }, ct);
+
+        // 0 = granted, 1 = granted after waiting; negative = timed out, deadlock victim, or error.
+        if (status.Value is not int lockResult || lockResult < 0)
+            throw new InvalidOperationException(
+                $"Could not acquire the schedule slot lock (sp_getapplock returned {status.Value}).");
+
+        var occupied = await _context.Schedule
+            .AsNoTracking()
+            .AnyAsync(s => s.JobId == game.JobId && s.FieldId == fieldId && s.GDate == gDate, ct);
+        if (occupied)
+        {
+            await tx.RollbackAsync(ct);
+            return false;
+        }
+
+        _context.Schedule.Add(game);
+        await _context.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);   // releases the app lock (LockOwner = Transaction)
+        return true;
+    }
+
     public async Task DeleteGameAsync(int gid, CancellationToken ct = default)
     {
         // Cascade order: DeviceGids → BracketSeeds → Schedule
