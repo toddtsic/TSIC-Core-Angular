@@ -92,10 +92,45 @@
         is no Invite button for players at all.
       </li>
       <li>
-        At least one <strong>other</strong> event under your organization is still open and
-        accepting player registrations.
+        At least one <strong>other</strong> event under your organization has
+        <strong>Allow Player Registration</strong> switched on and hasn't expired. Without a
+        destination there is nothing to invite anyone to, so the button stays hidden.
       </li>
     </ul>
+    <p>
+      <strong>Turning the destination on.</strong> That switch lives on the <em>receiving</em> event,
+      not this one — switch to that event, then <em>Configure Job &rarr; Player</em>:
+    </p>
+    <div class="help-menu-list help-menu-list--compact">
+      <div class="help-menu-row">
+        <i class="bi bi-toggle-on" aria-hidden="true"></i>
+        <div class="help-menu-row__body">
+          <div class="help-menu-row__title">Allow Player Registration</div>
+          <div class="help-menu-row__sub">Player registration is enabled — families can register players.</div>
+        </div>
+      </div>
+      <div class="help-menu-row">
+        <i class="bi bi-toggle-off" aria-hidden="true"></i>
+        <div class="help-menu-row__body">
+          <div class="help-menu-row__title">Require Invitation Token</div>
+          <div class="help-menu-row__sub">Open registration — any player can register without an invite.</div>
+        </div>
+      </div>
+    </div>
+    <div class="help-callout help-callout--tip">
+      <i class="bi bi-lightbulb" aria-hidden="true"></i>
+      <div>
+        <strong>"Require Invitation Token" is optional — and it's the one that makes an invitation exclusive.</strong>
+        <p class="help-callout__body">
+          Leave it <em>off</em> and your invitation is a convenience: it takes players straight in,
+          but anyone else can still register normally. Switch it <em>on</em> and the invite link
+          becomes the <strong>only</strong> way into that event — which is what you want for an
+          invitation-only season built from tryout results. Either way the Invite button works the
+          same; this only controls who else can get in. It stays greyed out until Allow Player
+          Registration is on.
+        </p>
+      </div>
+    </div>
     <p><strong>What you'll see when the search is right:</strong></p>
     <div class="help-surface">
       <div class="help-flow">
@@ -171,8 +206,11 @@
       <li>This event is still open to its users — the opposite of the other two invitations.</li>
     </ul>
     <p>
-      Both switches sit together on the Scheduling tab, with a live description under each so you can
-      confirm the state at a glance:
+      <strong>Turning it on.</strong> Unlike the other two invitations, both switches are on
+      <em>this</em> event — no switching jobs. Go to <em>Configure Job &rarr; Scheduling</em>; they
+      sit together at the top of the tab, each with a live description underneath so you can confirm
+      the state at a glance. Tick <strong>Allow Club Rep Schedule Preview</strong>, leave
+      <strong>Allow Public Schedule Access</strong> unticked, and save:
     </p>
     <div class="help-menu-list help-menu-list--compact">
       <div class="help-menu-row">
@@ -272,10 +310,42 @@
       <li>Status filtered to <strong>Active only</strong>.</li>
       <li><strong>This event is past its user-expiry date</strong>, exactly as for player invitations.</li>
       <li>
-        At least one <strong>other</strong> event under your organization is still open and accepting
-        <em>team</em> registrations. An event taking players but not teams won't appear as a choice.
+        At least one <strong>other</strong> event under your organization has
+        <strong>Allow Team Registration</strong> switched on and hasn't expired. An event taking
+        players but not teams won't appear as a choice.
       </li>
     </ul>
+    <p>
+      <strong>Turning the destination on.</strong> As with player invitations, the switch is on the
+      <em>receiving</em> event — switch to it, then <em>Configure Job &rarr; Teams</em>:
+    </p>
+    <div class="help-menu-list help-menu-list--compact">
+      <div class="help-menu-row">
+        <i class="bi bi-toggle-on" aria-hidden="true"></i>
+        <div class="help-menu-row__body">
+          <div class="help-menu-row__title">Allow Team Registration</div>
+          <div class="help-menu-row__sub">Required — this is what puts the event in your target list.</div>
+        </div>
+      </div>
+      <div class="help-menu-row">
+        <i class="bi bi-toggle-off" aria-hidden="true"></i>
+        <div class="help-menu-row__body">
+          <div class="help-menu-row__title">Require Club Rep Invitation Token</div>
+          <div class="help-menu-row__sub">Optional — on means invited reps only.</div>
+        </div>
+      </div>
+    </div>
+    <div class="help-callout help-callout--tip">
+      <i class="bi bi-lightbulb" aria-hidden="true"></i>
+      <div>
+        <strong>Use "Require Club Rep Invitation Token" to run a returning-clubs-only window.</strong>
+        <p class="help-callout__body">
+          Switch it on and only reps holding an invite link can register a team — so you can give
+          last season's clubs first claim, then switch it off to open the event to everyone. Off, the
+          invitation still works; it just isn't exclusive.
+        </p>
+      </div>
+    </div>
     <div class="help-callout help-callout--info">
       <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
       <div>
