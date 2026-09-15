@@ -649,6 +649,18 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtSettings["Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
     };
+    options.Events = new JwtBearerEvents
+    {
+        // Invite tokens (InviteTokenService) share this key, issuer and audience, so they pass the
+        // validation above. An invite is NOT a login: it is a per-user stamp checked against a real
+        // login. Without this refusal an emailed invite link was a login as its recipient until expiry.
+        OnTokenValidated = context =>
+        {
+            if (context.Principal?.FindFirst(TSIC.API.Services.Invites.InviteTokenService.PurposeClaim) != null)
+                context.Fail("Invite tokens are not accepted as login tokens.");
+            return Task.CompletedTask;
+        }
+    };
 });
 
 // Add Authorization Policies

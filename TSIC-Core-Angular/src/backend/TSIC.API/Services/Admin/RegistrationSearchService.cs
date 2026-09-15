@@ -62,6 +62,9 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     private static readonly Guid CheckMethodId = Guid.Parse("32ECA575-A268-E111-9D56-F04DA202060D");
     private static readonly Guid CorrectionMethodId = Guid.Parse("33ECA575-A268-E111-9D56-F04DA202060D");
 
+    /// <summary>Longest invite lifetime a batch send may request — the top of the modal's expiry list.</summary>
+    private const int MaxInviteExpiryHours = 72;
+
     public RegistrationSearchService(
         IRegistrationRepository registrationRepo,
         IRegistrationAccountingRepository accountingRepo,
@@ -1116,6 +1119,9 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             // One expiry instant for the whole batch, so every emailed invite states the same deadline
             // and its signed token expires at exactly that moment. Local time (codebase runs local AZ).
             // Default 24h when the caller doesn't specify (matches the modal's default selection).
+            // Capped server-side: the modal offers at most 72h, and an invite's lifetime is its exposure window.
+            if (request.InviteExpiryHours > MaxInviteExpiryHours)
+                throw new InvalidOperationException($"Invitations can expire after at most {MaxInviteExpiryHours} hours.");
             inviteExpires = DateTime.Now.AddHours(request.InviteExpiryHours is > 0 ? request.InviteExpiryHours.Value : 24);
         }
 

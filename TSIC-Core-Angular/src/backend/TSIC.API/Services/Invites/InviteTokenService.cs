@@ -31,9 +31,10 @@ public interface IInviteTokenService
 
 public sealed class InviteTokenService : IInviteTokenService
 {
-    // Distinguishes an invite token from a login JWT signed with the same key. Both the mint and the
-    // check assert this claim, so neither token type can be replayed as the other.
-    private const string PurposeClaim = "purpose";
+    // Distinguishes an invite token from a login JWT signed with the same key. The mint and IsValidFor
+    // assert it here; the JWT bearer handler (Program.cs OnTokenValidated) refuses any token carrying it,
+    // so an invite can never stand in for the login it is checked against.
+    public const string PurposeClaim = "purpose";
     private const string PurposeValue = "registration-invite";
     private const string TargetJobClaim = "targetJobId";
 
