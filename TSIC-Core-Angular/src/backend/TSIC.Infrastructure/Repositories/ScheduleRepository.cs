@@ -1370,6 +1370,22 @@ public sealed class ScheduleRepository : IScheduleRepository
             .FirstOrDefaultAsync(ct) ?? "Soccer";
     }
 
+    public async Task<(bool allowPublicAccess, bool allowClubRepPreview)> GetScheduleVisibilityFlagsAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        var flags = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new
+            {
+                AllowPublic = j.BScheduleAllowPublicAccess == true,
+                j.BAllowClubRepSchedulePreview
+            })
+            .FirstOrDefaultAsync(ct);
+
+        return (flags?.AllowPublic ?? false, flags?.BAllowClubRepSchedulePreview ?? false);
+    }
+
     public async Task<(bool allowPublicAccess, bool hideContacts, string sportName)> GetScheduleFlagsAsync(
         Guid jobId, CancellationToken ct = default)
     {

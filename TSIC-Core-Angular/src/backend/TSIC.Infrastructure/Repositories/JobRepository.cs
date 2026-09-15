@@ -841,13 +841,20 @@ public class JobRepository : IJobRepository
                     // Factual event bounds from the published schedule (day-granular).
                     // The hero derives "in season" / "concluded" from these vs now,
                     // so a director toggle left on after the last game can't keep the
-                    // event looking live. Null when no games are scheduled.
-                    FirstGameDate = _context.Schedule
-                        .Where(s => s.JobId == j.JobId && s.GDate != null)
-                        .Min(s => (DateTime?)s.GDate),
-                    LastGameDate = _context.Schedule
-                        .Where(s => s.JobId == j.JobId && s.GDate != null)
-                        .Max(s => (DateTime?)s.GDate),
+                    // event looking live. Null when no games are scheduled — and null while the
+                    // schedule is unreleased: the pulse is public, and game dates are schedule data.
+                    // No consumer loses anything: derivePhase, scheduleLinkable and JobLifecycle all
+                    // read these only when SchedulePublished.
+                    FirstGameDate = j.BScheduleAllowPublicAccess == true
+                        ? _context.Schedule
+                            .Where(s => s.JobId == j.JobId && s.GDate != null)
+                            .Min(s => (DateTime?)s.GDate)
+                        : null,
+                    LastGameDate = j.BScheduleAllowPublicAccess == true
+                        ? _context.Schedule
+                            .Where(s => s.JobId == j.JobId && s.GDate != null)
+                            .Max(s => (DateTime?)s.GDate)
+                        : null,
                     EventStartDate = j.EventStartDate,
                     EventEndDate = j.EventEndDate,
                     EventConcluded = false, // computed post-projection (see door fold below)

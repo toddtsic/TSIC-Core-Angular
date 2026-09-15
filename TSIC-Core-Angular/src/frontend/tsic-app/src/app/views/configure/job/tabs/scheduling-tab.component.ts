@@ -21,6 +21,7 @@ export class SchedulingTabComponent implements OnInit {
   eventStartDate = linkedSignal(() => toDateOnly(this.svc.scheduling()?.eventStartDate) ?? null);
   eventEndDate = linkedSignal(() => toDateOnly(this.svc.scheduling()?.eventEndDate) ?? null);
   bScheduleAllowPublicAccess = linkedSignal(() => this.svc.scheduling()?.bScheduleAllowPublicAccess ?? null);
+  bAllowClubRepSchedulePreview = linkedSignal(() => this.svc.scheduling()?.bAllowClubRepSchedulePreview ?? false);
   // Positive UI framing: "Allow Public Roster Access" = inverse of the stored bRestrictPublicRosters flag.
   allowPublicRosterAccess = linkedSignal(() => !(this.svc.scheduling()?.bRestrictPublicRosters ?? false));
   bShowTeamNameOnlyInSchedules = linkedSignal(() => this.svc.scheduling()?.bShowTeamNameOnlyInSchedules ?? false);
@@ -45,6 +46,7 @@ export class SchedulingTabComponent implements OnInit {
       eventStartDate: toDateOnly(s.eventStartDate) ?? null,
       eventEndDate: toDateOnly(s.eventEndDate) ?? null,
       bScheduleAllowPublicAccess: s.bScheduleAllowPublicAccess,
+      bAllowClubRepSchedulePreview: s.bAllowClubRepSchedulePreview,
       bRestrictPublicRosters: s.bRestrictPublicRosters,
       bShowTeamNameOnlyInSchedules: s.bShowTeamNameOnlyInSchedules,
       gameClock: {
@@ -87,6 +89,7 @@ export class SchedulingTabComponent implements OnInit {
       eventStartDate: this.eventStartDate(),
       eventEndDate: this.eventEndDate(),
       bScheduleAllowPublicAccess: this.bScheduleAllowPublicAccess(),
+      bAllowClubRepSchedulePreview: this.bAllowClubRepSchedulePreview(),
       bRestrictPublicRosters: !this.allowPublicRosterAccess(),
       bShowTeamNameOnlyInSchedules: this.bShowTeamNameOnlyInSchedules(),
       gameClock: {

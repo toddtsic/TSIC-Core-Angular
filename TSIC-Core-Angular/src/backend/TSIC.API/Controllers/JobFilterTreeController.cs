@@ -4,6 +4,7 @@ using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
+using TSIC.Contracts.Services;
 
 namespace TSIC.API.Controllers;
 
@@ -20,20 +21,24 @@ public class JobFilterTreeController : ControllerBase
 {
     private readonly IJobFilterTreeRepository _repo;
     private readonly IJobLookupService _jobLookupService;
+    private readonly IViewScheduleService _viewScheduleService;
 
     public JobFilterTreeController(
         IJobFilterTreeRepository repo,
-        IJobLookupService jobLookupService)
+        IJobLookupService jobLookupService,
+        IViewScheduleService viewScheduleService)
     {
         _repo = repo;
         _jobLookupService = jobLookupService;
+        _viewScheduleService = viewScheduleService;
     }
 
     /// <summary>
     /// Returns both CADT and LADT trees for the job, with team-level metadata
     /// (IsScheduled, HasClubRep, PlayerCount) and agegroup-level flags
     /// (IsWaitlist, IsDropped). Supports the same dual auth as view-schedule:
-    /// authenticated user (regId claim) OR public access via jobPath query param.
+    /// jobPath query param (wins when given) OR authenticated user (regId claim).
+    /// IsScheduled is schedule data: it reads false for a caller who may not see the schedule.
     /// </summary>
     [AllowAnonymous]
     [HttpGet]
@@ -42,18 +47,19 @@ public class JobFilterTreeController : ControllerBase
     {
         Guid? jobId;
 
-        var regId = User.GetRegistrationId();
-        if (regId.HasValue)
-        {
-            jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
-            if (jobId == null)
-                return BadRequest(new { message = "Job context required" });
-        }
-        else if (!string.IsNullOrEmpty(jobPath))
+        // jobPath first, matching ViewScheduleController.ResolveContext: the tree must be for the
+        // event the page shows, not whichever event the caller happens to be logged in to.
+        if (!string.IsNullOrEmpty(jobPath))
         {
             jobId = await _jobLookupService.GetJobIdByPathAsync(jobPath);
             if (jobId == null)
                 return NotFound(new { message = "Job not found" });
+        }
+        else if (User.GetRegistrationId().HasValue)
+        {
+            jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+            if (jobId == null)
+                return BadRequest(new { message = "Job context required" });
         }
         else
         {
@@ -61,6 +67,30 @@ public class JobFilterTreeController : ControllerBase
         }
 
         var tree = await _repo.GetForJobAsync(jobId.Value, ct);
+        if (!await User.CanViewScheduleAsync(jobId.Value, _jobLookupService, _viewScheduleService, ct))
+            tree = WithoutScheduleFlags(tree);
         return Ok(tree);
     }
+
+    /// <summary>The same tree with every team's IsScheduled cleared — reveals nothing about the schedule.</summary>
+    internal static JobFilterTreeDto WithoutScheduleFlags(JobFilterTreeDto tree) => tree with
+    {
+        Cadt = [.. tree.Cadt.Select(club => club with
+        {
+            Agegroups = [.. club.Agegroups.Select(ag => ag with
+            {
+                Divisions = [.. ag.Divisions.Select(div => div with
+                {
+                    Teams = [.. div.Teams.Select(t => t with { IsScheduled = false })]
+                })]
+            })]
+        })],
+        Ladt = [.. tree.Ladt.Select(ag => ag with
+        {
+            Divisions = [.. ag.Divisions.Select(div => div with
+            {
+                Teams = [.. div.Teams.Select(t => t with { IsScheduled = false })]
+            })]
+        })]
+    };
 }

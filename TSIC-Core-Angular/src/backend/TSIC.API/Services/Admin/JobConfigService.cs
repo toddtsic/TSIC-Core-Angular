@@ -443,6 +443,7 @@ public class JobConfigService : IJobConfigService
         job.EventStartDate = req.EventStartDate;
         job.EventEndDate = req.EventEndDate;
         job.BScheduleAllowPublicAccess = req.BScheduleAllowPublicAccess;
+        job.BAllowClubRepSchedulePreview = req.BAllowClubRepSchedulePreview;
         job.BRestrictPublicRosters = req.BRestrictPublicRosters;
         job.BShowTeamNameOnlyInSchedules = req.BShowTeamNameOnlyInSchedules;
 
@@ -876,6 +877,7 @@ public class JobConfigService : IJobConfigService
         EventStartDate = job.EventStartDate,
         EventEndDate = job.EventEndDate,
         BScheduleAllowPublicAccess = job.BScheduleAllowPublicAccess,
+        BAllowClubRepSchedulePreview = job.BAllowClubRepSchedulePreview,
         BRestrictPublicRosters = job.BRestrictPublicRosters,
         BShowTeamNameOnlyInSchedules = job.BShowTeamNameOnlyInSchedules,
         // SuperUser-only

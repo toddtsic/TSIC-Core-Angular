@@ -90,7 +90,7 @@ interface FilterChip {
                     <app-checklist-back-link />
                     <i class="bi bi-eye page-title-icon" aria-hidden="true"></i>
                     Schedule Viewer
-                    @if (activeTab() === 'games') {
+                    @if (activeTab() === 'games' && !scheduleUnreleased()) {
                         <span class="badge-count">{{ gameCountLabel() }}</span>
                     }
                 </h2>
@@ -100,6 +100,12 @@ interface FilterChip {
                         (expand)="gameClockVisible.set(true)" />
                 }
             </div>
+
+            @if (scheduleUnreleased()) {
+                <div class="schedule-unreleased" role="status">
+                    <i class="bi bi-calendar-x me-2" aria-hidden="true"></i>This schedule has not been released yet.
+                </div>
+            } @else {
 
             <!-- ═══ Desktop Filter Bar (≥992px) ═══ -->
             <div class="desktop-filter-bar">
@@ -369,6 +375,7 @@ interface FilterChip {
                     }
                 }
             </div>
+            } <!-- end @else: schedule released to this viewer -->
         </div>
 
         <!-- ═══ Mobile Filter Modal (<992px) ═══ -->
@@ -1020,6 +1027,13 @@ interface FilterChip {
             margin-bottom: calc(-1 * var(--space-2));
         }
 
+        /* Server refused the schedule (not released to this viewer) — nothing else renders. */
+        .schedule-unreleased {
+            padding: var(--space-6) var(--space-4);
+            color: var(--bs-secondary-color);
+            text-align: center;
+        }
+
         /* Brackets view: the toolbar pulls space-2 off its bottom to tuck the data grid
            up under the tabs. The bracket flight selector needs air, so on the Brackets
            tab cancel that pull (space-2) and add space-3 of real padding below the tabs. */
@@ -1224,6 +1238,8 @@ export class ViewScheduleComponent implements OnInit {
     // ── Filter options + capabilities ──
     readonly filterOptions = signal<ScheduleFilterOptionsDto | null>(null);
     readonly capabilities = signal<ScheduleCapabilitiesDto | null>(null);
+    /** The schedule is not released to this viewer (capabilities.canView false) — show the notice, load nothing. */
+    readonly scheduleUnreleased = signal(false);
     readonly filterModalVisible = signal(false);
 
     // Sandbox gate for the dev-only age-group seed tool (staging's `production` flag
@@ -1495,24 +1511,30 @@ export class ViewScheduleComponent implements OnInit {
         // first /games request honors the saved selection (no extra round-trip).
         this.restoreFiltersFromStorage();
 
-        this.svc.getFilterOptions(this.jobPath).subscribe(opts => {
-            this.filterOptions.set(opts);
-        });
-
-        this.jobFilterTreeSvc.getForJob(this.jobPath).subscribe(tree => {
-            this.cadtTree.set(tree.cadt);
-            this.ladtTree.set(tree.ladt);
-            // After the tree arrives we can attempt the family-roster seed (one-shot,
-            // skipped if a localStorage entry already exists for this tournament).
-            this.maybeSeedFromFamilyRoster();
-        });
-
+        // Capabilities first: it is the one ungated endpoint, and its canView verdict decides
+        // whether anything else is requested. Every schedule-data endpoint 403s when it is false.
         this.svc.getCapabilities(this.jobPath).subscribe(caps => {
             this.capabilities.set(caps);
-        });
+            if (!caps.canView) {
+                this.scheduleUnreleased.set(true);
+                return;
+            }
 
-        this.loadTabData(initialTab);
-        this.probeGameClock();
+            this.svc.getFilterOptions(this.jobPath).subscribe(opts => {
+                this.filterOptions.set(opts);
+            });
+
+            this.jobFilterTreeSvc.getForJob(this.jobPath).subscribe(tree => {
+                this.cadtTree.set(tree.cadt);
+                this.ladtTree.set(tree.ladt);
+                // After the tree arrives we can attempt the family-roster seed (one-shot,
+                // skipped if a localStorage entry already exists for this tournament).
+                this.maybeSeedFromFamilyRoster();
+            });
+
+            this.loadTabData(initialTab);
+            this.probeGameClock();
+        });
     }
 
     /**

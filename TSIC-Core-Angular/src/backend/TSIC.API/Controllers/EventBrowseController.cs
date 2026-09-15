@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using TSIC.API.Extensions;
+using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Services;
 
@@ -13,10 +15,17 @@ namespace TSIC.API.Controllers;
 public class EventBrowseController : ControllerBase
 {
     private readonly IEventBrowseService _eventBrowseService;
+    private readonly IJobLookupService _jobLookupService;
+    private readonly IViewScheduleService _viewScheduleService;
 
-    public EventBrowseController(IEventBrowseService eventBrowseService)
+    public EventBrowseController(
+        IEventBrowseService eventBrowseService,
+        IJobLookupService jobLookupService,
+        IViewScheduleService viewScheduleService)
     {
         _eventBrowseService = eventBrowseService;
+        _jobLookupService = jobLookupService;
+        _viewScheduleService = viewScheduleService;
     }
 
     /// <summary>
@@ -68,14 +77,24 @@ public class EventBrowseController : ControllerBase
 
     /// <summary>
     /// Get currently-live or next-upcoming games for an event (drives countdown-clock UI).
+    /// Schedule data, so gated by the same visibility rule as api/view-schedule.
     /// </summary>
     [HttpGet("{jobId:guid}/active-games")]
     [ProducesResponseType(typeof(GameClockAvailableGameTimesDto), 200)]
+    [ProducesResponseType(403)]
     public async Task<IActionResult> GetActiveGames(
         Guid jobId,
         [FromQuery] DateTime? preferredGameDate,
         CancellationToken ct)
     {
+        if (!await User.CanViewScheduleAsync(jobId, _jobLookupService, _viewScheduleService, ct))
+            return StatusCode(StatusCodes.Status403Forbidden, new ProblemDetails
+            {
+                Status = StatusCodes.Status403Forbidden,
+                Title = "Schedule not released",
+                Detail = "This schedule has not been released yet."
+            });
+
         var result = await _eventBrowseService.GetActiveGamesAsync(jobId, preferredGameDate, ct);
         return Ok(result);
     }

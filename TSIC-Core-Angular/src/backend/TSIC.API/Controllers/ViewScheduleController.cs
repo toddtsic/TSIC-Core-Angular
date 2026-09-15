@@ -11,12 +11,15 @@ namespace TSIC.API.Controllers;
 /// <summary>
 /// Consumer-facing schedule viewer (009-5).
 /// Supports both authenticated admin/coach access and public access mode.
-/// Public endpoints check Job.BScheduleAllowPublicAccess before serving data.
+/// Every schedule-data endpoint is gated by <see cref="IViewScheduleService.CanViewScheduleAsync"/>:
+/// an unreleased schedule (BScheduleAllowPublicAccess off) returns 403 to anyone the rule excludes.
 /// </summary>
 [ApiController]
 [Route("api/view-schedule")]
 public class ViewScheduleController : ControllerBase
 {
+    private const string NotReleasedMessage = "This schedule has not been released yet.";
+
     private readonly IViewScheduleService _service;
     private readonly IJobLookupService _jobLookupService;
 
@@ -30,46 +33,64 @@ public class ViewScheduleController : ControllerBase
 
     /// <summary>
     /// Resolve jobId from either:
-    /// 1. Authenticated user's regId claim (standard path)
-    /// 2. jobPath query parameter (public access path)
-    /// Returns (jobId, userId, isAdmin, error).
+    /// 1. jobPath query parameter — the event the page is showing, whether or not the caller is logged in
+    /// 2. Authenticated user's regId claim — admin surfaces that pass no jobPath
+    /// Returns (jobId, userId, isAdmin, error). isAdmin holds only when the caller's login is for THIS job.
     /// </summary>
     private async Task<(Guid? jobId, string? userId, bool isAdmin, ActionResult? error)> ResolveContext(
         string? jobPath = null)
     {
-        // Try authenticated path first
-        var regId = User.GetRegistrationId();
-        if (regId.HasValue)
-        {
-            var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
-            if (jobId == null)
-                return (null, null, false, BadRequest(new { message = "Schedule context required" }));
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var callerJobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
 
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            // Check role using both mapped (ClaimTypes.Role) and unmapped ("role") claim types.
-            // .NET 10's JsonWebTokenHandler may not remap "role" → ClaimTypes.Role.
-            var roleName = User.FindFirstValue(ClaimTypes.Role)
-                ?? User.FindFirstValue("role");
-            var isAdmin = roleName is "Superuser" or "Director" or "SuperDirector" or "Scorer";
-
-            return (jobId, userId, isAdmin, null);
-        }
-
-        // Public access path — resolve from jobPath
+        // jobPath wins when given. Preferring the login's job served the logged-in event's schedule
+        // on another event's page, and its admin rights with it.
         if (!string.IsNullOrEmpty(jobPath))
         {
             var jobId = await _jobLookupService.GetJobIdByPathAsync(jobPath);
             if (jobId == null)
                 return (null, null, false, NotFound(new { message = "Schedule not found" }));
 
-            return (jobId, null, false, null);
+            return (jobId, userId, callerJobId == jobId && IsAdminRole(), null);
+        }
+
+        if (User.GetRegistrationId().HasValue)
+        {
+            if (callerJobId == null)
+                return (null, null, false, BadRequest(new { message = "Schedule context required" }));
+
+            return (callerJobId, userId, IsAdminRole(), null);
         }
 
         return (null, null, false, Unauthorized(new { message = "Authentication or jobPath required" }));
     }
 
+    private bool IsAdminRole() => CallerRole() is "Superuser" or "Director" or "SuperDirector" or "Scorer";
+
+    /// <summary>The caller's role name; null when anonymous.</summary>
+    private string? CallerRole() =>
+        // Check role using both mapped (ClaimTypes.Role) and unmapped ("role") claim types.
+        // .NET 10's JsonWebTokenHandler may not remap "role" → ClaimTypes.Role.
+        User.FindFirstValue(ClaimTypes.Role) ?? User.FindFirstValue("role");
+
+    /// <summary>Whether the caller may see <paramref name="jobId"/>'s schedule.</summary>
+    private Task<bool> CallerCanViewAsync(Guid jobId, CancellationToken ct) =>
+        User.CanViewScheduleAsync(jobId, _jobLookupService, _service, ct);
+
+    /// <summary>403 unless the caller may see <paramref name="jobId"/>'s schedule; null = allowed.</summary>
+    private async Task<ActionResult?> ForbidUnlessCanViewAsync(Guid jobId, CancellationToken ct) =>
+        await CallerCanViewAsync(jobId, ct)
+            ? null
+            // ProblemDetails: the global 403 toast reads detail, then title.
+            : StatusCode(StatusCodes.Status403Forbidden, new ProblemDetails
+            {
+                Status = StatusCodes.Status403Forbidden,
+                Title = "Schedule not released",
+                Detail = NotReleasedMessage
+            });
+
     // ══════════════════════════════════════════════════════════════
-    // Public-accessible endpoints (when BScheduleAllowPublicAccess)
+    // Public-accessible endpoints (gated by CanViewScheduleAsync)
     // ══════════════════════════════════════════════════════════════
 
     /// <summary>GET /api/view-schedule/filter-options?jobPath= — CADT tree + game days + fields.</summary>
@@ -80,12 +101,17 @@ public class ViewScheduleController : ControllerBase
     {
         var (jobId, _, _, error) = await ResolveContext(jobPath);
         if (error != null) return error;
+        var forbidden = await ForbidUnlessCanViewAsync(jobId!.Value, ct);
+        if (forbidden != null) return forbidden;
 
-        var result = await _service.GetFilterOptionsAsync(jobId!.Value, ct);
+        var result = await _service.GetFilterOptionsAsync(jobId.Value, ct);
         return Ok(result);
     }
 
-    /// <summary>GET /api/view-schedule/capabilities?jobPath= — Feature flags for this job/user.</summary>
+    /// <summary>
+    /// GET /api/view-schedule/capabilities?jobPath= — Feature flags for this job/user.
+    /// Deliberately ungated: its CanView flag is how the page learns the schedule is unreleased.
+    /// </summary>
     [AllowAnonymous]
     [HttpGet("capabilities")]
     public async Task<ActionResult<ScheduleCapabilitiesDto>> GetCapabilities(
@@ -95,7 +121,8 @@ public class ViewScheduleController : ControllerBase
         if (error != null) return error;
 
         var isAuthenticated = User.Identity?.IsAuthenticated == true;
-        var result = await _service.GetCapabilitiesAsync(jobId!.Value, isAuthenticated, isAdmin, ct);
+        var canView = await CallerCanViewAsync(jobId!.Value, ct);
+        var result = await _service.GetCapabilitiesAsync(jobId.Value, isAuthenticated, isAdmin, canView, ct);
         return Ok(result);
     }
 
@@ -107,12 +134,14 @@ public class ViewScheduleController : ControllerBase
     {
         var (jobId, _, _, error) = await ResolveContext(jobPath);
         if (error != null) return error;
+        var forbidden = await ForbidUnlessCanViewAsync(jobId!.Value, ct);
+        if (forbidden != null) return forbidden;
 
         // Server-side paging is opt-in via request.Skip/Take. Take omitted ⇒ full unpaginated
         // body (identical to before). X-Total-Count = total matches before paging; the client
         // uses it for a "showing N of M" affordance and end-of-list detection. Exposed via CORS
         // (Program.cs WithExposedHeaders) so the browser can read it cross-origin.
-        var (games, total) = await _service.GetGamesPagedAsync(jobId!.Value, request, ct);
+        var (games, total) = await _service.GetGamesPagedAsync(jobId.Value, request, ct);
         Response.Headers["X-Total-Count"] = total.ToString();
         return Ok(games);
     }
@@ -125,10 +154,12 @@ public class ViewScheduleController : ControllerBase
     {
         var (jobId, _, _, error) = await ResolveContext(jobPath);
         if (error != null) return error;
+        var forbidden = await ForbidUnlessCanViewAsync(jobId!.Value, ct);
+        if (forbidden != null) return forbidden;
 
         // Paged over DIVISIONS (the standings unit). X-Total-Count = total division count for the
         // filter. Take omitted ⇒ full response, identical to before.
-        var (result, total) = await _service.GetStandingsPagedAsync(jobId!.Value, request, ct);
+        var (result, total) = await _service.GetStandingsPagedAsync(jobId.Value, request, ct);
         Response.Headers["X-Total-Count"] = total.ToString();
         return Ok(result);
     }
@@ -141,8 +172,10 @@ public class ViewScheduleController : ControllerBase
     {
         var (jobId, _, _, error) = await ResolveContext(jobPath);
         if (error != null) return error;
+        var forbidden = await ForbidUnlessCanViewAsync(jobId!.Value, ct);
+        if (forbidden != null) return forbidden;
 
-        var result = await _service.GetTeamRecordsAsync(jobId!.Value, request, ct);
+        var result = await _service.GetTeamRecordsAsync(jobId.Value, request, ct);
         return Ok(result);
     }
 
@@ -154,8 +187,10 @@ public class ViewScheduleController : ControllerBase
     {
         var (jobId, _, _, error) = await ResolveContext(jobPath);
         if (error != null) return error;
+        var forbidden = await ForbidUnlessCanViewAsync(jobId!.Value, ct);
+        if (forbidden != null) return forbidden;
 
-        var result = await _service.GetBracketsAsync(jobId!.Value, request, ct);
+        var result = await _service.GetBracketsAsync(jobId.Value, request, ct);
         return Ok(result);
     }
 
@@ -165,9 +200,14 @@ public class ViewScheduleController : ControllerBase
     public async Task<ActionResult<TeamResultsResponse>> GetTeamResults(
         Guid teamId, [FromQuery] string? jobPath, CancellationToken ct)
     {
-        // Validate context (needed for public access check)
         var (_, _, _, error) = await ResolveContext(jobPath);
         if (error != null) return error;
+
+        // Gate on the job that OWNS the team, not the jobPath — the teamId can name any job's team.
+        var teamJobId = await _jobLookupService.GetJobIdByTeamAsync(teamId, ct);
+        if (teamJobId == null) return NotFound();
+        var forbidden = await ForbidUnlessCanViewAsync(teamJobId.Value, ct);
+        if (forbidden != null) return forbidden;
 
         var result = await _service.GetTeamResultsAsync(teamId, ct);
         return Ok(result);
@@ -186,13 +226,19 @@ public class ViewScheduleController : ControllerBase
     // ── Mobile deep-link lookups ──
     // The Events app navigates from a game row or team where it holds only a
     // gid/teamId and cannot compose a division filter (ViewGameDto carries no divId).
-    // The owning job is resolved server-side from the row itself.
+    // The owning job is resolved server-side from the row itself, and the gate runs
+    // against that job — gids are sequential, so they must never bypass it.
 
     /// <summary>GET /api/view-schedule/brackets/by-game/{gid} — Brackets for the game's division.</summary>
     [AllowAnonymous]
     [HttpGet("brackets/by-game/{gid:int}")]
     public async Task<ActionResult<List<DivisionBracketResponse>>> GetBracketsByGame(int gid, CancellationToken ct)
     {
+        var gameJobId = await _service.GetGameJobIdAsync(gid, ct);
+        if (gameJobId == null) return NotFound();
+        var forbidden = await ForbidUnlessCanViewAsync(gameJobId.Value, ct);
+        if (forbidden != null) return forbidden;
+
         var result = await _service.GetBracketsByGameAsync(gid, ct);
         if (result == null) return NotFound();
         return Ok(result);
@@ -203,6 +249,11 @@ public class ViewScheduleController : ControllerBase
     [HttpGet("brackets/by-team/{teamId:guid}")]
     public async Task<ActionResult<List<DivisionBracketResponse>>> GetBracketsByTeam(Guid teamId, CancellationToken ct)
     {
+        var teamJobId = await _jobLookupService.GetJobIdByTeamAsync(teamId, ct);
+        if (teamJobId == null) return NotFound();
+        var forbidden = await ForbidUnlessCanViewAsync(teamJobId.Value, ct);
+        if (forbidden != null) return forbidden;
+
         var result = await _service.GetBracketsByTeamAsync(teamId, ct);
         if (result == null) return NotFound();
         return Ok(result);
@@ -213,6 +264,11 @@ public class ViewScheduleController : ControllerBase
     [HttpGet("standings/by-game/{gid:int}")]
     public async Task<ActionResult<StandingsByDivisionResponse>> GetStandingsByGame(int gid, CancellationToken ct)
     {
+        var gameJobId = await _service.GetGameJobIdAsync(gid, ct);
+        if (gameJobId == null) return NotFound();
+        var forbidden = await ForbidUnlessCanViewAsync(gameJobId.Value, ct);
+        if (forbidden != null) return forbidden;
+
         var result = await _service.GetStandingsByGameAsync(gid, ct);
         if (result == null) return NotFound();
         return Ok(result);
@@ -223,6 +279,11 @@ public class ViewScheduleController : ControllerBase
     [HttpGet("standings/by-team/{teamId:guid}")]
     public async Task<ActionResult<StandingsByDivisionResponse>> GetStandingsByTeam(Guid teamId, CancellationToken ct)
     {
+        var teamJobId = await _jobLookupService.GetJobIdByTeamAsync(teamId, ct);
+        if (teamJobId == null) return NotFound();
+        var forbidden = await ForbidUnlessCanViewAsync(teamJobId.Value, ct);
+        if (forbidden != null) return forbidden;
+
         var result = await _service.GetStandingsByTeamAsync(teamId, ct);
         if (result == null) return NotFound();
         return Ok(result);
@@ -299,8 +360,10 @@ public class ViewScheduleController : ControllerBase
     {
         var (jobId, _, _, error) = await ResolveContext();
         if (error != null) return error;
+        var forbidden = await ForbidUnlessCanViewAsync(jobId!.Value, ct);
+        if (forbidden != null) return forbidden;
 
-        var result = await _service.GetContactsAsync(jobId!.Value, request, ct);
+        var result = await _service.GetContactsAsync(jobId.Value, request, ct);
         return Ok(result);
     }
 }

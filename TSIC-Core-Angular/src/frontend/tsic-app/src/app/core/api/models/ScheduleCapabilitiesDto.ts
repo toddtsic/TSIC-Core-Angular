@@ -7,6 +7,7 @@ export type ScheduleCapabilitiesDto = {
     canScore: boolean;
     hideContacts: boolean;
     isPublicAccess: boolean;
+    canView: boolean;
     sportName: string;
     gameStatusOptions: Array<GameStatusOptionDto>;
     isReseedTournament?: boolean;

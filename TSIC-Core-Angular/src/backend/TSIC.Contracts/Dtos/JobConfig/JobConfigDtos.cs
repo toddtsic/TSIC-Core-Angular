@@ -413,6 +413,8 @@ public record JobConfigSchedulingDto
     public required DateTime? EventStartDate { get; init; }
     public required DateTime? EventEndDate { get; init; }
     public required bool? BScheduleAllowPublicAccess { get; init; }
+    /// <summary>When true, club reps may preview the schedule before it is public (Jobs.bAllowClubRepSchedulePreview).</summary>
+    public required bool BAllowClubRepSchedulePreview { get; init; }
     /// <summary>When true, public team rosters are hidden for this job (Jobs.bRestrictPublicRosters).</summary>
     public required bool BRestrictPublicRosters { get; init; }
     /// <summary>When true, schedules show the bare team name; when false, names are prefixed with "{ClubName}:" (Jobs.bShowTeamNameOnlyInSchedules).</summary>
@@ -429,6 +431,8 @@ public record UpdateJobConfigSchedulingRequest
     public required DateTime? EventStartDate { get; init; }
     public required DateTime? EventEndDate { get; init; }
     public required bool? BScheduleAllowPublicAccess { get; init; }
+    /// <summary>When true, club reps may preview the schedule before it is public (Jobs.bAllowClubRepSchedulePreview).</summary>
+    public required bool BAllowClubRepSchedulePreview { get; init; }
     /// <summary>When true, public team rosters are hidden for this job (Jobs.bRestrictPublicRosters).</summary>
     public required bool BRestrictPublicRosters { get; init; }
     /// <summary>When true, schedules show the bare team name; when false, names are prefixed with "{ClubName}:" (Jobs.bShowTeamNameOnlyInSchedules).</summary>

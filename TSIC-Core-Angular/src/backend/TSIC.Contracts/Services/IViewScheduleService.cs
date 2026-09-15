@@ -17,8 +17,23 @@ public interface IViewScheduleService
 
     /// <summary>
     /// Get capability flags for the current user/job (canScore, hideContacts, sportName).
+    /// <paramref name="canView"/> is the caller's <see cref="CanViewScheduleAsync"/> verdict.
     /// </summary>
-    Task<ScheduleCapabilitiesDto> GetCapabilitiesAsync(Guid jobId, bool isAuthenticated, bool isAdmin, CancellationToken ct = default);
+    Task<ScheduleCapabilitiesDto> GetCapabilitiesAsync(Guid jobId, bool isAuthenticated, bool isAdmin, bool canView, CancellationToken ct = default);
+
+    /// <summary>
+    /// THE schedule visibility rule. A released schedule (BScheduleAllowPublicAccess) is open to
+    /// everyone. An unreleased one is open only to a caller logged in to THAT job as Superuser,
+    /// Director, SuperDirector or Scorer. Anonymous, Club Rep, Player, Staff, Family and every other
+    /// role see nothing until release. Every surface that serves schedule-derived data uses this rule.
+    /// </summary>
+    /// <param name="jobId">The job whose schedule data would be served.</param>
+    /// <param name="callerJobId">The job the caller's token is for; null when anonymous.</param>
+    /// <param name="callerRole">The caller's role name; null when anonymous.</param>
+    Task<bool> CanViewScheduleAsync(Guid jobId, Guid? callerJobId, string? callerRole, CancellationToken ct = default);
+
+    /// <summary>The job that owns a game. Null = game not found.</summary>
+    Task<Guid?> GetGameJobIdAsync(int gid, CancellationToken ct = default);
 
     /// <summary>
     /// Games tab — filtered schedule games ordered by date.

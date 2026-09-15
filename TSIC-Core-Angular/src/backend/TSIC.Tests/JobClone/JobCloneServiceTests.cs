@@ -488,6 +488,7 @@ public class JobCloneServiceTests
         src.BEnableMobileTeamChat = true;
         src.BEnableTsicteams = true;
         src.BScheduleAllowPublicAccess = true;
+        src.BAllowClubRepSchedulePreview = true;
         src.BAllowRosterViewPlayer = true;
         src.BAllowRosterViewAdult = true;
         src.BRestrictPublicRosters = false;
@@ -507,6 +508,7 @@ public class JobCloneServiceTests
         j.BEnableMobileTeamChat.Should().BeFalse();
         j.BEnableTsicteams.Should().BeFalse();
         j.BScheduleAllowPublicAccess.Should().BeFalse();
+        j.BAllowClubRepSchedulePreview.Should().BeFalse();
         j.BAllowRosterViewPlayer.Should().BeFalse();
         j.BAllowRosterViewAdult.Should().BeFalse();
         j.BRestrictPublicRosters.Should().BeTrue();

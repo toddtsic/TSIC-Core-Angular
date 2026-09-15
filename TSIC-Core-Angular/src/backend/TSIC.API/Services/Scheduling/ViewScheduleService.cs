@@ -3,6 +3,7 @@ using TSIC.Contracts.Constants;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 using TSIC.Domain.Helpers;
 
 namespace TSIC.API.Services.Scheduling;
@@ -70,8 +71,32 @@ public sealed class ViewScheduleService : IViewScheduleService
         return await _scheduleRepo.GetScheduleFilterOptionsAsync(jobId, ct);
     }
 
+    public async Task<bool> CanViewScheduleAsync(
+        Guid jobId, Guid? callerJobId, string? callerRole, CancellationToken ct = default)
+    {
+        var (allowPublicAccess, _) = await _scheduleRepo.GetScheduleVisibilityFlagsAsync(jobId, ct);
+        if (allowPublicAccess) return true;
+
+        // Unreleased: a role only counts for the job the caller's token is for, so a
+        // Director of job A never reaches job B's draft through a gid/teamId route.
+        if (callerJobId != jobId) return false;
+
+        // Club Reps are deliberately absent: a role alone never grants a preview. That comes
+        // only from a per-rep schedule-preview invite (BAllowClubRepSchedulePreview is its kill switch).
+        return callerRole is RoleConstants.Names.SuperuserName
+            or RoleConstants.Names.DirectorName
+            or RoleConstants.Names.SuperDirectorName
+            or RoleConstants.Names.ScorerName;
+    }
+
+    public async Task<Guid?> GetGameJobIdAsync(int gid, CancellationToken ct = default)
+    {
+        var game = await _scheduleRepo.GetGameByIdAsync(gid, ct);
+        return game?.JobId;
+    }
+
     public async Task<ScheduleCapabilitiesDto> GetCapabilitiesAsync(
-        Guid jobId, bool isAuthenticated, bool isAdmin, CancellationToken ct = default)
+        Guid jobId, bool isAuthenticated, bool isAdmin, bool canView, CancellationToken ct = default)
     {
         var (allowPublicAccess, hideContacts, sportName) = await _scheduleRepo.GetScheduleFlagsAsync(jobId, ct);
         var statusOptions = await _scheduleRepo.GetGameStatusOptionsAsync(ct);
@@ -85,6 +110,7 @@ public sealed class ViewScheduleService : IViewScheduleService
             CanScore = isAuthenticated && isAdmin,
             HideContacts = hideContacts,
             IsPublicAccess = allowPublicAccess,
+            CanView = canView,
             SportName = sportName,
             GameStatusOptions = statusOptions,
             IsReseedTournament = isReseedTournament,

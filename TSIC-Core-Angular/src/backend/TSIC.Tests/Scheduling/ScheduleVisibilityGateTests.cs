@@ -1,0 +1,458 @@
+using System.Security.Claims;
+using FluentAssertions;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Moq;
+using TSIC.API.Controllers;
+using TSIC.API.Services.Scheduling;
+using TSIC.API.Services.Shared.Jobs;
+using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.Scheduling;
+using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
+using TSIC.Domain.Entities;
+using TSIC.Infrastructure.Data.SqlDbContext;
+using TSIC.Infrastructure.Repositories;
+using TSIC.Tests.Helpers;
+
+namespace TSIC.Tests.Scheduling;
+
+/// <summary>
+/// UNRELEASED-SCHEDULE GATE
+///
+/// Before the gate, api/view-schedule served any job's schedule to anyone holding a jobPath, gid or
+/// teamId. The rule (ViewScheduleService.CanViewScheduleAsync): public schedule → everyone; otherwise only
+/// a caller logged in to THAT job as Superuser/Director/SuperDirector/Scorer. Every other caller — Club
+/// Rep included, whatever BAllowClubRepSchedulePreview says — gets 403.
+///
+/// Part 1 pins the rule. Part 2 drives the view-schedule controller, proving every data endpoint applies
+/// it — to the job that OWNS a gid/teamId, and to the jobPath's job rather than the caller's login job.
+/// Part 3 covers the other schedule-derived surfaces: active-games, the filter tree and the pulse.
+/// </summary>
+public class ScheduleVisibilityGateTests
+{
+    // ═══════════════════════════════════════════════════════════════════
+    //  Fixture
+    // ═══════════════════════════════════════════════════════════════════
+
+    private sealed class Fixture
+    {
+        public required SqlDbContext Ctx { get; init; }
+        public required ViewScheduleService Svc { get; init; }
+        public required Jobs PublicJob { get; init; }
+        public required Jobs DraftJob { get; init; }
+        public required int PublicGid { get; init; }
+        public required int DraftGid { get; init; }
+        public required Guid PublicTeamId { get; init; }
+        public required Guid DraftTeamId { get; init; }
+    }
+
+    private static async Task<Fixture> BuildAsync(bool draftPreviewFlag = false)
+    {
+        var ctx = DbContextFactory.Create();
+        var b = new MobileDataBuilder(ctx);
+
+        var publicJob = b.AddJob("Public Cup", "public-cup", publicAccess: true);
+        var draftJob = b.AddJob("Draft Cup", "draft-cup", publicAccess: false);
+        draftJob.BAllowClubRepSchedulePreview = draftPreviewFlag;
+
+        var (publicGid, publicTeam) = SeedGame(b, publicJob.JobId);
+        var (draftGid, draftTeam) = SeedGame(b, draftJob.JobId);
+        await b.SaveAsync();
+
+        return new Fixture
+        {
+            Ctx = ctx,
+            Svc = SchedulingTestFactory.ViewSchedule(ctx),
+            PublicJob = publicJob,
+            DraftJob = draftJob,
+            PublicGid = publicGid,
+            DraftGid = draftGid,
+            PublicTeamId = publicTeam,
+            DraftTeamId = draftTeam
+        };
+    }
+
+    private static (int gid, Guid teamId) SeedGame(MobileDataBuilder b, Guid jobId)
+    {
+        var league = b.AddLeague(jobId);
+        var ag = b.AddAgegroup(league.LeagueId, "U10");
+        var div = b.AddDivision(ag.AgegroupId, "Gold");
+        var t1 = b.AddTeam(div.DivId, "Eagles", ag.AgegroupId, jobId, league.LeagueId);
+        var t2 = b.AddTeam(div.DivId, "Hawks", ag.AgegroupId, jobId, league.LeagueId);
+        var field = b.AddField("Field 1", "Allentown", "PA");
+        var game = b.AddGame(jobId, league.LeagueId, field.FieldId, ag.AgegroupId, div.DivId,
+            t1.TeamId, t2.TeamId, DateTime.Today, agegroupName: "U10", divName: "Gold", t1Name: "Eagles", t2Name: "Hawks");
+        return (game.Gid, t1.TeamId);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Part 1 — the rule
+    // ═══════════════════════════════════════════════════════════════════
+
+    [Fact(DisplayName = "Public schedule: an anonymous caller may view")]
+    public async Task Public_Anonymous_Allowed()
+    {
+        var f = await BuildAsync();
+        (await f.Svc.CanViewScheduleAsync(f.PublicJob.JobId, null, null)).Should().BeTrue();
+    }
+
+    [Fact(DisplayName = "Public schedule: a caller logged in to a different job may view")]
+    public async Task Public_OtherJobCaller_Allowed()
+    {
+        var f = await BuildAsync();
+        (await f.Svc.CanViewScheduleAsync(f.PublicJob.JobId, f.DraftJob.JobId, RoleConstants.Names.PlayerName))
+            .Should().BeTrue();
+    }
+
+    [Fact(DisplayName = "Unreleased schedule: an anonymous caller is refused")]
+    public async Task Draft_Anonymous_Refused()
+    {
+        var f = await BuildAsync();
+        (await f.Svc.CanViewScheduleAsync(f.DraftJob.JobId, null, null)).Should().BeFalse();
+    }
+
+    [Theory(DisplayName = "Unreleased schedule: event-runner roles logged in to THAT job may view")]
+    [InlineData(RoleConstants.Names.SuperuserName)]
+    [InlineData(RoleConstants.Names.DirectorName)]
+    [InlineData(RoleConstants.Names.SuperDirectorName)]
+    [InlineData(RoleConstants.Names.ScorerName)]
+    public async Task Draft_EventRunner_SameJob_Allowed(string role)
+    {
+        var f = await BuildAsync();
+        (await f.Svc.CanViewScheduleAsync(f.DraftJob.JobId, f.DraftJob.JobId, role)).Should().BeTrue();
+    }
+
+    [Theory(DisplayName = "Unreleased schedule: event-runner roles of a DIFFERENT job are refused")]
+    [InlineData(RoleConstants.Names.SuperuserName)]
+    [InlineData(RoleConstants.Names.DirectorName)]
+    [InlineData(RoleConstants.Names.ScorerName)]
+    public async Task Draft_EventRunner_OtherJob_Refused(string role)
+    {
+        var f = await BuildAsync();
+        (await f.Svc.CanViewScheduleAsync(f.DraftJob.JobId, f.PublicJob.JobId, role)).Should().BeFalse();
+    }
+
+    [Theory(DisplayName = "Unreleased schedule: registrant roles of that job are refused — Club Rep included, preview flag or not")]
+    [InlineData(RoleConstants.Names.ClubRepName, false)]
+    [InlineData(RoleConstants.Names.ClubRepName, true)]
+    [InlineData(RoleConstants.Names.PlayerName, false)]
+    [InlineData(RoleConstants.Names.PlayerName, true)]
+    [InlineData(RoleConstants.Names.StaffName, true)]
+    [InlineData(RoleConstants.Names.FamilyName, true)]
+    [InlineData(RoleConstants.Names.RefereeName, true)]
+    [InlineData(RoleConstants.Names.StoreAdminName, true)]
+    public async Task Draft_RegistrantRoles_Refused(string role, bool previewFlag)
+    {
+        var f = await BuildAsync(draftPreviewFlag: previewFlag);
+        (await f.Svc.CanViewScheduleAsync(f.DraftJob.JobId, f.DraftJob.JobId, role)).Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "NULL BScheduleAllowPublicAccess reads as unreleased")]
+    public async Task NullPublicFlag_TreatedAsUnreleased()
+    {
+        var f = await BuildAsync();
+        f.DraftJob.BScheduleAllowPublicAccess = null;
+        await f.Ctx.SaveChangesAsync();
+
+        (await f.Svc.CanViewScheduleAsync(f.DraftJob.JobId, null, null)).Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "Unknown job is refused")]
+    public async Task UnknownJob_Refused()
+    {
+        var f = await BuildAsync();
+        (await f.Svc.CanViewScheduleAsync(Guid.NewGuid(), null, null)).Should().BeFalse();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Part 2 — the controller applies it on every data endpoint
+    // ═══════════════════════════════════════════════════════════════════
+
+    private static ViewScheduleController Controller(Fixture f, Guid? loggedInJobId = null, string? role = null)
+    {
+        var (lookup, context) = Caller(f, loggedInJobId, role);
+        return new ViewScheduleController(f.Svc, lookup) { ControllerContext = context };
+    }
+
+    /// <summary>A job lookup over the fixture plus a request context for an anonymous or logged-in caller.</summary>
+    private static (IJobLookupService lookup, ControllerContext context) Caller(
+        Fixture f, Guid? loggedInJobId = null, string? role = null)
+    {
+        var lookup = new Mock<IJobLookupService>();
+        lookup.Setup(l => l.GetJobIdByPathAsync(f.PublicJob.JobPath)).ReturnsAsync(f.PublicJob.JobId);
+        lookup.Setup(l => l.GetJobIdByPathAsync(f.DraftJob.JobPath)).ReturnsAsync(f.DraftJob.JobId);
+        lookup.Setup(l => l.GetJobIdByTeamAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Returns((Guid teamId, CancellationToken _) =>
+                Task.FromResult(f.Ctx.Teams.Where(t => t.TeamId == teamId).Select(t => (Guid?)t.JobId).FirstOrDefault()));
+
+        var identity = new ClaimsIdentity();
+        if (loggedInJobId.HasValue)
+        {
+            var regId = Guid.NewGuid();
+            lookup.Setup(l => l.GetJobIdByRegistrationAsync(regId)).ReturnsAsync(loggedInJobId.Value);
+            identity = new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.NameIdentifier, "user-1"),
+                new Claim("regId", regId.ToString()),
+                new Claim(ClaimTypes.Role, role ?? RoleConstants.Names.PlayerName)
+            ], authenticationType: "Test");
+        }
+
+        return (lookup.Object, new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(identity) }
+        });
+    }
+
+    private static void ShouldBeForbidden(IActionResult? result)
+    {
+        var obj = result.Should().BeOfType<ObjectResult>().Subject;
+        obj.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        // The global 403 toast reads detail — a bare { message } showed a generic "no permission".
+        obj.Value.Should().BeOfType<ProblemDetails>().Which.Detail.Should().Be("This schedule has not been released yet.");
+    }
+
+    private static void ShouldBeOk(IActionResult? result) =>
+        result.Should().BeOfType<OkObjectResult>();
+
+    [Fact(DisplayName = "Anonymous + unreleased jobPath: filter-options, games, standings, team-records, brackets all 403")]
+    public async Task Anonymous_DraftJobPath_AllTabEndpointsForbidden()
+    {
+        var f = await BuildAsync();
+        var c = Controller(f);
+        var path = f.DraftJob.JobPath;
+        var req = new ScheduleFilterRequest();
+
+        ShouldBeForbidden((await c.GetFilterOptions(path, default)).Result);
+        ShouldBeForbidden((await c.GetGames(req, path, default)).Result);
+        ShouldBeForbidden((await c.GetStandings(req, path, default)).Result);
+        ShouldBeForbidden((await c.GetTeamRecords(req, path, default)).Result);
+        ShouldBeForbidden((await c.GetBrackets(req, path, default)).Result);
+    }
+
+    [Fact(DisplayName = "Anonymous + public jobPath: games and standings are served")]
+    public async Task Anonymous_PublicJobPath_Served()
+    {
+        var f = await BuildAsync();
+        var c = Controller(f);
+
+        ShouldBeOk((await c.GetGames(new ScheduleFilterRequest(), f.PublicJob.JobPath, default)).Result);
+        ShouldBeOk((await c.GetStandings(new ScheduleFilterRequest(), f.PublicJob.JobPath, default)).Result);
+    }
+
+    [Fact(DisplayName = "Capabilities stays open and reports canView=false for an anonymous caller on an unreleased job")]
+    public async Task Capabilities_Draft_ReportsCannotView()
+    {
+        var f = await BuildAsync();
+        var result = (await Controller(f).GetCapabilities(f.DraftJob.JobPath, default)).Result;
+
+        result.Should().BeOfType<OkObjectResult>()
+            .Which.Value.Should().BeOfType<ScheduleCapabilitiesDto>()
+            .Which.CanView.Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "Capabilities reports canView=true for a Director of the unreleased job")]
+    public async Task Capabilities_Draft_DirectorCanView()
+    {
+        var f = await BuildAsync();
+        var c = Controller(f, loggedInJobId: f.DraftJob.JobId, role: RoleConstants.Names.DirectorName);
+        var result = (await c.GetCapabilities(null, default)).Result;
+
+        result.Should().BeOfType<OkObjectResult>()
+            .Which.Value.Should().BeOfType<ScheduleCapabilitiesDto>()
+            .Which.CanView.Should().BeTrue();
+    }
+
+    [Fact(DisplayName = "Director of the unreleased job: games are served")]
+    public async Task Director_DraftJob_GamesServed()
+    {
+        var f = await BuildAsync();
+        var c = Controller(f, loggedInJobId: f.DraftJob.JobId, role: RoleConstants.Names.DirectorName);
+
+        ShouldBeOk((await c.GetGames(new ScheduleFilterRequest(), null, default)).Result);
+    }
+
+    [Fact(DisplayName = "Player of the unreleased job: games and contacts are 403")]
+    public async Task Player_DraftJob_Forbidden()
+    {
+        var f = await BuildAsync();
+        var c = Controller(f, loggedInJobId: f.DraftJob.JobId, role: RoleConstants.Names.PlayerName);
+
+        ShouldBeForbidden((await c.GetGames(new ScheduleFilterRequest(), null, default)).Result);
+        ShouldBeForbidden((await c.GetContacts(new ScheduleFilterRequest(), default)).Result);
+    }
+
+    [Fact(DisplayName = "Deep links by gid (sequential, enumerable): unreleased job's game → 403; public job's → served")]
+    public async Task ByGame_GatesOnOwningJob()
+    {
+        var f = await BuildAsync();
+        var c = Controller(f);
+
+        ShouldBeForbidden((await c.GetBracketsByGame(f.DraftGid, default)).Result);
+        ShouldBeForbidden((await c.GetStandingsByGame(f.DraftGid, default)).Result);
+        ShouldBeOk((await c.GetStandingsByGame(f.PublicGid, default)).Result);
+    }
+
+    [Fact(DisplayName = "Deep links by gid: an unknown gid is 404")]
+    public async Task ByGame_UnknownGid_NotFound()
+    {
+        var f = await BuildAsync();
+        (await Controller(f).GetStandingsByGame(999_999, default)).Result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Fact(DisplayName = "Deep links by teamId: unreleased job's team → 403 for brackets and standings")]
+    public async Task ByTeam_GatesOnOwningJob()
+    {
+        var f = await BuildAsync();
+        var c = Controller(f);
+
+        ShouldBeForbidden((await c.GetBracketsByTeam(f.DraftTeamId, default)).Result);
+        ShouldBeForbidden((await c.GetStandingsByTeam(f.DraftTeamId, default)).Result);
+        ShouldBeOk((await c.GetStandingsByTeam(f.PublicTeamId, default)).Result);
+    }
+
+    [Fact(DisplayName = "Team results: a public jobPath cannot be used to read an unreleased job's team")]
+    public async Task TeamResults_PublicJobPath_DraftTeam_Forbidden()
+    {
+        var f = await BuildAsync();
+        var c = Controller(f);
+
+        ShouldBeForbidden((await c.GetTeamResults(f.DraftTeamId, f.PublicJob.JobPath, default)).Result);
+        ShouldBeOk((await c.GetTeamResults(f.PublicTeamId, f.PublicJob.JobPath, default)).Result);
+    }
+
+    [Fact(DisplayName = "Director of job A cannot reach job B's unreleased game through a gid deep link")]
+    public async Task ByGame_DirectorOfOtherJob_Forbidden()
+    {
+        var f = await BuildAsync();
+        var c = Controller(f, loggedInJobId: f.PublicJob.JobId, role: RoleConstants.Names.DirectorName);
+
+        ShouldBeForbidden((await c.GetStandingsByGame(f.DraftGid, default)).Result);
+    }
+
+    [Fact(DisplayName = "Club Rep of the unreleased job with the preview flag ON: games and capabilities refuse")]
+    public async Task ClubRep_DraftJob_FlagOn_Forbidden()
+    {
+        var f = await BuildAsync(draftPreviewFlag: true);
+        var c = Controller(f, loggedInJobId: f.DraftJob.JobId, role: RoleConstants.Names.ClubRepName);
+
+        ShouldBeForbidden((await c.GetGames(new ScheduleFilterRequest(), f.DraftJob.JobPath, default)).Result);
+        (await c.GetCapabilities(f.DraftJob.JobPath, default)).Result.Should().BeOfType<OkObjectResult>()
+            .Which.Value.Should().BeOfType<ScheduleCapabilitiesDto>().Which.CanView.Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "jobPath wins over the login: a Director of the unreleased job browsing the PUBLIC job's page gets the public job's games")]
+    public async Task JobPath_WinsOverLogin_ServesPagesJob()
+    {
+        var f = await BuildAsync();
+        var c = Controller(f, loggedInJobId: f.DraftJob.JobId, role: RoleConstants.Names.DirectorName);
+
+        var games = (await c.GetGames(new ScheduleFilterRequest(), f.PublicJob.JobPath, default)).Result
+            .Should().BeOfType<OkObjectResult>().Which.Value.Should().BeAssignableTo<IEnumerable<ViewGameDto>>().Subject.ToList();
+
+        games.Should().ContainSingle().Which.Gid.Should().Be(f.PublicGid,
+            "the page is the public job's; serving the login's job put one event's schedule on another's page");
+    }
+
+    [Fact(DisplayName = "jobPath wins over the login: a Director of the PUBLIC job cannot read the unreleased job by its jobPath")]
+    public async Task JobPath_OtherJobsDirector_Forbidden()
+    {
+        var f = await BuildAsync();
+        var c = Controller(f, loggedInJobId: f.PublicJob.JobId, role: RoleConstants.Names.DirectorName);
+
+        ShouldBeForbidden((await c.GetGames(new ScheduleFilterRequest(), f.DraftJob.JobPath, default)).Result);
+    }
+
+    [Fact(DisplayName = "Admin rights are per-job: a Director logged in elsewhere is not an admin on this job's page")]
+    public async Task Capabilities_DirectorOfOtherJob_NotAdmin()
+    {
+        var f = await BuildAsync();
+        var elsewhere = Controller(f, loggedInJobId: f.DraftJob.JobId, role: RoleConstants.Names.DirectorName);
+        var here = Controller(f, loggedInJobId: f.PublicJob.JobId, role: RoleConstants.Names.DirectorName);
+
+        var elsewhereCaps = ((OkObjectResult)(await elsewhere.GetCapabilities(f.PublicJob.JobPath, default)).Result!).Value as ScheduleCapabilitiesDto;
+        var hereCaps = ((OkObjectResult)(await here.GetCapabilities(f.PublicJob.JobPath, default)).Result!).Value as ScheduleCapabilitiesDto;
+
+        elsewhereCaps!.CanScore.Should().BeFalse();
+        hereCaps!.CanScore.Should().BeTrue("the control: the same Director on their own job is an admin");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Part 3 — the other schedule-derived surfaces
+    // ═══════════════════════════════════════════════════════════════════
+
+    private static EventBrowseController EventBrowse(Fixture f, Guid? loggedInJobId = null, string? role = null)
+    {
+        var (lookup, context) = Caller(f, loggedInJobId, role);
+        var eventBrowse = new Mock<IEventBrowseService>();
+        eventBrowse.Setup(e => e.GetActiveGamesAsync(It.IsAny<Guid>(), It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GameClockAvailableGameTimesDto { AvailableRRGameData = [], AvailablePOGameData = [] });
+        return new EventBrowseController(eventBrowse.Object, lookup, f.Svc) { ControllerContext = context };
+    }
+
+    [Fact(DisplayName = "active-games: unreleased job → 403 anonymous; served to its Director and for a public job")]
+    public async Task ActiveGames_Gated()
+    {
+        var f = await BuildAsync();
+
+        ShouldBeForbidden(await EventBrowse(f).GetActiveGames(f.DraftJob.JobId, null, default));
+        ShouldBeForbidden(await EventBrowse(f, f.DraftJob.JobId, RoleConstants.Names.ClubRepName).GetActiveGames(f.DraftJob.JobId, null, default));
+        (await EventBrowse(f, f.DraftJob.JobId, RoleConstants.Names.DirectorName).GetActiveGames(f.DraftJob.JobId, null, default))
+            .Should().BeOfType<OkObjectResult>();
+        (await EventBrowse(f).GetActiveGames(f.PublicJob.JobId, null, default)).Should().BeOfType<OkObjectResult>();
+    }
+
+    private static JobFilterTreeController FilterTree(Fixture f, Guid? loggedInJobId = null, string? role = null)
+    {
+        var (lookup, context) = Caller(f, loggedInJobId, role);
+        return new JobFilterTreeController(new JobFilterTreeRepository(f.Ctx), lookup, f.Svc) { ControllerContext = context };
+    }
+
+    private static List<bool> ScheduledFlags(JobFilterTreeDto tree) =>
+    [
+        .. tree.Cadt.SelectMany(c => c.Agegroups).SelectMany(a => a.Divisions).SelectMany(d => d.Teams).Select(t => t.IsScheduled),
+        .. tree.Ladt.SelectMany(a => a.Divisions).SelectMany(d => d.Teams).Select(t => t.IsScheduled)
+    ];
+
+    private static async Task<JobFilterTreeDto> TreeAsync(JobFilterTreeController c, string? jobPath) =>
+        (JobFilterTreeDto)((OkObjectResult)(await c.Get(jobPath, default)).Result!).Value!;
+
+    [Fact(DisplayName = "Filter tree: the unreleased job's IsScheduled flags read false for anonymous and Club Rep")]
+    public async Task FilterTree_Draft_ScheduleFlagsHidden()
+    {
+        var f = await BuildAsync(draftPreviewFlag: true);
+
+        var anon = ScheduledFlags(await TreeAsync(FilterTree(f), f.DraftJob.JobPath));
+        var rep = ScheduledFlags(await TreeAsync(FilterTree(f, f.DraftJob.JobId, RoleConstants.Names.ClubRepName), null));
+
+        anon.Should().NotBeEmpty("the tree itself (teams) is not schedule data and is still served");
+        anon.Should().OnlyContain(s => !s);
+        rep.Should().NotBeEmpty().And.OnlyContain(s => !s);
+    }
+
+    [Fact(DisplayName = "Filter tree: IsScheduled is real for the unreleased job's Director and for a public job")]
+    public async Task FilterTree_ScheduleFlagsShownWhenViewable()
+    {
+        var f = await BuildAsync();
+
+        ScheduledFlags(await TreeAsync(FilterTree(f, f.DraftJob.JobId, RoleConstants.Names.DirectorName), null))
+            .Should().Contain(true, "the Director's rescheduler filters on it");
+        ScheduledFlags(await TreeAsync(FilterTree(f), f.PublicJob.JobPath)).Should().Contain(true);
+    }
+
+    [Fact(DisplayName = "Pulse: first/last game dates are null while the schedule is unreleased, present once released")]
+    public async Task Pulse_GameDates_OnlyWhenReleased()
+    {
+        var f = await BuildAsync();
+        var repo = new JobRepository(f.Ctx);
+
+        var draft = await repo.GetJobPulseAsync(f.DraftJob.JobPath);
+        var released = await repo.GetJobPulseAsync(f.PublicJob.JobPath);
+
+        draft!.FirstGameDate.Should().BeNull();
+        draft.LastGameDate.Should().BeNull();
+        released!.FirstGameDate.Should().Be(DateTime.Today);
+        released.LastGameDate.Should().Be(DateTime.Today);
+    }
+}

@@ -18,6 +18,24 @@
         </span>
       </div>
 
+      <div class="toggle-row" [class.is-on]="bAllowClubRepSchedulePreview()" [class.is-off]="!bAllowClubRepSchedulePreview()">
+        <label class="toggle-control">
+          <input type="checkbox"
+            [ngModel]="bAllowClubRepSchedulePreview()"
+            (ngModelChange)="bAllowClubRepSchedulePreview.set($event); onFieldChange()" />
+          <span class="field-label">Allow Club Rep Schedule Preview</span>
+        </label>
+        <span class="toggle-tip">
+          @if (bScheduleAllowPublicAccess()) {
+            No effect while the schedule is public — everyone can already see it.
+          } @else if (bAllowClubRepSchedulePreview()) {
+            Club reps can preview the schedule before it is released to the public.
+          } @else {
+            Club reps get no schedule preview; they see it when it is released to the public.
+          }
+        </span>
+      </div>
+
       <div class="toggle-row" [class.is-on]="allowPublicRosterAccess()" [class.is-off]="!allowPublicRosterAccess()">
         <label class="toggle-control">
           <input type="checkbox"

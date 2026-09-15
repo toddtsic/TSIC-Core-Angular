@@ -554,6 +554,11 @@ public record ScheduleCapabilitiesDto
     public required bool CanScore { get; init; }
     public required bool HideContacts { get; init; }
     public required bool IsPublicAccess { get; init; }
+    /// <summary>
+    /// False when the schedule is not released to this caller. Every schedule-data endpoint
+    /// returns 403 in that case; the page shows a not-yet-released notice instead of loading.
+    /// </summary>
+    public required bool CanView { get; init; }
     public required string SportName { get; init; }
     /// <summary>DB-sourced game status codes + labels. Source of truth for status dropdowns and display.</summary>
     public required List<GameStatusOptionDto> GameStatusOptions { get; init; }

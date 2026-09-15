@@ -98,6 +98,7 @@ public static class JobCloneResetRules
         job.BEnableMobileTeamChat = false;         // TeamMessages is safety-critical — never auto-on
         job.BEnableTsicteams = false;
         job.BScheduleAllowPublicAccess = false;    // no public schedule until real
+        job.BAllowClubRepSchedulePreview = false;  // no club-rep schedule preview until real
         job.BAllowRosterViewPlayer = false;        // roster exposure off
         job.BAllowRosterViewAdult = false;
         // Stay-to-Play is third-party data sharing, so it resets for the same reason the

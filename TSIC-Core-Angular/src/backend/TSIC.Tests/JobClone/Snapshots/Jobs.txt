@@ -13,6 +13,7 @@ AdultRegRefundPolicy
 AdultRegReleaseOfLiability
 Alwayscopyemaillist
 BAddProcessingFees
+BAllowClubRepSchedulePreview
 BAllowCreditAll
 BAllowMobileLogin
 BAllowMobileRegn
