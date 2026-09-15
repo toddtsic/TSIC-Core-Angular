@@ -82,24 +82,29 @@
       re-type their details. It works between <em>any</em> two of your events, not just tryouts:
       camp to league, clinic to season, all the same.
     </p>
-    <p><strong>What has to be true:</strong></p>
-    <ul>
-      <li>Role filtered to <strong>Players</strong> (either Player choice).</li>
-      <li>Status filtered to <strong>Active only</strong>.</li>
-      <li>
-        <strong>This event is past its user-expiry date.</strong> Invitations are a
-        post-event tool — while the event you're looking at is still open to its own users, there
-        is no Invite button for players at all.
-      </li>
-      <li>
-        At least one <strong>other</strong> event under your organization has
-        <strong>Allow Player Registration</strong> switched on and hasn't expired. Without a
-        destination there is nothing to invite anyone to, so the button stays hidden.
-      </li>
-    </ul>
+    <div class="help-callout help-callout--success">
+      <i class="bi bi-shield-lock" aria-hidden="true"></i>
+      <div>
+        <strong>Run a closed tryout — only the players you invite can register.</strong>
+        <p class="help-callout__body">
+          This is the setting that makes a tryout mean something. On the event you are inviting them
+          <em>to</em>, switch on <strong>Require Invitation Token</strong>, and from that moment the
+          invitation link is the <strong>only</strong> way in. A player you didn't select cannot
+          register — not by finding your site, not by being handed a teammate's link. Every link is
+          signed for one named person, refused for anyone else, and re-checked on our servers at the
+          moment they try to register.
+        </p>
+        <p class="help-callout__body">
+          <strong>It's optional, and it starts off.</strong> Left off, your invitation still works —
+          it simply isn't exclusive, and anyone can register alongside the players you picked. Turn
+          it on when the next event is meant for selected players only, and turn it off later to
+          open that same event to everyone.
+        </p>
+      </div>
+    </div>
     <p>
-      <strong>Turning the destination on.</strong> That switch lives on the <em>receiving</em> event,
-      not this one — switch to that event, then <em>Configure Job &rarr; Player</em>:
+      <strong>Setting up the destination.</strong> Both switches live on the <em>receiving</em>
+      event, not this one — switch to that event, then <em>Configure Job &rarr; Players</em>:
     </p>
     <div class="help-menu-list help-menu-list--compact">
       <div class="help-menu-row">
@@ -117,20 +122,26 @@
         </div>
       </div>
     </div>
-    <div class="help-callout help-callout--tip">
-      <i class="bi bi-lightbulb" aria-hidden="true"></i>
-      <div>
-        <strong>"Require Invitation Token" is optional — and it's the one that makes an invitation exclusive.</strong>
-        <p class="help-callout__body">
-          Leave it <em>off</em> and your invitation is a convenience: it takes players straight in,
-          but anyone else can still register normally. Switch it <em>on</em> and the invite link
-          becomes the <strong>only</strong> way into that event — which is what you want for an
-          invitation-only season built from tryout results. Either way the Invite button works the
-          same; this only controls who else can get in. It stays greyed out until Allow Player
-          Registration is on.
-        </p>
-      </div>
-    </div>
+    <p class="help-muted">
+      Require Invitation Token stays greyed out until Allow Player Registration is on. Both switches
+      also appear on that event's Quick Links page — either place works.
+    </p>
+    <p><strong>What has to be true</strong> before the Invite button appears here:</p>
+    <ul>
+      <li>Role filtered to <strong>Players</strong> (either Player choice).</li>
+      <li>Status filtered to <strong>Active only</strong>.</li>
+      <li>
+        <strong>This event is past its user-expiry date.</strong> Invitations are a
+        post-event tool — while the event you're looking at is still open to its own users, there
+        is no Invite button for players at all.
+      </li>
+      <li>
+        At least one <strong>other</strong> event under your organization has
+        <strong>Allow Player Registration</strong> switched on and hasn't expired. Note this is
+        <em>Allow</em>, not <em>Require</em> — an event with open enrollment is still a valid
+        destination; Require Invitation Token is never needed for the button to appear.
+      </li>
+    </ul>
     <p><strong>What you'll see when the search is right:</strong></p>
     <div class="help-surface">
       <div class="help-flow">
@@ -316,8 +327,8 @@
       </li>
     </ul>
     <p>
-      <strong>Turning the destination on.</strong> As with player invitations, the switch is on the
-      <em>receiving</em> event — switch to it, then <em>Configure Job &rarr; Teams</em>:
+      <strong>Setting up the destination.</strong> As with player invitations, both switches are on
+      the <em>receiving</em> event — switch to it, then <em>Configure Job &rarr; Teams/ClubReps</em>:
     </p>
     <div class="help-menu-list help-menu-list--compact">
       <div class="help-menu-row">
@@ -335,14 +346,19 @@
         </div>
       </div>
     </div>
-    <div class="help-callout help-callout--tip">
-      <i class="bi bi-lightbulb" aria-hidden="true"></i>
+    <div class="help-callout help-callout--success">
+      <i class="bi bi-shield-lock" aria-hidden="true"></i>
       <div>
-        <strong>Use "Require Club Rep Invitation Token" to run a returning-clubs-only window.</strong>
+        <strong>Run a returning-clubs-only window — only the reps you invite can register a team.</strong>
         <p class="help-callout__body">
-          Switch it on and only reps holding an invite link can register a team — so you can give
-          last season's clubs first claim, then switch it off to open the event to everyone. Off, the
-          invitation still works; it just isn't exclusive.
+          Same setting, same power as the player version: switch on <strong>Require Club Rep
+          Invitation Token</strong> on the receiving event and the invitation becomes the only way
+          in. Give last season's clubs an exclusive window to claim their place, then switch it off
+          to open the event to everyone else.
+        </p>
+        <p class="help-callout__body">
+          <strong>Optional, and off to begin with.</strong> Left off the invitation still works, it
+          just isn't exclusive. It stays greyed out until Allow Team Registration is on.
         </p>
       </div>
     </div>
