@@ -1,7 +1,8 @@
-import type { RegistrationSearchRequest } from '@core/api';
+﻿import type { RegistrationSearchRequest } from '@core/api';
 import {
   EMAIL_TEMPLATE_CATEGORIES,
   isTemplateAvailable,
+  isActiveOnlyFilter,
   ROLE_ID_PLAYER,
   ROLE_ID_CLUBREP,
   type EmailTemplate,
@@ -167,4 +168,20 @@ describe('isTemplateAvailable', () => {
     expect(isTemplateAvailable(waitlistActivation, inactiveRequest, NO_FLAGS)).toBe(false);
   });
 
+});
+
+// Gates every Invite button: invites go only to active registrations.
+describe('isActiveOnlyFilter', () => {
+  it('is true only when the search is filtered to Active alone', () => {
+    expect(isActiveOnlyFilter({ activeStatuses: ['True'] })).toBe(true);
+    expect(isActiveOnlyFilter({ activeStatuses: ['true'] })).toBe(true);
+  });
+
+  it('is false when inactive registrations can be in the results', () => {
+    expect(isActiveOnlyFilter({})).toBe(false);
+    expect(isActiveOnlyFilter({ activeStatuses: [] })).toBe(false);
+    expect(isActiveOnlyFilter({ activeStatuses: null })).toBe(false);
+    expect(isActiveOnlyFilter({ activeStatuses: ['False'] })).toBe(false);
+    expect(isActiveOnlyFilter({ activeStatuses: ['True', 'False'] })).toBe(false);
+  });
 });
