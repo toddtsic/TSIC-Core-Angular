@@ -12,14 +12,12 @@ namespace TSIC.API.Controllers;
 /// Consumer-facing schedule viewer (009-5).
 /// Supports both authenticated admin/coach access and public access mode.
 /// Every schedule-data endpoint is gated by <see cref="IViewScheduleService.CanViewScheduleAsync"/>:
-/// an unreleased schedule (BScheduleAllowPublicAccess off) returns 403 to anyone the rule excludes.
+/// anyone the rule excludes gets the generic "Schedule not available" 404 (<see cref="ScheduleNotAvailable"/>).
 /// </summary>
 [ApiController]
 [Route("api/view-schedule")]
 public class ViewScheduleController : ControllerBase
 {
-    private const string NotReleasedMessage = "This schedule has not been released yet.";
-
     private readonly IViewScheduleService _service;
     private readonly IJobLookupService _jobLookupService;
 
@@ -49,7 +47,7 @@ public class ViewScheduleController : ControllerBase
         {
             var jobId = await _jobLookupService.GetJobIdByPathAsync(jobPath);
             if (jobId == null)
-                return (null, null, false, NotFound(new { message = "Schedule not found" }));
+                return (null, null, false, ScheduleNotAvailable());
 
             return (jobId, userId, callerJobId == jobId && IsAdminRole(), null);
         }
@@ -77,17 +75,19 @@ public class ViewScheduleController : ControllerBase
     private Task<bool> CallerCanViewAsync(Guid jobId, CancellationToken ct) =>
         User.CanViewScheduleAsync(jobId, _jobLookupService, _service, ct);
 
-    /// <summary>403 unless the caller may see <paramref name="jobId"/>'s schedule; null = allowed.</summary>
-    private async Task<ActionResult?> ForbidUnlessCanViewAsync(Guid jobId, CancellationToken ct) =>
-        await CallerCanViewAsync(jobId, ct)
-            ? null
-            // ProblemDetails: the global 403 toast reads detail, then title.
-            : StatusCode(StatusCodes.Status403Forbidden, new ProblemDetails
-            {
-                Status = StatusCodes.Status403Forbidden,
-                Title = "Schedule not released",
-                Detail = NotReleasedMessage
-            });
+    /// <summary>
+    /// THE refusal for schedule data. Unreleased, not permitted, unknown event, unknown game or team: all
+    /// get this identical 404, so a caller cannot tell a hidden schedule from one that doesn't exist.
+    /// </summary>
+    internal static NotFoundObjectResult ScheduleNotAvailable() => new(new ProblemDetails
+    {
+        Status = StatusCodes.Status404NotFound,
+        Detail = "Schedule not available"
+    });
+
+    /// <summary><see cref="ScheduleNotAvailable"/> unless the caller may see <paramref name="jobId"/>'s schedule; null = allowed.</summary>
+    private async Task<ActionResult?> UnavailableUnlessCanViewAsync(Guid jobId, CancellationToken ct) =>
+        await CallerCanViewAsync(jobId, ct) ? null : ScheduleNotAvailable();
 
     // ══════════════════════════════════════════════════════════════
     // Public-accessible endpoints (gated by CanViewScheduleAsync)
@@ -101,8 +101,8 @@ public class ViewScheduleController : ControllerBase
     {
         var (jobId, _, _, error) = await ResolveContext(jobPath);
         if (error != null) return error;
-        var forbidden = await ForbidUnlessCanViewAsync(jobId!.Value, ct);
-        if (forbidden != null) return forbidden;
+        var unavailable = await UnavailableUnlessCanViewAsync(jobId!.Value, ct);
+        if (unavailable != null) return unavailable;
 
         var result = await _service.GetFilterOptionsAsync(jobId.Value, ct);
         return Ok(result);
@@ -134,8 +134,8 @@ public class ViewScheduleController : ControllerBase
     {
         var (jobId, _, _, error) = await ResolveContext(jobPath);
         if (error != null) return error;
-        var forbidden = await ForbidUnlessCanViewAsync(jobId!.Value, ct);
-        if (forbidden != null) return forbidden;
+        var unavailable = await UnavailableUnlessCanViewAsync(jobId!.Value, ct);
+        if (unavailable != null) return unavailable;
 
         // Server-side paging is opt-in via request.Skip/Take. Take omitted ⇒ full unpaginated
         // body (identical to before). X-Total-Count = total matches before paging; the client
@@ -154,8 +154,8 @@ public class ViewScheduleController : ControllerBase
     {
         var (jobId, _, _, error) = await ResolveContext(jobPath);
         if (error != null) return error;
-        var forbidden = await ForbidUnlessCanViewAsync(jobId!.Value, ct);
-        if (forbidden != null) return forbidden;
+        var unavailable = await UnavailableUnlessCanViewAsync(jobId!.Value, ct);
+        if (unavailable != null) return unavailable;
 
         // Paged over DIVISIONS (the standings unit). X-Total-Count = total division count for the
         // filter. Take omitted ⇒ full response, identical to before.
@@ -172,8 +172,8 @@ public class ViewScheduleController : ControllerBase
     {
         var (jobId, _, _, error) = await ResolveContext(jobPath);
         if (error != null) return error;
-        var forbidden = await ForbidUnlessCanViewAsync(jobId!.Value, ct);
-        if (forbidden != null) return forbidden;
+        var unavailable = await UnavailableUnlessCanViewAsync(jobId!.Value, ct);
+        if (unavailable != null) return unavailable;
 
         var result = await _service.GetTeamRecordsAsync(jobId.Value, request, ct);
         return Ok(result);
@@ -187,8 +187,8 @@ public class ViewScheduleController : ControllerBase
     {
         var (jobId, _, _, error) = await ResolveContext(jobPath);
         if (error != null) return error;
-        var forbidden = await ForbidUnlessCanViewAsync(jobId!.Value, ct);
-        if (forbidden != null) return forbidden;
+        var unavailable = await UnavailableUnlessCanViewAsync(jobId!.Value, ct);
+        if (unavailable != null) return unavailable;
 
         var result = await _service.GetBracketsAsync(jobId.Value, request, ct);
         return Ok(result);
@@ -205,9 +205,9 @@ public class ViewScheduleController : ControllerBase
 
         // Gate on the job that OWNS the team, not the jobPath — the teamId can name any job's team.
         var teamJobId = await _jobLookupService.GetJobIdByTeamAsync(teamId, ct);
-        if (teamJobId == null) return NotFound();
-        var forbidden = await ForbidUnlessCanViewAsync(teamJobId.Value, ct);
-        if (forbidden != null) return forbidden;
+        if (teamJobId == null) return ScheduleNotAvailable();
+        var unavailable = await UnavailableUnlessCanViewAsync(teamJobId.Value, ct);
+        if (unavailable != null) return unavailable;
 
         var result = await _service.GetTeamResultsAsync(teamId, ct);
         return Ok(result);
@@ -235,9 +235,9 @@ public class ViewScheduleController : ControllerBase
     public async Task<ActionResult<List<DivisionBracketResponse>>> GetBracketsByGame(int gid, CancellationToken ct)
     {
         var gameJobId = await _service.GetGameJobIdAsync(gid, ct);
-        if (gameJobId == null) return NotFound();
-        var forbidden = await ForbidUnlessCanViewAsync(gameJobId.Value, ct);
-        if (forbidden != null) return forbidden;
+        if (gameJobId == null) return ScheduleNotAvailable();
+        var unavailable = await UnavailableUnlessCanViewAsync(gameJobId.Value, ct);
+        if (unavailable != null) return unavailable;
 
         var result = await _service.GetBracketsByGameAsync(gid, ct);
         if (result == null) return NotFound();
@@ -250,9 +250,9 @@ public class ViewScheduleController : ControllerBase
     public async Task<ActionResult<List<DivisionBracketResponse>>> GetBracketsByTeam(Guid teamId, CancellationToken ct)
     {
         var teamJobId = await _jobLookupService.GetJobIdByTeamAsync(teamId, ct);
-        if (teamJobId == null) return NotFound();
-        var forbidden = await ForbidUnlessCanViewAsync(teamJobId.Value, ct);
-        if (forbidden != null) return forbidden;
+        if (teamJobId == null) return ScheduleNotAvailable();
+        var unavailable = await UnavailableUnlessCanViewAsync(teamJobId.Value, ct);
+        if (unavailable != null) return unavailable;
 
         var result = await _service.GetBracketsByTeamAsync(teamId, ct);
         if (result == null) return NotFound();
@@ -265,9 +265,9 @@ public class ViewScheduleController : ControllerBase
     public async Task<ActionResult<StandingsByDivisionResponse>> GetStandingsByGame(int gid, CancellationToken ct)
     {
         var gameJobId = await _service.GetGameJobIdAsync(gid, ct);
-        if (gameJobId == null) return NotFound();
-        var forbidden = await ForbidUnlessCanViewAsync(gameJobId.Value, ct);
-        if (forbidden != null) return forbidden;
+        if (gameJobId == null) return ScheduleNotAvailable();
+        var unavailable = await UnavailableUnlessCanViewAsync(gameJobId.Value, ct);
+        if (unavailable != null) return unavailable;
 
         var result = await _service.GetStandingsByGameAsync(gid, ct);
         if (result == null) return NotFound();
@@ -280,9 +280,9 @@ public class ViewScheduleController : ControllerBase
     public async Task<ActionResult<StandingsByDivisionResponse>> GetStandingsByTeam(Guid teamId, CancellationToken ct)
     {
         var teamJobId = await _jobLookupService.GetJobIdByTeamAsync(teamId, ct);
-        if (teamJobId == null) return NotFound();
-        var forbidden = await ForbidUnlessCanViewAsync(teamJobId.Value, ct);
-        if (forbidden != null) return forbidden;
+        if (teamJobId == null) return ScheduleNotAvailable();
+        var unavailable = await UnavailableUnlessCanViewAsync(teamJobId.Value, ct);
+        if (unavailable != null) return unavailable;
 
         var result = await _service.GetStandingsByTeamAsync(teamId, ct);
         if (result == null) return NotFound();
@@ -360,8 +360,8 @@ public class ViewScheduleController : ControllerBase
     {
         var (jobId, _, _, error) = await ResolveContext();
         if (error != null) return error;
-        var forbidden = await ForbidUnlessCanViewAsync(jobId!.Value, ct);
-        if (forbidden != null) return forbidden;
+        var unavailable = await UnavailableUnlessCanViewAsync(jobId!.Value, ct);
+        if (unavailable != null) return unavailable;
 
         var result = await _service.GetContactsAsync(jobId.Value, request, ct);
         return Ok(result);

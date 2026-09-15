@@ -23,7 +23,8 @@ namespace TSIC.Tests.Scheduling;
 /// Before the gate, api/view-schedule served any job's schedule to anyone holding a jobPath, gid or
 /// teamId. The rule (ViewScheduleService.CanViewScheduleAsync): public schedule → everyone; otherwise only
 /// a caller logged in to THAT job as Superuser/Director/SuperDirector/Scorer. Every other caller — Club
-/// Rep included, whatever BAllowClubRepSchedulePreview says — gets 403.
+/// Rep included, whatever BAllowClubRepSchedulePreview says — gets the generic "Schedule not available"
+/// 404, identical to the response for an event, game or team that doesn't exist.
 ///
 /// Part 1 pins the rule. Part 2 drives the view-schedule controller, proving every data endpoint applies
 /// it — to the job that OWNS a gid/teamId, and to the jobPath's job rather than the caller's login job.
@@ -205,18 +206,18 @@ public class ScheduleVisibilityGateTests
         });
     }
 
-    private static void ShouldBeForbidden(IActionResult? result)
+    /// <summary>The one refusal: 404, "Schedule not available". No 403, nothing that says a schedule exists.</summary>
+    private static void ShouldBeUnavailable(IActionResult? result)
     {
-        var obj = result.Should().BeOfType<ObjectResult>().Subject;
-        obj.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
-        // The global 403 toast reads detail — a bare { message } showed a generic "no permission".
-        obj.Value.Should().BeOfType<ProblemDetails>().Which.Detail.Should().Be("This schedule has not been released yet.");
+        var obj = result.Should().BeOfType<NotFoundObjectResult>().Subject;
+        obj.StatusCode.Should().Be(StatusCodes.Status404NotFound);
+        obj.Value.Should().BeOfType<ProblemDetails>().Which.Detail.Should().Be("Schedule not available");
     }
 
     private static void ShouldBeOk(IActionResult? result) =>
         result.Should().BeOfType<OkObjectResult>();
 
-    [Fact(DisplayName = "Anonymous + unreleased jobPath: filter-options, games, standings, team-records, brackets all 403")]
+    [Fact(DisplayName = "Anonymous + unreleased jobPath: filter-options, games, standings, team-records, brackets all not available")]
     public async Task Anonymous_DraftJobPath_AllTabEndpointsForbidden()
     {
         var f = await BuildAsync();
@@ -224,11 +225,11 @@ public class ScheduleVisibilityGateTests
         var path = f.DraftJob.JobPath;
         var req = new ScheduleFilterRequest();
 
-        ShouldBeForbidden((await c.GetFilterOptions(path, default)).Result);
-        ShouldBeForbidden((await c.GetGames(req, path, default)).Result);
-        ShouldBeForbidden((await c.GetStandings(req, path, default)).Result);
-        ShouldBeForbidden((await c.GetTeamRecords(req, path, default)).Result);
-        ShouldBeForbidden((await c.GetBrackets(req, path, default)).Result);
+        ShouldBeUnavailable((await c.GetFilterOptions(path, default)).Result);
+        ShouldBeUnavailable((await c.GetGames(req, path, default)).Result);
+        ShouldBeUnavailable((await c.GetStandings(req, path, default)).Result);
+        ShouldBeUnavailable((await c.GetTeamRecords(req, path, default)).Result);
+        ShouldBeUnavailable((await c.GetBrackets(req, path, default)).Result);
     }
 
     [Fact(DisplayName = "Anonymous + public jobPath: games and standings are served")]
@@ -273,24 +274,24 @@ public class ScheduleVisibilityGateTests
         ShouldBeOk((await c.GetGames(new ScheduleFilterRequest(), null, default)).Result);
     }
 
-    [Fact(DisplayName = "Player of the unreleased job: games and contacts are 403")]
+    [Fact(DisplayName = "Player of the unreleased job: games and contacts not available")]
     public async Task Player_DraftJob_Forbidden()
     {
         var f = await BuildAsync();
         var c = Controller(f, loggedInJobId: f.DraftJob.JobId, role: RoleConstants.Names.PlayerName);
 
-        ShouldBeForbidden((await c.GetGames(new ScheduleFilterRequest(), null, default)).Result);
-        ShouldBeForbidden((await c.GetContacts(new ScheduleFilterRequest(), default)).Result);
+        ShouldBeUnavailable((await c.GetGames(new ScheduleFilterRequest(), null, default)).Result);
+        ShouldBeUnavailable((await c.GetContacts(new ScheduleFilterRequest(), default)).Result);
     }
 
-    [Fact(DisplayName = "Deep links by gid (sequential, enumerable): unreleased job's game → 403; public job's → served")]
+    [Fact(DisplayName = "Deep links by gid (sequential, enumerable): unreleased job's game → not available; public job's → served")]
     public async Task ByGame_GatesOnOwningJob()
     {
         var f = await BuildAsync();
         var c = Controller(f);
 
-        ShouldBeForbidden((await c.GetBracketsByGame(f.DraftGid, default)).Result);
-        ShouldBeForbidden((await c.GetStandingsByGame(f.DraftGid, default)).Result);
+        ShouldBeUnavailable((await c.GetBracketsByGame(f.DraftGid, default)).Result);
+        ShouldBeUnavailable((await c.GetStandingsByGame(f.DraftGid, default)).Result);
         ShouldBeOk((await c.GetStandingsByGame(f.PublicGid, default)).Result);
     }
 
@@ -298,17 +299,38 @@ public class ScheduleVisibilityGateTests
     public async Task ByGame_UnknownGid_NotFound()
     {
         var f = await BuildAsync();
-        (await Controller(f).GetStandingsByGame(999_999, default)).Result.Should().BeOfType<NotFoundResult>();
+        ShouldBeUnavailable((await Controller(f).GetStandingsByGame(999_999, default)).Result);
     }
 
-    [Fact(DisplayName = "Deep links by teamId: unreleased job's team → 403 for brackets and standings")]
+    [Fact(DisplayName = "Hidden and nonexistent are indistinguishable: unreleased vs unknown gid, teamId and jobPath give the same response")]
+    public async Task Unreleased_And_Unknown_Identical()
+    {
+        var f = await BuildAsync();
+        var c = Controller(f);
+
+        static string Shape(IActionResult? r)
+        {
+            var o = (ObjectResult)r!;
+            var p = (ProblemDetails)o.Value!;
+            return $"{o.StatusCode}|{p.Status}|{p.Title}|{p.Detail}|{p.Type}";
+        }
+
+        Shape((await c.GetStandingsByGame(f.DraftGid, default)).Result)
+            .Should().Be(Shape((await c.GetStandingsByGame(999_999, default)).Result));
+        Shape((await c.GetStandingsByTeam(f.DraftTeamId, default)).Result)
+            .Should().Be(Shape((await c.GetStandingsByTeam(Guid.NewGuid(), default)).Result));
+        Shape((await c.GetGames(new ScheduleFilterRequest(), f.DraftJob.JobPath, default)).Result)
+            .Should().Be(Shape((await c.GetGames(new ScheduleFilterRequest(), "no-such-event", default)).Result));
+    }
+
+    [Fact(DisplayName = "Deep links by teamId: unreleased job's team → not available for brackets and standings")]
     public async Task ByTeam_GatesOnOwningJob()
     {
         var f = await BuildAsync();
         var c = Controller(f);
 
-        ShouldBeForbidden((await c.GetBracketsByTeam(f.DraftTeamId, default)).Result);
-        ShouldBeForbidden((await c.GetStandingsByTeam(f.DraftTeamId, default)).Result);
+        ShouldBeUnavailable((await c.GetBracketsByTeam(f.DraftTeamId, default)).Result);
+        ShouldBeUnavailable((await c.GetStandingsByTeam(f.DraftTeamId, default)).Result);
         ShouldBeOk((await c.GetStandingsByTeam(f.PublicTeamId, default)).Result);
     }
 
@@ -318,7 +340,7 @@ public class ScheduleVisibilityGateTests
         var f = await BuildAsync();
         var c = Controller(f);
 
-        ShouldBeForbidden((await c.GetTeamResults(f.DraftTeamId, f.PublicJob.JobPath, default)).Result);
+        ShouldBeUnavailable((await c.GetTeamResults(f.DraftTeamId, f.PublicJob.JobPath, default)).Result);
         ShouldBeOk((await c.GetTeamResults(f.PublicTeamId, f.PublicJob.JobPath, default)).Result);
     }
 
@@ -328,7 +350,7 @@ public class ScheduleVisibilityGateTests
         var f = await BuildAsync();
         var c = Controller(f, loggedInJobId: f.PublicJob.JobId, role: RoleConstants.Names.DirectorName);
 
-        ShouldBeForbidden((await c.GetStandingsByGame(f.DraftGid, default)).Result);
+        ShouldBeUnavailable((await c.GetStandingsByGame(f.DraftGid, default)).Result);
     }
 
     [Fact(DisplayName = "Club Rep of the unreleased job with the preview flag ON: games and capabilities refuse")]
@@ -337,7 +359,7 @@ public class ScheduleVisibilityGateTests
         var f = await BuildAsync(draftPreviewFlag: true);
         var c = Controller(f, loggedInJobId: f.DraftJob.JobId, role: RoleConstants.Names.ClubRepName);
 
-        ShouldBeForbidden((await c.GetGames(new ScheduleFilterRequest(), f.DraftJob.JobPath, default)).Result);
+        ShouldBeUnavailable((await c.GetGames(new ScheduleFilterRequest(), f.DraftJob.JobPath, default)).Result);
         (await c.GetCapabilities(f.DraftJob.JobPath, default)).Result.Should().BeOfType<OkObjectResult>()
             .Which.Value.Should().BeOfType<ScheduleCapabilitiesDto>().Which.CanView.Should().BeFalse();
     }
@@ -361,7 +383,7 @@ public class ScheduleVisibilityGateTests
         var f = await BuildAsync();
         var c = Controller(f, loggedInJobId: f.PublicJob.JobId, role: RoleConstants.Names.DirectorName);
 
-        ShouldBeForbidden((await c.GetGames(new ScheduleFilterRequest(), f.DraftJob.JobPath, default)).Result);
+        ShouldBeUnavailable((await c.GetGames(new ScheduleFilterRequest(), f.DraftJob.JobPath, default)).Result);
     }
 
     [Fact(DisplayName = "Admin rights are per-job: a Director logged in elsewhere is not an admin on this job's page")]
@@ -391,13 +413,13 @@ public class ScheduleVisibilityGateTests
         return new EventBrowseController(eventBrowse.Object, lookup, f.Svc) { ControllerContext = context };
     }
 
-    [Fact(DisplayName = "active-games: unreleased job → 403 anonymous; served to its Director and for a public job")]
+    [Fact(DisplayName = "active-games: unreleased job → not available anonymous; served to its Director and for a public job")]
     public async Task ActiveGames_Gated()
     {
         var f = await BuildAsync();
 
-        ShouldBeForbidden(await EventBrowse(f).GetActiveGames(f.DraftJob.JobId, null, default));
-        ShouldBeForbidden(await EventBrowse(f, f.DraftJob.JobId, RoleConstants.Names.ClubRepName).GetActiveGames(f.DraftJob.JobId, null, default));
+        ShouldBeUnavailable(await EventBrowse(f).GetActiveGames(f.DraftJob.JobId, null, default));
+        ShouldBeUnavailable(await EventBrowse(f, f.DraftJob.JobId, RoleConstants.Names.ClubRepName).GetActiveGames(f.DraftJob.JobId, null, default));
         (await EventBrowse(f, f.DraftJob.JobId, RoleConstants.Names.DirectorName).GetActiveGames(f.DraftJob.JobId, null, default))
             .Should().BeOfType<OkObjectResult>();
         (await EventBrowse(f).GetActiveGames(f.PublicJob.JobId, null, default)).Should().BeOfType<OkObjectResult>();

@@ -81,19 +81,14 @@ public class EventBrowseController : ControllerBase
     /// </summary>
     [HttpGet("{jobId:guid}/active-games")]
     [ProducesResponseType(typeof(GameClockAvailableGameTimesDto), 200)]
-    [ProducesResponseType(403)]
+    [ProducesResponseType(404)]
     public async Task<IActionResult> GetActiveGames(
         Guid jobId,
         [FromQuery] DateTime? preferredGameDate,
         CancellationToken ct)
     {
         if (!await User.CanViewScheduleAsync(jobId, _jobLookupService, _viewScheduleService, ct))
-            return StatusCode(StatusCodes.Status403Forbidden, new ProblemDetails
-            {
-                Status = StatusCodes.Status403Forbidden,
-                Title = "Schedule not released",
-                Detail = "This schedule has not been released yet."
-            });
+            return ViewScheduleController.ScheduleNotAvailable();
 
         var result = await _eventBrowseService.GetActiveGamesAsync(jobId, preferredGameDate, ct);
         return Ok(result);

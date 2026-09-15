@@ -103,7 +103,7 @@ interface FilterChip {
 
             @if (scheduleUnreleased()) {
                 <div class="schedule-unreleased" role="status">
-                    <i class="bi bi-calendar-x me-2" aria-hidden="true"></i>This schedule has not been released yet.
+                    <i class="bi bi-calendar-x me-2" aria-hidden="true"></i>Schedule not available
                 </div>
             } @else {
 
@@ -1027,7 +1027,7 @@ interface FilterChip {
             margin-bottom: calc(-1 * var(--space-2));
         }
 
-        /* Server refused the schedule (not released to this viewer) — nothing else renders. */
+        /* Schedule not available to this viewer — nothing else renders. */
         .schedule-unreleased {
             padding: var(--space-6) var(--space-4);
             color: var(--bs-secondary-color);
