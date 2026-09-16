@@ -98,7 +98,7 @@
 			</section>
 
 			<section class="tau__panel" aria-labelledby="tau-often">
-				<h4 class="tau__panel-title" id="tau-often">How often active users came back</h4>
+				<h4 class="tau__panel-title" id="tau-often">Days each active user used the app</h4>
 				@if (d.activeUsers === 0) {
 					<p class="tau__panel-empty">No app use in this window.</p>
 				} @else {
@@ -124,7 +124,7 @@
 							<th scope="col" class="wt-flex">Team</th>
 							<th scope="col" class="wt-num tau__col-count">Players active</th>
 							<th scope="col" class="wt-num tau__col-count">Staff active</th>
-							<th scope="col" class="wt-num tau__col-count">Returning</th>
+							<th scope="col" class="wt-num tau__col-returning">Returning (2+ days)</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -137,7 +137,11 @@
 									{{ t.teamName }}
 								</td>
 								<td class="wt-num" [class.wt-zero]="t.playersActive === 0">
-									{{ t.playersActive }} <span class="tau__of">of {{ t.playersRostered }}</span>
+									@if (t.playersRostered === 0) {
+										<span class="wt-none">—</span>
+									} @else {
+										{{ t.playersActive }} <span class="tau__of">of {{ t.playersRostered }}</span>
+									}
 								</td>
 								<td class="wt-num" [class.wt-zero]="t.staffActive === 0">
 									@if (t.staffRostered === 0) {
