@@ -1,5 +1,5 @@
 /*
-    25 — AmericanSelect 2027: "Docs" section on the Director + SuperDirector nav
+    25 — AmericanSelect 2027: "Docs" section on the Director + SuperDirector + Superuser nav
     Customer: AmericanSelect  (76586DE3-ACB3-42EE-91EB-48597CA06802)
 
     WHAT THIS DOES
@@ -17,8 +17,10 @@
         - COVID Athlete Admittance Ticket is DROPPED
         - every link opens in a new tab (Target = _blank); legacy was mixed _self/_blank/NULL
         - section name "Docs", appended after the platform sections
+        - Superuser gets the section too, mirroring each job's Director links (legacy had
+          no Superuser Docs section)
 
-    Expected on dev (09-16): 48 nav.Nav rows (24 jobs x 2 roles), 48 "Docs" roots, 240 links.
+    Expected on dev (09-16): 72 nav.Nav rows (24 jobs x 3 roles), 72 "Docs" roots, 360 links.
 
     RE-RUN SAFE
     A job/role whose override nav already has an active "Docs" root is skipped and reported.
@@ -41,7 +43,7 @@ DECLARE @Commit     bit              = 0;
 
 DECLARE @SectionText varchar(50) = 'Docs';
 DECLARE @SectionIcon varchar(50) = 'folder2-open';
-DECLARE @SectionSort int         = 100;   -- after every platform root (Director max 10, SuperDirector max 11)
+DECLARE @SectionSort int         = 100;   -- after every platform root (Director max 10, SuperDirector max 11, Superuser max 12)
 DECLARE @LinkIcon    varchar(50) = 'file-earmark-pdf';
 DECLARE @Now         datetime    = GETDATE();
 
@@ -77,6 +79,13 @@ SELECT  JobId, JobPath, RoleId, RoleName, Text, Url,
 INTO    #src
 FROM    legacy
 WHERE   DupRank = 1;
+
+-- Superuser: legacy had no Docs section for this role. Mirror each job's Director links.
+INSERT INTO #src (JobId, JobPath, RoleId, RoleName, Text, Url, SortOrder)
+SELECT  s.JobId, s.JobPath, su.Id, su.Name, s.Text, s.Url, s.SortOrder
+FROM    #src s
+CROSS JOIN (SELECT Id, Name FROM dbo.AspNetRoles WHERE Name = 'Superuser') su
+WHERE   s.RoleName = 'Director';
 
 -- ── 2. Job/role pairs, minus any that already have a Docs section ───────────────────
 IF OBJECT_ID('tempdb..#pairs') IS NOT NULL DROP TABLE #pairs;
