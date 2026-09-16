@@ -31,6 +31,12 @@ public record PublicRequestsByRouteDto
     /// <summary>Anonymous requests that failed (status 400 and up), whole scope.</summary>
     public required int FailedRequests { get; init; }
 
+    /// <summary>
+    /// Succeeded page-shell requests (loaded on arrival in any page, not a screen anyone chose),
+    /// whole scope. Counted apart: not in Rows, Totals or TotalRequests.
+    /// </summary>
+    public required int ShellRequests { get; init; }
+
     /// <summary>False when TSICLogs is not configured on this server -- a missing source, not zero traffic.</summary>
     public required bool UsageLoggingAvailable { get; init; }
 }

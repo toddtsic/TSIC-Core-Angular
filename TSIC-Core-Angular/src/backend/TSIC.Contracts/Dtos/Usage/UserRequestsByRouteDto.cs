@@ -45,6 +45,12 @@ public record UserRequestsByRouteDto
     /// <summary>Distinct people behind the succeeded requests, whole scope.</summary>
     public required int TotalPeople { get; init; }
 
+    /// <summary>
+    /// Succeeded page-shell requests (loaded on arrival in any page, not a screen anyone chose)
+    /// under the role lens, whole scope. Counted apart: not in Rows, Totals, TotalRequests or TotalPeople.
+    /// </summary>
+    public required int ShellRequests { get; init; }
+
     /// <summary>False when TSICLogs is not configured on this server -- a missing source, not zero traffic.</summary>
     public required bool UsageLoggingAvailable { get; init; }
 }

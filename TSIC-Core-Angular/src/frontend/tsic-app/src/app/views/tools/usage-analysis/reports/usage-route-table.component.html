@@ -1,0 +1,57 @@
+<div class="urt">
+	<div class="urt-title">
+		Every route · {{ heading() }}
+		<span class="urt-sub">{{ routes().length.toLocaleString() }} {{ routes().length === 1 ? 'route' : 'routes' }}</span>
+	</div>
+
+	@if (routes().length === 0) {
+		<div class="urt-empty">No routes about this event in the window.</div>
+	} @else {
+		<div class="urt-wrap">
+			<table class="urt-table">
+				<thead>
+					<tr>
+						<th scope="col" [attr.aria-sort]="ariaSort('route')">
+							<button type="button" class="urt-sort" (click)="sortBy('route')">
+								Route
+								@if (sortKey() === 'route') { <i class="bi" [class.bi-caret-down-fill]="sortDesc()" [class.bi-caret-up-fill]="!sortDesc()" aria-hidden="true"></i> }
+							</button>
+						</th>
+						<th scope="col" class="urt-num" [attr.aria-sort]="ariaSort('requests')">
+							<button type="button" class="urt-sort" (click)="sortBy('requests')">
+								Requests
+								@if (sortKey() === 'requests') { <i class="bi" [class.bi-caret-down-fill]="sortDesc()" [class.bi-caret-up-fill]="!sortDesc()" aria-hidden="true"></i> }
+							</button>
+						</th>
+						@if (showPeople()) {
+							<th scope="col" class="urt-num" [attr.aria-sort]="ariaSort('people')">
+								<button type="button" class="urt-sort" (click)="sortBy('people')">
+									People
+									@if (sortKey() === 'people') { <i class="bi" [class.bi-caret-down-fill]="sortDesc()" [class.bi-caret-up-fill]="!sortDesc()" aria-hidden="true"></i> }
+								</button>
+							</th>
+						}
+						<th scope="col" class="urt-num" [attr.aria-sort]="ariaSort('failed')">
+							<button type="button" class="urt-sort" (click)="sortBy('failed')">
+								Failed
+								@if (sortKey() === 'failed') { <i class="bi" [class.bi-caret-down-fill]="sortDesc()" [class.bi-caret-up-fill]="!sortDesc()" aria-hidden="true"></i> }
+							</button>
+						</th>
+					</tr>
+				</thead>
+				<tbody>
+					@for (r of sorted(); track r.route) {
+						<tr>
+							<td class="urt-route">{{ r.route }}</td>
+							<td class="urt-num">{{ count(r.requests) }}</td>
+							@if (showPeople()) {
+								<td class="urt-num">{{ count(r.people) }}</td>
+							}
+							<td class="urt-num">{{ count(r.failed) }}</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+</div>

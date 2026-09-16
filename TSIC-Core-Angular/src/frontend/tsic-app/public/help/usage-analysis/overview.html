@@ -86,8 +86,8 @@
     registered under. A family account going through player registration has no registration yet and shows as
     <strong>Family</strong>; any other login without a registration (usually an adult self-registering) shows as
     <strong>No registration</strong>. Beside the request count is the number of people who made them — counted by
-    registration, or by login where there was none — and hovering a bar shows it per route, so a route used heavily by
-    one person reads differently from one used by hundreds.</li>
+    registration, or by login where there was none — shown per route in the table and when hovering a bar, so a route
+    used heavily by one person reads differently from one used by hundreds.</li>
 </ul>
 <h5>Public (not signed in)</h5>
 <ul>
@@ -95,4 +95,16 @@
     per event, grouped by the API route they hit, with failed requests (4xx / 5xx) counted apart so scanners and stale
     links never inflate the routes the public came for. Requests, not people: nothing in the log can turn an anonymous
     request into a visitor. Routes are the API endpoint, not the page, so one page fires several.</li>
+</ul>
+<h5>Reading the two route reports</h5>
+<ul>
+  <li><strong>Chart and table.</strong> The chart shows the 25 busiest routes for the event picked (or all events).
+    The <strong>Every route</strong> table beneath it lists all of them, and sorts by any column. The events table
+    below that gives each event's total and failed requests; click an event to move the chart and the route table to it.</li>
+  <li><strong>Page-shell requests</strong> are calls the app makes whenever someone arrives on any page, logs in,
+    switches role or has their sign-in renewed — loading the event, its menu and its status, whatever page they
+    landed on. They say nothing about which screens were used, so they are counted in their own tile and left out
+    of the routes.</li>
+  <li><strong>Home page (bulletins)</strong> is the event's home page loading its bulletins (the dashboard loads
+    them too). It is the closest thing in the data to a count of home-page visits.</li>
 </ul>

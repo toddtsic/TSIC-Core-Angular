@@ -203,12 +203,16 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
 
         var jobNames = scope.Jobs.ToDictionary(j => j.JobId, j => j.JobName);
 
+        // Page shell is counted apart and never becomes a route (UsageRoutes).
+        var shellRequests = counts.Where(c => UsageRoutes.IsShell(UsageRoutes.Key(c.Controller, c.Action))).Sum(c => c.Requests);
+
         var rows = counts
+            .Where(c => !UsageRoutes.IsShell(UsageRoutes.Key(c.Controller, c.Action)))
             .Select(c => new PublicRouteRowDto
             {
                 JobId = c.JobId,
                 JobName = jobNames.TryGetValue(c.JobId, out var name) ? name : string.Empty,
-                Route = c.Controller + "/" + c.Action,
+                Route = UsageRoutes.DisplayName(UsageRoutes.Key(c.Controller, c.Action)),
                 Requests = c.Requests,
                 FailedRequests = c.FailedRequests,
             })
@@ -233,6 +237,7 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
             Totals = totals,
             TotalRequests = rows.Sum(r => r.Requests),
             FailedRequests = rows.Sum(r => r.FailedRequests),
+            ShellRequests = shellRequests,
             UsageLoggingAvailable = _usageRepo.IsAvailable,
         };
     }
@@ -260,7 +265,7 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
             .Select(c => new
             {
                 c.JobId,
-                Route = c.Controller + "/" + c.Action,
+                Route = UsageRoutes.Key(c.Controller, c.Action),
                 // A person is the registration, or the login when there was none. Registration
                 // is per job, the same unit report 01 counts.
                 // Prefixed: login ids are GUID strings too, and the two keys must never meet.
@@ -275,14 +280,20 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
             .Where(x => x.RoleName is not null)
             .ToList();
 
-        var roles = named
+        // Page shell is counted apart and never becomes a route (UsageRoutes). Roles are offered
+        // from the routes, so a role that only ever loaded the shell is not a choice.
+        var shell = named.Where(x => UsageRoutes.IsShell(x.Route)).ToList();
+        var screens = named.Where(x => !UsageRoutes.IsShell(x.Route)).ToList();
+
+        var roles = screens
             .GroupBy(x => x.RoleName!)
             .Select(g => new UserRequestRoleDto { RoleName = g.Key, Requests = g.Sum(x => x.Requests) })
             .ToList();
 
         // The lens applies only when the role is actually present; otherwise the answer is every role and says so.
         var appliedRole = role is not null && roles.Any(x => x.RoleName == role) ? role : null;
-        var lensed = appliedRole is null ? named : named.Where(x => x.RoleName == appliedRole).ToList();
+        var lensed = appliedRole is null ? screens : screens.Where(x => x.RoleName == appliedRole).ToList();
+        var lensedShell = appliedRole is null ? shell : shell.Where(x => x.RoleName == appliedRole).ToList();
 
         var rows = lensed
             .GroupBy(x => new { x.JobId, x.Route })
@@ -290,7 +301,7 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
             {
                 JobId = g.Key.JobId,
                 JobName = jobNames.TryGetValue(g.Key.JobId, out var name) ? name : string.Empty,
-                Route = g.Key.Route,
+                Route = UsageRoutes.DisplayName(g.Key.Route),
                 Requests = g.Sum(x => x.Requests),
                 FailedRequests = g.Sum(x => x.FailedRequests),
                 People = g.Where(x => x.Requests > 0).Select(x => x.Person).Distinct().Count(),
@@ -302,7 +313,7 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
             .GroupBy(x => x.Route)
             .Select(g => new UserRouteTotalDto
             {
-                Route = g.Key,
+                Route = UsageRoutes.DisplayName(g.Key),
                 Requests = g.Sum(x => x.Requests),
                 FailedRequests = g.Sum(x => x.FailedRequests),
                 People = g.Where(x => x.Requests > 0).Select(x => x.Person).Distinct().Count(),
@@ -320,6 +331,7 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
             TotalRequests = lensed.Sum(x => x.Requests),
             FailedRequests = lensed.Sum(x => x.FailedRequests),
             TotalPeople = lensed.Where(x => x.Requests > 0).Select(x => x.Person).Distinct().Count(),
+            ShellRequests = lensedShell.Sum(x => x.Requests),
             UsageLoggingAvailable = _usageRepo.IsAvailable,
         };
     }

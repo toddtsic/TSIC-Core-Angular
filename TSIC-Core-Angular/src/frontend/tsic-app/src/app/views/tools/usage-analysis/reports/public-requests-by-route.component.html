@@ -5,11 +5,11 @@
 	loadingMessage="Counting requests…"
 	emptyMessage="No anonymous requests in this window."
 	[tiles]="tiles()"
-	[columns]="report.columns()"
+	[columns]="report.columns"
 	[rows]="report.rows()"
 	[allRow]="report.allRow()"
 	[chartRow]="report.chartRow()"
-	chartSubtitle="anonymous requests by API route, succeeded only"
+	[chartSubtitle]="chartSubtitle()"
 	[chartSeries]="report.chartSeries()"
 	[primaryXAxis]="report.primaryXAxis()"
 	[primaryYAxis]="report.primaryYAxis()"
@@ -18,11 +18,13 @@
 	[chartMargin]="report.chartMargin"
 	chartEmptyMessage="No anonymous requests in the window."
 	lensEmptyMessage="No anonymous requests about this event in the window. Pick another event above, or a row below.">
+	<app-usage-route-table usageAfterChart
+		[routes]="report.routes()"
+		[heading]="report.chartRow()?.name ?? ''" />
 	A request is one API call made with no one signed in — the public, and anyone browsing
 	before they sign in. Routes are the API endpoint (Controller/Action), not the page: one page
-	fires several, and every page load fires the chrome. Requests that failed are counted in the
-	tile and nowhere else.
-	@if (report.foldedCount() > 0) {
-		{{ report.foldedCount() }} quieter routes are folded into Other.
-	}
+	fires several. Page-shell requests — loaded on arrival in any page, whatever page it is — are
+	counted in their tile and left out of the routes. Home page (bulletins) is the event's home
+	page loading its bulletins. The chart draws the busiest routes; the Every route table lists them
+	all. Requests that failed are counted in the tile and the Failed columns, never in the chart.
 </app-usage-pivot-report>

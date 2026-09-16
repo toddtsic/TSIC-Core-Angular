@@ -15,6 +15,7 @@ export type UserRequestsByRouteDto = {
     totalRequests: number;
     failedRequests: number;
     totalPeople: number;
+    shellRequests: number;
     usageLoggingAvailable: boolean;
 };
 

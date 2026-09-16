@@ -5,7 +5,7 @@
 	loadingMessage="Counting requests…"
 	emptyMessage="No signed-in requests in this window."
 	[tiles]="tiles()"
-	[columns]="report.columns()"
+	[columns]="report.columns"
 	[rows]="report.rows()"
 	[allRow]="report.allRow()"
 	[chartRow]="report.chartRow()"
@@ -18,14 +18,17 @@
 	[chartMargin]="report.chartMargin"
 	chartEmptyMessage="No signed-in requests in the window."
 	lensEmptyMessage="No signed-in requests about this event in the window. Pick another event above, or a row below.">
+	<app-usage-route-table usageAfterChart
+		[routes]="report.routes()"
+		[heading]="report.chartRow()?.name ?? ''"
+		[showPeople]="true" />
 	A request is one API call made by someone signed in. Role is the one they were registered
 	under; a family account working without a registration (the player registration wizard) is
 	Family, and any other login without one is No registration. People are counted by
-	registration, or by login where there was none; hover a bar for how many made that route's
-	requests. Routes are the API endpoint (Controller/Action), not the page: one page fires
-	several, and every page load fires the chrome. Requests that failed are counted in the tile
-	and nowhere else.
-	@if (report.foldedCount() > 0) {
-		{{ report.foldedCount() }} quieter routes are folded into Other.
-	}
+	registration, or by login where there was none. Routes are the API endpoint
+	(Controller/Action), not the page: one page fires several. Page-shell requests — loaded on
+	arrival in any page, whatever page it is — are counted in their tile and left out of the
+	routes. Home page (bulletins) is the event's home page loading its bulletins. The chart draws
+	the busiest routes; the Every route table lists them all. Requests that failed are counted in
+	the tile and the Failed columns, never in the chart.
 </app-usage-pivot-report>

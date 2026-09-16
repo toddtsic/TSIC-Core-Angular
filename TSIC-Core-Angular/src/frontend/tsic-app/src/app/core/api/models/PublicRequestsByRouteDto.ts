@@ -11,6 +11,7 @@ export type PublicRequestsByRouteDto = {
     totals: Array<PublicRouteTotalDto>;
     totalRequests: number;
     failedRequests: number;
+    shellRequests: number;
     usageLoggingAvailable: boolean;
 };
 

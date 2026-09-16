@@ -4,12 +4,14 @@ import type { UserRequestsByRouteDto } from '@core/api';
 import { UsageAnalysisStateService } from '../usage-analysis-state.service';
 import { UsagePivotReportComponent } from './usage-pivot-report.component';
 import { orderRoles, useUsageReportFetch, type UsageTile } from './usage-report-shared';
-import { useRouteReport } from './usage-route-report';
+import { routeChartSubtitle, useRouteReport } from './usage-route-report';
+import { UsageRouteTableComponent } from './usage-route-table.component';
 
 /**
  * User Requests by Route. What signed-in people did: requests with a login on them against
  * the scoped live events in the window, keyed by event, grouped by API route. The exact
- * complement of Public Requests by Route, on the same shared columns, rows and chart.
+ * complement of Public Requests by Route, on the same shared events table, chart and
+ * every-route table. Page-shell calls are taken out server-side and shown only as a tile.
  *
  * The Role dropdown (shell) narrows the FETCH to one role, so a director's handful of
  * requests is not buried under every family registering. Its choices come from this
@@ -21,13 +23,13 @@ import { useRouteReport } from './usage-route-report';
  * "No registration" otherwise (adults self-registering).
  *
  * Alongside requests, the answer counts the distinct PEOPLE behind them — the registration,
- * or the login when there was none — shown as a tile and in the chart's tooltip, so a route
+ * or the login when there was none — shown as a tile, in the chart's tooltip and in the every-route table, so a route
  * hammered by one person reads differently from one used by hundreds.
  */
 @Component({
 	selector: 'app-usage-user-requests-by-route',
 	standalone: true,
-	imports: [UsagePivotReportComponent],
+	imports: [UsagePivotReportComponent, UsageRouteTableComponent],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './user-requests-by-route.component.html',
 })
@@ -53,9 +55,10 @@ export class UserRequestsByRouteComponent {
 		return [
 			{ value: d?.totalRequests ?? 0, label: `${this.who()} on ${word}`, primary: true },
 			{ value: d?.totalPeople ?? 0, label: 'People who made them' },
-			{ value: d?.failedRequests ?? 0, label: 'Failed (4xx / 5xx), not counted below' },
+			{ value: d?.failedRequests ?? 0, label: 'Failed (4xx / 5xx), not charted' },
+			{ value: d?.shellRequests ?? 0, label: 'Page-shell requests, not in routes' },
 		];
 	});
 
-	readonly chartSubtitle = computed(() => `${this.who().toLowerCase()} by API route, succeeded only`);
+	readonly chartSubtitle = computed(() => routeChartSubtitle(this.who().toLowerCase(), this.report.routesNotCharted()));
 }
