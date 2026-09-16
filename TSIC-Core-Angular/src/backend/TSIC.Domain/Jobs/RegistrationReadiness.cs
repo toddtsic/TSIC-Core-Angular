@@ -117,12 +117,15 @@ public static class RegistrationReadiness
         var concluded = JobLifecycle.EventConcluded(
             f.SchedulePublished, f.LastGameDate, f.EventEndDate, f.ExpiryUsers, now);
         var door = !concluded && !f.Superseded;
+        // Player door ignores the ExpiryUsers rung — see JobLifecycle.PlayerRegistrationConcluded.
+        var playerDoor = !JobLifecycle.PlayerRegistrationConcluded(
+            f.SchedulePublished, f.LastGameDate, f.EventEndDate, f.ExpiryUsers, now) && !f.Superseded;
 
         return new Verdicts
         {
             EventConcluded = concluded,
             Superseded = f.Superseded,
-            PlayerRegistrationOpen = f.PlayerToggleOn && f.PlayerFeesConfigured && door,
+            PlayerRegistrationOpen = f.PlayerToggleOn && f.PlayerFeesConfigured && playerDoor,
             PlayerTeamsAvailable = f.PlayerTeamsAvailable,
             TeamRegistrationOpen = f.TeamToggleOn && f.TeamFeesConfigured && door,
         };
@@ -160,7 +163,7 @@ public static class RegistrationReadiness
     public static IReadOnlyList<Clause> DescribePlayer(
         CoreFacts f, DescribeFacts d, Verdicts v, DateTime now) =>
     [
-        EventNotOverClause(f, v, now),
+        EventNotOverClause(f, v, now, expiryIgnored: true),
         NotSupersededClause(d, v),
         ToggleClause(f.PlayerToggleOn, "Player"),
         FeesClause(f.PlayerFeesConfigured, "player", "a player registration"),
@@ -220,7 +223,7 @@ public static class RegistrationReadiness
         FixTarget = configured ? null : FixTargets.Fees,
     };
 
-    private static Clause EventNotOverClause(CoreFacts f, Verdicts v, DateTime now)
+    private static Clause EventNotOverClause(CoreFacts f, Verdicts v, DateTime now, bool expiryIgnored = false)
     {
         // Name the signal that DECIDED it — the hierarchy is invisible otherwise, and after a
         // clone the deciding signal is nearly always a year-shifted EventEndDate that landed
@@ -240,8 +243,17 @@ public static class RegistrationReadiness
         // there is nothing to send the director to. The other two rungs are editable dates.
         var fix = signal == JobLifecycle.ConcludedSignal.LastGame ? null : FixTargets.Scheduling;
 
+        // Player registration ignores the user expiry rung (JobLifecycle.PlayerRegistrationConcluded).
+        var expiryOnly = expiryIgnored && v.EventConcluded && signal == JobLifecycle.ConcludedSignal.Expiry;
+        var concluded = v.EventConcluded && !expiryOnly;
+
         string detail;
-        if (!v.EventConcluded)
+        if (expiryOnly)
+        {
+            detail = $"The user expiry date is {date:yyyy-MM-dd}. That hides player roles at login "
+                     + "but does not close player registration.";
+        }
+        else if (!concluded)
         {
             detail = $"Still running — {signalLabel} is {date:yyyy-MM-dd}.";
         }
@@ -257,9 +269,9 @@ public static class RegistrationReadiness
         {
             Key = ClauseKeys.EventNotOver,
             Label = "The event is not over",
-            Passed = !v.EventConcluded,
+            Passed = !concluded,
             Detail = detail,
-            FixTarget = v.EventConcluded ? fix : null,
+            FixTarget = concluded ? fix : null,
         };
     }
 

@@ -38,19 +38,30 @@ public sealed class JobRegistrationCapabilities : IJobRegistrationCapabilities
         // and post-conclusion data fix-up is legitimate admin work); ordinary users are bound
         // by "event is over" AND "a live later-year sibling exists".
         bool door;
+        bool playerDoor;
         if (actor == CapabilityActor.Admin)
         {
             door = true;
+            playerDoor = true;
         }
         else
         {
+            var now = DateTime.Now;
             var concluded = JobLifecycle.EventConcluded(
                 facts.SchedulePublished,
                 facts.LastGameDate,
                 facts.EventEndDate,
                 facts.ExpiryUsers,
-                DateTime.Now);
+                now);
             door = !concluded && !facts.SupersededByLaterEvent;
+            // Player door ignores the ExpiryUsers rung — see JobLifecycle.PlayerRegistrationConcluded.
+            var playerConcluded = JobLifecycle.PlayerRegistrationConcluded(
+                facts.SchedulePublished,
+                facts.LastGameDate,
+                facts.EventEndDate,
+                facts.ExpiryUsers,
+                now);
+            playerDoor = !playerConcluded && !facts.SupersededByLaterEvent;
         }
 
         // Admins skip the director TOGGLES but never the data PRECONDITIONS (no fee row / no
@@ -59,7 +70,7 @@ public sealed class JobRegistrationCapabilities : IJobRegistrationCapabilities
 
         return new JobCapabilitySet
         {
-            CanRegisterPlayer = door && toggle(facts.AllowPlayer) && facts.PlayerFeesConfigured,
+            CanRegisterPlayer = playerDoor && toggle(facts.AllowPlayer) && facts.PlayerFeesConfigured,
             // Staff (coach): toggle = AllowStaff; precondition = teams exist (binds admins too).
             CanRegisterStaff = door && toggle(facts.AllowStaff) && facts.TeamsExist,
             CanRegisterReferee = door && toggle(facts.AllowReferee),

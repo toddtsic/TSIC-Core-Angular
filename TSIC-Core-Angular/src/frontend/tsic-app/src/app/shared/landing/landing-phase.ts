@@ -88,7 +88,11 @@ export function derivePhase(p: JobPulseDto | null, now: Date): EventPhase {
 	// over the published-lastGameDate → EventEndDate → ExpiryUsers hierarchy, the SAME predicate
 	// the write authority enforces. The FE consumes the bit rather than recomputing from raw
 	// dates on the client clock (that two-clock recompute drifted at the day boundary).
-	if (p.eventConcluded) return 'concluded';
+	// Exception: player registration ignores the ExpiryUsers rung server-side (a director sets user
+	// expiry back to hide player roles at login, not to close registration). The server already
+	// closes playerRegistrationOpen on a past last game / end date, so open-while-concluded can
+	// only mean concluded-by-expiry — fall through so the Register Player card stays.
+	if (p.eventConcluded && !isPlayerRegistrationEffectivelyOpen(p)) return 'concluded';
 	const today = startOfDay(now).getTime();
 	const firstGame = p.firstGameDate ? startOfDay(new Date(p.firstGameDate)).getTime() : null;
 	if (p.schedulePublished && firstGame !== null && firstGame <= today) return 'inSeason';

@@ -87,4 +87,24 @@ public static class JobLifecycle
         // tie-break (Smart-Bulletins phase label) covers the residual where this is too lax.
         return (expiryUsers.Date < today, ConcludedSignal.Expiry, expiryUsers);
     }
+
+    /// <summary>
+    /// The PLAYER-registration door: <see cref="EventConcluded"/> minus the <c>ExpiryUsers</c>
+    /// rung. Directors set <c>ExpiryUsers</c> into the past deliberately to hide a job's player
+    /// roles at login (e.g. a tryout site after offers go out) while player registration stays
+    /// open — so an expired users window must not close player registration. A past last game
+    /// or <c>EventEndDate</c> still does. Every other role keeps the full <see cref="EventConcluded"/>.
+    /// Shared by the pulse (<see cref="RegistrationReadiness.Compose"/>) and the write authority
+    /// (<c>JobRegistrationCapabilities.CanRegisterPlayer</c>) so card and write cannot disagree.
+    /// </summary>
+    public static bool PlayerRegistrationConcluded(
+        bool schedulePublished,
+        DateTime? lastGameDate,
+        DateTime? eventEndDate,
+        DateTime expiryUsers,
+        DateTime now)
+    {
+        var (concluded, signal, _) = Resolve(schedulePublished, lastGameDate, eventEndDate, expiryUsers, now);
+        return concluded && signal != ConcludedSignal.Expiry;
+    }
 }
