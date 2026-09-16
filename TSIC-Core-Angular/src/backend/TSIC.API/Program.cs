@@ -320,6 +320,7 @@ builder.Services.AddScoped<ITournamentParkingService, TournamentParkingService>(
 // Widget Dashboard
 builder.Services.AddScoped<IUserWidgetService, UserWidgetService>();
 builder.Services.AddScoped<IWidgetDashboardService, WidgetDashboardService>();
+builder.Services.AddScoped<ITeamsAppUsageService, TeamsAppUsageService>();
 builder.Services.AddScoped<IWidgetEditorService, WidgetEditorService>();
 builder.Services.AddScoped<IJobCloneService, JobCloneService>();
 builder.Services.AddScoped<TSIC.API.Services.Admin.JobClonePlanner>();

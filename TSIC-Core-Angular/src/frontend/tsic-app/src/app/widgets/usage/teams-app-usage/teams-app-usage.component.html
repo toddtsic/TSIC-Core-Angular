@@ -1,0 +1,169 @@
+<div class="tau">
+
+	<div class="tau__head">
+		<i class="bi bi-phone" aria-hidden="true"></i>
+		<h3 class="tau__title">TSIC-TEAMS App Usage</h3>
+
+		@if (data()?.teamsAppEnabled) {
+			<div class="tau__window-group" role="group" aria-label="Time window">
+				@for (w of windows; track w.days) {
+					<button type="button"
+						class="tau__btn"
+						[class.active]="windowDays() === w.days"
+						[attr.aria-pressed]="windowDays() === w.days"
+						[disabled]="isLoading()"
+						(click)="setWindow(w.days)">{{ w.label }}</button>
+				}
+			</div>
+		}
+	</div>
+
+	@if (hasError()) {
+		<div class="tau__state tau__state--error">
+			<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+			<span>Unable to load app usage</span>
+			<button type="button" class="btn btn-sm btn-outline-secondary" (click)="load()">Retry</button>
+		</div>
+	} @else if (!data()) {
+		<div class="tau__state">
+			<div class="spinner-border spinner-border-sm" role="status"></div>
+			<span>Loading app usage…</span>
+		</div>
+	} @else if (isUnavailable()) {
+		<div class="tau__state">
+			<i class="bi bi-plug" aria-hidden="true"></i>
+			<span>App usage is not recorded on this server.</span>
+		</div>
+	} @else if (isNotEnabled()) {
+		<div class="tau__state">
+			<i class="bi bi-phone" aria-hidden="true"></i>
+			<span>TSIC-TEAMS is not enabled for this event.</span>
+		</div>
+	} @else {
+		@let d = data()!;
+
+		@if (isPartialWindow()) {
+			<p class="tau__coverage">
+				<i class="bi bi-info-circle" aria-hidden="true"></i>
+				@if (d.daysCovered === 0) {
+					App usage has not been recorded yet.
+				} @else {
+					Usage recording began {{ d.loggingStartedAt | date: 'MMM d, y' }}, so this
+					view covers {{ d.daysCovered }} of the last {{ d.windowDays }} days.
+				}
+			</p>
+		}
+
+		<!-- Breadth then depth. Every figure a count, with its population beside it. -->
+		<div class="tau__tiles">
+			<div class="tau__tile">
+				<span class="tau__tile-value">{{ d.activeUsers.toLocaleString() }}</span>
+				<span class="tau__tile-label">Active users</span>
+				<span class="tau__tile-sub">of {{ d.rosteredUsers.toLocaleString() }} rostered players &amp; staff</span>
+			</div>
+			<div class="tau__tile">
+				<span class="tau__tile-value">{{ d.teamsReached }}</span>
+				<span class="tau__tile-label">Teams reached</span>
+				<span class="tau__tile-sub">of {{ d.teamsTotal }} teams</span>
+			</div>
+			<div class="tau__tile">
+				<span class="tau__tile-value">{{ d.returningUsers.toLocaleString() }}</span>
+				<span class="tau__tile-label">Returning users</span>
+				<span class="tau__tile-sub">used the app on 2 or more days</span>
+			</div>
+			<div class="tau__tile">
+				<span class="tau__tile-value">{{ d.daysWithActivity }}</span>
+				<span class="tau__tile-label">Days in use</span>
+				<span class="tau__tile-sub">of {{ d.daysCovered }} days</span>
+			</div>
+		</div>
+
+		<div class="tau__panels">
+			<section class="tau__panel" aria-labelledby="tau-who">
+				<h4 class="tau__panel-title" id="tau-who">Who uses it</h4>
+				<div class="tau__row">
+					<span class="tau__row-label">Players</span>
+					<span class="tau__bar" aria-hidden="true">
+						<span class="tau__bar-fill" [style.width.%]="shareWidth(d.playersActive, d.playersRostered)"></span>
+					</span>
+					<span class="tau__row-figure">{{ d.playersActive }} of {{ d.playersRostered }}</span>
+				</div>
+				<div class="tau__row">
+					<span class="tau__row-label">Staff</span>
+					<span class="tau__bar" aria-hidden="true">
+						<span class="tau__bar-fill tau__bar-fill--staff" [style.width.%]="shareWidth(d.staffActive, d.staffRostered)"></span>
+					</span>
+					<span class="tau__row-figure">{{ d.staffActive }} of {{ d.staffRostered }}</span>
+				</div>
+			</section>
+
+			<section class="tau__panel" aria-labelledby="tau-often">
+				<h4 class="tau__panel-title" id="tau-often">How often active users came back</h4>
+				@if (d.activeUsers === 0) {
+					<p class="tau__panel-empty">No app use in this window.</p>
+				} @else {
+					@for (b of d.frequency; track b.minDays) {
+						<div class="tau__row">
+							<span class="tau__row-label">{{ bandLabel(b) }}</span>
+							<span class="tau__bar" aria-hidden="true">
+								<span class="tau__bar-fill tau__bar-fill--depth" [style.width.%]="bandWidth(b)"></span>
+							</span>
+							<span class="tau__row-figure">{{ b.users }} {{ b.users === 1 ? 'user' : 'users' }}</span>
+						</div>
+					}
+				}
+			</section>
+		</div>
+
+		@if (d.teams.length > 0) {
+			<h4 class="tau__panel-title tau__table-title">By team</h4>
+			<div class="wt-scroll">
+				<table class="widget-table">
+					<thead>
+						<tr>
+							<th scope="col" class="wt-flex">Team</th>
+							<th scope="col" class="wt-num tau__col-count">Players active</th>
+							<th scope="col" class="wt-num tau__col-count">Staff active</th>
+							<th scope="col" class="wt-num tau__col-count">Returning</th>
+						</tr>
+					</thead>
+					<tbody>
+						@for (t of d.teams; track t.teamId) {
+							<tr>
+								<td class="wt-flex">
+									@if (showAgegroup(t)) {
+										<span class="tau__agegroup">{{ t.agegroupName }}</span>
+									}
+									{{ t.teamName }}
+								</td>
+								<td class="wt-num" [class.wt-zero]="t.playersActive === 0">
+									{{ t.playersActive }} <span class="tau__of">of {{ t.playersRostered }}</span>
+								</td>
+								<td class="wt-num" [class.wt-zero]="t.staffActive === 0">
+									@if (t.staffRostered === 0) {
+										<span class="wt-none">—</span>
+									} @else {
+										{{ t.staffActive }} <span class="tau__of">of {{ t.staffRostered }}</span>
+									}
+								</td>
+								<td class="wt-num" [class.wt-zero]="t.returningUsers === 0">{{ t.returningUsers }}</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+
+		<p class="tau__footnote">
+			An active user is a rostered player or staff member whose signed-in TSIC-TEAMS activity was
+			recorded on at least one day in the window. Players are counted individually: a family
+			counts once for each player they used the app for. Counts come from app activity, not
+			downloads. Older app versions that do not report usage are not counted.
+			@if (d.offRosterUsers > 0) {
+				{{ d.offRosterUsers }} more {{ d.offRosterUsers === 1 ? 'person' : 'people' }} no longer on a
+				team roster also used the app and {{ d.offRosterUsers === 1 ? 'is' : 'are' }} not counted above.
+			}
+		</p>
+	}
+
+</div>

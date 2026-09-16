@@ -16,15 +16,18 @@ public class WidgetDashboardController : ControllerBase
     private readonly IWidgetDashboardService _dashboardService;
     private readonly IUserWidgetService _userWidgetService;
     private readonly IJobLookupService _jobLookupService;
+    private readonly ITeamsAppUsageService _teamsAppUsageService;
 
     public WidgetDashboardController(
         IWidgetDashboardService dashboardService,
         IUserWidgetService userWidgetService,
-        IJobLookupService jobLookupService)
+        IJobLookupService jobLookupService,
+        ITeamsAppUsageService teamsAppUsageService)
     {
         _dashboardService = dashboardService;
         _userWidgetService = userWidgetService;
         _jobLookupService = jobLookupService;
+        _teamsAppUsageService = teamsAppUsageService;
     }
 
     /// <summary>
@@ -310,6 +313,31 @@ public class WidgetDashboardController : ControllerBase
         var result = await _dashboardService.GetUsageStatsPerJobAsync(
             jobId.Value, windowDays, topN, ct);
 
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// TeamsAppUsage widget: how the current event's rostered players and staff use the
+    /// TSIC-TEAMS app -- people, teams and days, never requests.
+    ///
+    /// Gated AdminOnly (Director, SuperDirector, Superuser). The event is the caller's token
+    /// job; the request supplies only the window. This is the one client-facing view of
+    /// TSICLogs, so the DTO carries aggregates only.
+    /// </summary>
+    [HttpGet("teams-app-usage")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<ActionResult<TeamsAppUsageDto>> GetTeamsAppUsage(
+        CancellationToken ct,
+        [FromQuery] int windowDays = 30)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Job context required" });
+
+        // Clamped, not trusted: an unbounded window would scan the whole fact table.
+        windowDays = Math.Clamp(windowDays, 1, 365);
+
+        var result = await _teamsAppUsageService.GetTeamsAppUsageAsync(jobId.Value, windowDays, ct);
         return Ok(result);
     }
 

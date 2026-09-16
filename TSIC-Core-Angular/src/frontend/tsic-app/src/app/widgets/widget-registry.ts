@@ -10,6 +10,7 @@ import { YearOverYearWidgetComponent } from '@widgets/scheduling/year-over-year-
 import { FinancialHealthComponent } from '@widgets/financial/financial-health/financial-health.component';
 import { JobRegCountsAndDollarsComponent } from '@widgets/portfolio/job-reg-counts-dollars/job-reg-counts-dollars.component';
 import { UsageStatsPerJobComponent } from '@widgets/usage/usage-stats-per-job/usage-stats-per-job.component';
+import { TeamsAppUsageComponent } from '@widgets/usage/teams-app-usage/teams-app-usage.component';
 import { Workspaces, type WorkspaceKey } from '@widgets/workspace.constants';
 
 // ════════════════════════════════════════════════════════════
@@ -145,6 +146,18 @@ export const WIDGET_MANIFEST: Record<string, WidgetManifestEntry> = {
 		workspace:    Workspaces.Dashboard,
 		description:  'Requests per event over a rolling window, split signed-in vs anonymous',
 		displayStyle: 'chart',
+	},
+
+	// Client-facing: the only view of TSICLogs a client ever sees. 'content' because it
+	// carries a window selector and a per-team table.
+	'teams-app-usage': {
+		component:    TeamsAppUsageComponent,
+		label:        'TeamsAppUsage',
+		icon:         'bi-phone',
+		widgetType:   'content',
+		workspace:    Workspaces.Dashboard,
+		description:  'TSIC-TEAMS app use by rostered players and staff: people, teams and days',
+		displayStyle: 'table',
 	},
 
 };

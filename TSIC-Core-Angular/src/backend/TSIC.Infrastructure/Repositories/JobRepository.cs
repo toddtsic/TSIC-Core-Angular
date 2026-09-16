@@ -525,6 +525,15 @@ public class JobRepository : IJobRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<bool> IsTsicTeamsEnabledAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.BEnableTsicteams == true)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<bool> IsPublicRostersRestrictedAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
         // Effective restriction = the director's flag OR "the event is over". Public rosters are a

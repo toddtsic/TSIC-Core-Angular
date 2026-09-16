@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
-import type { AgegroupDistributionDto, AvailableWidgetDto, DashboardMetricsDto, EventContactDto, JobRegCountsAndDollarsDto, RegistrationTimeSeriesDto, SaveUserWidgetsRequest, UsageStatsPerJobDto, UserWidgetEntryDto, WidgetDashboardResponse, YearOverYearComparisonDto } from '@core/api';
+import type { AgegroupDistributionDto, AvailableWidgetDto, DashboardMetricsDto, EventContactDto, JobRegCountsAndDollarsDto, RegistrationTimeSeriesDto, SaveUserWidgetsRequest, TeamsAppUsageDto, UsageStatsPerJobDto, UserWidgetEntryDto, WidgetDashboardResponse, YearOverYearComparisonDto } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
 export class WidgetDashboardService {
@@ -73,6 +73,15 @@ export class WidgetDashboardService {
 
 		return this.http.get<UsageStatsPerJobDto>(
 			`${this.apiUrl}/usage-stats-per-job`, { params });
+	}
+
+	/**
+	 * TSIC-TEAMS app usage for the token's event. The window is the only parameter;
+	 * the server clamps it.
+	 */
+	getTeamsAppUsage(windowDays = 30): Observable<TeamsAppUsageDto> {
+		const params = new HttpParams().set('windowDays', windowDays);
+		return this.http.get<TeamsAppUsageDto>(`${this.apiUrl}/teams-app-usage`, { params });
 	}
 
 	// ── User Widget Customization ──

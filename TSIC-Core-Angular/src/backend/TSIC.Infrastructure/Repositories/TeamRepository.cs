@@ -1904,6 +1904,34 @@ public class TeamRepository : ITeamRepository
             .ToListAsync(ct);
     }
 
+    // ── TeamsAppUsage widget ──
+
+    public async Task<List<Contracts.Dtos.Widgets.TeamsAppRosterMemberDto>> GetTeamsAppRosterAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        return await (
+            from r in _context.Registrations
+            join t in _context.Teams on r.AssignedTeamId equals t.TeamId
+            join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
+            where t.JobId == jobId
+                  && r.JobId == jobId
+                  && t.Active == true
+                  && r.BActive == true
+                  && (r.RoleId == RoleConstants.Player || r.RoleId == RoleConstants.Staff)
+                  && !ag.AgegroupName!.Contains(AgegroupConstants.WaitlistPrefix)
+                  && !ag.AgegroupName!.Contains(AgegroupConstants.DroppedTeams)
+            select new Contracts.Dtos.Widgets.TeamsAppRosterMemberDto
+            {
+                RegistrationId = r.RegistrationId,
+                TeamId = t.TeamId,
+                TeamName = t.TeamName ?? string.Empty,
+                AgegroupName = ag.AgegroupName ?? string.Empty,
+                IsStaff = r.RoleId == RoleConstants.Staff
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
+    }
+
     // ── ASL public roster board ──
 
     public async Task<List<AslTeamRowDto>> GetAslRosterTeamsAsync(

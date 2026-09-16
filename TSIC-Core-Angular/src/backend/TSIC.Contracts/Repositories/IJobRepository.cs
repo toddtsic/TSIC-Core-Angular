@@ -321,6 +321,12 @@ public interface IJobRepository
     Task<bool> IsPublicRostersRestrictedAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Jobs.bEnableTSICTeams -- whether the job is signed up for the TSIC-TEAMS app. False for
+    /// an unknown job.
+    /// </summary>
+    Task<bool> IsTsicTeamsEnabledAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get CC processing fee percent for a job.
     /// </summary>
     Task<decimal?> GetProcessingFeePercentAsync(Guid jobId, CancellationToken cancellationToken = default);

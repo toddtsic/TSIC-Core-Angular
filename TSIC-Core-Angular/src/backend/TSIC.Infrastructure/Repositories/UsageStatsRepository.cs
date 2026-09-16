@@ -202,6 +202,30 @@ public class UsageStatsRepository : IUsageStatsRepository
             .Select(x => new UsageRegistrationByBucketDto { BucketIndex = x.Index, JobId = x.JobId, RegistrationId = x.RegId })
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<UsageRegistrationDayDto>> GetDistinctRegistrationDaysAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        int? appClientId,
+        CancellationToken cancellationToken = default)
+    {
+        if (jobIds.Count == 0)
+            return [];
+
+        var query = Admitted()
+            .Where(u => u.OccurredAt >= since && u.RegId != null && jobIds.Contains(u.JobId));
+
+        if (appClientId is int client)
+            query = query.Where(u => u.AppClientId == client);
+
+        // .Date translates to CONVERT(date, OccurredAt): server-local calendar days, the same
+        // clock the column is written in.
+        return await query
+            .Select(u => new { u.JobId, RegId = u.RegId!.Value, Day = u.OccurredAt.Date })
+            .Distinct()
+            .Select(x => new UsageRegistrationDayDto { JobId = x.JobId, RegistrationId = x.RegId, Day = x.Day })
+            .ToListAsync(cancellationToken);
+    }
 }
 
 /// <summary>
@@ -258,4 +282,11 @@ public class UnavailableUsageStatsRepository : IUsageStatsRepository
         int? appClientId,
         CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<UsageRegistrationByBucketDto>>([]);
+
+    public Task<IReadOnlyList<UsageRegistrationDayDto>> GetDistinctRegistrationDaysAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        int? appClientId,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<UsageRegistrationDayDto>>([]);
 }

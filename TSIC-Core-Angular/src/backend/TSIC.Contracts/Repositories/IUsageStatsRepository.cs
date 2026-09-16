@@ -105,4 +105,16 @@ public interface IUsageStatsRepository
         UsageBucket bucket,
         int? appClientId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// TeamsAppUsage widget: distinct (event, registration, server-local day) triples for
+    /// requests about <paramref name="jobIds"/> since <paramref name="since"/>. A registration
+    /// active on three days is three triples; one firing a hundred requests on one day is one.
+    /// Anonymous rows (no RegId) contribute nothing.
+    /// </summary>
+    Task<IReadOnlyList<UsageRegistrationDayDto>> GetDistinctRegistrationDaysAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        int? appClientId,
+        CancellationToken cancellationToken = default);
 }

@@ -606,6 +606,15 @@ public interface ITeamRepository
     /// Used by the camp-groups admin screen left pane. AsNoTracking. Ordered by TeamName.
     /// </summary>
     Task<List<TeamRosterCountDto>> GetTeamsWithRosterCountForJobAsync(Guid jobId, CancellationToken ct = default);
+
+    // ── TeamsAppUsage widget ──
+
+    /// <summary>
+    /// Every active Player and Staff registration placed on an active team of the job,
+    /// excluding waitlist and dropped-teams age groups. The population the TSIC-TEAMS usage
+    /// widget measures against. AsNoTracking. Unordered.
+    /// </summary>
+    Task<List<Dtos.Widgets.TeamsAppRosterMemberDto>> GetTeamsAppRosterAsync(Guid jobId, CancellationToken ct = default);
 }
 
 public record TeamWithRegistrationInfo

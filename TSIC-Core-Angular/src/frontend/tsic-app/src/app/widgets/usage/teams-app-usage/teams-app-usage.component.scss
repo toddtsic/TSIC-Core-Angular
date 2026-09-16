@@ -1,0 +1,258 @@
+// TeamsAppUsage — TSIC-TEAMS app use for the current event.
+// Tokens only; no hardcoded colour, spacing or shadow.
+//
+// Card shell mirrors UsageStatsPerJob and JobRegCountsAndDollars: full-width 'content'
+// widgets in the same category should read as one product.
+@use '../../shared/widget-table' as *;
+
+:host {
+	display: block;
+}
+
+.tau {
+	// --brand-surface, NOT --bs-body-bg: the latter resolves to the PAGE colour.
+	background: var(--brand-surface);
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-sm);
+	padding: var(--space-4);
+}
+
+.tau__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+	margin-bottom: var(--space-3);
+
+	> i {
+		color: var(--bs-primary);
+	}
+}
+
+.tau__title {
+	font-size: var(--font-size-lg);
+	font-weight: 600;
+	margin: 0;
+	color: var(--brand-text);
+}
+
+// ── Window selector ─────────────────────────────────────
+
+.tau__window-group {
+	display: inline-flex;
+	gap: var(--space-1);
+	margin-left: auto;
+}
+
+.tau__btn {
+	background: var(--brand-surface);
+	border: 1px solid var(--brand-border);
+	border-radius: var(--radius-sm);
+	color: var(--brand-text-muted);
+	cursor: pointer;
+	font-size: var(--font-size-xs);
+	line-height: 1.2;
+	padding: var(--space-1) var(--space-2);
+	transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+
+	&:hover:not(:disabled) {
+		border-color: var(--bs-primary);
+		color: var(--brand-text);
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+
+	&:disabled {
+		cursor: default;
+		opacity: 0.55;
+	}
+
+	// Filled background AND weight — colour alone is not an accessible "selected".
+	&.active {
+		background: var(--bs-primary);
+		border-color: var(--bs-primary);
+		color: var(--bs-primary-contrast, #fff);
+		font-weight: 600;
+	}
+}
+
+// ── States ──────────────────────────────────────────────
+
+.tau__state {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-6) var(--space-4);
+	color: var(--brand-text-muted);
+
+	&--error {
+		color: var(--bs-warning-text-emphasis);
+	}
+}
+
+.tau__coverage {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-2);
+	margin: 0 0 var(--space-3);
+	padding: var(--space-2) var(--space-3);
+	border-radius: var(--radius-md);
+	background: var(--bs-tertiary-bg);
+	font-size: var(--font-size-sm);
+	color: var(--brand-text);
+
+	i {
+		color: var(--bs-primary);
+	}
+}
+
+// ── Tiles ───────────────────────────────────────────────
+
+.tau__tiles {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+	gap: var(--space-3);
+	margin-bottom: var(--space-4);
+}
+
+.tau__tile {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	padding: var(--space-3);
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--radius-md);
+	background: var(--bs-tertiary-bg);
+}
+
+.tau__tile-value {
+	font-size: var(--font-size-2xl);
+	font-weight: 700;
+	line-height: 1;
+	color: var(--bs-primary);
+	font-variant-numeric: tabular-nums;
+}
+
+.tau__tile-label {
+	font-size: var(--font-size-xs);
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.4px;
+	color: var(--brand-text);
+}
+
+.tau__tile-sub {
+	font-size: var(--font-size-xs);
+	color: var(--brand-text-muted);
+}
+
+// ── Who / How often ─────────────────────────────────────
+
+.tau__panels {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+	gap: var(--space-4);
+	margin-bottom: var(--space-4);
+}
+
+.tau__panel-title {
+	margin: 0 0 var(--space-2);
+	font-size: var(--font-size-sm);
+	font-weight: 700;
+	color: var(--brand-text);
+}
+
+.tau__panel-empty {
+	margin: 0;
+	font-size: var(--font-size-sm);
+	color: var(--brand-text-muted);
+}
+
+.tau__row {
+	display: grid;
+	grid-template-columns: 5.5rem minmax(0, 1fr) 6.5rem;
+	align-items: center;
+	gap: var(--space-2);
+	padding-block: var(--space-1);
+	font-size: var(--font-size-sm);
+}
+
+.tau__row-label {
+	color: var(--brand-text);
+}
+
+.tau__row-figure {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+	color: var(--brand-text);
+}
+
+// Decorative: the figure beside every bar carries the reading, so the bar is aria-hidden
+// and colour never has to convey anything on its own.
+.tau__bar {
+	display: block;
+	height: var(--space-2);
+	border-radius: var(--radius-sm);
+	background: color-mix(in srgb, var(--brand-text) 8%, transparent);
+	overflow: hidden;
+}
+
+.tau__bar-fill {
+	display: block;
+	height: 100%;
+	border-radius: inherit;
+	background: var(--bs-primary);
+
+	&--staff {
+		background: var(--brand-accent, var(--bs-secondary));
+	}
+
+	&--depth {
+		background: color-mix(in srgb, var(--bs-primary) 70%, var(--brand-text));
+	}
+}
+
+// ── Team table ──────────────────────────────────────────
+
+.tau__table-title {
+	margin-top: var(--space-2);
+}
+
+// Every column but Team declares a width — see the rule in _widget-table.scss.
+.widget-table .tau__col-count {
+	width: 8.5rem;
+}
+
+.tau__agegroup {
+	margin-right: var(--space-1);
+	font-weight: 400;
+	color: var(--brand-text-muted);
+}
+
+.tau__of {
+	font-weight: 400;
+	color: var(--brand-text-muted);
+}
+
+.tau__footnote {
+	margin: var(--space-3) 0 0;
+	font-size: var(--font-size-xs);
+	color: var(--brand-text-muted);
+}
+
+@media (max-width: 576px) {
+	.tau__row {
+		grid-template-columns: 4.5rem minmax(0, 1fr) 5.5rem;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.tau__btn {
+		transition: none !important;
+		animation: none !important;
+	}
+}
