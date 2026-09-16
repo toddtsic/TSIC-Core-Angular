@@ -10,18 +10,17 @@
     External URL child per document.
 
     SEEDED FROM THE DATA, NOT A HARDCODED LIST
-    Link text, URLs and order come from the customer's 2027 legacy Director "Docs" links (job
-    clone carried them forward from 2026; identical on every job that has them). Aborts if
-    that list is empty or one document carries two labels. Rulings (Todd, 2026-09-16):
-        - EVERY 2027 job of this customer gets the section — including jobs whose own legacy
-          menu had no Docs (americanselect-mainevent-2027)
-        - roles: Director, SuperDirector, Superuser (legacy had no Superuser Docs section)
+    Target jobs, roles, link text, URLs and order all come from each 2027 job's OWN legacy menu
+    (job clone already carried the 2026 Docs items forward). A job/role with no legacy Docs
+    links gets nothing — that is how americanselect-mainevent-2027 stays out, as it did in
+    2026. Rulings applied on top (Todd, 2026-09-16):
         - COVID Athlete Admittance Ticket is DROPPED
         - every link opens in a new tab (Target = _blank); legacy was mixed _self/_blank/NULL
         - section name "Docs", appended after the platform sections
+        - Superuser gets the section too, mirroring each job's Director links (legacy had
+          no Superuser Docs section)
 
-    Expected on a fresh dev DB (09-16): 75 nav.Nav rows (25 jobs x 3 roles), 75 "Docs" roots,
-    375 links. After the first run (24 jobs done), a re-run adds mainevent only: 3 / 3 / 15.
+    Expected on dev (09-16): 72 nav.Nav rows (24 jobs x 3 roles), 72 "Docs" roots, 360 links.
 
     RE-RUN SAFE
     A job/role whose override nav already has an active "Docs" root is skipped and reported.
@@ -48,20 +47,19 @@ DECLARE @SectionSort int         = 100;   -- after every platform root (Director
 DECLARE @LinkIcon    varchar(50) = 'file-earmark-pdf';
 DECLARE @Now         datetime2(7) = SYSDATETIME();   -- matches nav.*.Modified
 
--- ── 1. Source: the customer's canonical Docs list x every job x every role ──────────
--- The document list comes from the Director Docs links across ALL of this customer's
--- @Year legacy menus (one row per URL, legacy order). Every @Year job then gets that list
--- for every role in @Roles — including a job whose own legacy menu never had Docs.
-IF OBJECT_ID('tempdb..#docs') IS NOT NULL DROP TABLE #docs;
-IF OBJECT_ID('tempdb..#src')  IS NOT NULL DROP TABLE #src;
-
-DECLARE @Roles TABLE (Name nvarchar(256) NOT NULL PRIMARY KEY);
-INSERT INTO @Roles VALUES ('Director'), ('SuperDirector'), ('Superuser');
+-- ── 1. Source: each target job's own legacy Docs links ──────────────────────────────
+IF OBJECT_ID('tempdb..#src') IS NOT NULL DROP TABLE #src;
 
 WITH legacy AS (
-    SELECT  LTRIM(RTRIM(mi.Text))        AS Text,
+    SELECT  j.JobId,
+            j.JobPath,
+            m.RoleID          AS RoleId,
+            r.Name            AS RoleName,
+            LTRIM(RTRIM(mi.Text))        AS Text,
             LTRIM(RTRIM(mi.NavigateUrl)) AS Url,
-            mi.[index]                   AS LegacyIndex
+            mi.[index]        AS LegacyIndex,
+            ROW_NUMBER() OVER (PARTITION BY j.JobId, m.RoleID, LOWER(LTRIM(RTRIM(mi.NavigateUrl)))
+                               ORDER BY mi.[index], mi.menuItemID) AS DupRank
     FROM    Jobs.JobMenu_Items mi
     JOIN    Jobs.JobMenus      m ON m.menuID = mi.menuID
     JOIN    Jobs.Jobs          j ON j.JobId  = m.jobID
@@ -69,37 +67,25 @@ WITH legacy AS (
     JOIN    Jobs.JobMenu_Items p ON p.menuItemID = mi.parentMenuItemID
     WHERE   j.customerID = @CustomerId
       AND   j.year       = @Year
-      AND   r.Name       = 'Director'
+      AND   r.Name IN ('Director', 'SuperDirector')
       AND   m.active  = 1
       AND   mi.active = 1
       AND   p.Text    = @SectionText
       AND   mi.NavigateUrl LIKE '%statics.teamsportsinfo.com/docs/americanselect/%'
       AND   mi.NavigateUrl NOT LIKE '%covidathleteadmittanceticket%'
 )
-SELECT  LOWER(Url)        AS UrlKey,
-        MIN(Url)          AS Url,
-        MIN(Text)         AS Text,
-        COUNT(DISTINCT Text) AS TextVariants,
-        MIN(LegacyIndex)  AS LegacyIndex
-INTO    #docs
-FROM    legacy
-GROUP BY LOWER(Url);
-
-IF NOT EXISTS (SELECT 1 FROM #docs) OR EXISTS (SELECT 1 FROM #docs WHERE TextVariants > 1)
-BEGIN
-    SELECT * FROM #docs ORDER BY LegacyIndex;
-    RAISERROR('ABORT: legacy Docs list is empty or a document has more than one label. Nothing written.', 16, 1);
-    RETURN;
-END;
-
-SELECT  j.JobId, j.JobPath, r.Id AS RoleId, r.Name AS RoleName, d.Text, d.Url,
-        ROW_NUMBER() OVER (PARTITION BY j.JobId, r.Id ORDER BY d.LegacyIndex, d.Text) AS SortOrder
+SELECT  JobId, JobPath, RoleId, RoleName, Text, Url,
+        ROW_NUMBER() OVER (PARTITION BY JobId, RoleId ORDER BY LegacyIndex, Text) AS SortOrder
 INTO    #src
-FROM    Jobs.Jobs j
-CROSS JOIN #docs d
-JOIN    dbo.AspNetRoles r ON r.Name IN (SELECT Name FROM @Roles)
-WHERE   j.customerID = @CustomerId
-  AND   j.year       = @Year;
+FROM    legacy
+WHERE   DupRank = 1;
+
+-- Superuser: legacy had no Docs section for this role. Mirror each job's Director links.
+INSERT INTO #src (JobId, JobPath, RoleId, RoleName, Text, Url, SortOrder)
+SELECT  s.JobId, s.JobPath, su.Id, su.Name, s.Text, s.Url, s.SortOrder
+FROM    #src s
+CROSS JOIN (SELECT Id, Name FROM dbo.AspNetRoles WHERE Name = 'Superuser') su
+WHERE   s.RoleName = 'Director';
 
 -- ── 2. Job/role pairs, minus any that already have a Docs section ───────────────────
 IF OBJECT_ID('tempdb..#pairs') IS NOT NULL DROP TABLE #pairs;
