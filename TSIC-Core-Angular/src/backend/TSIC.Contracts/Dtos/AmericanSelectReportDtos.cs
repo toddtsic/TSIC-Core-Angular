@@ -2,7 +2,8 @@ namespace TSIC.Contracts.Dtos;
 
 /// <summary>
 /// One tryout-player row for the American Select Evaluation sheet — the EF replacement for the
-/// <c>reporting.AmericanSelectPlayerData</c> proc (legacy Crystal "AmericanSelectEvaluation").
+/// <c>reporting.AmericanSelectPlayerData</c> proc (legacy Crystal "AmericanSelectEvaluation"; also
+/// feeds the Tryout Check-In sheet, legacy "AmericanSelectTournyCheckin").
 /// Job-scoped, Player role, active, on a team whose name contains "Tryout". Inner-joined to
 /// <c>Families</c> (mom contact), so registrants with no family record are excluded — matching the
 /// proc. City is the <em>player's</em> city. The "Check In" column is a blank hand-entry box.

@@ -175,6 +175,181 @@ public sealed class AmericanSelectReportPdfService : IAmericanSelectReportPdfSer
         return y + EvalRowH;
     }
 
+    // ── Tryout Check-In: per-team check-off sheet (portrait) ────────────
+    // One section per tryout team (page break per team), "{Job}:{GradYear} Tryout Players" as the
+    // title on every page, players by name, a blank check-off box leading each row. Same dataset
+    // as the Evaluation sheet. Matches the legacy Crystal "AmericanSelectTournyCheckin" layout.
+
+    private const float CheckinTitleH = 26f;
+    private const float CheckinColHeaderH = 16f;
+    private const float CheckinRowH = 31f;          // tall rows — room to tick; 21 fit a page
+    private const float CheckinCellPadY = 4f;
+
+    // Box, #, GradYr, Position, Player, Club, School, Mom. Sum == EvalContentW (portrait).
+    private static readonly (string Label, float W, PdfTextAlignment Align)[] CheckinCols =
+    {
+        ("",         28f,    PdfTextAlignment.Left),
+        ("#",        30f,    PdfTextAlignment.Center),
+        ("GradYr",   40f,    PdfTextAlignment.Left),
+        ("Position", 44f,    PdfTextAlignment.Left),
+        ("Player",   92f,    PdfTextAlignment.Left),
+        ("Club",     92f,    PdfTextAlignment.Left),
+        ("School",   102f,   PdfTextAlignment.Left),
+        ("Mom",      126.4f, PdfTextAlignment.Left),
+    };
+
+    public async Task<ReportExportResult> GenerateTournyCheckinAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var rows = await _reportingRepository.GetAmericanSelectEvaluationRowsAsync(jobId, cancellationToken);
+
+        var doc = NewDocument(landscape: false);
+        var fonts = new Fonts();
+        var pens = new Pens();
+        var jobName = rows.FirstOrDefault()?.JobName ?? string.Empty;
+
+        if (rows.Count == 0)
+        {
+            var g0 = doc.Pages.Add().Graphics;
+            g0.DrawString("No tryout players for this job.", fonts.Label, PdfBrushes.Gray,
+                new RectangleF(0, 0, EvalContentW, 18f), new PdfStringFormat(PdfTextAlignment.Left));
+            return Save(doc, "AmericanSelectTryoutCheckin.pdf");
+        }
+
+        // One section per tryout team. The title's grad year is the team's most common player grad
+        // year (tryout teams are one grad year each; a stray mis-registered player can't retitle it).
+        var teams = rows
+            .GroupBy(r => r.TeamName ?? string.Empty)
+            .Select(t => new
+            {
+                Rows = t.ToList(),
+                GradYear = t.Where(r => !string.IsNullOrWhiteSpace(r.GradYear))
+                    .GroupBy(r => r.GradYear!.Trim())
+                    .OrderByDescending(gy => gy.Count())
+                    .Select(gy => gy.Key)
+                    .FirstOrDefault(),
+                TeamName = t.Key,
+            })
+            .OrderBy(t => t.GradYear ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(t => t.TeamName, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var team in teams)
+        {
+            var title = $"{jobName}:{team.GradYear ?? team.TeamName} Tryout Players";
+            var g = doc.Pages.Add().Graphics;
+            var y = DrawCheckinPageHeader(g, title, fonts);
+
+            foreach (var p in team.Rows
+                .OrderBy(x => x.LastName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(x => x.FirstName, StringComparer.OrdinalIgnoreCase))
+            {
+                var cells = CheckinCells(p);
+                var rowH = MeasureCheckinRow(cells, fonts);
+                if (y + rowH > EvalMaxY)
+                {
+                    g = doc.Pages.Add().Graphics;
+                    y = DrawCheckinPageHeader(g, title, fonts);
+                }
+                y = DrawCheckinRow(g, cells, y, rowH, fonts, pens);
+            }
+        }
+
+        return Save(doc, "AmericanSelectTryoutCheckin.pdf");
+    }
+
+    // Repeating page header: centered underlined title + underlined column labels.
+    private static float DrawCheckinPageHeader(PdfGraphics g, string title, Fonts fonts)
+    {
+        g.DrawString(title, fonts.CheckinTitle, PdfBrushes.Black,
+            new RectangleF(0, 0, EvalContentW, CheckinTitleH),
+            new PdfStringFormat(PdfTextAlignment.Center, PdfVerticalAlignment.Top));
+
+        var y = CheckinTitleH;
+        var x = 0f;
+        foreach (var (label, w, align) in CheckinCols)
+        {
+            if (label.Length > 0)
+            {
+                g.DrawString(label, fonts.CheckinColHeader, PdfBrushes.Black,
+                    new RectangleF(x + CellPadX, y, w - (CellPadX * 2), CheckinColHeaderH),
+                    new PdfStringFormat(align, PdfVerticalAlignment.Middle));
+            }
+            x += w;
+        }
+        return y + CheckinColHeaderH;
+    }
+
+    // Cell text per column; index 0 (the check-off box) is always empty.
+    private static string[] CheckinCells(AmericanSelectEvaluationRowDto p)
+    {
+        var name = $"{p.LastName?.Trim()}, {p.FirstName?.Trim()}".Trim().Trim(',').Trim();
+        var mom = string.Join(" ", new[]
+        {
+            $"{p.MomFirstName?.Trim()} {p.MomLastName?.Trim()}".Trim(),
+            FormatPhone(p.MomCellphone),
+        }.Where(s => s.Length > 0));
+
+        return new[]
+        {
+            string.Empty,
+            FormatUniform(p.UniformNo?.Trim()),
+            p.GradYear?.Trim() ?? string.Empty,
+            p.Position?.Trim() ?? string.Empty,
+            name,
+            p.ClubTeamName?.Trim() ?? string.Empty,
+            p.SchoolName?.Trim() ?? string.Empty,
+            mom,
+        };
+    }
+
+    private static float MeasureCheckinRow(string[] cells, Fonts fonts)
+    {
+        var rowH = CheckinRowH;
+        for (var i = 1; i < CheckinCols.Length; i++)
+        {
+            if (cells[i].Length == 0)
+            {
+                continue;
+            }
+            var (_, w, align) = CheckinCols[i];
+            var sz = fonts.EvalCell.MeasureString(cells[i], w - (CellPadX * 2), CheckinWrap(align));
+            rowH = Math.Max(rowH, sz.Height + (CheckinCellPadY * 2));
+        }
+        return rowH;
+    }
+
+    private static float DrawCheckinRow(PdfGraphics g, string[] cells, float y, float rowH, Fonts fonts, Pens pens)
+    {
+        // Blank check-off box, aligned with the first text line.
+        g.DrawRectangle(pens.Box, new RectangleF(2f, y + CheckinCellPadY - 1f, CheckinCols[0].W - 6f, 11f));
+
+        var x = CheckinCols[0].W;
+        for (var i = 1; i < CheckinCols.Length; i++)
+        {
+            var (_, w, align) = CheckinCols[i];
+            if (cells[i].Length > 0)
+            {
+                g.DrawString(cells[i], fonts.EvalCell, PdfBrushes.Black,
+                    new RectangleF(x + CellPadX, y + CheckinCellPadY, w - (CellPadX * 2), rowH - CheckinCellPadY),
+                    CheckinWrap(align));
+            }
+            x += w;
+        }
+        g.DrawLine(pens.Header, new PointF(0, y + rowH), new PointF(EvalContentW, y + rowH));
+        return y + rowH;
+    }
+
+    // LineLimit=false: with it on, a line whose measured height exceeds the rect is silently dropped.
+    private static PdfStringFormat CheckinWrap(PdfTextAlignment align) =>
+        new(align, PdfVerticalAlignment.Top) { WordWrap = PdfWordWrapType.Word, LineLimit = false };
+
+    private static string FormatPhone(string? phone)
+    {
+        var digits = new string((phone ?? string.Empty).Where(char.IsDigit).ToArray());
+        return digits.Length == 10
+            ? $"{digits[..3]}-{digits.Substring(3, 3)}-{digits[6..]}"
+            : (phone ?? string.Empty).Trim();
+    }
+
     // ── Shared helpers ──────────────────────────────────────────────────
 
     private static PdfDocument NewDocument(bool landscape)
@@ -246,6 +421,10 @@ public sealed class AmericanSelectReportPdfService : IAmericanSelectReportPdfSer
         public PdfStandardFont EvalColHeader { get; } = new(PdfFontFamily.Helvetica, 9, PdfFontStyle.Bold | PdfFontStyle.Underline);
         public PdfStandardFont EvalPos { get; } = new(PdfFontFamily.Helvetica, 9, PdfFontStyle.Bold);
         public PdfStandardFont EvalCell { get; } = new(PdfFontFamily.Helvetica, 9);
+
+        // Tryout check-in sheet (cells reuse EvalCell).
+        public PdfStandardFont CheckinTitle { get; } = new(PdfFontFamily.Helvetica, 13, PdfFontStyle.Bold | PdfFontStyle.Underline);
+        public PdfStandardFont CheckinColHeader { get; } = new(PdfFontFamily.Helvetica, 9, PdfFontStyle.Underline);
     }
 
     private sealed class Pens

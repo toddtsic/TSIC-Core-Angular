@@ -583,10 +583,17 @@ public class ReportingController : ControllerBase
     public Task<ActionResult> CovidTournyCheckin([FromQuery] int exportFormat = 1)
         => CrystalReportAsync("covidtournycheckin", exportFormat);
 
+    // American Select tryout check-in sheet — EF + Syncfusion replacement for Crystal
+    // "americanselecttournycheckin" (proc reporting.AmericanSelectPlayerData). Job from JWT.
     [HttpGet("AmericanSelectTournyCheckin")]
     [Authorize(Policy = "AdminOnly")]
-    public Task<ActionResult> AmericanSelectTournyCheckin([FromQuery] int exportFormat = 1)
-        => CrystalReportAsync("americanselecttournycheckin", exportFormat);
+    public async Task<ActionResult> AmericanSelectTournyCheckin(CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        var result = await _americanSelectReportService.GenerateTournyCheckinAsync(jobId ?? Guid.Empty, cancellationToken);
+        await RecordReportAccessAsync("AmericanSelectTournyCheckin", cancellationToken);
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
 
     // American Select main-event rosters — the offer-team rosters are just a packed roster, so
     // they're served by the shared PackedRoster engine with a fixed AS preset (Player/Position/

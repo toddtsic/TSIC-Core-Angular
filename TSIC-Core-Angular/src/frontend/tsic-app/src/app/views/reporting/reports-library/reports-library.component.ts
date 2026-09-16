@@ -76,6 +76,7 @@ const NATIVE_DB_ACTIONS = new Set<string>([
 const MIGRATED_EF_ACTIONS = new Set<string>([
     'AmericanSelectEvaluation',
     'AmericanSelectMainEventRosters',
+    'AmericanSelectTournyCheckin',
     'PlayerStats_E120',
     'Get_JobPlayers_TSICDAILY',
     'Get_Invoices_LastMonth',
