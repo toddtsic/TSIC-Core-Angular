@@ -112,10 +112,12 @@ public class UsageStatsRepository : IUsageStatsRepository
         if (jobIds.Count == 0)
             return [];
 
-        // Anonymous = no registration on the request. A registered user browsing before
-        // sign-in is anonymous here too; that is the definition, not a gap.
+        // Anonymous = no signed-in user on the request. NOT "no registration": a family
+        // login runs the whole player wizard on a job-scoped token with no regId, and a
+        // club rep picks a club before one exists -- both are users, never the public.
+        // A registered user browsing before sign-in is anonymous; that is the definition.
         var query = Admitted()
-            .Where(u => u.OccurredAt >= since && jobIds.Contains(u.JobId) && u.RegId == null);
+            .Where(u => u.OccurredAt >= since && jobIds.Contains(u.JobId) && u.UserId == null);
 
         if (appClientId is not null)
             query = query.Where(u => u.AppClientId == appClientId.Value);

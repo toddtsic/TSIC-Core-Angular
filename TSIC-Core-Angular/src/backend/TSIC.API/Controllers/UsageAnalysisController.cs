@@ -113,7 +113,7 @@ public class UsageAnalysisController : ControllerBase
     }
 
     /// <summary>
-    /// Report 02 -- Public Requests by Route. Anonymous requests (no registration on the
+    /// Report 02 -- Public Requests by Route. Anonymous requests (no signed-in user on the
     /// request) against the scoped live events in the window, per event, grouped by the
     /// API route they hit, split into succeeded and failed. Requests, not people: nothing
     /// in the log can turn an anonymous request into a visitor.

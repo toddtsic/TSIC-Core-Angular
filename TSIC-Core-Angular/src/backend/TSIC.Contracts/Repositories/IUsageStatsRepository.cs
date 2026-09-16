@@ -65,7 +65,7 @@ public interface IUsageStatsRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Report 02: anonymous requests (RegId null) per (job, controller, action) in the window,
+    /// Report 02: anonymous requests (UserId null -- no signed-in user) per (job, controller, action) in the window,
     /// split into succeeded (status below 400) and failed. Requests are counted, never people.
     /// </summary>
     Task<IReadOnlyList<UsageRouteCountDto>> GetAnonymousRequestsByRouteAsync(

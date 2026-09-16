@@ -1,8 +1,8 @@
 namespace TSIC.Contracts.Dtos.Usage;
 
 /// <summary>
-/// Usage report 02 -- Public Requests by Route. ANONYMOUS requests (no registration on
-/// the request) against the scoped live events in the window, keyed by the event the
+/// Usage report 02 -- Public Requests by Route. ANONYMOUS requests (no signed-in user
+/// on the request) against the scoped live events in the window, keyed by the event the
 /// request was about and grouped by the API route it hit (Controller/Action).
 ///
 /// Requests, not people. Nothing in the fact table can turn an anonymous request into a
