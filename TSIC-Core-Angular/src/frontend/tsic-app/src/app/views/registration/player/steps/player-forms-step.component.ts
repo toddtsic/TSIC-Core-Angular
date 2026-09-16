@@ -725,7 +725,7 @@ export class PlayerFormsStepComponent implements OnDestroy {
 
     getTeamPillLabel(teamId: string): string {
         const team = this.teamService.getTeamById(teamId);
-        if (!team) return teamId;
+        if (!team) return this.teamService.getTeamDisplayName(teamId);
         const name = this.teamService.getTeamDisplayName(teamId);
         const club = team.clubName?.trim();
         return club ? `${club}:${name}` : name;

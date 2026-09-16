@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { environment } from '@environments/environment';
 import { JobContextService } from '../state/job-context.service';
 import { EligibilityService } from '../state/eligibility.service';
+import { FamilyPlayersService } from '../state/family-players.service';
 import { formatHttpError } from '../../shared/utils/error-utils';
 import type { AvailableTeamDto } from '@core/api';
 
@@ -11,6 +12,7 @@ export class TeamService {
     private readonly http = inject(HttpClient);
     private readonly jobCtx = inject(JobContextService);
     private readonly eligibility = inject(EligibilityService);
+    private readonly familyPlayers = inject(FamilyPlayersService);
 
     // raw teams for current job
     private readonly _teams = signal<AvailableTeamDto[] | null>(null);
@@ -206,8 +208,12 @@ export class TeamService {
      */
     getTeamDisplayName(teamId: string): string {
         const team = this.getTeamById(teamId);
-        if (!team) return teamId;
-        return team.teamName;
+        if (team) return team.teamName;
+        // Not in available-teams: a prior registration on an event whose window has closed (every
+        // returning CAC family). Use the name stored on that registration — never show the id.
+        return this.familyPlayers.familyPlayers()
+            .flatMap(p => p.priorRegistrations ?? [])
+            .find(r => r.assignedTeamId === teamId)?.assignedTeamName || '';
     }
 
     /**

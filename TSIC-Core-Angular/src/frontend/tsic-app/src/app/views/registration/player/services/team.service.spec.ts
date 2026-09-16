@@ -6,6 +6,7 @@ import { TeamService } from './team.service';
 import type { AvailableTeamDto } from '@core/api';
 import { JobContextService } from '../state/job-context.service';
 import { EligibilityService } from '../state/eligibility.service';
+import { FamilyPlayersService } from '../state/family-players.service';
 import { environment } from '@environments/environment';
 
 /** Helper to create an AvailableTeamDto with sensible defaults. */
@@ -62,6 +63,10 @@ describe('TeamService', () => {
                         teamConstraintType: constraintTypeSignal.asReadonly(),
                         teamConstraintValue: constraintValueSignal.asReadonly(),
                     },
+                },
+                {
+                    provide: FamilyPlayersService,
+                    useValue: { familyPlayers: signal([]).asReadonly() },
                 },
             ],
         });
