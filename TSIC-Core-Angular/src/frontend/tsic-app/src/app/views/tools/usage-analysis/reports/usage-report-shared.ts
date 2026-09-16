@@ -171,6 +171,7 @@ interface FetchKey {
 	readonly bucket: UsageBucket | null;
 	readonly eventId: string | null;
 	readonly clientId: number | null;
+	readonly role: string | null;
 }
 
 export interface UsageReportFetch<T> {
@@ -179,11 +180,15 @@ export interface UsageReportFetch<T> {
 	readonly error: Signal<string | null>;
 }
 
-export interface UsageReportFetchOptions {
+export interface UsageReportFetchOptions<T> {
 	/** Which control spans the report: 'window' (default) or 'bucket'. */
 	readonly timeAxis?: UsageTimeAxis;
 	/** True when the event lens must narrow the FETCH, not just the chart — rows are not events. */
 	readonly lensNarrowsFetch?: boolean;
+	/** True when the report offers the Role dropdown: the role lens goes on the fetch. */
+	readonly roleLens?: boolean;
+	/** Called with each answer as it lands (never with null), for a report that hands part of it to the shell. */
+	readonly onData?: (data: T) => void;
 }
 
 /**
@@ -197,7 +202,7 @@ export interface UsageReportFetchOptions {
 export function useUsageReportFetch<T>(
 	endpoint: string,
 	failureMessage: string,
-	options: UsageReportFetchOptions = {},
+	options: UsageReportFetchOptions<T> = {},
 ): UsageReportFetch<T> {
 	const http = inject(HttpClient);
 	const destroyRef = inject(DestroyRef);
@@ -218,6 +223,7 @@ export function useUsageReportFetch<T>(
 			bucket: bucketed ? q.bucket : null,
 			eventId: options.lensNarrowsFetch ? q.eventId : null,
 			clientId: q.clientId,
+			role: options.roleLens ? q.role : null,
 		};
 	});
 
@@ -239,6 +245,7 @@ export function useUsageReportFetch<T>(
 				if (q.bucket !== null) params['bucket'] = q.bucket;
 				if (q.eventId !== null) params['eventId'] = q.eventId;
 				if (q.clientId !== null) params['clientId'] = q.clientId;
+				if (q.role !== null) params['role'] = q.role;
 				return http.get<T>(`${environment.apiUrl}/usage-analysis/${endpoint}`, { params }).pipe(
 					catchError(err => {
 						error.set(err?.status === 403 ? 'That scope is not available to your role.' : failureMessage);
@@ -251,6 +258,7 @@ export function useUsageReportFetch<T>(
 		.subscribe(d => {
 			data.set(d);
 			isLoading.set(false);
+			if (d !== null) options.onData?.(d);
 		});
 
 	return { data, isLoading, error };

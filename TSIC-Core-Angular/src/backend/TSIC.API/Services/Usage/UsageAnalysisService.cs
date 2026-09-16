@@ -40,6 +40,18 @@ public interface IUsageAnalysisService
         CancellationToken ct = default);
 
     /// <summary>
+    /// Signed-in requests per event per API route, split by outcome, with the distinct people
+    /// behind them. <paramref name="role"/> narrows to one role name (null = every role); the
+    /// roles offered are computed before it is applied.
+    /// </summary>
+    Task<UserRequestsByRouteDto> GetUserRequestsByRouteAsync(
+        UsageScopeResolution scope,
+        int windowDays,
+        int? appClientId,
+        string? role,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Report 03: report 01's count once per bucket over the bucket's span. A registration
     /// counts in every bucket it was active in. <paramref name="scope"/> must have been
     /// resolved live-as-of <paramref name="since"/>; an event counts only in the buckets it
@@ -61,13 +73,24 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
     private static readonly HashSet<string> AdminRoleIds =
         new(RoleConstants.AdminRoleIds, StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>A signed-in request with no registration from a family account: the player wizard's token role.</summary>
+    public const string FamilyRoleName = "Family";
+
+    /// <summary>A signed-in request with no registration from any other login -- adults self-registering.</summary>
+    public const string NoRegistrationRoleName = "No registration";
+
     private readonly IUsageStatsRepository _usageRepo;
     private readonly IRegistrationRepository _registrationRepo;
+    private readonly IFamilyRepository _familyRepo;
 
-    public UsageAnalysisService(IUsageStatsRepository usageRepo, IRegistrationRepository registrationRepo)
+    public UsageAnalysisService(
+        IUsageStatsRepository usageRepo,
+        IRegistrationRepository registrationRepo,
+        IFamilyRepository familyRepo)
     {
         _usageRepo = usageRepo;
         _registrationRepo = registrationRepo;
+        _familyRepo = familyRepo;
     }
 
     public async Task<UsageClientsDto> GetClientsAsync(
@@ -214,6 +237,93 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
         };
     }
 
+    public async Task<UserRequestsByRouteDto> GetUserRequestsByRouteAsync(
+        UsageScopeResolution scope,
+        int windowDays,
+        int? appClientId,
+        string? role,
+        CancellationToken ct = default)
+    {
+        // Step 1 (TSICLogs): signed-in counts per (event, route, login, registration).
+        var counts = _usageRepo.IsAvailable
+            ? await _usageRepo.GetSignedInRequestsByRouteAsync(scope.GetJobIds(), Since(windowDays), appClientId, ct)
+            : [];
+
+        // Step 2 (TSICV5): name each row's role. A registration carries its own; a login
+        // without one is Family when it is a family account, else No registration.
+        var roleByReg = await LookupRolesAsync(counts.Where(c => c.RegistrationId is not null).Select(c => c.RegistrationId!.Value), ct);
+        var familyLogins = await LookupFamilyLoginsAsync(counts.Where(c => c.RegistrationId is null).Select(c => c.UserId), ct);
+
+        var jobNames = scope.Jobs.ToDictionary(j => j.JobId, j => j.JobName);
+
+        var named = counts
+            .Select(c => new
+            {
+                c.JobId,
+                Route = c.Controller + "/" + c.Action,
+                // A person is the registration, or the login when there was none. Registration
+                // is per job, the same unit report 01 counts.
+                // Prefixed: login ids are GUID strings too, and the two keys must never meet.
+                Person = c.RegistrationId is Guid personReg ? "r:" + personReg : "u:" + c.UserId,
+                RoleName = c.RegistrationId is Guid regId
+                    ? (roleByReg.TryGetValue(regId, out var r) ? r.RoleName : null)
+                    : (familyLogins.Contains(c.UserId) ? FamilyRoleName : NoRegistrationRoleName),
+                c.Requests,
+                c.FailedRequests,
+            })
+            // A registration the application no longer holds has no role to name; left out, as in report 01.
+            .Where(x => x.RoleName is not null)
+            .ToList();
+
+        var roles = named
+            .GroupBy(x => x.RoleName!)
+            .Select(g => new UserRequestRoleDto { RoleName = g.Key, Requests = g.Sum(x => x.Requests) })
+            .ToList();
+
+        // The lens applies only when the role is actually present; otherwise the answer is every role and says so.
+        var appliedRole = role is not null && roles.Any(x => x.RoleName == role) ? role : null;
+        var lensed = appliedRole is null ? named : named.Where(x => x.RoleName == appliedRole).ToList();
+
+        var rows = lensed
+            .GroupBy(x => new { x.JobId, x.Route })
+            .Select(g => new UserRouteRowDto
+            {
+                JobId = g.Key.JobId,
+                JobName = jobNames.TryGetValue(g.Key.JobId, out var name) ? name : string.Empty,
+                Route = g.Key.Route,
+                Requests = g.Sum(x => x.Requests),
+                FailedRequests = g.Sum(x => x.FailedRequests),
+                People = g.Where(x => x.Requests > 0).Select(x => x.Person).Distinct().Count(),
+            })
+            .ToList();
+
+        // People are distinct across events, so route totals are recomputed from the named rows, never summed.
+        var totals = lensed
+            .GroupBy(x => x.Route)
+            .Select(g => new UserRouteTotalDto
+            {
+                Route = g.Key,
+                Requests = g.Sum(x => x.Requests),
+                FailedRequests = g.Sum(x => x.FailedRequests),
+                People = g.Where(x => x.Requests > 0).Select(x => x.Person).Distinct().Count(),
+            })
+            .ToList();
+
+        return new UserRequestsByRouteDto
+        {
+            WindowDays = windowDays,
+            JobCount = scope.Jobs.Count,
+            Roles = roles,
+            Role = appliedRole,
+            Rows = rows,
+            Totals = totals,
+            TotalRequests = lensed.Sum(x => x.Requests),
+            FailedRequests = lensed.Sum(x => x.FailedRequests),
+            TotalPeople = lensed.Where(x => x.Requests > 0).Select(x => x.Person).Distinct().Count(),
+            UsageLoggingAvailable = _usageRepo.IsAvailable,
+        };
+    }
+
     public async Task<UsersByRoleOverTimeDto> GetUsersByRoleOverTimeAsync(
         UsageScopeResolution scope,
         UsageBucket bucket,
@@ -279,6 +389,19 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
                 roleByReg[r.RegistrationId] = r;
         }
         return roleByReg;
+    }
+
+    /// <summary>TSICV5: which of the logins are family accounts, in slices.</summary>
+    private async Task<HashSet<string>> LookupFamilyLoginsAsync(IEnumerable<string> userIds, CancellationToken ct)
+    {
+        var ids = userIds.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var families = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var chunk in ids.Chunk(LookupBatchSize))
+        {
+            foreach (var id in await _familyRepo.GetFamilyUserIdsAmongAsync(chunk, ct))
+                families.Add(id);
+        }
+        return families;
     }
 
     /// <summary>Server-local, like OccurredAt. UtcNow would shift the window by the AZ offset.</summary>

@@ -111,4 +111,18 @@ public class FamilyRepository : IFamilyRepository
             })
             .SingleOrDefaultAsync(cancellationToken);
     }
+
+    public async Task<List<string>> GetFamilyUserIdsAmongAsync(
+        IReadOnlyList<string> userIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (userIds.Count == 0)
+            return [];
+
+        return await _context.Families
+            .AsNoTracking()
+            .Where(f => userIds.Contains(f.FamilyUserId))
+            .Select(f => f.FamilyUserId)
+            .ToListAsync(cancellationToken);
+    }
 }

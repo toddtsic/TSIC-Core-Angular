@@ -58,22 +58,41 @@
   Pick a report from the Report dropdown. Each is one question about the same scope and window. Reports are being added as the questions are
   settled; a report that shows only its name and the query it would run is a slot not yet filled in.
 </p>
+<p>
+  The dropdown groups reports by who they are about. <strong>Signed-in users</strong> covers every request made by
+  someone logged in, whether or not they had a registration at the time. <strong>Public (not signed in)</strong>
+  covers every request made with no one logged in. Every request belongs to exactly one of the two.
+</p>
+<h5>Signed-in users</h5>
 <ul>
-  <li><strong>01 · Users by Role</strong> — how many people used the event, counted by registration and grouped by role,
+  <li><strong>Users by Role</strong> — how many people used the event, counted by registration and grouped by role,
     every role by its own name, Directors included. One column per role for the event picked in the Event dropdown, or
     the whole scope rolled up at All events; the table beneath lists every event with a Total, an All row on top where
-    All is a choice. A registration is per event, so a user in two events counts in each. Public visitors who never
-    sign in are not people this data can count, so they are not here — what they asked for is report 02.</li>
-  <li><strong>02 · Public Requests by Route</strong> — what the public asked for without signing in: anonymous requests
+    All is a choice. A registration is per event, so a user in two events counts in each. A family account working
+    through player registration has no registration of its own yet, so it is not counted here; User Requests by Route
+    shows that activity. Public visitors who never sign in are not people this data can count — what they asked for is
+    Public Requests by Route.</li>
+  <li><strong>Users by Role over Time</strong> — Users by Role asked once per day, week or month, so the answer is
+    a series instead of a number: one line per role in the same colours, plus a heavier Total line, every
+    line on the same baseline. The newest point is hollow: the current bucket, still filling. A gap in a line is a
+    bucket from before the log began, which is unknown rather than zero. The table beneath lists every bucket,
+    newest first. A user counts in every bucket they were active in, so the buckets do not add up to Users by Role's
+    total for the span: that report is distinct over the whole span, this one is distinct per slice. An event counts
+    only in the buckets it was live in, so this report also covers events that concluded during the span, in the
+    buckets before they concluded; the chart title says how many events that is.</li>
+  <li><strong>User Requests by Route</strong> — what signed-in people did: their requests per event, grouped by the
+    API route they hit, with failed requests (4xx / 5xx) counted apart. The <strong>Role</strong> dropdown narrows the
+    report to one role, so a Director's work is not buried under families registering. Role is the one the person was
+    registered under. A family account going through player registration has no registration yet and shows as
+    <strong>Family</strong>; any other login without a registration (usually an adult self-registering) shows as
+    <strong>No registration</strong>. Beside the request count is the number of people who made them — counted by
+    registration, or by login where there was none — and hovering a bar shows it per route, so a route used heavily by
+    one person reads differently from one used by hundreds.</li>
+</ul>
+<h5>Public (not signed in)</h5>
+<ul>
+  <li><strong>Public Requests by Route</strong> — what the public asked for without signing in: anonymous requests
     per event, grouped by the API route they hit, with failed requests (4xx / 5xx) counted apart so scanners and stale
     links never inflate the routes the public came for. Requests, not people: nothing in the log can turn an anonymous
     request into a visitor. Routes are the API endpoint, not the page, so one page fires several.</li>
-  <li><strong>03 · Users by Role over Time</strong> — report 01 asked once per day, week or month, so the answer is
-    a series instead of a number: one line per role in the same colours as 01, plus a heavier Total line, every
-    line on the same baseline. The newest point is hollow: the current bucket, still filling. A gap in a line is a
-    bucket from before the log began, which is unknown rather than zero. The table beneath lists every bucket,
-    newest first. A user counts in every bucket they were active in, so the buckets do not add up to report 01's
-    total for the span: 01 is distinct over the whole span, 03 is distinct per slice. An event counts only in the
-    buckets it was live in, so this report also covers events that concluded during the span, in the buckets
-    before they concluded; the chart title says how many events that is.</li>
 </ul>

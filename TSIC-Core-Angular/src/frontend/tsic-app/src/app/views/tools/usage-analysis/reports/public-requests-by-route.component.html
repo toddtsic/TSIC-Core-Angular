@@ -1,28 +1,28 @@
 <app-usage-pivot-report
 	[isLoading]="fetch.isLoading()"
 	[error]="fetch.error()"
-	[isEmpty]="isEmpty()"
+	[isEmpty]="report.isEmpty()"
 	loadingMessage="Counting requests…"
 	emptyMessage="No anonymous requests in this window."
 	[tiles]="tiles()"
-	[columns]="columns()"
-	[rows]="rows()"
-	[allRow]="allRow()"
-	[chartRow]="chartRow()"
+	[columns]="report.columns()"
+	[rows]="report.rows()"
+	[allRow]="report.allRow()"
+	[chartRow]="report.chartRow()"
 	chartSubtitle="anonymous requests by API route, succeeded only"
-	[chartSeries]="chartSeries()"
-	[primaryXAxis]="primaryXAxis()"
-	[primaryYAxis]="primaryYAxis()"
-	[tooltip]="tooltip"
-	[chartHeight]="chartHeight()"
-	[chartMargin]="chartMargin"
+	[chartSeries]="report.chartSeries()"
+	[primaryXAxis]="report.primaryXAxis()"
+	[primaryYAxis]="report.primaryYAxis()"
+	[tooltip]="report.tooltip"
+	[chartHeight]="report.chartHeight()"
+	[chartMargin]="report.chartMargin"
 	chartEmptyMessage="No anonymous requests in the window."
 	lensEmptyMessage="No anonymous requests about this event in the window. Pick another event above, or a row below.">
 	A request is one API call made with no one signed in — the public, and anyone browsing
 	before they sign in. Routes are the API endpoint (Controller/Action), not the page: one page
 	fires several, and every page load fires the chrome. Requests that failed are counted in the
 	tile and nowhere else.
-	@if (foldedCount() > 0) {
-		{{ foldedCount() }} quieter routes are folded into Other.
+	@if (report.foldedCount() > 0) {
+		{{ report.foldedCount() }} quieter routes are folded into Other.
 	}
 </app-usage-pivot-report>

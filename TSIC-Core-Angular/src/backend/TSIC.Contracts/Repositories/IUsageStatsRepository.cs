@@ -75,6 +75,18 @@ public interface IUsageStatsRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Signed-in requests (UserId present) per (job, controller, action, login, registration)
+    /// in the window, split into succeeded and failed. The login and registration stay on the
+    /// row because role is named later from TSICV5, which this database cannot join. RegId is
+    /// null for a login working without a registration (the family player wizard).
+    /// </summary>
+    Task<IReadOnlyList<UsageSignedInRouteCountDto>> GetSignedInRequestsByRouteAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        int? appClientId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// When the log begins: the earliest admitted row, or null for an empty table. A report
     /// spanning further back than this has buckets with NO DATA, which is not the same as
     /// zero users, and must say so.

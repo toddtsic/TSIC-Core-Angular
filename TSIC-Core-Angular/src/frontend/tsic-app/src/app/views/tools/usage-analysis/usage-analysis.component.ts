@@ -9,6 +9,7 @@ import { UsageReportDebugComponent } from './reports/usage-report-debug.componen
 import { UsersByRoleComponent } from './reports/users-by-role.component';
 import { PublicRequestsByRouteComponent } from './reports/public-requests-by-route.component';
 import { UsersByRoleOverTimeComponent } from './reports/users-by-role-over-time.component';
+import { UserRequestsByRouteComponent } from './reports/user-requests-by-route.component';
 
 /**
  * Usage Analysis — the drill behind the UsageStatsPerJob widget's glance.
@@ -31,7 +32,7 @@ import { UsersByRoleOverTimeComponent } from './reports/users-by-role-over-time.
 @Component({
 	selector: 'app-usage-analysis',
 	standalone: true,
-	imports: [AdminNavPillComponent, UsageReportDebugComponent, UsersByRoleComponent, PublicRequestsByRouteComponent, UsersByRoleOverTimeComponent],
+	imports: [AdminNavPillComponent, UsageReportDebugComponent, UsersByRoleComponent, PublicRequestsByRouteComponent, UsersByRoleOverTimeComponent, UserRequestsByRouteComponent],
 	providers: [UsageAnalysisStateService],
 	templateUrl: './usage-analysis.component.html',
 	styleUrl: './usage-analysis.component.scss',
@@ -75,6 +76,10 @@ export class UsageAnalysisComponent implements OnInit {
 
 	onEventChange(event: Event): void {
 		this.state.setEvent(selected(event) || null);
+	}
+
+	onRoleChange(event: Event): void {
+		this.state.setRole(selected(event) || null);
 	}
 
 	onClientChange(event: Event): void {

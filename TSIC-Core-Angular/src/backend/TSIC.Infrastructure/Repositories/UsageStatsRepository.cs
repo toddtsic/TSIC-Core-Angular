@@ -135,6 +135,38 @@ public class UsageStatsRepository : IUsageStatsRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<UsageSignedInRouteCountDto>> GetSignedInRequestsByRouteAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        int? appClientId,
+        CancellationToken cancellationToken = default)
+    {
+        if (jobIds.Count == 0)
+            return [];
+
+        // Signed-in = a login on the request, with or without a registration: the exact
+        // complement of the public report's filter, so every request lands in one or the other.
+        var query = Admitted()
+            .Where(u => u.OccurredAt >= since && jobIds.Contains(u.JobId) && u.UserId != null);
+
+        if (appClientId is not null)
+            query = query.Where(u => u.AppClientId == appClientId.Value);
+
+        return await query
+            .GroupBy(u => new { u.JobId, u.Controller, u.Action, u.UserId, u.RegId })
+            .Select(g => new UsageSignedInRouteCountDto
+            {
+                JobId = g.Key.JobId,
+                Controller = g.Key.Controller,
+                Action = g.Key.Action,
+                UserId = g.Key.UserId!,
+                RegistrationId = g.Key.RegId,
+                Requests = g.Sum(u => u.StatusCode < 400 ? 1 : 0),
+                FailedRequests = g.Sum(u => u.StatusCode >= 400 ? 1 : 0),
+            })
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<DateTime?> GetFirstRecordedAtAsync(CancellationToken cancellationToken = default) =>
         Admitted().MinAsync(u => (DateTime?)u.OccurredAt, cancellationToken);
 
@@ -208,6 +240,13 @@ public class UnavailableUsageStatsRepository : IUsageStatsRepository
         int? appClientId,
         CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<UsageRouteCountDto>>([]);
+
+    public Task<IReadOnlyList<UsageSignedInRouteCountDto>> GetSignedInRequestsByRouteAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        int? appClientId,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<UsageSignedInRouteCountDto>>([]);
 
     public Task<DateTime?> GetFirstRecordedAtAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<DateTime?>(null);

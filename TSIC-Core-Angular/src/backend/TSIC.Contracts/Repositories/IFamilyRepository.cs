@@ -44,6 +44,15 @@ public interface IFamilyRepository
         string callerUserId,
         string playerUserId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The ids in <paramref name="userIds"/> that are family accounts (a Families row keyed by
+    /// the login). Usage analysis uses it to name the role of a signed-in request that carried
+    /// no registration: the player wizard runs on a Family token with no regId.
+    /// </summary>
+    Task<List<string>> GetFamilyUserIdsAmongAsync(
+        IReadOnlyList<string> userIds,
+        CancellationToken cancellationToken = default);
 }
 
 public record FamilyContactInfo

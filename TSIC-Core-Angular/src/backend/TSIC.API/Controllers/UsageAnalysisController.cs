@@ -134,6 +134,29 @@ public class UsageAnalysisController : ControllerBase
     }
 
     /// <summary>
+    /// User Requests by Route. Signed-in requests (a login on the request, registration or
+    /// not) against the scoped live events in the window, per event, grouped by API route,
+    /// split into succeeded and failed, with the distinct people behind them. The complement
+    /// of Public Requests by Route. <paramref name="role"/> is the Role lens: a role name from
+    /// the answer's Roles list, or absent for every role.
+    /// </summary>
+    [HttpGet("user-requests-by-route")]
+    public async Task<ActionResult<UserRequestsByRouteDto>> GetUserRequestsByRoute(
+        [FromQuery] string? scope,
+        [FromQuery] int windowDays = 7,
+        [FromQuery] Guid? eventId = null,
+        [FromQuery] int? clientId = null,
+        [FromQuery] string? role = null,
+        CancellationToken ct = default)
+    {
+        var (failure, resolution) = await ResolveForReportAsync(scope, eventId, ct);
+        if (failure is not null) return failure;
+
+        var days = Math.Clamp(windowDays, 1, 365);
+        return Ok(await _reports.GetUserRequestsByRouteAsync(resolution!, days, clientId, string.IsNullOrWhiteSpace(role) ? null : role, ct));
+    }
+
+    /// <summary>
     /// Report 03 -- Users by Role over Time. Report 01's count, once per bucket: daily over
     /// the last 30 days, weekly over the last 12 weeks, monthly over the last 12 months. The
     /// bucket IS the window; there is no windowDays here. A registration counts in every

@@ -13,12 +13,14 @@ import {
 	USAGE_SCOPE_OPTIONS,
 	USAGE_SCOPE_ORDER,
 	USAGE_REPORTS,
+	USAGE_REPORT_GROUPS,
 	type UsageBucket,
 	type UsageQuery,
 	type UsageReportKey,
 	type UsageScope,
 	type UsageScopeOption,
 	type UsageReportDef,
+	type UsageReportGroup,
 } from './usage-analysis.models';
 
 /**
@@ -69,6 +71,12 @@ export class UsageAnalysisStateService {
 	readonly reports = computed<readonly UsageReportDef[]>(() =>
 		USAGE_REPORTS.filter(t => t.built && t.roles.includes(this.role())));
 
+	/** The dropdown's optgroups: each group with the reports this role sees in it, empty groups dropped. */
+	readonly reportGroups = computed<readonly { readonly group: UsageReportGroup; readonly label: string; readonly reports: readonly UsageReportDef[] }[]>(() =>
+		USAGE_REPORT_GROUPS
+			.map(g => ({ ...g, reports: this.reports().filter(r => r.group === g.group) }))
+			.filter(g => g.reports.length > 0));
+
 	private readonly requestedReport = signal<UsageReportKey>('report-01');
 
 	/** The requested report if this role has it, else the first slot — never an empty pane. */
@@ -112,6 +120,18 @@ export class UsageAnalysisStateService {
 	 */
 	readonly clientId = signal<number | null>(null);
 
+	/**
+	 * The role lens, for a report that offers one. Null = every role. Unlike the client facet,
+	 * the roles on offer arrive in the report's own answer (they are named from TSICV5 after the
+	 * log is read), so the report hands them over with `setRoleOptions`, which snaps a chosen
+	 * role that dropped out back to null.
+	 */
+	readonly roleName = signal<string | null>(null);
+	readonly roleOptions = signal<readonly string[]>([]);
+
+	/** Shown only while a report with a role lens is on screen and has roles to offer. */
+	readonly showRolePicker = computed(() => this.activeReport().roleLens === true && this.roleOptions().length > 0);
+
 	/** What every report fetches with. A report refetches when this changes and never otherwise. */
 	readonly query = computed<UsageQuery>(() => ({
 		scope: this.scope(),
@@ -119,6 +139,7 @@ export class UsageAnalysisStateService {
 		bucket: this.bucket(),
 		eventId: this.eventId(),
 		clientId: this.clientId(),
+		role: this.roleName(),
 	}));
 
 	// Resolved scope — null while (re)loading, so nothing on screen can claim a scope
@@ -271,6 +292,17 @@ export class UsageAnalysisStateService {
 
 	setClient(appClientId: number | null): void {
 		this.clientId.set(appClientId);
+	}
+
+	setRole(roleName: string | null): void {
+		this.roleName.set(roleName);
+	}
+
+	/** A role-lens report hands over the roles its answer offers. A chosen role no longer offered is not a choice. */
+	setRoleOptions(roles: readonly string[]): void {
+		this.roleOptions.set(roles);
+		const chosen = this.roleName();
+		if (chosen !== null && !roles.includes(chosen)) this.roleName.set(null);
 	}
 
 	setReport(key: UsageReportKey): void {
