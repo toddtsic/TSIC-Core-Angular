@@ -45,7 +45,7 @@ DECLARE @SectionText varchar(50) = 'Docs';
 DECLARE @SectionIcon varchar(50) = 'folder2-open';
 DECLARE @SectionSort int         = 100;   -- after every platform root (Director max 10, SuperDirector max 11, Superuser max 12)
 DECLARE @LinkIcon    varchar(50) = 'file-earmark-pdf';
-DECLARE @Now         datetime    = GETDATE();
+DECLARE @Now         datetime2(7) = SYSDATETIME();   -- matches nav.*.Modified
 
 -- ── 1. Source: each target job's own legacy Docs links ──────────────────────────────
 IF OBJECT_ID('tempdb..#src') IS NOT NULL DROP TABLE #src;
@@ -125,17 +125,21 @@ FROM    #pairs p
 JOIN    nav.Nav n ON n.RoleId = p.RoleId AND n.JobId = p.JobId;
 
 -- ── 4. "Docs" root section ──────────────────────────────────────────────────────────
+-- Capture the new ids with OUTPUT (one root per NavId). Do NOT match back on Modified:
+-- a datetime variable compared to the datetime2(7) column is not equal for ~half of all
+-- timestamps, which aborted the first run.
+DECLARE @roots TABLE (NavId int NOT NULL PRIMARY KEY, NavItemId int NOT NULL);
+
 INSERT INTO nav.NavItem (NavId, ParentNavItemId, DefaultNavItemId, DefaultParentNavItemId,
                          Active, SortOrder, Text, IconName, RouterLink, NavigateUrl, Target, Modified, ModifiedBy)
+OUTPUT  inserted.NavId, inserted.NavItemId INTO @roots (NavId, NavItemId)
 SELECT  p.NavId, NULL, NULL, NULL,
         1, @SectionSort, @SectionText, @SectionIcon, NULL, NULL, NULL, @Now, NULL
 FROM    #pairs p;
 
-UPDATE  p SET RootNavItemId = ni.NavItemId
+UPDATE  p SET RootNavItemId = r.NavItemId
 FROM    #pairs p
-JOIN    nav.NavItem ni ON ni.NavId = p.NavId
-WHERE   ni.ParentNavItemId IS NULL AND ni.DefaultNavItemId IS NULL AND ni.DefaultParentNavItemId IS NULL
-  AND   ni.Active = 1 AND ni.Text = @SectionText AND ni.Modified = @Now;
+JOIN    @roots r ON r.NavId = p.NavId;
 
 IF EXISTS (SELECT 1 FROM #pairs WHERE NavId IS NULL OR RootNavItemId IS NULL)
 BEGIN
