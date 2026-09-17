@@ -1137,6 +1137,11 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             && !InviteLinkTokens.Any(t => (request.BodyTemplate ?? "").Contains(t, StringComparison.OrdinalIgnoreCase)))
             throw new InvalidOperationException("This invitation has no link. Put the invitation link token back in the body before sending.");
 
+        // The reverse: a registration link token with no target event renders as placeholder text, not a link.
+        // (A schedule preview link is refused for this in EnsureSchedulePreviewSendAllowedAsync.)
+        if (!request.InviteLinkTargetJobId.HasValue && RegistrationInviteLinkTokens.Any(t => TemplateUses(request, t)))
+            throw new InvalidOperationException("This invitation has no target event. Choose the event you are inviting them to before sending.");
+
         // Every invite kind goes only to active registrations. The Invite button needs an Active-only search;
         // this refuses a hand-built request or a checked selection carried over from an earlier search.
         if (InviteLinkTokens.Any(t => TemplateUses(request, t)) && registrations.Any(r => r.BActive != true))
