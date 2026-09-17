@@ -63,6 +63,17 @@ public interface IUsageAnalysisService
         DateTime since,
         int? appClientId,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Registrations over Time: what came IN per bucket -- Player and Club Rep registrations
+    /// from Jobs.Registrations, plus teams from Leagues.teams. TSICV5 only; the log is never
+    /// read, so there is no client lens and no "log unavailable" state.
+    /// </summary>
+    Task<RegistrationsOverTimeDto> GetRegistrationsOverTimeAsync(
+        UsageScopeResolution scope,
+        UsageBucket bucket,
+        DateTime since,
+        CancellationToken ct = default);
 }
 
 public sealed class UsageAnalysisService : IUsageAnalysisService
@@ -79,18 +90,42 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
     /// <summary>A signed-in request with no registration from any other login -- adults self-registering.</summary>
     public const string NoRegistrationRoleName = "No registration";
 
+    /// <summary>
+    /// The only roles Registrations over Time counts (Todd, 2026-09-17). Admin registrations
+    /// are provisioning rather than intake, and their RegistrationTs is not a signup date at
+    /// all: job clone copies it off the source event. Scorer rides with them -- an event-day
+    /// role nobody tracks intake for -- and is named here rather than added to
+    /// RoleConstants.AdminRoleIds, which job clone, the Administrators page and the admin-lane
+    /// checks all read.
+    /// </summary>
+    private static readonly string[] IntakeRoleIds = [RoleConstants.Player, RoleConstants.ClubRep];
+
+    /// <summary>Display name per intake role id -- the exact AspNetRoles name, so a role keeps its colour and column across every report on the page.</summary>
+    private static readonly Dictionary<string, string> IntakeRoleNames =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            [RoleConstants.Player] = RoleConstants.Names.PlayerName,
+            [RoleConstants.ClubRep] = RoleConstants.Names.ClubRepName,
+        };
+
+    /// <summary>The team series' name. Not a role and not a person: its own column, its own axis, outside the People total.</summary>
+    public const string TeamsSeriesName = "Teams";
+
     private readonly IUsageStatsRepository _usageRepo;
     private readonly IRegistrationRepository _registrationRepo;
     private readonly IFamilyRepository _familyRepo;
+    private readonly ITeamRepository _teamRepo;
 
     public UsageAnalysisService(
         IUsageStatsRepository usageRepo,
         IRegistrationRepository registrationRepo,
-        IFamilyRepository familyRepo)
+        IFamilyRepository familyRepo,
+        ITeamRepository teamRepo)
     {
         _usageRepo = usageRepo;
         _registrationRepo = registrationRepo;
         _familyRepo = familyRepo;
+        _teamRepo = teamRepo;
     }
 
     public async Task<UsageClientsDto> GetClientsAsync(
@@ -384,6 +419,64 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
             JobCount = scope.Jobs.Count,
             Rows = rows,
             UsageLoggingAvailable = _usageRepo.IsAvailable,
+        };
+    }
+
+    public async Task<RegistrationsOverTimeDto> GetRegistrationsOverTimeAsync(
+        UsageScopeResolution scope,
+        UsageBucket bucket,
+        DateTime since,
+        CancellationToken ct = default)
+    {
+        var starts = UsageBuckets.Starts(bucket, since);
+        var jobIds = scope.GetJobIds();
+
+        // Two counts, both from TSICV5, SEQUENTIAL: the repositories share one scoped
+        // DbContext and Task.WhenAll across them is a concurrent-access exception.
+        var regCounts = await _registrationRepo.GetRegistrationCountsByBucketAsync(jobIds, since, bucket, IntakeRoleIds, ct);
+        var teamCounts = await _teamRepo.GetTeamCountsByBucketAsync(jobIds, since, bucket, ct);
+
+        var rows = new List<RegistrationsBucketRowDto>(regCounts.Count + teamCounts.Count);
+
+        // No per-bucket liveness test, unlike report 03. There, usage of a concluded event is
+        // not "a live event being used"; here the row's own creation stamp already proves the
+        // event was taking intake when it happened, so an event that concluded mid-span keeps
+        // the signups it genuinely took in the earlier buckets.
+        //
+        // An index outside the span is dropped, which is also the structural guard against a
+        // future-dated row: there is no bucket start past the current one for it to sit on.
+        foreach (var c in regCounts)
+        {
+            if (c.BucketIndex < 0 || c.BucketIndex >= starts.Count) continue;
+            if (!IntakeRoleNames.TryGetValue(c.RoleId, out var roleName)) continue;
+            rows.Add(new RegistrationsBucketRowDto
+            {
+                BucketStart = starts[c.BucketIndex],
+                SeriesName = roleName,
+                Count = c.Count,
+                IsPeople = true,
+            });
+        }
+
+        foreach (var c in teamCounts)
+        {
+            if (c.BucketIndex < 0 || c.BucketIndex >= starts.Count) continue;
+            rows.Add(new RegistrationsBucketRowDto
+            {
+                BucketStart = starts[c.BucketIndex],
+                SeriesName = TeamsSeriesName,
+                Count = c.Count,
+                IsPeople = false,
+            });
+        }
+
+        return new RegistrationsOverTimeDto
+        {
+            Bucket = UsageBuckets.ToWord(bucket),
+            Since = since,
+            Buckets = starts,
+            JobCount = scope.Jobs.Count,
+            Rows = rows,
         };
     }
 

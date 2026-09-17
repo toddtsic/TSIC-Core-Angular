@@ -181,8 +181,13 @@ export class UsageAnalysisStateService {
 	readonly clients = signal<readonly UsageClientFacetDto[]>([]);
 	readonly isLoadingClients = signal(false);
 
-	/** The dropdown appears only when at least one client has rows to offer. */
-	readonly showClientPicker = computed(() => this.clients().length > 0);
+	/**
+	 * The dropdown appears only when at least one client has rows to offer AND the report on
+	 * screen is actually narrowed by one. A registrations report reads TSICV5, where there is
+	 * no client, so leaving the picker up would filter nothing and stamp a lens that never ran.
+	 */
+	readonly showClientPicker = computed(() =>
+		this.clients().length > 0 && this.activeReport().clientLens !== false);
 
 	readonly clientLabel = computed(() => {
 		const id = this.clientId();

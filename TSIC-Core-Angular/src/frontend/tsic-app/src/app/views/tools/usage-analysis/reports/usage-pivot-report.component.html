@@ -38,6 +38,7 @@
 			<ejs-chart
 				[primaryXAxis]="primaryXAxis()"
 				[primaryYAxis]="primaryYAxis()"
+				[axes]="axes()"
 				[series]="chartSeries()"
 				[tooltip]="tooltip()"
 				[legendSettings]="legendSettings()"
@@ -64,7 +65,7 @@
 					@for (col of columns(); track col) {
 						<th scope="col" class="ubr-num">{{ col }}</th>
 					}
-					<th scope="col" class="ubr-num ubr-total">Total</th>
+					<th scope="col" class="ubr-num ubr-total">{{ totalHeader() }}</th>
 				</tr>
 			</thead>
 			<tbody>

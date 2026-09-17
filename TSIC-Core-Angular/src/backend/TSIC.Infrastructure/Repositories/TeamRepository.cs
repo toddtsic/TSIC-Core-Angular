@@ -7,6 +7,7 @@ using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Dtos.TeamSearch;
+using TSIC.Contracts.Dtos.Usage;
 using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
@@ -1997,6 +1998,39 @@ public class TeamRepository : ITeamRepository
                 }
             })
             .AsNoTracking()
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<TeamCountByBucketDto>> GetTeamCountsByBucketAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        UsageBucket bucket,
+        CancellationToken ct = default)
+    {
+        if (jobIds.Count == 0)
+            return [];
+
+        // Active only, to match the registration series' bActive test: a team that was taken
+        // back off the event is not standing intake. createdate is populated on every row.
+        var query = _context.Teams
+            .AsNoTracking()
+            .Where(t => jobIds.Contains(t.JobId)
+                        && t.Active == true
+                        && t.Createdate >= since);
+
+        // Bucket indexing is UsageStatsRepository's, unchanged: DATEDIFF counts unit boundaries
+        // crossed from an aligned `since`, and weeks divide days by 7 rather than trust
+        // DATEDIFF(week), whose boundary is Sunday regardless of DATEFIRST.
+        var grouped = bucket switch
+        {
+            UsageBucket.Day => query.GroupBy(t => EF.Functions.DateDiffDay(since, t.Createdate)),
+            UsageBucket.Week => query.GroupBy(t => EF.Functions.DateDiffDay(since, t.Createdate) / 7),
+            UsageBucket.Month => query.GroupBy(t => EF.Functions.DateDiffMonth(since, t.Createdate)),
+            _ => throw new ArgumentOutOfRangeException(nameof(bucket)),
+        };
+
+        return await grouped
+            .Select(g => new TeamCountByBucketDto { BucketIndex = g.Key, Count = g.Count() })
             .ToListAsync(ct);
     }
 }

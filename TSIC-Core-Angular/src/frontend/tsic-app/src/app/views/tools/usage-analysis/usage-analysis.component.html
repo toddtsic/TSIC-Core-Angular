@@ -155,7 +155,7 @@
 				<span class="ua-stamp-sep">·</span>
 				<span class="ua-stamp-jobs">{{ state.roleName() }}</span>
 			}
-			@if (state.clientId() !== null) {
+			@if (state.showClientPicker() && state.clientId() !== null) {
 				<span class="ua-stamp-sep">·</span>
 				<span class="ua-stamp-jobs">{{ state.clientLabel() }}</span>
 			}
@@ -176,6 +176,9 @@
 			}
 			@case ('report-04') {
 				<app-usage-user-requests-by-route />
+			}
+			@case ('report-05') {
+				<app-usage-registrations-over-time />
 			}
 			@default {
 				<app-usage-report-debug [report]="activeReport()" />

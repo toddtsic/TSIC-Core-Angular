@@ -4301,4 +4301,49 @@ public class RegistrationRepository : IRegistrationRepository
             .AsNoTracking()
             .ToListAsync(ct);
     }
+
+    public async Task<List<RegistrationCountByBucketDto>> GetRegistrationCountsByBucketAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        UsageBucket bucket,
+        IReadOnlyList<string> roleIds,
+        CancellationToken ct = default)
+    {
+        if (jobIds.Count == 0 || roleIds.Count == 0)
+            return [];
+
+        // bActive = 1 is the signup test: the row exists from PreSubmit, and activation happens
+        // at payment (or at completion of a free event). RegistrationTs is the creation stamp and
+        // is never rewritten on these roles -- only job clone rewrites it, and only for the admin
+        // roles the caller does not ask for.
+        var query = _context.Registrations
+            .AsNoTracking()
+            .Where(r => jobIds.Contains(r.JobId)
+                        && r.BActive == true
+                        && r.RoleId != null
+                        && roleIds.Contains(r.RoleId!)
+                        && r.RegistrationTs >= since);
+
+        // DATEDIFF counts unit BOUNDARIES crossed from `since`, so with `since` aligned to the
+        // unit the result is the whole-bucket index. Weeks divide days by 7 rather than use
+        // DATEDIFF(week), whose boundary is Sunday regardless of DATEFIRST. Same shape as
+        // UsageStatsRepository's bucketing, deliberately: the two reports must slice alike.
+        var grouped = bucket switch
+        {
+            UsageBucket.Day => query.GroupBy(r => new { Index = EF.Functions.DateDiffDay(since, r.RegistrationTs), RoleId = r.RoleId! }),
+            UsageBucket.Week => query.GroupBy(r => new { Index = EF.Functions.DateDiffDay(since, r.RegistrationTs) / 7, RoleId = r.RoleId! }),
+            UsageBucket.Month => query.GroupBy(r => new { Index = EF.Functions.DateDiffMonth(since, r.RegistrationTs), RoleId = r.RoleId! }),
+            _ => throw new ArgumentOutOfRangeException(nameof(bucket)),
+        };
+
+        // Counted in SQL: one row per (bucket, role), never a registration id list.
+        return await grouped
+            .Select(g => new RegistrationCountByBucketDto
+            {
+                BucketIndex = g.Key.Index,
+                RoleId = g.Key.RoleId,
+                Count = g.Count(),
+            })
+            .ToListAsync(ct);
+    }
 }

@@ -1,0 +1,32 @@
+<app-usage-pivot-report
+	[isLoading]="fetch.isLoading()"
+	[error]="fetch.error()"
+	[isEmpty]="isEmpty()"
+	loadingMessage="Counting registrations…"
+	emptyMessage="Nothing registered in this span."
+	[tiles]="tiles()"
+	[columns]="columns()"
+	[rows]="rows()"
+	[rowsAreEvents]="false"
+	[rowHeader]="rowHeader()"
+	totalHeader="People"
+	[chartTitle]="chartTitle()"
+	[chartSubtitle]="chartSubtitle()"
+	[chartSeries]="chartSeries()"
+	[primaryXAxis]="primaryXAxis()"
+	[primaryYAxis]="primaryYAxis()"
+	[axes]="axes()"
+	[legendSettings]="legendSettings"
+	[tooltip]="tooltip"
+	[pointRender]="pointRender"
+	chartHeight="300px"
+	chartEmptyMessage="Nothing registered in the span.">
+	What came IN per bucket, counted from each row's own creation stamp — not who used the site. Players and
+	club reps are registrations; teams are teams, so the People column adds the two registration columns and
+	leaves Teams out. Teams is not the club rep count: a rep registers once per event and then adds teams
+	under that one registration, so a day can bring thirty teams and no new reps. Unlike the usage reports
+	these numbers add up — a registration is created once, so a bucket's count never counts it again and the
+	tiles are span totals. Counted only if it is still standing: a registration activates at payment (or at
+	completion of a free event), so carts started and abandoned are not here. Admin and Scorer registrations
+	are left out entirely — provisioning rather than intake. The newest bucket is the current one, still filling.
+</app-usage-pivot-report>

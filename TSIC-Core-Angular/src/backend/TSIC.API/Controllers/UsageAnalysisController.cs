@@ -180,6 +180,32 @@ public class UsageAnalysisController : ControllerBase
         return Ok(await _reports.GetUsersByRoleOverTimeAsync(resolution!, unit, since, clientId, ct));
     }
 
+    /// <summary>
+    /// Registrations over Time -- what came IN per bucket: Player and Club Rep registrations,
+    /// plus teams. The bucket IS the window, as on users-by-role-over-time.
+    ///
+    /// The only report here that reads no log: every number comes from TSICV5 (Jobs.Registrations
+    /// on RegistrationTs, Leagues.teams on createdate). There is no clientId -- a registration
+    /// carries no AppClientId, and inventing one would be a filter that silently drops rows.
+    /// </summary>
+    [HttpGet("registrations-over-time")]
+    public async Task<ActionResult<RegistrationsOverTimeDto>> GetRegistrationsOverTime(
+        [FromQuery] string? scope,
+        [FromQuery] string? bucket = null,
+        [FromQuery] Guid? eventId = null,
+        CancellationToken ct = default)
+    {
+        // Live as of the START of the span, as on report 03: an event open during any of it is
+        // in the set. Unlike 03 the report then keeps every bucket's intake, because a signup
+        // is a point-in-time fact rather than a claim about the event being live now.
+        var unit = UsageBuckets.Parse(bucket) ?? UsageBucket.Day;
+        var since = UsageBuckets.SinceFor(unit, DateTime.Now);
+        var (failure, resolution) = await ResolveForReportAsync(scope, eventId, ct, liveAsOf: since);
+        if (failure is not null) return failure;
+
+        return Ok(await _reports.GetRegistrationsOverTimeAsync(resolution!, unit, since, ct));
+    }
+
     /// <summary>Resolve scope + event lens for a report, or the ActionResult that refuses it. <paramref name="liveAsOf"/> null = live now.</summary>
     private async Task<(ActionResult? Failure, UsageScopeResolution? Resolution)> ResolveForReportAsync(
         string? scope, Guid? eventId, CancellationToken ct, DateTime? liveAsOf = null)

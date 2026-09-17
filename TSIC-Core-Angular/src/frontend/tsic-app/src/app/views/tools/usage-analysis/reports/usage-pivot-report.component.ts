@@ -52,6 +52,11 @@ export class UsagePivotReportComponent {
 	readonly rowsAreEvents = input(true);
 	/** The first column's header. */
 	readonly rowHeader = input('Event');
+	/**
+	 * The Total column's header. A report whose columns are not all the same unit says what its
+	 * total actually adds: Registrations over Time totals PEOPLE, and its Teams column is not in it.
+	 */
+	readonly totalHeader = input('Total');
 
 	// Chart
 	/** The row the chart draws when rows are events; null when the lens event had no rows. */
@@ -63,6 +68,12 @@ export class UsagePivotReportComponent {
 	readonly primaryXAxis = input.required<object>();
 	readonly primaryYAxis = input.required<object>();
 	readonly legendSettings = input<object>({ visible: false });
+	/**
+	 * Extra ej2 y axes for a report whose series are not on one scale. Registrations over Time
+	 * puts Teams on its own axis: players outrun teams by an order of magnitude and would
+	 * flatten them onto the baseline of a shared one. Empty for every single-scale report.
+	 */
+	readonly axes = input<object[]>([]);
 	readonly tooltip = input<object>({ enable: true });
 	readonly chartHeight = input('280px');
 	readonly chartMargin = input<object>({ left: 8, right: 8, top: 4, bottom: 4 });

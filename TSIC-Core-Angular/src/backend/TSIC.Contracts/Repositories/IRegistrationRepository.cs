@@ -823,6 +823,22 @@ public interface IRegistrationRepository
         IReadOnlyList<Guid> registrationIds,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Registrations per (bucket, role) CREATED in the span, for the Registrations over Time
+    /// report: active rows only (<c>bActive = 1</c>, so an abandoned PreSubmit cart is not a
+    /// signup), anchored on <c>RegistrationTs</c> raw, restricted to <paramref name="roleIds"/>.
+    ///
+    /// Counted in SQL, one row per (bucket, role) -- no id list crosses the wire. Buckets are
+    /// whole units from <paramref name="since"/>, which MUST be aligned to the unit, and an
+    /// index outside the span is the caller's to discard.
+    /// </summary>
+    Task<List<RegistrationCountByBucketDto>> GetRegistrationCountsByBucketAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        UsageBucket bucket,
+        IReadOnlyList<string> roleIds,
+        CancellationToken ct = default);
+
 }
 
 /// <summary>Everything <c>UsLaxEligibilityPolicy</c> needs for ONE registration, joined in a single

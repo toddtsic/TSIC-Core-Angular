@@ -66,12 +66,17 @@ export interface UsageQuery {
 /**
  * Who a report is about. The dropdown groups by this (Todd, 2026-09-16): people signed in,
  * or the public. Every request lands in exactly one — signed-in means a login on the request.
+ *
+ * 'registrations' is the odd one out on purpose: it is not about requests at all. Those
+ * reports read TSICV5 (registrations and teams as they were created), never the log, so
+ * they answer what came IN rather than who used the site.
  */
-export type UsageReportGroup = 'users' | 'public';
+export type UsageReportGroup = 'users' | 'public' | 'registrations';
 
 export const USAGE_REPORT_GROUPS: readonly { readonly group: UsageReportGroup; readonly label: string }[] = [
 	{ group: 'users', label: 'Signed-in users' },
 	{ group: 'public', label: 'Public (not signed in)' },
+	{ group: 'registrations', label: 'Registrations (what came in)' },
 ];
 
 export type UsageReportKey = 'report-01' | 'report-02' | 'report-03' | 'report-04' | 'report-05' | 'report-06';
@@ -83,6 +88,12 @@ export interface UsageReportDef {
 	readonly group: UsageReportGroup;
 	/** True when the report offers the Role dropdown (its roles come from its own answer). */
 	readonly roleLens?: boolean;
+	/**
+	 * False for a report whose source carries no client. A registration has no AppClientId, so
+	 * the Client dropdown is hidden rather than left on screen filtering nothing — and the audit
+	 * stamp must not claim a client the numbers were never narrowed by.
+	 */
+	readonly clientLens?: boolean;
 	/** Roles that see the report. Nested by design: Director ⊂ SuperDirector ⊂ Superuser. */
 	readonly roles: readonly string[];
 	/** False for a reserved slot with no report behind it yet. Hidden from the dropdown; the key stays reserved. */
@@ -92,7 +103,6 @@ export interface UsageReportDef {
 }
 
 const ALL_ADMINS = [Roles.Superuser, Roles.SuperDirector, Roles.Director] as const;
-const CROSS_JOB = [Roles.Superuser, Roles.SuperDirector] as const;
 const SUPERUSER = [Roles.Superuser] as const;
 
 /**
@@ -106,6 +116,6 @@ export const USAGE_REPORTS: readonly UsageReportDef[] = [
 	{ key: 'report-03', label: 'Users by Role over Time', group: 'users', roles: ALL_ADMINS, built: true, timeAxis: 'bucket' },
 	{ key: 'report-04', label: 'User Requests by Route', group: 'users', roleLens: true, roles: ALL_ADMINS, built: true, timeAxis: 'window' },
 	{ key: 'report-02', label: 'Public Requests by Route', group: 'public', roles: ALL_ADMINS, built: true, timeAxis: 'window' },
-	{ key: 'report-05', label: 'Report-05', group: 'users', roles: CROSS_JOB, built: false, timeAxis: 'window' },
+	{ key: 'report-05', label: 'Registrations over Time', group: 'registrations', roles: ALL_ADMINS, built: true, timeAxis: 'bucket', clientLens: false },
 	{ key: 'report-06', label: 'Report-06', group: 'users', roles: SUPERUSER, built: false, timeAxis: 'window' },
 ];

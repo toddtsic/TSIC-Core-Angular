@@ -594,9 +594,11 @@ export type { RegistrationFinancialsDto } from './models/RegistrationFinancialsD
 export type { RegistrationMetrics } from './models/RegistrationMetrics';
 export type { RegistrationReadinessDto } from './models/RegistrationReadinessDto';
 export type { RegistrationRoleDto } from './models/RegistrationRoleDto';
+export type { RegistrationsBucketRowDto } from './models/RegistrationsBucketRowDto';
 export type { RegistrationSearchRequest } from './models/RegistrationSearchRequest';
 export type { RegistrationSearchResponse } from './models/RegistrationSearchResponse';
 export type { RegistrationSearchResultDto } from './models/RegistrationSearchResultDto';
+export type { RegistrationsOverTimeDto } from './models/RegistrationsOverTimeDto';
 export type { RegistrationStatusRequest } from './models/RegistrationStatusRequest';
 export type { RegistrationStatusResponse } from './models/RegistrationStatusResponse';
 export type { RegistrationTimeSeriesDto } from './models/RegistrationTimeSeriesDto';

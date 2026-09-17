@@ -615,6 +615,24 @@ public interface ITeamRepository
     /// widget measures against. AsNoTracking. Unordered.
     /// </summary>
     Task<List<Dtos.Widgets.TeamsAppRosterMemberDto>> GetTeamsAppRosterAsync(Guid jobId, CancellationToken ct = default);
+
+    // ── Registrations over Time report ──
+
+    /// <summary>
+    /// Teams CREATED per bucket in the span, for the Registrations over Time report's team
+    /// series. Anchored on <c>Leagues.teams.createdate</c>, which is populated on every row.
+    ///
+    /// This is NOT the Club Rep registration count: a rep's registration is minted once per
+    /// (user, event) and reused for every team they add, so the two series diverge by design.
+    ///
+    /// Counted in SQL, one row per bucket. Buckets are whole units from <paramref name="since"/>,
+    /// which MUST be aligned to the unit; an index outside the span is the caller's to discard.
+    /// </summary>
+    Task<List<Dtos.Usage.TeamCountByBucketDto>> GetTeamCountsByBucketAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        Dtos.Usage.UsageBucket bucket,
+        CancellationToken ct = default);
 }
 
 public record TeamWithRegistrationInfo
