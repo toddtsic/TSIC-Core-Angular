@@ -1131,6 +1131,12 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         if (invalidRegs.Count > 0)
             throw new InvalidOperationException("Some registrations do not belong to this job.");
 
+        // A target event marks an invite send, whatever the body holds. The link token IS the invitation: without it
+        // in the body, every guard below that keys on the token is skipped and recipients get nothing to click.
+        if (request.InviteLinkTargetJobId.HasValue
+            && !InviteLinkTokens.Any(t => (request.BodyTemplate ?? "").Contains(t, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException("This invitation has no link. Put the invitation link token back in the body before sending.");
+
         // Every invite kind goes only to active registrations. The Invite button needs an Active-only search;
         // this refuses a hand-built request or a checked selection carried over from an earlier search.
         if (InviteLinkTokens.Any(t => TemplateUses(request, t)) && registrations.Any(r => r.BActive != true))

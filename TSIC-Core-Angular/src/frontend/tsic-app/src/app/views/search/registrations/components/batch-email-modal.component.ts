@@ -34,7 +34,7 @@ const EVENT_INVITED_TO_TOKEN = '!EVENT_INVITEDTO';
 /** One invite kind: seed content plus the words the modal uses for it. The link token and the expiry
  *  (!INVITE_EXPIRES) are resolved per recipient server-side; !EVENT_INVITEDTO is filled client-side
  *  from the target-event dropdown. The admin can edit the surrounding copy but must keep the link
- *  token (a send-time guard enforces this). */
+ *  token: without it Send is disabled here, and the server refuses the batch. */
 interface InviteKind {
   subject: string;
   body: string;
@@ -239,8 +239,16 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
     return this.inviteTargetJobs().find(j => j.jobId === id)?.jobName ?? '';
   }
 
+  /** Invite mode with the kind's link token gone from the body — the email would have nothing to click.
+   *  Case-insensitive, matching how the server finds and fills the token. */
+  readonly inviteLinkMissing = computed(() => {
+    const kind = this.inviteKind();
+    return kind !== null && !this.bodyTemplate().toLowerCase().includes(kind.linkToken.toLowerCase());
+  });
+
   readonly canSend = computed(() =>
-    (!this.inviteMode() && !this.requiresInviteLink()) || this.selectedInviteTargetJobId() !== null
+    !this.inviteLinkMissing()
+    && ((!this.inviteMode() && !this.requiresInviteLink()) || this.selectedInviteTargetJobId() !== null)
   );
 
   /** Single source of truth for both Send and the dev TEST button — they enable/disable together. */
