@@ -495,6 +495,23 @@
     font-weight: 600;
     white-space: nowrap;
   }
+
+  // What the link does not restrict — icon + words carry it, not the color alone.
+  .invite-guide-caveat {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    background: color-mix(in srgb, var(--bs-warning) 10%, var(--bs-card-bg));
+    border: 1px solid color-mix(in srgb, var(--bs-warning) 40%, var(--bs-border-color));
+    border-radius: var(--radius-sm);
+    color: var(--brand-text);
+
+    svg { flex-shrink: 0; margin-top: 2px; color: var(--bs-warning-text-emphasis); }
+
+    p { margin: 0; }
+  }
 }
 
 // ── Invite settings fieldset (invite mode only) ─────────

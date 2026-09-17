@@ -44,19 +44,27 @@ interface InviteKind {
   targetLabel: string;
   /** Further tokens the seed uses, listed in the guidance panel so the admin keeps them. */
   extraTokens?: readonly EmailTokenInfo[];
+  /** What the link does NOT restrict, shown to the admin before sending. */
+  caveat?: string;
 }
 
 const INVITE_KINDS: Record<InviteMode, InviteKind> = {
+  // The token is bound to the FAMILY login (the parent is who logs in), not to the player, so the link
+  // lets that family register any of its players. Not enforced — the admin is told, and the letter names
+  // the invited player.
   player: {
     subject: 'You\'re invited to register for !EVENT_INVITEDTO',
     body:
       '<p>Hi !PERSON,</p>' +
       '<p>You\'ve been invited to register for !EVENT_INVITEDTO. Use your personalized link below:</p>' +
       '<p>!INVITE_LINK</p>' +
-      '<p>This invitation is unique to you and expires on !INVITE_EXPIRES. Please complete your registration before then.</p>',
+      '<p>This invitation is for !PERSON only and expires on !INVITE_EXPIRES. Please complete your registration before then.</p>',
     linkToken: '!INVITE_LINK',
-    linkDescription: 'unique, single-use registration link',
+    linkDescription: 'personal registration link',
     targetLabel: 'Target registration event',
+    caveat:
+      'Families log in with one shared account, so this invitation lets the family register any of their players ' +
+      'in the target event, not only the player you invite. Check the target event\'s roster for players you didn\'t invite.',
   },
   clubrep: {
     subject: 'You\'re invited to register your team for !EVENT_INVITEDTO',
@@ -66,7 +74,7 @@ const INVITE_KINDS: Record<InviteMode, InviteKind> = {
       '<p>!CLUBREP_INVITE_LINK</p>' +
       '<p>This invitation is unique to you and expires on !INVITE_EXPIRES. Please complete your registration before then.</p>',
     linkToken: '!CLUBREP_INVITE_LINK',
-    linkDescription: 'unique, single-use registration link',
+    linkDescription: 'personal registration link',
     targetLabel: 'Target registration event',
   },
   // Club Reps of THIS event, before the schedule is public. The server offers exactly this event as the

@@ -170,14 +170,14 @@
       <p>You've been invited to register for !EVENT_INVITEDTO. Use your personalized link below:</p>
       <p>!INVITE_LINK</p>
       <p>
-        This invitation is unique to you and expires on !INVITE_EXPIRES. Please complete your
+        This invitation is for !PERSON only and expires on !INVITE_EXPIRES. Please complete your
         registration before then.
       </p>
     </div>
     <ul>
       <li><code>!PERSON</code> &rarr; the recipient's name</li>
       <li><code>!EVENT_INVITEDTO</code> &rarr; the target event you picked above</li>
-      <li><code>!INVITE_LINK</code> &rarr; that player's own single-use registration link</li>
+      <li><code>!INVITE_LINK</code> &rarr; that player's personal registration link</li>
       <li><code>!INVITE_EXPIRES</code> &rarr; the exact date and time, set by the dropdown</li>
     </ul>
     <div class="help-callout help-callout--warning">
@@ -187,6 +187,18 @@
         <p class="help-callout__body">
           Delete it and Send greys out until it's back in the body. Change the sentence around the
           token as much as you like; keep the token itself.
+        </p>
+      </div>
+    </div>
+    <div class="help-callout help-callout--warning">
+      <i class="bi bi-people" aria-hidden="true"></i>
+      <div>
+        <strong>The link works for the whole family.</strong>
+        <p class="help-callout__body">
+          Families log in with one shared account, so a player's invitation lets that family register
+          <em>any</em> of their players in the target event, not only the one you invited. The letter
+          says the invitation is for that player only, but nothing enforces it. Check the target
+          event's roster for players you didn't invite.
         </p>
       </div>
     </div>
@@ -400,7 +412,7 @@
     <ul>
       <li><code>!PERSON</code> &rarr; the recipient's name</li>
       <li><code>!EVENT_INVITEDTO</code> &rarr; the target event you picked above</li>
-      <li><code>!CLUBREP_INVITE_LINK</code> &rarr; that rep's own single-use registration link</li>
+      <li><code>!CLUBREP_INVITE_LINK</code> &rarr; that rep's own personal registration link</li>
       <li><code>!INVITE_EXPIRES</code> &rarr; the exact date and time, set by the dropdown</li>
     </ul>
     <div class="help-callout help-callout--warning">

@@ -127,6 +127,15 @@
               <li><code>{{ inviteKind()?.linkToken }}</code> → their {{ inviteKind()?.linkDescription }} for that event. <strong>Required — without it the email can't be sent.</strong></li>
               <li><code>!INVITE_EXPIRES</code> → the exact expiry date &amp; time, driven by the <strong>“Invitation expires after”</strong> dropdown below — change the dropdown and this updates to match.</li>
             </ul>
+            @if (inviteKind()?.caveat; as caveat) {
+              <div class="invite-guide-caveat">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <p><strong>The link works for the whole family.</strong> {{ caveat }}</p>
+              </div>
+            }
           </div>
 
           <fieldset class="invite-inputs" [disabled]="isSending()">
