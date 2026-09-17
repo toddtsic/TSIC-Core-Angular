@@ -1229,12 +1229,6 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
         const column = this.gridColumns()[colIndex];
         if (!column) return;
 
-        const bracketBlock = this.checkBracketPlacement(pairing);
-        if (bracketBlock) {
-            this.toast.show(bracketBlock, 'danger', 5000);
-            return;
-        }
-
         const teamIds = this.resolvePairingTeamIds(pairing);
         const clash = this.findClashInRow(row, teamIds);
         if (clash) {
@@ -2174,32 +2168,6 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
         return findTimeClashInRow(row, teamIds, excludeGid ?? -1);
     }
 
-    // ── Bracket enforcement ──
-
-    private checkBracketPlacement(pairing: PairingDto): string | null {
-        const isBracket = pairing.t1Type !== 'T' || pairing.t2Type !== 'T';
-        if (!isBracket) return null;
-
-        const agId = this.selectedAgegroupId();
-        const ag = this.agegroups().find(a => a.agegroupId === agId);
-        if (!ag) return null;
-
-        if (ag.bChampionsByDivision) return null;
-
-        const currentDivId = this.selectedDivision()?.divId;
-        for (const row of this.gridRows()) {
-            for (const cell of row.cells) {
-                if (!cell) continue;
-                if (cell.t1Type === 'T' && cell.t2Type === 'T') continue;
-                if (cell.divId !== currentDivId) {
-                    const ownerDiv = ag.divisions.find(d => d.divId === cell.divId);
-                    return `Championship games for this agegroup are already being scheduled from ${ownerDiv?.divName ?? 'another pool'}. All bracket games must come from the same pool.`;
-                }
-            }
-        }
-        return null;
-    }
-
     // ── Rapid-placement modal methods ──
 
     openRapidModal(): void {
@@ -2335,12 +2303,6 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
         const div = this.selectedDivision();
         const agId = this.selectedAgegroupId();
         if (!pairing || !field || !time || !div || !agId) return;
-
-        const bracketBlock = this.checkBracketPlacement(pairing);
-        if (bracketBlock) {
-            this.toast.show(bracketBlock, 'danger', 5000);
-            return;
-        }
 
         const row = this.gridRows().find(r => r.gDate === time.gDate);
         if (row) {
