@@ -72,14 +72,16 @@ import { formatLop } from '@shared/teams/lop-choices';
               </span>
             </ng-template>
           </e-column>
-          <e-column field="ageGroupName" headerText="Age Group" width="75" [visible]="showAgeGroup()">
-            <ng-template #template let-data>
-              <span class="agegroup-cell">{{ data.ageGroupDisplayName }}</span>
-            </ng-template>
-          </e-column>
+          <!-- LOP sits ahead of Age Group at Ann's request (AR-095). Only the teams step shows
+               both, so the order is invisible to every other host. -->
           <e-column field="levelOfPlay" headerText="LOP" width="55" textAlign="Center" [visible]="showLop()">
             <ng-template #template let-data>
               <span [attr.title]="data.levelOfPlay">{{ formatLop(data.levelOfPlay) }}</span>
+            </ng-template>
+          </e-column>
+          <e-column field="ageGroupName" headerText="Age Group" width="75" [visible]="showAgeGroup()">
+            <ng-template #template let-data>
+              <span class="agegroup-cell">{{ data.ageGroupDisplayName }}</span>
             </ng-template>
           </e-column>
           <e-column field="registrationTs" headerText="Reg Date" width="70" type="date" format="MM/dd/yy"
