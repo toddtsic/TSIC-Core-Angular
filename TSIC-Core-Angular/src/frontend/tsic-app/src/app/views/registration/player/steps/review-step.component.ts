@@ -51,7 +51,15 @@ import { JobService } from '@infrastructure/services/job.service';
             <div class="review-player-row" [class.border-bottom]="!last">
               <div class="review-player-top">
                 <div class="review-player-info">
-                  <span class="review-player-name">{{ player.name }}</span>
+                  <span class="review-player-name">
+                    {{ player.name }}
+                    <!-- AR-096: this row is a PRIOR registration, not one being created now.
+                         Says "registered", never "paid" — the wizard carries no payment state
+                         at this step and must not imply one. -->
+                    @if (player.registered) {
+                      <span class="review-player-registered">Already registered</span>
+                    }
+                  </span>
                   @if (player.dob || player.gender) {
                     <span class="review-player-meta">
                       @if (player.gender) { {{ genderLabel(player.gender) }} }
@@ -114,10 +122,17 @@ import { JobService } from '@infrastructure/services/job.service';
             </div>
           }
           @if (baseFeeTotal() > 0) {
+            <!-- AR-096: "Registration Fee Total" read as a balance owed. It is the full
+                 price of what is selected; what is still owed is settled on Payment. -->
             <div class="review-total-row">
-              <span>Registration Fee Total</span>
+              <span>Total Registration Price</span>
               <span class="review-total-amount">{{ baseFeeTotal() | currency }}</span>
             </div>
+            @if (hasPriorRegistration()) {
+              <div class="review-total-note">
+                Payments already made are applied at checkout.
+              </div>
+            }
           }
         </div>
       </div>
@@ -258,6 +273,20 @@ import { JobService } from '@infrastructure/services/job.service';
         color: var(--brand-text-muted);
       }
 
+      /* AR-096 — marks a row that already exists. Carries its own text, not colour
+         alone, so it survives a monochrome palette and a screen reader. */
+      .review-player-registered {
+        display: inline-block;
+        margin-left: var(--space-2);
+        padding: 0 var(--space-2);
+        border: 1px solid var(--bs-success);
+        border-radius: var(--radius-pill, 999px);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--bs-success);
+        vertical-align: middle;
+      }
+
       .review-player-teams {
         display: flex;
         flex-wrap: wrap;
@@ -377,6 +406,15 @@ import { JobService } from '@infrastructure/services/job.service';
         color: var(--brand-text);
       }
 
+      /* AR-096 — sits under the total, not beside it, so it reads as a footnote to the
+         figure rather than a second amount. */
+      .review-total-note {
+        padding: var(--space-1) var(--space-3) var(--space-2);
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+        text-align: right;
+      }
+
       .review-total-amount {
         font-size: var(--font-size-base);
         font-weight: var(--font-weight-bold);
@@ -449,7 +487,22 @@ export class ReviewStepComponent {
                 name: `${p.firstName} ${p.lastName}`.trim(),
                 dob: p.dob || null,
                 gender: p.gender || null,
+                // AR-096 — the filter above admits rows on either flag, so the template
+                // could not tell a new selection from one that already exists.
+                registered: p.registered,
             }));
+    }
+
+    /**
+     * AR-096 — is any row on this screen a registration that already exists?
+     *
+     * Gates the "payments already made" note, so a first-time family is not told about
+     * payments they have not made. `registered` is the same flag that locks rows and seeds
+     * the initial selection; it means REGISTERED, not paid — a registered player may still
+     * owe. The note is worded to hold either way.
+     */
+    hasPriorRegistration(): boolean {
+        return this.state.familyPlayers.familyPlayers().some(p => p.registered);
     }
 
     /**
