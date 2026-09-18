@@ -14,6 +14,19 @@ public record PoolDivisionOptionDto
     public required bool IsDroppedTeams { get; init; }
     public string? AgegroupColor { get; init; }
     public required int PlayerCount { get; init; }
+
+    /// <summary>
+    /// This pool has games (home or interlock). Membership is frozen: nothing may be moved out of
+    /// it or into it except a one-for-one swap with another scheduled pool of equal active size.
+    /// </summary>
+    public required bool IsScheduled { get; init; }
+
+    /// <summary>
+    /// ACTIVE teams only — the number the pairing matrix was built for, and the number compared
+    /// when deciding whether two scheduled pools may swap. Inactive teams are never seated, so
+    /// <see cref="TeamCount"/> (every row, active or not) is the wrong figure for that test.
+    /// </summary>
+    public required int ActiveTeamCount { get; init; }
 }
 
 /// <summary>

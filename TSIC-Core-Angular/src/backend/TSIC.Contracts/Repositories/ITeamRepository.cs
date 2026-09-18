@@ -362,6 +362,13 @@ public interface ITeamRepository
     Task<int> GetNextDivRankAsync(Guid divId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// ACTIVE team count for a pool — the size its pairing matrix was built for, and the figure
+    /// compared when deciding whether two scheduled pools may swap. Inactive teams are never
+    /// seated, so a count that includes them would compare the wrong thing.
+    /// </summary>
+    Task<int> GetActiveTeamCountAsync(Guid divId, Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Check if a team has any rostered players (for delete validation).
     /// </summary>
     Task<bool> HasRosteredPlayersAsync(Guid teamId, CancellationToken cancellationToken = default);

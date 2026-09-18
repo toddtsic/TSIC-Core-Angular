@@ -42,6 +42,27 @@ public interface IScheduleRepository
     Task<bool> TeamHasScheduleRowsAsync(Guid jobId, Guid teamId, CancellationToken ct = default);
 
     /// <summary>
+    /// True when this POOL has any games — as the home division (DivId) or as the away side of an
+    /// interlock (Div2Id). Both count: an interlock is still this pool's game.
+    ///
+    /// Deliberately a POOL question, not a team question. Games are built from the pairing matrix
+    /// and reference RANK slots (T1No/T2No); a team is only the current occupant of a slot. Asking
+    /// "does this team appear in a game row" interrogates seating, which is derived data — and it
+    /// fails OPEN precisely when seating is already damaged (a rank never seated, a T1Id blanked),
+    /// permitting the removal that makes it worse. The matrix was built for N ranks; pulling ANY
+    /// team out leaves the pool at N-1 regardless of whose id happens to be written where.
+    /// </summary>
+    Task<bool> IsPoolScheduledAsync(Guid divId, Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Bulk twin of <see cref="IsPoolScheduledAsync"/> — every DivId in this job carrying at least
+    /// one game, from both the DivId and Div2Id sides. Fills the Pool Assignment division list so
+    /// the screen can tell "offer the swap" from "deny" before the director clicks, without a
+    /// round trip per row.
+    /// </summary>
+    Task<HashSet<Guid>> GetScheduledDivIdsAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
     /// THE single home for the cross-job fan-out. Loops <see cref="RecomposeScheduleNamesForJobAsync"/>
     /// over <paramref name="jobIds"/> with the same pair, returning per-job (examined, changed). Every
     /// rename ends here: an entity whose id is shared across jobs (field, league) passes all its

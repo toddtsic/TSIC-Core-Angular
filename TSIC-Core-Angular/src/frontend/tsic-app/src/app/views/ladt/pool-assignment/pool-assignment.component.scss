@@ -415,3 +415,160 @@ thead .frozen {
         border-style: dashed;
     }
 }
+
+/* ───────────────────────────────────────────────────────────
+   Swap conversation + denial modals
+   A scheduled pool has frozen membership. Both dialogs explain
+   that, so no hardcoded colors here — palette switching has to
+   keep working, and no backdrop-filter (it traps fixed/absolute
+   descendants in its own paint layer).
+   ─────────────────────────────────────────────────────────── */
+
+.pool-modal-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1050;
+	padding: var(--space-4);
+}
+
+.pool-modal {
+	background: var(--bs-body-bg);
+	color: var(--bs-body-color);
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-xl);
+	width: 100%;
+	max-width: 32rem;
+	max-height: calc(100vh - var(--space-8));
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.pool-modal-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
+	padding: var(--space-4);
+	border-bottom: 1px solid var(--bs-border-color);
+
+	h5 {
+		font-size: var(--font-size-sm);
+		font-weight: var(--font-weight-semibold);
+	}
+}
+
+.pool-modal-body {
+	padding: var(--space-4);
+	overflow-y: auto;
+
+	p:last-child {
+		margin-bottom: 0;
+	}
+}
+
+.pool-modal-footer {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--space-2);
+	padding: var(--space-4);
+	border-top: 1px solid var(--bs-border-color);
+	background: var(--bs-tertiary-bg);
+}
+
+/* ── Counter-team picker ── */
+
+.counter-team-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	max-height: 18rem;
+	overflow-y: auto;
+	margin-bottom: var(--space-3);
+}
+
+.counter-team-row {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	width: 100%;
+	padding: var(--space-2) var(--space-3);
+	background: var(--bs-body-bg);
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--radius-sm);
+	color: var(--bs-body-color);
+	text-align: left;
+	transition: background-color 0.12s ease, border-color 0.12s ease;
+
+	&:hover {
+		background: var(--bs-table-hover-bg);
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+
+	/* Selection is border + weight + a check glyph, never color alone. */
+	&.selected {
+		background: var(--bs-primary-bg-subtle);
+		border-color: var(--bs-primary);
+		font-weight: var(--font-weight-semibold);
+	}
+}
+
+.counter-rank {
+	flex: 0 0 auto;
+	min-width: 1.75rem;
+	padding: 0 var(--space-1);
+	text-align: center;
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-semibold);
+	color: var(--bs-secondary-color);
+	background: var(--bs-secondary-bg);
+	border-radius: var(--radius-pill);
+}
+
+.counter-name {
+	flex: 1 1 auto;
+	min-width: 0;
+	font-size: var(--font-size-sm);
+}
+
+.counter-club {
+	display: block;
+	font-size: var(--font-size-2xs);
+	font-weight: var(--font-weight-normal);
+	color: var(--bs-secondary-color);
+}
+
+/* ── The trade, spelled out before it commits ── */
+
+.swap-summary {
+	padding: var(--space-3);
+	background: var(--bs-primary-bg-subtle);
+	border: 1px solid var(--bs-primary);
+	border-radius: var(--radius-sm);
+	font-size: var(--font-size-sm);
+}
+
+.swap-summary-line + .swap-summary-line {
+	margin-top: var(--space-1);
+}
+
+.swap-summary-note {
+	margin-top: var(--space-2);
+	font-size: var(--font-size-xs);
+	color: var(--bs-secondary-color);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.counter-team-row {
+		transition: none !important;
+	}
+}

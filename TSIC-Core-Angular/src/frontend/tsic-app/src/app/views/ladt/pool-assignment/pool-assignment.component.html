@@ -436,23 +436,6 @@
           <button class="btn-close btn-close-sm" (click)="cancelTransferPreview()" aria-label="Close"></button>
         </div>
 
-        @if (transferPreview()!.requiresSymmetricalSwap && !canConfirmTransfer()) {
-          <div class="alert alert-warning py-2 small mb-2">
-            <i class="bi bi-exclamation-triangle-fill me-1"></i>
-            <strong>Symmetrical swap required</strong> — some teams have scheduled games.
-            Select an equal number of teams from the other panel, then click "Update Preview".
-          </div>
-          <div class="d-flex justify-content-end mb-2">
-            <button class="btn btn-sm btn-outline-primary" (click)="updatePreview()"
-                    [disabled]="isLoadingPreview()">
-              @if (isLoadingPreview()) {
-                <span class="spinner-border spinner-border-sm me-1"></span>
-              }
-              Update Preview
-            </button>
-          </div>
-        }
-
         @if (transferPreview()!.teams.length > 0) {
           <div class="table-responsive">
             <table class="table table-sm mb-2">
@@ -531,3 +514,120 @@
 
   }
 </div>
+
+<!-- ─── DENIAL: a scheduled pool refuses the move ─── -->
+@if (denyModal(); as denial) {
+  <div class="pool-modal-backdrop" (click)="closeDenyModal()">
+    <div class="pool-modal" role="alertdialog" aria-modal="true"
+         aria-labelledby="deny-title" (click)="$event.stopPropagation()">
+      <div class="pool-modal-header">
+        <h5 class="mb-0" id="deny-title">
+          <i class="bi bi-calendar-x me-2" aria-hidden="true"></i>Schedule in the way
+        </h5>
+        <button class="btn-close" (click)="closeDenyModal()" aria-label="Close"></button>
+      </div>
+      <div class="pool-modal-body">
+        <p class="mb-0">{{ denial }}</p>
+      </div>
+      <div class="pool-modal-footer">
+        <button class="btn btn-primary" (click)="closeDenyModal()">Got it</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ─── SWAP: the statement, then the question ─── -->
+@if (swapModal(); as swap) {
+  <div class="pool-modal-backdrop" (click)="closeSwapModal()">
+    <div class="pool-modal" role="dialog" aria-modal="true"
+         aria-labelledby="swap-title" (click)="$event.stopPropagation()">
+
+      <div class="pool-modal-header">
+        <h5 class="mb-0" id="swap-title">
+          <i class="bi bi-arrow-left-right me-2" aria-hidden="true"></i>
+          {{ swap.stage === 'statement' ? 'This has to be a swap' : 'Which team comes back?' }}
+        </h5>
+        <button class="btn-close" (click)="closeSwapModal()" aria-label="Close"></button>
+      </div>
+
+      @if (swap.stage === 'statement') {
+        <div class="pool-modal-body">
+          <p>
+            <strong>{{ swap.fromDivName }}</strong> is scheduled. Moving
+            <strong>{{ swap.movingTeam.teamName }}</strong> out would leave its games with no team,
+            so you can only do this by swapping a team back from
+            <strong>{{ swap.toDivName }}</strong>.
+          </p>
+          <p class="text-body-secondary small mb-0">
+            Both pools are scheduled and hold the same number of active teams, so the two teams can
+            trade places. Each takes the other's rank and plays the games already sitting in it.
+          </p>
+        </div>
+        <div class="pool-modal-footer">
+          <button class="btn btn-outline-secondary" (click)="closeSwapModal()">Cancel</button>
+          <button class="btn btn-primary" (click)="proceedToPicker()">Choose a team to swap back</button>
+        </div>
+      } @else {
+        <div class="pool-modal-body">
+          <p class="small text-body-secondary">
+            Pick the team from <strong>{{ swap.toDivName }}</strong> that moves to
+            <strong>{{ swap.fromDivName }}</strong> in exchange for
+            <strong>{{ swap.movingTeam.teamName }}</strong>.
+          </p>
+
+          <div class="counter-team-list" role="radiogroup" aria-label="Team to swap back">
+            @for (cand of counterTeamCandidates(); track cand.teamId) {
+              <button type="button" class="counter-team-row"
+                      role="radio"
+                      [attr.aria-checked]="swap.counterTeam?.teamId === cand.teamId"
+                      [class.selected]="swap.counterTeam?.teamId === cand.teamId"
+                      (click)="chooseCounterTeam(cand)">
+                <span class="counter-rank">{{ cand.divRank }}</span>
+                <span class="counter-name">
+                  {{ cand.teamName }}
+                  @if (cand.clubName) {
+                    <span class="counter-club">{{ cand.clubName }}</span>
+                  }
+                </span>
+                @if (swap.counterTeam?.teamId === cand.teamId) {
+                  <i class="bi bi-check-lg" aria-hidden="true"></i>
+                }
+              </button>
+            } @empty {
+              <p class="text-body-secondary small mb-0">
+                {{ swap.toDivName }} has no active teams to swap back.
+              </p>
+            }
+          </div>
+
+          @if (swap.counterTeam; as back) {
+            <div class="swap-summary" aria-live="polite">
+              <div class="swap-summary-line">
+                <strong>{{ swap.movingTeam.teamName }}</strong>
+                <i class="bi bi-arrow-right mx-1" aria-hidden="true"></i>
+                {{ swap.toDivName }}, rank <strong>{{ back.divRank }}</strong>
+              </div>
+              <div class="swap-summary-line">
+                <strong>{{ back.teamName }}</strong>
+                <i class="bi bi-arrow-right mx-1" aria-hidden="true"></i>
+                {{ swap.fromDivName }}, rank <strong>{{ swap.movingTeam.divRank }}</strong>
+              </div>
+              <div class="swap-summary-note">All other ranks in both pools stay as they are.</div>
+            </div>
+          }
+        </div>
+        <div class="pool-modal-footer">
+          <button class="btn btn-outline-secondary" (click)="backToStatement()">Back</button>
+          <button class="btn btn-primary"
+                  [disabled]="!swap.counterTeam || isTransferring()"
+                  (click)="confirmSwap()">
+            @if (isTransferring()) {
+              <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+            }
+            Swap
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+}

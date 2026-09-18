@@ -22,6 +22,23 @@ interface AgegroupGroup {
 
 type SortDir = 'asc' | 'desc' | null;
 type SortColumn = keyof PoolTeamDto | null;
+type MoveDirection = 'source-to-target' | 'target-to-source';
+
+/**
+ * The swap conversation. A scheduled pool has frozen membership, so a move out of one is not a
+ * move at all — it is a trade, and the director has to agree to that before being asked who comes
+ * back. Two stages, in that order: the statement, then the question.
+ */
+interface SwapModalState {
+    stage: 'statement' | 'picker';
+    direction: MoveDirection;
+    /** The team whose arrow was clicked — the one leaving. */
+    movingTeam: PoolTeamDto;
+    fromDivName: string;
+    toDivName: string;
+    /** Chosen in the picker stage; the team coming the other way. */
+    counterTeam: PoolTeamDto | null;
+}
 
 @Component({
     selector: 'app-pool-assignment',
@@ -93,14 +110,22 @@ export class PoolAssignmentComponent {
     private readonly targetScroll = viewChild<ElementRef<HTMLElement>>('targetScroll');
     private pendingScroll: { panel: 'source' | 'target'; teamId: string } | null = null;
 
-    // Symmetrical swap readiness
-    readonly canConfirmTransfer = computed(() => {
-        const preview = this.transferPreview();
-        if (!preview || this.isTransferring()) return false;
-        if (preview.requiresSymmetricalSwap) {
-            return preview.teams.some(t => t.direction === 'target-to-source');
-        }
-        return true;
+    // A preview only comes back for a move the server already permits — the pool gate refuses
+    // the rest outright — so there is nothing left to re-check here.
+    readonly canConfirmTransfer = computed(() =>
+        !!this.transferPreview() && !this.isTransferring());
+
+    // ── Swap conversation + denial ──
+
+    readonly swapModal = signal<SwapModalState | null>(null);
+    readonly denyModal = signal<string | null>(null);
+
+    /** The other pool's active teams, in rank order — the candidates to come back. */
+    readonly counterTeamCandidates = computed(() => {
+        const m = this.swapModal();
+        if (!m) return [];
+        const pool = m.direction === 'source-to-target' ? this.targetTeams() : this.sourceTeams();
+        return pool.filter(t => t.active).sort((a, b) => a.divRank - b.divRank);
     });
 
     // DivRank inline editing
@@ -323,17 +348,7 @@ export class PoolAssignmentComponent {
             this.toast.show('Select a target division first.', 'warning');
             return;
         }
-        // The arrow is a direct action: it commits the move on click, no
-        // select-and-confirm. The one exception is a team with scheduled games —
-        // the server refuses a one-way move of it and demands a counter-team, so
-        // the preview panel is the only way to pair one up.
-        if (team.isScheduled) {
-            this.sourceSelected.set(new Set([team.teamId]));
-            this.requestPreview('source-to-target');
-            return;
-        }
-        this.swappingId.set(team.teamId);
-        this.executeTransferDirect([team.teamId], [], this.sourceDivId()!, this.targetDivId()!, false, team.teamName);
+        this.beginMove(team, 'source-to-target');
     }
 
     swapToSource(team: PoolTeamDto) {
@@ -341,13 +356,157 @@ export class PoolAssignmentComponent {
             this.toast.show('Select a source division first.', 'warning');
             return;
         }
-        if (team.isScheduled) {
-            this.targetSelected.set(new Set([team.teamId]));
-            this.requestPreview('target-to-source');
+        this.beginMove(team, 'target-to-source');
+    }
+
+    /**
+     * The arrow's decision, made against POOL state rather than the clicked team's own game rows.
+     * Three outcomes: move it (nothing scheduled), refuse it and name the pool to break down, or
+     * open the swap conversation (both pools scheduled, equal active size).
+     *
+     * Deliberately NOT keyed on `team.isScheduled`. A pool's matrix is built for N ranks and does
+     * not care which team's id is written where — so a team with no game rows sitting in a
+     * scheduled pool is just as frozen as the rest, and the old per-team check let it walk.
+     */
+    private beginMove(team: PoolTeamDto, direction: MoveDirection) {
+        const from = direction === 'source-to-target' ? this.sourceDiv() : this.targetDiv();
+        const to = direction === 'source-to-target' ? this.targetDiv() : this.sourceDiv();
+        if (!from || !to) return;
+
+        // Neither pool has a board — nothing to protect. Commits on click, as it always has.
+        if (!from.isScheduled && !to.isScheduled) {
+            this.swappingId.set(team.teamId);
+            this.executeTransferDirect([team.teamId], [], from.divId, to.divId, false, team.teamName);
             return;
         }
-        this.swappingId.set(team.teamId);
-        this.executeTransferDirect([team.teamId], [], this.targetDivId()!, this.sourceDivId()!, false, team.teamName);
+
+        const denial = this.denialFor(from, to, 1, 1);
+        if (denial) {
+            this.denyModal.set(denial);
+            return;
+        }
+
+        // Both scheduled, equal active size: a trade is possible. State that before asking who.
+        this.swapModal.set({
+            stage: 'statement',
+            direction,
+            movingTeam: team,
+            fromDivName: from.divName,
+            toDivName: to.divName,
+            counterTeam: null
+        });
+    }
+
+    /**
+     * Mirrors `EnsurePoolMovementAllowedAsync` on the server, so the screen explains the refusal
+     * instead of relaying a red toast. The server remains the enforcement — this is the wording.
+     * Returns null when the movement is permitted.
+     */
+    private denialFor(
+        from: PoolDivisionOptionDto, to: PoolDivisionOptionDto,
+        teamsOut: number, teamsBack: number): string | null {
+
+        if (!from.isScheduled && !to.isScheduled) return null;
+
+        if (from.isScheduled && !to.isScheduled)
+            return `${from.divName} is scheduled. A team cannot leave a scheduled pool — its rank `
+                + `is a slot in the pairing matrix, and emptying it leaves those games with no team `
+                + `to play them. Break down ${from.divName}'s schedule first, then move the team.`;
+
+        if (!from.isScheduled && to.isScheduled)
+            return `${to.divName} is scheduled. A team cannot be added to a scheduled pool — the `
+                + `pairing matrix was built without it, so it would sit in ${to.divName} with no `
+                + `games. Break down ${to.divName}'s schedule first, then move the team.`;
+
+        if (from.activeTeamCount !== to.activeTeamCount)
+            return `${from.divName} and ${to.divName} are both scheduled and hold different numbers `
+                + `of active teams (${from.activeTeamCount} and ${to.activeTeamCount}). Teams can `
+                + `only be traded between scheduled pools of equal size. Break down BOTH schedules `
+                + `before moving teams between them — tearing down only one still leaves the other `
+                + `frozen.`;
+
+        if (teamsOut !== 1 || teamsBack !== 1)
+            return `${from.divName} and ${to.divName} are both scheduled, so this has to be a `
+                + `one-for-one swap: one team out, one team back. Use the swap arrow on a team's `
+                + `row to pick the team that comes back.`;
+
+        return null;
+    }
+
+    // ── Swap conversation ──
+
+    /** Statement agreed to — now ask which team comes back. */
+    proceedToPicker() {
+        const m = this.swapModal();
+        if (!m) return;
+        this.swapModal.set({ ...m, stage: 'picker' });
+    }
+
+    backToStatement() {
+        const m = this.swapModal();
+        if (!m) return;
+        this.swapModal.set({ ...m, stage: 'statement', counterTeam: null });
+    }
+
+    chooseCounterTeam(team: PoolTeamDto) {
+        const m = this.swapModal();
+        if (!m) return;
+        this.swapModal.set({ ...m, counterTeam: team });
+    }
+
+    closeSwapModal() {
+        this.swapModal.set(null);
+    }
+
+    closeDenyModal() {
+        this.denyModal.set(null);
+    }
+
+    /**
+     * Commit the trade. Server contract: SourceTeamIds land in TargetDivId and TargetTeamIds land
+     * in SourceDivId — so "source" here is the pool the clicked team is LEAVING, whichever panel
+     * that happens to be.
+     */
+    confirmSwap() {
+        const m = this.swapModal();
+        if (!m?.counterTeam || this.isTransferring()) return;
+
+        const leavingDivId = m.direction === 'source-to-target' ? this.sourceDivId()! : this.targetDivId()!;
+        const arrivingDivId = m.direction === 'source-to-target' ? this.targetDivId()! : this.sourceDivId()!;
+
+        this.isTransferring.set(true);
+        this.poolService.executeTransfer({
+            sourceTeamIds: [m.movingTeam.teamId],
+            targetTeamIds: [m.counterTeam.teamId],
+            sourceDivId: leavingDivId,
+            targetDivId: arrivingDivId,
+            isSymmetricalSwap: true
+        }).subscribe({
+            next: result => {
+                this.toast.show(
+                    `${m.movingTeam.teamName} and ${m.counterTeam!.teamName} swapped pools. ${result.message}`,
+                    'success', 5000);
+                this.justMovedIds.set(new Set([m.movingTeam.teamId, m.counterTeam!.teamId]));
+                this.queueScrollToMoved([m.movingTeam.teamId], arrivingDivId);
+                this.isTransferring.set(false);
+                this.swapModal.set(null);
+                this.reloadAfterTransfer();
+            },
+            error: err => {
+                this.toast.show(err?.error?.message || 'Swap failed.', 'danger', 6000);
+                this.isTransferring.set(false);
+            }
+        });
+    }
+
+    private reloadAfterTransfer() {
+        this.sourceSelected.set(new Set());
+        this.targetSelected.set(new Set());
+        if (this.sourceDivId()) this.loadTeams('source', this.sourceDivId()!);
+        if (this.targetDivId()) this.loadTeams('target', this.targetDivId()!);
+        this.poolService.getDivisions().subscribe({
+            next: divs => this.divisionOptions.set(divs)
+        });
     }
 
     // ── Batch transfer ──
@@ -360,12 +519,36 @@ export class PoolAssignmentComponent {
 
     moveSelectedToTarget() {
         if (this.sourceSelected().size === 0 || !this.sourceDivId() || !this.targetDivId()) return;
+        if (this.refuseBatchIfScheduled('source-to-target')) return;
         this.requestPreview('source-to-target');
     }
 
     moveSelectedToSource() {
         if (this.targetSelected().size === 0 || !this.targetDivId() || !this.sourceDivId()) return;
+        if (this.refuseBatchIfScheduled('target-to-source')) return;
         this.requestPreview('target-to-source');
+    }
+
+    /**
+     * The batch footer is an unscheduled-pools tool. Once a scheduled pool is involved the only
+     * permitted movement is a one-for-one swap, and that has its own conversation — so refuse here
+     * and name it, rather than running a second, divergent path to the same server call.
+     * Returns true when the move was refused.
+     */
+    private refuseBatchIfScheduled(direction: MoveDirection): boolean {
+        const from = direction === 'source-to-target' ? this.sourceDiv() : this.targetDiv();
+        const to = direction === 'source-to-target' ? this.targetDiv() : this.sourceDiv();
+        if (!from || !to) return false;
+        if (!from.isScheduled && !to.isScheduled) return false;
+
+        const selected = direction === 'source-to-target'
+            ? this.sourceSelected().size : this.targetSelected().size;
+        // teamsBack = 0: the footer never carries a counter-team, so a both-scheduled pair lands
+        // on the one-for-one message, which points at the arrow.
+        this.denyModal.set(this.denialFor(from, to, selected, 0)
+            ?? `${from.divName} and ${to.divName} are both scheduled. Use the swap arrow on a `
+             + `team's row to trade one team for one team.`);
+        return true;
     }
 
     private requestPreview(direction: 'source-to-target' | 'target-to-source') {
@@ -399,10 +582,8 @@ export class PoolAssignmentComponent {
         });
     }
 
-    updatePreview() {
-        const direction = this.transferDirection();
-        this.requestPreview(direction);
-    }
+    // updatePreview() removed: it existed only to re-run a preview after the director selected a
+    // counter-team in the other panel, which was the flow the swap modal replaced.
 
     confirmTransfer() {
         const preview = this.transferPreview();
@@ -434,13 +615,7 @@ export class PoolAssignmentComponent {
                 this.queueScrollToMoved(sourceTeamIds, targetDivId);
                 this.isTransferring.set(false);
                 this.transferPreview.set(null);
-                this.sourceSelected.set(new Set());
-                this.targetSelected.set(new Set());
-                if (this.sourceDivId()) this.loadTeams('source', this.sourceDivId()!);
-                if (this.targetDivId()) this.loadTeams('target', this.targetDivId()!);
-                this.poolService.getDivisions().subscribe({
-                    next: divs => this.divisionOptions.set(divs)
-                });
+                this.reloadAfterTransfer();
             },
             error: err => {
                 this.toast.show(err?.error?.message || 'Transfer failed.', 'danger', 4000);
@@ -463,13 +638,7 @@ export class PoolAssignmentComponent {
                 this.justMovedIds.set(new Set([...sourceTeamIds, ...targetTeamIds]));
                 this.queueScrollToMoved(sourceTeamIds, targetDivId);
                 this.swappingId.set(null);
-                this.sourceSelected.set(new Set());
-                this.targetSelected.set(new Set());
-                if (this.sourceDivId()) this.loadTeams('source', this.sourceDivId()!);
-                if (this.targetDivId()) this.loadTeams('target', this.targetDivId()!);
-                this.poolService.getDivisions().subscribe({
-                    next: divs => this.divisionOptions.set(divs)
-                });
+                this.reloadAfterTransfer();
             },
             error: err => {
                 this.toast.show(err?.error?.message || 'Transfer failed.', 'danger', 4000);
@@ -481,6 +650,10 @@ export class PoolAssignmentComponent {
     cancelTransferPreview() {
         this.transferPreview.set(null);
         this.isLoadingPreview.set(false);
+        // Both modals name specific pools. Changing a panel's division makes that naming wrong,
+        // so they close with the preview rather than describing a pairing that no longer exists.
+        this.swapModal.set(null);
+        this.denyModal.set(null);
     }
 
     // ── AM-053: scroll the just-moved team into view ──

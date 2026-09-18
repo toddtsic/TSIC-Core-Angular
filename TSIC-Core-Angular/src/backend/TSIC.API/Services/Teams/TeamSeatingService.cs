@@ -29,14 +29,22 @@ public sealed class TeamSeatingService : ITeamSeatingService
     public async Task EnsureTeamMayLeavePoolAsync(
         Guid teamId, Guid jobId, string action, CancellationToken ct = default)
     {
-        if (!await _teamRepo.IsTeamScheduledAsync(teamId, jobId, ct))
+        var team = await _teamRepo.GetTeamFromTeamId(teamId, ct);
+        if (team is null || team.JobId != jobId || !team.DivId.HasValue)
+            return;
+
+        // POOL level, not team level. The matrix is built for N ranks and does not care which
+        // team's id sits in which slot — removing ANY member leaves the pool at N-1. The old
+        // per-team check asked whether THIS team had game rows, which is seating state: it waved
+        // through exactly the teams whose seating was already broken, and the removal then
+        // emptied a real matrix slot.
+        if (!await _scheduleRepo.IsPoolScheduledAsync(team.DivId.Value, jobId, ct))
             return;
 
         throw new InvalidOperationException(
-            $"This team is in a schedule, so it cannot be {action}. Its rank is a slot in the "
-            + "pairing matrix — emptying it would leave its games with no team. Use Pool Assignment "
-            + "to swap it into Dropped Teams against a replacement, which fills the rank and carries "
-            + "the deactivation and club rep accounting with it.");
+            $"This team's pool is scheduled, so the team cannot be {action}. The pairing matrix was "
+            + "built for the pool's current size, and removing any team from it leaves games with "
+            + "no team to play them. Break down this pool's schedule first, then make the change.");
     }
 
     public async Task<TeamSeatingResultDto> ApplyRankChangeAsync(

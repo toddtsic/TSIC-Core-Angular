@@ -71,6 +71,12 @@ public class PoolAssignmentController : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+        catch (InvalidOperationException ex)
+        {
+            // The pool gate refuses here too, and its message names the pool the director has to
+            // break down. Without this catch that guidance became an unexplained 500.
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPost("transfer")]

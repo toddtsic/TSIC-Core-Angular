@@ -655,6 +655,14 @@ public class TeamRepository : ITeamRepository
             .CountAsync(cancellationToken) + 1;
     }
 
+    public async Task<int> GetActiveTeamCountAsync(Guid divId, Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.DivId == divId && t.JobId == jobId && t.Active == true)
+            .CountAsync(cancellationToken);
+    }
+
     public async Task<bool> HasRosteredPlayersAsync(Guid teamId, CancellationToken cancellationToken = default)
     {
         return await _context.Registrations

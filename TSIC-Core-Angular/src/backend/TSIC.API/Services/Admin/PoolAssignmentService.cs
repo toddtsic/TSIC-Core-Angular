@@ -75,7 +75,14 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         var targetDivision = await _divRepo.GetByIdReadOnlyAsync(request.TargetDivId, ct)
             ?? throw new ArgumentException("Target division not found.");
 
-        var scheduledTeamIds = await _teamRepo.GetScheduledTeamIdsAsync(jobId, ct);
+        // The SAME gate the execute path runs. Previously this method validated nothing and
+        // happily rendered a move the executor then refused on confirm.
+        await EnsurePoolMovementAllowedAsync(
+            jobId, sourceDivision, targetDivision,
+            request.SourceTeamIds.Count, request.TargetTeamIds.Count, ct);
+
+        var sourcePoolScheduled = await _scheduleRepo.IsPoolScheduledAsync(request.SourceDivId, jobId, ct);
+        var targetPoolScheduled = await _scheduleRepo.IsPoolScheduledAsync(request.TargetDivId, jobId, ct);
         bool agegroupChanges = sourceDivision.AgegroupId != targetDivision.AgegroupId;
 
         // Load agegroup context for fee calculations
@@ -96,7 +103,10 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         var previews = new List<PoolTransferPreviewDto>();
         var affectedClubRepIds = new HashSet<Guid>();
         bool hasScheduledTeams = false;
-        bool requiresSymmetrical = false;
+        // Always false now, and kept only so the contract does not change shape mid-release. The
+        // gate above THROWS on a move that would need a counter-team, so a preview that returns at
+        // all is already a permitted move. Nothing downstream should branch on it.
+        const bool requiresSymmetrical = false;
 
         // Load all teams at once (more efficient than one-by-one)
         var allSourceTeams = await _teamRepo.GetTeamsForPoolTransferAsync(request.SourceTeamIds, jobId, ct);
@@ -110,10 +120,10 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         // Preview source teams → target division
         foreach (var team in allSourceTeams)
         {
-            var isScheduled = scheduledTeamIds.Contains(team.TeamId);
+            // Pool state, not team state — a team in a scheduled pool is frozen whether or not
+            // any game row happens to carry its id.
+            var isScheduled = sourcePoolScheduled;
             if (isScheduled) hasScheduledTeams = true;
-            if (isScheduled && !request.IsSymmetricalSwap)
-                requiresSymmetrical = true;
 
             decimal newFeeBase = team.FeeBase ?? 0m;
             decimal newFeeTotal = team.FeeTotal ?? 0m;
@@ -165,7 +175,7 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                 NewFeeTotal = newFeeTotal,
                 FeeDelta = feeDelta,
                 IsScheduled = isScheduled,
-                RequiresSymmetricalSwap = isScheduled && !request.IsSymmetricalSwap,
+                RequiresSymmetricalSwap = false,
                 Warning = warning
             });
         }
@@ -173,7 +183,8 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         // Preview target teams → source division (for symmetrical swap)
         foreach (var team in allTargetTeams)
         {
-            var isScheduled = scheduledTeamIds.Contains(team.TeamId);
+            var isScheduled = targetPoolScheduled;
+            if (isScheduled) hasScheduledTeams = true;
 
             decimal newFeeBase = team.FeeBase ?? 0m;
             decimal newFeeTotal = team.FeeTotal ?? 0m;
@@ -284,11 +295,15 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         if (sourceTeams.Count == 0)
             throw new ArgumentException("No valid source teams found for transfer.");
 
-        var scheduledTeamIds = await _teamRepo.GetScheduledTeamIdsAsync(jobId, ct);
-        bool anyScheduled = sourceTeams.Any(t => scheduledTeamIds.Contains(t.TeamId));
-        if (anyScheduled && !request.IsSymmetricalSwap)
-            throw new InvalidOperationException(
-                "One or more source teams have scheduled games. A symmetrical swap is required to maintain schedule integrity.");
+        // POOL-level gate. Throws with the pool the director has to tear down, or permits the
+        // one-for-one equal-size swap. Inside the transaction: a throw here disposes it unwritten.
+        await EnsurePoolMovementAllowedAsync(
+            jobId, sourceDivision, targetDivision,
+            request.SourceTeamIds.Count, request.TargetTeamIds.Count, ct);
+
+        bool anyPoolScheduled =
+            await _scheduleRepo.IsPoolScheduledAsync(request.SourceDivId, jobId, ct)
+            || await _scheduleRepo.IsPoolScheduledAsync(request.TargetDivId, jobId, ct);
 
         // Load agegroup context
         var targetAgegroup = await _agegroupRepo.GetByIdAsync(targetDivision.AgegroupId, ct);
@@ -485,7 +500,7 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         // dropped a stranger into the game. Games stay put; the SEATS follow the ranks.
         foreach (var team in sourceTeams.Concat(targetTeams))
         {
-            if (!scheduledTeamIds.Contains(team.TeamId)) continue;
+            if (!anyPoolScheduled) continue;
 
             // Name unchanged — the team moved divisions. Re-source its schedule name rows
             // (club:team) via the canonical writer.
@@ -571,6 +586,71 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         // ranks traded and the games did not; ITeamSeatingService owns both halves.
         return await _teamSeating.ApplyRankChangeAsync(
             teamId, jobId, divRank, newName: null, adminUserId, ct);
+    }
+
+    /// <summary>
+    /// The pool-level movement gate. A pool that has been scheduled has frozen membership: the
+    /// pairing matrix was built for N ranks and does not care whose id sits in which slot, so
+    /// removing ANY team leaves it at N-1 and adding one leaves the arrival with no slot to play.
+    ///
+    /// The single exception is a one-for-one swap between two scheduled pools of equal ACTIVE
+    /// size. Equal size means structurally identical matrices — same rank count, same rounds — so
+    /// trading occupants changes neither pool's shape and neither team's game load. It is a seat
+    /// exchange, not a schedule change.
+    ///
+    /// Evaluated per POOL, never per team. "Does this team have game rows" is a question about
+    /// seating, which is derived; it answers "no" for a team whose seating is already broken and
+    /// so waves through the removal that does the real damage.
+    /// </summary>
+    private async Task EnsurePoolMovementAllowedAsync(
+        Guid jobId,
+        Entities.Divisions sourceDivision,
+        Entities.Divisions targetDivision,
+        int sourceTeamsMoving,
+        int targetTeamsMoving,
+        CancellationToken ct)
+    {
+        // Sequential awaits — these share one scoped DbContext.
+        var sourceScheduled = await _scheduleRepo.IsPoolScheduledAsync(sourceDivision.DivId, jobId, ct);
+        var targetScheduled = await _scheduleRepo.IsPoolScheduledAsync(targetDivision.DivId, jobId, ct);
+
+        // Neither pool has a board. Nothing to protect — move freely, any number, either way.
+        if (!sourceScheduled && !targetScheduled)
+            return;
+
+        var sourceName = string.IsNullOrWhiteSpace(sourceDivision.DivName)
+            ? "The source pool" : sourceDivision.DivName;
+        var targetName = string.IsNullOrWhiteSpace(targetDivision.DivName)
+            ? "the target pool" : targetDivision.DivName;
+
+        if (sourceScheduled && !targetScheduled)
+            throw new InvalidOperationException(
+                $"{sourceName} is scheduled. A team cannot leave a scheduled pool — its rank is a "
+                + $"slot in the pairing matrix, and emptying it leaves those games with no team to "
+                + $"play them. Break down {sourceName}'s schedule first, then move the team.");
+
+        if (!sourceScheduled && targetScheduled)
+            throw new InvalidOperationException(
+                $"{targetName} is scheduled. A team cannot be added to a scheduled pool — the "
+                + $"pairing matrix was built without it, so it would sit in {targetName} with no "
+                + $"games. Break down {targetName}'s schedule first, then move the team.");
+
+        // Both scheduled. Equal ACTIVE size is what makes the swap safe.
+        var sourceSize = await _teamRepo.GetActiveTeamCountAsync(sourceDivision.DivId, jobId, ct);
+        var targetSize = await _teamRepo.GetActiveTeamCountAsync(targetDivision.DivId, jobId, ct);
+
+        if (sourceSize != targetSize)
+            throw new InvalidOperationException(
+                $"{sourceName} and {targetName} are both scheduled and hold different numbers of "
+                + $"active teams ({sourceSize} and {targetSize}). Teams can only be traded between "
+                + $"scheduled pools of equal size. Break down BOTH schedules before moving teams "
+                + $"between them — tearing down only one still leaves the other frozen.");
+
+        if (sourceTeamsMoving != 1 || targetTeamsMoving != 1)
+            throw new InvalidOperationException(
+                $"{sourceName} and {targetName} are both scheduled, so this has to be a one-for-one "
+                + "swap: one team out, one team back. Use the swap arrow on a team's row to pick "
+                + "the team that comes back.");
     }
 
     private static bool IsDroppedTeams(Entities.Agegroups? agegroup)

@@ -77,6 +77,26 @@ public class DivisionRepository : IDivisionRepository
             .Select(jl => jl.LeagueId)
             .ToListAsync(cancellationToken);
 
+        // Which pools carry games — home side and interlock away side both count. Fetched once
+        // and matched in memory rather than as a per-division correlated subquery. Sequential
+        // await: this shares the scoped DbContext with the division query below.
+        var scheduledHomeDivIds = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId && s.DivId != null)
+            .Select(s => s.DivId!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var scheduledAwayDivIds = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId && s.Div2Id != null)
+            .Select(s => s.Div2Id!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var scheduledDivIds = new HashSet<Guid>(scheduledHomeDivIds);
+        scheduledDivIds.UnionWith(scheduledAwayDivIds);
+
         // Get divisions with agegroup info for those leagues
         var divisions = await _context.Divisions
             .AsNoTracking()
@@ -90,6 +110,10 @@ public class DivisionRepository : IDivisionRepository
                 d.Agegroup.MaxTeams,
                 AgegroupColor = d.Agegroup.Color,
                 TeamCount = _context.Teams.Count(t => t.DivId == d.DivId && t.JobId == jobId),
+                // Active only — this is the figure the pairing matrix was built for and the one
+                // the equal-size swap test compares. TeamCount above counts every row.
+                ActiveTeamCount = _context.Teams
+                    .Count(t => t.DivId == d.DivId && t.JobId == jobId && t.Active == true),
                 PlayerCount = _context.Registrations
                     .Count(r => r.AssignedDivId == d.DivId && r.JobId == jobId && r.BActive == true)
             })
@@ -108,7 +132,9 @@ public class DivisionRepository : IDivisionRepository
             IsDroppedTeams = d.AgegroupName.Contains("DROPPED", StringComparison.OrdinalIgnoreCase)
                           || d.AgegroupName.Contains("Dropped", StringComparison.OrdinalIgnoreCase),
             AgegroupColor = d.AgegroupColor,
-            PlayerCount = d.PlayerCount
+            PlayerCount = d.PlayerCount,
+            IsScheduled = scheduledDivIds.Contains(d.DivId),
+            ActiveTeamCount = d.ActiveTeamCount
         }).ToList();
     }
 

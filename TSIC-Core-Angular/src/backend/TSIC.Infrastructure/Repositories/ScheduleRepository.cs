@@ -30,6 +30,37 @@ public sealed class ScheduleRepository : IScheduleRepository
                  || (s.T2Id == teamId && s.T2Type == "T")), ct);
     }
 
+    public async Task<bool> IsPoolScheduledAsync(Guid divId, Guid jobId, CancellationToken ct = default)
+    {
+        // No T1Type/T2Type filter and no id filter on purpose. The question is whether this pool
+        // has a board at all, which must stay answerable when the seating inside it is broken —
+        // that is the case a team-level check gets wrong.
+        return await _context.Schedule
+            .AsNoTracking()
+            .AnyAsync(s => s.JobId == jobId && (s.DivId == divId || s.Div2Id == divId), ct);
+    }
+
+    public async Task<HashSet<Guid>> GetScheduledDivIdsAsync(Guid jobId, CancellationToken ct = default)
+    {
+        var homeIds = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId && s.DivId != null)
+            .Select(s => s.DivId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var awayIds = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId && s.Div2Id != null)
+            .Select(s => s.Div2Id!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var result = new HashSet<Guid>(homeIds);
+        result.UnionWith(awayIds);
+        return result;
+    }
+
     public async Task<(int Examined, int Changed)> RecomposeScheduleNamesForJobAsync(
         Guid jobId,
         (Guid Id, string Text)? league = null,
