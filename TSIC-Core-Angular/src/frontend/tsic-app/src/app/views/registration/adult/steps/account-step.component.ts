@@ -578,16 +578,21 @@ export class AccountStepComponent implements OnInit {
         this.state.setConfirmPassword('');
         this.state.setAcceptedTos(false);
 
-        // ToS bounce-back resume: the embedded login authenticated, then redirected to
-        // the ToS page before onLoginContinue() could run, and navigated back here on a
-        // Phase-1 token (no regId — the wizard preserved it; see adult.component.ts).
-        // Pick the login back up so the returning user lands on the account summary
-        // instead of being asked to sign in a second time. onLoginContinue() already
-        // runs on a Phase-1 token in the normal login-success flow, so resuming it here
-        // is identical. A full session (regId present) means the user stepped back
-        // within the wizard — the summary is already hydrated, so leave it alone.
+        // Resume for anyone who arrives already authenticated, whichever way they got here:
+        //
+        //  - ToS bounce-back on a Phase-1 token (no regId): the embedded login authenticated,
+        //    then redirected to the ToS page before onLoginContinue() could run, and navigated
+        //    back. Picking the login up here spares a second sign-in.
+        //  - A coach whose own session the wizard now KEEPS (see adult.component.ts). He never
+        //    touches the embedded login, so nothing else would ever call onLoginContinue —
+        //    and that call is the ONLY thing that loads his existing registration. Without
+        //    this, his team picker renders empty despite the teams he already coaches.
+        //
+        // Gated on the hydration FACT, not the token shape. The old `!user.regId` test read a
+        // full session as "stepped back within the wizard, already hydrated", which stopped
+        // being true the moment a full session could also mean a fresh arrival.
         const user = this.auth.currentUser();
-        if (user && !user.regId) {
+        if (user && !this.state.accountHydrated()) {
             void this.onLoginContinue();
         }
     }
@@ -645,6 +650,7 @@ export class AccountStepComponent implements OnInit {
             this.state.jobPath(),
             this.state.roleKey(),
         );
+        this.state.markAccountHydrated();
     }
 
     /** Summary "Continue" — proceed to the job-specific Profile step. */

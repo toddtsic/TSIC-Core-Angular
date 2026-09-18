@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, injec
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
+import { Roles } from '@infrastructure/constants/roles.constants';
 import { isValidAdultRegRoleKey } from '@infrastructure/services/adult-registration.service';
 import { WizardShellComponent } from '../shared/wizard-shell/wizard-shell.component';
 import { AdultWizardStateService } from './state/adult-wizard-state.service';
@@ -109,24 +110,37 @@ export class AdultWizardV2Component implements OnInit {
     ngOnInit(): void {
         this.state.reset();
 
+        // Walk up the route tree to find the jobPath param (lives on a grandparent
+        // route — same pattern as the player wizard's resolveJobPath). Resolved BEFORE the
+        // session check below, which needs it.
+        this.jobPath = this.resolveJobPath();
+        this.state.setJobPath(this.jobPath);
+
         // Start with a clean session UNLESS the user is mid-login, returning from the
         // ToS page. That bounce-back leaves a Phase-1 token (no regId): the embedded
         // login authenticated, redirected to ToS before the account step could resume
         // via onLoginContinue(), and navigated straight back here. Preserving that
         // token lets the account step pick the login back up (see
-        // AccountStepComponent.ngOnInit) instead of forcing a second sign-in. A *full*
-        // session (regId present) is some previously-logged-in user we don't want to
-        // inherit for this role-specific wizard, so that we still clear.
+        // AccountStepComponent.ngOnInit) instead of forcing a second sign-in.
         // (Mirrors the team login-step ToS bounce-back fix cd0ee1dd.)
+        //
+        // A *full* session (regId present) used to be cleared unconditionally, on the grounds
+        // that it is "some previously-logged-in user we don't want to inherit". True of a
+        // Family or Club Rep session — but NOT of the one user this wizard exists for. The
+        // header bar offers "My Registration" to Staff and only Staff
+        // (client-header-bar.component.ts), so the link was handed to a coach and then ended
+        // his session: he had to sign in again to reach his own registration. Reproduced
+        // 2026-09-18.
+        //
+        // Kept only on an exact AND: the Staff role, on THIS job. Every other role still
+        // clears, and a Staff session belonging to a different job clears too — a coach on
+        // job A must not carry that identity into job B's wizard. Anything unrecognised
+        // fails closed to logout, which is the behaviour this has always had.
         const existing = this.auth.currentUser();
-        if (existing?.regId) {
+        const keptSession = !!existing?.regId && this.isOwnCoachSession(existing);
+        if (existing?.regId && !keptSession) {
             this.auth.logoutLocal();
         }
-
-        // Walk up the route tree to find the jobPath param (lives on a grandparent
-        // route — same pattern as the player wizard's resolveJobPath).
-        this.jobPath = this.resolveJobPath();
-        this.state.setJobPath(this.jobPath);
 
         const roleParam = this.route.snapshot.queryParamMap.get('role')?.trim().toLowerCase() ?? '';
 
@@ -143,6 +157,15 @@ export class AdultWizardV2Component implements OnInit {
         }
 
         this.state.setRoleKey(roleParam);
+
+        // A kept session never touches the embedded login, and that login's success handler
+        // was the ONLY caller of loadExistingRegistration — so without this, a coach who keeps
+        // his session sees an empty team picker despite the teams he already coaches. Driven
+        // from here rather than the Account step because `?step=profile` can land him past
+        // that step entirely, leaving anything on its lifecycle unrun.
+        if (keptSession) {
+            void this.state.resumeAuthenticatedSession(this.jobPath, roleParam);
+        }
 
         // Load role config — backend enforces security invariants here.
         this.state.loadRoleConfig(this.jobPath, roleParam).then(success => {
@@ -205,6 +228,25 @@ export class AdultWizardV2Component implements OnInit {
     /** Confirmation step "Return Home" button. */
     onFinishConfirmation(): void {
         this.router.navigateByUrl(`/${this.jobPath}`);
+    }
+
+    /**
+     * Is this session the coach the link was built for — Staff, on THIS job?
+     *
+     * Both terms are required (AND, never OR): the role says they belong in a coach wizard,
+     * the jobPath says they belong in THIS one. Reads `roles` with a fallback to the single
+     * `role`, matching how `auth.service.ts` interrogates the same object everywhere else.
+     *
+     * Deliberately Staff-only. `?role=coach` resolves SERVER-side and by job type —
+     * `UnassignedAdult` on Club/Camp, `Staff` elsewhere (`AdultRegistrationService.ResolveCoach`)
+     * — so the URL key alone cannot tell us which role it will become, and this runs before
+     * `loadRoleConfig` can. Staff is the only role the header bar ever offers this link to, so
+     * it is the only one whose session we can keep on evidence rather than inference. A UA
+     * coach arriving by some other route still gets logged out, exactly as today.
+     */
+    private isOwnCoachSession(user: { role?: string; roles?: string[]; jobPath?: string }): boolean {
+        const roles = user.roles ?? (user.role ? [user.role] : []);
+        return roles.includes(Roles.Staff) && !!user.jobPath && user.jobPath === this.jobPath;
     }
 
     /**

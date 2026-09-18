@@ -123,6 +123,39 @@ export class AdultWizardStateService {
     readonly hasExistingRegistration = this._hasExistingRegistration.asReadonly();
     readonly existingRegistrationIds = this._existingRegistrationIds.asReadonly();
 
+    /**
+     * Has this VISIT already pulled the signed-in user's profile + existing registration?
+     *
+     * The account step used to infer this from the token shape — a full session (regId
+     * present) could only mean "stepped back within the wizard", because the wizard logged
+     * every full session out on arrival. Once a coach's own session is allowed to survive
+     * that arrival, a full session can equally mean "just got here, nothing loaded", and the
+     * inference silently produced an empty team picker for a coach who already has teams.
+     * Track the fact instead of deducing it. Cleared by reset(), which runs on every entry.
+     */
+    private readonly _accountHydrated = signal(false);
+    readonly accountHydrated = this._accountHydrated.asReadonly();
+    markAccountHydrated(): void { this._accountHydrated.set(true); }
+
+    /**
+     * Load everything a returning, already-signed-in user needs — the same three calls
+     * `AccountStepComponent.onLoginContinue()` makes after the embedded login, minus that
+     * step's own view state.
+     *
+     * Lives here, and is called by the wizard rather than a step, because a deep link
+     * (`?step=profile`) can land the user past the Account step entirely — so anything hung
+     * off that step's lifecycle may simply never run. Idempotent: returns immediately once
+     * hydrated, so the step's own resume and this one cannot double-fetch.
+     */
+    async resumeAuthenticatedSession(jobPath: string, roleKey: string): Promise<void> {
+        if (this._accountHydrated()) return;
+        this.setMode('login');
+        this.populateFromAuth();
+        await this.loadSelfProfile();
+        await this.loadExistingRegistration(jobPath, roleKey);
+        this._accountHydrated.set(true);
+    }
+
     // ── Dynamic form values (role-specific profile fields) ────────
     private readonly _formValues = signal<Record<string, FormFieldValue>>({});
     readonly formValues = this._formValues.asReadonly();
@@ -820,6 +853,7 @@ export class AdultWizardStateService {
         this._selfProfileError.set(null);
         this._hasExistingRegistration.set(false);
         this._existingRegistrationIds.set([]);
+        this._accountHydrated.set(false);
         this._formValues.set({});
         this._waiverAcceptance.set({});
         this._availableTeams.set([]);
