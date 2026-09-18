@@ -2,12 +2,18 @@ import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, input
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import { GridRowNumbersDirective } from '@shared-ui/directives/grid-row-numbers.directive';
+import { GridHeaderInfoPopover } from '@shared-ui/grid/grid-header-info-popover';
 import type { RegisteredTeamDto } from '@core/api';
 import { formatLop } from '@shared/teams/lop-choices';
 
 /**
- * Reusable registered-teams summary grid.
- * Used on the teams step (interactive, with delete), payment step (read-only), etc.
+ * Registered-TEAMS summary grid. Club rep surfaces only: the teams step (interactive, with
+ * delete), the payment step (read-only), and the director's club-rep accounting view.
+ *
+ * Rows are teams. Players are NOT rendered here — the family accounting view has its own
+ * player-shaped peer (app-family-players-grid). They share the money columns by both being
+ * fed from the same canonical backend helpers, not by sharing this component; reusing it for
+ * players is what forced the backend to blank a player's age group and killed the WL badge.
  *
  * Columns adapt based on input flags. Delete button shown when showRemove=true
  * and the team has paidTotal === 0. Parent handles removal via removeTeam output.
@@ -34,7 +40,7 @@ import { formatLop } from '@shared/teams/lop-choices';
           <e-column headerText="" width="30" textAlign="Center" [allowSorting]="false"
                     [isFrozen]="frozenTeamCol()"
                     [customAttributes]="{ class: 'row-number-cell' }"></e-column>
-          <e-column field="teamName" [headerText]="teamColHeader()" [width]="teamColWidth()"
+          <e-column field="teamName" headerText="Team" [width]="teamColWidth()"
                     [isFrozen]="frozenTeamCol()"
                     [customAttributes]="{ class: 'team-name-wrap-cell' }">
             <ng-template #template let-data>
@@ -129,7 +135,7 @@ import { formatLop } from '@shared/teams/lop-choices';
                     [visible]="showFeeAdj()">
             <!-- The grid renders header templates as static HTML (Angular events never
                  fire here) and clips with overflow:hidden, so the styled popover is driven
-                 imperatively from onDataBound (wireFeeAdjInfo) against a body-mounted
+                 imperatively from onDataBound (GridHeaderInfoPopover) against a body-mounted
                  position:fixed panel that escapes the clip. Text lives here via data-help. -->
             <ng-template #headerTemplate>
               <span>Fee-Adj<i class="bi bi-info-circle text-info ms-1 fee-adj-info" tabindex="0"
@@ -373,7 +379,6 @@ export class RegisteredTeamsGridComponent {
     // wizard grids leave this false → conditional (shown only when some row is non-zero).
     readonly alwaysShowFeeAdj = input(false);
     readonly procFeeHeader = input('Proc Fee');
-    readonly teamColHeader = input('Team');
     // Which field the Proc Fee column/aggregate renders. Teams show 'feeProcessingDue' (proc
     // still owed if CC-billed); the family statement shows 'feeProcessing' (the statement-of-fact
     // proc read off the registration), so Total Fee + Proc reconciles with what was paid.
@@ -405,93 +410,14 @@ export class RegisteredTeamsGridComponent {
     // recorded on first dataBound.
     private lastColVis: { feeAdj: boolean; ccOwedHeader: string | null } = { feeAdj: false, ccOwedHeader: null };
 
-    // Body-mounted styled popover for the Fee-Adj header "i". See wireFeeAdjInfo.
-    private feeAdjPopover: HTMLElement | null = null;
-    private feeAdjReposition: (() => void) | null = null;
+    // Body-mounted styled popover for the Fee-Adj header "i". Shared with the family players
+    // grid, which shows the same column and the same affordance.
+    private readonly feeAdjInfo = new GridHeaderInfoPopover('.fee-adj-info', 'Fee-Adj');
 
     constructor() {
-        inject(DestroyRef).onDestroy(() => this.teardownFeeAdjInfo());
+        inject(DestroyRef).onDestroy(() => this.feeAdjInfo.destroy());
     }
 
-    /**
-     * Imperatively wire the Fee-Adj header "i" to a styled hover popover.
-     *
-     * Why not a template-driven tooltip: Syncfusion renders header templates as
-     * static HTML, so Angular (mouseenter)/(click) bindings never fire there, and
-     * the header clips with overflow:hidden while scrolling horizontally — so an
-     * in-header position:absolute panel is invisible. We instead attach native
-     * listeners (which DO fire from component code) to the rendered icon and show a
-     * position:fixed panel mounted on <body> that escapes the clip. The panel reuses
-     * the global .hover-popover-panel styles so it matches the ledger card exactly.
-     *
-     * Idempotent: the icon element is recreated whenever the header rebuilds
-     * (refreshColumns), so we re-bind each dataBound and guard with a dataset flag.
-     */
-    private wireFeeAdjInfo(grid: GridComponent): void {
-        const icon = grid.element?.querySelector<HTMLElement>('.fee-adj-info');
-        if (!icon || icon.dataset['popoverWired'] === '1') return;
-        icon.dataset['popoverWired'] = '1';
-
-        const place = () => {
-            const panel = this.feeAdjPopover;
-            if (!panel) return;
-            const r = icon.getBoundingClientRect();
-            panel.style.top = `${r.bottom + 6}px`;
-            const left = Math.min(r.left, window.innerWidth - panel.offsetWidth - 8);
-            panel.style.left = `${Math.max(8, left)}px`;
-        };
-
-        const show = () => {
-            const panel = this.ensureFeeAdjPopover();
-            const text = panel.querySelector('.hover-popover-text');
-            if (text) text.textContent = icon.dataset['help'] ?? '';
-            panel.style.display = 'block';
-            place();
-            this.feeAdjReposition = place;
-            window.addEventListener('scroll', place, true);
-            window.addEventListener('resize', place);
-        };
-
-        const hide = () => {
-            if (this.feeAdjPopover) this.feeAdjPopover.style.display = 'none';
-            if (this.feeAdjReposition) {
-                window.removeEventListener('scroll', this.feeAdjReposition, true);
-                window.removeEventListener('resize', this.feeAdjReposition);
-                this.feeAdjReposition = null;
-            }
-        };
-
-        icon.addEventListener('mouseenter', show);
-        icon.addEventListener('mouseleave', hide);
-        icon.addEventListener('focus', show);
-        icon.addEventListener('blur', hide);
-    }
-
-    private ensureFeeAdjPopover(): HTMLElement {
-        if (this.feeAdjPopover) return this.feeAdjPopover;
-        const el = document.createElement('div');
-        el.className = 'hover-popover-panel';
-        el.style.position = 'fixed';
-        el.style.right = 'auto';
-        el.style.zIndex = '2000';
-        el.style.display = 'none';
-        el.innerHTML =
-            '<div class="hover-popover-header"><span class="hover-popover-title">Fee-Adj</span></div>' +
-            '<div class="hover-popover-body"><span class="hover-popover-text"></span></div>';
-        document.body.appendChild(el);
-        this.feeAdjPopover = el;
-        return el;
-    }
-
-    private teardownFeeAdjInfo(): void {
-        if (this.feeAdjReposition) {
-            window.removeEventListener('scroll', this.feeAdjReposition, true);
-            window.removeEventListener('resize', this.feeAdjReposition);
-            this.feeAdjReposition = null;
-        }
-        this.feeAdjPopover?.remove();
-        this.feeAdjPopover = null;
-    }
 
     /**
      * Runs after every dataBound — i.e. after the grid has finished rendering the
@@ -513,7 +439,7 @@ export class RegisteredTeamsGridComponent {
      * toggle always lands here — gridRows() depends on paymentMethod).
      */
     onDataBound(grid: GridComponent): void {
-        this.wireFeeAdjInfo(grid);
+        this.feeAdjInfo.wire(grid.element);
 
         const feeAdj = this.showFeeAdj();
         const ccOwedHeader = this.ccOwedHeader();

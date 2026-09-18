@@ -1,7 +1,7 @@
 import { Component, ChangeDetectionStrategy, input, output, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RegistrationSearchService } from '../../../views/search/registrations/services/registration-search.service';
-import { RegisteredTeamsGridComponent } from '../../../views/registration/team/components/registered-teams-grid.component';
+import { FamilyPlayersGridComponent } from './family-players-grid.component';
 import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import {
@@ -13,7 +13,7 @@ import {
   LedgerAddTarget
 } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
 import { environment } from '@environments/environment';
-import type { FamilyAccountingDto, RegisteredTeamDto, RefundResponse, SubscriptionDetailDto } from '@core/api';
+import type { FamilyAccountingDto, RegisteredPlayerLineDto, RefundResponse, SubscriptionDetailDto } from '@core/api';
 
 type Scope = 'family' | 'person';
 
@@ -40,7 +40,7 @@ interface SubscriptionCard {
 interface PersonGroup {
   name: string;
   active: boolean;               // any registration active
-  events: RegisteredTeamDto[];   // one per registration (teamId = registrationId)
+  events: RegisteredPlayerLineDto[];   // one per registration
   registrationIds: string[];
   owedTotal: number;
 }
@@ -54,13 +54,14 @@ interface PersonGroup {
  * Selecting a player reveals the combined ledger of ALL their records regardless of team
  * (read-only). Money always attaches to ONE registration, so adding a payment / charging a
  * card requires picking a specific event first; the per-record ag:team line keeps the combined
- * ledger readable. Event labels are derived from the records already on the client (each
- * carries OwnerTeamName / OwnerAgeGroupName) — no extra backend round-trip.
+ * ledger readable. Event labels come off each row's own AgeGroupName / TeamName — they used to
+ * be scraped back out of the accounting records, which left a registration with no records yet
+ * unlabelled.
  */
 @Component({
   selector: 'app-family-payment',
   standalone: true,
-  imports: [CommonModule, AccountingLedgerComponent, RegisteredTeamsGridComponent],
+  imports: [CommonModule, AccountingLedgerComponent, FamilyPlayersGridComponent],
   templateUrl: './family-payment.component.html',
   styleUrl: './family-payment.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -99,23 +100,21 @@ export class FamilyPaymentComponent {
   // First load seeds the opening scope; later reloads (after a payment) preserve the user's place.
   private initialized = false;
 
-  // Each registration row is a RegisteredTeamDto (teamId = registrationId, teamName = player name).
-  allPlayers = computed<RegisteredTeamDto[]>(() => this.data()?.players ?? []);
+  // One row per child REGISTRATION, player-shaped (registrationId is also the ledger group key).
+  allPlayers = computed<RegisteredPlayerLineDto[]>(() => this.data()?.players ?? []);
   allRecords = computed(() => this.data()?.accountingRecords ?? []);
 
-  // registrationId → "AgeGroup · TeamName", read off that registration's records (each record
-  // carries OwnerTeamName / OwnerAgeGroupName). The label for the EVENT a registration belongs
-  // to, used to disambiguate one player's many registrations. Absent for a registration with no
-  // records yet (callers fall back to the reg date).
+  // registrationId → "AgeGroup · TeamName", built from each row's OWN fields. Used to
+  // disambiguate one player's many registrations in the subscription cards and the add-record
+  // picker. Previously scraped out of the accounting records, which left a registration with no
+  // records yet unlabelled; the row carries its team and age group now, so every event labels.
   private eventLabels = computed<Map<string, string>>(() => {
     const map = new Map<string, string>();
-    for (const r of this.allRecords()) {
-      const regId = r.ownerRegistrationId;
-      if (!regId || map.has(regId)) continue;
-      const team = r.ownerTeamName?.trim();
-      if (!team) continue;
-      const ageGroup = r.ownerAgeGroupName?.trim();
-      map.set(regId, ageGroup ? `${ageGroup} · ${team}` : team);
+    for (const p of this.allPlayers()) {
+      const team = p.teamName?.trim();
+      const ageGroup = p.ageGroupDisplayName?.trim();
+      const label = ageGroup && team ? `${ageGroup} · ${team}` : (team || ageGroup);
+      if (label) map.set(p.registrationId, label);
     }
     return map;
   });
@@ -124,13 +123,13 @@ export class FamilyPaymentComponent {
   persons = computed<PersonGroup[]>(() => {
     const groups = new Map<string, PersonGroup>();
     for (const p of this.allPlayers()) {
-      let g = groups.get(p.teamName);
+      let g = groups.get(p.playerName);
       if (!g) {
-        g = { name: p.teamName, active: false, events: [], registrationIds: [], owedTotal: 0 };
-        groups.set(p.teamName, g);
+        g = { name: p.playerName, active: false, events: [], registrationIds: [], owedTotal: 0 };
+        groups.set(p.playerName, g);
       }
       g.events.push(p);
-      g.registrationIds.push(p.teamId);
+      g.registrationIds.push(p.registrationId);
       g.active ||= p.active;
       g.owedTotal += p.owedTotal;
     }
@@ -139,14 +138,6 @@ export class FamilyPaymentComponent {
   });
 
   personCount = computed(() => this.persons().length);
-
-  // Names that occur on more than one registration — only these need an event label in the
-  // family overview grid (a player with a single registration is already unambiguous).
-  private duplicatedNames = computed(() => {
-    const counts = new Map<string, number>();
-    for (const p of this.allPlayers()) counts.set(p.teamName, (counts.get(p.teamName) ?? 0) + 1);
-    return new Set([...counts].filter(([, n]) => n > 1).map(([name]) => name));
-  });
 
   activePerson = computed<PersonGroup | null>(() =>
     this.persons().find(p => p.name === this.activePersonName()) ?? null);
@@ -166,13 +157,13 @@ export class FamilyPaymentComponent {
     if (!person) return [];
     const arbLive = this.arbLiveRegIds();
     return person.events.map(e => ({
-      key: e.teamId,
-      label: this.eventLabels().get(e.teamId) ?? `Registered ${this.shortDate(e.registrationTs)}`,
+      key: e.registrationId,
+      label: this.eventLabels().get(e.registrationId) ?? `Registered ${this.shortDate(e.registrationTs)}`,
       owed: e.owedTotal,
       checkOwed: e.ckOwedTotal,
       paid: e.paidTotal,
       // AR-032 - the picked event decides, so a plan on one event never locks corrections on another.
-      arbLive: arbLive.has(e.teamId)
+      arbLive: arbLive.has(e.registrationId)
     }));
   });
 
@@ -183,36 +174,25 @@ export class FamilyPaymentComponent {
     return `${d.getMonth() + 1}/${d.getDate()}/${String(d.getFullYear()).slice(-2)}`;
   }
 
-  // Stamp the event label onto a row's name. force=true (player scope) always relabels to the
-  // event; force=false (family overview) only relabels when the player's name is duplicated.
-  private withEventLabels(rows: RegisteredTeamDto[], force: boolean): RegisteredTeamDto[] {
-    const dups = this.duplicatedNames();
-    return rows.map(r => {
-      if (!force && !dups.has(r.teamName)) return r;
-      const label = this.eventLabels().get(r.teamId);
-      if (!label) return r; // no event label available → leave the player name
-      return { ...r, teamName: force ? label : `${r.teamName} — ${label}` };
-    });
-  }
-
-  // Breakdown grids: family = Active/Inactive across everyone (event label on duplicated names);
-  // player = that player's events, each row named by its event.
-  breakdownSections = computed<{ title: string; teams: RegisteredTeamDto[]; teamColHeader: string }[]>(() => {
+  // Breakdown grids: family = Active/Inactive across everyone; player = that player's events.
+  // The grid carries Player and Event as SEPARATE columns, so rows no longer need their name
+  // rewritten to stay unambiguous — the old relabelling (and the duplicate-name detection that
+  // drove it) is gone.
+  breakdownSections = computed<{ title: string; rows: RegisteredPlayerLineDto[] }[]>(() => {
     if (this.scope() === 'person') {
       const person = this.activePerson();
       if (!person) return [];
       const count = person.events.length;
       return [{
         title: `${person.name} — ${count} ${count === 1 ? 'event' : 'events'}`,
-        teams: this.withEventLabels(person.events, true),
-        teamColHeader: 'Event'
+        rows: person.events,
       }];
     }
-    const sections: { title: string; teams: RegisteredTeamDto[]; teamColHeader: string }[] = [];
+    const sections: { title: string; rows: RegisteredPlayerLineDto[] }[] = [];
     const active = this.allPlayers().filter(p => p.active);
     const inactive = this.allPlayers().filter(p => !p.active);
-    if (active.length) sections.push({ title: `Active (${active.length})`, teams: this.withEventLabels(active, false), teamColHeader: 'Player' });
-    if (inactive.length) sections.push({ title: `Inactive (${inactive.length})`, teams: this.withEventLabels(inactive, false), teamColHeader: 'Player' });
+    if (active.length) sections.push({ title: `Active (${active.length})`, rows: active });
+    if (inactive.length) sections.push({ title: `Inactive (${inactive.length})`, rows: inactive });
     return sections;
   });
 
@@ -232,17 +212,17 @@ export class FamilyPaymentComponent {
   // Rows feeding the ledger's top summary (Total Fees / Paid / Owed): the player's combined events
   // in person scope, else the whole family. The per-event amount caps in the add-record modal come
   // from addTargets (the picked event), not from this combined total.
-  private summaryRows = computed<RegisteredTeamDto[]>(() =>
+  private summaryRows = computed<RegisteredPlayerLineDto[]>(() =>
     this.scope() === 'person' ? (this.activePerson()?.events ?? []) : this.allPlayers());
   feeTotal = computed(() => this.summaryRows().reduce((s, p) => s + p.feeTotal, 0));
   paidTotal = computed(() => this.summaryRows().reduce((s, p) => s + p.paidTotal, 0));
   owedTotal = computed(() => this.summaryRows().reduce((s, p) => s + p.owedTotal, 0));
   checkOwed = computed(() => this.summaryRows().reduce((s, p) => s + p.ckOwedTotal, 0));
 
-  // Per-registration ledger attribution (key = teamId = record.ownerRegistrationId).
+  // Per-registration ledger attribution (key = registrationId = record.ownerRegistrationId).
   ledgerGroups = computed<LedgerGroup[]>(() => this.allPlayers().map(p => ({
-    key: p.teamId,
-    label: p.teamName,
+    key: p.registrationId,
+    label: p.playerName,
     active: true
   })));
 
@@ -301,13 +281,13 @@ export class FamilyPaymentComponent {
     const live = this.liveSubs();
     const liveIds = this.liveRegIds();
     const labels = this.eventLabels();
-    const playersById = new Map(this.allPlayers().map(p => [p.teamId, p]));
+    const playersById = new Map(this.allPlayers().map(p => [p.registrationId, p]));
     const cards: SubscriptionCard[] = [];
     for (const s of d.subscriptions ?? []) {
       if (inScope && !inScope.has(s.registrationId)) continue;
       cards.push({
         regId: s.registrationId,
-        playerName: playersById.get(s.registrationId)?.teamName ?? '',
+        playerName: playersById.get(s.registrationId)?.playerName ?? "",
         eventLabel: labels.get(s.registrationId) ?? null,
         sub: live.get(s.registrationId) ?? s.subscription,
         isLive: liveIds.has(s.registrationId)
@@ -412,7 +392,7 @@ export class FamilyPaymentComponent {
   /** Keep the user's place across a post-payment reload; re-seed only if the selection vanished. */
   private revalidateSelection(): void {
     if (this.activePersonName() && !this.activePerson()) { this.initialized = false; this.initScope(); this.initialized = true; return; }
-    if (this.activeEventRegId() && !this.allPlayers().some(p => p.teamId === this.activeEventRegId())) this.activeEventRegId.set(null);
+    if (this.activeEventRegId() && !this.allPlayers().some(p => p.registrationId === this.activeEventRegId())) this.activeEventRegId.set(null);
   }
 
   setScope(s: Scope): void {

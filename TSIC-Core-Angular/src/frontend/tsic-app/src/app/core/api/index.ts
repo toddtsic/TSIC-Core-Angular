@@ -579,6 +579,7 @@ export type { RefScheduleSearchRequest } from './models/RefScheduleSearchRequest
 export type { RefundRequest } from './models/RefundRequest';
 export type { RefundResponse } from './models/RefundResponse';
 export type { RegisterDeviceRequest } from './models/RegisterDeviceRequest';
+export type { RegisteredPlayerLineDto } from './models/RegisteredPlayerLineDto';
 export type { RegisteredTeamDto } from './models/RegisteredTeamDto';
 export type { RegisterTeamRequest } from './models/RegisterTeamRequest';
 export type { RegisterTeamResponse } from './models/RegisterTeamResponse';

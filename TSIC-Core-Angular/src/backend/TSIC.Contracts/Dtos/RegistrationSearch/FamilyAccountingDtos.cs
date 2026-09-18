@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos;
+using TSIC.Domain.Constants;
 
 namespace TSIC.Contracts.Dtos.RegistrationSearch;
 
@@ -7,9 +8,10 @@ namespace TSIC.Contracts.Dtos.RegistrationSearch;
 /// a combined ledger across every player a parent registered for the job. The parent-side
 /// analog of <c>ClubRepAccountingDto</c>: where the club rep groups one registration's teams
 /// by TeamId, the family groups N sibling registrations (keyed by JobId + FamilyUserId) by
-/// the owning child. <see cref="Players"/> carries the same rich per-row financial shape
-/// (<see cref="RegisteredTeamDto"/>) the club-rep grid uses, so the family grid renders the
-/// identical Syncfusion table (per-method owed / proc-fee / discount columns). AccountingRecords
+/// the owning child. <see cref="Players"/> carries the same money decomposition the club-rep
+/// grid shows — computed through the same canonical helpers, so the two views can never
+/// disagree about a dollar — but on a PLAYER-shaped row
+/// (<see cref="RegisteredPlayerLineDto"/>), not a team-shaped one. AccountingRecords
 /// are the children's records merged and stamped with their owning player (OwnerRegistrationId /
 /// OwnerName) for per-row attribution.
 /// </summary>
@@ -23,18 +25,17 @@ public record FamilyAccountingDto
     public required decimal OwedTotal { get; init; }
 
     /// <summary>
-    /// One row per child, shaped as <see cref="RegisteredTeamDto"/> so the family grid reuses
-    /// app-registered-teams-grid. Per child: TeamId = the child's RegistrationId (also the
-    /// ledger group key, matching each record's OwnerRegistrationId), TeamName = player name.
+    /// One row per child registration. RegistrationId is also the ledger group key (it matches
+    /// each record's OwnerRegistrationId).
     /// </summary>
-    public required List<RegisteredTeamDto> Players { get; init; }
+    public required List<RegisteredPlayerLineDto> Players { get; init; }
     public required List<AccountingRecordDto> AccountingRecords { get; init; }
 
     /// <summary>
     /// Stored ARB snapshot (Registrations.AdnSubscription* columns) for every registration in
     /// the sibling set that carries one — ARB mints ONE Authorize.Net subscription per
     /// REGISTRATION, so several players (or several events of one player) can each have their
-    /// own. Keyed by RegistrationId (= Players[].TeamId) so the subscription card follows the
+    /// own. Keyed by RegistrationId (= Players[].RegistrationId) so the subscription card follows the
     /// component's player selector. Stored snapshots only: the live ADN read is Production-only
     /// and fetched per card on demand, exactly like the detail panel's anchor card.
     /// </summary>
@@ -49,6 +50,75 @@ public record FamilyAccountingDto
 }
 
 /// <summary>
+/// One child's registration as a billable line on the family accounting grid.
+///
+/// This is the PLAYER-shaped peer of <see cref="RegisteredTeamDto"/>, not a reuse of it. The
+/// money block below is deliberately field-for-field identical and is produced through the same
+/// canonical helpers (IPaymentStateService / IFeeResolutionService) the team shaper uses, so the
+/// director's club-rep view and the family view can never disagree about a dollar. What is NOT
+/// shared is identity: a player has a name, an assigned team and an age group in their own right.
+///
+/// History: players used to be shipped AS <see cref="RegisteredTeamDto"/> so both grids could be
+/// one component — PlayerName went in TeamName, RegistrationId in TeamId, and AgeGroupName was
+/// blanked because the family grid hid that column. Blanking it silently killed the waitlist
+/// badge (IsWaitlisted is derived from the age-group name), and the frontend had to rebuild the
+/// team/age-group label by scraping accounting records, which failed for a registration with no
+/// records yet. Both defects were the costume, not the columns.
+/// </summary>
+public record RegisteredPlayerLineDto
+{
+    /// <summary>The registration itself — identity AND the ledger group key (matches each
+    /// AccountingRecordDto.OwnerRegistrationId).</summary>
+    public required Guid RegistrationId { get; init; }
+    public required string PlayerName { get; init; }
+
+    /// <summary>Assigned team's display name. Null when the child isn't rostered yet.</summary>
+    public required string? TeamName { get; init; }
+
+    /// <summary>Assigned team's age group, RAW — it still carries the minted "WAITLIST - "
+    /// prefix when the child sits on a waitlist mirror. Null when unrostered. Read
+    /// <see cref="IsWaitlisted"/> / <see cref="AgeGroupDisplayName"/> rather than re-parsing it.</summary>
+    public required string? AgeGroupName { get; init; }
+
+    public bool IsWaitlisted => AgegroupConstants.IsWaitlist(AgeGroupName);
+    public string AgeGroupDisplayName => AgegroupConstants.StripWaitlistPrefix(AgeGroupName);
+
+    /// <summary>Owning club of the assigned team, when the team is club-rostered.</summary>
+    public required string? ClubName { get; init; }
+
+    public required bool Active { get; init; }
+    public required DateTime RegistrationTs { get; init; }
+
+    // ── Money. Same names, same semantics, same producers as RegisteredTeamDto. ──
+    public required decimal FeeBase { get; init; }
+    /// <summary>Statement-of-fact: raw Registrations.FeeProcessing.</summary>
+    public required decimal FeeProcessing { get; init; }
+    /// <summary>Display semantic: the CC processing fee still owed right now
+    /// (OwedTotal − CkOwedTotal).</summary>
+    public required decimal FeeProcessingDue { get; init; }
+    public required decimal FeeDiscount { get; init; }
+    public required decimal FeeLatefee { get; init; }
+    public required decimal FeeTotal { get; init; }
+    public required decimal PaidTotal { get; init; }
+    public required decimal OwedTotal { get; init; }
+    /// <summary>Signed net adjustment = lateFee − discount − correction.</summary>
+    public required decimal FeeAdj { get; init; }
+    /// <summary>Real money received; excludes Correction-method rows (those land in FeeAdj).</summary>
+    public required decimal TenderPaid { get; init; }
+    /// <summary>Immutable fee structure — what this registration was committed to.</summary>
+    public required decimal Deposit { get; init; }
+    public required decimal BalanceDue { get; init; }
+    /// <summary>Per-ROW phase (FeeBase has reached FullPrice). Siblings can differ.</summary>
+    public required bool FullPaymentRequired { get; init; }
+    // Net-of-paid ledger state.
+    public required decimal DepositDue { get; init; }
+    public required decimal AdditionalDue { get; init; }
+    public required decimal CcOwedTotal { get; init; }
+    public required decimal CkOwedTotal { get; init; }
+    public required decimal EkOwedTotal { get; init; }
+}
+
+/// <summary>
 /// A registration's stored ARB snapshot, keyed so the family-payment scope selector can show
 /// the right card(s) for the viewed player. See <see cref="FamilyAccountingDto.Subscriptions"/>.
 /// </summary>
@@ -60,8 +130,8 @@ public record FamilyPlayerSubscriptionDto
 
 /// <summary>
 /// Raw per-child registration row consumed by RegisteredPlayerShaper — the player analog of
-/// <c>RegisteredTeamInfo</c>. The shaper turns these into <see cref="RegisteredTeamDto"/> rows
-/// through the canonical payment-state path (IPaymentStateService + IFeeResolutionService),
+/// <c>RegisteredTeamInfo</c>. The shaper turns these into <see cref="RegisteredPlayerLineDto"/>
+/// rows through the canonical payment-state path (IPaymentStateService + IFeeResolutionService),
 /// exactly like the team shaper.
 /// </summary>
 public record RegisteredPlayerInfo : TSIC.Contracts.Payments.IFeeDiscountBuckets

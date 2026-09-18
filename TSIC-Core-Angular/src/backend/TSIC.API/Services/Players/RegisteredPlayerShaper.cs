@@ -10,8 +10,12 @@ namespace TSIC.API.Services.Players;
 
 /// <summary>
 /// Shapes raw <see cref="RegisteredPlayerInfo"/> rows into the per-player financial
-/// <see cref="RegisteredTeamDto"/> the registered-teams grid consumes — the player-side
+/// <see cref="RegisteredPlayerLineDto"/> the family accounting grid consumes — the player-side
 /// analog of <see cref="Teams.RegisteredTeamShaper"/>.
+///
+/// This shaper owns MONEY, not layout. It must never blank or coerce a field because of how one
+/// screen happens to look — that is what killed the waitlist badge when players were shipped as
+/// RegisteredTeamDto with AgeGroupName = "". Hiding a column is the grid's job.
 ///
 /// Routes every player through the SAME canonical payment-state path teams use:
 /// <see cref="IPaymentStateService.ForRegistrationsAsync"/> for the per-method owed
@@ -22,7 +26,7 @@ namespace TSIC.API.Services.Players;
 /// </summary>
 public interface IRegisteredPlayerShaper
 {
-    Task<List<RegisteredTeamDto>> ShapeAsync(
+    Task<List<RegisteredPlayerLineDto>> ShapeAsync(
         Guid jobId,
         IReadOnlyList<RegisteredPlayerInfo> rawPlayers,
         CancellationToken ct = default);
@@ -44,7 +48,7 @@ public sealed class RegisteredPlayerShaper : IRegisteredPlayerShaper
         _paymentState = paymentState;
     }
 
-    public async Task<List<RegisteredTeamDto>> ShapeAsync(
+    public async Task<List<RegisteredPlayerLineDto>> ShapeAsync(
         Guid jobId,
         IReadOnlyList<RegisteredPlayerInfo> rawPlayers,
         CancellationToken ct = default)
@@ -102,15 +106,16 @@ public sealed class RegisteredPlayerShaper : IRegisteredPlayerShaper
 
             var owed = state.ResolveOwed(p.OwedTotal, p.FeeBase, discount, p.FeeLatefee, donation: 0m, p.FeeProcessing);
 
-            return new RegisteredTeamDto
+            return new RegisteredPlayerLineDto
             {
-                TeamId = p.RegistrationId,        // doubles as the ledger group key (= record.OwnerRegistrationId)
-                TeamName = p.PlayerName,
-                AgeGroupId = p.AgeGroupId ?? Guid.Empty,
-                AgeGroupName = "",                // age-group column hidden for the family grid
-                LevelOfPlay = null,
-                ClubTeamId = null,
-                BHasBeenScheduled = false,
+                RegistrationId = p.RegistrationId, // doubles as the ledger group key (= record.OwnerRegistrationId)
+                PlayerName = p.PlayerName,
+                // Carried through AS STORED. AgeGroupName keeps the minted "WAITLIST - " prefix —
+                // it is the load-bearing signal behind IsWaitlisted (PL-037). Never blank it to
+                // suit a screen that hides the column; the grid decides what it draws.
+                TeamName = p.AssignedTeamName,
+                AgeGroupName = p.AssignedAgeGroupName,
+                ClubName = p.AssignedClubName,
                 FeeBase = p.FeeBase,
                 FeeProcessing = p.FeeProcessing,                       // READ from record — the proc the family grid shows
                 FeeProcessingDue = Math.Max(0m, owed.Cc - owed.Check), // canonical "proc still owed if CC-billed"
@@ -127,13 +132,10 @@ public sealed class RegisteredPlayerShaper : IRegisteredPlayerShaper
                 DepositDue = depositDue,
                 AdditionalDue = additionalDue,
                 RegistrationTs = p.RegistrationTs,
-                BWaiverSigned3 = false,
                 CcOwedTotal = owed.Cc,
                 CkOwedTotal = owed.Check,
                 EkOwedTotal = owed.Echeck,
-                Active = p.Active,
-                PaymentScheduled = false,
-                NextChargeDate = null
+                Active = p.Active
             };
         }).ToList();
     }
