@@ -180,8 +180,16 @@ public class TeamSeatingTests
         }
     }
 
-    [Fact(DisplayName = "An unscheduled team may leave its pool")]
-    public async Task UnscheduledTeam_MayLeaveItsPool()
+    /// <summary>
+    /// The guard is a POOL question, not a team question. This test used to assert the opposite —
+    /// that a team with no game rows of its own could leave a scheduled pool — which is exactly
+    /// the hole the pool rule closes: the matrix was built for N ranks and does not care whose id
+    /// is written where, so removing any member leaves it at N-1. A per-team check also answers
+    /// "no games" for a team whose seating is already broken, waving through the removal that does
+    /// the real damage.
+    /// </summary>
+    [Fact(DisplayName = "The POOL decides: a team with no games of its own still cannot leave a scheduled pool")]
+    public async Task TeamWithNoGames_StillCannotLeaveAScheduledPool()
     {
         var (ctx, _) = await Seed(DivId);
         var spare = Guid.NewGuid();
@@ -196,8 +204,19 @@ public class TeamSeatingTests
         });
         await ctx.SaveChangesAsync();
 
-        var act = async () => await Service(ctx).EnsureTeamMayLeavePoolAsync(spare, JobId, "deleted");
-        await act.Should().NotThrowAsync();
+        // No Schedule row carries this team's id, yet its pool has a board.
+        var svc = Service(ctx);
+        var blocked = async () => await svc.EnsureTeamMayLeavePoolAsync(spare, JobId, "deleted");
+        (await blocked.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("*pool is scheduled*");
+
+        // Break the pool's schedule down and the same team leaves freely — the refusal tracked the
+        // pool's state, never the team's.
+        ctx.Schedule.RemoveRange(ctx.Schedule);
+        await ctx.SaveChangesAsync();
+
+        var allowed = async () => await Service(ctx).EnsureTeamMayLeavePoolAsync(spare, JobId, "deleted");
+        await allowed.Should().NotThrowAsync();
     }
 
     [Fact(DisplayName = "Re-seating one pool does not touch another pool's games")]
