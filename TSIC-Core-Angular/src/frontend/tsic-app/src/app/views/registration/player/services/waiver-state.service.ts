@@ -82,18 +82,11 @@ export class WaiverStateService {
             const selectedIds = new Set(selectedPlayerIds);
             if (!defs.length || !selectedIds.size) return;
             const players = familyPlayers.filter(p => selectedIds.has(p.playerId));
-            const allSelectedRegistered = players.every(p => p.registered);
+            const allSelectedRegistered = players.length > 0 && players.every(p => p.registered);
             if (allSelectedRegistered) {
-                if (Object.keys(this._waiversAccepted()).length === 0) {
-                    const accepted: Record<string, boolean> = {};
-                    const map = this._waiverIdToField();
-                    for (const d of defs) {
-                        if (!d.required) continue;
-                        const field = map[d.id] || d.id;
-                        accepted[field] = true;
-                    }
-                    this._waiversAccepted.set(accepted);
-                }
+                // One seeder, not a second copy of the rule — the duplicate here carried the same
+                // all-or-nothing guard and could freeze a partial map before the other could fix it.
+                this.seedAcceptedWaiversIfReadOnly(selectedPlayerIds, familyPlayers);
             } else {
                 if (Object.keys(this._waiversAccepted()).length > 0) this._waiversAccepted.set({});
                 if (this._signatureName()) this._signatureName.set('');
@@ -102,23 +95,41 @@ export class WaiverStateService {
         } catch { /* ignore */ }
     }
 
-    /** Seed acceptance for read-only scenarios (all selected players registered). */
+    /**
+     * Once signed, always signed: a family whose selected players are ALL already registered
+     * signed the required waivers to get those registrations, so carry that acceptance forward.
+     *
+     * TOPS UP — it must not be all-or-nothing. Three call sites seed (buildFromMetadata,
+     * processSchemasAndBindWaivers, recomputeWaiverAcceptanceOnSelectionChange) and they fire as
+     * definitions arrive, so the first one can run against a PARTIAL definition list. The old
+     * "return if anything is accepted" guard then froze that partial result forever: a returning
+     * family saw two waivers Accepted and the third Not Accepted, and since the step also locked
+     * it, they could never continue. Seed each missing required waiver instead, and this is
+     * idempotent no matter how many times or how early it runs.
+     */
     seedAcceptedWaiversIfReadOnly(selectedPlayerIds: string[], familyPlayers: FamilyPlayerDto[]): void {
         try {
             const defs = this._waiverDefinitions();
             if (!defs.length) return;
-            if (Object.keys(this._waiversAccepted()).length > 0) return;
             const selected = new Set(selectedPlayerIds);
             if (!selected.size) return;
             const players = familyPlayers.filter(p => selected.has(p.playerId));
-            if (!players.every(p => p.registered)) return;
-            const accepted: Record<string, boolean> = {};
+            // `[].every()` is true, so an empty match would auto-accept on behalf of players we
+            // have not actually loaded. Never assert consent we cannot evidence.
+            if (!players.length || !players.every(p => p.registered)) return;
+            const accepted = { ...this._waiversAccepted() } as Record<string, boolean>;
+            let changed = false;
             for (const d of defs) {
                 if (!d.required) continue;
+                if (this.isWaiverAccepted(d.id)) continue;
                 const field = this._waiverIdToField()[d.id] || d.id;
+                // Store under both keys, mirroring setWaiverAccepted, so a binding that resolves
+                // later can't orphan the entry.
                 accepted[field] = true;
+                accepted[d.id] = true;
+                changed = true;
             }
-            this._waiversAccepted.set(accepted);
+            if (changed) this._waiversAccepted.set(accepted);
         } catch { /* ignore */ }
     }
 
@@ -238,7 +249,9 @@ export class WaiverStateService {
                 const synthesized = this.synthesizeDefinitions(labels);
                 if (synthesized.length) this._waiverDefinitions.set(synthesized);
             }
-            if (Object.keys(this._waiversAccepted()).length === 0) this.seedAcceptedWaiversIfReadOnly(selectedPlayerIds, familyPlayers);
+            // Unguarded: the seeder tops up per waiver, and THIS is the call that runs once the
+            // schema bindings exist — the one most likely to complete a partial earlier seed.
+            this.seedAcceptedWaiversIfReadOnly(selectedPlayerIds, familyPlayers);
         } catch (e: unknown) {
             console.debug('[WaiverState] processSchemasAndBindWaivers failed', e);
         }

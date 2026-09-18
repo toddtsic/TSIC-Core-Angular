@@ -126,9 +126,16 @@ export class WaiversStepComponent implements AfterViewInit {
     }
 
     isLocked(id: string): boolean {
-        // Locked if all selected players are already registered
+        // NEVER lock a waiver that is not accepted. Required + unticked + untickable is a trap
+        // with no way out: Continue can never enable and the user is stranded on this step.
+        // This used to ignore its `id` entirely and lock every waiver on the strength of the
+        // family being a returning one, so a single unseeded waiver stranded them.
+        if (!this.isAccepted(id)) return false;
+
+        // Beyond that: already signed, so show it locked rather than invite a re-tick.
         const selected = this.state.familyPlayers.selectedPlayerIds();
         const players = this.state.familyPlayers.familyPlayers();
+        if (!selected.length) return false;
         return selected.every(pid => {
             const p = players.find(fp => fp.playerId === pid);
             return !!p?.registered;
