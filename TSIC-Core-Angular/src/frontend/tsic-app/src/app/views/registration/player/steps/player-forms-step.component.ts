@@ -14,10 +14,13 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
 // PP20 canonical recruiting field order (lowercase schema name).
 // When present and gated in, these are hoisted into a single fieldset anchored at
 // the position of the first canonical field present in the editor schema.
+// Must stay in lockstep with RECRUITING_FIELD_NAMES in player-forms.service.ts — that one
+// decides whether a recruiting field is visible, this one decides where it renders. A name in
+// only one of the two either renders outside the fieldset while still gated, or lands in the
+// fieldset while ungated. heightInches/weightLbs were removed from both together.
 const RECRUITING_ORDER: readonly string[] = [
     'gpa', 'classrank', 'act',
     'sat', 'satmath', 'satverbal', 'satwriting',
-    'weightlbs', 'heightinches',
     'bcollegecommit', 'collegecommit',
 ];
 

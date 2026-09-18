@@ -13,10 +13,17 @@ import type {
 // Canonical list = PP20.cshtml's `<div class="recruittinginfo">` block.
 // Gated by JsonOptions.List_RecruitingGradYears vs the registered team's grad year
 // (NCAA), regardless of job type. No list configured → hidden.
+//
+// heightInches/weightLbs are deliberately NOT here. They are sizing and matchup data a
+// director of ANY event legitimately collects — legacy PP35.cshtml carried them as plain
+// always-visible fields, outside the recruitinginfo div. Sweeping them in with GPA/SAT made
+// the recruiting list the only lever for them, so a job wanting height had to declare itself
+// a recruiting event and drag the whole academic block along (they were invisible on
+// tps-fall144showcase-2026 for exactly this reason). They now answer to the profile editor's
+// per-job `visibility` alone. Do not re-add them.
 const RECRUITING_FIELD_NAMES = new Set<string>([
     'gpa', 'classrank', 'act',
     'sat', 'satmath', 'satverbal', 'satwriting',
-    'weightlbs', 'heightinches',
     'bcollegecommit', 'collegecommit',
 ]);
 
@@ -358,8 +365,10 @@ export class PlayerFormsService {
      * The gating year is the team's division/agegroup grad year — not the player's
      * self-reported academic grad year, and NOT gated by job type. When the job has no
      * List_RecruitingGradYears configured (recruitingGradYears empty), the fields are
-     * SHOWN (empty = no restriction) — legacy hid them, which silently dropped
-     * required-but-hidden fields like heightInches on showcase forms (e.g. PP35).
+     * HIDDEN — the empty list IS the "not a recruiting event" declaration (PL-021,
+     * b6b240028). This rule was briefly inverted (02894891, show-on-empty) and reverted
+     * five weeks later because it leaked GPA/SAT onto club festivals. Do not invert it
+     * again: a job that needs the block declares its Recruiting Grad Years.
      */
     isFieldVisibleForPlayer(
         playerId: string,
