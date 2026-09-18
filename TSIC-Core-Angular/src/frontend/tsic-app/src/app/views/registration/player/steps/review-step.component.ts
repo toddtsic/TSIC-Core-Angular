@@ -39,10 +39,15 @@ export type ReviewLineStatus = 'unpriced' | 'plan' | 'paid' | 'due';
           </p>
         } @else {
           <h4 class="welcome-title"><i class="bi bi-check2-circle welcome-icon" style="color: var(--bs-success)"></i> You're All Set</h4>
+          <!-- ⛔ NO MONEY CLAIM HERE, DELIBERATELY. This state is reached whenever the
+               checkout collects nothing — which includes an ARB family, and baseTotal()
+               excludes ARB lines outright (billableLineItems filters !arbEnrolled), so a
+               family BEHIND on a failed draft lands here too. "Nothing left to pay" and
+               "nothing to pay today" are both false for them. The per-line badges own
+               every money statement on this screen; the hero says only what this screen
+               is. Do not reintroduce a balance claim here. -->
           <p class="welcome-desc">
             <i class="bi bi-eye me-1"></i>Review your details
-            <span class="desc-dot"></span>
-            <i class="bi bi-wallet2 me-1"></i>Nothing left to pay
           </p>
         }
       </div>
