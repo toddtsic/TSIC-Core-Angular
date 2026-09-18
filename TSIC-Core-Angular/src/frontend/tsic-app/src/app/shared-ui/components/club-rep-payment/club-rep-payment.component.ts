@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { TeamSearchService } from '../../../views/search/teams/services/team-search.service';
 import { RegisteredTeamsGridComponent } from '../../../views/registration/team/components/registered-teams-grid.component';
 import { ToastService } from '@shared-ui/toast.service';
+import { cartPhaseBadgeLabel, resolveCartPhase } from '@shared-ui/fees/cart-phase';
 import { AccountingLedgerComponent, CcChargeEvent, CheckOrCorrectionEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
 import { RefundEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
 import type { ClubRepAccountingDto, RegisteredTeamDto, RefundResponse, TeamPaymentResultDto } from '@core/api';
@@ -73,6 +74,16 @@ export class ClubRepPaymentComponent {
     }
     return this.scheduledTeams();
   });
+
+  /**
+   * The phase the grid's Total Fee belongs to — the context this panel was missing. Reads the
+   * same rows the grid does, through the same rules the club rep's own screens use.
+   *
+   * Null when the rows disagree (or there are none): unlike the wizard, this panel has no
+   * job-level phase flag to fall back on, so the badge is hidden rather than guessed. Measured
+   * 2026-09-18, no live club rep holds teams spanning both phases.
+   */
+  phaseBadgeLabel = computed(() => cartPhaseBadgeLabel(resolveCartPhase(this.gridTeams())));
 
   clubFeeTotal = computed(() => this.scheduledTeams().reduce((s, t) => s + t.feeTotal, 0));
   clubPaidTotal = computed(() => this.scheduledTeams().reduce((s, t) => s + t.paidTotal, 0));

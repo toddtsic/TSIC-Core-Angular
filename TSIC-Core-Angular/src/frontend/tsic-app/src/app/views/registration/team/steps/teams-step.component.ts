@@ -4,6 +4,7 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { cartPhaseBadgeLabel, resolveCartPhase } from '@shared-ui/fees/cart-phase';
 import { JobService } from '@infrastructure/services/job.service';
 import { TeamFormModalComponent } from './team-form-modal.component';
 import { AddAndRegisterTeamModalComponent } from './add-and-register-team-modal.component';
@@ -654,28 +655,16 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly fullPaymentRequired = this.state.fullPaymentRequired;
 
     /**
-     * Phase badge label derived PER-ROW from the entered teams' server-resolved
-     * fullPaymentRequired — NOT the single job flag, since a club-rep cart can span scopes
-     * that differ in phase. Never reads "Mixed" (PL-052, Ann's decision): when the entered
-     * teams disagree — and before any team is entered — it shows the job baseline instead.
-     *
-     * Deposit-less rows (deposit=0, the canonical single-payment shape 6a normalizes
-     * legacy tournaments into) have no phase to name: the one charge IS the whole fee.
-     * A uniform deposit-less cart reads "Single Payment" — "Deposit Only" there promises
-     * a second payment that never comes.
+     * Derived PER-ROW from the entered teams' server-resolved fullPaymentRequired, never from
+     * the job flag alone. Rules (waitlist exclusion, deposit-less carts, the no-"Mixed" rule)
+     * live in `@shared-ui/fees/cart-phase` — the director's accounting card reads the same
+     * ones. The job baseline is passed because this screen knows it, so the label here is
+     * never null.
      */
-    readonly phaseBadgeLabel = computed(() => {
-        const jobLabel = this.state.fullPaymentRequired() ? 'Final Balance Due' : 'Deposit Only';
-        // Waitlisted rows owe $0 and must not drag a uniform cart to the fallback (PL-052).
-        const teams = this._registeredTeams().filter(t => !t.isWaitlisted);
-        if (!teams.length) return jobLabel;
-        const full = teams.filter(t => t.fullPaymentRequired).length;
-        if (full === 0) {
-            return teams.every(t => t.deposit <= 0) ? 'Single Payment' : 'Deposit Only';
-        }
-        if (full === teams.length) return 'Final Balance Due';
-        return jobLabel;
-    });
+    readonly phaseBadgeLabel = computed(() => cartPhaseBadgeLabel(
+        resolveCartPhase(this._registeredTeams()),
+        this.state.fullPaymentRequired(),
+    ));
 
     readonly loading = signal(true);
     readonly error = signal<string | null>(null);

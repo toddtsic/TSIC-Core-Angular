@@ -17,6 +17,7 @@ import { CreditCardFormComponent } from '@views/registration/shared/components/c
 import { BankAccountFormComponent } from '@views/registration/shared/components/bank-account-form.component';
 import { ViChargeConfirmModalComponent } from '@views/registration/shared/components/vi-charge-confirm-modal.component';
 import { ToastService } from '@shared-ui/toast.service';
+import { CartPhase, cartPhaseBadgeLabel, resolveCartPhase } from '@shared-ui/fees/cart-phase';
 import { sanitizeExpiry, sanitizePhone } from '@views/registration/shared/services/credit-card-utils';
 import { sanitizeRouting, sanitizeAccount, sanitizeNameOnAccount } from '@views/registration/shared/services/bank-account-utils';
 import { scrollWizardToTop } from '@views/registration/shared/services/vi-scroll.util';
@@ -945,33 +946,13 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
      * single job-level flag — a club-rep cart can span scopes that differ in phase. 'mixed' when
      * rows disagree. Drives the honest phase badge and the Balance-Due column visibility.
      */
-    readonly cartPhase = computed<'deposit' | 'single' | 'full' | 'mixed' | 'none'>(() => {
-        // Waitlisted rows are excluded: they owe $0 and aren't part of the payment,
-        // so their resolved phase must not drag a uniform cart to 'mixed' (PL-052 —
-        // two WL rows made an all-balance-due cart read "Deposit Only" via fallback).
-        const teams = this.registeredTeams().filter(t => !t.isWaitlisted);
-        if (!teams.length) return 'none';
-        const full = teams.filter(t => t.fullPaymentRequired).length;
-        if (full === 0) {
-            // Deposit-less rows (deposit=0, the canonical single-payment shape) have no
-            // phase to name — the one charge is the whole fee. Distinct from 'deposit'
-            // only in labeling; column visibility treats them alike (no active balance).
-            return teams.every(t => t.deposit <= 0) ? 'single' : 'deposit';
-        }
-        if (full === teams.length) return 'full';
-        return 'mixed';
-    });
+    readonly cartPhase = computed<CartPhase>(() => resolveCartPhase(this.registeredTeams()));
     /** Badge never reads "Mixed" (PL-052, Ann's decision): when the cart's rows disagree,
      *  it shows the JOB's phase instead — the site-level fact a rep recognizes. cartPhase
-     *  keeps its 'mixed' state internally to drive the Balance-Due column. */
-    readonly phaseBadgeLabel = computed(() => {
-        switch (this.cartPhase()) {
-            case 'full': return 'Final Balance Due';
-            case 'single': return 'Single Payment';
-            case 'deposit': return 'Deposit Only';
-            default: return this.state.fullPaymentRequired() ? 'Final Balance Due' : 'Deposit Only';
-        }
-    });
+     *  keeps its 'mixed' state internally to drive the Balance-Due column. Passing the job
+     *  baseline means this label is never null. */
+    readonly phaseBadgeLabel = computed(() =>
+        cartPhaseBadgeLabel(this.cartPhase(), this.state.fullPaymentRequired()));
     /** Show the Balance-Due column whenever ANY row is full-payment (its balance is active);
      *  each row's cell still renders its own additionalDue. An all-deposit cart hides it. */
     readonly showBalanceColumn = computed(() => this.cartPhase() === 'full' || this.cartPhase() === 'mixed');

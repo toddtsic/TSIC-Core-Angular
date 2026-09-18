@@ -66,7 +66,20 @@
        active-only aggregate footer. -->
   @if (scope() === 'club' || (scope() === 'team' && selectedTeam())) {
     <div class="club-summary-card">
-      <h5 class="section-title">{{ scope() === 'team' ? 'Team Breakdown' : 'Club Teams Breakdown' }}</h5>
+      <!-- Phase badge, same words the club rep sees on their own teams step. Without it a
+           director reads this grid's Total Fee (the full commitment) directly above the
+           ledger's Total Fees (billed to date) with nothing to tell them apart. Absent when
+           the rows disagree on phase — this panel has no job flag to fall back on, and a
+           badge we cannot substantiate is worse than none. -->
+      <div class="section-titlerow">
+        <h5 class="section-title">{{ scope() === 'team' ? 'Team Breakdown' : 'Club Teams Breakdown' }}</h5>
+        @if (phaseBadgeLabel(); as phase) {
+          <span class="phase-badge">
+            <span class="phase-badge__label">Payment Phase</span>
+            <span class="phase-badge__value">{{ phase }}</span>
+          </span>
+        }
+      </div>
       <app-registered-teams-grid
         [teams]="gridTeams()"
         [procFeeField]="'feeProcessing'"
