@@ -264,11 +264,23 @@ describe('PlayerFormsService', () => {
         // ── Recruiting field gating (SP-040) ─────────────────────────
         // Gated by jsonOptions.List_RecruitingGradYears vs the registered team's grad
         // year (NCAA contact rules) — no job-type gate. No list configured → hidden.
-        it('recruiting field visible when no list configured (empty = no restriction)', () => {
-            // Empty List_RecruitingGradYears = no gating: show the field so required-but-hidden
-            // recruiting fields (e.g. heightInches on PP35 showcase forms) can't silently deadlock.
+        it('recruiting field hidden when no list configured (empty = not a recruiting event)', () => {
+            // PL-021 (b6b240028): an empty List_RecruitingGradYears IS the "not a recruiting event"
+            // declaration, so the academic block stays off. The rule shipped inverted once
+            // (02894891, show-on-empty) and was reverted five weeks later because it leaked
+            // GPA/SAT onto club festivals. This assertion was left behind by that revert.
             const gpa = mkField({ name: 'gpa', label: 'GPA' });
-            expect(service.isFieldVisibleForPlayer('p1', gpa, [], null, [], '2026')).toBe(true);
+            expect(service.isFieldVisibleForPlayer('p1', gpa, [], null, [], '2026')).toBe(false);
+        });
+
+        it('height and weight are NOT recruiting fields — no grad-years gate (e876a5ab7)', () => {
+            // They answer to the profile editor's per-job `visibility` alone. Empty grad years,
+            // no team grad year: still visible. Regression guard on both RECRUITING_FIELD_NAMES
+            // and RECRUITING_ORDER, which must stay in lockstep.
+            const height = mkField({ name: 'heightInches', label: 'Height (in inches)' });
+            const weight = mkField({ name: 'weightLbs', label: 'Weight (in lbs)' });
+            expect(service.isFieldVisibleForPlayer('p1', height, [], null, [], null)).toBe(true);
+            expect(service.isFieldVisibleForPlayer('p1', weight, [], null, [], null)).toBe(true);
         });
 
         it('recruiting field hidden when team grad year not in list', () => {

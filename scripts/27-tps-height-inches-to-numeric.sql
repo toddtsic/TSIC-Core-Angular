@@ -59,11 +59,12 @@
     on purpose: the list is inert there, and removing config a form does not read is a separate
     audit, not a side effect of this fix.
 
-    PART 2 is the one existing row. This job has 7 registrations; exactly one has a height, the
-    "5-0" created during testing on 2026-09-17. No customer data is involved. It is left as a
-    SELECT plus a commented UPDATE — run the SELECT, confirm it is still the single test row,
-    then decide. The 4,000 feet-dash rows on OTHER jobs are NOT in scope here and are not
-    converted by anything in this file.
+    PART 2 converts stored feet-dash heights on THIS JOB ONLY. At authoring time the job had 7
+    registrations and exactly one height, the "5-0" left by testing on 2026-09-17, so no customer
+    data is involved. It self-guards: above 5 feet-dash rows it refuses and prints what it found,
+    on the grounds that real registrants must be entering heights and a cleanup is no longer what
+    this is. Nothing here touches the 4,000 feet-dash rows on OTHER jobs. Those are inert — height
+    is a passthrough string everywhere in the codebase; nothing sums, sorts or compares it.
 
     SAFE TO RE-RUN. PART 1 is idempotent — it rewrites the path to the same value.
 */
@@ -149,12 +150,15 @@ WHERE jobID = @jobID;
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- PART 2 — the one stored feet-dash height on this job (REVIEW, THEN DECIDE)
+-- PART 2 — convert stored feet-dash heights ON THIS JOB ONLY
 -- ─────────────────────────────────────────────────────────────────────────────
--- Expect a single row, the 2026-09-17 test registration holding '5-0'. If anything
--- else appears, STOP: a real registrant has entered a height and the conversion is
--- no longer a test cleanup.
+-- Converts '5-0' -> '60'. Self-guarding: it converts only rows this job owns, only
+-- rows that actually parse as feet-dash, and only while the count is small enough to
+-- still be the testing residue. If a real intake has happened since this was written,
+-- it refuses and prints what it found rather than rewriting registrant-entered data.
+-- Every other job's rows are untouched by anything in this file.
 
+PRINT '--- feet-dash heights on this job, BEFORE ---';
 SELECT r.RegistrationID,
        u.FirstName, u.LastName,
        '[' + ISNULL(r.height_inches, 'NULL') + ']' AS Height_Stored,
@@ -167,17 +171,51 @@ WHERE  r.jobID = @jobID
   AND  LTRIM(RTRIM(r.height_inches)) <> ''
 ORDER  BY r.RegistrationTS DESC;
 
-/*  Only after the SELECT above shows nothing but the test row.
-    Converts feet-dash to inches: '5-0' -> 60.  Leaves every other job alone.
+DECLARE @feetDash INT = (
+    SELECT COUNT(*) FROM Jobs.Registrations
+    WHERE jobID = @jobID AND height_inches LIKE '%[0-9]-[0-9]%'
+);
 
-UPDATE r
-SET    r.height_inches = CAST(
-           (TRY_CAST(LEFT(r.height_inches, CHARINDEX('-', r.height_inches) - 1) AS INT) * 12)
-         + TRY_CAST(SUBSTRING(r.height_inches, CHARINDEX('-', r.height_inches) + 1, 10) AS INT)
-           AS VARCHAR(10))
+-- At authoring time (2026-09-17) this job had 7 registrations and exactly 1 height,
+-- the '5-0' left by testing. A handful more is still plausibly test traffic; a jump
+-- means real registrants have been entering heights and this is no longer a cleanup.
+IF @feetDash > 5
+BEGIN
+    PRINT '';
+    PRINT '*** PART 2 SKIPPED — ' + CAST(@feetDash AS VARCHAR(10)) + ' feet-dash rows found.';
+    PRINT '*** That is more than testing residue. These are registrant-entered heights.';
+    PRINT '*** Decide deliberately before converting; PART 1 (the option list) is already done.';
+END
+ELSE IF @feetDash = 0
+BEGIN
+    PRINT '';
+    PRINT 'PART 2: nothing to convert — no feet-dash heights on this job.';
+END
+ELSE
+BEGIN
+    UPDATE r
+    SET    r.height_inches = CAST(
+               (TRY_CAST(LEFT(r.height_inches, CHARINDEX('-', r.height_inches) - 1) AS INT) * 12)
+             + TRY_CAST(SUBSTRING(r.height_inches, CHARINDEX('-', r.height_inches) + 1, 10) AS INT)
+               AS VARCHAR(10))
+    FROM   Jobs.Registrations r
+    WHERE  r.jobID = @jobID
+      AND  r.height_inches LIKE '%[0-9]-[0-9]%'
+      AND  TRY_CAST(LEFT(r.height_inches, CHARINDEX('-', r.height_inches) - 1) AS INT) IS NOT NULL
+      AND  TRY_CAST(SUBSTRING(r.height_inches, CHARINDEX('-', r.height_inches) + 1, 10) AS INT) IS NOT NULL;
+
+    PRINT '';
+    PRINT 'PART 2: converted ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' feet-dash height(s) to inches.';
+END
+
+PRINT '--- heights on this job, AFTER ---';
+SELECT r.RegistrationID,
+       u.FirstName, u.LastName,
+       '[' + ISNULL(r.height_inches, 'NULL') + ']' AS Height_Stored,
+       r.RegistrationTS
 FROM   Jobs.Registrations r
+LEFT   JOIN dbo.AspNetUsers u ON u.Id = r.UserId
 WHERE  r.jobID = @jobID
-  AND  r.height_inches LIKE '%[0-9]-[0-9]%'
-  AND  TRY_CAST(LEFT(r.height_inches, CHARINDEX('-', r.height_inches) - 1) AS INT) IS NOT NULL
-  AND  TRY_CAST(SUBSTRING(r.height_inches, CHARINDEX('-', r.height_inches) + 1, 10) AS INT) IS NOT NULL;
-*/
+  AND  r.height_inches IS NOT NULL
+  AND  LTRIM(RTRIM(r.height_inches)) <> ''
+ORDER  BY r.RegistrationTS DESC;
