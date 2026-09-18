@@ -1,14 +1,23 @@
 import { ChangeDetectionStrategy, Component, inject, output } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
-import { PaymentV2Service } from '../state/payment-v2.service';
+import { PaymentV2Service, type LineItem } from '../state/payment-v2.service';
 import { TeamService } from '@views/registration/player/services/team.service';
 import { JobService } from '@infrastructure/services/job.service';
 
 /**
  * Review step — summary table of players, teams, and amounts.
  * Waiver summary and server validation errors display.
+ *
+ * AR-096: the screen's purpose is "these are the details I'm about to pay for" (Todd, 09-18),
+ * and everything on it is stated in that tense. Whether a payment is actually coming is one
+ * decision — hasAmountDue() — expressed at every level: the hero, each line's badge, the
+ * total, and where Continue leads. A parent with nothing left to pay is not "Almost There";
+ * they are done, and the screen says so rather than showing them a price they have settled.
  */
+
+/** AR-096 line states. See lineStatus() for why the precedence is what it is. */
+export type ReviewLineStatus = 'unpriced' | 'plan' | 'paid' | 'due';
 @Component({
     selector: 'app-prw-review-step',
     standalone: true,
@@ -16,13 +25,26 @@ import { JobService } from '@infrastructure/services/job.service';
     template: `
     <div class="review-shell">
       <!-- Centered hero -->
+      <!-- AR-096 — the hero states which of the two screens this is. "Almost There /
+           then proceed to payment" is the voice of a coming payment; a family whose
+           registrations are already settled is not almost anywhere, and telling them so
+           beside a price they have already paid is the confusion Ann reported. -->
       <div class="welcome-hero">
-        <h4 class="welcome-title"><i class="bi bi-clipboard-check welcome-icon" style="color: var(--bs-success)"></i> Almost There!</h4>
-        <p class="welcome-desc">
-          <i class="bi bi-eye me-1"></i>Review your details
-          <span class="desc-dot"></span>
-          <i class="bi bi-arrow-right me-1"></i>Then proceed to payment
-        </p>
+        @if (hasAmountDue()) {
+          <h4 class="welcome-title"><i class="bi bi-clipboard-check welcome-icon" style="color: var(--bs-success)"></i> Almost There!</h4>
+          <p class="welcome-desc">
+            <i class="bi bi-eye me-1"></i>Review your details
+            <span class="desc-dot"></span>
+            <i class="bi bi-arrow-right me-1"></i>Then proceed to payment
+          </p>
+        } @else {
+          <h4 class="welcome-title"><i class="bi bi-check2-circle welcome-icon" style="color: var(--bs-success)"></i> You're All Set</h4>
+          <p class="welcome-desc">
+            <i class="bi bi-eye me-1"></i>Review your details
+            <span class="desc-dot"></span>
+            <i class="bi bi-wallet2 me-1"></i>Nothing left to pay
+          </p>
+        }
       </div>
 
       <!-- Server validation errors -->
@@ -76,6 +98,16 @@ import { JobService } from '@infrastructure/services/job.service';
                     } @else if (getBaseFeeForPlayer(player.userId) !== null) {
                       <span class="review-fee-label">Registration Fee</span>
                       {{ getBaseFeeForPlayer(player.userId) | currency }}
+                      <!-- AR-096 — the price keeps its place; the badge supplies the word the
+                           parent was guessing. The figure above is the PRICE, and the badge
+                           says what has happened to it. -->
+                      <span class="review-status" [class]="'review-status--' + statusForPlayer(player.userId)">
+                        @switch (statusForPlayer(player.userId)) {
+                          @case ('paid') { <i class="bi bi-check-circle-fill"></i>Paid }
+                          @case ('plan') { <i class="bi bi-calendar2-check"></i>On payment plan }
+                          @case ('due') { <i class="bi bi-arrow-right-circle"></i>About to pay }
+                        }
+                      </span>
                     } @else {
                       <span class="text-muted">&ndash;</span>
                     }
@@ -91,6 +123,17 @@ import { JobService } from '@infrastructure/services/job.service';
                         <span class="event-fee event-fee--unset"><i class="bi bi-exclamation-triangle me-1"></i>Fee not set</span>
                       } @else {
                         <span class="event-fee">{{ li.feeBase | currency }}</span>
+                        <!-- AR-096 — per EVENT, not per player: on a camps &amp; clinics
+                             registration one child can hold a settled event and a new one
+                             at the same time, and the whole complaint is not being able to
+                             tell them apart. -->
+                        <span class="review-status" [class]="'review-status--' + lineStatus(li)">
+                          @switch (lineStatus(li)) {
+                            @case ('paid') { <i class="bi bi-check-circle-fill"></i>Paid }
+                            @case ('plan') { <i class="bi bi-calendar2-check"></i>On payment plan }
+                            @case ('due') { <i class="bi bi-arrow-right-circle"></i>About to pay }
+                          }
+                        </span>
                       }
                     </li>
                   }
@@ -121,24 +164,29 @@ import { JobService } from '@infrastructure/services/job.service';
               }
             </div>
           }
-          @if (baseFeeTotal() > 0) {
-            <!-- AR-096: "Registration Fee Total" read as a balance owed. It is the full
-                 price of what is selected; what is still owed is settled on Payment. -->
+          <!-- AR-096 — the footer is the CHARGE, not the catalogue price. Each line above
+               still shows its price; this one figure is what the next screen takes, and it
+               comes from paySvc.baseTotal() — the same ExpectedTotal the backend recomputes
+               and refuses on drift — so the number promised here is the number charged.
+               Already-settled and ARB-financed lines are not in it, which is the whole point.
+               Nothing to pay renders no row at all: the hero has already said so, and a
+               "$0.00" total is one more figure for a parent to misread.
+               The old "payments already made are applied at checkout" note is gone — the
+               per-line Paid badges say it where the money is, instead of as a footnote. -->
+          @if (hasAmountDue()) {
             <div class="review-total-row">
-              <span>Total Registration Price</span>
-              <span class="review-total-amount">{{ baseFeeTotal() | currency }}</span>
+              <span>About to pay</span>
+              <span class="review-total-amount">{{ amountDue() | currency }}</span>
             </div>
-            @if (hasPriorRegistration()) {
-              <div class="review-total-note">
-                Payments already made are applied at checkout.
-              </div>
-            }
           }
         </div>
       </div>
 
       <!-- eCheck heads-up (informational — the method is chosen on the next step) -->
-      @if (state.jobCtx.bEnableEcheck() && baseFeeTotal() > 0) {
+      <!-- AR-096 — gated on the CHARGE, not on the catalogue price. It used to key off
+           baseFeeTotal(), which is non-zero even when every line is already settled, so a
+           family with nothing to pay was offered advice on how to pay it. -->
+      @if (state.jobCtx.bEnableEcheck() && hasAmountDue()) {
         <div class="review-echeck-note">
           <i class="bi bi-bank"></i>
           <div>
@@ -385,6 +433,40 @@ import { JobService } from '@infrastructure/services/job.service';
         color: var(--text-muted);
       }
 
+      /* AR-096 — the word that says what happened to the figure beside it. Text + icon,
+         never colour alone: the three states must survive a monochrome palette and a
+         screen reader, same rule as .review-player-registered above. Tinted fill rather
+         than an outline so it reads as a state stamped ON the amount, where the outlined
+         "Already registered" pill beside the NAME is about the registration. */
+      .review-status {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        margin-top: var(--space-1);
+        padding: 0 var(--space-2);
+        border-radius: var(--radius-pill, 999px);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        white-space: nowrap;
+      }
+
+      .review-status--paid {
+        background: var(--bs-success-bg-subtle);
+        color: var(--bs-success-text-emphasis);
+      }
+
+      /* Owed but never charged here — carried by a live ARB subscription. Deliberately NOT
+         the success colour: it is not settled, and not the amount about to be taken either. */
+      .review-status--plan {
+        background: var(--bs-info-bg-subtle);
+        color: var(--bs-info-text-emphasis);
+      }
+
+      .review-status--due {
+        background: var(--bs-primary-bg-subtle);
+        color: var(--bs-primary-text-emphasis);
+      }
+
       /* Fee unconfigured — pre-existing orphan registration; can't be priced or charged. */
       .review-fee-unset,
       .event-fee--unset {
@@ -408,13 +490,6 @@ import { JobService } from '@infrastructure/services/job.service';
 
       /* AR-096 — sits under the total, not beside it, so it reads as a footnote to the
          figure rather than a second amount. */
-      .review-total-note {
-        padding: var(--space-1) var(--space-3) var(--space-2);
-        font-size: var(--font-size-xs);
-        color: var(--brand-text-muted);
-        text-align: right;
-      }
-
       .review-total-amount {
         font-size: var(--font-size-base);
         font-weight: var(--font-weight-bold);
@@ -494,18 +569,6 @@ export class ReviewStepComponent {
     }
 
     /**
-     * AR-096 — is any row on this screen a registration that already exists?
-     *
-     * Gates the "payments already made" note, so a first-time family is not told about
-     * payments they have not made. `registered` is the same flag that locks rows and seeds
-     * the initial selection; it means REGISTERED, not paid — a registered player may still
-     * owe. The note is worded to hold either way.
-     */
-    hasPriorRegistration(): boolean {
-        return this.state.familyPlayers.familyPlayers().some(p => p.registered);
-    }
-
-    /**
      * Composed team lines for the review summary: club, age group, and team name.
      *
      * The club segment comes from the team's ClubrepRegistrationid → Registrations.ClubName
@@ -546,6 +609,55 @@ export class ReviewStepComponent {
         });
     }
 
+    /**
+     * AR-096 — the money state of one Review line.
+     *
+     * Ann reopened this because a bare figure "shows whether paid or owed" and the parent
+     * reads it as a demand either way. The figure was never the problem: what was missing is
+     * the word that says which kind of number it is. These four states supply it.
+     *
+     * The state comes from the line's own server financials — `lineItems()` already carries
+     * `amount` (what this submission charges), `arbEnrolled` and `feeConfigured`. Note the
+     * contrast with the "Already registered" pill beside the player's name: that keys off
+     * SELECTION, which is why it correctly says registered and never paid. This keys off
+     * MONEY, so it can say paid.
+     *
+     * Order matters, and it is not arbitrary:
+     * - `unpriced` first — a line with no configured fee cannot be charged at all, so no
+     *   money word applies to it. It is an error state that happens to live in the price slot.
+     * - `plan` before `amount` — an ARB line is owed but is dropped from every charge path
+     *   server-side (PaymentService.PartitionArbEnrolled), so it is neither paid NOR about to
+     *   be paid. Calling it either would put the screen out of step with the charge.
+     */
+    lineStatus(li: LineItem): ReviewLineStatus {
+        if (li.feeConfigured === false) return 'unpriced';
+        if (li.arbEnrolled) return 'plan';
+        return li.amount > 0 ? 'due' : 'paid';
+    }
+
+    /** Line state for the single-line (non-CAC-multi) row. */
+    statusForPlayer(playerId: string): ReviewLineStatus | null {
+        const li = this.paySvc.lineItems().find(i => i.playerId === playerId);
+        return li ? this.lineStatus(li) : null;
+    }
+
+    /**
+     * Is a payment actually coming? The one question the whole screen turns on.
+     *
+     * `baseTotal` is the canonical charge basis — the client figure the backend recomputes
+     * and refuses on drift (ExpectedTotal), already net of ARB lines. Deriving the screen
+     * from it rather than from a local sum is what guarantees the total shown here is the
+     * total charged next, which is the failure that would make this change worse than the
+     * confusion it replaces.
+     */
+    hasAmountDue(): boolean {
+        return this.paySvc.baseTotal() > 0;
+    }
+
+    amountDue(): number {
+        return this.paySvc.baseTotal();
+    }
+
     getBaseFeeForPlayer(playerId: string): number | null {
         const li = this.paySvc.lineItems().find(i => i.playerId === playerId);
         return li ? li.feeBase : null;
@@ -565,10 +677,6 @@ export class ReviewStepComponent {
 
     getPlayerTotal(playerId: string): number {
         return this.getLineItemsForPlayer(playerId).reduce((sum, li) => sum + li.feeBase, 0);
-    }
-
-    baseFeeTotal(): number {
-        return this.paySvc.lineItems().reduce((sum, li) => sum + li.feeBase, 0);
     }
 
     genderLabel(g: string): string {
