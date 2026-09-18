@@ -36,7 +36,15 @@ export const ALLOWED_PROFILE_FIELDS: AllowedField[] = [
     { name: 'gender', displayName: 'Gender', inputType: 'HIDDEN', visibility: 'hidden' },
     { name: 'gpa', displayName: 'GPA', inputType: 'TEXT', visibility: 'public' },
     { name: 'gradYear', displayName: 'Grad Year', inputType: 'SELECT', visibility: 'public' },
-    { name: 'heightInches', displayName: 'Height (inches)', inputType: 'SELECT', visibility: 'public' },
+    // TEXT, not SELECT: height is raw inches and is promoted to a number input by
+    // form-schema.service.ts (heightinches is in numericColumns). A dropdown here can only
+    // display what it stores — option labels are discarded before render — so it degrades to a
+    // list of bare integers, and a job authored with one stores feet-dash-inches ("5-0") into
+    // Registrations.height_inches, which 65 of 66 live jobs read as plain inches. That mismatch
+    // renders EMPTY in <input type="number"> on the next event the player registers for, and
+    // reports "Must be a number" about a box with nothing visibly wrong. CSharpToMetadataParser
+    // already rules the same way for the migration path. Keep these in agreement.
+    { name: 'heightInches', displayName: 'Height (inches)', inputType: 'TEXT', visibility: 'public' },
     { name: 'instagram', displayName: 'Instagram', inputType: 'TEXT', visibility: 'public' },
     { name: 'jerseySize', displayName: 'Jersey Size', inputType: 'SELECT', visibility: 'public' },
     { name: 'kilt', displayName: 'Kilt', inputType: 'SELECT', visibility: 'public' },
