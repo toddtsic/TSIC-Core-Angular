@@ -152,13 +152,21 @@ export class JobContextService {
      * The selectedPlayerIds and familyPlayers are passed in for waiver seeding
      * (they come from FamilyPlayersService — avoids circular dependency).
      */
+    /**
+     * @param onSettled Fired exactly once when metadata is no longer in flight — whether it
+     * loaded, failed, or was already cached. It reports SETTLED, not succeeded: callers use it
+     * to know the step list has stopped changing, and a failed metadata load stops it changing
+     * just as surely as a successful one. Waivers enable off this load, so anything that walks
+     * the wizard must wait for it or it will walk straight past the Waivers step.
+     */
     ensureJobMetadata(
         jobPath: string,
         selectedPlayerIds: string[],
         familyPlayers: FamilyPlayerDto[],
+        onSettled?: () => void,
     ): void {
-        if (!jobPath) return;
-        if (this._jobProfileMetadataJson() && this._jobJsonOptions()) return;
+        if (!jobPath) { onSettled?.(); return; }
+        if (this._jobProfileMetadataJson() && this._jobJsonOptions()) { onSettled?.(); return; }
         const base = this.resolveApiBase();
         this.http.get<JobMetadataResponse>(`${base}/jobs/${encodeURIComponent(jobPath)}`)
             .pipe(takeUntilDestroyed(this.destroyRef))
@@ -218,9 +226,12 @@ export class JobContextService {
 
                     // Parse profile field schemas
                     this.parseProfileMetadata(selectedPlayerIds, familyPlayers);
+                    onSettled?.();
                 },
                 error: () => {
-                    // Interceptor safety net handles the toast.
+                    // Interceptor safety net handles the toast. Still SETTLED — the step list
+                    // will not change again, so anything waiting on it must be released.
+                    onSettled?.();
                 },
             });
     }

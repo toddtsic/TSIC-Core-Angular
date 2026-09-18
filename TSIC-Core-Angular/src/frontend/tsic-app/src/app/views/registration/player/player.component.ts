@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { filter, take } from 'rxjs/operators';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
@@ -140,13 +141,27 @@ export class PlayerWizardV2Component implements OnInit {
     private readonly _transitioning = signal(false);
     readonly transitioning = this._transitioning.asReadonly();
 
+    /**
+     * True while the wizard is walking itself to a `?step=` destination. Locks the shell —
+     * functionally and visually — so a stray tap can't interleave with the replay and land the
+     * user somewhere neither they nor the URL asked for.
+     */
+    private readonly _walking = signal(false);
+    readonly walking = this._walking.asReadonly();
+
     /** The shell's busy overlay covers BOTH long round-trips: the Review→Payment PreSubmit
      *  (transitioning) and a payment charge in flight. Payment submits run off the step's own
      *  buttons, not the shell Continue, so the step shares its in-flight state via
      *  PaymentV2Service rather than an output that could be lost on step teardown. */
-    readonly shellBusy = computed(() => this.transitioning() || this.paySvc.paymentSubmitting());
-    readonly shellBusyMessage = computed(() =>
-        this.paySvc.paymentSubmitting() ? 'Processing payment…' : 'Submitting registration…');
+    readonly shellBusy = computed(() =>
+        this.transitioning() || this.paySvc.paymentSubmitting() || this.walking());
+    readonly shellBusyMessage = computed(() => {
+        if (this.paySvc.paymentSubmitting()) return 'Processing payment…';
+        // Walking outranks transitioning: a replay's Review→Payment leg sets BOTH, and
+        // "Taking you to…" is the honest description of what the user is waiting on.
+        if (this.walking()) return 'Taking you to your registration…';
+        return 'Submitting registration…';
+    });
 
     // ── Step definitions ──────────────────────────────────────────────
     readonly steps = computed<WizardStepDef[]>(() => [
@@ -265,6 +280,23 @@ export class PlayerWizardV2Component implements OnInit {
 
     private readonly authService = inject(AuthService);
 
+    constructor() {
+        // Release a held deep-link destination the moment the step list stops changing.
+        // toObservable (not effect — banned) is the sanctioned way to react to a service signal.
+        // take(1) because initialize() runs again on login and jobPath change, and a destination
+        // should be walked once rather than re-walked out from under the user.
+        //
+        // Gated on BOTH conditions, not readiness alone: this constructor runs before ngOnInit
+        // clears the root-scoped service's flags, so a previous visit's `true` would otherwise
+        // burn the take(1) at a moment when no destination existed yet.
+        toObservable(computed(() => this.state.dataReady() && this._walkTarget() !== null))
+            .pipe(filter(Boolean), take(1), takeUntilDestroyed())
+            .subscribe(() => {
+                const target = this._walkTarget();
+                if (target) void this.walkTo(target);
+            });
+    }
+
     // ── Lifecycle ─────────────────────────────────────────────────────
     ngOnInit(): void {
         const jobPath = this.resolveJobPath();
@@ -299,15 +331,67 @@ export class PlayerWizardV2Component implements OnInit {
         // Deep-link via query param (overrides skip above if specified).
         // Subscribe (not snapshot) so role-menu clicks that differ only in ?step=
         // while already on the wizard actually move to the requested step.
+        //
+        // The param is a DESTINATION, not a position: it is recorded here and the wizard walks
+        // itself there (see walkTo). Nothing jumps.
         this.route.queryParamMap
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe(params => {
-                const stepParam = params.get('step');
-                if (stepParam) {
-                    const idx = this.activeSteps().findIndex(s => s.id === stepParam);
-                    if (idx >= 0) this._currentIndex.set(idx);
-                }
+                const target = params.get('step');
+                if (!target) return;
+                this._walkTarget.set(target);
+                if (this.state.dataReady()) void this.walkTo(target);
             });
+    }
+
+    // ── Deep-link walking ─────────────────────────────────────────────
+    /**
+     * Where a `?step=` deep link wants the user. Held (not applied) until the step list has
+     * settled, because the whole defect this replaces was resolving a destination against a
+     * list that was still growing.
+     */
+    private readonly _walkTarget = signal<string | null>(null);
+
+    /**
+     * Walk the wizard forward to a deep-link destination, one real transition at a time.
+     *
+     * THERE IS NO JUMPING — THERE IS ONLY WALKING. The wizard's transitions are where the work
+     * happens: leaving Review is what creates the registrations, applies form values, reconciles
+     * seats and fetches the RegSaver offer. Setting the step index skipped every one of those,
+     * which is why "Pay Balance Due" landed people on a page built from state nobody had
+     * produced. So we drive the SAME `next()` a finger would, and stop where a finger would.
+     *
+     * A halt short of the destination is not a failure — it is the outstanding work, and the
+     * wizard is working. If waivers are unaccepted, `canContinue()` is false at Waivers and the
+     * user is left there, which is exactly where they need to be. No banner, no error: the step
+     * they are standing on IS the message.
+     *
+     * Backward destinations are applied directly — going back has never done work, and the
+     * wizard has always allowed it (see goToStep).
+     */
+    private async walkTo(targetStepId: string): Promise<void> {
+        const active = this.activeSteps();
+        const targetIdx = active.findIndex(s => s.id === targetStepId);
+        if (targetIdx < 0) return;                       // not a step of this wizard
+        if (targetIdx === this._currentIndex()) return;  // already there
+        if (targetIdx < this._currentIndex()) { this._currentIndex.set(targetIdx); return; }
+
+        this._walking.set(true);
+        try {
+            // Each iteration advances at most one step, so the step count is a hard ceiling —
+            // this cannot spin even if next() starts behaving unexpectedly.
+            for (let guard = active.length; guard > 0; guard--) {
+                if (this.currentStepId() === targetStepId) break;
+                if (!this.canContinue()) break;          // the halt IS the answer
+                const before = this._currentIndex();
+                await this.next();
+                // next() declining to advance (a failed preSubmit, a validation stop) is a halt
+                // too. Without this the loop would burn its guard re-running a failing step.
+                if (this._currentIndex() === before) break;
+            }
+        } finally {
+            this._walking.set(false);
+        }
     }
 
     // ── Navigation ────────────────────────────────────────────────────

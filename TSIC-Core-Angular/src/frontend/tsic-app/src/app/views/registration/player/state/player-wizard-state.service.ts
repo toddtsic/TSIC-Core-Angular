@@ -89,6 +89,19 @@ export class PlayerWizardStateService {
     readonly lastPayment = this._lastPayment.asReadonly();
     readonly confirmation = this._confirmation.asReadonly();
 
+    /**
+     * True once every load that can still CHANGE THE STEP LIST has settled: family players
+     * (→ eligibility's constraint type), available teams, and job metadata (→ waiver
+     * definitions). Nothing in the wizard's own rendering waits on this — it exists so a
+     * `?step=` deep link can walk the wizard forward against the FINAL step list instead of a
+     * half-built one. Reset to false at the top of every initialize().
+     *
+     * Settled, not succeeded: a failed load still releases the barrier, because a list that
+     * failed to grow has equally stopped changing.
+     */
+    private readonly _dataReady = signal(false);
+    readonly dataReady = this._dataReady.asReadonly();
+
     // ── Controlled mutators ───────────────────────────────────────────
     setLastPayment(v: PaymentSummary | null): void { this._lastPayment.set(v); }
     setConfirmation(v: PlayerRegConfirmationDto | null): void { this._confirmation.set(v); }
@@ -102,6 +115,7 @@ export class PlayerWizardStateService {
     initialize(jobPath: string): void {
         const apiBase = this.jobCtx.resolveApiBase();
         this.jobCtx.setJobPath(jobPath);
+        this._dataReady.set(false);
 
         // The BYAGEGROUP resume backfill needs BOTH loads complete. Gate it behind a two-signal
         // barrier and fire it exactly once, when the second of the two finishes — deterministic,
@@ -109,18 +123,31 @@ export class PlayerWizardStateService {
         // (e.g. on jobPath change) starts fresh.
         let familyLoaded = false;
         let teamsLoaded = false;
+        let metadataSettled = false;
         const backfillAgegroupWhenReady = () => {
             if (familyLoaded && teamsLoaded) this.backfillAgegroupEligibilityFromTeams();
         };
+        // dataReady needs a THIRD flag the backfill doesn't: job metadata, which is what enables
+        // the Waivers step. Kept as its own barrier so adding it can't make the backfill (whose
+        // contract is "fire once, on the second of two") fire twice.
+        const markDataReadyWhenSettled = () => {
+            if (familyLoaded && teamsLoaded && metadataSettled) this._dataReady.set(true);
+        };
+        const onMetadataSettled = () => {
+            metadataSettled = true;
+            markDataReadyWhenSettled();
+        };
 
         this.familyPlayers.loadFamilyPlayers(jobPath, apiBase, (resp, players) => {
-            this.onFamilyPlayersLoaded(resp, players, jobPath);
+            this.onFamilyPlayersLoaded(resp, players, jobPath, onMetadataSettled);
             familyLoaded = true;
             backfillAgegroupWhenReady();
+            markDataReadyWhenSettled();
         });
         this.teamService.loadForJob(jobPath, () => {
             teamsLoaded = true;
             backfillAgegroupWhenReady();
+            markDataReadyWhenSettled();
         });
     }
 
@@ -128,6 +155,7 @@ export class PlayerWizardStateService {
         resp: FamilyPlayersResponseDto,
         players: FamilyPlayerDto[],
         jobPath: string,
+        onMetadataSettled: () => void,
     ): void {
         // Extract constraint type
         const ct = this.familyPlayers.extractConstraintType(resp);
@@ -155,7 +183,7 @@ export class PlayerWizardStateService {
             this.initializeFormsFromSchemas(schemas, freshIds, freshPlayers);
         });
 
-        this.jobCtx.ensureJobMetadata(jobPath, selectedIds, players);
+        this.jobCtx.ensureJobMetadata(jobPath, selectedIds, players, onMetadataSettled);
 
         // If schemas are already cached (metadata was loaded in a prior call),
         // initialize immediately — the callback won't fire since ensureJobMetadata
@@ -415,6 +443,10 @@ export class PlayerWizardStateService {
         this.insuranceSvc.reset();
         this._lastPayment.set(null);
         this._confirmation.set(null);
+        // This service is providedIn: 'root', so a second visit to the wizard inherits the last
+        // visit's flags. A stale `true` here would tell a deep link the step list had settled
+        // before any of this visit's loads had even started.
+        this._dataReady.set(false);
     }
 
     /** Reset family-specific state but preserve job context. */
