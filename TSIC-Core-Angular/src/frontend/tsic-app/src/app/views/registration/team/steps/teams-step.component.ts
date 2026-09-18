@@ -133,17 +133,12 @@ type PendingRename =
                  document this is. It sits ABOVE the numbers so nobody reaches $41,400
                  without having been told. Teams step ONLY: on the director's club-rep
                  accounting grid the totals genuinely ARE the statement. -->
-            <div class="tsic-callout tsic-callout--info tsic-callout--block pricing-notice">
-              <i class="bi bi-info-circle-fill" aria-hidden="true"></i>
-              <div class="pricing-notice__body">
-                <span class="pricing-notice__lead">This is a price list, not a bill.</span>
-                <span><strong>What it shows:</strong> the full event fee for each team you have
-                  registered &mdash; deposit plus balance, before adjustments.</span>
-                <span><strong>What it is not:</strong> a statement of what you owe.
-                  <strong>Nothing on this table is due right now.</strong>
-                  Continue to Payment to see what is payable today.</span>
-              </div>
-            </div>
+            <p class="pricing-notice">
+              <i class="bi bi-info-circle" aria-hidden="true"></i>
+              <span>These are your registered teams' fees &mdash; what it costs to register them,
+                <strong>not what you owe now</strong>. For that,
+                <strong>Continue to Payment</strong> below.</span>
+            </p>
             <app-registered-teams-grid
               [teams]="enteredTeams()"
               [showStructure]="true"
@@ -312,24 +307,29 @@ type PendingRename =
          so payment-step shares the same outer chrome. */
 
       /* AR-095 item 5 — the "what this table is / is not" notice above the grid.
-         Structure and colour come from .tsic-callout--info (styles/_callouts.scss,
-         the AM-064 prominent treatment); only the internal line stacking is local,
-         because the callout was built for single-line notes. Non-interactive and
-         unanimated — nothing needed for focus or reduced motion. */
+         ONE line: the positive half names what the figures are, the negative half is
+         what actually breaks the misread, and the Continue to Payment button below
+         names where the real figure lives. Deliberately NOT .tsic-callout--info: a
+         filled blue panel under this card's green titlebar reads as a second banner
+         and competes with the PAYMENT PHASE badge for the same job. A caption sitting
+         directly on the table it describes does not need a box to be read — the
+         AM-064 "notes ship too faint" failure was about notes floating alone, which
+         this one never does. Non-interactive and unanimated: nothing needed for focus
+         or reduced motion. */
       .pricing-notice {
-        width: 100%;
-        margin-bottom: var(--space-3);
-      }
-
-      .pricing-notice__body {
         display: flex;
-        flex-direction: column;
-        gap: var(--space-1);
-      }
+        align-items: baseline;
+        gap: var(--space-2);
+        margin: 0 0 var(--space-3);
+        padding: 0 var(--space-1);
+        font-size: var(--font-size-sm);
+        line-height: 1.45;
+        color: var(--brand-text);
 
-      .pricing-notice__lead {
-        font-size: var(--font-size-base);
-        font-weight: 700;
+        > i {
+          flex-shrink: 0;
+          color: var(--bs-primary);
+        }
       }
 
       /* Footer = decision fork rendered as a segmented control. Two halves
