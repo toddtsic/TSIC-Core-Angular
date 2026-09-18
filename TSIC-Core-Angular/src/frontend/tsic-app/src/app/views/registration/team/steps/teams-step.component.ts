@@ -125,6 +125,25 @@ type PendingRename =
           }
         } @else {
           <div style="padding: var(--space-2) var(--space-3)">
+            <!-- AR-095 item 5. Ann filed "delete the summary line" because club reps (and,
+                 she reports 09-18, directors) read this card as their accounting statement.
+                 The totals are NOT wrong — every cell is an honest sum of the column above
+                 it — so deleting them removes the evidence, not the misreading, which the
+                 rows carry just as strongly. What was missing is a statement of which
+                 document this is. It sits ABOVE the numbers so nobody reaches $41,400
+                 without having been told. Teams step ONLY: on the director's club-rep
+                 accounting grid the totals genuinely ARE the statement. -->
+            <div class="tsic-callout tsic-callout--info tsic-callout--block pricing-notice">
+              <i class="bi bi-info-circle-fill" aria-hidden="true"></i>
+              <div class="pricing-notice__body">
+                <span class="pricing-notice__lead">This is a price list, not a bill.</span>
+                <span><strong>What it shows:</strong> the full event fee for each team you have
+                  registered &mdash; deposit plus balance, before adjustments.</span>
+                <span><strong>What it is not:</strong> a statement of what you owe.
+                  <strong>Nothing on this table is due right now.</strong>
+                  Continue to Payment to see what is payable today.</span>
+              </div>
+            </div>
             <app-registered-teams-grid
               [teams]="enteredTeams()"
               [showStructure]="true"
@@ -291,6 +310,27 @@ type PendingRename =
 
       /* .step-card / .step-card-registered live in styles/_wizard-globals.scss
          so payment-step shares the same outer chrome. */
+
+      /* AR-095 item 5 — the "what this table is / is not" notice above the grid.
+         Structure and colour come from .tsic-callout--info (styles/_callouts.scss,
+         the AM-064 prominent treatment); only the internal line stacking is local,
+         because the callout was built for single-line notes. Non-interactive and
+         unanimated — nothing needed for focus or reduced motion. */
+      .pricing-notice {
+        width: 100%;
+        margin-bottom: var(--space-3);
+      }
+
+      .pricing-notice__body {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+      }
+
+      .pricing-notice__lead {
+        font-size: var(--font-size-base);
+        font-weight: 700;
+      }
 
       /* Footer = decision fork rendered as a segmented control. Two halves
          joined by a single divider, sharing one outer border. Each segment

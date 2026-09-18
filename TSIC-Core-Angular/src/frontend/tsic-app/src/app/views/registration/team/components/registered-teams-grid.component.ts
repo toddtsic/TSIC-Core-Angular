@@ -94,9 +94,17 @@ import { formatLop } from '@shared/teams/lop-choices';
               </span>
             </ng-template>
           </e-column>
-          <e-column field="deposit" headerText="Deposit" width="85" textAlign="Right" format="C2"
+          <!-- "Deposit Amount" (AR-095 item 2) reads as a price rather than a statement line.
+               Wraps to two lines under textWrapSettings 'Header'; longest word fits 85px.
+               showStructure is set true by the teams step alone, so no other host sees it. -->
+          <e-column field="deposit" headerText="Deposit Amount" width="85" textAlign="Right" format="C2"
                     [visible]="showStructure()"></e-column>
-          <e-column field="balanceDue" headerText="Balance Due" width="100" textAlign="Right" format="C2"
+          <!-- "Balance Due Amount" (AR-095 item 3). Widened 100 -> 115 so it wraps to two lines
+               ("Balance Due / Amount") rather than three — the header row sizes to its tallest
+               cell, so a 3-line header would deepen the whole grid. Teams step only, as above.
+               NOTE: additionalDue below still ships the header "Balance Due" (net of paid,
+               payment step). The two never render together. -->
+          <e-column field="balanceDue" headerText="Balance Due Amount" width="115" textAlign="Right" format="C2"
                     [visible]="showStructure()"></e-column>
           <e-column field="depositDue" headerText="Deposit Due" width="75" textAlign="Right" format="C2"
                     [visible]="showDeposit()"></e-column>
