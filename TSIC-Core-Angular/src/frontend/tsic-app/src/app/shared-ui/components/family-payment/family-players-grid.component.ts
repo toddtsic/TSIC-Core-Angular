@@ -59,7 +59,12 @@ import type { RegisteredPlayerLineDto } from '@core/api';
                with no accounting records yet still labels correctly. -->
           <e-column field="teamName" headerText="Event" width="170" [allowSorting]="false">
             <ng-template #template let-data>
-              <span class="event-cell">{{ eventLabel(data) }}</span>
+              <!-- Session and camp names routinely outrun this column ("Programs · STEPS Team
+                   Cam…"), and the event is the whole point of the row. The full text is already
+                   in the DOM — Syncfusion clips it with a CSS ellipsis — so assistive tech reads
+                   it either way and only a sighted mouse user needs the title. No tabindex: a
+                   focus stop on every row would cost more than it returns. -->
+              <span class="event-cell" [attr.title]="eventLabel(data)">{{ eventLabel(data) }}</span>
             </ng-template>
           </e-column>
 
