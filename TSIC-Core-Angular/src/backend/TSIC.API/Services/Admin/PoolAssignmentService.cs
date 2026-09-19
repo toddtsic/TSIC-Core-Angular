@@ -305,7 +305,7 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
             throw new ArgumentException("No valid source teams found for transfer.");
 
         // POOL-level gate. Throws with the pool the director has to tear down, or permits the
-        // one-for-one equal-size swap. Inside the transaction: a throw here disposes it unwritten.
+        // one-for-one swap. Inside the transaction: a throw here disposes it unwritten.
         await EnsurePoolMovementAllowedAsync(
             jobId, sourceDivision, targetDivision,
             request.SourceTeamIds.Count, request.TargetTeamIds.Count, ct);
