@@ -36,6 +36,13 @@ interface SwapModalState {
     movingTeam: PoolTeamDto;
     fromDivName: string;
     toDivName: string;
+    /**
+     * Which side holds the board. Both true is the pool-to-pool trade; exactly one is the
+     * withdrawal — a team leaving the tournament for Unassigned or Dropped Teams, or the
+     * replacement coming back from there. The statement has to name the right pool either way.
+     */
+    fromScheduled: boolean;
+    toScheduled: boolean;
     /** Chosen in the picker stage; the team coming the other way. */
     counterTeam: PoolTeamDto | null;
 }
@@ -125,7 +132,16 @@ export class PoolAssignmentComponent {
         const m = this.swapModal();
         if (!m) return [];
         const pool = m.direction === 'source-to-target' ? this.targetTeams() : this.sourceTeams();
-        return pool.filter(t => t.active).sort((a, b) => a.divRank - b.divRank);
+        const div = m.direction === 'source-to-target' ? this.targetDiv() : this.sourceDiv();
+
+        // Dropped Teams holds nothing BUT inactive teams — that is what being dropped means — and
+        // a team coming back out of it is reactivated by the move itself. Filtering to active
+        // there would leave the picker permanently empty and make Dropped unusable as a swap
+        // partner. Anywhere else inactive is excluded on purpose: the re-seat builds its rank map
+        // from active teams only, so an inactive arrival leaves the departing team sitting in
+        // games it no longer plays, and the server refuses it.
+        const eligible = div?.isDroppedTeams ? [...pool] : pool.filter(t => t.active);
+        return eligible.sort((a, b) => a.divRank - b.divRank);
     });
 
     // DivRank inline editing
@@ -362,7 +378,10 @@ export class PoolAssignmentComponent {
     /**
      * The arrow's decision, made against POOL state rather than the clicked team's own game rows.
      * Three outcomes: move it (nothing scheduled), refuse it and name the pool to break down, or
-     * open the swap conversation (both pools scheduled, equal active size).
+     * open the swap conversation — which is now the answer whenever EITHER pool is scheduled, not
+     * just when both are. A team withdrawing from a scheduled pool to Unassigned or Dropped Teams
+     * is the same trade seen from the other end: its replacement comes back the other way and
+     * inherits the rank.
      *
      * Deliberately NOT keyed on `team.isScheduled`. A pool's matrix is built for N ranks and does
      * not care which team's id is written where — so a team with no game rows sitting in a
@@ -386,13 +405,15 @@ export class PoolAssignmentComponent {
             return;
         }
 
-        // Both scheduled, equal active size: a trade is possible. State that before asking who.
+        // A trade is possible. State that before asking who comes the other way.
         this.swapModal.set({
             stage: 'statement',
             direction,
             movingTeam: team,
             fromDivName: from.divName,
             toDivName: to.divName,
+            fromScheduled: from.isScheduled,
+            toScheduled: to.isScheduled,
             counterTeam: null
         });
     }
@@ -408,15 +429,18 @@ export class PoolAssignmentComponent {
 
         if (!from.isScheduled && !to.isScheduled) return null;
 
-        if (from.isScheduled && !to.isScheduled)
-            return `${from.divName} is scheduled. A team cannot leave a scheduled pool — its rank `
-                + `is a slot in the pairing matrix, and emptying it leaves those games with no team `
-                + `to play them. Break down ${from.divName}'s schedule first, then move the team.`;
+        // Exactly one side scheduled — the withdrawal case. No size comparison: the unscheduled
+        // side has no matrix, so there is nothing for its headcount to match.
+        if (from.isScheduled !== to.isScheduled) {
+            if (teamsOut === 1 && teamsBack === 1) return null;
 
-        if (!from.isScheduled && to.isScheduled)
-            return `${to.divName} is scheduled. A team cannot be added to a scheduled pool — the `
-                + `pairing matrix was built without it, so it would sit in ${to.divName} with no `
-                + `games. Break down ${to.divName}'s schedule first, then move the team.`;
+            const scheduled = from.isScheduled ? from.divName : to.divName;
+            return `${scheduled} is scheduled, so a team can only cross its boundary as a `
+                + `one-for-one swap: the team coming the other way takes the departing team's rank `
+                + `and plays its games, which is what keeps the pairing matrix whole. Use the swap `
+                + `arrow on a team's row to pick the team it trades places with, or break down `
+                + `${scheduled}'s schedule first.`;
+        }
 
         if (from.activeTeamCount !== to.activeTeamCount)
             return `${from.divName} and ${to.divName} are both scheduled and hold different numbers `
@@ -543,11 +567,11 @@ export class PoolAssignmentComponent {
 
         const selected = direction === 'source-to-target'
             ? this.sourceSelected().size : this.targetSelected().size;
-        // teamsBack = 0: the footer never carries a counter-team, so a both-scheduled pair lands
-        // on the one-for-one message, which points at the arrow.
+        // teamsBack = 0: the footer never carries a counter-team, so any pair involving a schedule
+        // lands on the one-for-one message, which points at the arrow.
         this.denyModal.set(this.denialFor(from, to, selected, 0)
-            ?? `${from.divName} and ${to.divName} are both scheduled. Use the swap arrow on a `
-             + `team's row to trade one team for one team.`);
+            ?? `A schedule is involved. Use the swap arrow on a team's row to trade one team for `
+             + `one team.`);
         return true;
     }
 

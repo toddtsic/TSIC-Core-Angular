@@ -117,6 +117,15 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         // Set job from first available team if not already set
         job ??= allSourceTeams.FirstOrDefault()?.Job ?? allTargetTeams.FirstOrDefault()?.Job;
 
+        // Same arrival check the executor runs, for the same reason the pool gate is run here:
+        // a preview that renders is a promise the Confirm can be kept.
+        EnsureArrivalsCanBeSeated(
+            allSourceTeams, targetPoolScheduled, IsDroppedTeams(sourceAgegroup),
+            string.IsNullOrWhiteSpace(targetDivision.DivName) ? "the target pool" : targetDivision.DivName);
+        EnsureArrivalsCanBeSeated(
+            allTargetTeams, sourcePoolScheduled, IsDroppedTeams(targetAgegroup),
+            string.IsNullOrWhiteSpace(sourceDivision.DivName) ? "the source pool" : sourceDivision.DivName);
+
         // Preview source teams → target division
         foreach (var team in allSourceTeams)
         {
@@ -301,9 +310,10 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
             jobId, sourceDivision, targetDivision,
             request.SourceTeamIds.Count, request.TargetTeamIds.Count, ct);
 
-        bool anyPoolScheduled =
-            await _scheduleRepo.IsPoolScheduledAsync(request.SourceDivId, jobId, ct)
-            || await _scheduleRepo.IsPoolScheduledAsync(request.TargetDivId, jobId, ct);
+        // Sequential awaits — these share one scoped DbContext.
+        bool sourcePoolScheduled = await _scheduleRepo.IsPoolScheduledAsync(request.SourceDivId, jobId, ct);
+        bool targetPoolScheduled = await _scheduleRepo.IsPoolScheduledAsync(request.TargetDivId, jobId, ct);
+        bool anyPoolScheduled = sourcePoolScheduled || targetPoolScheduled;
 
         // Load agegroup context
         var targetAgegroup = await _agegroupRepo.GetByIdAsync(targetDivision.AgegroupId, ct);
@@ -345,6 +355,16 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         // validations, so the flush is only ever reached by a move that can complete.
         if (request.IsSymmetricalSwap && targetTeams.Count != request.TargetTeamIds.Count)
             throw new ArgumentException("One or more target teams were not found for this job.");
+
+        // Both legs, before anything is written: a rank in a scheduled pool has to end up with an
+        // active occupant or the re-seat quietly leaves the old one there.
+        var targetDivName = string.IsNullOrWhiteSpace(targetDivision.DivName)
+            ? "the target pool" : targetDivision.DivName;
+        var sourceDivName = string.IsNullOrWhiteSpace(sourceDivision.DivName)
+            ? "the source pool" : sourceDivision.DivName;
+
+        EnsureArrivalsCanBeSeated(sourceTeams, targetPoolScheduled, isSourceDropped, targetDivName);
+        EnsureArrivalsCanBeSeated(targetTeams, sourcePoolScheduled, isTargetDropped, sourceDivName);
 
         // Team-scoped fee rows travel WITH the team. A team-scoped fees.JobFees row is keyed
         // (JobId, RoleId, TeamId) in meaning but stores AgegroupId too, and the cascade's team
@@ -593,10 +613,14 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
     /// pairing matrix was built for N ranks and does not care whose id sits in which slot, so
     /// removing ANY team leaves it at N-1 and adding one leaves the arrival with no slot to play.
     ///
-    /// The single exception is a one-for-one swap between two scheduled pools of equal ACTIVE
-    /// size. Equal size means structurally identical matrices — same rank count, same rounds — so
-    /// trading occupants changes neither pool's shape and neither team's game load. It is a seat
-    /// exchange, not a schedule change.
+    /// The exception is a one-for-one swap, which refills the departing team's rank in the same
+    /// motion and so never takes the pool off N. Between two SCHEDULED pools it additionally
+    /// requires equal ACTIVE size: two matrices are in play, and equal size means they are
+    /// structurally identical — same rank count, same rounds — so trading occupants changes
+    /// neither pool's shape and neither team's game load. When only ONE side is scheduled there
+    /// is no second matrix to match, so size is not comparable and is not tested. That is the
+    /// withdrawal case: a team pulls out of the tournament, its replacement comes back the other
+    /// way from Unassigned or Dropped Teams and inherits its rank and its games.
     ///
     /// Evaluated per POOL, never per team. "Does this team have game rows" is a question about
     /// seating, which is derived; it answers "no" for a team whose seating is already broken and
@@ -623,17 +647,24 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         var targetName = string.IsNullOrWhiteSpace(targetDivision.DivName)
             ? "the target pool" : targetDivision.DivName;
 
-        if (sourceScheduled && !targetScheduled)
-            throw new InvalidOperationException(
-                $"{sourceName} is scheduled. A team cannot leave a scheduled pool — its rank is a "
-                + $"slot in the pairing matrix, and emptying it leaves those games with no team to "
-                + $"play them. Break down {sourceName}'s schedule first, then move the team.");
+        // Exactly one side has a board — the withdrawal case. The unscheduled side has no matrix
+        // to damage, so the only question is whether the scheduled pool stays at N ranks, and a
+        // one-for-one does: the arriving team takes the departing team's rank and plays the games
+        // already sitting in it. Deliberately NOT tested against size — Unassigned and Dropped
+        // Teams hold whatever they hold, and comparing that to a matrix means nothing.
+        if (sourceScheduled != targetScheduled)
+        {
+            if (sourceTeamsMoving == 1 && targetTeamsMoving == 1)
+                return;
 
-        if (!sourceScheduled && targetScheduled)
+            var scheduledName = sourceScheduled ? sourceName : targetName;
             throw new InvalidOperationException(
-                $"{targetName} is scheduled. A team cannot be added to a scheduled pool — the "
-                + $"pairing matrix was built without it, so it would sit in {targetName} with no "
-                + $"games. Break down {targetName}'s schedule first, then move the team.");
+                $"{scheduledName} is scheduled, so a team can only cross its boundary as a "
+                + "one-for-one swap: the team coming the other way takes the departing team's "
+                + "rank and plays its games, which is what keeps the pairing matrix whole. Use "
+                + $"the swap arrow on a team's row to pick the team it trades places with, or "
+                + $"break down {scheduledName}'s schedule first.");
+        }
 
         // Both scheduled. Equal ACTIVE size is what makes the swap safe.
         var sourceSize = await _teamRepo.GetActiveTeamCountAsync(sourceDivision.DivId, jobId, ct);
@@ -651,6 +682,37 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                 $"{sourceName} and {targetName} are both scheduled, so this has to be a one-for-one "
                 + "swap: one team out, one team back. Use the swap arrow on a team's row to pick "
                 + "the team that comes back.");
+    }
+
+    /// <summary>
+    /// A team arriving in a SCHEDULED pool has to be active once the move settles. The re-seat
+    /// builds its rank map from active teams only, and a rank whose occupant is missing from that
+    /// map is deliberately LEFT HOLDING ITS OLD TEAM rather than blanked — so an inactive arrival
+    /// produces no error and no re-seat, just the departing team's id still sitting in games it
+    /// no longer plays. Unassigned and Dropped Teams both hold inactive teams as a matter of
+    /// course, which is why this only becomes reachable once one-sided swaps are permitted.
+    ///
+    /// A team coming OUT of Dropped Teams to a live pool is reactivated by the move itself, so it
+    /// qualifies; that reactivation is the mirror of the drop and happens in the same transaction.
+    /// </summary>
+    private static void EnsureArrivalsCanBeSeated(
+        IEnumerable<Entities.Teams> arrivals,
+        bool destinationScheduled,
+        bool arrivalsComeFromDropped,
+        string destinationName)
+    {
+        if (!destinationScheduled) return;
+
+        foreach (var team in arrivals)
+        {
+            if ((team.Active ?? true) || arrivalsComeFromDropped) continue;
+
+            throw new InvalidOperationException(
+                $"{team.TeamName} is inactive and cannot take a rank in {destinationName}, which "
+                + "is scheduled. The re-seat skips inactive teams, so the rank would keep the "
+                + "departing team in games it no longer plays. Reactivate the team first, then "
+                + "make the swap.");
+        }
     }
 
     private static bool IsDroppedTeams(Entities.Agegroups? agegroup)

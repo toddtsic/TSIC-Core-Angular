@@ -552,16 +552,32 @@
 
       @if (swap.stage === 'statement') {
         <div class="pool-modal-body">
-          <p>
-            <strong>{{ swap.fromDivName }}</strong> is scheduled. Moving
-            <strong>{{ swap.movingTeam.teamName }}</strong> out would leave its games with no team,
-            so you can only do this by swapping a team back from
-            <strong>{{ swap.toDivName }}</strong>.
-          </p>
-          <p class="text-body-secondary small mb-0">
-            Both pools are scheduled and hold the same number of active teams, so the two teams can
-            trade places. Each takes the other's rank and plays the games already sitting in it.
-          </p>
+          @if (swap.fromScheduled) {
+            <p>
+              <strong>{{ swap.fromDivName }}</strong> is scheduled. Moving
+              <strong>{{ swap.movingTeam.teamName }}</strong> out would leave its games with no team,
+              so you can only do this by swapping a team back from
+              <strong>{{ swap.toDivName }}</strong>.
+            </p>
+          } @else {
+            <p>
+              <strong>{{ swap.toDivName }}</strong> is scheduled. Its pairings were built without
+              <strong>{{ swap.movingTeam.teamName }}</strong>, so it can only come in by taking the
+              rank of a team that leaves — pick the team it replaces.
+            </p>
+          }
+          @if (swap.fromScheduled && swap.toScheduled) {
+            <p class="text-body-secondary small mb-0">
+              Both pools are scheduled and hold the same number of active teams, so the two teams can
+              trade places. Each takes the other's rank and plays the games already sitting in it.
+            </p>
+          } @else {
+            <p class="text-body-secondary small mb-0">
+              The two teams trade places. The one arriving takes the departing team's rank and plays
+              the games already sitting in it, so the pool keeps its size and every other team's
+              schedule is untouched.
+            </p>
+          }
         </div>
         <div class="pool-modal-footer">
           <button class="btn btn-outline-secondary" (click)="closeSwapModal()">Cancel</button>
@@ -595,7 +611,7 @@
               </button>
             } @empty {
               <p class="text-body-secondary small mb-0">
-                {{ swap.toDivName }} has no active teams to swap back.
+                {{ swap.toDivName }} has no team available to swap back.
               </p>
             }
           </div>
