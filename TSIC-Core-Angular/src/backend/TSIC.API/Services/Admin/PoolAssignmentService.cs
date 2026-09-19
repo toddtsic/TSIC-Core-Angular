@@ -613,14 +613,14 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
     /// pairing matrix was built for N ranks and does not care whose id sits in which slot, so
     /// removing ANY team leaves it at N-1 and adding one leaves the arrival with no slot to play.
     ///
-    /// The exception is a one-for-one swap, which refills the departing team's rank in the same
-    /// motion and so never takes the pool off N. Between two SCHEDULED pools it additionally
-    /// requires equal ACTIVE size: two matrices are in play, and equal size means they are
-    /// structurally identical — same rank count, same rounds — so trading occupants changes
-    /// neither pool's shape and neither team's game load. When only ONE side is scheduled there
-    /// is no second matrix to match, so size is not comparable and is not tested. That is the
-    /// withdrawal case: a team pulls out of the tournament, its replacement comes back the other
-    /// way from Unassigned or Dropped Teams and inherits its rank and its games.
+    /// The exception is a one-for-one swap, and it is the WHOLE exception. Each team takes the
+    /// OTHER team's rank, which already exists in the pool it arrives at, so both pools come out
+    /// of the trade with every rank still occupied. That holds at ANY size and whether one side
+    /// has a board or both do: an 8-team pool can trade with a 2-team pool and both boards still
+    /// resolve completely. Do not reintroduce an equal-size test — it was here, and it was
+    /// confusing "both matrices stay intact" (what a swap needs) with "both matrices are
+    /// identical" (what nothing needs). All it actually governed was each team inheriting its new
+    /// pool's game count, which is a tournament decision and not this gate's business.
     ///
     /// Evaluated per POOL, never per team. "Does this team have game rows" is a question about
     /// seating, which is derived; it answers "no" for a team whose seating is already broken and
@@ -647,41 +647,23 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         var targetName = string.IsNullOrWhiteSpace(targetDivision.DivName)
             ? "the target pool" : targetDivision.DivName;
 
-        // Exactly one side has a board — the withdrawal case. The unscheduled side has no matrix
-        // to damage, so the only question is whether the scheduled pool stays at N ranks, and a
-        // one-for-one does: the arriving team takes the departing team's rank and plays the games
-        // already sitting in it. Deliberately NOT tested against size — Unassigned and Dropped
-        // Teams hold whatever they hold, and comparing that to a matrix means nothing.
-        if (sourceScheduled != targetScheduled)
-        {
-            if (sourceTeamsMoving == 1 && targetTeamsMoving == 1)
-                return;
+        // One team out, one team back — the only shape that leaves both pools whole.
+        if (sourceTeamsMoving == 1 && targetTeamsMoving == 1)
+            return;
 
-            var scheduledName = sourceScheduled ? sourceName : targetName;
-            throw new InvalidOperationException(
-                $"{scheduledName} is scheduled, so a team can only cross its boundary as a "
-                + "one-for-one swap: the team coming the other way takes the departing team's "
-                + "rank and plays its games, which is what keeps the pairing matrix whole. Use "
-                + $"the swap arrow on a team's row to pick the team it trades places with, or "
-                + $"break down {scheduledName}'s schedule first.");
-        }
+        var scheduled = sourceScheduled && targetScheduled
+            ? $"{sourceName} and {targetName} are both scheduled"
+            : $"{(sourceScheduled ? sourceName : targetName)} is scheduled";
 
-        // Both scheduled. Equal ACTIVE size is what makes the swap safe.
-        var sourceSize = await _teamRepo.GetActiveTeamCountAsync(sourceDivision.DivId, jobId, ct);
-        var targetSize = await _teamRepo.GetActiveTeamCountAsync(targetDivision.DivId, jobId, ct);
+        var breakDown = sourceScheduled && targetScheduled
+            ? "break both schedules down first"
+            : $"break down {(sourceScheduled ? sourceName : targetName)}'s schedule first";
 
-        if (sourceSize != targetSize)
-            throw new InvalidOperationException(
-                $"{sourceName} and {targetName} are both scheduled and hold different numbers of "
-                + $"active teams ({sourceSize} and {targetSize}). Teams can only be traded between "
-                + $"scheduled pools of equal size. Break down BOTH schedules before moving teams "
-                + $"between them — tearing down only one still leaves the other frozen.");
-
-        if (sourceTeamsMoving != 1 || targetTeamsMoving != 1)
-            throw new InvalidOperationException(
-                $"{sourceName} and {targetName} are both scheduled, so this has to be a one-for-one "
-                + "swap: one team out, one team back. Use the swap arrow on a team's row to pick "
-                + "the team that comes back.");
+        throw new InvalidOperationException(
+            $"{scheduled}, so a team can only cross that boundary as a one-for-one swap: the team "
+            + "coming the other way takes the departing team's rank and plays its games, which is "
+            + "what keeps the pairing matrix whole. Use the swap arrow on a team's row to pick the "
+            + $"team it trades places with, or {breakDown}.");
     }
 
     /// <summary>

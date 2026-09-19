@@ -13,6 +13,5 @@ export type PoolDivisionOptionDto = {
     agegroupColor?: string | null;
     playerCount: number;
     isScheduled: boolean;
-    activeTeamCount: number;
 };
 

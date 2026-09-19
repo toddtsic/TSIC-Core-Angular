@@ -110,10 +110,6 @@ public class DivisionRepository : IDivisionRepository
                 d.Agegroup.MaxTeams,
                 AgegroupColor = d.Agegroup.Color,
                 TeamCount = _context.Teams.Count(t => t.DivId == d.DivId && t.JobId == jobId),
-                // Active only — this is the figure the pairing matrix was built for and the one
-                // the equal-size swap test compares. TeamCount above counts every row.
-                ActiveTeamCount = _context.Teams
-                    .Count(t => t.DivId == d.DivId && t.JobId == jobId && t.Active == true),
                 PlayerCount = _context.Registrations
                     .Count(r => r.AssignedDivId == d.DivId && r.JobId == jobId && r.BActive == true)
             })
@@ -133,8 +129,7 @@ public class DivisionRepository : IDivisionRepository
                           || d.AgegroupName.Contains("Dropped", StringComparison.OrdinalIgnoreCase),
             AgegroupColor = d.AgegroupColor,
             PlayerCount = d.PlayerCount,
-            IsScheduled = scheduledDivIds.Contains(d.DivId),
-            ActiveTeamCount = d.ActiveTeamCount
+            IsScheduled = scheduledDivIds.Contains(d.DivId)
         }).ToList();
     }
 

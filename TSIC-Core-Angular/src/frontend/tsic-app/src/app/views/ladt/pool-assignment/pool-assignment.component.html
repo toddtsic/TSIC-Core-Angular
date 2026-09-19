@@ -566,18 +566,11 @@
               rank of a team that leaves — pick the team it replaces.
             </p>
           }
-          @if (swap.fromScheduled && swap.toScheduled) {
-            <p class="text-body-secondary small mb-0">
-              Both pools are scheduled and hold the same number of active teams, so the two teams can
-              trade places. Each takes the other's rank and plays the games already sitting in it.
-            </p>
-          } @else {
-            <p class="text-body-secondary small mb-0">
-              The two teams trade places. The one arriving takes the departing team's rank and plays
-              the games already sitting in it, so the pool keeps its size and every other team's
-              schedule is untouched.
-            </p>
-          }
+          <p class="text-body-secondary small mb-0">
+            The two teams trade places. Each takes the other's rank and plays the games already
+            sitting in it, so both pools keep their size and every other team's schedule is
+            untouched.
+          </p>
         </div>
         <div class="pool-modal-footer">
           <button class="btn btn-outline-secondary" (click)="closeSwapModal()">Cancel</button>

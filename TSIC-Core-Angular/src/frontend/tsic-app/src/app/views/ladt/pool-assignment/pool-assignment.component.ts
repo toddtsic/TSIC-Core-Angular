@@ -37,12 +37,11 @@ interface SwapModalState {
     fromDivName: string;
     toDivName: string;
     /**
-     * Which side holds the board. Both true is the pool-to-pool trade; exactly one is the
-     * withdrawal — a team leaving the tournament for Unassigned or Dropped Teams, or the
-     * replacement coming back from there. The statement has to name the right pool either way.
+     * Whether the clicked team's own pool holds the board. False is the withdrawal read from the
+     * other end — the replacement's arrow, clicked in Unassigned or Dropped Teams — and the
+     * statement has to name the scheduled pool, which is then the one it is heading for.
      */
     fromScheduled: boolean;
-    toScheduled: boolean;
     /** Chosen in the picker stage; the team coming the other way. */
     counterTeam: PoolTeamDto | null;
 }
@@ -413,7 +412,6 @@ export class PoolAssignmentComponent {
             fromDivName: from.divName,
             toDivName: to.divName,
             fromScheduled: from.isScheduled,
-            toScheduled: to.isScheduled,
             counterTeam: null
         });
     }
@@ -429,32 +427,24 @@ export class PoolAssignmentComponent {
 
         if (!from.isScheduled && !to.isScheduled) return null;
 
-        // Exactly one side scheduled — the withdrawal case. No size comparison: the unscheduled
-        // side has no matrix, so there is nothing for its headcount to match.
-        if (from.isScheduled !== to.isScheduled) {
-            if (teamsOut === 1 && teamsBack === 1) return null;
+        // One team out, one team back — the only shape that leaves both pools whole, at any size.
+        if (teamsOut === 1 && teamsBack === 1) return null;
 
-            const scheduled = from.isScheduled ? from.divName : to.divName;
-            return `${scheduled} is scheduled, so a team can only cross its boundary as a `
-                + `one-for-one swap: the team coming the other way takes the departing team's rank `
-                + `and plays its games, which is what keeps the pairing matrix whole. Use the swap `
-                + `arrow on a team's row to pick the team it trades places with, or break down `
-                + `${scheduled}'s schedule first.`;
-        }
+        const bothScheduled = from.isScheduled && to.isScheduled;
+        const theScheduledOne = from.isScheduled ? from.divName : to.divName;
 
-        if (from.activeTeamCount !== to.activeTeamCount)
-            return `${from.divName} and ${to.divName} are both scheduled and hold different numbers `
-                + `of active teams (${from.activeTeamCount} and ${to.activeTeamCount}). Teams can `
-                + `only be traded between scheduled pools of equal size. Break down BOTH schedules `
-                + `before moving teams between them — tearing down only one still leaves the other `
-                + `frozen.`;
+        const scheduled = bothScheduled
+            ? `${from.divName} and ${to.divName} are both scheduled`
+            : `${theScheduledOne} is scheduled`;
 
-        if (teamsOut !== 1 || teamsBack !== 1)
-            return `${from.divName} and ${to.divName} are both scheduled, so this has to be a `
-                + `one-for-one swap: one team out, one team back. Use the swap arrow on a team's `
-                + `row to pick the team that comes back.`;
+        const breakDown = bothScheduled
+            ? `break both schedules down first`
+            : `break down ${theScheduledOne}'s schedule first`;
 
-        return null;
+        return `${scheduled}, so a team can only cross that boundary as a one-for-one swap: the `
+            + `team coming the other way takes the departing team's rank and plays its games, which `
+            + `is what keeps the pairing matrix whole. Use the swap arrow on a team's row to pick `
+            + `the team it trades places with, or ${breakDown}.`;
     }
 
     // ── Swap conversation ──
