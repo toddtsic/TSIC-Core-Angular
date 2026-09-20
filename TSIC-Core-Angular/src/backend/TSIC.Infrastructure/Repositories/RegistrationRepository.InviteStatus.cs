@@ -52,35 +52,40 @@ public partial class RegistrationRepository
     /// Accepted and Not invited are labelled from <c>invites.InviteStatuses</c> so the dropdown and
     /// the grid column can never drift apart in wording.
     /// </summary>
-    public async Task<List<FilterOption>> GetInviteStatusOptionsAsync(Guid jobId, CancellationToken ct = default)
+    /// <remarks>
+    /// COSTS NOTHING ON A JOB THAT HAS NEVER SENT AN INVITATION, which is every job today and will
+    /// stay true for most of them. The one query is a seek on <c>IX_Invitations_SourceJobId</c>
+    /// that returns no rows — measured at 0 logical reads — and the resolver early-returns on the
+    /// empty send set before touching anything else.
+    ///
+    /// <paramref name="activeRegistrationCount"/> is passed in rather than counted here on purpose.
+    /// <c>Jobs.Registrations</c> has NO index on jobID, so a per-job COUNT is a full clustered scan:
+    /// 18,729 logical reads / 190ms CPU on the largest job in the database. The caller has already
+    /// paid that scan for the role counts and the total falls out of them for free. Running it a
+    /// second time for a filter category almost nobody opens is not a trade worth making.
+    /// </remarks>
+    private async Task<List<FilterOption>> GetInviteStatusOptionsAsync(
+        Guid jobId, int activeRegistrationCount, CancellationToken ct = default)
     {
+        var statuses = await GetInviteStatusesAsync(jobId, null, ct);
+
         var names = await _context.InviteStatuses.AsNoTracking()
             .ToDictionaryAsync(s => s.InviteStatusId, s => s.InviteStatusName, ct);
 
         string Label(int id, string fallback) => names.TryGetValue(id, out var n) ? n : fallback;
-
-        // Counts, like every other filter category's. This resolves the job's invite statuses on
-        // init load — which is NOT the search path, and is the only place this feature costs
-        // anything unfiltered. A job that has sent nothing early-returns on an empty send set, so
-        // it pays one indexed query returning no rows; a job that HAS sent pays one resolution
-        // alongside the several full scans this call already runs for the role counts.
-        var statuses = await GetInviteStatusesAsync(jobId, null, ct);
-
-        // Same base as the role counts: active registrations with a user, so the numbers in this
-        // list are comparable with the ones directly above it.
-        var baseQuery = _context.Registrations.AsNoTracking()
-            .Where(r => r.JobId == jobId && r.UserId != null && r.BActive == true);
-
-        var invitedIds = statuses.Select(s => s.RegistrationId).ToList();
-        var neverCount = invitedIds.Count == 0
-            ? await baseQuery.CountAsync(ct)
-            : await baseQuery.CountAsync(r => !invitedIds.Contains(r.RegistrationId), ct);
 
         var notAcceptedCount = statuses.Count(s =>
             s.InviteKindId != (int)InviteKind.SchedulePreview
             && s.InviteStatusId != InviteStatusIds.Accepted);
 
         var acceptedCount = statuses.Count(s => s.InviteStatusId == InviteStatusIds.Accepted);
+
+        // The first three count SEND RECORDS; this one counts PEOPLE the sends don't cover. They
+        // differ on anyone invited who has since been deactivated — subtracted from a total that no
+        // longer includes them — so the badge can read low by that many. Clamped rather than
+        // corrected: pinning it exactly costs the 18,729-read scan this method exists to avoid, and
+        // every count on this panel is already "the population if this were the only filter".
+        var neverCount = Math.Max(0, activeRegistrationCount - statuses.Count);
 
         return
         [

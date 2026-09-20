@@ -195,18 +195,15 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         var schedulePreviewTarget = await _jobRepo.GetSchedulePreviewInviteTargetAsync(jobId, ct);
 
         // The Invitations category exists only where invitations can exist. No eligible target of
-        // any kind means the options call never happens and the filter never renders — so an event
-        // that can't invite anyone pays nothing at all for the feature, on init load or on search.
-        // Where it CAN invite, the counts on those checkboxes are resolved here, on init load only.
-        // The search path is untouched either way.
+        // any kind and the filter never renders. The repo builds the options either way — that
+        // costs one indexed seek returning nothing on a job that has sent none, and the counts ride
+        // the scan it already did for the role counts, so there is nothing here worth gating on.
+        // The search path is untouched regardless: with no box checked, no invite table is read.
         var canInvite = playerTargets.Count > 0 || clubRepTargets.Count > 0 || schedulePreviewTarget is not null;
-        var inviteStatusOptions = canInvite
-            ? await _registrationRepo.GetInviteStatusOptionsAsync(jobId, ct)
-            : [];
 
         return options with
         {
-            InviteStatusOptions = inviteStatusOptions,
+            InviteStatusOptions = canInvite ? options.InviteStatusOptions : [],
             EligiblePlayerInviteTargetJobs = playerTargets,
             EligibleClubRepInviteTargetJobs = clubRepTargets,
             EligibleSchedulePreviewInviteTargetJobs = schedulePreviewTarget is null ? [] : [schedulePreviewTarget]

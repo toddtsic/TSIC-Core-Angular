@@ -2317,6 +2317,16 @@ public partial class RegistrationRepository : IRegistrationRepository
             .Select(g => new FilterOption { Value = g.Key.RoleId!, Text = g.Key.Name ?? "", Count = g.Count() })
             .ToListAsync(ct);
 
+        // Grand total for the Invitations "Not invited" badge, taken HERE — before the synthetic
+        // role options below are appended to this same list, which would double-count. Reusing the
+        // scan that just happened rather than issuing a COUNT of our own is the whole point: a
+        // per-job COUNT on this table is a full clustered scan (no index on jobID — measured 18,729
+        // logical reads / 190ms CPU on a 10,888-registration job), and paying that on every filter
+        // panel open for a category used by almost nobody is not a trade worth making.
+        // Exact, not an approximation: 0 of the 579,548 active registrations with a user in the
+        // database lack a role, so this sum IS the population.
+        var activeRegistrationCount = roles.Sum(r => r.Count);
+
         // ── Synthetic "not waitlisted" role filters (mirrors legacy Search/Index) ──
 
         var playerNotWaitlistedCount = await baseQuery
@@ -2550,8 +2560,14 @@ public partial class RegistrationRepository : IRegistrationRepository
             paymentTypes.AddRange(discountCodeOptions);
         }
 
+        // Costs one indexed seek on invites.Invitations(SourceJobId) — 0 logical reads on a job
+        // that has never sent an invitation, which is every job today. The service blanks this list
+        // for events where invitations aren't possible at all.
+        var inviteStatusOptions = await GetInviteStatusOptionsAsync(jobId, activeRegistrationCount, ct);
+
         return new RegistrationFilterOptionsDto
         {
+            InviteStatusOptions = inviteStatusOptions,
             Roles = roles,
             Teams = teams,
             Agegroups = agegroups,

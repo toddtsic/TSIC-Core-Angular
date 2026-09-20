@@ -575,13 +575,6 @@ public interface IRegistrationRepository
         Guid sourceJobId, IReadOnlyList<Guid>? registrationIds = null, CancellationToken ct = default);
 
     /// <summary>
-    /// Options for the Invitations filter category, labelled from <c>invites.InviteStatuses</c> and
-    /// counted for this job, so the checkbox list reads like the ones above it.
-    /// Called only when the event has at least one eligible invite target.
-    /// </summary>
-    Task<List<FilterOption>> GetInviteStatusOptionsAsync(Guid jobId, CancellationToken ct = default);
-
-    /// <summary>
     /// Returns distinct roles, teams, agegroups, divisions, club names for this job's registrations.
     /// Used to populate filter dropdowns. AsNoTracking.
     /// </summary>
