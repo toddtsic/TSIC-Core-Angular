@@ -2323,8 +2323,9 @@ public partial class RegistrationRepository : IRegistrationRepository
         // per-job COUNT on this table is a full clustered scan (no index on jobID — measured 18,729
         // logical reads / 190ms CPU on a 10,888-registration job), and paying that on every filter
         // panel open for a category used by almost nobody is not a trade worth making.
-        // Exact, not an approximation: 0 of the 579,548 active registrations with a user in the
-        // database lack a role, so this sum IS the population.
+        // This SUM is exact — 0 of the 579,548 active registrations with a user in the database
+        // lack a role, so it is the population, not a sample of it. The badge computed from it is
+        // NOT exact; see the subtraction in GetInviteStatusOptionsAsync for why.
         var activeRegistrationCount = roles.Sum(r => r.Count);
 
         // ── Synthetic "not waitlisted" role filters (mirrors legacy Search/Index) ──
