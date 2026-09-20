@@ -33,38 +33,62 @@ public partial class RegistrationRepository
     }
 
     /// <summary>
-    /// Options for the Invitations filter, labelled from the lookup table so the dropdown and the
-    /// grid column can never drift apart in wording. "Any invite" leads and is synthetic — it means
-    /// "has a send record", which is not one of the seven statuses.
+    /// Options for the Invitations filter. FOUR, deliberately — one per thing a director does,
+    /// not one per status. Each names a distinct population:
+    ///   Any invite       — has a send record
+    ///   Not yet accepted — invited to register, hasn't come back. The re-invite list.
+    ///   Accepted         — came back
+    ///   Not invited      — never asked. The first-wave list, and the one that catches anyone
+    ///                      added to the event since the last blast.
+    ///
+    /// All seven statuses still exist and the Invite column labels every row with its own. Slicing
+    /// the dropdown by each of them produced a list nobody could read serving decisions nobody
+    /// makes: Offered and Expired lead to the same action, and so do Failed to send and Opted out.
+    /// "Not yet accepted" is that action, whatever went wrong on the way.
+    ///
+    /// This is why the send path has no skip-the-accepted guard: the search scopes the recipients,
+    /// which is this screen's whole model.
+    ///
+    /// Accepted and Not invited are labelled from <c>invites.InviteStatuses</c> so the dropdown and
+    /// the grid column can never drift apart in wording.
     /// </summary>
-    public async Task<List<FilterOption>> GetInviteStatusOptionsAsync(CancellationToken ct = default)
+    public async Task<List<FilterOption>> GetInviteStatusOptionsAsync(Guid jobId, CancellationToken ct = default)
     {
         var names = await _context.InviteStatuses.AsNoTracking()
-            .OrderBy(s => s.InviteStatusId)
-            .Select(s => new { s.InviteStatusId, s.InviteStatusName })
-            .ToListAsync(ct);
+            .ToDictionaryAsync(s => s.InviteStatusId, s => s.InviteStatusName, ct);
 
-        var options = new List<FilterOption> { new() { Value = "any", Text = "Any invite" } };
+        string Label(int id, string fallback) => names.TryGetValue(id, out var n) ? n : fallback;
 
-        foreach (var s in names)
-        {
-            var value = s.InviteStatusId switch
-            {
-                InviteStatusIds.Accepted => "accepted",
-                InviteStatusIds.Sent => "sent",
-                InviteStatusIds.FailedToSend => "failed",
-                InviteStatusIds.OptedOut => "opted-out",
-                InviteStatusIds.Expired => "expired",
-                InviteStatusIds.Offered => "offered",
-                InviteStatusIds.NotInvited => "never",
-                _ => null
-            };
-            if (value is null) continue;
+        // Counts, like every other filter category's. This resolves the job's invite statuses on
+        // init load — which is NOT the search path, and is the only place this feature costs
+        // anything unfiltered. A job that has sent nothing early-returns on an empty send set, so
+        // it pays one indexed query returning no rows; a job that HAS sent pays one resolution
+        // alongside the several full scans this call already runs for the role counts.
+        var statuses = await GetInviteStatusesAsync(jobId, null, ct);
 
-            options.Add(new FilterOption { Value = value, Text = s.InviteStatusName });
-        }
+        // Same base as the role counts: active registrations with a user, so the numbers in this
+        // list are comparable with the ones directly above it.
+        var baseQuery = _context.Registrations.AsNoTracking()
+            .Where(r => r.JobId == jobId && r.UserId != null && r.BActive == true);
 
-        return options;
+        var invitedIds = statuses.Select(s => s.RegistrationId).ToList();
+        var neverCount = invitedIds.Count == 0
+            ? await baseQuery.CountAsync(ct)
+            : await baseQuery.CountAsync(r => !invitedIds.Contains(r.RegistrationId), ct);
+
+        var notAcceptedCount = statuses.Count(s =>
+            s.InviteKindId != (int)InviteKind.SchedulePreview
+            && s.InviteStatusId != InviteStatusIds.Accepted);
+
+        var acceptedCount = statuses.Count(s => s.InviteStatusId == InviteStatusIds.Accepted);
+
+        return
+        [
+            new FilterOption { Value = "any", Text = "Any invite", Count = statuses.Count },
+            new FilterOption { Value = "not-accepted", Text = "Not yet accepted", Count = notAcceptedCount },
+            new FilterOption { Value = "accepted", Text = Label(InviteStatusIds.Accepted, "Accepted"), Count = acceptedCount },
+            new FilterOption { Value = "never", Text = Label(InviteStatusIds.NotInvited, "Not invited"), Count = neverCount }
+        ];
     }
 
     public async Task<List<InviteStatusDto>> GetInviteStatusesAsync(
@@ -205,6 +229,7 @@ public partial class RegistrationRepository
             {
                 RegistrationId = s.SourceRegistrationId,
                 InviteStatusId = statusId,
+                InviteKindId = s.InviteKindId,
                 InviteStatusName = InviteStatusName(statusId),
                 TargetJobName = jobNames.TryGetValue(s.TargetJobId, out var n) ? n : ""
             });
@@ -232,6 +257,23 @@ public partial class RegistrationRepository
 
         return expiresAt < now ? InviteStatusIds.Expired : InviteStatusIds.Offered;
     }
+
+    /// <summary>
+    /// Filter slug to status id. Still maps the five statuses the dropdown no longer offers — they
+    /// remain valid statuses on the rows, so a saved search, a chip or a hand-built request that
+    /// names one keeps working. Unknown slugs map to a status nothing carries, so an unrecognised
+    /// filter returns nothing rather than silently returning everything.
+    /// </summary>
+    private static int MapFilterToStatusId(string slug) => slug switch
+    {
+        "accepted" => InviteStatusIds.Accepted,
+        "sent" => InviteStatusIds.Sent,
+        "failed" => InviteStatusIds.FailedToSend,
+        "opted-out" => InviteStatusIds.OptedOut,
+        "expired" => InviteStatusIds.Expired,
+        "offered" => InviteStatusIds.Offered,
+        _ => -1
+    };
 
     private static string InviteStatusName(int statusId) => statusId switch
     {

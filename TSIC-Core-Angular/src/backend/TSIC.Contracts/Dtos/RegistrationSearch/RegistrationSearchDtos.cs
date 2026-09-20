@@ -69,8 +69,9 @@ public record RegistrationSearchRequest
     // Invitations filter. Null/empty = the search is EXACTLY what it is today: no invite table is
     // referenced, no join, no extra query, no column. That is the objective this field protects —
     // anything that reads invite data unconditionally breaks it.
-    //   "any" | "accepted" | "offered" | "expired" | "failed" | "opted-out" | "sent" | "never"
-    public string? InviteStatus { get; init; }
+    // Multi-select, OR'd like the other checkbox categories:
+    //   "any" | "not-accepted" | "accepted" | "never"
+    public List<string>? InviteStatuses { get; init; }
 
     // Explicit registration ID list. When non-empty, the search constrains to exactly
     // these registrations (AND-combined with any other filters the caller sends).
@@ -251,6 +252,14 @@ public record InviteStatusDto
 
     /// <summary>Id from <c>invites.InviteStatuses</c>.</summary>
     public required int InviteStatusId { get; init; }
+
+    /// <summary>
+    /// Id from <c>invites.InviteKinds</c>. Carried so callers can exclude a kind explicitly rather
+    /// than inferring it from the status — "Not yet accepted" must not sweep up schedule previews,
+    /// and leaning on "Sent means preview" would be a coupling nobody would notice breaking.
+    /// </summary>
+    public required int InviteKindId { get; init; }
+
 
     /// <summary>Display name from <c>invites.InviteStatuses</c> — "Accepted", "Offered", ...</summary>
     public required string InviteStatusName { get; init; }

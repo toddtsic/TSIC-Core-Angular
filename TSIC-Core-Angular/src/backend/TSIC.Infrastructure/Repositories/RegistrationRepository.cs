@@ -2016,30 +2016,62 @@ public partial class RegistrationRepository : IRegistrationRepository
         // can never be selected by one rule and labelled by another. The invited set for a job is
         // small (only people actually invited), which is why narrowing to it FIRST makes a filtered
         // search cheaper than an unfiltered one rather than dearer.
-        if (!string.IsNullOrWhiteSpace(request.InviteStatus))
+        if (request.InviteStatuses is { Count: > 0 })
         {
             var statuses = await GetInviteStatusesAsync(jobId, null, ct);
+            var modes = request.InviteStatuses
+                .Where(m => !string.IsNullOrWhiteSpace(m))
+                .Select(m => m.Trim().ToLowerInvariant())
+                .ToHashSet();
 
-            var wanted = request.InviteStatus.Trim().ToLowerInvariant() switch
+            // Checked boxes are OR'd, the same as every other multi-select category here.
+            var matchIds = new HashSet<Guid>();
+            foreach (var mode in modes)
             {
-                "accepted" => InviteStatusIds.Accepted,
-                "sent" => InviteStatusIds.Sent,
-                "failed" => InviteStatusIds.FailedToSend,
-                "opted-out" => InviteStatusIds.OptedOut,
-                "expired" => InviteStatusIds.Expired,
-                "offered" => InviteStatusIds.Offered,
-                _ => (int?)null // "any" and "never" work off the whole invited set, not one status
-            };
+                IEnumerable<Guid> ids = mode switch
+                {
+                    // The whole invited set. ("never" is the complement and is handled below —
+                    // it can't be unioned in here because it isn't a set of send rows at all.)
+                    "any" => statuses.Select(s => s.RegistrationId),
 
-            var matchIds = wanted.HasValue
-                ? statuses.Where(s => s.InviteStatusId == wanted.Value).Select(s => s.RegistrationId).ToList()
-                : statuses.Select(s => s.RegistrationId).ToList();
+                    // The re-invite list. Everyone invited to REGISTER who has not come back —
+                    // whatever went wrong on the way (offered, expired, bounced, unsubscribed).
+                    // Schedule previews are excluded by KIND, not by status: a preview has no
+                    // acceptance to be short of, and inferring that from "Sent" would be a
+                    // coupling nobody would notice breaking.
+                    "not-accepted" => statuses
+                        .Where(s => s.InviteKindId != (int)InviteKind.SchedulePreview
+                                 && s.InviteStatusId != InviteStatusIds.Accepted)
+                        .Select(s => s.RegistrationId),
+
+                    "never" => [],
+
+                    _ => statuses
+                        .Where(s => s.InviteStatusId == MapFilterToStatusId(mode))
+                        .Select(s => s.RegistrationId)
+                };
+                matchIds.UnionWith(ids);
+            }
 
             // "Not invited" is the ABSENCE of a send record, never a stored value — so it is the
-            // complement of the invited set, not a status anyone can be filed under.
-            query = request.InviteStatus.Equals("never", StringComparison.OrdinalIgnoreCase)
-                ? query.Where(r => !matchIds.Contains(r.RegistrationId))
-                : query.Where(r => matchIds.Contains(r.RegistrationId));
+            // complement of the invited set, not a status anyone can be filed under. Checked
+            // alongside other boxes it widens the result; checked alone it IS the result.
+            var invitedIds = modes.Contains("never")
+                ? statuses.Select(s => s.RegistrationId).ToList()
+                : [];
+            var positiveIds = matchIds.ToList();
+
+            if (invitedIds.Count > 0 || modes.Contains("never"))
+            {
+                query = positiveIds.Count > 0
+                    ? query.Where(r => !invitedIds.Contains(r.RegistrationId)
+                                    || positiveIds.Contains(r.RegistrationId))
+                    : query.Where(r => !invitedIds.Contains(r.RegistrationId));
+            }
+            else
+            {
+                query = query.Where(r => positiveIds.Contains(r.RegistrationId));
+            }
         }
 
         return query;
@@ -2204,7 +2236,7 @@ public partial class RegistrationRepository : IRegistrationRepository
         // system pay for a column almost nobody has switched on. Measured at 626 logical reads / 1ms
         // for a 50-row page, against 18,729 for the search itself.
         var inviteStatusByRegId = new Dictionary<Guid, InviteStatusDto>();
-        if (!string.IsNullOrWhiteSpace(request.InviteStatus) && rows.Count > 0)
+        if (request.InviteStatuses is { Count: > 0 } && rows.Count > 0)
         {
             var pageIds = rows.Select(r => r.Dto.RegistrationId).ToList();
             foreach (var s in await GetInviteStatusesAsync(jobId, pageIds, ct))

@@ -33,7 +33,7 @@ export type RegistrationSearchRequest = {
     hasVITeamInsurance?: boolean | null;
     arbHealthStatus?: string | null;
     usLaxMembershipStatus?: string | null;
-    inviteStatus?: string | null;
+    inviteStatuses?: any[] | null;
     registrationIds?: any[] | null;
     page?: number | null;
     pageSize?: number | null;

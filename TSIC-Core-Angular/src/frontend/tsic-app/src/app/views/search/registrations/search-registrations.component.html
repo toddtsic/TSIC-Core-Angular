@@ -499,28 +499,37 @@
 
       <!-- Section: Invitations.
            Renders only where invitations are possible — the backend sends options only when this
-           event has an eligible invite target. Leaving it "-- Not Filtered --" means the search
-           runs exactly as it did before invitations existed: no invite table is touched. -->
+           event has an eligible invite target. Checking nothing means the search runs exactly as
+           it did before invitations existed: no invite table is touched. Same always-open checkbox
+           list as Role, counts and all — the categories overlap, so a dropdown that forced one
+           choice made the director guess which one answered their question. -->
       @if (showInviteSection()) {
         <div class="section-card">
           <div class="section-card-header">Invitations</div>
           <div class="section-card-body">
             <div class="filter-row">
-              <div class="form-group">
-                <label for="filterInviteStatus">Invitation Status</label>
-                <select id="filterInviteStatus" class="form-select"
-                  [ngModel]="inviteStatusFilterValue()"
-                  (ngModelChange)="updateInviteStatusFilter($event)">
-                  <option value="">-- Not Filtered --</option>
+              <div class="form-group role-filter-group">
+                <label id="inviteFilterLabel">Invitation Status <span class="role-label-hint">(none checked = not filtered)</span></label>
+                <div class="role-options" role="group" aria-labelledby="inviteFilterLabel">
                   @for (opt of inviteStatusOptions(); track opt.value) {
-                    <option [value]="opt.value">{{ opt.text }}</option>
+                    <label class="role-option">
+                      <input type="checkbox"
+                        [checked]="(searchRequest().inviteStatuses ?? []).includes(opt.value)"
+                        (change)="toggleInviteStatusOption(opt.value)" />
+                      <span class="filter-item">
+                        <span class="filter-item-text">{{ opt.text }}</span>
+                        <span class="filter-item-count">{{ opt.count }}</span>
+                      </span>
+                    </label>
                   }
-                </select>
+                </div>
                 <p class="wizard-tip">
                   Adds an <strong>Invite</strong> column showing who was invited and whether they
                   came back. <strong>Accepted</strong> means they registered in the event you
                   invited them to — for a Club Rep, that any team from their club did, whoever
-                  entered it.
+                  entered it. <strong>Not yet accepted</strong> is your follow-up list — invited,
+                  hasn't come back — and <strong>Not invited</strong> is everyone here you haven't
+                  asked yet.
                 </p>
               </div>
             </div>

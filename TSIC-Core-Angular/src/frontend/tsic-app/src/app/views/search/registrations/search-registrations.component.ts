@@ -174,7 +174,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     hasVITeamInsurance: undefined,
     arbHealthStatus: undefined,
     usLaxMembershipStatus: undefined,
-    inviteStatus: undefined
+    inviteStatuses: []
   });
 
   searchResults = signal<RegistrationSearchResponse | null>(null);
@@ -350,14 +350,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
         value: req.arbHealthStatus
       });
     }
-    if (req.inviteStatus) {
-      chips.push({
-        category: 'Invitations',
-        label: this.inviteStatusLabel(req.inviteStatus),
-        filterKey: 'inviteStatus',
-        value: req.inviteStatus
-      });
-    }
+    addArrayChips('Invitations', 'inviteStatuses', req.inviteStatuses, opts?.inviteStatusOptions);
     addArrayChips('For Club', 'rosterThresholdClubNames', req.rosterThresholdClubNames, opts?.clubRepClubs);
 
     // CADT tree chips — highest-level checked ancestor only (same pattern as LADT)
@@ -621,7 +614,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       hasVITeamInsurance: undefined,
       arbHealthStatus: undefined,
       usLaxMembershipStatus: undefined,
-      inviteStatus: undefined
+      inviteStatuses: []
     });
     this.ladtCheckedIds.set(new Set());
     this.cadtCheckedIds.set(new Set());
@@ -672,12 +665,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       this.executeSearch();
       return;
     }
-    if (chip.filterKey === 'inviteStatus') {
-      this.updateInviteStatusFilter('');
-      this.executeSearch();
-      return;
-    }
-
     // CADT tree chips: uncheck the node and re-derive
     if (chip.filterKey === 'cadtTeamIds') {
       const updated = new Set(this.cadtCheckedIds());
@@ -1390,18 +1377,18 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   readonly showInviteSection = computed(() => this.inviteStatusOptions().length > 0);
 
-  readonly inviteStatusFilterValue = computed(() => this.searchRequest().inviteStatus ?? '');
-
   /** The Invite column exists only while the filter is on — same condition the backend uses to
    *  decide whether to run the per-page status lookup, so the column is never blank-by-surprise. */
-  readonly showInviteColumn = computed(() => !!this.searchRequest().inviteStatus);
+  readonly showInviteColumn = computed(() => (this.searchRequest().inviteStatuses ?? []).length > 0);
 
-  updateInviteStatusFilter(value: string): void {
-    this.searchRequest.update(req => ({ ...req, inviteStatus: value === '' ? undefined : value }));
-  }
-
-  private inviteStatusLabel(value: string): string {
-    return this.inviteStatusOptions().find(o => o.value === value)?.text ?? value;
+  /** Inline Invitations checkbox list — toggle one status slug. Nothing checked = not filtered,
+   *  which is the state that keeps a search from touching invite data at all. */
+  toggleInviteStatusOption(value: string): void {
+    const current = this.searchRequest().inviteStatuses ?? [];
+    const next = current.includes(value)
+      ? current.filter(v => v !== value)
+      : [...current, value];
+    this.updateMultiSelect('inviteStatuses', next);
   }
 
   /** Cell text for the Invite column: "Offered · 2027 Spring A". A row with no send record under an
@@ -1526,9 +1513,10 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       rosterThresholdClubNames: clean(req.rosterThresholdClubNames),
       cadtTeamIds: clean(req.cadtTeamIds),
       arbHealthStatus: req.arbHealthStatus || undefined,
-      // Empty string must become undefined, not "": the backend treats any non-blank value as an
-      // active filter, and "" would switch on the whole invite pipeline for an unfiltered search.
-      inviteStatus: req.inviteStatus || undefined
+      // An empty array must go over as undefined, not []: the backend treats any non-empty list as
+      // an active filter, and a stray [] would switch on the invite pipeline for a search nobody
+      // filtered. `clean` is the same guard every other multi-select here uses.
+      inviteStatuses: clean(req.inviteStatuses)
     };
   }
 }
