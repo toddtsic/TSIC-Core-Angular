@@ -526,12 +526,22 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         }
 
         // Expiry text — sourced from the SAME instant that stamps the token's exp, so the email can
-        // never state a window different from the token's real one. Absolute local time (the codebase
-        // runs on local AZ time), so a recipient reading hours later sees an unambiguous deadline.
+        // never state a window different from the token's real one.
+        //
+        // THE ZONE IS NAMED, AND THAT IS NOT DECORATION. Every datetime in this system is Arizona
+        // local; most recipients are not. A bare "7:00 PM" is read as the family's own time and is
+        // therefore WRONG for almost every reader — off by 3 hours on the east coast in summer, 2 in
+        // winter. This is the one line the invitation exists to communicate, so it states the zone.
+        //
+        // The UTC offset rides along because the abbreviation alone assumes local knowledge a reader
+        // abroad has no reason to have. "MST (UTC-7)" is a single unambiguous instant anywhere on
+        // earth. Hardcoded rather than derived: Arizona does not observe DST, so UTC-7 holds all
+        // year, and the label must describe the ZONE THE DATA IS ANCHORED IN — not whatever zone an
+        // app server happens to be configured for, which could silently disagree with the database.
         if (template.Contains("!INVITE_EXPIRES", StringComparison.OrdinalIgnoreCase))
         {
             tokens["!INVITE_EXPIRES"] = inviteExpires.HasValue
-                ? inviteExpires.Value.ToString("MMMM d, yyyy 'at' h:mm tt")
+                ? inviteExpires.Value.ToString("MMMM d, yyyy 'at' h:mm tt 'MST (UTC-7)'")
                 : string.Empty;
         }
 
