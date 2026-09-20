@@ -5,6 +5,7 @@
 import type { FilterOption } from './FilterOption';
 import type { JobOptionDto } from './JobOptionDto';
 export type RegistrationFilterOptionsDto = {
+    inviteStatusOptions?: Array<FilterOption>;
     roles: Array<FilterOption>;
     teams: Array<FilterOption>;
     agegroups: Array<FilterOption>;

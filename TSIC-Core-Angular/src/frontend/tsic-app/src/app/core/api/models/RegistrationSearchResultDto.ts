@@ -28,5 +28,7 @@ export type RegistrationSearchResultDto = {
     emailOptOut: boolean;
     paymentScheduled?: boolean;
     nextChargeDate?: string | null;
+    inviteStatusName?: string | null;
+    inviteTargetJobName?: string | null;
 };
 

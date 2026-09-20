@@ -949,3 +949,16 @@
     }
   }
 }
+
+// Invite column cell. Reads "Offered · 2027 Spring A" — the status carries the meaning, so the
+// event name is de-emphasised rather than given its own column. Text, never a colour-only badge:
+// the status must survive an Excel export and a colour-blind reader alike.
+.invite-cell {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--brand-text);
+}

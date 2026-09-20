@@ -497,6 +497,37 @@
         </div>
       }
 
+      <!-- Section: Invitations.
+           Renders only where invitations are possible — the backend sends options only when this
+           event has an eligible invite target. Leaving it "-- Not Filtered --" means the search
+           runs exactly as it did before invitations existed: no invite table is touched. -->
+      @if (showInviteSection()) {
+        <div class="section-card">
+          <div class="section-card-header">Invitations</div>
+          <div class="section-card-body">
+            <div class="filter-row">
+              <div class="form-group">
+                <label for="filterInviteStatus">Invitation Status</label>
+                <select id="filterInviteStatus" class="form-select"
+                  [ngModel]="inviteStatusFilterValue()"
+                  (ngModelChange)="updateInviteStatusFilter($event)">
+                  <option value="">-- Not Filtered --</option>
+                  @for (opt of inviteStatusOptions(); track opt.value) {
+                    <option [value]="opt.value">{{ opt.text }}</option>
+                  }
+                </select>
+                <p class="wizard-tip">
+                  Adds an <strong>Invite</strong> column showing who was invited and whether they
+                  came back. <strong>Accepted</strong> means they registered in the event you
+                  invited them to — for a Club Rep, that any team from their club did, whoever
+                  entered it.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
       <!-- Section: ARB Health -->
       @if (showArbSection()) {
         <div class="section-card">
@@ -801,6 +832,18 @@
                           aria-label="Opt in to emails"></button>
                   }
                 </a>
+              </ng-template>
+            </e-column>
+
+            <!-- Invite status. First column outside the freeze, so it sits beside Name without
+                 joining the frozen pair. Present only while an Invitations filter is active — the
+                 backend fills it under exactly the same condition. NOT sortable: sorting would
+                 force the lookup into the main query for every matching row, which is the cost this
+                 whole design exists to avoid. -->
+            <e-column field="inviteStatusName" headerText="Invite" width="210"
+                      [visible]="showInviteColumn()" [allowSorting]="false">
+              <ng-template #template let-data>
+                <span class="invite-cell">{{ inviteCellText(data) }}</span>
               </ng-template>
             </e-column>
 

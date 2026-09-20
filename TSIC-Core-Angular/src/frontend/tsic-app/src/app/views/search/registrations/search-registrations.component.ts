@@ -173,7 +173,8 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     hasVIPlayerInsurance: undefined,
     hasVITeamInsurance: undefined,
     arbHealthStatus: undefined,
-    usLaxMembershipStatus: undefined
+    usLaxMembershipStatus: undefined,
+    inviteStatus: undefined
   });
 
   searchResults = signal<RegistrationSearchResponse | null>(null);
@@ -347,6 +348,14 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
         label: this.arbHealthLabel(req.arbHealthStatus),
         filterKey: 'arbHealthStatus',
         value: req.arbHealthStatus
+      });
+    }
+    if (req.inviteStatus) {
+      chips.push({
+        category: 'Invitations',
+        label: this.inviteStatusLabel(req.inviteStatus),
+        filterKey: 'inviteStatus',
+        value: req.inviteStatus
       });
     }
     addArrayChips('For Club', 'rosterThresholdClubNames', req.rosterThresholdClubNames, opts?.clubRepClubs);
@@ -611,7 +620,8 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       hasVIPlayerInsurance: undefined,
       hasVITeamInsurance: undefined,
       arbHealthStatus: undefined,
-      usLaxMembershipStatus: undefined
+      usLaxMembershipStatus: undefined,
+      inviteStatus: undefined
     });
     this.ladtCheckedIds.set(new Set());
     this.cadtCheckedIds.set(new Set());
@@ -659,6 +669,11 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     }
     if (chip.filterKey === 'arbHealthStatus') {
       this.updateArbHealthFilter('');
+      this.executeSearch();
+      return;
+    }
+    if (chip.filterKey === 'inviteStatus') {
+      this.updateInviteStatusFilter('');
       this.executeSearch();
       return;
     }
@@ -993,6 +1008,19 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** Export options. `includeHiddenColumn: true` deliberately exports columns the grid hides (the
+   *  Active column exists only for this), but that would also emit an empty "Invite" column on
+   *  every export made without an Invitations filter. This Syncfusion version has no per-column
+   *  `allowExporting`, so the column list is named explicitly instead when the filter is off. */
+  private excelExportProps(dataSource: RegistrationSearchResultDto[]): Record<string, unknown> {
+    const props: Record<string, unknown> = { dataSource, includeHiddenColumn: true };
+    const grid = this.grid();
+    if (!this.showInviteColumn() && grid) {
+      props['columns'] = grid.getColumns().filter(c => c.field !== 'inviteStatusName');
+    }
+    return props;
+  }
+
   exportExcel(): void {
     const grid = this.grid();
     if (!grid) return;
@@ -1000,7 +1028,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     // ARB card-expiring results are already the full unpaged set — export what's loaded.
     if (this.arbCardExpiringMode()) {
       const loaded = this.searchResults()?.result ?? [];
-      grid.excelExport({ dataSource: loaded, includeHiddenColumn: true });
+      grid.excelExport(this.excelExportProps(loaded));
       return;
     }
 
@@ -1011,7 +1039,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     this.searchService.search(req).subscribe({
       next: (full) => {
         this.isSearching.set(false);
-        grid.excelExport({ dataSource: full.result, includeHiddenColumn: true });
+        grid.excelExport(this.excelExportProps(full.result));
       },
       error: (err) => {
         this.isSearching.set(false);
@@ -1354,6 +1382,37 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     }
   }
 
+  // ── Invitations filter ──
+  // The category renders only where invitations are possible: the backend sends options only when
+  // this event has an eligible invite target. No pick means the search never touches invite data.
+
+  readonly inviteStatusOptions = computed(() => this.filterOptions()?.inviteStatusOptions ?? []);
+
+  readonly showInviteSection = computed(() => this.inviteStatusOptions().length > 0);
+
+  readonly inviteStatusFilterValue = computed(() => this.searchRequest().inviteStatus ?? '');
+
+  /** The Invite column exists only while the filter is on — same condition the backend uses to
+   *  decide whether to run the per-page status lookup, so the column is never blank-by-surprise. */
+  readonly showInviteColumn = computed(() => !!this.searchRequest().inviteStatus);
+
+  updateInviteStatusFilter(value: string): void {
+    this.searchRequest.update(req => ({ ...req, inviteStatus: value === '' ? undefined : value }));
+  }
+
+  private inviteStatusLabel(value: string): string {
+    return this.inviteStatusOptions().find(o => o.value === value)?.text ?? value;
+  }
+
+  /** Cell text for the Invite column: "Offered · 2027 Spring A". A row with no send record under an
+   *  "any invite" search has no status — show the lookup's own wording for that, not an empty cell. */
+  inviteCellText(row: RegistrationSearchResultDto): string {
+    if (!row.inviteStatusName) return 'Not invited';
+    return row.inviteTargetJobName
+      ? `${row.inviteStatusName} · ${row.inviteTargetJobName}`
+      : row.inviteStatusName;
+  }
+
   /** Live lookup against Authorize.net for subscriptions with cards expiring this month.
    *  Bypasses filter state — dropped/inactive registrants with expiring cards still
    *  need to surface so admins can follow up before the next auto-bill fails. */
@@ -1466,7 +1525,10 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       rosterThreshold: req.rosterThreshold ?? undefined,
       rosterThresholdClubNames: clean(req.rosterThresholdClubNames),
       cadtTeamIds: clean(req.cadtTeamIds),
-      arbHealthStatus: req.arbHealthStatus || undefined
+      arbHealthStatus: req.arbHealthStatus || undefined,
+      // Empty string must become undefined, not "": the backend treats any non-blank value as an
+      // active filter, and "" would switch on the whole invite pipeline for an unfiltered search.
+      inviteStatus: req.inviteStatus || undefined
     };
   }
 }
