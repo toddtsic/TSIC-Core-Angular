@@ -21,22 +21,28 @@
         </span>
       </div>
 
+      <!-- AR-099 (team side of the same coupling). Deliberately NOT gated on Allow Team
+           Registration: clients arm the token requirement FIRST and open registration LATER, at a
+           time the invitation email itself announces. Safe to arm early — the invite validate
+           endpoint refuses outright while registration is closed, token or not, and the team write
+           path checks BRegistrationAllowTeam independently. Do not re-add [disabled]. -->
       <div class="toggle-row"
            [class.is-warn]="bTeamRegRequiresToken() && bRegistrationAllowTeam()"
-           [class.is-muted]="!bTeamRegRequiresToken() || !bRegistrationAllowTeam()"
-           [class.is-disabled]="!bRegistrationAllowTeam()">
+           [class.is-muted]="!bTeamRegRequiresToken() || !bRegistrationAllowTeam()">
         <label class="toggle-control">
           <input type="checkbox"
             [ngModel]="bTeamRegRequiresToken()"
-            (ngModelChange)="bTeamRegRequiresToken.set($event); onFieldChange()"
-            [disabled]="!bRegistrationAllowTeam()" />
+            (ngModelChange)="bTeamRegRequiresToken.set($event); onFieldChange()" />
           <span class="field-label">Require Club Rep Invitation Token</span>
         </label>
         <span class="toggle-tip">
-          @if (!bRegistrationAllowTeam()) {
-            Enable team registration to configure this setting.
+          @if (bTeamRegRequiresToken() && !bRegistrationAllowTeam()) {
+            Armed, doors still shut — invite links are required, and no club rep can register teams
+            until you enable team registration above.
           } @else if (bTeamRegRequiresToken()) {
             Club reps must have a valid invite link to register teams — use <code>!CLUBREP_INVITE_LINK</code> in batch emails to generate them.
+          } @else if (!bRegistrationAllowTeam()) {
+            Open registration when the doors open — any club rep will be able to register teams without an invite.
           } @else {
             Open registration — any club rep can register teams without an invite.
           }

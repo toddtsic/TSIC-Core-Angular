@@ -23,22 +23,28 @@
         </span>
       </div>
 
+      <!-- AR-099: this setting is deliberately NOT gated on Allow Player Registration. Clients arm
+           the token requirement FIRST and open registration LATER, at a time the invitation email
+           itself announces. Arming it early is safe: registrations are created in one place only,
+           and that path requires BRegistrationAllowPlayer independently of the token check — so a
+           valid invite link against a closed event is still refused. Do not re-add [disabled]. -->
       <div class="toggle-row"
            [class.is-warn]="bPlayerRegRequiresToken() && bRegistrationAllowPlayer()"
-           [class.is-muted]="!bPlayerRegRequiresToken() || !bRegistrationAllowPlayer()"
-           [class.is-disabled]="!bRegistrationAllowPlayer()">
+           [class.is-muted]="!bPlayerRegRequiresToken() || !bRegistrationAllowPlayer()">
         <label class="toggle-control">
           <input type="checkbox"
             [ngModel]="bPlayerRegRequiresToken()"
-            (ngModelChange)="bPlayerRegRequiresToken.set($event); onFieldChange()"
-            [disabled]="!bRegistrationAllowPlayer()" />
+            (ngModelChange)="bPlayerRegRequiresToken.set($event); onFieldChange()" />
           <span class="field-label">Require Invitation Token</span>
         </label>
         <span class="toggle-tip">
-          @if (!bRegistrationAllowPlayer()) {
-            Enable player registration to configure this setting.
+          @if (bPlayerRegRequiresToken() && !bRegistrationAllowPlayer()) {
+            Armed, doors still shut — invite links are required, and nobody can register until you
+            enable player registration above.
           } @else if (bPlayerRegRequiresToken()) {
             Players must have a valid invite link to register — use <code>!INVITE_LINK</code> in batch emails to generate them.
+          } @else if (!bRegistrationAllowPlayer()) {
+            Open registration when the doors open — any player will be able to register without an invite.
           } @else {
             Open registration — any player can register without an invite.
           }
