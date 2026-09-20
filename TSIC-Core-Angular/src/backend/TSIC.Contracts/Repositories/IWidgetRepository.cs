@@ -79,6 +79,14 @@ public interface IWidgetRepository
     Task<YearOverYearComparisonDto> GetYearOverYearAsync(Guid currentJobId, CancellationToken ct = default);
 
     /// <summary>
+    /// Year over Year - All Events: registrations and money collected across every event this
+    /// customer runs in the season, rolled up and per site, each season cut at the same
+    /// calendar date. Every job in the season is a peer, the final event included, so the
+    /// rollup counts registrations rather than athletes.
+    /// </summary>
+    Task<FeederPaceDto> GetFeederPaceAsync(Guid currentJobId, CancellationToken ct = default);
+
+    /// <summary>
     /// Portfolio table for the JobRegCountsAndDollars widget: every LIVE job
     /// (ExpiryUsers > now) belonging to the same customer as <paramref name="currentJobId"/>,
     /// with both count units and the registration ledger totals, plus a rollup.

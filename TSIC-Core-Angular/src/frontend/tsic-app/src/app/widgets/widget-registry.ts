@@ -11,6 +11,7 @@ import { FinancialHealthComponent } from '@widgets/financial/financial-health/fi
 import { JobRegCountsAndDollarsComponent } from '@widgets/portfolio/job-reg-counts-dollars/job-reg-counts-dollars.component';
 import { UsageStatsPerJobComponent } from '@widgets/usage/usage-stats-per-job/usage-stats-per-job.component';
 import { TeamsAppUsageComponent } from '@widgets/usage/teams-app-usage/teams-app-usage.component';
+import { FeederPaceComponent } from '@widgets/portfolio/feeder-pace/feeder-pace.component';
 import { Workspaces, type WorkspaceKey } from '@widgets/workspace.constants';
 
 // ════════════════════════════════════════════════════════════
@@ -113,13 +114,16 @@ export const WIDGET_MANIFEST: Record<string, WidgetManifestEntry> = {
 		workspace:   Workspaces.Dashboard,
 		description: 'Player and team counts broken down by age group',
 	},
+	// The pair 'year-over-year' / 'feeder-pace' is split by SCOPE, not by period: both compare
+	// seasons. This one is THIS EVENT against its own prior seasons, drawn as full-season
+	// cumulative curves on real calendar dates (up to 4 seasons, no as-of cut).
 	'year-over-year': {
 		component:   YearOverYearWidgetComponent,
-		label:       'Year-over-Year Comparison',
+		label:       'Year over Year — This Event',
 		icon:        'bi-arrow-repeat',
 		widgetType:  'chart-tile',
 		workspace:   Workspaces.Dashboard,
-		description: 'Registration comparison between current and prior year',
+		description: 'Registration pace for this event against its own prior seasons, as full-season cumulative curves. For every event the customer runs, use Year over Year — All Events.',
 	},
 
 	// ── Portfolio (cross-job) ──
@@ -158,6 +162,21 @@ export const WIDGET_MANIFEST: Record<string, WidgetManifestEntry> = {
 		workspace:    Workspaces.Dashboard,
 		description:  'TSIC-TEAMS app use by rostered players and staff: people, teams and days',
 		displayStyle: 'table',
+	},
+
+	// The feeder-pace report, for a customer whose season is many events at once: regional
+	// sites feeding a final event. NOT a replacement for 'year-over-year' above, which stays as
+	// it is - that one compares a job to its own prior seasons and is right for a customer
+	// running one event a season. 'content' because it carries a full-width site table under
+	// the charts; a chart-tile would crush them.
+	'feeder-pace': {
+		component:    FeederPaceComponent,
+		label:        'Year over Year — All Events',
+		icon:         'bi-bar-chart-line',
+		widgetType:   'content',
+		workspace:    Workspaces.Dashboard,
+		description:  'Registrations and money collected across EVERY event this customer runs in the season — rolled up and per site — each season cut year-to-date at the same calendar date. For a single event against its own prior seasons, use Year over Year — This Event.',
+		displayStyle: 'chart',
 	},
 
 };

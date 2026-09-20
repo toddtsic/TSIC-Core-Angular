@@ -154,6 +154,28 @@ public class WidgetDashboardController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Year over Year - All Events: registrations and money collected across every event the
+    /// customer runs in the season, rolled up and per site, against prior seasons at the same
+    /// calendar pin.
+    /// </summary>
+    /// <remarks>
+    /// Gated CanCrossCustomerJobs (Superuser + SuperDirector), matching job-reg-counts-dollars:
+    /// this reads every job of the customer, which is reach a Director does not have. Scope is
+    /// resolved server-side from the token job and never from the request.
+    /// </remarks>
+    [HttpGet("feeder-pace")]
+    [Authorize(Policy = "CanCrossCustomerJobs")]
+    public async Task<ActionResult<FeederPaceDto>> GetFeederPace(CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Job context required" });
+
+        var result = await _dashboardService.GetFeederPaceAsync(jobId.Value, ct);
+        return Ok(result);
+    }
+
     // ── User Widget Customization Endpoints ──
 
     /// <summary>

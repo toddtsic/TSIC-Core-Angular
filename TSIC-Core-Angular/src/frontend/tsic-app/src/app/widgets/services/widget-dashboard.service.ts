@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
-import type { AgegroupDistributionDto, AvailableWidgetDto, DashboardMetricsDto, EventContactDto, JobRegCountsAndDollarsDto, RegistrationTimeSeriesDto, SaveUserWidgetsRequest, TeamsAppUsageDto, UsageStatsPerJobDto, UserWidgetEntryDto, WidgetDashboardResponse, YearOverYearComparisonDto } from '@core/api';
+import type { AgegroupDistributionDto, AvailableWidgetDto, DashboardMetricsDto, EventContactDto, FeederPaceDto, JobRegCountsAndDollarsDto, RegistrationTimeSeriesDto, SaveUserWidgetsRequest, TeamsAppUsageDto, UsageStatsPerJobDto, UserWidgetEntryDto, WidgetDashboardResponse, YearOverYearComparisonDto } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
 export class WidgetDashboardService {
@@ -47,6 +47,15 @@ export class WidgetDashboardService {
 
 	getYearOverYear(): Observable<YearOverYearComparisonDto> {
 		return this.http.get<YearOverYearComparisonDto>(`${this.apiUrl}/year-over-year`);
+	}
+
+	/**
+	 * Year over Year - All Events: registrations and money collected across every event the
+	 * customer runs in the season, rolled up and per site, each season cut at the same date.
+	 * Scope is resolved server-side from the token job, never passed from here.
+	 */
+	getFeederPace(): Observable<FeederPaceDto> {
+		return this.http.get<FeederPaceDto>(`${this.apiUrl}/feeder-pace`);
 	}
 
 	/**

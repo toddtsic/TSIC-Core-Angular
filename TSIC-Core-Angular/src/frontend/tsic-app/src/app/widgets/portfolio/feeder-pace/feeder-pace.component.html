@@ -1,0 +1,295 @@
+<div class="fp">
+
+	<div class="fp__head">
+		<i class="bi bi-bar-chart-line" aria-hidden="true"></i>
+		<h3 class="fp__title">Year over Year — All Events</h3>
+		@if (data(); as d) {
+			<span class="fp__asof">live season as of {{ d.asOfDate | date: 'MMM d' }}</span>
+		}
+	</div>
+
+	@if (hasError()) {
+		<div class="fp__state fp__state--error">
+			<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+			<span>Unable to load season figures</span>
+			<button type="button" class="btn btn-sm btn-outline-secondary" (click)="load()">Retry</button>
+		</div>
+	} @else if (isLoading() && !data()) {
+		<div class="fp__state">
+			<div class="spinner-border spinner-border-sm" role="status"></div>
+			<span>Loading season figures…</span>
+		</div>
+	} @else if (!hasRollup()) {
+		<div class="fp__state">
+			<i class="bi bi-calendar-x" aria-hidden="true"></i>
+			<span>No registrations recorded for this customer yet.</span>
+		</div>
+	} @else {
+		@let cur = currentSeason();
+		@let prior = priorSeason();
+
+		<!-- Every count here is REGISTRATIONS. The final event is a peer of the tryout sites
+		     and sits inside the total, and most of its registrants also registered at a
+		     regional — so this is not a headcount and must never be labelled one. -->
+		<div class="widget-summary fp__summary">
+			<div class="summary-stat primary">
+				<span class="stat-value">{{ (cur?.registrations ?? 0) | number }}</span>
+				<span class="stat-label">{{ cur?.season }} year to date</span>
+			</div>
+
+			<div class="summary-stat accent">
+				<span class="stat-value">{{ (cur?.collected ?? 0) | currency: 'USD' : 'symbol' : '1.0-0' }}</span>
+				<span class="stat-label">collected</span>
+			</div>
+
+			@if (prior) {
+				<div class="summary-stat muted">
+					<span class="stat-value">{{ prior.totalRegistrations | number }}</span>
+					<span class="stat-label">{{ prior.season }} finished at</span>
+				</div>
+
+				@if (pacePct() !== null) {
+					<div class="summary-stat" [class.fp__ahead]="isAhead()" [class.fp__behind]="!isAhead()">
+						<span class="stat-value">
+							<i class="bi" [class.bi-arrow-up-right]="isAhead()"
+								[class.bi-arrow-down-right]="!isAhead()" aria-hidden="true"></i>
+							{{ isAhead() ? '+' : '' }}{{ pacePct() }}%
+						</span>
+						<span class="stat-label">vs {{ prior.season }} on this date</span>
+					</div>
+				}
+
+				@if (moneyPct() !== null) {
+					<div class="summary-stat" [class.fp__ahead]="(moneyPct() ?? 0) >= 0"
+						[class.fp__behind]="(moneyPct() ?? 0) < 0">
+						<span class="stat-value">
+							{{ (moneyPct() ?? 0) >= 0 ? '+' : '' }}{{ moneyPct() }}%
+						</span>
+						<span class="stat-label">collected vs {{ prior.season }}</span>
+					</div>
+				}
+			}
+
+			<div class="summary-stat muted">
+				<span class="stat-value">{{ sitesOpen() }} of {{ sitesRunning() }}</span>
+				<span class="stat-label">regions open</span>
+			</div>
+		</div>
+
+		<!-- The pace percentage compares two slivers, and how big a sliver the PRIOR one was
+		     swings with the open date. Saying so is not a disclaimer; without it the headline
+		     reads as demand when it is substantially calendar. -->
+		@if (prior && pacePct() !== null && priorPinShare() !== null) {
+			<p class="fp__caveat">
+				<i class="bi bi-info-circle" aria-hidden="true"></i>
+				On this date {{ prior.season }} had taken {{ prior.registrations | number }} —
+				{{ priorPinShare() }}% of what it finished with. Registration opened
+				{{ cur?.season }} earlier in the cycle than {{ prior.season }}, so part of that
+				gap is the calendar, not demand.
+			</p>
+		}
+
+		<!-- ROLLUP: every event the customer runs. Each season is a stacked column — solid to
+		     this date, faded for the rest of that season. -->
+		<div class="fp__chart">
+			<ejs-chart
+				[primaryXAxis]="primaryXAxis()"
+				[primaryYAxis]="primaryYAxis()"
+				[axes]="secondaryAxes()"
+				[tooltip]="tooltipSettings"
+				[legendSettings]="legendSettings"
+				[chartArea]="chartArea"
+				[margin]="margin"
+				[width]="'100%'"
+				[height]="'300px'"
+				[background]="'transparent'">
+
+				<!-- Two stacking groups so registrations and dollars stack SEPARATELY and sit
+				     side by side. One group would pile dollars on top of a headcount. -->
+				<e-series-collection>
+					<e-series
+						[dataSource]="rollupBars().countsToDate"
+						type="StackingColumn"
+						stackingGroup="counts"
+						xName="season"
+						yName="y"
+						name="Registrations on this date"
+						[fill]="countsFill()"
+						[border]="countsBorder()"
+						tooltipMappingName="tip"
+						[columnSpacing]="0.1">
+					</e-series>
+					<e-series
+						[dataSource]="rollupBars().countsRest"
+						type="StackingColumn"
+						stackingGroup="counts"
+						xName="season"
+						yName="y"
+						name="Registrations, rest of season"
+						[fill]="countsRestFill()"
+						tooltipMappingName="tip"
+						[columnSpacing]="0.1">
+					</e-series>
+					<e-series
+						[dataSource]="rollupBars().moneyToDate"
+						type="StackingColumn"
+						stackingGroup="money"
+						xName="season"
+						yName="y"
+						name="Collected by this date"
+						yAxisName="dollars"
+						[fill]="moneyFill()"
+						[border]="moneyBorder()"
+						tooltipMappingName="tip"
+						[columnSpacing]="0.1">
+					</e-series>
+					<e-series
+						[dataSource]="rollupBars().moneyRest"
+						type="StackingColumn"
+						stackingGroup="money"
+						xName="season"
+						yName="y"
+						name="Collected, rest of season"
+						yAxisName="dollars"
+						[fill]="moneyRestFill()"
+						tooltipMappingName="tip"
+						[columnSpacing]="0.1">
+					</e-series>
+				</e-series-collection>
+			</ejs-chart>
+		</div>
+
+		@if (ungrouped().length > 0) {
+			<p class="fp__warn">
+				<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+				Not counted — no season on the job: {{ ungrouped().join(', ') }}
+			</p>
+		}
+
+		<!-- THE SAME CHART, ONE REGION AT A TIME. Small multiples: same axes, same colours,
+		     same reading, so the eye compares shapes across regions without re-reading a
+		     legend 28 times. -->
+		<h4 class="fp__grid-title">
+			By region
+			<span class="fp__grid-note">
+				same chart, one region each — solid is where that season stood on this date,
+				faded is the rest of it
+			</span>
+		</h4>
+
+		<div class="fp__grid">
+			@for (card of siteCards(); track card.site.site) {
+				<figure class="fp__card"
+					[class.fp__card--retired]="card.isRetired"
+					[class.fp__card--waiting]="!card.isOpen && !card.isRetired">
+
+					<figcaption class="fp__card-head">
+						<span class="fp__card-name" [title]="jobNamesOf(card)">{{ card.label }}</span>
+						@if (card.isRetired) {
+							<span class="fp__tag" title="Ran last season, not running this one">not running</span>
+						} @else if (!card.hasPriorSeason) {
+							<span class="fp__tag fp__tag--new" title="First season for this region">new</span>
+						} @else if (!card.isOpen) {
+							<span class="fp__tag" title="Running this season, no registrations yet">not open yet</span>
+						}
+					</figcaption>
+
+					<ejs-chart
+						[primaryXAxis]="cardXAxis()"
+						[primaryYAxis]="cardYAxis()"
+						[axes]="cardAxes()"
+						[tooltip]="tooltipSettings"
+						[legendSettings]="cardLegendSettings"
+						[chartArea]="chartArea"
+						[margin]="cardMargin"
+						[width]="'100%'"
+						[height]="'165px'"
+						[background]="'transparent'">
+
+						<e-series-collection>
+							<e-series
+								[dataSource]="card.bars.countsToDate"
+								type="StackingColumn"
+								stackingGroup="counts"
+								xName="season"
+								yName="y"
+								name="Registrations on this date"
+								[fill]="countsFill()"
+								[border]="countsBorder()"
+								tooltipMappingName="tip"
+								[columnSpacing]="0.1">
+							</e-series>
+							<e-series
+								[dataSource]="card.bars.countsRest"
+								type="StackingColumn"
+								stackingGroup="counts"
+								xName="season"
+								yName="y"
+								name="Registrations, rest of season"
+								[fill]="countsRestFill()"
+								tooltipMappingName="tip"
+								[columnSpacing]="0.1">
+							</e-series>
+							<e-series
+								[dataSource]="card.bars.moneyToDate"
+								type="StackingColumn"
+								stackingGroup="money"
+								xName="season"
+								yName="y"
+								name="Collected by this date"
+								yAxisName="dollars"
+								[fill]="moneyFill()"
+								[border]="moneyBorder()"
+								tooltipMappingName="tip"
+								[columnSpacing]="0.1">
+							</e-series>
+							<e-series
+								[dataSource]="card.bars.moneyRest"
+								type="StackingColumn"
+								stackingGroup="money"
+								xName="season"
+								yName="y"
+								name="Collected, rest of season"
+								yAxisName="dollars"
+								[fill]="moneyRestFill()"
+								tooltipMappingName="tip"
+								[columnSpacing]="0.1">
+							</e-series>
+						</e-series-collection>
+					</ejs-chart>
+
+					<!-- The numbers in words, because shading alone cannot carry them at this
+					     size. Three figures, and the middle one is the like-for-like: what the
+					     prior season had taken by THIS date, beside what it went on to finish
+					     at. Without it the reader compares a part-season against a whole one. -->
+					<dl class="fp__card-foot">
+						<div class="fp__figure">
+							<dt>{{ card.currentSeasonLabel }}</dt>
+							<dd class="fp__card-now">{{ card.current | number }}</dd>
+						</div>
+						@if (card.lastFinalSeason !== null) {
+							<div class="fp__figure">
+								<dt>{{ card.lastFinalSeason }} by now</dt>
+								<dd>{{ card.lastToDate | number }}</dd>
+							</div>
+							<div class="fp__figure">
+								<dt>{{ card.lastFinalSeason }} final</dt>
+								<dd>{{ card.lastFinal | number }}</dd>
+							</div>
+						}
+					</dl>
+				</figure>
+			}
+		</div>
+
+		<p class="fp__foot">
+			Registrations, not athletes: the final event is a peer of the tryout regions and sits
+			inside the total, and a player selected at a tryout registers again for it. Every
+			column is stacked — the solid part is that season as at
+			{{ data()!.asOfDate | date: 'MMMM d' }} of its own year, the faded part is the rest
+			of the season. {{ cur?.season }} has no faded part because it is still selling; its
+			year runs from {{ ytdFrom() | date: 'MMMM d' }}. Money is this customer's own book —
+			it does not reconcile with the Revenue Rollup.
+		</p>
+	}
+</div>

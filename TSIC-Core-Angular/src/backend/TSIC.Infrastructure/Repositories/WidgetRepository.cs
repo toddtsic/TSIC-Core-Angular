@@ -3,6 +3,7 @@ using TSIC.Contracts.Dtos.Widgets;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 using TSIC.Infrastructure.Data.SqlDbContext;
+using TSIC.Infrastructure.Repositories.Shared;
 
 namespace TSIC.Infrastructure.Repositories;
 
@@ -546,6 +547,386 @@ public class WidgetRepository : IWidgetRepository
             CurrentYear = currentJob.Year,
         };
     }
+
+    // =====================================================================
+    // YEAR OVER YEAR — ALL EVENTS: "where did each season stand on THIS DATE?"
+    //
+    // A SEPARATE report from GetYearOverYearAsync above, deliberately, and that one is not to be
+    // folded into this (Todd, 2026-09-20). Year-over-Year compares a job against its own prior
+    // seasons, which is right for the 221 customers running one event a season. It cannot answer
+    // this question: American Select runs ~24 regional tryout sites plus a Main Event every
+    // season, and the SuperDirector standing on the Main Event wants the pace of ALL of them
+    // against prior years. On that job Year-over-Year finds two comparable jobs, both nearly
+    // empty, because the Main Event does not fill until the tryouts have run.
+    //
+    // ONE COLUMN GROUP PER SEASON (Todd, 2026-09-20): registrations and money collected, each
+    // season cut at the same calendar month and day. Not a curve through the season — the
+    // question is where each season STANDS today, and a bar answers that where a line buries it
+    // in the bottom-left corner of a chart scaled for finished seasons.
+    //
+    // EVERY JOB IN THE SEASON IS A PEER (Todd, 2026-09-20) — the Main Event is one site row like
+    // any other, and it is inside the rollup. So the rollup counts REGISTRATIONS, not athletes:
+    // 2,155 of the Main Event's 2,758 players in season 2026 also hold a regional registration.
+    // Label it registrations; it is what the customer sells.
+    //
+    // SCOPE IS CUSTOMER + SEASON, NOT A NAME LINEAGE. Sites are cut and recut between seasons —
+    // American Select split California into NorCal + SoCal for 2026 alone, merged them back for
+    // 2027, and added Utah and New York-Capital Region — so per-name history breaks exactly
+    // where the customer reorganised. A total does not care how the sites were cut, which is why
+    // the rollup is the headline and the per-site series are the detail beneath it. Names still
+    // key the site rows, and every row carries its composing job names as the safety rail.
+    //
+    // THE POPULATION IS THE ONE GetYoyRevenueAsync USES: active players on ACTIVE teams, with
+    // the money read off the same join. Counting registrations one way and their money another
+    // would let the two halves of a single column disagree. Verified on American Select: the
+    // two populations are identical at every pin, and differ by 22 of 5,854 across a whole
+    // season (players left on inactive teams in 2023).
+    //
+    // BATCHED BY PIN, not one pass per job: every job of a season shares a cutoff, so this is
+    // six batches of four queries. Sequential awaits throughout — shared scoped DbContext.
+    // =====================================================================
+    public async Task<FeederPaceDto> GetFeederPaceAsync(
+        Guid currentJobId, CancellationToken ct = default)
+    {
+        // Chart readability. Deeper history stays reachable by asking a job in an older season.
+        const int MaxSeasons = 6;
+
+        var asOf = DateTime.Today;
+
+        var currentJob = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == currentJobId)
+            .Select(j => new { j.CustomerId, j.Year })
+            .FirstOrDefaultAsync(ct);
+
+        var currentSeason = JobSeasonNaming.ParseYear(currentJob?.Year);
+        if (currentJob == null || currentSeason == null)
+        {
+            return EmptyFeederPace(currentSeason ?? 0, asOf);
+        }
+
+        var customerId = currentJob.CustomerId;
+
+        var allJobs = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.CustomerId == customerId && j.JobName != null)
+            .Select(j => new { j.JobId, JobName = j.JobName!, j.Year, j.ExpiryUsers })
+            .ToListAsync(ct);
+
+        // Jobs.year is varchar and unvalidated — parsed in memory, same as the CJR report does.
+        var spine = new List<FeederJobRef>();
+        var ungrouped = new List<string>();
+        foreach (var j in allJobs)
+        {
+            var season = JobSeasonNaming.ParseYear(j.Year);
+            if (season == null)
+            {
+                // Only worth reporting if it would otherwise be on this chart. A dead 2014 job
+                // with a blank year is noise; a LIVE job that cannot be placed is a hole in the
+                // report the reader would never catch unaided.
+                if (j.ExpiryUsers >= asOf)
+                {
+                    ungrouped.Add(j.JobName);
+                }
+                continue;
+            }
+            // A season NEWER than the one being stood in has no pin to be read at — shifting the
+            // cutoff forward would measure it against a date it has not reached.
+            if (season > currentSeason)
+            {
+                continue;
+            }
+            spine.Add(new FeederJobRef(
+                j.JobId, j.JobName, season.Value, JobSeasonNaming.StripSeasonToken(j.JobName)));
+        }
+
+        var seasons = spine
+            .Select(s => s.Season)
+            .Distinct()
+            .OrderByDescending(y => y)
+            .Take(MaxSeasons)
+            .ToHashSet();
+
+        if (seasons.Count == 0)
+        {
+            return EmptyFeederPace(currentSeason.Value, asOf, ungrouped);
+        }
+
+        var charted = spine.Where(s => seasons.Contains(s.Season)).ToList();
+        var jobById = charted.ToDictionary(j => j.JobId);
+        var jobIds = charted.Select(s => s.JobId).ToList();
+
+        // --- WHERE THE YEAR STARTS, derived from this customer's own registrations rather than
+        //     assumed. American Select opens in August, five months before 1 January of the
+        //     season the jobs are stamped with, so "2027 year to date" means since 1 Aug 2026.
+        //     A customer whose season runs on the calendar year derives to 0 and gets 1 January
+        //     with no special case. Taken as the MINIMUM across every charted season, so the
+        //     window can never begin after a season's own first registration — the year-to-date
+        //     bound then excludes nothing, which is exactly what it must not do. ---
+        var firstByJob = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => jobIds.Contains(r.JobId)
+                && r.BActive == true
+                && r.RoleId == RoleConstants.Player)
+            .GroupBy(r => r.JobId)
+            .Select(g => new { JobId = g.Key, First = g.Min(x => x.RegistrationTs) })
+            .ToListAsync(ct);
+
+        var originOffset = 0;
+        foreach (var f in firstByJob)
+        {
+            var offset = MonthOffsetFromSeason(f.First, jobById[f.JobId].Season);
+            if (offset < originOffset)
+            {
+                originOffset = offset;
+            }
+        }
+
+        // --- ONE definition of the population and the money rules, read either at a cutoff or
+        //     over the whole season. Both readings are on the chart at once — completed seasons
+        //     are drawn at their finished size, the live one at its year-to-date size — so they
+        //     must not be able to drift apart. `pinEx` is the EXCLUSIVE upper bound; null means
+        //     the whole season.
+        //
+        //     The money rules are carried straight from GetYoyRevenueAsync: team route and
+        //     player route are disjoint (a ledger row with a TeamId is the team's), and
+        //     `|| FeeDiscount != 0` is load-bearing — a fully comped registration is charged to
+        //     zero, and a fee-only guard would drop it along with the discount money routed
+        //     through it. ---
+        async Task<Dictionary<Guid, FeederPinTotals>> LoadTotalsAsync(
+            List<Guid> ids, DateTime? pinEx)
+        {
+            var acc = ids.ToDictionary(id => id, _ => new FeederPinTotals());
+
+            // Registrations — the same team-joined population the money is read from.
+            var counts = await (
+                from r in _context.Registrations.AsNoTracking()
+                join t in _context.Teams on r.AssignedTeamId equals t.TeamId
+                where ids.Contains(t.JobId)
+                    && t.Active == true
+                    && r.BActive == true
+                    && r.RoleId == RoleConstants.Player
+                    && (pinEx == null || r.RegistrationTs < pinEx)
+                group r by t.JobId into g
+                select new { JobId = g.Key, N = g.Count() })
+                .ToListAsync(ct);
+
+            foreach (var c in counts)
+            {
+                acc[c.JobId].Registrations += c.N;
+            }
+
+            // Team route: the TEAM carries the fee and its players carry none. `Createdate <
+            // pinEx` matters — a team that did not exist at the cutoff cannot have been billed
+            // by it.
+            var teamRows = await (
+                from t in _context.Teams.AsNoTracking()
+                where ids.Contains(t.JobId)
+                    && t.Active == true
+                    && (pinEx == null || t.Createdate < pinEx)
+                select new
+                {
+                    t.JobId,
+                    t.FeeTotal,
+                    Paid = _context.RegistrationAccounting
+                        .Where(ra => ra.TeamId == t.TeamId
+                            && ra.Active == true
+                            && ra.Createdate != null
+                            && (pinEx == null || ra.Createdate < pinEx))
+                        .Sum(ra => ra.Payamt ?? 0m),
+                })
+                .ToListAsync(ct);
+
+            foreach (var t in teamRows)
+            {
+                var totals = acc[t.JobId];
+                totals.Billed += t.FeeTotal ?? 0m;
+                totals.Collected += t.Paid;
+            }
+
+            var playerBilled = await (
+                from r in _context.Registrations.AsNoTracking()
+                join t in _context.Teams on r.AssignedTeamId equals t.TeamId
+                where ids.Contains(t.JobId)
+                    && t.Active == true
+                    && (pinEx == null || r.RegistrationTs < pinEx)
+                group r by t.JobId into g
+                select new
+                {
+                    JobId = g.Key,
+                    Billed = g.Sum(x => (x.FeeTotal != 0m || x.FeeDiscount != 0m) ? x.FeeTotal : 0m),
+                })
+                .ToListAsync(ct);
+
+            foreach (var p in playerBilled)
+            {
+                acc[p.JobId].Billed += p.Billed;
+            }
+
+            // Player ledger rows never carry a TeamId — the route discriminator, verified
+            // disjoint on Top Threat and relied on by the CJR report.
+            var playerPaid = await (
+                from ra in _context.RegistrationAccounting.AsNoTracking()
+                join r in _context.Registrations on ra.RegistrationId equals r.RegistrationId
+                join t in _context.Teams on r.AssignedTeamId equals t.TeamId
+                where ids.Contains(t.JobId)
+                    && t.Active == true
+                    && ra.TeamId == null
+                    && ra.Active == true
+                    && ra.Createdate != null
+                    && (pinEx == null || (ra.Createdate < pinEx && r.RegistrationTs < pinEx))
+                group ra by t.JobId into g
+                select new { JobId = g.Key, Paid = g.Sum(x => x.Payamt ?? 0m) })
+                .ToListAsync(ct);
+
+            foreach (var p in playerPaid)
+            {
+                acc[p.JobId].Collected += p.Paid;
+            }
+
+            return acc;
+        }
+
+        // --- Whole season, no pin. What a completed season FINISHED with — the size of the
+        //     thing being paced against, and what the per-site charts draw for every season that
+        //     is already over. ---
+        var fullByJob = await LoadTotalsAsync(jobIds, null);
+
+        // --- At each season's own pin. Sequential per season: one scoped DbContext, so these
+        //     may never run concurrently. ---
+        var atPinByJob = new Dictionary<Guid, FeederPinTotals>();
+        var pinBySeason = seasons.ToDictionary(y => y, y => asOf.AddYears(y - currentSeason.Value));
+
+        foreach (var (season, pin) in pinBySeason)
+        {
+            var batchIds = charted.Where(j => j.Season == season).Select(j => j.JobId).ToList();
+            var batch = await LoadTotalsAsync(batchIds, pin.AddDays(1));
+
+            foreach (var kv in batch)
+            {
+                atPinByJob[kv.Key] = kv.Value;
+            }
+        }
+        // --- Assemble. One season series for the rollup, one per site, same shape. ---
+        var orderedSeasons = seasons.OrderBy(y => y).ToList();
+
+        List<FeederPaceSeasonDto> SeriesFor(IReadOnlyCollection<FeederJobRef> jobs) =>
+            orderedSeasons.Select(season =>
+            {
+                var members = jobs.Where(j => j.Season == season).ToList();
+
+                static FeederPinTotals Sum(
+                    List<FeederJobRef> ms, Dictionary<Guid, FeederPinTotals> src) =>
+                    ms.Aggregate(new FeederPinTotals(), (acc, j) =>
+                    {
+                        var t = src[j.JobId];
+                        acc.Registrations += t.Registrations;
+                        acc.Billed += t.Billed;
+                        acc.Collected += t.Collected;
+                        return acc;
+                    });
+
+                var atPin = Sum(members, atPinByJob);
+                var full = Sum(members, fullByJob);
+
+                return new FeederPaceSeasonDto
+                {
+                    Season = season,
+                    // AddMonths is calendar-safe, and AddYears lands a Feb 29 ask on Feb 28.
+                    YtdFrom = new DateTime(season, 1, 1).AddMonths(originOffset),
+                    PinDate = pinBySeason[season],
+                    Registrations = atPin.Registrations,
+                    Billed = atPin.Billed,
+                    Collected = atPin.Collected,
+                    TotalRegistrations = full.Registrations,
+                    TotalBilled = full.Billed,
+                    TotalCollected = full.Collected,
+                    JobCount = members.Count,
+                };
+            }).ToList();
+
+        var priorSeason = orderedSeasons.Where(y => y < currentSeason.Value).DefaultIfEmpty(0).Max();
+
+        var sites = charted
+            .Where(j => j.Season == currentSeason.Value || j.Season == priorSeason)
+            .GroupBy(j => j.Site, StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
+            {
+                // The SERIES spans every charted season, not just the two that qualified this
+                // site for a row — the per-site chart is the same picture as the rollup.
+                var siteJobs = charted
+                    .Where(j => string.Equals(j.Site, group.Key, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                return new FeederPaceSiteDto
+                {
+                    Site = group.First().Site,
+                    Seasons = SeriesFor(siteJobs),
+                    // ANY earlier season this site ran, not merely the one immediately before.
+                    // A region can sit a year out and come back: American Select ran California
+                    // 2021-2025, skipped 2026 and returned for 2027. Testing only the prior
+                    // season called it a first-timer and compared it against a season in which
+                    // it did not exist (Todd, 2026-09-20).
+                    HasPriorSeason = siteJobs.Any(j => j.Season < currentSeason.Value),
+                    IsRetired = !siteJobs.Any(j => j.Season == currentSeason.Value),
+                    JobNames = siteJobs
+                        .OrderByDescending(j => j.Season)
+                        .ThenBy(j => j.JobName, StringComparer.Ordinal)
+                        .Select(j => j.JobName)
+                        .ToList(),
+                };
+            })
+            .ToList();
+
+        return new FeederPaceDto
+        {
+            CurrentSeason = currentSeason.Value,
+            AsOfDate = asOf,
+            Seasons = SeriesFor(charted),
+            // Sites that have OPENED lead, biggest first — that is where the season is being
+            // made right now. Everything still to open then sorts by the size it reached last
+            // time it ran, so a reader scanning the grid meets the big regions before the small
+            // ones instead of a wall of alphabetised zeros.
+            Sites = sites
+                .OrderByDescending(s => s.Seasons[^1].Registrations)
+                .ThenByDescending(s => s.Seasons.Count > 1
+                    ? s.Seasons[^2].TotalRegistrations
+                    : 0)
+                .ThenBy(s => s.Site, StringComparer.Ordinal)
+                .ToList(),
+            UngroupedJobNames = ungrouped,
+        };
+    }
+
+    /// <summary>One job's identity for feeder-pace placement. Figures never travel on this record.</summary>
+    private sealed record FeederJobRef(Guid JobId, string JobName, int Season, string Site);
+
+    /// <summary>Mutable accumulator — one job's figures at one pin.</summary>
+    private sealed class FeederPinTotals
+    {
+        public int Registrations { get; set; }
+        public decimal Billed { get; set; }
+        public decimal Collected { get; set; }
+    }
+
+    /// <summary>
+    /// Whole months from 1 January of <paramref name="season"/> to <paramref name="d"/> —
+    /// negative for a date in the previous calendar year. This is what lets the start of the
+    /// year be derived rather than assumed.
+    /// </summary>
+    private static int MonthOffsetFromSeason(DateTime d, int season)
+        => ((d.Year - season) * 12) + (d.Month - 1);
+
+    private static FeederPaceDto EmptyFeederPace(
+        int season, DateTime asOf, List<string>? ungrouped = null)
+        => new()
+        {
+            CurrentSeason = season,
+            AsOfDate = asOf,
+            Seasons = [],
+            Sites = [],
+            UngroupedJobNames = ungrouped ?? [],
+        };
 
     public async Task<JobRegCountsAndDollarsDto> GetJobRegCountsAndDollarsAsync(
         Guid currentJobId,

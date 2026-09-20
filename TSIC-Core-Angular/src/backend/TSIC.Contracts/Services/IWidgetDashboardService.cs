@@ -87,6 +87,14 @@ public interface IWidgetDashboardService
         CancellationToken ct = default);
 
     /// <summary>
+    /// Year over Year - All Events: registrations and money collected across every event the
+    /// customer runs in the season, rolled up and per site, each season cut at the same date.
+    /// </summary>
+    Task<FeederPaceDto> GetFeederPaceAsync(
+        Guid jobId,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Portfolio table for the JobRegCountsAndDollars widget — every LIVE job of the
     /// caller current customer, with counts for both units and the ledger totals.
     /// </summary>

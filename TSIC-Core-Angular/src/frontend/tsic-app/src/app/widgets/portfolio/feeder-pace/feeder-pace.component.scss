@@ -1,0 +1,239 @@
+// Year over Year — All Events: a rollup column chart, then the same chart again as a small
+// multiple for every region.
+// Tokens only; no hardcoded colour, spacing or shadow.
+//
+// Card shell mirrors TeamsAppUsage / JobRegCountsAndDollars: full-width 'content' widgets in
+// the same category should read as one product.
+@use '../../shared/widget-summary' as *;
+
+:host {
+	display: block;
+}
+
+.fp {
+	// --brand-surface, NOT --bs-body-bg: the latter resolves to the PAGE colour.
+	background: var(--brand-surface);
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-sm);
+	padding: var(--space-4);
+}
+
+.fp__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+	margin-bottom: var(--space-2);
+
+	i {
+		color: var(--bs-primary);
+	}
+}
+
+.fp__title {
+	margin: 0;
+	font-size: var(--font-size-base);
+	font-weight: 600;
+	color: var(--brand-text);
+}
+
+.fp__asof {
+	margin-left: auto;
+	font-size: var(--font-size-xs);
+	color: var(--brand-text-muted);
+}
+
+// ── States ──────────────────────────────────────────────
+
+.fp__state {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-6) var(--space-4);
+	justify-content: center;
+	color: var(--brand-text-muted);
+	font-size: var(--font-size-sm);
+
+	&--error {
+		color: var(--brand-danger);
+	}
+}
+
+// ── Summary ─────────────────────────────────────────────
+
+.fp__summary {
+	padding-left: 0;
+	padding-right: 0;
+}
+
+// Direction is never carried by colour alone — the arrow glyph in the template says it too.
+.fp__ahead {
+	color: var(--brand-success);
+}
+
+.fp__behind {
+	color: var(--brand-danger);
+}
+
+.fp__caveat,
+.fp__warn {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-2);
+	margin: 0 0 var(--space-3);
+	padding: var(--space-2) var(--space-3);
+	border-radius: var(--radius-sm);
+	font-size: var(--font-size-xs);
+	line-height: 1.5;
+}
+
+.fp__caveat {
+	background: color-mix(in srgb, var(--bs-primary) 6%, transparent);
+	color: var(--brand-text-muted);
+}
+
+.fp__warn {
+	background: color-mix(in srgb, var(--brand-warn) 10%, transparent);
+	color: var(--brand-text);
+}
+
+.fp__chart {
+	margin-bottom: var(--space-3);
+}
+
+// ── Region grid ─────────────────────────────────────────
+
+.fp__grid-title {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: var(--space-2);
+	margin: var(--space-4) 0 var(--space-2);
+	padding-top: var(--space-3);
+	border-top: 1px solid var(--bs-border-color);
+	font-size: var(--font-size-sm);
+	font-weight: 600;
+	color: var(--brand-text);
+}
+
+.fp__grid-note {
+	font-size: var(--font-size-xs);
+	font-weight: 400;
+	color: var(--brand-text-muted);
+}
+
+// auto-fill + minmax, so the grid reflows down to one column without a breakpoint.
+//
+// 21rem, NOT the 15rem this started at. At 15rem a card held four columns per season across
+// six seasons — roughly 16px each — and a stacked segment cannot be told from its own cap at
+// that width. Three cards to a row instead of four is the price of the chart being readable.
+.fp__grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr));
+	gap: var(--space-3);
+}
+
+.fp__card {
+	margin: 0;
+	padding: var(--space-2);
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--radius-sm);
+	background: var(--brand-surface);
+	min-width: 0; // a grid item will not shrink below its content without this
+
+	// A region with nothing yet is dimmed, never hidden: the reader is counting how many are
+	// still to come, and a missing card cannot be counted.
+	&--waiting,
+	&--retired {
+		opacity: 0.72;
+	}
+
+	&--retired {
+		border-style: dashed;
+	}
+}
+
+.fp__card-head {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-1);
+	margin-bottom: var(--space-1);
+	min-width: 0;
+}
+
+.fp__card-name {
+	font-size: var(--font-size-xs);
+	font-weight: 600;
+	color: var(--brand-text);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.fp__tag {
+	flex: none;
+	margin-left: auto;
+	padding: 0 var(--space-1);
+	border-radius: var(--radius-sm);
+	background: color-mix(in srgb, var(--brand-text) 8%, transparent);
+	color: var(--brand-text-muted);
+	font-size: var(--font-size-xs);
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	white-space: nowrap;
+
+	&--new {
+		background: color-mix(in srgb, var(--bs-primary) 12%, transparent);
+		color: var(--bs-primary);
+	}
+}
+
+// Three figures across the foot of every card. A definition list because that is what they
+// are — a label and its value — and it gives screen readers the pairing the layout implies.
+.fp__card-foot {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-1) var(--space-4);
+	margin: var(--space-1) 0 0;
+	font-size: var(--font-size-xs);
+	color: var(--brand-text-muted);
+}
+
+.fp__figure {
+	min-width: 0;
+
+	dt {
+		font-weight: 400;
+		white-space: nowrap;
+	}
+
+	dd {
+		margin: 0;
+		font-weight: 600;
+		color: var(--brand-text);
+		font-variant-numeric: tabular-nums;
+	}
+}
+
+.fp__card-now {
+	font-weight: 700 !important;
+	color: var(--bs-primary) !important;
+}
+
+.fp__foot {
+	margin: var(--space-4) 0 0;
+	padding-top: var(--space-3);
+	border-top: 1px solid var(--bs-border-color);
+	font-size: var(--font-size-xs);
+	color: var(--brand-text-muted);
+	line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+	.fp__card {
+		transition: none !important;
+	}
+}

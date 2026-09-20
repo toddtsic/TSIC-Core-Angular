@@ -358,6 +358,12 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
         return await _widgetRepo.GetYearOverYearAsync(jobId, ct);
     }
 
+    public async Task<FeederPaceDto> GetFeederPaceAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        return await _widgetRepo.GetFeederPaceAsync(jobId, ct);
+    }
+
     /// <summary>
     /// Internal record for holding merged widget data before grouping.
     /// Uses 'with' expressions for Layer 3 user overrides.

@@ -320,6 +320,9 @@ export type { FamilyRegistrationRequest } from './models/FamilyRegistrationReque
 export type { FamilyRegistrationResponse } from './models/FamilyRegistrationResponse';
 export type { FamilyUpdateRequest } from './models/FamilyUpdateRequest';
 export type { FamilyUserSummaryDto } from './models/FamilyUserSummaryDto';
+export type { FeederPaceDto } from './models/FeederPaceDto';
+export type { FeederPaceSeasonDto } from './models/FeederPaceSeasonDto';
+export type { FeederPaceSiteDto } from './models/FeederPaceSiteDto';
 export type { FeeModifierDto } from './models/FeeModifierDto';
 export type { FeeModifierShiftDto } from './models/FeeModifierShiftDto';
 export type { FieldCondition } from './models/FieldCondition';
