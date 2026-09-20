@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
-import { derivePhase, startOfDay } from '@shared/landing/landing-phase';
+import { derivePhase } from '@shared/landing/landing-phase';
 
 interface StatusView {
 	icon: string;
@@ -14,15 +14,30 @@ interface StatusView {
 }
 
 /**
- * Event Status — the smart bulletin for the lifecycle "dead zones" the action
- * panels leave bare: registration not open yet (`planned`), nothing/closed
- * (`preview`), and finished (`concluded`). It speaks the current phase in plain
- * language so a job between states (e.g. registration closed but the schedule not
- * yet published) never shows an empty page.
+ * Event Status — the smart bulletin for the one lifecycle state no action panel
+ * covers: `concluded`. It reports a FACT the server has already decided
+ * (pulse.eventConcluded) and carries the final-standings link.
  *
- * Self-hides in the action phases (inSeason/preEvent/registrationOpen) — there the
- * Game-Day / Registration panels own the page. `superseded` is handled separately
- * (the landing redirects to the live later-year event).
+ * It deliberately says NOTHING about an event that has not started yet. The
+ * forward-looking copy that used to live here ("Registration is coming soon",
+ * "This event is coming soon") was removed 2026-09-20: it reported the system's
+ * GUESS at a director's intentions, not a status. Three problems with it —
+ *   1. it fired on the player profile merely EXISTING with the switch off, so a
+ *      director mid-setup was advertised without ever asking to be;
+ *   2. it said the unqualified word "Registration" while firing on player,
+ *      coach, referee and recruiter signals alike — and never on club-rep/team
+ *      registration, which has no date signal at all;
+ *   3. there was no way to turn it off. The only per-job lever was the team
+ *      Effectiveasofdate, which drives the wizard's available-teams list and is
+ *      per-team — unusable as a display switch.
+ * A director who wants to tease an upcoming event authors a bulletin and
+ * conditions it on `playerRegistrationPlanned` / `adultRegistrationPlanned`
+ * (both are bulletin condition keys already), which self-hides the moment they
+ * open registration. Intent belongs to the person who holds it.
+ *
+ * Self-hides in every other phase — the Game-Day / Registration panels own those,
+ * and a site with nothing configured correctly shows no band at all. `superseded`
+ * is handled separately (the landing redirects to the live later-year event).
  */
 @Component({
 	selector: 'app-event-status',
@@ -47,24 +62,6 @@ export class EventStatusComponent {
 		const p = this.pulse();
 		if (!p) return null;
 		switch (derivePhase(p, new Date())) {
-			case 'planned': {
-				const when = this.formatOpens(p.playerRegOpensSoonest);
-				return {
-					icon: 'bi-hourglass-split',
-					headline: when ? `Registration opens ${when}` : 'Registration is coming soon',
-					sub: 'Check back to sign up — this page updates the moment it opens.',
-				};
-			}
-			case 'preview': {
-				// "Closed" (a registration window that has elapsed, or a suspended page)
-				// reads differently from "not configured yet". The event-over case is no longer
-				// tested here — that's the server's eventConcluded bit (→ the 'concluded' phase
-				// above), so this only distinguishes a closed team reg-window from "coming soon".
-				const closed = p.publicSuspended || this.isPast(p.playerRegClosesSoonest);
-				return closed
-					? { icon: 'bi-lock', headline: 'Registration is closed', sub: 'This event isn’t currently accepting new registrations.' }
-					: { icon: 'bi-hourglass', headline: 'This event is coming soon', sub: 'Details will appear here as they’re announced.' };
-			}
 			case 'concluded': {
 				// The standings link rides IN this card — the Game-Day panel is suppressed once
 				// concluded (it had already shed its sub-line and both app-store columns there,
@@ -80,25 +77,7 @@ export class EventStatusComponent {
 				};
 			}
 			default:
-				return null; // action phases — the panels own the page
+				return null; // every other phase — the panels own the page, or nothing does
 		}
 	});
-
-	/** Day-granularity phrasing ("today" / "tomorrow" / "in N days" / "on Mon D, YYYY"). */
-	private formatOpens(iso?: string | null): string | null {
-		if (!iso) return null;
-		const t = new Date(iso);
-		if (Number.isNaN(t.getTime())) return null;
-		const days = Math.round((startOfDay(t).getTime() - startOfDay(new Date()).getTime()) / 86_400_000);
-		if (days <= 0) return 'today';
-		if (days === 1) return 'tomorrow';
-		if (days <= 21) return `in ${days} days`;
-		return `on ${new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(t)}`;
-	}
-
-	private isPast(iso?: string | null): boolean {
-		if (!iso) return false;
-		const t = new Date(iso);
-		return !Number.isNaN(t.getTime()) && startOfDay(t).getTime() < startOfDay(new Date()).getTime();
-	}
 }

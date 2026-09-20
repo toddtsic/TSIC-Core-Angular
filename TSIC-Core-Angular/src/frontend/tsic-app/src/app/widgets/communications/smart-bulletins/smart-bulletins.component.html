@@ -11,11 +11,11 @@
 
 		<div id="sb-panels" class="sb__panels">
 
-			<!-- Event Status — the lifecycle headline for the non-action phases (planned /
-			     preview / concluded). Self-hides in the action phases, where Game-Day leads.
-			     In the CONCLUDED phase it is the whole story: it carries the final-standings
-			     link itself (standingsLink) and the Game-Day panel below stands down, so a
-			     finished event renders ONE card instead of two flag-icon cards stacked. -->
+			<!-- Event Status — CONCLUDED only. It is then the whole story: it carries the
+			     final-standings link itself (standingsLink) and the Game-Day panel below
+			     stands down, so a finished event renders ONE card instead of two flag-icon
+			     cards stacked. It says nothing about an event that hasn't started — the
+			     "coming soon" copy was deleted 2026-09-20. -->
 			@if (showEventStatus()) {
 				<app-event-status [standingsLink]="standingsLink()" />
 			}

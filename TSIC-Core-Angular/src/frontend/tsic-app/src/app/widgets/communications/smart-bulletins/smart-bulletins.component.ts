@@ -166,13 +166,13 @@ export class SmartBulletinsComponent {
 	// Registration panel again (showRosters there). The showRegistration gate above counts
 	// rosters, so the panel still mounts (and rosters still shows) when nothing else does.
 
-	// Event Status fills the lifecycle "dead zones" the action panels leave bare —
-	// registration not open yet, nothing/closed, or finished. The component self-hides
-	// in the action phases; this gate mirrors it for hasContent.
-	protected readonly showEventStatus = computed(() => {
-		const phase = this.phase();
-		return phase === 'planned' || phase === 'preview' || phase === 'concluded';
-	});
+	// Event Status speaks for ONE phase: concluded. It must stay in lockstep with the
+	// component's own `view()` switch — this gate also feeds hasContent, so a phase listed
+	// here that the component renders nothing for leaves an empty band on the page.
+	// The planned/preview "coming soon" copy was deleted 2026-09-20 (see the component's
+	// header for why); a site that is not open, scheduled or concluded now shows the
+	// director's own bulletins and no smart band at all, which is the intent.
+	protected readonly showEventStatus = computed(() => this.phase() === 'concluded');
 
 	/** The band self-hides when no smart section has content. */
 	protected readonly hasContent = computed(() =>
