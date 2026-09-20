@@ -155,6 +155,10 @@ public partial class AspNetUsers
 
     public virtual ICollection<Ftexts> Ftexts { get; set; } = new List<Ftexts>();
 
+    public virtual ICollection<InvitationRegistrations> InvitationRegistrations { get; set; } = new List<InvitationRegistrations>();
+
+    public virtual ICollection<Invitations> Invitations { get; set; } = new List<Invitations>();
+
     public virtual ICollection<JobAgeRanges> JobAgeRanges { get; set; } = new List<JobAgeRanges>();
 
     public virtual ICollection<JobControllers> JobControllers { get; set; } = new List<JobControllers>();

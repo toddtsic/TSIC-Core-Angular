@@ -92,6 +92,7 @@ public class PlayerCheckTests
             new Mock<TSIC.API.Services.Players.IPlayerRegConfirmationService>().Object,
             new Mock<IAdultRegistrationService>().Object,
             new Mock<TSIC.API.Services.Teams.ITeamRegistrationService>().Object,
+            new Mock<IInvitationRepository>().Object,
             logger.Object);
 
         return (svc, builder, ctx, job.JobId);

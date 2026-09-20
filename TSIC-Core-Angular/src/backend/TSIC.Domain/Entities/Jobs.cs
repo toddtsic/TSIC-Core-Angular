@@ -283,6 +283,10 @@ public partial class Jobs
 
     public virtual ICollection<GameClockParams> GameClockParams { get; set; } = new List<GameClockParams>();
 
+    public virtual ICollection<Invitations> InvitationsSourceJob { get; set; } = new List<Invitations>();
+
+    public virtual ICollection<Invitations> InvitationsTargetJob { get; set; } = new List<Invitations>();
+
     public virtual ICollection<JobAdminCharges> JobAdminCharges { get; set; } = new List<JobAdminCharges>();
 
     public virtual ICollection<JobAgeRanges> JobAgeRanges { get; set; } = new List<JobAgeRanges>();

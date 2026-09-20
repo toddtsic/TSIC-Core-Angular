@@ -166,6 +166,16 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<IdentityResources> IdentityResources { get; set; }
 
+    public virtual DbSet<InvitationOutcomes> InvitationOutcomes { get; set; }
+
+    public virtual DbSet<InvitationRegistrations> InvitationRegistrations { get; set; }
+
+    public virtual DbSet<Invitations> Invitations { get; set; }
+
+    public virtual DbSet<InviteKinds> InviteKinds { get; set; }
+
+    public virtual DbSet<InviteStatuses> InviteStatuses { get; set; }
+
     public virtual DbSet<IwlcaCapitalCup> IwlcaCapitalCup { get; set; }
 
     public virtual DbSet<IwlcaChampionsCup> IwlcaChampionsCup { get; set; }
@@ -2785,6 +2795,114 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.Description).HasMaxLength(1000);
             entity.Property(e => e.DisplayName).HasMaxLength(200);
             entity.Property(e => e.Name).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<InvitationOutcomes>(entity =>
+        {
+            entity.HasKey(e => e.InvitationOutcomeId);
+
+            entity.ToTable("InvitationOutcomes", "invites");
+
+            entity.Property(e => e.InvitationOutcomeId).ValueGeneratedNever();
+            entity.Property(e => e.InvitationOutcomeName).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<InvitationRegistrations>(entity =>
+        {
+            entity.HasKey(e => new { e.SourceRegistrationId, e.InvitationId });
+
+            entity.ToTable("InvitationRegistrations", "invites");
+
+            entity.HasIndex(e => e.InvitationId, "IX_InvitationRegistrations_InvitationId");
+
+            entity.HasIndex(e => e.LebUserId, "IX_InvitationRegistrations_LebUserId");
+
+            entity.HasIndex(e => e.InvitationOutcomeId, "IX_InvitationRegistrations_OutcomeId");
+
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getdate())", "DF_InvitationRegistrations_Modified")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Invitation).WithMany(p => p.InvitationRegistrations)
+                .HasForeignKey(d => d.InvitationId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_InvitationRegistrations_Invitations");
+
+            entity.HasOne(d => d.InvitationOutcome).WithMany(p => p.InvitationRegistrations)
+                .HasForeignKey(d => d.InvitationOutcomeId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_InvitationRegistrations_Outcomes");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.InvitationRegistrations)
+                .HasForeignKey(d => d.LebUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_InvitationRegistrations_LebUser");
+
+            entity.HasOne(d => d.SourceRegistration).WithMany(p => p.InvitationRegistrations)
+                .HasForeignKey(d => d.SourceRegistrationId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_InvitationRegistrations_SourceRegistration");
+        });
+
+        modelBuilder.Entity<Invitations>(entity =>
+        {
+            entity.HasKey(e => e.InvitationId);
+
+            entity.ToTable("Invitations", "invites");
+
+            entity.HasIndex(e => e.InviteKindId, "IX_Invitations_InviteKindId");
+
+            entity.HasIndex(e => e.LebUserId, "IX_Invitations_LebUserId");
+
+            entity.HasIndex(e => e.SourceJobId, "IX_Invitations_SourceJobId");
+
+            entity.HasIndex(e => e.TargetJobId, "IX_Invitations_TargetJobId");
+
+            entity.Property(e => e.InvitationId).HasDefaultValueSql("(newid())", "DF_Invitations_InvitationId");
+            entity.Property(e => e.ExpiresAt).HasColumnType("datetime");
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getdate())", "DF_Invitations_Modified")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.InviteKind).WithMany(p => p.Invitations)
+                .HasForeignKey(d => d.InviteKindId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Invitations_InviteKinds");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.Invitations)
+                .HasForeignKey(d => d.LebUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Invitations_LebUser");
+
+            entity.HasOne(d => d.SourceJob).WithMany(p => p.InvitationsSourceJob)
+                .HasForeignKey(d => d.SourceJobId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Invitations_SourceJob");
+
+            entity.HasOne(d => d.TargetJob).WithMany(p => p.InvitationsTargetJob)
+                .HasForeignKey(d => d.TargetJobId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Invitations_TargetJob");
+        });
+
+        modelBuilder.Entity<InviteKinds>(entity =>
+        {
+            entity.HasKey(e => e.InviteKindId);
+
+            entity.ToTable("InviteKinds", "invites");
+
+            entity.Property(e => e.InviteKindId).ValueGeneratedNever();
+            entity.Property(e => e.InviteKindName).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<InviteStatuses>(entity =>
+        {
+            entity.HasKey(e => e.InviteStatusId);
+
+            entity.ToTable("InviteStatuses", "invites");
+
+            entity.Property(e => e.InviteStatusId).ValueGeneratedNever();
+            entity.Property(e => e.InviteStatusName).HasMaxLength(50);
         });
 
         modelBuilder.Entity<IwlcaCapitalCup>(entity =>

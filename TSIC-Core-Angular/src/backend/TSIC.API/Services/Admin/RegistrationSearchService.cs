@@ -52,6 +52,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     private readonly IPlayerRegConfirmationService _playerConfirmation;
     private readonly IAdultRegistrationService _adultRegistration;
     private readonly ITeamRegistrationService _teamRegistration;
+    private readonly IInvitationRepository _invitationRepo;
     private readonly ILogger<RegistrationSearchService> _logger;
 
     // Known payment method GUIDs. CC charging itself goes through PaymentService's
@@ -66,7 +67,11 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     private const int MaxInviteExpiryHours = 72;
 
     private const string SchedulePreviewLinkToken = "!SCHEDULE_PREVIEW_LINK";
-    private static readonly string[] RegistrationInviteLinkTokens = ["!INVITE_LINK", "!CLUBREP_INVITE_LINK"];
+    private const string PlayerInviteLinkToken = "!INVITE_LINK";
+    private const string ClubRepInviteLinkToken = "!CLUBREP_INVITE_LINK";
+    // Order matters nowhere here, but note the '!' prefix is what keeps PlayerInviteLinkToken from
+    // matching inside ClubRepInviteLinkToken ("!CLUBREP_INVITE_LINK" does not contain "!INVITE_LINK").
+    private static readonly string[] RegistrationInviteLinkTokens = [PlayerInviteLinkToken, ClubRepInviteLinkToken];
     private static readonly string[] InviteLinkTokens = [.. RegistrationInviteLinkTokens, SchedulePreviewLinkToken];
 
     public RegistrationSearchService(
@@ -90,6 +95,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         IPlayerRegConfirmationService playerConfirmation,
         IAdultRegistrationService adultRegistration,
         ITeamRegistrationService teamRegistration,
+        IInvitationRepository invitationRepo,
         ILogger<RegistrationSearchService> logger)
     {
         _registrationRepo = registrationRepo;
@@ -112,6 +118,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         _playerConfirmation = playerConfirmation;
         _adultRegistration = adultRegistration;
         _teamRegistration = teamRegistration;
+        _invitationRepo = invitationRepo;
         _logger = logger;
     }
 
@@ -1223,6 +1230,57 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             subject.Contains("!F-", StringComparison.OrdinalIgnoreCase) ||
             body.Contains("!F-", StringComparison.OrdinalIgnoreCase);
 
+        // ── Invitation tracking ──────────────────────────────────────────────────────────────────
+        // Record the SEND, and only the send. Whether the invitation was taken up is never written:
+        // the search query infers that live from what currently exists in the target event. There is
+        // no "mark accepted" anywhere, by design — that is what makes a reused pending registration,
+        // a replaced registration, a dropped team or an unregistered rep incapable of going stale.
+        //
+        // Written BEFORE the batch starts. If the process dies mid-send the record still says who was
+        // invited; the reverse order would lose the audit for exactly the sends that went wrong.
+        Guid? invitationId = null;
+        Dictionary<string, List<Guid>>? failedAddressToRegIds = null;
+        if (request.InviteLinkTargetJobId.HasValue && inviteExpires.HasValue)
+        {
+            // Preview first: a preview send cannot also carry a registration token (refused above),
+            // so these three are mutually exclusive by the time we get here.
+            var kind =
+                TemplateUses(request, SchedulePreviewLinkToken) ? InviteKind.SchedulePreview
+                : TemplateUses(request, ClubRepInviteLinkToken) ? InviteKind.ClubRepRegistration
+                : InviteKind.PlayerRegistration;
+
+            // Outcome at send time comes from the SAME opt-out predicate the engine applies below
+            // (plan.IsOptedOut), so what we record cannot drift from who actually gets mailed.
+            var recipients = allItems
+                .Select(i => (i.RegistrationId,
+                              i.OptedOut ? InvitationOutcome.OptedOut : InvitationOutcome.Sent))
+                .ToList();
+
+            invitationId = await _invitationRepo.RecordSendAsync(
+                jobId, request.InviteLinkTargetJobId.Value, kind, subject, body,
+                inviteExpires.Value, userId, recipients, ct);
+
+            // The engine reports failures as ADDRESSES (and, for a recipient with no usable address,
+            // the DescribeItem label). Both are built here, so both can be mapped back to the
+            // registration they belong to when the batch finishes. One address can cover several
+            // registrations — a family mailbox — and a failure there failed all of them.
+            failedAddressToRegIds = new Dictionary<string, List<Guid>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in allItems)
+            {
+                if (item.OptedOut) continue; // never mailed, already recorded as Opted out
+
+                var keys = BatchEmailRecipientFilter.ResolveRecipients(
+                    item.RoleId, item.FamilyUserId, item.RegistrationId, emailByRegId, familyEmailsById);
+
+                foreach (var key in keys.Append($"(no email for RegistrationAi #{item.RegistrationAi})"))
+                {
+                    if (!failedAddressToRegIds.TryGetValue(key, out var regIds))
+                        failedAddressToRegIds[key] = regIds = [];
+                    regIds.Add(item.RegistrationId);
+                }
+            }
+        }
+
         var plan = new EmailBatchPlan<BatchEmailItem>
         {
             SeedAsync = (_, _) => Task.FromResult(new EmailBatchSeed<BatchEmailItem>
@@ -1276,8 +1334,38 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             // The sender's receipt, copied to the job's "always copy" list. Both blast surfaces reach
             // this plan (My Roster delegates here), which is exactly how legacy worked — its two mass-email
             // controllers shared one receipt. Capture plain data only; the hook runs on a fresh scope.
-            OnCompleteAsync = (status, sp, token) => BatchCompletionReceipt.SendAsync(
-                status, sp, jobId, replyToAddress, fromName, subject, body, token)
+            OnCompleteAsync = async (status, sp, token) =>
+            {
+                // Flip the recipients whose delivery failed from Sent to Failed. This is the ONLY
+                // write after the send, and it is still send-side bookkeeping — nothing about
+                // take-up is recorded here or anywhere else. Wrapped so a tracking hiccup can
+                // never cost the sender their receipt.
+                if (invitationId.HasValue && failedAddressToRegIds is { Count: > 0 } map
+                    && status.FailedAddresses.Count > 0)
+                {
+                    try
+                    {
+                        var failedRegIds = status.FailedAddresses
+                            .SelectMany(a => map.TryGetValue(a, out var regIds) ? regIds : [])
+                            .Distinct()
+                            .ToList();
+
+                        if (failedRegIds.Count > 0)
+                        {
+                            await sp.GetRequiredService<IInvitationRepository>()
+                                .MarkOutcomeAsync(invitationId.Value, failedRegIds, InvitationOutcome.Failed, token);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        sp.GetRequiredService<ILogger<RegistrationSearchService>>()
+                          .LogWarning(ex, "Invitation {InvitationId}: could not record send failures.", invitationId);
+                    }
+                }
+
+                await BatchCompletionReceipt.SendAsync(
+                    status, sp, jobId, replyToAddress, fromName, subject, body, token);
+            }
         };
 
         var simulating = request.SimulatedPerUnitDelayMs.HasValue;

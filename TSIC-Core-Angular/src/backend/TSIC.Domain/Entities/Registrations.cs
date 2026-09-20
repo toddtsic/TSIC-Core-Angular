@@ -291,6 +291,8 @@ public partial class Registrations
 
     public virtual Families? FamilyUser { get; set; }
 
+    public virtual ICollection<InvitationRegistrations> InvitationRegistrations { get; set; } = new List<InvitationRegistrations>();
+
     public virtual Jobs Job { get; set; } = null!;
 
     public virtual ICollection<JobMessages> JobMessages { get; set; } = new List<JobMessages>();

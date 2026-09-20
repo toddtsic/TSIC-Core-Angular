@@ -178,6 +178,7 @@ builder.Services.AddScoped<IJobCloneRepository, JobCloneRepository>();
 builder.Services.AddScoped<IDdlOptionsRepository, DdlOptionsRepository>();
 builder.Services.AddScoped<IReferenceDataRepository, ReferenceDataRepository>();
 builder.Services.AddScoped<IEmailLogRepository, EmailLogRepository>();
+builder.Services.AddScoped<IInvitationRepository, InvitationRepository>();
 builder.Services.AddScoped<IMobileScorerRepository, MobileScorerRepository>();
 builder.Services.AddScoped<IArbSubscriptionRepository, ArbSubscriptionRepository>();
 
