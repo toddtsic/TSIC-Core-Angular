@@ -8,7 +8,7 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 
 ---
 
-## 🔺 OPEN FOR TODD — as of 2026-09-18
+## 🔺 OPEN FOR TODD — as of 2026-09-20
 
 > Maintained at the top so nothing waiting on Todd is buried mid-file. **Delete a row the moment its item closes.** Parked/REVISIT items are not listed here *unless Todd owes a decision on one* (flagged as such below).
 
